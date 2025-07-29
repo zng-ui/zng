@@ -586,7 +586,7 @@ mod __prelude {
     pub use zng_app::widget::inspector::WidgetInfoInspectorExt as _;
 
     pub use zng_var::{
-        IntoValue, IntoVar, Var, VarValue, context_var, var, expr_var, var_from, var_getter, const_var, merge_var, var_state, when_var,
+        IntoValue, IntoVar, Var, VarValue, const_var, context_var, expr_var, merge_var, var, var_from, var_getter, var_state, when_var,
     };
 
     pub use crate::var::animation::easing;
@@ -785,8 +785,8 @@ mod __prelude_wgt {
     };
 
     pub use zng_var::{
-        ContextVar, IntoValue, IntoVar, ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarValue, context_var,
-        impl_from_and_into_var, response_done_var, response_var, var, expr_var, var_getter, const_var, merge_var, var_state, when_var,
+        ContextVar, IntoValue, IntoVar, ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarValue, const_var,
+        context_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, var, var_getter, var_state, when_var,
     };
 
     pub use zng_layout::{

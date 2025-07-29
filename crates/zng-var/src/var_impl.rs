@@ -6,38 +6,38 @@ use std::{
     sync::{Arc, atomic::AtomicBool},
 };
 
-use crate::{BoxedVarValueAny, VarAnyHookArgs, VarInstanceTag, VarUpdateId, VarValue, VarValueAny, animation::AnimationStopFn};
+use crate::{AnyVarHookArgs, AnyVarValue, BoxAnyVarValue, VarInstanceTag, VarUpdateId, VarValue, animation::AnimationStopFn};
 use bitflags::bitflags;
 use smallbox::{SmallBox, smallbox};
 
-pub(crate) mod shared;
-pub use shared::{var, var_any, var_getter, var_state};
+pub(crate) mod shared_var;
+pub use shared_var::{var, var_any, var_getter, var_state};
 
-pub(crate) mod clone_on_write;
-pub(crate) mod local;
-pub use local::IntoVar;
-pub(crate) mod flat_map;
-pub(crate) mod map_ref;
-pub(crate) mod map_ref_bidi;
-pub(crate) mod read_only;
+pub(crate) mod cow_var;
+pub(crate) mod const_var;
+pub use const_var::IntoVar;
+pub(crate) mod flat_map_var;
+pub(crate) mod map_ref_var;
+pub(crate) mod map_ref_bidi_var;
+pub(crate) mod read_only_var;
 
-pub(crate) mod contextual;
-pub use contextual::{ContextInitHandle, WeakContextInitHandle, contextual_var, any_contextual_var};
+pub(crate) mod contextual_var;
+pub use contextual_var::{ContextInitHandle, WeakContextInitHandle, any_contextual_var, contextual_var};
 
 pub(crate) mod context_var;
 pub use context_var::{__context_var_local, ContextVar, context_var_init};
 
-pub(crate) mod merge;
-pub use merge::{__merge_var, MergeInput, VarMergeBuilder, VarMergeInputs, merge_var, merge_var_input, merge_var_output, merge_var_with};
+pub(crate) mod merge_var;
+pub use merge_var::{__merge_var, MergeInput, VarMergeBuilder, VarMergeInputs, merge_var, merge_var_input, merge_var_output, merge_var_with};
 
 pub(crate) mod response_var;
 pub use response_var::{ResponderVar, Response, ResponseVar, response_done_var, response_var};
 
-pub(crate) mod when;
-pub use when::{__when_var, AnyWhenVarBuilder, WhenVarBuilder};
+pub(crate) mod when_var;
+pub use when_var::{__when_var, AnyWhenVarBuilder, WhenVarBuilder};
 
-pub(crate) mod expr;
-pub use expr::{__expr_var, expr_var_as, expr_var_into, expr_var_map};
+pub(crate) mod expr_var;
+pub use expr_var::{__expr_var, expr_var_as, expr_var_into, expr_var_map};
 
 pub(crate) trait VarImpl: Any + Send + Sync {
     fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2>;
@@ -49,12 +49,12 @@ pub(crate) trait VarImpl: Any + Send + Sync {
     fn var_instance_tag(&self) -> VarInstanceTag;
     fn downgrade(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2>;
     fn capabilities(&self) -> VarCapability;
-    fn with(&self, visitor: &mut dyn FnMut(&dyn VarValueAny));
-    fn get(&self) -> BoxedVarValueAny;
-    fn set(&self, new_value: BoxedVarValueAny) -> bool;
+    fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue));
+    fn get(&self) -> BoxAnyVarValue;
+    fn set(&self, new_value: BoxAnyVarValue) -> bool;
     fn update(&self) -> bool;
     fn modify(&self, modify: SmallBox<dyn FnMut(&mut VarModifyAny) + Send + 'static, smallbox::space::S4>) -> bool;
-    fn hook(&self, on_new: SmallBox<dyn FnMut(&VarAnyHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle;
+    fn hook(&self, on_new: SmallBox<dyn FnMut(&AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle;
     fn last_update(&self) -> VarUpdateId;
     fn modify_importance(&self) -> usize;
     fn is_animating(&self) -> bool;
@@ -84,7 +84,7 @@ impl std::error::Error for VarIsReadOnlyError {}
 bitflags! {
     /// Kinds of interactions allowed by a [`Var<T>`] in the current update.
     ///
-    /// You can get the current capabilities of a var by using the [`VarAny::capabilities`] method.
+    /// You can get the current capabilities of a var by using the [`AnyVar::capabilities`] method.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct VarCapability: u8 {
         /// Variable value can change.
@@ -97,12 +97,12 @@ bitflags! {
         ///
         /// If this is set [`Var::modify`] always returns `Ok`, if this is set `NEW` is also set.
         ///
-        /// Note that modify requests from inside overridden animations can still be ignored, see [`VarAny::modify_importance`].
+        /// Note that modify requests from inside overridden animations can still be ignored, see [`AnyVar::modify_importance`].
         const MODIFY = 0b0000_0011;
 
         /// Var capabilities can change.
         ///
-        /// Var capabilities can only change in between app updates, just like the var value, but [`VarAny::last_update`]
+        /// Var capabilities can only change in between app updates, just like the var value, but [`AnyVar::last_update`]
         /// may not change when capability changes.
         const CAPS_CHANGE = 0b1000_0000;
 
@@ -178,13 +178,13 @@ bitflags! {
 pub(crate) enum VarModifyAnyValue<'a> {
     /// Preferred way, SharedVar needs to provide this, other wrapper vars carefully use this to
     /// store state, like CowVar stores the source var here before the first write
-    Boxed(&'a mut BoxedVarValueAny),
+    Boxed(&'a mut BoxAnyVarValue),
     /// MapRefBidi needs this as it can only deref_mut to a reference inside the value.
-    RefOnly(&'a mut dyn VarValueAny),
+    RefOnly(&'a mut dyn AnyVarValue),
 }
 
 impl<'a> ops::Deref for VarModifyAnyValue<'a> {
-    type Target = dyn VarValueAny;
+    type Target = dyn AnyVarValue;
 
     fn deref(&self) -> &Self::Target {
         match self {
@@ -208,14 +208,14 @@ impl<'a> ops::DerefMut for VarModifyAnyValue<'a> {
 pub struct VarModifyAny<'a> {
     pub(crate) value: VarModifyAnyValue<'a>,
     pub(crate) update: VarModifyUpdate,
-    pub(crate) tags: Vec<BoxedVarValueAny>,
+    pub(crate) tags: Vec<BoxAnyVarValue>,
     pub(crate) custom_importance: Option<usize>,
 }
 impl<'a> VarModifyAny<'a> {
     /// Replace the value if not equal.
     ///
     /// Note that you can also deref_mut to modify the value.
-    pub fn set(&mut self, mut new_value: BoxedVarValueAny) -> bool {
+    pub fn set(&mut self, mut new_value: BoxAnyVarValue) -> bool {
         if *self.value != *new_value {
             assert!(
                 self.value.try_swap(&mut *new_value),
@@ -237,16 +237,16 @@ impl<'a> VarModifyAny<'a> {
     ///
     /// The tags where set by previous modify closures or this one during this update cycle, so
     /// tags can also be used to communicate between modify closures.
-    pub fn tags(&self) -> &[BoxedVarValueAny] {
+    pub fn tags(&self) -> &[BoxAnyVarValue] {
         &self.tags
     }
 
     /// Add a custom tag object that will be shared with the var hooks if the value updates.
-    pub fn push_tag(&mut self, tag: impl VarValueAny) {
-        self.tags.push(BoxedVarValueAny::new(tag));
+    pub fn push_tag(&mut self, tag: impl AnyVarValue) {
+        self.tags.push(BoxAnyVarValue::new(tag));
     }
 
-    /// Sets a custom [`VarAny::modify_importance`] value.
+    /// Sets a custom [`AnyVar::modify_importance`] value.
     ///
     /// Note that the modify info is already automatically set, using a custom value here
     /// can easily break all future modify requests for this variable. The importance is set even if the
@@ -270,7 +270,7 @@ impl<'a> VarModifyAny<'a> {
     /// Immutable reference to the value.
     ///
     /// Note that you can also simply deref to the value.
-    pub fn value(&self) -> &dyn VarValueAny {
+    pub fn value(&self) -> &dyn AnyVarValue {
         &**self
     }
 
@@ -279,12 +279,12 @@ impl<'a> VarModifyAny<'a> {
     /// Getting a mutable reference to the value flags the variable to notify update.
     ///
     /// Note that you can also simply deref to the value.
-    pub fn value_mut(&mut self) -> &mut dyn VarValueAny {
+    pub fn value_mut(&mut self) -> &mut dyn AnyVarValue {
         &mut **self
     }
 }
 impl<'a> ops::Deref for VarModifyAny<'a> {
-    type Target = dyn VarValueAny;
+    type Target = dyn AnyVarValue;
 
     fn deref(&self) -> &Self::Target {
         self.value.deref()
@@ -327,16 +327,16 @@ impl<'s, 'a, T: VarValue> VarModify<'s, 'a, T> {
     ///
     /// The tags where set by previous modify closures or this one during this update cycle, so
     /// tags can also be used to communicate between modify closures.
-    pub fn tags(&self) -> &[BoxedVarValueAny] {
+    pub fn tags(&self) -> &[BoxAnyVarValue] {
         self.inner.tags()
     }
 
     /// Add a custom tag object that will be shared with the var hooks if the value updates.
-    pub fn push_tag(&mut self, tag: impl VarValueAny) {
+    pub fn push_tag(&mut self, tag: impl AnyVarValue) {
         self.inner.push_tag(tag);
     }
 
-    /// Sets a custom [`VarAny::modify_importance`] value.
+    /// Sets a custom [`AnyVar::modify_importance`] value.
     ///
     /// Note that the modify info is already automatically set, using a custom value here
     /// can easily break all future modify requests for this variable. The importance is set even if the

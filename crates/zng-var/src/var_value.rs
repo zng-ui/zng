@@ -2,24 +2,24 @@ use std::{any::Any, fmt, ops, sync::Arc};
 
 use smallbox::*;
 
-/// Small box for [`VarValueAny`] values.
-pub struct BoxedVarValueAny(SmallBox<dyn VarValueAny, space::S4>);
-impl ops::Deref for BoxedVarValueAny {
-    type Target = dyn VarValueAny;
+/// Small box for [`AnyVarValue`] values.
+pub struct BoxAnyVarValue(SmallBox<dyn AnyVarValue, space::S4>);
+impl ops::Deref for BoxAnyVarValue {
+    type Target = dyn AnyVarValue;
 
     fn deref(&self) -> &Self::Target {
         &*self.0
     }
 }
-impl ops::DerefMut for BoxedVarValueAny {
+impl ops::DerefMut for BoxAnyVarValue {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut *self.0
     }
 }
-impl BoxedVarValueAny {
+impl BoxAnyVarValue {
     /// Box `value`.
-    pub fn new(value: impl VarValueAny) -> Self {
-        BoxedVarValueAny(smallbox!(value))
+    pub fn new(value: impl AnyVarValue) -> Self {
+        BoxAnyVarValue(smallbox!(value))
     }
 
     /// Downcast to value.
@@ -31,17 +31,17 @@ impl BoxedVarValueAny {
         }
     }
 }
-impl Clone for BoxedVarValueAny {
+impl Clone for BoxAnyVarValue {
     fn clone(&self) -> Self {
         self.0.clone_boxed()
     }
 }
-impl fmt::Debug for BoxedVarValueAny {
+impl fmt::Debug for BoxAnyVarValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&*self.0, f)
     }
 }
-impl PartialEq for BoxedVarValueAny {
+impl PartialEq for BoxAnyVarValue {
     fn eq(&self, other: &Self) -> bool {
         self.eq_any(&*other.0)
     }
@@ -55,19 +55,19 @@ impl PartialEq for BoxedVarValueAny {
 /// already implemented for all types it can apply to.
 ///
 /// See [`VarValue<T>`] for more details.
-pub trait VarValueAny: fmt::Debug + Any + Send + Sync {
+pub trait AnyVarValue: fmt::Debug + Any + Send + Sync {
     /// Clone the value.
-    fn clone_boxed(&self) -> BoxedVarValueAny;
+    fn clone_boxed(&self) -> BoxAnyVarValue;
     /// Gets if `self` and `other` are equal.
-    fn eq_any(&self, other: &dyn VarValueAny) -> bool;
+    fn eq_any(&self, other: &dyn AnyVarValue) -> bool;
     /// Value type name.
     #[cfg(feature = "value_type_name")]
     fn type_name(&self) -> &'static str;
 
     /// Swap value with `other` if both are of the same type.
-    fn try_swap(&mut self, other: &mut dyn VarValueAny) -> bool;
+    fn try_swap(&mut self, other: &mut dyn AnyVarValue) -> bool;
 }
-impl dyn VarValueAny {
+impl dyn AnyVarValue {
     /// Returns some reference to the inner value if it is of type `T`, or
     /// `None` if it isn't.
     pub fn downcast_ref<T: VarValue>(&self) -> Option<&T> {
@@ -88,20 +88,20 @@ impl dyn VarValueAny {
         any.is::<T>()
     }
 }
-impl PartialEq for dyn VarValueAny {
+impl PartialEq for dyn AnyVarValue {
     fn eq(&self, other: &Self) -> bool {
         self.eq_any(other)
     }
 }
-impl<T> VarValueAny for T
+impl<T> AnyVarValue for T
 where
     T: fmt::Debug + PartialEq + Clone + Any + Send + Sync,
 {
-    fn clone_boxed(&self) -> BoxedVarValueAny {
-        BoxedVarValueAny::new(self.clone())
+    fn clone_boxed(&self) -> BoxAnyVarValue {
+        BoxAnyVarValue::new(self.clone())
     }
 
-    fn eq_any(&self, other: &dyn VarValueAny) -> bool {
+    fn eq_any(&self, other: &dyn AnyVarValue) -> bool {
         match other.downcast_ref::<T>() {
             Some(o) => self == o,
             None => false,
@@ -113,7 +113,7 @@ where
         std::any::type_name::<T>()
     }
 
-    fn try_swap(&mut self, other: &mut dyn VarValueAny) -> bool {
+    fn try_swap(&mut self, other: &mut dyn AnyVarValue) -> bool {
         if let Some(other) = other.downcast_mut::<T>() {
             std::mem::swap(self, other);
             return true;
@@ -141,8 +141,8 @@ where
 /// If you want to use another variable as value use the !!: TODO
 ///
 /// [`Var<T>`]: crate::Var
-pub trait VarValue: VarValueAny + Clone + PartialEq {}
-impl<T: VarValueAny + Clone + PartialEq> VarValue for T {}
+pub trait VarValue: AnyVarValue + Clone + PartialEq {}
+impl<T: AnyVarValue + Clone + PartialEq> VarValue for T {}
 
 /// Arc value that implements equality by pointer comparison.
 ///

@@ -2,10 +2,10 @@
 
 * **Breaking** refactor `zng::var` API.
     
-    Unified var types to new `Var<T>` and `VarAny` structs. Variables still behave the same 
+    Unified var types to new `Var<T>` and `AnyVar` structs. Variables still behave the same 
     and everything that could be done before can still be done with the new API. The main motivation
-    for this refactor is the reduction of generics code bloat, but since a breaking change is already happening
-    some poorly named methods and functions where renamed as well.
+    for this refactor is the reduction of generics code bloat, and since a breaking change is already happening
+    some poorly named methods and functions where also renamed.
 
     To migrate:
 

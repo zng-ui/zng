@@ -12,23 +12,24 @@ use zng_clone_move::clmv;
 use zng_txt::{Txt, formatx};
 
 use crate::{
-    BoxedVarValueAny, VARS, Var, VarCapability, VarHandle, VarHandles, VarImpl, VarIsReadOnlyError, VarModifyAny, VarUpdateId, VarValue,
-    VarValueAny, WeakVarImpl,
+    AnyVarValue, BoxAnyVarValue, VARS, Var, VarCapability, VarHandle, VarHandles, VarImpl, VarIsReadOnlyError, VarModifyAny, VarUpdateId,
+    VarValue, WeakVarImpl,
     animation::{Animation, AnimationController, AnimationHandle, AnimationStopFn},
     any_contextual_var,
 };
 
 /// Variable of any type.
-pub struct VarAny(pub(crate) SmallBox<dyn VarImpl, smallbox::space::S2>);
-impl Clone for VarAny {
+pub struct AnyVar(pub(crate) SmallBox<dyn VarImpl, smallbox::space::S2>);
+impl Clone for AnyVar {
     fn clone(&self) -> Self {
         Self(self.0.clone_boxed())
     }
 }
 /// Value.
-impl VarAny {
+impl AnyVar {
     /// Visit a reference to the current value.
-    pub fn with<O>(&self, visitor: impl FnOnce(&dyn VarValueAny) -> O) -> O { // TODO try a ArcWap based read
+    pub fn with<O>(&self, visitor: impl FnOnce(&dyn AnyVarValue) -> O) -> O {
+        // !!: TODO try a ArcWap based read
         let mut once = Some(visitor);
         let mut output = None;
         self.0.with(&mut |v| {
@@ -38,7 +39,7 @@ impl VarAny {
     }
 
     /// Get a clone of the current value.
-    pub fn get(&self) -> BoxedVarValueAny {
+    pub fn get(&self) -> BoxAnyVarValue {
         self.0.get()
     }
 
@@ -64,21 +65,21 @@ impl VarAny {
     /// Gets a clone of the current value if it [`is_new`].
     ///
     /// [`is_new`]: Self::is_new
-    pub fn get_new(&self) -> Option<BoxedVarValueAny> {
+    pub fn get_new(&self) -> Option<BoxAnyVarValue> {
         if self.is_new() { Some(self.get()) } else { None }
     }
 
     /// Visit a reference to the current value if it [`is_new`].
     ///
     /// [`is_new`]: Self::is_new
-    pub fn with_new<O>(&self, visitor: impl FnOnce(&dyn VarValueAny) -> O) -> Option<O> {
+    pub fn with_new<O>(&self, visitor: impl FnOnce(&dyn AnyVarValue) -> O) -> Option<O> {
         if self.is_new() { Some(self.with(visitor)) } else { None }
     }
 
     /// Schedule `new_value` to be assigned next update, if the variable is not read-only.
     ///
     /// Panics if the value type does not match.
-    pub fn try_set(&self, new_value: BoxedVarValueAny) -> Result<(), VarIsReadOnlyError> {
+    pub fn try_set(&self, new_value: BoxAnyVarValue) -> Result<(), VarIsReadOnlyError> {
         assert_eq!(new_value.type_id(), self.value_type());
         self.handle_modify(self.0.set(new_value))
     }
@@ -89,7 +90,7 @@ impl VarAny {
     /// Use [`try_set`] to get an error for read-only vars.
     ///
     /// [`try_set`]: Self::try_set
-    pub fn set(&self, new_value: BoxedVarValueAny) {
+    pub fn set(&self, new_value: BoxAnyVarValue) {
         trace_debug_error!(self.try_set(new_value))
     }
 
@@ -123,7 +124,7 @@ impl VarAny {
 
             #[cfg(debug_assertions)]
             if !value.update.is_empty() {
-                assert_eq!((&*value.value as &dyn Any).type_id(), type_id, "VarAny::modify changed value type");
+                assert_eq!((&*value.value as &dyn Any).type_id(), type_id, "AnyVar::modify changed value type");
             }
         };
 
@@ -146,7 +147,7 @@ impl VarAny {
     /// value of `other`, so if the other var has already scheduled an update, the updated value will be used.
     ///  
     /// This can be used just before creating a binding to start with synchronized values.
-    pub fn try_set_from(&self, other: &VarAny) -> Result<(), VarIsReadOnlyError> {
+    pub fn try_set_from(&self, other: &AnyVar) -> Result<(), VarIsReadOnlyError> {
         if other.capabilities().is_const() {
             self.try_set(other.get())
         } else if self.capabilities().is_read_only() {
@@ -181,7 +182,7 @@ impl VarAny {
     /// Use [`try_set_from`] to get an error for read-only vars.
     ///
     /// [`try_set_from`]: Self::try_set_from
-    pub fn set_from(&self, other: &VarAny) {
+    pub fn set_from(&self, other: &AnyVar) {
         trace_debug_error!(self.try_set_from(other))
     }
 
@@ -190,8 +191,8 @@ impl VarAny {
     /// [`try_set_from`]: Self::try_set_from
     pub fn try_set_from_map(
         &self,
-        other: &VarAny,
-        map: impl FnOnce(&dyn VarValueAny) -> BoxedVarValueAny + Send + 'static,
+        other: &AnyVar,
+        map: impl FnOnce(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
     ) -> Result<(), VarIsReadOnlyError> {
         if other.capabilities().is_const() {
             self.try_set(other.get())
@@ -222,7 +223,7 @@ impl VarAny {
     ///
     /// [`try_set_from_map`]: Self::try_set_from_map
     /// [`set_from`]: Self::set_from
-    pub fn set_from_map(&self, other: &VarAny, map: impl FnOnce(&dyn VarValueAny) -> BoxedVarValueAny + Send + 'static) {
+    pub fn set_from_map(&self, other: &AnyVar, map: impl FnOnce(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static) {
         trace_debug_error!(self.try_set_from_map(other, map))
     }
 
@@ -234,13 +235,13 @@ impl VarAny {
     ///
     /// The variable store a weak reference to the callback if it has the `MODIFY` or `CAPS_CHANGE` capabilities, otherwise
     /// the callback is discarded and [`VarHandle::dummy`] returned.
-    pub fn hook(&self, on_update: impl FnMut(&VarAnyHookArgs) -> bool + Send + 'static) -> VarHandle {
+    pub fn hook(&self, on_update: impl FnMut(&AnyVarHookArgs) -> bool + Send + 'static) -> VarHandle {
         self.0.hook(smallbox!(on_update))
     }
 
     ///Awaits for a value that passes the `predicate`, including the current value.
     #[allow(clippy::manual_async_fn)] // false positive, async fn futures are not Send + Sync
-    pub fn wait_match(&self, predicate: impl Fn(&dyn VarValueAny) -> bool + Send + Sync) -> impl Future<Output = ()> + Send + Sync {
+    pub fn wait_match(&self, predicate: impl Fn(&dyn AnyVarValue) -> bool + Send + Sync) -> impl Future<Output = ()> + Send + Sync {
         async move {
             while !self.with(&predicate) {
                 let future = self.wait_update();
@@ -256,7 +257,7 @@ impl VarAny {
     ///
     /// [`get`]: Self::get
     #[allow(clippy::manual_async_fn)] // false positive, async fn futures are not Send + Sync
-    pub fn wait_next(&self) -> impl Future<Output = BoxedVarValueAny> + Send + Sync {
+    pub fn wait_next(&self) -> impl Future<Output = BoxAnyVarValue> + Send + Sync {
         async {
             self.wait_update().await;
             self.get()
@@ -295,9 +296,9 @@ impl VarAny {
     /// See [`trace_value`] for more details.
     ///
     /// [`trace_value`]: Var::trace_value
-    pub fn trace_value<S: Send + 'static>(&self, mut enter_value: impl FnMut(&VarAnyHookArgs) -> S + Send + 'static) -> VarHandle {
+    pub fn trace_value<S: Send + 'static>(&self, mut enter_value: impl FnMut(&AnyVarHookArgs) -> S + Send + 'static) -> VarHandle {
         let span = self.with(|v| {
-            enter_value(&VarAnyHookArgs {
+            enter_value(&AnyVarHookArgs {
                 value: v,
                 update: false,
                 tags: &[],
@@ -319,7 +320,7 @@ impl VarAny {
     }
 }
 /// Value mapping.
-impl VarAny {
+impl AnyVar {
     /// Create a mapping variable from any to any.
     ///
     /// The mapping variable type is defined by the first call to `map`,
@@ -328,7 +329,7 @@ impl VarAny {
     /// See [`map`] for more details about mapping variables.
     ///
     /// [`map`]: Var::map
-    pub fn map_any(&self, map: impl FnMut(&dyn VarValueAny) -> BoxedVarValueAny + Send + 'static) -> VarAny {
+    pub fn map_any(&self, map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static) -> AnyVar {
         let caps = self.capabilities();
 
         if caps.is_contextual() {
@@ -339,9 +340,9 @@ impl VarAny {
         self.map_any_tail(map, caps)
     }
     // to avoid infinite closure type (contextual case)
-    fn map_any_tail(&self, mut map: impl FnMut(&dyn VarValueAny) -> BoxedVarValueAny + Send + 'static, caps: VarCapability) -> VarAny {
+    fn map_any_tail(&self, mut map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static, caps: VarCapability) -> AnyVar {
         let mut init_value = None;
-        self.with(&mut |v: &dyn VarValueAny| init_value = Some(map(v)));
+        self.with(&mut |v: &dyn AnyVarValue| init_value = Some(map(v)));
         let init_value = init_value.unwrap();
 
         if caps.is_const() {
@@ -360,9 +361,9 @@ impl VarAny {
     /// See [`map_ref`] for more details about mapping variables.
     ///
     /// [`map_ref`]: Var::map_ref
-    pub fn map_ref_any(&self, deref: impl Fn(&dyn VarValueAny) -> &(dyn VarValueAny) + Send + Sync + 'static) -> VarAny {
-        let mapping = crate::var_impl::map_ref::MapRefVar::new(self.clone(), smallbox!(deref));
-        VarAny(smallbox!(mapping))
+    pub fn map_ref_any(&self, deref: impl Fn(&dyn AnyVarValue) -> &(dyn AnyVarValue) + Send + Sync + 'static) -> AnyVar {
+        let mapping = crate::var_impl::map_ref_var::MapRefVar::new(self.clone(), smallbox!(deref));
+        AnyVar(smallbox!(mapping))
     }
 
     /// Create a strongly typed mapping variable.
@@ -372,8 +373,8 @@ impl VarAny {
     /// See [`map`] for more details about mapping variables.
     ///
     /// [`map`]: Var::map
-    pub fn map<O: VarValue>(&self, mut map: impl FnMut(&dyn VarValueAny) -> O + Send + 'static) -> Var<O> {
-        let mapping = self.map_any(move |v| BoxedVarValueAny::new(map(v)));
+    pub fn map<O: VarValue>(&self, mut map: impl FnMut(&dyn AnyVarValue) -> O + Send + 'static) -> Var<O> {
+        let mapping = self.map_any(move |v| BoxAnyVarValue::new(map(v)));
         Var::new_any(mapping)
     }
 
@@ -384,7 +385,7 @@ impl VarAny {
     /// See [`map_ref`] for more details about mapping variables.
     ///
     /// [`map_ref`]: Var::map_ref
-    pub fn map_ref<O: VarValue>(&self, deref: impl Fn(&dyn VarValueAny) -> &O + Send + Sync + 'static) -> Var<O> {
+    pub fn map_ref<O: VarValue>(&self, deref: impl Fn(&dyn AnyVarValue) -> &O + Send + Sync + 'static) -> Var<O> {
         let mapping = self.map_ref_any(move |v| deref(v));
         Var::new_any(mapping)
     }
@@ -413,9 +414,9 @@ impl VarAny {
     /// [`filter_map`]: Var::filter_map
     pub fn filter_map_any(
         &self,
-        map: impl FnMut(&dyn VarValueAny) -> Option<BoxedVarValueAny> + Send + 'static,
-        fallback_init: impl Fn() -> BoxedVarValueAny + Send + 'static,
-    ) -> VarAny {
+        map: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
+        fallback_init: impl Fn() -> BoxAnyVarValue + Send + 'static,
+    ) -> AnyVar {
         let caps = self.capabilities();
 
         if caps.is_contextual() {
@@ -431,12 +432,12 @@ impl VarAny {
     // to avoid infinite closure type (contextual case)
     fn filter_map_any_tail(
         &self,
-        mut map: impl FnMut(&dyn VarValueAny) -> Option<BoxedVarValueAny> + Send + 'static,
-        fallback_init: impl Fn() -> BoxedVarValueAny + Send + 'static,
+        mut map: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
+        fallback_init: impl Fn() -> BoxAnyVarValue + Send + 'static,
         caps: VarCapability,
-    ) -> VarAny {
+    ) -> AnyVar {
         let mut init_value = None;
-        self.with(&mut |v: &dyn VarValueAny| init_value = map(v));
+        self.with(&mut |v: &dyn AnyVarValue| init_value = map(v));
         let init_value = match init_value {
             Some(v) => v,
             None => fallback_init(),
@@ -478,9 +479,9 @@ impl VarAny {
     /// [`filter_ref`]: Var::filter_ref
     pub fn filter_ref_any(
         &self,
-        deref: impl Fn(&dyn VarValueAny) -> Option<&dyn VarValueAny> + Send + Sync + 'static,
-        fallback_ref: &'static dyn VarValueAny,
-    ) -> VarAny {
+        deref: impl Fn(&dyn AnyVarValue) -> Option<&dyn AnyVarValue> + Send + Sync + 'static,
+        fallback_ref: &'static dyn AnyVarValue,
+    ) -> AnyVar {
         self.map_ref_any(move |v| deref(v).unwrap_or(fallback_ref))
     }
 
@@ -495,12 +496,12 @@ impl VarAny {
     /// [`filter_map`]: Var::filter_map
     pub fn filter_map<O: VarValue>(
         &self,
-        mut map: impl FnMut(&dyn VarValueAny) -> Option<O> + Send + 'static,
+        mut map: impl FnMut(&dyn AnyVarValue) -> Option<O> + Send + 'static,
         fallback_init: impl Fn() -> O + Send + 'static,
     ) -> Var<O> {
         let mapping = self.filter_map_any(
-            move |v| map(v).map(BoxedVarValueAny::new),
-            move || BoxedVarValueAny::new(fallback_init()),
+            move |v| map(v).map(BoxAnyVarValue::new),
+            move || BoxAnyVarValue::new(fallback_init()),
         );
         Var::new_any(mapping)
     }
@@ -514,7 +515,7 @@ impl VarAny {
     /// [`filter_ref`]: Var::filter_ref
     pub fn filter_ref<O: VarValue>(
         &self,
-        deref: impl Fn(&dyn VarValueAny) -> Option<&O> + Send + Sync + 'static,
+        deref: impl Fn(&dyn AnyVarValue) -> Option<&O> + Send + Sync + 'static,
         fallback_ref: &'static O,
     ) -> Var<O> {
         self.map_ref(move |v| deref(v).unwrap_or(fallback_ref))
@@ -533,9 +534,9 @@ impl VarAny {
     /// [`map_bidi`]: Var::map_bidi
     pub fn map_bidi_any(
         &self,
-        mut map: impl FnMut(&dyn VarValueAny) -> BoxedVarValueAny + Send + 'static,
-        map_back: impl FnMut(&dyn VarValueAny) -> BoxedVarValueAny + Send + 'static,
-    ) -> VarAny {
+        mut map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
+        map_back: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
+    ) -> AnyVar {
         let caps = self.capabilities();
 
         if caps.is_contextual() {
@@ -545,7 +546,7 @@ impl VarAny {
         }
 
         let mut init_value = None;
-        self.with(&mut |v: &dyn VarValueAny| init_value = Some(map(v)));
+        self.with(&mut |v: &dyn AnyVarValue| init_value = Some(map(v)));
         let init_value = init_value.unwrap();
 
         if caps.is_const() {
@@ -567,11 +568,11 @@ impl VarAny {
     /// [`map_ref_bidi`]: Var::map_ref_bidi
     pub fn map_ref_bidi_any(
         &self,
-        deref: impl Fn(&dyn VarValueAny) -> &(dyn VarValueAny) + Send + Sync + 'static,
-        deref_mut: impl Fn(&mut dyn VarValueAny) -> &mut (dyn VarValueAny) + Send + Sync + 'static,
-    ) -> VarAny {
-        let mapping = crate::var_impl::map_ref_bidi::MapBidiRefVar::new(self.clone(), smallbox!(deref), smallbox!(deref_mut));
-        VarAny(smallbox!(mapping))
+        deref: impl Fn(&dyn AnyVarValue) -> &(dyn AnyVarValue) + Send + Sync + 'static,
+        deref_mut: impl Fn(&mut dyn AnyVarValue) -> &mut (dyn AnyVarValue) + Send + Sync + 'static,
+    ) -> AnyVar {
+        let mapping = crate::var_impl::map_ref_bidi_var::MapBidiRefVar::new(self.clone(), smallbox!(deref), smallbox!(deref_mut));
+        AnyVar(smallbox!(mapping))
     }
 
     /// Create a bidirectional mapping variable that can skip updates.
@@ -587,10 +588,10 @@ impl VarAny {
     /// [`filter_map_bidi`]: Var::filter_map_bidi
     pub fn filter_map_bidi_any(
         &self,
-        mut map: impl FnMut(&dyn VarValueAny) -> Option<BoxedVarValueAny> + Send + 'static,
-        map_back: impl FnMut(&dyn VarValueAny) -> Option<BoxedVarValueAny> + Send + 'static,
-        fallback_init: impl Fn() -> BoxedVarValueAny + Send + 'static,
-    ) -> VarAny {
+        mut map: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
+        map_back: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
+        fallback_init: impl Fn() -> BoxAnyVarValue + Send + 'static,
+    ) -> AnyVar {
         let caps = self.capabilities();
 
         if caps.is_contextual() {
@@ -606,7 +607,7 @@ impl VarAny {
         }
 
         let mut init_value = None;
-        self.with(&mut |v: &dyn VarValueAny| init_value = map(v));
+        self.with(&mut |v: &dyn AnyVarValue| init_value = map(v));
         let init_value = init_value.unwrap_or_else(&fallback_init);
 
         if caps.is_const() {
@@ -626,9 +627,9 @@ impl VarAny {
     /// See [`flat_map`] for more details about flat mapping variables.
     ///
     /// [`flat_map`]: Var::flat_map
-    pub fn flat_map_any(&self, map: impl FnMut(&dyn VarValueAny) -> VarAny + Send + 'static) -> VarAny {
-        let mapping = crate::var_impl::flat_map::FlatMapVar::new(self.clone(), smallbox!(map));
-        VarAny(smallbox!(mapping))
+    pub fn flat_map_any(&self, map: impl FnMut(&dyn AnyVarValue) -> AnyVar + Send + 'static) -> AnyVar {
+        let mapping = crate::var_impl::flat_map_var::FlatMapVar::new(self.clone(), smallbox!(map));
+        AnyVar(smallbox!(mapping))
     }
 
     /// Create a strongly typed flat mapping variable.
@@ -636,7 +637,7 @@ impl VarAny {
     /// See [`flat_map`] for more details about mapping variables.
     ///
     /// [`map`]: Var::map
-    pub fn flat_map<O: VarValue>(&self, mut map: impl FnMut(&dyn VarValueAny) -> Var<O> + Send + 'static) -> Var<O> {
+    pub fn flat_map<O: VarValue>(&self, mut map: impl FnMut(&dyn AnyVarValue) -> Var<O> + Send + 'static) -> Var<O> {
         let mapping = self.flat_map_any(move |v| {
             let typed = map(v);
             typed.into()
@@ -645,13 +646,13 @@ impl VarAny {
     }
 }
 /// Binding
-impl VarAny {
+impl AnyVar {
     /// Bind `other` to receive the new values from this variable.
     ///
     /// See [`bind`] for more details about variable bindings.
     ///
     /// [`bind`]: Var::bind
-    pub fn bind(&self, other: &VarAny) -> VarHandle {
+    pub fn bind(&self, other: &AnyVar) -> VarHandle {
         self.bind_map_any(other, |v| v.clone_boxed())
     }
 
@@ -661,7 +662,7 @@ impl VarAny {
     ///
     /// [`bind`]: Self::bind
     /// [`set_bind`]: Var::set_bind
-    pub fn set_bind(&self, other: &VarAny) -> VarHandle {
+    pub fn set_bind(&self, other: &AnyVar) -> VarHandle {
         other.set_from(self);
         self.bind(other)
     }
@@ -671,7 +672,7 @@ impl VarAny {
     /// See [`bind_map`] for more details about variable bindings.
     ///
     /// [`bind_map`]: Var::bind_map
-    pub fn bind_map_any(&self, other: &VarAny, map: impl FnMut(&dyn VarValueAny) -> BoxedVarValueAny + Send + 'static) -> VarHandle {
+    pub fn bind_map_any(&self, other: &AnyVar, map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static) -> VarHandle {
         if self.capabilities().is_const() || other.capabilities().is_always_read_only() {
             return VarHandle::dummy();
         }
@@ -685,7 +686,7 @@ impl VarAny {
     ///
     /// [`bind_map_any`]: Self::bind_map_any
     /// [`set_bind_map`]: Var::set_bind_map
-    pub fn set_bind_map_any(&self, other: &VarAny, map: impl FnMut(&dyn VarValueAny) -> BoxedVarValueAny + Send + 'static) -> VarHandle {
+    pub fn set_bind_map_any(&self, other: &AnyVar, map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static) -> VarHandle {
         let map = Arc::new(Mutex::new(map));
         other.set_from_map(self, clmv!(map, |v| map.lock()(v)));
 
@@ -723,8 +724,8 @@ impl VarAny {
     /// See [`bind_map`] for more details about variable bindings.
     ///
     /// [`bind_map`]: Var::bind_map
-    pub fn bind_map<O: VarValue>(&self, other: &Var<O>, mut map: impl FnMut(&dyn VarValueAny) -> O + Send + 'static) -> VarHandle {
-        self.bind_map_any(other, move |v| BoxedVarValueAny::new(map(v)))
+    pub fn bind_map<O: VarValue>(&self, other: &Var<O>, mut map: impl FnMut(&dyn AnyVarValue) -> O + Send + 'static) -> VarHandle {
+        self.bind_map_any(other, move |v| BoxAnyVarValue::new(map(v)))
     }
 
     /// Like [`bind_map_any`] but also sets `other` to the current value.
@@ -733,8 +734,8 @@ impl VarAny {
     ///
     /// [`bind_map_any`]: Self::bind_map_any
     /// [`set_bind_map`]: Var::set_bind_map
-    pub fn set_bind_map<O: VarValue>(&self, other: &Var<O>, mut map: impl FnMut(&dyn VarValueAny) -> O + Send + 'static) -> VarHandle {
-        self.set_bind_map_any(other, move |v| BoxedVarValueAny::new(map(v)))
+    pub fn set_bind_map<O: VarValue>(&self, other: &Var<O>, mut map: impl FnMut(&dyn AnyVarValue) -> O + Send + 'static) -> VarHandle {
+        self.set_bind_map_any(other, move |v| BoxAnyVarValue::new(map(v)))
     }
 
     /// Bind `other` to receive the new values from this variable and this variable to receive new values from `other`.
@@ -742,7 +743,7 @@ impl VarAny {
     /// See [`bind_bidi`] for more details about variable bindings.
     ///
     /// [`bind_bidi`]: Var::bind_bidi
-    pub fn bind_bidi(&self, other: &VarAny) -> VarHandles {
+    pub fn bind_bidi(&self, other: &AnyVar) -> VarHandles {
         self.bind_map_bidi_any(other, |v| v.clone_boxed(), |v| v.clone_boxed())
     }
 
@@ -753,9 +754,9 @@ impl VarAny {
     /// [`bind_bidi`]: Var::bind_bidi
     pub fn bind_map_bidi_any(
         &self,
-        other: &VarAny,
-        map: impl FnMut(&dyn VarValueAny) -> BoxedVarValueAny + Send + 'static,
-        map_back: impl FnMut(&dyn VarValueAny) -> BoxedVarValueAny + Send + 'static,
+        other: &AnyVar,
+        map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
+        map_back: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
     ) -> VarHandles {
         assert!(!self.var_eq(other), "cannot bind var to itself");
 
@@ -784,8 +785,8 @@ impl VarAny {
     /// [`bind_filter_map`]: Var::bind_filter_map
     pub fn bind_filter_map_any(
         &self,
-        other: &VarAny,
-        map: impl FnMut(&dyn VarValueAny) -> Option<BoxedVarValueAny> + Send + 'static,
+        other: &AnyVar,
+        map: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
     ) -> VarHandle {
         if self.capabilities().is_const() || other.capabilities().is_always_read_only() {
             return VarHandle::dummy();
@@ -801,10 +802,10 @@ impl VarAny {
     /// [`bind_filter_map`]: Var::bind_filter_map
     pub fn bind_filter_map<O: VarValue>(
         &self,
-        other: &VarAny,
-        mut map: impl FnMut(&dyn VarValueAny) -> Option<O> + Send + 'static,
+        other: &AnyVar,
+        mut map: impl FnMut(&dyn AnyVarValue) -> Option<O> + Send + 'static,
     ) -> VarHandle {
-        self.bind_filter_map_any(other, move |v| map(v).map(BoxedVarValueAny::new))
+        self.bind_filter_map_any(other, move |v| map(v).map(BoxAnyVarValue::new))
     }
 
     /// Bind `other` to receive the new filtered mapped values from this variable and this variable to receive
@@ -815,9 +816,9 @@ impl VarAny {
     /// [`bind_filter_map_bidi`]: Var::bind_filter_map_bidi
     pub fn bind_filter_map_bidi_any(
         &self,
-        other: &VarAny,
-        map: impl FnMut(&dyn VarValueAny) -> Option<BoxedVarValueAny> + Send + 'static,
-        map_back: impl FnMut(&dyn VarValueAny) -> Option<BoxedVarValueAny> + Send + 'static,
+        other: &AnyVar,
+        map: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
+        map_back: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
     ) -> VarHandles {
         let self_cap = self.capabilities();
         let other_cap = other.capabilities();
@@ -837,7 +838,7 @@ impl VarAny {
         a.with(b)
     }
 
-    fn bind_impl(&self, other: &VarAny, mut map: impl FnMut(&dyn VarValueAny) -> BoxedVarValueAny + Send + 'static) -> VarHandle {
+    fn bind_impl(&self, other: &AnyVar, mut map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static) -> VarHandle {
         let weak_other = other.downgrade();
         let self_tag = self.var_instance_tag();
         self.hook(move |args| {
@@ -868,8 +869,8 @@ impl VarAny {
 
     fn bind_filter_map_impl(
         &self,
-        other: &VarAny,
-        mut map: impl FnMut(&dyn VarValueAny) -> Option<BoxedVarValueAny> + Send + 'static,
+        other: &AnyVar,
+        mut map: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
     ) -> VarHandle {
         let weak_other = other.downgrade();
         let self_tag = self.var_instance_tag();
@@ -907,7 +908,7 @@ impl VarAny {
     }
 }
 /// Animation
-impl VarAny {
+impl AnyVar {
     /// Schedule an animation that targets this variable.
     ///
     /// See [`animate`] for more details.
@@ -960,7 +961,7 @@ impl VarAny {
     /// See [`sequence`] for more details.
     ///
     /// [`sequence`]: Var::sequence
-    pub fn sequence(&self, animate: impl FnMut(VarAny) -> AnimationHandle + Send + 'static) -> VarHandle {
+    pub fn sequence(&self, animate: impl FnMut(AnyVar) -> AnimationHandle + Send + 'static) -> VarHandle {
         if !self.capabilities().is_always_read_only() {
             let target = self.current_context();
             if !target.capabilities().is_always_read_only() {
@@ -1062,16 +1063,16 @@ impl VarAny {
     }
 }
 /// Value type.
-impl VarAny {
+impl AnyVar {
     /// Returns the strongly typed variable, if its of of value type `T`.
-    pub fn downcast<T: VarValue>(self) -> Result<Var<T>, VarAny> {
+    pub fn downcast<T: VarValue>(self) -> Result<Var<T>, AnyVar> {
         if self.value_is::<T>() { Ok(Var::new_any(self)) } else { Err(self) }
     }
 
     /// Returns [`downcast`] or `fallback_var`.
     ///
     /// [`downcast`]: Self::downcast
-    pub fn downcast_or<T: VarValue, F: Into<Var<T>>>(self, fallback_var: impl FnOnce(VarAny) -> F) -> Var<T> {
+    pub fn downcast_or<T: VarValue, F: Into<Var<T>>>(self, fallback_var: impl FnOnce(AnyVar) -> F) -> Var<T> {
         match self.downcast() {
             Ok(tv) => tv,
             Err(av) => fallback_var(av).into(),
@@ -1095,7 +1096,7 @@ impl VarAny {
     }
 }
 /// Variable type.
-impl VarAny {
+impl AnyVar {
     /// Flags that indicate what operations the variable is capable of in this update.
     pub fn capabilities(&self) -> VarCapability {
         self.0.capabilities()
@@ -1117,8 +1118,8 @@ impl VarAny {
     /// it is still alive. If this variable is local returns a dummy weak reference that cannot upgrade.
     ///
     /// [`SHARE`]: VarCapability::SHARE
-    pub fn downgrade(&self) -> WeakVarAny {
-        WeakVarAny(self.0.downgrade())
+    pub fn downgrade(&self) -> WeakAnyVar {
+        WeakAnyVar(self.0.downgrade())
     }
 
     /// Gets if this variable is the same as `other`.
@@ -1126,14 +1127,14 @@ impl VarAny {
     /// If this variable is [`SHARE`] compares the *pointer*. If this variable is local this is always `false`.
     ///
     /// [`SHARE`]: VarCapability::SHARE
-    pub fn var_eq(&self, other: &VarAny) -> bool {
+    pub fn var_eq(&self, other: &AnyVar) -> bool {
         self.0.var_eq(&*other.0)
     }
 
     /// Copy ID that identifies this variable instance.
     ///
     /// The ID is only unique if this variable is [`SHARE`] and only while the variable is alive.
-    /// This can be used with [`VarModify::push_tag`] and [`VarAnyHookArgs::contains_tag`] to avoid cyclic updates in custom
+    /// This can be used with [`VarModify::push_tag`] and [`AnyVarHookArgs::contains_tag`] to avoid cyclic updates in custom
     /// bidirectional bindings.
     ///
     /// [`SHARE`]: VarCapability::SHARE
@@ -1146,18 +1147,18 @@ impl VarAny {
     /// The returned variable can still update if `self` is modified, but it does not have the [`MODIFY`] capability.
     ///
     /// [`MODIFY`]: VarCapability::MODIFY
-    pub fn read_only(&self) -> VarAny {
+    pub fn read_only(&self) -> AnyVar {
         let cap = self.capabilities();
         if cap.is_always_read_only() {
             return self.clone();
         }
 
         let inner: &dyn Any = &*self.0;
-        if inner.type_id() == TypeId::of::<crate::read_only::ReadOnlyVar>() {
+        if inner.type_id() == TypeId::of::<crate::read_only_var::ReadOnlyVar>() {
             return self.clone();
         }
 
-        VarAny(smallbox!(crate::read_only::ReadOnlyVar(self.clone())))
+        AnyVar(smallbox!(crate::read_only_var::ReadOnlyVar(self.clone())))
     }
 
     /// Create a var that redirects to this variable until the first value update, then it disconnects as a separate variable.
@@ -1165,8 +1166,8 @@ impl VarAny {
     /// The return variable is *clone-on-write* and has the `MODIFY` capability independent of the source capabilities, when
     /// a modify request is made the source value is cloned and offered for modification, if modified the source variable is dropped,
     /// if the modify closure does not update the source variable is retained.
-    pub fn cow(&self) -> VarAny {
-        VarAny(smallbox!(crate::clone_on_write::CowVar::new(self.clone())))
+    pub fn cow(&self) -> AnyVar {
+        AnyVar(smallbox!(crate::cow_var::CowVar::new(self.clone())))
     }
 
     /// Hold the variable in memory until the app exit.
@@ -1194,48 +1195,48 @@ impl VarAny {
     /// otherwise returns a clone of this variable.
     ///
     /// [`CONTEXT`]: VarCapability::CONTEXT
-    pub fn current_context(&self) -> VarAny {
+    pub fn current_context(&self) -> AnyVar {
         if self.capabilities().is_contextual() {
-            VarAny(self.0.current_context())
+            AnyVar(self.0.current_context())
         } else {
             self.clone()
         }
     }
 }
 
-/// Weak reference to a [`VarAny`].
-pub struct WeakVarAny(pub(crate) SmallBox<dyn WeakVarImpl, smallbox::space::S2>);
-impl Clone for WeakVarAny {
+/// Weak reference to a [`AnyVar`].
+pub struct WeakAnyVar(pub(crate) SmallBox<dyn WeakVarImpl, smallbox::space::S2>);
+impl Clone for WeakAnyVar {
     fn clone(&self) -> Self {
         Self(self.0.clone_boxed())
     }
 }
-impl WeakVarAny {
+impl WeakAnyVar {
     /// Current count of strong references to the variable.
     pub fn strong_count(&self) -> usize {
         self.0.strong_count()
     }
 
     /// Attempt to create a strong reference to the variable.
-    pub fn upgrade(&self) -> Option<VarAny> {
-        self.0.upgrade().map(VarAny)
+    pub fn upgrade(&self) -> Option<AnyVar> {
+        self.0.upgrade().map(AnyVar)
     }
 }
 
-/// Arguments for [`VarAny::hook_any`].
-pub struct VarAnyHookArgs<'a> {
-    pub(super) value: &'a dyn VarValueAny,
+/// Arguments for [`AnyVar::hook_any`].
+pub struct AnyVarHookArgs<'a> {
+    pub(super) value: &'a dyn AnyVarValue,
     pub(super) update: bool,
-    pub(super) tags: &'a [BoxedVarValueAny],
+    pub(super) tags: &'a [BoxAnyVarValue],
 }
-impl<'a> VarAnyHookArgs<'a> {
+impl<'a> AnyVarHookArgs<'a> {
     /// New from updated value and custom tag.
-    pub fn new(value: &'a dyn VarValueAny, update: bool, tags: &'a [BoxedVarValueAny]) -> Self {
+    pub fn new(value: &'a dyn AnyVarValue, update: bool, tags: &'a [BoxAnyVarValue]) -> Self {
         Self { value, update, tags }
     }
 
     /// Reference the updated value.
-    pub fn value(&self) -> &'a dyn VarValueAny {
+    pub fn value(&self) -> &'a dyn AnyVarValue {
         self.value
     }
 
@@ -1252,12 +1253,12 @@ impl<'a> VarAnyHookArgs<'a> {
     }
 
     /// Custom tag objects.
-    pub fn tags(&self) -> &[BoxedVarValueAny] {
+    pub fn tags(&self) -> &[BoxAnyVarValue] {
         self.tags
     }
 
     /// Clone the custom tag objects set by the code that updated the value.
-    pub fn tags_vec(&self) -> Vec<BoxedVarValueAny> {
+    pub fn tags_vec(&self) -> Vec<BoxAnyVarValue> {
         self.tags.iter().map(|t| (*t).clone_boxed()).collect()
     }
 
@@ -1293,7 +1294,7 @@ impl<'a> VarAnyHookArgs<'a> {
 
 /// Unique identifier of a share variable, while it is alive.
 ///
-/// See [`VarAny::var_instance_tag`] for more details
+/// See [`AnyVar::var_instance_tag`] for more details
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct VarInstanceTag(pub(crate) usize);
 impl fmt::Debug for VarInstanceTag {

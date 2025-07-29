@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, ops, sync::Arc, time::Duration};
 
 use crate::{
-    BoxedVarValueAny, VarAny, VarAnyHookArgs, VarHandle, VarHandles, VarImpl, VarIsReadOnlyError, VarModify, VarValue, WeakVarAny,
+    AnyVar, AnyVarHookArgs, BoxAnyVarValue, VarHandle, VarHandles, VarImpl, VarIsReadOnlyError, VarModify, VarValue, WeakAnyVar,
     animation::{
         Animation, AnimationHandle, ChaseAnimation, Transition, TransitionKeyed, Transitionable,
         easing::{EasingStep, EasingTime},
@@ -16,7 +16,7 @@ use zng_unit::{Factor, FactorUnits as _};
 
 /// Variable of type `T`.
 pub struct Var<T: VarValue> {
-    any: VarAny,
+    any: AnyVar,
     _t: PhantomData<fn() -> T>,
 }
 impl<T: VarValue> Clone for Var<T> {
@@ -27,20 +27,20 @@ impl<T: VarValue> Clone for Var<T> {
         }
     }
 }
-impl<T: VarValue> From<Var<T>> for VarAny {
+impl<T: VarValue> From<Var<T>> for AnyVar {
     fn from(var: Var<T>) -> Self {
         var.any
     }
 }
-impl<T: VarValue> TryFrom<VarAny> for Var<T> {
-    type Error = VarAny;
+impl<T: VarValue> TryFrom<AnyVar> for Var<T> {
+    type Error = AnyVar;
 
-    fn try_from(var: VarAny) -> Result<Self, Self::Error> {
+    fn try_from(var: AnyVar) -> Result<Self, Self::Error> {
         var.downcast()
     }
 }
 impl<T: VarValue> ops::Deref for Var<T> {
-    type Target = VarAny;
+    type Target = AnyVar;
 
     fn deref(&self) -> &Self::Target {
         self.as_any()
@@ -49,12 +49,12 @@ impl<T: VarValue> ops::Deref for Var<T> {
 impl<T: VarValue> Var<T> {
     pub(crate) fn new_impl(inner: impl VarImpl) -> Self {
         Var {
-            any: VarAny(smallbox!(inner)),
+            any: AnyVar(smallbox!(inner)),
             _t: PhantomData,
         }
     }
 
-    pub(crate) fn new_any(any: VarAny) -> Self {
+    pub(crate) fn new_any(any: AnyVar) -> Self {
         Var { any, _t: PhantomData }
     }
 }
@@ -85,14 +85,14 @@ impl<T: VarValue> Var<T> {
 
     /// Visit a reference to the current value if it [`is_new`].
     ///
-    /// [`is_new`]: VarAny::is_new
+    /// [`is_new`]: AnyVar::is_new
     pub fn with_new<O>(&self, visitor: impl FnOnce(&T) -> O) -> Option<O> {
         if self.is_new() { Some(self.with(visitor)) } else { None }
     }
 
     /// Gets a clone of the current value if it [`is_new`].
     ///
-    /// [`is_new`]: VarAny::is_new
+    /// [`is_new`]: AnyVar::is_new
     pub fn get_new(&self) -> Option<T> {
         if self.is_new() { Some(self.get()) } else { None }
     }
@@ -101,14 +101,14 @@ impl<T: VarValue> Var<T> {
     ///
     /// This uses [`Clone::clone_from`] to reuse the `value` memory if supported.
     ///
-    /// [`is_new`]: VarAny::is_new
+    /// [`is_new`]: AnyVar::is_new
     pub fn get_new_into(&self, value: &mut T) -> bool {
         self.with_new(|v| value.clone_from(v)).is_some()
     }
 
     /// Schedule `new_value` to be assigned next update.
     pub fn try_set(&self, new_value: impl Into<T>) -> Result<(), VarIsReadOnlyError> {
-        self.any.try_set(BoxedVarValueAny::new(new_value.into()))
+        self.any.try_set(BoxAnyVarValue::new(new_value.into()))
     }
 
     /// Schedule `new_value` to be assigned next update.
@@ -172,7 +172,7 @@ impl<T: VarValue> Var<T> {
         map: impl FnOnce(&O) -> T + Send + 'static,
     ) -> Result<(), VarIsReadOnlyError> {
         self.any
-            .try_set_from_map(other, move |v| BoxedVarValueAny::new(map(v.downcast_ref::<O>().unwrap())))
+            .try_set_from_map(other, move |v| BoxAnyVarValue::new(map(v.downcast_ref::<O>().unwrap())))
     }
 
     /// Like [`set_from`], but uses `map` to produce the new value from the updated value of `other`.
@@ -196,7 +196,7 @@ impl<T: VarValue> Var<T> {
     /// the callback is discarded and [`VarHandle::dummy`] returned.
     pub fn hook(&self, mut on_update: impl FnMut(&VarHookArgs<T>) -> bool + Send + 'static) -> VarHandle {
         self.any
-            .hook(move |args: &VarAnyHookArgs| -> bool { on_update(&args.downcast().unwrap()) })
+            .hook(move |args: &AnyVarHookArgs| -> bool { on_update(&args.downcast().unwrap()) })
     }
 
     ///Awaits for a value that passes the `predicate`, including the current value.
@@ -460,8 +460,8 @@ impl<T: VarValue> Var<T> {
         mut map_back: impl FnMut(&O) -> T + Send + 'static,
     ) -> Var<O> {
         let mapping = self.map_bidi_any(
-            move |input| BoxedVarValueAny::new(map(input.downcast_ref::<T>().unwrap())),
-            move |output| BoxedVarValueAny::new(map_back(output.downcast_ref::<O>().unwrap())),
+            move |input| BoxAnyVarValue::new(map(input.downcast_ref::<T>().unwrap())),
+            move |output| BoxAnyVarValue::new(map_back(output.downcast_ref::<O>().unwrap())),
         );
         Var::new_any(mapping)
     }
@@ -557,9 +557,9 @@ impl<T: VarValue> Var<T> {
         fallback_init: impl Fn() -> O + Send + 'static,
     ) -> Var<O> {
         let mapping = self.filter_map_bidi_any(
-            move |t| map(t.downcast_ref::<T>().unwrap()).map(BoxedVarValueAny::new),
-            move |o| map_back(o.downcast_ref::<O>().unwrap()).map(BoxedVarValueAny::new),
-            move || BoxedVarValueAny::new(fallback_init()),
+            move |t| map(t.downcast_ref::<T>().unwrap()).map(BoxAnyVarValue::new),
+            move |o| map_back(o.downcast_ref::<O>().unwrap()).map(BoxAnyVarValue::new),
+            move || BoxAnyVarValue::new(fallback_init()),
         );
         Var::new_any(mapping)
     }
@@ -651,8 +651,8 @@ impl<T: VarValue> Var<T> {
     ) -> VarHandles {
         self.any.bind_map_bidi_any(
             other,
-            move |v| BoxedVarValueAny::new(map(v.downcast_ref::<T>().unwrap())),
-            move |v| BoxedVarValueAny::new(map_back(v.downcast_ref::<O>().unwrap())),
+            move |v| BoxAnyVarValue::new(map(v.downcast_ref::<T>().unwrap())),
+            move |v| BoxAnyVarValue::new(map_back(v.downcast_ref::<O>().unwrap())),
         )
     }
 
@@ -673,8 +673,8 @@ impl<T: VarValue> Var<T> {
     ) -> VarHandles {
         self.any.bind_filter_map_bidi_any(
             other,
-            move |v| map(v.downcast_ref::<T>().unwrap()).map(BoxedVarValueAny::new),
-            move |v| map_back(v.downcast_ref::<O>().unwrap()).map(BoxedVarValueAny::new),
+            move |v| map(v.downcast_ref::<T>().unwrap()).map(BoxAnyVarValue::new),
+            move |v| map_back(v.downcast_ref::<O>().unwrap()).map(BoxAnyVarValue::new),
         )
     }
 }
@@ -1026,7 +1026,7 @@ impl<T: VarValue> Var<T> {
     ///
     /// See [`animate`] for details about animations.
     ///
-    /// [`is_animating`]: VarAny::is_animating
+    /// [`is_animating`]: AnyVar::is_animating
     /// [`animate`]: Self::animate
     pub fn step(&self, new_value: impl Into<T>, delay: Duration) -> AnimationHandle {
         self.step_impl(new_value.into(), delay)
@@ -1312,7 +1312,7 @@ impl<T: VarValue + Transitionable> Var<T> {}
 /// Value type.
 impl<T: VarValue> Var<T> {
     /// Reference the variable without the strong value type.
-    pub fn as_any(&self) -> &VarAny {
+    pub fn as_any(&self) -> &AnyVar {
         &self.any
     }
 }
@@ -1355,7 +1355,7 @@ impl<T: VarValue> Var<T> {
 
 /// Weak reference to a [`Var<T>`].
 pub struct WeakVar<T: VarValue> {
-    any: WeakVarAny,
+    any: WeakAnyVar,
     _t: PhantomData<T>,
 }
 impl<T: VarValue> Clone for WeakVar<T> {
@@ -1366,13 +1366,13 @@ impl<T: VarValue> Clone for WeakVar<T> {
         }
     }
 }
-impl<T: VarValue> From<WeakVar<T>> for WeakVarAny {
+impl<T: VarValue> From<WeakVar<T>> for WeakAnyVar {
     fn from(var: WeakVar<T>) -> Self {
         var.any
     }
 }
 impl<T: VarValue> ops::Deref for WeakVar<T> {
-    type Target = WeakVarAny;
+    type Target = WeakAnyVar;
 
     fn deref(&self) -> &Self::Target {
         self.as_any()
@@ -1380,7 +1380,7 @@ impl<T: VarValue> ops::Deref for WeakVar<T> {
 }
 impl<T: VarValue> WeakVar<T> {
     /// Reference the weak variable without the strong value type.
-    pub fn as_any(&self) -> &WeakVarAny {
+    pub fn as_any(&self) -> &WeakAnyVar {
         &self.any
     }
 
@@ -1401,15 +1401,15 @@ pub fn var_default<T: VarValue + Default>() -> Var<T> {
 }
 
 /// New immutable variable that stores the `value` directly.
-/// 
+///
 /// Cloning this variable clones the value.
 pub fn const_var<T: VarValue>(value: T) -> Var<T> {
     crate::IntoVar::into_var(value)
 }
 
 /// Type erased [`const_var`].
-pub fn any_const_var(value: BoxedVarValueAny) -> VarAny {
-    VarAny(smallbox!(crate::var_impl::local::AnyConstVar::new(value)))
+pub fn any_const_var(value: BoxAnyVarValue) -> AnyVar {
+    AnyVar(smallbox!(crate::var_impl::const_var::AnyConstVar::new(value)))
 }
 
 /// Weak variable that never upgrades.
@@ -1421,13 +1421,13 @@ pub fn weak_var<T: VarValue>() -> WeakVar<T> {
 }
 
 /// Weak variable that never upgrades.
-pub fn weak_var_any() -> WeakVarAny {
-    WeakVarAny(smallbox!(crate::var_impl::local::WeakConstVar))
+pub fn weak_var_any() -> WeakAnyVar {
+    WeakAnyVar(smallbox!(crate::var_impl::const_var::WeakConstVar))
 }
 
 /// Arguments for [`Var::hook`].
 pub struct VarHookArgs<'a, T: VarValue> {
-    pub(super) any: &'a VarAnyHookArgs<'a>,
+    pub(super) any: &'a AnyVarHookArgs<'a>,
     pub(super) _t: PhantomData<&'a T>,
 }
 impl<'a, T: VarValue> VarHookArgs<'a, T> {
@@ -1437,7 +1437,7 @@ impl<'a, T: VarValue> VarHookArgs<'a, T> {
     }
 }
 impl<'a, T: VarValue> ops::Deref for VarHookArgs<'a, T> {
-    type Target = VarAnyHookArgs<'a>;
+    type Target = AnyVarHookArgs<'a>;
 
     fn deref(&self) -> &Self::Target {
         self.any

@@ -64,8 +64,8 @@ use zng_layout::unit::{
 use zng_task as task;
 use zng_txt::Txt;
 use zng_var::{
-    IntoVar, ResponderVar, ResponseVar, Var, animation::Transitionable, impl_from_and_into_var, response_done_var, response_var, var,
-    const_var,
+    IntoVar, ResponderVar, ResponseVar, Var, animation::Transitionable, const_var, impl_from_and_into_var, response_done_var, response_var,
+    var,
 };
 use zng_view_api::config::FontAntiAliasing;
 

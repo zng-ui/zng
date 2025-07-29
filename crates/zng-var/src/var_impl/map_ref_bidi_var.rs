@@ -3,16 +3,16 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use crate::VarAny;
+use crate::AnyVar;
 
 use super::*;
 
-type DerefFn = SmallBox<dyn for<'a> Fn(&'a dyn VarValueAny) -> &'a (dyn VarValueAny) + Send + Sync + 'static, smallbox::space::S4>;
+type DerefFn = SmallBox<dyn for<'a> Fn(&'a dyn AnyVarValue) -> &'a (dyn AnyVarValue) + Send + Sync + 'static, smallbox::space::S4>;
 type DerefMutFn =
-    SmallBox<dyn for<'a> Fn(&'a mut dyn VarValueAny) -> &'a mut (dyn VarValueAny) + Send + Sync + 'static, smallbox::space::S4>;
+    SmallBox<dyn for<'a> Fn(&'a mut dyn AnyVarValue) -> &'a mut (dyn AnyVarValue) + Send + Sync + 'static, smallbox::space::S4>;
 
 struct VarData {
-    source: VarAny,
+    source: AnyVar,
     deref: DerefFn,
     deref_mut: DerefMutFn,
 }
@@ -21,7 +21,7 @@ struct VarData {
 pub(crate) struct MapBidiRefVar(Arc<VarData>);
 
 impl MapBidiRefVar {
-    pub(crate) fn new(source: VarAny, deref: DerefFn, deref_mut: DerefMutFn) -> Self {
+    pub(crate) fn new(source: AnyVar, deref: DerefFn, deref_mut: DerefMutFn) -> Self {
         Self(Arc::new(VarData { source, deref, deref_mut }))
     }
 
@@ -70,21 +70,21 @@ impl VarImpl for MapBidiRefVar {
         self.0.source.capabilities() | VarCapability::SHARE
     }
 
-    fn with(&self, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
+    fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
         let deref = &*self.0.deref;
-        self.0.source.with(&mut move |value: &dyn VarValueAny| visitor((deref)(value)));
+        self.0.source.with(&mut move |value: &dyn AnyVarValue| visitor((deref)(value)));
     }
 
-    fn get(&self) -> BoxedVarValueAny {
+    fn get(&self) -> BoxAnyVarValue {
         let mut out = None;
         let deref = &*self.0.deref;
         self.0
             .source
-            .with(&mut |value: &dyn VarValueAny| out = Some((deref)(value).clone_boxed()));
+            .with(&mut |value: &dyn AnyVarValue| out = Some((deref)(value).clone_boxed()));
         out.unwrap()
     }
 
-    fn set(&self, mut new_value: BoxedVarValueAny) -> bool {
+    fn set(&self, mut new_value: BoxAnyVarValue) -> bool {
         let weak = Arc::downgrade(&self.0);
         self.0
             .source
@@ -126,11 +126,11 @@ impl VarImpl for MapBidiRefVar {
             .is_ok()
     }
 
-    fn hook(&self, mut on_new: SmallBox<dyn FnMut(&VarAnyHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
+    fn hook(&self, mut on_new: SmallBox<dyn FnMut(&AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
         let weak = Arc::downgrade(&self.0);
-        self.0.source.hook(move |args: &VarAnyHookArgs| {
+        self.0.source.hook(move |args: &AnyVarHookArgs| {
             if let Some(s) = weak.upgrade() {
-                on_new(&VarAnyHookArgs {
+                on_new(&AnyVarHookArgs {
                     value: (s.deref)(args.value),
                     update: args.update,
                     tags: args.tags,

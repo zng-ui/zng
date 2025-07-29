@@ -17,7 +17,7 @@ use zng_layout::unit::{AngleDegree, EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, 
 use zng_var::{
     IntoVar, Var, VarValue,
     animation::{Transition, Transitionable, easing::EasingStep},
-    context_var, impl_from_and_into_var, expr_var,
+    context_var, expr_var, impl_from_and_into_var,
 };
 
 pub use zng_view_api::config::ColorScheme;

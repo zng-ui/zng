@@ -4,11 +4,11 @@ use std::{pin::Pin, task::Poll};
 
 /// See [`Var::wait_update`].
 pub(crate) struct WaitUpdateFut<'a> {
-    var: &'a VarAny,
+    var: &'a AnyVar,
     update_id: VarUpdateId,
 }
 impl<'a> WaitUpdateFut<'a> {
-    pub(super) fn new(var: &'a VarAny) -> Self {
+    pub(super) fn new(var: &'a AnyVar) -> Self {
         Self {
             update_id: var.last_update(),
             var,
@@ -54,11 +54,11 @@ impl Future for WaitUpdateFut<'_> {
 
 /// See [`Var::wait_animation`].
 pub(crate) struct WaitIsNotAnimatingFut<'a> {
-    var: &'a VarAny,
+    var: &'a AnyVar,
     observed_animation_start: bool,
 }
 impl<'a> WaitIsNotAnimatingFut<'a> {
-    pub(super) fn new(var: &'a VarAny) -> Self {
+    pub(super) fn new(var: &'a AnyVar) -> Self {
         Self {
             observed_animation_start: var.is_animating(),
             var,

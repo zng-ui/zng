@@ -1,10 +1,10 @@
 //! Wrapper var that enforces read-only.
 
-use crate::{VarAny, WeakVarAny};
+use crate::{AnyVar, WeakAnyVar};
 
 use super::*;
 
-pub(crate) struct ReadOnlyVar(pub VarAny);
+pub(crate) struct ReadOnlyVar(pub AnyVar);
 impl VarImpl for ReadOnlyVar {
     fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
         smallbox!(Self(self.0.clone()))
@@ -46,15 +46,15 @@ impl VarImpl for ReadOnlyVar {
         self.0.capabilities().as_read_only()
     }
 
-    fn with(&self, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
+    fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
         self.0.0.with(visitor);
     }
 
-    fn get(&self) -> BoxedVarValueAny {
+    fn get(&self) -> BoxAnyVarValue {
         self.0.get()
     }
 
-    fn set(&self, _: BoxedVarValueAny) -> bool {
+    fn set(&self, _: BoxAnyVarValue) -> bool {
         false
     }
 
@@ -66,7 +66,7 @@ impl VarImpl for ReadOnlyVar {
         false
     }
 
-    fn hook(&self, on_new: SmallBox<dyn FnMut(&VarAnyHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
+    fn hook(&self, on_new: SmallBox<dyn FnMut(&AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
         self.0.0.hook(on_new)
     }
 
@@ -87,7 +87,7 @@ impl VarImpl for ReadOnlyVar {
     }
 }
 
-struct WeakReadOnlyVar(WeakVarAny);
+struct WeakReadOnlyVar(WeakAnyVar);
 
 impl WeakVarImpl for WeakReadOnlyVar {
     fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {

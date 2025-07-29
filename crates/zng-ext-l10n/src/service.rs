@@ -10,7 +10,7 @@ use std::{
 use parking_lot::Mutex;
 use zng_app_context::app_local;
 use zng_txt::Txt;
-use zng_var::{ArcEq, Var, VarMergeBuilder, WeakVar, var, const_var, merge_var};
+use zng_var::{ArcEq, Var, VarMergeBuilder, WeakVar, const_var, merge_var, var};
 use zng_view_api::config::LocaleConfig;
 
 use crate::{

@@ -1,13 +1,13 @@
 use std::sync::{Arc, Weak};
 
-use crate::VarAny;
+use crate::AnyVar;
 
 use super::*;
 
-type DerefFn = SmallBox<dyn for<'a> Fn(&'a dyn VarValueAny) -> &'a (dyn VarValueAny) + Send + Sync + 'static, smallbox::space::S4>;
+type DerefFn = SmallBox<dyn for<'a> Fn(&'a dyn AnyVarValue) -> &'a (dyn AnyVarValue) + Send + Sync + 'static, smallbox::space::S4>;
 
 struct VarData {
-    source: VarAny,
+    source: AnyVar,
     deref: DerefFn,
 }
 
@@ -15,7 +15,7 @@ struct VarData {
 pub(crate) struct MapRefVar(Arc<VarData>);
 
 impl MapRefVar {
-    pub(crate) fn new(source: VarAny, deref: DerefFn) -> Self {
+    pub(crate) fn new(source: AnyVar, deref: DerefFn) -> Self {
         Self(Arc::new(VarData { source, deref }))
     }
 }
@@ -60,21 +60,21 @@ impl VarImpl for MapRefVar {
         self.0.source.capabilities() | VarCapability::SHARE
     }
 
-    fn with(&self, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
+    fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
         let deref = &*self.0.deref;
-        self.0.source.with(&mut move |value: &dyn VarValueAny| visitor((deref)(value)));
+        self.0.source.with(&mut move |value: &dyn AnyVarValue| visitor((deref)(value)));
     }
 
-    fn get(&self) -> BoxedVarValueAny {
+    fn get(&self) -> BoxAnyVarValue {
         let mut out = None;
         let deref = &*self.0.deref;
         self.0
             .source
-            .with(&mut |value: &dyn VarValueAny| out = Some((deref)(value).clone_boxed()));
+            .with(&mut |value: &dyn AnyVarValue| out = Some((deref)(value).clone_boxed()));
         out.unwrap()
     }
 
-    fn set(&self, _: BoxedVarValueAny) -> bool {
+    fn set(&self, _: BoxAnyVarValue) -> bool {
         false
     }
 
@@ -86,11 +86,11 @@ impl VarImpl for MapRefVar {
         false
     }
 
-    fn hook(&self, mut on_new: SmallBox<dyn FnMut(&VarAnyHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
+    fn hook(&self, mut on_new: SmallBox<dyn FnMut(&AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
         let weak = Arc::downgrade(&self.0);
-        self.0.source.hook(move |args: &VarAnyHookArgs| {
+        self.0.source.hook(move |args: &AnyVarHookArgs| {
             if let Some(s) = weak.upgrade() {
-                on_new(&VarAnyHookArgs {
+                on_new(&AnyVarHookArgs {
                     value: (s.deref)(args.value),
                     update: args.update,
                     tags: args.tags,

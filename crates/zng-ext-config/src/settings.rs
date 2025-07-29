@@ -8,7 +8,7 @@ use std::{any::TypeId, cmp::Ordering, mem, ops, sync::Arc};
 use zng_app_context::app_local;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zng_txt::Txt;
-use zng_var::{BoxedVarValueAny, IntoVar, Var, VarAny, VarAnyHookArgs, impl_from_and_into_var, var, const_var};
+use zng_var::{AnyVar, AnyVarHookArgs, BoxAnyVarValue, IntoVar, Var, const_var, impl_from_and_into_var, var};
 
 use crate::{CONFIG, Config, ConfigKey, ConfigValue, FallbackConfigReset};
 
@@ -309,7 +309,7 @@ pub struct Setting {
     description: Var<Txt>,
     category: CategoryId,
     meta: Arc<OwnedStateMap<Setting>>,
-    value: VarAny,
+    value: AnyVar,
     value_type: TypeId,
     reset: Arc<dyn SettingReset>,
 }
@@ -368,7 +368,7 @@ impl Setting {
     }
 
     /// Config value.
-    pub fn value(&self) -> &VarAny {
+    pub fn value(&self) -> &AnyVar {
         &self.value
     }
 
@@ -514,7 +514,7 @@ pub struct SettingBuilder<'a> {
     name: Option<Var<Txt>>,
     description: Option<Var<Txt>>,
     meta: OwnedStateMap<Setting>,
-    value: Option<(VarAny, TypeId)>,
+    value: Option<(AnyVar, TypeId)>,
     reset: Option<Arc<dyn SettingReset>>,
 }
 impl SettingBuilder<'_> {
@@ -595,7 +595,7 @@ impl SettingBuilder<'_> {
     ///
     /// The default value is set on the config to reset.
     pub fn default<T: ConfigValue>(&mut self, default: T) -> &mut Self {
-        let reset = BoxedVarValueAny::new(default);
+        let reset = BoxAnyVarValue::new(default);
         self.reset = Some(Arc::new(reset));
         self
     }
@@ -724,8 +724,8 @@ impl Drop for CategoryBuilder<'_> {
     }
 }
 trait SettingReset: Send + Sync + 'static {
-    fn can_reset(&self, key: &ConfigKey, value: &VarAny) -> Var<bool>;
-    fn reset(&self, key: &ConfigKey, value: &VarAny);
+    fn can_reset(&self, key: &ConfigKey, value: &AnyVar) -> Var<bool>;
+    fn reset(&self, key: &ConfigKey, value: &AnyVar);
 }
 
 struct FallbackReset {
@@ -734,29 +734,29 @@ struct FallbackReset {
 }
 
 impl SettingReset for FallbackReset {
-    fn can_reset(&self, key: &ConfigKey, _: &VarAny) -> Var<bool> {
+    fn can_reset(&self, key: &ConfigKey, _: &AnyVar) -> Var<bool> {
         match key.strip_prefix(self.strip_key_prefix.as_str()) {
             Some(k) => self.resetter.can_reset(ConfigKey::from_str(k)),
             None => self.resetter.can_reset(key.clone()),
         }
     }
 
-    fn reset(&self, key: &ConfigKey, _: &VarAny) {
+    fn reset(&self, key: &ConfigKey, _: &AnyVar) {
         match key.strip_prefix(self.strip_key_prefix.as_str()) {
             Some(k) => self.resetter.reset(&ConfigKey::from_str(k)),
             None => self.resetter.reset(key),
         }
     }
 }
-impl SettingReset for BoxedVarValueAny {
-    fn can_reset(&self, _: &ConfigKey, value: &VarAny) -> Var<bool> {
+impl SettingReset for BoxAnyVarValue {
+    fn can_reset(&self, _: &ConfigKey, value: &AnyVar) -> Var<bool> {
         let initial = value.with(|v| v.eq_any(&**self));
         let map = var(initial);
 
         let map_in = map.clone();
         let dft = (*self).clone_boxed();
         value
-            .hook(move |args: &VarAnyHookArgs| {
+            .hook(move |args: &AnyVarHookArgs| {
                 map_in.set(args.value().eq_any(&*dft));
                 true
             })
@@ -765,13 +765,13 @@ impl SettingReset for BoxedVarValueAny {
         map.clone()
     }
 
-    fn reset(&self, _: &ConfigKey, value: &VarAny) {
+    fn reset(&self, _: &ConfigKey, value: &AnyVar) {
         value.set((*self).clone_boxed());
     }
 }
 impl SettingReset for SettingValueNotSet {
-    fn can_reset(&self, _: &ConfigKey, _: &VarAny) -> Var<bool> {
+    fn can_reset(&self, _: &ConfigKey, _: &AnyVar) -> Var<bool> {
         const_var(false)
     }
-    fn reset(&self, _: &ConfigKey, _: &VarAny) {}
+    fn reset(&self, _: &ConfigKey, _: &AnyVar) {}
 }

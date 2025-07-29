@@ -22,7 +22,7 @@ use zng_layout::unit::{DipPoint, DipToPx as _, Layout1d, Layout2d, Px, PxPoint, 
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zng_task::UiTask;
 use zng_txt::{Txt, formatx};
-use zng_var::{BoxedVarValueAny, ResponseVar, Var, VarAny, VarHandle, VarHandles, VarValue};
+use zng_var::{AnyVar, BoxAnyVarValue, ResponseVar, Var, VarHandle, VarHandles, VarValue};
 use zng_view_api::display_list::ReuseRange;
 
 use crate::{
@@ -897,7 +897,7 @@ impl WIDGET {
     }
 
     /// Subscribe to receive [`UpdateOp`] when the `var` changes.
-    pub fn sub_var_op(&self, op: UpdateOp, var: &VarAny) -> &Self {
+    pub fn sub_var_op(&self, op: UpdateOp, var: &AnyVar) -> &Self {
         let w = WIDGET_CTX.get();
         let s = var.subscribe(op, w.id);
 
@@ -940,7 +940,7 @@ impl WIDGET {
     }
 
     /// Subscribe to receive updates when the `var` changes.
-    pub fn sub_var(&self, var: &VarAny) -> &Self {
+    pub fn sub_var(&self, var: &AnyVar) -> &Self {
         self.sub_var_op(UpdateOp::Update, var)
     }
     /// Subscribe to receive updates when the `var` changes and the `predicate` approves the new value.
@@ -951,7 +951,7 @@ impl WIDGET {
     }
 
     /// Subscribe to receive info rebuild requests when the `var` changes.
-    pub fn sub_var_info(&self, var: &VarAny) -> &Self {
+    pub fn sub_var_info(&self, var: &AnyVar) -> &Self {
         self.sub_var_op(UpdateOp::Info, var)
     }
     /// Subscribe to receive info rebuild requests when the `var` changes and the `predicate` approves the new value.
@@ -962,7 +962,7 @@ impl WIDGET {
     }
 
     /// Subscribe to receive layout requests when the `var` changes.
-    pub fn sub_var_layout(&self, var: &VarAny) -> &Self {
+    pub fn sub_var_layout(&self, var: &AnyVar) -> &Self {
         self.sub_var_op(UpdateOp::Layout, var)
     }
     /// Subscribe to receive layout requests when the `var` changes and the `predicate` approves the new value.
@@ -973,7 +973,7 @@ impl WIDGET {
     }
 
     /// Subscribe to receive render requests when the `var` changes.
-    pub fn sub_var_render(&self, var: &VarAny) -> &Self {
+    pub fn sub_var_render(&self, var: &AnyVar) -> &Self {
         self.sub_var_op(UpdateOp::Render, var)
     }
     /// Subscribe to receive render requests when the `var` changes and the `predicate` approves the new value.
@@ -984,7 +984,7 @@ impl WIDGET {
     }
 
     /// Subscribe to receive render update requests when the `var` changes.
-    pub fn sub_var_render_update(&self, var: &VarAny) -> &Self {
+    pub fn sub_var_render_update(&self, var: &AnyVar) -> &Self {
         self.sub_var_op(UpdateOp::RenderUpdate, var)
     }
     /// Subscribe to receive render update requests when the `var` changes and the `predicate` approves the new value.
@@ -1365,7 +1365,7 @@ pub trait AnyVarSubscribe {
     /// [`VarHandle::dummy`]: zng_var::VarHandle
     fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle;
 }
-impl AnyVarSubscribe for VarAny {
+impl AnyVarSubscribe for AnyVar {
     fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
         if !self.capabilities().is_const() {
             self.hook(move |_| {
@@ -1553,11 +1553,11 @@ pub struct OnVarArgs<T: VarValue> {
     /// The new value.
     pub value: T,
     /// Custom tag objects that where set when the value was modified.
-    pub tags: Vec<BoxedVarValueAny>,
+    pub tags: Vec<BoxAnyVarValue>,
 }
 impl<T: VarValue> OnVarArgs<T> {
     /// New from value and custom modify tags.
-    pub fn new(value: T, tags: Vec<BoxedVarValueAny>) -> Self {
+    pub fn new(value: T, tags: Vec<BoxAnyVarValue>) -> Self {
         Self { value, tags }
     }
 

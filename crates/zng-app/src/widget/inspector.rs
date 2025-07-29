@@ -48,7 +48,7 @@ use parking_lot::RwLock;
 use zng_state_map::StateId;
 use zng_txt::Txt;
 use zng_unique_id::static_id;
-use zng_var::{Var, VarAny, VarValue};
+use zng_var::{AnyVar, Var, VarValue};
 
 use std::{any::TypeId, collections::HashMap, sync::Arc};
 
@@ -89,10 +89,10 @@ pub enum InstanceItem {
 
 /// Inspected contextual variables actualized at the moment of info build.
 #[derive(Default)]
-pub struct InspectorActualVars(RwLock<HashMap<(PropertyId, usize), VarAny>>);
+pub struct InspectorActualVars(RwLock<HashMap<(PropertyId, usize), AnyVar>>);
 impl InspectorActualVars {
     /// Get the actualized property var, if at the moment of info build it was contextual (and existed).
-    pub fn get(&self, property: PropertyId, member: usize) -> Option<VarAny> {
+    pub fn get(&self, property: PropertyId, member: usize) -> Option<AnyVar> {
         self.0.read().get(&(property, member)).cloned()
     }
 
@@ -108,7 +108,7 @@ impl InspectorActualVars {
     }
 
     #[cfg(feature = "inspector")]
-    fn insert(&self, property: PropertyId, member: usize, var: VarAny) {
+    fn insert(&self, property: PropertyId, member: usize, var: AnyVar) {
         self.0.write().insert((property, member), var);
     }
 }

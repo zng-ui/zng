@@ -167,7 +167,7 @@ pub mod __proc_macro_util {
     #[doc(hidden)]
     pub mod var {
         #[doc(hidden)]
-        pub use crate::var::{Var, VarAny, VarValueAny, expr_var};
+        pub use crate::var::{AnyVar, AnyVarValue, Var, expr_var};
 
         #[doc(hidden)]
         pub mod animation {

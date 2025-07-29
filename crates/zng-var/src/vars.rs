@@ -11,7 +11,7 @@ use zng_unit::{Factor, FactorUnits as _, TimeUnits as _};
 use smallbox::smallbox;
 
 use crate::{
-    Var, VarAny,
+    AnyVar, Var,
     animation::{Animation, AnimationController, AnimationHandle, AnimationTimer, ModifyInfo},
     var,
 };
@@ -66,8 +66,8 @@ pub(crate) struct VarsService {
     app_waker: Option<SmallBox<dyn Fn() + Send + Sync + 'static, smallbox::space::S2>>,
     modify_trace: Option<SmallBox<dyn Fn(&'static str) + Send + Sync + 'static, smallbox::space::S2>>,
 
-    // VarAny::perm storage
-    perm: Mutex<Vec<VarAny>>,
+    // AnyVar::perm storage
+    perm: Mutex<Vec<AnyVar>>,
 
     // update state
     update_id: VarUpdateId,
@@ -308,7 +308,7 @@ impl VARS {
         );
     }
 
-    pub(crate) fn perm(&self, var: VarAny) {
+    pub(crate) fn perm(&self, var: AnyVar) {
         VARS_SV.read().perm.lock().push(var);
     }
 }

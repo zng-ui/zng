@@ -312,11 +312,11 @@
 //! See [`zng_var`] for the full var API.
 
 pub use zng_var::{
-    ArcEq, BoxedVarValueAny, ContextInitHandle, ContextVar, IntoValue, IntoVar, ObservableVec, ResponderVar, Response, ResponseVar, VARS,
-    Var, VarAny, VarCapability, VarHandle, VarHandles, VarHookArgs, VarInstanceTag, VarMergeBuilder, VarModify, VarUpdateId, VarValue,
-    VarValueAny, AnyWhenVarBuilder, VecChange, WeakVar, WeakVarAny, context_var, impl_from_and_into_var, response_done_var, response_var,
-    var, var_any, contextual_var, any_contextual_var, var_default, expr_var, var_from, var_getter, const_var, any_const_var, merge_var, var_state,
-    when_var,
+    AnyVar, AnyVarValue, AnyWhenVarBuilder, ArcEq, BoxAnyVarValue, ContextInitHandle, ContextVar, IntoValue, IntoVar, ObservableVec,
+    ResponderVar, Response, ResponseVar, VARS, Var, VarCapability, VarHandle, VarHandles, VarHookArgs, VarInstanceTag, VarMergeBuilder,
+    VarModify, VarUpdateId, VarValue, VecChange, WeakAnyVar, WeakVar, any_const_var, any_contextual_var, const_var, context_var,
+    contextual_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, var, var_any, var_default, var_from,
+    var_getter, var_state, when_var,
 };
 
 pub use zng_app::widget::{AnyVarSubscribe, OnVarArgs, VarLayout, VarSubscribe};

@@ -1,6 +1,6 @@
 //! Special Var<Response> type impls
 
-use crate::{Var, VarAny};
+use crate::{AnyVar, Var};
 
 use super::*;
 
@@ -45,7 +45,7 @@ impl<T: VarValue> From<ResponderVar<T>> for Var<Response<T>> {
         var.0
     }
 }
-impl<T: VarValue> From<ResponderVar<T>> for VarAny {
+impl<T: VarValue> From<ResponderVar<T>> for AnyVar {
     fn from(var: ResponderVar<T>) -> Self {
         var.0.into()
     }
@@ -68,7 +68,7 @@ impl<T: VarValue> From<ResponseVar<T>> for Var<Response<T>> {
         var.0
     }
 }
-impl<T: VarValue> From<ResponseVar<T>> for VarAny {
+impl<T: VarValue> From<ResponseVar<T>> for AnyVar {
     fn from(var: ResponseVar<T>) -> Self {
         var.0.into()
     }

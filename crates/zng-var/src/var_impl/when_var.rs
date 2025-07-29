@@ -5,7 +5,7 @@ use std::sync::{
     atomic::{AtomicU32, AtomicUsize, Ordering},
 };
 
-use crate::{VARS, Var, VarAny, shared::MutexHooks};
+use crate::{AnyVar, VARS, Var, shared_var::MutexHooks};
 
 use super::*;
 
@@ -85,12 +85,12 @@ pub use zng_var_proc_macros::when_var as __when_var;
 /// See [`WhenVarBuilder`] for more details.
 #[derive(Clone)]
 pub struct AnyWhenVarBuilder {
-    conditions: Vec<(Var<bool>, VarAny)>,
-    default: VarAny,
+    conditions: Vec<(Var<bool>, AnyVar)>,
+    default: AnyVar,
 }
 impl AnyWhenVarBuilder {
     /// New with value variable used when no other conditions are `true`.
-    pub fn new(default: VarAny) -> Self {
+    pub fn new(default: AnyVar) -> Self {
         AnyWhenVarBuilder {
             conditions: Vec::with_capacity(2),
             default,
@@ -101,7 +101,7 @@ impl AnyWhenVarBuilder {
     ///
     /// When the `condition` is `true` and all previous pushed conditions
     /// are `false` the when variable represents the `value` variable.
-    pub fn push(&mut self, condition: Var<bool>, value: VarAny) -> &mut Self {
+    pub fn push(&mut self, condition: Var<bool>, value: AnyVar) -> &mut Self {
         self.conditions.push((condition, value));
         self
     }
@@ -120,7 +120,7 @@ impl AnyWhenVarBuilder {
     }
 
     /// Build the when var.
-    pub fn build(self) -> VarAny {
+    pub fn build(self) -> AnyVar {
         var_when(self)
     }
 
@@ -135,7 +135,7 @@ impl AnyWhenVarBuilder {
     /// If the `var` was built by [`build`] clones the internal conditions, values and default variables into a new builder.
     ///
     /// [`build`]: Self::build
-    pub fn try_from_built(var: &VarAny) -> Option<Self> {
+    pub fn try_from_built(var: &AnyVar) -> Option<Self> {
         let any: &dyn Any = &*var.0;
         let built = any.downcast_ref::<WhenVar>()?;
         Some(Self {
@@ -196,7 +196,7 @@ impl<O: VarValue> WhenVarBuilder<O> {
     }
 }
 
-fn var_when(builder: AnyWhenVarBuilder) -> VarAny {
+fn var_when(builder: AnyWhenVarBuilder) -> AnyVar {
     // !!: TODO contextualize? And in a way that can recover builder in `try_from_built`
 
     let data = Arc::new(WhenVarData {
@@ -235,7 +235,7 @@ fn var_when(builder: AnyWhenVarBuilder) -> VarAny {
                     };
 
                     active.0.with(&mut |v| {
-                        data.hooks.notify(&VarAnyHookArgs {
+                        data.hooks.notify(&AnyVarHookArgs {
                             value: v,
                             update: args.update,
                             tags: args.tags,
@@ -276,12 +276,12 @@ fn var_when(builder: AnyWhenVarBuilder) -> VarAny {
         })
         .perm();
 
-    VarAny(smallbox!(WhenVar(data)))
+    AnyVar(smallbox!(WhenVar(data)))
 }
 
 struct WhenVarData {
-    conditions: Vec<(Var<bool>, VarAny)>,
-    default: VarAny,
+    conditions: Vec<(Var<bool>, AnyVar)>,
+    default: AnyVar,
     active_condition: AtomicUsize,
     hooks: MutexHooks,
     // Atomic<VarUpdateId>
@@ -289,7 +289,7 @@ struct WhenVarData {
 }
 struct WhenVar(Arc<WhenVarData>);
 impl WhenVar {
-    fn active(&self) -> &VarAny {
+    fn active(&self) -> &AnyVar {
         let i = self.0.active_condition.load(Ordering::Relaxed);
         if i < self.0.conditions.len() {
             &self.0.conditions[i].1
@@ -335,15 +335,15 @@ impl VarImpl for WhenVar {
         self.active().0.capabilities() | VarCapability::CAPS_CHANGE
     }
 
-    fn with(&self, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
+    fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
         self.active().0.with(visitor)
     }
 
-    fn get(&self) -> BoxedVarValueAny {
+    fn get(&self) -> BoxAnyVarValue {
         self.active().0.get()
     }
 
-    fn set(&self, new_value: BoxedVarValueAny) -> bool {
+    fn set(&self, new_value: BoxAnyVarValue) -> bool {
         self.active().0.set(new_value)
     }
 
@@ -355,7 +355,7 @@ impl VarImpl for WhenVar {
         self.active().0.modify(modify)
     }
 
-    fn hook(&self, on_new: SmallBox<dyn FnMut(&VarAnyHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
+    fn hook(&self, on_new: SmallBox<dyn FnMut(&AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
         self.0.hooks.push(on_new)
     }
 

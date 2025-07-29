@@ -3,14 +3,14 @@
 
 use std::mem;
 
-use crate::VarAny;
+use crate::AnyVar;
 
-use super::*;
+use super::{shared_var::SharedVar, *};
 
 /// source var is stored as the value of the `write` SharedVar
 #[derive(Clone)]
 struct CowVarSource {
-    source: VarAny,
+    source: AnyVar,
     _source_hook: VarHandle,
 }
 impl fmt::Debug for CowVarSource {
@@ -24,10 +24,10 @@ impl PartialEq for CowVarSource {
     }
 }
 
-pub(crate) struct CowVar(super::shared::SharedVar);
+pub(crate) struct CowVar(SharedVar);
 impl CowVar {
-    pub(crate) fn new(source: VarAny) -> Self {
-        let me = super::shared::SharedVar::new(BoxedVarValueAny::new(()));
+    pub(crate) fn new(source: AnyVar) -> Self {
+        let me = SharedVar::new(BoxAnyVarValue::new(()));
         let weak_me = me.downgrade_typed();
 
         // update CowVar on source update
@@ -39,7 +39,7 @@ impl CowVar {
             None => false,
         });
 
-        Self(super::shared::SharedVar::new(BoxedVarValueAny::new(CowVarSource {
+        Self(SharedVar::new(BoxAnyVarValue::new(CowVarSource {
             source,
             _source_hook,
         })))
@@ -112,7 +112,7 @@ impl VarImpl for CowVar {
         caps
     }
 
-    fn with(&self, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
+    fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
         self.0.with(&mut move |v| {
             if let Some(source) = v.downcast_ref::<CowVarSource>() {
                 source.source.with(&mut *visitor);
@@ -122,7 +122,7 @@ impl VarImpl for CowVar {
         });
     }
 
-    fn get(&self) -> BoxedVarValueAny {
+    fn get(&self) -> BoxAnyVarValue {
         let mut output = None;
         self.0.with(&mut |v| {
             if let Some(source) = v.downcast_ref::<CowVarSource>() {
@@ -134,7 +134,7 @@ impl VarImpl for CowVar {
         output.unwrap()
     }
 
-    fn set(&self, new_value: BoxedVarValueAny) -> bool {
+    fn set(&self, new_value: BoxAnyVarValue) -> bool {
         self.0.set(new_value)
     }
 
@@ -187,12 +187,12 @@ impl VarImpl for CowVar {
         }))
     }
 
-    fn hook(&self, mut on_new: SmallBox<dyn FnMut(&VarAnyHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
-        self.0.hook(smallbox!(move |args: &VarAnyHookArgs| {
+    fn hook(&self, mut on_new: SmallBox<dyn FnMut(&AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
+        self.0.hook(smallbox!(move |args: &AnyVarHookArgs| {
             if let Some(read) = args.value.downcast_ref::<CowVarSource>() {
                 let mut retain = false;
-                read.source.with(&mut |value: &dyn VarValueAny| {
-                    retain = on_new(&VarAnyHookArgs {
+                read.source.with(&mut |value: &dyn AnyVarValue| {
+                    retain = on_new(&AnyVarHookArgs {
                         value,
                         update: args.update,
                         tags: args.tags,
@@ -250,7 +250,7 @@ impl VarImpl for CowVar {
     }
 }
 
-struct WeakCowVar(super::shared::WeakSharedVar);
+struct WeakCowVar(super::shared_var::WeakSharedVar);
 impl WeakVarImpl for WeakCowVar {
     fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
         smallbox!(Self(self.0.clone()))

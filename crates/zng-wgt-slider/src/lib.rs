@@ -22,7 +22,7 @@ use zng_ext_input::{
     pointer_capture::CaptureMode,
     touch::{TOUCH_INPUT_EVENT, TouchPhase},
 };
-use zng_var::{VarAny, VarValueAny};
+use zng_var::{AnyVar, AnyVarValue};
 use zng_wgt::prelude::*;
 use zng_wgt_input::{focus::FocusableMix, pointer_capture::capture_pointer};
 use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
@@ -67,11 +67,11 @@ impl DefaultStyle {
 }
 
 trait SelectorImpl: Send {
-    fn selection(&self) -> VarAny;
+    fn selection(&self) -> AnyVar;
     fn thumbs(&self) -> Var<Vec<ThumbValue>>;
     fn set(&self, nearest: Factor, to: Factor);
 
-    fn to_offset(&self, t: &dyn VarValueAny) -> Option<Factor>;
+    fn to_offset(&self, t: &dyn AnyVarValue) -> Option<Factor>;
     #[allow(clippy::wrong_self_convention)]
     fn from_offset(&self, offset: Factor) -> Box<dyn Any>;
 }
@@ -140,7 +140,7 @@ impl Selector {
             to_from: Arc<dyn OffsetConvert<T>>,
         }
         impl<T: VarValue> SelectorImpl for SingleImpl<T> {
-            fn selection(&self) -> VarAny {
+            fn selection(&self) -> AnyVar {
                 self.selection.as_any().clone()
             }
 
@@ -152,7 +152,7 @@ impl Selector {
                 self.thumbs.clone()
             }
 
-            fn to_offset(&self, t: &dyn VarValueAny) -> Option<Factor> {
+            fn to_offset(&self, t: &dyn AnyVarValue) -> Option<Factor> {
                 let f = self.to_from.to(t.downcast_ref::<T>()?);
                 Some(f)
             }
@@ -202,7 +202,7 @@ impl Selector {
             to_from: Arc<dyn OffsetConvert<T>>,
         }
         impl<T: VarValue> SelectorImpl for ManyImpl<T> {
-            fn selection(&self) -> VarAny {
+            fn selection(&self) -> AnyVar {
                 self.selection.as_any().clone()
             }
 
@@ -245,7 +245,7 @@ impl Selector {
                 self.thumbs.clone()
             }
 
-            fn to_offset(&self, t: &dyn VarValueAny) -> Option<Factor> {
+            fn to_offset(&self, t: &dyn AnyVarValue) -> Option<Factor> {
                 let f = self.to_from.to(t.downcast_ref::<T>()?);
                 Some(f)
             }
@@ -306,7 +306,7 @@ impl Selector {
     /// The selection var.
     ///
     /// Downcast to `T`' or `Vec<T>` to get and set the value.
-    pub fn selection(&self) -> VarAny {
+    pub fn selection(&self) -> AnyVar {
         self.0.lock().selection()
     }
 

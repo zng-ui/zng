@@ -3,27 +3,27 @@
 use std::sync::{Arc, Weak};
 
 use crate::{
-    BoxedVarValueAny, VarAny, VarAnyHookArgs, VarHandle, VarImpl, VarInstanceTag, VarUpdateId, VarValueAny, WeakVarImpl, shared::MutexHooks,
+    AnyVar, AnyVarHookArgs, AnyVarValue, BoxAnyVarValue, VarHandle, VarImpl, VarInstanceTag, VarUpdateId, WeakVarImpl, shared_var::MutexHooks,
 };
 use parking_lot::{Mutex, RwLock};
 use smallbox::{SmallBox, smallbox};
 
 use super::{VarCapability, VarModifyAny};
 
-type MapFn = SmallBox<dyn FnMut(&dyn VarValueAny) -> VarAny + Send + 'static, smallbox::space::S4>;
+type MapFn = SmallBox<dyn FnMut(&dyn AnyVarValue) -> AnyVar + Send + 'static, smallbox::space::S4>;
 
 /// source var is stored as the value of the `write` SharedVar
 struct FlatMapData {
-    source: VarAny,
+    source: AnyVar,
     map: Mutex<MapFn>,
-    current: RwLock<(VarAny, VarHandle)>,
+    current: RwLock<(AnyVar, VarHandle)>,
     hooks: MutexHooks,
 }
 
 #[derive(Clone)]
 pub(crate) struct FlatMapVar(Arc<FlatMapData>);
 impl FlatMapVar {
-    pub(crate) fn new(source: VarAny, mut map: MapFn) -> Self {
+    pub(crate) fn new(source: AnyVar, mut map: MapFn) -> Self {
         let init = source.with(|v| map(v));
 
         let data = Arc::new(FlatMapData {
@@ -62,7 +62,7 @@ impl FlatMapVar {
     }
 }
 
-fn hook_inner_var(data: &Arc<FlatMapData>, mut current: parking_lot::RwLockWriteGuard<(VarAny, VarHandle)>) {
+fn hook_inner_var(data: &Arc<FlatMapData>, mut current: parking_lot::RwLockWriteGuard<(AnyVar, VarHandle)>) {
     let weak = Arc::downgrade(data);
     let init_handle = current.0.hook(move |args| {
         if let Some(data) = weak.upgrade() {
@@ -119,15 +119,15 @@ impl VarImpl for FlatMapVar {
         self.0.current.read().0.capabilities() | VarCapability::CAPS_CHANGE
     }
 
-    fn with(&self, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
+    fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
         self.0.current.read().0.0.with(visitor);
     }
 
-    fn get(&self) -> BoxedVarValueAny {
+    fn get(&self) -> BoxAnyVarValue {
         self.0.current.read().0.0.get()
     }
 
-    fn set(&self, new_value: BoxedVarValueAny) -> bool {
+    fn set(&self, new_value: BoxAnyVarValue) -> bool {
         self.0.current.read().0.0.set(new_value)
     }
 
@@ -139,7 +139,7 @@ impl VarImpl for FlatMapVar {
         self.0.current.read().0.0.modify(modify)
     }
 
-    fn hook(&self, on_new: SmallBox<dyn FnMut(&VarAnyHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
+    fn hook(&self, on_new: SmallBox<dyn FnMut(&AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
         self.0.hooks.push(on_new)
     }
 

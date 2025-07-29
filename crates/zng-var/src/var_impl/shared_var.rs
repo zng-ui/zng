@@ -8,18 +8,18 @@ use std::{
 use parking_lot::{Mutex, RwLock};
 use smallvec::SmallVec;
 
-use crate::{VARS, Var, VarAny, VarUpdateId, VarValue, animation::ModifyInfo};
+use crate::{AnyVar, VARS, Var, VarUpdateId, VarValue, animation::ModifyInfo};
 
 use super::*;
 
 /// New read/write shared reference variable.
 pub fn var<T: VarValue>(initial_value: T) -> Var<T> {
-    Var::new_any(VarAny(smallbox!(SharedVar::new(BoxedVarValueAny::new(initial_value)))))
+    Var::new_any(AnyVar(smallbox!(SharedVar::new(BoxAnyVarValue::new(initial_value)))))
 }
 
 /// New read/write shared reference type-erased variable.
-pub fn var_any(initial_value: BoxedVarValueAny) -> VarAny {
-    VarAny(smallbox!(SharedVar::new(initial_value)))
+pub fn var_any(initial_value: BoxAnyVarValue) -> AnyVar {
+    AnyVar(smallbox!(SharedVar::new(initial_value)))
 }
 
 /// Variable for state properties (`is_*`, `has_*`).
@@ -40,14 +40,14 @@ pub fn var_getter<T: VarValue + Default>() -> Var<T> {
 }
 
 struct VarData {
-    value: RwLock<(BoxedVarValueAny, VarUpdateId, ModifyInfo)>,
+    value: RwLock<(BoxAnyVarValue, VarUpdateId, ModifyInfo)>,
     hooks: MutexHooks,
 }
 
 #[derive(Clone)]
 pub(crate) struct SharedVar(Arc<VarData>);
 impl SharedVar {
-    pub(crate) fn new(value: BoxedVarValueAny) -> Self {
+    pub(crate) fn new(value: BoxAnyVarValue) -> Self {
         Self(Arc::new(VarData {
             value: RwLock::new((value, VarUpdateId::never(), ModifyInfo::never())),
             hooks: MutexHooks::default(),
@@ -102,16 +102,16 @@ impl VarImpl for SharedVar {
         VarCapability::NEW | VarCapability::MODIFY | VarCapability::SHARE
     }
 
-    fn with(&self, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
+    fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
         let value = self.0.value.read();
         visitor(&*value.0);
     }
 
-    fn get(&self) -> BoxedVarValueAny {
+    fn get(&self) -> BoxAnyVarValue {
         self.0.value.read().0.clone_boxed()
     }
 
-    fn set(&self, new_value: BoxedVarValueAny) -> bool {
+    fn set(&self, new_value: BoxAnyVarValue) -> bool {
         self.modify_impl(ValueOrModify::Value(new_value));
         true
     }
@@ -191,7 +191,7 @@ impl SharedVar {
                     value.1 = VARS.update_id();
 
                     let value = parking_lot::RwLockWriteGuard::downgrade(value);
-                    let args = VarAnyHookArgs::new(&*value.0, update.contains(VarModifyUpdate::REQUESTED), &tags);
+                    let args = AnyVarHookArgs::new(&*value.0, update.contains(VarModifyUpdate::REQUESTED), &tags);
                     var.0.hooks.notify(&args);
                 }
             }
@@ -201,7 +201,7 @@ impl SharedVar {
 // both boxes are space::S4, so can't implement `set` as `modify` without alloc
 // this type and `modify_impl` work around that
 enum ValueOrModify {
-    Value(BoxedVarValueAny),
+    Value(BoxAnyVarValue),
     Modify(SmallBox<dyn FnMut(&mut VarModifyAny) + Send + 'static, smallbox::space::S4>),
 }
 
@@ -240,7 +240,7 @@ impl MutexHooks {
         VarHandle::new(handle)
     }
 
-    pub fn notify(&self, args: &VarAnyHookArgs) {
+    pub fn notify(&self, args: &AnyVarHookArgs) {
         let mut hooks = mem::take(&mut *self.h.lock());
 
         hooks.retain(|(f, handle)| {
@@ -262,4 +262,4 @@ impl MutexHooks {
     }
 }
 
-pub(super) type HookFn = SmallBox<dyn FnMut(&VarAnyHookArgs) -> bool + Send + 'static, smallbox::space::S4>;
+pub(super) type HookFn = SmallBox<dyn FnMut(&AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>;

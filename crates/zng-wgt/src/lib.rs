@@ -61,8 +61,8 @@ mod __prelude {
 
     pub use zng_var::{
         ContextVar, IntoValue, IntoVar, ObservableVec, ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarUpdateId,
-        VarValue, WeakVar, context_var, impl_from_and_into_var, response_done_var, response_var, var, var_default, expr_var, var_from,
-        const_var, merge_var, var_state, when_var,
+        VarValue, WeakVar, const_var, context_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, var,
+        var_default, var_from, var_state, when_var,
     };
 
     pub use zng_layout::{

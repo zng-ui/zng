@@ -4,7 +4,7 @@ use semver::Version;
 use zng_clone_move::clmv;
 use zng_ext_fs_watcher::WATCHER;
 use zng_txt::Txt;
-use zng_var::{ArcEq, Var, WeakVar, var, const_var, weak_var};
+use zng_var::{ArcEq, Var, WeakVar, const_var, var, weak_var};
 
 use crate::{FluentParserErrors, L10nSource, Lang, LangFilePath, LangMap, LangResourceStatus};
 

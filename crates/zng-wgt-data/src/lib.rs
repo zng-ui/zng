@@ -12,7 +12,7 @@
 use std::{any::Any, collections::HashMap, fmt, mem, num::NonZeroU8, ops, sync::Arc};
 
 use zng_color::COLOR_SCHEME_VAR;
-use zng_var::{Var, VarAny, contextual_var};
+use zng_var::{AnyVar, Var, contextual_var};
 use zng_wgt::prelude::*;
 
 use task::parking_lot::RwLock;
@@ -363,7 +363,7 @@ impl DATA {
     /// Note that this does not return a contextualizing var like [`get`], it gets the data var in the calling context.
     ///
     /// [`get`]: Self::get
-    pub fn get_any(&self) -> VarAny {
+    pub fn get_any(&self) -> AnyVar {
         DATA_CTX.get_clone()
     }
 
@@ -458,7 +458,7 @@ impl DATA {
 }
 
 context_local! {
-    static DATA_CTX: VarAny = const_var(());
+    static DATA_CTX: AnyVar = const_var(());
     static DATA_NOTES_CTX: RwLock<DataNotesProbe> = RwLock::default();
 }
 

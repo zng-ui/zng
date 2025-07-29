@@ -18,7 +18,7 @@ use zng_app_context::{LocalContext, app_local};
 use zng_clone_move::clmv;
 use zng_handle::{Handle, HandleOwner};
 use zng_unit::TimeUnits;
-use zng_var::{VARS, Var, VarAnyHookArgs, VarUpdateId, VarValue, WeakVar, var};
+use zng_var::{AnyVarHookArgs, VARS, Var, VarUpdateId, VarValue, WeakVar, var};
 
 use crate::{
     FS_CHANGES_EVENT, FsChange, FsChangeNote, FsChangeNoteHandle, FsChangesArgs, WATCHER, WatchFile, WatcherHandle, WatcherReadStatus,
@@ -519,7 +519,7 @@ impl SyncWithVar {
 
         let var = var(init);
         var.as_any()
-            .hook(clmv!(path, latest_from_read, var_hook_and_modify, |args: &VarAnyHookArgs| {
+            .hook(clmv!(path, latest_from_read, var_hook_and_modify, |args: &AnyVarHookArgs| {
                 let is_read = args.downcast_tags::<Arc<WatcherSyncWriteNote>>().any(|n| n == &path);
                 latest_from_read.store(is_read, Ordering::Relaxed);
                 var_hook_and_modify(is_read);

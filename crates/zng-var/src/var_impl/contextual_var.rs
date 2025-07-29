@@ -9,7 +9,7 @@ use parking_lot::{Mutex, RwLock};
 use smallbox::{SmallBox, smallbox};
 use zng_app_context::context_local;
 
-use crate::{Var, VarAny, VarImpl, VarInstanceTag, VarValue, WeakVarImpl};
+use crate::{AnyVar, Var, VarImpl, VarInstanceTag, VarValue, WeakVarImpl};
 
 use super::VarCapability;
 
@@ -18,11 +18,11 @@ use super::VarCapability;
 /// The `context_init` closure must produce variables of the same value type.
 ///
 /// See [`contextual_var`] for more details about contextualized variables.
-pub fn any_contextual_var(context_init: impl FnMut() -> VarAny + Send + 'static) -> VarAny {
+pub fn any_contextual_var(context_init: impl FnMut() -> AnyVar + Send + 'static) -> AnyVar {
     any_contextual_var_impl(smallbox!(context_init))
 }
-fn any_contextual_var_impl(context_init: ContextInitFn) -> VarAny {
-    VarAny(smallbox!(ContextualVar::new(context_init)))
+fn any_contextual_var_impl(context_init: ContextInitFn) -> AnyVar {
+    AnyVar(smallbox!(ContextualVar::new(context_init)))
 }
 
 /// Create a contextualized variable.
@@ -64,11 +64,11 @@ pub fn contextual_var<T: VarValue>(mut context_init: impl FnMut() -> Var<T> + Se
     Var::new_any(any_contextual_var(move || context_init().into()))
 }
 
-pub(super) type ContextInitFn = SmallBox<dyn FnMut() -> VarAny + Send + 'static, smallbox::space::S8>;
+pub(super) type ContextInitFn = SmallBox<dyn FnMut() -> AnyVar + Send + 'static, smallbox::space::S8>;
 
 pub(crate) struct ContextualVar {
     init: Arc<Mutex<ContextInitFn>>,
-    ctx: RwLock<(VarAny, ContextInitHandle)>,
+    ctx: RwLock<(AnyVar, ContextInitHandle)>,
 }
 impl Clone for ContextualVar {
     fn clone(&self) -> Self {
@@ -86,7 +86,7 @@ impl ContextualVar {
         }
     }
 
-    fn load(&self) -> parking_lot::MappedRwLockReadGuard<VarAny> {
+    fn load(&self) -> parking_lot::MappedRwLockReadGuard<AnyVar> {
         let ctx = self.ctx.read();
         let id = ContextInitHandle::current();
         if ctx.1 == id {
@@ -151,15 +151,15 @@ impl VarImpl for ContextualVar {
         self.load().0.capabilities() | VarCapability::CONTEXT
     }
 
-    fn with(&self, visitor: &mut dyn FnMut(&dyn crate::VarValueAny)) {
+    fn with(&self, visitor: &mut dyn FnMut(&dyn crate::AnyVarValue)) {
         self.load().0.with(visitor);
     }
 
-    fn get(&self) -> crate::BoxedVarValueAny {
+    fn get(&self) -> crate::BoxAnyVarValue {
         self.load().0.get()
     }
 
-    fn set(&self, new_value: crate::BoxedVarValueAny) -> bool {
+    fn set(&self, new_value: crate::BoxAnyVarValue) -> bool {
         self.load().0.set(new_value)
     }
 
@@ -171,7 +171,7 @@ impl VarImpl for ContextualVar {
         self.load().0.modify(modify)
     }
 
-    fn hook(&self, on_new: SmallBox<dyn FnMut(&crate::VarAnyHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> super::VarHandle {
+    fn hook(&self, on_new: SmallBox<dyn FnMut(&crate::AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> super::VarHandle {
         self.load().0.hook(on_new)
     }
 
@@ -216,7 +216,7 @@ impl WeakVarImpl for WeakContextualVar {
     }
 }
 
-fn no_ctx_var() -> VarAny {
+fn no_ctx_var() -> AnyVar {
     crate::const_var(()).into()
 }
 

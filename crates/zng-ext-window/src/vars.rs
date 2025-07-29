@@ -12,7 +12,7 @@ use zng_layout::unit::{
 use zng_state_map::{StateId, static_id};
 use zng_txt::Txt;
 use zng_unique_id::IdSet;
-use zng_var::{Var, var, var_from, merge_var};
+use zng_var::{Var, merge_var, var, var_from};
 use zng_view_api::{
     config::{ColorScheme, ColorsConfig},
     window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState},

@@ -6,7 +6,7 @@ use semver::Version;
 use zng_ext_fs_watcher::WatcherReadStatus;
 use zng_layout::context::LayoutDirection;
 use zng_txt::{ToTxt, Txt};
-use zng_var::{ArcEq, IntoVar, Var, VarValue, context_var, impl_from_and_into_var, const_var};
+use zng_var::{ArcEq, IntoVar, Var, VarValue, const_var, context_var, impl_from_and_into_var};
 
 use crate::{L10N, lang, service::L10N_SV};
 

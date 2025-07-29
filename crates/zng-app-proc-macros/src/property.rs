@@ -427,7 +427,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         if !get_var.is_empty() {
             get_var = quote! {
-                fn var(&self, __index__: usize) -> &#core::var::VarAny {
+                fn var(&self, __index__: usize) -> &#core::var::AnyVar {
                     match __index__ {
                         #get_var
                         n => #core::widget::builder::panic_input(&self.property(), n, #core::widget::builder::InputKind::Var),
@@ -437,7 +437,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
         if !get_value.is_empty() {
             get_value = quote! {
-                fn value(&self, __index__: usize) -> &dyn #core::var::VarValueAny {
+                fn value(&self, __index__: usize) -> &dyn #core::var::AnyVarValue {
                     match __index__ {
                         #get_value
                         n => #core::widget::builder::panic_input(&self.property(), n, #core::widget::builder::InputKind::Value),

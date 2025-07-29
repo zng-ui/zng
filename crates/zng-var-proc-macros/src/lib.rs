@@ -17,9 +17,9 @@ extern crate quote;
 #[macro_use]
 mod util;
 
-mod transitionable;
 mod expr_var;
 mod merge_var;
+mod transitionable;
 mod when_var;
 
 /// Implement transition by delegating all type parts.

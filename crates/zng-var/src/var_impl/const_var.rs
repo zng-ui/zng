@@ -41,15 +41,15 @@ impl<T: VarValue> VarImpl for ConstVar<T> {
         smallbox!(WeakConstVar)
     }
 
-    fn get(&self) -> BoxedVarValueAny {
-        BoxedVarValueAny::new(self.0.clone())
+    fn get(&self) -> BoxAnyVarValue {
+        BoxAnyVarValue::new(self.0.clone())
     }
 
-    fn set(&self, _: BoxedVarValueAny) -> bool {
+    fn set(&self, _: BoxAnyVarValue) -> bool {
         false
     }
 
-    fn with(&self, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
+    fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
         visitor(&self.0);
     }
 
@@ -65,7 +65,7 @@ impl<T: VarValue> VarImpl for ConstVar<T> {
         false
     }
 
-    fn hook(&self, _: SmallBox<dyn FnMut(&VarAnyHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
+    fn hook(&self, _: SmallBox<dyn FnMut(&AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
         VarHandle::dummy()
     }
 
@@ -112,11 +112,11 @@ impl WeakVarImpl for WeakConstVar {
 /// Value types can also manually implement this to support a shorthand literal syntax for when they are used in properties,
 /// this converts the *shorthand value* like a tuple into the actual value type and wraps it into a variable, usually [`const_var`].
 /// Value types can implement the trait multiple times to support different shorthand syntaxes.
-/// 
+///
 /// [`const_var`]: crate::const_var
 #[diagnostic::on_unimplemented(
     note = "`IntoVar<T>` is implemented for all `T: VarValue`",
-    note = "`IntoVar<T>` is implemented for `Var<T>`, `ContextVar<T>` and others",
+    note = "`IntoVar<T>` is implemented for `Var<T>`, `ContextVar<T>` and others"
 )]
 pub trait IntoVar<T: VarValue> {
     #[allow(missing_docs)]
@@ -133,10 +133,10 @@ impl<T: VarValue> IntoVar<T> for Var<T> {
     }
 }
 
-pub(crate) struct AnyConstVar(BoxedVarValueAny);
+pub(crate) struct AnyConstVar(BoxAnyVarValue);
 
 impl AnyConstVar {
-    pub(crate) fn new(small_box: BoxedVarValueAny) -> Self {
+    pub(crate) fn new(small_box: BoxAnyVarValue) -> Self {
         Self(small_box)
     }
 }
@@ -183,15 +183,15 @@ impl VarImpl for AnyConstVar {
         VarCapability::empty()
     }
 
-    fn with(&self, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
+    fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
         visitor(&*self.0)
     }
 
-    fn get(&self) -> BoxedVarValueAny {
+    fn get(&self) -> BoxAnyVarValue {
         self.0.clone_boxed()
     }
 
-    fn set(&self, _: BoxedVarValueAny) -> bool {
+    fn set(&self, _: BoxAnyVarValue) -> bool {
         false
     }
 
@@ -203,7 +203,7 @@ impl VarImpl for AnyConstVar {
         false
     }
 
-    fn hook(&self, _: SmallBox<dyn FnMut(&VarAnyHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
+    fn hook(&self, _: SmallBox<dyn FnMut(&AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
         VarHandle::dummy()
     }
 

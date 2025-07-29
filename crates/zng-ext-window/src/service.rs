@@ -33,7 +33,7 @@ use zng_task::{
 use zng_txt::{ToTxt as _, Txt, formatx};
 use zng_unique_id::{IdMap, IdSet};
 use zng_var::{
-    ResponderVar, ResponseVar, Var, WeakVar, impl_from_and_into_var, response_done_var, response_var, var, var_default, const_var,
+    ResponderVar, ResponseVar, Var, WeakVar, const_var, impl_from_and_into_var, response_done_var, response_var, var, var_default,
 };
 use zng_view_api::{
     DragDropId,

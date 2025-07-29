@@ -10,8 +10,8 @@ use smallbox::{SmallBox, smallbox};
 use zng_app_context::{AppLocalId, ContextLocal, ContextLocalKeyProvider};
 
 use crate::{
-    BoxedVarValueAny, ContextInitHandle, IntoVar, Var, VarAny, VarAnyHookArgs, VarCapability, VarHandle, VarImpl, VarInstanceTag,
-    VarModifyAny, VarUpdateId, VarValue, VarValueAny, WeakVarImpl,
+    AnyVar, AnyVarHookArgs, AnyVarValue, BoxAnyVarValue, ContextInitHandle, IntoVar, Var, VarCapability, VarHandle, VarImpl,
+    VarInstanceTag, VarModifyAny, VarUpdateId, VarValue, WeakVarImpl,
 };
 
 ///<span data-del-macro-root></span> Declares new [`ContextVar<T>`] static items.
@@ -66,7 +66,7 @@ macro_rules! context_var {
         $(#[$attr])*
         $vis static $NAME: $crate::ContextVar<$Type> = {
             $crate::__context_var_local! {
-                static CTX: $crate::VarAny = $crate::context_var_init::<$Type>($default);
+                static CTX: $crate::AnyVar = $crate::context_var_init::<$Type>($default);
             }
             static VAR: std::sync::OnceLock<$crate::Var<$Type>> = std::sync::OnceLock::new();
             $crate::ContextVar::new(&CTX, &VAR)
@@ -78,7 +78,7 @@ macro_rules! context_var {
 pub use zng_app_context::context_local as __context_var_local;
 
 #[doc(hidden)]
-pub fn context_var_init<T: VarValue>(init: impl IntoVar<T>) -> VarAny {
+pub fn context_var_init<T: VarValue>(init: impl IntoVar<T>) -> AnyVar {
     init.into_var().into()
 }
 
@@ -98,7 +98,7 @@ impl<T: VarValue> ContextLocalKeyProvider for ContextVar<T> {
 ///
 /// [`contextual_var`]: crate::contextual_var
 pub struct ContextVar<T: VarValue> {
-    ctx: &'static ContextLocal<VarAny>,
+    ctx: &'static ContextLocal<AnyVar>,
     var: &'static std::sync::OnceLock<Var<T>>,
 }
 impl<T: VarValue> Copy for ContextVar<T> {}
@@ -110,7 +110,7 @@ impl<T: VarValue> Clone for ContextVar<T> {
 
 impl<T: VarValue> ContextVar<T> {
     #[doc(hidden)]
-    pub const fn new(ctx: &'static ContextLocal<VarAny>, var: &'static std::sync::OnceLock<Var<T>>) -> Self {
+    pub const fn new(ctx: &'static ContextLocal<AnyVar>, var: &'static std::sync::OnceLock<Var<T>>) -> Self {
         Self { ctx, var }
     }
 
@@ -137,7 +137,7 @@ impl<T: VarValue> ContextVar<T> {
     /// variables may not update their binding, in widgets you must re-init the descendants if you replace the `var`.
     ///
     /// [contextualized]: crate::contextual_var
-    pub fn with_context<R>(self, id: ContextInitHandle, var: &mut Option<Arc<VarAny>>, action: impl FnOnce() -> R) -> R {
+    pub fn with_context<R>(self, id: ContextInitHandle, var: &mut Option<Arc<AnyVar>>, action: impl FnOnce() -> R) -> R {
         #[cfg(debug_assertions)]
         {
             let var = var.as_ref().expect("context `var` not set");
@@ -178,12 +178,12 @@ impl<T: VarValue> From<ContextVar<T>> for Var<T> {
         v.as_var().clone()
     }
 }
-impl<T: VarValue> From<ContextVar<T>> for VarAny {
+impl<T: VarValue> From<ContextVar<T>> for AnyVar {
     fn from(v: ContextVar<T>) -> Self {
         v.as_any().clone()
     }
 }
-struct ContextVarImpl(&'static ContextLocal<VarAny>);
+struct ContextVarImpl(&'static ContextLocal<AnyVar>);
 impl VarImpl for ContextVarImpl {
     fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
         smallbox!(Self(self.0))
@@ -221,15 +221,15 @@ impl VarImpl for ContextVarImpl {
         self.0.get().0.capabilities() | VarCapability::CONTEXT
     }
 
-    fn with(&self, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
+    fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
         self.0.get().0.with(visitor);
     }
 
-    fn get(&self) -> BoxedVarValueAny {
+    fn get(&self) -> BoxAnyVarValue {
         self.0.get().0.get()
     }
 
-    fn set(&self, new_value: BoxedVarValueAny) -> bool {
+    fn set(&self, new_value: BoxAnyVarValue) -> bool {
         self.0.get().0.set(new_value)
     }
 
@@ -241,7 +241,7 @@ impl VarImpl for ContextVarImpl {
         self.0.get().0.modify(modify)
     }
 
-    fn hook(&self, on_new: SmallBox<dyn FnMut(&VarAnyHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
+    fn hook(&self, on_new: SmallBox<dyn FnMut(&AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
         self.0.get().0.hook(on_new)
     }
 

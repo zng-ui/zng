@@ -1,9 +1,9 @@
 mod any {
-    use zng::{prelude::*, var::VarAny};
+    use zng::{prelude::*, var::AnyVar};
 
     #[test]
     fn downcast() {
-        let any_var = VarAny::from(var(true));
+        let any_var = AnyVar::from(var(true));
         assert!(any_var.downcast::<bool>().is_ok())
     }
 }
@@ -489,7 +489,7 @@ mod context {
         app::{AppExtended, AppExtension, HeadlessApp},
         prelude::*,
         prelude_wgt::*,
-        var::{ContextInitHandle, AnyWhenVarBuilder},
+        var::{AnyWhenVarBuilder, ContextInitHandle},
     };
 
     context_var! {

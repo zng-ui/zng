@@ -58,7 +58,7 @@ use zng_clone_move::clmv;
 use zng_ext_fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile};
 use zng_task as task;
 use zng_txt::Txt;
-use zng_var::{Var, VarHandles, VarValue, WeakVar, var, const_var};
+use zng_var::{Var, VarHandles, VarValue, WeakVar, const_var, var};
 
 /// Application extension that provides mouse events and service.
 ///

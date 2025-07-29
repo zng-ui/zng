@@ -15,7 +15,7 @@ use std::any::TypeId;
 
 use colors::{ACCENT_COLOR_VAR, BASE_COLOR_VAR};
 use zng_app::event::CommandParam;
-use zng_var::VarAny;
+use zng_var::AnyVar;
 use zng_wgt::{base_color, border, corner_radius, is_disabled, node::VarPresent as _, prelude::*};
 use zng_wgt_access::{AccessRole, access_role, labelled_by_child};
 use zng_wgt_container::{Container, child_align, padding};
@@ -268,7 +268,7 @@ pub fn cmd_param<T: VarValue>(child: impl UiNode, cmd_param: impl IntoVar<T>) ->
         with_context_var(
             child,
             CMD_PARAM_VAR,
-            VarAny::from(cmd_param.into_var())
+            AnyVar::from(cmd_param.into_var())
                 .downcast::<Option<CommandParam>>()
                 .unwrap_or_else(|_| unreachable!()),
         )

@@ -3,7 +3,7 @@ use std::{fmt, ops, sync::Arc};
 use crate::prelude::*;
 
 use zng_app::event::{CommandMetaVar, CommandMetaVarId};
-use zng_var::VarAny;
+use zng_var::AnyVar;
 #[doc(hidden)]
 pub use zng_wgt::prelude::clmv as __clmv;
 
@@ -257,7 +257,7 @@ impl EDITORS {
     /// Instantiate an editor for the `value`.
     ///
     /// Returns [`NilUiNode`] if no registered editor can handle the value type.
-    pub fn get(&self, value: VarAny) -> BoxedUiNode {
+    pub fn get(&self, value: AnyVar) -> BoxedUiNode {
         EDITORS_SV.read().get(EditorRequestArgs { value })
     }
 
@@ -431,11 +431,11 @@ impl CommandIconExt for Command {
 /// [`EDITORS.register`]: EDITORS::register
 #[derive(Clone)]
 pub struct EditorRequestArgs {
-    value: VarAny,
+    value: AnyVar,
 }
 impl EditorRequestArgs {
     /// The value variable.
-    pub fn value_any(&self) -> &VarAny {
+    pub fn value_any(&self) -> &AnyVar {
         &self.value
     }
 

@@ -55,28 +55,28 @@ use zng_clone_move::clmv;
 pub use zng_var_proc_macros::merge_var as __merge_var;
 
 use crate::{
-    BoxedVarValueAny, ContextVar, Response, ResponseVar, Var, VarAny, VarImpl, VarInstanceTag, VarValue, VarValueAny, WeakVarImpl, var_any,
+    AnyVar, AnyVarValue, BoxAnyVarValue, ContextVar, Response, ResponseVar, Var, VarImpl, VarInstanceTag, VarValue, WeakVarImpl, var_any,
 };
 
 use super::VarCapability;
 
 #[doc(hidden)]
-pub fn merge_var_input<I: VarValue>(input: impl MergeInput<I>) -> VarAny {
+pub fn merge_var_input<I: VarValue>(input: impl MergeInput<I>) -> AnyVar {
     input.into_merge_input().into()
 }
 
 #[doc(hidden)]
-pub fn merge_var_with(var: &VarAny, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
+pub fn merge_var_with(var: &AnyVar, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
     var.0.with(visitor);
 }
 
 #[doc(hidden)]
-pub fn merge_var_output<O: VarValue>(output: O) -> BoxedVarValueAny {
-    BoxedVarValueAny::new(output)
+pub fn merge_var_output<O: VarValue>(output: O) -> BoxAnyVarValue {
+    BoxAnyVarValue::new(output)
 }
 
 #[doc(hidden)]
-pub fn merge_var<O: VarValue>(inputs: Box<[VarAny]>, merge: impl FnMut(&[VarAny]) -> BoxedVarValueAny + Send + 'static) -> Var<O> {
+pub fn merge_var<O: VarValue>(inputs: Box<[AnyVar]>, merge: impl FnMut(&[AnyVar]) -> BoxAnyVarValue + Send + 'static) -> Var<O> {
     Var::new_any(var_merge_impl(inputs, smallbox!(merge)))
 }
 
@@ -101,13 +101,13 @@ impl<T: VarValue> MergeInput<Response<T>> for ResponseVar<T> {
     }
 }
 
-fn var_merge_impl(inputs: Box<[VarAny]>, merge: MergeFn) -> VarAny {
+fn var_merge_impl(inputs: Box<[AnyVar]>, merge: MergeFn) -> AnyVar {
     if inputs.iter().any(|i| i.capabilities().is_contextual()) {
         todo!("!!: TODO")
     }
     var_merge_tail(inputs, merge)
 }
-fn var_merge_tail(inputs: Box<[VarAny]>, mut merge: MergeFn) -> VarAny {
+fn var_merge_tail(inputs: Box<[AnyVar]>, mut merge: MergeFn) -> AnyVar {
     let output = var_any(merge(&inputs));
     let data = Arc::new(MergeVarData {
         inputs,
@@ -145,15 +145,15 @@ fn var_merge_tail(inputs: Box<[VarAny]>, mut merge: MergeFn) -> VarAny {
             .perm();
     }
 
-    VarAny(smallbox!(MergeVar(data)))
+    AnyVar(smallbox!(MergeVar(data)))
 }
 
-type MergeFn = SmallBox<dyn FnMut(&[VarAny]) -> BoxedVarValueAny + Send + 'static, smallbox::space::S4>;
+type MergeFn = SmallBox<dyn FnMut(&[AnyVar]) -> BoxAnyVarValue + Send + 'static, smallbox::space::S4>;
 
 struct MergeVarData {
-    inputs: Box<[VarAny]>,
+    inputs: Box<[AnyVar]>,
     merge: Mutex<(MergeFn, usize)>,
-    output: VarAny,
+    output: AnyVar,
 }
 
 struct MergeVar(Arc<MergeVarData>);
@@ -194,15 +194,15 @@ impl VarImpl for MergeVar {
         self.0.output.0.capabilities().as_read_only()
     }
 
-    fn with(&self, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
+    fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
         self.0.output.0.with(visitor);
     }
 
-    fn get(&self) -> BoxedVarValueAny {
+    fn get(&self) -> BoxAnyVarValue {
         self.0.output.0.get()
     }
 
-    fn set(&self, _: BoxedVarValueAny) -> bool {
+    fn set(&self, _: BoxAnyVarValue) -> bool {
         false
     }
 
@@ -214,7 +214,7 @@ impl VarImpl for MergeVar {
         false
     }
 
-    fn hook(&self, on_new: SmallBox<dyn FnMut(&crate::VarAnyHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> super::VarHandle {
+    fn hook(&self, on_new: SmallBox<dyn FnMut(&crate::AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> super::VarHandle {
         self.0.output.0.hook(on_new)
     }
 
@@ -257,7 +257,7 @@ impl WeakVarImpl for WeakMergeVar {
 
 /// Build a [`merge_var!`] from any number of input vars of the same type `I`.
 pub struct VarMergeBuilder<I: VarValue> {
-    inputs: Vec<VarAny>,
+    inputs: Vec<AnyVar>,
     _type: PhantomData<fn() -> I>,
 }
 impl<I: VarValue> VarMergeBuilder<I> {
@@ -286,13 +286,13 @@ impl<I: VarValue> VarMergeBuilder<I> {
     pub fn build<O: VarValue>(self, mut merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static) -> Var<O> {
         let any = var_merge_impl(
             self.inputs.into_boxed_slice(),
-            smallbox!(move |vars: &[VarAny]| {
-                let values: Box<[BoxedVarValueAny]> = vars.iter().map(|v| v.get()).collect();
+            smallbox!(move |vars: &[AnyVar]| {
+                let values: Box<[BoxAnyVarValue]> = vars.iter().map(|v| v.get()).collect();
                 let out = merge(VarMergeInputs {
                     inputs: &values[..],
                     _type: PhantomData,
                 });
-                BoxedVarValueAny::new(out)
+                BoxAnyVarValue::new(out)
             }),
         );
         Var::new_any(any)
@@ -306,7 +306,7 @@ impl<I: VarValue> Default for VarMergeBuilder<I> {
 
 /// Input arguments for the merge closure of [`VarMergeBuilder`] merge vars.
 pub struct VarMergeInputs<'a, I: VarValue> {
-    inputs: &'a [BoxedVarValueAny],
+    inputs: &'a [BoxAnyVarValue],
     _type: PhantomData<&'a I>,
 }
 impl<I: VarValue> VarMergeInputs<'_, I> {

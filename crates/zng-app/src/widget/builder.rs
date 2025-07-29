@@ -218,8 +218,8 @@ use zng_app_proc_macros::widget;
 use zng_txt::{Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap, IdSet, unique_id_32};
 use zng_var::{
-    ContextInitHandle, IntoValue, IntoVar, Var, VarAny, VarValue, VarValueAny, AnyWhenVarBuilder, WeakContextInitHandle,
-    impl_from_and_into_var, contextual_var, const_var, any_const_var,
+    AnyVar, AnyVarValue, AnyWhenVarBuilder, ContextInitHandle, IntoValue, IntoVar, Var, VarValue, WeakContextInitHandle, any_const_var,
+    const_var, contextual_var, impl_from_and_into_var,
 };
 
 use super::{
@@ -725,7 +725,7 @@ pub struct PropertyNewArgs {
     /// | Kind                | Expected Type
     /// |---------------------|-------------------------------------------------
     /// | [`Var`]             | `Box<Var<T>>` or `Box<VarWhenAnyBuilder>`
-    /// | [`Value`]           | `Box<BoxedVarValueAny>` !!: TODO review this
+    /// | [`Value`]           | `Box<BoxAnyVarValue>` !!: TODO review this
     /// | [`UiNode`]          | `Box<ArcNode<BoxedUiNode>>` or `Box<WhenUiNodeBuilder>`
     /// | [`UiNodeList`]      | `Box<ArcNodeList<BoxedUiNodeList>>` or `Box<WhenUiNodeListBuilder>`
     /// | [`WidgetHandler`]   | `Box<ArcWidgetHandler<A>>` or `Box<AnyWhenArcWidgetHandlerBuilder>`
@@ -747,7 +747,7 @@ pub struct PropertyNewArgs {
     /// | Kind                | Expected Type
     /// |---------------------|-------------------------------------------------
     /// | [`Var`]             | `Box<PropertyBuildAction<Var<T>>>`
-    /// | [`Value`]           | `Box<PropertyBuildAction<BoxedVarValueAny>>`
+    /// | [`Value`]           | `Box<PropertyBuildAction<BoxAnyVarValue>>`
     /// | [`UiNode`]          | `Box<PropertyBuildAction<ArcNode<BoxedUiNode>>>`
     /// | [`UiNodeList`]      | `Box<PropertyBuildAction<ArcNodeList<BoxedUiNodeList>>>`
     /// | [`WidgetHandler`]   | `Box<PropertyBuildAction<ArcWidgetHandler<A>>>`
@@ -851,12 +851,12 @@ pub trait PropertyArgs: Send + Sync {
     fn property(&self) -> PropertyInfo;
 
     /// Gets a [`InputKind::Var`].
-    fn var(&self, i: usize) -> &VarAny {
+    fn var(&self, i: usize) -> &AnyVar {
         panic_input(&self.property(), i, InputKind::Var)
     }
 
     /// Gets a [`InputKind::Value`].
-    fn value(&self, i: usize) -> &dyn VarValueAny {
+    fn value(&self, i: usize) -> &dyn AnyVarValue {
         panic_input(&self.property(), i, InputKind::Value)
     }
 
@@ -1346,7 +1346,7 @@ impl<T: VarValue> AnyWhenInputVarInner for WhenInputInitData<T> {
         self
     }
 
-    fn set(&mut self, handle: WeakContextInitHandle, var: VarAny) {
+    fn set(&mut self, handle: WeakContextInitHandle, var: AnyVar) {
         let var = var.downcast::<T>().unwrap_or_else(|_| panic!("incorrect when input var type"));
 
         if let Some(i) = self.data.iter().position(|(i, _)| i == &handle) {
@@ -1358,7 +1358,7 @@ impl<T: VarValue> AnyWhenInputVarInner for WhenInputInitData<T> {
 }
 trait AnyWhenInputVarInner: Any + Send {
     fn as_any(&mut self) -> &mut dyn Any;
-    fn set(&mut self, handle: WeakContextInitHandle, var: VarAny);
+    fn set(&mut self, handle: WeakContextInitHandle, var: AnyVar);
 }
 
 /// Represents a [`WhenInput`] variable that can be rebound.
@@ -1378,7 +1378,7 @@ impl WhenInputVar {
         )
     }
 
-    fn set(&self, handle: WeakContextInitHandle, var: VarAny) {
+    fn set(&self, handle: WeakContextInitHandle, var: AnyVar) {
         self.var.lock().set(handle, var);
     }
 }
