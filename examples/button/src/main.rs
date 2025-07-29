@@ -156,7 +156,7 @@ fn split_button() -> impl UiNode {
                 args.propagation().stop();
             });
 
-            child = Text!(var_merge!(button_count, split_count, |&b, &s| {
+            child = Text!(merge_var!(button_count, split_count, |&b, &s| {
                 if b == 0 && s == 0 {
                     formatx!("Split!")
                 } else {

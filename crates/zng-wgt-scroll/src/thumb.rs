@@ -49,7 +49,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
     wgt.push_intrinsic(NestGroup::SIZE, "orientation-size", move |child| {
         zng_wgt_size_offset::size(
             child,
-            var_merge!(ORIENTATION_VAR, THUMB_VIEWPORT_RATIO_VAR, cross_length, |o, r, l| {
+            merge_var!(ORIENTATION_VAR, THUMB_VIEWPORT_RATIO_VAR, cross_length, |o, r, l| {
                 match o {
                     scrollbar::Orientation::Vertical => Size::new(l.clone(), *r),
                     scrollbar::Orientation::Horizontal => Size::new(*r, l.clone()),

@@ -489,7 +489,7 @@ mod context {
         app::{AppExtended, AppExtension, HeadlessApp},
         prelude::*,
         prelude_wgt::*,
-        var::{ContextInitHandle, VarWhenAnyBuilder},
+        var::{ContextInitHandle, AnyWhenVarBuilder},
     };
 
     context_var! {
@@ -766,7 +766,7 @@ mod context {
     fn context_var_recursion_when1() {
         let _scope = APP.minimal();
 
-        let var = var_when! {
+        let var = when_var! {
             false => var("hello".to_txt()),
             _ => TEST_VAR,
         };
@@ -780,7 +780,7 @@ mod context {
     fn context_var_recursion_when2() {
         let _scope = APP.minimal();
 
-        let var = var_when! {
+        let var = when_var! {
             true => TEST_VAR,
             _ => var("hello".to_txt()),
         };
@@ -794,7 +794,7 @@ mod context {
     fn context_var_recursion_issue_when_any() {
         let _scope = APP.minimal();
 
-        let mut var = VarWhenAnyBuilder::new(TEST_VAR.into());
+        let mut var = AnyWhenVarBuilder::new(TEST_VAR.into());
         var.push(self::var(false), self::var("hello".to_txt()).into());
         let var = var.into_typed().build();
 
@@ -807,7 +807,7 @@ mod context {
     fn context_var_recursion_merge() {
         let _scope = APP.minimal();
 
-        let var = var_merge!(TEST_VAR, var(true), |t, _| t.clone());
+        let var = merge_var!(TEST_VAR, var(true), |t, _| t.clone());
 
         let r = TEST_VAR.with_context_var(ContextInitHandle::new(), var.clone(), || var.get());
 
@@ -1147,7 +1147,7 @@ mod threads {
 mod contextualized {
     use zng::{
         prelude::*,
-        var::{ContextInitHandle, var_ctx},
+        var::{ContextInitHandle, contextual_var},
     };
 
     #[test]
@@ -1155,7 +1155,7 @@ mod contextualized {
         let mut app = APP.defaults().run_headless(false);
 
         let var = var(0u32);
-        let source = var_ctx(move || var.clone());
+        let source = contextual_var(move || var.clone());
         let mapped = source.map(|n| n + 1);
         let mapped2 = mapped.map(|n| n - 1);
         let mapped2_copy = mapped2.clone();
@@ -1186,7 +1186,7 @@ mod contextualized {
         let mut app = APP.defaults().run_headless(false);
 
         let var = var(0u32);
-        let source = var_ctx(move || var.clone());
+        let source = contextual_var(move || var.clone());
         let mapped = source.map(|n| n + 1);
         let mapped2 = mapped.map(|n| n - 1);
         let mapped2_copy = mapped2.clone();

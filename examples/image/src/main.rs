@@ -489,7 +489,7 @@ fn open_or_paste_image() -> impl UiNode {
                         let img_size = var_getter::<PxSize>();
                         let img_wgt_size = var_getter::<PxSize>();
                         let menu_wgt_size = var_getter::<PxSize>();
-                        let show_menu = var_merge!(img_size.clone(), img_wgt_size.clone(), menu_wgt_size.clone(), |img, wgt, menu| {
+                        let show_menu = merge_var!(img_size.clone(), img_wgt_size.clone(), menu_wgt_size.clone(), |img, wgt, menu| {
                             img.height < wgt.height - menu.height
                         });
                         Stack!(ui_vec![
@@ -612,9 +612,9 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
         // the large images can take a moment to decode in debug builds, but the size
         // is already known after read, so the "loading.." message ends-up off-screen
         // because it is centered on the image.
-        layout::x = var_merge!(SCROLL.horizontal_offset(), SCROLL.zoom_scale(), |&h, &s| h.0.fct_l()
+        layout::x = merge_var!(SCROLL.horizontal_offset(), SCROLL.zoom_scale(), |&h, &s| h.0.fct_l()
             - 1.vw() / s * h);
-        layout::y = var_merge!(SCROLL.vertical_offset(), SCROLL.zoom_scale(), |&v, &s| v.0.fct_l() - 1.vh() / s * v);
+        layout::y = merge_var!(SCROLL.vertical_offset(), SCROLL.zoom_scale(), |&v, &s| v.0.fct_l() - 1.vh() / s * v);
         layout::scale = SCROLL.zoom_scale().map(|&fct| 1.fct() / fct);
         layout::transform_origin = 0;
         widget::auto_hide = false;

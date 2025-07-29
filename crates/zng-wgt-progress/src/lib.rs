@@ -57,7 +57,7 @@ pub fn collapse_complete(child: impl UiNode, collapse: impl IntoVar<bool>) -> im
     let collapse = collapse.into_var();
     visibility(
         child,
-        var_expr! {
+        expr_var! {
             if #{PROGRESS_VAR}.is_complete() && *#{collapse} {
                 Visibility::Collapsed
             } else {

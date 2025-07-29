@@ -172,7 +172,7 @@ pub fn with_style_fn(child: impl UiNode, style_context: ContextVar<StyleFn>, sty
     with_context_var(
         child,
         style_context,
-        var_merge!(style_context, style.into_var(), |base, over| {
+        merge_var!(style_context, style.into_var(), |base, over| {
             base.clone().with_extend(over.clone())
         }),
     )

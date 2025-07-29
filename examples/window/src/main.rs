@@ -28,7 +28,7 @@ async fn main_window() -> window::WindowRoot {
     // WINDOWS.exit_on_last_close().set(false);
 
     let window_vars = WINDOW.vars();
-    let title = var_merge!(
+    let title = merge_var!(
         window_vars.actual_position(),
         window_vars.actual_size(),
         window_vars.scale_factor(),
@@ -466,7 +466,7 @@ fn custom_chrome(title: Var<Txt>) -> impl UiNode {
     let cursor = var(mouse::CursorSource::Hidden);
 
     Container! {
-        visibility = var_expr!((#{vars.state()}.is_fullscreen() || !*#{vars.chrome()}).into());
+        visibility = expr_var!((#{vars.state()}.is_fullscreen() || !*#{vars.chrome()}).into());
         widget::hit_test_mode = widget::HitTestMode::Detailed;
 
         child = title;

@@ -93,10 +93,10 @@ impl<T: VarValue> ContextLocalKeyProvider for ContextVar<T> {
 /// This type dereferences to the actual context [`Var<T>`]. It also implements [`IntoVar<T>`]
 /// that converts to the context var, you can assign it directly to properties.
 ///
-/// See [`context_var!`] for more details about declaring and using context vars. See [`var_ctx`] for more details about
+/// See [`context_var!`] for more details about declaring and using context vars. See [`contextual_var`] for more details about
 /// contextualizing variables.
 ///
-/// [`var_ctx`]: crate::var_ctx
+/// [`contextual_var`]: crate::contextual_var
 pub struct ContextVar<T: VarValue> {
     ctx: &'static ContextLocal<VarAny>,
     var: &'static std::sync::OnceLock<Var<T>>,
@@ -117,13 +117,13 @@ impl<T: VarValue> ContextVar<T> {
     /// Reference the actual context var.
     ///
     /// The variable is [`CONTEXT`] capable, you can call [`current_context`]
-    /// to get the current calling context actual variable. See [`var_ctx`] for more details about contextualizing variables.
+    /// to get the current calling context actual variable. See [`contextual_var`] for more details about contextualizing variables.
     ///
     /// Note that `ContextVar<T>` also dereferences to this var.
     ///
     /// [`CONTEXT`]: VarCapability::CONTEXT
     /// [`current_context`]: crate::Var::current_context
-    /// [`var_ctx`]: crate::var_ctx
+    /// [`contextual_var`]: crate::contextual_var
     pub fn as_var(&self) -> &Var<T> {
         self.var.get_or_init(|| Var::new_impl(ContextVarImpl(self.ctx)))
     }
@@ -136,7 +136,7 @@ impl<T: VarValue> ContextVar<T> {
     /// Note that the `var` must be the same for subsequent calls in the same *context*, otherwise [contextualized]
     /// variables may not update their binding, in widgets you must re-init the descendants if you replace the `var`.
     ///
-    /// [contextualized]: crate::var_ctx
+    /// [contextualized]: crate::contextual_var
     pub fn with_context<R>(self, id: ContextInitHandle, var: &mut Option<Arc<VarAny>>, action: impl FnOnce() -> R) -> R {
         #[cfg(debug_assertions)]
         {

@@ -10,10 +10,9 @@
     To migrate:
 
     - Replace `impl Var<T>` and other var structs with `Var<T>`.
-    - Replace `impl AnyVar` with `VarAny`. 
-    - Replace `expr_var!`, `merge_var!` and `when_var!` with `var_expr!`, `var_merge!` and `var_when!`. !!: TODO undo this
-    - Replace `LocalVar(_)` with `var_local(_)`.
-    - Replace `ContextualizedVar::new(_)` with `var_ctx(_)`.
+    - Replace `impl AnyVar` with `VarAny`.
+    - Replace `LocalVar(_)` with `var_local(_)`. !!: TODO const_var
+    - Replace `ContextualizedVar::new(_)` with `contextual_var(_)`.
     - Replace `Var::wait_value` with `Var::wait_match`.
     - Now always use `Var::capabilities` to inspect *kind* of var.
     - Modify methods `Var::{set, update, modify}` now simply DEBUG log if the variable is read-only, 

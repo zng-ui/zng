@@ -29,12 +29,12 @@
 /// let var0: Var<Txt> = var_from("Hello");
 /// let var1: Var<Txt> = var_from("World");
 ///
-/// let greeting_text = Text!(var_merge!(var0, var1, |a, b| formatx!("{a} {b}!")));
+/// let greeting_text = Text!(merge_var!(var0, var1, |a, b| formatx!("{a} {b}!")));
 /// ```
 #[macro_export]
-macro_rules! var_merge {
+macro_rules! merge_var {
     ($($tt:tt)+) => {
-        $crate::__var_merge! {
+        $crate::__merge_var! {
             $crate,
             $($tt)+
         }
@@ -52,7 +52,7 @@ use parking_lot::Mutex;
 use smallbox::{SmallBox, smallbox};
 use zng_clone_move::clmv;
 #[doc(hidden)]
-pub use zng_var_proc_macros::var_merge as __var_merge;
+pub use zng_var_proc_macros::merge_var as __merge_var;
 
 use crate::{
     BoxedVarValueAny, ContextVar, Response, ResponseVar, Var, VarAny, VarImpl, VarInstanceTag, VarValue, VarValueAny, WeakVarImpl, var_any,
@@ -61,27 +61,27 @@ use crate::{
 use super::VarCapability;
 
 #[doc(hidden)]
-pub fn var_merge_input<I: VarValue>(input: impl MergeInput<I>) -> VarAny {
+pub fn merge_var_input<I: VarValue>(input: impl MergeInput<I>) -> VarAny {
     input.into_merge_input().into()
 }
 
 #[doc(hidden)]
-pub fn var_merge_with(var: &VarAny, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
+pub fn merge_var_with(var: &VarAny, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
     var.0.with(visitor);
 }
 
 #[doc(hidden)]
-pub fn var_merge_output<O: VarValue>(output: O) -> BoxedVarValueAny {
+pub fn merge_var_output<O: VarValue>(output: O) -> BoxedVarValueAny {
     BoxedVarValueAny::new(output)
 }
 
 #[doc(hidden)]
-pub fn var_merge<O: VarValue>(inputs: Box<[VarAny]>, merge: impl FnMut(&[VarAny]) -> BoxedVarValueAny + Send + 'static) -> Var<O> {
+pub fn merge_var<O: VarValue>(inputs: Box<[VarAny]>, merge: impl FnMut(&[VarAny]) -> BoxedVarValueAny + Send + 'static) -> Var<O> {
     Var::new_any(var_merge_impl(inputs, smallbox!(merge)))
 }
 
 #[doc(hidden)]
-#[diagnostic::on_unimplemented(note = "var_merge! and var_expr! inputs can be: Var<T>, ContextVar<T> or ResponseVar<T>")]
+#[diagnostic::on_unimplemented(note = "merge_var! and expr_var! inputs can be: Var<T>, ContextVar<T> or ResponseVar<T>")]
 pub trait MergeInput<T: VarValue> {
     fn into_merge_input(self) -> Var<T>;
 }
@@ -255,7 +255,7 @@ impl WeakVarImpl for WeakMergeVar {
     }
 }
 
-/// Build a [`var_merge!`] from any number of input vars of the same type `I`.
+/// Build a [`merge_var!`] from any number of input vars of the same type `I`.
 pub struct VarMergeBuilder<I: VarValue> {
     inputs: Vec<VarAny>,
     _type: PhantomData<fn() -> I>,

@@ -17,7 +17,7 @@ use zng_ext_window::{
     FrameImageReadyArgs, HeadlessMonitor, RenderMode, StartPosition, WINDOW_Ext as _, WindowChangedArgs, WindowCloseArgs,
     WindowCloseRequestedArgs, WindowOpenArgs, WindowRoot,
 };
-use zng_var::var_ctx;
+use zng_var::contextual_var;
 use zng_wgt::{is_mobile, prelude::*};
 use zng_wgt_fill::background_color;
 use zng_wgt_input::focus::{
@@ -73,7 +73,7 @@ impl Window {
             config_block_window_load = true;
             save_state = SaveState::enabled();
 
-            padding = var_ctx(|| WINDOW.vars().safe_padding().map(|p| SideOffsets::from(*p)));
+            padding = contextual_var(|| WINDOW.vars().safe_padding().map(|p| SideOffsets::from(*p)));
 
             when #is_mobile {
                 // users tap the main background to dismiss `TextInput!` soft keyboard
@@ -83,9 +83,9 @@ impl Window {
 
             when #needs_fallback_chrome {
                 custom_chrome_adorner_fn = wgt_fn!(|_| { fallback_chrome() });
-                custom_chrome_padding_fn = var_ctx(|| {
+                custom_chrome_padding_fn = contextual_var(|| {
                     let vars = WINDOW.vars();
-                    var_expr! {
+                    expr_var! {
                         let title_padding = SideOffsets::new(28, 0, 0, 0);
                         let chrome_padding = if matches!(#{vars.state()}, zng_ext_window::WindowState::Maximized) {
                             title_padding

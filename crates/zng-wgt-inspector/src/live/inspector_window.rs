@@ -68,7 +68,7 @@ pub(super) fn new(
     }));
 
     let mut last_focused = None;
-    let focus_selected = var_merge!(
+    let focus_selected = merge_var!(
         FOCUS.focused(),
         select_focused.clone(),
         clmv!(inspected_tree, selected_wgt, |focused, select| {
@@ -295,7 +295,7 @@ fn tree_item_view(wgt: InspectedWidget, filter: Var<Txt>, parent_desc_filter: Va
     let wgt_id = wgt.id();
 
     let mut pass = false;
-    let pass_filter = var_merge!(
+    let pass_filter = merge_var!(
         filter.clone(),
         wgt_type,
         clmv!(parent_desc_filter, |f, t| {

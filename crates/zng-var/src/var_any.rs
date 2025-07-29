@@ -15,7 +15,7 @@ use crate::{
     BoxedVarValueAny, VARS, Var, VarCapability, VarHandle, VarHandles, VarImpl, VarIsReadOnlyError, VarModifyAny, VarUpdateId, VarValue,
     VarValueAny, WeakVarImpl,
     animation::{Animation, AnimationController, AnimationHandle, AnimationStopFn},
-    var_ctx_any,
+    any_contextual_var,
 };
 
 /// Variable of any type.
@@ -28,7 +28,7 @@ impl Clone for VarAny {
 /// Value.
 impl VarAny {
     /// Visit a reference to the current value.
-    pub fn with<O>(&self, visitor: impl FnOnce(&dyn VarValueAny) -> O) -> O {
+    pub fn with<O>(&self, visitor: impl FnOnce(&dyn VarValueAny) -> O) -> O { // TODO try a ArcWap based read
         let mut once = Some(visitor);
         let mut output = None;
         self.0.with(&mut |v| {
@@ -334,7 +334,7 @@ impl VarAny {
         if caps.is_contextual() {
             let me = self.clone();
             let map = Arc::new(Mutex::new(map));
-            return var_ctx_any(move || me.map_any_tail(clmv!(map, |v| map.lock()(v)), me.capabilities()));
+            return any_contextual_var(move || me.map_any_tail(clmv!(map, |v| map.lock()(v)), me.capabilities()));
         }
         self.map_any_tail(map, caps)
     }
@@ -421,7 +421,7 @@ impl VarAny {
         if caps.is_contextual() {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, fallback_init)));
-            return var_ctx_any(move || {
+            return any_contextual_var(move || {
                 me.filter_map_any_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, || fns.lock().1()), me.capabilities())
             });
         }
@@ -541,7 +541,7 @@ impl VarAny {
         if caps.is_contextual() {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, map_back)));
-            return var_ctx_any(move || me.map_bidi_any(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, |v| fns.lock().1(v))));
+            return any_contextual_var(move || me.map_bidi_any(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, |v| fns.lock().1(v))));
         }
 
         let mut init_value = None;
@@ -596,7 +596,7 @@ impl VarAny {
         if caps.is_contextual() {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, map_back, fallback_init)));
-            return var_ctx_any(move || {
+            return any_contextual_var(move || {
                 me.filter_map_bidi_any(
                     clmv!(fns, |v| fns.lock().0(v)),
                     clmv!(fns, |v| fns.lock().1(v)),

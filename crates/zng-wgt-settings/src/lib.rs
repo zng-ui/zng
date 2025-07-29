@@ -96,7 +96,7 @@ fn editor_state() -> Var<Option<SettingsEditorState>> {
     });
 
     let sel_cat = SETTINGS.editor_selected_category().current_context();
-    let r = var_expr! {
+    let r = expr_var! {
         if #{clean_search}.is_empty() {
             // no search, does not need to load settings of other categories
             let (cat, settings) = SETTINGS.get(|_, cat| cat == #{sel_cat}, true)

@@ -551,7 +551,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let expr_str = &when.condition_expr_str;
 
                 let box_expr = quote_spanned! {expr.span()=>
-                    #core::var::var_expr!{#expr}
+                    #core::var::expr_var!{#expr}
                 };
 
                 let source_location = widget_util::source_location(&core, Span::call_site());

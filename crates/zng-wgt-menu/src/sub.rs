@@ -387,7 +387,7 @@ pub fn end_column_fn(child: impl UiNode, cell_fn: impl IntoVar<WidgetFn<()>>) ->
 /// [`end_column_width`]: fn@end_column_width
 #[property(CHILD_LAYOUT, default(false))]
 pub fn column_width_padding(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    let spacing = var_merge!(
+    let spacing = merge_var!(
         START_COLUMN_WIDTH_VAR,
         END_COLUMN_WIDTH_VAR,
         DIRECTION_VAR,

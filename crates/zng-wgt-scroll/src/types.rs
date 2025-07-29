@@ -813,7 +813,7 @@ impl SCROLL {
     }
 
     fn can_scroll(&self, predicate: impl Fn(PxSize, PxSize) -> bool + Send + Sync + 'static) -> Var<bool> {
-        var_merge!(SCROLL_VIEWPORT_SIZE_VAR, SCROLL_CONTENT_SIZE_VAR, move |&vp, &ct| predicate(vp, ct))
+        merge_var!(SCROLL_VIEWPORT_SIZE_VAR, SCROLL_CONTENT_SIZE_VAR, move |&vp, &ct| predicate(vp, ct))
     }
 
     /// Gets a var that is `true` when the content height is greater then the viewport height.
@@ -827,7 +827,7 @@ impl SCROLL {
     }
 
     fn can_scroll_v(&self, predicate: impl Fn(PxSize, PxSize, Factor) -> bool + Send + Sync + 'static) -> Var<bool> {
-        var_merge!(
+        merge_var!(
             SCROLL_VIEWPORT_SIZE_VAR,
             SCROLL_CONTENT_SIZE_VAR,
             SCROLL_VERTICAL_OFFSET_VAR,
@@ -848,7 +848,7 @@ impl SCROLL {
     }
 
     fn can_scroll_h(&self, predicate: impl Fn(PxSize, PxSize, Factor) -> bool + Send + Sync + 'static) -> Var<bool> {
-        var_merge!(
+        merge_var!(
             SCROLL_VIEWPORT_SIZE_VAR,
             SCROLL_CONTENT_SIZE_VAR,
             SCROLL_HORIZONTAL_OFFSET_VAR,

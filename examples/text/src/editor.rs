@@ -251,7 +251,7 @@ impl TextEditor {
     }
 
     pub fn title(&self) -> Var<Txt> {
-        var_merge!(self.unsaved(), self.file.clone(), |u, f| {
+        merge_var!(self.unsaved(), self.file.clone(), |u, f| {
             let mut t = "Text Example - Editor".to_owned();
             if *u {
                 t.push('*');
@@ -266,7 +266,7 @@ impl TextEditor {
 
     pub fn unsaved(&self) -> Var<bool> {
         let can_undo = UNDO_CMD.scoped(self.input_wgt_id).is_enabled();
-        var_merge!(self.txt_touched.clone(), can_undo, |&t, &u| t && u)
+        merge_var!(self.txt_touched.clone(), can_undo, |&t, &u| t && u)
     }
 
     pub fn enabled(&self) -> Var<bool> {

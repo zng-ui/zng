@@ -129,7 +129,7 @@ impl Button {
                             if tooltip {
                                 child = self::tooltip_fn(
                                     child,
-                                    var_merge!(cmd, CMD_TOOLTIP_FN_VAR, |cmd, tt_fn| {
+                                    merge_var!(cmd, CMD_TOOLTIP_FN_VAR, |cmd, tt_fn| {
                                         if tt_fn.is_nil() {
                                             WidgetFn::nil()
                                         } else {
@@ -231,7 +231,7 @@ pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> impl UiNode {
             spacing: 4,
         };
 
-        zng_wgt::visibility = var_expr!((*#{has_info} || *#{has_shortcut}).into())
+        zng_wgt::visibility = expr_var!((*#{has_info} || *#{has_shortcut}).into())
     }
 }
 

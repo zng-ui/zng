@@ -8,7 +8,7 @@ use zng_app::{
     update::EventUpdate,
     widget::info::WidgetInfo,
 };
-use zng_var::{Var, var_merge};
+use zng_var::{Var, merge_var};
 
 use super::*;
 
@@ -221,7 +221,7 @@ pub trait CommandFocusExt {
 impl CommandFocusExt for Command {
     fn focus_scoped(self) -> Var<Command> {
         let cmd = self.scoped(CommandScope::App);
-        var_merge!(FOCUS.alt_return(), FOCUS.focused(), move |alt, f| {
+        merge_var!(FOCUS.alt_return(), FOCUS.focused(), move |alt, f| {
             match alt.as_ref().or(f.as_ref()) {
                 Some(p) => cmd.scoped(p.widget_id()),
                 None => cmd,
@@ -231,7 +231,7 @@ impl CommandFocusExt for Command {
 
     fn focus_scoped_with(self, mut map: impl FnMut(Option<WidgetInfo>) -> CommandScope + Send + 'static) -> Var<Command> {
         let cmd = self.scoped(CommandScope::App);
-        var_merge!(FOCUS.alt_return(), FOCUS.focused(), |alt, f| {
+        merge_var!(FOCUS.alt_return(), FOCUS.focused(), |alt, f| {
             match alt.as_ref().or(f.as_ref()) {
                 Some(p) => WINDOWS.widget_tree(p.window_id()).ok()?.get(p.widget_id()),
                 None => None,

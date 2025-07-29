@@ -218,8 +218,8 @@ use zng_app_proc_macros::widget;
 use zng_txt::{Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap, IdSet, unique_id_32};
 use zng_var::{
-    ContextInitHandle, IntoValue, IntoVar, Var, VarAny, VarValue, VarValueAny, VarWhenAnyBuilder, WeakContextInitHandle,
-    impl_from_and_into_var, var_ctx, var_local, var_local_any,
+    ContextInitHandle, IntoValue, IntoVar, Var, VarAny, VarValue, VarValueAny, AnyWhenVarBuilder, WeakContextInitHandle,
+    impl_from_and_into_var, contextual_var, var_local, var_local_any,
 };
 
 use super::{
@@ -1069,7 +1069,7 @@ pub fn new_dyn_var<'a, T: VarValue>(
 ) -> Var<T> {
     let item = inputs.next().expect("missing input");
 
-    let item = match item.downcast::<VarWhenAnyBuilder>() {
+    let item = match item.downcast::<AnyWhenVarBuilder>() {
         Ok(builder) => builder.into_typed::<T>().build(),
         Err(item) => *item.downcast::<Var<T>>().expect("input did not match expected var types"),
     };
@@ -1374,7 +1374,7 @@ impl WhenInputVar {
         let arc: Arc<Mutex<dyn AnyWhenInputVarInner>> = Arc::new(Mutex::new(WhenInputInitData::<T>::empty()));
         (
             WhenInputVar { var: arc.clone() },
-            var_ctx(move || arc.lock().as_any().downcast_mut::<WhenInputInitData<T>>().unwrap().get()),
+            contextual_var(move || arc.lock().as_any().downcast_mut::<WhenInputInitData<T>>().unwrap().get()),
         )
     }
 
@@ -2376,7 +2376,7 @@ impl WidgetBuilding {
                             .iter()
                             .enumerate()
                             .map(|(i, input)| match input.kind {
-                                InputKind::Var => Box::new(VarWhenAnyBuilder::new(default_args.var(i).clone())) as _,
+                                InputKind::Var => Box::new(AnyWhenVarBuilder::new(default_args.var(i).clone())) as _,
                                 InputKind::UiNode => Box::new(WhenUiNodeBuilder::new(default_args.ui_node(i).take_on_init())) as _,
                                 InputKind::UiNodeList => {
                                     Box::new(WhenUiNodeListBuilder::new(default_args.ui_node_list(i).take_on_init())) as _
@@ -2396,7 +2396,7 @@ impl WidgetBuilding {
                 for (i, (input, entry)) in info.inputs.iter().zip(entry.builder.iter_mut()).enumerate() {
                     match input.kind {
                         InputKind::Var => {
-                            let entry = entry.downcast_mut::<VarWhenAnyBuilder>().unwrap();
+                            let entry = entry.downcast_mut::<AnyWhenVarBuilder>().unwrap();
                             let value = assign.var(i).clone();
                             entry.push(when.state.clone(), value);
                         }

@@ -1295,7 +1295,7 @@ impl CommandNameExt for Command {
     where
         Self: crate::shortcut::CommandShortcutExt,
     {
-        crate::var::var_merge!(self.name(), self.shortcut(), |name, shortcut| {
+        crate::var::merge_var!(self.name(), self.shortcut(), |name, shortcut| {
             if shortcut.is_empty() {
                 name.clone()
             } else {

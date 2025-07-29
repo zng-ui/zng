@@ -30,7 +30,7 @@ use super::*;
 /// let condition = var(true);
 /// let when_false = var("condition: false".to_txt());
 ///
-/// let t = Text!(var_when! {
+/// let t = Text!(when_var! {
 ///     condition.clone() => "condition: true".to_txt(),
 ///     _ => when_false.clone(),
 /// });
@@ -48,7 +48,7 @@ use super::*;
 /// # macro_rules! Text { ($($tt:tt)*) => { () } }
 /// # let condition0 = var(true);
 /// # let condition1 = var(true);
-/// let t = Text!(var_when! {
+/// let t = Text!(when_var! {
 ///     #[cfg(some_flag)]
 ///     condition0 => "is condition 0".to_txt(),
 ///     #[cfg(not(some_flag))]
@@ -67,9 +67,9 @@ use super::*;
 ///
 /// [`CONTEXT`]: crate::VarCapability::CONTEXT
 #[macro_export]
-macro_rules! var_when {
+macro_rules! when_var {
     ($($tt:tt)*) => {
-        $crate::__var_when! {
+        $crate::__when_var! {
             $crate
             $($tt)*
         }
@@ -78,20 +78,20 @@ macro_rules! var_when {
 
 use zng_clone_move::clmv;
 #[doc(hidden)]
-pub use zng_var_proc_macros::var_when as __var_when;
+pub use zng_var_proc_macros::when_var as __when_var;
 
-/// Type erased [`var_when!`] manual builder.
+/// Type erased [`when_var!`] manual builder.
 ///
-/// See [`VarWhenBuilder`] for more details.
+/// See [`WhenVarBuilder`] for more details.
 #[derive(Clone)]
-pub struct VarWhenAnyBuilder {
+pub struct AnyWhenVarBuilder {
     conditions: Vec<(Var<bool>, VarAny)>,
     default: VarAny,
 }
-impl VarWhenAnyBuilder {
+impl AnyWhenVarBuilder {
     /// New with value variable used when no other conditions are `true`.
     pub fn new(default: VarAny) -> Self {
-        VarWhenAnyBuilder {
+        AnyWhenVarBuilder {
             conditions: Vec::with_capacity(2),
             default,
         }
@@ -125,8 +125,8 @@ impl VarWhenAnyBuilder {
     }
 
     /// Convert to typed builder.
-    pub fn into_typed<O: VarValue>(self) -> VarWhenBuilder<O> {
-        VarWhenBuilder {
+    pub fn into_typed<O: VarValue>(self) -> WhenVarBuilder<O> {
+        WhenVarBuilder {
             builder: self,
             _t: PhantomData,
         }
@@ -144,24 +144,24 @@ impl VarWhenAnyBuilder {
         })
     }
 }
-impl VarWhenAnyBuilder {
+impl AnyWhenVarBuilder {
     /// Returns the number of conditions set.
     pub fn condition_count(&self) -> usize {
         self.conditions.len()
     }
 }
 
-/// Manual [`var_when!`] builder.
+/// Manual [`when_var!`] builder.
 #[derive(Clone)]
-pub struct VarWhenBuilder<O: VarValue> {
-    builder: VarWhenAnyBuilder,
+pub struct WhenVarBuilder<O: VarValue> {
+    builder: AnyWhenVarBuilder,
     _t: PhantomData<O>,
 }
-impl<O: VarValue> VarWhenBuilder<O> {
+impl<O: VarValue> WhenVarBuilder<O> {
     /// New with value variable used when no other conditions are `true`.
     pub fn new(default: impl IntoVar<O>) -> Self {
         Self {
-            builder: VarWhenAnyBuilder::new(default.into_var().into()),
+            builder: AnyWhenVarBuilder::new(default.into_var().into()),
             _t: PhantomData,
         }
     }
@@ -181,7 +181,7 @@ impl<O: VarValue> VarWhenBuilder<O> {
     }
 
     /// Reference the type erased when builder.
-    pub fn as_any(&mut self) -> &mut VarWhenAnyBuilder {
+    pub fn as_any(&mut self) -> &mut AnyWhenVarBuilder {
         &mut self.builder
     }
 
@@ -191,12 +191,12 @@ impl<O: VarValue> VarWhenBuilder<O> {
     pub fn try_from_built(var: &Var<O>) -> Option<Self> {
         // this is used by #[easing(_)] in PropertyBuildAction to modify widget properties
 
-        let builder = VarWhenAnyBuilder::try_from_built(var)?;
+        let builder = AnyWhenVarBuilder::try_from_built(var)?;
         Some(Self { builder, _t: PhantomData })
     }
 }
 
-fn var_when(builder: VarWhenAnyBuilder) -> VarAny {
+fn var_when(builder: AnyWhenVarBuilder) -> VarAny {
     // !!: TODO contextualize? And in a way that can recover builder in `try_from_built`
 
     let data = Arc::new(WhenVarData {

@@ -17,11 +17,11 @@ use super::VarCapability;
 ///
 /// The `context_init` closure must produce variables of the same value type.
 ///
-/// See [`var_ctx`] for more details about contextualized variables.
-pub fn var_ctx_any(context_init: impl FnMut() -> VarAny + Send + 'static) -> VarAny {
-    var_ctx_any_impl(smallbox!(context_init))
+/// See [`contextual_var`] for more details about contextualized variables.
+pub fn any_contextual_var(context_init: impl FnMut() -> VarAny + Send + 'static) -> VarAny {
+    any_contextual_var_impl(smallbox!(context_init))
 }
-fn var_ctx_any_impl(context_init: ContextInitFn) -> VarAny {
+fn any_contextual_var_impl(context_init: ContextInitFn) -> VarAny {
     VarAny(smallbox!(ContextualVar::new(context_init)))
 }
 
@@ -38,7 +38,7 @@ fn var_ctx_any_impl(context_init: ContextInitFn) -> VarAny {
 /// # fake! {
 /// widget_set! {
 ///     self;
-///     padding = var_ctx(|| WINDOW.vars().safe_padding().map(|p| SideOffsets::from(*p)));
+///     padding = contextual_var(|| WINDOW.vars().safe_padding().map(|p| SideOffsets::from(*p)));
 /// };
 /// # }
 /// ```
@@ -60,8 +60,8 @@ fn var_ctx_any_impl(context_init: ContextInitFn) -> VarAny {
 /// to init that clone.
 ///
 /// If the return variable is *mapped* the mapping var is also context aware and will also delay init until first usage.
-pub fn var_ctx<T: VarValue>(mut context_init: impl FnMut() -> Var<T> + Send + 'static) -> Var<T> {
-    Var::new_any(var_ctx_any(move || context_init().into()))
+pub fn contextual_var<T: VarValue>(mut context_init: impl FnMut() -> Var<T> + Send + 'static) -> Var<T> {
+    Var::new_any(any_contextual_var(move || context_init().into()))
 }
 
 pub(super) type ContextInitFn = SmallBox<dyn FnMut() -> VarAny + Send + 'static, smallbox::space::S8>;
@@ -223,7 +223,7 @@ fn no_ctx_var() -> VarAny {
 #[derive(Default)]
 struct ContextInitHandleMarker;
 
-/// Identifies the unique context a [`var_ctx`] is in.
+/// Identifies the unique context a [`contextual_var`] is in.
 ///
 /// Each node that sets context-vars have an unique ID, it is different after each (re)init. The contextual var
 /// records this ID, and rebuilds when it has changed. The contextualized inner vars are retained locally to the clone

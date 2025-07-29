@@ -22,22 +22,22 @@ pub(crate) mod map_ref_bidi;
 pub(crate) mod read_only;
 
 pub(crate) mod contextual;
-pub use contextual::{ContextInitHandle, WeakContextInitHandle, var_ctx, var_ctx_any};
+pub use contextual::{ContextInitHandle, WeakContextInitHandle, contextual_var, any_contextual_var};
 
 pub(crate) mod context_var;
 pub use context_var::{__context_var_local, ContextVar, context_var_init};
 
 pub(crate) mod merge;
-pub use merge::{__var_merge, MergeInput, VarMergeBuilder, VarMergeInputs, var_merge, var_merge_input, var_merge_output, var_merge_with};
+pub use merge::{__merge_var, MergeInput, VarMergeBuilder, VarMergeInputs, merge_var, merge_var_input, merge_var_output, merge_var_with};
 
 pub(crate) mod response_var;
 pub use response_var::{ResponderVar, Response, ResponseVar, response_done_var, response_var};
 
 pub(crate) mod when;
-pub use when::{__var_when, VarWhenAnyBuilder, VarWhenBuilder};
+pub use when::{__when_var, AnyWhenVarBuilder, WhenVarBuilder};
 
 pub(crate) mod expr;
-pub use expr::{__var_expr, var_expr_as, var_expr_into, var_expr_map};
+pub use expr::{__expr_var, expr_var_as, expr_var_into, expr_var_map};
 
 pub(crate) trait VarImpl: Any + Send + Sync {
     fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2>;

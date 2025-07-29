@@ -10,7 +10,7 @@ use std::{
 use parking_lot::Mutex;
 use zng_app_context::app_local;
 use zng_txt::Txt;
-use zng_var::{ArcEq, Var, VarMergeBuilder, WeakVar, var, var_local, var_merge};
+use zng_var::{ArcEq, Var, VarMergeBuilder, WeakVar, var, var_local, merge_var};
 use zng_view_api::config::LocaleConfig;
 
 use crate::{
@@ -110,7 +110,7 @@ impl L10nService {
             // one arg and message can change
             let (name, arg) = args.remove(0);
 
-            var_merge!(bundle, arg, move |b, arg| {
+            merge_var!(bundle, arg, move |b, arg| {
                 let mut args = fluent::FluentArgs::with_capacity(1);
                 args.set(Cow::Borrowed(name.as_str()), arg.fluent_value());
 
@@ -141,7 +141,7 @@ impl L10nService {
             })
         } else {
             // many args and message can change
-            var_merge!(bundle, fluent_args_var(args), move |b, args| {
+            merge_var!(bundle, fluent_args_var(args), move |b, args| {
                 if let Some(msg) = b.get_message(&id) {
                     let value = if attribute.is_empty() {
                         msg.value()

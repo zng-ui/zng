@@ -12,7 +12,7 @@ use zng_layout::unit::{
 use zng_state_map::{StateId, static_id};
 use zng_txt::Txt;
 use zng_unique_id::IdSet;
-use zng_var::{Var, var, var_from, var_merge};
+use zng_var::{Var, var, var_from, merge_var};
 use zng_view_api::{
     config::{ColorScheme, ColorsConfig},
     window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState},
@@ -409,7 +409,7 @@ impl WindowVars {
     /// [`actual_size`]: Self::actual_size
     /// [`scale_factor`]: Self::scale_factor
     pub fn actual_size_px(&self) -> Var<PxSize> {
-        var_merge!(self.0.actual_size.clone(), self.0.scale_factor.clone(), |size, factor| {
+        merge_var!(self.0.actual_size.clone(), self.0.scale_factor.clone(), |size, factor| {
             PxSize::new(size.width.to_px(*factor), size.height.to_px(*factor))
         })
     }

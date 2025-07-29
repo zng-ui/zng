@@ -17,7 +17,7 @@ use zng_layout::unit::{AngleDegree, EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, 
 use zng_var::{
     IntoVar, Var, VarValue,
     animation::{Transition, Transitionable, easing::EasingStep},
-    context_var, impl_from_and_into_var, var_expr,
+    context_var, impl_from_and_into_var, expr_var,
 };
 
 pub use zng_view_api::config::ColorScheme;
@@ -1028,7 +1028,7 @@ pub trait LightDarkVarExt {
 }
 impl LightDarkVarExt for Var<LightDark> {
     fn rgba(&self) -> Var<Rgba> {
-        var_expr! {
+        expr_var! {
             let c = #{self.clone()};
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => c.light,
@@ -1039,7 +1039,7 @@ impl LightDarkVarExt for Var<LightDark> {
     }
 
     fn rgba_map<T: VarValue>(&self, mut map: impl FnMut(Rgba) -> T + Send + 'static) -> Var<T> {
-        var_expr! {
+        expr_var! {
             let c = #{self.clone()};
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => map(c.light),
@@ -1054,7 +1054,7 @@ impl LightDarkVarExt for Var<LightDark> {
     }
 
     fn map_rgba(&self, mut map: impl FnMut(LightDark) -> LightDark + Send + 'static) -> Var<Rgba> {
-        var_expr! {
+        expr_var! {
             let c = map(*#{self.clone()});
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => c.light,
@@ -1065,7 +1065,7 @@ impl LightDarkVarExt for Var<LightDark> {
     }
 
     fn map_rgba_into<T: VarValue + From<Rgba>>(&self, mut map: impl FnMut(LightDark) -> LightDark + Send + 'static) -> Var<T> {
-        var_expr! {
+        expr_var! {
             let c = map(*#{self.clone()});
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => T::from(c.light),
@@ -1077,7 +1077,7 @@ impl LightDarkVarExt for Var<LightDark> {
 
     fn shade_fct(&self, fct: impl Into<Factor>) -> Var<Rgba> {
         let fct = fct.into();
-        var_expr! {
+        expr_var! {
             let c = #{self.clone()}.shade_fct(fct);
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => c.light,
@@ -1088,7 +1088,7 @@ impl LightDarkVarExt for Var<LightDark> {
     }
 
     fn shade(&self, shade: i8) -> Var<Rgba> {
-        var_expr! {
+        expr_var! {
             let c = #{self.clone()}.shade(shade);
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => c.light,
@@ -1100,7 +1100,7 @@ impl LightDarkVarExt for Var<LightDark> {
 
     fn shade_fct_into<T: VarValue + From<Rgba>>(&self, fct: impl Into<Factor>) -> Var<T> {
         let fct = fct.into();
-        var_expr! {
+        expr_var! {
             let c = #{self.clone()}.shade_fct(fct);
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => T::from(c.light),
@@ -1111,7 +1111,7 @@ impl LightDarkVarExt for Var<LightDark> {
     }
 
     fn shade_into<T: VarValue + From<Rgba>>(&self, shade: i8) -> Var<T> {
-        var_expr! {
+        expr_var! {
             let c = #{self.clone()}.shade(shade);
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => T::from(c.light),

@@ -254,7 +254,7 @@ pub fn with_font_palette_color(child: impl UiNode, index: u16, color: impl IntoV
     with_context_var(
         child,
         FONT_PALETTE_COLORS_VAR,
-        var_merge!(FONT_PALETTE_COLORS_VAR, color.into_var(), move |set, color| {
+        merge_var!(FONT_PALETTE_COLORS_VAR, color.into_var(), move |set, color| {
             let mut set = set.clone();
             if let Some(i) = set.iter().position(|(i, _)| *i == index) {
                 set[i].1 = *color;
@@ -1059,7 +1059,7 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
     with_context_var(
         child,
         FONT_VARIATIONS_VAR,
-        var_merge!(FONT_VARIATIONS_VAR, value.into_var(), move |variations, value| {
+        merge_var!(FONT_VARIATIONS_VAR, value.into_var(), move |variations, value| {
             let mut variations = variations.clone();
             variations.insert(name, *value);
             variations
@@ -1082,7 +1082,7 @@ where
     with_context_var(
         child,
         FONT_FEATURES_VAR,
-        var_merge!(FONT_FEATURES_VAR, state.into_var(), move |features, state| {
+        merge_var!(FONT_FEATURES_VAR, state.into_var(), move |features, state| {
             let mut features = features.clone();
             set_feature(&mut features, state.clone());
             features

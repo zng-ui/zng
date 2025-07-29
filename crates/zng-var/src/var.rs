@@ -6,7 +6,7 @@ use crate::{
         Animation, AnimationHandle, ChaseAnimation, Transition, TransitionKeyed, Transitionable,
         easing::{EasingStep, EasingTime},
     },
-    var_ctx,
+    contextual_var,
 };
 
 use smallbox::smallbox;
@@ -1159,7 +1159,7 @@ impl<T: VarValue> Var<T> {
 
         if caps.is_contextual() {
             let me = self.clone();
-            return var_ctx(move || me.easing_with_tail(duration, fns.clone()));
+            return contextual_var(move || me.easing_with_tail(duration, fns.clone()));
         }
 
         self.easing_with_tail(duration, fns)

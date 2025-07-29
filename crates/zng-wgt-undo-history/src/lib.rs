@@ -473,7 +473,7 @@ pub fn is_cap_hovered_timestamp(child: impl UiNode, state: impl IntoVar<bool>) -
     // check the hovered timestamp
     bind_state(
         child,
-        var_merge!(HOVERED_TIMESTAMP_VAR, UNDO_ENTRY_VAR, UNDO_STACK_VAR, |&ts, entry, &op| {
+        merge_var!(HOVERED_TIMESTAMP_VAR, UNDO_ENTRY_VAR, UNDO_STACK_VAR, |&ts, entry, &op| {
             match (ts, entry) {
                 (Some(ts), Some(entry)) => match op {
                     Some(UndoOp::Undo) => entry.timestamp() >= ts,

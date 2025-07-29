@@ -478,7 +478,7 @@ pub fn needs_fallback_chrome(child: impl UiNode, needs: impl IntoVar<bool>) -> i
                 var_local(false)
             } else {
                 let vars = WINDOW.vars();
-                var_expr! {
+                expr_var! {
                     *#{vars.chrome()} && #{WINDOWS.system_chrome()}.needs_custom() && !#{vars.state()}.is_fullscreen()
                 }
             }

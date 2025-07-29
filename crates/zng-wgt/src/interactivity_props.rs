@@ -55,7 +55,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         }),
     );
 
-    with_context_var(child, IS_ENABLED_VAR, var_merge!(IS_ENABLED_VAR, enabled, |&a, &b| a && b))
+    with_context_var(child, IS_ENABLED_VAR, merge_var!(IS_ENABLED_VAR, enabled, |&a, &b| a && b))
 }
 
 /// Defines if any interaction is allowed in the widget and its descendants.

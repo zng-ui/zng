@@ -12,7 +12,7 @@
 use std::{any::Any, collections::HashMap, fmt, mem, num::NonZeroU8, ops, sync::Arc};
 
 use zng_color::COLOR_SCHEME_VAR;
-use zng_var::{Var, VarAny, var_ctx};
+use zng_var::{Var, VarAny, contextual_var};
 use zng_wgt::prelude::*;
 
 use task::parking_lot::RwLock;
@@ -270,7 +270,7 @@ pub fn extend_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap<
     with_context_var(
         child,
         DATA_NOTE_COLORS_VAR,
-        var_merge!(DATA_NOTE_COLORS_VAR, colors.into_var(), |base, over| {
+        merge_var!(DATA_NOTE_COLORS_VAR, colors.into_var(), |base, over| {
             let mut base = base.clone();
             base.extend(over);
             base
@@ -283,7 +283,7 @@ pub fn with_data_note_color(child: impl UiNode, level: DataNoteLevel, color: imp
     with_context_var(
         child,
         DATA_NOTE_COLORS_VAR,
-        var_merge!(DATA_NOTE_COLORS_VAR, color.into_var(), move |base, over| {
+        merge_var!(DATA_NOTE_COLORS_VAR, color.into_var(), move |base, over| {
             let mut base = base.clone();
             base.insert(level, *over);
             base
@@ -355,7 +355,7 @@ impl DATA {
 
     /// Get context data of type `T` if the context data is set with the same type, or gets the `fallback` value.
     pub fn get<T: VarValue>(&self, fallback: impl Fn() -> T + Send + Sync + 'static) -> Var<T> {
-        var_ctx(move || DATA_CTX.get_clone().downcast::<T>().unwrap_or_else(|_| var_local(fallback())))
+        contextual_var(move || DATA_CTX.get_clone().downcast::<T>().unwrap_or_else(|_| var_local(fallback())))
     }
 
     /// Gets the current context data.
@@ -411,7 +411,7 @@ impl DATA {
     ///
     /// The color can be used directly as text color, it probably needs mixing or desaturating to use as background.
     pub fn note_color(&self, level: impl IntoVar<DataNoteLevel>) -> Var<Rgba> {
-        var_merge!(DATA_NOTE_COLORS_VAR, level.into_var(), COLOR_SCHEME_VAR, |map, level, scheme| {
+        merge_var!(DATA_NOTE_COLORS_VAR, level.into_var(), COLOR_SCHEME_VAR, |map, level, scheme| {
             let c = if let Some(c) = map.get(level) {
                 *c
             } else {

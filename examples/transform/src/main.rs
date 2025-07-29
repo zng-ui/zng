@@ -198,7 +198,7 @@ fn transformed_sampler(
         child = {
             let is_hovered = var(false);
             Container! {
-                rotate = var_merge!(is_hovered.clone(), parent_is_hovered.clone(), |h, ph| *h || *ph)
+                rotate = merge_var!(is_hovered.clone(), parent_is_hovered.clone(), |h, ph| *h || *ph)
                     .map(|&hovered| if !hovered { 20.deg() } else { (360 - 20).deg() }.into())
                     .easing_with(300.ms(), easing::linear, sampler);
 

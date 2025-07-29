@@ -3,7 +3,7 @@ use std::{any::Any, sync::Arc, time::Duration};
 use super::builder::*;
 use zng_layout::unit::*;
 use zng_var::{
-    Var, VarValue, VarWhenBuilder,
+    Var, VarValue, WhenVarBuilder,
     animation::{
         Transitionable,
         easing::{EasingStep, EasingTime},
@@ -32,7 +32,7 @@ pub trait easing_property_input_Transitionable: Any + Send {
 impl<T: VarValue + Transitionable> easing_property_input_Transitionable for Var<T> {
     // Called by PropertyBuildAction for each property input of properties that have #[easing(_)]
     fn easing(self, duration: Duration, easing: EasingFn, when_conditions_data: &[Option<Arc<dyn Any + Send + Sync>>]) -> Self {
-        if let Some(when) = VarWhenBuilder::try_from_built(&self) {
+        if let Some(when) = WhenVarBuilder::try_from_built(&self) {
             // property assigned normally and in when conditions, may need to coordinate multiple `#[easing(_)]` animations
 
             let conditions: Vec<_> = when_conditions_data

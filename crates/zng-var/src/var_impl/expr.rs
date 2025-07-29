@@ -50,35 +50,35 @@
 ///
 /// ##### Multiple Variables
 ///
-/// An expression with multiple variables is transformed into a [`var_merge!`] call.
+/// An expression with multiple variables is transformed into a [`merge_var!`] call.
 ///
 /// [`Var::get`]: crate::Var::get
 /// [`map`]: crate::Var::map
 /// [`IntoVar`]: crate::IntoVar
-/// [`var_merge!`]: crate::var_merge
+/// [`merge_var!`]: crate::var_merge
 #[macro_export]
-macro_rules! var_expr {
+macro_rules! expr_var {
     ($($expr:tt)+) => {
-        $crate::__var_expr! { $crate, $($expr)+ }
+        $crate::__expr_var! { $crate, $($expr)+ }
     };
 }
 
 #[doc(hidden)]
-pub use zng_var_proc_macros::var_expr as __var_expr;
+pub use zng_var_proc_macros::expr_var as __expr_var;
 
 use crate::{IntoVar, MergeInput, Var, VarValue};
 
 #[doc(hidden)]
-pub fn var_expr_into<T: VarValue>(expr: impl IntoVar<T>) -> Var<T> {
+pub fn expr_var_into<T: VarValue>(expr: impl IntoVar<T>) -> Var<T> {
     expr.into_var()
 }
 
 #[doc(hidden)]
-pub fn var_expr_as<T: VarValue>(var: impl MergeInput<T>) -> Var<T> {
+pub fn expr_var_as<T: VarValue>(var: impl MergeInput<T>) -> Var<T> {
     var.into_merge_input()
 }
 
 #[doc(hidden)]
-pub fn var_expr_map<I: VarValue, O: VarValue>(input: impl MergeInput<I>, map: impl FnMut(&I) -> O + Send + 'static) -> Var<O> {
+pub fn expr_var_map<I: VarValue, O: VarValue>(input: impl MergeInput<I>, map: impl FnMut(&I) -> O + Send + 'static) -> Var<O> {
     input.into_merge_input().map(map)
 }

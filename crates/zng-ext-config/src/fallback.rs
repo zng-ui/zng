@@ -1,5 +1,5 @@
 use crate::task::parking_lot::Mutex;
-use zng_var::var_expr;
+use zng_var::expr_var;
 
 use super::*;
 
@@ -43,7 +43,7 @@ impl<S: Config, F: Config> FallbackConfig<S, F> {
 impl<S: AnyConfig, F: AnyConfig> AnyConfig for FallbackConfig<S, F> {
     fn status(&self) -> Var<ConfigStatus> {
         let self_ = self.0.lock();
-        var_expr! {
+        expr_var! {
             ConfigStatus::merge_status([#{self_.fallback.status()}.clone(), #{self_.source.status()}.clone()].into_iter())
         }
     }
@@ -54,7 +54,7 @@ impl<S: AnyConfig, F: AnyConfig> AnyConfig for FallbackConfig<S, F> {
 
     fn contains_key(&mut self, key: ConfigKey) -> Var<bool> {
         let mut self_ = self.0.lock();
-        var_expr! {
+        expr_var! {
             *#{self_.source.contains_key(key.clone())} || *#{self_.fallback.contains_key(key)}
         }
     }

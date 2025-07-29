@@ -300,7 +300,7 @@ impl InspectedWidget {
 
     /// Create a variable that probes info after every frame is rendered.
     pub fn render_watcher<T: VarValue>(&self, mut probe: impl FnMut(&WidgetInfo) -> T + Send + 'static) -> Var<T> {
-        var_merge!(
+        merge_var!(
             self.info.clone(),
             self.cache.lock().tree.upgrade().unwrap().last_frame(),
             move |w, _| probe(w)
