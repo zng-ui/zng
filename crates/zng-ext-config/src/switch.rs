@@ -1,4 +1,4 @@
-use zng_var::VarMergeBuilder;
+use zng_var::MergeVarBuilder;
 
 use super::*;
 
@@ -76,7 +76,7 @@ impl SwitchConfig {
 }
 impl AnyConfig for SwitchConfig {
     fn status(&self) -> Var<ConfigStatus> {
-        let mut s = VarMergeBuilder::with_capacity(self.cfgs.len());
+        let mut s = MergeVarBuilder::with_capacity(self.cfgs.len());
         for c in &self.cfgs {
             s.push(c.cfg.status());
         }

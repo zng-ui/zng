@@ -205,7 +205,7 @@ impl VARS {
     /// # use zng_unit::*;
     /// # use zng_clone_move::*;
     /// #
-    /// fn animate_text(text: &impl Var<Txt>, completed: &impl Var<bool>) {
+    /// fn animate_text(text: &Var<Txt>, completed: &Var<bool>) {
     ///     let transition = animation::Transition::new(0u8, 100);
     ///     let mut prev_value = 101;
     ///     VARS.animate(clmv!(text, completed, |animation| {

@@ -1,4 +1,8 @@
-use std::{any::Any, fmt, ops, sync::Arc};
+use std::{
+    any::{Any, TypeId},
+    fmt, ops,
+    sync::Arc,
+};
 
 use smallbox::*;
 
@@ -30,6 +34,14 @@ impl BoxAnyVarValue {
             None => Err(self),
         }
     }
+
+    /// Gets the [`TypeId`] of the boxed value.
+    ///
+    /// Note that if you call [`Any::type_id`] directly on this type you will get the `BoxAnyVarValue` type id, not
+    /// the id of the actual value.
+    pub fn type_id(&self) -> TypeId {
+        (*self.0).type_id()
+    }
 }
 impl Clone for BoxAnyVarValue {
     fn clone(&self) -> Self {
@@ -41,11 +53,8 @@ impl fmt::Debug for BoxAnyVarValue {
         fmt::Debug::fmt(&*self.0, f)
     }
 }
-impl PartialEq for BoxAnyVarValue {
-    fn eq(&self, other: &Self) -> bool {
-        self.eq_any(&*other.0)
-    }
-}
+// don't implement PartialEq for BoxAnyVarValue,
+// that would cause it to become a AnyVarValue itself and cause all sort of issues
 
 /// Represents any variable value.
 ///

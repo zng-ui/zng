@@ -16,7 +16,7 @@ use zng_unit::{Factor, FactorUnits as _};
 
 /// Variable of type `T`.
 pub struct Var<T: VarValue> {
-    any: AnyVar,
+    pub(crate) any: AnyVar,
     _t: PhantomData<fn() -> T>,
 }
 impl<T: VarValue> Clone for Var<T> {
@@ -245,7 +245,7 @@ impl<T: VarValue> Var<T> {
     /// # use zng_txt::*;
     /// let n_var = var(0u32);
     /// let n_10_var = n_var.map(|n| *n  * 10);
-    /// let txt_var = n_10_var.map(|n| if n < 100 {
+    /// let txt_var = n_10_var.map(|n| if *n < 100 {
     ///     formatx!("{n}!")
     /// } else {
     ///     formatx!("Done!")
@@ -357,7 +357,7 @@ impl<T: VarValue> Var<T> {
     /// # use zng_txt::*;
     /// let n_var = var(100u32);
     /// let txt_var = n_var.filter_map(
-    ///     |n| if n < 100 { Some(formatx!("{n}!")) } else { None },
+    ///     |n| if *n < 100 { Some(formatx!("{n}!")) } else { None },
     ///     || "starting...".into(),
     /// );
     /// ```
@@ -690,10 +690,10 @@ impl<T: VarValue> Var<T> {
     ///
     /// Customs animation that displays the animation elapsed time:
     ///
-    /// ```rust
+    /// ```
     /// # use zng_var::*;
     /// # use zng_txt::*;
-    /// # use zng_units::*;
+    /// # use zng_unit::*;
     /// let status = var(Txt::from("not animating"));
     ///
     /// status.animate(|animation, value| {
@@ -729,17 +729,17 @@ impl<T: VarValue> Var<T> {
     ///
     /// Running multiple animations in sequence:
     ///
-    /// ```rust
+    /// ```
     /// # use zng_var::{*, animation::*};
     /// # use zng_txt::*;
-    /// # use zng_units::*;
+    /// # use zng_unit::*;
     /// let status = var(Txt::from("not animating"));
     ///
     /// let mut stage = 0;
-    /// status.animate(move |status| {
+    /// status.sequence(move |status| {
     ///     stage += 1;
     ///     if stage < 5 {
-    ///         status.animate(|animation, value| {
+    ///         status.animate(move |animation, value| {
     ///             let elapsed = animation.elapsed_stop(5.secs());
     ///             value.set(formatx!("animation {stage}: {}", elapsed.pct()));
     ///         })
@@ -766,12 +766,12 @@ impl<T: VarValue> Var<T> {
     ///
     /// Basic usage:
     ///
-    /// ```rust
-    /// # use zng_var::*;
-    /// # use zng_units::*;
+    /// ```
+    /// # use zng_var::{*, animation::easing};
+    /// # use zng_unit::*;
     /// let progress = var(0.pct());
     ///
-    /// progress.set(0.pct(), 100.pct(), 5.secs(), easing::linear).perm();
+    /// progress.set_ease(0.pct(), 100.pct(), 5.secs(), easing::linear).perm();
     /// ```
     ///
     /// Variable is reset to 0% at the start and them transition to 100% in 5 seconds with linear progression.

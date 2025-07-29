@@ -1,11 +1,22 @@
 //! Conditional var proxy.
 
-use std::sync::{
-    Arc, Weak,
-    atomic::{AtomicU32, AtomicUsize, Ordering},
+use std::{
+    sync::{
+        Arc, Weak,
+        atomic::{AtomicU32, AtomicUsize, Ordering},
+    },
+    time::Duration,
 };
 
-use crate::{AnyVar, VARS, Var, shared_var::MutexHooks};
+use crate::{
+    AnyVar, VARS, Var,
+    animation::{
+        AnimationHandle, Transitionable,
+        easing::{EasingStep, EasingTime},
+    },
+    contextual_var::{ContextInitFnImpl, ContextualVar, any_contextual_var_impl},
+    shared_var::MutexHooks,
+};
 
 use super::*;
 
@@ -121,7 +132,7 @@ impl AnyWhenVarBuilder {
 
     /// Build the when var.
     pub fn build(self) -> AnyVar {
-        var_when(self)
+        when_var(self)
     }
 
     /// Convert to typed builder.
@@ -137,11 +148,37 @@ impl AnyWhenVarBuilder {
     /// [`build`]: Self::build
     pub fn try_from_built(var: &AnyVar) -> Option<Self> {
         let any: &dyn Any = &*var.0;
-        let built = any.downcast_ref::<WhenVar>()?;
-        Some(Self {
-            conditions: built.0.conditions.clone(),
-            default: built.0.default.clone(),
-        })
+        if let Some(built) = any.downcast_ref::<WhenVar>() {
+            Some(Self {
+                conditions: built.0.conditions.to_vec(),
+                default: built.0.default.clone(),
+            })
+        } else if let Some(built) = any.downcast_ref::<ContextualVar>() {
+            let init = built.init.lock();
+            let init: &dyn Any = &**init;
+            init.downcast_ref::<Self>().cloned()
+        } else {
+            None
+        }
+    }
+
+    fn is_contextual(&self) -> bool {
+        self.default.capabilities().is_contextual()
+            || self
+                .conditions
+                .iter()
+                .any(|(c, v)| c.capabilities().is_contextual() || v.capabilities().is_contextual())
+    }
+
+    fn current_context(&self) -> Self {
+        AnyWhenVarBuilder {
+            conditions: self
+                .conditions
+                .iter()
+                .map(|(c, v)| (c.current_context(), v.current_context()))
+                .collect(),
+            default: self.default.current_context(),
+        }
     }
 }
 impl AnyWhenVarBuilder {
@@ -196,12 +233,25 @@ impl<O: VarValue> WhenVarBuilder<O> {
     }
 }
 
-fn var_when(builder: AnyWhenVarBuilder) -> AnyVar {
-    // !!: TODO contextualize? And in a way that can recover builder in `try_from_built`
-
+fn when_var(builder: AnyWhenVarBuilder) -> AnyVar {
+    if builder.is_contextual() {
+        return any_contextual_var_impl(smallbox!(builder));
+    }
+    when_var_tail(builder)
+}
+impl ContextInitFnImpl for AnyWhenVarBuilder {
+    fn init(&mut self) -> AnyVar {
+        let builder = self.current_context();
+        when_var_tail(builder)
+    }
+}
+fn when_var_tail(builder: AnyWhenVarBuilder) -> AnyVar {
+    AnyVar(smallbox!(when_var_tail_impl(builder)))
+}
+fn when_var_tail_impl(builder: AnyWhenVarBuilder) -> WhenVar {
     let data = Arc::new(WhenVarData {
         active_condition: AtomicUsize::new(builder.conditions.iter().position(|(c, _)| c.get()).unwrap_or(usize::MAX)),
-        conditions: builder.conditions,
+        conditions: builder.conditions.into_boxed_slice(),
         default: builder.default,
         hooks: MutexHooks::default(),
         last_active_change: AtomicU32::new(VarUpdateId::never().0),
@@ -276,11 +326,11 @@ fn var_when(builder: AnyWhenVarBuilder) -> AnyVar {
         })
         .perm();
 
-    AnyVar(smallbox!(WhenVar(data)))
+    WhenVar(data)
 }
 
 struct WhenVarData {
-    conditions: Vec<(Var<bool>, AnyVar)>,
+    conditions: Box<[(Var<bool>, AnyVar)]>,
     default: AnyVar,
     active_condition: AtomicUsize,
     hooks: MutexHooks,
@@ -399,51 +449,77 @@ impl WeakVarImpl for WeakWhenVar {
     }
 }
 
-/*
-!!:TODO This was on the ArcWhenVar, used by #[easing(_)] in properties
-
-
-    /// Create a variable similar to [`Var::easing`], but with different duration and easing functions for each condition.
-    ///
-    /// The `condition_easing` must contain one entry for each when condition, entries can be `None`, the easing used
-    /// is the first entry that corresponds to a `true` condition, or falls back to the `default_easing`.
-    pub fn easing_when(
-        &self,
-        condition_easing: Vec<Option<(Duration, Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>)>>,
-        default_easing: (Duration, Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>),
-    ) -> types::ContextualizedVar<T>
-    where
-        T: Transitionable,
-    {
-        let source = self.clone();
-        types::ContextualizedVar::new(move || {
-            debug_assert_eq!(source.0.conditions.len(), condition_easing.len());
-
-            let source_wk = source.downgrade();
-            let easing_var = super::var(source.get());
-
-            let condition_easing = condition_easing.clone();
-            let default_easing = default_easing.clone();
-            let mut _anim_handle = AnimationHandle::dummy();
-            var_bind(&source, &easing_var, move |value, _, easing_var| {
-                let source = source_wk.upgrade().unwrap();
-                for ((c, _), easing) in source.0.conditions.iter().zip(&condition_easing) {
+fn when_var_easing<O: VarValue + Transitionable>(builder: AnimatingWhenVarBuilder<O>) -> Var<O> {
+    if builder.builder.is_contextual() {
+        let any = any_contextual_var_impl(smallbox!(builder));
+        return Var::new_any(any);
+    }
+    when_var_easing_tail(builder)
+}
+struct AnimatingWhenVarBuilder<O: VarValue + Transitionable> {
+    builder: AnyWhenVarBuilder,
+    condition_easing: Vec<Option<EasingData>>,
+    default_easing: EasingData,
+    _t: PhantomData<fn() -> O>,
+}
+impl<O: VarValue + Transitionable> ContextInitFnImpl for AnimatingWhenVarBuilder<O> {
+    fn init(&mut self) -> AnyVar {
+        let builder = AnimatingWhenVarBuilder {
+            builder: self.builder.current_context(),
+            condition_easing: self.condition_easing.clone(),
+            default_easing: self.default_easing.clone(),
+            _t: self._t,
+        };
+        when_var_easing_tail(builder).any
+    }
+}
+fn when_var_easing_tail<O: VarValue + Transitionable>(builder: AnimatingWhenVarBuilder<O>) -> Var<O> {
+    let source = when_var_tail_impl(builder.builder);
+    let weak_source = Arc::downgrade(&source.0);
+    let output = var(source.get().downcast::<O>().unwrap());
+    let weak_output = output.downgrade();
+    let condition_easing = builder.condition_easing.into_boxed_slice();
+    let default_easing = builder.default_easing;
+    let mut _animation_handle = AnimationHandle::dummy();
+    source
+        .hook(smallbox!(move |args: &AnyVarHookArgs| {
+            if let Some(output) = weak_output.upgrade() {
+                let source = weak_source.upgrade().unwrap();
+                for ((c, _), easing) in source.conditions.iter().zip(&condition_easing) {
                     if let Some((duration, func)) = easing {
                         if c.get() {
-                            let func = func.clone();
-                            _anim_handle = easing_var.ease(value.clone(), *duration, move |t| func(t));
-                            return;
+                            _animation_handle =
+                                output.ease(args.downcast_value::<O>().unwrap().clone(), *duration, clmv!(func, |t| func(t)));
+                            return true;
                         }
                     }
                 }
-
+                // else default
                 let (duration, func) = &default_easing;
-                let func = func.clone();
-                _anim_handle = easing_var.ease(value.clone(), *duration, move |t| func(t));
-            })
-            .perm();
-            easing_var.read_only()
+                _animation_handle = output.ease(args.downcast_value::<O>().unwrap().clone(), *duration, clmv!(func, |t| func(t)));
+                true
+            } else {
+                false
+            }
+        }))
+        .perm();
+    output.hold(source).perm();
+    output
+}
+
+type EasingData = (Duration, Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>);
+
+impl<O: VarValue + Transitionable> WhenVarBuilder<O> {
+    /// Build a variable similar to [`Var::easing`], but with different duration and easing functions for each condition.
+    ///
+    /// The `condition_easing` must contain one entry for each when condition, entries can be `None`, the easing used
+    /// is the first entry that corresponds to a `true` condition, or falls back to the `default_easing`.
+    pub fn build_easing(self, condition_easing: Vec<Option<EasingData>>, default_easing: EasingData) -> Var<O> {
+        when_var_easing(AnimatingWhenVarBuilder {
+            builder: self.builder,
+            condition_easing,
+            default_easing,
+            _t: PhantomData,
         })
     }
-
-*/
+}

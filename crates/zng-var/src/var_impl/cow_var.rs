@@ -39,10 +39,7 @@ impl CowVar {
             None => false,
         });
 
-        Self(SharedVar::new(BoxAnyVarValue::new(CowVarSource {
-            source,
-            _source_hook,
-        })))
+        Self(SharedVar::new(BoxAnyVarValue::new(CowVarSource { source, _source_hook })))
     }
 }
 impl VarImpl for CowVar {

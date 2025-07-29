@@ -55,7 +55,8 @@ use zng_clone_move::clmv;
 pub use zng_var_proc_macros::merge_var as __merge_var;
 
 use crate::{
-    AnyVar, AnyVarValue, BoxAnyVarValue, ContextVar, Response, ResponseVar, Var, VarImpl, VarInstanceTag, VarValue, WeakVarImpl, var_any,
+    AnyVar, AnyVarValue, BoxAnyVarValue, ContextVar, Response, ResponseVar, Var, VarImpl, VarInstanceTag, VarValue, WeakVarImpl,
+    any_contextual_var, contextual_var, var_any,
 };
 
 use super::VarCapability;
@@ -103,7 +104,16 @@ impl<T: VarValue> MergeInput<Response<T>> for ResponseVar<T> {
 
 fn var_merge_impl(inputs: Box<[AnyVar]>, merge: MergeFn) -> AnyVar {
     if inputs.iter().any(|i| i.capabilities().is_contextual()) {
-        todo!("!!: TODO")
+        let merge = Arc::new(Mutex::new(merge));
+        return any_contextual_var(move || {
+            let mut inputs = inputs.clone();
+            for v in inputs.iter_mut() {
+                if v.capabilities().is_contextual() {
+                    *v = v.current_context();
+                }
+            }
+            var_merge_tail(inputs, smallbox!(clmv!(merge, |inputs: &[AnyVar]| { merge.lock()(inputs) })))
+        });
     }
     var_merge_tail(inputs, merge)
 }
@@ -256,11 +266,12 @@ impl WeakVarImpl for WeakMergeVar {
 }
 
 /// Build a [`merge_var!`] from any number of input vars of the same type `I`.
-pub struct VarMergeBuilder<I: VarValue> {
+#[derive(Clone)]
+pub struct MergeVarBuilder<I: VarValue> {
     inputs: Vec<AnyVar>,
     _type: PhantomData<fn() -> I>,
 }
-impl<I: VarValue> VarMergeBuilder<I> {
+impl<I: VarValue> MergeVarBuilder<I> {
     /// New empty.
     pub fn new() -> Self {
         Self {
@@ -283,7 +294,20 @@ impl<I: VarValue> VarMergeBuilder<I> {
     }
 
     /// Build the merge var.
-    pub fn build<O: VarValue>(self, mut merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static) -> Var<O> {
+    pub fn build<O: VarValue>(self, merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static) -> Var<O> {
+        if self.inputs.iter().any(|i| i.capabilities().is_contextual()) {
+            let merge = Arc::new(Mutex::new(merge));
+            return contextual_var(move || {
+                let builder = MergeVarBuilder {
+                    inputs: self.inputs.iter().map(|v| v.current_context()).collect(),
+                    _type: PhantomData,
+                };
+                builder.build_tail(clmv!(merge, |inputs| merge.lock()(inputs)))
+            });
+        }
+        self.build_tail(merge)
+    }
+    fn build_tail<O: VarValue>(self, mut merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static) -> Var<O> {
         let any = var_merge_impl(
             self.inputs.into_boxed_slice(),
             smallbox!(move |vars: &[AnyVar]| {
@@ -298,7 +322,7 @@ impl<I: VarValue> VarMergeBuilder<I> {
         Var::new_any(any)
     }
 }
-impl<I: VarValue> Default for VarMergeBuilder<I> {
+impl<I: VarValue> Default for MergeVarBuilder<I> {
     fn default() -> Self {
         Self::new()
     }

@@ -149,6 +149,11 @@ impl Transitionable for Factor {
         Factor(self.0.lerp(&to.0, step))
     }
 }
+impl Transitionable for FactorPercent {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        FactorPercent(self.0.lerp(&to.0, step))
+    }
+}
 impl<T, U> Transitionable for euclid::SideOffsets2D<T, U>
 where
     T: Transitionable,

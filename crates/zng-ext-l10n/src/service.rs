@@ -10,7 +10,7 @@ use std::{
 use parking_lot::Mutex;
 use zng_app_context::app_local;
 use zng_txt::Txt;
-use zng_var::{ArcEq, Var, VarMergeBuilder, WeakVar, const_var, merge_var, var};
+use zng_var::{ArcEq, MergeVarBuilder, Var, WeakVar, const_var, merge_var, var};
 use zng_view_api::config::LocaleConfig;
 
 use crate::{
@@ -207,7 +207,7 @@ impl L10nService {
 
             let langs = langs.0.clone();
 
-            let mut res = VarMergeBuilder::new();
+            let mut res = MergeVarBuilder::new();
             for l in langs.iter().rev() {
                 res.push(source.lang_resource(l.clone(), file.clone()));
             }
@@ -331,7 +331,7 @@ fn format_fallback(file: &str, id: &str, attribute: &str, fallback: &Txt, args: 
 }
 
 fn fluent_args_var(args: Vec<(Txt, Var<L10nArgument>)>) -> Var<ArcEq<Mutex<fluent::FluentArgs<'static>>>> {
-    let mut fluent_args = VarMergeBuilder::new();
+    let mut fluent_args = MergeVarBuilder::new();
     let mut names = Vec::with_capacity(args.len());
     for (name, arg) in args {
         names.push(name);

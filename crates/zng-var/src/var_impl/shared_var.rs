@@ -68,9 +68,7 @@ impl VarImpl for SharedVar {
     }
 
     fn value_type(&self) -> TypeId {
-        let value = self.0.value.read();
-        let value: &dyn Any = &*value;
-        value.type_id()
+        self.0.value.read().0.type_id()
     }
 
     #[cfg(feature = "value_type_name")]

@@ -13,12 +13,12 @@ use smallbox::{SmallBox, smallbox};
 pub(crate) mod shared_var;
 pub use shared_var::{var, var_any, var_getter, var_state};
 
-pub(crate) mod cow_var;
 pub(crate) mod const_var;
+pub(crate) mod cow_var;
 pub use const_var::IntoVar;
 pub(crate) mod flat_map_var;
-pub(crate) mod map_ref_var;
 pub(crate) mod map_ref_bidi_var;
+pub(crate) mod map_ref_var;
 pub(crate) mod read_only_var;
 
 pub(crate) mod contextual_var;
@@ -28,7 +28,9 @@ pub(crate) mod context_var;
 pub use context_var::{__context_var_local, ContextVar, context_var_init};
 
 pub(crate) mod merge_var;
-pub use merge_var::{__merge_var, MergeInput, VarMergeBuilder, VarMergeInputs, merge_var, merge_var_input, merge_var_output, merge_var_with};
+pub use merge_var::{
+    __merge_var, MergeInput, MergeVarBuilder, VarMergeInputs, merge_var, merge_var_input, merge_var_output, merge_var_with,
+};
 
 pub(crate) mod response_var;
 pub use response_var::{ResponderVar, Response, ResponseVar, response_done_var, response_var};
@@ -420,7 +422,7 @@ impl VarHandle {
     ///
     /// [`dummy`]: VarHandle::dummy
     pub fn is_dummy(&self) -> bool {
-        self.0.is_some()
+        self.0.is_none()
     }
 
     /// Drop the handle without stopping the behavior it represents.

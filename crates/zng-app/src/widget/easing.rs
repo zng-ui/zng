@@ -41,8 +41,7 @@ impl<T: VarValue + Transitionable> easing_property_input_Transitionable for Var<
                 .collect();
             if conditions.iter().any(|c| c.is_some()) {
                 // at least one property assign has #[easing(duration, easing_fn)]
-                // when.easing_when(conditions.clone(), (duration, easing.clone()))
-                todo!()
+                when.build_easing(conditions, (duration, easing))
             } else {
                 // only normal property assign has #[easing(_)]
                 Var::easing(&self, duration, move |t| easing(t))

@@ -312,8 +312,8 @@
 //! See [`zng_var`] for the full var API.
 
 pub use zng_var::{
-    AnyVar, AnyVarValue, AnyWhenVarBuilder, ArcEq, BoxAnyVarValue, ContextInitHandle, ContextVar, IntoValue, IntoVar, ObservableVec,
-    ResponderVar, Response, ResponseVar, VARS, Var, VarCapability, VarHandle, VarHandles, VarHookArgs, VarInstanceTag, VarMergeBuilder,
+    AnyVar, AnyVarValue, AnyWhenVarBuilder, ArcEq, BoxAnyVarValue, ContextInitHandle, ContextVar, IntoValue, IntoVar, MergeVarBuilder,
+    ObservableVec, ResponderVar, Response, ResponseVar, VARS, Var, VarCapability, VarHandle, VarHandles, VarHookArgs, VarInstanceTag,
     VarModify, VarUpdateId, VarValue, VecChange, WeakAnyVar, WeakVar, any_const_var, any_contextual_var, const_var, context_var,
     contextual_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, var, var_any, var_default, var_from,
     var_getter, var_state, when_var,

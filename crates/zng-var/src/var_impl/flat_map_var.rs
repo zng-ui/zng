@@ -3,7 +3,8 @@
 use std::sync::{Arc, Weak};
 
 use crate::{
-    AnyVar, AnyVarHookArgs, AnyVarValue, BoxAnyVarValue, VarHandle, VarImpl, VarInstanceTag, VarUpdateId, WeakVarImpl, shared_var::MutexHooks,
+    AnyVar, AnyVarHookArgs, AnyVarValue, BoxAnyVarValue, VarHandle, VarImpl, VarInstanceTag, VarUpdateId, WeakVarImpl,
+    shared_var::MutexHooks,
 };
 use parking_lot::{Mutex, RwLock};
 use smallbox::{SmallBox, smallbox};

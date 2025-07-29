@@ -23,7 +23,7 @@ value_type_name = []
 # Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
 #
 # This speeds-up compilation time at the cost of runtime.
-dyn_closure = [] # !!: TODO review this, now actually used
+dyn_closure = [] # !!: TODO review this, not used
 
 [dependencies]
 zng-var-proc-macros = { path = "../zng-var-proc-macros", version = "0.3.0" }
@@ -39,8 +39,6 @@ bitflags = { version = "2.5", features = ["serde", "bytemuck"] }
 bytemuck = { version = "1.15", features = ["derive"] }
 parking_lot = "0.12"
 tracing = "0.1"
-take_mut = "0.2"
-pretty-type-name = "1.0"
 smallbox = "0.8"
 smallvec = { version = "1.13", features = ["const_new"] }
 

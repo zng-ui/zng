@@ -150,8 +150,7 @@ impl VarImpl for AnyConstVar {
     }
 
     fn value_type(&self) -> TypeId {
-        let a: &dyn Any = &self.0;
-        a.type_id()
+        self.0.type_id()
     }
 
     #[cfg(feature = "value_type_name")]

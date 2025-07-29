@@ -29,7 +29,7 @@ impl Clone for AnyVar {
 impl AnyVar {
     /// Visit a reference to the current value.
     pub fn with<O>(&self, visitor: impl FnOnce(&dyn AnyVarValue) -> O) -> O {
-        // !!: TODO try a ArcWap based read
+        // !!: TODO try a ArcSwap based read
         let mut once = Some(visitor);
         let mut output = None;
         self.0.with(&mut |v| {
@@ -80,7 +80,16 @@ impl AnyVar {
     ///
     /// Panics if the value type does not match.
     pub fn try_set(&self, new_value: BoxAnyVarValue) -> Result<(), VarIsReadOnlyError> {
-        assert_eq!(new_value.type_id(), self.value_type());
+        if new_value.type_id() != self.value_type() {
+            #[cfg(feature = "value_type_name")]
+            panic!(
+                "cannot set `{}` on variable of type `{}`",
+                new_value.type_name(),
+                self.value_type_name()
+            );
+            #[cfg(not(feature = "value_type_name"))]
+            panic!("cannot set variable, type mismatch");
+        }
         self.handle_modify(self.0.set(new_value))
     }
 
@@ -534,7 +543,7 @@ impl AnyVar {
     /// [`map_bidi`]: Var::map_bidi
     pub fn map_bidi_any(
         &self,
-        mut map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
+        map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
         map_back: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
     ) -> AnyVar {
         let caps = self.capabilities();
@@ -542,9 +551,18 @@ impl AnyVar {
         if caps.is_contextual() {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, map_back)));
-            return any_contextual_var(move || me.map_bidi_any(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, |v| fns.lock().1(v))));
+            return any_contextual_var(move || me.map_bidi_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, |v| fns.lock().1(v)), caps));
         }
 
+        self.map_bidi_tail(map, map_back, caps)
+    }
+
+    fn map_bidi_tail(
+        &self,
+        mut map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
+        map_back: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
+        caps: VarCapability,
+    ) -> AnyVar {
         let mut init_value = None;
         self.with(&mut |v: &dyn AnyVarValue| init_value = Some(map(v)));
         let init_value = init_value.unwrap();
@@ -588,7 +606,7 @@ impl AnyVar {
     /// [`filter_map_bidi`]: Var::filter_map_bidi
     pub fn filter_map_bidi_any(
         &self,
-        mut map: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
+        map: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
         map_back: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
         fallback_init: impl Fn() -> BoxAnyVarValue + Send + 'static,
     ) -> AnyVar {
@@ -598,14 +616,24 @@ impl AnyVar {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, map_back, fallback_init)));
             return any_contextual_var(move || {
-                me.filter_map_bidi_any(
+                me.filter_map_bidi_tail(
                     clmv!(fns, |v| fns.lock().0(v)),
                     clmv!(fns, |v| fns.lock().1(v)),
                     clmv!(fns, || fns.lock().2()),
+                    caps,
                 )
             });
         }
 
+        self.filter_map_bidi_tail(map, map_back, fallback_init, caps)
+    }
+    fn filter_map_bidi_tail(
+        &self,
+        mut map: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
+        map_back: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
+        fallback_init: impl Fn() -> BoxAnyVarValue + Send + 'static,
+        caps: VarCapability,
+    ) -> AnyVar {
         let mut init_value = None;
         self.with(&mut |v: &dyn AnyVarValue| init_value = map(v));
         let init_value = init_value.unwrap_or_else(&fallback_init);

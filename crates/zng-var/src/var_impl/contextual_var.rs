@@ -1,6 +1,7 @@
 //! Context dependent unwrapping mapping var
 
 use std::{
+    any::Any,
     fmt,
     sync::{Arc, Weak},
 };
@@ -19,9 +20,9 @@ use super::VarCapability;
 ///
 /// See [`contextual_var`] for more details about contextualized variables.
 pub fn any_contextual_var(context_init: impl FnMut() -> AnyVar + Send + 'static) -> AnyVar {
-    any_contextual_var_impl(smallbox!(context_init))
+    any_contextual_var_impl(smallbox!(ContextInitFnMut(context_init)))
 }
-fn any_contextual_var_impl(context_init: ContextInitFn) -> AnyVar {
+pub(super) fn any_contextual_var_impl(context_init: ContextInitFn) -> AnyVar {
     AnyVar(smallbox!(ContextualVar::new(context_init)))
 }
 
@@ -64,10 +65,20 @@ pub fn contextual_var<T: VarValue>(mut context_init: impl FnMut() -> Var<T> + Se
     Var::new_any(any_contextual_var(move || context_init().into()))
 }
 
-pub(super) type ContextInitFn = SmallBox<dyn FnMut() -> AnyVar + Send + 'static, smallbox::space::S8>;
+pub(super) type ContextInitFn = SmallBox<dyn ContextInitFnImpl, smallbox::space::S8>;
+// not using a FnMut here so that the source can be inspected (WhenVarBuilder does this)
+pub(crate) trait ContextInitFnImpl: Send + Any {
+    fn init(&mut self) -> AnyVar;
+}
+struct ContextInitFnMut<F>(F);
+impl<F: FnMut() -> AnyVar + Send + 'static> ContextInitFnImpl for ContextInitFnMut<F> {
+    fn init(&mut self) -> AnyVar {
+        self.0()
+    }
+}
 
 pub(crate) struct ContextualVar {
-    init: Arc<Mutex<ContextInitFn>>,
+    pub(super) init: Arc<Mutex<ContextInitFn>>,
     ctx: RwLock<(AnyVar, ContextInitHandle)>,
 }
 impl Clone for ContextualVar {
@@ -95,7 +106,7 @@ impl ContextualVar {
             drop(ctx);
             let mut ctx = self.ctx.write();
             if ctx.1 != id {
-                ctx.0 = self.init.lock()();
+                ctx.0 = self.init.lock().init();
             }
             let ctx = parking_lot::RwLockWriteGuard::downgrade(ctx);
             parking_lot::RwLockReadGuard::map(ctx, |f| &f.0)
