@@ -401,7 +401,7 @@ impl VarImpl for WhenVar {
         self.active().0.update()
     }
 
-    fn modify(&self, modify: SmallBox<dyn FnMut(&mut VarModifyAny) + Send + 'static, smallbox::space::S4>) -> bool {
+    fn modify(&self, modify: SmallBox<dyn FnMut(&mut AnyVarModify) + Send + 'static, smallbox::space::S4>) -> bool {
         self.active().0.modify(modify)
     }
 

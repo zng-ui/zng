@@ -100,13 +100,13 @@ impl VarImpl for MapBidiRefVar {
         self.0.source.0.update()
     }
 
-    fn modify(&self, mut modify: SmallBox<dyn FnMut(&mut VarModifyAny) + Send + 'static, smallbox::space::S4>) -> bool {
+    fn modify(&self, mut modify: SmallBox<dyn FnMut(&mut AnyVarModify) + Send + 'static, smallbox::space::S4>) -> bool {
         let weak = Arc::downgrade(&self.0);
         self.0
             .source
             .try_modify(move |value| {
                 if let Some(s) = weak.upgrade() {
-                    let mut m = VarModifyAny {
+                    let mut m = AnyVarModify {
                         update: value.update,
                         tags: mem::take(&mut value.tags),
                         custom_importance: value.custom_importance,
@@ -115,7 +115,7 @@ impl VarImpl for MapBidiRefVar {
 
                     modify(&mut m);
 
-                    let VarModifyAny {
+                    let AnyVarModify {
                         tags, custom_importance, ..
                     } = m;
 

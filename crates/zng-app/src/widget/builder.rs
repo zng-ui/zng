@@ -725,7 +725,7 @@ pub struct PropertyNewArgs {
     /// | Kind                | Expected Type
     /// |---------------------|-------------------------------------------------
     /// | [`Var`]             | `Box<Var<T>>` or `Box<VarWhenAnyBuilder>`
-    /// | [`Value`]           | `Box<BoxAnyVarValue>` !!: TODO review this
+    /// | [`Value`]           | `Box<T>`
     /// | [`UiNode`]          | `Box<ArcNode<BoxedUiNode>>` or `Box<WhenUiNodeBuilder>`
     /// | [`UiNodeList`]      | `Box<ArcNodeList<BoxedUiNodeList>>` or `Box<WhenUiNodeListBuilder>`
     /// | [`WidgetHandler`]   | `Box<ArcWidgetHandler<A>>` or `Box<AnyWhenArcWidgetHandlerBuilder>`

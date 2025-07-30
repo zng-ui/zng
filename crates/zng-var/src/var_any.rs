@@ -12,7 +12,7 @@ use zng_clone_move::clmv;
 use zng_txt::{Txt, formatx};
 
 use crate::{
-    AnyVarValue, BoxAnyVarValue, VARS, Var, VarCapability, VarHandle, VarHandles, VarImpl, VarIsReadOnlyError, VarModifyAny, VarUpdateId,
+    AnyVarValue, BoxAnyVarValue, VARS, Var, VarCapability, VarHandle, VarHandles, VarImpl, VarIsReadOnlyError, AnyVarModify, VarUpdateId,
     VarValue, WeakVarImpl,
     animation::{Animation, AnimationController, AnimationHandle, AnimationStopFn},
     any_contextual_var,
@@ -121,11 +121,11 @@ impl AnyVar {
     /// Schedule `modify` to be called on the value for the next update, if the variable is not read-only.
     ///
     /// If the [`VarModifyAny`] closure input is deref_mut the variable will notify an update.
-    pub fn try_modify(&self, modify: impl FnOnce(&mut VarModifyAny) + Send + 'static) -> Result<(), VarIsReadOnlyError> {
+    pub fn try_modify(&self, modify: impl FnOnce(&mut AnyVarModify) + Send + 'static) -> Result<(), VarIsReadOnlyError> {
         // can't have a SmallBox<dyn FnOnce> because Rust has special compiler magic for Box<dyn FnOnce>,
         // so we wrap in an Option and FnMut that is only called once.
         let mut modify = Some(modify);
-        let modify = move |value: &mut VarModifyAny| {
+        let modify = move |value: &mut AnyVarModify| {
             #[cfg(debug_assertions)]
             let type_id = (&*value.value as &dyn Any).type_id();
 
@@ -148,7 +148,7 @@ impl AnyVar {
     /// Use [`try_modify`] to get an error for read-only vars.
     ///
     /// [`try_modify`]: Self::try_modify
-    pub fn modify(&self, modify: impl FnOnce(&mut VarModifyAny) + Send + 'static) {
+    pub fn modify(&self, modify: impl FnOnce(&mut AnyVarModify) + Send + 'static) {
         trace_debug_error!(self.try_modify(modify))
     }
 
@@ -942,7 +942,7 @@ impl AnyVar {
     /// See [`animate`] for more details.
     ///
     /// [`animate`]: Var::animate
-    pub fn animate(&self, animate: impl FnMut(&Animation, &mut VarModifyAny) + Send + 'static) -> AnimationHandle {
+    pub fn animate(&self, animate: impl FnMut(&Animation, &mut AnyVarModify) + Send + 'static) -> AnimationHandle {
         if !self.capabilities().is_always_read_only() {
             let target = self.current_context();
             if !target.capabilities().is_always_read_only() {

@@ -136,7 +136,7 @@ impl VarImpl for CowVar {
     }
 
     fn update(&self) -> bool {
-        self.0.modify(smallbox!(|value: &mut VarModifyAny| {
+        self.0.modify(smallbox!(|value: &mut AnyVarModify| {
             if let Some(read) = value.downcast_ref::<CowVarSource>() {
                 // clone on write
                 let new_value = read.source.get();
@@ -154,12 +154,12 @@ impl VarImpl for CowVar {
         true
     }
 
-    fn modify(&self, mut modify: SmallBox<dyn FnMut(&mut VarModifyAny) + Send + 'static, smallbox::space::S4>) -> bool {
-        self.0.modify(smallbox!(move |value: &mut VarModifyAny| {
+    fn modify(&self, mut modify: SmallBox<dyn FnMut(&mut AnyVarModify) + Send + 'static, smallbox::space::S4>) -> bool {
+        self.0.modify(smallbox!(move |value: &mut AnyVarModify| {
             if let Some(read) = value.downcast_ref::<CowVarSource>() {
                 // clone on write
                 let mut source_value = read.source.get();
-                let mut vm = VarModifyAny {
+                let mut vm = AnyVarModify {
                     value: VarModifyAnyValue::Boxed(&mut source_value),
                     update: VarModifyUpdate::empty(),
                     tags: mem::take(&mut value.tags),

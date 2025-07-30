@@ -55,7 +55,7 @@ pub(crate) trait VarImpl: Any + Send + Sync {
     fn get(&self) -> BoxAnyVarValue;
     fn set(&self, new_value: BoxAnyVarValue) -> bool;
     fn update(&self) -> bool;
-    fn modify(&self, modify: SmallBox<dyn FnMut(&mut VarModifyAny) + Send + 'static, smallbox::space::S4>) -> bool;
+    fn modify(&self, modify: SmallBox<dyn FnMut(&mut AnyVarModify) + Send + 'static, smallbox::space::S4>) -> bool;
     fn hook(&self, on_new: SmallBox<dyn FnMut(&AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle;
     fn last_update(&self) -> VarUpdateId;
     fn modify_importance(&self) -> usize;
@@ -207,22 +207,24 @@ impl<'a> ops::DerefMut for VarModifyAnyValue<'a> {
 /// Mutable reference to a variable value.
 ///
 /// The variable will notify an update only on `deref_mut`.
-pub struct VarModifyAny<'a> {
+pub struct AnyVarModify<'a> {
     pub(crate) value: VarModifyAnyValue<'a>,
     pub(crate) update: VarModifyUpdate,
     pub(crate) tags: Vec<BoxAnyVarValue>,
     pub(crate) custom_importance: Option<usize>,
 }
-impl<'a> VarModifyAny<'a> {
+impl<'a> AnyVarModify<'a> {
     /// Replace the value if not equal.
     ///
     /// Note that you can also deref_mut to modify the value.
     pub fn set(&mut self, mut new_value: BoxAnyVarValue) -> bool {
         if *self.value != *new_value {
-            assert!(
-                self.value.try_swap(&mut *new_value),
-                "modify set new_value was not of the same type"
-            );
+            if !self.value.try_swap(&mut *new_value) {
+                #[cfg(feature = "value_type_name")]
+                panic!("cannot AnyVarModify::set `{}` on variable of type `{}`", self.value.type_name(), new_value.type_name());
+                #[cfg(not(feature = "value_type_name"))]
+                panic!("cannot modify set, type mismatch");
+            }
             self.update |= VarModifyUpdate::TOUCHED;
             true
         } else {
@@ -285,14 +287,14 @@ impl<'a> VarModifyAny<'a> {
         &mut **self
     }
 }
-impl<'a> ops::Deref for VarModifyAny<'a> {
+impl<'a> ops::Deref for AnyVarModify<'a> {
     type Target = dyn AnyVarValue;
 
     fn deref(&self) -> &Self::Target {
         self.value.deref()
     }
 }
-impl<'a> ops::DerefMut for VarModifyAny<'a> {
+impl<'a> ops::DerefMut for AnyVarModify<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.update |= VarModifyUpdate::TOUCHED;
         self.value.deref_mut()
@@ -303,7 +305,7 @@ impl<'a> ops::DerefMut for VarModifyAny<'a> {
 ///
 /// The variable will notify an update only on `deref_mut`.
 pub struct VarModify<'s, 'a, T: VarValue> {
-    inner: &'s mut VarModifyAny<'a>,
+    inner: &'s mut AnyVarModify<'a>,
     _t: PhantomData<fn() -> &'a T>,
 }
 impl<'s, 'a, T: VarValue> VarModify<'s, 'a, T> {
@@ -348,7 +350,7 @@ impl<'s, 'a, T: VarValue> VarModify<'s, 'a, T> {
     }
 
     /// Type erased reference.
-    pub fn as_any(&mut self) -> &mut VarModifyAny<'a> {
+    pub fn as_any(&mut self) -> &mut AnyVarModify<'a> {
         self.inner
     }
 

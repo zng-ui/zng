@@ -9,7 +9,7 @@ use crate::{
 use parking_lot::{Mutex, RwLock};
 use smallbox::{SmallBox, smallbox};
 
-use super::{VarCapability, VarModifyAny};
+use super::{VarCapability, AnyVarModify};
 
 type MapFn = SmallBox<dyn FnMut(&dyn AnyVarValue) -> AnyVar + Send + 'static, smallbox::space::S4>;
 
@@ -136,7 +136,7 @@ impl VarImpl for FlatMapVar {
         self.0.current.read().0.0.update()
     }
 
-    fn modify(&self, modify: SmallBox<dyn FnMut(&mut VarModifyAny) + Send + 'static, smallbox::space::S4>) -> bool {
+    fn modify(&self, modify: SmallBox<dyn FnMut(&mut AnyVarModify) + Send + 'static, smallbox::space::S4>) -> bool {
         self.0.current.read().0.0.modify(modify)
     }
 

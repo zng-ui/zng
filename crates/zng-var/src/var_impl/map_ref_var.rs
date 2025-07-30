@@ -82,7 +82,7 @@ impl VarImpl for MapRefVar {
         false
     }
 
-    fn modify(&self, _: SmallBox<dyn FnMut(&mut VarModifyAny) + Send + 'static, smallbox::space::S4>) -> bool {
+    fn modify(&self, _: SmallBox<dyn FnMut(&mut AnyVarModify) + Send + 'static, smallbox::space::S4>) -> bool {
         false
     }
 

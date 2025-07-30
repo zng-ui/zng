@@ -178,7 +178,7 @@ impl VarImpl for ContextualVar {
         self.load().0.update()
     }
 
-    fn modify(&self, modify: SmallBox<dyn FnMut(&mut super::VarModifyAny) + Send + 'static, smallbox::space::S4>) -> bool {
+    fn modify(&self, modify: SmallBox<dyn FnMut(&mut super::AnyVarModify) + Send + 'static, smallbox::space::S4>) -> bool {
         self.load().0.modify(modify)
     }
 

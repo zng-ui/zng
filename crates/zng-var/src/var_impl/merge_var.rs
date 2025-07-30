@@ -220,7 +220,7 @@ impl VarImpl for MergeVar {
         false
     }
 
-    fn modify(&self, _: SmallBox<dyn FnMut(&mut super::VarModifyAny) + Send + 'static, smallbox::space::S4>) -> bool {
+    fn modify(&self, _: SmallBox<dyn FnMut(&mut super::AnyVarModify) + Send + 'static, smallbox::space::S4>) -> bool {
         false
     }
 

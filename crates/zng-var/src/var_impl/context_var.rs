@@ -11,7 +11,7 @@ use zng_app_context::{AppLocalId, ContextLocal, ContextLocalKeyProvider};
 
 use crate::{
     AnyVar, AnyVarHookArgs, AnyVarValue, BoxAnyVarValue, ContextInitHandle, IntoVar, Var, VarCapability, VarHandle, VarImpl,
-    VarInstanceTag, VarModifyAny, VarUpdateId, VarValue, WeakVarImpl,
+    VarInstanceTag, AnyVarModify, VarUpdateId, VarValue, WeakVarImpl,
 };
 
 ///<span data-del-macro-root></span> Declares new [`ContextVar<T>`] static items.
@@ -237,7 +237,7 @@ impl VarImpl for ContextVarImpl {
         self.0.get().0.update()
     }
 
-    fn modify(&self, modify: SmallBox<dyn FnMut(&mut VarModifyAny) + Send + 'static, smallbox::space::S4>) -> bool {
+    fn modify(&self, modify: SmallBox<dyn FnMut(&mut AnyVarModify) + Send + 'static, smallbox::space::S4>) -> bool {
         self.0.get().0.modify(modify)
     }
 

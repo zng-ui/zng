@@ -115,12 +115,12 @@ impl VarImpl for SharedVar {
     }
 
     fn update(&self) -> bool {
-        self.modify(smallbox!(|v: &mut VarModifyAny| {
+        self.modify(smallbox!(|v: &mut AnyVarModify| {
             v.update();
         }))
     }
 
-    fn modify(&self, modify: SmallBox<dyn FnMut(&mut VarModifyAny) + Send + 'static, smallbox::space::S4>) -> bool {
+    fn modify(&self, modify: SmallBox<dyn FnMut(&mut AnyVarModify) + Send + 'static, smallbox::space::S4>) -> bool {
         self.modify_impl(ValueOrModify::Modify(modify));
         true
     }
@@ -161,7 +161,7 @@ impl SharedVar {
                 value.2 = current_modify;
 
                 // modify
-                let mut m = VarModifyAny {
+                let mut m = AnyVarModify {
                     value: VarModifyAnyValue::Boxed(&mut value.0),
                     update: VarModifyUpdate::empty(),
                     tags: vec![],
@@ -174,7 +174,7 @@ impl SharedVar {
                     ValueOrModify::Modify(mut f) => (f)(&mut m),
                 }
 
-                let VarModifyAny {
+                let AnyVarModify {
                     update,
                     tags,
                     custom_importance,
@@ -200,7 +200,7 @@ impl SharedVar {
 // this type and `modify_impl` work around that
 enum ValueOrModify {
     Value(BoxAnyVarValue),
-    Modify(SmallBox<dyn FnMut(&mut VarModifyAny) + Send + 'static, smallbox::space::S4>),
+    Modify(SmallBox<dyn FnMut(&mut AnyVarModify) + Send + 'static, smallbox::space::S4>),
 }
 
 #[derive(Clone)]

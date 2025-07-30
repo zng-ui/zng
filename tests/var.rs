@@ -1019,7 +1019,7 @@ mod cow {
     }
 
     #[test]
-    pub fn cow_update_full() {
+    pub fn cow_and_base_update() {
         let mut app = APP.minimal().run_headless(false);
 
         let base = var(0);

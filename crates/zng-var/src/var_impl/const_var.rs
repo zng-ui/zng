@@ -61,7 +61,7 @@ impl<T: VarValue> VarImpl for ConstVar<T> {
         VarCapability::empty()
     }
 
-    fn modify(&self, _: SmallBox<dyn FnMut(&mut VarModifyAny) + Send + 'static, smallbox::space::S4>) -> bool {
+    fn modify(&self, _: SmallBox<dyn FnMut(&mut AnyVarModify) + Send + 'static, smallbox::space::S4>) -> bool {
         false
     }
 
@@ -198,7 +198,7 @@ impl VarImpl for AnyConstVar {
         false
     }
 
-    fn modify(&self, _: SmallBox<dyn FnMut(&mut VarModifyAny) + Send + 'static, smallbox::space::S4>) -> bool {
+    fn modify(&self, _: SmallBox<dyn FnMut(&mut AnyVarModify) + Send + 'static, smallbox::space::S4>) -> bool {
         false
     }
 
