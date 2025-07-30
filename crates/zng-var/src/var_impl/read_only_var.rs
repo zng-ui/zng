@@ -43,7 +43,7 @@ impl VarImpl for ReadOnlyVar {
     }
 
     fn capabilities(&self) -> VarCapability {
-        self.0.capabilities().as_read_only()
+        self.0.capabilities().as_always_read_only()
     }
 
     fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
@@ -72,6 +72,10 @@ impl VarImpl for ReadOnlyVar {
 
     fn last_update(&self) -> VarUpdateId {
         self.0.0.last_update()
+    }
+
+    fn modify_info(&self) -> ModifyInfo {
+        self.0.0.modify_info()
     }
 
     fn modify_importance(&self) -> usize {

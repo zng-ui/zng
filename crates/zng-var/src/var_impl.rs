@@ -6,12 +6,15 @@ use std::{
     sync::{Arc, atomic::AtomicBool},
 };
 
-use crate::{AnyVarHookArgs, AnyVarValue, BoxAnyVarValue, VarInstanceTag, VarUpdateId, VarValue, animation::AnimationStopFn};
+use crate::{
+    AnyVarHookArgs, AnyVarValue, BoxAnyVarValue, VarInstanceTag, VarUpdateId, VarValue,
+    animation::{AnimationStopFn, ModifyInfo},
+};
 use bitflags::bitflags;
 use smallbox::{SmallBox, smallbox};
 
 pub(crate) mod shared_var;
-pub use shared_var::{var, var_any, var_getter, var_state};
+pub use shared_var::{any_var, any_var_derived, var, var_derived, var_getter, var_state};
 
 pub(crate) mod const_var;
 pub(crate) mod cow_var;
@@ -62,6 +65,7 @@ pub(crate) trait VarImpl: Any + Send + Sync {
     fn is_animating(&self) -> bool;
     fn hook_animation_stop(&self, handler: AnimationStopFn) -> Result<(), AnimationStopFn>;
     fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2>;
+    fn modify_info(&self) -> ModifyInfo;
 }
 
 pub(crate) trait WeakVarImpl: Any + Send + Sync {
@@ -97,36 +101,33 @@ bitflags! {
 
         /// Variable can be modified.
         ///
-        /// If this is set [`Var::modify`] always returns `Ok`, if this is set `NEW` is also set.
+        /// If this is set [`Var::try_modify`] always returns `Ok`, if this is set `NEW` is also set.
         ///
         /// Note that modify requests from inside overridden animations can still be ignored, see [`AnyVar::modify_importance`].
         const MODIFY = 0b0000_0011;
 
-        /// Var capabilities can change.
-        ///
-        /// Var capabilities can only change in between app updates, just like the var value, but [`AnyVar::last_update`]
-        /// may not change when capability changes.
-        const CAPS_CHANGE = 0b1000_0000;
-
         /// Var represents different inner variables depending on the context it is used.
-        ///
-        /// Any other capabilities set are from the inner variable.
-        const CONTEXT = 0b1100_0000;
+        const CONTEXT = 0b1000_0000;
+
+        /// Variable capabilities can change to sometimes have the `MODIFY` capability.
+        const MODIFY_CHANGES = 0b0100_0000;
+        /// Variable capabilities can change to sometimes have the `CONTEXT` capability.
+        const CONTEXT_CHANGES = 0b0010_0000;
 
         /// Var is an *arc* reference to the value and variable state, cloning the variable only clones a
         /// reference to the variable, all references modify and notify the same state.
-        const SHARE = 0b0010_0000;
+        const SHARE = 0b0001_0000;
     }
 }
 impl VarCapability {
-    /// If cannot `NEW` and is not `CAPS_CHANGE`.
+    /// If cannot `NEW` and is not `MODIFY_CHANGES`.
     pub fn is_const(self) -> bool {
-        !self.contains(Self::NEW) && !self.contains(Self::CAPS_CHANGE)
+        !self.contains(Self::NEW) && !self.contains(Self::MODIFY_CHANGES)
     }
 
-    /// If does not have `MODIFY` capability and is not `CAPS_CHANGE`.
+    /// If does not have `MODIFY` capability and is not `MODIFY_CHANGES`.
     pub fn is_always_read_only(&self) -> bool {
-        !self.contains(Self::MODIFY) && !self.contains(Self::CAPS_CHANGE)
+        !self.contains(Self::MODIFY) && !self.contains(Self::MODIFY_CHANGES)
     }
 
     /// If does not have `MODIFY` capability.
@@ -144,6 +145,11 @@ impl VarCapability {
         self.contains(Self::CONTEXT)
     }
 
+    /// Has the `CONTEXT` capability and does not have `CONTEXT_CHANGES`.
+    pub fn is_always_contextual(self) -> bool {
+        self.contains(Self::CONTEXT) && !self.contains(Self::CONTEXT_CHANGES)
+    }
+
     /// Has the `SHARE` capability.
     pub fn is_share(&self) -> bool {
         self.contains(Self::SHARE)
@@ -157,10 +163,14 @@ impl VarCapability {
     }
 }
 impl VarCapability {
-    /// Remove only the `MODIFY` flag without removing `NEW`.
-    pub fn as_read_only(self) -> Self {
+    pub(crate) fn as_always_read_only(self) -> Self {
         let mut out = self;
-        out.remove(Self::MODIFY);
+
+        // can be new, but not modify
+        out.remove(Self::MODIFY & !Self::NEW);
+        // never will allow modify
+        out.remove(Self::MODIFY_CHANGES);
+
         out
     }
 }
@@ -177,7 +187,7 @@ bitflags! {
     }
 }
 
-pub(crate) enum VarModifyAnyValue<'a> {
+pub(crate) enum AnyVarModifyValue<'a> {
     /// Preferred way, SharedVar needs to provide this, other wrapper vars carefully use this to
     /// store state, like CowVar stores the source var here before the first write
     Boxed(&'a mut BoxAnyVarValue),
@@ -185,21 +195,21 @@ pub(crate) enum VarModifyAnyValue<'a> {
     RefOnly(&'a mut dyn AnyVarValue),
 }
 
-impl<'a> ops::Deref for VarModifyAnyValue<'a> {
+impl<'a> ops::Deref for AnyVarModifyValue<'a> {
     type Target = dyn AnyVarValue;
 
     fn deref(&self) -> &Self::Target {
         match self {
-            VarModifyAnyValue::Boxed(b) => &***b,
-            VarModifyAnyValue::RefOnly(r) => &**r,
+            AnyVarModifyValue::Boxed(b) => &***b,
+            AnyVarModifyValue::RefOnly(r) => &**r,
         }
     }
 }
-impl<'a> ops::DerefMut for VarModifyAnyValue<'a> {
+impl<'a> ops::DerefMut for AnyVarModifyValue<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
-            VarModifyAnyValue::Boxed(b) => &mut ***b,
-            VarModifyAnyValue::RefOnly(r) => &mut **r,
+            AnyVarModifyValue::Boxed(b) => &mut ***b,
+            AnyVarModifyValue::RefOnly(r) => &mut **r,
         }
     }
 }
@@ -208,7 +218,7 @@ impl<'a> ops::DerefMut for VarModifyAnyValue<'a> {
 ///
 /// The variable will notify an update only on `deref_mut`.
 pub struct AnyVarModify<'a> {
-    pub(crate) value: VarModifyAnyValue<'a>,
+    pub(crate) value: AnyVarModifyValue<'a>,
     pub(crate) update: VarModifyUpdate,
     pub(crate) tags: Vec<BoxAnyVarValue>,
     pub(crate) custom_importance: Option<usize>,
@@ -221,7 +231,11 @@ impl<'a> AnyVarModify<'a> {
         if *self.value != *new_value {
             if !self.value.try_swap(&mut *new_value) {
                 #[cfg(feature = "value_type_name")]
-                panic!("cannot AnyVarModify::set `{}` on variable of type `{}`", self.value.type_name(), new_value.type_name());
+                panic!(
+                    "cannot AnyVarModify::set `{}` on variable of type `{}`",
+                    new_value.type_name(),
+                    self.value.type_name()
+                );
                 #[cfg(not(feature = "value_type_name"))]
                 panic!("cannot modify set, type mismatch");
             }

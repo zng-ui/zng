@@ -107,6 +107,7 @@ impl ContextualVar {
             let mut ctx = self.ctx.write();
             if ctx.1 != id {
                 ctx.0 = self.init.lock().init();
+                ctx.1 = id;
             }
             let ctx = parking_lot::RwLockWriteGuard::downgrade(ctx);
             parking_lot::RwLockReadGuard::map(ctx, |f| &f.0)
@@ -159,7 +160,7 @@ impl VarImpl for ContextualVar {
     }
 
     fn capabilities(&self) -> VarCapability {
-        self.load().0.capabilities() | VarCapability::CONTEXT
+        self.load().0.capabilities() | VarCapability::CONTEXT | VarCapability::MODIFY_CHANGES
     }
 
     fn with(&self, visitor: &mut dyn FnMut(&dyn crate::AnyVarValue)) {
@@ -188,6 +189,10 @@ impl VarImpl for ContextualVar {
 
     fn last_update(&self) -> crate::VarUpdateId {
         self.load().0.last_update()
+    }
+
+    fn modify_info(&self) -> crate::animation::ModifyInfo {
+        self.load().0.modify_info()
     }
 
     fn modify_importance(&self) -> usize {
@@ -297,7 +302,11 @@ impl ContextInitHandle {
 }
 impl fmt::Debug for ContextInitHandle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("ContextInitHandle").finish_non_exhaustive()
+        write!(
+            f,
+            "ContextInitHandle(0x{:#})",
+            self.0.as_ref().map(|o| Arc::as_ptr(o) as usize).unwrap_or(0)
+        )
     }
 }
 impl PartialEq for ContextInitHandle {

@@ -9,7 +9,7 @@ use crate::{
 use parking_lot::{Mutex, RwLock};
 use smallbox::{SmallBox, smallbox};
 
-use super::{VarCapability, AnyVarModify};
+use super::{AnyVarModify, VarCapability};
 
 type MapFn = SmallBox<dyn FnMut(&dyn AnyVarValue) -> AnyVar + Send + 'static, smallbox::space::S4>;
 
@@ -117,7 +117,7 @@ impl VarImpl for FlatMapVar {
     }
 
     fn capabilities(&self) -> VarCapability {
-        self.0.current.read().0.capabilities() | VarCapability::CAPS_CHANGE
+        self.0.current.read().0.capabilities() | VarCapability::SHARE | VarCapability::MODIFY_CHANGES | VarCapability::CONTEXT_CHANGES
     }
 
     fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
@@ -146,6 +146,10 @@ impl VarImpl for FlatMapVar {
 
     fn last_update(&self) -> VarUpdateId {
         self.0.source.0.last_update().max(self.0.current.read().0.0.last_update())
+    }
+
+    fn modify_info(&self) -> crate::animation::ModifyInfo {
+        self.0.current.read().0.0.modify_info()
     }
 
     fn modify_importance(&self) -> usize {

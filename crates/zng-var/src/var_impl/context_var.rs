@@ -10,8 +10,8 @@ use smallbox::{SmallBox, smallbox};
 use zng_app_context::{AppLocalId, ContextLocal, ContextLocalKeyProvider};
 
 use crate::{
-    AnyVar, AnyVarHookArgs, AnyVarValue, BoxAnyVarValue, ContextInitHandle, IntoVar, Var, VarCapability, VarHandle, VarImpl,
-    VarInstanceTag, AnyVarModify, VarUpdateId, VarValue, WeakVarImpl,
+    AnyVar, AnyVarHookArgs, AnyVarModify, AnyVarValue, BoxAnyVarValue, ContextInitHandle, IntoVar, Var, VarCapability, VarHandle, VarImpl,
+    VarInstanceTag, VarUpdateId, VarValue, WeakVarImpl,
 };
 
 ///<span data-del-macro-root></span> Declares new [`ContextVar<T>`] static items.
@@ -183,7 +183,7 @@ impl<T: VarValue> From<ContextVar<T>> for AnyVar {
         v.as_any().clone()
     }
 }
-struct ContextVarImpl(&'static ContextLocal<AnyVar>);
+struct ContextVarImpl(&'static ContextLocal<AnyVar>); // !!: TODO if the context var value is itself contextualized it needs to keyed to context
 impl VarImpl for ContextVarImpl {
     fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
         smallbox!(Self(self.0))
@@ -218,7 +218,7 @@ impl VarImpl for ContextVarImpl {
     }
 
     fn capabilities(&self) -> VarCapability {
-        self.0.get().0.capabilities() | VarCapability::CONTEXT
+        self.0.get().0.capabilities() | VarCapability::CONTEXT | VarCapability::MODIFY_CHANGES
     }
 
     fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
@@ -247,6 +247,10 @@ impl VarImpl for ContextVarImpl {
 
     fn last_update(&self) -> VarUpdateId {
         self.0.get().0.last_update()
+    }
+
+    fn modify_info(&self) -> crate::animation::ModifyInfo {
+        self.0.get().0.modify_info()
     }
 
     fn modify_importance(&self) -> usize {

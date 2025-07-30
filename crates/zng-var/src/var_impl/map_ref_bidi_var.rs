@@ -110,7 +110,7 @@ impl VarImpl for MapBidiRefVar {
                         update: value.update,
                         tags: mem::take(&mut value.tags),
                         custom_importance: value.custom_importance,
-                        value: VarModifyAnyValue::RefOnly((s.deref_mut)(&mut **value)),
+                        value: AnyVarModifyValue::RefOnly((s.deref_mut)(&mut **value)),
                     };
 
                     modify(&mut m);
@@ -144,6 +144,10 @@ impl VarImpl for MapBidiRefVar {
 
     fn last_update(&self) -> VarUpdateId {
         self.0.source.last_update()
+    }
+
+    fn modify_info(&self) -> ModifyInfo {
+        self.0.source.0.modify_info()
     }
 
     fn modify_importance(&self) -> usize {

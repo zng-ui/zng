@@ -12,7 +12,7 @@ use zng_clone_move::clmv;
 use zng_txt::{Txt, formatx};
 
 use crate::{
-    AnyVarValue, BoxAnyVarValue, VARS, Var, VarCapability, VarHandle, VarHandles, VarImpl, VarIsReadOnlyError, AnyVarModify, VarUpdateId,
+    AnyVarModify, AnyVarValue, BoxAnyVarValue, VARS, Var, VarCapability, VarHandle, VarHandles, VarImpl, VarIsReadOnlyError, VarUpdateId,
     VarValue, WeakVarImpl,
     animation::{Animation, AnimationController, AnimationHandle, AnimationStopFn},
     any_contextual_var,
@@ -358,7 +358,7 @@ impl AnyVar {
             return crate::any_const_var(init_value);
         }
 
-        let output = crate::var_any(init_value);
+        let output = crate::any_var_derived(init_value, self);
         self.bind_impl(&output, map).perm();
         output.hold(self.clone()).perm();
 
@@ -456,7 +456,7 @@ impl AnyVar {
             return crate::any_const_var(init_value);
         }
 
-        let output = crate::var_any(init_value);
+        let output = crate::any_var_derived(init_value, self);
         let weak_output = output.downgrade();
 
         self.hook(move |args| {
@@ -571,7 +571,7 @@ impl AnyVar {
             return crate::any_const_var(init_value);
         }
 
-        let output = crate::var_any(init_value);
+        let output = crate::any_var_derived(init_value, self);
 
         self.bind_map_bidi_any(&output, map, map_back).perm();
         output.hold(self.clone()).perm();
@@ -642,7 +642,7 @@ impl AnyVar {
             return crate::any_const_var(init_value);
         }
 
-        let output = crate::var_any(init_value);
+        let output = crate::any_var_derived(init_value, self);
 
         self.bind_filter_map_bidi_any(&output, map, map_back).perm();
         output.hold(self.clone()).perm();
@@ -1183,6 +1183,7 @@ impl AnyVar {
 
         let inner: &dyn Any = &*self.0;
         if inner.type_id() == TypeId::of::<crate::read_only_var::ReadOnlyVar>() {
+            // inner can be CAPS_CHANGE, but because its wrapped it is always read-only
             return self.clone();
         }
 

@@ -57,7 +57,7 @@ impl VarImpl for MapRefVar {
     }
 
     fn capabilities(&self) -> VarCapability {
-        self.0.source.capabilities() | VarCapability::SHARE
+        self.0.source.capabilities().as_always_read_only() | VarCapability::SHARE
     }
 
     fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
@@ -104,6 +104,10 @@ impl VarImpl for MapRefVar {
 
     fn last_update(&self) -> VarUpdateId {
         self.0.source.last_update()
+    }
+
+    fn modify_info(&self) -> ModifyInfo {
+        self.0.source.0.modify_info()
     }
 
     fn modify_importance(&self) -> usize {

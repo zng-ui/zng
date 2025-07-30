@@ -382,7 +382,25 @@ impl VarImpl for WhenVar {
     }
 
     fn capabilities(&self) -> VarCapability {
-        self.active().0.capabilities() | VarCapability::CAPS_CHANGE
+        fn cap_changes(caps: VarCapability) -> VarCapability {
+            let mut out = VarCapability::empty();
+            if caps.contains(VarCapability::MODIFY) || caps.contains(VarCapability::MODIFY_CHANGES) {
+                out |= VarCapability::MODIFY_CHANGES;
+            }
+            // this is never true, already contextualized
+            // if caps.contains(VarCapability::CONTEXT) || caps.contains(VarCapability::CONTEXT_CHANGES) {
+            //     out |= VarCapability::CONTEXT_CHANGES;
+            // }
+            out
+        }
+        self.active().0.capabilities()
+            | cap_changes(self.0.default.capabilities())
+            | self
+                .0
+                .conditions
+                .iter()
+                .map(|(_, v)| cap_changes(v.capabilities()))
+                .fold(VarCapability::empty(), |a, b| a | b)
     }
 
     fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
@@ -412,6 +430,10 @@ impl VarImpl for WhenVar {
     fn last_update(&self) -> VarUpdateId {
         // can be active update, or any of the conditions that updated and caused this update.
         VarUpdateId(self.0.last_active_change.load(Ordering::Relaxed)).max(self.active().0.last_update())
+    }
+
+    fn modify_info(&self) -> ModifyInfo {
+        self.active().0.modify_info()
     }
 
     fn modify_importance(&self) -> usize {

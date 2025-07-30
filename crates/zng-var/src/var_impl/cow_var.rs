@@ -27,7 +27,7 @@ impl PartialEq for CowVarSource {
 pub(crate) struct CowVar(SharedVar);
 impl CowVar {
     pub(crate) fn new(source: AnyVar) -> Self {
-        let me = SharedVar::new(BoxAnyVarValue::new(()));
+        let me = SharedVar::new(BoxAnyVarValue::new(()), source.0.last_update(), source.0.modify_info());
         let weak_me = me.downgrade_typed();
 
         // update CowVar on source update
@@ -38,8 +38,9 @@ impl CowVar {
             }
             None => false,
         });
+        me.0.value.write().0 = BoxAnyVarValue::new(CowVarSource { source, _source_hook });
 
-        Self(SharedVar::new(BoxAnyVarValue::new(CowVarSource { source, _source_hook })))
+        Self(me)
     }
 }
 impl VarImpl for CowVar {
@@ -96,14 +97,15 @@ impl VarImpl for CowVar {
     }
 
     fn capabilities(&self) -> VarCapability {
-        let mut caps = VarCapability::NEW & VarCapability::MODIFY;
+        let mut caps = VarCapability::NEW & VarCapability::MODIFY | VarCapability::SHARE;
         self.0.with(&mut |v| {
             if let Some(s) = v.downcast_ref::<CowVarSource>() {
-                let source_caps = s.source.capabilities();
-                if caps != source_caps {
-                    caps |= source_caps;
-                    caps |= VarCapability::CAPS_CHANGE;
+                let mut source_caps = s.source.capabilities();
+                source_caps.remove(VarCapability::MODIFY_CHANGES);
+                if source_caps.contains(VarCapability::CONTEXT) {
+                    source_caps |= VarCapability::CONTEXT_CHANGES;
                 }
+                caps |= source_caps;
             }
         });
         caps
@@ -132,7 +134,20 @@ impl VarImpl for CowVar {
     }
 
     fn set(&self, new_value: BoxAnyVarValue) -> bool {
-        self.0.set(new_value)
+        let mut new_value = Some(new_value);
+        self.0.modify(smallbox!(move |value: &mut AnyVarModify| {
+            let new_value = new_value.take().unwrap();
+            if value.is::<CowVarSource>() {
+                if let AnyVarModifyValue::Boxed(b) = &mut value.value {
+                    **b = new_value;
+                    value.update |= VarModifyUpdate::TOUCHED;
+                } else {
+                    unreachable!()
+                }
+            } else {
+                value.set(new_value);
+            }
+        }))
     }
 
     fn update(&self) -> bool {
@@ -140,7 +155,7 @@ impl VarImpl for CowVar {
             if let Some(read) = value.downcast_ref::<CowVarSource>() {
                 // clone on write
                 let new_value = read.source.get();
-                if let VarModifyAnyValue::Boxed(b) = &mut value.value {
+                if let AnyVarModifyValue::Boxed(b) = &mut value.value {
                     **b = new_value;
                     value.update |= VarModifyUpdate::TOUCHED;
                 } else {
@@ -156,11 +171,11 @@ impl VarImpl for CowVar {
 
     fn modify(&self, mut modify: SmallBox<dyn FnMut(&mut AnyVarModify) + Send + 'static, smallbox::space::S4>) -> bool {
         self.0.modify(smallbox!(move |value: &mut AnyVarModify| {
-            if let Some(read) = value.downcast_ref::<CowVarSource>() {
+            if let Some(source) = value.downcast_ref::<CowVarSource>() {
                 // clone on write
-                let mut source_value = read.source.get();
+                let mut source_value = source.source.get();
                 let mut vm = AnyVarModify {
-                    value: VarModifyAnyValue::Boxed(&mut source_value),
+                    value: AnyVarModifyValue::Boxed(&mut source_value),
                     update: VarModifyUpdate::empty(),
                     tags: mem::take(&mut value.tags),
                     custom_importance: value.custom_importance,
@@ -172,7 +187,7 @@ impl VarImpl for CowVar {
                 value.update |= vm.update;
 
                 if vm.update.contains(VarModifyUpdate::TOUCHED) {
-                    if let VarModifyAnyValue::Boxed(b) = &mut value.value {
+                    if let AnyVarModifyValue::Boxed(b) = &mut value.value {
                         **b = source_value;
                     } else {
                         unreachable!()
@@ -210,6 +225,16 @@ impl VarImpl for CowVar {
             }
         });
         id
+    }
+
+    fn modify_info(&self) -> ModifyInfo {
+        let mut info = self.0.modify_info();
+        self.0.with(&mut |v| {
+            if let Some(s) = v.downcast_ref::<CowVarSource>() {
+                info = s.source.0.modify_info();
+            }
+        });
+        info
     }
 
     fn modify_importance(&self) -> usize {

@@ -73,6 +73,10 @@ impl<T: VarValue> VarImpl for ConstVar<T> {
         VarUpdateId::never()
     }
 
+    fn modify_info(&self) -> ModifyInfo {
+        ModifyInfo::never()
+    }
+
     fn modify_importance(&self) -> usize {
         usize::MAX
     }
@@ -208,6 +212,10 @@ impl VarImpl for AnyConstVar {
 
     fn last_update(&self) -> VarUpdateId {
         VarUpdateId::never()
+    }
+
+    fn modify_info(&self) -> ModifyInfo {
+        ModifyInfo::never()
     }
 
     fn modify_importance(&self) -> usize {

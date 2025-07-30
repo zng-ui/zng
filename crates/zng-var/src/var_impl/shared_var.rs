@@ -14,12 +14,32 @@ use super::*;
 
 /// New read/write shared reference variable.
 pub fn var<T: VarValue>(initial_value: T) -> Var<T> {
-    Var::new_any(AnyVar(smallbox!(SharedVar::new(BoxAnyVarValue::new(initial_value)))))
+    Var::new_any(any_var(BoxAnyVarValue::new(initial_value)))
+}
+
+/// New read/write shared reference type-erased variable that has initial value derived from `source`.
+///
+/// This function is useful for creating custom mapping outputs, the new variable
+/// starts with the same [`AnyVar::last_update`] and animation handle as the `source`.
+pub fn var_derived<T: VarValue>(initial_value: T, source: &AnyVar) -> Var<T> {
+    Var::new_any(any_var_derived(BoxAnyVarValue::new(initial_value), source))
 }
 
 /// New read/write shared reference type-erased variable.
-pub fn var_any(initial_value: BoxAnyVarValue) -> AnyVar {
-    AnyVar(smallbox!(SharedVar::new(initial_value)))
+pub fn any_var(initial_value: BoxAnyVarValue) -> AnyVar {
+    AnyVar(smallbox!(SharedVar::new(initial_value, VarUpdateId::never(), ModifyInfo::never())))
+}
+
+/// New read/write shared reference type-erased variable that has initial value derived from `source`.
+///
+/// This function is useful for creating custom mapping outputs, the new variable
+/// starts with the same [`AnyVar::last_update`] and animation handle as the `source`.
+pub fn any_var_derived(initial_value: BoxAnyVarValue, source: &AnyVar) -> AnyVar {
+    AnyVar(smallbox!(SharedVar::new(
+        initial_value,
+        source.0.last_update(),
+        source.0.modify_info()
+    )))
 }
 
 /// Variable for state properties (`is_*`, `has_*`).
@@ -39,17 +59,17 @@ pub fn var_getter<T: VarValue + Default>() -> Var<T> {
     var(T::default())
 }
 
-struct VarData {
-    value: RwLock<(BoxAnyVarValue, VarUpdateId, ModifyInfo)>,
+pub(super) struct VarData {
+    pub(super) value: RwLock<(BoxAnyVarValue, VarUpdateId, ModifyInfo)>,
     hooks: MutexHooks,
 }
 
 #[derive(Clone)]
-pub(crate) struct SharedVar(Arc<VarData>);
+pub(crate) struct SharedVar(pub(super) Arc<VarData>);
 impl SharedVar {
-    pub(crate) fn new(value: BoxAnyVarValue) -> Self {
+    pub(crate) fn new(value: BoxAnyVarValue, last_update: VarUpdateId, modify_info: ModifyInfo) -> Self {
         Self(Arc::new(VarData {
-            value: RwLock::new((value, VarUpdateId::never(), ModifyInfo::never())),
+            value: RwLock::new((value, last_update, modify_info)),
             hooks: MutexHooks::default(),
         }))
     }
@@ -133,6 +153,10 @@ impl VarImpl for SharedVar {
         self.0.value.read().1
     }
 
+    fn modify_info(&self) -> ModifyInfo {
+        self.0.value.read().2.clone()
+    }
+
     fn modify_importance(&self) -> usize {
         self.0.value.read().2.importance()
     }
@@ -162,7 +186,7 @@ impl SharedVar {
 
                 // modify
                 let mut m = AnyVarModify {
-                    value: VarModifyAnyValue::Boxed(&mut value.0),
+                    value: AnyVarModifyValue::Boxed(&mut value.0),
                     update: VarModifyUpdate::empty(),
                     tags: vec![],
                     custom_importance: None,

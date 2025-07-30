@@ -56,7 +56,7 @@ pub use zng_var_proc_macros::merge_var as __merge_var;
 
 use crate::{
     AnyVar, AnyVarValue, BoxAnyVarValue, ContextVar, Response, ResponseVar, Var, VarImpl, VarInstanceTag, VarValue, WeakVarImpl,
-    any_contextual_var, contextual_var, var_any,
+    any_contextual_var, any_var, contextual_var,
 };
 
 use super::VarCapability;
@@ -118,7 +118,7 @@ fn var_merge_impl(inputs: Box<[AnyVar]>, merge: MergeFn) -> AnyVar {
     var_merge_tail(inputs, merge)
 }
 fn var_merge_tail(inputs: Box<[AnyVar]>, mut merge: MergeFn) -> AnyVar {
-    let output = var_any(merge(&inputs));
+    let output = any_var(merge(&inputs));
     let data = Arc::new(MergeVarData {
         inputs,
         merge: Mutex::new((merge, 0)),
@@ -201,7 +201,7 @@ impl VarImpl for MergeVar {
     }
 
     fn capabilities(&self) -> VarCapability {
-        self.0.output.0.capabilities().as_read_only()
+        self.0.output.0.capabilities().as_always_read_only()
     }
 
     fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
@@ -230,6 +230,10 @@ impl VarImpl for MergeVar {
 
     fn last_update(&self) -> crate::VarUpdateId {
         self.0.output.0.last_update()
+    }
+
+    fn modify_info(&self) -> crate::animation::ModifyInfo {
+        self.0.output.0.modify_info()
     }
 
     fn modify_importance(&self) -> usize {

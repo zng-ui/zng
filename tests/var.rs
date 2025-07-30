@@ -8,6 +8,48 @@ mod any {
     }
 }
 
+mod map {
+    use zng::prelude::*;
+
+    #[test]
+    fn one_way_map() {
+        let source = var(0u8);
+        let mapped1 = source.map(|i| *i + 1);
+        let mapped1b = source.map(|i| *i + 1);
+        let mapped2 = mapped1.map(|i| *i + 1);
+
+        assert_eq!(0, source.get());
+        assert_eq!(1, mapped1.get());
+        assert_eq!(1, mapped1b.get());
+        assert_eq!(2, mapped2.get());
+
+        let mut app = APP.minimal().run_headless(false);
+        app.update(false).assert_wait();
+
+        source.set(10);
+
+        let mut updated = false;
+        let _ = app.update_observe(
+            || {
+                if !updated {
+                    updated = true;
+                    assert_eq!(10, source.get());
+                    assert_eq!(11, mapped1.get());
+                    assert_eq!(11, mapped1b.get());
+                    assert_eq!(12, mapped2.get());
+
+                    assert_eq!(Some(10), source.get_new());
+                    assert_eq!(Some(11), mapped1.get_new());
+                    assert_eq!(Some(11), mapped1b.get_new());
+                    assert_eq!(Some(12), mapped2.get_new());
+                }
+            },
+            false,
+        );
+        assert!(updated);
+    }
+}
+
 mod bindings {
     use zng::{prelude::*, var::VARS};
     use zng_app::AppControlFlow;
@@ -1030,18 +1072,22 @@ mod cow {
         base.trace_value(clmv!(base_values, |v| base_values.lock().push(*v.value()))).perm();
         cow.trace_value(clmv!(cow_values, |v| cow_values.lock().push(*v.value()))).perm();
 
+        assert_eq!(&base_values.lock()[..], &[0]);
+        assert_eq!(&cow_values.lock()[..], &[0]);
+
         base.set(1);
         app.update(false).assert_wait();
 
         assert_eq!(1, base.get());
         assert_eq!(1, cow.get());
+        assert_eq!(&base_values.lock()[..], &[0, 1]);
+        assert_eq!(&cow_values.lock()[..], &[0, 1]);
 
         cow.set(2);
         app.update(false).assert_wait();
 
         assert_eq!(1, base.get());
         assert_eq!(2, cow.get());
-
         assert_eq!(&base_values.lock()[..], &[0, 1]);
         assert_eq!(&cow_values.lock()[..], &[0, 1, 2]);
 
@@ -1151,7 +1197,67 @@ mod contextualized {
     };
 
     #[test]
-    fn nested_contextualized_vars() {
+    fn basic_contextualized_map() {
+        let mut app = APP.defaults().run_headless(false);
+
+        let backing_source = var(0u32);
+        let source = contextual_var(move || backing_source.clone());
+        let mapped = source.map(|n| n + 1);
+
+        assert_eq!(0, source.get());
+        assert_eq!(1, mapped.get());
+
+        source.set(10u32);
+
+        let mut updated = false;
+        app.update_observe(
+            || {
+                if !updated {
+                    updated = true;
+                    assert_eq!(Some(10), source.get_new());
+                    assert_eq!(Some(11), mapped.get_new());
+                }
+            },
+            false,
+        )
+        .assert_wait();
+
+        assert!(updated);
+    }
+
+    #[test]
+    fn new_contextualized_map() {
+        let mut app = APP.defaults().run_headless(false);
+
+        let backing_source = var(0u32);
+        let source = contextual_var(move || backing_source.clone());
+        let mapped = source.map(|n| n + 1);
+
+        assert_eq!(0, source.get());
+        // context not inited here
+        // assert_eq!(1, mapped.get());
+
+        source.set(10u32);
+
+        let mut updated = false;
+        app.update_observe(
+            || {
+                if !updated {
+                    updated = true;
+                    assert_eq!(Some(10), source.get_new());
+                    // context inited here, is new because source is new when map was built.
+                    assert_eq!(Some(11), mapped.get_new());
+                }
+            },
+            false,
+        )
+        .assert_wait();
+
+        assert!(updated);
+    }
+
+    #[test]
+    fn nested_contextualized_vars_same_context() {
         let mut app = APP.defaults().run_headless(false);
 
         let var = var(0u32);
@@ -1159,6 +1265,11 @@ mod contextualized {
         let mapped = source.map(|n| n + 1);
         let mapped2 = mapped.map(|n| n - 1);
         let mapped2_copy = mapped2.clone();
+
+        assert!(source.capabilities().is_contextual());
+        assert!(mapped.capabilities().is_contextual());
+        assert!(mapped2.capabilities().is_contextual());
+        assert!(mapped2_copy.capabilities().is_contextual());
 
         // init, same effect as subscribe in widgets, the last to init breaks the other.
         assert_eq!(0, mapped2.get());
@@ -1170,6 +1281,8 @@ mod contextualized {
             || {
                 if !updated {
                     updated = true;
+                    assert_eq!(10, mapped2.get());
+                    assert_eq!(10, mapped2_copy.get());
                     assert_eq!(Some(10), mapped2.get_new());
                     assert_eq!(Some(10), mapped2_copy.get_new());
                 }
@@ -1182,23 +1295,63 @@ mod contextualized {
     }
 
     #[test]
-    fn nested_contextualized_vars_diff_contexts() {
+    fn nested_contextualized_vars_diff_contexts_same_source() {
         let mut app = APP.defaults().run_headless(false);
 
-        let var = var(0u32);
-        let source = contextual_var(move || var.clone());
+        let backing_source = var(0u32);
+        let source = contextual_var(move || backing_source.clone());
         let mapped = source.map(|n| n + 1);
         let mapped2 = mapped.map(|n| n - 1);
         let mapped2_copy = mapped2.clone();
 
-        // init, same effect as subscribe in widgets, the last to init breaks the other.
         assert_eq!(0, mapped2.get());
         let other_ctx = ContextInitHandle::new();
         other_ctx.with_context(|| {
+            // mapped2_copy inits clones of mapped2 -> mapped -> source recursively for `other_ctx`
+            // but not backing_source, because it is shared
             assert_eq!(0, mapped2_copy.get());
         });
 
         source.set(10u32);
+
+        let mut updated = false;
+        app.update_observe(
+            || {
+                if !updated {
+                    updated = true;
+                    assert_eq!(10, mapped2.get());
+                    assert_eq!(Some(10), mapped2.get_new());
+                    other_ctx.with_context(|| {
+                        // because of same `backing_source`.
+                        assert_eq!(Some(10), mapped2_copy.get_new());
+                    });
+                }
+            },
+            false,
+        )
+        .assert_wait();
+
+        assert!(updated);
+    }
+
+    #[test]
+    fn nested_contextualized_vars_diff_contexts_and_source() {
+        let mut app = APP.defaults().run_headless(false);
+
+        let source = contextual_var(move || var(0u32));
+        let mapped = source.map(|n| n + 1);
+        let mapped2 = mapped.map(|n| n - 1);
+        let mapped2_copy = mapped2.clone();
+
+        assert_eq!(0, mapped2.get());
+        let other_ctx = ContextInitHandle::new();
+        other_ctx.with_context(|| {
+            // mapped2_copy inits clones of mapped2 -> mapped -> source recursively for `other_ctx`
+            assert_eq!(0, mapped2_copy.get());
+        });
+
+        source.set(10u32);
+
         let mut updated = false;
         app.update_observe(
             || {
@@ -1206,7 +1359,8 @@ mod contextualized {
                     updated = true;
                     assert_eq!(Some(10), mapped2.get_new());
                     other_ctx.with_context(|| {
-                        assert_eq!(Some(10), mapped2_copy.get_new());
+                        assert!(!mapped2_copy.is_new());
+                        assert_eq!(0, mapped2_copy.get());
                     });
                 }
             },
