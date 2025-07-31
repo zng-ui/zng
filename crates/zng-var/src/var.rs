@@ -1357,6 +1357,15 @@ impl<T: VarValue> Var<T> {
     pub fn current_context(&self) -> Var<T> {
         Var::new_any(self.any.current_context())
     }
+
+    /// Gets if this variable is the same as `other`.
+    ///
+    /// If this variable is [`SHARE`] compares the *pointer*. If this variable is local this is always `false`.
+    ///
+    /// [`SHARE`]: VarCapability::SHARE
+    pub fn var_eq(&self, other: &Self) -> bool {
+        self.any.var_eq(&other.any)
+    }
 }
 
 /// Weak reference to a [`Var<T>`].

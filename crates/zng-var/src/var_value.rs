@@ -168,7 +168,8 @@ where
 /// If the external type is at least `Debug + Send + Sync + Any` you can use the [`ArcEq<T>`] wrapper
 /// to quickly implement `Clone + PartialEq`, this is particularly useful for error types in [`ResponseVar<Result<_, E>>`].
 ///
-/// If you want to use another variable as value use the !!: TODO
+/// If you want to use another variable as value use the [`VarEq<T>`] wrapper to use [`Var::var_eq`] as `PartialEq`. 
+/// Vars are not allowed to be values directly as that causes type inference issues.
 ///
 /// [`Var<T>`]: crate::Var
 pub trait VarValue: AnyVarValue + Clone + PartialEq {}
@@ -206,6 +207,39 @@ impl<T: fmt::Debug + Send + Sync> Clone for ArcEq<T> {
 impl<T: fmt::Debug + Send + Sync> fmt::Debug for ArcEq<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&*self.0, f)
+    }
+}
+
+/// Represents a [`Var<T>`] as a value inside another variable.
+/// 
+/// Variable values must implement `PartialEq + Debug + Clone + Send + Sync + Any`. Variable types
+/// implement all of those except `PartialEq`, this type wraps a variable and adds equality using [`Var::var_eq`].
+/// 
+/// Variables cannot be be values directly because that breaks the [`IntoVar<T>`] blanket implementation for value types,
+/// as variables also implement `IntoVar<T>`. This could be solved with the *default impl* Rust feature, but it is not yet stable. 
+/// This type is a workaround that limitation, it derefs to the wrapped var so it should require minimal refactoring as a drop-in replacement 
+/// for `Var<T>` in struct fields.
+/// 
+/// [`Var<T>`]: crate::Var
+/// [`Var::var_eq`]: crate::Var::var_eq
+/// [`IntoVar<T>`]: crate::IntoVar
+#[derive(Clone)]
+pub struct VarEq<T: VarValue>(pub crate::Var<T>);
+impl<T: VarValue> ops::Deref for VarEq<T> {
+    type Target = crate::Var<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T: VarValue> fmt::Debug for VarEq<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
+impl<T: VarValue> PartialEq for VarEq<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.var_eq(&other.0)
     }
 }
 
