@@ -1165,7 +1165,7 @@ impl<T: VarValue> Var<T> {
 
         if caps.is_contextual() {
             let me = self.clone();
-            return contextual_var(move || me.easing_with_tail(duration, fns.clone()));
+            return contextual_var(move || me.clone().easing_with_tail(duration, fns.clone()));
         }
 
         self.easing_with_tail(duration, fns)

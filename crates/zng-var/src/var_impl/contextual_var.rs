@@ -61,6 +61,9 @@ pub(super) fn any_contextual_var_impl(context_init: ContextInitFn) -> AnyVar {
 /// to init that clone.
 ///
 /// If the return variable is *mapped* the mapping var is also context aware and will also delay init until first usage.
+///
+/// If [`AnyVar::capabilities`] is called in a new context the `context_init` is not called, the capabilities for an unloaded
+/// contextual var is `CONTEXT | MODIFY_CHANGES`, if the context is loaded the inner variable capabilities is included.
 pub fn contextual_var<T: VarValue>(mut context_init: impl FnMut() -> Var<T> + Send + 'static) -> Var<T> {
     Var::new_any(any_contextual_var(move || context_init().into()))
 }
@@ -178,7 +181,14 @@ impl VarImpl for ContextualVar {
     }
 
     fn capabilities(&self) -> VarCapability {
-        self.load().0.capabilities() | VarCapability::CONTEXT | VarCapability::MODIFY_CHANGES
+        let mut caps = VarCapability::CONTEXT | VarCapability::MODIFY_CHANGES;
+        let ctx = self.ctx.read();
+        if ctx.1 == ContextInitHandle::current() {
+            let mut inner = ctx.0.capabilities();
+            inner.remove(VarCapability::CONTEXT_CHANGES);
+            caps |= inner;
+        }
+        caps
     }
 
     fn with(&self, visitor: &mut dyn FnMut(&dyn crate::AnyVarValue)) {

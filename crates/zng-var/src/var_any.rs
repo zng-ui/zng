@@ -349,7 +349,8 @@ impl AnyVar {
         if caps.is_contextual() {
             let me = self.clone();
             let map = Arc::new(Mutex::new(map));
-            return any_contextual_var(move || me.map_any_tail(clmv!(map, |v| map.lock()(v)), me.capabilities()));
+            // clone again inside the context to get a new clear (me as contextual_var)
+            return any_contextual_var(move || me.clone().map_any_tail(clmv!(map, |v| map.lock()(v)), me.capabilities()));
         }
         self.map_any_tail(map, caps)
     }
@@ -437,7 +438,8 @@ impl AnyVar {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, fallback_init)));
             return any_contextual_var(move || {
-                me.filter_map_any_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, || fns.lock().1()), me.capabilities())
+                me.clone()
+                    .filter_map_any_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, || fns.lock().1()), me.capabilities())
             });
         }
 
@@ -556,7 +558,10 @@ impl AnyVar {
         if caps.is_contextual() {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, map_back)));
-            return any_contextual_var(move || me.map_bidi_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, |v| fns.lock().1(v)), caps));
+            return any_contextual_var(move || {
+                me.clone()
+                    .map_bidi_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, |v| fns.lock().1(v)), caps)
+            });
         }
 
         self.map_bidi_tail(map, map_back, caps)
@@ -621,7 +626,7 @@ impl AnyVar {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, map_back, fallback_init)));
             return any_contextual_var(move || {
-                me.filter_map_bidi_tail(
+                me.clone().filter_map_bidi_tail(
                     clmv!(fns, |v| fns.lock().0(v)),
                     clmv!(fns, |v| fns.lock().1(v)),
                     clmv!(fns, || fns.lock().2()),

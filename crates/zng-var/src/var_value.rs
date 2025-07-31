@@ -168,7 +168,7 @@ where
 /// If the external type is at least `Debug + Send + Sync + Any` you can use the [`ArcEq<T>`] wrapper
 /// to quickly implement `Clone + PartialEq`, this is particularly useful for error types in [`ResponseVar<Result<_, E>>`].
 ///
-/// If you want to use another variable as value use the [`VarEq<T>`] wrapper to use [`Var::var_eq`] as `PartialEq`. 
+/// If you want to use another variable as value use the [`VarEq<T>`] wrapper to use [`Var::var_eq`] as `PartialEq`.
 /// Vars are not allowed to be values directly as that causes type inference issues.
 ///
 /// [`Var<T>`]: crate::Var
@@ -211,15 +211,15 @@ impl<T: fmt::Debug + Send + Sync> fmt::Debug for ArcEq<T> {
 }
 
 /// Represents a [`Var<T>`] as a value inside another variable.
-/// 
+///
 /// Variable values must implement `PartialEq + Debug + Clone + Send + Sync + Any`. Variable types
 /// implement all of those except `PartialEq`, this type wraps a variable and adds equality using [`Var::var_eq`].
-/// 
+///
 /// Variables cannot be be values directly because that breaks the [`IntoVar<T>`] blanket implementation for value types,
-/// as variables also implement `IntoVar<T>`. This could be solved with the *default impl* Rust feature, but it is not yet stable. 
-/// This type is a workaround that limitation, it derefs to the wrapped var so it should require minimal refactoring as a drop-in replacement 
+/// as variables also implement `IntoVar<T>`. This could be solved with the *default impl* Rust feature, but it is not yet stable.
+/// This type is a workaround that limitation, it derefs to the wrapped var so it should require minimal refactoring as a drop-in replacement
 /// for `Var<T>` in struct fields.
-/// 
+///
 /// [`Var<T>`]: crate::Var
 /// [`Var::var_eq`]: crate::Var::var_eq
 /// [`IntoVar<T>`]: crate::IntoVar
