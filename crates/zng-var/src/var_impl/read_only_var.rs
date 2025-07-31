@@ -4,8 +4,13 @@ use crate::{AnyVar, WeakAnyVar};
 
 use super::*;
 
-#[derive(Debug)]
 pub(crate) struct ReadOnlyVar(pub AnyVar);
+
+impl fmt::Debug for ReadOnlyVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ReadOnlyVar").field(&self.0.0).finish()
+    }
+}
 impl VarImpl for ReadOnlyVar {
     fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
         smallbox!(Self(self.0.clone()))

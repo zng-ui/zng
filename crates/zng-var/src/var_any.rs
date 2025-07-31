@@ -356,17 +356,19 @@ impl AnyVar {
     }
     // to avoid infinite closure type (contextual case)
     fn map_any_tail(&self, mut map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static, caps: VarCapability) -> AnyVar {
+        let me = self.current_context();
+
         let mut init_value = None;
-        self.with(&mut |v: &dyn AnyVarValue| init_value = Some(map(v)));
+        me.with(&mut |v: &dyn AnyVarValue| init_value = Some(map(v)));
         let init_value = init_value.unwrap();
 
         if caps.is_const() {
             return crate::any_const_var(init_value);
         }
 
-        let output = crate::any_var_derived(init_value, self);
-        self.bind_impl(&output, map).perm();
-        output.hold(self.clone()).perm();
+        let output = crate::any_var_derived(init_value, &me);
+        me.bind_impl(&output, map).perm();
+        output.hold(me).perm();
 
         output.read_only()
     }
@@ -452,8 +454,10 @@ impl AnyVar {
         fallback_init: impl Fn() -> BoxAnyVarValue + Send + 'static,
         caps: VarCapability,
     ) -> AnyVar {
+        let me = self.current_context();
+
         let mut init_value = None;
-        self.with(&mut |v: &dyn AnyVarValue| init_value = map(v));
+        me.with(&mut |v: &dyn AnyVarValue| init_value = map(v));
         let init_value = match init_value {
             Some(v) => v,
             None => fallback_init(),
@@ -463,10 +467,10 @@ impl AnyVar {
             return crate::any_const_var(init_value);
         }
 
-        let output = crate::any_var_derived(init_value, self);
+        let output = crate::any_var_derived(init_value, &me);
         let weak_output = output.downgrade();
 
-        self.hook(move |args| {
+        me.hook(move |args| {
             match weak_output.upgrade() {
                 Some(o) => {
                     if let Some(new_value) = map(args.value) {
@@ -481,7 +485,7 @@ impl AnyVar {
             }
         })
         .perm();
-        output.hold(self.clone()).perm();
+        output.hold(me).perm();
 
         output.read_only()
     }
@@ -573,18 +577,20 @@ impl AnyVar {
         map_back: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
         caps: VarCapability,
     ) -> AnyVar {
+        let me = self.current_context();
+
         let mut init_value = None;
-        self.with(&mut |v: &dyn AnyVarValue| init_value = Some(map(v)));
+        me.with(&mut |v: &dyn AnyVarValue| init_value = Some(map(v)));
         let init_value = init_value.unwrap();
 
         if caps.is_const() {
             return crate::any_const_var(init_value);
         }
 
-        let output = crate::any_var_derived(init_value, self);
+        let output = crate::any_var_derived(init_value, &me);
 
-        self.bind_map_bidi_any(&output, map, map_back).perm();
-        output.hold(self.clone()).perm();
+        me.bind_map_bidi_any(&output, map, map_back).perm();
+        output.hold(me).perm();
 
         output
     }
@@ -644,18 +650,20 @@ impl AnyVar {
         fallback_init: impl Fn() -> BoxAnyVarValue + Send + 'static,
         caps: VarCapability,
     ) -> AnyVar {
+        let me = self.current_context();
+
         let mut init_value = None;
-        self.with(&mut |v: &dyn AnyVarValue| init_value = map(v));
+        me.with(&mut |v: &dyn AnyVarValue| init_value = map(v));
         let init_value = init_value.unwrap_or_else(&fallback_init);
 
         if caps.is_const() {
             return crate::any_const_var(init_value);
         }
 
-        let output = crate::any_var_derived(init_value, self);
+        let output = crate::any_var_derived(init_value, &me);
 
-        self.bind_filter_map_bidi_any(&output, map, map_back).perm();
-        output.hold(self.clone()).perm();
+        me.bind_filter_map_bidi_any(&output, map, map_back).perm();
+        output.hold(me).perm();
 
         output
     }

@@ -1307,6 +1307,7 @@ mod contextualized {
         let mapped2 = mapped.map(|n| n - 1);
         let mapped2_copy = mapped2.clone();
 
+        assert_eq!(1, mapped.get());
         assert_eq!(0, mapped2.get());
         let other_ctx = ContextInitHandle::new();
         other_ctx.with_context(|| {

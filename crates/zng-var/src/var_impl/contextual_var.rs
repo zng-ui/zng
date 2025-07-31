@@ -101,7 +101,7 @@ impl fmt::Debug for ContextualVar {
                 b.field("ctx", &"<no context>");
             } else {
                 b.field("ctx.handle", &ctx.1);
-                b.field("ctx.var", &ctx.0);
+                b.field("ctx.var", &ctx.0.0);
             }
         } else {
             b.field("ctx", &"<locked>");

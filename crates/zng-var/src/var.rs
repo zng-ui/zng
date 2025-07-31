@@ -1120,7 +1120,7 @@ impl<T: VarValue> Var<T> {
         ChaseAnimation {
             handle: self.ease(first_target.clone(), duration, easing),
             target: first_target,
-            var: self.clone(),
+            var: self.current_context(),
         }
     }
 
@@ -1182,11 +1182,13 @@ impl<T: VarValue> Var<T> {
     where
         T: Transitionable,
     {
-        let output = crate::var(self.get());
+        let me = self.current_context();
+
+        let output = crate::var(me.get());
 
         let weak_output = output.downgrade();
         let mut _ease_handle = AnimationHandle::dummy();
-        self.hook(move |args| {
+        me.hook(move |args| {
             if let Some(output) = weak_output.upgrade() {
                 _ease_handle = output.ease_with(
                     args.value().clone(),
@@ -1200,7 +1202,7 @@ impl<T: VarValue> Var<T> {
             }
         })
         .perm();
-        output.hold(self.clone()).perm();
+        output.hold(me).perm();
 
         output.read_only()
     }
