@@ -66,6 +66,25 @@ pub(super) struct VarData {
 
 #[derive(Clone)]
 pub(crate) struct SharedVar(pub(super) Arc<VarData>);
+impl fmt::Debug for SharedVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut b = f.debug_struct("SharedVar");
+        b.field("var_instance_tag()", &Arc::as_ptr(&self.0));
+        b.field("strong_count()", &self.strong_count());
+
+        if let Some(value) = self.0.value.try_read() {
+            b.field("value", &value.0.detailed_debug());
+            b.field("last_update", &value.1);
+            b.field("modify_info", &value.2);
+        } else {
+            b.field("value", &"<locked>");
+        }
+
+        b.field("hooks", &self.0.hooks);
+
+        b.finish()
+    }
+}
 impl SharedVar {
     pub(crate) fn new(value: BoxAnyVarValue, last_update: VarUpdateId, modify_info: ModifyInfo) -> Self {
         Self(Arc::new(VarData {
@@ -91,7 +110,7 @@ impl VarImpl for SharedVar {
         self.0.value.read().0.type_id()
     }
 
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str {
         let value = self.0.value.read();
         value.0.type_name()
@@ -229,6 +248,11 @@ enum ValueOrModify {
 
 #[derive(Clone)]
 pub(super) struct WeakSharedVar(Weak<VarData>);
+impl fmt::Debug for WeakSharedVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("WeakSharedVar").field(&self.0.as_ptr()).finish()
+    }
+}
 impl WeakSharedVar {
     pub(super) fn upgrade_typed(&self) -> Option<SharedVar> {
         self.0.upgrade().map(SharedVar)
@@ -280,6 +304,23 @@ impl MutexHooks {
                 hooks.append(&mut *hs);
                 *hs = hooks;
             }
+        }
+    }
+}
+impl fmt::Debug for MutexHooks {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(h) = self.h.try_lock() {
+            let mut b = f.debug_list();
+            for (_, h) in h.iter() {
+                if h.load(std::sync::atomic::Ordering::Relaxed) {
+                    b.entry(&"perm");
+                } else {
+                    b.entry(&Arc::strong_count(h));
+                }
+            }
+            b.finish()
+        } else {
+            write!(f, "<locked>")
         }
     }
 }

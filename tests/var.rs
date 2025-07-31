@@ -1203,9 +1203,11 @@ mod contextualized {
         let backing_source = var(0u32);
         let source = contextual_var(move || backing_source.clone());
         let mapped = source.map(|n| n + 1);
+        // let mapped2 = mapped.map(|n| n + 1);
 
         assert_eq!(0, source.get());
         assert_eq!(1, mapped.get());
+        // assert_eq!(2, mapped2.get());
 
         source.set(10u32);
 
@@ -1216,6 +1218,7 @@ mod contextualized {
                     updated = true;
                     assert_eq!(Some(10), source.get_new());
                     assert_eq!(Some(11), mapped.get_new());
+                    // assert_eq!(Some(12), mapped2.get_new());
                 }
             },
             false,
@@ -1319,6 +1322,8 @@ mod contextualized {
             || {
                 if !updated {
                     updated = true;
+                    assert_eq!(10, source.get());
+                    assert_eq!(11, mapped.get());
                     assert_eq!(10, mapped2.get());
                     assert_eq!(Some(10), mapped2.get_new());
                     other_ctx.with_context(|| {

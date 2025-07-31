@@ -4,7 +4,10 @@ use crate::{Var, VarValue};
 
 use super::*;
 
+#[derive(Debug)]
 struct ConstVar<T: VarValue>(T);
+
+#[derive(Debug)]
 pub(crate) struct WeakConstVar;
 
 impl<T: VarValue> VarImpl for ConstVar<T> {
@@ -12,7 +15,7 @@ impl<T: VarValue> VarImpl for ConstVar<T> {
         TypeId::of::<T>()
     }
 
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str {
         std::any::type_name::<T>()
     }
@@ -138,7 +141,11 @@ impl<T: VarValue> IntoVar<T> for Var<T> {
 }
 
 pub(crate) struct AnyConstVar(BoxAnyVarValue);
-
+impl fmt::Debug for AnyConstVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("AnyConstVar").field(&self.0.detailed_debug()).finish()
+    }
+}
 impl AnyConstVar {
     pub(crate) fn new(small_box: BoxAnyVarValue) -> Self {
         Self(small_box)
@@ -157,7 +164,7 @@ impl VarImpl for AnyConstVar {
         self.0.type_id()
     }
 
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str {
         let mut out = "";
         self.with(&mut |v| {

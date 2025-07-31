@@ -25,6 +25,11 @@ impl Clone for AnyVar {
         Self(self.0.clone_boxed())
     }
 }
+impl fmt::Debug for AnyVar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("AnyVar").field(&*self.0).finish()
+    }
+}
 /// Value.
 impl AnyVar {
     /// Visit a reference to the current value.
@@ -81,13 +86,13 @@ impl AnyVar {
     /// Panics if the value type does not match.
     pub fn try_set(&self, new_value: BoxAnyVarValue) -> Result<(), VarIsReadOnlyError> {
         if new_value.type_id() != self.value_type() {
-            #[cfg(feature = "value_type_name")]
+            #[cfg(feature = "type_names")]
             panic!(
                 "cannot set `{}` on variable of type `{}`",
                 new_value.type_name(),
                 self.value_type_name()
             );
-            #[cfg(not(feature = "value_type_name"))]
+            #[cfg(not(feature = "type_names"))]
             panic!("cannot set variable, type mismatch");
         }
         self.handle_modify(self.0.set(new_value))
@@ -1113,7 +1118,7 @@ impl AnyVar {
     }
 
     /// Gets the value type name.
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     pub fn value_type_name(&self) -> &'static str {
         self.0.value_type_name()
     }
@@ -1235,6 +1240,11 @@ impl AnyVar {
 
 /// Weak reference to a [`AnyVar`].
 pub struct WeakAnyVar(pub(crate) SmallBox<dyn WeakVarImpl, smallbox::space::S2>);
+impl fmt::Debug for WeakAnyVar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("WeakAnyVar").field(&*self.0).finish()
+    }
+}
 impl Clone for WeakAnyVar {
     fn clone(&self) -> Self {
         Self(self.0.clone_boxed())
@@ -1329,9 +1339,9 @@ pub struct VarInstanceTag(pub(crate) usize);
 impl fmt::Debug for VarInstanceTag {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if *self == Self::NOT_SHARED {
-            write!(f, "VarInstanceTag::NOT_SHARED")
+            write!(f, "NOT_SHARED")
         } else {
-            write!(f, "VarInstanceTag(0x{:X})", self.0)
+            write!(f, "0x{:X})", self.0)
         }
     }
 }

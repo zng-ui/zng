@@ -44,10 +44,10 @@ pub use when_var::{__when_var, AnyWhenVarBuilder, WhenVarBuilder};
 pub(crate) mod expr_var;
 pub use expr_var::{__expr_var, expr_var_as, expr_var_into, expr_var_map};
 
-pub(crate) trait VarImpl: Any + Send + Sync {
+pub(crate) trait VarImpl: fmt::Debug + Any + Send + Sync {
     fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2>;
     fn value_type(&self) -> TypeId;
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str;
     fn strong_count(&self) -> usize;
     fn var_eq(&self, other: &dyn Any) -> bool;
@@ -68,7 +68,7 @@ pub(crate) trait VarImpl: Any + Send + Sync {
     fn modify_info(&self) -> ModifyInfo;
 }
 
-pub(crate) trait WeakVarImpl: Any + Send + Sync {
+pub(crate) trait WeakVarImpl: fmt::Debug + Any + Send + Sync {
     fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2>;
     fn strong_count(&self) -> usize;
     fn upgrade(&self) -> Option<SmallBox<dyn VarImpl, smallbox::space::S2>>;
@@ -230,13 +230,13 @@ impl<'a> AnyVarModify<'a> {
     pub fn set(&mut self, mut new_value: BoxAnyVarValue) -> bool {
         if *self.value != *new_value {
             if !self.value.try_swap(&mut *new_value) {
-                #[cfg(feature = "value_type_name")]
+                #[cfg(feature = "type_names")]
                 panic!(
                     "cannot AnyVarModify::set `{}` on variable of type `{}`",
                     new_value.type_name(),
                     self.value.type_name()
                 );
-                #[cfg(not(feature = "value_type_name"))]
+                #[cfg(not(feature = "type_names"))]
                 panic!("cannot modify set, type mismatch");
             }
             self.update |= VarModifyUpdate::TOUCHED;
@@ -537,11 +537,11 @@ impl From<VarHandle> for VarHandles {
     }
 }
 
-#[cfg(feature = "value_type_name")]
+#[cfg(feature = "type_names")]
 fn value_type_name(var: &dyn VarImpl) -> &'static str {
     var.value_type_name()
 }
-#[cfg(not(feature = "value_type_name"))]
+#[cfg(not(feature = "type_names"))]
 #[inline(always)]
 fn value_type_name(var: &dyn VarImpl) -> &'static str {
     ""

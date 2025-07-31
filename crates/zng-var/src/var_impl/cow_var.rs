@@ -25,6 +25,13 @@ impl PartialEq for CowVarSource {
 }
 
 pub(crate) struct CowVar(SharedVar);
+impl fmt::Debug for CowVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut b = f.debug_struct("CowVar");
+
+        b.finish()
+    }
+}
 impl CowVar {
     pub(crate) fn new(source: AnyVar) -> Self {
         let me = SharedVar::new(BoxAnyVarValue::new(()), source.0.last_update(), source.0.modify_info());
@@ -64,7 +71,7 @@ impl VarImpl for CowVar {
         output.unwrap()
     }
 
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str {
         let mut output = "";
         self.0.with(&mut |v| {
@@ -273,6 +280,11 @@ impl VarImpl for CowVar {
 }
 
 struct WeakCowVar(super::shared_var::WeakSharedVar);
+impl fmt::Debug for WeakCowVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("WeakCowVar").field(&self.0).finish()
+    }
+}
 impl WeakVarImpl for WeakCowVar {
     fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
         smallbox!(Self(self.0.clone()))

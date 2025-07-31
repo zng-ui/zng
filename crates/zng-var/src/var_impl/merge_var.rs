@@ -41,6 +41,7 @@ macro_rules! merge_var {
     };
 }
 
+use core::fmt;
 use std::{
     any::Any,
     marker::PhantomData,
@@ -167,6 +168,15 @@ struct MergeVarData {
 }
 
 struct MergeVar(Arc<MergeVarData>);
+impl fmt::Debug for MergeVar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut b = f.debug_struct("MergeVar");
+        b.field("var_instance_tag()", &self.var_instance_tag());
+        b.field("inputs", &self.0.inputs);
+        b.field("output", &self.0.output);
+        b.finish()
+    }
+}
 impl VarImpl for MergeVar {
     fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
         smallbox!(Self(self.0.clone()))
@@ -176,7 +186,7 @@ impl VarImpl for MergeVar {
         self.0.output.0.value_type()
     }
 
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str {
         self.0.output.0.value_type_name()
     }
@@ -254,6 +264,11 @@ impl VarImpl for MergeVar {
 }
 
 struct WeakMergeVar(Weak<MergeVarData>);
+impl fmt::Debug for WeakMergeVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("WeakMergeVar").field(&self.0.as_ptr()).finish()
+    }
+}
 impl WeakVarImpl for WeakMergeVar {
     fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
         smallbox!(WeakMergeVar(self.0.clone()))

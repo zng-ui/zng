@@ -1,5 +1,6 @@
 //! Unwrapping mapping var
 
+use core::fmt;
 use std::sync::{Arc, Weak};
 
 use crate::{
@@ -23,6 +24,13 @@ struct FlatMapData {
 
 #[derive(Clone)]
 pub(crate) struct FlatMapVar(Arc<FlatMapData>);
+impl fmt::Debug for FlatMapVar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut b = f.debug_struct("FlatMapVar");
+
+        b.finish()
+    }
+}
 impl FlatMapVar {
     pub(crate) fn new(source: AnyVar, mut map: MapFn) -> Self {
         let init = source.with(|v| map(v));
@@ -91,7 +99,7 @@ impl VarImpl for FlatMapVar {
         self.0.current.read().0.value_type()
     }
 
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str {
         self.0.current.read().0.value_type_name()
     }
@@ -167,7 +175,11 @@ impl VarImpl for FlatMapVar {
 
 #[derive(Clone)]
 struct WeakFlatMapVar(Weak<FlatMapData>);
-
+impl fmt::Debug for WeakFlatMapVar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("WeakFlatMapVar").field(&self.0.as_ptr()).finish()
+    }
+}
 impl WeakVarImpl for WeakFlatMapVar {
     fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
         smallbox!(Self(self.0.clone()))

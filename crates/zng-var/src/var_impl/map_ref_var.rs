@@ -13,7 +13,14 @@ struct VarData {
 
 #[derive(Clone)]
 pub(crate) struct MapRefVar(Arc<VarData>);
-
+impl fmt::Debug for MapRefVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut b = f.debug_struct("MapRefVar");
+        b.field("var_instance_tag()", &self.var_instance_tag());
+        b.field("source", &self.0.source);
+        b.finish()
+    }
+}
 impl MapRefVar {
     pub(crate) fn new(source: AnyVar, deref: DerefFn) -> Self {
         Self(Arc::new(VarData { source, deref }))
@@ -32,7 +39,7 @@ impl VarImpl for MapRefVar {
         self.0.source.value_type()
     }
 
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str {
         self.0.source.value_type_name()
     }
@@ -125,6 +132,11 @@ impl VarImpl for MapRefVar {
 
 #[derive(Clone)]
 struct WeakMapRefVar(Weak<VarData>);
+impl fmt::Debug for WeakMapRefVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("WeakMapRefVar").field(&self.0.as_ptr()).finish()
+    }
+}
 impl WeakMapRefVar {
     pub(super) fn upgrade_typed(&self) -> Option<MapRefVar> {
         self.0.upgrade().map(MapRefVar)

@@ -2,7 +2,7 @@
 
 use std::{
     any::{Any, TypeId},
-    ops,
+    fmt, ops,
     sync::Arc,
 };
 
@@ -184,6 +184,11 @@ impl<T: VarValue> From<ContextVar<T>> for AnyVar {
     }
 }
 struct ContextVarImpl(&'static ContextLocal<AnyVar>); // !!: TODO if the context var value is itself contextualized it needs to keyed to context
+impl fmt::Debug for ContextVarImpl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ContextVar").finish_non_exhaustive() // !!: TODO add context var name
+    }
+}
 impl VarImpl for ContextVarImpl {
     fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
         smallbox!(Self(self.0))
@@ -193,7 +198,7 @@ impl VarImpl for ContextVarImpl {
         self.0.get_clone().0.value_type()
     }
 
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str {
         self.0.get().0.value_type_name()
     }

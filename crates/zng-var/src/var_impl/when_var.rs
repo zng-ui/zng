@@ -348,6 +348,21 @@ impl WhenVar {
         }
     }
 }
+impl fmt::Debug for WhenVar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut b = f.debug_struct("MergeVar");
+        b.field("var_instance_tag()", &self.var_instance_tag());
+        b.field("inputs", &self.0.conditions);
+        b.field("default", &self.0.default);
+        let n = self.0.active_condition.load(Ordering::Relaxed);
+        b.field("active_condition", if n < self.0.conditions.len() { &n } else { &None::<usize> });
+        b.field(
+            "last_active_change",
+            &VarUpdateId(self.0.last_active_change.load(Ordering::Relaxed)),
+        );
+        b.finish()
+    }
+}
 impl VarImpl for WhenVar {
     fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
         smallbox!(Self(self.0.clone()))
@@ -357,7 +372,7 @@ impl VarImpl for WhenVar {
         self.0.default.0.value_type()
     }
 
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str {
         self.0.default.0.value_type_name()
     }
@@ -456,6 +471,11 @@ impl VarImpl for WhenVar {
 }
 
 struct WeakWhenVar(Weak<WhenVarData>);
+impl fmt::Debug for WeakWhenVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("WeakWhenVar").field(&self.0.as_ptr()).finish()
+    }
+}
 impl WeakVarImpl for WeakWhenVar {
     fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
         smallbox!(Self(self.0.clone()))

@@ -89,6 +89,24 @@ impl Clone for ContextualVar {
         }
     }
 }
+impl fmt::Debug for ContextualVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut b = f.debug_struct("ContextualVar");
+        b.field("init", &Arc::as_ptr(&self.init));
+        if let Some(ctx) = self.ctx.try_read() {
+            if ctx.1.is_no_context() {
+                b.field("ctx", &"<no context>");
+            } else {
+                b.field("ctx.handle", &ctx.1);
+                b.field("ctx.var", &ctx.0);
+            }
+        } else {
+            b.field("ctx", &"<locked>");
+        }
+
+        b.finish()
+    }
+}
 impl ContextualVar {
     pub fn new(init: ContextInitFn) -> Self {
         ContextualVar {
@@ -127,7 +145,7 @@ impl VarImpl for ContextualVar {
         self.load().0.value_type()
     }
 
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str {
         self.load().0.value_type_name()
     }
@@ -211,6 +229,11 @@ impl VarImpl for ContextualVar {
 #[derive(Clone)]
 struct WeakContextualVar {
     init: Weak<Mutex<ContextInitFn>>,
+}
+impl fmt::Debug for WeakContextualVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("WeakContextualVar").field("init", &self.init.as_ptr()).finish()
+    }
 }
 impl WeakVarImpl for WeakContextualVar {
     fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {

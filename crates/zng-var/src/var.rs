@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{marker::PhantomData, ops, sync::Arc, time::Duration};
 
 use crate::{
@@ -56,6 +57,11 @@ impl<T: VarValue> Var<T> {
 
     pub(crate) fn new_any(any: AnyVar) -> Self {
         Var { any, _t: PhantomData }
+    }
+}
+impl<T: VarValue> fmt::Debug for Var<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Var").field(&*self.any.0).finish()
     }
 }
 
@@ -1357,6 +1363,11 @@ impl<T: VarValue> Var<T> {
 pub struct WeakVar<T: VarValue> {
     any: WeakAnyVar,
     _t: PhantomData<T>,
+}
+impl<T: VarValue> fmt::Debug for WeakVar<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("WeakVar").field(&*self.any.0).finish()
+    }
 }
 impl<T: VarValue> Clone for WeakVar<T> {
     fn clone(&self) -> Self {

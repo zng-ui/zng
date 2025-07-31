@@ -8,6 +8,6 @@ fn main() {
     }
 
     if cfg!(debug_assertions) && cfg!(feature = "debug_default") {
-        enable!("value_type_name");
+        enable!("type_names");
     }
 }

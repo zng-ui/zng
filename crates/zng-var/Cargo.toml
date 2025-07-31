@@ -18,7 +18,7 @@ default = ["debug_default"]
 debug_default = []
 
 # Add `value_type_name` method to get the diagnostics type name from variable values.
-value_type_name = []
+type_names = []
 
 # Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
 #

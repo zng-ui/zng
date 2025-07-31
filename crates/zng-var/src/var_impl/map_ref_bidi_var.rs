@@ -19,7 +19,14 @@ struct VarData {
 
 #[derive(Clone)]
 pub(crate) struct MapBidiRefVar(Arc<VarData>);
-
+impl fmt::Debug for MapBidiRefVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut b = f.debug_struct("MapBidiRefVar");
+        b.field("var_instance_tag()", &self.var_instance_tag());
+        b.field("source", &self.0.source);
+        b.finish()
+    }
+}
 impl MapBidiRefVar {
     pub(crate) fn new(source: AnyVar, deref: DerefFn, deref_mut: DerefMutFn) -> Self {
         Self(Arc::new(VarData { source, deref, deref_mut }))
@@ -42,7 +49,7 @@ impl VarImpl for MapBidiRefVar {
         self.0.source.value_type()
     }
 
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str {
         self.0.source.value_type_name()
     }
@@ -168,6 +175,11 @@ struct WeakMapBidiRefVar(Weak<VarData>);
 impl WeakMapBidiRefVar {
     pub(super) fn upgrade_typed(&self) -> Option<MapBidiRefVar> {
         self.0.upgrade().map(MapBidiRefVar)
+    }
+}
+impl fmt::Debug for WeakMapBidiRefVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("WeakMapBidiRefVar").field(&self.0.as_ptr()).finish()
     }
 }
 impl WeakVarImpl for WeakMapBidiRefVar {

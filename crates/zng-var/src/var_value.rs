@@ -42,6 +42,27 @@ impl BoxAnyVarValue {
     pub fn type_id(&self) -> TypeId {
         (*self.0).type_id()
     }
+
+    /// Alternate formatter that writes detailed debug info about the box and value type name.
+    ///
+    /// The `std::fmt::Debug` implementation simply redirects to the value debug,
+    /// this wrapper provides more info.
+    pub fn detailed_debug(&self) -> impl fmt::Debug {
+        struct DetailedDebug<'a>(&'a BoxAnyVarValue);
+        impl<'a> fmt::Debug for DetailedDebug<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let mut b = f.debug_struct("BoxAnyVarValue");
+                b.field("value", &*self.0.0);
+                #[cfg(feature = "type_names")]
+                b.field("type_name()", &self.0.0.type_name());
+                #[cfg(not(feature = "type_names"))]
+                b.field("type_id()", &self.0.type_id());
+                b.field("is_heap()", &SmallBox::is_heap(&self.0.0));
+                b.finish()
+            }
+        }
+        DetailedDebug(self)
+    }
 }
 impl Clone for BoxAnyVarValue {
     fn clone(&self) -> Self {
@@ -70,7 +91,7 @@ pub trait AnyVarValue: fmt::Debug + Any + Send + Sync {
     /// Gets if `self` and `other` are equal.
     fn eq_any(&self, other: &dyn AnyVarValue) -> bool;
     /// Value type name.
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn type_name(&self) -> &'static str;
 
     /// Swap value with `other` if both are of the same type.
@@ -117,7 +138,7 @@ where
         }
     }
 
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn type_name(&self) -> &'static str {
         std::any::type_name::<T>()
     }

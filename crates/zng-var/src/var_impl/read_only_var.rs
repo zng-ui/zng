@@ -4,6 +4,7 @@ use crate::{AnyVar, WeakAnyVar};
 
 use super::*;
 
+#[derive(Debug)]
 pub(crate) struct ReadOnlyVar(pub AnyVar);
 impl VarImpl for ReadOnlyVar {
     fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
@@ -18,7 +19,7 @@ impl VarImpl for ReadOnlyVar {
         self.0.value_type()
     }
 
-    #[cfg(feature = "value_type_name")]
+    #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str {
         self.0.value_type_name()
     }
@@ -91,6 +92,7 @@ impl VarImpl for ReadOnlyVar {
     }
 }
 
+#[derive(Debug)]
 struct WeakReadOnlyVar(WeakAnyVar);
 
 impl WeakVarImpl for WeakReadOnlyVar {
