@@ -267,6 +267,7 @@ fn when_var_tail_impl(builder: AnyWhenVarBuilder) -> WhenVar {
                     if !*args.value() {
                         // deactivated active
                         active = data.conditions.iter().position(|(c, _)| c.get()).unwrap_or(usize::MAX);
+                        changed = true;
                     }
                 } else if active > i && *args.value() {
                     // activated higher priority
@@ -360,6 +361,7 @@ impl fmt::Debug for WhenVar {
             "last_active_change",
             &VarUpdateId(self.0.last_active_change.load(Ordering::Relaxed)),
         );
+        b.field("hooks", &self.0.hooks);
         b.finish()
     }
 }
@@ -398,7 +400,7 @@ impl VarImpl for WhenVar {
 
     fn capabilities(&self) -> VarCapability {
         fn cap_changes(caps: VarCapability) -> VarCapability {
-            let mut out = VarCapability::empty();
+            let mut out = VarCapability::NEW;
             if caps.contains(VarCapability::MODIFY) || caps.contains(VarCapability::MODIFY_CHANGES) {
                 out |= VarCapability::MODIFY_CHANGES;
             }

@@ -190,51 +190,50 @@ impl VarImpl for SharedVar {
 }
 impl SharedVar {
     fn modify_impl(&self, value_or_modify: ValueOrModify) {
-        let weak = self.downgrade_typed();
         let name = value_type_name(self);
+        let var = self.clone();
+        // not weak ref here because some vars are spawned modified just to notify something and dropped
         VARS.schedule_update(name, move || {
-            if let Some(var) = weak.upgrade_typed() {
-                let mut value = var.0.value.write();
+            let mut value = var.0.value.write();
 
-                // verify if contextual animation can still set
-                let current_modify = VARS.current_modify();
-                if current_modify.importance() < value.2.importance() {
-                    return;
+            // verify if contextual animation can still set
+            let current_modify = VARS.current_modify();
+            if current_modify.importance() < value.2.importance() {
+                return;
+            }
+            value.2 = current_modify;
+
+            // modify
+            let mut m = AnyVarModify {
+                value: AnyVarModifyValue::Boxed(&mut value.0),
+                update: VarModifyUpdate::empty(),
+                tags: vec![],
+                custom_importance: None,
+            };
+            match value_or_modify {
+                ValueOrModify::Value(v) => {
+                    m.set(v);
                 }
-                value.2 = current_modify;
+                ValueOrModify::Modify(mut f) => (f)(&mut m),
+            }
 
-                // modify
-                let mut m = AnyVarModify {
-                    value: AnyVarModifyValue::Boxed(&mut value.0),
-                    update: VarModifyUpdate::empty(),
-                    tags: vec![],
-                    custom_importance: None,
-                };
-                match value_or_modify {
-                    ValueOrModify::Value(v) => {
-                        m.set(v);
-                    }
-                    ValueOrModify::Modify(mut f) => (f)(&mut m),
-                }
+            let AnyVarModify {
+                update,
+                tags,
+                custom_importance,
+                ..
+            } = m;
 
-                let AnyVarModify {
-                    update,
-                    tags,
-                    custom_importance,
-                    ..
-                } = m;
+            if let Some(i) = custom_importance {
+                value.2.importance = i;
+            }
 
-                if let Some(i) = custom_importance {
-                    value.2.importance = i;
-                }
+            if update.contains(VarModifyUpdate::UPDATE) {
+                value.1 = VARS.update_id();
 
-                if update.contains(VarModifyUpdate::UPDATE) {
-                    value.1 = VARS.update_id();
-
-                    let value = parking_lot::RwLockWriteGuard::downgrade(value);
-                    let args = AnyVarHookArgs::new(&*value.0, update.contains(VarModifyUpdate::REQUESTED), &tags);
-                    var.0.hooks.notify(&args);
-                }
+                let value = parking_lot::RwLockWriteGuard::downgrade(value);
+                let args = AnyVarHookArgs::new(&*value.0, update.contains(VarModifyUpdate::REQUESTED), &tags);
+                var.0.hooks.notify(&args);
             }
         });
     }

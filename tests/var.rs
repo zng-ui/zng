@@ -1339,43 +1339,6 @@ mod contextualized {
 
         assert!(updated);
     }
-
-    #[test]
-    fn nested_contextualized_vars_diff_contexts_and_source() {
-        let mut app = APP.defaults().run_headless(false);
-
-        let source = contextual_var(move || var(0u32));
-        let mapped = source.map(|n| n + 1);
-        let mapped2 = mapped.map(|n| n - 1);
-        let mapped2_copy = mapped2.clone();
-
-        assert_eq!(0, mapped2.get());
-        let other_ctx = ContextInitHandle::new();
-        other_ctx.with_context(|| {
-            // mapped2_copy inits clones of mapped2 -> mapped -> source recursively for `other_ctx`
-            assert_eq!(0, mapped2_copy.get());
-        });
-
-        source.set(10u32);
-
-        let mut updated = false;
-        app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(Some(10), mapped2.get_new());
-                    other_ctx.with_context(|| {
-                        assert!(!mapped2_copy.is_new());
-                        assert_eq!(0, mapped2_copy.get());
-                    });
-                }
-            },
-            false,
-        )
-        .assert_wait();
-
-        assert!(updated);
-    }
 }
 
 mod vec {

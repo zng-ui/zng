@@ -1305,81 +1305,62 @@ impl fmt::Debug for WhenInput {
     }
 }
 
-struct WhenInputInitData<T: VarValue> {
-    data: Vec<(WeakContextInitHandle, Var<T>)>,
-}
-impl<T: VarValue> WhenInputInitData<T> {
-    const fn empty() -> Self {
-        Self { data: vec![] }
-    }
-    fn get(&mut self) -> Var<T> {
-        let current_id = WHEN_INPUT_CONTEXT_INIT_ID.get();
-        let current_id = current_id.downgrade();
-
-        let mut r = None;
-        self.data.retain(|(id, val)| {
-            let retain = id.is_alive();
-            if retain && id == &current_id {
-                r = Some(val.clone());
-            }
-            retain
-        });
-        match r {
-            Some(r) => r,
-            None => {
-                if !self.data.is_empty() {
-                    tracing::error!("when input not inited");
-                    let last = self.data.len() - 1;
-                    self.data[last].1.clone()
-                } else {
-                    panic!("when input not inited")
-                }
-            }
-        }
-    }
-}
 context_local! {
+    // ContextInitHandle used to identify the widget scope the when inputs must use
     static WHEN_INPUT_CONTEXT_INIT_ID: ContextInitHandle = ContextInitHandle::new();
-}
-impl<T: VarValue> AnyWhenInputVarInner for WhenInputInitData<T> {
-    fn as_any(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn set(&mut self, handle: WeakContextInitHandle, var: AnyVar) {
-        let var = var.downcast::<T>().unwrap_or_else(|_| panic!("incorrect when input var type"));
-
-        if let Some(i) = self.data.iter().position(|(i, _)| i == &handle) {
-            self.data[i].1 = var;
-        } else {
-            self.data.push((handle, var));
-        }
-    }
-}
-trait AnyWhenInputVarInner: Any + Send {
-    fn as_any(&mut self) -> &mut dyn Any;
-    fn set(&mut self, handle: WeakContextInitHandle, var: AnyVar);
 }
 
 /// Represents a [`WhenInput`] variable that can be rebound.
 #[derive(Clone)]
 pub struct WhenInputVar {
-    var: Arc<Mutex<dyn AnyWhenInputVarInner>>,
+    var: Arc<Mutex<Vec<(WeakContextInitHandle, AnyVar)>>>,
 }
 impl WhenInputVar {
     /// New input setter and input var.
     ///
     /// Trying to use the input var outside of the widget will panic.
     pub fn new<T: VarValue>() -> (Self, Var<T>) {
-        let arc: Arc<Mutex<dyn AnyWhenInputVarInner>> = Arc::new(Mutex::new(WhenInputInitData::<T>::empty()));
+        let arc = Arc::new(Mutex::new(vec![]));
         (
             WhenInputVar { var: arc.clone() },
-            contextual_var(move || arc.lock().as_any().downcast_mut::<WhenInputInitData<T>>().unwrap().get()),
+            contextual_var(move || {
+                let mut data = arc.lock();
+
+                let current_id = WHEN_INPUT_CONTEXT_INIT_ID.get();
+                let current_id = current_id.downgrade();
+
+                let mut r = None;
+                data.retain(|(id, val)| {
+                    let retain = id.is_alive();
+                    if retain && id == &current_id {
+                        r = Some(val.clone());
+                    }
+                    retain
+                });
+                match r {
+                    Some(r) => r,
+                    None => {
+                        if !data.is_empty() {
+                            tracing::error!("when input not inited");
+                            let last = data.len() - 1;
+                            data[last].1.clone()
+                        } else {
+                            panic!("when input not inited")
+                        }
+                    }
+                }.downcast().expect("incorrect when input var type")
+            }),
         )
     }
 
     fn set(&self, handle: WeakContextInitHandle, var: AnyVar) {
-        self.var.lock().set(handle, var);
+        let mut data = self.var.lock();
+
+        if let Some(i) = data.iter().position(|(i, _)| i == &handle) {
+            data[i].1 = var;
+        } else {
+            data.push((handle, var));
+        }
     }
 }
 
