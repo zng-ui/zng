@@ -350,7 +350,13 @@ impl DATA {
     ///
     /// Panics if the context data is not set to a variable of type `T` on the first usage of the returned variable.
     pub fn req<T: VarValue>(&self) -> Var<T> {
-        self.get(|| panic!("expected DATA of type `{}`", std::any::type_name::<T>()))
+        self.get(|| {
+            #[cfg(feature = "var_type_names")]
+            panic!("expected DATA of type `{}`, but current context is `{}`", std::any::type_name::<T>(), DATA.get_any().value_type_name());
+
+            #[cfg(not(feature = "var_type_names"))]
+            panic!("expected DATA of a different type");
+        })
     }
 
     /// Get context data of type `T` if the context data is set with the same type, or gets the `fallback` value.
@@ -457,8 +463,14 @@ impl DATA {
     }
 }
 
+#[cfg(feature = "var_type_names")]
+#[derive(Debug, PartialEq, Clone)]
+struct DataContextNotSet;
+#[cfg(not(feature = "var_type_names"))]
+type DataContextNotSet = ();
+
 context_local! {
-    static DATA_CTX: AnyVar = const_var(());
+    static DATA_CTX: AnyVar = const_var(DataContextNotSet);
     static DATA_NOTES_CTX: RwLock<DataNotesProbe> = RwLock::default();
 }
 

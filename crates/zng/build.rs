@@ -28,6 +28,7 @@ fn main() {
         enable!("inspector");
         enable!("trace_widget");
         enable!("trace_recorder");
+        enable!("var_type_names");
     } else if cfg!(feature = "inspector") {
         enable!("dyn_node");
     }

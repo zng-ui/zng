@@ -14,7 +14,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [features]
 default = ["debug_default"]
 
-# Signal the build script to enable the `"dyn_*"` features in debug builds.
+# Signal the build script to enable the more features in debug builds.
 debug_default = []
 
 # Add `value_type_name` method to get the diagnostics type name from variable values.
