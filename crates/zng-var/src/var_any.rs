@@ -162,6 +162,7 @@ impl AnyVar {
     ///  
     /// This can be used just before creating a binding to start with synchronized values.
     pub fn try_set_from(&self, other: &AnyVar) -> Result<(), VarIsReadOnlyError> {
+        let other = other.current_context();
         if other.capabilities().is_const() {
             self.try_set(other.get())
         } else if self.capabilities().is_read_only() {

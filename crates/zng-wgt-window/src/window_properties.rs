@@ -5,6 +5,7 @@ use zng_ext_window::{
     AutoSize, FrameCaptureMode, MONITORS, MonitorQuery, WINDOW_Ext as _, WINDOW_LOAD_EVENT, WINDOWS, WindowButton, WindowIcon,
     WindowLoadingHandle, WindowState, WindowVars,
 };
+use zng_var::AnyVar;
 use zng_wgt::prelude::*;
 
 use serde::{Deserialize, Serialize};
@@ -16,21 +17,9 @@ fn bind_window_var<T>(child: impl UiNode, user_var: impl IntoVar<T>, select: imp
 where
     T: VarValue + PartialEq,
 {
-    #[cfg(feature = "dyn_closure")]
-    #[allow(clippy::type_complexity)]
-    let select: Box<dyn Fn(&WindowVars) -> Var<T> + Send> = Box::new(select);
-    bind_window_var_impl(child.cfg_boxed(), user_var.into_var(), select).cfg_boxed()
+    bind_window_var_impl(child.cfg_boxed(), user_var.into_var().into(), move |vars| select(vars).into()).cfg_boxed()
 }
-fn bind_window_var_impl<T>(
-    child: impl UiNode,
-    user_var: impl IntoVar<T>,
-    select: impl Fn(&WindowVars) -> Var<T> + Send + 'static,
-) -> impl UiNode
-where
-    T: VarValue + PartialEq,
-{
-    let user_var = user_var.into_var();
-
+fn bind_window_var_impl(child: impl UiNode, user_var: AnyVar, select: impl Fn(&WindowVars) -> AnyVar + Send + 'static) -> impl UiNode {
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
             let window_var = select(&WINDOW.vars());

@@ -291,8 +291,8 @@ impl ContextInitHandle {
     /// Identifies the state before first contextualization.
     ///
     /// This is the default value.
-    pub fn no_context() -> Self {
-        Self::default()
+    pub const fn no_context() -> Self {
+        Self(None)
     }
 
     /// Gets the current context handle.
@@ -335,11 +335,12 @@ impl ContextInitHandle {
 }
 impl fmt::Debug for ContextInitHandle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "ContextInitHandle(0x{:#})",
-            self.0.as_ref().map(|o| Arc::as_ptr(o) as usize).unwrap_or(0)
-        )
+        f.debug_tuple("WeakContextInitHandle")
+            .field(&match &self.0 {
+                Some(a) => std::sync::Arc::as_ptr(a),
+                None => std::ptr::null(),
+            })
+            .finish()
     }
 }
 impl PartialEq for ContextInitHandle {

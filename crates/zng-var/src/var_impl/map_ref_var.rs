@@ -36,12 +36,16 @@ impl VarImpl for MapRefVar {
     }
 
     fn value_type(&self) -> TypeId {
-        self.0.source.value_type()
+        let mut r = TypeId::of::<()>();
+        self.with(&mut |v| r = v.type_id());
+        r
     }
 
     #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str {
-        self.0.source.value_type_name()
+        let mut r = "";
+        self.with(&mut |v| r = v.type_name());
+        r
     }
 
     fn strong_count(&self) -> usize {

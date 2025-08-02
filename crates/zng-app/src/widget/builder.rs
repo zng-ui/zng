@@ -1307,7 +1307,7 @@ impl fmt::Debug for WhenInput {
 
 context_local! {
     // ContextInitHandle used to identify the widget scope the when inputs must use
-    static WHEN_INPUT_CONTEXT_INIT_ID: ContextInitHandle = ContextInitHandle::new();
+    static WHEN_INPUT_CONTEXT_INIT_ID: ContextInitHandle = ContextInitHandle::no_context();
 }
 
 /// Represents a [`WhenInput`] variable that can be rebound.
@@ -1340,15 +1340,25 @@ impl WhenInputVar {
                 match r {
                     Some(r) => r,
                     None => {
+                        // value not set for this when-input in this context
                         if !data.is_empty() {
-                            tracing::error!("when input not inited");
+                            // has value for other contexts at least, use that to not crash
                             let last = data.len() - 1;
-                            data[last].1.clone()
+                            let last = &data[last];
+                            tracing::error!(
+                                "when input not inited for context {:?}, using value from {:?} to avoid crash",
+                                current_id,
+                                last.0
+                            );
+                            last.1.clone()
                         } else {
-                            panic!("when input not inited")
+                            // has no value, cannot avoid crash
+                            panic!("when input not inited for context {current_id:?}")
                         }
                     }
-                }.downcast().expect("incorrect when input var type")
+                }
+                .downcast()
+                .expect("incorrect when input var type")
             }),
         )
     }
