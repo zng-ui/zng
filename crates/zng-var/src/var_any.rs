@@ -315,6 +315,7 @@ impl AnyVar {
     pub fn trace_value<S: Send + 'static>(&self, mut enter_value: impl FnMut(&AnyVarHookArgs) -> S + Send + 'static) -> VarHandle {
         let span = self.with(|v| {
             enter_value(&AnyVarHookArgs {
+                var_instance_tag: self.var_instance_tag(),
                 value: v,
                 update: false,
                 tags: &[],
@@ -1030,13 +1031,13 @@ impl AnyVar {
     /// Expects `other` to be contextualized
     fn bind_impl(&self, other: &AnyVar, mut map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static) -> VarHandle {
         let weak_other = other.downgrade();
-        let self_tag = self.var_instance_tag();
         self.hook(move |args| {
             if let Some(other) = weak_other.upgrade() {
                 if args.contains_tag(&other.var_instance_tag()) {
                     // skip circular update
                     return true;
                 }
+                let self_tag = args.var_instance_tag();
 
                 let new_value = map(args.value());
                 let update = args.update();
@@ -1100,14 +1101,13 @@ impl AnyVar {
         mut map: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
     ) -> VarHandle {
         let weak_other = other.downgrade();
-        let self_tag = self.var_instance_tag();
         self.hook(move |args| {
             if let Some(other) = weak_other.upgrade() {
                 if args.contains_tag(&other.var_instance_tag()) {
                     // skip circular update
                     return true;
                 }
-
+                let self_tag = args.var_instance_tag();
                 let update = args.update();
                 if let Some(new_value) = map(args.value()) {
                     other.modify(move |v| {
@@ -1458,14 +1458,25 @@ impl WeakAnyVar {
 
 /// Arguments for [`AnyVar::hook_any`].
 pub struct AnyVarHookArgs<'a> {
+    pub(super) var_instance_tag: VarInstanceTag,
     pub(super) value: &'a dyn AnyVarValue,
     pub(super) update: bool,
     pub(super) tags: &'a [BoxAnyVarValue],
 }
 impl<'a> AnyVarHookArgs<'a> {
     /// New from updated value and custom tag.
-    pub fn new(value: &'a dyn AnyVarValue, update: bool, tags: &'a [BoxAnyVarValue]) -> Self {
-        Self { value, update, tags }
+    pub fn new(var_instance_tag: VarInstanceTag, value: &'a dyn AnyVarValue, update: bool, tags: &'a [BoxAnyVarValue]) -> Self {
+        Self {
+            var_instance_tag,
+            value,
+            update,
+            tags,
+        }
+    }
+
+    /// Tag that represents the viable.
+    pub fn var_instance_tag(&self) -> VarInstanceTag {
+        self.var_instance_tag
     }
 
     /// Reference the updated value.

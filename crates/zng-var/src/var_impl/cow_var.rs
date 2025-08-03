@@ -199,6 +199,7 @@ impl VarImpl for CowVar {
                 let mut retain = false;
                 read.source.with(&mut |value: &dyn AnyVarValue| {
                     retain = on_new(&AnyVarHookArgs {
+                        var_instance_tag: args.var_instance_tag,
                         value,
                         update: args.update,
                         tags: args.tags,

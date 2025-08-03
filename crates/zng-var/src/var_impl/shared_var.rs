@@ -232,7 +232,12 @@ impl SharedVar {
                 value.1 = VARS.update_id();
 
                 let value = parking_lot::RwLockWriteGuard::downgrade(value);
-                let args = AnyVarHookArgs::new(&*value.0, update.contains(VarModifyUpdate::REQUESTED), &tags);
+                let args = AnyVarHookArgs::new(
+                    var.var_instance_tag(),
+                    &*value.0,
+                    update.contains(VarModifyUpdate::REQUESTED),
+                    &tags,
+                );
                 var.0.hooks.notify(&args);
             }
         });

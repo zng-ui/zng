@@ -291,6 +291,7 @@ fn when_var_tail_impl(builder: AnyWhenVarBuilder) -> WhenVar {
 
                     active.0.with(&mut |v| {
                         data.hooks.notify(&AnyVarHookArgs {
+                            var_instance_tag: VarInstanceTag(Arc::as_ptr(&data) as _),
                             value: v,
                             update: args.update,
                             tags: args.tags,

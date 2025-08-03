@@ -86,51 +86,25 @@ impl<B: SyncConfigBackend> AnyConfig for SyncConfig<B> {
             }
         };
 
-        // map -> value
-        let sync_var_tag = self.sync_var.var_instance_tag();
-        let value_var_weak = value_var.downgrade();
-
         self.sync_var
-            .hook(clmv!(key, |args| match value_var_weak.upgrade() {
-                Some(value_var) => {
-                    let is_from_value_var = args.contains_tag(&value_var.var_instance_tag());
-
-                    if !is_from_value_var && let Some(raw_value) = args.value().get(&key) {
-                        value_var.modify(clmv!(raw_value, |args| {
-                            args.set(raw_value);
-                            args.push_tag(sync_var_tag);
-                        }));
+            .bind_modify_bidi(
+                &value_var,
+                clmv!(key, |v, m| {
+                    if let Some(value) = v.get(&key) {
+                        m.set(value.clone());
                     }
-                    true // retain
-                }
-                None => {
-                    false
-                }
-            }))
-            .perm();
-
-        // value -> map
-        let value_var_tag = value_var.var_instance_tag();
-        let sync_var_weak = self.sync_var.downgrade();
-        value_var
-            .hook(move |args| match sync_var_weak.upgrade() {
-                Some(sync_var) => {
-                    let is_from_sync_var = args.contains_tag(&sync_var.var_instance_tag());
-
-                    if !is_from_sync_var {
-                        let raw_value = args.value().clone();
-                        sync_var.modify(clmv!(key, |args| {
-                            if args.get(&key) != Some(&raw_value) {
-                                args.insert(key, raw_value);
-                                args.push_tag(value_var_tag);
-                            }
-                        }));
+                }),
+                move |v, m| match m.get(&key) {
+                    Some(prev) => {
+                        if prev != v {
+                            *m.get_mut(&key).unwrap() = v.clone();
+                        }
                     }
-
-                    true
-                }
-                None => false,
-            })
+                    None => {
+                        m.insert(key.clone(), v.clone());
+                    }
+                },
+            )
             .perm();
 
         value_var
