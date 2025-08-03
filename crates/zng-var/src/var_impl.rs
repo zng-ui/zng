@@ -20,8 +20,6 @@ pub(crate) mod const_var;
 pub(crate) mod cow_var;
 pub use const_var::IntoVar;
 pub(crate) mod flat_map_var;
-pub(crate) mod map_ref_bidi_var;
-pub(crate) mod map_ref_var;
 pub(crate) mod read_only_var;
 
 pub(crate) mod contextual_var;
@@ -187,38 +185,11 @@ bitflags! {
     }
 }
 
-pub(crate) enum AnyVarModifyValue<'a> {
-    /// Preferred way, SharedVar needs to provide this, other wrapper vars carefully use this to
-    /// store state, like CowVar stores the source var here before the first write
-    Boxed(&'a mut BoxAnyVarValue),
-    /// MapRefBidi needs this as it can only deref_mut to a reference inside the value.
-    RefOnly(&'a mut dyn AnyVarValue),
-}
-
-impl<'a> ops::Deref for AnyVarModifyValue<'a> {
-    type Target = dyn AnyVarValue;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            AnyVarModifyValue::Boxed(b) => &***b,
-            AnyVarModifyValue::RefOnly(r) => &**r,
-        }
-    }
-}
-impl<'a> ops::DerefMut for AnyVarModifyValue<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            AnyVarModifyValue::Boxed(b) => &mut ***b,
-            AnyVarModifyValue::RefOnly(r) => &mut **r,
-        }
-    }
-}
-
 /// Mutable reference to a variable value.
 ///
 /// The variable will notify an update only on `deref_mut`.
 pub struct AnyVarModify<'a> {
-    pub(crate) value: AnyVarModifyValue<'a>,
+    pub(crate) value: &'a mut BoxAnyVarValue,
     pub(crate) update: VarModifyUpdate,
     pub(crate) tags: Vec<BoxAnyVarValue>,
     pub(crate) custom_importance: Option<usize>,
@@ -228,7 +199,7 @@ impl<'a> AnyVarModify<'a> {
     ///
     /// Note that you can also deref_mut to modify the value.
     pub fn set(&mut self, mut new_value: BoxAnyVarValue) -> bool {
-        if *self.value != *new_value {
+        if **self.value != *new_value {
             if !self.value.try_swap(&mut *new_value) {
                 #[cfg(feature = "type_names")]
                 panic!(
@@ -305,7 +276,7 @@ impl<'a> ops::Deref for AnyVarModify<'a> {
     type Target = dyn AnyVarValue;
 
     fn deref(&self) -> &Self::Target {
-        self.value.deref()
+        &**self.value
     }
 }
 impl<'a> ops::DerefMut for AnyVarModify<'a> {

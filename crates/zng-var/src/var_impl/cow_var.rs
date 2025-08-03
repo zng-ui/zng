@@ -145,12 +145,8 @@ impl VarImpl for CowVar {
         self.0.modify(smallbox!(move |value: &mut AnyVarModify| {
             let new_value = new_value.take().unwrap();
             if value.is::<CowVarSource>() {
-                if let AnyVarModifyValue::Boxed(b) = &mut value.value {
-                    **b = new_value;
-                    value.update |= VarModifyUpdate::TOUCHED;
-                } else {
-                    unreachable!()
-                }
+                *value.value = new_value;
+                value.update |= VarModifyUpdate::TOUCHED;
             } else {
                 value.set(new_value);
             }
@@ -162,13 +158,8 @@ impl VarImpl for CowVar {
             if let Some(read) = value.downcast_ref::<CowVarSource>() {
                 // clone on write
                 let new_value = read.source.get();
-                if let AnyVarModifyValue::Boxed(b) = &mut value.value {
-                    **b = new_value;
-                    value.update |= VarModifyUpdate::TOUCHED;
-                } else {
-                    // before cow source var is boxed in value
-                    unreachable!()
-                }
+                *value.value = new_value;
+                value.update |= VarModifyUpdate::TOUCHED;
             } else {
                 value.update();
             }
@@ -182,7 +173,7 @@ impl VarImpl for CowVar {
                 // clone on write
                 let mut source_value = source.source.get();
                 let mut vm = AnyVarModify {
-                    value: AnyVarModifyValue::Boxed(&mut source_value),
+                    value: &mut source_value,
                     update: VarModifyUpdate::empty(),
                     tags: mem::take(&mut value.tags),
                     custom_importance: value.custom_importance,
@@ -194,11 +185,7 @@ impl VarImpl for CowVar {
                 value.update |= vm.update;
 
                 if vm.update.contains(VarModifyUpdate::TOUCHED) {
-                    if let AnyVarModifyValue::Boxed(b) = &mut value.value {
-                        **b = source_value;
-                    } else {
-                        unreachable!()
-                    }
+                    *value.value = source_value;
                 }
             } else {
                 modify(value);

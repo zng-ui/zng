@@ -84,7 +84,7 @@ fn context_menu_node(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenu
                         let is_shortcut = args.is_from_keyboard();
                         pop_state = POPUP.open_config(
                             menu,
-                            CONTEXT_MENU_ANCHOR_VAR.map_ref(move |(c, s)| if is_shortcut { s } else { c }),
+                            CONTEXT_MENU_ANCHOR_VAR.map(move |(c, s)| if is_shortcut { s } else { c }.clone()),
                             CONTEXT_CAPTURE_VAR.get(),
                         );
                     }

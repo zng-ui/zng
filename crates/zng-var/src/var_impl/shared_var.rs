@@ -205,7 +205,7 @@ impl SharedVar {
 
             // modify
             let mut m = AnyVarModify {
-                value: AnyVarModifyValue::Boxed(&mut value.0),
+                value: &mut value.0,
                 update: VarModifyUpdate::empty(),
                 tags: vec![],
                 custom_importance: None,

@@ -301,8 +301,8 @@ impl FieldStyle {
             }
             (DataNoteLevel::INFO, "".into())
         });
-        let top_txt = top_level_and_txt.map_ref(|(_, t)| t);
-        let top_color = DATA.note_color(top_level_and_txt.map_ref(|(l, _)| l));
+        let top_txt = top_level_and_txt.map(|(_, t)| t.clone());
+        let top_color = DATA.note_color(top_level_and_txt.map(|(l, _)| *l));
 
         let highlight = top_level_and_txt.map(|(l, _)| *l >= DataNoteLevel::WARN);
         let adorn = merge_var!(top_txt.clone(), FIELD_HELP_VAR, |t, h| (t.is_empty(), h.is_empty()));

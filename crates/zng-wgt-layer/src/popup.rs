@@ -295,9 +295,7 @@ impl POPUP {
 
     /// Gets a read-only var that tracks the anchor widget in a layered widget context.
     pub fn anchor_id(&self) -> Var<WidgetId> {
-        LAYERS
-            .anchor_id()
-            .map_ref(|id| id.as_ref().expect("POPUP layers are always anchored"))
+        LAYERS.anchor_id().map(|id| id.expect("POPUP layers are always anchored"))
     }
 }
 

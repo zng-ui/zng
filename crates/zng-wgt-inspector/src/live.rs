@@ -48,8 +48,8 @@ pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> impl UiNode {
         },
         Config::default(),
     );
-    let adorn_selected = config.map_ref_bidi(|c| &c.adorn_selected, |c| &mut c.adorn_selected);
-    let select_focused = config.map_ref_bidi(|c| &c.select_focused, |c| &mut c.select_focused);
+    let adorn_selected = config.map_bidi_modify(|c| c.adorn_selected, |v, m| m.adorn_selected = *v);
+    let select_focused = config.map_bidi_modify(|c| c.select_focused, |v, m| m.select_focused = *v);
 
     let can_inspect = can_inspect.into_var();
     let mut cmd_handle = CommandHandle::dummy();

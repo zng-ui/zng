@@ -14,6 +14,8 @@
     - Replace `LocalVar(_)` with `const_var(_)`.
     - Replace `ContextualizedVar::new(_)` with `contextual_var(_)`.
     - Replace `Var::wait_value` with `Var::wait_match`.
+    - Replace `Var::map_ref` with `Var::map`, `map_ref_bidi` with `map_bidi` or new `map_bidi_modify` in cases where
+      the mapped value is a subset of the source value.
     - Now always use `Var::capabilities` to inspect *kind* of var.
     - Modify methods `Var::{set, update, modify}` now simply DEBUG log if the variable is read-only, 
       use `try_set, try_update, try_modify` to get the error.

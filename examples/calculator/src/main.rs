@@ -24,7 +24,7 @@ fn main() {
                 spacing = 5;
                 children = ui_vec![
                     Text! {
-                        txt = DATA.req::<Calculator>().map_ref(|c| c.text());
+                        txt = DATA.req::<Calculator>().map(|c| c.text());
                         layout::align = Align::RIGHT;
                         font_size = 32.pt();
 
@@ -129,12 +129,11 @@ struct Calculator {
     error: bool,
 }
 impl Calculator {
-    pub fn text(&self) -> &Txt {
+    pub fn text(&self) -> Txt {
         if self.buffer.is_empty() {
-            static ZERO: Txt = Txt::from_static("0");
-            &ZERO
+            Txt::from_static("0")
         } else {
-            &self.buffer
+            self.buffer.clone()
         }
     }
 

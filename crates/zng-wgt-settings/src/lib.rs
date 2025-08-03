@@ -186,7 +186,7 @@ fn settings_view_fn() -> impl UiNode {
     let editor_state = SETTINGS.editor_state().current_context();
 
     let categories = editor_state
-        .map_ref(|r| &r.as_ref().unwrap().categories)
+        .map(|r| r.as_ref().unwrap().categories.clone())
         .present(wgt_fn!(|categories: Vec<Category>| {
             let cat_fn = CATEGORY_ITEM_FN_VAR.get();
             let categories: UiVec = categories

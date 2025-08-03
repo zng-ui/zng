@@ -282,35 +282,6 @@ impl<T: VarValue> Var<T> {
         self.any.map(move |v| map(v.downcast_ref::<T>().unwrap()))
     }
 
-    /// Create a read-only deref variable.
-    ///
-    /// The `deref` closure must produce a reference to this variable's value.
-    ///
-    /// # Examples
-    ///
-    /// Basic usage:
-    ///
-    /// ```
-    /// # use zng_var::*;
-    /// # use zng_txt::*;
-    /// # fn large_object() -> String { String::default() }
-    /// let array_var = var([large_object(), large_object()]);
-    /// let ref_var = array_var.map_ref(|a| &a[0]);
-    /// ```
-    ///
-    /// In the example above the `ref_var` will update every time the `array_var` updates and its value will
-    /// be the first `large_object`. Unlike a `map` variable the large object is not cloned.
-    ///
-    /// # Capabilities
-    ///
-    /// The mapping variable is a thin wrapper around a clone of this variable, the `deref` closure is called for every
-    /// read. The mapping variable always updates when this variable updates, even if the referenced value does not actually change.
-    ///
-    /// The mapping variable is read-only, see [`map_ref_bidi`] for mutable referencing.
-    pub fn map_ref<O: VarValue>(&self, deref: impl Fn(&T) -> &O + Send + Sync + 'static) -> Var<O> {
-        self.any.map_ref(move |v| deref(v.downcast_ref::<T>().unwrap()))
-    }
-
     /// Create a [`map`] that converts from `T` to `O` using [`Into<O>`].
     ///
     /// [`map`]: Var::map
@@ -334,7 +305,7 @@ impl<T: VarValue> Var<T> {
         self.map(ToTxt::to_txt)
     }
 
-    /// Create a [`map_ref`] that references `O` from `T` using [`std::ops::Deref<Target = O>`].
+    /// Create a [`map`] that references and clones `O` from `T` using [`std::ops::Deref<Target = O>`].
     ///
     /// The mapping variable is read-only, see [`map_deref_mut`] for mutable referencing.
     ///
@@ -345,7 +316,7 @@ impl<T: VarValue> Var<T> {
         O: VarValue,
         T: ops::Deref<Target = O>,
     {
-        self.map_ref(ops::Deref::deref)
+        self.map(|v| ops::Deref::deref(v).clone())
     }
 
     /// Create a mapping variable that can skip updates.
@@ -391,20 +362,6 @@ impl<T: VarValue> Var<T> {
         fallback_init: impl Fn() -> O + Send + 'static,
     ) -> Var<O> {
         self.any.filter_map(move |v| map(v.downcast_ref::<T>().unwrap()), fallback_init)
-    }
-
-    /// Create a deref variable that can reset for some updates.
-    ///
-    /// The `deref` closure is called read of this variable, if it does not return a reference the `fallback_ref` is returned instead.
-    ///
-    /// # Capabilities
-    ///
-    /// The mapping variable is a thin wrapper around a clone of this variable, the `deref` closure is called for every
-    /// read. The mapping variable always updates when this variable updates, even if the referenced value does not actually change.
-    ///
-    /// The mapping variable is read-only.
-    pub fn filter_ref<O: VarValue>(&self, deref: impl Fn(&T) -> Option<&O> + Send + Sync + 'static, fallback_ref: &'static O) -> Var<O> {
-        self.map_ref(move |v| deref(v).unwrap_or(fallback_ref))
     }
 
     /// Create a [`filter_map`] that tries to convert from `T` to `O` using [`TryInto<O>`].
@@ -473,25 +430,15 @@ impl<T: VarValue> Var<T> {
         Var::new_any(mapping)
     }
 
-    /// Create a bidirectional deref variable.
-    ///
-    /// # Capabilities
-    ///
-    /// The mapping variable is a thin wrapper around a clone of this variable, the `deref` closure is called for every
-    /// read, the `deref_mut` closure is called for every write.
-    ///
-    /// The mapping variable always updates when this variable updates, even if the referenced value does not actually change.
-    ///
-    /// The mapping variable will always cause an update on this variable if modified,
-    /// even if the modify handler does not actually mutable reference the value.
-    pub fn map_ref_bidi<O: VarValue>(
+    /// !!: TODO docs
+    pub fn map_bidi_modify<O: VarValue>(
         &self,
-        deref: impl Fn(&T) -> &O + Send + Sync + 'static,
-        deref_mut: impl Fn(&mut T) -> &mut O + Send + Sync + 'static,
+        mut map: impl FnMut(&T) -> O + Send + 'static,
+        mut modify_back: impl FnMut(&O, &mut VarModify<T>) + Send + 'static,
     ) -> Var<O> {
-        let mapping = self.any.map_ref_bidi_any(
-            move |t| deref(t.downcast_ref::<T>().unwrap()),
-            move |t| deref_mut(t.downcast_mut::<T>().unwrap()),
+        let mapping = self.map_bidi_modify_any(
+            move |input| BoxAnyVarValue::new(map(input.downcast_ref::<T>().unwrap())),
+            move |v, m| modify_back(v.downcast_ref::<O>().unwrap(), &mut m.downcast::<T>().unwrap()),
             TypeId::of::<O>(),
         );
         Var::new_any(mapping)
@@ -508,17 +455,20 @@ impl<T: VarValue> Var<T> {
         self.map_bidi(|t| t.clone().into(), |o| o.clone().into())
     }
 
-    /// Create a [`map_ref_bidi`] that references `O` from `T` using [`std::ops::Deref<Target = O>`] and
-    /// [`std::ops::DerefMut<Target = O>`].
+    /// Create a [`map_bidi_modify`] that references and clones `O` from `T` using [`std::ops::Deref<Target = O>`] and
+    /// modifies back using [`std::ops::DerefMut<Target = O>`].
     ///
-    /// [`map_ref_bidi`]: Self::map_ref_bidi
+    /// [`map_bidi_modify`]: Self::map_bidi_modify
     pub fn map_deref_mut<O>(&self) -> Var<O>
     where
         O: VarValue,
         T: ops::Deref<Target = O>,
         T: ops::DerefMut<Target = O>,
     {
-        self.map_ref_bidi(T::deref, T::deref_mut)
+        self.map_bidi_modify(
+            |input| T::deref(input).clone(),
+            |output, modify| *T::deref_mut(modify) = output.clone(),
+        )
     }
 
     /// Create a bidirectional mapping variable that can skip updates.
@@ -642,6 +592,11 @@ impl<T: VarValue> Var<T> {
         self.any.set_bind_map(other, move |v| map(v.downcast_ref::<T>().unwrap()))
     }
 
+    /// !!: TODO docs
+    pub fn bind_modify<O: VarValue>(&self, other: &Var<O>, mut modify: impl FnMut(&T, &mut VarModify<O>) + Send + 'static) -> VarHandle {
+        self.any.bind_modify(other, move |v, m| modify(v.downcast_ref::<T>().unwrap(), m))
+    }
+
     /// Bind `other` to receive the new values from this variable and this variable to receive new values from `other`.
     ///
     /// !!: TODO docs
@@ -662,6 +617,24 @@ impl<T: VarValue> Var<T> {
             other,
             move |v| BoxAnyVarValue::new(map(v.downcast_ref::<T>().unwrap())),
             move |v| BoxAnyVarValue::new(map_back(v.downcast_ref::<O>().unwrap())),
+        )
+    }
+
+    /// Bind `other` to be modified when this variable updates and this variable to be modified when `other` updates.
+    ///
+    /// See [`bind_modify_bidi`] for more details about modify bindings.
+    ///
+    /// [`bind_modify_bidi`]: Var::bind_modify_bidi
+    pub fn bind_modify_bidi<O: VarValue>(
+        &self,
+        other: &Var<O>,
+        mut modify: impl FnMut(&T, &mut VarModify<O>) + Send + 'static,
+        mut modify_back: impl FnMut(&O, &mut VarModify<T>) + Send + 'static,
+    ) -> VarHandles {
+        self.any.bind_modify_bidi(
+            other,
+            move |v, m| modify(v.downcast_ref::<T>().unwrap(), m),
+            move |v, m| modify_back(v, &mut m.downcast::<T>().unwrap()),
         )
     }
 

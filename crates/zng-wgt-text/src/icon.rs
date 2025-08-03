@@ -44,7 +44,7 @@ impl Icon {
             wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", move |child| {
                 let node = crate::node::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
                 let node = crate::font_family(node, icon.map(|i| i.font.clone().into()));
-                let node = crate::font_features(node, icon.map_ref(|i| &i.features));
+                let node = crate::font_features(node, icon.map(|i| i.features.clone()));
                 crate::font_color(node, ICON_COLOR_VAR)
             });
         });

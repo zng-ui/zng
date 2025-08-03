@@ -1,6 +1,7 @@
 use core::fmt;
 use std::{
     any::{Any, TypeId},
+    borrow::Cow,
     marker::PhantomData,
     mem,
     sync::{Arc, atomic::AtomicBool},
@@ -12,8 +13,8 @@ use zng_clone_move::clmv;
 use zng_txt::{Txt, formatx};
 
 use crate::{
-    AnyVarModify, AnyVarValue, BoxAnyVarValue, VARS, Var, VarCapability, VarHandle, VarHandles, VarImpl, VarIsReadOnlyError, VarUpdateId,
-    VarValue, WeakVarImpl,
+    AnyVarModify, AnyVarValue, BoxAnyVarValue, VARS, Var, VarCapability, VarHandle, VarHandles, VarImpl, VarIsReadOnlyError, VarModify,
+    VarModifyUpdate, VarUpdateId, VarValue, WeakVarImpl,
     animation::{Animation, AnimationController, AnimationHandle, AnimationStopFn},
     any_contextual_var,
 };
@@ -388,24 +389,6 @@ impl AnyVar {
         output.read_only()
     }
 
-    /// Create a deref variable from any to any.
-    ///
-    /// The `deref` closure must output references to value of `value_type`, this type is validated in debug builds and
-    /// is necessary for contextualizing variables.
-    ///
-    /// See [`map_ref`] for more details about mapping variables.
-    ///
-    /// [`map_ref`]: Var::map_ref
-    pub fn map_ref_any(
-        &self,
-        deref: impl for<'a> Fn(&'a dyn AnyVarValue) -> &'a (dyn AnyVarValue) + Send + Sync + 'static,
-        value_type: TypeId,
-    ) -> AnyVar {
-        // contextualizing will actualize inside MapRefVar naturally.
-        let mapping = crate::var_impl::map_ref_var::MapRefVar::new(self.clone(), smallbox!(deref), value_type);
-        AnyVar(smallbox!(mapping))
-    }
-
     /// Create a strongly typed mapping variable.
     ///
     /// The `map` closure must produce a strongly typed value for every update of this variable.
@@ -415,18 +398,6 @@ impl AnyVar {
     /// [`map`]: Var::map
     pub fn map<O: VarValue>(&self, mut map: impl FnMut(&dyn AnyVarValue) -> O + Send + 'static) -> Var<O> {
         let mapping = self.map_any(move |v| BoxAnyVarValue::new(map(v)), TypeId::of::<O>());
-        Var::new_any(mapping)
-    }
-
-    /// Create a strongly typed deref variable.
-    ///
-    /// The `deref` closure must produce a strongly typed value reference for every read this variable.
-    ///
-    /// See [`map_ref`] for more details about mapping variables.
-    ///
-    /// [`map_ref`]: Var::map_ref
-    pub fn map_ref<O: VarValue>(&self, deref: impl Fn(&dyn AnyVarValue) -> &O + Send + Sync + 'static) -> Var<O> {
-        let mapping = self.map_ref_any(move |v| deref(v), TypeId::of::<O>());
         Var::new_any(mapping)
     }
 
@@ -517,22 +488,6 @@ impl AnyVar {
         output.read_only()
     }
 
-    /// Create a deref variable that can reset for some updates.
-    ///
-    /// The `deref` closure is called read of this variable, if it does not return a reference the `fallback_ref` is returned instead.
-    ///
-    /// See [`filter_ref`] for more details about deref variables.
-    ///
-    /// [`filter_ref`]: Var::filter_ref
-    pub fn filter_ref_any(
-        &self,
-        deref: impl Fn(&dyn AnyVarValue) -> Option<&dyn AnyVarValue> + Send + Sync + 'static,
-        fallback_ref: &'static dyn AnyVarValue,
-        value_type: TypeId,
-    ) -> AnyVar {
-        self.map_ref_any(move |v| deref(v).unwrap_or(fallback_ref), value_type)
-    }
-
     /// Create a strongly typed mapping variable that can skip updates.
     ///
     /// The `map` closure is called for every update this variable and if it returns a new value the mapping variable updates.
@@ -553,21 +508,6 @@ impl AnyVar {
             TypeId::of::<O>(),
         );
         Var::new_any(mapping)
-    }
-
-    /// Create a strongly typed deref variable that can reset for some updates.
-    ///
-    /// The `deref` closure is called read of this variable, if it does not return a reference the `fallback_ref` is returned instead.
-    ///
-    /// See [`filter_ref`] for more details about deref variables.
-    ///
-    /// [`filter_ref`]: Var::filter_ref
-    pub fn filter_ref<O: VarValue>(
-        &self,
-        deref: impl Fn(&dyn AnyVarValue) -> Option<&O> + Send + Sync + 'static,
-        fallback_ref: &'static O,
-    ) -> Var<O> {
-        self.map_ref(move |v| deref(v).unwrap_or(fallback_ref))
     }
 
     /// Create a bidirectional mapping variable.
@@ -603,7 +543,6 @@ impl AnyVar {
 
         self.map_bidi_tail(map, map_back, caps)
     }
-
     fn map_bidi_tail(
         &self,
         mut map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
@@ -628,20 +567,58 @@ impl AnyVar {
         output
     }
 
-    /// Create a bidirectional referencing variable.
+    /// Create a bidirectional mapping variable that modifies the source variable on change, instead of mapping back.
     ///
-    /// See [`map_ref_bidi`] for more details about mapping variables.
+    /// The `map` closure must only output values of `value_type`, predefining this type is
+    /// is necessary for contextualizing variables.
     ///
-    /// [`map_ref_bidi`]: Var::map_ref_bidi
-    pub fn map_ref_bidi_any(
+    /// The `modify_back` closure is called to modify the source variable with the new output value.
+    ///
+    /// See [`map_bidi_modify`] for more details about bidirectional mapping variables.
+    ///
+    /// [`map_bidi`]: Var::map_bidi
+    pub fn map_bidi_modify_any(
         &self,
-        deref: impl Fn(&dyn AnyVarValue) -> &(dyn AnyVarValue) + Send + Sync + 'static,
-        deref_mut: impl Fn(&mut dyn AnyVarValue) -> &mut (dyn AnyVarValue) + Send + Sync + 'static,
+        map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
+        modify_back: impl FnMut(&dyn AnyVarValue, &mut AnyVarModify) + Send + 'static,
         value_type: TypeId,
     ) -> AnyVar {
-        let mapping =
-            crate::var_impl::map_ref_bidi_var::MapBidiRefVar::new(self.clone(), smallbox!(deref), smallbox!(deref_mut), value_type);
-        AnyVar(smallbox!(mapping))
+        let caps = self.capabilities();
+
+        if caps.is_contextual() {
+            let me = self.clone();
+            let fns = Arc::new(Mutex::new((map, modify_back)));
+            return any_contextual_var(
+                move || {
+                    me.clone()
+                        .map_bidi_modify_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, |v, m| fns.lock().1(v, m)), caps)
+                },
+                value_type,
+            );
+        }
+        self.map_bidi_modify_tail(map, modify_back, caps)
+    }
+    fn map_bidi_modify_tail(
+        &self,
+        mut map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
+        modify_back: impl FnMut(&dyn AnyVarValue, &mut AnyVarModify) + Send + 'static,
+        caps: VarCapability,
+    ) -> AnyVar {
+        let me = self.current_context();
+
+        let mut init_value = None;
+        me.with(&mut |v: &dyn AnyVarValue| init_value = Some(map(v)));
+        let init_value = init_value.unwrap();
+
+        if caps.is_const() {
+            return crate::any_const_var(init_value);
+        }
+
+        let output = crate::any_var_derived(init_value, &me);
+        self.bind_map_any(&output, map).perm();
+        output.bind_modify_any(&me, modify_back).perm();
+        output.hold(me).perm();
+        output
     }
 
     /// Create a bidirectional mapping variable that can skip updates.
@@ -779,11 +756,40 @@ impl AnyVar {
     ///
     /// [`bind_map`]: Var::bind_map
     pub fn bind_map_any(&self, other: &AnyVar, map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static) -> VarHandle {
-        if self.capabilities().is_const() || other.capabilities().is_always_read_only() {
+        let other_caps = other.capabilities();
+        if self.capabilities().is_const() || other_caps.is_always_read_only() {
             return VarHandle::dummy();
         }
 
-        self.bind_impl(other, map)
+        if other_caps.is_contextual() {
+            self.bind_impl(&other.current_context(), map)
+        } else {
+            self.bind_impl(other, map)
+        }
+    }
+
+    /// Bind `other` to be modified when this variable updates.
+    ///
+    /// See [`bind_modify`] for more details about modify bindings.
+    ///
+    /// [`bind_modify`]: Var::bind_modify
+    pub fn bind_modify_any(&self, other: &AnyVar, modify: impl FnMut(&dyn AnyVarValue, &mut AnyVarModify) + Send + 'static) -> VarHandle {
+        let self_caps = other.capabilities();
+        let other_caps = other.capabilities();
+        if self_caps.is_const() || other_caps.is_always_read_only() {
+            return VarHandle::dummy();
+        }
+
+        let mut source = Cow::Borrowed(self);
+        if self_caps.is_contextual() {
+            source = Cow::Owned(self.current_context());
+        }
+
+        if other_caps.is_contextual() {
+            source.bind_modify_impl(&other.current_context(), modify)
+        } else {
+            source.bind_modify_impl(other, modify)
+        }
     }
 
     /// Like [`bind_map_any`] but also sets `other` to the current value.
@@ -834,6 +840,19 @@ impl AnyVar {
         self.bind_map_any(other, move |v| BoxAnyVarValue::new(map(v)))
     }
 
+    /// Bind `other` to be modified when this variable updates.
+    ///
+    /// See [`bind_modify`] for more details about modify bindings.
+    ///
+    /// [`bind_modify`]: Var::bind_modify
+    pub fn bind_modify<O: VarValue>(
+        &self,
+        other: &Var<O>,
+        mut modify: impl FnMut(&dyn AnyVarValue, &mut VarModify<O>) + Send + 'static,
+    ) -> VarHandle {
+        self.bind_modify_any(other, move |v, m| modify(v, &mut m.downcast::<O>().unwrap()))
+    }
+
     /// Like [`bind_map_any`] but also sets `other` to the current value.
     ///
     /// See [`set_bind_map`] for more details.
@@ -878,10 +897,74 @@ impl AnyVar {
             return other.bind_map_any(self, map_back).into();
         }
 
-        let a = self.bind_impl(other, map);
-        let b = other.bind_impl(self, map_back);
+        let a = if other_cap.is_contextual() {
+            self.bind_impl(&other.current_context(), map)
+        } else {
+            self.bind_impl(other, map)
+        };
+        let b = if self_cap.is_contextual() {
+            other.bind_impl(&self.current_context(), map_back)
+        } else {
+            other.bind_impl(self, map_back)
+        };
 
         a.with(b)
+    }
+
+    /// Bind `other` to be modified when this variable updates and this variable to be modified when `other` updates.
+    ///
+    /// See [`bind_modify_bidi`] for more details about modify bindings.
+    ///
+    /// [`bind_modify_bidi`]: Var::bind_modify_bidi
+    pub fn bind_modify_bidi_any(
+        &self,
+        other: &AnyVar,
+        modify: impl FnMut(&dyn AnyVarValue, &mut AnyVarModify) + Send + 'static,
+        modify_back: impl FnMut(&dyn AnyVarValue, &mut AnyVarModify) + Send + 'static,
+    ) -> VarHandles {
+        let self_cap = self.capabilities();
+        let other_cap = other.capabilities();
+        if self_cap.is_const() || other_cap.is_const() {
+            return VarHandles::dummy();
+        }
+        if self_cap.is_always_read_only() {
+            return self.bind_modify_any(other, modify).into();
+        }
+        if other_cap.is_always_read_only() {
+            return other.bind_modify_any(self, modify_back).into();
+        }
+
+        let mut self_ = Cow::Borrowed(self);
+        if self_cap.is_contextual() {
+            self_ = Cow::Owned(self.current_context());
+        }
+
+        let a = if other_cap.is_contextual() {
+            self_.bind_modify_impl(&other.current_context(), modify)
+        } else {
+            self_.bind_modify_impl(other, modify)
+        };
+        let b = other.bind_modify_impl(&self_, modify_back);
+
+        a.with(b)
+    }
+
+    /// Bind `other` to be modified when this variable updates and this variable to be modified when `other` updates.
+    ///
+    /// See [`bind_modify_bidi`] for more details about modify bindings.
+    ///
+    /// [`bind_modify_bidi`]: Var::bind_modify_bidi
+    pub fn bind_modify_bidi<O: VarValue>(
+        &self,
+        other: &Var<O>,
+        mut modify: impl FnMut(&dyn AnyVarValue, &mut VarModify<O>) + Send + 'static,
+        mut modify_back: impl FnMut(&O, &mut AnyVarModify) + Send + 'static,
+    ) -> VarHandles {
+        self.bind_modify_bidi_any(
+            other,
+            move |v, m| modify(v, &mut m.downcast::<O>().unwrap()),
+            move |v, m| modify_back(v.downcast_ref::<O>().unwrap(), m),
+        )
     }
 
     /// Bind `other` to receive the new values filtered mapped from this variable.
@@ -944,6 +1027,7 @@ impl AnyVar {
         a.with(b)
     }
 
+    /// Expects `other` to be contextualized
     fn bind_impl(&self, other: &AnyVar, mut map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static) -> VarHandle {
         let weak_other = other.downgrade();
         let self_tag = self.var_instance_tag();
@@ -966,6 +1050,43 @@ impl AnyVar {
                         v.update();
                     }
                 });
+                true
+            } else {
+                false
+            }
+        })
+    }
+
+    /// Expects `self` and `other` to be contextualized
+    fn bind_modify_impl(&self, other: &AnyVar, modify: impl FnMut(&dyn AnyVarValue, &mut AnyVarModify) + Send + 'static) -> VarHandle {
+        let weak_other = other.downgrade();
+        let weak_self = self.downgrade();
+        let modify = Arc::new(Mutex::new(modify));
+        self.hook(move |args| {
+            if let Some(other) = weak_other.upgrade() {
+                if args.contains_tag(&other.var_instance_tag()) {
+                    // skip circular update
+                    return true;
+                }
+
+                let self_ = weak_self.upgrade().unwrap();
+                let update = args.update();
+                other.modify(clmv!(modify, |v| {
+                    let prev_update = mem::replace(&mut v.update, VarModifyUpdate::empty());
+                    self_.with(|source| {
+                        modify.lock()(source, v);
+                    });
+
+                    if !v.update.is_empty() || update {
+                        // tag to avoid circular update
+                        v.push_tag(self_.var_instance_tag());
+                    }
+                    if update {
+                        // propagate explicit update requests
+                        v.update();
+                    }
+                    v.update |= prev_update;
+                }));
                 true
             } else {
                 false

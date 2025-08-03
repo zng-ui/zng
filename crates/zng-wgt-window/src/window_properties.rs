@@ -95,7 +95,7 @@ macro_rules! map_properties {
         /// The binding is bidirectional and the window variable is assigned on init.
         #[property(CONTEXT, widget_impl(Window))]
         pub fn $name(child: impl UiNode, $name: impl IntoVar<$Type>) -> impl UiNode {
-            bind_window_var(child, $name, |w|w.$ident().map_ref_bidi(|v| &v.$member, |v|&mut v.$member))
+            bind_window_var(child, $name, |w|w.$ident().map_bidi_modify(|v| v.$member.clone(), |v, m|m.$member = v.clone()))
         }
     })+}
 }
