@@ -20,9 +20,6 @@
     - Modify methods `Var::{set, update, modify}` now simply DEBUG log if the variable is read-only, 
       use `try_set, try_update, try_modify` to get the error.
 
-    !!: TODO review type alias vars, TimerVar should be a struct, CommandVar should not exist.
-    !!: TODO search for hook(Box::new)
-
 * Fix human readable deserialization of `PxConstraints` failing when the `max` field is not set.
 
 * **Breaking** Refactor `zng::config::SyncConfig` to use a map of `RawConfigValue` directly.

@@ -35,7 +35,7 @@ impl fmt::Debug for AnyVar {
 impl AnyVar {
     /// Visit a reference to the current value.
     pub fn with<O>(&self, visitor: impl FnOnce(&dyn AnyVarValue) -> O) -> O {
-        // !!: TODO try a ArcSwap based read
+        // TODO try a ArcSwap based read
         let mut once = Some(visitor);
         let mut output = None;
         self.0.with(&mut |v| {
@@ -909,7 +909,7 @@ impl AnyVar {
             other.bind_impl(self, map_back)
         };
 
-        a.with(b)
+        a.chain(b)
     }
 
     /// Bind `other` to be modified when this variable updates and this variable to be modified when `other` updates.
@@ -947,7 +947,7 @@ impl AnyVar {
         };
         let b = other.bind_modify_impl(&self_, modify_back);
 
-        a.with(b)
+        a.chain(b)
     }
 
     /// Bind `other` to be modified when this variable updates and this variable to be modified when `other` updates.
@@ -1025,7 +1025,7 @@ impl AnyVar {
         let a = self.bind_filter_map_impl(other, map);
         let b = other.bind_filter_map_impl(self, map_back);
 
-        a.with(b)
+        a.chain(b)
     }
 
     /// Expects `other` to be contextualized
@@ -1229,10 +1229,13 @@ impl AnyVar {
     }
 
     /*
-       !!: TODO
+       TODO(breaking)
+
        This entire setup of no update on animation stop does not work?
        If the variable is overridden it is cut out from the animation (so `is_animating`) changes to `false`, but
-       the `hook_animation_stop` and `wait_animation` continue linked to the underlying animation
+       the `hook_animation_stop` and `wait_animation` continue linked to the underlying animation.
+
+       This limitation was already present before the rewrite.
     */
 
     /// If the variable current value was set by an active animation.

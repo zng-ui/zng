@@ -183,10 +183,10 @@ impl<T: VarValue> From<ContextVar<T>> for AnyVar {
         v.as_any().clone()
     }
 }
-struct ContextVarImpl(&'static ContextLocal<AnyVar>); // !!: TODO if the context var value is itself contextualized it needs to keyed to context
+struct ContextVarImpl(&'static ContextLocal<AnyVar>);
 impl fmt::Debug for ContextVarImpl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("ContextVar").finish_non_exhaustive() // !!: TODO add context var name
+        f.debug_tuple("ContextVar").finish_non_exhaustive() // TODO add context var name
     }
 }
 impl VarImpl for ContextVarImpl {

@@ -430,7 +430,45 @@ impl<T: VarValue> Var<T> {
         Var::new_any(mapping)
     }
 
-    /// !!: TODO docs
+    /// Create a bidirectional mapping variable that modifies back instead of mapping back.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// # use zng_var::*;
+    /// # use zng_txt::*;
+    /// let list_var = var(vec!['a', 'b', 'c']);
+    /// let first_var = n_var.map_bidi(
+    ///     // map:
+    ///     |l| l.first().copied().unwrap_or('_'),
+    ///     // modify_back:    
+    ///     |c, l| if l.is_empty() { l.push(*c) } else { m[0] = *c }
+    /// );
+    /// ```
+    ///
+    /// In the example above the `first_var` represents the first item on the vector in `list_var`. Note that the `map` closure
+    /// works the same as in [`map_bidi`], but the `modify_back` closure modifies the list. This is not a mapping that can be declared
+    /// with [`map_bidi`] as the mapping variable does not have the full list to map back.
+    ///
+    /// # Capabilities
+    ///
+    /// If this variable is static the `map` closure is called immediately and dropped, the mapping variable is also static,
+    /// the `modify_back` closure is ignored.
+    ///
+    /// If this variable is a shared reference the `map` closure is called immediately to init the mapping variable.
+    /// The mapping variable is another shared reference and it holds a strong reference to this variable.
+    /// The `map` closure is called again for every update of this variable that is not caused by the mapping variable.
+    /// The `modify_back` closure is called for every update of the mapping variable that was not caused by this variable.
+    ///
+    /// If this variable is contextual the initial `map` call is deferred until first usage of the mapping variable. The
+    /// mapping variable is also contextual and will init for every context it is used in.
+    ///
+    /// Like other mappings and bindings cyclic updates are avoided automatically, if the `modify_back` closure touches/updates the value
+    /// a var instance tag is inserted after the closure returns, you do not need to mark it manually.
+    ///
+    /// [`map_bidi`]: Self::map_bidi
     pub fn map_bidi_modify<O: VarValue>(
         &self,
         mut map: impl FnMut(&T) -> O + Send + 'static,
@@ -562,51 +600,147 @@ impl<T: VarValue> Var<T> {
 impl<T: VarValue> Var<T> {
     /// Bind `other` to receive the new values from this variable.
     ///
-    /// !!: TODO docs
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// # use zng_var::*;
+    /// #
+    /// let a = var(10);
+    /// let b = var(0);
+    ///
+    /// a.bind(&b).perm();
+    /// ```
+    ///
+    /// In the example above the variable `b` will be set every time the variable `a` updates. Note that the current
+    /// value is not propagated, only updates. You can use [`set_bind`] to assign the current value and bind.
+    ///
+    /// # Capabilities
+    ///
+    /// If this variable is const or the other variable is always read-only does nothing and returns a dummy handle.
+    ///
+    /// If any variable is contextual the binding is set on the current context inner variable.
+    ///
+    /// Neither variable holds the other, only a weak reference is used, if either variable or the handle is dropped the binding
+    /// is dropped.
+    ///
+    /// [`set_bind`]: Self::set_bind
     pub fn bind(&self, other: &Var<T>) -> VarHandle {
         self.any.bind(other)
     }
 
     /// Like [`bind`] but also sets `other` to the current value.
     ///
-    /// !!: TODO docs
+    /// Basic usage:
+    ///
+    /// ```
+    /// # use zng_var::*;
+    /// #
+    /// let a = var(10);
+    /// let b = var(0);
+    ///
+    /// a.set_bind(&b).perm();
+    /// ```
+    ///
+    /// In the example above the variable `b` will be set to the current value of `a` and every time the variable `a` updates.
+    ///
+    /// # Capabilities
+    ///
+    /// If this variable is const or the other variable is always read-only does nothing and returns a dummy handle.
+    ///
+    /// If any variable is contextual the binding is set on the current context inner variable.
+    ///
+    /// Neither variable holds the other, only a weak reference is used, if either variable or the handle is dropped the binding
+    /// is dropped.
     ///
     /// [`bind`]: Self::bind
     pub fn set_bind(&self, other: &Var<T>) -> VarHandle {
         self.any.set_bind(other)
     }
 
-    /// Bind strongly typed `other` to receive the new values mapped from this variable.
+    /// Bind `other` to receive the new values mapped from this variable.
     ///
-    /// !!: TODO docs
+    /// This has the same capabilities as [`bind`], but the `map` closure is called to produce the new value for `other`.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// # use zng_var::*;
+    /// # use zng_txt::*;
+    /// let a = var(10);
+    /// let b = var(Txt::from(""));
+    ///
+    /// a.bind_map(&b, |&a| formatx!("{:?}", a * 2)).perm();
+    /// ```
+    ///
+    /// In the example above every time the variable `a` updates the variable `b` will be set to the text representation of the value times two.
+    ///
+    /// [`bind`]: Self::bind
     pub fn bind_map<O: VarValue>(&self, other: &Var<O>, mut map: impl FnMut(&T) -> O + Send + 'static) -> VarHandle {
         self.any.bind_map(other, move |v| map(v.downcast_ref::<T>().unwrap()))
     }
 
     /// Like [`bind_map`] but also sets `other` to the current value.
     ///
-    /// !!: TODO docs
+    /// This has the same capabilities as [`set_bind`], but the `map` closure is called to produce the new value for `other`.
     ///
     /// [`bind_map`]: Self::bind_map
+    /// [`set_bind`]: Self::set_bind
     pub fn set_bind_map<O: VarValue>(&self, other: &Var<O>, mut map: impl FnMut(&T) -> O + Send + 'static) -> VarHandle {
         self.any.set_bind_map(other, move |v| map(v.downcast_ref::<T>().unwrap()))
     }
 
-    /// !!: TODO docs
+    /// Bind `other` to be modified when this variable updates.
+    ///
+    /// This has the same capabilities as [`bind`], but the `modify` closure is called to modify `other` using a reference to the new value.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// # use zng_var::*;
+    /// #
+    /// let a = var(10);
+    /// let b = var(vec![1, 2, 3]);
+    /// a.bind_modify(&b, |&a, b| {
+    ///     if b.is_empty() {
+    ///         b.push(a);
+    ///     } else {
+    ///         b[0] = a;
+    ///     }
+    /// }).perm();
+    /// ```
+    ///
+    /// In the example above the variable `b` first element is set to the updated value of `a`.
+    ///
+    /// [`bind`]: Self::bind
     pub fn bind_modify<O: VarValue>(&self, other: &Var<O>, mut modify: impl FnMut(&T, &mut VarModify<O>) + Send + 'static) -> VarHandle {
         self.any.bind_modify(other, move |v, m| modify(v.downcast_ref::<T>().unwrap(), m))
     }
 
     /// Bind `other` to receive the new values from this variable and this variable to receive new values from `other`.
     ///
-    /// !!: TODO docs
+    /// # Capabilities
+    ///
+    /// This has the same capabilities as [`bind`], it is equivalent of setting two bindings.
+    ///
+    /// The bindings are protected against cyclic updates, like all other mappings and bindings.
+    ///
+    /// [`bind`]: Self::bind
     pub fn bind_bidi(&self, other: &Var<T>) -> VarHandles {
         self.any.bind_bidi(other)
     }
 
     /// Bind `other` to receive the new mapped values from this variable and this variable to receive new mapped values from `other`.
     ///
-    /// !!: TODO docs
+    /// This has the same capabilities as [`bind_bidi`], but the `map` closure is called to produce the new value for `other`
+    /// and `map_back` is called to produce the new value for this variable.
+    ///
+    /// [`bind_bidi`]: Self::bind_bidi
     pub fn bind_map_bidi<O: VarValue>(
         &self,
         other: &Var<O>,
@@ -622,9 +756,10 @@ impl<T: VarValue> Var<T> {
 
     /// Bind `other` to be modified when this variable updates and this variable to be modified when `other` updates.
     ///
-    /// See [`bind_modify_bidi`] for more details about modify bindings.
+    /// This has the same capabilities as [`bind_bidi`], but the `modify` closure is called to modify `other`
+    /// and `modify_back` is called to modify this variable.
     ///
-    /// [`bind_modify_bidi`]: Var::bind_modify_bidi
+    /// [`bind_bidi`]: Self::bind_bidi
     pub fn bind_modify_bidi<O: VarValue>(
         &self,
         other: &Var<O>,
@@ -638,9 +773,11 @@ impl<T: VarValue> Var<T> {
         )
     }
 
-    /// Bind strongly typed `other` to receive the new values filtered mapped from this variable.
+    /// Bind `other` to receive the new values filtered mapped from this variable.
     ///
-    /// !!: TODO docs
+    /// This has the same capabilities as [`bind_map`], except that `other` will only receive a new value if `map` returns a value.
+    ///
+    /// [`bind_map`]: Self::bind_map
     pub fn bind_filter_map<O: VarValue>(&self, other: &Var<O>, mut map: impl FnMut(&T) -> Option<O> + Send + 'static) -> VarHandle {
         self.any.bind_filter_map(other, move |v| map(v.downcast_ref::<T>().unwrap()))
     }

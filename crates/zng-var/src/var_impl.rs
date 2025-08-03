@@ -374,7 +374,7 @@ impl<'s, 'a, T: VarValue> ops::DerefMut for VarModify<'s, 'a, T> {
 /// the behavior it represents.
 #[derive(Clone, Default)]
 #[must_use = "var handle stops the behavior it represents on drop"]
-pub struct VarHandle(Option<Arc<AtomicBool>>); // !!: TODO, this should drop immediately on last drop, that was the case before 
+pub struct VarHandle(Option<Arc<AtomicBool>>);
 impl PartialEq for VarHandle {
     fn eq(&self, other: &Self) -> bool {
         if let Some(a) = &self.0
@@ -422,7 +422,7 @@ impl VarHandle {
     }
 
     /// Create a [`VarHandles`] collection with `self` and `other`.
-    pub fn with(self, other: Self) -> VarHandles {
+    pub fn chain(self, other: Self) -> VarHandles {
         VarHandles(smallvec::smallvec![self, other])
     }
 }
