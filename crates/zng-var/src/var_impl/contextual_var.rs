@@ -1,7 +1,7 @@
 //! Context dependent unwrapping mapping var
 
 use std::{
-    any::Any,
+    any::{Any, TypeId},
     fmt,
     sync::{Arc, Weak},
 };
@@ -16,14 +16,16 @@ use super::VarCapability;
 
 /// Create a type erased contextualized variable.
 ///
-/// The `context_init` closure must produce variables of the same value type.
+/// The `context_init` closure must produce variables of the same `value_type`. The value type is needed to
+/// avoid contextualizing the variable for calls of [`AnyVar::downcast`] and [`AnyVar::value_type`] that often
+/// happen outside of the variable final context, such as in widget property capture.
 ///
 /// See [`contextual_var`] for more details about contextualized variables.
-pub fn any_contextual_var(context_init: impl FnMut() -> AnyVar + Send + 'static) -> AnyVar {
-    any_contextual_var_impl(smallbox!(ContextInitFnMut(context_init)))
+pub fn any_contextual_var(context_init: impl FnMut() -> AnyVar + Send + 'static, value_type: TypeId) -> AnyVar {
+    any_contextual_var_impl(smallbox!(ContextInitFnMut(context_init)), value_type)
 }
-pub(super) fn any_contextual_var_impl(context_init: ContextInitFn) -> AnyVar {
-    AnyVar(smallbox!(ContextualVar::new(context_init)))
+pub(super) fn any_contextual_var_impl(context_init: ContextInitFn, value_type: TypeId) -> AnyVar {
+    AnyVar(smallbox!(ContextualVar::new(context_init, value_type)))
 }
 
 /// Create a contextualized variable.
@@ -65,7 +67,7 @@ pub(super) fn any_contextual_var_impl(context_init: ContextInitFn) -> AnyVar {
 /// If [`AnyVar::capabilities`] is called in a new context the `context_init` is not called, the capabilities for an unloaded
 /// contextual var is `CONTEXT | MODIFY_CHANGES`, if the context is loaded the inner variable capabilities is included.
 pub fn contextual_var<T: VarValue>(mut context_init: impl FnMut() -> Var<T> + Send + 'static) -> Var<T> {
-    Var::new_any(any_contextual_var(move || context_init().into()))
+    Var::new_any(any_contextual_var(move || context_init().into(), TypeId::of::<T>()))
 }
 
 pub(super) type ContextInitFn = SmallBox<dyn ContextInitFnImpl, smallbox::space::S8>;
@@ -88,7 +90,7 @@ impl Clone for ContextualVar {
     fn clone(&self) -> Self {
         Self {
             init: self.init.clone(),
-            ctx: RwLock::new((no_ctx_var(), ContextInitHandle::no_context())),
+            ctx: RwLock::new((no_ctx_var(self.value_type()), ContextInitHandle::no_context())),
         }
     }
 }
@@ -111,10 +113,10 @@ impl fmt::Debug for ContextualVar {
     }
 }
 impl ContextualVar {
-    pub fn new(init: ContextInitFn) -> Self {
+    pub fn new(init: ContextInitFn, value_type: TypeId) -> Self {
         ContextualVar {
             init: Arc::new(Mutex::new(init)),
-            ctx: RwLock::new((no_ctx_var(), ContextInitHandle::no_context())),
+            ctx: RwLock::new((no_ctx_var(value_type), ContextInitHandle::no_context())),
         }
     }
 
@@ -145,7 +147,13 @@ impl VarImpl for ContextualVar {
     }
 
     fn value_type(&self) -> std::any::TypeId {
-        self.load().0.value_type()
+        let ctx = self.ctx.read();
+        let (var, ctx) = &*ctx;
+        if ctx.is_no_context() {
+            var.with(|v| v.downcast_ref::<NoContext>().unwrap().value_type)
+        } else {
+            var.value_type()
+        }
     }
 
     #[cfg(feature = "type_names")]
@@ -176,7 +184,8 @@ impl VarImpl for ContextualVar {
 
     fn downgrade(&self) -> SmallBox<dyn super::WeakVarImpl, smallbox::space::S2> {
         smallbox!(WeakContextualVar {
-            init: Arc::downgrade(&self.init)
+            init: Arc::downgrade(&self.init),
+            value_type: self.value_type()
         })
     }
 
@@ -239,6 +248,7 @@ impl VarImpl for ContextualVar {
 #[derive(Clone)]
 struct WeakContextualVar {
     init: Weak<Mutex<ContextInitFn>>,
+    value_type: TypeId,
 }
 impl fmt::Debug for WeakContextualVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -258,15 +268,20 @@ impl WeakVarImpl for WeakContextualVar {
         match self.init.upgrade() {
             Some(init) => Some(smallbox!(ContextualVar {
                 init,
-                ctx: RwLock::new((no_ctx_var(), ContextInitHandle::no_context()))
+                ctx: RwLock::new((no_ctx_var(self.value_type), ContextInitHandle::no_context()))
             })),
             None => None,
         }
     }
 }
 
-fn no_ctx_var() -> AnyVar {
-    crate::const_var(()).into()
+fn no_ctx_var(value_type: TypeId) -> AnyVar {
+    crate::const_var(NoContext { value_type }).into()
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct NoContext {
+    value_type: TypeId,
 }
 
 #[derive(Default)]

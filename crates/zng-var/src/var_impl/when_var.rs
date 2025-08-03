@@ -131,11 +131,15 @@ impl AnyWhenVarBuilder {
     }
 
     /// Build the when var.
-    pub fn build(self) -> AnyVar {
-        when_var(self)
+    ///
+    /// The `value_type` is the when var output value type.
+    pub fn build(self, value_type: TypeId) -> AnyVar {
+        when_var(self, value_type)
     }
 
     /// Convert to typed builder.
+    ///
+    /// Note that the type is not checked.
     pub fn into_typed<O: VarValue>(self) -> WhenVarBuilder<O> {
         WhenVarBuilder {
             builder: self,
@@ -214,7 +218,7 @@ impl<O: VarValue> WhenVarBuilder<O> {
 
     /// Build the when var.
     pub fn build(self) -> Var<O> {
-        Var::new_any(self.builder.build())
+        Var::new_any(self.builder.build(TypeId::of::<O>()))
     }
 
     /// Reference the type erased when builder.
@@ -233,9 +237,9 @@ impl<O: VarValue> WhenVarBuilder<O> {
     }
 }
 
-fn when_var(builder: AnyWhenVarBuilder) -> AnyVar {
+fn when_var(builder: AnyWhenVarBuilder, value_type: TypeId) -> AnyVar {
     if builder.is_contextual() {
-        return any_contextual_var_impl(smallbox!(builder));
+        return any_contextual_var_impl(smallbox!(builder), value_type);
     }
     when_var_tail(builder)
 }
@@ -495,7 +499,7 @@ impl WeakVarImpl for WeakWhenVar {
 
 fn when_var_easing<O: VarValue + Transitionable>(builder: AnimatingWhenVarBuilder<O>) -> Var<O> {
     if builder.builder.is_contextual() {
-        let any = any_contextual_var_impl(smallbox!(builder));
+        let any = any_contextual_var_impl(smallbox!(builder), TypeId::of::<O>());
         return Var::new_any(any);
     }
     when_var_easing_tail(builder)

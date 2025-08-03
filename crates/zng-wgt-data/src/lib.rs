@@ -9,7 +9,14 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::{any::Any, collections::HashMap, fmt, mem, num::NonZeroU8, ops, sync::Arc};
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+    fmt, mem,
+    num::NonZeroU8,
+    ops,
+    sync::Arc,
+};
 
 use zng_color::COLOR_SCHEME_VAR;
 use zng_var::{AnyVar, Var, contextual_var};
@@ -346,31 +353,62 @@ pub struct DATA;
 impl DATA {
     /// Require context data of type `T`.
     ///
+    /// See [`get`] for capabilities of the returned var.
+    ///
     /// # Panics
     ///
     /// Panics if the context data is not set to a variable of type `T` on the first usage of the returned variable.
+    ///
+    /// [`get`]: Self::get
     pub fn req<T: VarValue>(&self) -> Var<T> {
         self.get(|| {
             #[cfg(feature = "var_type_names")]
-            panic!("expected DATA of type `{}`, but current context is `{}`", std::any::type_name::<T>(), DATA.get_any().value_type_name());
+            panic!(
+                "expected DATA of type `{}`, but current context is `{}`",
+                std::any::type_name::<T>(),
+                DATA.value_type_name()
+            );
 
             #[cfg(not(feature = "var_type_names"))]
             panic!("expected DATA of a different type");
         })
     }
 
-    /// Get context data of type `T` if the context data is set with the same type, or gets the `fallback` value.
+    /// Gets a var of `T`, if the contextual DATA type is not `T` the `fallback` closure is called to produce a value.
+    ///
+    /// # Capabilities
+    ///
+    /// The returned var is [contextual], it will get the data var in the final context it is used not
+    /// on the context that calls this method.
+    ///
+    /// [contextual]: contextual_var
     pub fn get<T: VarValue>(&self, fallback: impl Fn() -> T + Send + Sync + 'static) -> Var<T> {
         contextual_var(move || DATA_CTX.get_clone().downcast::<T>().unwrap_or_else(|_| const_var(fallback())))
     }
 
-    /// Gets the current context data.
+    /// Get the current context variable.
     ///
-    /// Note that this does not return a contextualizing var like [`get`], it gets the data var in the calling context.
+    /// Note that this is different from [`get`], the return variable is "actualized" on the calling context, not on the first var use context.
     ///
     /// [`get`]: Self::get
     pub fn get_any(&self) -> AnyVar {
         DATA_CTX.get_clone()
+    }
+
+    /// Gets if the current context data type is `T`.
+    pub fn is<T: VarValue>(&self) -> bool {
+        self.value_type() == TypeId::of::<T>()
+    }
+
+    /// Gets the current context value type.
+    pub fn value_type(&self) -> TypeId {
+        DATA_CTX.get_clone().value_type()
+    }
+
+    /// Gets the current context value type name.
+    #[cfg(feature = "var_type_names")]
+    pub fn value_type_name(&self) -> &'static str {
+        DATA_CTX.get_clone().value_type_name()
     }
 
     /// Insert a data note in the current context.

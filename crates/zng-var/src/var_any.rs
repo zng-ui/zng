@@ -339,20 +339,33 @@ impl AnyVar {
     // !! TODO map_modify, tag in hook args
     /// Create a mapping variable from any to any.
     ///
-    /// The mapping variable type is defined by the first call to `map`,
-    /// after that it will panic if the mapped value changes type.
+    /// The `map` closure must only output values of `value_type`, this type is validated in debug builds and
+    /// is necessary for contextualizing variables.
     ///
     /// See [`map`] for more details about mapping variables.
     ///
     /// [`map`]: Var::map
-    pub fn map_any(&self, map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static) -> AnyVar {
+    pub fn map_any(&self, map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static, value_type: TypeId) -> AnyVar {
         let caps = self.capabilities();
+
+        #[cfg(debug_assertions)]
+        let map = {
+            let mut map = map;
+            move |v: &dyn AnyVarValue| {
+                let output = map(v);
+                assert_eq!(value_type, output.type_id(), "map_any value type does not match");
+                output
+            }
+        };
 
         if caps.is_contextual() {
             let me = self.clone();
             let map = Arc::new(Mutex::new(map));
             // clone again inside the context to get a new clear (me as contextual_var)
-            return any_contextual_var(move || me.clone().map_any_tail(clmv!(map, |v| map.lock()(v)), me.capabilities()));
+            return any_contextual_var(
+                move || me.clone().map_any_tail(clmv!(map, |v| map.lock()(v)), me.capabilities()),
+                value_type,
+            );
         }
         self.map_any_tail(map, caps)
     }
@@ -377,11 +390,19 @@ impl AnyVar {
 
     /// Create a deref variable from any to any.
     ///
+    /// The `deref` closure must output references to value of `value_type`, this type is validated in debug builds and
+    /// is necessary for contextualizing variables.
+    ///
     /// See [`map_ref`] for more details about mapping variables.
     ///
     /// [`map_ref`]: Var::map_ref
-    pub fn map_ref_any(&self, deref: impl Fn(&dyn AnyVarValue) -> &(dyn AnyVarValue) + Send + Sync + 'static) -> AnyVar {
-        let mapping = crate::var_impl::map_ref_var::MapRefVar::new(self.clone(), smallbox!(deref));
+    pub fn map_ref_any(
+        &self,
+        deref: impl for<'a> Fn(&'a dyn AnyVarValue) -> &'a (dyn AnyVarValue) + Send + Sync + 'static,
+        value_type: TypeId,
+    ) -> AnyVar {
+        // contextualizing will actualize inside MapRefVar naturally.
+        let mapping = crate::var_impl::map_ref_var::MapRefVar::new(self.clone(), smallbox!(deref), value_type);
         AnyVar(smallbox!(mapping))
     }
 
@@ -393,7 +414,7 @@ impl AnyVar {
     ///
     /// [`map`]: Var::map
     pub fn map<O: VarValue>(&self, mut map: impl FnMut(&dyn AnyVarValue) -> O + Send + 'static) -> Var<O> {
-        let mapping = self.map_any(move |v| BoxAnyVarValue::new(map(v)));
+        let mapping = self.map_any(move |v| BoxAnyVarValue::new(map(v)), TypeId::of::<O>());
         Var::new_any(mapping)
     }
 
@@ -405,7 +426,7 @@ impl AnyVar {
     ///
     /// [`map_ref`]: Var::map_ref
     pub fn map_ref<O: VarValue>(&self, deref: impl Fn(&dyn AnyVarValue) -> &O + Send + Sync + 'static) -> Var<O> {
-        let mapping = self.map_ref_any(move |v| deref(v));
+        let mapping = self.map_ref_any(move |v| deref(v), TypeId::of::<O>());
         Var::new_any(mapping)
     }
 
@@ -435,16 +456,20 @@ impl AnyVar {
         &self,
         map: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
         fallback_init: impl Fn() -> BoxAnyVarValue + Send + 'static,
+        value_type: TypeId,
     ) -> AnyVar {
         let caps = self.capabilities();
 
         if caps.is_contextual() {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, fallback_init)));
-            return any_contextual_var(move || {
-                me.clone()
-                    .filter_map_any_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, || fns.lock().1()), me.capabilities())
-            });
+            return any_contextual_var(
+                move || {
+                    me.clone()
+                        .filter_map_any_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, || fns.lock().1()), me.capabilities())
+                },
+                value_type,
+            );
         }
 
         self.filter_map_any_tail(map, fallback_init, caps)
@@ -503,8 +528,9 @@ impl AnyVar {
         &self,
         deref: impl Fn(&dyn AnyVarValue) -> Option<&dyn AnyVarValue> + Send + Sync + 'static,
         fallback_ref: &'static dyn AnyVarValue,
+        value_type: TypeId,
     ) -> AnyVar {
-        self.map_ref_any(move |v| deref(v).unwrap_or(fallback_ref))
+        self.map_ref_any(move |v| deref(v).unwrap_or(fallback_ref), value_type)
     }
 
     /// Create a strongly typed mapping variable that can skip updates.
@@ -524,6 +550,7 @@ impl AnyVar {
         let mapping = self.filter_map_any(
             move |v| map(v).map(BoxAnyVarValue::new),
             move || BoxAnyVarValue::new(fallback_init()),
+            TypeId::of::<O>(),
         );
         Var::new_any(mapping)
     }
@@ -545,8 +572,8 @@ impl AnyVar {
 
     /// Create a bidirectional mapping variable.
     ///
-    /// The mapping variable type is defined by the first call to `map`,
-    /// after that it will panic if the mapped value changes type.
+    /// The `map` closure must only output values of `value_type`, predefining this type is
+    /// is necessary for contextualizing variables.
     ///
     /// The `map_back` closure must produce values of the same type as this variable, this variable will panic
     /// if map back value is not the same.
@@ -558,16 +585,20 @@ impl AnyVar {
         &self,
         map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
         map_back: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
+        value_type: TypeId,
     ) -> AnyVar {
         let caps = self.capabilities();
 
         if caps.is_contextual() {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, map_back)));
-            return any_contextual_var(move || {
-                me.clone()
-                    .map_bidi_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, |v| fns.lock().1(v)), caps)
-            });
+            return any_contextual_var(
+                move || {
+                    me.clone()
+                        .map_bidi_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, |v| fns.lock().1(v)), caps)
+                },
+                value_type,
+            );
         }
 
         self.map_bidi_tail(map, map_back, caps)
@@ -606,15 +637,17 @@ impl AnyVar {
         &self,
         deref: impl Fn(&dyn AnyVarValue) -> &(dyn AnyVarValue) + Send + Sync + 'static,
         deref_mut: impl Fn(&mut dyn AnyVarValue) -> &mut (dyn AnyVarValue) + Send + Sync + 'static,
+        value_type: TypeId,
     ) -> AnyVar {
-        let mapping = crate::var_impl::map_ref_bidi_var::MapBidiRefVar::new(self.clone(), smallbox!(deref), smallbox!(deref_mut));
+        let mapping =
+            crate::var_impl::map_ref_bidi_var::MapBidiRefVar::new(self.clone(), smallbox!(deref), smallbox!(deref_mut), value_type);
         AnyVar(smallbox!(mapping))
     }
 
     /// Create a bidirectional mapping variable that can skip updates.
     ///
-    /// The mapping variable type is defined by the first call to `map`,
-    /// after that it will panic if the mapped value changes type.
+    /// The `map` closure must only output values of `value_type`, predefining this type is
+    /// is necessary for contextualizing variables.
     ///
     /// The `map_back` closure must produce values of the same type as this variable, this variable will panic
     /// if map back value is not the same.
@@ -627,20 +660,24 @@ impl AnyVar {
         map: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
         map_back: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
         fallback_init: impl Fn() -> BoxAnyVarValue + Send + 'static,
+        value_type: TypeId,
     ) -> AnyVar {
         let caps = self.capabilities();
 
         if caps.is_contextual() {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, map_back, fallback_init)));
-            return any_contextual_var(move || {
-                me.clone().filter_map_bidi_tail(
-                    clmv!(fns, |v| fns.lock().0(v)),
-                    clmv!(fns, |v| fns.lock().1(v)),
-                    clmv!(fns, || fns.lock().2()),
-                    caps,
-                )
-            });
+            return any_contextual_var(
+                move || {
+                    me.clone().filter_map_bidi_tail(
+                        clmv!(fns, |v| fns.lock().0(v)),
+                        clmv!(fns, |v| fns.lock().1(v)),
+                        clmv!(fns, || fns.lock().2()),
+                        caps,
+                    )
+                },
+                value_type,
+            );
         }
 
         self.filter_map_bidi_tail(map, map_back, fallback_init, caps)
@@ -675,8 +712,26 @@ impl AnyVar {
     /// See [`flat_map`] for more details about flat mapping variables.
     ///
     /// [`flat_map`]: Var::flat_map
-    pub fn flat_map_any(&self, map: impl FnMut(&dyn AnyVarValue) -> AnyVar + Send + 'static) -> AnyVar {
-        let mapping = crate::var_impl::flat_map_var::FlatMapVar::new(self.clone(), smallbox!(map));
+    pub fn flat_map_any(&self, map: impl FnMut(&dyn AnyVarValue) -> AnyVar + Send + 'static, value_type: TypeId) -> AnyVar {
+        let caps = self.capabilities();
+
+        if caps.is_contextual() {
+            let me = self.clone();
+            let map = Arc::new(Mutex::new(map));
+            return any_contextual_var(
+                move || me.clone().flat_map_tail(clmv!(map, |v| map.lock()(v)), me.capabilities()),
+                value_type,
+            );
+        }
+
+        self.flat_map_tail(map, caps)
+    }
+    fn flat_map_tail(&self, map: impl FnMut(&dyn AnyVarValue) -> AnyVar + Send + 'static, caps: VarCapability) -> AnyVar {
+        if caps.is_const() {
+            return self.with(map);
+        }
+        let me = self.current_context();
+        let mapping = crate::var_impl::flat_map_var::FlatMapVar::new(me, smallbox!(map));
         AnyVar(smallbox!(mapping))
     }
 
@@ -686,10 +741,13 @@ impl AnyVar {
     ///
     /// [`map`]: Var::map
     pub fn flat_map<O: VarValue>(&self, mut map: impl FnMut(&dyn AnyVarValue) -> Var<O> + Send + 'static) -> Var<O> {
-        let mapping = self.flat_map_any(move |v| {
-            let typed = map(v);
-            typed.into()
-        });
+        let mapping = self.flat_map_any(
+            move |v| {
+                let typed = map(v);
+                typed.into()
+            },
+            TypeId::of::<O>(),
+        );
         Var::new_any(mapping)
     }
 }

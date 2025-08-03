@@ -9,6 +9,7 @@ type DerefFn = SmallBox<dyn for<'a> Fn(&'a dyn AnyVarValue) -> &'a (dyn AnyVarVa
 struct VarData {
     source: AnyVar,
     deref: DerefFn,
+    value_type: TypeId,
 }
 
 #[derive(Clone)]
@@ -22,8 +23,8 @@ impl fmt::Debug for MapRefVar {
     }
 }
 impl MapRefVar {
-    pub(crate) fn new(source: AnyVar, deref: DerefFn) -> Self {
-        Self(Arc::new(VarData { source, deref }))
+    pub(crate) fn new(source: AnyVar, deref: DerefFn, value_type: TypeId) -> Self {
+        Self(Arc::new(VarData { source, deref, value_type }))
     }
 }
 impl VarImpl for MapRefVar {
@@ -36,9 +37,7 @@ impl VarImpl for MapRefVar {
     }
 
     fn value_type(&self) -> TypeId {
-        let mut r = TypeId::of::<()>();
-        self.with(&mut |v| r = v.type_id());
-        r
+        self.0.value_type
     }
 
     #[cfg(feature = "type_names")]
@@ -73,7 +72,11 @@ impl VarImpl for MapRefVar {
 
     fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
         let deref = &*self.0.deref;
-        self.0.source.with(&mut move |value: &dyn AnyVarValue| visitor((deref)(value)));
+        self.0.source.with(&mut move |value: &dyn AnyVarValue| {
+            let value = (deref)(value);
+            debug_assert_eq!(self.0.value_type, value.type_id(), "map_ref_any value type does not match");
+            visitor(value)
+        });
     }
 
     fn get(&self) -> BoxAnyVarValue {
@@ -82,7 +85,9 @@ impl VarImpl for MapRefVar {
         self.0
             .source
             .with(&mut |value: &dyn AnyVarValue| out = Some((deref)(value).clone_boxed()));
-        out.unwrap()
+        let out = out.unwrap();
+        debug_assert_eq!(self.0.value_type, out.type_id(), "map_ref_any value type does not match");
+        out
     }
 
     fn set(&self, _: BoxAnyVarValue) -> bool {

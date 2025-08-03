@@ -43,7 +43,7 @@ macro_rules! merge_var {
 
 use core::fmt;
 use std::{
-    any::Any,
+    any::{Any, TypeId},
     marker::PhantomData,
     ops,
     sync::{Arc, Weak},
@@ -79,7 +79,7 @@ pub fn merge_var_output<O: VarValue>(output: O) -> BoxAnyVarValue {
 
 #[doc(hidden)]
 pub fn merge_var<O: VarValue>(inputs: Box<[AnyVar]>, merge: impl FnMut(&[AnyVar]) -> BoxAnyVarValue + Send + 'static) -> Var<O> {
-    Var::new_any(var_merge_impl(inputs, smallbox!(merge)))
+    Var::new_any(var_merge_impl(inputs, smallbox!(merge), TypeId::of::<O>()))
 }
 
 #[doc(hidden)]
@@ -103,18 +103,21 @@ impl<T: VarValue> MergeInput<Response<T>> for ResponseVar<T> {
     }
 }
 
-fn var_merge_impl(inputs: Box<[AnyVar]>, merge: MergeFn) -> AnyVar {
+fn var_merge_impl(inputs: Box<[AnyVar]>, merge: MergeFn, value_type: TypeId) -> AnyVar {
     if inputs.iter().any(|i| i.capabilities().is_contextual()) {
         let merge = Arc::new(Mutex::new(merge));
-        return any_contextual_var(move || {
-            let mut inputs = inputs.clone();
-            for v in inputs.iter_mut() {
-                if v.capabilities().is_contextual() {
-                    *v = v.current_context();
+        return any_contextual_var(
+            move || {
+                let mut inputs = inputs.clone();
+                for v in inputs.iter_mut() {
+                    if v.capabilities().is_contextual() {
+                        *v = v.current_context();
+                    }
                 }
-            }
-            var_merge_tail(inputs, smallbox!(clmv!(merge, |inputs: &[AnyVar]| { merge.lock()(inputs) })))
-        });
+                var_merge_tail(inputs, smallbox!(clmv!(merge, |inputs: &[AnyVar]| { merge.lock()(inputs) })))
+            },
+            value_type,
+        );
     }
     var_merge_tail(inputs, merge)
 }
@@ -337,6 +340,7 @@ impl<I: VarValue> MergeVarBuilder<I> {
                 });
                 BoxAnyVarValue::new(out)
             }),
+            TypeId::of::<O>(),
         );
         Var::new_any(any)
     }

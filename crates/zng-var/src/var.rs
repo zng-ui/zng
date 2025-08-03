@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{marker::PhantomData, ops, sync::Arc, time::Duration};
+use std::{any::TypeId, marker::PhantomData, ops, sync::Arc, time::Duration};
 
 use crate::{
     AnyVar, AnyVarHookArgs, BoxAnyVarValue, VarHandle, VarHandles, VarImpl, VarIsReadOnlyError, VarModify, VarValue, WeakAnyVar,
@@ -468,6 +468,7 @@ impl<T: VarValue> Var<T> {
         let mapping = self.map_bidi_any(
             move |input| BoxAnyVarValue::new(map(input.downcast_ref::<T>().unwrap())),
             move |output| BoxAnyVarValue::new(map_back(output.downcast_ref::<O>().unwrap())),
+            TypeId::of::<O>(),
         );
         Var::new_any(mapping)
     }
@@ -491,6 +492,7 @@ impl<T: VarValue> Var<T> {
         let mapping = self.any.map_ref_bidi_any(
             move |t| deref(t.downcast_ref::<T>().unwrap()),
             move |t| deref_mut(t.downcast_mut::<T>().unwrap()),
+            TypeId::of::<O>(),
         );
         Var::new_any(mapping)
     }
@@ -566,6 +568,7 @@ impl<T: VarValue> Var<T> {
             move |t| map(t.downcast_ref::<T>().unwrap()).map(BoxAnyVarValue::new),
             move |o| map_back(o.downcast_ref::<O>().unwrap()).map(BoxAnyVarValue::new),
             move || BoxAnyVarValue::new(fallback_init()),
+            TypeId::of::<O>(),
         );
         Var::new_any(mapping)
     }
