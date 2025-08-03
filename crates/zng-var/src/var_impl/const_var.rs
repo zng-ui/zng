@@ -81,7 +81,7 @@ impl<T: VarValue> VarImpl for ConstVar<T> {
     }
 
     fn modify_importance(&self) -> usize {
-        usize::MAX
+        0
     }
 
     fn is_animating(&self) -> bool {
@@ -226,7 +226,7 @@ impl VarImpl for AnyConstVar {
     }
 
     fn modify_importance(&self) -> usize {
-        usize::MAX
+        0
     }
 
     fn is_animating(&self) -> bool {

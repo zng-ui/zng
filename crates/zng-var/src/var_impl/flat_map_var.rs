@@ -27,7 +27,13 @@ pub(crate) struct FlatMapVar(Arc<FlatMapData>);
 impl fmt::Debug for FlatMapVar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut b = f.debug_struct("FlatMapVar");
-
+        b.field("source", &self.0.source);
+        if let Some(c) = self.0.current.try_read() {
+            b.field("current", &c.0);
+        } else {
+            b.field("current", &"<locked>");
+        }
+        b.field("hooks", &self.0.hooks);
         b.finish()
     }
 }
@@ -58,6 +64,14 @@ impl FlatMapVar {
 
                         // FlatMapVar will show as new because `source` just updated, so
                         // notify hooks here to match
+                        data.current.read().0.with(|v| {
+                            data.hooks.notify(&AnyVarHookArgs {
+                                var_instance_tag: VarInstanceTag(Arc::as_ptr(&data) as _),
+                                value: v,
+                                update: args.update,
+                                tags: args.tags,
+                            });
+                        });
                     }
                     // retain hook, we are still alive
                     true
@@ -75,7 +89,12 @@ fn hook_inner_var(data: &Arc<FlatMapData>, mut current: parking_lot::RwLockWrite
     let weak = Arc::downgrade(data);
     let init_handle = current.0.hook(move |args| {
         if let Some(data) = weak.upgrade() {
-            data.hooks.notify(args);
+            data.hooks.notify(&AnyVarHookArgs {
+                var_instance_tag: VarInstanceTag(Arc::as_ptr(&data) as _),
+                value: args.value,
+                update: args.update,
+                tags: args.tags,
+            });
 
             // retain hook to current inner var
             true

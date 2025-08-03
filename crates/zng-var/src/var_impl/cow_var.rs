@@ -104,7 +104,7 @@ impl VarImpl for CowVar {
     }
 
     fn capabilities(&self) -> VarCapability {
-        let mut caps = VarCapability::NEW & VarCapability::MODIFY | VarCapability::SHARE;
+        let mut caps = VarCapability::NEW | VarCapability::MODIFY | VarCapability::SHARE;
         self.0.with(&mut |v| {
             if let Some(s) = v.downcast_ref::<CowVarSource>() {
                 let mut source_caps = s.source.capabilities();
@@ -283,6 +283,7 @@ impl WeakVarImpl for WeakCowVar {
     }
 
     fn upgrade(&self) -> Option<SmallBox<dyn VarImpl, smallbox::space::S2>> {
-        self.0.upgrade()
+        let s = self.0.upgrade_typed()?;
+        Some(smallbox!(CowVar(s)))
     }
 }

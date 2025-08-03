@@ -20,7 +20,7 @@ use crate::{
 };
 
 /// Variable of any type.
-pub struct AnyVar(pub(crate) SmallBox<dyn VarImpl, smallbox::space::S2>); // !! TODO use enum dispatch
+pub struct AnyVar(pub(crate) SmallBox<dyn VarImpl, smallbox::space::S2>); // !!: TODO use enum dispatch
 impl Clone for AnyVar {
     fn clone(&self) -> Self {
         Self(self.0.clone_boxed())
@@ -338,7 +338,6 @@ impl AnyVar {
 }
 /// Value mapping.
 impl AnyVar {
-    // !! TODO map_modify, tag in hook args
     /// Create a mapping variable from any to any.
     ///
     /// The `map` closure must only output values of `value_type`, this type is validated in debug builds and
