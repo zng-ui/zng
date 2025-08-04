@@ -17,7 +17,7 @@ impl VarImpl for ReadOnlyVar {
     }
 
     fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        self.clone_boxed()
+        smallbox!(Self(self.0.current_context()))
     }
 
     fn value_type(&self) -> TypeId {

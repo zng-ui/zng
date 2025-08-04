@@ -127,7 +127,7 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, context_var: ContextVar
         match &op {
             UiNodeOp::Init => {
                 id = Some(ContextInitHandle::new());
-                actual_value = Some(Arc::new(value.clone().current_context().into()));
+                actual_value = Some(Arc::new(value.current_context().into()));
             }
             UiNodeOp::Deinit => {
                 is_deinit = true;

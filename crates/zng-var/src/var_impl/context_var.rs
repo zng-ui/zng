@@ -142,6 +142,7 @@ impl<T: VarValue> ContextVar<T> {
         {
             let var = var.as_ref().expect("context `var` not set");
             assert!(var.value_is::<T>(), "context `var` not of the expected value type `T`");
+            assert!(!var.capabilities().is_contextual(), "context `var` must be current_context");
         }
         self.ctx.with_context_var(var, move || id.with_context(action))
     }
@@ -271,6 +272,7 @@ impl VarImpl for ContextVarImpl {
     }
 
     fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
+        // is already contextualized, but no downside calling current_context again, it just clones
         self.0.get().0.current_context()
     }
 }
