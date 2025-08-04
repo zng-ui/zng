@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix zero sized gradients causing render panic.
+
 * **Breaking** refactor `zng::var` API.
     
     Unified var types to new `Var<T>` and `AnyVar` structs. Variables still behave the same 
@@ -20,7 +22,7 @@
     - Modify methods `Var::{set, update, modify}` now simply DEBUG log if the variable is read-only, 
       use `try_set, try_update, try_modify` to get the error.
 
-* Fix human readable deserialization of `PxConstraints` failing when the `max` field is not set.
+* Fix deserialization of `PxConstraints` failing when the `max` field is not set and format is "human readable".
 
 * **Breaking** Refactor `zng::config::SyncConfig` to use a map of `RawConfigValue` directly.
     - Removed `ConfigMap` trait, now use `SyncConfigBackend` to implement custom formats.

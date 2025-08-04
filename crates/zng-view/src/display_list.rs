@@ -722,35 +722,37 @@ fn display_item_to_webrender(
             tile_size,
             tile_spacing,
         } => {
-            let mut tile_origin = *tile_origin;
-            tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
-            tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
-            let bounds = PxRect::new(
-                -tile_origin + clip_rect.origin.to_vector(),
-                clip_rect.size + tile_origin.to_vector().to_size(),
-            )
-            .to_wr();
+            if !tile_size.is_empty() {
+                let mut tile_origin = *tile_origin;
+                tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
+                tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
+                let bounds = PxRect::new(
+                    -tile_origin + clip_rect.origin.to_vector(),
+                    clip_rect.size + tile_origin.to_vector().to_size(),
+                )
+                .to_wr();
 
-            let clip = sc.clip_chain_id(wr_list);
-            // stops needs to be immediately followed by the gradient, if the clip-chain item
-            // is inserted in the between the stops are lost.
-            wr_list.push_stops(cast_gradient_stops_to_wr(stops));
-            wr_list.push_gradient(
-                &wr::CommonItemProperties {
-                    clip_rect: clip_rect.to_wr(),
-                    clip_chain_id: clip,
-                    spatial_id: sc.spatial_id(),
-                    flags: sc.primitive_flags(),
-                },
-                bounds,
-                wr::Gradient {
-                    start_point: start_point.cast_unit(),
-                    end_point: end_point.cast_unit(),
-                    extend_mode: extend_mode.to_wr(),
-                },
-                tile_size.to_wr(),
-                tile_spacing.to_wr(),
-            )
+                let clip = sc.clip_chain_id(wr_list);
+                // stops needs to be immediately followed by the gradient, if the clip-chain item
+                // is inserted in the between the stops are lost.
+                wr_list.push_stops(cast_gradient_stops_to_wr(stops));
+                wr_list.push_gradient(
+                    &wr::CommonItemProperties {
+                        clip_rect: clip_rect.to_wr(),
+                        clip_chain_id: clip,
+                        spatial_id: sc.spatial_id(),
+                        flags: sc.primitive_flags(),
+                    },
+                    bounds,
+                    wr::Gradient {
+                        start_point: start_point.cast_unit(),
+                        end_point: end_point.cast_unit(),
+                        extend_mode: extend_mode.to_wr(),
+                    },
+                    tile_size.to_wr(),
+                    tile_spacing.to_wr(),
+                )
+            }
         }
         DisplayItem::RadialGradient {
             clip_rect,
@@ -764,35 +766,37 @@ fn display_item_to_webrender(
             tile_size,
             tile_spacing,
         } => {
-            let mut tile_origin = *tile_origin;
-            tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
-            tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
-            let bounds = PxRect::new(
-                -tile_origin + clip_rect.origin.to_vector(),
-                clip_rect.size + tile_origin.to_vector().to_size(),
-            )
-            .to_wr();
+            if !tile_size.is_empty() {
+                let mut tile_origin = *tile_origin;
+                tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
+                tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
+                let bounds = PxRect::new(
+                    -tile_origin + clip_rect.origin.to_vector(),
+                    clip_rect.size + tile_origin.to_vector().to_size(),
+                )
+                .to_wr();
 
-            let clip = sc.clip_chain_id(wr_list);
-            wr_list.push_stops(cast_gradient_stops_to_wr(stops));
-            wr_list.push_radial_gradient(
-                &wr::CommonItemProperties {
-                    clip_rect: clip_rect.to_wr(),
-                    clip_chain_id: clip,
-                    spatial_id: sc.spatial_id(),
-                    flags: sc.primitive_flags(),
-                },
-                bounds,
-                wr::RadialGradient {
-                    center: center.cast_unit(),
-                    radius: radius.cast_unit(),
-                    start_offset: *start_offset,
-                    end_offset: *end_offset,
-                    extend_mode: extend_mode.to_wr(),
-                },
-                tile_size.to_wr(),
-                tile_spacing.to_wr(),
-            )
+                let clip = sc.clip_chain_id(wr_list);
+                wr_list.push_stops(cast_gradient_stops_to_wr(stops));
+                wr_list.push_radial_gradient(
+                    &wr::CommonItemProperties {
+                        clip_rect: clip_rect.to_wr(),
+                        clip_chain_id: clip,
+                        spatial_id: sc.spatial_id(),
+                        flags: sc.primitive_flags(),
+                    },
+                    bounds,
+                    wr::RadialGradient {
+                        center: center.cast_unit(),
+                        radius: radius.cast_unit(),
+                        start_offset: *start_offset,
+                        end_offset: *end_offset,
+                        extend_mode: extend_mode.to_wr(),
+                    },
+                    tile_size.to_wr(),
+                    tile_spacing.to_wr(),
+                )
+            }
         }
         DisplayItem::ConicGradient {
             clip_rect,
@@ -806,35 +810,37 @@ fn display_item_to_webrender(
             tile_size,
             tile_spacing,
         } => {
-            let mut tile_origin = *tile_origin;
-            tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
-            tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
-            let bounds = PxRect::new(
-                -tile_origin + clip_rect.origin.to_vector(),
-                clip_rect.size + tile_origin.to_vector().to_size(),
-            )
-            .to_wr();
+            if !tile_size.is_empty() {
+                let mut tile_origin = *tile_origin;
+                tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
+                tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
+                let bounds = PxRect::new(
+                    -tile_origin + clip_rect.origin.to_vector(),
+                    clip_rect.size + tile_origin.to_vector().to_size(),
+                )
+                .to_wr();
 
-            let clip = sc.clip_chain_id(wr_list);
-            wr_list.push_stops(cast_gradient_stops_to_wr(stops));
-            wr_list.push_conic_gradient(
-                &wr::CommonItemProperties {
-                    clip_rect: clip_rect.to_wr(),
-                    clip_chain_id: clip,
-                    spatial_id: sc.spatial_id(),
-                    flags: sc.primitive_flags(),
-                },
-                bounds,
-                wr::ConicGradient {
-                    center: center.cast_unit(),
-                    angle: angle.0,
-                    start_offset: *start_offset,
-                    end_offset: *end_offset,
-                    extend_mode: extend_mode.to_wr(),
-                },
-                tile_size.to_wr(),
-                tile_spacing.to_wr(),
-            )
+                let clip = sc.clip_chain_id(wr_list);
+                wr_list.push_stops(cast_gradient_stops_to_wr(stops));
+                wr_list.push_conic_gradient(
+                    &wr::CommonItemProperties {
+                        clip_rect: clip_rect.to_wr(),
+                        clip_chain_id: clip,
+                        spatial_id: sc.spatial_id(),
+                        flags: sc.primitive_flags(),
+                    },
+                    bounds,
+                    wr::ConicGradient {
+                        center: center.cast_unit(),
+                        angle: angle.0,
+                        start_offset: *start_offset,
+                        end_offset: *end_offset,
+                        extend_mode: extend_mode.to_wr(),
+                    },
+                    tile_size.to_wr(),
+                    tile_spacing.to_wr(),
+                )
+            }
         }
         DisplayItem::Line {
             clip_rect,
