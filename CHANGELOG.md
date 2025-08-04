@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `accepts_enter` and `accepts_tag` in text editor widgets. 
 * Fix zero sized gradients causing render panic.
 
 * **Breaking** refactor `zng::var` API.

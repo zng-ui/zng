@@ -30,7 +30,7 @@ use zng_wgt::prelude::*;
 use zng_wgt_scroll::{SCROLL, cmd::ScrollToMode};
 
 use crate::{
-    ACCEPTS_ENTER_VAR, ACCEPTS_TAB_VAR, AUTO_SELECTION_VAR, AutoSelection, FONT_FAMILY_VAR, FONT_FEATURES_VAR, FONT_SIZE_VAR,
+    ACCEPTS_ENTER_VAR, AUTO_SELECTION_VAR, AutoSelection, FONT_FAMILY_VAR, FONT_FEATURES_VAR, FONT_SIZE_VAR,
     FONT_STRETCH_VAR, FONT_STYLE_VAR, FONT_VARIATIONS_VAR, FONT_WEIGHT_VAR, HYPHEN_CHAR_VAR, HYPHENS_VAR, IME_UNDERLINE_THICKNESS_VAR,
     JUSTIFY_MODE_VAR, LETTER_SPACING_VAR, LINE_BREAK_VAR, LINE_HEIGHT_VAR, LINE_SPACING_VAR, OBSCURE_TXT_VAR, OBSCURING_CHAR_VAR,
     OVERLINE_THICKNESS_VAR, STRIKETHROUGH_THICKNESS_VAR, TAB_LENGTH_VAR, TEXT_ALIGN_VAR, TEXT_EDITABLE_VAR, TEXT_OVERFLOW_ALIGN_VAR,
@@ -985,18 +985,6 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
         if args.state == KeyState::Pressed {
             if args.target.widget_id() == widget.id() {
                 match &args.key {
-                    Key::Tab => {
-                        if editable && args.modifiers.is_empty() && ACCEPTS_TAB_VAR.get() {
-                            args.propagation().stop();
-                            TEXT.resolve().selection_by = SelectionBy::Keyboard;
-                        }
-                    }
-                    Key::Enter => {
-                        if editable && args.modifiers.is_empty() && ACCEPTS_ENTER_VAR.get() {
-                            args.propagation().stop();
-                            TEXT.resolve().selection_by = SelectionBy::Keyboard;
-                        }
-                    }
                     Key::ArrowRight => {
                         let mut modifiers = args.modifiers;
                         let select = selectable && modifiers.take_shift();
