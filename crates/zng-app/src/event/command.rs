@@ -1229,9 +1229,6 @@ impl CommandMeta<'_> {
 /// If you get this variable from an app scoped command it sets
 /// the value for all scopes. If you get this variable using a scoped command,
 /// it is a clone-on-write variable that overrides only the value for the scope.
-///
-/// [`ArcVar<T>`]: zng_var::ArcVar
-/// [`ArcCowVar<T, ArcVar<T>>`]: zng_var::types::ArcCowVar
 pub type CommandMetaVar<T> = Var<T>;
 
 /// Read-only command metadata variable.

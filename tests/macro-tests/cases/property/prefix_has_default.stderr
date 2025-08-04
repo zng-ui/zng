@@ -1,20 +1,11 @@
-error[E0277]: the trait bound `ArcVar<bool>: IntoVar<u32>` is not satisfied
+error[E0277]: the trait bound `zng::var::Var<bool>: IntoVar<u32>` is not satisfied
   --> cases/property/prefix_has_default.rs:10:53
    |
 9  | #[property(CONTEXT)]
    | -------------------- required by a bound introduced by this call
 10 | pub fn has_state_invalid(child: impl UiNode, state: impl IntoVar<u32>) -> impl UiNode {
-   |                                                     ^^^^ the trait `IntoVar<u32>` is not implemented for `ArcVar<bool>`
+   |                                                     ^^^^ the trait `IntoVar<u32>` is not implemented for `zng::var::Var<bool>`
    |
    = note: `IntoVar<T>` is implemented for all `T: VarValue`
-   = note: `IntoVar<T>` is implemented for all `V: Var<T>`
-   = help: the trait `IntoVar<u32>` is not implemented for `ArcVar<bool>`
-           but trait `IntoVar<bool>` is implemented for it
-   = help: for that trait implementation, expected `bool`, found `u32`
-note: required by a bound in `has_state_invalid_::args`
-  --> cases/property/prefix_has_default.rs:10:58
-   |
-9  | #[property(CONTEXT)]
-   | -------------------- required by a bound in this associated function
-10 | pub fn has_state_invalid(child: impl UiNode, state: impl IntoVar<u32>) -> impl UiNode {
-   |                                                          ^^^^^^^^^^^^ required by this bound in `has_state_invalid_::args`
+   = note: `IntoVar<T>` is implemented for `Var<T>`, `ContextVar<T>` and others
+   = help: the following other types implement trait `IntoVar<T>`:

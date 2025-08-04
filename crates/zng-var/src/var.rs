@@ -305,11 +305,11 @@ impl<T: VarValue> Var<T> {
         self.map(ToTxt::to_txt)
     }
 
-    /// Create a [`map`] that references and clones `O` from `T` using [`std::ops::Deref<Target = O>`].
+    /// Create a [`map`] that references and clones `O` from `T` using `std::ops::Deref<Target = O>`.
     ///
     /// The mapping variable is read-only, see [`map_deref_mut`] for mutable referencing.
     ///
-    /// [`map_ref`]: Self::map_ref
+    /// [`map`]: Self::map
     /// [`map_deref_mut`]: Self::map_deref_mut
     pub fn map_deref<O>(&self) -> Var<O>
     where
@@ -493,8 +493,8 @@ impl<T: VarValue> Var<T> {
         self.map_bidi(|t| t.clone().into(), |o| o.clone().into())
     }
 
-    /// Create a [`map_bidi_modify`] that references and clones `O` from `T` using [`std::ops::Deref<Target = O>`] and
-    /// modifies back using [`std::ops::DerefMut<Target = O>`].
+    /// Create a [`map_bidi_modify`] that references and clones `O` from `T` using `std::ops::Deref<Target = O>` and
+    /// modifies back using `std::ops::DerefMut<Target = O>`.
     ///
     /// [`map_bidi_modify`]: Self::map_bidi_modify
     pub fn map_deref_mut<O>(&self) -> Var<O>
@@ -587,11 +587,11 @@ impl<T: VarValue> Var<T> {
     /// If this variable is contextual the initial `map` call is deferred until first usage of the mapping variable. The
     /// mapping variable is also contextual and will init for every context it is used in.
     ///
-    /// The mapping variable has the same capabilities of the inner variable, plus [`CAPS_CHANGE`]. When the inner variable
+    /// The mapping variable has the same capabilities of the inner variable, plus [`MODIFY_CHANGES`]. When the inner variable
     /// is writeable the return variable is too.
     ///
     /// [`map`]: Var::map
-    /// [`CAPS_CHANGE`]: crate::VarCapability::CAPS_CHANGE
+    /// [`MODIFY_CHANGES`]: crate::VarCapability::MODIFY_CHANGES
     pub fn flat_map<O: VarValue>(&self, mut map: impl FnMut(&T) -> Var<O> + Send + 'static) -> Var<O> {
         self.any.flat_map(move |v| map(v.downcast_ref::<T>().unwrap()))
     }
@@ -1190,7 +1190,7 @@ impl<T: VarValue> Var<T> {
     /// Returns an [`AnimationHandle`]. See [`Var::animate`] for details about animations.
     ///
     /// [`is_animating`]: AnyVar::is_animating
-    /// [`AnimationHandle`]: animation::AnimationHandle
+    /// [`AnimationHandle`]: crate::animation::AnimationHandle
     pub fn steps(
         &self,
         steps: Vec<(Factor, T)>,
@@ -1243,7 +1243,7 @@ impl<T: VarValue> Var<T> {
     ///
     /// If `self` can change the output variable will keep it alive.
     ///
-    /// [contextualized]: types::ContextualizedVar
+    /// [contextualized]: crate::contextual_var
     /// [`ease`]: Var::ease
     /// [`map`]: Var::map
     pub fn easing(&self, duration: Duration, easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Var<T>
@@ -1468,7 +1468,7 @@ impl<T: VarValue> Var<T> {
     /// If this variable is [`CONTEXT`] returns a clone of the inner variable,
     /// otherwise returns a clone of this variable.
     ///
-    /// [`CONTEXT`]: VarCapability::CONTEXT
+    /// [`CONTEXT`]: crate::VarCapability::CONTEXT
     pub fn current_context(&self) -> Var<T> {
         Var::new_any(self.any.current_context())
     }
@@ -1477,7 +1477,7 @@ impl<T: VarValue> Var<T> {
     ///
     /// If this variable is [`SHARE`] compares the *pointer*. If this variable is local this is always `false`.
     ///
-    /// [`SHARE`]: VarCapability::SHARE
+    /// [`SHARE`]: crate::VarCapability::SHARE
     pub fn var_eq(&self, other: &Self) -> bool {
         self.any.var_eq(&other.any)
     }

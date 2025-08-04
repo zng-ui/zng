@@ -543,11 +543,11 @@ impl HotReloadService {
             std::fs::copy(&build_path, &unique_path)?;
 
             let dylib = zng_task::wait(move || HotLib::new(&static_patch, manifest_dir, unique_path));
-            match zng_task::with_deadline(dylib, 2.secs()).await {
+            match zng_task::with_deadline(dylib, 10.secs()).await {
                 Ok(r) => r.map_err(Into::into),
                 Err(_) => Err(BuildError::Io(Arc::new(io::Error::new(
                     io::ErrorKind::TimedOut,
-                    "hot dylib did not init after 2s",
+                    "hot dylib did not init after 10s",
                 )))),
             }
         }));

@@ -709,7 +709,7 @@ impl<A: Clone + 'static> WidgetHandler<A> for WhenWidgetHandler<A> {
 /// See [`PropertyNewArgs::build_actions`] for more details.
 pub type PropertyBuildActions = Vec<Vec<Box<dyn AnyPropertyBuildAction>>>;
 
-/// Data for property build actions associated with when conditions.
+/// Data for property build actions associated with when condition assigns.
 ///
 /// See [`PropertyNewArgs::build_actions_when_data`] for more details.
 pub type PropertyBuildActionsWhenData = Vec<Vec<Option<WhenBuildActionData>>>;
@@ -724,7 +724,7 @@ pub struct PropertyNewArgs {
     ///
     /// | Kind                | Expected Type
     /// |---------------------|-------------------------------------------------
-    /// | [`Var`]             | `Box<Var<T>>` or `Box<VarWhenAnyBuilder>`
+    /// | [`Var`]             | `Box<AnyVar>` or `Box<AnyWhenVarBuilder>`
     /// | [`Value`]           | `Box<T>`
     /// | [`UiNode`]          | `Box<ArcNode<BoxedUiNode>>` or `Box<WhenUiNodeBuilder>`
     /// | [`UiNodeList`]      | `Box<ArcNodeList<BoxedUiNodeList>>` or `Box<WhenUiNodeListBuilder>`
@@ -1038,7 +1038,7 @@ pub fn iter_input_build_actions<'a>(
 
     std::iter::from_fn(move || {
         let action = &*actions.next()?[index];
-        let data = if let Some(data) = data.next() { &data[..] } else { &[None] };
+        let data = if let Some(data) = data.next() { &data[..] } else { &[] };
 
         Some((action, data))
     })
@@ -1071,7 +1071,10 @@ pub fn new_dyn_var<'a, T: VarValue>(
 
     let item = match item.downcast::<AnyWhenVarBuilder>() {
         Ok(builder) => builder.into_typed::<T>().build(),
-        Err(item) => *item.downcast::<Var<T>>().expect("input did not match expected var types"),
+        Err(item) => {
+            let any = *item.downcast::<AnyVar>().expect("input did not match expected var types");
+            any.downcast::<T>().expect("input did not match expected var types")
+        }
     };
 
     apply_build_actions(item, actions)

@@ -351,7 +351,7 @@ impl<I: VarValue> Default for MergeVarBuilder<I> {
     }
 }
 
-/// Input arguments for the merge closure of [`VarMergeBuilder`] merge vars.
+/// Input arguments for the merge closure of [`MergeVarBuilder`] merge vars.
 pub struct VarMergeInputs<'a, I: VarValue> {
     inputs: &'a [BoxAnyVarValue],
     _type: PhantomData<&'a I>,

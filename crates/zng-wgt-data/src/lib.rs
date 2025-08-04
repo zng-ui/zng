@@ -501,11 +501,8 @@ impl DATA {
     }
 }
 
-#[cfg(feature = "var_type_names")]
 #[derive(Debug, PartialEq, Clone)]
 struct DataContextNotSet;
-#[cfg(not(feature = "var_type_names"))]
-type DataContextNotSet = ();
 
 context_local! {
     static DATA_CTX: AnyVar = const_var(DataContextNotSet);

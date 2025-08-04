@@ -1,4 +1,4 @@
-//! Special Var<Response> type impls
+//! Special `Var<Response>` type impls
 
 use crate::{AnyVar, Var};
 

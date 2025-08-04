@@ -55,7 +55,7 @@
 /// [`Var::get`]: crate::Var::get
 /// [`map`]: crate::Var::map
 /// [`IntoVar`]: crate::IntoVar
-/// [`merge_var!`]: crate::var_merge
+/// [`merge_var!`]: crate::merge_var
 #[macro_export]
 macro_rules! expr_var {
     ($($expr:tt)+) => {

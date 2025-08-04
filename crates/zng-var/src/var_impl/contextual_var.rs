@@ -335,6 +335,7 @@ impl ContextInitHandle {
     /// Panics if the handle [`is_no_context`].
     ///
     /// [`is_no_context`]: Self::is_no_context
+    /// [`ContextVar::with_context`]: crate::ContextVar::with_context
     pub fn with_context<R>(&self, action: impl FnOnce() -> R) -> R {
         let mut opt = self.0.clone();
         CONTEXT_INIT_ID.with_context(&mut opt, action)

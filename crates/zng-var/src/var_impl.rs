@@ -89,12 +89,17 @@ bitflags! {
     /// Kinds of interactions allowed by a [`Var<T>`] in the current update.
     ///
     /// You can get the current capabilities of a var by using the [`AnyVar::capabilities`] method.
+    ///
+    /// [`Var<T>`]: crate::Var
+    /// [`AnyVar::capabilities`]: crate::AnyVar::capabilities
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct VarCapability: u8 {
         /// Variable value can change.
         ///
         /// If this is set the [`AnyVar::is_new`] can be `true` in some updates, a variable can `NEW`
         /// even if it cannot `MODIFY`, in this case the variable is a read-only wrapper on a read-write variable.
+        ///
+        /// [`AnyVar::is_new`]: crate::AnyVar::is_new
         const NEW = 0b0000_0010;
 
         /// Variable can be modified.
@@ -102,6 +107,9 @@ bitflags! {
         /// If this is set [`Var::try_modify`] always returns `Ok`, if this is set `NEW` is also set.
         ///
         /// Note that modify requests from inside overridden animations can still be ignored, see [`AnyVar::modify_importance`].
+        ///
+        /// [`AnyVar::modify_importance`]: crate::AnyVar::modify_importance
+        /// [`Var::try_modify`]: crate::Var::try_modify
         const MODIFY = 0b0000_0011;
 
         /// Var represents different inner variables depending on the context it is used.
@@ -240,6 +248,8 @@ impl<'a> AnyVarModify<'a> {
     /// Note that the modify info is already automatically set, using a custom value here
     /// can easily break all future modify requests for this variable. The importance is set even if the
     /// variable does not update (no actual value change or update request).
+    ///
+    /// [`AnyVar::modify_importance`]: crate::AnyVar::modify_importance
     pub fn set_modify_importance(&mut self, importance: usize) {
         self.custom_importance = Some(importance);
     }
@@ -330,6 +340,8 @@ impl<'s, 'a, T: VarValue> VarModify<'s, 'a, T> {
     /// Note that the modify info is already automatically set, using a custom value here
     /// can easily break all future modify requests for this variable. The importance is set even if the
     /// variable does not update (no actual value change or update request).
+    ///
+    /// [`AnyVar::modify_importance`]: crate::AnyVar::modify_importance
     pub fn set_modify_importance(&mut self, importance: usize) {
         self.inner.set_modify_importance(importance);
     }
@@ -514,6 +526,6 @@ fn value_type_name(var: &dyn VarImpl) -> &'static str {
 }
 #[cfg(not(feature = "type_names"))]
 #[inline(always)]
-fn value_type_name(var: &dyn VarImpl) -> &'static str {
+fn value_type_name(_: &dyn VarImpl) -> &'static str {
     ""
 }

@@ -56,7 +56,7 @@ use crate::{
 ///
 /// If you are only interested in sharing a contextual value you can use the [`context_local!`] macro instead.
 ///
-/// [`context_local!`]: crate::context::context_local
+/// [`context_local!`]: crate::__context_var_local
 #[macro_export]
 macro_rules! context_var {
     ($(
@@ -137,6 +137,7 @@ impl<T: VarValue> ContextVar<T> {
     /// variables may not update their binding, in widgets you must re-init the descendants if you replace the `var`.
     ///
     /// [contextualized]: crate::contextual_var
+    /// [`current_context`]: crate::Var::current_context
     pub fn with_context<R>(self, id: ContextInitHandle, var: &mut Option<Arc<AnyVar>>, action: impl FnOnce() -> R) -> R {
         #[cfg(debug_assertions)]
         {
@@ -155,7 +156,7 @@ impl<T: VarValue> ContextVar<T> {
     /// The `var` is converted into var, the actual var, boxed and placed in a new `Arc`, you can use the [`with_context`]
     /// method to avoid doing this in a hot path.
     ///
-    /// [contextualized]: types::ContextualizedVar
+    /// [contextualized]: crate::contextual_var
     /// [`with_context`]: Self::with_context
     pub fn with_context_var<R>(self, id: ContextInitHandle, var: impl IntoVar<T>, action: impl FnOnce() -> R) -> R {
         let mut var = Some(Arc::new(var.into_var().as_any().current_context()));

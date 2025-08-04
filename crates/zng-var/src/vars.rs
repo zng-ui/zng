@@ -289,7 +289,7 @@ impl VARS {
     /// The controller can start new animations, these animations will have the same controller if not overridden, you can
     /// use this method and the `()` controller to avoid this behavior.
     ///
-    /// [`Animation`]: animation::Animation
+    /// [`Animation`]: crate::animation::Animation
     /// [`VARS.animate`]: VARS::animate
     pub fn with_animation_controller<R>(&self, controller: impl AnimationController, animate: impl FnOnce() -> R) -> R {
         let controller: Box<dyn AnimationController> = Box::new(controller);

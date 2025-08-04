@@ -64,6 +64,7 @@ impl AnyVar {
     /// UI code that is synchronized with app updates, prefer [`wait_update`] in async code.
     ///
     /// [`last_update`]: Self::last_update
+    /// [`wait_update`]: Self::wait_update
     pub fn is_new(&self) -> bool {
         self.last_update() == VARS.update_id()
     }
@@ -126,7 +127,7 @@ impl AnyVar {
 
     /// Schedule `modify` to be called on the value for the next update, if the variable is not read-only.
     ///
-    /// If the [`VarModifyAny`] closure input is deref_mut the variable will notify an update.
+    /// If the [`AnyVarModify`] closure input is deref_mut the variable will notify an update.
     pub fn try_modify(&self, modify: impl FnOnce(&mut AnyVarModify) + Send + 'static) -> Result<(), VarIsReadOnlyError> {
         // can't have a SmallBox<dyn FnOnce> because Rust has special compiler magic for Box<dyn FnOnce>,
         // so we wrap in an Option and FnMut that is only called once.
@@ -148,7 +149,7 @@ impl AnyVar {
 
     /// Schedule `modify` to be called on the value for the next update, if the variable is not read-only.
     ///
-    /// If the [`VarModifyAny`] closure input is deref_mut the variable will notify an update.
+    /// If the [`AnyVarModify`] closure input is deref_mut the variable will notify an update.
     ///
     /// If the variable is read-only this is ignored and a DEBUG level log is recorded.
     /// Use [`try_modify`] to get an error for read-only vars.
@@ -576,7 +577,7 @@ impl AnyVar {
     ///
     /// See [`map_bidi_modify`] for more details about bidirectional mapping variables.
     ///
-    /// [`map_bidi`]: Var::map_bidi
+    /// [`map_bidi_modify`]: Var::map_bidi_modify
     pub fn map_bidi_modify_any(
         &self,
         map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
@@ -716,7 +717,7 @@ impl AnyVar {
     ///
     /// See [`flat_map`] for more details about mapping variables.
     ///
-    /// [`map`]: Var::map
+    /// [`flat_map`]: Var::flat_map
     pub fn flat_map<O: VarValue>(&self, mut map: impl FnMut(&dyn AnyVarValue) -> Var<O> + Send + 'static) -> Var<O> {
         let mapping = self.flat_map_any(
             move |v| {
@@ -1247,7 +1248,7 @@ impl AnyVar {
     ///
     /// [`is_new`]: AnyVar::is_new
     /// [`hook_animation_stop`]: AnyVar::hook_animation_stop
-    /// [`wait_animation`]: Var::wait_animation
+    /// [`wait_animation`]: AnyVar::wait_animation
     pub fn is_animating(&self) -> bool {
         self.0.is_animating()
     }
@@ -1458,7 +1459,7 @@ impl WeakAnyVar {
     }
 }
 
-/// Arguments for [`AnyVar::hook_any`].
+/// Arguments for [`AnyVar::hook`].
 pub struct AnyVarHookArgs<'a> {
     pub(super) var_instance_tag: VarInstanceTag,
     pub(super) value: &'a dyn AnyVarValue,

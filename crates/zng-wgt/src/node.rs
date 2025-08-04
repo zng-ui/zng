@@ -112,7 +112,6 @@ pub use zng_app;
 ///
 /// [`is_new`]: zng_var::AnyVar::is_new
 /// [`read_only`]: zng_var::Var::read_only
-/// [`actual_var`]: zng_var::Var::actual_var
 /// [`default`]: zng_app::widget::property#default
 /// [`merge_var!`]: zng_var::merge_var
 /// [`UiNode`]: zng_app::widget::node::UiNode

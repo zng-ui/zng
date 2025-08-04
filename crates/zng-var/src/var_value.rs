@@ -172,6 +172,8 @@ where
 /// Vars are not allowed to be values directly as that causes type inference issues.
 ///
 /// [`Var<T>`]: crate::Var
+/// [`ResponseVar<Result<_, E>>`]: crate::ResponseVar
+/// [`Var::var_eq`]: crate::Var::var_eq
 pub trait VarValue: AnyVarValue + Clone + PartialEq {}
 impl<T: AnyVarValue + Clone + PartialEq> VarValue for T {}
 
@@ -250,8 +252,7 @@ impl<T: VarValue> PartialEq for VarEq<T> {
 /// The trait is only auto-implemented for `T: Into<T> + VarValue`, unfortunately actual type conversions
 /// must be manually implemented, note that the [`impl_from_and_into_var!`] macro auto-implements this conversion.
 ///
-/// [`Debug`]: std::fmt::Debug
-/// [`impl_from_and_into_var`]: impl_from_and_into_var
+/// [`impl_from_and_into_var!`]: crate::impl_from_and_into_var
 #[diagnostic::on_unimplemented(
     note = "`IntoValue<T>` is implemented for all `T: VarValue`",
     note = "you can use `impl_from_and_into_var!` to implement conversions"

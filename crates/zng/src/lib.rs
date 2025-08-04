@@ -172,7 +172,7 @@
 //! are the most common property input kind, in the example `direction`, `spacing`, `is_pressed` and `txt` all accept
 //! an [`IntoVar<T>`] input that gets converted into a [`Var<T>`] when the property is instantiated.
 //!
-//! There are multiple variable types, they can be a simple static value, a shared observable and modifiable value or a
+//! There are multiple variable kinds, they can be a simple constant value, a shared observable and modifiable value or a
 //! contextual value. Variables can also depend on other variables automatically updating when input variables update.
 //!
 //! ```
@@ -183,7 +183,7 @@
 //!     Text!(txt)
 //! }
 //!
-//! ui("static value");
+//! ui("const value");
 //!
 //! let txt = var(Txt::from("dynamic value"));
 //! ui(txt.clone());
@@ -204,11 +204,11 @@
 //! value of this variable automatically update when any of the interpolated variables update.
 //!
 //! And finally the example demonstrates a context var, `FONT_COLOR_VAR`. Context variables get their value from the
-//! *environment* where they are used, the UI in the example can show different a different text depending on where it is placed.
+//! *environment* where they are used, the UI in the example can show a different text depending on where it is placed.
 //! Context variables are usually encapsulated by properties strongly associated with a widget, most of [`Text!`] properties just
 //! set a context var that affects all text instances in the widget they are placed and descendant widgets.
 //!
-//! There are other useful variable types, see the [var module] module documentation for more details.
+//! There are other useful variable kinds, see the [var module] module documentation for more details.
 //!
 //! [`var`]: var::var
 //! [`expr_var!`]: var::expr_var

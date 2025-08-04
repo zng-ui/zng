@@ -34,7 +34,7 @@ pub trait AnimationTimer {
 ///
 /// See [`VARS.with_animation_controller`] for more details.
 ///
-/// [`VARS.with_animation_controller`]: VARS::with_animation_controller
+/// [`VARS.with_animation_controller`]: crate::VARS::with_animation_controller
 pub trait AnimationController: Send + Sync + Any {
     /// Called for each `animation` that starts in the controller context.
     ///
@@ -72,7 +72,7 @@ context_local! {
 ///
 /// See the [`VARS.animate`] method for more details.
 ///
-/// [`VARS.animate`]: VARS::animate
+/// [`VARS.animate`]: crate::VARS::animate
 #[derive(Clone)]
 pub struct Animation(Arc<Mutex<AnimationData>>);
 struct AnimationData {
@@ -139,7 +139,7 @@ impl Animation {
     /// The animation awakes in the next [`VARS.frame_duration`] after the `duration` elapses. The minimum
     /// possible `duration` is the frame duration, shorter durations behave the same as if not set.
     ///
-    /// [`VARS.frame_duration`]: VARS::frame_duration
+    /// [`VARS.frame_duration`]: crate::VARS::frame_duration
     pub fn sleep(&self, duration: Duration) {
         let mut me = self.0.lock();
         me.sleep = Some(Deadline(me.now + duration));
@@ -160,7 +160,7 @@ impl Animation {
     ///
     /// This should only be used for animations that are component of an app feature, cosmetic animations must not force enable.
     ///
-    /// [`animations_enabled`]: VARS::animations_enabled
+    /// [`animations_enabled`]: crate::VARS::animations_enabled
     pub fn force_enable(&self) {
         let mut me = self.0.lock();
         me.force_enabled = true;
