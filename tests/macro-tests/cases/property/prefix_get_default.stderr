@@ -12,9 +12,9 @@ note: required by a bound in `IntoVar`
    |                      ^^^^^^^^ required by this bound in `IntoVar`
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
    |
-16  + #[derive(PartialEq)]
-17  | pub struct NotDefault {}
-    |
+16 + #[derive(PartialEq)]
+17 | pub struct NotDefault {}
+   |
 
 error[E0277]: can't compare `NotDefault` with `NotDefault`
  --> cases/property/prefix_get_default.rs:9:1

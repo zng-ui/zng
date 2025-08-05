@@ -51,12 +51,12 @@ impl CowVar {
     }
 }
 impl VarImpl for CowVar {
-    fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        smallbox!(Self(self.0.clone()))
+    fn clone_dyn(&self) -> DynAnyVar {
+        DynAnyVar::Cow(Self(self.0.clone()))
     }
 
-    fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        self.clone_boxed()
+    fn current_context(&self) -> DynAnyVar {
+        self.clone_dyn()
     }
 
     fn value_type(&self) -> TypeId {
@@ -88,10 +88,10 @@ impl VarImpl for CowVar {
         self.0.strong_count()
     }
 
-    fn var_eq(&self, other: &dyn Any) -> bool {
-        match other.downcast_ref::<CowVar>() {
-            Some(o) => self.0.var_eq(&o.0),
-            None => false,
+    fn var_eq(&self, other: &DynAnyVar) -> bool {
+        match other {
+            DynAnyVar::Cow(v) => Arc::ptr_eq(&self.0.0, &v.0.0),
+            _ => false,
         }
     }
 
@@ -99,8 +99,8 @@ impl VarImpl for CowVar {
         self.0.var_instance_tag()
     }
 
-    fn downgrade(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(WeakCowVar(self.0.downgrade_typed()))
+    fn downgrade(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::Cow(WeakCowVar(self.0.downgrade_typed()))
     }
 
     fn capabilities(&self) -> VarCapability {
@@ -267,23 +267,22 @@ impl VarImpl for CowVar {
     }
 }
 
-struct WeakCowVar(super::shared_var::WeakSharedVar);
+pub(crate) struct WeakCowVar(super::shared_var::WeakSharedVar);
 impl fmt::Debug for WeakCowVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("WeakCowVar").field(&self.0).finish()
     }
 }
 impl WeakVarImpl for WeakCowVar {
-    fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(Self(self.0.clone()))
+    fn clone_dyn(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::Cow(Self(self.0.clone()))
     }
 
     fn strong_count(&self) -> usize {
         self.0.strong_count()
     }
 
-    fn upgrade(&self) -> Option<SmallBox<dyn VarImpl, smallbox::space::S2>> {
-        let s = self.0.upgrade_typed()?;
-        Some(smallbox!(CowVar(s)))
+    fn upgrade(&self) -> Option<DynAnyVar> {
+        Some(DynAnyVar::Cow(CowVar(self.0.upgrade_typed()?)))
     }
 }

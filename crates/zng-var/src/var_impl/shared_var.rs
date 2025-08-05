@@ -27,7 +27,11 @@ pub fn var_derived<T: VarValue>(initial_value: T, source: &AnyVar) -> Var<T> {
 
 /// New read/write shared reference type-erased variable.
 pub fn any_var(initial_value: BoxAnyVarValue) -> AnyVar {
-    AnyVar(smallbox!(SharedVar::new(initial_value, VarUpdateId::never(), ModifyInfo::never())))
+    AnyVar(DynAnyVar::Shared(SharedVar::new(
+        initial_value,
+        VarUpdateId::never(),
+        ModifyInfo::never(),
+    )))
 }
 
 /// New read/write shared reference type-erased variable that has initial value derived from `source`.
@@ -35,10 +39,10 @@ pub fn any_var(initial_value: BoxAnyVarValue) -> AnyVar {
 /// This function is useful for creating custom mapping outputs, the new variable
 /// starts with the same [`AnyVar::last_update`] and animation handle as the `source`.
 pub fn any_var_derived(initial_value: BoxAnyVarValue, source: &AnyVar) -> AnyVar {
-    AnyVar(smallbox!(SharedVar::new(
+    AnyVar(DynAnyVar::Shared(SharedVar::new(
         initial_value,
         source.0.last_update(),
-        source.0.modify_info()
+        source.0.modify_info(),
     )))
 }
 
@@ -98,12 +102,12 @@ impl SharedVar {
     }
 }
 impl VarImpl for SharedVar {
-    fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        smallbox!(self.clone())
+    fn clone_dyn(&self) -> DynAnyVar {
+        DynAnyVar::Shared(self.clone())
     }
 
-    fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        self.clone_boxed()
+    fn current_context(&self) -> DynAnyVar {
+        self.clone_dyn()
     }
 
     fn value_type(&self) -> TypeId {
@@ -120,10 +124,10 @@ impl VarImpl for SharedVar {
         Arc::strong_count(&self.0)
     }
 
-    fn var_eq(&self, other: &dyn Any) -> bool {
-        match other.downcast_ref::<SharedVar>() {
-            Some(v) => Arc::ptr_eq(&self.0, &v.0),
-            None => false,
+    fn var_eq(&self, other: &DynAnyVar) -> bool {
+        match other {
+            DynAnyVar::Shared(v) => Arc::ptr_eq(&self.0, &v.0),
+            _ => false,
         }
     }
 
@@ -131,8 +135,8 @@ impl VarImpl for SharedVar {
         VarInstanceTag(Arc::as_ptr(&self.0) as usize)
     }
 
-    fn downgrade(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(self.downgrade_typed())
+    fn downgrade(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::Shared(self.downgrade_typed())
     }
 
     fn capabilities(&self) -> VarCapability {
@@ -251,7 +255,7 @@ enum ValueOrModify {
 }
 
 #[derive(Clone)]
-pub(super) struct WeakSharedVar(Weak<VarData>);
+pub(crate) struct WeakSharedVar(Weak<VarData>);
 impl fmt::Debug for WeakSharedVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("WeakSharedVar").field(&self.0.as_ptr()).finish()
@@ -263,19 +267,16 @@ impl WeakSharedVar {
     }
 }
 impl WeakVarImpl for WeakSharedVar {
-    fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(self.clone())
+    fn clone_dyn(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::Shared(self.clone())
     }
 
     fn strong_count(&self) -> usize {
         self.0.strong_count()
     }
 
-    fn upgrade(&self) -> Option<SmallBox<dyn VarImpl, smallbox::space::S2>> {
-        match self.upgrade_typed() {
-            Some(v) => Some(smallbox!(v)),
-            None => None,
-        }
+    fn upgrade(&self) -> Option<DynAnyVar> {
+        Some(DynAnyVar::Shared(self.upgrade_typed()?))
     }
 }
 

@@ -14,7 +14,7 @@ use crate::{
         AnimationHandle, Transitionable,
         easing::{EasingStep, EasingTime},
     },
-    contextual_var::{ContextInitFnImpl, ContextualVar, any_contextual_var_impl},
+    contextual_var::{ContextInitFnImpl, any_contextual_var_impl},
     shared_var::MutexHooks,
 };
 
@@ -151,18 +151,17 @@ impl AnyWhenVarBuilder {
     ///
     /// [`build`]: Self::build
     pub fn try_from_built(var: &AnyVar) -> Option<Self> {
-        let any: &dyn Any = &*var.0;
-        if let Some(built) = any.downcast_ref::<WhenVar>() {
-            Some(Self {
+        match &var.0 {
+            DynAnyVar::When(built) => Some(Self {
                 conditions: built.0.conditions.to_vec(),
                 default: built.0.default.clone(),
-            })
-        } else if let Some(built) = any.downcast_ref::<ContextualVar>() {
-            let init = built.init.lock();
-            let init: &dyn Any = &**init;
-            init.downcast_ref::<Self>().cloned()
-        } else {
-            None
+            }),
+            DynAnyVar::Contextual(built) => {
+                let init = built.0.init.lock();
+                let init: &dyn Any = &**init;
+                init.downcast_ref::<Self>().cloned()
+            }
+            _ => None,
         }
     }
 
@@ -250,7 +249,7 @@ impl ContextInitFnImpl for AnyWhenVarBuilder {
     }
 }
 fn when_var_tail(builder: AnyWhenVarBuilder) -> AnyVar {
-    AnyVar(smallbox!(when_var_tail_impl(builder)))
+    AnyVar(DynAnyVar::When(when_var_tail_impl(builder)))
 }
 fn when_var_tail_impl(builder: AnyWhenVarBuilder) -> WhenVar {
     let data = Arc::new(WhenVarData {
@@ -343,7 +342,7 @@ struct WhenVarData {
     // Atomic<VarUpdateId>
     last_active_change: AtomicU32,
 }
-struct WhenVar(Arc<WhenVarData>);
+pub(crate) struct WhenVar(Arc<WhenVarData>);
 impl WhenVar {
     fn active(&self) -> &AnyVar {
         let i = self.0.active_condition.load(Ordering::Relaxed);
@@ -371,8 +370,8 @@ impl fmt::Debug for WhenVar {
     }
 }
 impl VarImpl for WhenVar {
-    fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        smallbox!(Self(self.0.clone()))
+    fn clone_dyn(&self) -> DynAnyVar {
+        DynAnyVar::When(Self(self.0.clone()))
     }
 
     fn value_type(&self) -> TypeId {
@@ -388,10 +387,10 @@ impl VarImpl for WhenVar {
         Arc::strong_count(&self.0)
     }
 
-    fn var_eq(&self, other: &dyn Any) -> bool {
-        match other.downcast_ref::<Self>() {
-            Some(o) => Arc::ptr_eq(&self.0, &o.0),
-            None => false,
+    fn var_eq(&self, other: &DynAnyVar) -> bool {
+        match other {
+            DynAnyVar::When(o) => Arc::ptr_eq(&self.0, &o.0),
+            _ => false,
         }
     }
 
@@ -399,8 +398,8 @@ impl VarImpl for WhenVar {
         VarInstanceTag(Arc::as_ptr(&self.0) as _)
     }
 
-    fn downgrade(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(WeakWhenVar(Arc::downgrade(&self.0)))
+    fn downgrade(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::When(WeakWhenVar(Arc::downgrade(&self.0)))
     }
 
     fn capabilities(&self) -> VarCapability {
@@ -472,29 +471,28 @@ impl VarImpl for WhenVar {
         self.active().0.hook_animation_stop(handler)
     }
 
-    fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        self.clone_boxed()
+    fn current_context(&self) -> DynAnyVar {
+        self.clone_dyn()
     }
 }
 
-struct WeakWhenVar(Weak<WhenVarData>);
+pub(crate) struct WeakWhenVar(Weak<WhenVarData>);
 impl fmt::Debug for WeakWhenVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("WeakWhenVar").field(&self.0.as_ptr()).finish()
     }
 }
 impl WeakVarImpl for WeakWhenVar {
-    fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(Self(self.0.clone()))
+    fn clone_dyn(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::When(Self(self.0.clone()))
     }
 
     fn strong_count(&self) -> usize {
         self.0.strong_count()
     }
 
-    fn upgrade(&self) -> Option<SmallBox<dyn VarImpl, smallbox::space::S2>> {
-        let s = WhenVar(self.0.upgrade()?);
-        Some(smallbox!(s))
+    fn upgrade(&self) -> Option<DynAnyVar> {
+        Some(DynAnyVar::When(WhenVar(self.0.upgrade()?)))
     }
 }
 

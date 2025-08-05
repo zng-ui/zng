@@ -91,6 +91,8 @@ pub trait AnyVarValue: fmt::Debug + Any + Send + Sync {
     /// Gets if `self` and `other` are equal.
     fn eq_any(&self, other: &dyn AnyVarValue) -> bool;
     /// Value type name.
+    ///
+    /// Note that this string is not stable and should be used for debug only.
     #[cfg(feature = "type_names")]
     fn type_name(&self) -> &'static str;
 

@@ -43,7 +43,7 @@ macro_rules! merge_var {
 
 use core::fmt;
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     marker::PhantomData,
     ops,
     sync::{Arc, Weak},
@@ -56,8 +56,8 @@ use zng_clone_move::clmv;
 pub use zng_var_proc_macros::merge_var as __merge_var;
 
 use crate::{
-    AnyVar, AnyVarValue, BoxAnyVarValue, ContextVar, Response, ResponseVar, Var, VarImpl, VarInstanceTag, VarValue, WeakVarImpl,
-    any_contextual_var, any_var, contextual_var,
+    AnyVar, AnyVarValue, BoxAnyVarValue, ContextVar, DynAnyVar, DynWeakAnyVar, Response, ResponseVar, Var, VarImpl, VarInstanceTag,
+    VarValue, WeakVarImpl, any_contextual_var, any_var, contextual_var,
 };
 
 use super::VarCapability;
@@ -159,7 +159,7 @@ fn var_merge_tail(inputs: Box<[AnyVar]>, mut merge: MergeFn) -> AnyVar {
             .perm();
     }
 
-    AnyVar(smallbox!(MergeVar(data)))
+    AnyVar(DynAnyVar::Merge(MergeVar(data)))
 }
 
 type MergeFn = SmallBox<dyn FnMut(&[AnyVar]) -> BoxAnyVarValue + Send + 'static, smallbox::space::S4>;
@@ -170,7 +170,7 @@ struct MergeVarData {
     output: AnyVar,
 }
 
-struct MergeVar(Arc<MergeVarData>);
+pub(crate) struct MergeVar(Arc<MergeVarData>);
 impl fmt::Debug for MergeVar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut b = f.debug_struct("MergeVar");
@@ -181,8 +181,8 @@ impl fmt::Debug for MergeVar {
     }
 }
 impl VarImpl for MergeVar {
-    fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        smallbox!(Self(self.0.clone()))
+    fn clone_dyn(&self) -> DynAnyVar {
+        DynAnyVar::Merge(MergeVar(self.0.clone()))
     }
 
     fn value_type(&self) -> std::any::TypeId {
@@ -198,10 +198,10 @@ impl VarImpl for MergeVar {
         Arc::strong_count(&self.0)
     }
 
-    fn var_eq(&self, other: &dyn Any) -> bool {
-        match other.downcast_ref::<Self>() {
-            Some(other) => Arc::ptr_eq(&self.0, &other.0),
-            None => false,
+    fn var_eq(&self, other: &DynAnyVar) -> bool {
+        match other {
+            DynAnyVar::Merge(o) => Arc::ptr_eq(&self.0, &o.0),
+            _ => false,
         }
     }
 
@@ -209,8 +209,8 @@ impl VarImpl for MergeVar {
         VarInstanceTag(Arc::as_ptr(&self.0) as _)
     }
 
-    fn downgrade(&self) -> SmallBox<dyn super::WeakVarImpl, smallbox::space::S2> {
-        smallbox!(WeakMergeVar(Arc::downgrade(&self.0)))
+    fn downgrade(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::Merge(WeakMergeVar(Arc::downgrade(&self.0)))
     }
 
     fn capabilities(&self) -> VarCapability {
@@ -261,29 +261,28 @@ impl VarImpl for MergeVar {
         self.0.output.0.hook_animation_stop(handler)
     }
 
-    fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        self.clone_boxed()
+    fn current_context(&self) -> DynAnyVar {
+        self.clone_dyn()
     }
 }
 
-struct WeakMergeVar(Weak<MergeVarData>);
+pub(crate) struct WeakMergeVar(Weak<MergeVarData>);
 impl fmt::Debug for WeakMergeVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("WeakMergeVar").field(&self.0.as_ptr()).finish()
     }
 }
 impl WeakVarImpl for WeakMergeVar {
-    fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(WeakMergeVar(self.0.clone()))
+    fn clone_dyn(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::Merge(WeakMergeVar(self.0.clone()))
     }
 
     fn strong_count(&self) -> usize {
         self.0.strong_count()
     }
 
-    fn upgrade(&self) -> Option<SmallBox<dyn VarImpl, smallbox::space::S2>> {
-        let s = self.0.upgrade()?;
-        Some(smallbox!(MergeVar(s)))
+    fn upgrade(&self) -> Option<DynAnyVar> {
+        Some(DynAnyVar::Merge(MergeVar(self.0.upgrade()?)))
     }
 }
 

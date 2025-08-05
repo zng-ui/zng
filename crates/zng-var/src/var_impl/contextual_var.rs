@@ -10,7 +10,7 @@ use parking_lot::{Mutex, RwLock};
 use smallbox::{SmallBox, smallbox};
 use zng_app_context::context_local;
 
-use crate::{AnyVar, Var, VarImpl, VarInstanceTag, VarValue, WeakVarImpl};
+use crate::{AnyVar, DynAnyVar, DynWeakAnyVar, Var, VarImpl, VarInstanceTag, VarValue, WeakVarImpl};
 
 use super::VarCapability;
 
@@ -25,7 +25,7 @@ pub fn any_contextual_var(context_init: impl FnMut() -> AnyVar + Send + 'static,
     any_contextual_var_impl(smallbox!(ContextInitFnMut(context_init)), value_type)
 }
 pub(super) fn any_contextual_var_impl(context_init: ContextInitFn, value_type: TypeId) -> AnyVar {
-    AnyVar(smallbox!(ContextualVar::new(context_init, value_type)))
+    AnyVar(DynAnyVar::Contextual(ContextualVar::new(context_init, value_type)))
 }
 
 /// Create a contextualized variable.
@@ -82,23 +82,25 @@ impl<F: FnMut() -> AnyVar + Send + 'static> ContextInitFnImpl for ContextInitFnM
     }
 }
 
-pub(crate) struct ContextualVar {
+pub(super) struct ContextualVarData {
     pub(super) init: Arc<Mutex<ContextInitFn>>,
     ctx: RwLock<(AnyVar, ContextInitHandle)>,
 }
+
+pub(crate) struct ContextualVar(pub(super) Box<ContextualVarData>);
 impl Clone for ContextualVar {
     fn clone(&self) -> Self {
-        Self {
-            init: self.init.clone(),
+        Self(Box::new(ContextualVarData {
+            init: self.0.init.clone(),
             ctx: RwLock::new((no_ctx_var(self.value_type()), ContextInitHandle::no_context())),
-        }
+        }))
     }
 }
 impl fmt::Debug for ContextualVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut b = f.debug_struct("ContextualVar");
-        b.field("init", &Arc::as_ptr(&self.init));
-        if let Some(ctx) = self.ctx.try_read() {
+        b.field("init", &Arc::as_ptr(&self.0.init));
+        if let Some(ctx) = self.0.ctx.try_read() {
             if ctx.1.is_no_context() {
                 b.field("ctx", &"<no context>");
             } else {
@@ -114,22 +116,22 @@ impl fmt::Debug for ContextualVar {
 }
 impl ContextualVar {
     pub fn new(init: ContextInitFn, value_type: TypeId) -> Self {
-        ContextualVar {
+        Self(Box::new(ContextualVarData {
             init: Arc::new(Mutex::new(init)),
             ctx: RwLock::new((no_ctx_var(value_type), ContextInitHandle::no_context())),
-        }
+        }))
     }
 
     fn load(&self) -> parking_lot::MappedRwLockReadGuard<AnyVar> {
-        let ctx = self.ctx.read();
+        let ctx = self.0.ctx.read();
         let id = ContextInitHandle::current();
         if ctx.1 == id {
             parking_lot::RwLockReadGuard::map(ctx, |f| &f.0)
         } else {
             drop(ctx);
-            let mut ctx = self.ctx.write();
+            let mut ctx = self.0.ctx.write();
             if ctx.1 != id {
-                ctx.0 = self.init.lock().init();
+                ctx.0 = self.0.init.lock().init();
                 ctx.1 = id;
             }
             let ctx = parking_lot::RwLockWriteGuard::downgrade(ctx);
@@ -138,16 +140,16 @@ impl ContextualVar {
     }
 }
 impl VarImpl for ContextualVar {
-    fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        smallbox!(self.clone())
+    fn clone_dyn(&self) -> DynAnyVar {
+        DynAnyVar::Contextual(self.clone())
     }
 
-    fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        self.load().0.clone_boxed()
+    fn current_context(&self) -> DynAnyVar {
+        self.load().0.current_context()
     }
 
     fn value_type(&self) -> std::any::TypeId {
-        let ctx = self.ctx.read();
+        let ctx = self.0.ctx.read();
         let (var, ctx) = &*ctx;
         if ctx.is_no_context() {
             var.with(|v| v.downcast_ref::<NoContext>().unwrap().value_type)
@@ -165,16 +167,16 @@ impl VarImpl for ContextualVar {
         self.load().0.strong_count()
     }
 
-    fn var_eq(&self, other: &dyn std::any::Any) -> bool {
-        match other.downcast_ref::<Self>() {
-            Some(o) => {
-                Arc::ptr_eq(&self.init, &o.init) && {
-                    let a = self.ctx.read_recursive();
-                    let b = o.ctx.read_recursive();
+    fn var_eq(&self, other: &DynAnyVar) -> bool {
+        match other {
+            DynAnyVar::Contextual(o) => {
+                Arc::ptr_eq(&self.0.init, &o.0.init) && {
+                    let a = self.0.ctx.read_recursive();
+                    let b = o.0.ctx.read_recursive();
                     a.1 == b.1 && a.0.var_eq(&b.0)
                 }
             }
-            None => false,
+            _ => false,
         }
     }
 
@@ -182,16 +184,16 @@ impl VarImpl for ContextualVar {
         self.load().0.var_instance_tag()
     }
 
-    fn downgrade(&self) -> SmallBox<dyn super::WeakVarImpl, smallbox::space::S2> {
-        smallbox!(WeakContextualVar {
-            init: Arc::downgrade(&self.init),
-            value_type: self.value_type()
-        })
+    fn downgrade(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::Contextual(WeakContextualVar(Box::new(WeakContextualVarData {
+            init: Arc::downgrade(&self.0.init),
+            value_type: self.value_type(),
+        })))
     }
 
     fn capabilities(&self) -> VarCapability {
         let mut caps = VarCapability::CONTEXT | VarCapability::MODIFY_CHANGES;
-        let ctx = self.ctx.read();
+        let ctx = self.0.ctx.read();
         if ctx.1 == ContextInitHandle::current() {
             let mut inner = ctx.0.capabilities();
             inner.remove(VarCapability::CONTEXT_CHANGES);
@@ -246,32 +248,35 @@ impl VarImpl for ContextualVar {
 }
 
 #[derive(Clone)]
-struct WeakContextualVar {
+
+struct WeakContextualVarData {
     init: Weak<Mutex<ContextInitFn>>,
     value_type: TypeId,
 }
+
+#[derive(Clone)]
+pub(crate) struct WeakContextualVar(Box<WeakContextualVarData>);
 impl fmt::Debug for WeakContextualVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("WeakContextualVar").field("init", &self.init.as_ptr()).finish()
+        f.debug_struct("WeakContextualVar").field("init", &self.0.init.as_ptr()).finish()
     }
 }
 impl WeakVarImpl for WeakContextualVar {
-    fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(self.clone())
+    fn clone_dyn(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::Contextual(self.clone())
     }
 
     fn strong_count(&self) -> usize {
-        self.init.strong_count()
+        self.0.init.strong_count()
     }
 
-    fn upgrade(&self) -> Option<SmallBox<dyn VarImpl, smallbox::space::S2>> {
-        match self.init.upgrade() {
-            Some(init) => Some(smallbox!(ContextualVar {
+    fn upgrade(&self) -> Option<DynAnyVar> {
+        self.0.init.upgrade().map(|init| {
+            DynAnyVar::Contextual(ContextualVar(Box::new(ContextualVarData {
                 init,
-                ctx: RwLock::new((no_ctx_var(self.value_type), ContextInitHandle::no_context()))
-            })),
-            None => None,
-        }
+                ctx: RwLock::new((no_ctx_var(self.0.value_type), ContextInitHandle::no_context())),
+            })))
+        })
     }
 }
 

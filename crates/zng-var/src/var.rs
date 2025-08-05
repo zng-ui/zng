@@ -10,7 +10,6 @@ use crate::{
     contextual_var,
 };
 
-use smallbox::smallbox;
 use zng_clone_move::clmv;
 use zng_txt::{ToTxt, Txt};
 use zng_unit::{Factor, FactorUnits as _};
@@ -48,20 +47,13 @@ impl<T: VarValue> ops::Deref for Var<T> {
     }
 }
 impl<T: VarValue> Var<T> {
-    pub(crate) fn new_impl(inner: impl VarImpl) -> Self {
-        Var {
-            any: AnyVar(smallbox!(inner)),
-            _t: PhantomData,
-        }
-    }
-
     pub(crate) fn new_any(any: AnyVar) -> Self {
         Var { any, _t: PhantomData }
     }
 }
 impl<T: VarValue> fmt::Debug for Var<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Var").field(&*self.any.0).finish()
+        f.debug_tuple("Var").field(&self.any.0).finish()
     }
 }
 
@@ -1498,7 +1490,7 @@ pub struct WeakVar<T: VarValue> {
 }
 impl<T: VarValue> fmt::Debug for WeakVar<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("WeakVar").field(&*self.any.0).finish()
+        f.debug_tuple("WeakVar").field(&self.any.0).finish()
     }
 }
 impl<T: VarValue> Clone for WeakVar<T> {
@@ -1547,12 +1539,12 @@ pub fn var_default<T: VarValue + Default>() -> Var<T> {
 ///
 /// Cloning this variable clones the value.
 pub fn const_var<T: VarValue>(value: T) -> Var<T> {
-    crate::IntoVar::into_var(value)
+    Var::new_any(any_const_var(BoxAnyVarValue::new(value)))
 }
 
 /// Type erased [`const_var`].
 pub fn any_const_var(value: BoxAnyVarValue) -> AnyVar {
-    AnyVar(smallbox!(crate::var_impl::const_var::AnyConstVar::new(value)))
+    AnyVar(crate::DynAnyVar::Const(crate::var_impl::const_var::ConstVar::new(value)))
 }
 
 /// Weak variable that never upgrades.
@@ -1565,7 +1557,7 @@ pub fn weak_var<T: VarValue>() -> WeakVar<T> {
 
 /// Weak variable that never upgrades.
 pub fn weak_var_any() -> WeakAnyVar {
-    WeakAnyVar(smallbox!(crate::var_impl::const_var::WeakConstVar))
+    WeakAnyVar(crate::DynWeakAnyVar::Const(crate::var_impl::const_var::WeakConstVar))
 }
 
 /// Arguments for [`Var::hook`].

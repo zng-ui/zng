@@ -1,17 +1,13 @@
 //! Context vars
 
-use std::{
-    any::{Any, TypeId},
-    fmt, ops,
-    sync::Arc,
-};
+use std::{any::TypeId, fmt, ops, sync::Arc};
 
-use smallbox::{SmallBox, smallbox};
+use smallbox::SmallBox;
 use zng_app_context::{AppLocalId, ContextLocal, ContextLocalKeyProvider};
 
 use crate::{
-    AnyVar, AnyVarHookArgs, AnyVarModify, AnyVarValue, BoxAnyVarValue, ContextInitHandle, IntoVar, Var, VarCapability, VarHandle, VarImpl,
-    VarInstanceTag, VarUpdateId, VarValue, WeakVarImpl,
+    AnyVar, AnyVarHookArgs, AnyVarModify, AnyVarValue, BoxAnyVarValue, ContextInitHandle, DynAnyVar, DynWeakAnyVar, IntoVar, Var,
+    VarCapability, VarHandle, VarImpl, VarInstanceTag, VarUpdateId, VarValue, WeakVarImpl,
 };
 
 ///<span data-del-macro-root></span> Declares new [`ContextVar<T>`] static items.
@@ -125,7 +121,8 @@ impl<T: VarValue> ContextVar<T> {
     /// [`current_context`]: crate::Var::current_context
     /// [`contextual_var`]: crate::contextual_var
     pub fn as_var(&self) -> &Var<T> {
-        self.var.get_or_init(|| Var::new_impl(ContextVarImpl(self.ctx)))
+        self.var
+            .get_or_init(|| Var::new_any(AnyVar(DynAnyVar::Context(ContextVarImpl(self.ctx)))))
     }
 
     /// Runs `action` with this context var representing the other `var` in the current thread.
@@ -185,15 +182,15 @@ impl<T: VarValue> From<ContextVar<T>> for AnyVar {
         v.as_any().clone()
     }
 }
-struct ContextVarImpl(&'static ContextLocal<AnyVar>);
+pub(crate) struct ContextVarImpl(&'static ContextLocal<AnyVar>);
 impl fmt::Debug for ContextVarImpl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("ContextVar").finish_non_exhaustive() // TODO add context var name
     }
 }
 impl VarImpl for ContextVarImpl {
-    fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        smallbox!(Self(self.0))
+    fn clone_dyn(&self) -> DynAnyVar {
+        DynAnyVar::Context(Self(self.0))
     }
 
     fn value_type(&self) -> TypeId {
@@ -209,10 +206,10 @@ impl VarImpl for ContextVarImpl {
         1
     }
 
-    fn var_eq(&self, other: &dyn Any) -> bool {
-        match other.downcast_ref::<ContextVarImpl>() {
-            Some(b) => std::ptr::eq(self.0, b.0),
-            None => false,
+    fn var_eq(&self, other: &DynAnyVar) -> bool {
+        match other {
+            DynAnyVar::Context(b) => std::ptr::eq(self.0, b.0),
+            _ => false,
         }
     }
 
@@ -220,8 +217,8 @@ impl VarImpl for ContextVarImpl {
         self.0.get().0.var_instance_tag()
     }
 
-    fn downgrade(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(Self(self.0))
+    fn downgrade(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::Context(Self(self.0))
     }
 
     fn capabilities(&self) -> VarCapability {
@@ -272,21 +269,21 @@ impl VarImpl for ContextVarImpl {
         self.0.get().0.hook_animation_stop(handler)
     }
 
-    fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
+    fn current_context(&self) -> DynAnyVar {
         // is already contextualized, but no downside calling current_context again, it just clones
         self.0.get().0.current_context()
     }
 }
 impl WeakVarImpl for ContextVarImpl {
-    fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(Self(self.0))
+    fn clone_dyn(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::Context(Self(self.0))
     }
 
     fn strong_count(&self) -> usize {
         1
     }
 
-    fn upgrade(&self) -> Option<SmallBox<dyn VarImpl, smallbox::space::S2>> {
-        Some(smallbox!(Self(self.0)))
+    fn upgrade(&self) -> Option<DynAnyVar> {
+        Some(DynAnyVar::Context(Self(self.0)))
     }
 }

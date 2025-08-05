@@ -42,15 +42,101 @@ pub use when_var::{__when_var, AnyWhenVarBuilder, WhenVarBuilder};
 pub(crate) mod expr_var;
 pub use expr_var::{__expr_var, expr_var_as, expr_var_into, expr_var_map};
 
-pub(crate) trait VarImpl: fmt::Debug + Any + Send + Sync {
-    fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2>;
+pub(crate) enum DynAnyVar {
+    Const(const_var::ConstVar),
+    Shared(shared_var::SharedVar),
+    Context(context_var::ContextVarImpl),
+    Cow(cow_var::CowVar),
+    Contextual(contextual_var::ContextualVar),
+    FlatMap(flat_map_var::FlatMapVar),
+    Merge(merge_var::MergeVar),
+    When(when_var::WhenVar),
+    ReadOnly(read_only_var::ReadOnlyVar),
+}
+macro_rules! dispatch {
+    ($self:ident, $var:ident => $($tt:tt)+) => {
+        match $self {
+            DynAnyVar::Const($var) => $($tt)+,
+            DynAnyVar::Shared($var) => $($tt)+,
+            DynAnyVar::Context($var) => $($tt)+,
+            DynAnyVar::Cow($var) => $($tt)+,
+            DynAnyVar::Contextual($var) => $($tt)+,
+            DynAnyVar::FlatMap($var) => $($tt)+,
+            DynAnyVar::Merge($var) => $($tt)+,
+            DynAnyVar::When($var) => $($tt)+,
+            DynAnyVar::ReadOnly($var) => $($tt)+,
+        }
+    };
+}
+impl fmt::Debug for DynAnyVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        dispatch!(self, v => fmt::Debug::fmt(v, f))
+    }
+}
+
+pub(crate) enum DynWeakAnyVar {
+    Const(const_var::WeakConstVar),
+    Shared(shared_var::WeakSharedVar),
+    Context(context_var::ContextVarImpl),
+    Cow(cow_var::WeakCowVar),
+    Contextual(contextual_var::WeakContextualVar),
+    FlatMap(flat_map_var::WeakFlatMapVar),
+    Merge(merge_var::WeakMergeVar),
+    When(when_var::WeakWhenVar),
+    ReadOnly(read_only_var::WeakReadOnlyVar),
+}
+macro_rules! dispatch_weak {
+    ($self:ident, $var:ident => $($tt:tt)+) => {
+        match $self {
+            DynWeakAnyVar::Const($var) => $($tt)+,
+            DynWeakAnyVar::Shared($var) => $($tt)+,
+            DynWeakAnyVar::Context($var) => $($tt)+,
+            DynWeakAnyVar::Cow($var) => $($tt)+,
+            DynWeakAnyVar::Contextual($var) => $($tt)+,
+            DynWeakAnyVar::FlatMap($var) => $($tt)+,
+            DynWeakAnyVar::Merge($var) => $($tt)+,
+            DynWeakAnyVar::When($var) => $($tt)+,
+            DynWeakAnyVar::ReadOnly($var) => $($tt)+,
+        }
+    };
+}
+impl fmt::Debug for DynWeakAnyVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        dispatch_weak!(self, v => fmt::Debug::fmt(v, f))
+    }
+}
+
+macro_rules! declare {
+    ($(
+        $(#[$meta:meta])*
+        fn $method:ident(&self $(, $arg:ident : $Input:ty)*) $(-> $Output:ty)?;
+    )+) => {
+        pub(crate) trait VarImpl: fmt::Debug + Any + Send + Sync {
+            $(
+                $(#[$meta])*
+                fn $method(&self $(, $arg: $Input)*) $(-> $Output)?;
+            )+
+        }
+
+        impl VarImpl for DynAnyVar {
+            $(
+                $(#[$meta])*
+                fn $method(&self $(, $arg: $Input)*) $(-> $Output)? {
+                    dispatch!(self, v => VarImpl::$method(v$(, $arg)*))
+                }
+            )+
+        }
+    };
+}
+declare! {
+    fn clone_dyn(&self) -> DynAnyVar;
     fn value_type(&self) -> TypeId;
     #[cfg(feature = "type_names")]
     fn value_type_name(&self) -> &'static str;
     fn strong_count(&self) -> usize;
-    fn var_eq(&self, other: &dyn Any) -> bool;
+    fn var_eq(&self, other: &DynAnyVar) -> bool;
     fn var_instance_tag(&self) -> VarInstanceTag;
-    fn downgrade(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2>;
+    fn downgrade(&self) -> DynWeakAnyVar;
     fn capabilities(&self) -> VarCapability;
     fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue));
     fn get(&self) -> BoxAnyVarValue;
@@ -62,14 +148,33 @@ pub(crate) trait VarImpl: fmt::Debug + Any + Send + Sync {
     fn modify_importance(&self) -> usize;
     fn is_animating(&self) -> bool;
     fn hook_animation_stop(&self, handler: AnimationStopFn) -> Result<(), AnimationStopFn>;
-    fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2>;
+    fn current_context(&self) -> DynAnyVar;
     fn modify_info(&self) -> ModifyInfo;
 }
 
-pub(crate) trait WeakVarImpl: fmt::Debug + Any + Send + Sync {
-    fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2>;
+macro_rules! declare_weak {
+        ($(
+        fn $method:ident(&self $(, $arg:ident : $Input:ty)*) $(-> $Output:ty)?;
+    )+) => {
+        pub(crate) trait WeakVarImpl: fmt::Debug + Any + Send + Sync {
+            $(
+                fn $method(&self $(, $arg: $Input)*) $(-> $Output)?;
+            )+
+        }
+
+        impl WeakVarImpl for DynWeakAnyVar {
+            $(
+                fn $method(&self $(, $arg: $Input)*) $(-> $Output)? {
+                    dispatch_weak!(self, v => WeakVarImpl::$method(v$(, $arg)*))
+                }
+            )+
+        }
+    };
+}
+declare_weak! {
+    fn clone_dyn(&self) -> DynWeakAnyVar;
     fn strong_count(&self) -> usize;
-    fn upgrade(&self) -> Option<SmallBox<dyn VarImpl, smallbox::space::S2>>;
+    fn upgrade(&self) -> Option<DynAnyVar>;
 }
 
 /// Error when an attempt to modify a variable without the [`MODIFY`] capability is made.

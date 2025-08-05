@@ -4,109 +4,6 @@ use crate::{Var, VarValue};
 
 use super::*;
 
-#[derive(Debug)]
-struct ConstVar<T: VarValue>(T);
-
-#[derive(Debug)]
-pub(crate) struct WeakConstVar;
-
-impl<T: VarValue> VarImpl for ConstVar<T> {
-    fn value_type(&self) -> TypeId {
-        TypeId::of::<T>()
-    }
-
-    #[cfg(feature = "type_names")]
-    fn value_type_name(&self) -> &'static str {
-        std::any::type_name::<T>()
-    }
-
-    fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        smallbox!(Self(self.0.clone()))
-    }
-
-    fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        self.clone_boxed()
-    }
-
-    fn strong_count(&self) -> usize {
-        1
-    }
-
-    fn var_eq(&self, _: &dyn Any) -> bool {
-        false
-    }
-
-    fn var_instance_tag(&self) -> VarInstanceTag {
-        VarInstanceTag::NOT_SHARED
-    }
-
-    fn downgrade(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(WeakConstVar)
-    }
-
-    fn get(&self) -> BoxAnyVarValue {
-        BoxAnyVarValue::new(self.0.clone())
-    }
-
-    fn set(&self, _: BoxAnyVarValue) -> bool {
-        false
-    }
-
-    fn with(&self, visitor: &mut dyn FnMut(&dyn AnyVarValue)) {
-        visitor(&self.0);
-    }
-
-    fn update(&self) -> bool {
-        false
-    }
-
-    fn capabilities(&self) -> VarCapability {
-        VarCapability::empty()
-    }
-
-    fn modify(&self, _: SmallBox<dyn FnMut(&mut AnyVarModify) + Send + 'static, smallbox::space::S4>) -> bool {
-        false
-    }
-
-    fn hook(&self, _: SmallBox<dyn FnMut(&AnyVarHookArgs) -> bool + Send + 'static, smallbox::space::S4>) -> VarHandle {
-        VarHandle::dummy()
-    }
-
-    fn last_update(&self) -> VarUpdateId {
-        VarUpdateId::never()
-    }
-
-    fn modify_info(&self) -> ModifyInfo {
-        ModifyInfo::never()
-    }
-
-    fn modify_importance(&self) -> usize {
-        0
-    }
-
-    fn is_animating(&self) -> bool {
-        false
-    }
-
-    fn hook_animation_stop(&self, handler: AnimationStopFn) -> Result<(), AnimationStopFn> {
-        Err(handler)
-    }
-}
-
-impl WeakVarImpl for WeakConstVar {
-    fn strong_count(&self) -> usize {
-        0
-    }
-
-    fn upgrade(&self) -> Option<SmallBox<dyn VarImpl, smallbox::space::S2>> {
-        None
-    }
-
-    fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(WeakConstVar)
-    }
-}
-
 /// A value-to-var conversion that consumes the value.
 ///
 /// Every [`Var<T>`] implements this to convert to itself, every [`VarValue`] implements this to
@@ -131,7 +28,7 @@ pub trait IntoVar<T: VarValue> {
 }
 impl<T: VarValue> IntoVar<T> for T {
     fn into_var(self) -> Var<T> {
-        Var::new_impl(ConstVar::<T>(self))
+        crate::const_var(self)
     }
 }
 impl<T: VarValue> IntoVar<T> for Var<T> {
@@ -140,24 +37,24 @@ impl<T: VarValue> IntoVar<T> for Var<T> {
     }
 }
 
-pub(crate) struct AnyConstVar(BoxAnyVarValue);
-impl fmt::Debug for AnyConstVar {
+pub(crate) struct ConstVar(BoxAnyVarValue);
+impl fmt::Debug for ConstVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("AnyConstVar").field(&self.0.detailed_debug()).finish()
     }
 }
-impl AnyConstVar {
+impl ConstVar {
     pub(crate) fn new(small_box: BoxAnyVarValue) -> Self {
         Self(small_box)
     }
 }
-impl VarImpl for AnyConstVar {
-    fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        smallbox!(AnyConstVar(self.0.clone_boxed()))
+impl VarImpl for ConstVar {
+    fn clone_dyn(&self) -> DynAnyVar {
+        DynAnyVar::Const(ConstVar(self.0.clone_boxed()))
     }
 
-    fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        self.clone_boxed()
+    fn current_context(&self) -> DynAnyVar {
+        self.clone_dyn()
     }
 
     fn value_type(&self) -> TypeId {
@@ -177,16 +74,19 @@ impl VarImpl for AnyConstVar {
         1
     }
 
-    fn var_eq(&self, _: &dyn Any) -> bool {
-        false
+    fn var_eq(&self, other: &DynAnyVar) -> bool {
+        match other {
+            DynAnyVar::Const(b) => std::ptr::eq(self, b),
+            _ => false,
+        }
     }
 
     fn var_instance_tag(&self) -> VarInstanceTag {
         VarInstanceTag::NOT_SHARED
     }
 
-    fn downgrade(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(WeakConstVar)
+    fn downgrade(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::Const(WeakConstVar)
     }
 
     fn capabilities(&self) -> VarCapability {
@@ -235,5 +135,22 @@ impl VarImpl for AnyConstVar {
 
     fn hook_animation_stop(&self, handler: AnimationStopFn) -> Result<(), AnimationStopFn> {
         Err(handler)
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct WeakConstVar;
+
+impl WeakVarImpl for WeakConstVar {
+    fn strong_count(&self) -> usize {
+        0
+    }
+
+    fn upgrade(&self) -> Option<DynAnyVar> {
+        None
+    }
+
+    fn clone_dyn(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::Const(WeakConstVar)
     }
 }

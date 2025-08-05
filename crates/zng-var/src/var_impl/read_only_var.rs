@@ -4,7 +4,7 @@ use crate::{AnyVar, WeakAnyVar};
 
 use super::*;
 
-pub(crate) struct ReadOnlyVar(pub AnyVar);
+pub(crate) struct ReadOnlyVar(pub Box<AnyVar>); // TODO generic to avoid Box?
 
 impl fmt::Debug for ReadOnlyVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -12,12 +12,12 @@ impl fmt::Debug for ReadOnlyVar {
     }
 }
 impl VarImpl for ReadOnlyVar {
-    fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        smallbox!(Self(self.0.clone()))
+    fn clone_dyn(&self) -> DynAnyVar {
+        DynAnyVar::ReadOnly(Self(self.0.clone()))
     }
 
-    fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        smallbox!(Self(self.0.current_context()))
+    fn current_context(&self) -> DynAnyVar {
+        DynAnyVar::ReadOnly(Self(Box::new(self.0.current_context())))
     }
 
     fn value_type(&self) -> TypeId {
@@ -33,10 +33,10 @@ impl VarImpl for ReadOnlyVar {
         self.0.strong_count()
     }
 
-    fn var_eq(&self, other: &dyn Any) -> bool {
-        match other.downcast_ref::<ReadOnlyVar>() {
-            Some(v) => self.0.var_eq(&v.0),
-            None => false,
+    fn var_eq(&self, other: &DynAnyVar) -> bool {
+        match other {
+            DynAnyVar::ReadOnly(v) => self.0.var_eq(&v.0),
+            _ => false,
         }
     }
 
@@ -44,8 +44,8 @@ impl VarImpl for ReadOnlyVar {
         self.0.var_instance_tag()
     }
 
-    fn downgrade(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(WeakReadOnlyVar(self.0.downgrade()))
+    fn downgrade(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::ReadOnly(WeakReadOnlyVar(Box::new(self.0.downgrade())))
     }
 
     fn capabilities(&self) -> VarCapability {
@@ -98,21 +98,18 @@ impl VarImpl for ReadOnlyVar {
 }
 
 #[derive(Debug)]
-struct WeakReadOnlyVar(WeakAnyVar);
+pub(crate) struct WeakReadOnlyVar(Box<WeakAnyVar>);
 
 impl WeakVarImpl for WeakReadOnlyVar {
-    fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(Self(self.0.clone()))
+    fn clone_dyn(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::ReadOnly(Self(self.0.clone()))
     }
 
     fn strong_count(&self) -> usize {
         self.0.strong_count()
     }
 
-    fn upgrade(&self) -> Option<SmallBox<dyn VarImpl, smallbox::space::S2>> {
-        self.0.upgrade().map(|v| {
-            let r: SmallBox<dyn VarImpl, smallbox::space::S2> = smallbox!(ReadOnlyVar(v));
-            r
-        })
+    fn upgrade(&self) -> Option<DynAnyVar> {
+        Some(DynAnyVar::ReadOnly(ReadOnlyVar(Box::new(self.0.upgrade()?))))
     }
 }

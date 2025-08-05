@@ -20,15 +20,15 @@ use crate::{
 };
 
 /// Variable of any type.
-pub struct AnyVar(pub(crate) SmallBox<dyn VarImpl, smallbox::space::S2>); // !!: TODO use enum dispatch
+pub struct AnyVar(pub(crate) crate::var_impl::DynAnyVar);
 impl Clone for AnyVar {
     fn clone(&self) -> Self {
-        Self(self.0.clone_boxed())
+        Self(self.0.clone_dyn())
     }
 }
 impl fmt::Debug for AnyVar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("AnyVar").field(&*self.0).finish()
+        f.debug_tuple("AnyVar").field(&self.0).finish()
     }
 }
 /// Value.
@@ -710,7 +710,7 @@ impl AnyVar {
         }
         let me = self.current_context();
         let mapping = crate::var_impl::flat_map_var::FlatMapVar::new(me, smallbox!(map));
-        AnyVar(smallbox!(mapping))
+        AnyVar(crate::DynAnyVar::FlatMap(mapping))
     }
 
     /// Create a strongly typed flat mapping variable.
@@ -1315,6 +1315,8 @@ impl AnyVar {
     }
 
     /// Gets the value type name.
+    ///
+    /// Note that this string is not stable and should be used for debug only.
     #[cfg(feature = "type_names")]
     pub fn value_type_name(&self) -> &'static str {
         self.0.value_type_name()
@@ -1358,7 +1360,7 @@ impl AnyVar {
     ///
     /// [`SHARE`]: VarCapability::SHARE
     pub fn var_eq(&self, other: &AnyVar) -> bool {
-        self.0.var_eq(&*other.0)
+        self.0.var_eq(&other.0)
     }
 
     /// Copy ID that identifies this variable instance.
@@ -1383,13 +1385,9 @@ impl AnyVar {
             return self.clone();
         }
 
-        let inner: &dyn Any = &*self.0;
-        if inner.type_id() == TypeId::of::<crate::read_only_var::ReadOnlyVar>() {
-            // inner can be CAPS_CHANGE, but because its wrapped it is always read-only
-            return self.clone();
-        }
-
-        AnyVar(smallbox!(crate::read_only_var::ReadOnlyVar(self.clone())))
+        AnyVar(crate::DynAnyVar::ReadOnly(crate::read_only_var::ReadOnlyVar(Box::new(
+            self.clone(),
+        ))))
     }
 
     /// Create a var that redirects to this variable until the first value update, then it disconnects as a separate variable.
@@ -1398,7 +1396,7 @@ impl AnyVar {
     /// a modify request is made the source value is cloned and offered for modification, if modified the source variable is dropped,
     /// if the modify closure does not update the source variable is retained.
     pub fn cow(&self) -> AnyVar {
-        AnyVar(smallbox!(crate::cow_var::CowVar::new(self.clone())))
+        AnyVar(crate::DynAnyVar::Cow(crate::cow_var::CowVar::new(self.clone())))
     }
 
     /// Hold the variable in memory until the app exit.
@@ -1436,15 +1434,15 @@ impl AnyVar {
 }
 
 /// Weak reference to a [`AnyVar`].
-pub struct WeakAnyVar(pub(crate) SmallBox<dyn WeakVarImpl, smallbox::space::S2>);
+pub struct WeakAnyVar(pub(crate) crate::var_impl::DynWeakAnyVar);
 impl fmt::Debug for WeakAnyVar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("WeakAnyVar").field(&*self.0).finish()
+        f.debug_tuple("WeakAnyVar").field(&self.0).finish()
     }
 }
 impl Clone for WeakAnyVar {
     fn clone(&self) -> Self {
-        Self(self.0.clone_boxed())
+        Self(self.0.clone_dyn())
     }
 }
 impl WeakAnyVar {

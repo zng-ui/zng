@@ -4,11 +4,11 @@ use core::fmt;
 use std::sync::{Arc, Weak};
 
 use crate::{
-    AnyVar, AnyVarHookArgs, AnyVarValue, BoxAnyVarValue, VarHandle, VarImpl, VarInstanceTag, VarUpdateId, WeakVarImpl,
-    shared_var::MutexHooks,
+    AnyVar, AnyVarHookArgs, AnyVarValue, BoxAnyVarValue, DynAnyVar, DynWeakAnyVar, VarHandle, VarImpl, VarInstanceTag, VarUpdateId,
+    WeakVarImpl, shared_var::MutexHooks,
 };
 use parking_lot::{Mutex, RwLock};
-use smallbox::{SmallBox, smallbox};
+use smallbox::SmallBox;
 
 use super::{AnyVarModify, VarCapability};
 
@@ -106,12 +106,12 @@ fn hook_inner_var(data: &Arc<FlatMapData>, mut current: parking_lot::RwLockWrite
 }
 
 impl VarImpl for FlatMapVar {
-    fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        smallbox!(self.clone())
+    fn clone_dyn(&self) -> DynAnyVar {
+        DynAnyVar::FlatMap(self.clone())
     }
 
-    fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        self.clone_boxed()
+    fn current_context(&self) -> DynAnyVar {
+        self.clone_dyn()
     }
 
     fn value_type(&self) -> std::any::TypeId {
@@ -127,11 +127,10 @@ impl VarImpl for FlatMapVar {
         Arc::strong_count(&self.0)
     }
 
-    fn var_eq(&self, other: &dyn std::any::Any) -> bool {
-        if let Some(other) = other.downcast_ref::<Self>() {
-            Arc::ptr_eq(&self.0, &other.0)
-        } else {
-            false
+    fn var_eq(&self, other: &DynAnyVar) -> bool {
+        match other {
+            DynAnyVar::FlatMap(o) => Arc::ptr_eq(&self.0, &o.0),
+            _ => false,
         }
     }
 
@@ -139,8 +138,8 @@ impl VarImpl for FlatMapVar {
         VarInstanceTag(Arc::as_ptr(&self.0) as _)
     }
 
-    fn downgrade(&self) -> SmallBox<dyn super::WeakVarImpl, smallbox::space::S2> {
-        smallbox!(WeakFlatMapVar(Arc::downgrade(&self.0)))
+    fn downgrade(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::FlatMap(WeakFlatMapVar(Arc::downgrade(&self.0)))
     }
 
     fn capabilities(&self) -> VarCapability {
@@ -193,23 +192,22 @@ impl VarImpl for FlatMapVar {
 }
 
 #[derive(Clone)]
-struct WeakFlatMapVar(Weak<FlatMapData>);
+pub(crate) struct WeakFlatMapVar(Weak<FlatMapData>);
 impl fmt::Debug for WeakFlatMapVar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("WeakFlatMapVar").field(&self.0.as_ptr()).finish()
     }
 }
 impl WeakVarImpl for WeakFlatMapVar {
-    fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(Self(self.0.clone()))
+    fn clone_dyn(&self) -> DynWeakAnyVar {
+        DynWeakAnyVar::FlatMap(Self(self.0.clone()))
     }
 
     fn strong_count(&self) -> usize {
         self.0.strong_count()
     }
 
-    fn upgrade(&self) -> Option<SmallBox<dyn VarImpl, smallbox::space::S2>> {
-        let var: SmallBox<dyn VarImpl, smallbox::space::S2> = smallbox!(FlatMapVar(self.0.upgrade()?));
-        Some(var)
+    fn upgrade(&self) -> Option<DynAnyVar> {
+        Some(DynAnyVar::FlatMap(FlatMapVar(self.0.upgrade()?)))
     }
 }
