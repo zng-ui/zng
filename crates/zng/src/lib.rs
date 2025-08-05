@@ -742,7 +742,7 @@ mod __prelude {
 ///         self.widget_builder().push_build_action(|b| {
 ///             let txt = b
 ///                     .capture_var::<Txt>(property_id!(Self::txt))
-///                     .unwrap_or_else(|| LocalVar(Txt::from("")).boxed());
+///                     .unwrap_or_else(|| const_var(Txt::from("")));
 ///             b.set_child(Text!(txt));
 ///         });
 ///     }

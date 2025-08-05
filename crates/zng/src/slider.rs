@@ -13,7 +13,7 @@
 //!     // declare slider with single thumb
 //!     selector = zng::slider::Selector::value(value.clone(), 0, 100);
 //!     // show selected value
-//!     zng::container::child_out_bottom = Text!(value.map_debug()), 5;
+//!     zng::container::child_out_bottom = Text!(value.map_debug(false)), 5;
 //! }
 //! # ;
 //! ```

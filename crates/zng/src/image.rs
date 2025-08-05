@@ -57,7 +57,6 @@
 //! # let _scope = APP.defaults();
 //!
 //! image::IMAGES.limits().modify(|l| {
-//!     let l = l.to_mut();
 //!     l.allow_uri = image::UriFilter::allow_host("httpbin.org");
 //!     l.max_encoded_len = 1.megabytes();
 //!     l.max_decoded_len = 10.megabytes();

@@ -1421,7 +1421,7 @@ impl WhenBuildAction {
 pub struct WhenInfo {
     /// Properties referenced in the when condition expression.
     ///
-    /// They are type erased `BoxedVar<T>` instances that are *late-inited*, other variable references (`*#{var}`) are embedded in
+    /// They are type erased `Var<T>` instances that are *late-inited*, other variable references (`*#{var}`) are embedded in
     /// the build expression and cannot be modified. Note that the [`state`] sticks to the first *late-inited* vars that it uses,
     /// the variable only updates after clone, this cloning happens naturally when instantiating a widget more then once.
     ///
@@ -2947,7 +2947,7 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// # fn main() {
 /// assert_eq!(
 ///     property_input_types!(foo).type_id(),
-///     PropertyInputTypes::<(BoxedVar<bool>,)>::unit().type_id(),
+///     PropertyInputTypes::<(Var<bool>,)>::unit().type_id(),
 /// );
 /// # }
 /// ```
@@ -2968,7 +2968,7 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// }
 ///
 /// // match
-/// impl<'a, V: Var<bool>> SingleBoolVar for &'a PropertyInputTypes<(V,)> {
+/// impl<'a> SingleBoolVar for &'a PropertyInputTypes<(Var<bool>,)> {
 ///     fn is_single_bool_var(self) -> bool {
 ///         true
 ///     }

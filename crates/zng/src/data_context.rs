@@ -42,7 +42,7 @@
 //!             child_bottom = Button! {
 //!                 child = Text!("Submit");
 //!                 widget::enabled = vm.map(|vm| !vm.new_item().is_empty());
-//!                 on_click = hn!(|_| vm.modify(|vm| vm.submit()).unwrap());
+//!                 on_click = hn!(|_| vm.modify(|vm| vm.submit()));
 //!             }, 5;
 //!             padding = 5;
 //!         }
@@ -88,7 +88,7 @@
 //!             match self.new_item.parse::<u32>() {
 //!                 Ok(item) => {
 //!                     self.model.write().push(item);
-//!                     self.new_item_mut().clear();
+//!                     self.set_new_item(Txt::from(""));
 //!                 }
 //!                 Err(e) => self.new_item_error = e.to_txt(),
 //!             }

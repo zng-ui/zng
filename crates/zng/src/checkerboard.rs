@@ -10,7 +10,7 @@
 //!
 //! # let _scope = APP.defaults();
 //! zng::image::IMAGES.limits().modify(|l| {
-//!     l.to_mut().allow_uri = zng::image::UriFilter::AllowAll;
+//!     l.allow_uri = zng::image::UriFilter::AllowAll;
 //! });
 //!
 //! # let _ =

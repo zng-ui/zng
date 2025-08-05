@@ -11,7 +11,7 @@
 //! Window! {
 //!     child_align = layout::Align::TOP_LEFT;
 //!     child = Text! {
-//!         txt = mouse::MOUSE.buttons().map_debug();
+//!         txt = mouse::MOUSE.buttons().map_debug(false);
 //!         layout::offset = mouse::MOUSE.position().map(|p| match p {
 //!             Some(p) => layout::Vector::from(p.position.to_vector()) - layout::Vector::new(0, 100.pct()),
 //!             None => layout::Vector::zero(),

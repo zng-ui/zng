@@ -999,7 +999,7 @@ impl ops::IndexMut<ColorScheme> for LightDark {
     }
 }
 
-/// Extension methods for `impl Var<LightDark>`.
+/// Extension methods for `Var<LightDark>`.
 pub trait LightDarkVarExt {
     /// Gets a contextualized var that maps to [`LightDark::rgba`].
     fn rgba(&self) -> Var<Rgba>;

@@ -53,7 +53,7 @@
 //!     r#"Font Awesome 6 Free-Regular-400.otf"#,
 //!     0,
 //! );
-//! font::FONTS.register(font).wait_into_rsp().await.unwrap();
+//! font::FONTS.register(font).wait_rsp().await.unwrap();
 //!
 //! # let _ =
 //! icon::Icon! {

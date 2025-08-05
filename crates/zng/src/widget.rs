@@ -983,7 +983,7 @@ pub use zng_app::widget::property;
 /// fn my_widget_node(child: impl UiNode, number: impl IntoVar<u32>) -> impl UiNode {
 ///     #[ui_node(struct MyNode {
 ///         child: impl UiNode,
-///         #[var] number: impl Var<u32>,
+///         #[var] number: Var<u32>,
 ///     })]
 ///     impl UiNode for MyNode {
 ///         fn update(&mut self, updates: &WidgetUpdates) {

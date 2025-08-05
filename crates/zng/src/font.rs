@@ -103,7 +103,7 @@
 //!     }
 //!
 //!     // wait font query
-//!     let font = font_face.wait_into_rsp().await;
+//!     let font = font_face.wait_rsp().await;
 //!     // gets the best font for the size
 //!     let font = font.sized(Px(20), vec![]);
 //!

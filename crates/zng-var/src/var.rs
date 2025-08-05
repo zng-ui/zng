@@ -440,11 +440,11 @@ impl<T: VarValue> Var<T> {
     /// # use zng_var::*;
     /// # use zng_txt::*;
     /// let list_var = var(vec!['a', 'b', 'c']);
-    /// let first_var = n_var.map_bidi(
+    /// let first_var = list_var.map_bidi_modify(
     ///     // map:
     ///     |l| l.first().copied().unwrap_or('_'),
     ///     // modify_back:    
-    ///     |c, l| if l.is_empty() { l.push(*c) } else { m[0] = *c }
+    ///     |c, l| if l.is_empty() { l.push(*c) } else { l[0] = *c }
     /// );
     /// ```
     ///

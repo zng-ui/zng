@@ -199,7 +199,7 @@ pub trait WidgetInfoInspectorExt {
     /// ```
     /// # use zng_app::widget::{info::*, inspector::*};
     /// fn inspect_foo(info: WidgetInfo) -> Option<bool> {
-    ///     info.inspect_property("foo")?.value(0).as_any().downcast_ref().copied()
+    ///     info.inspect_property("foo")?.value(0).downcast_ref().copied()
     /// }
     /// ```
     fn inspect_property<P: InspectPropertyPattern>(&self, pattern: P) -> Option<&dyn PropertyArgs>;

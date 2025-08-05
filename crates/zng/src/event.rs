@@ -288,8 +288,8 @@
 //!
 //!             widget::on_init = hn!(|_| {
 //!                 let cmd = clipboard::COPY_CMD.scoped(WIDGET.id());
-//!                 cmd.name().set(r#"Print "copy!""#).unwrap();
-//!                 cmd.info().set("").unwrap();
+//!                 cmd.name().set(r#"Print "copy!""#);
+//!                 cmd.info().set("");
 //!             });
 //!             clipboard::on_pre_copy = hn!(|args: &CommandArgs| {
 //!                 args.propagation().stop();

@@ -1044,7 +1044,7 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 ///     fn bar(self) -> ReadOnlyCommandMetaVar<bool>;
 ///
 ///     /// Gets a read-only var derived from other metadata.
-///     fn foo_and_bar(self) -> BoxedVar<bool>;
+///     fn foo_and_bar(self) -> Var<bool>;
 ///
 ///     /// Init *foo*.
 ///     fn init_foo(self, foo: bool) -> Self;
@@ -1062,8 +1062,8 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 ///         self.with_meta(|m| m.get_var_or_insert(*COMMAND_BAR_ID, ||true)).read_only()
 ///     }
 ///
-///     fn foo_and_bar(self) -> BoxedVar<bool> {
-///         merge_var!(self.foo(), self.bar(), |f, b| *f && *b).boxed()
+///     fn foo_and_bar(self) -> Var<bool> {
+///         merge_var!(self.foo(), self.bar(), |f, b| *f && *b)
 ///     }
 ///
 ///     fn init_foo(self, foo: bool) -> Self {

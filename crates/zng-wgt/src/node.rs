@@ -761,7 +761,7 @@ macro_rules! __command_property {
             $(#[$on_cmd_attrs])*
             $vis fn $command {
                 cmd { $cmd_init }
-                enabled { $crate::node::zng_app::var::LocalVar(true) }
+                enabled { $crate::node::zng_app::var::const_var(true) }
                 widget_impl { , widget_impl($Wgt) }
             }
         }
@@ -820,7 +820,7 @@ macro_rules! __command_property {
 ///     /// Paste command property docs.
 ///     pub fn paste {
 ///         cmd: PASTE_CMD.scoped(WIDGET.id()),
-///         // enabled: LocalVar(true), // default enabled
+///         // enabled: const_var(true), // default enabled
 ///     }
 /// }
 /// ```
