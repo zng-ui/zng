@@ -7,7 +7,7 @@ error[E0277]: the trait bound `(): IntoVar<LinearGradientAxis>` is not satisfied
    |         required by a bound introduced by this call
    |
    = note: `IntoVar<T>` is implemented for all `T: VarValue`
-   = note: `IntoVar<T>` is implemented for all `V: Var<T>`
+   = note: `IntoVar<T>` is implemented for `Var<T>`, `ContextVar<T>` and others
    = help: the following other types implement trait `IntoVar<T>`:
             <implementers-list>
 note: required by a bound in `zng::widget::background_gradient::background_gradient`

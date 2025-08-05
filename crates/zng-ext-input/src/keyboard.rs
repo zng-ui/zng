@@ -23,7 +23,7 @@ use zng_clone_move::clmv;
 use zng_ext_window::WINDOWS;
 use zng_layout::unit::{Factor, FactorUnits};
 use zng_txt::Txt;
-use zng_var::{ArcVar, ReadOnlyArcVar, Var, types::ArcCowVar, var, var_default};
+use zng_var::{Var, var, var_default};
 use zng_view_api::config::AnimationsConfig;
 pub use zng_view_api::{
     config::KeyRepeatConfig,
@@ -251,17 +251,17 @@ impl AppExtension for KeyboardManager {
 pub struct KEYBOARD;
 impl KEYBOARD {
     /// Returns a read-only variable that tracks the currently pressed modifier keys.
-    pub fn modifiers(&self) -> ReadOnlyArcVar<ModifiersState> {
+    pub fn modifiers(&self) -> Var<ModifiersState> {
         KEYBOARD_SV.read().modifiers.read_only()
     }
 
     /// Returns a read-only variable that tracks the [`KeyCode`] of the keys currently pressed.
-    pub fn codes(&self) -> ReadOnlyArcVar<Vec<KeyCode>> {
+    pub fn codes(&self) -> Var<Vec<KeyCode>> {
         KEYBOARD_SV.read().codes.read_only()
     }
 
     /// Returns a read-only variable that tracks the [`Key`] identifier of the keys currently pressed.
-    pub fn keys(&self) -> ReadOnlyArcVar<Vec<Key>> {
+    pub fn keys(&self) -> Var<Vec<Key>> {
         KEYBOARD_SV.read().keys.read_only()
     }
 
@@ -274,14 +274,14 @@ impl KEYBOARD {
     ///
     /// [`sys_repeat_config`]: KEYBOARD::sys_repeat_config
     /// [`repeat_count`]: KeyInputArgs::repeat_count
-    pub fn repeat_config(&self) -> ArcCowVar<KeyRepeatConfig, ArcVar<KeyRepeatConfig>> {
+    pub fn repeat_config(&self) -> Var<KeyRepeatConfig> {
         KEYBOARD_SV.read().repeat_config.clone()
     }
 
     /// Returns a read-only variable that tracks the operating system key press repeat start delay and repeat speed.
     ///
     /// The variable updates every time the system config changes and on view-process (re)init.
-    pub fn sys_repeat_config(&self) -> ReadOnlyArcVar<KeyRepeatConfig> {
+    pub fn sys_repeat_config(&self) -> Var<KeyRepeatConfig> {
         KEYBOARD_SV.read().sys_repeat_config.read_only()
     }
 
@@ -296,14 +296,14 @@ impl KEYBOARD {
     ///
     /// [`caret_animation`]: Self::caret_animation
     /// [`sys_repeat_config`]: Self::sys_repeat_config
-    pub fn caret_animation_config(&self) -> ArcCowVar<(Duration, Duration), ArcVar<(Duration, Duration)>> {
+    pub fn caret_animation_config(&self) -> Var<(Duration, Duration)> {
         KEYBOARD_SV.read().caret_animation_config.clone()
     }
 
     /// Returns a read-only variable that tracks the operating system caret blink speed and timeout.
     ///
     /// The variable updates every time the system config changes and on view-process (re)init.
-    pub fn sys_caret_animation_config(&self) -> ReadOnlyArcVar<(Duration, Duration)> {
+    pub fn sys_caret_animation_config(&self) -> Var<(Duration, Duration)> {
         KEYBOARD_SV.read().sys_caret_animation_config.read_only()
     }
 
@@ -313,7 +313,7 @@ impl KEYBOARD {
     /// it can be added using the [`Var::easing`] method.
     ///
     /// [`Var::easing`]: zng_var::Var::easing
-    pub fn caret_animation(&self) -> ReadOnlyArcVar<Factor> {
+    pub fn caret_animation(&self) -> Var<Factor> {
         KEYBOARD_SV.read().caret_animation()
     }
 }
@@ -340,13 +340,13 @@ app_local! {
 struct KeyboardService {
     current_modifiers: HashSet<Key>,
 
-    modifiers: ArcVar<ModifiersState>,
-    codes: ArcVar<Vec<KeyCode>>,
-    keys: ArcVar<Vec<Key>>,
-    repeat_config: ArcCowVar<KeyRepeatConfig, ArcVar<KeyRepeatConfig>>,
-    sys_repeat_config: ArcVar<KeyRepeatConfig>,
-    caret_animation_config: ArcCowVar<(Duration, Duration), ArcVar<(Duration, Duration)>>,
-    sys_caret_animation_config: ArcVar<(Duration, Duration)>,
+    modifiers: Var<ModifiersState>,
+    codes: Var<Vec<KeyCode>>,
+    keys: Var<Vec<Key>>,
+    repeat_config: Var<KeyRepeatConfig>,
+    sys_repeat_config: Var<KeyRepeatConfig>,
+    caret_animation_config: Var<(Duration, Duration)>,
+    sys_caret_animation_config: Var<(Duration, Duration)>,
 
     last_key_down: Option<(InputDeviceId, KeyCode, DInstant, u32)>,
 }
@@ -375,7 +375,7 @@ impl KeyboardService {
                 let key_code = args.key_code;
                 if !self.codes.with(|c| c.contains(&key_code)) {
                     self.codes.modify(move |cs| {
-                        cs.to_mut().push(key_code);
+                        cs.push(key_code);
                     });
                 }
 
@@ -383,7 +383,7 @@ impl KeyboardService {
                 if !matches!(&key, Key::Unidentified) {
                     if !self.keys.with(|c| c.contains(key)) {
                         self.keys.modify(clmv!(key, |ks| {
-                            ks.to_mut().push(key);
+                            ks.push(key);
                         }));
                     }
 
@@ -398,8 +398,8 @@ impl KeyboardService {
                 let key = args.key_code;
                 if self.codes.with(|c| c.contains(&key)) {
                     self.codes.modify(move |cs| {
-                        if let Some(i) = cs.as_ref().iter().position(|c| *c == key) {
-                            cs.to_mut().swap_remove(i);
+                        if let Some(i) = cs.iter().position(|c| *c == key) {
+                            cs.swap_remove(i);
                         }
                     });
                 }
@@ -408,8 +408,8 @@ impl KeyboardService {
                 if !matches!(&key, Key::Unidentified) {
                     if self.keys.with(|c| c.contains(key)) {
                         self.keys.modify(clmv!(key, |ks| {
-                            if let Some(i) = ks.as_ref().iter().position(|k| k == &key) {
-                                ks.to_mut().swap_remove(i);
+                            if let Some(i) = ks.iter().position(|k| k == &key) {
+                                ks.swap_remove(i);
                             }
                         }));
                     }
@@ -477,7 +477,7 @@ impl KeyboardService {
         state
     }
 
-    fn caret_animation(&self) -> ReadOnlyArcVar<Factor> {
+    fn caret_animation(&self) -> Var<Factor> {
         let var = var(1.fct());
         let cfg = self.caret_animation_config.clone();
 

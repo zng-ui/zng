@@ -11,7 +11,7 @@ use zng_app::{
 };
 use zng_layout::unit::Factor;
 use zng_state_map::{StateId, static_id};
-use zng_var::{ArcVar, IntoVar, Var, WeakVar, types::WeakArcVar, var};
+use zng_var::{IntoVar, Var, WeakVar, var};
 use zng_view_api::{image::ImageMaskMode, window::RenderMode};
 
 use crate::{IMAGES, IMAGES_SV, ImageManager, ImageRenderArgs, ImageSource, ImageVar, ImagesService, Img};
@@ -57,7 +57,7 @@ impl ImagesService {
         result.read_only()
     }
 
-    pub(super) fn render_img<N>(&mut self, mask: Option<ImageMaskMode>, render: N, result: &ArcVar<Img>)
+    pub(super) fn render_img<N>(&mut self, mask: Option<ImageMaskMode>, render: N, result: &Var<Img>)
     where
         N: FnOnce() -> Box<dyn ImageRenderWindowRoot> + Send + Sync + 'static,
     {
@@ -304,19 +304,19 @@ impl ImagesRender {
 
 struct ActiveRenderer {
     window_id: WindowId,
-    image: WeakArcVar<Img>,
-    retain: ArcVar<bool>,
+    image: WeakVar<Img>,
+    retain: Var<bool>,
 }
 
 struct RenderRequest {
     render: Box<dyn FnOnce() -> Box<dyn ImageRenderWindowRoot> + Send + Sync>,
-    image: WeakArcVar<Img>,
+    image: WeakVar<Img>,
     mask: Option<ImageMaskMode>,
 }
 
 #[derive(Clone)]
 struct ImageRenderCtx {
-    retain: ArcVar<bool>,
+    retain: Var<bool>,
 }
 impl ImageRenderCtx {
     fn new() -> Self {
@@ -344,7 +344,7 @@ impl IMAGE_RENDER {
     /// If the render task is kept alive after a frame is produced, this is `false` by default
     /// meaning the image only renders once, if set to `true` the image will automatically update
     /// when the render widget requests a new frame.
-    pub fn retain(&self) -> ArcVar<bool> {
+    pub fn retain(&self) -> Var<bool> {
         WINDOW.req_state(*IMAGE_RENDER_ID).retain
     }
 }

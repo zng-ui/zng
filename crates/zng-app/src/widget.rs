@@ -22,7 +22,7 @@ use zng_layout::unit::{DipPoint, DipToPx as _, Layout1d, Layout2d, Px, PxPoint, 
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zng_task::UiTask;
 use zng_txt::{Txt, formatx};
-use zng_var::{AnyVar, AnyVarHookArgs, AnyVarValue, ResponseVar, Var, VarHandle, VarHandles, VarValue};
+use zng_var::{AnyVar, BoxAnyVarValue, ResponseVar, Var, VarHandle, VarHandles, VarValue};
 use zng_view_api::display_list::ReuseRange;
 
 use crate::{
@@ -897,7 +897,7 @@ impl WIDGET {
     }
 
     /// Subscribe to receive [`UpdateOp`] when the `var` changes.
-    pub fn sub_var_op(&self, op: UpdateOp, var: &impl AnyVar) -> &Self {
+    pub fn sub_var_op(&self, op: UpdateOp, var: &AnyVar) -> &Self {
         let w = WIDGET_CTX.get();
         let s = var.subscribe(op, w.id);
 
@@ -920,7 +920,7 @@ impl WIDGET {
     pub fn sub_var_op_when<T: VarValue>(
         &self,
         op: UpdateOp,
-        var: &impl Var<T>,
+        var: &Var<T>,
         predicate: impl Fn(&T) -> bool + Send + Sync + 'static,
     ) -> &Self {
         let w = WIDGET_CTX.get();
@@ -940,61 +940,57 @@ impl WIDGET {
     }
 
     /// Subscribe to receive updates when the `var` changes.
-    pub fn sub_var(&self, var: &impl AnyVar) -> &Self {
+    pub fn sub_var(&self, var: &AnyVar) -> &Self {
         self.sub_var_op(UpdateOp::Update, var)
     }
     /// Subscribe to receive updates when the `var` changes and the `predicate` approves the new value.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
-    pub fn sub_var_when<T: VarValue>(&self, var: &impl Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
+    pub fn sub_var_when<T: VarValue>(&self, var: &Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
         self.sub_var_op_when(UpdateOp::Update, var, predicate)
     }
 
     /// Subscribe to receive info rebuild requests when the `var` changes.
-    pub fn sub_var_info(&self, var: &impl AnyVar) -> &Self {
+    pub fn sub_var_info(&self, var: &AnyVar) -> &Self {
         self.sub_var_op(UpdateOp::Info, var)
     }
     /// Subscribe to receive info rebuild requests when the `var` changes and the `predicate` approves the new value.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
-    pub fn sub_var_info_when<T: VarValue>(&self, var: &impl Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
+    pub fn sub_var_info_when<T: VarValue>(&self, var: &Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
         self.sub_var_op_when(UpdateOp::Info, var, predicate)
     }
 
     /// Subscribe to receive layout requests when the `var` changes.
-    pub fn sub_var_layout(&self, var: &impl AnyVar) -> &Self {
+    pub fn sub_var_layout(&self, var: &AnyVar) -> &Self {
         self.sub_var_op(UpdateOp::Layout, var)
     }
     /// Subscribe to receive layout requests when the `var` changes and the `predicate` approves the new value.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
-    pub fn sub_var_layout_when<T: VarValue>(&self, var: &impl Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
+    pub fn sub_var_layout_when<T: VarValue>(&self, var: &Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
         self.sub_var_op_when(UpdateOp::Layout, var, predicate)
     }
 
     /// Subscribe to receive render requests when the `var` changes.
-    pub fn sub_var_render(&self, var: &impl AnyVar) -> &Self {
+    pub fn sub_var_render(&self, var: &AnyVar) -> &Self {
         self.sub_var_op(UpdateOp::Render, var)
     }
     /// Subscribe to receive render requests when the `var` changes and the `predicate` approves the new value.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
-    pub fn sub_var_render_when<T: VarValue>(&self, var: &impl Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
+    pub fn sub_var_render_when<T: VarValue>(&self, var: &Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
         self.sub_var_op_when(UpdateOp::Render, var, predicate)
     }
 
     /// Subscribe to receive render update requests when the `var` changes.
-    pub fn sub_var_render_update(&self, var: &impl AnyVar) -> &Self {
+    pub fn sub_var_render_update(&self, var: &AnyVar) -> &Self {
         self.sub_var_op(UpdateOp::RenderUpdate, var)
     }
     /// Subscribe to receive render update requests when the `var` changes and the `predicate` approves the new value.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
-    pub fn sub_var_render_update_when<T: VarValue>(
-        &self,
-        var: &impl Var<T>,
-        predicate: impl Fn(&T) -> bool + Send + Sync + 'static,
-    ) -> &Self {
+    pub fn sub_var_render_update_when<T: VarValue>(&self, var: &Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
         self.sub_var_op_when(UpdateOp::RenderUpdate, var, predicate)
     }
 
@@ -1360,7 +1356,7 @@ impl Default for WidgetHandlesCtx {
 /// Extension method to subscribe any widget to a variable.
 ///
 /// Also see [`WIDGET`] methods for the primary way to subscribe from inside a widget.
-pub trait AnyVarSubscribe: AnyVar {
+pub trait AnyVarSubscribe {
     /// Register the widget to receive an [`UpdateOp`] when this variable is new.
     ///
     /// Variables without the [`NEW`] capability return [`VarHandle::dummy`].
@@ -1369,10 +1365,13 @@ pub trait AnyVarSubscribe: AnyVar {
     /// [`VarHandle::dummy`]: zng_var::VarHandle
     fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle;
 }
-impl<V: AnyVar> AnyVarSubscribe for V {
+impl AnyVarSubscribe for AnyVar {
     fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
-        if !self.capabilities().is_always_static() {
-            self.hook_any(var_subscribe(op, widget_id))
+        if !self.capabilities().is_const() {
+            self.hook(move |_| {
+                UPDATES.update_op(op, widget_id);
+                true
+            })
         } else {
             VarHandle::dummy()
         }
@@ -1382,7 +1381,7 @@ impl<V: AnyVar> AnyVarSubscribe for V {
 /// Extension methods to subscribe any widget to a variable or app handlers to a variable.
 ///
 /// Also see [`WIDGET`] methods for the primary way to subscribe from inside a widget.
-pub trait VarSubscribe<T: VarValue>: Var<T> + AnyVarSubscribe {
+pub trait VarSubscribe<T: VarValue>: AnyVarSubscribe {
     /// Register the widget to receive an [`UpdateOp`] when this variable is new and the `predicate` approves the new value.
     ///
     /// Variables without the [`NEW`] capability return [`VarHandle::dummy`].
@@ -1399,10 +1398,7 @@ pub trait VarSubscribe<T: VarValue>: Var<T> + AnyVarSubscribe {
     /// [`ContextVar<T>`]: zng_var::ContextVar
     fn on_pre_new<H>(&self, handler: H) -> VarHandle
     where
-        H: AppHandler<OnVarArgs<T>>,
-    {
-        var_on_new(self, handler, true)
-    }
+        H: AppHandler<OnVarArgs<T>>;
 
     /// Add a `handler` that is called every time this variable updates,
     /// the handler is called after UI update.
@@ -1412,14 +1408,39 @@ pub trait VarSubscribe<T: VarValue>: Var<T> + AnyVarSubscribe {
     /// [`ContextVar<T>`]: zng_var::ContextVar
     fn on_new<H>(&self, handler: H) -> VarHandle
     where
+        H: AppHandler<OnVarArgs<T>>;
+}
+impl<T: VarValue> AnyVarSubscribe for Var<T> {
+    fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
+        self.as_any().subscribe(op, widget_id)
+    }
+}
+impl<T: VarValue> VarSubscribe<T> for Var<T> {
+    fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle {
+        self.hook(move |a| {
+            if let Some(a) = a.downcast_value::<T>() {
+                if predicate(a) {
+                    UPDATES.update_op(op, widget_id);
+                }
+                true
+            } else {
+                false
+            }
+        })
+    }
+
+    fn on_pre_new<H>(&self, handler: H) -> VarHandle
+    where
+        H: AppHandler<OnVarArgs<T>>,
+    {
+        var_on_new(self, handler, true)
+    }
+
+    fn on_new<H>(&self, handler: H) -> VarHandle
+    where
         H: AppHandler<OnVarArgs<T>>,
     {
         var_on_new(self, handler, false)
-    }
-}
-impl<T: VarValue, V: Var<T>> VarSubscribe<T> for V {
-    fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle {
-        self.hook_any(var_subscribe_when(op, widget_id, predicate))
     }
 }
 
@@ -1454,8 +1475,8 @@ impl<T: VarValue> ResponseVarSubscribe<T> for ResponseVar<T> {
             return VarHandle::dummy();
         }
 
-        self.on_pre_new(app_hn!(|args: &OnVarArgs<zng_var::types::Response<T>>, handler_args| {
-            if let zng_var::types::Response::Done(value) = &args.value {
+        self.on_pre_new(app_hn!(|args: &OnVarArgs<zng_var::Response<T>>, handler_args| {
+            if let zng_var::Response::Done(value) = &args.value {
                 handler.event(
                     &OnVarArgs::new(value.clone(), args.tags.iter().map(|t| (*t).clone_boxed()).collect()),
                     &crate::handler::AppHandlerArgs {
@@ -1475,8 +1496,8 @@ impl<T: VarValue> ResponseVarSubscribe<T> for ResponseVar<T> {
             return VarHandle::dummy();
         }
 
-        self.on_new(app_hn!(|args: &OnVarArgs<zng_var::types::Response<T>>, handler_args| {
-            if let zng_var::types::Response::Done(value) = &args.value {
+        self.on_new(app_hn!(|args: &OnVarArgs<zng_var::Response<T>>, handler_args| {
+            if let zng_var::Response::Done(value) = &args.value {
                 handler.event(
                     &OnVarArgs::new(value.clone(), args.tags.iter().map(|t| (*t).clone_boxed()).collect()),
                     &crate::handler::AppHandlerArgs {
@@ -1489,35 +1510,11 @@ impl<T: VarValue> ResponseVarSubscribe<T> for ResponseVar<T> {
     }
 }
 
-fn var_subscribe(op: UpdateOp, widget_id: WidgetId) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
-    Box::new(move |_| {
-        UPDATES.update_op(op, widget_id);
-        true
-    })
-}
-
-fn var_subscribe_when<T: VarValue>(
-    op: UpdateOp,
-    widget_id: WidgetId,
-    when: impl Fn(&T) -> bool + Send + Sync + 'static,
-) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
-    Box::new(move |a| {
-        if let Some(a) = a.downcast_value::<T>() {
-            if when(a) {
-                UPDATES.update_op(op, widget_id);
-            }
-            true
-        } else {
-            false
-        }
-    })
-}
-
-fn var_on_new<T>(var: &impl Var<T>, handler: impl AppHandler<OnVarArgs<T>>, is_preview: bool) -> VarHandle
+fn var_on_new<T>(var: &Var<T>, handler: impl AppHandler<OnVarArgs<T>>, is_preview: bool) -> VarHandle
 where
     T: VarValue,
 {
-    if var.capabilities().is_always_static() {
+    if var.capabilities().is_const() {
         return VarHandle::dummy();
     }
 
@@ -1556,17 +1553,17 @@ pub struct OnVarArgs<T: VarValue> {
     /// The new value.
     pub value: T,
     /// Custom tag objects that where set when the value was modified.
-    pub tags: Vec<Box<dyn AnyVarValue>>,
+    pub tags: Vec<BoxAnyVarValue>,
 }
 impl<T: VarValue> OnVarArgs<T> {
     /// New from value and custom modify tags.
-    pub fn new(value: T, tags: Vec<Box<dyn AnyVarValue>>) -> Self {
+    pub fn new(value: T, tags: Vec<BoxAnyVarValue>) -> Self {
         Self { value, tags }
     }
 
     /// Reference all custom tag values of type `T`.
     pub fn downcast_tags<Ta: VarValue>(&self) -> impl Iterator<Item = &Ta> + '_ {
-        self.tags.iter().filter_map(|t| (*t).as_any().downcast_ref::<Ta>())
+        self.tags.iter().filter_map(|t| (*t).downcast_ref::<Ta>())
     }
 }
 impl<T: VarValue> Clone for OnVarArgs<T> {
@@ -1579,30 +1576,78 @@ impl<T: VarValue> Clone for OnVarArgs<T> {
 }
 
 /// Extension methods to layout var values.
-pub trait VarLayout<T: VarValue>: Var<T> {
+pub trait VarLayout<T: VarValue> {
     /// Compute the pixel value in the current [`LAYOUT`] context.
     ///
     /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout(&self) -> T::Px
     where
-        T: Layout2d,
-    {
-        self.with(|s| s.layout())
-    }
+        T: Layout2d;
 
     /// Compute the pixel value in the current [`LAYOUT`] context with `default`.
     ///
     /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout_dft(&self, default: T::Px) -> T::Px
     where
+        T: Layout2d;
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis.
+    ///
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
+    fn layout_x(&self) -> Px
+    where
+        T: Layout1d;
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis.
+    ///
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
+    fn layout_y(&self) -> Px
+    where
+        T: Layout1d;
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***z*** axis.
+    ///
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
+    fn layout_z(&self) -> Px
+    where
+        T: Layout1d;
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis with `default`.
+    ///
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
+    fn layout_dft_x(&self, default: Px) -> Px
+    where
+        T: Layout1d;
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis with `default`.
+    ///
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
+    fn layout_dft_y(&self, default: Px) -> Px
+    where
+        T: Layout1d;
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***z*** axis with `default`.
+    ///
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
+    fn layout_dft_z(&self, default: Px) -> Px
+    where
+        T: Layout1d;
+}
+impl<T: VarValue> VarLayout<T> for Var<T> {
+    fn layout(&self) -> <T>::Px
+    where
+        T: Layout2d,
+    {
+        self.with(|s| s.layout())
+    }
+
+    fn layout_dft(&self, default: <T>::Px) -> <T>::Px
+    where
         T: Layout2d,
     {
         self.with(move |s| s.layout_dft(default))
     }
 
-    /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis.
-    ///
-    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout_x(&self) -> Px
     where
         T: Layout1d,
@@ -1610,9 +1655,6 @@ pub trait VarLayout<T: VarValue>: Var<T> {
         self.with(|s| s.layout_x())
     }
 
-    /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis.
-    ///
-    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout_y(&self) -> Px
     where
         T: Layout1d,
@@ -1620,9 +1662,6 @@ pub trait VarLayout<T: VarValue>: Var<T> {
         self.with(|s| s.layout_y())
     }
 
-    /// Compute the pixel value in the current [`LAYOUT`] context ***z*** axis.
-    ///
-    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout_z(&self) -> Px
     where
         T: Layout1d,
@@ -1630,9 +1669,6 @@ pub trait VarLayout<T: VarValue>: Var<T> {
         self.with(|s| s.layout_z())
     }
 
-    /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis with `default`.
-    ///
-    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout_dft_x(&self, default: Px) -> Px
     where
         T: Layout1d,
@@ -1640,9 +1676,6 @@ pub trait VarLayout<T: VarValue>: Var<T> {
         self.with(move |s| s.layout_dft_x(default))
     }
 
-    /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis with `default`.
-    ///
-    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout_dft_y(&self, default: Px) -> Px
     where
         T: Layout1d,
@@ -1650,9 +1683,6 @@ pub trait VarLayout<T: VarValue>: Var<T> {
         self.with(move |s| s.layout_dft_y(default))
     }
 
-    /// Compute the pixel value in the current [`LAYOUT`] context ***z*** axis with `default`.
-    ///
-    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout_dft_z(&self, default: Px) -> Px
     where
         T: Layout1d,
@@ -1660,7 +1690,6 @@ pub trait VarLayout<T: VarValue>: Var<T> {
         self.with(move |s| s.layout_dft_z(default))
     }
 }
-impl<T: VarValue, V: Var<T>> VarLayout<T> for V {}
 
 /// Integrate [`UiTask`] with widget updates.
 pub trait UiTaskWidget<R> {

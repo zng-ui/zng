@@ -27,7 +27,7 @@ use zng_layout::{
     unit::{PxConstraints2d, PxCornerRadius, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, SideOffsets},
 };
 use zng_state_map::{StateId, StateMapRef, StateValue};
-use zng_var::{types::VecChange, *};
+use zng_var::*;
 
 #[doc(hidden)]
 pub use pastey::paste;
@@ -112,7 +112,6 @@ pub use zng_app;
 ///
 /// [`is_new`]: zng_var::AnyVar::is_new
 /// [`read_only`]: zng_var::Var::read_only
-/// [`actual_var`]: zng_var::Var::actual_var
 /// [`default`]: zng_app::widget::property#default
 /// [`merge_var!`]: zng_var::merge_var
 /// [`UiNode`]: zng_app::widget::node::UiNode
@@ -127,7 +126,7 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, context_var: ContextVar
         match &op {
             UiNodeOp::Init => {
                 id = Some(ContextInitHandle::new());
-                actual_value = Some(Arc::new(value.clone().actual_var().boxed()));
+                actual_value = Some(Arc::new(value.current_context().into()));
             }
             UiNodeOp::Deinit => {
                 is_deinit = true;
@@ -155,7 +154,7 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, context_var: ContextVar
 pub fn with_context_var_init<T: VarValue>(
     child: impl UiNode,
     var: ContextVar<T>,
-    mut init_value: impl FnMut() -> BoxedVar<T> + Send + 'static,
+    mut init_value: impl FnMut() -> Var<T> + Send + 'static,
 ) -> impl UiNode {
     let mut id = None;
     let mut value = None;
@@ -164,7 +163,7 @@ pub fn with_context_var_init<T: VarValue>(
         match &op {
             UiNodeOp::Init => {
                 id = Some(ContextInitHandle::new());
-                value = Some(Arc::new(init_value().actual_var()));
+                value = Some(Arc::new(init_value().current_context().into()));
             }
             UiNodeOp::Deinit => {
                 is_deinit = true;
@@ -762,7 +761,7 @@ macro_rules! __command_property {
             $(#[$on_cmd_attrs])*
             $vis fn $command {
                 cmd { $cmd_init }
-                enabled { $crate::node::zng_app::var::LocalVar(true) }
+                enabled { $crate::node::zng_app::var::const_var(true) }
                 widget_impl { , widget_impl($Wgt) }
             }
         }
@@ -795,7 +794,7 @@ macro_rules! __command_property {
             $(#[$on_cmd_attrs])*
             $vis fn $command {
                 cmd { $cmd_init }
-                enabled { $crate::node::zng_app::var::LocalVar(true) }
+                enabled { $crate::node::zng_app::var::const_var(true) }
                 widget_impl { }
             }
         }
@@ -821,7 +820,7 @@ macro_rules! __command_property {
 ///     /// Paste command property docs.
 ///     pub fn paste {
 ///         cmd: PASTE_CMD.scoped(WIDGET.id()),
-///         // enabled: LocalVar(true), // default enabled
+///         // enabled: const_var(true), // default enabled
 ///     }
 /// }
 /// ```
@@ -933,27 +932,25 @@ macro_rules! command_property { // TODO(breaking): generate `can_foo` property a
 ///  
 /// [`propagation`]: zng_app::event::AnyEventArgs::propagation
 /// [`Command::subscribe`]: zng_app::event::Command::subscribe
-pub fn on_command<U, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
+pub fn on_command<U, CB, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
     CB: FnMut() -> Command + Send + 'static,
-    E: Var<bool>,
-    EB: FnMut() -> E + Send + 'static,
+    EB: FnMut() -> Var<bool> + Send + 'static,
     H: WidgetHandler<CommandArgs>,
 {
     #[cfg(feature = "dyn_closure")]
     let command_builder: Box<dyn FnMut() -> Command + Send> = Box::new(command_builder);
     #[cfg(feature = "dyn_closure")]
-    let enabled_builder: Box<dyn FnMut() -> E + Send> = Box::new(enabled_builder);
+    let enabled_builder: Box<dyn FnMut() -> Var<bool> + Send> = Box::new(enabled_builder);
 
     on_command_impl(child.boxed(), command_builder, enabled_builder, handler.cfg_boxed()).cfg_boxed()
 }
-fn on_command_impl<U, CB, E, EB, H>(child: U, mut command_builder: CB, mut enabled_builder: EB, handler: H) -> impl UiNode
+fn on_command_impl<U, CB, EB, H>(child: U, mut command_builder: CB, mut enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
     CB: FnMut() -> Command + Send + 'static,
-    E: Var<bool>,
-    EB: FnMut() -> E + Send + 'static,
+    EB: FnMut() -> Var<bool> + Send + 'static,
     H: WidgetHandler<CommandArgs>,
 {
     let mut enabled = None;
@@ -1028,27 +1025,25 @@ zng_app::event::command! {
 ///
 /// The event `handler` is called before the [`on_command`] equivalent at the same context level. If the command event
 /// targets more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
-pub fn on_pre_command<U, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
+pub fn on_pre_command<U, CB, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
     CB: FnMut() -> Command + Send + 'static,
-    E: Var<bool>,
-    EB: FnMut() -> E + Send + 'static,
+    EB: FnMut() -> Var<bool> + Send + 'static,
     H: WidgetHandler<CommandArgs>,
 {
     #[cfg(feature = "dyn_closure")]
     let command_builder: Box<dyn FnMut() -> Command + Send> = Box::new(command_builder);
     #[cfg(feature = "dyn_closure")]
-    let enabled_builder: Box<dyn FnMut() -> E + Send> = Box::new(enabled_builder);
+    let enabled_builder: Box<dyn FnMut() -> Var<bool> + Send> = Box::new(enabled_builder);
 
     on_pre_command_impl(child.cfg_boxed(), command_builder, enabled_builder, handler.cfg_boxed()).cfg_boxed()
 }
-fn on_pre_command_impl<U, CB, E, EB, H>(child: U, mut command_builder: CB, mut enabled_builder: EB, handler: H) -> impl UiNode
+fn on_pre_command_impl<U, CB, EB, H>(child: U, mut command_builder: CB, mut enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
     CB: FnMut() -> Command + Send + 'static,
-    E: Var<bool>,
-    EB: FnMut() -> E + Send + 'static,
+    EB: FnMut() -> Var<bool> + Send + 'static,
     H: WidgetHandler<CommandArgs>,
 {
     let mut handler = handler.cfg_boxed();
@@ -1108,7 +1103,7 @@ where
 }
 
 /// Logs an error if the `_var` is always read-only.
-pub fn validate_getter_var<T: VarValue>(_var: &impl Var<T>) {
+pub fn validate_getter_var<T: VarValue>(_var: &Var<T>) {
     #[cfg(debug_assertions)]
     if _var.capabilities().is_always_read_only() {
         tracing::error!(
@@ -1133,15 +1128,15 @@ pub fn event_state<A: EventArgs, S: VarValue>(
         UiNodeOp::Init => {
             validate_getter_var(&state);
             WIDGET.sub_event(&event);
-            let _ = state.set(default.clone());
+            state.set(default.clone());
         }
         UiNodeOp::Deinit => {
-            let _ = state.set(default.clone());
+            state.set(default.clone());
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = event.on(update) {
                 if let Some(s) = on_event(args) {
-                    let _ = state.set(s);
+                    state.set(s);
                 }
             }
         }
@@ -1183,10 +1178,10 @@ where
             WIDGET.sub_event(&event0).sub_event(&event1);
 
             partial = partial_default.clone();
-            let _ = state.set(default.clone());
+            state.set(default.clone());
         }
         UiNodeOp::Deinit => {
-            let _ = state.set(default.clone());
+            state.set(default.clone());
         }
         UiNodeOp::Event { update } => {
             let mut updated = false;
@@ -1209,7 +1204,7 @@ where
 
             if updated {
                 if let Some(value) = merge(partial.0.clone(), partial.1.clone()) {
-                    let _ = state.set(value);
+                    state.set(value);
                 }
             }
         }
@@ -1256,10 +1251,10 @@ where
             WIDGET.sub_event(&event0).sub_event(&event1).sub_event(&event2);
 
             partial = partial_default.clone();
-            let _ = state.set(default.clone());
+            state.set(default.clone());
         }
         UiNodeOp::Deinit => {
-            let _ = state.set(default.clone());
+            state.set(default.clone());
         }
         UiNodeOp::Event { update } => {
             let mut updated = false;
@@ -1289,7 +1284,7 @@ where
 
             if updated {
                 if let Some(value) = merge(partial.0.clone(), partial.1.clone(), partial.2.clone()) {
-                    let _ = state.set(value);
+                    state.set(value);
                 }
             }
         }
@@ -1341,10 +1336,10 @@ where
             WIDGET.sub_event(&event0).sub_event(&event1).sub_event(&event2).sub_event(&event3);
 
             partial = partial_default.clone();
-            let _ = state.set(default.clone());
+            state.set(default.clone());
         }
         UiNodeOp::Deinit => {
-            let _ = state.set(default.clone());
+            state.set(default.clone());
         }
         UiNodeOp::Event { update } => {
             let mut updated = false;
@@ -1381,7 +1376,7 @@ where
 
             if updated {
                 if let Some(value) = merge(partial.0.clone(), partial.1.clone(), partial.2.clone(), partial.3.clone()) {
-                    let _ = state.set(value);
+                    state.set(value);
                 }
             }
         }
@@ -1401,7 +1396,7 @@ pub fn bind_state<T: VarValue>(child: impl UiNode, source: impl IntoVar<T>, stat
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             validate_getter_var(&state);
-            let _ = state.set_from(&source);
+            state.set_from(&source);
             _binding = source.bind(&state);
         }
         UiNodeOp::Deinit => {
@@ -1416,10 +1411,9 @@ pub fn bind_state<T: VarValue>(child: impl UiNode, source: impl IntoVar<T>, stat
 /// On init the `state` closure is called to provide a variable, the variable is set to `source` and bound to it,
 /// you can use this to create state properties that map from a context variable or to create composite properties
 /// that merge other state properties.
-pub fn bind_state_init<T, V>(child: impl UiNode, source: impl Fn() -> V + Send + 'static, state: impl IntoVar<T>) -> impl UiNode
+pub fn bind_state_init<T>(child: impl UiNode, source: impl Fn() -> Var<T> + Send + 'static, state: impl IntoVar<T>) -> impl UiNode
 where
     T: VarValue,
-    V: Var<T>,
 {
     let state = state.into_var();
     let mut _source_var = None;
@@ -1429,7 +1423,7 @@ where
         UiNodeOp::Init => {
             validate_getter_var(&state);
             let source = source();
-            let _ = state.set_from(&source);
+            state.set_from(&source);
             _binding = source.bind(&state);
             _source_var = Some(source);
         }
@@ -1459,21 +1453,21 @@ pub fn widget_state_is_state(
             child.init();
             let s = WIDGET.with_state(&predicate);
             if s != state.get() {
-                let _ = state.set(s);
+                state.set(s);
             }
         }
         UiNodeOp::Deinit => {
             child.deinit();
             let s = WIDGET.with_state(&deinit);
             if s != state.get() {
-                let _ = state.set(s);
+                state.set(s);
             }
         }
         UiNodeOp::Update { updates } => {
             child.update(updates);
             let s = WIDGET.with_state(&predicate);
             if s != state.get() {
-                let _ = state.set(s);
+                state.set(s);
             }
         }
         _ => {}
@@ -1497,7 +1491,7 @@ pub fn widget_state_get_state<T: VarValue>(
             child.init();
             let new = state.with(|s| WIDGET.with_state(|w| get_new(w, s)));
             if let Some(new) = new {
-                let _ = state.set(new);
+                state.set(new);
             }
         }
         UiNodeOp::Deinit => {
@@ -1505,14 +1499,14 @@ pub fn widget_state_get_state<T: VarValue>(
 
             let new = state.with(|s| WIDGET.with_state(|w| get_deinit(w, s)));
             if let Some(new) = new {
-                let _ = state.set(new);
+                state.set(new);
             }
         }
         UiNodeOp::Update { updates } => {
             child.update(updates);
             let new = state.with(|s| WIDGET.with_state(|w| get_new(w, s)));
             if let Some(new) = new {
-                let _ = state.set(new);
+                state.set(new);
             }
         }
         _ => {}
@@ -2231,23 +2225,19 @@ where
     }
 }
 
-struct ListPresenter<D, L, E>
+struct ListPresenter<D>
 where
     D: VarValue,
-    L: Var<ObservableVec<D>>,
-    E: Var<WidgetFn<D>>,
 {
-    list: L,
-    item_fn: E,
+    list: Var<ObservableVec<D>>,
+    item_fn: Var<WidgetFn<D>>,
     view: Vec<BoxedUiNode>,
     _e: std::marker::PhantomData<D>,
 }
 
-impl<D, L, E> UiNodeList for ListPresenter<D, L, E>
+impl<D> UiNodeList for ListPresenter<D>
 where
     D: VarValue,
-    L: Var<ObservableVec<D>>,
-    E: Var<WidgetFn<D>>,
 {
     fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
@@ -2387,25 +2377,21 @@ where
     }
 }
 
-struct ListPresenterFromIter<D, L, LV, E>
+struct ListPresenterFromIter<D, L>
 where
     D: VarValue,
     L: IntoIterator<Item = D> + VarValue,
-    LV: Var<L>,
-    E: Var<WidgetFn<D>>,
 {
-    list: LV,
-    item_fn: E,
+    list: Var<L>,
+    item_fn: Var<WidgetFn<D>>,
     view: Vec<BoxedUiNode>,
     _e: std::marker::PhantomData<(D, L)>,
 }
 
-impl<D, L, LV, E> UiNodeList for ListPresenterFromIter<D, L, LV, E>
+impl<D, L> UiNodeList for ListPresenterFromIter<D, L>
 where
     D: VarValue,
     L: IntoIterator<Item = D> + VarValue,
-    LV: Var<L>,
-    E: Var<WidgetFn<D>>,
 {
     fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
@@ -2483,49 +2469,59 @@ where
 }
 
 /// Extension method to *convert* a variable to a node.
-pub trait VarPresent<D: VarValue>: Var<D> {
+pub trait VarPresent<D: VarValue> {
     /// Present the variable data using a [`presenter`] node.
+    fn present(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode;
+}
+impl<D: VarValue> VarPresent<D> for Var<D> {
     fn present(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
         presenter(self.clone(), wgt_fn)
     }
 }
-impl<D: VarValue, V: Var<D>> VarPresent<D> for V {}
 
 /// Extension method to *convert* a variable to a node.
-pub trait VarPresentOpt<D: VarValue>: Var<Option<D>> {
+pub trait VarPresentOpt<D: VarValue> {
     /// Present the variable data using a [`presenter_opt`] node.
+    fn present_opt(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode;
+}
+impl<D: VarValue> VarPresentOpt<D> for Var<Option<D>> {
     fn present_opt(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
         presenter_opt(self.clone(), wgt_fn)
     }
 }
-impl<D: VarValue, V: Var<Option<D>>> VarPresentOpt<D> for V {}
 
 /// Extension method fo *convert* a variable to a node list.
-pub trait VarPresentList<D: VarValue>: Var<ObservableVec<D>> {
+pub trait VarPresentList<D: VarValue> {
     /// Present the variable data using a [`list_presenter`] node list.
+    fn present_list(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList;
+}
+impl<D: VarValue> VarPresentList<D> for Var<ObservableVec<D>> {
     fn present_list(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList {
         list_presenter(self.clone(), wgt_fn)
     }
 }
-impl<D: VarValue, V: Var<ObservableVec<D>>> VarPresentList<D> for V {}
 
 /// Extension method fo *convert* a variable to a node list.
-pub trait VarPresentListFromIter<D: VarValue, L: IntoIterator<Item = D> + VarValue>: Var<L> {
+pub trait VarPresentListFromIter<D: VarValue, L: IntoIterator<Item = D> + VarValue> {
     /// Present the variable data using a [`list_presenter_from_iter`] node list.
+    fn present_list_from_iter(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList;
+}
+impl<D: VarValue, L: IntoIterator<Item = D> + VarValue> VarPresentListFromIter<D, L> for Var<L> {
     fn present_list_from_iter(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList {
         list_presenter_from_iter(self.clone(), wgt_fn)
     }
 }
-impl<D: VarValue, L: IntoIterator<Item = D> + VarValue, V: Var<L>> VarPresentListFromIter<D, L> for V {}
 
 /// Extension method to *convert* a variable to a node.
-pub trait VarPresentData<D: VarValue>: Var<WidgetFn<D>> {
+pub trait VarPresentData<D: VarValue> {
     /// Present the `data` variable using a [`presenter`] node.
+    fn present_data(&self, data: impl IntoVar<D>) -> impl UiNode;
+}
+impl<D: VarValue> VarPresentData<D> for Var<WidgetFn<D>> {
     fn present_data(&self, data: impl IntoVar<D>) -> impl UiNode {
         presenter(data, self.clone())
     }
 }
-impl<D: VarValue, V: Var<WidgetFn<D>>> VarPresentData<D> for V {}
 
 #[doc(inline)]
 pub use crate::command_property;

@@ -12,7 +12,7 @@ use zng_layout::unit::{
 use zng_state_map::{StateId, static_id};
 use zng_txt::Txt;
 use zng_unique_id::IdSet;
-use zng_var::{ArcVar, BoxedVar, ReadOnlyArcVar, Var, merge_var, var, var_from};
+use zng_var::{Var, merge_var, var, var_from};
 use zng_view_api::{
     config::{ColorScheme, ColorsConfig},
     window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState},
@@ -21,67 +21,67 @@ use zng_view_api::{
 use crate::{AutoSize, CursorSource, FrameCaptureMode, MonitorQuery, WindowIcon};
 
 pub(super) struct WindowVarsData {
-    chrome: ArcVar<bool>,
-    icon: ArcVar<WindowIcon>,
-    pub(super) actual_icon: ArcVar<Option<Img>>,
-    cursor: ArcVar<CursorSource>,
-    pub(super) actual_cursor_img: ArcVar<Option<(Img, PxPoint)>>,
-    title: ArcVar<Txt>,
+    chrome: Var<bool>,
+    icon: Var<WindowIcon>,
+    pub(super) actual_icon: Var<Option<Img>>,
+    cursor: Var<CursorSource>,
+    pub(super) actual_cursor_img: Var<Option<(Img, PxPoint)>>,
+    title: Var<Txt>,
 
-    state: ArcVar<WindowState>,
-    focus_indicator: ArcVar<Option<FocusIndicator>>,
+    state: Var<WindowState>,
+    focus_indicator: Var<Option<FocusIndicator>>,
 
-    position: ArcVar<Point>,
-    monitor: ArcVar<MonitorQuery>,
-    video_mode: ArcVar<VideoMode>,
+    position: Var<Point>,
+    monitor: Var<MonitorQuery>,
+    video_mode: Var<VideoMode>,
 
-    size: ArcVar<Size>,
-    pub(super) auto_size: ArcVar<AutoSize>,
-    auto_size_origin: ArcVar<Point>,
-    min_size: ArcVar<Size>,
-    max_size: ArcVar<Size>,
+    size: Var<Size>,
+    pub(super) auto_size: Var<AutoSize>,
+    auto_size_origin: Var<Point>,
+    min_size: Var<Size>,
+    max_size: Var<Size>,
 
-    font_size: ArcVar<Length>,
+    font_size: Var<Length>,
 
-    pub(super) actual_position: ArcVar<DipPoint>,
-    pub(super) global_position: ArcVar<PxPoint>,
-    pub(super) actual_monitor: ArcVar<Option<MonitorId>>,
-    pub(super) actual_size: ArcVar<DipSize>,
-    pub(super) safe_padding: ArcVar<DipSideOffsets>,
+    pub(super) actual_position: Var<DipPoint>,
+    pub(super) global_position: Var<PxPoint>,
+    pub(super) actual_monitor: Var<Option<MonitorId>>,
+    pub(super) actual_size: Var<DipSize>,
+    pub(super) safe_padding: Var<DipSideOffsets>,
 
-    pub(super) scale_factor: ArcVar<Factor>,
+    pub(super) scale_factor: Var<Factor>,
 
-    pub(super) restore_state: ArcVar<WindowState>,
-    pub(super) restore_rect: ArcVar<DipRect>,
+    pub(super) restore_state: Var<WindowState>,
+    pub(super) restore_rect: Var<DipRect>,
 
-    enabled_buttons: ArcVar<WindowButton>,
+    enabled_buttons: Var<WindowButton>,
 
-    resizable: ArcVar<bool>,
-    movable: ArcVar<bool>,
+    resizable: Var<bool>,
+    movable: Var<bool>,
 
-    always_on_top: ArcVar<bool>,
+    always_on_top: Var<bool>,
 
-    visible: ArcVar<bool>,
-    taskbar_visible: ArcVar<bool>,
+    visible: Var<bool>,
+    taskbar_visible: Var<bool>,
 
-    parent: ArcVar<Option<WindowId>>,
-    pub(super) nest_parent: ArcVar<Option<WidgetId>>,
-    modal: ArcVar<bool>,
-    pub(super) children: ArcVar<IdSet<WindowId>>,
+    parent: Var<Option<WindowId>>,
+    pub(super) nest_parent: Var<Option<WidgetId>>,
+    modal: Var<bool>,
+    pub(super) children: Var<IdSet<WindowId>>,
 
-    color_scheme: ArcVar<Option<ColorScheme>>,
-    pub(super) actual_color_scheme: ArcVar<ColorScheme>,
-    accent_color: ArcVar<Option<LightDark>>,
-    pub(super) actual_accent_color: ArcVar<LightDark>,
+    color_scheme: Var<Option<ColorScheme>>,
+    pub(super) actual_color_scheme: Var<ColorScheme>,
+    accent_color: Var<Option<LightDark>>,
+    pub(super) actual_accent_color: Var<LightDark>,
 
-    pub(super) is_open: ArcVar<bool>,
-    pub(super) is_loaded: ArcVar<bool>,
+    pub(super) is_open: Var<bool>,
+    pub(super) is_loaded: Var<bool>,
 
-    frame_capture_mode: ArcVar<FrameCaptureMode>,
-    pub(super) render_mode: ArcVar<RenderMode>,
+    frame_capture_mode: Var<FrameCaptureMode>,
+    pub(super) render_mode: Var<RenderMode>,
 
-    pub(super) access_enabled: ArcVar<AccessEnabled>,
-    system_shutdown_warn: ArcVar<Txt>,
+    pub(super) access_enabled: Var<AccessEnabled>,
+    system_shutdown_warn: Var<Txt>,
 }
 
 /// Variables that configure the opening or open window.
@@ -186,7 +186,7 @@ impl WindowVars {
     /// detect when a fallback chrome must be provided.
     ///
     /// [`WINDOWS.system_chrome`]: crate::WINDOWS::system_chrome
-    pub fn chrome(&self) -> ArcVar<bool> {
+    pub fn chrome(&self) -> Var<bool> {
         self.0.chrome.clone()
     }
 
@@ -199,7 +199,7 @@ impl WindowVars {
     /// You can retrieve the custom icon image using [`actual_icon`].
     ///
     /// [`actual_icon`]: Self::actual_icon
-    pub fn icon(&self) -> ArcVar<WindowIcon> {
+    pub fn icon(&self) -> Var<WindowIcon> {
         self.0.icon.clone()
     }
 
@@ -210,7 +210,7 @@ impl WindowVars {
     ///
     /// [`icon`]: Self::icon
     /// [`Img`]: zng_ext_image::Img
-    pub fn actual_icon(&self) -> ReadOnlyArcVar<Option<Img>> {
+    pub fn actual_icon(&self) -> Var<Option<Img>> {
         self.0.actual_icon.read_only()
     }
 
@@ -222,7 +222,7 @@ impl WindowVars {
     ///
     /// [`CursorIcon`]: zng_view_api::window::CursorIcon
     /// [`CursorIcon::Default`]: zng_view_api::window::CursorIcon::Default
-    pub fn cursor(&self) -> ArcVar<CursorSource> {
+    pub fn cursor(&self) -> Var<CursorSource> {
         self.0.cursor.clone()
     }
 
@@ -234,14 +234,14 @@ impl WindowVars {
     /// [`cursor`]: Self::cursor
     /// [`Img`]: zng_ext_image::Img
     /// [`PxPoint`]: zng_layout::unit::PxPoint
-    pub fn actual_cursor_img(&self) -> ReadOnlyArcVar<Option<(Img, PxPoint)>> {
+    pub fn actual_cursor_img(&self) -> Var<Option<(Img, PxPoint)>> {
         self.0.actual_cursor_img.read_only()
     }
 
     /// Window title text.
     ///
     /// The default value is `""`.
-    pub fn title(&self) -> ArcVar<Txt> {
+    pub fn title(&self) -> Var<Txt> {
         self.0.title.clone()
     }
 
@@ -250,7 +250,7 @@ impl WindowVars {
     /// Minimized, maximized or fullscreen. See [`WindowState`] for details.
     ///
     /// The default value is [`WindowState::Normal`].
-    pub fn state(&self) -> ArcVar<WindowState> {
+    pub fn state(&self) -> Var<WindowState> {
         self.0.state.clone()
     }
 
@@ -275,12 +275,12 @@ impl WindowVars {
     /// [`position`]: WindowVars::position
     /// [`actual_monitor`]: WindowVars::actual_monitor
     /// [`size`]: WindowVars::size
-    pub fn monitor(&self) -> ArcVar<MonitorQuery> {
+    pub fn monitor(&self) -> Var<MonitorQuery> {
         self.0.monitor.clone()
     }
 
     /// Video mode for exclusive fullscreen.
-    pub fn video_mode(&self) -> ArcVar<VideoMode> {
+    pub fn video_mode(&self) -> Var<VideoMode> {
         self.0.video_mode.clone()
     }
 
@@ -288,24 +288,21 @@ impl WindowVars {
     ///
     /// This is `None` only if the window has not opened yet (before first render) or if
     /// no monitors where found in the operating system or if the window is headless without renderer.
-    pub fn actual_monitor(&self) -> ReadOnlyArcVar<Option<MonitorId>> {
+    pub fn actual_monitor(&self) -> Var<Option<MonitorId>> {
         self.0.actual_monitor.read_only()
     }
 
     /// Available video modes in the current monitor.
-    pub fn video_modes(&self) -> BoxedVar<Vec<VideoMode>> {
-        self.0
-            .actual_monitor
-            .flat_map(|&m| {
-                m.and_then(|m| super::MONITORS.monitor(m))
-                    .unwrap_or_else(super::MonitorInfo::fallback)
-                    .video_modes()
-            })
-            .boxed()
+    pub fn video_modes(&self) -> Var<Vec<VideoMode>> {
+        self.0.actual_monitor.flat_map(|&m| {
+            m.and_then(|m| super::MONITORS.monitor(m))
+                .unwrap_or_else(super::MonitorInfo::fallback)
+                .video_modes()
+        })
     }
 
     /// Current scale factor of the current monitor hosting the window.
-    pub fn scale_factor(&self) -> ReadOnlyArcVar<Factor> {
+    pub fn scale_factor(&self) -> Var<Factor> {
         self.0.scale_factor.read_only()
     }
 
@@ -318,7 +315,7 @@ impl WindowVars {
     /// is relative to the origin of the [monitor].
     ///
     /// [monitor]: Self::actual_monitor
-    pub fn actual_position(&self) -> ReadOnlyArcVar<DipPoint> {
+    pub fn actual_position(&self) -> Var<DipPoint> {
         self.0.actual_position.read_only()
     }
 
@@ -328,7 +325,7 @@ impl WindowVars {
     /// time the window moves.
     ///
     /// The initial value is `(0, 0)`, it starts updating once the window opens.
-    pub fn global_position(&self) -> ReadOnlyArcVar<PxPoint> {
+    pub fn global_position(&self) -> Var<PxPoint> {
         self.0.global_position.read_only()
     }
 
@@ -346,7 +343,7 @@ impl WindowVars {
     /// [`Normal`]: WindowState::Normal
     /// [`Minimized`]: WindowState::Minimized
     /// [`restore_rect`]: Self::restore_rect
-    pub fn restore_state(&self) -> ReadOnlyArcVar<WindowState> {
+    pub fn restore_state(&self) -> Var<WindowState> {
         self.0.restore_state.read_only()
     }
 
@@ -371,7 +368,7 @@ impl WindowVars {
     /// [`actual_monitor`]: Self::actual_monitor
     /// [`state`]: Self::state
     /// [`restore_state`]: Self::restore_state
-    pub fn restore_rect(&self) -> ReadOnlyArcVar<DipRect> {
+    pub fn restore_rect(&self) -> Var<DipRect> {
         self.0.restore_rect.read_only()
     }
 
@@ -393,7 +390,7 @@ impl WindowVars {
     /// [`monitor`]: WindowVars::monitor
     /// [`Normal`]: WindowState::Normal
     /// [`Length::Default`]: zng_layout::unit::Length::Default
-    pub fn position(&self) -> ArcVar<Point> {
+    pub fn position(&self) -> Var<Point> {
         self.0.position.clone()
     }
 
@@ -403,7 +400,7 @@ impl WindowVars {
     /// the window resizes.
     ///
     /// The initial value is `(0, 0)`, it starts updating when the window opens.
-    pub fn actual_size(&self) -> ReadOnlyArcVar<DipSize> {
+    pub fn actual_size(&self) -> Var<DipSize> {
         self.0.actual_size.read_only()
     }
 
@@ -411,11 +408,10 @@ impl WindowVars {
     ///
     /// [`actual_size`]: Self::actual_size
     /// [`scale_factor`]: Self::scale_factor
-    pub fn actual_size_px(&self) -> BoxedVar<PxSize> {
+    pub fn actual_size_px(&self) -> Var<PxSize> {
         merge_var!(self.0.actual_size.clone(), self.0.scale_factor.clone(), |size, factor| {
             PxSize::new(size.width.to_px(*factor), size.height.to_px(*factor))
         })
-        .boxed()
     }
 
     /// Padding that must be applied to the window content so that it stays clear of screen obstructions
@@ -423,7 +419,7 @@ impl WindowVars {
     ///
     /// Note that the *unsafe* area must still be rendered as it may be partially visible, just don't place nay
     /// interactive or important content outside of this padding.
-    pub fn safe_padding(&self) -> ReadOnlyArcVar<DipSideOffsets> {
+    pub fn safe_padding(&self) -> Var<DipSideOffsets> {
         self.0.safe_padding.read_only()
     }
 
@@ -444,7 +440,7 @@ impl WindowVars {
     /// [`monitor`]: WindowVars::monitor
     /// [`restore_rect`]: WindowVars::restore_rect
     /// [`Normal`]: WindowState::Normal
-    pub fn size(&self) -> ArcVar<Size> {
+    pub fn size(&self) -> Var<Size> {
         self.0.size.clone()
     }
 
@@ -454,7 +450,7 @@ impl WindowVars {
     /// and [`max_size`](Self::max_size). Auto-size is disabled if the user [manually resizes](Self::resizable).
     ///
     /// The default value is [`AutoSize::DISABLED`].
-    pub fn auto_size(&self) -> ArcVar<AutoSize> {
+    pub fn auto_size(&self) -> Var<AutoSize> {
         self.0.auto_size.clone()
     }
 
@@ -472,7 +468,7 @@ impl WindowVars {
     /// [`monitor`]: WindowVars::monitor
     /// [`StartPosition`]: crate::StartPosition
     /// [`Point::top_left`]: zng_layout::unit::Point::top_left
-    pub fn auto_size_origin(&self) -> ArcVar<Point> {
+    pub fn auto_size_origin(&self) -> Var<Point> {
         self.0.auto_size_origin.clone()
     }
 
@@ -487,7 +483,7 @@ impl WindowVars {
     ///
     /// [`monitor`]: WindowVars::monitor
     /// [`size`]: Self::size
-    pub fn min_size(&self) -> ArcVar<Size> {
+    pub fn min_size(&self) -> Var<Size> {
         self.0.min_size.clone()
     }
 
@@ -502,7 +498,7 @@ impl WindowVars {
     ///
     /// [`monitor`]: WindowVars::monitor
     /// [`size`]: Self::size
-    pub fn max_size(&self) -> ArcVar<Size> {
+    pub fn max_size(&self) -> Var<Size> {
         self.0.max_size.clone()
     }
 
@@ -511,7 +507,7 @@ impl WindowVars {
     /// This is the font size in all widget branches  that do not override the font size. The [`rem`] unit is relative to this value.
     ///
     /// [`rem`]: LengthUnits::rem
-    pub fn font_size(&self) -> ArcVar<Length> {
+    pub fn font_size(&self) -> Var<Length> {
         self.0.font_size.clone()
     }
 
@@ -520,7 +516,7 @@ impl WindowVars {
     /// Note that even if disabled the window can still be resized from other sources.
     ///
     /// The default value is `true`.
-    pub fn resizable(&self) -> ArcVar<bool> {
+    pub fn resizable(&self) -> Var<bool> {
         self.0.resizable.clone()
     }
 
@@ -529,12 +525,12 @@ impl WindowVars {
     /// Note that even if disabled the window can still be moved from other sources.
     ///
     /// The default value is `true`.
-    pub fn movable(&self) -> ArcVar<bool> {
+    pub fn movable(&self) -> Var<bool> {
         self.0.movable.clone()
     }
 
     /// Defines the enabled state of the window chrome buttons.
-    pub fn enabled_buttons(&self) -> ArcVar<WindowButton> {
+    pub fn enabled_buttons(&self) -> Var<WindowButton> {
         self.0.enabled_buttons.clone()
     }
 
@@ -543,7 +539,7 @@ impl WindowVars {
     /// Note this only applies to other windows that are not also "always-on-top".
     ///
     /// The default value is `false`.
-    pub fn always_on_top(&self) -> ArcVar<bool> {
+    pub fn always_on_top(&self) -> Var<bool> {
         self.0.always_on_top.clone()
     }
 
@@ -553,14 +549,14 @@ impl WindowVars {
     /// is always not visible.
     ///
     /// The default value is `true`.
-    pub fn visible(&self) -> ArcVar<bool> {
+    pub fn visible(&self) -> Var<bool> {
         self.0.visible.clone()
     }
 
     /// Defines if the window is visible in the task-bar.
     ///
     /// The default value is `true`.
-    pub fn taskbar_visible(&self) -> ArcVar<bool> {
+    pub fn taskbar_visible(&self) -> Var<bool> {
         self.0.taskbar_visible.clone()
     }
 
@@ -588,7 +584,7 @@ impl WindowVars {
     /// [`modal`]: Self::modal
     /// [`color_scheme`]: Self::color_scheme
     /// [`accent_color`]: Self::accent_color
-    pub fn parent(&self) -> ArcVar<Option<WindowId>> {
+    pub fn parent(&self) -> Var<Option<WindowId>> {
         self.0.parent.clone()
     }
 
@@ -597,7 +593,7 @@ impl WindowVars {
     /// Nesting windows are presented as an widget, similar to an "iframe".
     ///
     /// [`parent`]: Self::parent
-    pub fn nest_parent(&self) -> ReadOnlyArcVar<Option<WidgetId>> {
+    pub fn nest_parent(&self) -> Var<Option<WidgetId>> {
         self.0.nest_parent.read_only()
     }
 
@@ -606,7 +602,7 @@ impl WindowVars {
     /// Value is ignored if `parent` is not set. When this is `true` the parent window cannot be focused while this window is open.
     ///
     /// The default value is `false`.
-    pub fn modal(&self) -> ArcVar<bool> {
+    pub fn modal(&self) -> Var<bool> {
         self.0.modal.clone()
     }
 
@@ -615,7 +611,7 @@ impl WindowVars {
     /// This is a set of other windows that have this window as a [`parent`].
     ///
     /// [`parent`]: Self::parent
-    pub fn children(&self) -> ReadOnlyArcVar<IdSet<WindowId>> {
+    pub fn children(&self) -> Var<IdSet<WindowId>> {
         self.0.children.read_only()
     }
 
@@ -624,7 +620,7 @@ impl WindowVars {
     /// If set to `None` the system preference is used, see [`actual_color_scheme`].
     ///
     /// [`actual_color_scheme`]: Self::actual_color_scheme
-    pub fn color_scheme(&self) -> ArcVar<Option<ColorScheme>> {
+    pub fn color_scheme(&self) -> Var<Option<ColorScheme>> {
         self.0.color_scheme.clone()
     }
 
@@ -633,7 +629,7 @@ impl WindowVars {
     /// This is the system preference, or [`color_scheme`] if it is set.
     ///
     /// [`color_scheme`]: Self::color_scheme
-    pub fn actual_color_scheme(&self) -> ReadOnlyArcVar<ColorScheme> {
+    pub fn actual_color_scheme(&self) -> Var<ColorScheme> {
         self.0.actual_color_scheme.read_only()
     }
 
@@ -642,7 +638,7 @@ impl WindowVars {
     /// If set to `None` the system preference is used, see [`actual_accent_color`].
     ///
     /// [`actual_accent_color`]: Self::actual_accent_color
-    pub fn accent_color(&self) -> ArcVar<Option<LightDark>> {
+    pub fn accent_color(&self) -> Var<Option<LightDark>> {
         self.0.accent_color.clone()
     }
 
@@ -654,7 +650,7 @@ impl WindowVars {
     ///
     /// [`color_scheme`]: Self::color_scheme
     /// [`ACCENT_COLOR_VAR`]: zng_color::colors::ACCENT_COLOR_VAR
-    pub fn actual_accent_color(&self) -> ReadOnlyArcVar<LightDark> {
+    pub fn actual_accent_color(&self) -> Var<LightDark> {
         self.0.actual_accent_color.read_only()
     }
 
@@ -666,7 +662,7 @@ impl WindowVars {
     /// Note that a window is only actually opened in the view-process after it [`is_loaded`].
     ///
     /// [`is_loaded`]: Self::is_loaded
-    pub fn is_open(&self) -> ReadOnlyArcVar<bool> {
+    pub fn is_open(&self) -> Var<bool> {
         self.0.is_open.read_only()
     }
 
@@ -678,7 +674,7 @@ impl WindowVars {
     /// A window is only opened in the view-process once it is loaded, see [`WINDOWS.loading_handle`] for more details.
     ///
     /// [`WINDOWS.loading_handle`]: crate::WINDOWS::loading_handle
-    pub fn is_loaded(&self) -> ReadOnlyArcVar<bool> {
+    pub fn is_loaded(&self) -> Var<bool> {
         self.0.is_loaded.read_only()
     }
 
@@ -688,7 +684,7 @@ impl WindowVars {
     /// changed to `None` once the window receives focus or you can set it to `None` to cancel the indicator.
     ///
     /// Prefer using the `FOCUS` service and advanced `FocusRequest` configs instead of setting this variable directly.
-    pub fn focus_indicator(&self) -> ArcVar<Option<FocusIndicator>> {
+    pub fn focus_indicator(&self) -> Var<Option<FocusIndicator>> {
         self.0.focus_indicator.clone()
     }
 
@@ -701,7 +697,7 @@ impl WindowVars {
     /// [`Next`]: FrameCaptureMode::Next
     /// [`Sporadic`]: FrameCaptureMode::Sporadic
     /// [`WIDGET.render_update`]: zng_app::widget::WIDGET::render_update
-    pub fn frame_capture_mode(&self) -> ArcVar<FrameCaptureMode> {
+    pub fn frame_capture_mode(&self) -> Var<FrameCaptureMode> {
         self.0.frame_capture_mode.clone()
     }
 
@@ -711,7 +707,7 @@ impl WindowVars {
     /// actually creates the backend window and after a view-process respawn.
     ///
     /// [`default_render_mode`]: crate::WINDOWS::default_render_mode
-    pub fn render_mode(&self) -> ReadOnlyArcVar<RenderMode> {
+    pub fn render_mode(&self) -> Var<RenderMode> {
         self.0.render_mode.read_only()
     }
 
@@ -723,7 +719,7 @@ impl WindowVars {
     /// This variable does not update to fully disabled after first enable, but the VIEW bit can disable and re-enable.
     ///
     /// [`enable_access`]: crate::WINDOW_Ext::enable_access
-    pub fn access_enabled(&self) -> ReadOnlyArcVar<AccessEnabled> {
+    pub fn access_enabled(&self) -> Var<AccessEnabled> {
         self.0.access_enabled.read_only()
     }
 
@@ -750,7 +746,7 @@ impl WindowVars {
     /// * It must be running in `run_same_process` mode. Windows kills all other processes, so in a run with `init` the app-process
     ///   will be lost. Note that this also mean that the crash handler and worker processes are also killed.
     /// * Must be built with `#![windows_subsystem = "windows"]` and must be running from the Windows Explorer (desktop).
-    pub fn system_shutdown_warn(&self) -> ArcVar<Txt> {
+    pub fn system_shutdown_warn(&self) -> Var<Txt> {
         self.0.system_shutdown_warn.clone()
     }
 }

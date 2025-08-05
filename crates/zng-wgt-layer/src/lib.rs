@@ -17,7 +17,7 @@ use zng_app::widget::info::WIDGET_INFO_CHANGED_EVENT;
 use zng_ext_input::mouse::MOUSE;
 use zng_ext_input::touch::TOUCH;
 use zng_ext_window::WINDOW_Ext as _;
-use zng_var::{ContextInitHandle, ReadOnlyContextVar, animation};
+use zng_var::{ContextInitHandle, animation};
 use zng_view_api::window::FrameId;
 use zng_wgt::prelude::*;
 
@@ -97,10 +97,10 @@ impl LAYERS {
     ///
     /// [`insert_node`]: Self::insert_node
     pub fn insert(&self, layer: impl IntoVar<LayerIndex>, widget: impl UiNode) {
-        let layer = layer.into_var().actual_var();
-        self.insert_impl(layer.boxed(), widget.boxed());
+        let layer = layer.into_var().current_context();
+        self.insert_impl(layer, widget.boxed());
     }
-    fn insert_impl(&self, layer: BoxedVar<LayerIndex>, widget: BoxedUiNode) {
+    fn insert_impl(&self, layer: Var<LayerIndex>, widget: BoxedUiNode) {
         let widget = match_widget(widget, move |widget, op| match op {
             UiNodeOp::Init => {
                 widget.init();
@@ -178,19 +178,13 @@ impl LAYERS {
 
         widget: impl UiNode,
     ) {
-        let layer = layer.into_var().actual_var();
-        let anchor = anchor.into_var().actual_var();
-        let mode = mode.into_var().actual_var();
+        let layer = layer.into_var().current_context();
+        let anchor = anchor.into_var().current_context();
+        let mode = mode.into_var().current_context();
 
-        self.insert_anchored_impl(layer.boxed(), anchor.boxed(), mode.boxed(), widget.boxed())
+        self.insert_anchored_impl(layer, anchor, mode, widget.boxed())
     }
-    fn insert_anchored_impl(
-        &self,
-        layer: BoxedVar<LayerIndex>,
-        anchor: BoxedVar<WidgetId>,
-        mode: BoxedVar<AnchorMode>,
-        widget: BoxedUiNode,
-    ) {
+    fn insert_anchored_impl(&self, layer: Var<LayerIndex>, anchor: Var<WidgetId>, mode: Var<AnchorMode>, widget: BoxedUiNode) {
         let mut _info_changed_handle = None;
         let mut mouse_pos_handle = None;
 
@@ -203,7 +197,7 @@ impl LAYERS {
         let transform_key = FrameValueKey::new_unique();
         let mut corner_radius_ctx_handle = None;
 
-        let widget = with_anchor_id(widget, anchor.clone().boxed());
+        let widget = with_anchor_id(widget, anchor.clone());
 
         fn get_anchor_info(anchor: WidgetId) -> (WidgetBoundsInfo, WidgetBorderInfo) {
             let tree = WINDOW.info();
@@ -706,8 +700,8 @@ impl LAYERS {
             let items = WINDOW.with_state(|s| s.req(*WINDOW_LAYERS_ID).items.clone());
             id.hook(move |a| {
                 match a.value() {
-                    zng_var::types::Response::Waiting => true,
-                    zng_var::types::Response::Done(id) => {
+                    zng_var::Response::Waiting => true,
+                    zng_var::Response::Done(id) => {
                         // remove item and hook
                         items.remove(*id);
                         false
@@ -719,7 +713,7 @@ impl LAYERS {
     }
 
     /// Gets a read-only var that tracks the anchor widget in a layered widget context.
-    pub fn anchor_id(&self) -> ReadOnlyContextVar<Option<WidgetId>> {
+    pub fn anchor_id(&self) -> Var<Option<WidgetId>> {
         ANCHOR_ID_VAR.read_only()
     }
 
@@ -752,8 +746,8 @@ fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> Px
     transform.then_translate(correction.cast())
 }
 
-fn with_anchor_id(child: impl UiNode, anchor: BoxedVar<WidgetId>) -> impl UiNode {
-    let mut ctx = Some(Arc::new(anchor.map(|id| Some(*id))));
+fn with_anchor_id(child: impl UiNode, anchor: Var<WidgetId>) -> impl UiNode {
+    let mut ctx = Some(Arc::new(anchor.map(|id| Some(*id)).into()));
     let mut id = None;
     match_widget(child, move |c, op| {
         let mut is_deinit = false;

@@ -139,12 +139,9 @@ impl TextEditOp {
                     SelectionState::PreInit => unreachable!(),
                     SelectionState::Caret(insert_idx) => {
                         let i = insert_idx.index;
-                        TEXT.resolved()
-                            .txt
-                            .modify(clmv!(insert, |args| {
-                                args.to_mut().to_mut().insert_str(i, insert.as_str());
-                            }))
-                            .unwrap();
+                        TEXT.resolved().txt.modify(clmv!(insert, |args| {
+                            args.to_mut().insert_str(i, insert.as_str());
+                        }));
 
                         let mut i = insert_idx;
                         i.index += insert.len();
@@ -155,12 +152,9 @@ impl TextEditOp {
                     }
                     SelectionState::CaretSelection(start, end) | SelectionState::SelectionCaret(start, end) => {
                         let char_range = start.index..end.index;
-                        TEXT.resolved()
-                            .txt
-                            .modify(clmv!(insert, |args| {
-                                args.to_mut().to_mut().replace_range(char_range, insert.as_str());
-                            }))
-                            .unwrap();
+                        TEXT.resolved().txt.modify(clmv!(insert, |args| {
+                            args.to_mut().replace_range(char_range, insert.as_str());
+                        }));
 
                         let mut caret = TEXT.resolve_caret();
                         caret.set_char_index(start.index + insert.len());
@@ -179,12 +173,9 @@ impl TextEditOp {
                 let i = insert_idx.index;
                 let removed = &data.removed;
 
-                TEXT.resolved()
-                    .txt
-                    .modify(clmv!(removed, |args| {
-                        args.to_mut().to_mut().replace_range(i..i + len, removed.as_str());
-                    }))
-                    .unwrap();
+                TEXT.resolved().txt.modify(clmv!(removed, |args| {
+                    args.to_mut().replace_range(i..i + len, removed.as_str());
+                }));
 
                 let mut caret = TEXT.resolve_caret();
                 caret.set_index(caret_idx);
@@ -297,11 +288,9 @@ impl TextEditOp {
                     }
                 });
 
-                ctx.txt
-                    .modify(move |args| {
-                        args.to_mut().to_mut().replace_range(rmv, "");
-                    })
-                    .unwrap();
+                ctx.txt.modify(move |args| {
+                    args.to_mut().replace_range(rmv, "");
+                });
             }
             UndoFullOp::Op(UndoOp::Undo) => {
                 if data.removed.is_empty() {
@@ -316,12 +305,9 @@ impl TextEditOp {
                 };
                 let removed = &data.removed;
 
-                TEXT.resolved()
-                    .txt
-                    .modify(clmv!(removed, |args| {
-                        args.to_mut().to_mut().insert_str(insert_idx, removed.as_str());
-                    }))
-                    .unwrap();
+                TEXT.resolved().txt.modify(clmv!(removed, |args| {
+                    args.to_mut().insert_str(insert_idx, removed.as_str());
+                }));
 
                 let mut caret = TEXT.resolve_caret();
                 caret.set_index(caret_idx);
@@ -427,11 +413,9 @@ impl TextEditOp {
                         data.removed = Txt::from_str(r);
                     }
                 });
-                ctx.txt
-                    .modify(move |args| {
-                        args.to_mut().to_mut().replace_range(rmv, "");
-                    })
-                    .unwrap();
+                ctx.txt.modify(move |args| {
+                    args.to_mut().replace_range(rmv, "");
+                });
             }
             UndoFullOp::Op(UndoOp::Undo) => {
                 let removed = &data.removed;
@@ -447,12 +431,9 @@ impl TextEditOp {
                     SelectionState::PreInit => unreachable!(),
                 };
 
-                TEXT.resolved()
-                    .txt
-                    .modify(clmv!(removed, |args| {
-                        args.to_mut().to_mut().insert_str(insert_idx, removed.as_str());
-                    }))
-                    .unwrap();
+                TEXT.resolved().txt.modify(clmv!(removed, |args| {
+                    args.to_mut().insert_str(insert_idx, removed.as_str());
+                }));
 
                 let mut caret = TEXT.resolve_caret();
                 caret.set_index(caret_idx); // (re)start caret animation
@@ -485,7 +466,7 @@ impl TextEditOp {
         })
     }
 
-    fn apply_max_count(redo: &mut bool, txt: &BoxedVar<Txt>, rmv_range: ops::Range<usize>, insert: &mut Txt) {
+    fn apply_max_count(redo: &mut bool, txt: &Var<Txt>, rmv_range: ops::Range<usize>, insert: &mut Txt) {
         let max_count = MAX_CHARS_COUNT_VAR.get();
         if max_count > 0 {
             // max count enabled
@@ -531,10 +512,10 @@ impl TextEditOp {
                 };
             }
             UndoFullOp::Op(UndoOp::Redo) => {
-                let _ = TEXT.resolved().txt.set("");
+                TEXT.resolved().txt.set("");
             }
             UndoFullOp::Op(UndoOp::Undo) => {
-                let _ = TEXT.resolved().txt.set(data.txt.clone());
+                TEXT.resolved().txt.set(data.txt.clone());
 
                 let (selection_idx, caret_idx) = match data.selection {
                     SelectionState::Caret(c) => (None, c),
@@ -580,12 +561,9 @@ impl TextEditOp {
                 Self::apply_max_count(redo, &ctx.txt, select_before.clone(), &mut insert);
             }
             UndoFullOp::Op(UndoOp::Redo) => {
-                TEXT.resolved()
-                    .txt
-                    .modify(clmv!(select_before, insert, |args| {
-                        args.to_mut().to_mut().replace_range(select_before, insert.as_str());
-                    }))
-                    .unwrap();
+                TEXT.resolved().txt.modify(clmv!(select_before, insert, |args| {
+                    args.to_mut().replace_range(select_before, insert.as_str());
+                }));
 
                 TEXT.resolve_caret().set_char_selection(select_after.start, select_after.end);
             }
@@ -595,11 +573,9 @@ impl TextEditOp {
                 select_after.start = ctx.segmented_text.snap_grapheme_boundary(select_after.start);
                 select_after.end = ctx.segmented_text.snap_grapheme_boundary(select_after.end);
 
-                ctx.txt
-                    .modify(clmv!(select_after, removed, |args| {
-                        args.to_mut().to_mut().replace_range(select_after, removed.as_str());
-                    }))
-                    .unwrap();
+                ctx.txt.modify(clmv!(select_after, removed, |args| {
+                    args.to_mut().replace_range(select_after, removed.as_str());
+                }));
 
                 drop(ctx);
                 TEXT.resolve_caret().set_char_selection(select_before.start, select_before.end);
@@ -636,14 +612,14 @@ impl TextEditOp {
                     if ctx.txt.with(|t| t != prev.as_str()) {
                         prev = ctx.txt.get();
                     }
-                    let _ = ctx.txt.set(t);
+                    ctx.txt.set(t);
                 }
             }
             UndoFullOp::Op(UndoOp::Undo) => {
                 let ctx = TEXT.resolved();
 
                 if ctx.txt.with(|t| t != prev.as_str()) {
-                    let _ = ctx.txt.set(prev.clone());
+                    ctx.txt.set(prev.clone());
                 }
             }
             UndoFullOp::Info { info } => *info = Some(Arc::new(l10n!("text-edit-op.transform", "transform").get())),

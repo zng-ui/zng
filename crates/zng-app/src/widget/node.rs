@@ -24,7 +24,7 @@ mod list;
 pub use list::*;
 use zng_app_proc_macros::{ui_node, widget};
 use zng_layout::unit::PxSize;
-use zng_var::{ContextInitHandle, ResponseVar, Var};
+use zng_var::{ContextInitHandle, ResponseVar};
 
 use crate::{
     render::{FrameBuilder, FrameUpdate},

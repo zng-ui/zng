@@ -565,7 +565,7 @@ pub use zng_app::widget::widget_mixin;
 /// only the transition to the `true` value is animated using the conditional easing.
 ///
 /// Note that you can't `unset` easing in when conditions, but you can set it to `0.ms()`, if all easing set for a property are `0`
-/// no easing variable is generated, in contexts that actually have animation the `when`` value will be set immediately,
+/// no easing variable is generated, in contexts that actually have animation the `when` value will be set immediately,
 /// by a zero sized animation.
 ///
 /// # Examples
@@ -597,7 +597,7 @@ pub use zng_app::widget::widget_mixin;
 /// # Limitations
 ///
 /// The attribute only works in properties that only have variable inputs of types that are [`Transitionable`], if the attribute
-/// is set in a property that does not match this a cryptic type error occurs, with a mention of `easing_property_input_Transitionable`.
+/// is set in a property that does not match this a compile time type error occurs, with a mention of `easing_property_input_Transitionable`.
 ///
 /// <script>
 /// // hide re-exported docs
@@ -983,7 +983,7 @@ pub use zng_app::widget::property;
 /// fn my_widget_node(child: impl UiNode, number: impl IntoVar<u32>) -> impl UiNode {
 ///     #[ui_node(struct MyNode {
 ///         child: impl UiNode,
-///         #[var] number: impl Var<u32>,
+///         #[var] number: Var<u32>,
 ///     })]
 ///     impl UiNode for MyNode {
 ///         fn update(&mut self, updates: &WidgetUpdates) {

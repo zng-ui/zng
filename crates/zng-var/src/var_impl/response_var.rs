@@ -1,26 +1,79 @@
+//! Special `Var<Response>` type impls
+
+use crate::{AnyVar, Var};
+
 use super::*;
 
 /// New paired [`ResponderVar`] and [`ResponseVar`] in the waiting state.
 pub fn response_var<T: VarValue>() -> (ResponderVar<T>, ResponseVar<T>) {
     let responder = var(Response::Waiting::<T>);
     let response = responder.read_only();
-    (responder, response)
+    (ResponderVar(responder), ResponseVar(response))
 }
 
 /// New [`ResponseVar`] in the done state.
 pub fn response_done_var<T: VarValue>(response: T) -> ResponseVar<T> {
-    var(Response::Done(response)).read_only()
+    ResponseVar(var(Response::Done(response)).read_only())
 }
 
-/// Variable used to notify the completion of an async operation.
+/// Represents a read-write variable used to notify the completion of an async operation.
 ///
 /// Use [`response_var`] to init.
-pub type ResponderVar<T> = ArcVar<Response<T>>;
+#[derive(Clone)]
+pub struct ResponderVar<T: VarValue>(Var<Response<T>>);
 
-/// Variable used to listen to a one time signal that an async operation has completed.
+/// Represents a read-only variable used to listen to a one time signal that an async operation has completed.
 ///
 /// Use [`response_var`] or [`response_done_var`] to init.
-pub type ResponseVar<T> = types::ReadOnlyVar<Response<T>, ArcVar<Response<T>>>;
+#[derive(Clone)]
+pub struct ResponseVar<T: VarValue>(Var<Response<T>>);
+
+impl<T: VarValue> ops::Deref for ResponderVar<T> {
+    type Target = Var<Response<T>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T: VarValue> IntoVar<Response<T>> for ResponderVar<T> {
+    fn into_var(self) -> Var<Response<T>> {
+        self.0
+    }
+}
+impl<T: VarValue> From<ResponderVar<T>> for Var<Response<T>> {
+    fn from(var: ResponderVar<T>) -> Self {
+        var.0
+    }
+}
+impl<T: VarValue> From<ResponderVar<T>> for AnyVar {
+    fn from(var: ResponderVar<T>) -> Self {
+        var.0.into()
+    }
+}
+
+impl<T: VarValue> ops::Deref for ResponseVar<T> {
+    type Target = Var<Response<T>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T: VarValue> IntoVar<Response<T>> for ResponseVar<T> {
+    fn into_var(self) -> Var<Response<T>> {
+        self.0
+    }
+}
+impl<T: VarValue> From<ResponseVar<T>> for Var<Response<T>> {
+    fn from(var: ResponseVar<T>) -> Self {
+        var.0
+    }
+}
+impl<T: VarValue> From<ResponseVar<T>> for AnyVar {
+    fn from(var: ResponseVar<T>) -> Self {
+        var.0.into()
+    }
+}
+
 /// Raw value in a [`ResponseVar`].
 #[derive(Clone, Copy, PartialEq)]
 pub enum Response<T: VarValue> {
@@ -115,21 +168,11 @@ impl<T: VarValue> ResponseVar<T> {
         self.rsp().unwrap()
     }
 
-    /// Returns a future that awaits until a response is received and then returns it.
-    ///
-    /// Will clone the value if the variable is shared.
-    ///
-    /// Note that `ResponseVar<T>` implements [`IntoFuture`] so you can also just `.await` the variable.
-    pub async fn wait_into_rsp(self) -> T {
-        self.wait_done().await;
-        self.into_rsp().unwrap()
-    }
-
     /// Returns a future that awaits until a response is received.
     ///
     /// [`rsp`]: Self::rsp
     pub async fn wait_done(&self) {
-        self.wait_value(Response::is_done).await;
+        self.wait_match(Response::is_done).await;
     }
 
     /// Clone the response, if present and new.
@@ -137,15 +180,8 @@ impl<T: VarValue> ResponseVar<T> {
         self.with_new_rsp(Clone::clone)
     }
 
-    /// Into response, if received.
-    ///
-    /// Clones if the variable is has more than one strong reference.
-    pub fn into_rsp(self) -> Option<T> {
-        self.into_value().into()
-    }
-
     /// Map the response value using `map`, if the variable is awaiting a response uses the `waiting_value` first.
-    pub fn map_rsp<O, I, M>(&self, waiting_value: I, map: M) -> impl Var<O>
+    pub fn map_rsp<O, I, M>(&self, waiting_value: I, map: M) -> Var<O>
     where
         O: VarValue,
         I: Fn() -> O + Send + Sync + 'static,
@@ -167,10 +203,10 @@ impl<T: VarValue> ResponseVar<T> {
         O: VarValue,
         M: FnMut(&T) -> O + Send + 'static,
     {
-        self.map(move |r| match r {
+        ResponseVar(self.map(move |r| match r {
             Response::Waiting => Response::Waiting,
             Response::Done(t) => Response::Done(map(t)),
-        })
+        }))
     }
 }
 impl<T: VarValue> IntoFuture for ResponseVar<T> {
@@ -180,7 +216,7 @@ impl<T: VarValue> IntoFuture for ResponseVar<T> {
     type IntoFuture = std::pin::Pin<Box<dyn Future<Output = T> + Send + Sync>>;
 
     fn into_future(self) -> Self::IntoFuture {
-        Box::pin(self.wait_into_rsp())
+        Box::pin(async move { self.wait_rsp().await })
     }
 }
 
@@ -192,6 +228,6 @@ impl<T: VarValue> ResponderVar<T> {
 
     /// Creates a [`ResponseVar`] linked to this responder.
     pub fn response_var(&self) -> ResponseVar<T> {
-        self.read_only()
+        ResponseVar(self.read_only())
     }
 }

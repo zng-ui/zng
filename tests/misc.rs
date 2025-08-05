@@ -52,6 +52,6 @@ fn headless_clipboard() {
     assert!(CLIPBOARD.text().unwrap().is_none()); // same app update
 
     app.update(false).assert_wait();
-    assert_eq!(rsp.into_rsp().unwrap(), Ok(true));
+    assert_eq!(rsp.rsp().unwrap(), Ok(true));
     assert_eq!("test", CLIPBOARD.text().unwrap().unwrap());
 }

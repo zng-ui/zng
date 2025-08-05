@@ -1,6 +1,29 @@
 # Unreleased
 
-* Fix human readable deserialization of `PxConstraints` failing when the `max` field is not set.
+* Fix `accepts_enter` and `accepts_tag` in text editor widgets. 
+* Fix zero sized gradients causing render panic.
+
+* **Breaking** refactor `zng::var` API.
+    
+    Unified var types to new `Var<T>` and `AnyVar` structs. Variables still behave the same 
+    and everything that could be done before can still be done with the new API. The main motivation
+    for this refactor is the reduction of generics code bloat, and since a breaking change is already happening
+    some poorly named methods and functions where also renamed.
+
+    To migrate:
+
+    - Replace `impl Var<T>` and other var structs with `Var<T>`.
+    - Replace `impl AnyVar` with `AnyVar`.
+    - Replace `LocalVar(_)` with `const_var(_)`.
+    - Replace `ContextualizedVar::new(_)` with `contextual_var(_)`.
+    - Replace `Var::wait_value` with `Var::wait_match`.
+    - Replace `Var::map_ref` with `Var::map`, `map_ref_bidi` with `map_bidi` or new `map_bidi_modify` in cases where
+      the mapped value is a subset of the source value.
+    - Now always use `Var::capabilities` to inspect *kind* of var.
+    - Modify methods `Var::{set, update, modify}` now simply DEBUG log if the variable is read-only, 
+      use `try_set, try_update, try_modify` to get the error.
+
+* Fix deserialization of `PxConstraints` failing when the `max` field is not set and format is "human readable".
 
 * **Breaking** Refactor `zng::config::SyncConfig` to use a map of `RawConfigValue` directly.
     - Removed `ConfigMap` trait, now use `SyncConfigBackend` to implement custom formats.
@@ -25,7 +48,7 @@
 * **Breaking** Refactor `zng::slider` API.
     - Removed direct support to std range type, use `Selector::many` with two values.
     - Selector `value_with` and `many_with` now expects `Sync` closures.
-    - Thumb args now uses a boxed variable to track the position.
+    - Thumb args now uses a variable to track the position.
 * Fix `Slider!` not reacting to value changes.
 * Fix inherited widget properties not showing in documentation.
 

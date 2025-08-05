@@ -4,37 +4,17 @@ error[E0277]: the trait bound `NotDefault: VarValue` is not satisfied
 10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
    |                                                          ^^^^^^^^^^^^^^^^^^^ the trait `PartialEq` is not implemented for `NotDefault`
    |
-   = note: `VarValue` is implemented for all `T: Debug + Clone + PartialEq + Any + Send + Sync`
    = note: required for `NotDefault` to implement `VarValue`
 note: required by a bound in `IntoVar`
-  --> $WORKSPACE/crates/zng-var/src/lib.rs
+  --> $WORKSPACE/crates/zng-var/src/var_impl/const_var.rs
    |
    | pub trait IntoVar<T: VarValue> {
    |                      ^^^^^^^^ required by this bound in `IntoVar`
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
    |
-16  + #[derive(PartialEq)]
-17  | pub struct NotDefault {}
-    |
-
-error[E0277]: the trait bound `NotDefault: VarValue` is not satisfied
-  --> cases/property/prefix_get_default.rs:10:66
+16 + #[derive(PartialEq)]
+17 | pub struct NotDefault {}
    |
-10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
-   |                                                                  ^^^^^^^^^^ the trait `PartialEq` is not implemented for `NotDefault`
-   |
-   = note: `VarValue` is implemented for all `T: Debug + Clone + PartialEq + Any + Send + Sync`
-   = note: required for `NotDefault` to implement `VarValue`
-note: required by a bound in `WhenInputVar::new`
-  --> $WORKSPACE/crates/zng-app/src/widget/builder.rs
-   |
-   |     pub fn new<T: VarValue>() -> (Self, impl Var<T>) {
-   |                   ^^^^^^^^ required by this bound in `WhenInputVar::new`
-help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
-   |
-16   + #[derive(PartialEq)]
-17   | pub struct NotDefault {}
-     |
 
 error[E0277]: can't compare `NotDefault` with `NotDefault`
  --> cases/property/prefix_get_default.rs:9:1
@@ -44,16 +24,17 @@ error[E0277]: can't compare `NotDefault` with `NotDefault`
   |
   = help: the trait `PartialEq` is not implemented for `NotDefault`
   = note: required for `NotDefault` to implement `VarValue`
-note: required by a bound in `WhenInputVar::new`
- --> $WORKSPACE/crates/zng-app/src/widget/builder.rs
+note: required by a bound in `zng::var::Var`
+ --> $WORKSPACE/crates/zng-var/src/var.rs
   |
-  |     pub fn new<T: VarValue>() -> (Self, impl Var<T>) {
-  |                   ^^^^^^^^ required by this bound in `WhenInputVar::new`
+  | pub struct Var<T: VarValue> {
+  |                   ^^^^^^^^ required by this bound in `Var`
+  = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
   |
-16   + #[derive(PartialEq)]
-17   | pub struct NotDefault {}
-     |
+16 + #[derive(PartialEq)]
+17 | pub struct NotDefault {}
+   |
 
 error[E0277]: can't compare `NotDefault` with `NotDefault`
   --> cases/property/prefix_get_default.rs:10:53
@@ -64,9 +45,9 @@ error[E0277]: can't compare `NotDefault` with `NotDefault`
    |                                                     ^^^^ no implementation for `NotDefault == NotDefault`
    |
    = help: the trait `PartialEq` is not implemented for `NotDefault`
-   = help: the trait `IntoVar<T>` is implemented for `ArcVar<T>`
-   = note: required for `NotDefault` to implement `VarValue`
-   = note: required for `ArcVar<NotDefault>` to implement `IntoVar<NotDefault>`
+   = help: the following other types implement trait `IntoVar<T>`:
+            <implementers-list>
+   = note: required for `zng::var::Var<NotDefault>` to implement `IntoVar<NotDefault>`
 note: required by a bound in `get_state_invalid_::args`
   --> cases/property/prefix_get_default.rs:10:58
    |
@@ -86,74 +67,30 @@ error[E0277]: the trait bound `NotDefault: std::default::Default` is not satisfi
 10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
    |                                                     ^^^^ the trait `std::default::Default` is not implemented for `NotDefault`
    |
-note: required by a bound in `getter_var`
-  --> $WORKSPACE/crates/zng-var/src/arc.rs
+note: required by a bound in `var_getter`
+  --> $WORKSPACE/crates/zng-var/src/var_impl/shared_var.rs
    |
-   | pub fn getter_var<T: VarValue + Default>() -> ArcVar<T> {
-   |                                 ^^^^^^^ required by this bound in `getter_var`
+   | pub fn var_getter<T: VarValue + Default>() -> Var<T> {
+   |                                 ^^^^^^^ required by this bound in `var_getter`
 help: consider annotating `NotDefault` with `#[derive(Default)]`
    |
-16  + #[derive(Default)]
-17  | pub struct NotDefault {}
-    |
-
-error[E0277]: the trait bound `NotDefault: VarValue` is not satisfied
- --> cases/property/prefix_get_default.rs:9:1
-  |
-9 | #[property(CONTEXT)]
-  | ^^^^^^^^^^^^^^^^^^^^ the trait `PartialEq` is not implemented for `NotDefault`
-  |
-  = note: `VarValue` is implemented for all `T: Debug + Clone + PartialEq + Any + Send + Sync`
-  = note: required for `NotDefault` to implement `VarValue`
-note: required by a bound in `new_dyn_var`
- --> $WORKSPACE/crates/zng-app/src/widget/builder.rs
-  |
-  | pub fn new_dyn_var<'a, T: VarValue>(
-  |                           ^^^^^^^^ required by this bound in `new_dyn_var`
-  = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
-help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
-  |
-16   + #[derive(PartialEq)]
-17   | pub struct NotDefault {}
-     |
-
-error[E0277]: the trait bound `Box<dyn zng_var::boxed::VarBoxed<NotDefault>>: Clone` is not satisfied
- --> cases/property/prefix_get_default.rs:9:1
-  |
-9 | #[property(CONTEXT)]
-  | ^^^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `Box<dyn zng_var::boxed::VarBoxed<NotDefault>>`
-  |
-  = help: the following other types implement trait `Clone`:
-            <implementers-list>
-
-error[E0277]: the trait bound `Box<dyn zng_var::boxed::VarBoxed<NotDefault>>: Clone` is not satisfied
- --> cases/property/prefix_get_default.rs:9:1
-  |
-9 | #[property(CONTEXT)]
-  | ^^^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `Box<dyn zng_var::boxed::VarBoxed<NotDefault>>`
-  |
-  = help: the following other types implement trait `Clone`:
-            <implementers-list>
-  = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+16 + #[derive(Default)]
+17 | pub struct NotDefault {}
+   |
 
 error[E0277]: can't compare `NotDefault` with `NotDefault`
-  --> cases/property/prefix_get_default.rs:9:1
+  --> cases/property/prefix_get_default.rs:10:46
    |
-9  | #[property(CONTEXT)]
-   | ^^^^^^^^^^^^^^^^^^^^ no implementation for `NotDefault == NotDefault`
 10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
-   |        ----------------- required by a bound introduced by this call
+   |                                              ^^^^^ no implementation for `NotDefault == NotDefault`
    |
    = help: the trait `PartialEq` is not implemented for `NotDefault`
-   = help: the trait `IntoVar<T>` is implemented for `Box<dyn zng_var::boxed::VarBoxed<T>>`
    = note: required for `NotDefault` to implement `VarValue`
-   = note: required for `Box<dyn zng_var::boxed::VarBoxed<NotDefault>>` to implement `IntoVar<NotDefault>`
-note: required by a bound in `get_state_invalid`
-  --> cases/property/prefix_get_default.rs:10:58
+note: required by a bound in `zng::var::Var`
+  --> $WORKSPACE/crates/zng-var/src/var.rs
    |
-10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
-   |                                                          ^^^^^^^^^^^^^^^^^^^ required by this bound in `get_state_invalid`
-   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+   | pub struct Var<T: VarValue> {
+   |                   ^^^^^^^^ required by this bound in `Var`
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
    |
 16 + #[derive(PartialEq)]
@@ -167,10 +104,27 @@ error[E0277]: can't compare `NotDefault` with `NotDefault`
   | ^^^^^^^^^^^^^^^^^^^^ no implementation for `NotDefault == NotDefault`
   |
   = help: the trait `PartialEq` is not implemented for `NotDefault`
-  = help: the following other types implement trait `AnyVar`:
-            <implementers-list>
-  = note: required for `Box<(dyn zng_var::boxed::VarBoxed<NotDefault> + 'static)>` to implement `AnyVar`
-  = note: required for the cast from `&Box<(dyn zng_var::boxed::VarBoxed<NotDefault> + 'static)>` to `&(dyn AnyVar + 'static)`
+  = note: required for `NotDefault` to implement `VarValue`
+note: required by a bound in `zng::var::Var`
+ --> $WORKSPACE/crates/zng-var/src/var.rs
+  |
+  | pub struct Var<T: VarValue> {
+  |                   ^^^^^^^^ required by this bound in `Var`
+help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
+  |
+16 + #[derive(PartialEq)]
+17 | pub struct NotDefault {}
+   |
+
+error[E0277]: can't compare `NotDefault` with `NotDefault`
+ --> cases/property/prefix_get_default.rs:9:1
+  |
+9 | #[property(CONTEXT)]
+  | ^^^^^^^^^^^^^^^^^^^^ no implementation for `NotDefault == NotDefault`
+  |
+  = help: the trait `PartialEq` is not implemented for `NotDefault`
+  = note: required for `NotDefault` to implement `VarValue`
+  = note: required for `zng::var::Var<NotDefault>` to implement `Clone`
   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
   |
@@ -178,22 +132,52 @@ help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
 17| pub struct NotDefault {}
   |
 
+error[E0308]: mismatched types
+ --> cases/property/prefix_get_default.rs:9:1
+  |
+9 | #[property(CONTEXT)]
+  | ^^^^^^^^^^^^^^^^^^^^
+  | |
+  | expected `&AnyVar`, found `&Var<NotDefault>`
+  | expected `&AnyVar` because of return type
+  |
+  = note: expected reference `&AnyVar`
+             found reference `&zng::var::Var<NotDefault>`
+  = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error[E0277]: the trait bound `NotDefault: VarValue` is not satisfied
  --> cases/property/prefix_get_default.rs:9:1
   |
 9 | #[property(CONTEXT)]
   | ^^^^^^^^^^^^^^^^^^^^ the trait `PartialEq` is not implemented for `NotDefault`
   |
-  = note: `VarValue` is implemented for all `T: Debug + Clone + PartialEq + Any + Send + Sync`
   = note: required for `NotDefault` to implement `VarValue`
 note: required by a bound in `var_to_args`
  --> $WORKSPACE/crates/zng-app/src/widget/builder.rs
   |
-  | pub fn var_to_args<T: VarValue>(var: impl IntoVar<T>) -> BoxedVar<T> {
+  | pub fn var_to_args<T: VarValue>(var: impl IntoVar<T>) -> Var<T> {
   |                       ^^^^^^^^ required by this bound in `var_to_args`
   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
   |
+16   + #[derive(PartialEq)]
+17   | pub struct NotDefault {}
+     |
+
+error[E0277]: the trait bound `NotDefault: VarValue` is not satisfied
+  --> cases/property/prefix_get_default.rs:10:66
+   |
+10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
+   |                                                                  ^^^^^^^^^^ the trait `PartialEq` is not implemented for `NotDefault`
+   |
+   = note: required for `NotDefault` to implement `VarValue`
+note: required by a bound in `WhenInputVar::new`
+  --> $WORKSPACE/crates/zng-app/src/widget/builder.rs
+   |
+   |     pub fn new<T: VarValue>() -> (Self, Var<T>) {
+   |                   ^^^^^^^^ required by this bound in `WhenInputVar::new`
+help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
+   |
 16   + #[derive(PartialEq)]
 17   | pub struct NotDefault {}
      |

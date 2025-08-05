@@ -20,7 +20,7 @@
 /// };
 /// ```
 ///
-/// In the example a `var_eq` var of type `impl Var<bool>` is created. When either `var_a` or `var_b` are set
+/// In the example a `var_eq` var of type `Var<bool>` is created. When either `var_a` or `var_b` are set
 /// the value of `var_eq` is updated. Normal variables like `name` are moved in, like a closure capture.
 ///
 /// # Capture Mode
@@ -59,26 +59,26 @@
 #[macro_export]
 macro_rules! expr_var {
     ($($expr:tt)+) => {
-        $crate::types::__expr_var! { $crate, $($expr)+ }
+        $crate::__expr_var! { $crate, $($expr)+ }
     };
 }
 
 #[doc(hidden)]
 pub use zng_var_proc_macros::expr_var as __expr_var;
 
-use super::{IntoVar, Var, VarValue};
+use crate::{IntoVar, MergeInput, Var, VarValue};
 
 #[doc(hidden)]
-pub fn expr_var_into<T: VarValue>(expr: impl IntoVar<T>) -> impl Var<T> {
+pub fn expr_var_into<T: VarValue>(expr: impl IntoVar<T>) -> Var<T> {
     expr.into_var()
 }
 
 #[doc(hidden)]
-pub fn expr_var_as<T: VarValue>(var: impl Var<T>) -> impl Var<T> {
-    var
+pub fn expr_var_as<T: VarValue>(var: impl MergeInput<T>) -> Var<T> {
+    var.into_merge_input()
 }
 
 #[doc(hidden)]
-pub fn expr_var_map<I: VarValue, O: VarValue>(input: impl Var<I>, map: impl FnMut(&I) -> O + Send + 'static) -> impl Var<O> {
-    input.map(map)
+pub fn expr_var_map<I: VarValue, O: VarValue>(input: impl MergeInput<I>, map: impl FnMut(&I) -> O + Send + 'static) -> Var<O> {
+    input.into_merge_input().map(map)
 }

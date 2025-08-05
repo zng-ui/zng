@@ -11,7 +11,7 @@ use zng_ext_config::{
 };
 use zng_ext_font::FontWeight;
 use zng_ext_l10n::l10n;
-use zng_var::{ContextInitHandle, ReadOnlyContextVar};
+use zng_var::ContextInitHandle;
 use zng_wgt::{EDITORS, ICONS, Wgt, WidgetFn, node::with_context_var, prelude::*};
 use zng_wgt_container::Container;
 use zng_wgt_filter::opacity;
@@ -435,7 +435,7 @@ impl SettingEditorExt for Setting {
         match self.editor_fn() {
             Some(f) => f(self.clone()),
             None => EDITOR_SETTING_VAR.with_context_var(ContextInitHandle::current(), Some(self.clone()), || {
-                EDITORS.get(self.value().clone_any())
+                EDITORS.get(self.value().clone())
             }),
         }
     }
@@ -456,10 +456,10 @@ pub trait SettingsCtxExt {
     fn editor_selected_category(&self) -> ContextVar<CategoryId>;
 
     /// Gets a read-only context var that tracks the current editor data state.
-    fn editor_state(&self) -> ReadOnlyContextVar<Option<SettingsEditorState>>;
+    fn editor_state(&self) -> Var<Option<SettingsEditorState>>;
 
     /// Gets a read-only context var that tracks the [`Setting`] entry the widget is inside, or will be.
-    fn editor_setting(&self) -> ReadOnlyContextVar<Option<Setting>>;
+    fn editor_setting(&self) -> Var<Option<Setting>>;
 }
 impl SettingsCtxExt for SETTINGS {
     fn editor_search(&self) -> ContextVar<Txt> {
@@ -470,11 +470,11 @@ impl SettingsCtxExt for SETTINGS {
         EDITOR_SELECTED_CATEGORY_VAR
     }
 
-    fn editor_state(&self) -> ReadOnlyContextVar<Option<SettingsEditorState>> {
+    fn editor_state(&self) -> Var<Option<SettingsEditorState>> {
         EDITOR_STATE_VAR.read_only()
     }
 
-    fn editor_setting(&self) -> ReadOnlyContextVar<Option<Setting>> {
+    fn editor_setting(&self) -> Var<Option<Setting>> {
         EDITOR_SETTING_VAR.read_only()
     }
 }

@@ -156,7 +156,7 @@ use zng_app_context::AppId;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
 use zng_txt::Txt;
 use zng_unique_id::{static_id, unique_id_64};
-use zng_var::{AnyVar, ArcVar, BoxedVar, ReadOnlyArcVar, Var, VarValue, impl_from_and_into_var, types::ArcCowVar, var};
+use zng_var::{Var, VarValue, impl_from_and_into_var, var};
 
 #[doc(hidden)]
 pub use zng_app_context::app_local;
@@ -471,7 +471,7 @@ impl Command {
     }
 
     /// Gets a variable that tracks if this command has any handlers.
-    pub fn has_handlers(&self) -> ReadOnlyArcVar<bool> {
+    pub fn has_handlers(&self) -> Var<bool> {
         let mut write = self.local.write();
         match self.scope {
             CommandScope::App => write.has_handlers.read_only(),
@@ -480,7 +480,7 @@ impl Command {
     }
 
     /// Gets a variable that tracks if this command has any enabled handlers.
-    pub fn is_enabled(&self) -> ReadOnlyArcVar<bool> {
+    pub fn is_enabled(&self) -> Var<bool> {
         let mut write = self.local.write();
         match self.scope {
             CommandScope::App => write.is_enabled.read_only(),
@@ -986,12 +986,12 @@ unique_id_64! {
 }
 zng_unique_id::impl_unique_id_bytemuck!(CommandMetaVarId<T: (StateValue + VarValue)>);
 impl<T: StateValue + VarValue> CommandMetaVarId<T> {
-    fn app(self) -> StateId<ArcVar<T>> {
+    fn app(self) -> StateId<Var<T>> {
         let id = self.get();
         StateId::from_raw(id)
     }
 
-    fn scope(self) -> StateId<ArcCowVar<T, ArcVar<T>>> {
+    fn scope(self) -> StateId<Var<T>> {
         let id = self.get();
         StateId::from_raw(id)
     }
@@ -1044,7 +1044,7 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 ///     fn bar(self) -> ReadOnlyCommandMetaVar<bool>;
 ///
 ///     /// Gets a read-only var derived from other metadata.
-///     fn foo_and_bar(self) -> BoxedVar<bool>;
+///     fn foo_and_bar(self) -> Var<bool>;
 ///
 ///     /// Init *foo*.
 ///     fn init_foo(self, foo: bool) -> Self;
@@ -1062,8 +1062,8 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 ///         self.with_meta(|m| m.get_var_or_insert(*COMMAND_BAR_ID, ||true)).read_only()
 ///     }
 ///
-///     fn foo_and_bar(self) -> BoxedVar<bool> {
-///         merge_var!(self.foo(), self.bar(), |f, b| *f && *b).boxed()
+///     fn foo_and_bar(self) -> Var<bool> {
+///         merge_var!(self.foo(), self.bar(), |f, b| *f && *b)
 ///     }
 ///
 ///     fn init_foo(self, foo: bool) -> Self {
@@ -1183,9 +1183,8 @@ impl CommandMeta<'_> {
                     var.cow()
                 })
                 .clone()
-                .boxed()
         } else {
-            self.meta.entry(id.app()).or_insert_with(|| var(init())).clone().boxed()
+            self.meta.entry(id.app()).or_insert_with(|| var(init())).clone()
         }
     }
 
@@ -1197,12 +1196,9 @@ impl CommandMeta<'_> {
         let id = id.into();
         if let Some(scope) = &self.scope {
             let meta = &self.meta;
-            scope
-                .get(id.scope())
-                .map(|c| c.clone().boxed())
-                .or_else(|| meta.get(id.app()).map(|c| c.clone().boxed()))
+            scope.get(id.scope()).cloned().or_else(|| meta.get(id.app()).cloned())
         } else {
-            self.meta.get(id.app()).map(|c| c.clone().boxed())
+            self.meta.get(id.app()).cloned()
         }
     }
 
@@ -1229,21 +1225,18 @@ impl CommandMeta<'_> {
 
 /// Read-write command metadata variable.
 ///
-/// The boxed var is an [`ArcVar<T>`] for *app* scope, or [`ArcCowVar<T, ArcVar<T>>`] for scoped commands.
+/// This is a simple [`var`] for *app* scope, or a [`Var::cow`] for scoped commands.
 /// If you get this variable from an app scoped command it sets
 /// the value for all scopes. If you get this variable using a scoped command,
 /// it is a clone-on-write variable that overrides only the value for the scope.
-///
-/// [`ArcVar<T>`]: zng_var::ArcVar
-/// [`ArcCowVar<T, ArcVar<T>>`]: zng_var::types::ArcCowVar
-pub type CommandMetaVar<T> = BoxedVar<T>;
+pub type CommandMetaVar<T> = Var<T>;
 
 /// Read-only command metadata variable.
 ///
 /// To convert a [`CommandMetaVar<T>`] into this var call [`read_only`].
 ///
 /// [`read_only`]: Var::read_only
-pub type ReadOnlyCommandMetaVar<T> = BoxedVar<T>;
+pub type ReadOnlyCommandMetaVar<T> = Var<T>;
 
 /// Adds the [`name`](CommandNameExt) command metadata.
 pub trait CommandNameExt {
@@ -1255,7 +1248,7 @@ pub trait CommandNameExt {
 
     /// Gets a read-only variable that formats the name and first shortcut in the following format: name (first_shortcut)
     /// Note: If no shortcuts are available this method returns the same as [`name`](Self::name)
-    fn name_with_shortcut(self) -> BoxedVar<Txt>
+    fn name_with_shortcut(self) -> Var<Txt>
     where
         Self: crate::shortcut::CommandShortcutExt;
 }
@@ -1295,7 +1288,7 @@ impl CommandNameExt for Command {
         self
     }
 
-    fn name_with_shortcut(self) -> BoxedVar<Txt>
+    fn name_with_shortcut(self) -> Var<Txt>
     where
         Self: crate::shortcut::CommandShortcutExt,
     {
@@ -1306,7 +1299,6 @@ impl CommandNameExt for Command {
                 zng_txt::formatx!("{name} ({})", shortcut[0])
             }
         })
-        .boxed()
     }
 }
 
@@ -1351,8 +1343,8 @@ pub struct CommandData {
     enabled_count: usize,
     registered: bool,
 
-    has_handlers: ArcVar<bool>,
-    is_enabled: ArcVar<bool>,
+    has_handlers: Var<bool>,
+    is_enabled: Var<bool>,
 
     scopes: HashMap<CommandScope, ScopedValue>,
 }
@@ -1415,8 +1407,8 @@ impl CommandData {
 struct ScopedValue {
     handle_count: usize,
     enabled_count: usize,
-    is_enabled: ArcVar<bool>,
-    has_handlers: ArcVar<bool>,
+    is_enabled: Var<bool>,
+    has_handlers: Var<bool>,
     meta: Mutex<OwnedStateMap<CommandMetaState>>,
     registered: bool,
 }

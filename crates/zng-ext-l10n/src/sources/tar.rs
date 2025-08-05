@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::HashMap, fmt, io::Read as _, path::PathBuf, 
 use semver::Version;
 use zng_clone_move::clmv;
 use zng_txt::Txt;
-use zng_var::{ArcEq, ArcVar, BoxedVar, BoxedWeakVar, LocalVar, Var as _, WeakVar as _, types::WeakArcVar, var};
+use zng_var::{ArcEq, Var, WeakVar, const_var, var, weak_var};
 
 use crate::{FluentParserErrors, L10nSource, Lang, LangFilePath, LangMap, LangResourceStatus};
 
@@ -15,8 +15,8 @@ use crate::{FluentParserErrors, L10nSource, Lang, LangFilePath, LangMap, LangRes
 /// [`L10nDir`]: crate::L10nDir
 pub struct L10nTar {
     data: L10nTarData,
-    available_langs: ArcVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>,
-    available_langs_status: ArcVar<LangResourceStatus>,
+    available_langs: Var<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>,
+    available_langs_status: Var<LangResourceStatus>,
     res: HashMap<(Lang, LangFilePath), L10nEntry>,
 }
 impl L10nTar {
@@ -136,19 +136,19 @@ impl L10nTar {
     }
 }
 impl L10nSource for L10nTar {
-    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
-        self.available_langs.read_only().boxed()
+    fn available_langs(&mut self) -> Var<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
+        self.available_langs.read_only()
     }
 
-    fn available_langs_status(&mut self) -> BoxedVar<LangResourceStatus> {
-        self.available_langs_status.read_only().boxed()
+    fn available_langs_status(&mut self) -> Var<LangResourceStatus> {
+        self.available_langs_status.read_only()
     }
 
-    fn lang_resource(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
+    fn lang_resource(&mut self, lang: Lang, file: LangFilePath) -> Var<Option<ArcEq<fluent::FluentResource>>> {
         match self.res.entry((lang, file)) {
             std::collections::hash_map::Entry::Occupied(mut e) => {
                 if let Some(out) = e.get().res.upgrade() {
-                    out.read_only().boxed()
+                    out.read_only()
                 } else {
                     let (lang, file) = e.key();
                     let out = resource_var(
@@ -179,13 +179,8 @@ impl L10nSource for L10nTar {
         }
     }
 
-    fn lang_resource_status(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<LangResourceStatus> {
-        self.res
-            .entry((lang, file))
-            .or_insert_with(L10nEntry::new)
-            .status
-            .read_only()
-            .boxed()
+    fn lang_resource_status(&mut self, lang: Lang, file: LangFilePath) -> Var<LangResourceStatus> {
+        self.res.entry((lang, file)).or_insert_with(L10nEntry::new).status.read_only()
     }
 }
 
@@ -250,13 +245,13 @@ impl L10nTarData {
 }
 
 struct L10nEntry {
-    res: BoxedWeakVar<Option<ArcEq<fluent::FluentResource>>>,
-    status: ArcVar<LangResourceStatus>,
+    res: WeakVar<Option<ArcEq<fluent::FluentResource>>>,
+    status: Var<LangResourceStatus>,
 }
 impl L10nEntry {
     fn new() -> Self {
         Self {
-            res: WeakArcVar::default().boxed(),
+            res: weak_var(),
             status: var(LangResourceStatus::Loading),
         }
     }
@@ -264,11 +259,11 @@ impl L10nEntry {
 
 fn resource_var(
     data: L10nTarData,
-    available_langs: &ArcVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>,
-    status: ArcVar<LangResourceStatus>,
+    available_langs: &Var<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>,
+    status: Var<LangResourceStatus>,
     lang: Lang,
     file: LangFilePath,
-) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
+) -> Var<Option<ArcEq<fluent::FluentResource>>> {
     available_langs
         .map(move |w| w.get_file(&lang, &file).cloned())
         .flat_map(move |p| match p {
@@ -308,9 +303,8 @@ fn resource_var(
                 }));
                 rsp.bind_filter_map(&status, |r| r.done().and_then(|r| r.as_ref()).map(|_| LangResourceStatus::Loaded))
                     .perm();
-                rsp.map(|r| r.done().cloned().flatten()).boxed()
+                rsp.map(|r| r.done().cloned().flatten())
             }
-            None => LocalVar(None).boxed(),
+            None => const_var(None),
         })
-        .boxed()
 }

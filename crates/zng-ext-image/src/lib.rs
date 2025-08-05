@@ -43,7 +43,7 @@ use zng_layout::unit::{ByteLength, ByteUnits};
 use zng_task::UiTask;
 use zng_txt::{ToTxt, Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap};
-use zng_var::{AnyVar, AnyWeakVar, ArcVar, Var, WeakVar, types::WeakArcVar, var};
+use zng_var::{Var, WeakVar, var};
 use zng_view_api::{image::ImageRequest, ipc::IpcBytes};
 
 /// Application extension that provides an image cache.
@@ -244,7 +244,7 @@ impl AppExtension for ImageManager {
                                         // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
                                         // when done.
                                         t.image.modify(move |v| {
-                                            v.to_mut().view.set(img).unwrap();
+                                            v.value_mut().view.set(img).unwrap();
                                         });
                                     }
                                     Err(_) => {
@@ -260,7 +260,7 @@ impl AppExtension for ImageManager {
                                 // success, but we are only doing `load_in_headless` validation.
                                 let img = ViewImage::dummy(None);
                                 t.image.modify(move |v| {
-                                    let v = v.to_mut();
+                                    let v = v.value_mut();
                                     v.view.set(img).unwrap();
                                     v.done_signal.set();
                                 });
@@ -271,7 +271,7 @@ impl AppExtension for ImageManager {
                             // load error.
                             let img = ViewImage::dummy(Some(e));
                             t.image.modify(move |v| {
-                                let v = v.to_mut();
+                                let v = v.value_mut();
                                 v.view.set(img).unwrap();
                                 v.done_signal.set();
                             });
@@ -313,7 +313,7 @@ app_local! {
 
 struct ImageLoadingTask {
     task: Mutex<UiTask<ImageData>>,
-    image: ArcVar<Img>,
+    image: Var<Img>,
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscale>,
     mask: Option<ImageMaskMode>,
@@ -323,11 +323,11 @@ struct ImageLoadingTask {
 struct ImageDecodingTask {
     format: ImageDataFormat,
     data: IpcBytes,
-    image: ArcVar<Img>,
+    image: Var<Img>,
 }
 
 struct CacheEntry {
-    image: ArcVar<Img>,
+    image: Var<Img>,
     error: AtomicBool,
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscale>,
@@ -335,15 +335,15 @@ struct CacheEntry {
 }
 
 struct NotCachedEntry {
-    image: WeakArcVar<Img>,
+    image: WeakVar<Img>,
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscale>,
     mask: Option<ImageMaskMode>,
 }
 
 struct ImagesService {
-    load_in_headless: ArcVar<bool>,
-    limits: ArcVar<ImageLimits>,
+    load_in_headless: Var<bool>,
+    limits: Var<ImageLimits>,
 
     download_accept: Txt,
     proxies: Vec<Box<dyn ImageCacheProxy>>,
@@ -440,7 +440,7 @@ impl ImagesService {
             }
 
             // remove `cache_key` from image, this clones the `Img` only-if is still in cache.
-            let mut img = image.into_value();
+            let mut img = image.get();
             img.cache_key = None;
             let img = var(img);
             self.not_cached.push(NotCachedEntry {
@@ -745,7 +745,7 @@ impl ImagesService {
         max_decoded_len: ByteLength,
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
-    ) -> ArcVar<Img> {
+    ) -> Var<Img> {
         self.cleanup_not_cached(false);
 
         if let ImageCacheMode::Reload = mode {
@@ -833,12 +833,12 @@ impl IMAGES {
     ///
     /// [`dummy`]: IMAGES::dummy
     /// [`VIEW_PROCESS`]: zng_app::view_process::VIEW_PROCESS
-    pub fn load_in_headless(&self) -> ArcVar<bool> {
+    pub fn load_in_headless(&self) -> Var<bool> {
         IMAGES_SV.read().load_in_headless.clone()
     }
 
     /// Default loading and decoding limits for each image.
-    pub fn limits(&self) -> ArcVar<ImageLimits> {
+    pub fn limits(&self) -> Var<ImageLimits> {
         IMAGES_SV.read().limits.clone()
     }
 

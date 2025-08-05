@@ -172,7 +172,7 @@
 //! are the most common property input kind, in the example `direction`, `spacing`, `is_pressed` and `txt` all accept
 //! an [`IntoVar<T>`] input that gets converted into a [`Var<T>`] when the property is instantiated.
 //!
-//! There are multiple variable types, they can be a simple static value, a shared observable and modifiable value or a
+//! There are multiple variable kinds, they can be a simple constant value, a shared observable and modifiable value or a
 //! contextual value. Variables can also depend on other variables automatically updating when input variables update.
 //!
 //! ```
@@ -183,7 +183,7 @@
 //!     Text!(txt)
 //! }
 //!
-//! ui("static value");
+//! ui("const value");
 //!
 //! let txt = var(Txt::from("dynamic value"));
 //! ui(txt.clone());
@@ -204,11 +204,11 @@
 //! value of this variable automatically update when any of the interpolated variables update.
 //!
 //! And finally the example demonstrates a context var, `FONT_COLOR_VAR`. Context variables get their value from the
-//! *environment* where they are used, the UI in the example can show different a different text depending on where it is placed.
+//! *environment* where they are used, the UI in the example can show a different text depending on where it is placed.
 //! Context variables are usually encapsulated by properties strongly associated with a widget, most of [`Text!`] properties just
 //! set a context var that affects all text instances in the widget they are placed and descendant widgets.
 //!
-//! There are other useful variable types, see the [var module] module documentation for more details.
+//! There are other useful variable kinds, see the [var module] module documentation for more details.
 //!
 //! [`var`]: var::var
 //! [`expr_var!`]: var::expr_var
@@ -586,8 +586,7 @@ mod __prelude {
     pub use zng_app::widget::inspector::WidgetInfoInspectorExt as _;
 
     pub use zng_var::{
-        AnyVar as _, AnyWeakVar as _, IntoValue, IntoVar, Var, VarValue, WeakVar as _, context_var, expr_var, getter_var, merge_var,
-        state_var, var, var_from, when_var,
+        IntoValue, IntoVar, Var, VarValue, const_var, context_var, expr_var, merge_var, var, var_from, var_getter, var_state, when_var,
     };
 
     pub use crate::var::animation::easing;
@@ -743,7 +742,7 @@ mod __prelude {
 ///         self.widget_builder().push_build_action(|b| {
 ///             let txt = b
 ///                     .capture_var::<Txt>(property_id!(Self::txt))
-///                     .unwrap_or_else(|| LocalVar(Txt::from("")).boxed());
+///                     .unwrap_or_else(|| const_var(Txt::from("")));
 ///             b.set_child(Text!(txt));
 ///         });
 ///     }
@@ -786,9 +785,8 @@ mod __prelude_wgt {
     };
 
     pub use zng_var::{
-        AnyVar as _, AnyWeakVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar,
-        ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarValue, WeakVar as _, context_var, expr_var, getter_var,
-        impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, when_var,
+        ContextVar, IntoValue, IntoVar, ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarValue, const_var,
+        context_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, var, var_getter, var_state, when_var,
     };
 
     pub use zng_layout::{

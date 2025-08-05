@@ -311,10 +311,10 @@ pub fn is_inited(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let state = state.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            let _ = state.set(true);
+            state.set(true);
         }
         UiNodeOp::Deinit => {
-            let _ = state.set(false);
+            state.set(false);
         }
         _ => {}
     })

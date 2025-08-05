@@ -18,9 +18,7 @@ use zng_app_context::{LocalContext, app_local};
 use zng_clone_move::clmv;
 use zng_handle::{Handle, HandleOwner};
 use zng_unit::TimeUnits;
-use zng_var::{
-    AnyVar, AnyVarHookArgs, AnyWeakVar, ArcVar, ReadOnlyArcVar, VARS, Var, VarUpdateId, VarValue, WeakVar, types::WeakArcVar, var,
-};
+use zng_var::{AnyVarHookArgs, VARS, Var, VarUpdateId, VarValue, WeakVar, var};
 
 use crate::{
     FS_CHANGES_EVENT, FsChange, FsChangeNote, FsChangeNoteHandle, FsChangesArgs, WATCHER, WatchFile, WatcherHandle, WatcherReadStatus,
@@ -54,10 +52,10 @@ app_local! {
 }
 
 pub(crate) struct WatcherService {
-    pub debounce: ArcVar<Duration>,
-    pub sync_debounce: ArcVar<Duration>,
-    pub poll_interval: ArcVar<Duration>,
-    pub shutdown_timeout: ArcVar<Duration>,
+    pub debounce: Var<Duration>,
+    pub sync_debounce: Var<Duration>,
+    pub poll_interval: Var<Duration>,
+    pub shutdown_timeout: Var<Duration>,
 
     watcher: Watchers,
 
@@ -131,7 +129,7 @@ impl WatcherService {
         file: PathBuf,
         init: O,
         read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
-    ) -> ReadOnlyArcVar<O> {
+    ) -> Var<O> {
         let handle = self.watch(file.clone());
         fn open(p: &Path) -> io::Result<WatchFile> {
             WatchFile::open(p)
@@ -146,7 +144,7 @@ impl WatcherService {
         file: PathBuf,
         init: O,
         mut read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, E> + Send + 'static,
-    ) -> (ReadOnlyArcVar<O>, ReadOnlyArcVar<S>)
+    ) -> (Var<O>, Var<S>)
     where
         O: VarValue,
         S: WatcherReadStatus<E>,
@@ -194,7 +192,7 @@ impl WatcherService {
         recursive: bool,
         init: O,
         read: impl FnMut(walkdir::WalkDir) -> Option<O> + Send + 'static,
-    ) -> ReadOnlyArcVar<O> {
+    ) -> Var<O> {
         let handle = self.watch_dir(dir.clone(), recursive);
         fn open(p: &Path) -> walkdir::WalkDir {
             walkdir::WalkDir::new(p).min_depth(1).max_depth(1)
@@ -212,7 +210,7 @@ impl WatcherService {
         recursive: bool,
         init: O,
         mut read: impl FnMut(walkdir::WalkDir) -> Result<Option<O>, E> + Send + 'static,
-    ) -> (ReadOnlyArcVar<O>, ReadOnlyArcVar<S>)
+    ) -> (Var<O>, Var<S>)
     where
         O: VarValue,
         S: WatcherReadStatus<E>,
@@ -264,7 +262,7 @@ impl WatcherService {
         init: O,
         read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
         mut write: impl FnMut(O, io::Result<WriteFile>) + Send + 'static,
-    ) -> ArcVar<O> {
+    ) -> Var<O> {
         let handle = self.watch(file.clone());
 
         let (sync, var) = SyncWithVar::new(handle, file, init, read, move |o, _, f| write(o, f), |_| {});
@@ -278,7 +276,7 @@ impl WatcherService {
         init: O,
         mut read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, ER> + Send + 'static,
         mut write: impl FnMut(O, io::Result<WriteFile>) -> Result<(), EW> + Send + 'static,
-    ) -> (ArcVar<O>, ReadOnlyArcVar<S>)
+    ) -> (Var<O>, Var<S>)
     where
         O: VarValue,
         S: WatcherSyncStatus<ER, EW>,
@@ -417,7 +415,7 @@ impl ReadToVar {
         load: fn(&Path) -> R,
         read: impl FnMut(R) -> Option<O> + Send + 'static,
         on_modify: impl Fn() + Send + Sync + 'static,
-    ) -> (Self, ReadOnlyArcVar<O>) {
+    ) -> (Self, Var<O>) {
         if let Ok(p) = path.absolutize() {
             path = p.into_owned();
         }
@@ -503,7 +501,7 @@ pub(crate) struct SyncWithVar {
     handle: WatcherHandle,
 }
 impl SyncWithVar {
-    fn new<O, R, W, U>(handle: WatcherHandle, mut file: PathBuf, init: O, read: R, write: W, var_hook_and_modify: U) -> (Self, ArcVar<O>)
+    fn new<O, R, W, U>(handle: WatcherHandle, mut file: PathBuf, init: O, read: R, write: W, var_hook_and_modify: U) -> (Self, Var<O>)
     where
         O: VarValue,
         R: FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
@@ -520,18 +518,14 @@ impl SyncWithVar {
         let var_hook_and_modify = Arc::new(var_hook_and_modify);
 
         let var = var(init);
-        var.hook_any(Box::new(clmv!(
-            path,
-            latest_from_read,
-            var_hook_and_modify,
-            |args: &AnyVarHookArgs| {
+        var.as_any()
+            .hook(clmv!(path, latest_from_read, var_hook_and_modify, |args: &AnyVarHookArgs| {
                 let is_read = args.downcast_tags::<Arc<WatcherSyncWriteNote>>().any(|n| n == &path);
                 latest_from_read.store(is_read, Ordering::Relaxed);
                 var_hook_and_modify(is_read);
                 true
-            }
-        )))
-        .perm();
+            }))
+            .perm();
 
         type PendingFlag = u8;
         const READ: PendingFlag = 0b01;
@@ -540,7 +534,7 @@ impl SyncWithVar {
         struct TaskData<R, W, O: VarValue> {
             pending: Atomic<PendingFlag>,
             read_write: Mutex<(R, W)>,
-            wk_var: WeakArcVar<O>,
+            wk_var: WeakVar<O>,
             last_write: AtomicU64, // ms from epoch
         }
         let task_data = Arc::new(TaskData {

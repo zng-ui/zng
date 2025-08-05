@@ -8,7 +8,7 @@ use zng_app::{
     update::EventUpdate,
     widget::info::WidgetInfo,
 };
-use zng_var::{BoxedVar, merge_var};
+use zng_var::{Var, merge_var};
 
 use super::*;
 
@@ -203,7 +203,7 @@ pub trait CommandFocusExt {
     /// paste_in_focused_cmd.get().notify();
     /// # }
     /// ```
-    fn focus_scoped(self) -> BoxedVar<Command>;
+    fn focus_scoped(self) -> Var<Command>;
 
     /// Gets a command variable with `self` scoped to the output of `map`.
     ///
@@ -215,11 +215,11 @@ pub trait CommandFocusExt {
     /// [`focused`]: FOCUS::focused
     /// [`WidgetInfo`]: zng_app::widget::info::WidgetInfo
     /// [`CommandScope`]: zng_app::event::CommandScope
-    fn focus_scoped_with(self, map: impl FnMut(Option<WidgetInfo>) -> CommandScope + Send + 'static) -> BoxedVar<Command>;
+    fn focus_scoped_with(self, map: impl FnMut(Option<WidgetInfo>) -> CommandScope + Send + 'static) -> Var<Command>;
 }
 
 impl CommandFocusExt for Command {
-    fn focus_scoped(self) -> BoxedVar<Command> {
+    fn focus_scoped(self) -> Var<Command> {
         let cmd = self.scoped(CommandScope::App);
         merge_var!(FOCUS.alt_return(), FOCUS.focused(), move |alt, f| {
             match alt.as_ref().or(f.as_ref()) {
@@ -227,10 +227,9 @@ impl CommandFocusExt for Command {
                 None => cmd,
             }
         })
-        .boxed()
     }
 
-    fn focus_scoped_with(self, mut map: impl FnMut(Option<WidgetInfo>) -> CommandScope + Send + 'static) -> BoxedVar<Command> {
+    fn focus_scoped_with(self, mut map: impl FnMut(Option<WidgetInfo>) -> CommandScope + Send + 'static) -> Var<Command> {
         let cmd = self.scoped(CommandScope::App);
         merge_var!(FOCUS.alt_return(), FOCUS.focused(), |alt, f| {
             match alt.as_ref().or(f.as_ref()) {
@@ -239,6 +238,5 @@ impl CommandFocusExt for Command {
             }
         })
         .map(move |w| cmd.scoped(map(w.clone())))
-        .boxed()
     }
 }

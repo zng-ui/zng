@@ -84,9 +84,9 @@ pub fn settings_editor_node() -> impl UiNode {
     })
 }
 
-fn editor_state() -> BoxedVar<Option<SettingsEditorState>> {
+fn editor_state() -> Var<Option<SettingsEditorState>> {
     // avoids rebuilds for ignored search changes
-    let clean_search = SETTINGS.editor_search().actual_var().map(|s| {
+    let clean_search = SETTINGS.editor_search().current_context().map(|s| {
         let s = s.trim();
         if !s.starts_with('@') {
             s.to_lowercase().into()
@@ -95,7 +95,7 @@ fn editor_state() -> BoxedVar<Option<SettingsEditorState>> {
         }
     });
 
-    let sel_cat = SETTINGS.editor_selected_category().actual_var().clone();
+    let sel_cat = SETTINGS.editor_selected_category().current_context();
     let r = expr_var! {
         if #{clean_search}.is_empty() {
             // no search, does not need to load settings of other categories
@@ -155,12 +155,12 @@ fn editor_state() -> BoxedVar<Option<SettingsEditorState>> {
     };
 
     // select first category when previous selection is removed
-    let sel = SETTINGS.editor_selected_category().actual_var();
+    let sel = SETTINGS.editor_selected_category().current_context();
     let wk_sel_cat = sel.downgrade();
-    fn correct_sel(options: &[Category], sel: &BoxedVar<CategoryId>) {
+    fn correct_sel(options: &[Category], sel: &Var<CategoryId>) {
         if sel.with(|s| !options.iter().any(|c| c.id() == s)) {
             if let Some(first) = options.first() {
-                let _ = sel.set(first.id().clone());
+                sel.set(first.id().clone());
             }
         }
     }
@@ -177,16 +177,16 @@ fn editor_state() -> BoxedVar<Option<SettingsEditorState>> {
         correct_sel(&r.as_ref().unwrap().categories, &sel);
     });
 
-    r.boxed()
+    r
 }
 
 fn settings_view_fn() -> impl UiNode {
     let search = SETTINGS_SEARCH_FN_VAR.get()(SettingsSearchArgs {});
 
-    let editor_state = SETTINGS.editor_state().actual_var();
+    let editor_state = SETTINGS.editor_state().current_context();
 
     let categories = editor_state
-        .map_ref(|r| &r.as_ref().unwrap().categories)
+        .map(|r| r.as_ref().unwrap().categories.clone())
         .present(wgt_fn!(|categories: Vec<Category>| {
             let cat_fn = CATEGORY_ITEM_FN_VAR.get();
             let categories: UiVec = categories
@@ -253,8 +253,8 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
             let cat = SETTINGS.editor_selected_category();
             WIDGET.sub_var(&search).sub_var(&cat);
             if let Some(c) = cfg {
-                let _ = search.set(c.search);
-                let _ = cat.set(c.selected_category);
+                search.set(c.search);
+                cat.set(c.selected_category);
             }
         },
         |required| {
@@ -293,7 +293,7 @@ fn command_handler(child: impl UiNode) -> impl UiNode {
                         .editor_state()
                         .with(|s| s.as_ref().unwrap().categories.iter().any(|c| c.id() == id))
                     {
-                        SETTINGS.editor_selected_category().set(id.clone()).unwrap();
+                        SETTINGS.editor_selected_category().set(id.clone());
                     }
                 } else if let Some(key) = args.param::<Txt>() {
                     let search = if SETTINGS.any(|k, _| k == key) {
@@ -301,7 +301,7 @@ fn command_handler(child: impl UiNode) -> impl UiNode {
                     } else {
                         key.clone()
                     };
-                    SETTINGS.editor_search().set(search).unwrap();
+                    SETTINGS.editor_search().set(search);
                 } else if args.param.is_none() && !FOCUS.is_focus_within(WIDGET.id()).get() {
                     // focus top match
                     let s = Some(SETTINGS.editor_state().with(|s| s.as_ref().unwrap().top_match.clone()));
@@ -353,7 +353,7 @@ pub fn handle_settings_cmd() {
 
                 if let Some(param) = &args.args.param {
                     if let Some(w) = new_window {
-                        WINDOWS.wait_loaded(w.wait_into_rsp().await, true).await;
+                        WINDOWS.wait_loaded(w.wait_rsp().await, true).await;
                     }
                     SETTINGS_CMD
                         .scoped("zng-config-settings-default-editor")

@@ -30,7 +30,7 @@ fn main() {
         // is limited to only the `zng::env::res`. The limits can be set globally in here and overridden 
         // for each image with the "img_limits" property.
         IMAGES.limits().modify(|l| {
-            let l = l.to_mut();
+            let l = l.value_mut();
             l.allow_uri = image::UriFilter::AllowAll;
             l.allow_path = image::PathFilter::AllowAll;
         });
@@ -223,7 +223,7 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
         spacing = 5;
 
         children = ui_vec![
-            sub_title(fit.map_debug()),
+            sub_title(fit.map_debug(false)),
             Image! {
                 source = zng::env::res("zdenek-machacek-unsplash.jpg");
                 size = (200, 100);
@@ -486,9 +486,9 @@ fn open_or_paste_image() -> impl UiNode {
                     child_align = Align::FILL;
                     child = {
                         use layout::PxSize;
-                        let img_size = getter_var::<PxSize>();
-                        let img_wgt_size = getter_var::<PxSize>();
-                        let menu_wgt_size = getter_var::<PxSize>();
+                        let img_size = var_getter::<PxSize>();
+                        let img_wgt_size = var_getter::<PxSize>();
+                        let menu_wgt_size = var_getter::<PxSize>();
                         let show_menu = merge_var!(img_size.clone(), img_wgt_size.clone(), menu_wgt_size.clone(), |img, wgt, menu| {
                             img.height < wgt.height - menu.height
                         });

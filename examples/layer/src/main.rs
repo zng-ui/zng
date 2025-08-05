@@ -181,7 +181,7 @@ fn anchor_example() -> impl UiNode {
     let next_offset = hn!(|_| {
         idx.modify(move |i| {
             let next = **i + 1;
-            *i.to_mut() = if next == len { 0 } else { next };
+            **i = if next == len { 0 } else { next };
         })
     });
 

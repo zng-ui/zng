@@ -1067,7 +1067,7 @@ impl GridLayout {
     }
 
     /// add/remove info entries, auto-grow/shrink
-    fn update_entries(&mut self, children: &mut GridChildren, auto_mode: AutoGrowMode, auto_grow_fn: &impl Var<WidgetFn<AutoGrowFnArgs>>) {
+    fn update_entries(&mut self, children: &mut GridChildren, auto_mode: AutoGrowMode, auto_grow_fn: &Var<WidgetFn<AutoGrowFnArgs>>) {
         // max needed column or row in the auto_mode axis.
         let mut max_custom = 0;
         let mut max_auto_placed_i = 0;
@@ -1198,12 +1198,7 @@ impl GridLayout {
     }
 
     #[must_use]
-    fn grid_layout(
-        &mut self,
-        wm: &mut WidgetMeasure,
-        children: &mut GridChildren,
-        spacing: &impl Var<GridSpacing>,
-    ) -> (PxGridSpacing, PxSize) {
+    fn grid_layout(&mut self, wm: &mut WidgetMeasure, children: &mut GridChildren, spacing: &Var<GridSpacing>) -> (PxGridSpacing, PxSize) {
         if self.is_collapse() {
             return (PxGridSpacing::zero(), PxSize::zero());
         }

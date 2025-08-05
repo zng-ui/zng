@@ -3,7 +3,7 @@
 //! Note: Compile error tests are in the integration tests folder: `tests/macro-tests/widget` and `tests/macro-tests/widget_new`
 
 use zng_app_proc_macros::{property, widget};
-use zng_var::{IntoValue, Var};
+use zng_var::IntoValue;
 
 use crate::{
     APP,
@@ -1128,7 +1128,7 @@ pub mod util {
     use zng_app_proc_macros::property;
     use zng_state_map::StateId;
     use zng_unique_id::static_id;
-    use zng_var::{IntoValue, IntoVar, Var};
+    use zng_var::{IntoValue, IntoVar};
 
     use crate::widget::{
         WIDGET, WidgetUpdateMode,
@@ -1343,7 +1343,7 @@ pub mod util {
             if update {
                 let wgt_state = WIDGET.get_state(*IS_STATE_ID).unwrap_or_default();
                 if wgt_state != state.get() {
-                    let _ = state.set(wgt_state);
+                    state.set(wgt_state);
                 }
             }
         })

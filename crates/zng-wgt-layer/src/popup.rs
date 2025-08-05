@@ -121,8 +121,8 @@ impl POPUP {
     ///
     /// If the popup node is not a full widget after init it is upgraded to one. Returns
     /// a variable that tracks the popup state and ID.
-    pub fn open(&self, popup: impl UiNode) -> ReadOnlyArcVar<PopupState> {
-        self.open_impl(popup.boxed(), ANCHOR_MODE_VAR.boxed(), CONTEXT_CAPTURE_VAR.get())
+    pub fn open(&self, popup: impl UiNode) -> Var<PopupState> {
+        self.open_impl(popup.boxed(), ANCHOR_MODE_VAR.into(), CONTEXT_CAPTURE_VAR.get())
     }
 
     /// Open the `popup` using the custom config vars.
@@ -134,16 +134,11 @@ impl POPUP {
         popup: impl UiNode,
         anchor_mode: impl IntoVar<AnchorMode>,
         context_capture: impl IntoValue<ContextCapture>,
-    ) -> ReadOnlyArcVar<PopupState> {
-        self.open_impl(popup.boxed(), anchor_mode.into_var().boxed(), context_capture.into())
+    ) -> Var<PopupState> {
+        self.open_impl(popup.boxed(), anchor_mode.into_var(), context_capture.into())
     }
 
-    fn open_impl(
-        &self,
-        mut popup: BoxedUiNode,
-        anchor_mode: BoxedVar<AnchorMode>,
-        context_capture: ContextCapture,
-    ) -> ReadOnlyArcVar<PopupState> {
+    fn open_impl(&self, mut popup: BoxedUiNode, anchor_mode: Var<AnchorMode>, context_capture: ContextCapture) -> Var<PopupState> {
         let state = var(PopupState::Opening);
         let mut _close_handle = CommandHandle::dummy();
 
@@ -252,7 +247,7 @@ impl POPUP {
     /// Close the popup widget when `state` is not already closed.
     ///
     /// Notifies [`POPUP_CLOSE_REQUESTED_EVENT`] and then close if no subscriber stops propagation for it.
-    pub fn close(&self, state: &ReadOnlyArcVar<PopupState>) {
+    pub fn close(&self, state: &Var<PopupState>) {
         match state.get() {
             PopupState::Opening => state
                 .hook(|a| {
@@ -268,7 +263,7 @@ impl POPUP {
     }
 
     /// Close the popup widget when `state` is not already closed, without notifying [`POPUP_CLOSE_REQUESTED_EVENT`] first.
-    pub fn force_close(&self, state: &ReadOnlyArcVar<PopupState>) {
+    pub fn force_close(&self, state: &Var<PopupState>) {
         match state.get() {
             PopupState::Opening => state
                 .hook(|a| {
@@ -299,10 +294,8 @@ impl POPUP {
     }
 
     /// Gets a read-only var that tracks the anchor widget in a layered widget context.
-    pub fn anchor_id(&self) -> impl Var<WidgetId> {
-        LAYERS
-            .anchor_id()
-            .map_ref(|id| id.as_ref().expect("POPUP layers are always anchored"))
+    pub fn anchor_id(&self) -> Var<WidgetId> {
+        LAYERS.anchor_id().map(|id| id.expect("POPUP layers are always anchored"))
     }
 }
 
@@ -512,7 +505,7 @@ pub fn close_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl Ui
                 if delay != Duration::ZERO {
                     args.propagation().stop();
 
-                    let _ = IS_CLOSE_DELAYED_VAR.set(true);
+                    IS_CLOSE_DELAYED_VAR.set(true);
                     let cmd = POPUP_CLOSE_CMD.scoped(args.popup);
                     timer = Some(TIMERS.on_deadline(
                         delay,

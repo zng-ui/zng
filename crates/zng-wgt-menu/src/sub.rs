@@ -76,7 +76,7 @@ impl_style_fn!(SubMenu);
 
 /// Sub-menu implementation.
 pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>) -> impl UiNode {
-    let mut open = None::<ReadOnlyArcVar<PopupState>>;
+    let mut open = None::<Var<PopupState>>;
     let is_open = var(false);
     let mut open_timer = None;
     let mut close_timer = None;
@@ -529,7 +529,7 @@ pub trait SubMenuWidgetInfoExt {
     fn is_submenu(&self) -> bool;
 
     /// Gets a variable that tracks if the sub-menu is open.
-    fn is_submenu_open(&self) -> Option<ReadOnlyArcVar<bool>>;
+    fn is_submenu_open(&self) -> Option<Var<bool>>;
 
     /// Gets the sub-menu that spawned `self` if [`is_submenu`], otherwise returns the first ancestor
     /// that is sub-menu.
@@ -558,7 +558,7 @@ impl SubMenuWidgetInfoExt for WidgetInfo {
         self.meta().contains(*SUB_MENU_INFO_ID)
     }
 
-    fn is_submenu_open(&self) -> Option<ReadOnlyArcVar<bool>> {
+    fn is_submenu_open(&self) -> Option<Var<bool>> {
         self.meta().get(*SUB_MENU_INFO_ID).map(|s| s.is_open.read_only())
     }
 
@@ -640,7 +640,7 @@ impl Iterator for SubMenuAncestors {
 
 pub(super) struct SubMenuInfo {
     pub parent: Option<WidgetId>,
-    pub is_open: ArcVar<bool>,
+    pub is_open: Var<bool>,
 }
 
 pub(super) struct SubMenuPopupInfo {

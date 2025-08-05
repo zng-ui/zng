@@ -9,10 +9,17 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::{any::Any, collections::HashMap, fmt, mem, num::NonZeroU8, ops, sync::Arc};
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+    fmt, mem,
+    num::NonZeroU8,
+    ops,
+    sync::Arc,
+};
 
 use zng_color::COLOR_SCHEME_VAR;
-use zng_var::{BoxedAnyVar, types::ContextualizedVar};
+use zng_var::{AnyVar, Var, contextual_var};
 use zng_wgt::prelude::*;
 
 use task::parking_lot::RwLock;
@@ -25,7 +32,7 @@ use task::parking_lot::RwLock;
 /// data even if the type `T` does not match.
 #[property(CONTEXT - 1)]
 pub fn data<T: VarValue>(child: impl UiNode, data: impl IntoVar<T>) -> impl UiNode {
-    with_context_local(child, &DATA_CTX, data.into_var().boxed_any())
+    with_context_local(child, &DATA_CTX, data.into_var())
 }
 
 /// Insert a data note in the context.
@@ -106,7 +113,7 @@ pub fn data_error(child: impl UiNode, note: impl IntoVar<Txt>) -> impl UiNode {
 pub fn get_data_notes(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
-        let _ = notes.set(n.clone());
+        notes.set(n.clone());
     })
 }
 
@@ -115,7 +122,7 @@ pub fn get_data_notes(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> imp
 pub fn has_data_notes(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode {
     let any = any.into_var();
     with_data_notes(child, move |n| {
-        let _ = any.set(!n.is_empty());
+        any.set(!n.is_empty());
     })
 }
 
@@ -126,7 +133,7 @@ pub fn has_data_notes(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNod
 pub fn get_data_info(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
-        let _ = notes.set(n.clone_level(DataNoteLevel::INFO));
+        notes.set(n.clone_level(DataNoteLevel::INFO));
     })
 }
 
@@ -137,7 +144,7 @@ pub fn get_data_info(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl
 pub fn get_data_info_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
-        let _ = notes.set(n.level_txt(DataNoteLevel::INFO));
+        notes.set(n.level_txt(DataNoteLevel::INFO));
     })
 }
 
@@ -148,7 +155,7 @@ pub fn get_data_info_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl U
 pub fn has_data_info(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode {
     let any = any.into_var();
     with_data_notes(child, move |n| {
-        let _ = any.set(n.iter().any(|n| n.level() == DataNoteLevel::INFO));
+        any.set(n.iter().any(|n| n.level() == DataNoteLevel::INFO));
     })
 }
 
@@ -159,7 +166,7 @@ pub fn has_data_info(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode
 pub fn get_data_warn(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
-        let _ = notes.set(n.clone_level(DataNoteLevel::WARN));
+        notes.set(n.clone_level(DataNoteLevel::WARN));
     })
 }
 
@@ -170,7 +177,7 @@ pub fn get_data_warn(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl
 pub fn get_data_warn_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
-        let _ = notes.set(n.level_txt(DataNoteLevel::WARN));
+        notes.set(n.level_txt(DataNoteLevel::WARN));
     })
 }
 
@@ -181,7 +188,7 @@ pub fn get_data_warn_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl U
 pub fn has_data_warn(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode {
     let any = any.into_var();
     with_data_notes(child, move |n| {
-        let _ = any.set(n.iter().any(|n| n.level() == DataNoteLevel::WARN));
+        any.set(n.iter().any(|n| n.level() == DataNoteLevel::WARN));
     })
 }
 
@@ -192,7 +199,7 @@ pub fn has_data_warn(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode
 pub fn get_data_error(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
-        let _ = notes.set(n.clone_level(DataNoteLevel::ERROR));
+        notes.set(n.clone_level(DataNoteLevel::ERROR));
     })
 }
 
@@ -203,7 +210,7 @@ pub fn get_data_error(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> imp
 pub fn get_data_error_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
-        let _ = notes.set(n.level_txt(DataNoteLevel::ERROR));
+        notes.set(n.level_txt(DataNoteLevel::ERROR));
     })
 }
 
@@ -214,7 +221,7 @@ pub fn get_data_error_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl 
 pub fn has_data_error(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode {
     let any = any.into_var();
     with_data_notes(child, move |n| {
-        let _ = any.set(n.iter().any(|n| n.level() == DataNoteLevel::ERROR));
+        any.set(n.iter().any(|n| n.level() == DataNoteLevel::ERROR));
     })
 }
 
@@ -223,7 +230,7 @@ pub fn has_data_error(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNod
 pub fn get_data_notes_top(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
-        let _ = notes.set(if let Some(top) = n.iter().map(|n| n.level()).max() {
+        notes.set(if let Some(top) = n.iter().map(|n| n.level()).max() {
             n.clone_level(top)
         } else {
             DataNotes::default()
@@ -346,33 +353,62 @@ pub struct DATA;
 impl DATA {
     /// Require context data of type `T`.
     ///
+    /// See [`get`] for capabilities of the returned var.
+    ///
     /// # Panics
     ///
     /// Panics if the context data is not set to a variable of type `T` on the first usage of the returned variable.
-    pub fn req<T: VarValue>(&self) -> ContextualizedVar<T> {
-        self.get(|| panic!("expected DATA of type `{}`", std::any::type_name::<T>()))
-    }
+    ///
+    /// [`get`]: Self::get
+    pub fn req<T: VarValue>(&self) -> Var<T> {
+        self.get(|| {
+            #[cfg(feature = "var_type_names")]
+            panic!(
+                "expected DATA of type `{}`, but current context is `{}`",
+                std::any::type_name::<T>(),
+                DATA.value_type_name()
+            );
 
-    /// Get context data of type `T` if the context data is set with the same type, or gets the `fallback` value.
-    pub fn get<T: VarValue>(&self, fallback: impl Fn() -> T + Send + Sync + 'static) -> ContextualizedVar<T> {
-        ContextualizedVar::new(move || {
-            DATA_CTX
-                .get()
-                .clone_any()
-                .double_boxed_any()
-                .downcast::<BoxedVar<T>>()
-                .map(|b| *b)
-                .unwrap_or_else(|_| LocalVar(fallback()).boxed())
+            #[cfg(not(feature = "var_type_names"))]
+            panic!("expected DATA of a different type");
         })
     }
 
-    /// Gets the current context data.
+    /// Gets a var of `T`, if the contextual DATA type is not `T` the `fallback` closure is called to produce a value.
     ///
-    /// Note that this does not return a contextualizing var like [`get`], it gets the data var in the calling context.
+    /// # Capabilities
+    ///
+    /// The returned var is [contextual], it will get the data var in the final context it is used not
+    /// on the context that calls this method.
+    ///
+    /// [contextual]: contextual_var
+    pub fn get<T: VarValue>(&self, fallback: impl Fn() -> T + Send + Sync + 'static) -> Var<T> {
+        contextual_var(move || DATA_CTX.get_clone().downcast::<T>().unwrap_or_else(|_| const_var(fallback())))
+    }
+
+    /// Get the current context variable.
+    ///
+    /// Note that this is different from [`get`], the return variable is "actualized" on the calling context, not on the first var use context.
     ///
     /// [`get`]: Self::get
-    pub fn get_any(&self) -> BoxedAnyVar {
-        DATA_CTX.get().clone_any()
+    pub fn get_any(&self) -> AnyVar {
+        DATA_CTX.get_clone()
+    }
+
+    /// Gets if the current context data type is `T`.
+    pub fn is<T: VarValue>(&self) -> bool {
+        self.value_type() == TypeId::of::<T>()
+    }
+
+    /// Gets the current context value type.
+    pub fn value_type(&self) -> TypeId {
+        DATA_CTX.get_clone().value_type()
+    }
+
+    /// Gets the current context value type name.
+    #[cfg(feature = "var_type_names")]
+    pub fn value_type_name(&self) -> &'static str {
+        DATA_CTX.get_clone().value_type_name()
     }
 
     /// Insert a data note in the current context.
@@ -418,7 +454,7 @@ impl DATA {
     /// the black/white for dark/light.
     ///
     /// The color can be used directly as text color, it probably needs mixing or desaturating to use as background.
-    pub fn note_color(&self, level: impl IntoVar<DataNoteLevel>) -> impl Var<Rgba> {
+    pub fn note_color(&self, level: impl IntoVar<DataNoteLevel>) -> Var<Rgba> {
         merge_var!(DATA_NOTE_COLORS_VAR, level.into_var(), COLOR_SCHEME_VAR, |map, level, scheme| {
             let c = if let Some(c) = map.get(level) {
                 *c
@@ -446,27 +482,30 @@ impl DATA {
     /// Read-only variable that is the best color for `INFO` notes in the context of the current color scheme.
     ///
     /// The color can be used directly as text color, it probably needs mixing or desaturating to use as background.
-    pub fn info_color(&self) -> impl Var<Rgba> {
+    pub fn info_color(&self) -> Var<Rgba> {
         self.note_color(DataNoteLevel::INFO)
     }
 
     /// Read-only variable that is the best color for `WARN` notes in the context of the current color scheme.
     ///
     /// The color can be used directly as text color, it probably needs mixing or desaturating to use as background.
-    pub fn warn_color(&self) -> impl Var<Rgba> {
+    pub fn warn_color(&self) -> Var<Rgba> {
         self.note_color(DataNoteLevel::WARN)
     }
 
     /// Read-only variable that is the best color for `ERROR` notes in the context of the current color scheme.
     ///
     /// The color can be used directly as text color, it probably needs mixing or desaturating to use as background.
-    pub fn error_color(&self) -> impl Var<Rgba> {
+    pub fn error_color(&self) -> Var<Rgba> {
         self.note_color(DataNoteLevel::ERROR)
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
+struct DataContextNotSet;
+
 context_local! {
-    static DATA_CTX: BoxedAnyVar = LocalVar(()).boxed_any();
+    static DATA_CTX: AnyVar = const_var(DataContextNotSet);
     static DATA_NOTES_CTX: RwLock<DataNotesProbe> = RwLock::default();
 }
 

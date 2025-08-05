@@ -26,7 +26,7 @@ use zng_app::{
 use zng_app_context::app_local;
 use zng_ext_window::{NestedWindowWidgetInfoExt, WINDOWS};
 use zng_layout::unit::{DipPoint, DipToPx};
-use zng_var::{ArcVar, ReadOnlyArcVar, Var, impl_from_and_into_var, var};
+use zng_var::{Var, impl_from_and_into_var, var};
 use zng_view_api::{
     mouse::{ButtonState, MouseButton},
     touch::{TouchId, TouchPhase},
@@ -288,7 +288,7 @@ impl PointerCaptureManager {
 pub struct POINTER_CAPTURE;
 impl POINTER_CAPTURE {
     /// Variable that gets the current capture target and mode.
-    pub fn current_capture(&self) -> ReadOnlyArcVar<Option<CaptureInfo>> {
+    pub fn current_capture(&self) -> Var<Option<CaptureInfo>> {
         POINTER_CAPTURE_SV.read().capture.read_only()
     }
 
@@ -427,7 +427,7 @@ app_local! {
 
 struct PointerCaptureService {
     capture_value: Option<CaptureInfo>,
-    capture: ArcVar<Option<CaptureInfo>>,
+    capture: Var<Option<CaptureInfo>>,
     capture_request: Option<(WidgetId, CaptureMode)>,
     release_requested: bool,
 }

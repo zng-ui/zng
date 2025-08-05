@@ -83,7 +83,7 @@ fn dialog_closing_node(child: impl UiNode) -> impl UiNode {
                 // layers receive events after window content, so we subscribe directly
                 let id = WIDGET.id();
                 let ctx = DIALOG_CTX.get();
-                let default_response = DEFAULT_RESPONSE_VAR.actual_var();
+                let default_response = DEFAULT_RESPONSE_VAR.current_context();
                 let responder = ctx.responder.clone();
                 let handle = WINDOW_CLOSE_REQUESTED_EVENT.on_pre_event(app_hn!(|args: &WindowCloseRequestedArgs, _| {
                     // a window is closing
@@ -459,7 +459,7 @@ pub struct Response {
     /// Response identifying name.
     pub name: Txt,
     /// Response button label.
-    pub label: BoxedVar<Txt>,
+    pub label: Var<Txt>,
 }
 impl fmt::Debug for Response {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -476,7 +476,7 @@ impl Response {
     pub fn new(name: impl Into<Txt>, label: impl IntoVar<Txt>) -> Self {
         Self {
             name: name.into(),
-            label: label.into_var().boxed(),
+            label: label.into_var(),
         }
     }
 
@@ -513,7 +513,7 @@ impl_from_and_into_var! {
             native_api::MsgDialogResponse::Cancel => Response::cancel(),
             native_api::MsgDialogResponse::Error(e) => Response {
                 name: Txt::from_static("native-error"),
-                label: LocalVar(e).boxed(),
+                label: const_var(e),
             },
             _ => unimplemented!(),
         }
@@ -589,8 +589,8 @@ impl DIALOG {
     /// Show an info dialog with "Ok" button.
     pub fn info(&self, title: impl IntoVar<Txt>, msg: impl IntoVar<Txt>) -> ResponseVar<()> {
         self.message(
-            msg.into_var().boxed(),
-            title.into_var().boxed(),
+            msg.into_var(),
+            title.into_var(),
             DialogKind::INFO,
             &|| InfoStyle!(),
             native_api::MsgDialogIcon::Info,
@@ -602,8 +602,8 @@ impl DIALOG {
     /// Show a warning dialog with "Ok" button.
     pub fn warn(&self, title: impl IntoVar<Txt>, msg: impl IntoVar<Txt>) -> ResponseVar<()> {
         self.message(
-            msg.into_var().boxed(),
-            title.into_var().boxed(),
+            msg.into_var(),
+            title.into_var(),
             DialogKind::WARN,
             &|| WarnStyle!(),
             native_api::MsgDialogIcon::Warn,
@@ -615,8 +615,8 @@ impl DIALOG {
     /// Show an error dialog with "Ok" button.
     pub fn error(&self, title: impl IntoVar<Txt>, msg: impl IntoVar<Txt>) -> ResponseVar<()> {
         self.message(
-            msg.into_var().boxed(),
-            title.into_var().boxed(),
+            msg.into_var(),
+            title.into_var(),
             DialogKind::ERROR,
             &|| ErrorStyle!(),
             native_api::MsgDialogIcon::Error,
@@ -628,8 +628,8 @@ impl DIALOG {
     /// Shows a question dialog with "No" and "Yes" buttons. Returns `true` for "Yes".
     pub fn ask(&self, title: impl IntoVar<Txt>, question: impl IntoVar<Txt>) -> ResponseVar<bool> {
         self.message(
-            question.into_var().boxed(),
-            title.into_var().boxed(),
+            question.into_var(),
+            title.into_var(),
             DialogKind::ASK,
             &|| AskStyle!(),
             native_api::MsgDialogIcon::Info,
@@ -641,8 +641,8 @@ impl DIALOG {
     /// Shows a question dialog with "Cancel" and "Ok" buttons. Returns `true` for "Ok".
     pub fn confirm(&self, title: impl IntoVar<Txt>, question: impl IntoVar<Txt>) -> ResponseVar<bool> {
         self.message(
-            question.into_var().boxed(),
-            title.into_var().boxed(),
+            question.into_var(),
+            title.into_var(),
             DialogKind::CONFIRM,
             &|| ConfirmStyle!(),
             native_api::MsgDialogIcon::Warn,
@@ -765,7 +765,7 @@ impl DIALOG {
     /// The [`native_dialogs`](fn@native_dialogs) context property can also be used to override the config just for some widgets.
     ///
     /// Note that some dialogs only have the native implementation as of this release.
-    pub fn native_dialogs(&self) -> ArcVar<DialogKind> {
+    pub fn native_dialogs(&self) -> Var<DialogKind> {
         DIALOG_SV.read().native_dialogs.clone()
     }
 }
@@ -841,8 +841,8 @@ impl DIALOG {
 
     fn message(
         &self,
-        msg: BoxedVar<Txt>,
-        title: BoxedVar<Txt>,
+        msg: Var<Txt>,
+        title: Var<Txt>,
         kind: DialogKind,
         style: &dyn Fn() -> zng_wgt_style::StyleBuilder,
         native_icon: native_api::MsgDialogIcon,
@@ -915,7 +915,7 @@ context_local! {
 }
 
 struct DialogService {
-    native_dialogs: ArcVar<DialogKind>,
+    native_dialogs: Var<DialogKind>,
 }
 app_local! {
     static DIALOG_SV: DialogService = DialogService {

@@ -19,7 +19,7 @@ use std::{
 use zng_app_context::app_local;
 use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_time::{DInstant, INSTANT, INSTANT_APP};
-use zng_var::{ReadOnlyArcVar, Var, WeakVar, types::WeakArcVar, var};
+use zng_var::{Var, WeakVar, var};
 
 use crate::{
     LoopTimer,
@@ -60,7 +60,7 @@ impl Future for WaitDeadlineFut {
 
 struct TimerVarEntry {
     handle: HandleOwner<TimerState>,
-    weak_var: WeakArcVar<Timer>,
+    weak_var: WeakVar<Timer>,
 }
 
 app_local! {
@@ -68,7 +68,7 @@ app_local! {
 }
 
 pub(crate) struct TimersService {
-    deadlines: Vec<WeakArcVar<Deadline>>,
+    deadlines: Vec<WeakVar<Deadline>>,
     wait_deadlines: Vec<std::sync::Weak<WaitDeadline>>,
     timers: Vec<TimerVarEntry>,
     deadline_handlers: Vec<DeadlineHandlerEntry>,
@@ -509,7 +509,7 @@ impl TIMERS {
 /// including `.await` for the update in UI bound async tasks. See [`Var<T>`] for details.
 ///
 /// [`Var<T>`]: zng_var::Var
-pub type DeadlineVar = ReadOnlyArcVar<Deadline>;
+pub type DeadlineVar = Var<Deadline>;
 
 /// Represents a [`on_deadline`](TIMERS::on_deadline) handler.
 ///
@@ -849,7 +849,7 @@ impl WeakTimerHandle {
 /// can do with variables, including `.await` for updates. Also see [`Timer`] for more timer control methods.
 ///
 /// [`Var<T>`]: zng_var::Var
-pub type TimerVar = ReadOnlyArcVar<Timer>;
+pub type TimerVar = Var<Timer>;
 
 /// Represents a timer state in a [`TimerVar`] or interval handler.
 ///

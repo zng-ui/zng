@@ -314,7 +314,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
         F: Future<Output = WindowRoot> + Send + 'static,
     {
         use zng_layout::unit::TimeUnits;
-        use zng_var::Var;
+
         let timer = zng_app::timer::TIMERS.deadline(60.secs());
 
         zng_task::spawn(async {

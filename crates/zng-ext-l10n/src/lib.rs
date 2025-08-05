@@ -22,7 +22,7 @@ use zng_layout::context::LayoutDirection;
 use zng_task as task;
 
 use zng_txt::Txt;
-use zng_var::{ArcEq, ArcVar, BoxedVar, ReadOnlyArcVar, Var, types::ArcCowVar};
+use zng_var::{ArcEq, Var};
 
 #[doc(hidden)]
 pub use zng_ext_l10n_proc_macros::lang as __lang;
@@ -252,7 +252,7 @@ impl L10N {
     ///
     /// Note that this map will include any file in the source dir that has a name that is a valid [`lang!`],
     /// that includes the `template.ftl` file and test pseudo-locales such as `qps-ploc.ftl`.
-    pub fn available_langs(&self) -> BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
+    pub fn available_langs(&self) -> Var<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
         L10N_SV.write().available_langs()
     }
 
@@ -266,7 +266,7 @@ impl L10N {
     ///
     /// [`available_langs`]: Self::available_langs
     /// [`load_dir`]: Self::load_dir
-    pub fn available_langs_status(&self) -> BoxedVar<LangResourceStatus> {
+    pub fn available_langs_status(&self) -> Var<LangResourceStatus> {
         L10N_SV.write().available_langs_status()
     }
 
@@ -293,7 +293,7 @@ impl L10N {
     /// context variable is this one.
     ///
     /// [`sys_lang`]: Self::sys_lang
-    pub fn app_lang(&self) -> ArcCowVar<Langs, ArcVar<Langs>> {
+    pub fn app_lang(&self) -> Var<Langs> {
         L10N_SV.read().app_lang()
     }
 
@@ -301,7 +301,7 @@ impl L10N {
     ///
     /// The variable will update when the view-process notifies that the config has changed. Is
     /// empty if the system locale cannot be retrieved.
-    pub fn sys_lang(&self) -> ReadOnlyArcVar<Langs> {
+    pub fn sys_lang(&self) -> Var<Langs> {
         L10N_SV.read().sys_lang()
     }
 
@@ -440,7 +440,7 @@ impl L10N {
         meta_value: CommandMetaVar<Txt>,
     ) {
         let msg = self.message(file, cmd.event().as_any().name(), meta_name, meta_value.get()).build();
-        meta_value.set_from(&msg).unwrap();
+        meta_value.set_from(&msg);
 
         // bind only holds a weak ref to `meta_value`` in `msg`
         msg.bind(&meta_value).perm();
@@ -492,18 +492,18 @@ macro_rules! lang {
 /// [`L10N.load`]: L10N::load
 pub trait L10nSource: Send + 'static {
     /// Gets a read-only variable with all lang files that the source can provide.
-    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>;
+    fn available_langs(&mut self) -> Var<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>;
     /// Gets a read-only variable that is the status of the [`available_langs`] value.
     ///
     /// [`available_langs`]: Self::available_langs
-    fn available_langs_status(&mut self) -> BoxedVar<LangResourceStatus>;
+    fn available_langs_status(&mut self) -> Var<LangResourceStatus>;
 
     /// Gets a read-only variable that provides the fluent resource for the `lang` and `file` if available.
-    fn lang_resource(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>>;
+    fn lang_resource(&mut self, lang: Lang, file: LangFilePath) -> Var<Option<ArcEq<fluent::FluentResource>>>;
     /// Gets a read-only variable that is the status of the [`lang_resource`] value.
     ///
     /// [`lang_resource`]: Self::lang_resource
-    fn lang_resource_status(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<LangResourceStatus>;
+    fn lang_resource_status(&mut self, lang: Lang, file: LangFilePath) -> Var<LangResourceStatus>;
 }
 
 fn from_unic_char_direction(d: unic_langid::CharacterDirection) -> LayoutDirection {

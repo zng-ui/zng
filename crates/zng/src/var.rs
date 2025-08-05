@@ -1,7 +1,7 @@
 //! Variables API.
 //!
-//! The [`Var<T>`] trait represents an observable value. The [`IntoVar<T>`] trait is the primary property input
-//! kind and the reason setting properties is so versatile. Variables can be a simple value, a shared reference to a value or
+//! The [`Var<T>`] struct represents an observable value. The [`IntoVar<T>`] trait is the primary property input
+//! kind and the reason properties inputs are so versatile. Variables can be a simple value, a shared reference to a value or
 //! a contextual value, some variables are also derived from others and update when the source variable update.
 //!
 //! Properties and widgets can subscribe to a variable to update when the variable value changes, this features enables most
@@ -9,31 +9,31 @@
 //!
 //! # Value
 //!
-//! The simplest variable is [`LocalVar<T>`], it represents an unchanging value that is shared by cloning. All values of types
-//! that implement [`VarValue`] automatically convert `IntoVar<T>` to this variable type. For this reason you don't usually need
-//! to write it.
+//! The simplest variable kind is [`const_var`], it represents an unchanging value that is shared by cloning. All values of types
+//! that implement [`VarValue`] automatically convert `IntoVar<T>` to const var, For this reason you don't usually need
+//! to write `const_var(_)` when setting properties.
 //!
 //! ```
 //! use zng::prelude::*;
 //!
-//! fn local(size: impl IntoVar<layout::Size>) {
+//! fn foo(size: impl IntoVar<layout::Size>) {
 //!     let size = size.into_var();
-//!     assert!(size.capabilities().is_always_static());
+//!     assert!(size.capabilities().is_const());
 //!     assert!(size.capabilities().is_always_read_only());
 //! }
 //!
-//! local(layout::Size::new(10, 10));
-//! local((10, 10));
-//! local(10);
+//! foo(layout::Size::new(10, 10));
+//! foo((10, 10));
+//! foo(10);
 //! ```
 //!
-//! The example above declares a `LocalVar<Size>` 3 times with equal value. The `(10, 10)` and `10` values are type conversions
+//! The example above declares a const `Var<Size>` 3 times with equal value. The `(10, 10)` and `10` values are type conversions
 //! implemented by the `Size` type. Type conversions are very easy to implement with the help of the [`impl_from_and_into_var!`] macro,
 //! most of the types used by properties implement conversions that enable a form of shorthand syntax.
 //!
 //! # Share & Modify
 //!
-//! The [`ArcVar<T>`] variable represents a shared value that can be modified, the [`var`] function instantiates it.
+//! The [`var`] variable represents a shared value that can be modified.
 //!
 //! The example below declares a button that grows taller every click. The variable is shared between the height property
 //! and the click handler. On click the height is increased, this schedules an update that applies the new value and notifies
@@ -100,7 +100,7 @@
 //!         assert_eq!(0, foo.get());
 //!         foo.modify(|m| {
 //!             assert_eq!(1, **m);
-//!             *m.to_mut() = 2;
+//!             **m = 2;
 //!         });
 //!         assert_eq!(0, foo.get());
 //!
@@ -115,7 +115,7 @@
 //!
 //! # Mapping
 //!
-//! Variables can be mapped to other types, when the source variable updates the mapping closure re-evaluates and the mapped variable
+//! Variables can be mapped to other value types, when the source variable updates the mapping closure re-evaluates and the mapped variable
 //! updates, all in the same update cycle, that is both variable will be flagged new at the same time. Mapping can also be bidirectional.
 //!
 //! The example below demonstrates a button that updates an integer variable that is mapped to a text.
@@ -138,9 +138,6 @@
 //! }
 //! # ;
 //! ```
-//!
-//! Variable mapping is specialized for each variable type, a `LocalVar<T>` will just map once and return another `LocalVar<T>`
-//! for example, the `ArcVar<T>` on the example creates a new variable and a mapping binding.
 //!
 //! # Binding
 //!
@@ -269,7 +266,7 @@
 //!
 //! # Contextual
 //!
-//! The [`ContextVar<T>`] variable represents a context depend value, meaning they can produce a different value depending
+//! The [`ContextVar<T>`] type represents a variable that has context depend value, meaning they can produce a different value depending
 //! on where they are used. Context vars are declared using the [`context_var!`] macro.
 //!
 //! The example below declares a context var and a property that sets it. The context var is then used in two texts with
@@ -311,16 +308,12 @@
 //!
 //! See [`zng_var`] for the full var API.
 
-pub use zng_var::types::{
-    AnyWhenVarBuilder, ArcCowVar, ArcWhenVar, ContextualizedVar, ReadOnlyVar, Response, VecChange, WeakArcVar, WeakContextualizedVar,
-    WeakReadOnlyVar, WeakWhenVar,
-};
 pub use zng_var::{
-    AnyVar, AnyVarValue, AnyWeakVar, ArcEq, ArcVar, BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar, ContextInitHandle, ContextVar,
-    IntoValue, IntoVar, LocalVar, MergeVarBuilder, ObservableVec, ReadOnlyArcVar, ReadOnlyContextVar, ResponderVar, ResponseVar,
-    TraceValueArgs, VARS, Var, VarCapability, VarHandle, VarHandles, VarHookArgs, VarModify, VarPtr, VarUpdateId, VarValue, WeakVar,
-    context_var, expr_var, getter_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, var_default,
-    var_from, when_var,
+    AnyVar, AnyVarValue, AnyWhenVarBuilder, ArcEq, BoxAnyVarValue, ContextInitHandle, ContextVar, IntoValue, IntoVar, MergeVarBuilder,
+    ObservableVec, ResponderVar, Response, ResponseVar, VARS, Var, VarCapability, VarEq, VarHandle, VarHandles, VarHookArgs,
+    VarInstanceTag, VarModify, VarUpdateId, VarValue, VecChange, WeakAnyVar, WeakVar, any_var_derived, const_var, context_var,
+    contextual_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, var, var_default, var_from, var_getter,
+    var_state, when_var,
 };
 
 pub use zng_app::widget::{AnyVarSubscribe, OnVarArgs, VarLayout, VarSubscribe};

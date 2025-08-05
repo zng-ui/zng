@@ -104,7 +104,7 @@ impl<U: UiNode> ArcNode<U> {
     /// Create a slot node that takes ownership of this node when `var` updates to `true`.
     ///
     /// The slot node also takes ownership on init if the `var` is already `true`.
-    pub fn take_when<I>(&self, var: I) -> TakeSlot<U, impls::TakeWhenVar<I::Var>>
+    pub fn take_when<I>(&self, var: I) -> TakeSlot<U, impls::TakeWhenVar>
     where
         I: IntoVar<bool>,
     {
@@ -143,7 +143,7 @@ impl<U: UiNode> ArcNode<U> {
     /// Create a slot node that takes ownership of this node as soon as the node is inited.
     ///
     /// This is equivalent to `self.take_when(true)`.
-    pub fn take_on_init(&self) -> TakeSlot<U, impls::TakeWhenVar<zng_var::LocalVar<bool>>> {
+    pub fn take_on_init(&self) -> TakeSlot<U, impls::TakeWhenVar> {
         self.take_when(true)
     }
 
@@ -337,10 +337,10 @@ mod impls {
     }
 
     #[doc(hidden)]
-    pub struct TakeWhenVar<V: Var<bool>> {
-        pub(super) var: V,
+    pub struct TakeWhenVar {
+        pub(super) var: Var<bool>,
     }
-    impl<V: Var<bool>> TakeOn for TakeWhenVar<V> {
+    impl TakeOn for TakeWhenVar {
         fn take_on_init(&mut self) -> bool {
             WIDGET.sub_var(&self.var);
             self.var.get()

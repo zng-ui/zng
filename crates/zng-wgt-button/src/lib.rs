@@ -15,7 +15,7 @@ use std::any::TypeId;
 
 use colors::{ACCENT_COLOR_VAR, BASE_COLOR_VAR};
 use zng_app::event::CommandParam;
-use zng_var::ReadOnlyContextVar;
+use zng_var::AnyVar;
 use zng_wgt::{base_color, border, corner_radius, is_disabled, node::VarPresent as _, prelude::*};
 use zng_wgt_access::{AccessRole, access_role, labelled_by_child};
 use zng_wgt_container::{Container, child_align, padding};
@@ -265,20 +265,19 @@ pub fn cmd(cmd: impl IntoVar<Command>) {}
 #[property(CONTEXT, default(CMD_PARAM_VAR), widget_impl(Button))]
 pub fn cmd_param<T: VarValue>(child: impl UiNode, cmd_param: impl IntoVar<T>) -> impl UiNode {
     if TypeId::of::<T>() == TypeId::of::<Option<CommandParam>>() {
-        let cmd_param = *cmd_param
-            .into_var()
-            .boxed_any()
-            .double_boxed_any()
-            .downcast::<BoxedVar<Option<CommandParam>>>()
-            .unwrap();
-        with_context_var(child, CMD_PARAM_VAR, cmd_param).boxed()
+        with_context_var(
+            child,
+            CMD_PARAM_VAR,
+            AnyVar::from(cmd_param.into_var())
+                .downcast::<Option<CommandParam>>()
+                .unwrap_or_else(|_| unreachable!()),
+        )
     } else {
         with_context_var(
             child,
             CMD_PARAM_VAR,
             cmd_param.into_var().map(|p| Some(CommandParam::new(p.clone()))),
         )
-        .boxed()
     }
 }
 
@@ -434,14 +433,14 @@ impl BUTTON {
     /// The [`cmd`] value, if set.
     ///
     /// [`cmd`]: fn@cmd
-    pub fn cmd(&self) -> ReadOnlyContextVar<Option<Command>> {
+    pub fn cmd(&self) -> Var<Option<Command>> {
         CMD_VAR.read_only()
     }
 
     /// The [`cmd_param`] value.
     ///
     /// [`cmd_param`]: fn@cmd_param
-    pub fn cmd_param(&self) -> ReadOnlyContextVar<Option<CommandParam>> {
+    pub fn cmd_param(&self) -> Var<Option<CommandParam>> {
         CMD_PARAM_VAR.read_only()
     }
 }

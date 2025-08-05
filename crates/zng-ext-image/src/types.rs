@@ -20,7 +20,7 @@ use zng_layout::{
 };
 use zng_task::{self as task, SignalOnce};
 use zng_txt::Txt;
-use zng_var::{AnyVar, ReadOnlyArcVar, animation::Transitionable, impl_from_and_into_var};
+use zng_var::{Var, animation::Transitionable, impl_from_and_into_var};
 use zng_view_api::image::ImageTextureId;
 
 use crate::render::ImageRenderWindowRoot;
@@ -145,7 +145,7 @@ pub enum ProxyRemoveResult {
 /// The variable updates when the image updates.
 ///
 /// [`IMAGES`]: super::IMAGES
-pub type ImageVar = ReadOnlyArcVar<Img>;
+pub type ImageVar = Var<Img>;
 
 /// State of an [`ImageVar`].
 ///
@@ -884,7 +884,7 @@ impl PartialEq for ImageSource {
             #[cfg(feature = "http")]
             (Self::Download(lu, la), Self::Download(ru, ra)) => lu == ru && la == ra,
             (Self::Render(lf, la), Self::Render(rf, ra)) => Arc::ptr_eq(lf, rf) && la == ra,
-            (Self::Image(l), Self::Image(r)) => l.var_ptr() == r.var_ptr(),
+            (Self::Image(l), Self::Image(r)) => l.var_eq(r),
             (l, r) => {
                 let l_hash = match l {
                     ImageSource::Static(h, _, _) => h,

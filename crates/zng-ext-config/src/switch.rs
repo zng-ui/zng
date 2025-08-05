@@ -75,25 +75,25 @@ impl SwitchConfig {
     }
 }
 impl AnyConfig for SwitchConfig {
-    fn status(&self) -> BoxedVar<ConfigStatus> {
+    fn status(&self) -> Var<ConfigStatus> {
         let mut s = MergeVarBuilder::with_capacity(self.cfgs.len());
         for c in &self.cfgs {
             s.push(c.cfg.status());
         }
-        s.build(|status| ConfigStatus::merge_status(status.iter().cloned())).boxed()
+        s.build(|status| ConfigStatus::merge_status(status.iter().cloned()))
     }
 
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> BoxedVar<RawConfigValue> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> Var<RawConfigValue> {
         match self.cfg_mut(&key) {
             Some((key, cfg)) => cfg.get_raw(key, default, insert),
-            None => LocalVar(default).boxed(),
+            None => const_var(default),
         }
     }
 
-    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
+    fn contains_key(&mut self, key: ConfigKey) -> Var<bool> {
         match self.cfg_mut(&key) {
             Some((key, cfg)) => cfg.contains_key(key),
-            None => LocalVar(false).boxed(),
+            None => const_var(false),
         }
     }
 

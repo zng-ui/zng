@@ -8,7 +8,7 @@ use std::fmt;
 use bitflags::bitflags;
 use zng_txt::{ToTxt, Txt};
 use zng_unique_id::static_id;
-use zng_var::{BoxedVar, Var, impl_from_and_into_var};
+use zng_var::{Var, impl_from_and_into_var};
 
 #[doc(hidden)]
 pub use zng_view_api::keyboard::{Key, KeyCode};
@@ -407,10 +407,8 @@ impl<const N: usize> From<[Shortcut; N]> for Shortcuts {
     }
 }
 impl<const N: usize> crate::var::IntoVar<Shortcuts> for [Shortcut; N] {
-    type Var = crate::var::LocalVar<Shortcuts>;
-
-    fn into_var(self) -> Self::Var {
-        crate::var::LocalVar(self.into())
+    fn into_var(self) -> Var<Shortcuts> {
+        crate::var::const_var(self.into())
     }
 }
 
@@ -768,13 +766,11 @@ pub trait CommandShortcutExt {
     fn shortcut(self) -> CommandMetaVar<Shortcuts>;
 
     /// Gets a read-only variable that is the display text for the first shortcut.
-    fn shortcut_txt(self) -> BoxedVar<Txt>
+    fn shortcut_txt(self) -> Var<Txt>
     where
         Self: Sized,
     {
-        self.shortcut()
-            .map(|c| if c.is_empty() { Txt::from("") } else { c[0].to_txt() })
-            .boxed()
+        self.shortcut().map(|c| if c.is_empty() { Txt::from("") } else { c[0].to_txt() })
     }
 
     /// Gets a read-write variable that sets a filter for when the [`shortcut`] is valid.

@@ -90,8 +90,7 @@ macro_rules! test_config {
         } else {
             CONFIG
             .get($key, $($init)*)
-                .update()
-                .unwrap();
+                .update();
         }
     };
     ($type:ident $($init:tt)*) => {
@@ -215,7 +214,7 @@ fn concurrent_read_write() {
         let mut app = APP.defaults().run_headless(false);
         zng::app::test_log();
         CONFIG.load(JsonConfig::sync(&file));
-        CONFIG.get("key", Txt::from_static("default/custom")).set("custom").unwrap();
+        CONFIG.get("key", Txt::from_static("default/custom")).set("custom");
 
         app.run_task(async {
             task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
@@ -243,7 +242,7 @@ fn concurrent_read_write() {
                 let var = CONFIG.get("key", Txt::from_static("default/get"));
                 for _ in 0..8 {
                     assert_eq!("custom", var.get());
-                    var.set("custom").unwrap();
+                    var.set("custom");
                     app.update(false).assert_wait();
                 }
 
@@ -272,7 +271,7 @@ fn fallback_swap() {
         let mut app = APP.defaults().run_headless(false);
         zng::app::test_log();
         CONFIG.load(JsonConfig::sync(&fallback_cfg));
-        CONFIG.get("key", Txt::from_static("default/fallback")).set("fallback").unwrap();
+        CONFIG.get("key", Txt::from_static("default/fallback")).set("fallback");
 
         app.update(false).assert_wait();
         app.run_task(async {
@@ -284,7 +283,7 @@ fn fallback_swap() {
         }
 
         CONFIG.load(JsonConfig::sync(&main_prepared_cfg));
-        CONFIG.get("key", Txt::from_static("default/main")).set("main").unwrap();
+        CONFIG.get("key", Txt::from_static("default/main")).set("main");
 
         app.run_task(async {
             task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
@@ -344,7 +343,7 @@ fn fallback_reset() {
         let mut app = APP.defaults().run_headless(false);
         zng::app::test_log();
         CONFIG.load(JsonConfig::sync(&fallback_cfg));
-        CONFIG.get("key", Txt::from_static("default/fallback")).set("fallback").unwrap();
+        CONFIG.get("key", Txt::from_static("default/fallback")).set("fallback");
 
         app.update(false).assert_wait();
         app.run_task(async {
@@ -356,7 +355,7 @@ fn fallback_reset() {
         }
 
         CONFIG.load(JsonConfig::sync(&main_cfg));
-        CONFIG.get("key", Txt::from_static("default/main")).set("main").unwrap();
+        CONFIG.get("key", Txt::from_static("default/main")).set("main");
 
         app.run_task(async {
             task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
@@ -418,7 +417,7 @@ fn fallback_reset_entry() {
         let mut app = APP.defaults().run_headless(false);
         zng::app::test_log();
         CONFIG.load(JsonConfig::sync(&fallback_cfg));
-        CONFIG.get("key", Txt::from_static("default/fallback")).set("fallback").unwrap();
+        CONFIG.get("key", Txt::from_static("default/fallback")).set("fallback");
 
         app.update(false).assert_wait();
         app.run_task(async {
@@ -430,7 +429,7 @@ fn fallback_reset_entry() {
         }
 
         CONFIG.load(JsonConfig::sync(&main_cfg));
-        CONFIG.get("key", Txt::from_static("default/main")).set("main").unwrap();
+        CONFIG.get("key", Txt::from_static("default/main")).set("main");
 
         app.run_task(async {
             task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();

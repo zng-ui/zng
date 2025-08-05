@@ -11,7 +11,7 @@ use zng_app::{
 };
 use zng_app_context::LocalContext;
 use zng_unit::PxSize;
-use zng_var::{BoxedVar, IntoValue, IntoVar, Var, VarValue};
+use zng_var::{IntoValue, IntoVar, Var, VarValue};
 
 use crate::{HOT_RELOAD, HOT_RELOAD_EVENT};
 
@@ -19,7 +19,7 @@ trait Arg: Any + Send {
     fn clone_boxed(&self) -> Box<dyn Arg>;
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }
-impl<T: VarValue> Arg for BoxedVar<T> {
+impl<T: VarValue> Arg for Var<T> {
     fn clone_boxed(&self) -> Box<dyn Arg> {
         Box::new(self.clone())
     }
@@ -71,7 +71,7 @@ impl HotNodeArgs {
     }
 
     pub fn push_var<T: VarValue>(&mut self, arg: impl IntoVar<T>) {
-        let arg = arg.into_var().boxed();
+        let arg = arg.into_var();
         self.args.push(Box::new(arg));
     }
 
@@ -99,7 +99,7 @@ impl HotNodeArgs {
         *self.args.pop().unwrap().into_any().downcast().unwrap()
     }
 
-    pub fn pop_var<T: VarValue>(&mut self) -> BoxedVar<T> {
+    pub fn pop_var<T: VarValue>(&mut self) -> Var<T> {
         self.pop_downcast()
     }
 

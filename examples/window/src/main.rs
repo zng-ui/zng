@@ -76,8 +76,8 @@ async fn main_window() -> window::WindowRoot {
     }
 }
 
-fn background_color_example(color: impl Var<Rgba>) -> impl UiNode {
-    fn color_btn(c: impl Var<Rgba>, select_on_init: bool) -> impl UiNode {
+fn background_color_example(color: Var<Rgba>) -> impl UiNode {
+    fn color_btn(c: Var<Rgba>, select_on_init: bool) -> impl UiNode {
         Toggle! {
             value::<Rgba> = c.clone();
             select_on_init;
@@ -389,7 +389,7 @@ fn visibility_example() -> impl UiNode {
     section("Visibility", ui_vec![btn, chrome])
 }
 
-fn custom_chrome(title: impl Var<Txt>) -> impl UiNode {
+fn custom_chrome(title: Var<Txt>) -> impl UiNode {
     let vars = WINDOW.vars();
 
     let can_move = vars.state().map(|s| matches!(s, WindowState::Normal | WindowState::Maximized));
@@ -725,7 +725,7 @@ fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
     }
 }
 
-fn select<T: VarValue + PartialEq>(header: &'static str, selection: impl Var<T>, items: impl UiNodeList) -> impl UiNode {
+fn select<T: VarValue + PartialEq>(header: &'static str, selection: Var<T>, items: impl UiNodeList) -> impl UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;

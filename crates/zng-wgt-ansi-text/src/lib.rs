@@ -674,7 +674,7 @@ mod ansi_fn {
     }
 }
 
-fn generate_ansi(txt: &impl Var<Txt>) -> BoxedUiNode {
+fn generate_ansi(txt: &Var<Txt>) -> BoxedUiNode {
     use ansi_fn::*;
     use std::mem;
 

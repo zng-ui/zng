@@ -3,18 +3,18 @@ use std::{any::Any, sync::Arc, time::Duration};
 use super::builder::*;
 use zng_layout::unit::*;
 use zng_var::{
-    BoxedVar, Var, VarValue,
+    Var, VarValue, WhenVarBuilder,
     animation::{
         Transitionable,
         easing::{EasingStep, EasingTime},
     },
-    types::{ArcWhenVar, ContextualizedVar},
 };
 
 pub use zng_app_proc_macros::easing;
 
 type EasingFn = Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>;
 
+// Implemented for `PropertyInputTypes` up to 16 inputs
 #[doc(hidden)]
 #[expect(non_camel_case_types)]
 pub trait easing_property: Send + Sync + Clone + Copy {
@@ -29,36 +29,29 @@ pub trait easing_property: Send + Sync + Clone + Copy {
 pub trait easing_property_input_Transitionable: Any + Send {
     fn easing(self, duration: Duration, easing: EasingFn, when_conditions_data: &[Option<Arc<dyn Any + Send + Sync>>]) -> Self;
 }
-impl<T: VarValue + Transitionable> easing_property_input_Transitionable for BoxedVar<T> {
+impl<T: VarValue + Transitionable> easing_property_input_Transitionable for Var<T> {
+    // Called by PropertyBuildAction for each property input of properties that have #[easing(_)]
     fn easing(self, duration: Duration, easing: EasingFn, when_conditions_data: &[Option<Arc<dyn Any + Send + Sync>>]) -> Self {
-        if let Some(when) = (*self).as_unboxed_any().downcast_ref::<ContextualizedVar<T>>() {
+        if let Some(when) = WhenVarBuilder::try_from_built(&self) {
+            // property assigned normally and in when conditions, may need to coordinate multiple `#[easing(_)]` animations
+
             let conditions: Vec<_> = when_conditions_data
                 .iter()
                 .map(|d| d.as_ref().and_then(|d| d.downcast_ref::<(Duration, EasingFn)>().cloned()))
                 .collect();
-
             if conditions.iter().any(|c| c.is_some()) {
-                let when = when.clone();
-                return ContextualizedVar::new(move || {
-                    when.borrow_init()
-                        .as_any()
-                        .downcast_ref::<ArcWhenVar<T>>()
-                        .expect("expected `ArcWhenVar`")
-                        .easing_when(conditions.clone(), (duration, easing.clone()))
-                })
-                .boxed();
+                // at least one property assign has #[easing(duration, easing_fn)]
+                when.build_easing(conditions, (duration, easing))
+            } else {
+                // only normal property assign has #[easing(_)]
+                Var::easing(&self, duration, move |t| easing(t))
             }
-        } else if let Some(when) = (*self).as_unboxed_any().downcast_ref::<ArcWhenVar<T>>() {
-            let conditions: Vec<_> = when_conditions_data
-                .iter()
-                .map(|d| d.as_ref().and_then(|d| d.downcast_ref::<(Duration, EasingFn)>().cloned()))
-                .collect();
+        } else {
+            debug_assert!(when_conditions_data.is_empty());
 
-            if conditions.iter().any(|c| c.is_some()) {
-                return when.easing_when(conditions.clone(), (duration, easing.clone())).boxed();
-            }
+            // property just assigned normally
+            Var::easing(&self, duration, move |t| easing(t))
         }
-        Var::easing(&self, duration, move |t| easing(t)).boxed()
     }
 }
 
@@ -72,7 +65,10 @@ macro_rules! impl_easing_property_inputs {
             $T0: easing_property_input_Transitionable,
             $($T: easing_property_input_Transitionable),*
         > easing_property for PropertyInputTypes<($T0, $($T,)*)> {
+            // #[easing(unset)] calls this simply to assert T: Transitionable, will generate a push_unset_property_build_action__ on the builder
             fn easing_property_unset(self) { }
+
+            // #[easing(duration, easing?)] in normal assign calls this to build data for push_property_build_action__
             fn easing_property(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>> {
                 if duration == Duration::ZERO {
                     vec![]
@@ -83,6 +79,8 @@ macro_rules! impl_easing_property_inputs {
                     ]
                 }
             }
+
+            // #[easing(duration, easing?)] in when assign calls this to build data for push_when_build_action_data__
             fn easing_when_data(self, duration: Duration, easing: EasingFn) -> WhenBuildAction {
                 if duration == Duration::ZERO {
                     WhenBuildAction::new_no_default((duration, easing))

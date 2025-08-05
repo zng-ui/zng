@@ -123,7 +123,7 @@ fn thumb_layout(child: impl UiNode) -> impl UiNode {
                         offset.fct()
                     };
 
-                    THUMB_OFFSET_VAR.set(offset).expect("THUMB_OFFSET_VAR is read-only");
+                    THUMB_OFFSET_VAR.set(offset);
                     WIDGET.layout();
 
                     args.propagation().stop();

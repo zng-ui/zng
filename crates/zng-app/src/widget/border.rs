@@ -12,7 +12,6 @@ use zng_layout::{
     },
 };
 use zng_var::{
-    Var,
     animation::{Transitionable, easing::EasingStep},
     context_var, impl_from_and_into_var,
 };

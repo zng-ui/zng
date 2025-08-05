@@ -1,3 +1,5 @@
+//! Observable vec var value.
+
 use std::ops;
 
 use crate::{VARS, VarUpdateId, VarValue};

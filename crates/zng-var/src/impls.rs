@@ -1,8 +1,8 @@
 //! zng-var depends on zng-[units, txt] so we need to implement these traits here.
 
-use std::{any::Any, borrow::Cow, path::PathBuf, sync::Arc, time::Duration};
+use std::{any::Any, borrow::Cow, path::PathBuf, time::Duration};
 
-use zng_app_context::{app_local, context_local};
+use zng_app_context::app_local;
 use zng_time::{DInstant, Deadline};
 use zng_txt::Txt;
 use zng_unit::{
@@ -11,7 +11,7 @@ use zng_unit::{
 };
 
 use crate::{
-    animation::{Transition, Transitionable, easing::EasingStep},
+    animation::{TRANSITIONABLE_APP, Transitionable, easing::EasingStep, is_slerp_enabled},
     impl_from_and_into_var,
 };
 
@@ -149,6 +149,11 @@ impl Transitionable for Factor {
         Factor(self.0.lerp(&to.0, step))
     }
 }
+impl Transitionable for FactorPercent {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        FactorPercent(self.0.lerp(&to.0, step))
+    }
+}
 impl<T, U> Transitionable for euclid::SideOffsets2D<T, U>
 where
     T: Transitionable,
@@ -242,38 +247,6 @@ impl_into_var_option! {
     Orientation2D,
 }
 
-/// Spherical linear interpolation sampler.
-///
-/// Animates rotations over the shortest change between angles by modulo wrapping.
-/// A transition from 358º to 1º goes directly to 361º (modulo normalized to 1º).
-///
-/// Types that support this use the [`is_slerp_enabled`] function inside [`Transitionable::lerp`] to change
-/// mode, types that don't support this use the normal linear interpolation. All angle and transform units
-/// implement this.
-///
-/// Samplers can be set in animations using the `Var::easing_with` method.
-pub fn slerp_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T {
-    slerp_enabled(true, || t.sample(step))
-}
-
-/// Gets if slerp mode is enabled in the context.
-///
-/// See [`slerp_sampler`] for more details.
-pub fn is_slerp_enabled() -> bool {
-    SLERP_ENABLED.get_clone()
-}
-
-/// Calls `f` with [`is_slerp_enabled`] set to `enabled`.
-///
-/// See [`slerp_sampler`] for a way to enable in animations.
-pub fn slerp_enabled<R>(enabled: bool, f: impl FnOnce() -> R) -> R {
-    SLERP_ENABLED.with_context(&mut Some(Arc::new(enabled)), f)
-}
-
-context_local! {
-    static SLERP_ENABLED: bool = false;
-}
-
 impl Transitionable for AngleRadian {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
         match is_slerp_enabled() {
@@ -325,9 +298,6 @@ fn lerp_rgba_linear(mut from: Rgba, to: Rgba, factor: Factor) -> Rgba {
     from
 }
 
-/// API for app implementers to replace the transitionable implementation for foreign types.
-#[expect(non_camel_case_types)]
-pub struct TRANSITIONABLE_APP;
 impl TRANSITIONABLE_APP {
     /// Replace the [`Rgba`] lerp implementation.
     ///

@@ -18,7 +18,6 @@ use zng_var::{
     IntoVar, Var, VarValue,
     animation::{Transition, Transitionable, easing::EasingStep},
     context_var, expr_var, impl_from_and_into_var,
-    types::ContextualizedVar,
 };
 
 pub use zng_view_api::config::ColorScheme;
@@ -920,9 +919,7 @@ impl_from_and_into_var! {
     fn from(color: LightDark) -> Option<LightDark>;
 }
 impl IntoVar<Rgba> for LightDark {
-    type Var = ContextualizedVar<Rgba>;
-
-    fn into_var(self) -> Self::Var {
+    fn into_var(self) -> Var<Rgba> {
         COLOR_SCHEME_VAR.map(move |s| match s {
             ColorScheme::Light => self.light,
             ColorScheme::Dark => self.dark,
@@ -963,12 +960,12 @@ impl LightDark {
     /// Gets a contextual `Rgba` var that selects the color for the context scheme.
     ///
     /// Also see [`LightDarkVarExt`] for mapping from vars.
-    pub fn rgba(self) -> ContextualizedVar<Rgba> {
+    pub fn rgba(self) -> Var<Rgba> {
         IntoVar::<Rgba>::into_var(self)
     }
 
     /// Gets a contextual `Rgba` var that selects the color for the context scheme and `map` it.
-    pub fn rgba_map<T: VarValue>(self, mut map: impl FnMut(Rgba) -> T + Send + 'static) -> impl Var<T> {
+    pub fn rgba_map<T: VarValue>(self, mut map: impl FnMut(Rgba) -> T + Send + 'static) -> Var<T> {
         COLOR_SCHEME_VAR.map(move |s| match s {
             ColorScheme::Light => map(self.light),
             ColorScheme::Dark => map(self.dark),
@@ -977,7 +974,7 @@ impl LightDark {
     }
 
     /// Gets a contextual `Rgba` var that selects the color for the context scheme and converts it to `T`.
-    pub fn rgba_into<T: VarValue + From<Rgba>>(self) -> impl Var<T> {
+    pub fn rgba_into<T: VarValue + From<Rgba>>(self) -> Var<T> {
         self.rgba_map(T::from)
     }
 }
@@ -1002,35 +999,35 @@ impl ops::IndexMut<ColorScheme> for LightDark {
     }
 }
 
-/// Extension methods for `impl Var<LightDark>`.
+/// Extension methods for `Var<LightDark>`.
 pub trait LightDarkVarExt {
     /// Gets a contextualized var that maps to [`LightDark::rgba`].
-    fn rgba(&self) -> impl Var<Rgba>;
+    fn rgba(&self) -> Var<Rgba>;
     /// Gets a contextualized var that maps to [`LightDark::rgba`] and `map`.
-    fn rgba_map<T: VarValue>(&self, map: impl FnMut(Rgba) -> T + Send + 'static) -> impl Var<T>;
+    fn rgba_map<T: VarValue>(&self, map: impl FnMut(Rgba) -> T + Send + 'static) -> Var<T>;
     /// Gets a contextualized var that maps to [`LightDark::rgba`] converted into `T`.
-    fn rgba_into<T: VarValue + From<Rgba>>(&self) -> impl Var<T>;
+    fn rgba_into<T: VarValue + From<Rgba>>(&self) -> Var<T>;
 
     /// Gets a contextualized var that maps using `map` and then to [`LightDark::rgba`].
-    fn map_rgba(&self, map: impl FnMut(LightDark) -> LightDark + Send + 'static) -> impl Var<Rgba>;
+    fn map_rgba(&self, map: impl FnMut(LightDark) -> LightDark + Send + 'static) -> Var<Rgba>;
     /// Gets a contextualized var that maps using `map` and then into `T`.
-    fn map_rgba_into<T: VarValue + From<Rgba>>(&self, map: impl FnMut(LightDark) -> LightDark + Send + 'static) -> impl Var<T>;
+    fn map_rgba_into<T: VarValue + From<Rgba>>(&self, map: impl FnMut(LightDark) -> LightDark + Send + 'static) -> Var<T>;
 
     /// Gets a contextualized var that maps to [`LightDark::shade_fct`] and then to [`LightDark::rgba`].
-    fn shade_fct(&self, fct: impl Into<Factor>) -> impl Var<Rgba>;
+    fn shade_fct(&self, fct: impl Into<Factor>) -> Var<Rgba>;
     /// Gets a contextualized var that maps to [`LightDark::shade_fct`] and then to [`LightDark::rgba`] and then into `T`.
-    fn shade_fct_into<T: VarValue + From<Rgba>>(&self, fct: impl Into<Factor>) -> impl Var<T>;
+    fn shade_fct_into<T: VarValue + From<Rgba>>(&self, fct: impl Into<Factor>) -> Var<T>;
 
     /// Gets a contextualized var that maps to [`LightDark::shade`] and then to [`LightDark::rgba`].   
     ///
     /// * +1 - Hovered.
     /// * +2 - Pressed.
-    fn shade(&self, shade: i8) -> impl Var<Rgba>;
+    fn shade(&self, shade: i8) -> Var<Rgba>;
     /// Gets a contextualized var that maps to [`LightDark::shade`] and then to [`LightDark::rgba`] and then into `T`.
-    fn shade_into<T: VarValue + From<Rgba>>(&self, shade: i8) -> impl Var<T>;
+    fn shade_into<T: VarValue + From<Rgba>>(&self, shade: i8) -> Var<T>;
 }
-impl<V: Var<LightDark>> LightDarkVarExt for V {
-    fn rgba(&self) -> impl Var<Rgba> {
+impl LightDarkVarExt for Var<LightDark> {
+    fn rgba(&self) -> Var<Rgba> {
         expr_var! {
             let c = #{self.clone()};
             match *#{COLOR_SCHEME_VAR} {
@@ -1041,7 +1038,7 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
         }
     }
 
-    fn rgba_map<T: VarValue>(&self, mut map: impl FnMut(Rgba) -> T + Send + 'static) -> impl Var<T> {
+    fn rgba_map<T: VarValue>(&self, mut map: impl FnMut(Rgba) -> T + Send + 'static) -> Var<T> {
         expr_var! {
             let c = #{self.clone()};
             match *#{COLOR_SCHEME_VAR} {
@@ -1052,11 +1049,11 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
         }
     }
 
-    fn rgba_into<T: VarValue + From<Rgba>>(&self) -> impl Var<T> {
+    fn rgba_into<T: VarValue + From<Rgba>>(&self) -> Var<T> {
         self.rgba_map(Into::into)
     }
 
-    fn map_rgba(&self, mut map: impl FnMut(LightDark) -> LightDark + Send + 'static) -> impl Var<Rgba> {
+    fn map_rgba(&self, mut map: impl FnMut(LightDark) -> LightDark + Send + 'static) -> Var<Rgba> {
         expr_var! {
             let c = map(*#{self.clone()});
             match *#{COLOR_SCHEME_VAR} {
@@ -1067,7 +1064,7 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
         }
     }
 
-    fn map_rgba_into<T: VarValue + From<Rgba>>(&self, mut map: impl FnMut(LightDark) -> LightDark + Send + 'static) -> impl Var<T> {
+    fn map_rgba_into<T: VarValue + From<Rgba>>(&self, mut map: impl FnMut(LightDark) -> LightDark + Send + 'static) -> Var<T> {
         expr_var! {
             let c = map(*#{self.clone()});
             match *#{COLOR_SCHEME_VAR} {
@@ -1078,7 +1075,7 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
         }
     }
 
-    fn shade_fct(&self, fct: impl Into<Factor>) -> impl Var<Rgba> {
+    fn shade_fct(&self, fct: impl Into<Factor>) -> Var<Rgba> {
         let fct = fct.into();
         expr_var! {
             let c = #{self.clone()}.shade_fct(fct);
@@ -1090,7 +1087,7 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
         }
     }
 
-    fn shade(&self, shade: i8) -> impl Var<Rgba> {
+    fn shade(&self, shade: i8) -> Var<Rgba> {
         expr_var! {
             let c = #{self.clone()}.shade(shade);
             match *#{COLOR_SCHEME_VAR} {
@@ -1101,7 +1098,7 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
         }
     }
 
-    fn shade_fct_into<T: VarValue + From<Rgba>>(&self, fct: impl Into<Factor>) -> impl Var<T> {
+    fn shade_fct_into<T: VarValue + From<Rgba>>(&self, fct: impl Into<Factor>) -> Var<T> {
         let fct = fct.into();
         expr_var! {
             let c = #{self.clone()}.shade_fct(fct);
@@ -1113,7 +1110,7 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
         }
     }
 
-    fn shade_into<T: VarValue + From<Rgba>>(&self, shade: i8) -> impl Var<T> {
+    fn shade_into<T: VarValue + From<Rgba>>(&self, shade: i8) -> Var<T> {
         expr_var! {
             let c = #{self.clone()}.shade(shade);
             match *#{COLOR_SCHEME_VAR} {

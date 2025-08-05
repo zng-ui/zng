@@ -149,7 +149,7 @@
 //! #[expect(non_camel_case_types)]
 //! pub struct SCREAMING_CASE;
 //! impl SCREAMING_CASE {
-//!     pub fn state(&self) -> impl Var<bool> {
+//!     pub fn state(&self) -> Var<bool> {
 //! #       var(true)
 //!     }
 //! }
@@ -205,7 +205,7 @@
 //!
 //! impl FOO {
 //!     /// Foo read-write var.
-//!     pub fn config(&self) -> impl Var<bool> {
+//!     pub fn config(&self) -> Var<bool> {
 //!         FOO_SV.read().config.clone()
 //!     }
 //!
@@ -221,7 +221,7 @@
 //! }
 //!
 //! struct FooService {
-//!     config: ArcVar<bool>,
+//!     config: Var<bool>,
 //!     requests: Vec<(char, ResponderVar<char>)>,
 //! }
 //!

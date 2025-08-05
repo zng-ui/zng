@@ -17,7 +17,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
 
     if *property_is_unset {
         return quote! {
-            compile_error!{"cannot set `easing` in unset assign\n\n   note: you can use `#[easing(unset)]` to unset in a normal assign to unset easing"}
+            compile_error!{"cannot set `easing` in unset assign\n\n   note: you can use `#[easing(unset)]` in a normal assign to unset easing"}
             #data
         }.into();
     }
@@ -25,7 +25,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
     let is_unset = args.is_unset();
 
     let core = crate_core();
-    let name = "zng::core::widget::easing";
+    let name = "zng::widget::easing";
 
     let property_ident = &property.segments.last().unwrap().ident;
     let meta_ident = ident!("{property_ident}_");

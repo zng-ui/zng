@@ -62,7 +62,7 @@ pub struct CaretInfo {
     /// [`UpdateOp::RenderUpdate`] automatically.
     ///
     /// [`UpdateOp::RenderUpdate`]: zng_wgt::prelude::UpdateOp::RenderUpdate
-    pub opacity: ReadOnlyArcVar<Factor>,
+    pub opacity: Var<Factor>,
 
     /// Caret byte offset in the text string.
     ///
@@ -97,7 +97,7 @@ pub struct CaretInfo {
 impl fmt::Debug for CaretInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CaretInfo")
-            .field("opacity", &self.opacity.debug())
+            .field("opacity", &self.opacity.get_debug(false))
             .field("index", &self.index)
             .field("index_version", &self.index_version)
             .field("used_retained_x", &self.used_retained_x)
@@ -340,7 +340,7 @@ impl SelectionBy {
 #[non_exhaustive]
 pub struct ResolvedText {
     /// The text source variable.
-    pub txt: BoxedVar<Txt>,
+    pub txt: Var<Txt>,
     /// IME text edit that is not committed yet. Only the text in the segmented and shaped text is edited,
     /// the text variable is not updated yet and undo is not tracking these changes.
     pub ime_preview: Option<ImePreview>,
@@ -581,10 +581,10 @@ pub(super) fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<Car
         match op {
             UiNodeOp::Init => {
                 c.init();
-                let _ = index.set(TEXT.resolved().caret.index);
+                index.set(TEXT.resolved().caret.index);
             }
             UiNodeOp::Deinit => {
-                let _ = index.set(None);
+                index.set(None);
             }
             UiNodeOp::Event { update } => {
                 c.event(update);
@@ -600,7 +600,7 @@ pub(super) fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<Car
             let t = TEXT.resolved();
             let idx = t.caret.index;
             if !t.pending_edit && index.get() != idx {
-                let _ = index.set(idx);
+                index.set(idx);
             }
         }
     })
@@ -614,13 +614,13 @@ pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretSta
             UiNodeOp::Init => {
                 c.init();
                 let t = TEXT.resolved();
-                let _ = status.set(match t.caret.index {
+                status.set(match t.caret.index {
                     None => CaretStatus::none(),
                     Some(i) => CaretStatus::new(i.index, &t.segmented_text),
                 });
             }
             UiNodeOp::Deinit => {
-                let _ = status.set(CaretStatus::none());
+                status.set(CaretStatus::none());
             }
             UiNodeOp::Event { update } => {
                 c.event(update);
@@ -636,7 +636,7 @@ pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretSta
             let t = TEXT.resolved();
             let idx = t.caret.index;
             if !t.pending_edit && status.get().index() != idx.map(|ci| ci.index) {
-                let _ = status.set(match idx {
+                status.set(match idx {
                     None => CaretStatus::none(),
                     Some(i) => CaretStatus::new(i.index, &t.segmented_text),
                 });
@@ -649,14 +649,14 @@ pub(super) fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> imp
     let len = len.into_var();
     match_node(child, move |c, op| match op {
         UiNodeOp::Deinit => {
-            let _ = len.set(0usize);
+            len.set(0usize);
         }
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = c.layout(wl);
             let t = TEXT.laidout();
             let l = t.shaped_text.lines_len();
             if l != len.get() {
-                let _ = len.set(t.shaped_text.lines_len());
+                len.set(t.shaped_text.lines_len());
             }
         }
         _ => {}
@@ -668,7 +668,7 @@ pub(super) fn get_lines_wrap_count(child: impl UiNode, lines: impl IntoVar<super
     let mut version = 0;
     match_node(child, move |c, op| match op {
         UiNodeOp::Deinit => {
-            let _ = lines.set(super::LinesWrapCount::NoWrap(0));
+            lines.set(super::LinesWrapCount::NoWrap(0));
         }
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = c.layout(wl);
@@ -676,7 +676,7 @@ pub(super) fn get_lines_wrap_count(child: impl UiNode, lines: impl IntoVar<super
             if t.shaped_text_version != version {
                 version = t.shaped_text_version;
                 if let Some(update) = lines.with(|l| lines_wrap_count(l, &t.shaped_text)) {
-                    let _ = lines.set(update);
+                    lines.set(update);
                 }
             }
         }
@@ -800,7 +800,7 @@ where
             let ctx = TEXT.resolved();
 
             // initial T -> Txt sync
-            let _ = ctx.txt.set_from_map(&value, |val| val.to_txt());
+            ctx.txt.set_from_map(&value, |val| val.to_txt());
 
             // bind `TXT_PARSE_LIVE_VAR` <-> `value` using `bind_filter_map_bidi`:
             // - in case of parse error, it is set in `error` variable, that is held by the binding.
@@ -809,8 +809,8 @@ where
             // - in case of Pending and `PARSE_CMD` state is set to `Requested` and `TXT_PARSE_LIVE_VAR.update()`.
             // - the pending state is also tracked in `TXT_PARSE_PENDING_VAR` and the `PARSE_CMD` handle.
 
-            let live = TXT_PARSE_LIVE_VAR.actual_var();
-            let is_pending = TXT_PARSE_PENDING_VAR.actual_var();
+            let live = TXT_PARSE_LIVE_VAR.current_context();
+            let is_pending = TXT_PARSE_PENDING_VAR.current_context();
             let cmd_handle = Arc::new(super::cmd::PARSE_CMD.scoped(WIDGET.id()).subscribe(false));
 
             let binding = ctx.txt.bind_filter_map_bidi(
@@ -821,7 +821,7 @@ where
 
                         if !matches!(state.swap(State::Sync, Ordering::Relaxed), State::Sync) {
                             // exit pending state, even if it parse fails
-                            let _ = is_pending.set(false);
+                            is_pending.set(false);
                             cmd_handle.set_enabled(false);
                         }
 
@@ -841,7 +841,7 @@ where
 
                         if !matches!(state.swap(State::Pending, Ordering::Relaxed), State::Pending) {
                             // enter pending state
-                            let _ = is_pending.set(true);
+                            is_pending.set(true);
                             cmd_handle.set_enabled(true);
                         }
 
@@ -855,7 +855,7 @@ where
                     error.set(Txt::from_static(""));
 
                     if !matches!(state.swap(State::Sync, Ordering::Relaxed), State::Sync) {
-                        let _ = is_pending.set(false);
+                        is_pending.set(false);
                         cmd_handle.set_enabled(false);
                     }
 
@@ -876,7 +876,7 @@ where
                     // requested parse and parse is pending
 
                     state.store(State::Requested, Ordering::Relaxed);
-                    let _ = TEXT.resolved().txt.update();
+                    TEXT.resolved().txt.update();
                     args.propagation().stop();
                 }
             }
@@ -886,7 +886,7 @@ where
                 if matches!(state.load(Ordering::Relaxed), State::Pending) {
                     // enabled live parse and parse is pending
 
-                    let _ = TEXT.resolved().txt.update();
+                    TEXT.resolved().txt.update();
                 }
             }
 
@@ -959,7 +959,7 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
     use super::node::*;
 
     let mut selection_range = None;
-    let mut popup_state = None::<ReadOnlyArcVar<PopupState>>;
+    let mut popup_state = None::<Var<PopupState>>;
     match_node(child, move |c, op| {
         let mut open = false;
         let mut open_long_press = false;

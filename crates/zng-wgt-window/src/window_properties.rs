@@ -5,6 +5,7 @@ use zng_ext_window::{
     AutoSize, FrameCaptureMode, MONITORS, MonitorQuery, WINDOW_Ext as _, WINDOW_LOAD_EVENT, WINDOWS, WindowButton, WindowIcon,
     WindowLoadingHandle, WindowState, WindowVars,
 };
+use zng_var::AnyVar;
 use zng_wgt::prelude::*;
 
 use serde::{Deserialize, Serialize};
@@ -12,34 +13,21 @@ use zng_wgt_layer::adorner_fn;
 
 use super::Window;
 
-fn bind_window_var<T, V>(child: impl UiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> V + Send + 'static) -> impl UiNode
+fn bind_window_var<T>(child: impl UiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> Var<T> + Send + 'static) -> impl UiNode
 where
     T: VarValue + PartialEq,
-    V: Var<T>,
 {
-    #[cfg(feature = "dyn_closure")]
-    let select: Box<dyn Fn(&WindowVars) -> V + Send> = Box::new(select);
-    bind_window_var_impl(child.cfg_boxed(), user_var.into_var(), select).cfg_boxed()
+    bind_window_var_impl(child.cfg_boxed(), user_var.into_var().into(), move |vars| select(vars).into()).cfg_boxed()
 }
-fn bind_window_var_impl<T, V>(
-    child: impl UiNode,
-    user_var: impl IntoVar<T>,
-    select: impl Fn(&WindowVars) -> V + Send + 'static,
-) -> impl UiNode
-where
-    T: VarValue + PartialEq,
-    V: Var<T>,
-{
-    let user_var = user_var.into_var();
-
+fn bind_window_var_impl(child: impl UiNode, user_var: AnyVar, select: impl Fn(&WindowVars) -> AnyVar + Send + 'static) -> impl UiNode {
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
             let window_var = select(&WINDOW.vars());
-            if !user_var.capabilities().is_always_static() {
+            if !user_var.capabilities().is_const() {
                 let binding = user_var.bind_bidi(&window_var);
                 WIDGET.push_var_handles(binding);
             }
-            window_var.set_from(&user_var).unwrap();
+            window_var.set_from(&user_var);
         }
     })
 }
@@ -107,7 +95,7 @@ macro_rules! map_properties {
         /// The binding is bidirectional and the window variable is assigned on init.
         #[property(CONTEXT, widget_impl(Window))]
         pub fn $name(child: impl UiNode, $name: impl IntoVar<$Type>) -> impl UiNode {
-            bind_window_var(child, $name, |w|w.$ident().map_ref_bidi(|v| &v.$member, |v|&mut v.$member))
+            bind_window_var(child, $name, |w|w.$ident().map_bidi_modify(|v| v.$member.clone(), |v, m|m.$member = v.clone()))
         }
     })+}
 }
@@ -241,7 +229,7 @@ pub fn save_state_node<S: ConfigValue>(
         Disabled,
         AwaitingLoad,
         Loaded,
-        LoadedWithCfg(BoxedVar<S>),
+        LoadedWithCfg(Var<S>),
     }
     let mut state = State::Disabled;
     match_node(child, move |_, op| match op {
@@ -287,7 +275,7 @@ pub fn save_state_node<S: ConfigValue>(
         UiNodeOp::Update { .. } => match &mut state {
             State::LoadedWithCfg(cfg) => {
                 if let Some(new) = on_update_save(false) {
-                    let _ = cfg.set(new);
+                    cfg.set(new);
                 }
             }
             State::Loaded => {
@@ -433,7 +421,7 @@ pub fn config_block_window_load(child: impl UiNode, enabled: impl IntoValue<Bloc
         Allow,
         Block {
             _handle: WindowLoadingHandle,
-            cfg: BoxedVar<ConfigStatus>,
+            cfg: Var<ConfigStatus>,
         },
     }
     let mut state = State::Allow;
@@ -470,19 +458,18 @@ pub fn config_block_window_load(child: impl UiNode, enabled: impl IntoValue<Bloc
 /// [`chrome`]: fn@chrome
 /// [`state`]: fn@state
 /// [`WINDOWS.system_chrome`]: WINDOWS::system_chrome
-#[property(EVENT, default(state_var()), widget_impl(Window))]
+#[property(EVENT, default(var_state()), widget_impl(Window))]
 pub fn needs_fallback_chrome(child: impl UiNode, needs: impl IntoVar<bool>) -> impl UiNode {
     zng_wgt::node::bind_state_init(
         child,
         || {
             if WINDOW.mode().is_headless() {
-                LocalVar(false).boxed()
+                const_var(false)
             } else {
                 let vars = WINDOW.vars();
                 expr_var! {
                     *#{vars.chrome()} && #{WINDOWS.system_chrome()}.needs_custom() && !#{vars.state()}.is_fullscreen()
                 }
-                .boxed()
             }
         },
         needs,
@@ -495,7 +482,7 @@ pub fn needs_fallback_chrome(child: impl UiNode, needs: impl IntoVar<bool>) -> i
 ///
 /// [`chrome`]: fn@chrome
 /// [`WINDOWS.system_chrome`]: WINDOWS::system_chrome
-#[property(EVENT, default(state_var()), widget_impl(Window))]
+#[property(EVENT, default(var_state()), widget_impl(Window))]
 pub fn prefer_custom_chrome(child: impl UiNode, prefer: impl IntoVar<bool>) -> impl UiNode {
     zng_wgt::node::bind_state(child, WINDOWS.system_chrome().map(|c| c.prefer_custom), prefer)
 }

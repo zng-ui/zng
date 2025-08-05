@@ -154,7 +154,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
             let vp_size = constraints.fill_size_or(content_size);
             if viewport_size != vp_size {
                 viewport_size = vp_size;
-                SCROLL_VIEWPORT_SIZE_VAR.set(vp_size).unwrap();
+                SCROLL_VIEWPORT_SIZE_VAR.set(vp_size);
                 WIDGET.render();
             }
 
@@ -217,18 +217,14 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
             let v_ratio = viewport_size.height.0 as f32 / content_size.height.0 as f32;
             let h_ratio = viewport_size.width.0 as f32 / content_size.width.0 as f32;
 
-            SCROLL_VERTICAL_RATIO_VAR.set(v_ratio.fct()).unwrap();
-            SCROLL_HORIZONTAL_RATIO_VAR.set(h_ratio.fct()).unwrap();
-            SCROLL_CONTENT_SIZE_VAR.set(content_size).unwrap();
+            SCROLL_VERTICAL_RATIO_VAR.set(v_ratio.fct());
+            SCROLL_HORIZONTAL_RATIO_VAR.set(h_ratio.fct());
+            SCROLL_CONTENT_SIZE_VAR.set(content_size);
 
             let full_size = viewport_size + joiner_size;
 
-            SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR
-                .set(mode.contains(ScrollMode::VERTICAL) && content_size.height > full_size.height)
-                .unwrap();
-            SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR
-                .set(mode.contains(ScrollMode::HORIZONTAL) && content_size.width > full_size.width)
-                .unwrap();
+            SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set(mode.contains(ScrollMode::VERTICAL) && content_size.height > full_size.height);
+            SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set(mode.contains(ScrollMode::HORIZONTAL) && content_size.width > full_size.width);
 
             *final_size = viewport_size;
 

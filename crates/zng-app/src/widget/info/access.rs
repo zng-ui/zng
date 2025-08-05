@@ -8,7 +8,7 @@ use zng_layout::unit::{Factor, PxSize, PxTransform};
 use zng_state_map::{StateId, static_id};
 use zng_txt::Txt;
 use zng_unique_id::IdMap;
-use zng_var::{BoxedVar, IntoVar, Var};
+use zng_var::{IntoVar, Var};
 pub use zng_view_api::access::{
     AccessCmdName, AccessRole, AutoComplete, CurrentKind, Invalid, LiveIndicator, Orientation, Popup, SortDirection,
 };
@@ -254,7 +254,7 @@ impl WidgetAccessInfoBuilder<'_> {
     /// The value must be normalized in the 0..=1 range, 0 is showing the content leftmost edge, 1 is showing
     /// the content the rightmost edge.
     pub fn set_scroll_horizontal(&mut self, normal_x: impl IntoVar<Factor>) {
-        let normal_x = normal_x.into_var().boxed();
+        let normal_x = normal_x.into_var();
         self.with_access(|a| a.set_state_source(AccessStateSource::ScrollHorizontal(normal_x)))
     }
 
@@ -267,7 +267,7 @@ impl WidgetAccessInfoBuilder<'_> {
     /// The value must be normalized in the 0..=1 range, 0 is showing the content topmost edge, 1 is showing
     /// the content the bottommost edge.
     pub fn set_scroll_vertical(&mut self, normal_y: impl IntoVar<Factor>) {
-        let normal_y = normal_y.into_var().boxed();
+        let normal_y = normal_y.into_var();
         self.with_access(|a| a.set_state_source(AccessStateSource::ScrollVertical(normal_y)))
     }
 
@@ -708,13 +708,13 @@ impl WidgetAccessInfo {
     /// Normalized (0..1) horizontal scroll, 0 is showing the content leftmost edge, 1 is showing the content the rightmost edge.
     ///
     /// Also signals that the content is horizontally scrollable.
-    pub fn scroll_horizontal(&self) -> Option<BoxedVar<Factor>> {
+    pub fn scroll_horizontal(&self) -> Option<Var<Factor>> {
         get_state!(self.source.ScrollHorizontal).cloned()
     }
     /// Normalized (0..1) vertical scroll, 0 is showing the content topmost edge, 1 is showing the content the bottommost edge.
     ///
     /// Also signals that the content is vertically scrollable.
-    pub fn scroll_vertical(&self) -> Option<BoxedVar<Factor>> {
+    pub fn scroll_vertical(&self) -> Option<Var<Factor>> {
         get_state!(self.source.ScrollVertical).cloned()
     }
 
@@ -1208,8 +1208,8 @@ enum AccessStateSource {
     Label(Txt),
     Placeholder(Txt),
     ValueText(Txt),
-    ScrollHorizontal(BoxedVar<Factor>),
-    ScrollVertical(BoxedVar<Factor>),
+    ScrollHorizontal(Var<Factor>),
+    ScrollVertical(Var<Factor>),
 }
 impl PartialEq for AccessStateSource {
     fn eq(&self, other: &Self) -> bool {
@@ -1218,8 +1218,8 @@ impl PartialEq for AccessStateSource {
             (Self::Placeholder(l0), Self::Placeholder(r0)) => l0 == r0,
             (Self::ValueText(l0), Self::ValueText(r0)) => l0 == r0,
             // values equality not done here, see `ViewBoundsInfo` usage
-            (Self::ScrollHorizontal(l0), Self::ScrollHorizontal(r0)) => l0.var_ptr() == r0.var_ptr(),
-            (Self::ScrollVertical(l0), Self::ScrollVertical(r0)) => l0.var_ptr() == r0.var_ptr(),
+            (Self::ScrollHorizontal(l0), Self::ScrollHorizontal(r0)) => l0.var_eq(r0),
+            (Self::ScrollVertical(l0), Self::ScrollVertical(r0)) => l0.var_eq(r0),
             _ => false,
         }
     }

@@ -5,6 +5,29 @@ use syn::{
     punctuated::Punctuated,
 };
 
+/*
+Example generated for 2 inputs:
+
+fn merge_var<I0, I1, O>(input0: impl MergeInputVar<I0>, input1: impl MergeInputVar<I1>, mut merge: impl FnMut(&I0, &I1) -> O + Send + 'static) -> Var<O>
+where
+    I0: VarValue,
+    I1: VarValue,
+    O: VarValue,
+{
+    merge_var(Box::new([input0, input1]), move |inputs| {
+        let mut output = None;
+        merge_var_with(&inputs[0], &mut |v0| {
+            merge_var_with(&inputs[1], &mut |v1| {
+                output = Some(merge_var_output(merge(v0.downcast_ref().unwrap(), v1.downcast_ref().unwrap())));
+            })
+        });
+        output.unwrap()
+    });
+}
+
+merge_var(input0_expr, input1_expr)
+*/
+
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { vars_mod, mut inputs, .. } = parse_macro_input!(input as Input);
 
@@ -15,7 +38,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let merge = inputs.pop().unwrap();
 
     let type_idents: Vec<_> = (0..inputs.len()).map(|i| ident!("T{i}")).collect();
-    let var_idents: Vec<_> = (0..inputs.len()).map(|i| ident!("V{i}")).collect();
     let input_idents: Vec<_> = (0..inputs.len()).map(|i| ident!("var{i}")).collect();
     let idx: Vec<_> = (0..inputs.len())
         .map(|i| syn::Index {
@@ -24,33 +46,41 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         })
         .collect();
 
+    let mut merge_with = quote! {
+        output = Some(#vars_mod::merge_var_output(
+            merge(
+                #(#input_idents.downcast_ref().unwrap(),)*
+            )
+        ));
+    };
+    for (idx, input_ident) in idx.iter().zip(&input_idents).rev() {
+        merge_with = quote! {
+            #vars_mod::merge_var_with(&inputs[#idx], &mut |#input_ident| {
+                #merge_with
+            });
+        }
+    }
+
     let out = quote! {
         {
             #[inline(always)]
             fn merge_var__<
                 #(#type_idents: #vars_mod::VarValue,)*
-                #(#var_idents: #vars_mod::Var<#type_idents>,)*
                 O: #vars_mod::VarValue,
                 F: FnMut(
                     #(&#type_idents,)*
                 ) -> O + Send + 'static
             >(
-                #(#input_idents: #var_idents,)*
+                #(#input_idents: impl #vars_mod::MergeInput<#type_idents>,)*
                 mut merge: F
-            ) -> #vars_mod::BoxedVar<O> {
-                let input_types = (
-                    #(#vars_mod::types::ArcMergeVarInput::new(&#input_idents)),*
-                );
-                #vars_mod::types::ArcMergeVar::new(
-                    Box::new([
-                        #(Box::new(#input_idents),)*
-                    ]),
-                    move |inputs| {
-                        merge(
-                            #(input_types.#idx.get(&inputs[#idx])),*
-                        )
-                    }
-                )
+            ) -> #vars_mod::Var<O> {
+                #vars_mod::merge_var(Box::new([
+                    #(#vars_mod::merge_var_input(#input_idents),)*
+                ]), move |inputs| {
+                    let mut output = None;
+                    #merge_with
+                    output.unwrap()
+                })
             }
             merge_var__(#inputs #merge)
         }

@@ -6,20 +6,19 @@ use zng_app::widget::{
     info::WidgetInfoTree,
     inspector::{InspectorInfo, WidgetInfoInspectorExt},
 };
-use zng_var::{WeakVar, types::WeakArcVar};
 use zng_view_api::window::FrameId;
 use zng_wgt::prelude::*;
 
 #[derive(Default)]
 struct InspectedTreeData {
     widgets: IdMap<WidgetId, InspectedWidget>,
-    latest_frame: Option<ArcVar<FrameId>>,
+    latest_frame: Option<Var<FrameId>>,
 }
 
 /// Represents an actively inspected widget tree.
 #[derive(Clone)]
 pub struct InspectedTree {
-    tree: ArcVar<WidgetInfoTree>,
+    tree: Var<WidgetInfoTree>,
     data: Arc<Mutex<InspectedTreeData>>,
 }
 impl fmt::Debug for InspectedTree {
@@ -31,7 +30,7 @@ impl fmt::Debug for InspectedTree {
 }
 impl PartialEq for InspectedTree {
     fn eq(&self, other: &Self) -> bool {
-        self.tree.var_ptr() == other.tree.var_ptr()
+        self.tree.var_eq(&other.tree)
     }
 }
 impl InspectedTree {
@@ -116,7 +115,7 @@ impl InspectedTree {
     /// Latest frame updated using [`update_render`].
     ///
     /// [`update_render`]: Self::update_render
-    pub fn last_frame(&self) -> impl Var<FrameId> {
+    pub fn last_frame(&self) -> Var<FrameId> {
         let mut data = self.data.lock();
         data.latest_frame
             .get_or_insert_with(|| var(self.tree.with(|t| t.stats().last_frame)))
@@ -127,7 +126,7 @@ impl InspectedTree {
 /// Represents a weak reference to a [`InspectedTree`].
 #[derive(Clone)]
 pub struct WeakInspectedTree {
-    tree: WeakArcVar<WidgetInfoTree>,
+    tree: WeakVar<WidgetInfoTree>,
     data: std::sync::Weak<Mutex<InspectedTreeData>>,
 }
 impl WeakInspectedTree {
@@ -142,8 +141,8 @@ impl WeakInspectedTree {
 
 struct InspectedWidgetCache {
     tree: WeakInspectedTree,
-    children: Option<BoxedVar<Vec<InspectedWidget>>>,
-    parent_property_name: Option<BoxedVar<Txt>>,
+    children: Option<Var<Vec<InspectedWidget>>>,
+    parent_property_name: Option<Var<Txt>>,
 }
 
 /// Represents an actively inspected widget.
@@ -151,8 +150,8 @@ struct InspectedWidgetCache {
 /// See [`InspectedTree::inspect`].
 #[derive(Clone)]
 pub struct InspectedWidget {
-    info: ArcVar<WidgetInfo>,
-    removed: ArcVar<bool>,
+    info: Var<WidgetInfo>,
+    removed: Var<bool>,
     cache: Arc<Mutex<InspectedWidgetCache>>,
 }
 impl fmt::Debug for InspectedWidget {
@@ -165,7 +164,7 @@ impl fmt::Debug for InspectedWidget {
 }
 impl PartialEq for InspectedWidget {
     fn eq(&self, other: &Self) -> bool {
-        self.info.var_ptr() == other.info.var_ptr()
+        self.info.var_eq(&other.info)
     }
 }
 impl Eq for InspectedWidget {}
@@ -209,12 +208,12 @@ impl InspectedWidget {
     ///
     /// This is set to `true` when an inspected widget is not found after an update, when `true`
     /// this inspector will not update even if the same widget ID is re-inserted in another update.
-    pub fn removed(&self) -> impl Var<bool> {
+    pub fn removed(&self) -> Var<bool> {
         self.removed.read_only()
     }
 
     /// Latest info.
-    pub fn info(&self) -> impl Var<WidgetInfo> {
+    pub fn info(&self) -> Var<WidgetInfo> {
         self.info.read_only()
     }
 
@@ -224,34 +223,34 @@ impl InspectedWidget {
     }
 
     /// Count of ancestor widgets.
-    pub fn depth(&self) -> impl Var<usize> {
-        self.info.map(|w| w.depth()).actual_var()
+    pub fn depth(&self) -> Var<usize> {
+        self.info.map(|w| w.depth()).current_context()
     }
 
     /// Count of descendant widgets.
-    pub fn descendants_len(&self) -> impl Var<usize> {
-        self.info.map(|w| w.descendants_len()).actual_var()
+    pub fn descendants_len(&self) -> Var<usize> {
+        self.info.map(|w| w.descendants_len()).current_context()
     }
 
     /// Widget type, if the widget was built with inspection info.
-    pub fn wgt_type(&self) -> impl Var<Option<WidgetType>> {
-        self.info.map(|w| Some(w.inspector_info()?.builder.widget_type())).actual_var()
+    pub fn wgt_type(&self) -> Var<Option<WidgetType>> {
+        self.info.map(|w| Some(w.inspector_info()?.builder.widget_type())).current_context()
     }
 
     /// Widget macro name, or `"<widget>!"` if widget was not built with inspection info.
-    pub fn wgt_macro_name(&self) -> impl Var<Txt> {
+    pub fn wgt_macro_name(&self) -> Var<Txt> {
         self.info
             .map(|w| match w.inspector_info().map(|i| i.builder.widget_type()) {
                 Some(t) => formatx!("{}!", t.name()),
                 None => Txt::from_static("<widget>!"),
             })
-            .actual_var()
+            .current_context()
     }
 
     /// Gets the parent's property that has this widget as an input.
     ///
     /// Is an empty string if the widget is not inserted by any property.
-    pub fn parent_property_name(&self) -> impl Var<Txt> {
+    pub fn parent_property_name(&self) -> Var<Txt> {
         let mut cache = self.cache.lock();
         cache
             .parent_property_name
@@ -264,14 +263,13 @@ impl InspectedWidget {
                                 .unwrap_or(""),
                         )
                     })
-                    .actual_var()
-                    .boxed()
+                    .current_context()
             })
             .clone()
     }
 
     /// Inspect the widget children.
-    pub fn children(&self) -> impl Var<Vec<InspectedWidget>> {
+    pub fn children(&self) -> Var<Vec<InspectedWidget>> {
         let mut cache = self.cache.lock();
         let cache = &mut *cache;
         cache
@@ -288,8 +286,7 @@ impl InspectedWidget {
                             vec![]
                         }
                     })
-                    .actual_var()
-                    .boxed()
+                    .current_context()
             })
             .clone()
     }
@@ -297,12 +294,12 @@ impl InspectedWidget {
     /// Inspect the builder, properties and intrinsic nodes that make up the widget.
     ///
     /// Is `None` when the widget is built without inspector info collection.
-    pub fn inspector_info(&self) -> impl Var<Option<InspectedInfo>> {
-        self.info.map(move |w| w.inspector_info().map(InspectedInfo)).actual_var().boxed()
+    pub fn inspector_info(&self) -> Var<Option<InspectedInfo>> {
+        self.info.map(move |w| w.inspector_info().map(InspectedInfo)).current_context()
     }
 
     /// Create a variable that probes info after every frame is rendered.
-    pub fn render_watcher<T: VarValue>(&self, mut probe: impl FnMut(&WidgetInfo) -> T + Send + 'static) -> impl Var<T> {
+    pub fn render_watcher<T: VarValue>(&self, mut probe: impl FnMut(&WidgetInfo) -> T + Send + 'static) -> Var<T> {
         merge_var!(
             self.info.clone(),
             self.cache.lock().tree.upgrade().unwrap().last_frame(),
@@ -337,14 +334,14 @@ impl ops::Deref for InspectedInfo {
 /// [`INSPECTOR.register_watcher`]: INSPECTOR::register_watcher
 #[non_exhaustive]
 pub struct InspectorWatcherBuilder {
-    watchers: HashMap<Txt, BoxedVar<Txt>>,
+    watchers: HashMap<Txt, Var<Txt>>,
 }
 impl InspectorWatcherBuilder {
     /// Insert a watcher variable.
     pub fn insert(&mut self, name: impl Into<Txt>, value: impl IntoVar<Txt>) {
-        self.insert_impl(name.into(), value.into_var().boxed());
+        self.insert_impl(name.into(), value.into_var());
     }
-    fn insert_impl(&mut self, name: Txt, value: BoxedVar<Txt>) {
+    fn insert_impl(&mut self, name: Txt, value: Var<Txt>) {
         self.watchers.insert(name, value);
     }
 }
@@ -370,7 +367,7 @@ impl INSPECTOR {
     /// Call all registered watchers on the `target`.
     ///
     /// Returns a vector of unique name and watcher variable, sorted  by name.
-    pub fn build_watchers(&self, target: &InspectedWidget) -> Vec<(Txt, BoxedVar<Txt>)> {
+    pub fn build_watchers(&self, target: &InspectedWidget) -> Vec<(Txt, Var<Txt>)> {
         let mut builder = InspectorWatcherBuilder { watchers: HashMap::new() };
         self.default_watchers(target, &mut builder);
         for w in INSPECTOR_SV.write().iter_mut() {

@@ -212,7 +212,7 @@ impl SearchStyle {
                 style_fn = zng_wgt_button::LightStyle!();
                 child = zng_wgt::ICONS.req("backspace");
                 focusable = false;
-                zng_wgt::visibility = zng_var::types::ContextualizedVar::new(|| {
+                zng_wgt::visibility = zng_var::contextual_var(|| {
                     zng_wgt_text::node::TEXT.resolved().txt.clone().map(|t| match t.is_empty() {
                         true => Visibility::Collapsed,
                         false => Visibility::Visible,
@@ -301,8 +301,8 @@ impl FieldStyle {
             }
             (DataNoteLevel::INFO, "".into())
         });
-        let top_txt = top_level_and_txt.map_ref(|(_, t)| t);
-        let top_color = DATA.note_color(top_level_and_txt.map_ref(|(l, _)| l));
+        let top_txt = top_level_and_txt.map(|(_, t)| t.clone());
+        let top_color = DATA.note_color(top_level_and_txt.map(|(l, _)| *l));
 
         let highlight = top_level_and_txt.map(|(l, _)| *l >= DataNoteLevel::WARN);
         let adorn = merge_var!(top_txt.clone(), FIELD_HELP_VAR, |t, h| (t.is_empty(), h.is_empty()));

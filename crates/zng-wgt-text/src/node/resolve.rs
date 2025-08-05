@@ -49,9 +49,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
     let child = resolve_text_access(child);
     let child = resolve_text_edit(child);
     let child = resolve_text_segments(child);
-    resolve_text_context(child, text.into_var().boxed())
+    resolve_text_context(child, text.into_var())
 }
-fn resolve_text_context(child: impl UiNode, text: BoxedVar<Txt>) -> impl UiNode {
+fn resolve_text_context(child: impl UiNode, text: Var<Txt>) -> impl UiNode {
     let mut resolved = None;
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -365,13 +365,13 @@ impl ResolveTextEdit {
         &mut *edit_data.get_or_insert_with(Default::default)
     }
 }
-fn enforce_max_count(text: &BoxedVar<Txt>) {
+fn enforce_max_count(text: &Var<Txt>) {
     let max_count = MAX_CHARS_COUNT_VAR.get();
     if max_count > 0 {
         let count = text.with(|t| t.chars().count());
         if count > max_count {
             tracing::debug!("txt var set to text longer than can be typed");
-            let _ = text.modify(move |t| {
+            text.modify(move |t| {
                 if let Some((i, _)) = t.as_str().char_indices().nth(max_count) {
                     t.to_mut().truncate(i);
                 }

@@ -1,4 +1,4 @@
-use std::{any::TypeId, fmt, ops, sync::Arc};
+use std::{fmt, ops, sync::Arc};
 
 use crate::prelude::*;
 
@@ -257,15 +257,15 @@ impl EDITORS {
     /// Instantiate an editor for the `value`.
     ///
     /// Returns [`NilUiNode`] if no registered editor can handle the value type.
-    pub fn get(&self, value: impl AnyVar) -> BoxedUiNode {
-        EDITORS_SV.read().get(EditorRequestArgs { value: Box::new(value) })
+    pub fn get(&self, value: AnyVar) -> BoxedUiNode {
+        EDITORS_SV.read().get(EditorRequestArgs { value })
     }
 
     /// Same as [`get`], but also logs an error is there are no available editor for the type.
     ///
     /// [`get`]: Self::get
-    pub fn req<T: VarValue>(&self, value: impl Var<T>) -> BoxedUiNode {
-        let e = self.get(value);
+    pub fn req<T: VarValue>(&self, value: Var<T>) -> BoxedUiNode {
+        let e = self.get(value.into());
         if e.is_nil() {
             tracing::error!("no editor available for `{}`", std::any::type_name::<T>())
         }
@@ -431,21 +431,17 @@ impl CommandIconExt for Command {
 /// [`EDITORS.register`]: EDITORS::register
 #[derive(Clone)]
 pub struct EditorRequestArgs {
-    value: Box<dyn AnyVar>,
+    value: AnyVar,
 }
 impl EditorRequestArgs {
     /// The value variable.
-    pub fn value_any(&self) -> &dyn AnyVar {
+    pub fn value_any(&self) -> &AnyVar {
         &self.value
     }
 
     /// Try to downcast the value variable to `T`.
-    pub fn value<T: VarValue>(&self) -> Option<BoxedVar<T>> {
-        if self.value.var_type_id() == TypeId::of::<T>() {
-            let value = *self.value.clone_any().double_boxed_any().downcast::<BoxedVar<T>>().ok()?;
-            return Some(value);
-        }
-        None
+    pub fn value<T: VarValue>(&self) -> Option<Var<T>> {
+        self.value_any().clone().downcast::<T>().ok()
     }
 }
 

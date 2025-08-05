@@ -30,7 +30,7 @@ mod crate_util;
 use crate::crate_util::PanicResult;
 use zng_app_context::{LocalContext, app_local};
 use zng_time::Deadline;
-use zng_var::{AnyVar, ResponseVar, VarValue, response_done_var, response_var};
+use zng_var::{ResponseVar, VarValue, response_done_var, response_var};
 
 #[cfg(test)]
 mod tests;
@@ -730,7 +730,7 @@ where
         Ok(r) => responder.respond(r),
         Err(p) => {
             tracing::error!("panic in `task::wait_respond`: {}", crate_util::panic_str(&p));
-            responder.modify(move |_| panic::resume_unwind(p))
+            responder.modify(move |_| panic::resume_unwind(p));
         }
     });
     response

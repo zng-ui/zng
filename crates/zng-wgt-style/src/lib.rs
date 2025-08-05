@@ -111,12 +111,8 @@ impl<P> StyleMix<P> {
             style_builder.push_build_action(move |b| {
                 // 3 - The actual style_node and builder is a child of the "mini widget".
 
-                let style_base = b
-                    .capture_var::<StyleFn>(style_base_id)
-                    .unwrap_or_else(|| LocalVar(StyleFn::nil()).boxed());
-                let style = b
-                    .capture_var::<StyleFn>(style_id)
-                    .unwrap_or_else(|| LocalVar(StyleFn::nil()).boxed());
+                let style_base = b.capture_var::<StyleFn>(style_base_id).unwrap_or_else(|| const_var(StyleFn::nil()));
+                let style = b.capture_var::<StyleFn>(style_id).unwrap_or_else(|| const_var(StyleFn::nil()));
 
                 b.set_child(style_node(None, wgt.take().unwrap(), style_base, style_var, style));
             });
@@ -185,11 +181,11 @@ pub fn with_style_fn(child: impl UiNode, style_context: ContextVar<StyleFn>, sty
 fn style_node(
     child: Option<BoxedUiNode>,
     builder: WidgetBuilder,
-    captured_style_base: BoxedVar<StyleFn>,
+    captured_style_base: Var<StyleFn>,
     style_var: ContextVar<StyleFn>,
-    captured_style: BoxedVar<StyleFn>,
+    captured_style: Var<StyleFn>,
 ) -> impl UiNode {
-    let style_vars = [captured_style_base, style_var.boxed(), captured_style];
+    let style_vars = [captured_style_base, style_var.into_var(), captured_style];
     match_node_typed(child, move |c, op| match op {
         UiNodeOp::Init => {
             let mut style_builder = StyleBuilder::default();

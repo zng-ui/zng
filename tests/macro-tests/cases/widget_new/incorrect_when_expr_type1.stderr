@@ -1,21 +1,22 @@
-error[E0277]: the trait bound `impl zng::var::Var<SideOffsets>: zng::var::Var<bool>` is not satisfied
-  --> cases/widget_new/incorrect_when_expr_type1.rs:14:14
+error[E0308]: mismatched types
+  --> cases/widget_new/incorrect_when_expr_type1.rs:10:13
    |
 10 |       let _ = Wgt! {
-   |  _____________-
+   |  _____________^
 11 | |         margin = 0;
 12 | |         background_color = colors::BLACK;
-13 | |
-14 | |         when *#margin {
-   | |              ^ the trait `zng::var::Var<bool>` is not implemented for `impl zng::var::Var<SideOffsets>`
 ...  |
 17 | |     };
-   | |_____- required by a bound introduced by this call
+   | |     ^
+   | |     |
+   | |_____expected `Var<bool>`, found `Var<SideOffsets>`
+   |       arguments to this method are incorrect
    |
-   = help: the following other types implement trait `zng::var::Var<T>`:
-            <implementers-list>
-note: required by a bound in `when_condition_expr_var`
-  --> $WORKSPACE/crates/zng-app/src/widget/builder.rs
+   = note: expected struct `zng::var::Var<bool>`
+              found struct `zng::var::Var<SideOffsets>`
+note: method defined here
+  --> $WORKSPACE/crates/zng-app/src/widget/base.rs
    |
-   | pub fn when_condition_expr_var(expr_var: impl Var<bool>) -> BoxedVar<bool> {
-   |                                               ^^^^^^^^^ required by this bound in `when_condition_expr_var`
+   |     pub fn start_when_block(&mut self, inputs: Box<[WhenInput]>, state: Var<bool>, expr: &'static str, location: SourceLocation) {
+   |            ^^^^^^^^^^^^^^^^
+   = note: this error originates in the macro `zng::__proc_macro_util::var::expr_var` which comes from the expansion of the macro `Wgt` (in Nightly builds, run with -Z macro-backtrace for more info)

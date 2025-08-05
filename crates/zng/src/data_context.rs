@@ -33,16 +33,16 @@
 //!         let vm = DATA.req::<ViewModel>();
 //!         Container! {
 //!             child = TextInput! {
-//!                 txt = vm.map_ref_bidi(|vm| vm.new_item(), |vm| vm.new_item_mut());
+//!                 txt = vm.map_bidi_modify(|vm| vm.new_item(), |v, vm| vm.set_new_item(v.clone()));
 //!
 //!                 // FieldStyle shows data errors.
 //!                 style_fn = style_fn!(|_| zng::text_input::FieldStyle!());
-//!                 data_context::data_error = vm.map_ref(|vm| vm.new_item_error());
+//!                 data_context::data_error = vm.map(|vm| vm.new_item_error());
 //!             };
 //!             child_bottom = Button! {
 //!                 child = Text!("Submit");
 //!                 widget::enabled = vm.map(|vm| !vm.new_item().is_empty());
-//!                 on_click = hn!(|_| vm.modify(|vm| vm.to_mut().submit()).unwrap());
+//!                 on_click = hn!(|_| vm.modify(|vm| vm.submit()));
 //!             }, 5;
 //!             padding = 5;
 //!         }
@@ -72,23 +72,23 @@
 //!             formatx!("App - {} entries", self.model.read().len())
 //!         }
 //!
-//!         pub fn new_item(&self) -> &Txt {
-//!             &self.new_item
+//!         pub fn new_item(&self) -> Txt {
+//!             self.new_item.clone()
 //!         }
-//!         pub fn new_item_mut(&mut self) -> &mut Txt {
-//!             self.new_item_error = Txt::from("");
-//!             &mut self.new_item
+//!         pub fn set_new_item(&mut self, new_item: Txt) {
+//!             self.new_item_error = "".into();
+//!             self.new_item = new_item;
 //!         }
 //!
-//!         pub fn new_item_error(&self) -> &Txt {
-//!             &self.new_item_error
+//!         pub fn new_item_error(&self) -> Txt {
+//!             self.new_item_error.clone()
 //!         }
 //!
 //!         pub fn submit(&mut self) {
 //!             match self.new_item.parse::<u32>() {
 //!                 Ok(item) => {
 //!                     self.model.write().push(item);
-//!                     self.new_item_mut().clear();
+//!                     self.set_new_item(Txt::from(""));
 //!                 }
 //!                 Err(e) => self.new_item_error = e.to_txt(),
 //!             }
@@ -106,10 +106,6 @@
 //!     }
 //! }
 //! ```
-//!
-//! Note that vars clone the value when modify is requested, so the view-model should probably use shared
-//! references to the model data, overall this cloning has no noticeable impact as it only happens once
-//! per user interaction in the worst case.
 //!
 //! [`data`]: fn@data
 //! [`VarValue`]: crate::var::VarValue

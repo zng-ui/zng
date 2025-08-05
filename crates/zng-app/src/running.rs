@@ -13,7 +13,7 @@ use zng_app_context::{AppScope, app_local};
 use zng_task::DEADLINE_APP;
 use zng_time::{INSTANT_APP, InstantMode};
 use zng_txt::Txt;
-use zng_var::{ArcVar, ReadOnlyArcVar, ResponderVar, ResponseVar, VARS_APP, Var as _, response_var};
+use zng_var::{ResponderVar, ResponseVar, VARS_APP, Var, response_var};
 use zng_view_api::{DeviceEventsFilter, raw_input::InputDeviceEvent};
 
 use crate::{
@@ -70,7 +70,7 @@ impl<E: AppExtension> RunningApp<E> {
         VARS_APP.init_app_waker(app_waker);
         VARS_APP.init_modify_trace(UpdatesTrace::log_var);
         DEADLINE_APP.init_deadline_service(crate::timer::deadline_service);
-        zng_var::types::TRANSITIONABLE_APP.init_rgba_lerp(zng_color::lerp_rgba);
+        zng_var::animation::TRANSITIONABLE_APP.init_rgba_lerp(zng_color::lerp_rgba);
 
         let mut info = AppExtensionsInfo::start();
         {
@@ -1100,7 +1100,7 @@ impl APP {
     ///
     /// App suspension is controlled by the view-process, the [`VIEW_PROCESS_SUSPENDED_EVENT`] notifies
     /// on suspension and the [`VIEW_PROCESS_INITED_EVENT`] notifies a "respawn" on resume.
-    pub fn is_suspended(&self) -> ReadOnlyArcVar<bool> {
+    pub fn is_suspended(&self) -> Var<bool> {
         APP_PROCESS_SV.read().is_suspended.read_only()
     }
 }
@@ -1114,7 +1114,7 @@ impl APP {
     /// Time is paused by default, setting this to `false` will cause [`INSTANT.now`] to read the system time for every call.
     ///
     /// [`INSTANT.now`]: crate::INSTANT::now
-    pub fn pause_time_for_update(&self) -> ArcVar<bool> {
+    pub fn pause_time_for_update(&self) -> Var<bool> {
         APP_PROCESS_SV.read().pause_time_for_updates.clone()
     }
 
@@ -1358,9 +1358,9 @@ app_local! {
 pub(super) struct AppProcessService {
     exit_requests: Option<ResponderVar<ExitCancelled>>,
     extensions: Option<Arc<AppExtensionsInfo>>,
-    pub(crate) device_events_filter: ArcVar<DeviceEventsFilter>,
-    pause_time_for_updates: ArcVar<bool>,
-    is_suspended: ArcVar<bool>,
+    pub(crate) device_events_filter: Var<DeviceEventsFilter>,
+    pause_time_for_updates: Var<bool>,
+    is_suspended: Var<bool>,
 }
 impl AppProcessService {
     pub(super) fn take_requests(&mut self) -> Option<ResponderVar<ExitCancelled>> {

@@ -872,7 +872,7 @@ pub fn actual_size(child: impl UiNode, size: impl IntoVar<DipSize>) -> impl UiNo
             let f = frame.scale_factor();
             let s = WIDGET.info().bounds_info().inner_size().to_dip(f);
             if size.get() != s {
-                let _ = size.set(s);
+                size.set(s);
             }
         }
         UiNodeOp::RenderUpdate { update } => {
@@ -882,7 +882,7 @@ pub fn actual_size(child: impl UiNode, size: impl IntoVar<DipSize>) -> impl UiNo
             let f = info.tree().scale_factor();
             let s = info.bounds_info().inner_size().to_dip(f);
             if size.get() != s {
-                let _ = size.set(s);
+                size.set(s);
             }
         }
         _ => {}
@@ -900,7 +900,7 @@ pub fn actual_width(child: impl UiNode, width: impl IntoVar<Dip>) -> impl UiNode
             let f = frame.scale_factor();
             let w = WIDGET.info().bounds_info().inner_size().width.to_dip(f);
             if width.get() != w {
-                let _ = width.set(w);
+                width.set(w);
             }
         }
         UiNodeOp::RenderUpdate { update } => {
@@ -910,7 +910,7 @@ pub fn actual_width(child: impl UiNode, width: impl IntoVar<Dip>) -> impl UiNode
             let f = info.tree().scale_factor();
             let w = info.bounds_info().inner_size().width.to_dip(f);
             if width.get() != w {
-                let _ = width.set(w);
+                width.set(w);
             }
         }
         _ => {}
@@ -928,7 +928,7 @@ pub fn actual_height(child: impl UiNode, height: impl IntoVar<Dip>) -> impl UiNo
             let f = frame.scale_factor();
             let h = WIDGET.info().bounds_info().inner_size().height.to_dip(f);
             if height.get() != h {
-                let _ = height.set(h);
+                height.set(h);
             }
         }
         UiNodeOp::RenderUpdate { update } => {
@@ -938,7 +938,7 @@ pub fn actual_height(child: impl UiNode, height: impl IntoVar<Dip>) -> impl UiNo
             let f = info.tree().scale_factor();
             let h = info.bounds_info().inner_size().height.to_dip(f);
             if height.get() != h {
-                let _ = height.set(h);
+                height.set(h);
             }
         }
         _ => {}
@@ -955,7 +955,7 @@ pub fn actual_size_px(child: impl UiNode, size: impl IntoVar<PxSize>) -> impl Ui
             let s = WIDGET.info().bounds_info().inner_size();
             if size.get() != s {
                 // avoid pushing var changes every frame.
-                let _ = size.set(s);
+                size.set(s);
             }
         }
         _ => {}
@@ -971,7 +971,7 @@ pub fn actual_width_px(child: impl UiNode, width: impl IntoVar<Px>) -> impl UiNo
             c.op(op);
             let w = WIDGET.info().bounds_info().inner_size().width;
             if width.get() != w {
-                let _ = width.set(w);
+                width.set(w);
             }
         }
         _ => {}
@@ -987,7 +987,7 @@ pub fn actual_height_px(child: impl UiNode, height: impl IntoVar<Px>) -> impl Ui
             c.op(op);
             let h = WIDGET.info().bounds_info().inner_size().height;
             if height.get() != h {
-                let _ = height.set(h);
+                height.set(h);
             }
         }
         _ => {}
@@ -1003,7 +1003,7 @@ pub fn actual_transform(child: impl UiNode, transform: impl IntoVar<PxTransform>
             c.op(op);
             let t = WIDGET.info().bounds_info().inner_transform();
             if transform.get() != t {
-                let _ = transform.set(t);
+                transform.set(t);
             }
         }
         _ => {}
@@ -1019,7 +1019,7 @@ pub fn actual_bounds(child: impl UiNode, bounds: impl IntoVar<PxRect>) -> impl U
             c.op(op);
             let t = WIDGET.info().bounds_info().inner_bounds();
             if bounds.get() != t {
-                let _ = bounds.set(t);
+                bounds.set(t);
             }
         }
         _ => {}

@@ -218,8 +218,7 @@ impl Text {
             });
 
             let text = if wgt.property(property_id!(Self::txt_parse)).is_some() {
-                wgt.capture_var(property_id!(Self::txt))
-                    .unwrap_or_else(|| var(Txt::from_str("")).boxed())
+                wgt.capture_var(property_id!(Self::txt)).unwrap_or_else(|| var(Txt::from_str("")))
             } else {
                 wgt.capture_var_or_default(property_id!(Self::txt))
             };

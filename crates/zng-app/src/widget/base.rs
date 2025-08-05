@@ -18,7 +18,7 @@ use crate::widget::{
     node::match_node,
     property,
 };
-use zng_var::{BoxedVar, IntoValue, context_var, impl_from_and_into_var};
+use zng_var::{IntoValue, Var, context_var, impl_from_and_into_var};
 
 /// Base widget.
 ///
@@ -88,7 +88,7 @@ impl WidgetBase {
     }
 
     /// Start building a `when` block, all properties set after this call are pushed in the when block.
-    pub fn start_when_block(&mut self, inputs: Box<[WhenInput]>, state: BoxedVar<bool>, expr: &'static str, location: SourceLocation) {
+    pub fn start_when_block(&mut self, inputs: Box<[WhenInput]>, state: Var<bool>, expr: &'static str, location: SourceLocation) {
         assert!(self.builder.get_mut().is_some(), "cannot start `when` after build");
         assert!(self.when.get_mut().is_none(), "cannot nest `when` blocks");
 
@@ -348,7 +348,7 @@ impl NonWidgetBase {
     }
 
     /// Start building a `when` block, all properties set after this call are pushed in the when block.
-    pub fn start_when_block(&mut self, inputs: Box<[WhenInput]>, state: BoxedVar<bool>, expr: &'static str, location: SourceLocation) {
+    pub fn start_when_block(&mut self, inputs: Box<[WhenInput]>, state: Var<bool>, expr: &'static str, location: SourceLocation) {
         self.base.start_when_block(inputs, state, expr, location)
     }
 
@@ -444,7 +444,6 @@ impl WidgetExt for NonWidgetBase {
 /// [`WidgetBase`]: struct@WidgetBase
 pub mod node {
     use zng_layout::unit::{PxCornerRadius, PxRect, PxSize};
-    use zng_var::Var;
 
     use crate::{
         render::{FrameBuilder, FrameUpdate, FrameValueKey},

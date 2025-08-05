@@ -2,7 +2,7 @@
 
 use parking_lot::Mutex;
 use std::{fmt, sync::Arc};
-use zng_var::AnyVarValue;
+use zng_var::BoxAnyVarValue;
 
 use zng_wgt::prelude::*;
 
@@ -68,7 +68,7 @@ impl SelectOp {
     }
 
     /// Select the `value`.
-    pub fn select(value: Box<dyn AnyVarValue>) -> Self {
+    pub fn select(value: BoxAnyVarValue) -> Self {
         let mut value = Some(value);
         Self::new(move || {
             if let Some(value) = value.take() {
@@ -80,7 +80,7 @@ impl SelectOp {
     }
 
     /// Deselect the `value`.
-    pub fn deselect(value: Box<dyn AnyVarValue>) -> Self {
+    pub fn deselect(value: BoxAnyVarValue) -> Self {
         Self::new(move || {
             if let Err(e) = SELECTOR.get().deselect(&*value) {
                 tracing::error!("deselect error: {e}");

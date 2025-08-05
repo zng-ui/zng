@@ -16,7 +16,7 @@ fn android() {
         let sysroot_libs_path = PathBuf::from(env::var_os("CARGO_NDK_SYSROOT_LIBS_PATH").unwrap());
         let lib_path = sysroot_libs_path.join("libc++_shared.so");
 
-        let output_path = Path::new(&output_path).join(env::var("CARGO_NDK_ANDROID_TARGET").unwrap());
+        let output_path = Path::new(&output_path).join(env::var("CARGO_NDK_ANDROID_PLATFORM").unwrap());
         let _ = fs::create_dir_all(&output_path);
         let output_path = output_path.join("libc++_shared.so");
         std::fs::copy(lib_path, &output_path).unwrap();

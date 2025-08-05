@@ -33,8 +33,7 @@ use zng_task::{
 use zng_txt::{ToTxt as _, Txt, formatx};
 use zng_unique_id::{IdMap, IdSet};
 use zng_var::{
-    AnyWeakVar, ArcVar, BoxedVar, LocalVar, ReadOnlyArcVar, ResponderVar, ResponseVar, Var, WeakVar, impl_from_and_into_var,
-    response_done_var, response_var, types::WeakArcVar, var,
+    ResponderVar, ResponseVar, Var, WeakVar, const_var, impl_from_and_into_var, response_done_var, response_var, var, var_default,
 };
 use zng_view_api::{
     DragDropId,
@@ -56,13 +55,13 @@ use crate::{
 
 app_local! {
     pub(super) static WINDOWS_SV: WindowsService = WindowsService::new();
-    static FOCUS_SV: BoxedVar<Option<InteractionPath>> = LocalVar(None).boxed();
+    static FOCUS_SV: Var<Option<InteractionPath>> = const_var(None);
 }
 pub(super) struct WindowsService {
-    exit_on_last_close: ArcVar<bool>,
-    default_render_mode: ArcVar<RenderMode>,
-    parallel: ArcVar<ParallelWin>,
-    system_chrome: ArcVar<ChromeConfig>,
+    exit_on_last_close: Var<bool>,
+    default_render_mode: Var<RenderMode>,
+    parallel: Var<ParallelWin>,
+    system_chrome: Var<ChromeConfig>,
     root_extenders: Mutex<Vec<Box<dyn FnMut(WindowRootExtenderArgs) -> BoxedUiNode + Send>>>, // Mutex for +Sync only.
     open_nested_handlers: Mutex<Vec<Box<dyn FnMut(&mut crate::OpenNestedHandlerArgs) + Send>>>,
 
@@ -80,7 +79,7 @@ pub(super) struct WindowsService {
     focus_request: Option<WindowId>,
     bring_to_top_requests: Vec<WindowId>,
 
-    frame_images: Vec<WeakArcVar<Img>>,
+    frame_images: Vec<WeakVar<Img>>,
 
     loading_deadline: Option<DeadlineHandle>,
     latest_colors_cfg: ColorsConfig,
@@ -91,11 +90,11 @@ impl WindowsService {
     fn new() -> Self {
         Self {
             exit_on_last_close: var(true),
-            default_render_mode: var(RenderMode::default()),
+            default_render_mode: var_default(),
             root_extenders: Mutex::new(vec![]),
             open_nested_handlers: Mutex::new(vec![]),
-            system_chrome: var(ChromeConfig::default()),
-            parallel: var(ParallelWin::default()),
+            system_chrome: var_default(),
+            parallel: var_default(),
             windows: IdMap::default(),
             windows_info: IdMap::default(),
             open_loading: IdMap::new(),
@@ -275,7 +274,7 @@ impl WINDOWS {
     /// Note that if [`APP.exit`](APP::exit) is requested directly the windows service will cancel it, request
     /// close for all headed and headless windows, and if all windows close request app exit again, independent
     /// of this setting.
-    pub fn exit_on_last_close(&self) -> ArcVar<bool> {
+    pub fn exit_on_last_close(&self) -> Var<bool> {
         WINDOWS_SV.read().exit_on_last_close.clone()
     }
 
@@ -283,7 +282,7 @@ impl WINDOWS {
     ///
     /// Note that this setting only affects windows opened after it is changed, also the view-process may select
     /// a different render mode if it cannot support the requested mode.
-    pub fn default_render_mode(&self) -> ArcVar<RenderMode> {
+    pub fn default_render_mode(&self) -> Var<RenderMode> {
         WINDOWS_SV.read().default_render_mode.clone()
     }
 
@@ -293,7 +292,7 @@ impl WINDOWS {
     /// within windows and widgets.
     ///
     /// See [`ParallelWin`] for the options.
-    pub fn parallel(&self) -> ArcVar<ParallelWin> {
+    pub fn parallel(&self) -> Var<ParallelWin> {
         WINDOWS_SV.read().parallel.clone()
     }
 
@@ -731,7 +730,7 @@ impl WINDOWS {
     /// in a [`register_root_extender`] to provide a custom fallback chrome.
     ///
     /// [`register_root_extender`]: Self::register_root_extender
-    pub fn system_chrome(&self) -> ReadOnlyArcVar<ChromeConfig> {
+    pub fn system_chrome(&self) -> Var<ChromeConfig> {
         WINDOWS_SV.read().system_chrome.read_only()
     }
 
@@ -1795,7 +1794,7 @@ pub trait WINDOW_Ext {
         let vars = WINDOW.vars();
         let access_enabled = &vars.0.access_enabled;
         if access_enabled.get().is_disabled() {
-            access_enabled.modify(|e| *e.to_mut() |= zng_app::widget::info::access::AccessEnabled::APP);
+            access_enabled.modify(|e| **e |= zng_app::widget::info::access::AccessEnabled::APP);
         }
     }
 
@@ -1938,11 +1937,11 @@ impl WINDOW_FOCUS {
     /// Setup a var that is controlled by the focus service and tracks the focused widget.
     ///
     /// This must be called by the focus implementation only.
-    pub fn hook_focus_service(&self, focused: BoxedVar<Option<InteractionPath>>) {
+    pub fn hook_focus_service(&self, focused: Var<Option<InteractionPath>>) {
         *FOCUS_SV.write() = focused;
     }
 
-    pub(crate) fn focused(&self) -> BoxedVar<Option<InteractionPath>> {
+    pub(crate) fn focused(&self) -> Var<Option<InteractionPath>> {
         FOCUS_SV.get()
     }
 }

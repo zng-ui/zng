@@ -60,23 +60,19 @@ fn on_build(wgt: &mut WidgetBuilding) {
 
     let orientation = wgt
         .capture_var(property_id!(orientation))
-        .unwrap_or_else(|| LineOrientation::Horizontal.into_var().boxed());
+        .unwrap_or_else(|| LineOrientation::Horizontal.into_var());
 
-    let length = wgt
-        .capture_var(property_id!(length))
-        .unwrap_or_else(|| LocalVar(Length::Default).boxed());
+    let length = wgt.capture_var(property_id!(length)).unwrap_or_else(|| const_var(Length::Default));
 
     let stroke_thickness = wgt
         .capture_var(property_id!(stroke_thickness))
-        .unwrap_or_else(|| LocalVar(Length::from(1)).boxed());
+        .unwrap_or_else(|| const_var(Length::from(1)));
 
-    let color = wgt
-        .capture_var(property_id!(color))
-        .unwrap_or_else(|| LocalVar(rgb(0, 0, 0)).boxed());
+    let color = wgt.capture_var(property_id!(color)).unwrap_or_else(|| const_var(rgb(0, 0, 0)));
 
     let style = wgt
         .capture_var(property_id!(line_style))
-        .unwrap_or_else(|| LineStyle::Solid.into_var().boxed());
+        .unwrap_or_else(|| LineStyle::Solid.into_var());
 
     wgt.set_child(match_node_leaf(move |op| match op {
         UiNodeOp::Init => {

@@ -376,7 +376,7 @@ pub fn get_img_layout_size(child: impl UiNode, state: impl IntoVar<PxSize>) -> i
         if let UiNodeOp::Layout { .. } = op {
             let size = CONTEXT_IMAGE_VAR.with(|img| img.layout_size(&LAYOUT.metrics()));
             if state.get() != size {
-                let _ = state.set(size);
+                state.set(size);
             }
         }
     })

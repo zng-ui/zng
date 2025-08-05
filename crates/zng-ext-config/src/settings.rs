@@ -8,7 +8,7 @@ use std::{any::TypeId, cmp::Ordering, mem, ops, sync::Arc};
 use zng_app_context::app_local;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zng_txt::Txt;
-use zng_var::{AnyVar, AnyVarHookArgs, AnyVarValue, BoxedAnyVar, BoxedVar, IntoVar, LocalVar, Var, impl_from_and_into_var, var};
+use zng_var::{AnyVar, AnyVarHookArgs, BoxAnyVarValue, IntoVar, Var, const_var, impl_from_and_into_var, var};
 
 use crate::{CONFIG, Config, ConfigKey, ConfigValue, FallbackConfigReset};
 
@@ -59,7 +59,7 @@ impl SETTINGS {
                     Category {
                         id: s.category.clone(),
                         order: u16::MAX,
-                        name: LocalVar(s.category.0.clone()).boxed(),
+                        name: const_var(s.category.0.clone()),
                         meta: Arc::new(OwnedStateMap::new()),
                     },
                     vec![s],
@@ -248,7 +248,7 @@ impl fmt::Display for CategoryId {
 pub struct Category {
     id: CategoryId,
     order: u16,
-    name: BoxedVar<Txt>,
+    name: Var<Txt>,
     meta: Arc<OwnedStateMap<Category>>,
 }
 impl Category {
@@ -265,7 +265,7 @@ impl Category {
     }
 
     /// Display name.
-    pub fn name(&self) -> &BoxedVar<Txt> {
+    pub fn name(&self) -> &Var<Txt> {
         &self.name
     }
 
@@ -279,7 +279,7 @@ impl Category {
         Self {
             id: missing.clone(),
             order: u16::MAX,
-            name: LocalVar(missing.0).boxed(),
+            name: const_var(missing.0),
             meta: Arc::default(),
         }
     }
@@ -298,18 +298,18 @@ impl fmt::Debug for Category {
 
 #[cfg(test)]
 fn _setting_in_var(s: Setting) {
-    let _x = LocalVar(s).get();
+    let _x = const_var(s).get();
 }
 
 /// Setting entry.
 pub struct Setting {
     key: ConfigKey,
     order: u16,
-    name: BoxedVar<Txt>,
-    description: BoxedVar<Txt>,
+    name: Var<Txt>,
+    description: Var<Txt>,
     category: CategoryId,
     meta: Arc<OwnedStateMap<Setting>>,
-    value: BoxedAnyVar,
+    value: AnyVar,
     value_type: TypeId,
     reset: Arc<dyn SettingReset>,
 }
@@ -342,11 +342,11 @@ impl Setting {
     }
 
     /// Display name.
-    pub fn name(&self) -> &BoxedVar<Txt> {
+    pub fn name(&self) -> &Var<Txt> {
         &self.name
     }
     /// Short help text.
-    pub fn description(&self) -> &BoxedVar<Txt> {
+    pub fn description(&self) -> &Var<Txt> {
         &self.description
     }
     /// Settings category.
@@ -368,7 +368,7 @@ impl Setting {
     }
 
     /// Config value.
-    pub fn value(&self) -> &BoxedAnyVar {
+    pub fn value(&self) -> &AnyVar {
         &self.value
     }
 
@@ -378,17 +378,17 @@ impl Setting {
     }
 
     /// Config value, strongly typed.
-    pub fn value_downcast<T: ConfigValue>(&self) -> Option<BoxedVar<T>> {
+    pub fn value_downcast<T: ConfigValue>(&self) -> Option<Var<T>> {
         if self.value_type == std::any::TypeId::of::<T>() {
-            let v = self.value.clone().double_boxed_any().downcast::<BoxedVar<T>>().unwrap();
-            Some(*v)
+            let v = self.value.clone().downcast::<T>().unwrap_or_else(|_| panic!());
+            Some(v)
         } else {
             None
         }
     }
 
     /// Gets a variable that indicates the current setting value is not the default.
-    pub fn can_reset(&self) -> BoxedVar<bool> {
+    pub fn can_reset(&self) -> Var<bool> {
         self.reset.can_reset(&self.key, &self.value)
     }
 
@@ -511,10 +511,10 @@ pub struct SettingBuilder<'a> {
     config_key: ConfigKey,
     category_id: CategoryId,
     order: u16,
-    name: Option<BoxedVar<Txt>>,
-    description: Option<BoxedVar<Txt>>,
+    name: Option<Var<Txt>>,
+    description: Option<Var<Txt>>,
     meta: OwnedStateMap<Setting>,
-    value: Option<(BoxedAnyVar, TypeId)>,
+    value: Option<(AnyVar, TypeId)>,
     reset: Option<Arc<dyn SettingReset>>,
 }
 impl SettingBuilder<'_> {
@@ -537,13 +537,13 @@ impl SettingBuilder<'_> {
 
     /// Set the setting name.
     pub fn name(&mut self, name: impl IntoVar<Txt>) -> &mut Self {
-        self.name = Some(name.into_var().read_only().boxed());
+        self.name = Some(name.into_var().read_only());
         self
     }
 
     /// Set the setting short help text.
     pub fn description(&mut self, description: impl IntoVar<Txt>) -> &mut Self {
-        self.description = Some(description.into_var().read_only().boxed());
+        self.description = Some(description.into_var().read_only());
         self
     }
 
@@ -572,7 +572,7 @@ impl SettingBuilder<'_> {
     /// Set the value variable from a different config.
     pub fn cfg_value<T: ConfigValue>(&mut self, cfg: &mut impl Config, default: T) -> &mut Self {
         let value = cfg.get(self.config_key.clone(), default, false);
-        self.value = Some((value.boxed_any(), TypeId::of::<T>()));
+        self.value = Some((value.into(), TypeId::of::<T>()));
         self
     }
 
@@ -595,7 +595,7 @@ impl SettingBuilder<'_> {
     ///
     /// The default value is set on the config to reset.
     pub fn default<T: ConfigValue>(&mut self, default: T) -> &mut Self {
-        let reset: Box<dyn AnyVarValue> = Box::new(default);
+        let reset = BoxAnyVarValue::new(default);
         self.reset = Some(Arc::new(reset));
         self
     }
@@ -605,12 +605,12 @@ impl Drop for SettingBuilder<'_> {
         let (cfg, cfg_type) = self
             .value
             .take()
-            .unwrap_or_else(|| (LocalVar(SettingValueNotSet).boxed_any(), TypeId::of::<SettingValueNotSet>()));
+            .unwrap_or_else(|| (const_var(SettingValueNotSet).into(), TypeId::of::<SettingValueNotSet>()));
         self.settings.push(Setting {
             key: mem::take(&mut self.config_key),
             order: self.order,
-            name: self.name.take().unwrap_or_else(|| var(Txt::from_static("")).boxed()),
-            description: self.description.take().unwrap_or_else(|| var(Txt::from_static("")).boxed()),
+            name: self.name.take().unwrap_or_else(|| var(Txt::from_static(""))),
+            description: self.description.take().unwrap_or_else(|| var(Txt::from_static(""))),
             category: mem::take(&mut self.category_id),
             meta: Arc::new(mem::take(&mut self.meta)),
             value: cfg,
@@ -673,7 +673,7 @@ pub struct CategoryBuilder<'a> {
     categories: &'a mut Vec<Category>,
     category_id: CategoryId,
     order: u16,
-    name: Option<BoxedVar<Txt>>,
+    name: Option<Var<Txt>>,
     meta: OwnedStateMap<Category>,
 }
 impl CategoryBuilder<'_> {
@@ -692,7 +692,7 @@ impl CategoryBuilder<'_> {
 
     /// Set the category name.
     pub fn name(&mut self, name: impl IntoVar<Txt>) -> &mut Self {
-        self.name = Some(name.into_var().read_only().boxed());
+        self.name = Some(name.into_var().read_only());
         self
     }
 
@@ -718,14 +718,14 @@ impl Drop for CategoryBuilder<'_> {
         self.categories.push(Category {
             id: mem::take(&mut self.category_id),
             order: self.order,
-            name: self.name.take().unwrap_or_else(|| var(Txt::from_static("")).boxed()),
+            name: self.name.take().unwrap_or_else(|| var(Txt::from_static(""))),
             meta: Arc::new(mem::take(&mut self.meta)),
         })
     }
 }
 trait SettingReset: Send + Sync + 'static {
-    fn can_reset(&self, key: &ConfigKey, value: &BoxedAnyVar) -> BoxedVar<bool>;
-    fn reset(&self, key: &ConfigKey, value: &BoxedAnyVar);
+    fn can_reset(&self, key: &ConfigKey, value: &AnyVar) -> Var<bool>;
+    fn reset(&self, key: &ConfigKey, value: &AnyVar);
 }
 
 struct FallbackReset {
@@ -734,47 +734,44 @@ struct FallbackReset {
 }
 
 impl SettingReset for FallbackReset {
-    fn can_reset(&self, key: &ConfigKey, _: &BoxedAnyVar) -> BoxedVar<bool> {
+    fn can_reset(&self, key: &ConfigKey, _: &AnyVar) -> Var<bool> {
         match key.strip_prefix(self.strip_key_prefix.as_str()) {
             Some(k) => self.resetter.can_reset(ConfigKey::from_str(k)),
             None => self.resetter.can_reset(key.clone()),
         }
     }
 
-    fn reset(&self, key: &ConfigKey, _: &BoxedAnyVar) {
+    fn reset(&self, key: &ConfigKey, _: &AnyVar) {
         match key.strip_prefix(self.strip_key_prefix.as_str()) {
             Some(k) => self.resetter.reset(&ConfigKey::from_str(k)),
             None => self.resetter.reset(key),
         }
     }
 }
-impl SettingReset for Box<dyn AnyVarValue> {
-    fn can_reset(&self, _: &ConfigKey, value: &BoxedAnyVar) -> BoxedVar<bool> {
-        let mut initial = false;
-        value.with_any(&mut |v| {
-            initial = v.eq_any(&**self);
-        });
+impl SettingReset for BoxAnyVarValue {
+    fn can_reset(&self, _: &ConfigKey, value: &AnyVar) -> Var<bool> {
+        let initial = value.with(|v| v.eq_any(&**self));
         let map = var(initial);
 
         let map_in = map.clone();
-        let dft = self.clone_boxed();
+        let dft = (*self).clone_boxed();
         value
-            .hook_any(Box::new(move |args: &AnyVarHookArgs| {
+            .hook(move |args: &AnyVarHookArgs| {
                 map_in.set(args.value().eq_any(&*dft));
                 true
-            }))
+            })
             .perm();
 
-        map.clone().boxed()
+        map.clone()
     }
 
-    fn reset(&self, _: &ConfigKey, value: &BoxedAnyVar) {
-        let _ = value.set_any(self.clone_boxed());
+    fn reset(&self, _: &ConfigKey, value: &AnyVar) {
+        value.set((*self).clone_boxed());
     }
 }
 impl SettingReset for SettingValueNotSet {
-    fn can_reset(&self, _: &ConfigKey, _: &BoxedAnyVar) -> BoxedVar<bool> {
-        LocalVar(false).boxed()
+    fn can_reset(&self, _: &ConfigKey, _: &AnyVar) -> Var<bool> {
+        const_var(false)
     }
-    fn reset(&self, _: &ConfigKey, _: &BoxedAnyVar) {}
+    fn reset(&self, _: &ConfigKey, _: &AnyVar) {}
 }

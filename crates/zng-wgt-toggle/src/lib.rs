@@ -23,7 +23,7 @@ use zng_ext_input::{
     pointer_capture::CaptureMode,
 };
 use zng_ext_l10n::lang;
-use zng_var::{AnyVar, AnyVarValue, BoxedAnyVar, Var, VarIsReadOnlyError};
+use zng_var::{AnyVar, AnyVarValue, BoxAnyVarValue, Var, VarIsReadOnlyError};
 use zng_wgt::{ICONS, Wgt, align, border, border_align, border_over, corner_radius, hit_test_mode, is_inited, prelude::*};
 use zng_wgt_access::{AccessRole, access_role, accessible};
 use zng_wgt_container::{child_align, child_end, child_start, padding};
@@ -107,20 +107,20 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
                     {
                         args.propagation().stop();
 
-                        let _ = checked.set(!checked.get());
+                        checked.set(!checked.get());
                     }
                 } else if let Some(args) = cmd::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                     if let Some(b) = args.param::<bool>() {
                         args.propagation().stop();
-                        let _ = checked.set(*b);
+                        checked.set(*b);
                     } else if let Some(b) = args.param::<Option<bool>>() {
                         if let Some(b) = b {
                             args.propagation().stop();
-                            let _ = checked.set(*b);
+                            checked.set(*b);
                         }
                     } else if args.param.is_none() {
                         args.propagation().stop();
-                        let _ = checked.set(!checked.get());
+                        checked.set(!checked.get());
                     }
                 }
             }
@@ -175,14 +175,14 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
                 } else if let Some(args) = cmd::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                     if let Some(b) = args.param::<bool>() {
                         args.propagation().stop();
-                        let _ = checked.set(Some(*b));
+                        checked.set(Some(*b));
                     } else if let Some(b) = args.param::<Option<bool>>() {
                         if IS_TRISTATE_VAR.get() {
                             args.propagation().stop();
-                            let _ = checked.set(*b);
+                            checked.set(*b);
                         } else if let Some(b) = b {
                             args.propagation().stop();
-                            let _ = checked.set(Some(*b));
+                            checked.set(Some(*b));
                         }
                     } else if args.param.is_none() {
                         args.propagation().stop();
@@ -193,13 +193,13 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
 
                 if cycle {
                     if IS_TRISTATE_VAR.get() {
-                        let _ = checked.set(match checked.get() {
+                        checked.set(match checked.get() {
                             Some(true) => None,
                             Some(false) => Some(true),
                             None => Some(false),
                         });
                     } else {
-                        let _ = checked.set(match checked.get() {
+                        checked.set(match checked.get() {
                             Some(true) | None => Some(false),
                             Some(false) => Some(true),
                         });
@@ -254,9 +254,9 @@ pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// [`selector`]: fn@selector
 #[property(CONTEXT+2, widget_impl(Toggle))]
 pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
-    value_impl(child, value.into_var().boxed_any())
+    value_impl(child, value.into_var().into())
 }
-fn value_impl(child: impl UiNode, value: BoxedAnyVar) -> impl UiNode {
+fn value_impl(child: impl UiNode, value: AnyVar) -> impl UiNode {
     // Returns `true` if selected.
     fn select(value: &dyn AnyVarValue) -> bool {
         let selector = SELECTOR.get();
@@ -299,7 +299,7 @@ fn value_impl(child: impl UiNode, value: BoxedAnyVar) -> impl UiNode {
 
     let checked = var(Some(false));
     let child = with_context_var(child, IS_CHECKED_VAR, checked.clone());
-    let mut prev_value = None::<Box<dyn AnyVarValue>>;
+    let mut prev_value = None::<BoxAnyVarValue>;
 
     let mut _click_handle = None;
     let mut _toggle_handle = CommandHandle::dummy();
@@ -311,7 +311,7 @@ fn value_impl(child: impl UiNode, value: BoxedAnyVar) -> impl UiNode {
             WIDGET.sub_var(&value).sub_var(&DESELECT_ON_NEW_VAR).sub_var(&checked);
             SELECTOR.get().subscribe();
 
-            value.with_any(&mut |value| {
+            value.with(|value| {
                 let selected = if SELECT_ON_INIT_VAR.get() {
                     select(value)
                 } else {
@@ -330,7 +330,7 @@ fn value_impl(child: impl UiNode, value: BoxedAnyVar) -> impl UiNode {
         }
         UiNodeOp::Deinit => {
             if checked.get() == Some(true) && DESELECT_ON_DEINIT_VAR.get() {
-                value.with_any(&mut |value| {
+                value.with(|value| {
                     if deselect(value) {
                         checked.set(Some(false));
                     }
@@ -349,7 +349,7 @@ fn value_impl(child: impl UiNode, value: BoxedAnyVar) -> impl UiNode {
                 if args.is_primary() && !args.propagation().is_stopped() && args.target.contains_enabled(WIDGET.id()) {
                     args.propagation().stop();
 
-                    value.with_any(&mut |value| {
+                    value.with(|value| {
                         let selected = if checked.get() == Some(true) {
                             !deselect(value)
                         } else {
@@ -362,7 +362,7 @@ fn value_impl(child: impl UiNode, value: BoxedAnyVar) -> impl UiNode {
                 if args.param.is_none() {
                     args.propagation().stop();
 
-                    value.with_any(&mut |value| {
+                    value.with(|value| {
                         let selected = if checked.get() == Some(true) {
                             !deselect(value)
                         } else {
@@ -379,7 +379,7 @@ fn value_impl(child: impl UiNode, value: BoxedAnyVar) -> impl UiNode {
                     if let Some(s) = s {
                         args.propagation().stop();
 
-                        value.with_any(&mut |value| {
+                        value.with(|value| {
                             let selected = if s { select(value) } else { !deselect(value) };
                             checked.set(Some(selected))
                         });
@@ -388,7 +388,7 @@ fn value_impl(child: impl UiNode, value: BoxedAnyVar) -> impl UiNode {
             } else if let Some(args) = cmd::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                 if args.param.is_none() {
                     args.propagation().stop();
-                    value.with_any(&mut |value| {
+                    value.with(|value| {
                         let selected = checked.get() == Some(true);
                         if !selected && select(value) {
                             checked.set(Some(true));
@@ -399,7 +399,7 @@ fn value_impl(child: impl UiNode, value: BoxedAnyVar) -> impl UiNode {
         }
         UiNodeOp::Update { .. } => {
             let mut selected = None;
-            value.with_new_any(&mut |new| {
+            value.with_new(|new| {
                 // auto select new.
                 selected = Some(if checked.get() == Some(true) && SELECT_ON_NEW_VAR.get() {
                     select(new)
@@ -418,7 +418,7 @@ fn value_impl(child: impl UiNode, value: BoxedAnyVar) -> impl UiNode {
             let selected = selected.unwrap_or_else(|| {
                 // contextual selector can change in any update.
                 let mut s = false;
-                value.with_any(&mut |v| {
+                value.with(|v| {
                     s = is_selected(v);
                 });
                 s
@@ -428,7 +428,7 @@ fn value_impl(child: impl UiNode, value: BoxedAnyVar) -> impl UiNode {
             if DESELECT_ON_NEW_VAR.get() && selected {
                 // save a clone of the value to reference it on deselection triggered by variable value changing.
                 if prev_value.is_none() {
-                    prev_value = Some(value.get_any());
+                    prev_value = Some(value.get());
                 }
             } else {
                 prev_value = None;
@@ -586,7 +586,7 @@ pub trait SelectorImpl: Send + 'static {
     fn subscribe(&self);
 
     /// Insert the `value` in the selection, returns `Ok(())` if the value was inserted or was already selected.
-    fn select(&mut self, value: Box<dyn AnyVarValue>) -> Result<(), SelectorError>;
+    fn select(&mut self, value: BoxAnyVarValue) -> Result<(), SelectorError>;
 
     /// Remove the `value` from the selection, returns `Ok(())` if the value was removed or was not selected.
     fn deselect(&mut self, value: &dyn AnyVarValue) -> Result<(), SelectorError>;
@@ -615,7 +615,7 @@ impl Selector {
         impl SelectorImpl for NilSel {
             fn subscribe(&self) {}
 
-            fn select(&mut self, _: Box<dyn AnyVarValue>) -> Result<(), SelectorError> {
+            fn select(&mut self, _: BoxAnyVarValue) -> Result<(), SelectorError> {
                 Err(SelectorError::custom_str("no contextual `selector`"))
             }
 
@@ -635,22 +635,18 @@ impl Selector {
     where
         T: VarValue,
     {
-        struct SingleSel<T, S> {
-            selection: S,
+        struct SingleSel<T: VarValue> {
+            selection: Var<T>,
             _type: PhantomData<T>,
         }
-        impl<T, S> SelectorImpl for SingleSel<T, S>
-        where
-            T: VarValue,
-            S: Var<T>,
-        {
+        impl<T: VarValue> SelectorImpl for SingleSel<T> {
             fn subscribe(&self) {
                 WIDGET.sub_var(&self.selection);
             }
 
-            fn select(&mut self, value: Box<dyn AnyVarValue>) -> Result<(), SelectorError> {
-                match value.into_any().downcast::<T>() {
-                    Ok(value) => match self.selection.set(*value) {
+            fn select(&mut self, value: BoxAnyVarValue) -> Result<(), SelectorError> {
+                match value.downcast::<T>() {
+                    Ok(value) => match self.selection.try_set(value) {
                         Ok(_) => Ok(()),
                         Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                     },
@@ -667,7 +663,7 @@ impl Selector {
             }
 
             fn is_selected(&self, value: &dyn AnyVarValue) -> bool {
-                match value.as_any().downcast_ref::<T>() {
+                match value.downcast_ref::<T>() {
                     Some(value) => self.selection.with(|t| t == value),
                     None => false,
                 }
@@ -684,27 +680,23 @@ impl Selector {
     where
         T: VarValue,
     {
-        struct SingleOptSel<T, S> {
-            selection: S,
+        struct SingleOptSel<T: VarValue> {
+            selection: Var<Option<T>>,
             _type: PhantomData<T>,
         }
-        impl<T, S> SelectorImpl for SingleOptSel<T, S>
-        where
-            T: VarValue,
-            S: Var<Option<T>>,
-        {
+        impl<T: VarValue> SelectorImpl for SingleOptSel<T> {
             fn subscribe(&self) {
                 WIDGET.sub_var(&self.selection);
             }
 
-            fn select(&mut self, value: Box<dyn AnyVarValue>) -> Result<(), SelectorError> {
-                match value.into_any().downcast::<T>() {
-                    Ok(value) => match self.selection.set(Some(*value)) {
+            fn select(&mut self, value: BoxAnyVarValue) -> Result<(), SelectorError> {
+                match value.downcast::<T>() {
+                    Ok(value) => match self.selection.try_set(Some(value)) {
                         Ok(_) => Ok(()),
                         Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                     },
                     Err(value) => match value.downcast::<Option<T>>() {
-                        Ok(value) => match self.selection.set(*value) {
+                        Ok(value) => match self.selection.try_set(value) {
                             Ok(_) => Ok(()),
                             Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                         },
@@ -714,10 +706,10 @@ impl Selector {
             }
 
             fn deselect(&mut self, value: &dyn AnyVarValue) -> Result<(), SelectorError> {
-                match value.as_any().downcast_ref::<T>() {
+                match value.downcast_ref::<T>() {
                     Some(value) => {
                         if self.selection.with(|t| t.as_ref() == Some(value)) {
-                            match self.selection.set(None) {
+                            match self.selection.try_set(None) {
                                 Ok(_) => Ok(()),
                                 Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                             }
@@ -725,13 +717,13 @@ impl Selector {
                             Ok(())
                         }
                     }
-                    None => match value.as_any().downcast_ref::<Option<T>>() {
+                    None => match value.downcast_ref::<Option<T>>() {
                         Some(value) => {
                             if self.selection.with(|t| t == value) {
                                 if value.is_none() {
                                     Ok(())
                                 } else {
-                                    match self.selection.set(None) {
+                                    match self.selection.try_set(None) {
                                         Ok(_) => Ok(()),
                                         Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                                     }
@@ -746,9 +738,9 @@ impl Selector {
             }
 
             fn is_selected(&self, value: &dyn AnyVarValue) -> bool {
-                match value.as_any().downcast_ref::<T>() {
+                match value.downcast_ref::<T>() {
                     Some(value) => self.selection.with(|t| t.as_ref() == Some(value)),
-                    None => match value.as_any().downcast_ref::<Option<T>>() {
+                    None => match value.downcast_ref::<Option<T>>() {
                         Some(value) => self.selection.with(|t| t == value),
                         None => false,
                     },
@@ -766,27 +758,25 @@ impl Selector {
     where
         T: VarValue + ops::BitOr<Output = T> + ops::BitAnd<Output = T> + ops::Not<Output = T>,
     {
-        struct BitflagsSel<T, S> {
-            selection: S,
+        struct BitflagsSel<T: VarValue> {
+            selection: Var<T>,
             _type: PhantomData<T>,
         }
-        impl<T, S> SelectorImpl for BitflagsSel<T, S>
+        impl<T> SelectorImpl for BitflagsSel<T>
         where
             T: VarValue + ops::BitOr<Output = T> + ops::BitAnd<Output = T> + ops::Not<Output = T>,
-            S: Var<T>,
         {
             fn subscribe(&self) {
                 WIDGET.sub_var(&self.selection);
             }
 
-            fn select(&mut self, value: Box<dyn AnyVarValue>) -> Result<(), SelectorError> {
-                match value.into_any().downcast::<T>() {
+            fn select(&mut self, value: BoxAnyVarValue) -> Result<(), SelectorError> {
+                match value.downcast::<T>() {
                     Ok(value) => self
                         .selection
-                        .modify(move |m| {
-                            let value = *value;
-                            let new = m.as_ref().clone() | value;
-                            if m.as_ref() != &new {
+                        .try_modify(move |m| {
+                            let new = m.clone() | value;
+                            if m.value() != &new {
                                 m.set(new);
                             }
                         })
@@ -796,12 +786,12 @@ impl Selector {
             }
 
             fn deselect(&mut self, value: &dyn AnyVarValue) -> Result<(), SelectorError> {
-                match value.as_any().downcast_ref::<T>() {
+                match value.downcast_ref::<T>() {
                     Some(value) => self
                         .selection
-                        .modify(clmv!(value, |m| {
-                            let new = m.as_ref().clone() & !value;
-                            if m.as_ref() != &new {
+                        .try_modify(clmv!(value, |m| {
+                            let new = m.value().clone() & !value;
+                            if m.value() != &new {
                                 m.set(new);
                             }
                         }))
@@ -811,7 +801,7 @@ impl Selector {
             }
 
             fn is_selected(&self, value: &dyn AnyVarValue) -> bool {
-                match value.as_any().downcast_ref::<T>() {
+                match value.downcast_ref::<T>() {
                     Some(value) => &(self.selection.get() & value.clone()) == value,
                     None => false,
                 }
@@ -832,7 +822,7 @@ impl Selector {
     }
 
     /// Insert the `value` in the selection, returns `Ok(())` if the value was inserted or was already selected.
-    pub fn select(&self, value: Box<dyn AnyVarValue>) -> Result<(), SelectorError> {
+    pub fn select(&self, value: BoxAnyVarValue) -> Result<(), SelectorError> {
         self.0.lock().select(value)
     }
 
@@ -983,7 +973,7 @@ pub fn check_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
     with_context_var(child, CHECK_SPACING_VAR, spacing)
 }
 
-fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
+fn checkmark_visual(parent_hovered: Var<bool>) -> impl UiNode {
     let checked = ICONS.get_or(["toggle.checked", "check"], || {
         zng_wgt_text::Text! {
             txt = "✓";
@@ -1275,7 +1265,7 @@ pub fn switch_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl
     with_context_var(child, SWITCH_SPACING_VAR, spacing)
 }
 
-fn switch_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
+fn switch_visual(parent_hovered: Var<bool>) -> impl UiNode {
     zng_wgt_container::Container! {
         hit_test_mode = false;
         size = (2.em(), 1.em());
@@ -1342,7 +1332,7 @@ pub fn radio_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
     with_context_var(child, RADIO_SPACING_VAR, spacing)
 }
 
-fn radio_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
+fn radio_visual(parent_hovered: Var<bool>) -> impl UiNode {
     Wgt! {
         hit_test_mode = false;
         size = 0.9.em();

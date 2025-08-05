@@ -17,7 +17,7 @@ use zng_ext_window::{
     FrameImageReadyArgs, HeadlessMonitor, RenderMode, StartPosition, WINDOW_Ext as _, WindowChangedArgs, WindowCloseArgs,
     WindowCloseRequestedArgs, WindowOpenArgs, WindowRoot,
 };
-use zng_var::types::ContextualizedVar;
+use zng_var::contextual_var;
 use zng_wgt::{is_mobile, prelude::*};
 use zng_wgt_fill::background_color;
 use zng_wgt_input::focus::{
@@ -50,7 +50,7 @@ impl Window {
             self;
 
             // set the root font size
-            font_size = FONT_SIZE_VAR.boxed();
+            font_size = FONT_SIZE_VAR;
 
             // optimization, actualize mapping context-vars early, see `context_var!` docs.
             zng_wgt_text::font_palette = zng_wgt_text::FONT_PALETTE_VAR;
@@ -73,17 +73,17 @@ impl Window {
             config_block_window_load = true;
             save_state = SaveState::enabled();
 
-            padding = ContextualizedVar::new(|| WINDOW.vars().safe_padding().map(|p| SideOffsets::from(*p)));
+            padding = contextual_var(|| WINDOW.vars().safe_padding().map(|p| SideOffsets::from(*p)));
 
             when #is_mobile {
                 // users tap the main background to dismiss `TextInput!` soft keyboard
                 focus_scope_behavior = FocusScopeOnFocus::Widget;
-                font_size = FONT_SIZE_VAR.map(|f| f.clone() * 1.5.fct()).boxed();
+                font_size = FONT_SIZE_VAR.map(|f| f.clone() * 1.5.fct());
             }
 
             when #needs_fallback_chrome {
                 custom_chrome_adorner_fn = wgt_fn!(|_| { fallback_chrome() });
-                custom_chrome_padding_fn = ContextualizedVar::new(|| {
+                custom_chrome_padding_fn = contextual_var(|| {
                     let vars = WINDOW.vars();
                     expr_var! {
                         let title_padding = SideOffsets::new(28, 0, 0, 0);

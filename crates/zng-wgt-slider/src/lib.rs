@@ -22,7 +22,7 @@ use zng_ext_input::{
     pointer_capture::CaptureMode,
     touch::{TOUCH_INPUT_EVENT, TouchPhase},
 };
-use zng_var::{AnyVar, AnyVarValue, BoxedAnyVar};
+use zng_var::{AnyVar, AnyVarValue};
 use zng_wgt::prelude::*;
 use zng_wgt_input::{focus::FocusableMix, pointer_capture::capture_pointer};
 use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
@@ -67,8 +67,8 @@ impl DefaultStyle {
 }
 
 trait SelectorImpl: Send {
-    fn selection(&self) -> BoxedAnyVar;
-    fn thumbs(&self) -> BoxedVar<Vec<ThumbValue>>;
+    fn selection(&self) -> AnyVar;
+    fn thumbs(&self) -> Var<Vec<ThumbValue>>;
     fn set(&self, nearest: Factor, to: Factor);
 
     fn to_offset(&self, t: &dyn AnyVarValue) -> Option<Factor>;
@@ -98,7 +98,7 @@ impl<T, Tf: Fn(&T) -> Factor + Send + Sync, Ff: Fn(Factor) -> T + Send + Sync> O
 /// can declare custom conversions using [`Selector::value`].
 pub trait SelectorValue: VarValue {
     /// Make the selector.
-    fn to_selector(value: BoxedVar<Self>, min: Self, max: Self) -> Selector;
+    fn to_selector(value: Var<Self>, min: Self, max: Self) -> Selector;
 }
 
 /// Defines the values and ranges selected by a slider.
@@ -119,7 +119,7 @@ impl PartialEq for Selector {
 impl Selector {
     /// New with single value thumb of type `T` that can be set any value in the `min..=max` range.
     pub fn value<T: SelectorValue>(selection: impl IntoVar<T>, min: T, max: T) -> Self {
-        T::to_selector(selection.into_var().boxed(), min, max)
+        T::to_selector(selection.into_var(), min, max)
     }
 
     /// New with a single value thumb of type `T`.
@@ -134,26 +134,26 @@ impl Selector {
     where
         T: VarValue,
     {
-        struct SingleImpl<T> {
-            selection: BoxedVar<T>,
-            thumbs: BoxedVar<Vec<ThumbValue>>,
+        struct SingleImpl<T: VarValue> {
+            selection: Var<T>,
+            thumbs: Var<Vec<ThumbValue>>,
             to_from: Arc<dyn OffsetConvert<T>>,
         }
         impl<T: VarValue> SelectorImpl for SingleImpl<T> {
-            fn selection(&self) -> BoxedAnyVar {
-                self.selection.clone_any()
+            fn selection(&self) -> AnyVar {
+                self.selection.as_any().clone()
             }
 
             fn set(&self, _: Factor, to: Factor) {
-                let _ = self.selection.set(self.to_from.from(to));
+                self.selection.set(self.to_from.from(to));
             }
 
-            fn thumbs(&self) -> BoxedVar<Vec<ThumbValue>> {
+            fn thumbs(&self) -> Var<Vec<ThumbValue>> {
                 self.thumbs.clone()
             }
 
             fn to_offset(&self, t: &dyn AnyVarValue) -> Option<Factor> {
-                let f = self.to_from.to(t.as_any().downcast_ref::<T>()?);
+                let f = self.to_from.to(t.downcast_ref::<T>()?);
                 Some(f)
             }
 
@@ -168,8 +168,8 @@ impl Selector {
             n_of: (0, 1)
         }]));
         Self(Arc::new(Mutex::new(SingleImpl {
-            thumbs: thumbs.boxed(),
-            selection: selection.boxed(),
+            thumbs,
+            selection,
             to_from,
         })))
     }
@@ -177,7 +177,7 @@ impl Selector {
     /// New with many value thumbs of type `T` that can be set any value in the `min..=max` range.
     pub fn many<T: SelectorValue>(many: impl IntoVar<Vec<T>>, min: T, max: T) -> Self {
         // create a selector just to get the conversion closures
-        let convert = T::to_selector(zng_var::LocalVar(min.clone()).boxed(), min, max);
+        let convert = T::to_selector(zng_var::const_var(min.clone()), min, max);
         Self::many_with(many.into_var(), clmv!(convert, |t| convert.to_offset(t).unwrap()), move |f| {
             convert.from_offset(f).unwrap()
         })
@@ -196,14 +196,14 @@ impl Selector {
     where
         T: VarValue,
     {
-        struct ManyImpl<T> {
-            selection: BoxedVar<Vec<T>>,
-            thumbs: BoxedVar<Vec<ThumbValue>>,
+        struct ManyImpl<T: VarValue> {
+            selection: Var<Vec<T>>,
+            thumbs: Var<Vec<ThumbValue>>,
             to_from: Arc<dyn OffsetConvert<T>>,
         }
         impl<T: VarValue> SelectorImpl for ManyImpl<T> {
-            fn selection(&self) -> BoxedAnyVar {
-                self.selection.clone_any()
+            fn selection(&self) -> AnyVar {
+                self.selection.as_any().clone()
             }
 
             fn set(&self, from: Factor, to: Factor) {
@@ -238,15 +238,15 @@ impl Selector {
                     selection.insert(insert_i, to_value)
                 }
 
-                let _ = self.selection.set(selection);
+                self.selection.set(selection);
             }
 
-            fn thumbs(&self) -> BoxedVar<Vec<ThumbValue>> {
+            fn thumbs(&self) -> Var<Vec<ThumbValue>> {
                 self.thumbs.clone()
             }
 
             fn to_offset(&self, t: &dyn AnyVarValue) -> Option<Factor> {
-                let f = self.to_from.to(t.as_any().downcast_ref::<T>()?);
+                let f = self.to_from.to(t.downcast_ref::<T>()?);
                 Some(f)
             }
 
@@ -270,8 +270,8 @@ impl Selector {
         }));
 
         Self(Arc::new(Mutex::new(ManyImpl {
-            selection: selection.boxed(),
-            thumbs: thumbs.boxed(),
+            selection,
+            thumbs,
             to_from,
         })))
     }
@@ -306,14 +306,14 @@ impl Selector {
     /// The selection var.
     ///
     /// Downcast to `T`' or `Vec<T>` to get and set the value.
-    pub fn selection(&self) -> BoxedAnyVar {
+    pub fn selection(&self) -> AnyVar {
         self.0.lock().selection()
     }
 
     /// Read-only variable mapped from the [`selection`].
     ///
     /// [`selection`]: Self::selection
-    pub fn thumbs(&self) -> BoxedVar<Vec<ThumbValue>> {
+    pub fn thumbs(&self) -> Var<Vec<ThumbValue>> {
         self.0.lock().thumbs()
     }
 }
@@ -373,11 +373,11 @@ pub fn thumb_fn(child: impl UiNode, thumb: impl IntoVar<WidgetFn<ThumbArgs>>) ->
 
 /// Arguments for a slider thumb widget generator.
 pub struct ThumbArgs {
-    thumb: BoxedVar<ThumbValue>,
+    thumb: Var<ThumbValue>,
 }
 impl ThumbArgs {
     /// Variable with the thumb value that must be represented by the widget.
-    pub fn thumb(&self) -> BoxedVar<ThumbValue> {
+    pub fn thumb(&self) -> Var<ThumbValue> {
         self.thumb.clone()
     }
 }
@@ -526,7 +526,7 @@ fn slider_track_node() -> impl UiNode {
                         n_of: (0, 0),
                     })
                 });
-                thumbs.push(thumb_fn(ThumbArgs { thumb: thumb_var.boxed() }))
+                thumbs.push(thumb_fn(ThumbArgs { thumb: thumb_var }))
             }
 
             thumbs.init_all();
@@ -610,7 +610,7 @@ fn slider_track_node() -> impl UiNode {
                             n_of: (0, 0),
                         })
                     });
-                    thumbs.push(thumb_fn(ThumbArgs { thumb: thumb_var.boxed() }))
+                    thumbs.push(thumb_fn(ThumbArgs { thumb: thumb_var }))
                 }
 
                 thumbs.init_all();
@@ -643,7 +643,7 @@ fn slider_track_node() -> impl UiNode {
                                     n_of: (0, 0),
                                 })
                             });
-                            thumbs.push(thumb_fn(ThumbArgs { thumb: thumb_var.boxed() }))
+                            thumbs.push(thumb_fn(ThumbArgs { thumb: thumb_var }))
                         }
                     }
                     std::cmp::Ordering::Equal => {}
@@ -659,7 +659,7 @@ macro_rules! impl_32 {
         $(
             impl SelectorValue for $T {
                 #[allow(clippy::unnecessary_cast)]
-                fn to_selector(value: BoxedVar<Self>, min: Self, max: Self) -> Selector {
+                fn to_selector(value: Var<Self>, min: Self, max: Self) -> Selector {
                     let to_f32 = $to_f32;
                     let from_f32 = $from_f32;
 
@@ -689,7 +689,7 @@ macro_rules! impl_64 {
     ($($T:ident),+ $(,)?) => {
         $(
             impl SelectorValue for $T {
-                fn to_selector(value: BoxedVar<Self>, min: Self, max: Self) -> Selector {
+                fn to_selector(value: Var<Self>, min: Self, max: Self) -> Selector {
                     let min = min as f64;
                     let max = max as f64;
                     if min >= max {
@@ -711,7 +711,7 @@ macro_rules! impl_64 {
 impl_64!(u64, i64, u128, i128, f64);
 
 impl SelectorValue for Length {
-    fn to_selector(value: BoxedVar<Self>, min: Self, max: Self) -> Selector {
+    fn to_selector(value: Var<Self>, min: Self, max: Self) -> Selector {
         let (min_f32, max_f32) = LAYOUT.with_context(LayoutMetrics::new(1.fct(), PxSize::splat(Px(1000)), Px(16)), || {
             (min.layout_f32(LayoutAxis::X), max.layout_f32(LayoutAxis::X))
         });

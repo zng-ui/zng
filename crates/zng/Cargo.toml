@@ -201,6 +201,10 @@ material_icons_sharp = [
     "zng-wgt-material-icons/embedded",
     "zng-wgt-material-icons/sharp",
 ]
+
+# Compile with var value type names for better error messages and diagnostics.
+var_type_names = ["zng-var/type_names", "zng-wgt-data?/var_type_names"]
+
 # Enable JSON config format and file watcher helper.
 config_json = ["zng-ext-config/json"]
 # Enable TOML config format and file watcher helper.
@@ -211,6 +215,7 @@ config_ron = ["zng-ext-config/ron"]
 config_yaml = ["zng-ext-config/yaml"]
 # Enable all config formats an file watcher helpers.
 config_all = ["config_json", "config_toml", "config_ron", "config_yaml"]
+
 
 # Enables software renderer fallback in the default view-process.
 #

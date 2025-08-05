@@ -9,7 +9,7 @@ use std::{
 };
 
 #[doc(hidden)]
-pub use zng_var::{getter_var, state_var};
+pub use zng_var::{var_getter, var_state};
 
 ///<span data-del-macro-root></span> New [`SourceLocation`] that represents the location you call this macro.
 ///
@@ -49,11 +49,6 @@ impl fmt::Display for SourceLocation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}:{}", self.file, self.line, self.column)
     }
-}
-
-#[doc(hidden)]
-pub fn when_condition_expr_var(expr_var: impl Var<bool>) -> BoxedVar<bool> {
-    expr_var.boxed()
 }
 
 #[doc(hidden)]
@@ -223,8 +218,8 @@ use zng_app_proc_macros::widget;
 use zng_txt::{Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap, IdSet, unique_id_32};
 use zng_var::{
-    AnyVar, AnyVarValue, BoxedAnyVar, BoxedVar, ContextInitHandle, IntoValue, IntoVar, LocalVar, Var, VarValue, impl_from_and_into_var,
-    types::{AnyWhenVarBuilder, ContextualizedVar, WeakContextInitHandle},
+    AnyVar, AnyVarValue, AnyWhenVarBuilder, ContextInitHandle, IntoValue, IntoVar, Var, VarValue, WeakContextInitHandle, any_const_var,
+    const_var, contextual_var, impl_from_and_into_var,
 };
 
 use super::{
@@ -581,7 +576,7 @@ impl std::str::FromStr for NestGroup {
 /// Kind of property input.
 #[derive(PartialEq, Eq, Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum InputKind {
-    /// Input is `impl IntoVar<T>`, build value is `BoxedVar<T>`.
+    /// Input is `impl IntoVar<T>`, build value is `Var<T>`.
     Var,
     /// Input is `impl IntoValue<T>`, build value is `T`.
     Value,
@@ -649,7 +644,7 @@ impl<A: Clone + 'static> AnyArcWidgetHandler for ArcWidgetHandler<A> {
 /// This builder is used to generate a composite handler that redirects to active `when` matched property values.
 pub struct AnyWhenArcWidgetHandlerBuilder {
     default: Box<dyn AnyArcWidgetHandler>,
-    conditions: Vec<(BoxedVar<bool>, Box<dyn AnyArcWidgetHandler>)>,
+    conditions: Vec<(Var<bool>, Box<dyn AnyArcWidgetHandler>)>,
 }
 impl AnyWhenArcWidgetHandlerBuilder {
     /// New from default value.
@@ -661,7 +656,7 @@ impl AnyWhenArcWidgetHandlerBuilder {
     }
 
     /// Push a conditional handler.
-    pub fn push(&mut self, condition: BoxedVar<bool>, handler: Box<dyn AnyArcWidgetHandler>) {
+    pub fn push(&mut self, condition: Var<bool>, handler: Box<dyn AnyArcWidgetHandler>) {
         self.conditions.push((condition, handler));
     }
 
@@ -688,7 +683,7 @@ impl AnyWhenArcWidgetHandlerBuilder {
 
 struct WhenWidgetHandler<A: Clone + 'static> {
     default: ArcWidgetHandler<A>,
-    conditions: Vec<(BoxedVar<bool>, ArcWidgetHandler<A>)>,
+    conditions: Vec<(Var<bool>, ArcWidgetHandler<A>)>,
 }
 impl<A: Clone + 'static> WidgetHandler<A> for WhenWidgetHandler<A> {
     fn event(&mut self, args: &A) -> bool {
@@ -714,7 +709,7 @@ impl<A: Clone + 'static> WidgetHandler<A> for WhenWidgetHandler<A> {
 /// See [`PropertyNewArgs::build_actions`] for more details.
 pub type PropertyBuildActions = Vec<Vec<Box<dyn AnyPropertyBuildAction>>>;
 
-/// Data for property build actions associated with when conditions.
+/// Data for property build actions associated with when condition assigns.
 ///
 /// See [`PropertyNewArgs::build_actions_when_data`] for more details.
 pub type PropertyBuildActionsWhenData = Vec<Vec<Option<WhenBuildActionData>>>;
@@ -729,7 +724,7 @@ pub struct PropertyNewArgs {
     ///
     /// | Kind                | Expected Type
     /// |---------------------|-------------------------------------------------
-    /// | [`Var`]             | `Box<BoxedVar<T>>` or `Box<AnyWhenVarBuilder>`
+    /// | [`Var`]             | `Box<AnyVar>` or `Box<AnyWhenVarBuilder>`
     /// | [`Value`]           | `Box<T>`
     /// | [`UiNode`]          | `Box<ArcNode<BoxedUiNode>>` or `Box<WhenUiNodeBuilder>`
     /// | [`UiNodeList`]      | `Box<ArcNodeList<BoxedUiNodeList>>` or `Box<WhenUiNodeListBuilder>`
@@ -751,8 +746,8 @@ pub struct PropertyNewArgs {
     ///
     /// | Kind                | Expected Type
     /// |---------------------|-------------------------------------------------
-    /// | [`Var`]             | `Box<PropertyBuildAction<BoxedVar<T>>>`
-    /// | [`Value`]           | `Box<PropertyBuildAction<T>>`
+    /// | [`Var`]             | `Box<PropertyBuildAction<Var<T>>>`
+    /// | [`Value`]           | `Box<PropertyBuildAction<BoxAnyVarValue>>`
     /// | [`UiNode`]          | `Box<PropertyBuildAction<ArcNode<BoxedUiNode>>>`
     /// | [`UiNodeList`]      | `Box<PropertyBuildAction<ArcNodeList<BoxedUiNodeList>>>`
     /// | [`WidgetHandler`]   | `Box<PropertyBuildAction<ArcWidgetHandler<A>>>`
@@ -856,9 +851,7 @@ pub trait PropertyArgs: Send + Sync {
     fn property(&self) -> PropertyInfo;
 
     /// Gets a [`InputKind::Var`].
-    ///
-    /// Is a `BoxedVar<T>`.
-    fn var(&self, i: usize) -> &dyn AnyVar {
+    fn var(&self, i: usize) -> &AnyVar {
         panic_input(&self.property(), i, InputKind::Var)
     }
 
@@ -904,21 +897,21 @@ impl dyn PropertyArgs + '_ {
     where
         T: VarValue,
     {
-        self.value(i).as_any().downcast_ref::<T>().expect("cannot downcast value to type")
+        self.value(i).downcast_ref::<T>().expect("cannot downcast value to type")
     }
     /// Gets a strongly typed [`var`].
     ///
     /// Panics if the variable value type does not match.
     ///
     /// [`var`]: PropertyArgs::var
-    pub fn downcast_var<T>(&self, i: usize) -> &BoxedVar<T>
+    pub fn downcast_var<T>(&self, i: usize) -> Var<T>
     where
         T: VarValue,
     {
         self.var(i)
-            .as_any()
-            .downcast_ref::<BoxedVar<T>>()
-            .expect("cannot downcast var to type")
+            .clone()
+            .downcast::<T>()
+            .unwrap_or_else(|_| panic!("cannot downcast var to type"))
     }
 
     /// Gets a strongly typed [`widget_handler`].
@@ -941,14 +934,14 @@ impl dyn PropertyArgs + '_ {
     /// If the input is a variable the returned variable will update with it, if not it is a static print.
     ///
     /// Note that you must call this in the widget context to get the correct value.
-    pub fn live_debug(&self, i: usize) -> BoxedVar<Txt> {
+    pub fn live_debug(&self, i: usize) -> Var<Txt> {
         let p = self.property();
         match p.inputs[i].kind {
-            InputKind::Var => self.var(i).map_debug(),
-            InputKind::Value => LocalVar(formatx!("{:?}", self.value(i))).boxed(),
-            InputKind::UiNode => LocalVar(Txt::from_static("<impl UiNode>")).boxed(),
-            InputKind::UiNodeList => LocalVar(Txt::from_static("<impl UiNodeList>")).boxed(),
-            InputKind::WidgetHandler => LocalVar(formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name())).boxed(),
+            InputKind::Var => self.var(i).map_debug(false),
+            InputKind::Value => const_var(formatx!("{:?}", self.value(i))),
+            InputKind::UiNode => const_var(Txt::from_static("<impl UiNode>")),
+            InputKind::UiNodeList => const_var(Txt::from_static("<impl UiNodeList>")),
+            InputKind::WidgetHandler => const_var(formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name())),
         }
     }
 
@@ -958,7 +951,7 @@ impl dyn PropertyArgs + '_ {
     pub fn debug(&self, i: usize) -> Txt {
         let p = self.property();
         match p.inputs[i].kind {
-            InputKind::Var => formatx!("{:?}", self.var(i).get_any()),
+            InputKind::Var => formatx!("{:?}", self.var(i).get()),
             InputKind::Value => formatx!("{:?}", self.value(i)),
             InputKind::UiNode => Txt::from_static("<impl UiNode>"),
             InputKind::UiNodeList => Txt::from_static("<impl UiNodeList>"),
@@ -979,8 +972,8 @@ impl dyn PropertyArgs + '_ {
         let mut args: Vec<Box<dyn Any>> = Vec::with_capacity(p.inputs.len());
         for (i, input) in p.inputs.iter().enumerate() {
             match input.kind {
-                InputKind::Var => args.push(self.var(i).clone_any().double_boxed_any()),
-                InputKind::Value => args.push(self.value(i).clone_boxed().into_any()),
+                InputKind::Var => args.push(Box::new(self.var(i).clone())),
+                InputKind::Value => args.push(Box::new(self.value(i).clone_boxed())),
                 InputKind::UiNode => args.push(Box::new(self.ui_node(i).clone())),
                 InputKind::UiNodeList => args.push(Box::new(self.ui_node_list(i).clone())),
                 InputKind::WidgetHandler => args.push(self.widget_handler(i).clone_boxed().into_any()),
@@ -1010,8 +1003,8 @@ pub fn panic_input(info: &PropertyInfo, i: usize, kind: InputKind) -> ! {
 }
 
 #[doc(hidden)]
-pub fn var_to_args<T: VarValue>(var: impl IntoVar<T>) -> BoxedVar<T> {
-    var.into_var().boxed()
+pub fn var_to_args<T: VarValue>(var: impl IntoVar<T>) -> Var<T> {
+    var.into_var()
 }
 
 #[doc(hidden)]
@@ -1045,7 +1038,7 @@ pub fn iter_input_build_actions<'a>(
 
     std::iter::from_fn(move || {
         let action = &*actions.next()?[index];
-        let data = if let Some(data) = data.next() { &data[..] } else { &[None] };
+        let data = if let Some(data) = data.next() { &data[..] } else { &[] };
 
         Some((action, data))
     })
@@ -1073,12 +1066,15 @@ fn apply_build_actions<'a, I: Any + Send>(
 pub fn new_dyn_var<'a, T: VarValue>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
     actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
-) -> BoxedVar<T> {
+) -> Var<T> {
     let item = inputs.next().expect("missing input");
 
     let item = match item.downcast::<AnyWhenVarBuilder>() {
-        Ok(builder) => builder.build::<T>().expect("invalid when builder").boxed(),
-        Err(item) => *item.downcast::<BoxedVar<T>>().expect("input did not match expected var types"),
+        Ok(builder) => builder.into_typed::<T>().build(),
+        Err(item) => {
+            let any = *item.downcast::<AnyVar>().expect("input did not match expected var types");
+            any.downcast::<T>().expect("input did not match expected var types")
+        }
     };
 
     apply_build_actions(item, actions)
@@ -1312,84 +1308,72 @@ impl fmt::Debug for WhenInput {
     }
 }
 
-struct WhenInputInitData<T: VarValue> {
-    data: Vec<(WeakContextInitHandle, BoxedVar<T>)>,
-}
-impl<T: VarValue> WhenInputInitData<T> {
-    const fn empty() -> Self {
-        Self { data: vec![] }
-    }
-    fn get(&mut self) -> BoxedVar<T> {
-        let current_id = WHEN_INPUT_CONTEXT_INIT_ID.get();
-        let current_id = current_id.downgrade();
-
-        let mut r = None;
-        self.data.retain(|(id, val)| {
-            let retain = id.is_alive();
-            if retain && id == &current_id {
-                r = Some(val.clone());
-            }
-            retain
-        });
-        match r {
-            Some(r) => r,
-            None => {
-                if !self.data.is_empty() {
-                    tracing::error!("when input not inited");
-                    let last = self.data.len() - 1;
-                    self.data[last].1.clone()
-                } else {
-                    panic!("when input not inited")
-                }
-            }
-        }
-    }
-}
 context_local! {
-    static WHEN_INPUT_CONTEXT_INIT_ID: ContextInitHandle = ContextInitHandle::new();
-}
-impl<T: VarValue> AnyWhenInputVarInner for WhenInputInitData<T> {
-    fn as_any(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn set(&mut self, handle: WeakContextInitHandle, var: BoxedAnyVar) {
-        let var = var
-            .double_boxed_any()
-            .downcast::<BoxedVar<T>>()
-            .expect("incorrect when input var type");
-
-        if let Some(i) = self.data.iter().position(|(i, _)| i == &handle) {
-            self.data[i].1 = var;
-        } else {
-            self.data.push((handle, var));
-        }
-    }
-}
-trait AnyWhenInputVarInner: Any + Send {
-    fn as_any(&mut self) -> &mut dyn Any;
-    fn set(&mut self, handle: WeakContextInitHandle, var: BoxedAnyVar);
+    // ContextInitHandle used to identify the widget scope the when inputs must use
+    static WHEN_INPUT_CONTEXT_INIT_ID: ContextInitHandle = ContextInitHandle::no_context();
 }
 
 /// Represents a [`WhenInput`] variable that can be rebound.
 #[derive(Clone)]
 pub struct WhenInputVar {
-    var: Arc<Mutex<dyn AnyWhenInputVarInner>>,
+    var: Arc<Mutex<Vec<(WeakContextInitHandle, AnyVar)>>>,
 }
 impl WhenInputVar {
     /// New input setter and input var.
     ///
     /// Trying to use the input var outside of the widget will panic.
-    pub fn new<T: VarValue>() -> (Self, impl Var<T>) {
-        let arc: Arc<Mutex<dyn AnyWhenInputVarInner>> = Arc::new(Mutex::new(WhenInputInitData::<T>::empty()));
+    pub fn new<T: VarValue>() -> (Self, Var<T>) {
+        let arc = Arc::new(Mutex::new(vec![]));
         (
             WhenInputVar { var: arc.clone() },
-            ContextualizedVar::new(move || arc.lock().as_any().downcast_mut::<WhenInputInitData<T>>().unwrap().get()),
+            contextual_var(move || {
+                let mut data = arc.lock();
+
+                let current_id = WHEN_INPUT_CONTEXT_INIT_ID.get();
+                let current_id = current_id.downgrade();
+
+                let mut r = None;
+                data.retain(|(id, val)| {
+                    let retain = id.is_alive();
+                    if retain && id == &current_id {
+                        r = Some(val.clone());
+                    }
+                    retain
+                });
+                match r {
+                    Some(r) => r,
+                    None => {
+                        // value not set for this when-input in this context
+                        if !data.is_empty() {
+                            // has value for other contexts at least, use that to not crash
+                            let last = data.len() - 1;
+                            let last = &data[last];
+                            tracing::error!(
+                                "when input not inited for context {:?}, using value from {:?} to avoid crash",
+                                current_id,
+                                last.0
+                            );
+                            last.1.clone()
+                        } else {
+                            // has no value, cannot avoid crash
+                            panic!("when input not inited for context {current_id:?}")
+                        }
+                    }
+                }
+                .downcast()
+                .expect("incorrect when input var type")
+            }),
         )
     }
 
-    fn set(&self, handle: WeakContextInitHandle, var: BoxedAnyVar) {
-        self.var.lock().set(handle, var);
+    fn set(&self, handle: WeakContextInitHandle, var: AnyVar) {
+        let mut data = self.var.lock();
+
+        if let Some(i) = data.iter().position(|(i, _)| i == &handle) {
+            data[i].1 = var;
+        } else {
+            data.push((handle, var));
+        }
     }
 }
 
@@ -1437,7 +1421,7 @@ impl WhenBuildAction {
 pub struct WhenInfo {
     /// Properties referenced in the when condition expression.
     ///
-    /// They are type erased `BoxedVar<T>` instances that are *late-inited*, other variable references (`*#{var}`) are embedded in
+    /// They are type erased `Var<T>` instances that are *late-inited*, other variable references (`*#{var}`) are embedded in
     /// the build expression and cannot be modified. Note that the [`state`] sticks to the first *late-inited* vars that it uses,
     /// the variable only updates after clone, this cloning happens naturally when instantiating a widget more then once.
     ///
@@ -1447,7 +1431,7 @@ pub struct WhenInfo {
     /// Output of the when expression.
     ///
     /// Panics if used outside of the widget context.
-    pub state: BoxedVar<bool>,
+    pub state: Var<bool>,
 
     /// Properties assigned in the `when` block, in the build widget they are joined with the default value and assigns
     /// from other `when` blocks into a single property instance set to `when_var!` inputs.
@@ -1473,7 +1457,7 @@ impl fmt::Debug for WhenInfo {
 
         f.debug_struct("WhenInfo")
             .field("inputs", &self.inputs)
-            .field("state", &self.state.debug())
+            .field("state", &self.state.get_debug(false))
             .field("assigns", &self.assigns)
             .field("build_action_data", &DebugBuildActions(self))
             .field("expr", &self.expr)
@@ -2201,7 +2185,7 @@ impl WidgetBuilding {
     }
 
     /// Flags the property as captured and downcast the input var.
-    pub fn capture_var<T>(&mut self, property_id: PropertyId) -> Option<BoxedVar<T>>
+    pub fn capture_var<T>(&mut self, property_id: PropertyId) -> Option<Var<T>>
     where
         T: VarValue,
     {
@@ -2211,19 +2195,19 @@ impl WidgetBuilding {
     }
 
     /// Flags the property as captured and downcast the input var, or calls `or_else` to generate a fallback.
-    pub fn capture_var_or_else<T, F>(&mut self, property_id: PropertyId, or_else: impl FnOnce() -> F) -> BoxedVar<T>
+    pub fn capture_var_or_else<T, F>(&mut self, property_id: PropertyId, or_else: impl FnOnce() -> F) -> Var<T>
     where
         T: VarValue,
         F: IntoVar<T>,
     {
         match self.capture_var::<T>(property_id) {
             Some(var) => var,
-            None => or_else().into_var().boxed(),
+            None => or_else().into_var(),
         }
     }
 
     /// Flags the property as captured and downcast the input var, returns a new one with the default value.
-    pub fn capture_var_or_default<T>(&mut self, property_id: PropertyId) -> BoxedVar<T>
+    pub fn capture_var_or_default<T>(&mut self, property_id: PropertyId) -> Var<T>
     where
         T: VarValue + Default,
     {
@@ -2386,7 +2370,7 @@ impl WidgetBuilding {
                             .iter()
                             .enumerate()
                             .map(|(i, input)| match input.kind {
-                                InputKind::Var => Box::new(AnyWhenVarBuilder::new_any(default_args.var(i).clone_any())) as _,
+                                InputKind::Var => Box::new(AnyWhenVarBuilder::new(default_args.var(i).clone())) as _,
                                 InputKind::UiNode => Box::new(WhenUiNodeBuilder::new(default_args.ui_node(i).take_on_init())) as _,
                                 InputKind::UiNodeList => {
                                     Box::new(WhenUiNodeListBuilder::new(default_args.ui_node_list(i).take_on_init())) as _
@@ -2407,8 +2391,8 @@ impl WidgetBuilding {
                     match input.kind {
                         InputKind::Var => {
                             let entry = entry.downcast_mut::<AnyWhenVarBuilder>().unwrap();
-                            let value = assign.var(i).clone_any();
-                            entry.push_any(when.state.clone(), value);
+                            let value = assign.var(i).clone();
+                            entry.push(when.state.clone(), value);
                         }
                         InputKind::UiNode => {
                             let entry = entry.downcast_mut::<WhenUiNodeBuilder>().unwrap();
@@ -2474,8 +2458,8 @@ impl WidgetBuilding {
             };
 
             let actual = match info.inputs[member_i].kind {
-                InputKind::Var => args.var(member_i).clone_any(),
-                InputKind::Value => args.value(member_i).clone_boxed_var(),
+                InputKind::Var => args.var(member_i).clone(),
+                InputKind::Value => any_const_var(args.value(member_i).clone_boxed()),
                 _ => panic!("can only ref var or values in when expr"),
             };
             input.var.set(when_init_context_id.clone(), actual);
@@ -2895,7 +2879,7 @@ pub struct PropertyBuildActionArgs<'a, I: Any + Send> {
 ///
 /// | Kind                | Expected Type
 /// |---------------------|-------------------------------------------------
-/// | [`Var`]             | `BoxedVar<T>`
+/// | [`Var`]             | `Var<T>`
 /// | [`Value`]           | `T`
 /// | [`UiNode`]          | `ArcNode<BoxedUiNode>`
 /// | [`UiNodeList`]      | `ArcNodeList<BoxedUiNodeList>`
@@ -2963,7 +2947,7 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// # fn main() {
 /// assert_eq!(
 ///     property_input_types!(foo).type_id(),
-///     PropertyInputTypes::<(BoxedVar<bool>,)>::unit().type_id(),
+///     PropertyInputTypes::<(Var<bool>,)>::unit().type_id(),
 /// );
 /// # }
 /// ```
@@ -2984,7 +2968,7 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// }
 ///
 /// // match
-/// impl<'a, V: Var<bool>> SingleBoolVar for &'a PropertyInputTypes<(V,)> {
+/// impl<'a> SingleBoolVar for &'a PropertyInputTypes<(Var<bool>,)> {
 ///     fn is_single_bool_var(self) -> bool {
 ///         true
 ///     }
