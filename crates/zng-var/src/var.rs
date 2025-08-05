@@ -635,12 +635,14 @@ impl<T: VarValue> Var<T> {
     /// Basic usage:
     ///
     /// ```
+    /// # fn demo() {
     /// # use zng_var::*;
     /// #
     /// let a = var(10);
     /// let b = var(0);
     ///
     /// a.set_bind(&b).perm();
+    /// # }
     /// ```
     ///
     /// In the example above the variable `b` will be set to the current value of `a` and every time the variable `a` updates.
@@ -810,6 +812,7 @@ impl<T: VarValue> Var<T> {
     /// Customs animation that displays the animation elapsed time:
     ///
     /// ```
+    /// # fn demo() {
     /// # use zng_var::*;
     /// # use zng_txt::*;
     /// # use zng_unit::*;
@@ -824,6 +827,7 @@ impl<T: VarValue> Var<T> {
     ///         value.set("not animating");
     ///     }
     /// }).perm();
+    /// # }
     /// ```
     ///
     /// # Capabilities
@@ -849,6 +853,7 @@ impl<T: VarValue> Var<T> {
     /// Running multiple animations in sequence:
     ///
     /// ```
+    /// # fn demo() {
     /// # use zng_var::{*, animation::*};
     /// # use zng_txt::*;
     /// # use zng_unit::*;
@@ -867,6 +872,7 @@ impl<T: VarValue> Var<T> {
     ///         AnimationHandle::dummy()
     ///     }
     /// }).perm();
+    /// # }
     /// ```
     ///
     /// # Capabilities
@@ -886,11 +892,13 @@ impl<T: VarValue> Var<T> {
     /// Basic usage:
     ///
     /// ```
+    /// # fn demo() {
     /// # use zng_var::{*, animation::easing};
     /// # use zng_unit::*;
     /// let progress = var(0.pct());
     ///
     /// progress.set_ease(0.pct(), 100.pct(), 5.secs(), easing::linear).perm();
+    /// # }
     /// ```
     ///
     /// Variable is reset to 0% at the start and them transition to 100% in 5 seconds with linear progression.
