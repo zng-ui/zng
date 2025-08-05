@@ -11,6 +11,8 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
+mod serde_value;
+
 mod fallback;
 pub use fallback::*;
 

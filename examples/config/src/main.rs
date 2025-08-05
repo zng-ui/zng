@@ -59,12 +59,12 @@ fn load_config() {
             ["u16", "integers", 0u16],
             ["u32", "integers", 0u32],
             ["u64", "integers", 0u64],
-            // ["u128", "integers", 0u128], // TODO(breaking) new CONFIG backend has an error here
+            ["u128", "integers", 0u128],
             ["i8", "integers", 0i8],
             ["i16", "integers", 0i16],
             ["i32", "integers", 0i32],
             ["i64", "integers", 0i64],
-            // ["i128", "integers", 0i128],
+            ["i128", "integers", 0i128],
 
             ["f32", "floats", 0f32],
             ["f64", "floats", 0f64],
