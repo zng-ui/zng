@@ -11,7 +11,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! fn countdown(n: impl IntoVar<usize>) -> impl UiNode {
+//! fn countdown(n: impl IntoVar<usize>) -> UiNode {
 //!     DataView!(::<usize>, n, hn!(|a: &DataViewArgs<usize>| {
 //!         // we generate a new view on the first call or when the data has changed to zero.
 //!         if a.view_is_nil() || a.data().get_new() == Some(0) {

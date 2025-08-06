@@ -11,7 +11,7 @@ use crate::prelude::*;
 ///
 /// [`ZIndex`]: zng_app::widget::node::ZIndex
 #[property(CONTEXT, default(ZIndex::DEFAULT))]
-pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
+pub fn z_index(child: impl IntoUiNode, index: impl IntoVar<ZIndex>) -> UiNode {
     let index = index.into_var();
     let mut valid = false;
 

@@ -21,20 +21,9 @@ use proc_macro::TokenStream;
 mod util;
 
 mod property;
-mod ui_node;
 mod wgt_property_attrs;
 mod widget;
 mod widget_util;
-
-/// Expands an impl into a `UiNode` impl.
-///
-/// # Full Documentation
-///
-/// Read the documentation in the `zng::widget::ui_node` page.
-#[proc_macro_attribute]
-pub fn ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
-    ui_node::gen_ui_node(args, input)
-}
 
 /// Expands a function to a widget property.
 ///

@@ -44,7 +44,7 @@ impl Container {
 ///
 /// [`UiNode`]: zng_app::widget::node::UiNode
 #[property(CHILD, default(FillUiNode), widget_impl(Container))]
-pub fn child(widget_child: impl UiNode, child: impl UiNode) -> impl UiNode {
+pub fn child(widget_child: impl IntoUiNode, child: impl IntoUiNode) -> UiNode {
     child_under(widget_child, child)
 }
 
@@ -52,7 +52,7 @@ pub fn child(widget_child: impl UiNode, child: impl UiNode) -> impl UiNode {
 ///
 /// This property is [`margin`](fn@margin) with nest group `CHILD_LAYOUT`.
 #[property(CHILD_LAYOUT, default(0), widget_impl(Container))]
-pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+pub fn padding(child: impl IntoUiNode, padding: impl IntoVar<SideOffsets>) -> UiNode {
     margin(child, padding)
 }
 
@@ -60,7 +60,7 @@ pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl U
 ///
 /// This property is [`align`](fn@align) with nest group `CHILD_LAYOUT`.
 #[property(CHILD_LAYOUT, default(Align::FILL), widget_impl(Container))]
-pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode {
+pub fn child_align(child: impl IntoUiNode, alignment: impl IntoVar<Align>) -> UiNode {
     align(child, alignment)
 }
 
@@ -152,20 +152,20 @@ impl ChildInsert {
 /// Insert `node` in the `placement` relative to the widget's child.
 ///
 /// This property disables inline layout for the widget.
-#[property(CHILD, default(ChildInsert::Start, NilUiNode, 0), widget_impl(Container))]
+#[property(CHILD, default(ChildInsert::Start, UiNode::nil(), 0), widget_impl(Container))]
 pub fn child_insert(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     placement: impl IntoVar<ChildInsert>,
-    node: impl UiNode,
+    node: impl IntoUiNode,
     spacing: impl IntoVar<Length>,
-) -> impl UiNode {
+) -> UiNode {
     let placement = placement.into_var();
     let spacing = spacing.into_var();
     let offset_key = FrameValueKey::new_unique();
     let mut offset_child = 0;
     let mut offset = PxVector::zero();
 
-    match_node_list(ui_vec![child, node], move |children, op| match op {
+    match_node(ui_vec![child, node], move |children, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_layout(&placement).sub_var_layout(&spacing);
         }
@@ -404,13 +404,13 @@ pub fn child_insert(
 /// This is still *inside* the parent widget, but outside of properties like padding.
 ///
 /// This property disables inline layout for the widget.
-#[property(CHILD_LAYOUT - 1, default(ChildInsert::Start, NilUiNode, 0), widget_impl(Container))]
+#[property(CHILD_LAYOUT - 1, default(ChildInsert::Start, UiNode::nil(), 0), widget_impl(Container))]
 pub fn child_out_insert(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     placement: impl IntoVar<ChildInsert>,
-    node: impl UiNode,
+    node: impl IntoUiNode,
     spacing: impl IntoVar<Length>,
-) -> impl UiNode {
+) -> UiNode {
     child_insert(child, placement, node, spacing)
 }
 
@@ -419,8 +419,8 @@ pub fn child_out_insert(
 /// This property disables inline layout for the widget. See [`child_insert`] for more details.
 ///
 /// [`child_insert`]: fn@child_insert
-#[property(CHILD, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_left(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+#[property(CHILD, default(UiNode::nil(), 0), widget_impl(Container))]
+pub fn child_left(child: impl IntoUiNode, node: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     child_insert(child, ChildInsert::Left, node, spacing)
 }
 
@@ -429,8 +429,8 @@ pub fn child_left(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<L
 /// This property disables inline layout for the widget. See [`child_insert`] for more details.
 ///
 /// [`child_insert`]: fn@child_insert
-#[property(CHILD, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_right(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+#[property(CHILD, default(UiNode::nil(), 0), widget_impl(Container))]
+pub fn child_right(child: impl IntoUiNode, node: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     child_insert(child, ChildInsert::Right, node, spacing)
 }
 
@@ -439,8 +439,8 @@ pub fn child_right(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<
 /// This property disables inline layout for the widget. See [`child_insert`] for more details.
 ///
 /// [`child_insert`]: fn@child_insert
-#[property(CHILD, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_top(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+#[property(CHILD, default(UiNode::nil(), 0), widget_impl(Container))]
+pub fn child_top(child: impl IntoUiNode, node: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     child_insert(child, ChildInsert::Top, node, spacing)
 }
 
@@ -449,8 +449,8 @@ pub fn child_top(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Le
 /// This property disables inline layout for the widget. See [`child_insert`] for more details.
 ///
 /// [`child_insert`]: fn@child_insert
-#[property(CHILD, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_bottom(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+#[property(CHILD, default(UiNode::nil(), 0), widget_impl(Container))]
+pub fn child_bottom(child: impl IntoUiNode, node: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     child_insert(child, ChildInsert::Bottom, node, spacing)
 }
 
@@ -459,8 +459,8 @@ pub fn child_bottom(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar
 /// This property disables inline layout for the widget. See [`child_insert`] for more details.
 ///
 /// [`child_insert`]: fn@child_insert
-#[property(CHILD, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_start(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+#[property(CHILD, default(UiNode::nil(), 0), widget_impl(Container))]
+pub fn child_start(child: impl IntoUiNode, node: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     child_insert(child, ChildInsert::Start, node, spacing)
 }
 
@@ -469,8 +469,8 @@ pub fn child_start(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<
 /// This property disables inline layout for the widget. See [`child_insert`] for more details.
 ///
 /// [`child_insert`]: fn@child_insert
-#[property(CHILD, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_end(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+#[property(CHILD, default(UiNode::nil(), 0), widget_impl(Container))]
+pub fn child_end(child: impl IntoUiNode, node: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     child_insert(child, ChildInsert::End, node, spacing)
 }
 
@@ -479,8 +479,8 @@ pub fn child_end(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Le
 /// This property disables inline layout for the widget. See [`child_insert`] for more details.
 ///
 /// [`child_insert`]: fn@child_insert
-#[property(CHILD, default(NilUiNode), widget_impl(Container))]
-pub fn child_over(child: impl UiNode, node: impl UiNode) -> impl UiNode {
+#[property(CHILD, default(UiNode::nil()), widget_impl(Container))]
+pub fn child_over(child: impl IntoUiNode, node: impl IntoUiNode) -> UiNode {
     child_insert(child, ChildInsert::Over, node, 0)
 }
 
@@ -489,8 +489,8 @@ pub fn child_over(child: impl UiNode, node: impl UiNode) -> impl UiNode {
 /// This property disables inline layout for the widget. See [`child_insert`] for more details.
 ///
 /// [`child_insert`]: fn@child_insert
-#[property(CHILD, default(NilUiNode), widget_impl(Container))]
-pub fn child_under(child: impl UiNode, node: impl UiNode) -> impl UiNode {
+#[property(CHILD, default(UiNode::nil()), widget_impl(Container))]
+pub fn child_under(child: impl IntoUiNode, node: impl IntoUiNode) -> UiNode {
     child_insert(child, ChildInsert::Under, node, 0)
 }
 
@@ -499,8 +499,8 @@ pub fn child_under(child: impl UiNode, node: impl UiNode) -> impl UiNode {
 /// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
 ///
 /// [`child_out_insert`]: fn@child_insert
-#[property(CHILD_LAYOUT - 1, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_out_left(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+#[property(CHILD_LAYOUT - 1, default(UiNode::nil(), 0), widget_impl(Container))]
+pub fn child_out_left(child: impl IntoUiNode, node: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     child_out_insert(child, ChildInsert::Left, node, spacing)
 }
 
@@ -509,8 +509,8 @@ pub fn child_out_left(child: impl UiNode, node: impl UiNode, spacing: impl IntoV
 /// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
 ///
 /// [`child_out_insert`]: fn@child_out_insert
-#[property(CHILD_LAYOUT - 1, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_out_right(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+#[property(CHILD_LAYOUT - 1, default(UiNode::nil(), 0), widget_impl(Container))]
+pub fn child_out_right(child: impl IntoUiNode, node: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     child_out_insert(child, ChildInsert::Right, node, spacing)
 }
 
@@ -519,8 +519,8 @@ pub fn child_out_right(child: impl UiNode, node: impl UiNode, spacing: impl Into
 /// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
 ///
 /// [`child_out_insert`]: fn@child_out_insert
-#[property(CHILD_LAYOUT - 1, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_out_top(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+#[property(CHILD_LAYOUT - 1, default(UiNode::nil(), 0), widget_impl(Container))]
+pub fn child_out_top(child: impl IntoUiNode, node: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     child_out_insert(child, ChildInsert::Top, node, spacing)
 }
 
@@ -529,8 +529,8 @@ pub fn child_out_top(child: impl UiNode, node: impl UiNode, spacing: impl IntoVa
 /// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
 ///
 /// [`child_out_insert`]: fn@child_out_insert
-#[property(CHILD_LAYOUT - 1, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_out_bottom(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+#[property(CHILD_LAYOUT - 1, default(UiNode::nil(), 0), widget_impl(Container))]
+pub fn child_out_bottom(child: impl IntoUiNode, node: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     child_out_insert(child, ChildInsert::Bottom, node, spacing)
 }
 
@@ -539,8 +539,8 @@ pub fn child_out_bottom(child: impl UiNode, node: impl UiNode, spacing: impl Int
 /// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
 ///
 /// [`child_out_insert`]: fn@child_out_insert
-#[property(CHILD_LAYOUT - 1, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_out_start(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+#[property(CHILD_LAYOUT - 1, default(UiNode::nil(), 0), widget_impl(Container))]
+pub fn child_out_start(child: impl IntoUiNode, node: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     child_out_insert(child, ChildInsert::Start, node, spacing)
 }
 
@@ -549,8 +549,8 @@ pub fn child_out_start(child: impl UiNode, node: impl UiNode, spacing: impl Into
 /// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
 ///
 /// [`child_out_insert`]: fn@child_out_insert
-#[property(CHILD_LAYOUT - 1, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_out_end(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+#[property(CHILD_LAYOUT - 1, default(UiNode::nil(), 0), widget_impl(Container))]
+pub fn child_out_end(child: impl IntoUiNode, node: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     child_out_insert(child, ChildInsert::End, node, spacing)
 }
 
@@ -559,8 +559,8 @@ pub fn child_out_end(child: impl UiNode, node: impl UiNode, spacing: impl IntoVa
 /// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
 ///
 /// [`child_out_insert`]: fn@child_out_insert
-#[property(CHILD_LAYOUT - 1, default(NilUiNode), widget_impl(Container))]
-pub fn child_out_over(child: impl UiNode, node: impl UiNode) -> impl UiNode {
+#[property(CHILD_LAYOUT - 1, default(UiNode::nil()), widget_impl(Container))]
+pub fn child_out_over(child: impl IntoUiNode, node: impl IntoUiNode) -> UiNode {
     child_out_insert(child, ChildInsert::Over, node, 0)
 }
 
@@ -569,7 +569,7 @@ pub fn child_out_over(child: impl UiNode, node: impl UiNode) -> impl UiNode {
 /// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
 ///
 /// [`child_out_insert`]: fn@child_out_insert
-#[property(CHILD_LAYOUT - 1, default(NilUiNode), widget_impl(Container))]
-pub fn child_out_under(child: impl UiNode, node: impl UiNode) -> impl UiNode {
+#[property(CHILD_LAYOUT - 1, default(UiNode::nil()), widget_impl(Container))]
+pub fn child_out_under(child: impl IntoUiNode, node: impl IntoUiNode) -> UiNode {
     child_out_insert(child, ChildInsert::Under, node, 0)
 }

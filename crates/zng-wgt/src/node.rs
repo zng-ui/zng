@@ -3,7 +3,7 @@
 //! This module defines some foundational nodes that can be used for declaring properties and widgets.
 
 use std::{
-    any::{Any, TypeId},
+    any::Any,
     sync::Arc,
 };
 
@@ -12,7 +12,6 @@ use zng_app::{
     event::{Command, CommandArgs, CommandHandle, CommandScope, Event, EventArgs},
     handler::WidgetHandler,
     render::{FrameBuilder, FrameValueKey},
-    update::WidgetUpdates,
     widget::{
         VarLayout, WIDGET, WidgetUpdateMode,
         border::{BORDER, BORDER_ALIGN_VAR, BORDER_OVER_VAR},
@@ -55,7 +54,7 @@ pub use zng_app;
 ///
 /// /// Sets the [`FOO_VAR`] in the widgets and its content.
 /// #[property(CONTEXT, default(FOO_VAR))]
-/// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
+/// pub fn foo(child: impl IntoUiNode, value: impl IntoVar<u32>) -> UiNode {
 ///     with_context_var(child, FOO_VAR, value)
 /// }
 /// ```
@@ -87,7 +86,7 @@ pub use zng_app;
 ///
 /// /// Sets the *foo* config.
 /// #[property(CONTEXT, default(false))]
-/// pub fn foo(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
+/// pub fn foo(child: impl IntoUiNode, value: impl IntoVar<bool>) -> UiNode {
 ///     with_context_var(child, CONFIG_VAR, merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
 ///         let mut c = c.clone();
 ///         c.foo = v;
@@ -97,7 +96,7 @@ pub use zng_app;
 ///
 /// /// Sets the *bar* config.
 /// #[property(CONTEXT, default(false))]
-/// pub fn bar(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
+/// pub fn bar(child: impl IntoUiNode, value: impl IntoVar<bool>) -> UiNode {
 ///     with_context_var(child, CONFIG_VAR, merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
 ///         let mut c = c.clone();
 ///         c.bar = v;
@@ -116,7 +115,7 @@ pub use zng_app;
 /// [`merge_var!`]: zng_var::merge_var
 /// [`UiNode`]: zng_app::widget::node::UiNode
 /// [`ContextVar::with_context`]: zng_var::ContextVar::with_context
-pub fn with_context_var<T: VarValue>(child: impl UiNode, context_var: ContextVar<T>, value: impl IntoVar<T>) -> impl UiNode {
+pub fn with_context_var<T: VarValue>(child: impl IntoUiNode, context_var: ContextVar<T>, value: impl IntoVar<T>) -> UiNode {
     let value = value.into_var();
     let mut actual_value = None;
     let mut id = None;
@@ -152,10 +151,10 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, context_var: ContextVar
 ///
 /// [`ContextVar<T>`]: zng_var::ContextVar
 pub fn with_context_var_init<T: VarValue>(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     var: ContextVar<T>,
     mut init_value: impl FnMut() -> Var<T> + Send + 'static,
-) -> impl UiNode {
+) -> UiNode {
     let mut id = None;
     let mut value = None;
     match_node(child, move |child, op| {
@@ -243,7 +242,7 @@ pub fn with_context_var_init<T: VarValue>(
 /// # use zng_wgt::node::*;
 /// # event_args! { pub struct KeyInputArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
-/// # fn some_node(child: impl UiNode) -> impl UiNode { child }
+/// # fn some_node(child: impl IntoUiNode) -> UiNode { child }
 /// /// Keyboard events.
 /// #[widget_mixin]
 /// pub struct KeyboardMix<P>(P);
@@ -267,7 +266,7 @@ pub fn with_context_var_init<T: VarValue>(
 /// # use zng_wgt::node::*;
 /// # event_args! { pub struct KeyInputArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
-/// # fn some_node(child: impl UiNode) -> impl UiNode { child }
+/// # fn some_node(child: impl IntoUiNode) -> UiNode { child }
 /// event_property! {
 ///     pub fn key_input {
 ///         event: KEY_INPUT_EVENT,
@@ -483,9 +482,9 @@ macro_rules! __event_property {
                 $($widget_impl)*
             )]
             $vis fn [<on_ $event>](
-                child: impl $crate::node::zng_app::widget::node::UiNode,
+                child: impl $crate::node::zng_app::widget::node::IntoUiNode,
                 handler: impl $crate::node::zng_app::handler::WidgetHandler<$Args>,
-            ) -> impl $crate::node::zng_app::widget::node::UiNode {
+            ) -> $crate::node::zng_app::widget::node::UiNode {
                 $crate::__event_property!(=> with($crate::node::on_event(child, $EVENT, $filter, handler), false, $($with)?))
             }
 
@@ -506,9 +505,9 @@ macro_rules! __event_property {
                 $($widget_impl)*
             )]
             $vis fn [<on_pre_ $event>](
-                child: impl $crate::node::zng_app::widget::node::UiNode,
+                child: impl $crate::node::zng_app::widget::node::IntoUiNode,
                 handler: impl $crate::node::zng_app::handler::WidgetHandler<$Args>,
-            ) -> impl $crate::node::zng_app::widget::node::UiNode {
+            ) -> $crate::node::zng_app::widget::node::UiNode {
                 $crate::__event_property!(=> with($crate::node::on_pre_event(child, $EVENT, $filter, handler), true, $($with)?))
             }
         }
@@ -547,20 +546,19 @@ macro_rules! __event_property {
 /// [`propagation`]: zng_app::event::AnyEventArgs::propagation
 /// [`ENABLED`]: zng_app::widget::info::Interactivity::ENABLED
 /// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
-pub fn on_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H) -> impl UiNode
+pub fn on_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H) -> UiNode
 where
-    C: UiNode,
+    C: IntoUiNode,
     A: EventArgs,
     F: FnMut(&A) -> bool + Send + 'static,
     H: WidgetHandler<A>,
 {
     #[cfg(feature = "dyn_closure")]
     let filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
-    on_event_impl(child.cfg_boxed(), event, filter, handler.cfg_boxed()).cfg_boxed()
+    on_event_impl(child.into_node(), event, filter, handler.cfg_boxed())
 }
-fn on_event_impl<C, A, F, H>(child: C, event: Event<A>, mut filter: F, mut handler: H) -> impl UiNode
+fn on_event_impl<A, F, H>(child: UiNode, event: Event<A>, mut filter: F, mut handler: H) -> UiNode
 where
-    C: UiNode,
     A: EventArgs,
     F: FnMut(&A) -> bool + Send + 'static,
     H: WidgetHandler<A>,
@@ -632,20 +630,19 @@ where
 /// [`propagation`]: zng_app::event::AnyEventArgs::propagation
 /// [`ENABLED`]: zng_app::widget::info::Interactivity::ENABLED
 /// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
-pub fn on_pre_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H) -> impl UiNode
+pub fn on_pre_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H) -> UiNode
 where
-    C: UiNode,
+    C: IntoUiNode,
     A: EventArgs,
     F: FnMut(&A) -> bool + Send + 'static,
     H: WidgetHandler<A>,
 {
     #[cfg(feature = "dyn_closure")]
     let filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
-    on_pre_event_impl(child.cfg_boxed(), event, filter, handler.cfg_boxed()).cfg_boxed()
+    on_pre_event_impl(child.into_node(), event, filter, handler.cfg_boxed())
 }
-fn on_pre_event_impl<C, A, F, H>(child: C, event: Event<A>, mut filter: F, mut handler: H) -> impl UiNode
+fn on_pre_event_impl<A, F, H>(child: UiNode, event: Event<A>, mut filter: F, mut handler: H) -> UiNode
 where
-    C: UiNode,
     A: EventArgs,
     F: FnMut(&A) -> bool + Send + 'static,
     H: WidgetHandler<A>,
@@ -932,9 +929,9 @@ macro_rules! command_property { // TODO(breaking): generate `can_foo` property a
 ///  
 /// [`propagation`]: zng_app::event::AnyEventArgs::propagation
 /// [`Command::subscribe`]: zng_app::event::Command::subscribe
-pub fn on_command<U, CB, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
+pub fn on_command<U, CB, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> UiNode
 where
-    U: UiNode,
+    U: IntoUiNode,
     CB: FnMut() -> Command + Send + 'static,
     EB: FnMut() -> Var<bool> + Send + 'static,
     H: WidgetHandler<CommandArgs>,
@@ -944,11 +941,10 @@ where
     #[cfg(feature = "dyn_closure")]
     let enabled_builder: Box<dyn FnMut() -> Var<bool> + Send> = Box::new(enabled_builder);
 
-    on_command_impl(child.boxed(), command_builder, enabled_builder, handler.cfg_boxed()).cfg_boxed()
+    on_command_impl(child.into_node(), command_builder, enabled_builder, handler.cfg_boxed())
 }
-fn on_command_impl<U, CB, EB, H>(child: U, mut command_builder: CB, mut enabled_builder: EB, handler: H) -> impl UiNode
+fn on_command_impl<CB, EB, H>(child: UiNode, mut command_builder: CB, mut enabled_builder: EB, handler: H) -> UiNode
 where
-    U: UiNode,
     CB: FnMut() -> Command + Send + 'static,
     EB: FnMut() -> Var<bool> + Send + 'static,
     H: WidgetHandler<CommandArgs>,
@@ -1025,9 +1021,9 @@ zng_app::event::command! {
 ///
 /// The event `handler` is called before the [`on_command`] equivalent at the same context level. If the command event
 /// targets more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
-pub fn on_pre_command<U, CB, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
+pub fn on_pre_command<U, CB, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> UiNode
 where
-    U: UiNode,
+    U: IntoUiNode,
     CB: FnMut() -> Command + Send + 'static,
     EB: FnMut() -> Var<bool> + Send + 'static,
     H: WidgetHandler<CommandArgs>,
@@ -1037,11 +1033,10 @@ where
     #[cfg(feature = "dyn_closure")]
     let enabled_builder: Box<dyn FnMut() -> Var<bool> + Send> = Box::new(enabled_builder);
 
-    on_pre_command_impl(child.cfg_boxed(), command_builder, enabled_builder, handler.cfg_boxed()).cfg_boxed()
+    on_pre_command_impl(child.into_node(), command_builder, enabled_builder, handler.cfg_boxed())
 }
-fn on_pre_command_impl<U, CB, EB, H>(child: U, mut command_builder: CB, mut enabled_builder: EB, handler: H) -> impl UiNode
+fn on_pre_command_impl<CB, EB, H>(child: UiNode, mut command_builder: CB, mut enabled_builder: EB, handler: H) -> UiNode
 where
-    U: UiNode,
     CB: FnMut() -> Command + Send + 'static,
     EB: FnMut() -> Var<bool> + Send + 'static,
     H: WidgetHandler<CommandArgs>,
@@ -1117,12 +1112,12 @@ pub fn validate_getter_var<T: VarValue>(_var: &Var<T>) {
 ///
 /// When the `event` is received `on_event` is called, if it provides a new state the `state` variable is set.
 pub fn event_state<A: EventArgs, S: VarValue>(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     state: impl IntoVar<S>,
     default: S,
     event: Event<A>,
     mut on_event: impl FnMut(&A) -> Option<S> + Send + 'static,
-) -> impl UiNode {
+) -> UiNode {
     let state = state.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -1150,7 +1145,7 @@ pub fn event_state<A: EventArgs, S: VarValue>(
 /// provides a new value the `state` variable is set.
 #[expect(clippy::too_many_arguments)]
 pub fn event_state2<A0, A1, S0, S1, S>(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     state: impl IntoVar<S>,
     default: S,
     event0: Event<A0>,
@@ -1160,7 +1155,7 @@ pub fn event_state2<A0, A1, S0, S1, S>(
     default1: S1,
     mut on_event1: impl FnMut(&A1) -> Option<S1> + Send + 'static,
     mut merge: impl FnMut(S0, S1) -> Option<S> + Send + 'static,
-) -> impl UiNode
+) -> UiNode
 where
     A0: EventArgs,
     A1: EventArgs,
@@ -1218,7 +1213,7 @@ where
 /// provides a new value the `state` variable is set.
 #[expect(clippy::too_many_arguments)]
 pub fn event_state3<A0, A1, A2, S0, S1, S2, S>(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     state: impl IntoVar<S>,
     default: S,
     event0: Event<A0>,
@@ -1231,7 +1226,7 @@ pub fn event_state3<A0, A1, A2, S0, S1, S2, S>(
     default2: S2,
     mut on_event2: impl FnMut(&A2) -> Option<S2> + Send + 'static,
     mut merge: impl FnMut(S0, S1, S2) -> Option<S> + Send + 'static,
-) -> impl UiNode
+) -> UiNode
 where
     A0: EventArgs,
     A1: EventArgs,
@@ -1298,7 +1293,7 @@ where
 /// provides a new value the `state` variable is set.
 #[expect(clippy::too_many_arguments)]
 pub fn event_state4<A0, A1, A2, A3, S0, S1, S2, S3, S>(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     state: impl IntoVar<S>,
     default: S,
     event0: Event<A0>,
@@ -1314,7 +1309,7 @@ pub fn event_state4<A0, A1, A2, A3, S0, S1, S2, S3, S>(
     default3: S3,
     mut on_event3: impl FnMut(&A3) -> Option<S3> + Send + 'static,
     mut merge: impl FnMut(S0, S1, S2, S3) -> Option<S> + Send + 'static,
-) -> impl UiNode
+) -> UiNode
 where
     A0: EventArgs,
     A1: EventArgs,
@@ -1388,7 +1383,7 @@ where
 ///
 /// On init the `state` variable is set to `source` and bound to it, you can use this to create state properties
 /// that map from a context variable or to create composite properties that merge other state properties.
-pub fn bind_state<T: VarValue>(child: impl UiNode, source: impl IntoVar<T>, state: impl IntoVar<T>) -> impl UiNode {
+pub fn bind_state<T: VarValue>(child: impl IntoUiNode, source: impl IntoVar<T>, state: impl IntoVar<T>) -> UiNode {
     let source = source.into_var();
     let state = state.into_var();
     let mut _binding = VarHandle::dummy();
@@ -1411,7 +1406,7 @@ pub fn bind_state<T: VarValue>(child: impl UiNode, source: impl IntoVar<T>, stat
 /// On init the `state` closure is called to provide a variable, the variable is set to `source` and bound to it,
 /// you can use this to create state properties that map from a context variable or to create composite properties
 /// that merge other state properties.
-pub fn bind_state_init<T>(child: impl UiNode, source: impl Fn() -> Var<T> + Send + 'static, state: impl IntoVar<T>) -> impl UiNode
+pub fn bind_state_init<T>(child: impl IntoUiNode, source: impl Fn() -> Var<T> + Send + 'static, state: impl IntoVar<T>) -> UiNode
 where
     T: VarValue,
 {
@@ -1440,11 +1435,11 @@ where
 /// The `predicate` closure is called with the widget state on init and every update, if the returned value changes the `state`
 /// updates. The `deinit` closure is called on deinit to get the *reset* value.
 pub fn widget_state_is_state(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     predicate: impl Fn(StateMapRef<WIDGET>) -> bool + Send + 'static,
     deinit: impl Fn(StateMapRef<WIDGET>) -> bool + Send + 'static,
     state: impl IntoVar<bool>,
-) -> impl UiNode {
+) -> UiNode {
     let state = state.into_var();
 
     match_node(child, move |child, op| match op {
@@ -1479,11 +1474,11 @@ pub fn widget_state_is_state(
 /// The `get_new` closure is called with the widget state and current `state` every init and update, if it returns some value
 /// the `state` updates. The `get_deinit` closure is called on deinit to get the *reset* value.
 pub fn widget_state_get_state<T: VarValue>(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     get_new: impl Fn(StateMapRef<WIDGET>, &T) -> Option<T> + Send + 'static,
     get_deinit: impl Fn(StateMapRef<WIDGET>, &T) -> Option<T> + Send + 'static,
     state: impl IntoVar<T>,
-) -> impl UiNode {
+) -> UiNode {
     let state = state.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -1518,7 +1513,7 @@ pub fn widget_state_get_state<T: VarValue>(
 /// Properties that *fill* the widget can wrap their fill content in this node to automatically implement
 /// the expected interaction with the widget borders, the content will be positioned, sized and clipped according to the
 /// widget borders, corner radius and border align.
-pub fn fill_node(content: impl UiNode) -> impl UiNode {
+pub fn fill_node(content: impl IntoUiNode) -> UiNode {
     let mut clip_bounds = PxSize::zero();
     let mut clip_corners = PxCornerRadius::zero();
 
@@ -1622,12 +1617,12 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 /// with the other borders of the widget.
 ///
 /// This node disables inline layout for the widget.
-pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>, border_visual: impl UiNode) -> impl UiNode {
+pub fn border_node(child: impl IntoUiNode, border_offsets: impl IntoVar<SideOffsets>, border_visual: impl IntoUiNode) -> UiNode {
     let offsets = border_offsets.into_var();
     let mut render_offsets = PxSideOffsets::zero();
     let mut border_rect = PxRect::zero();
 
-    match_node_list(ui_vec![child, border_visual], move |children, op| match op {
+    match_node(ui_vec![child, border_visual], move |children, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_layout(&offsets).sub_var_render(&BORDER_OVER_VAR);
         }
@@ -1635,9 +1630,10 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             let offsets = offsets.layout();
             *desired_size = BORDER.measure_border(offsets, || {
                 LAYOUT.with_sub_size(PxSize::new(offsets.horizontal(), offsets.vertical()), || {
-                    children.with_node(0, |n| wm.measure_block(n))
+                    children.child().with_child(0, |n| wm.measure_block(n))
                 })
             });
+            children.delegated();
         }
         UiNodeOp::Layout { wl, final_size } => {
             // We are inside the *inner* bounds or inside a parent border_node:
@@ -1665,36 +1661,39 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
                 wl.translate(PxVector::new(offsets.left, offsets.top));
 
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
-                border_rect.size = LAYOUT.with_sub_size(taken_size, || children.with_node(0, |n| n.layout(wl)));
+                border_rect.size = LAYOUT.with_sub_size(taken_size, || children.child().with_child(0, |n| n.layout(wl)));
 
                 // layout border visual
                 LAYOUT.with_constraints(PxConstraints2d::new_exact_size(border_rect.size), || {
                     BORDER.with_border_layout(border_rect, offsets, || {
-                        children.with_node(1, |n| n.layout(wl));
+                        children.child().with_child(1, |n| n.layout(wl));
                     });
                 });
             });
+            children.delegated();
 
             *final_size = border_rect.size;
         }
         UiNodeOp::Render { frame } => {
             if BORDER_OVER_VAR.get() {
-                children.with_node(0, |c| c.render(frame));
+                children.child().with_child(0, |c| c.render(frame));
                 BORDER.with_border_layout(border_rect, render_offsets, || {
-                    children.with_node(1, |c| c.render(frame));
+                    children.child().with_child(1, |c| c.render(frame));
                 });
             } else {
                 BORDER.with_border_layout(border_rect, render_offsets, || {
-                    children.with_node(1, |c| c.render(frame));
+                    children.child().with_child(1, |c| c.render(frame));
                 });
-                children.with_node(0, |c| c.render(frame));
+                children.child().with_child(0, |c| c.render(frame));
             }
+            children.delegated();
         }
         UiNodeOp::RenderUpdate { update } => {
-            children.with_node(0, |c| c.render_update(update));
+            children.child().with_child(0, |c| c.render_update(update));
             BORDER.with_border_layout(border_rect, render_offsets, || {
-                children.with_node(1, |c| c.render_update(update));
-            })
+                children.child().with_child(1, |c| c.render_update(update));
+            });
+            children.delegated();
         }
         _ => {}
     })
@@ -1706,10 +1705,10 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
 ///
 /// [`context_local!`]: crate::prelude::context_local
 pub fn with_context_local<T: Any + Send + Sync + 'static>(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     context: &'static ContextLocal<T>,
     value: impl Into<T>,
-) -> impl UiNode {
+) -> UiNode {
     let mut value = Some(Arc::new(value.into()));
 
     match_node(child, move |child, op| {
@@ -1726,19 +1725,19 @@ pub fn with_context_local<T: Any + Send + Sync + 'static>(
 ///
 /// [`ContextLocal<T>`]: zng_app_context::ContextLocal
 pub fn with_context_local_init<T: Any + Send + Sync + 'static>(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     context: &'static ContextLocal<T>,
     init_value: impl FnMut() -> T + Send + 'static,
-) -> impl UiNode {
+) -> UiNode {
     #[cfg(feature = "dyn_closure")]
     let init_value: Box<dyn FnMut() -> T + Send> = Box::new(init_value);
-    with_context_local_init_impl(child.cfg_boxed(), context, init_value).cfg_boxed()
+    with_context_local_init_impl(child.into_node(), context, init_value)
 }
 fn with_context_local_init_impl<T: Any + Send + Sync + 'static>(
-    child: impl UiNode,
+    child: UiNode,
     context: &'static ContextLocal<T>,
     mut init_value: impl FnMut() -> T + Send + 'static,
-) -> impl UiNode {
+) -> UiNode {
     let mut value = None;
 
     match_node(child, move |child, op| {
@@ -1790,7 +1789,7 @@ fn with_context_local_init_impl<T: Any + Send + Sync + 'static>(
 /// [`UiNodeOp`]: zng_app::widget::node::UiNodeOp
 /// [`UiNode::with_context`]: zng_app::widget::node::UiNode::with_context
 /// [`LocalContext::with_context_blend`]: zng_app_context::LocalContext::with_context_blend
-pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode) -> impl UiNode {
+pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl IntoUiNode) -> UiNode {
     match_widget(child, move |c, op| {
         if let UiNodeOp::Init = op {
             let init_app = LocalContext::current_app();
@@ -1823,7 +1822,7 @@ pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode)
 /// }
 ///
 /// #[property(CONTEXT)]
-/// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
+/// pub fn foo(child: impl IntoUiNode, value: impl IntoVar<u32>) -> UiNode {
 ///     with_widget_state(child, *FOO_ID, || 0, value)
 /// }
 ///
@@ -1841,19 +1840,18 @@ pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode)
 /// ```
 ///
 /// [`WIDGET`]: zng_app::widget::WIDGET
-pub fn with_widget_state<U, I, T>(child: U, id: impl Into<StateId<T>>, default: I, value: impl IntoVar<T>) -> impl UiNode
+pub fn with_widget_state<U, I, T>(child: U, id: impl Into<StateId<T>>, default: I, value: impl IntoVar<T>) -> UiNode
 where
-    U: UiNode,
+    U: IntoUiNode,
     I: Fn() -> T + Send + 'static,
     T: StateValue + VarValue,
 {
     #[cfg(feature = "dyn_closure")]
     let default: Box<dyn Fn() -> T + Send> = Box::new(default);
-    with_widget_state_impl(child.cfg_boxed(), id.into(), default, value.into_var()).cfg_boxed()
+    with_widget_state_impl(child.into_node(), id.into(), default, value.into_var())
 }
-fn with_widget_state_impl<U, I, T>(child: U, id: impl Into<StateId<T>>, default: I, value: impl IntoVar<T>) -> impl UiNode
+fn with_widget_state_impl<I, T>(child: UiNode, id: impl Into<StateId<T>>, default: I, value: impl IntoVar<T>) -> UiNode
 where
-    U: UiNode,
     I: Fn() -> T + Send + 'static,
     T: StateValue + VarValue,
 {
@@ -1893,9 +1891,9 @@ pub fn with_widget_state_modify<U, S, V, I, M>(
     value: impl IntoVar<V>,
     default: I,
     modify: M,
-) -> impl UiNode
+) -> UiNode
 where
-    U: UiNode,
+    U: IntoUiNode,
     S: StateValue,
     V: VarValue,
     I: Fn() -> S + Send + 'static,
@@ -1906,17 +1904,16 @@ where
     #[cfg(feature = "dyn_closure")]
     let modify: Box<dyn FnMut(&mut S, &V) + Send> = Box::new(modify);
 
-    with_widget_state_modify_impl(child.cfg_boxed(), id.into(), value.into_var(), default, modify)
+    with_widget_state_modify_impl(child.into_node(), id.into(), value.into_var(), default, modify)
 }
-fn with_widget_state_modify_impl<U, S, V, I, M>(
-    child: U,
+fn with_widget_state_modify_impl<S, V, I, M>(
+    child: UiNode,
     id: impl Into<StateId<S>>,
     value: impl IntoVar<V>,
     default: I,
     mut modify: M,
-) -> impl UiNode
+) -> UiNode
 where
-    U: UiNode,
     S: StateValue,
     V: VarValue,
     I: Fn() -> S + Send + 'static,
@@ -1965,7 +1962,7 @@ where
 ///
 /// [`interactive`]: fn@crate::interactive
 /// [`BLOCKED`]: Interactivity::BLOCKED
-pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
+pub fn interactive_node(child: impl IntoUiNode, interactive: impl IntoVar<bool>) -> UiNode {
     let interactive = interactive.into_var();
 
     match_node(child, move |child, op| match op {
@@ -1975,7 +1972,8 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
         UiNodeOp::Info { info } => {
             if interactive.get() {
                 child.info(info);
-            } else if let Some(id) = child.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
+            } else if let Some(mut wgt) = child.child().as_widget() {
+                let id = wgt.id();
                 // child is a widget.
                 info.push_interactivity_filter(move |args| {
                     if args.info.id() == id {
@@ -2021,10 +2019,10 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
 ///
 /// See [`with_index_len_node`] for more details.
 pub fn with_index_node(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     panel_list_id: impl Into<StateId<PanelListRange>>,
     mut update: impl FnMut(Option<usize>) + Send + 'static,
-) -> impl UiNode {
+) -> UiNode {
     let panel_list_id = panel_list_id.into();
     let mut version = None;
     match_node(child, move |_, op| match op {
@@ -2051,10 +2049,10 @@ pub fn with_index_node(
 ///
 /// See [`with_index_len_node`] for more details.
 pub fn with_rev_index_node(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     panel_list_id: impl Into<StateId<PanelListRange>>,
     mut update: impl FnMut(Option<usize>) + Send + 'static,
-) -> impl UiNode {
+) -> UiNode {
     let panel_list_id = panel_list_id.into();
     let mut version = None;
     match_node(child, move |_, op| match op {
@@ -2083,10 +2081,10 @@ pub fn with_rev_index_node(
 ///
 /// [`PanelList::track_info_range`]: zng_app::widget::node::PanelList::track_info_range
 pub fn with_index_len_node(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     panel_list_id: impl Into<StateId<PanelListRange>>,
     mut update: impl FnMut(Option<(usize, usize)>) + Send + 'static,
-) -> impl UiNode {
+) -> UiNode {
     let panel_list_id = panel_list_id.into();
     let mut version = None;
     match_node(child, move |_, op| match op {
@@ -2127,18 +2125,18 @@ pub fn with_index_len_node(
 ///
 /// See also the [`present`](VarPresent::present) method that can be called on the `data`` variable and [`present_data`](VarPresentData::present_data)
 /// that can be called on the `wgt_fn` variable.
-pub fn presenter<D: VarValue>(data: impl IntoVar<D>, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
+pub fn presenter<D: VarValue>(data: impl IntoVar<D>, wgt_fn: impl IntoVar<WidgetFn<D>>) -> UiNode {
     let data = data.into_var();
     let wgt_fn = wgt_fn.into_var();
 
-    match_node(NilUiNode.boxed(), move |c, op| match op {
+    match_node(UiNode::nil(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&data).sub_var(&wgt_fn);
             *c.child() = wgt_fn.get()(data.get());
         }
         UiNodeOp::Deinit => {
             c.deinit();
-            *c.child() = NilUiNode.boxed();
+            *c.child() = UiNode::nil();
         }
         UiNodeOp::Update { .. } => {
             if data.is_new() || wgt_fn.is_new() {
@@ -2158,11 +2156,11 @@ pub fn presenter<D: VarValue>(data: impl IntoVar<D>, wgt_fn: impl IntoVar<Widget
 /// This behaves like [`presenter`], but `wgt_fn` is not called if `data` is `None`.
 ///
 /// See also the [`present_opt`](VarPresentOpt::present_opt) method that can be called on the data variable.
-pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
+pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, wgt_fn: impl IntoVar<WidgetFn<D>>) -> UiNode {
     let data = data.into_var();
     let wgt_fn = wgt_fn.into_var();
 
-    match_node(NilUiNode.boxed(), move |c, op| match op {
+    match_node(UiNode::nil(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&data).sub_var(&wgt_fn);
             if let Some(data) = data.get() {
@@ -2171,7 +2169,7 @@ pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, wgt_fn: impl In
         }
         UiNodeOp::Deinit => {
             c.deinit();
-            *c.child() = NilUiNode.boxed();
+            *c.child() = UiNode::nil();
         }
         UiNodeOp::Update { .. } => {
             if data.is_new() || wgt_fn.is_new() {
@@ -2181,9 +2179,9 @@ pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, wgt_fn: impl In
                     c.child().init();
                     c.delegated();
                     WIDGET.update_info().layout().render();
-                } else if c.child().actual_type_id() != TypeId::of::<NilUiNode>() {
+                } else if !c.child().is_nil() {
                     c.child().deinit();
-                    *c.child() = NilUiNode.boxed();
+                    *c.child() = UiNode::nil();
                     c.delegated();
                     WIDGET.update_info().layout().render();
                 }
@@ -2198,13 +2196,13 @@ pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, wgt_fn: impl In
 /// The node's children is the list mapped to node items, it is kept in sync, any list update is propagated to the node list.
 ///
 /// See also the [`present_list`](VarPresentList::present_list) method that can be called on the list variable.
-pub fn list_presenter<D: VarValue>(list: impl IntoVar<ObservableVec<D>>, item_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList {
+pub fn list_presenter<D: VarValue>(list: impl IntoVar<ObservableVec<D>>, item_fn: impl IntoVar<WidgetFn<D>>) -> UiNode {
     ListPresenter {
         list: list.into_var(),
         item_fn: item_fn.into_var(),
         view: vec![],
         _e: std::marker::PhantomData,
-    }
+    }.into_node()
 }
 
 /// Node list that presents `list` using `item_fn` for each list item.
@@ -2212,7 +2210,7 @@ pub fn list_presenter<D: VarValue>(list: impl IntoVar<ObservableVec<D>>, item_fn
 /// The node's children are **regenerated** for each change in `list`, if possible prefer using [`ObservableVec`] with [`list_presenter`].
 ///
 /// See also the [`present_list_from_iter`](VarPresentListFromIter::present_list_from_iter) method that can be called on the list variable.
-pub fn list_presenter_from_iter<D, L>(list: impl IntoVar<L>, item_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList
+pub fn list_presenter_from_iter<D, L>(list: impl IntoVar<L>, item_fn: impl IntoVar<WidgetFn<D>>) -> UiNode
 where
     D: VarValue,
     L: IntoIterator<Item = D> + VarValue,
@@ -2222,7 +2220,7 @@ where
         item_fn: item_fn.into_var(),
         view: vec![],
         _e: std::marker::PhantomData,
-    }
+    }.into_node()
 }
 
 struct ListPresenter<D>
@@ -2231,150 +2229,158 @@ where
 {
     list: Var<ObservableVec<D>>,
     item_fn: Var<WidgetFn<D>>,
-    view: Vec<BoxedUiNode>,
+    view: Vec<UiNode>,
     _e: std::marker::PhantomData<D>,
 }
 
-impl<D> UiNodeList for ListPresenter<D>
+impl<D> UiNodeImpl for ListPresenter<D>
 where
     D: VarValue,
 {
-    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&mut BoxedUiNode) -> R,
-    {
-        self.view.with_node(index, f)
+    fn children_len(&self) -> usize {
+        todo!()
     }
 
-    fn for_each<F>(&mut self, f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode),
-    {
-        self.view.for_each(f)
+    fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
+        todo!()
     }
+    
+    // fn with_node<R, F>(&mut self, index: usize, f: F) -> R
+    // where
+    //     F: FnOnce(&mut BoxedUiNode) -> R,
+    // {
+    //     self.view.with_node(index, f)
+    // }
 
-    fn par_each<F>(&mut self, f: F)
-    where
-        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
-    {
-        self.view.par_each(f)
-    }
+    // fn for_each<F>(&mut self, f: F)
+    // where
+    //     F: FnMut(usize, &mut BoxedUiNode),
+    // {
+    //     self.view.for_each(f)
+    // }
 
-    fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
-    where
-        T: Send + 'static,
-        I: Fn() -> T + Send + Sync,
-        F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
-        R: Fn(T, T) -> T + Send + Sync,
-    {
-        self.view.par_fold_reduce(identity, fold, reduce)
-    }
+    // fn par_each<F>(&mut self, f: F)
+    // where
+    //     F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    // {
+    //     self.view.par_each(f)
+    // }
 
-    fn len(&self) -> usize {
-        self.view.len()
-    }
+    // fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
+    // where
+    //     T: Send + 'static,
+    //     I: Fn() -> T + Send + Sync,
+    //     F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
+    //     R: Fn(T, T) -> T + Send + Sync,
+    // {
+    //     self.view.par_fold_reduce(identity, fold, reduce)
+    // }
 
-    fn boxed(self) -> BoxedUiNodeList {
-        Box::new(self)
-    }
+    // fn len(&self) -> usize {
+    //     self.view.len()
+    // }
 
-    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
-        self.view.drain_into(vec);
-        tracing::warn!("drained `list_presenter`, now out of sync with data");
-    }
+    // fn boxed(self) -> BoxedUiNodeList {
+    //     Box::new(self)
+    // }
 
-    fn init_all(&mut self) {
-        debug_assert!(self.view.is_empty());
-        self.view.clear();
+    // fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+    //     self.view.drain_into(vec);
+    //     tracing::warn!("drained `list_presenter`, now out of sync with data");
+    // }
 
-        WIDGET.sub_var(&self.list).sub_var(&self.item_fn);
+    // fn init_all(&mut self) {
+    //     debug_assert!(self.view.is_empty());
+    //     self.view.clear();
 
-        let e_fn = self.item_fn.get();
-        self.list.with(|l| {
-            for el in l.iter() {
-                let child = e_fn(el.clone());
-                self.view.push(child);
-            }
-        });
+    //     WIDGET.sub_var(&self.list).sub_var(&self.item_fn);
 
-        self.view.init_all();
-    }
+    //     let e_fn = self.item_fn.get();
+    //     self.list.with(|l| {
+    //         for el in l.iter() {
+    //             let child = e_fn(el.clone());
+    //             self.view.push(child);
+    //         }
+    //     });
 
-    fn deinit_all(&mut self) {
-        self.view.deinit_all();
-        self.view.clear();
-    }
+    //     self.view.init_all();
+    // }
 
-    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        let mut need_reset = self.item_fn.is_new();
+    // fn deinit_all(&mut self) {
+    //     self.view.deinit_all();
+    //     self.view.clear();
+    // }
 
-        let is_new = self
-            .list
-            .with_new(|l| {
-                need_reset |= l.changes().is_empty() || l.changes() == [VecChange::Clear];
+    // fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    //     let mut need_reset = self.item_fn.is_new();
 
-                if need_reset {
-                    return;
-                }
+    //     let is_new = self
+    //         .list
+    //         .with_new(|l| {
+    //             need_reset |= l.changes().is_empty() || l.changes() == [VecChange::Clear];
 
-                // update before new items to avoid update before init.
-                self.view.update_all(updates, observer);
+    //             if need_reset {
+    //                 return;
+    //             }
 
-                let e_fn = self.item_fn.get();
+    //             // update before new items to avoid update before init.
+    //             self.view.update_all(updates, observer);
 
-                for change in l.changes() {
-                    match change {
-                        VecChange::Insert { index, count } => {
-                            for i in *index..(*index + count) {
-                                let mut el = e_fn(l[i].clone());
-                                el.init();
-                                self.view.insert(i, el);
-                                observer.inserted(i);
-                            }
-                        }
-                        VecChange::Remove { index, count } => {
-                            let mut count = *count;
-                            let index = *index;
-                            while count > 0 {
-                                count -= 1;
+    //             let e_fn = self.item_fn.get();
 
-                                let mut el = self.view.remove(index);
-                                el.deinit();
-                                observer.removed(index);
-                            }
-                        }
-                        VecChange::Move { from_index, to_index } => {
-                            let el = self.view.remove(*from_index);
-                            self.view.insert(*to_index, el);
-                            observer.moved(*from_index, *to_index);
-                        }
-                        VecChange::Clear => unreachable!(),
-                    }
-                }
-            })
-            .is_some();
+    //             for change in l.changes() {
+    //                 match change {
+    //                     VecChange::Insert { index, count } => {
+    //                         for i in *index..(*index + count) {
+    //                             let mut el = e_fn(l[i].clone());
+    //                             el.init();
+    //                             self.view.insert(i, el);
+    //                             observer.inserted(i);
+    //                         }
+    //                     }
+    //                     VecChange::Remove { index, count } => {
+    //                         let mut count = *count;
+    //                         let index = *index;
+    //                         while count > 0 {
+    //                             count -= 1;
 
-        if !need_reset && !is_new && self.list.with(|l| l.len() != self.view.len()) {
-            need_reset = true;
-        }
+    //                             let mut el = self.view.remove(index);
+    //                             el.deinit();
+    //                             observer.removed(index);
+    //                         }
+    //                     }
+    //                     VecChange::Move { from_index, to_index } => {
+    //                         let el = self.view.remove(*from_index);
+    //                         self.view.insert(*to_index, el);
+    //                         observer.moved(*from_index, *to_index);
+    //                     }
+    //                     VecChange::Clear => unreachable!(),
+    //                 }
+    //             }
+    //         })
+    //         .is_some();
 
-        if need_reset {
-            self.view.deinit_all();
-            self.view.clear();
+    //     if !need_reset && !is_new && self.list.with(|l| l.len() != self.view.len()) {
+    //         need_reset = true;
+    //     }
 
-            let e_fn = self.item_fn.get();
-            self.list.with(|l| {
-                for el in l.iter() {
-                    let child = e_fn(el.clone());
-                    self.view.push(child);
-                }
-            });
+    //     if need_reset {
+    //         self.view.deinit_all();
+    //         self.view.clear();
 
-            self.view.init_all();
-        } else if !is_new {
-            self.view.update_all(updates, observer);
-        }
-    }
+    //         let e_fn = self.item_fn.get();
+    //         self.list.with(|l| {
+    //             for el in l.iter() {
+    //                 let child = e_fn(el.clone());
+    //                 self.view.push(child);
+    //             }
+    //         });
+
+    //         self.view.init_all();
+    //     } else if !is_new {
+    //         self.view.update_all(updates, observer);
+    //     }
+    // }
 }
 
 struct ListPresenterFromIter<D, L>
@@ -2384,97 +2390,105 @@ where
 {
     list: Var<L>,
     item_fn: Var<WidgetFn<D>>,
-    view: Vec<BoxedUiNode>,
+    view: Vec<UiNode>,
     _e: std::marker::PhantomData<(D, L)>,
 }
 
-impl<D, L> UiNodeList for ListPresenterFromIter<D, L>
+impl<D, L> UiNodeImpl for ListPresenterFromIter<D, L>
 where
     D: VarValue,
     L: IntoIterator<Item = D> + VarValue,
 {
-    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&mut BoxedUiNode) -> R,
-    {
-        self.view.with_node(index, f)
+    fn children_len(&self) -> usize {
+        todo!()
     }
 
-    fn for_each<F>(&mut self, f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode),
-    {
-        self.view.for_each(f)
+    fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
+        todo!()
     }
 
-    fn par_each<F>(&mut self, f: F)
-    where
-        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
-    {
-        self.view.par_each(f)
-    }
+    // fn with_node<R, F>(&mut self, index: usize, f: F) -> R
+    // where
+    //     F: FnOnce(&mut BoxedUiNode) -> R,
+    // {
+    //     self.view.with_node(index, f)
+    // }
 
-    fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
-    where
-        T: Send + 'static,
-        I: Fn() -> T + Send + Sync,
-        F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
-        R: Fn(T, T) -> T + Send + Sync,
-    {
-        self.view.par_fold_reduce(identity, fold, reduce)
-    }
+    // fn for_each<F>(&mut self, f: F)
+    // where
+    //     F: FnMut(usize, &mut BoxedUiNode),
+    // {
+    //     self.view.for_each(f)
+    // }
 
-    fn len(&self) -> usize {
-        self.view.len()
-    }
+    // fn par_each<F>(&mut self, f: F)
+    // where
+    //     F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    // {
+    //     self.view.par_each(f)
+    // }
 
-    fn boxed(self) -> BoxedUiNodeList {
-        Box::new(self)
-    }
+    // fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
+    // where
+    //     T: Send + 'static,
+    //     I: Fn() -> T + Send + Sync,
+    //     F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
+    //     R: Fn(T, T) -> T + Send + Sync,
+    // {
+    //     self.view.par_fold_reduce(identity, fold, reduce)
+    // }
 
-    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
-        self.view.drain_into(vec);
-        tracing::warn!("drained `list_presenter_from_iter`, now out of sync with data");
-    }
+    // fn len(&self) -> usize {
+    //     self.view.len()
+    // }
 
-    fn init_all(&mut self) {
-        debug_assert!(self.view.is_empty());
-        self.view.clear();
+    // fn boxed(self) -> BoxedUiNodeList {
+    //     Box::new(self)
+    // }
 
-        WIDGET.sub_var(&self.list).sub_var(&self.item_fn);
+    // fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+    //     self.view.drain_into(vec);
+    //     tracing::warn!("drained `list_presenter_from_iter`, now out of sync with data");
+    // }
 
-        let e_fn = self.item_fn.get();
+    // fn init_all(&mut self) {
+    //     debug_assert!(self.view.is_empty());
+    //     self.view.clear();
 
-        self.view.extend(self.list.get().into_iter().map(&*e_fn));
-        self.view.init_all();
-    }
+    //     WIDGET.sub_var(&self.list).sub_var(&self.item_fn);
 
-    fn deinit_all(&mut self) {
-        self.view.deinit_all();
-        self.view.clear();
-    }
+    //     let e_fn = self.item_fn.get();
 
-    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        if self.list.is_new() || self.item_fn.is_new() {
-            self.view.deinit_all();
-            self.view.clear();
-            let e_fn = self.item_fn.get();
-            self.view.extend(self.list.get().into_iter().map(&*e_fn));
-            self.view.init_all();
-            observer.reset();
-        } else {
-            self.view.update_all(updates, observer);
-        }
-    }
+    //     self.view.extend(self.list.get().into_iter().map(&*e_fn));
+    //     self.view.init_all();
+    // }
+
+    // fn deinit_all(&mut self) {
+    //     self.view.deinit_all();
+    //     self.view.clear();
+    // }
+
+    // fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    //     if self.list.is_new() || self.item_fn.is_new() {
+    //         self.view.deinit_all();
+    //         self.view.clear();
+    //         let e_fn = self.item_fn.get();
+    //         self.view.extend(self.list.get().into_iter().map(&*e_fn));
+    //         self.view.init_all();
+    //         observer.reset();
+    //     } else {
+    //         self.view.update_all(updates, observer);
+    //     }
+    // }
 }
 
 /// Extension method to *convert* a variable to a node.
 pub trait VarPresent<D: VarValue> {
     /// Present the variable data using a [`presenter`] node.
-    fn present(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode;
+    fn present(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> UiNode;
 }
 impl<D: VarValue> VarPresent<D> for Var<D> {
-    fn present(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
+    fn present(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> UiNode {
         presenter(self.clone(), wgt_fn)
     }
 }
@@ -2482,10 +2496,10 @@ impl<D: VarValue> VarPresent<D> for Var<D> {
 /// Extension method to *convert* a variable to a node.
 pub trait VarPresentOpt<D: VarValue> {
     /// Present the variable data using a [`presenter_opt`] node.
-    fn present_opt(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode;
+    fn present_opt(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> UiNode;
 }
 impl<D: VarValue> VarPresentOpt<D> for Var<Option<D>> {
-    fn present_opt(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
+    fn present_opt(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> UiNode {
         presenter_opt(self.clone(), wgt_fn)
     }
 }
@@ -2493,10 +2507,10 @@ impl<D: VarValue> VarPresentOpt<D> for Var<Option<D>> {
 /// Extension method fo *convert* a variable to a node list.
 pub trait VarPresentList<D: VarValue> {
     /// Present the variable data using a [`list_presenter`] node list.
-    fn present_list(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList;
+    fn present_list(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> UiNode;
 }
 impl<D: VarValue> VarPresentList<D> for Var<ObservableVec<D>> {
-    fn present_list(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList {
+    fn present_list(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> UiNode {
         list_presenter(self.clone(), wgt_fn)
     }
 }
@@ -2504,10 +2518,10 @@ impl<D: VarValue> VarPresentList<D> for Var<ObservableVec<D>> {
 /// Extension method fo *convert* a variable to a node list.
 pub trait VarPresentListFromIter<D: VarValue, L: IntoIterator<Item = D> + VarValue> {
     /// Present the variable data using a [`list_presenter_from_iter`] node list.
-    fn present_list_from_iter(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList;
+    fn present_list_from_iter(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> UiNode;
 }
 impl<D: VarValue, L: IntoIterator<Item = D> + VarValue> VarPresentListFromIter<D, L> for Var<L> {
-    fn present_list_from_iter(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList {
+    fn present_list_from_iter(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> UiNode {
         list_presenter_from_iter(self.clone(), wgt_fn)
     }
 }
@@ -2515,10 +2529,10 @@ impl<D: VarValue, L: IntoIterator<Item = D> + VarValue> VarPresentListFromIter<D
 /// Extension method to *convert* a variable to a node.
 pub trait VarPresentData<D: VarValue> {
     /// Present the `data` variable using a [`presenter`] node.
-    fn present_data(&self, data: impl IntoVar<D>) -> impl UiNode;
+    fn present_data(&self, data: impl IntoVar<D>) -> UiNode;
 }
 impl<D: VarValue> VarPresentData<D> for Var<WidgetFn<D>> {
-    fn present_data(&self, data: impl IntoVar<D>) -> impl UiNode {
+    fn present_data(&self, data: impl IntoVar<D>) -> UiNode {
         presenter(data, self.clone())
     }
 }

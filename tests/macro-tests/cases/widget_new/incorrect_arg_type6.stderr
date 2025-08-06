@@ -13,5 +13,5 @@ error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
 note: required by a bound in `simple_type_inputs__::simple_b`
   --> cases/widget_new/incorrect_arg_type6.rs:8:84
    |
-8  | pub fn simple_type(child: impl UiNode, simple_a: impl IntoVar<u32>, simple_b: impl IntoVar<u32>) -> impl UiNode {
+8  | pub fn simple_type(child: impl IntoUiNode, simple_a: impl IntoVar<u32>, simple_b: impl IntoVar<u32>) -> UiNode {
    |                                                                                    ^^^^^^^^^^^^ required by this bound in `simple_type_inputs__::simple_b`

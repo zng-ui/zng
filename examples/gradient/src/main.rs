@@ -38,14 +38,14 @@ fn main() {
     });
 }
 
-fn title(title: &'static str) -> impl UiNode {
+fn title(title: &'static str) -> UiNode {
     Text! {
         txt = title;
         font_size = 18.pt();
     }
 }
 
-fn linear_angle() -> impl UiNode {
+fn linear_angle() -> UiNode {
     sample_line(ui_vec![
         sample("90º", linear_gradient(90.deg(), [web_colors::RED, web_colors::BLUE])),
         sample("45º", linear_gradient(45.deg(), [web_colors::GREEN, web_colors::BLUE])),
@@ -57,7 +57,7 @@ fn linear_angle() -> impl UiNode {
     ])
 }
 
-fn linear_points() -> impl UiNode {
+fn linear_points() -> UiNode {
     sample_line(ui_vec![
         sample(
             "(30, 30) to (90, 90) clamp",
@@ -81,7 +81,7 @@ fn linear_points() -> impl UiNode {
     ])
 }
 
-fn linear_tile() -> impl UiNode {
+fn linear_tile() -> UiNode {
     let w = 180 / 5;
     sample_line(ui_vec![
         sample(
@@ -99,7 +99,7 @@ fn linear_tile() -> impl UiNode {
     ])
 }
 
-fn stack_linear() -> impl UiNode {
+fn stack_linear() -> UiNode {
     sample_line(ui_vec![
         sample(
             "background",
@@ -143,7 +143,7 @@ fn stack_linear() -> impl UiNode {
         sample(
             "angles",
             stack_nodes({
-                fn gradient(angle: i32, mut color: color::Rgba) -> impl UiNode {
+                fn gradient(angle: i32, mut color: color::Rgba) -> UiNode {
                     color.alpha = 0.3;
                     let stops = GradientStops::from_stripes(&[color, color.transparent()], 0.0);
                     linear_gradient(angle.deg(), stops)
@@ -166,7 +166,7 @@ fn stack_linear() -> impl UiNode {
     ])
 }
 
-fn sample(name: impl ToTxt, gradient: impl UiNode) -> impl UiNode {
+fn sample(name: impl ToTxt, gradient: impl IntoUiNode) -> UiNode {
     let name = name.to_txt();
     Stack! {
         direction = StackDirection::top_to_bottom();
@@ -181,7 +181,7 @@ fn sample(name: impl ToTxt, gradient: impl UiNode) -> impl UiNode {
     }
 }
 
-fn sample_line(children: impl UiNodeList) -> impl UiNode {
+fn sample_line(children: impl UiNodeList) -> UiNode {
     Stack! {
         direction = StackDirection::left_to_right();
         spacing = 5;
@@ -189,7 +189,7 @@ fn sample_line(children: impl UiNodeList) -> impl UiNode {
     }
 }
 
-fn icon() -> impl UiNode {
+fn icon() -> UiNode {
     Text! {
         size = 36;
         widget::background_gradient = Line::to_bottom_right(), stops![web_colors::MIDNIGHT_BLUE, 70.pct(), web_colors::CRIMSON];

@@ -9,7 +9,7 @@ use zng::{
 struct NotVarValue;
 
 #[property(CONTEXT)]
-pub fn foo(child: impl UiNode, value: impl IntoValue<bool>) -> impl UiNode {
+pub fn foo(child: impl IntoUiNode, value: impl IntoValue<bool>) -> UiNode {
     let _ = value;
     child
 }

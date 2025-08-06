@@ -179,7 +179,7 @@
 //! use zng::prelude::*;
 //!
 //! # let _app = APP.minimal();
-//! fn ui(txt: impl IntoVar<Txt>) -> impl UiNode {
+//! fn ui(txt: impl IntoVar<Txt>) -> UiNode {
 //!     Text!(txt)
 //! }
 //!
@@ -775,9 +775,9 @@ mod __prelude_wgt {
                 WidgetLayout, WidgetMeasure, WidgetPath,
             },
             node::{
-                ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode,
-                PanelList, SORTING_LIST, SortingList, UiNode, UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiVec,
-                ZIndex, match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec,
+                ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, EditableUiVec, EditableUiVecRef, FillUiNode, NilUiNode, PanelList,
+                SORTING_LIST, SortingList, UiNode, UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiVec, ZIndex,
+                match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec,
             },
             property, ui_node, widget, widget_impl, widget_mixin, widget_set,
         },

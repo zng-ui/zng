@@ -39,7 +39,7 @@ fn main() {
     })
 }
 
-fn controls() -> impl UiNode {
+fn controls() -> UiNode {
     let bn = btn;
     let b_squre = btn_square();
     let b_sroot = btn_square_root();
@@ -65,7 +65,7 @@ fn controls() -> impl UiNode {
     }
 }
 
-fn btn_square() -> impl UiNode {
+fn btn_square() -> UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.square()));
@@ -73,7 +73,7 @@ fn btn_square() -> impl UiNode {
     }
 }
 
-fn btn_square_root() -> impl UiNode {
+fn btn_square_root() -> UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.square_root()));
@@ -81,7 +81,7 @@ fn btn_square_root() -> impl UiNode {
     }
 }
 
-fn btn_clear() -> impl UiNode {
+fn btn_clear() -> UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.clear()));
@@ -90,7 +90,7 @@ fn btn_clear() -> impl UiNode {
     }
 }
 
-fn btn_backspace() -> impl UiNode {
+fn btn_backspace() -> UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.backspace()));
@@ -99,7 +99,7 @@ fn btn_backspace() -> impl UiNode {
     }
 }
 
-fn btn(c: char) -> impl UiNode {
+fn btn(c: char) -> UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| {
@@ -114,7 +114,7 @@ fn btn(c: char) -> impl UiNode {
     }
 }
 
-fn btn_eval() -> impl UiNode {
+fn btn_eval() -> UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.eval()));

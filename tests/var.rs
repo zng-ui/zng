@@ -543,21 +543,21 @@ mod context {
     }
 
     #[property(CONTEXT, default(TEST_VAR))]
-    fn test_prop(child: impl UiNode, value: impl IntoVar<Txt>) -> impl UiNode {
+    fn test_prop(child: impl IntoUiNode, value: impl IntoVar<Txt>) -> UiNode {
         with_context_var(child, TEST_VAR, value)
     }
 
     #[property(CONTEXT, default(TEST_VAR))]
-    fn test_prop_a(child: impl UiNode, value: impl IntoVar<Txt>) -> impl UiNode {
+    fn test_prop_a(child: impl IntoUiNode, value: impl IntoVar<Txt>) -> UiNode {
         test_prop(child, value)
     }
     #[property(CONTEXT, default(TEST_VAR))]
-    fn test_prop_b(child: impl UiNode, value: impl IntoVar<Txt>) -> impl UiNode {
+    fn test_prop_b(child: impl IntoUiNode, value: impl IntoVar<Txt>) -> UiNode {
         test_prop(child, value)
     }
 
     #[property(CONTEXT)]
-    fn probe(child: impl UiNode, var: impl IntoVar<Txt>) -> impl UiNode {
+    fn probe(child: impl IntoUiNode, var: impl IntoVar<Txt>) -> UiNode {
         let var = var.into_var();
         match_node(child, move |_, op| {
             if let UiNodeOp::Init = op {
@@ -566,16 +566,16 @@ mod context {
         })
     }
     #[property(CONTEXT)]
-    fn probe_a(child: impl UiNode, var: impl IntoVar<Txt>) -> impl UiNode {
+    fn probe_a(child: impl IntoUiNode, var: impl IntoVar<Txt>) -> UiNode {
         probe(child, var)
     }
     #[property(CONTEXT)]
-    fn probe_b(child: impl UiNode, var: impl IntoVar<Txt>) -> impl UiNode {
+    fn probe_b(child: impl IntoUiNode, var: impl IntoVar<Txt>) -> UiNode {
         probe(child, var)
     }
 
     #[property(EVENT)]
-    fn on_init(child: impl UiNode, mut handler: impl WidgetHandler<()>) -> impl UiNode {
+    fn on_init(child: impl IntoUiNode, mut handler: impl WidgetHandler<()>) -> UiNode {
         match_node(child, move |child, op| match op {
             UiNodeOp::Init => {
                 child.init();
@@ -601,9 +601,9 @@ mod context {
         }
     }
     #[property(CHILD, capture, widget_impl(TestWgt))]
-    fn child(child: impl UiNode) {}
+    fn child(child: impl IntoUiNode) {}
 
-    fn test_app(app: AppExtended<impl AppExtension>, root: impl UiNode) -> HeadlessApp {
+    fn test_app(app: AppExtended<impl AppExtension>, root: impl IntoUiNode) -> HeadlessApp {
         zng_app::test_log();
 
         let mut app = app.run_headless(false);

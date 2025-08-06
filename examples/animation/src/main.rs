@@ -30,7 +30,7 @@ pub(crate) const FROM_COLOR: Rgba = web_colors::RED;
 pub(crate) const TO_COLOR: Rgba = web_colors::GREEN;
 pub(crate) const FPS: u32 = 60;
 
-fn example() -> impl UiNode {
+fn example() -> UiNode {
     // VARS.animation_time_scale().set(0.5.fct());
     VARS.frame_duration().set((1.0 / FPS as f32).secs());
 

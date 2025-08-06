@@ -161,7 +161,7 @@ impl fmt::Debug for LazyMode {
 ///
 /// See [`LazyMode`] for details.
 #[property(WIDGET, default(LazyMode::Disabled))]
-pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
+pub fn lazy(child: impl IntoUiNode, mode: impl IntoVar<LazyMode>) -> UiNode {
     let mode = mode.into_var();
     // max two nodes:
     // * in `deinit` mode can be two [0]: placeholder, [1]: actual.

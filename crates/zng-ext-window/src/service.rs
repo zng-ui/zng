@@ -16,7 +16,7 @@ use zng_app::{
     widget::{
         UiTaskWidget, WidgetId,
         info::{InteractionPath, WidgetInfo, WidgetInfoTree},
-        node::{BoxedUiNode, NilUiNode, UiNode},
+        node::{UiNode},
     },
     window::{WINDOW, WindowCtx, WindowId, WindowMode},
 };
@@ -62,7 +62,7 @@ pub(super) struct WindowsService {
     default_render_mode: Var<RenderMode>,
     parallel: Var<ParallelWin>,
     system_chrome: Var<ChromeConfig>,
-    root_extenders: Mutex<Vec<Box<dyn FnMut(WindowRootExtenderArgs) -> BoxedUiNode + Send>>>, // Mutex for +Sync only.
+    root_extenders: Mutex<Vec<Box<dyn FnMut(WindowRootExtenderArgs) -> UiNode + Send>>>, // Mutex for +Sync only.
     open_nested_handlers: Mutex<Vec<Box<dyn FnMut(&mut crate::OpenNestedHandlerArgs) + Send>>>,
 
     windows: IdMap<WindowId, AppWindow>,
@@ -712,15 +712,13 @@ impl WINDOWS {
     /// Note that the *root* node passed to the extender is the child node of the `WindowRoot` widget, not the widget itself.
     /// The extended root will be wrapped in the root widget node, that is, the final root widget will be
     /// `root(extender_nodes(CONTEXT(EVENT(..))))`, so extension nodes should operate as `CONTEXT` properties.
-    pub fn register_root_extender<E>(&self, mut extender: impl FnMut(WindowRootExtenderArgs) -> E + Send + 'static)
-    where
-        E: zng_app::widget::node::UiNode,
+    pub fn register_root_extender(&self, extender: impl FnMut(WindowRootExtenderArgs) -> UiNode + Send + 'static)
     {
         WINDOWS_SV
             .write()
             .root_extenders
             .get_mut()
-            .push(Box::new(move |a| extender(a).boxed()))
+            .push(Box::new(extender))
     }
 
     /// Variable that tracks the OS window manager configuration for the window chrome.
@@ -1583,7 +1581,7 @@ impl AppWindowTask {
     fn finish(
         self,
         loading: WindowLoading,
-        extenders: &mut [Box<dyn FnMut(WindowRootExtenderArgs) -> BoxedUiNode + Send>],
+        extenders: &mut [Box<dyn FnMut(WindowRootExtenderArgs) -> UiNode + Send>],
         open_nested_handlers: &mut [Box<dyn FnMut(&mut crate::OpenNestedHandlerArgs) + Send>],
     ) -> (AppWindow, AppWindowInfo, ResponderVar<WindowId>) {
         let mut window = self.task.into_inner().into_result().unwrap_or_else(|_| panic!());
@@ -1591,14 +1589,14 @@ impl AppWindowTask {
 
         WINDOW.with_context(&mut ctx, || {
             for ext in extenders.iter_mut().rev() {
-                let root = mem::replace(&mut window.child, NilUiNode.boxed());
+                let root = mem::replace(&mut window.child, UiNode::nil());
                 window.child = ext(WindowRootExtenderArgs { root });
             }
-            let child = mem::replace(&mut window.child, NilUiNode.boxed());
+            let child = mem::replace(&mut window.child, UiNode::nil());
             let vars = WINDOW.vars();
             let child = with_context_var(child, ACCENT_COLOR_VAR, vars.actual_accent_color());
             let child = with_context_var(child, COLOR_SCHEME_VAR, vars.actual_color_scheme());
-            window.child = child.boxed();
+            window.child = child;
         });
 
         let mode = self.mode;
@@ -1858,7 +1856,7 @@ impl WINDOW_Ext for WINDOW {}
 pub struct WindowRootExtenderArgs {
     /// The window root content, extender must wrap this node with extension nodes or return
     /// it for no-op.
-    pub root: BoxedUiNode,
+    pub root: UiNode,
 }
 
 impl ImageRenderWindowRoot for WindowRoot {
@@ -1869,7 +1867,7 @@ impl ImageRenderWindowRoot for WindowRoot {
 
 #[doc(hidden)]
 impl ImageRenderWindowsService for WINDOWS {
-    fn new_window_root(&self, node: BoxedUiNode, render_mode: RenderMode, scale_factor: Option<Factor>) -> Box<dyn ImageRenderWindowRoot> {
+    fn new_window_root(&self, node: UiNode, render_mode: RenderMode, scale_factor: Option<Factor>) -> Box<dyn ImageRenderWindowRoot> {
         Box::new(WindowRoot::new_container(
             WidgetId::new_unique(),
             StartPosition::Default,

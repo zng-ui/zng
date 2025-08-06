@@ -8,14 +8,14 @@
 //! icons having a fixed appearance.
 //!
 //! ```
-//! use zng::{prelude::*, icon, widget::node::NilUiNode};
+//! use zng::{prelude::*, icon};
 //! # let _scope = APP.defaults();
 //!
 //! icon::ICONS.register(wgt_fn!(|a: icon::IconRequestArgs| {
 //!     match a.name() {
-//!         "accessibility" => Text!("A").boxed(),
-//!         "settings" => Text!("S").boxed(),
-//!         _ => NilUiNode.boxed()
+//!         "accessibility" => Text!("A"),
+//!         "settings" => Text!("S"),
+//!         _ => UiNode.nil()
 //!     }
 //! }));
 //! ```

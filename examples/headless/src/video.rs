@@ -95,7 +95,7 @@ pub fn run() {
     while !matches!(app.update(true), zng::app::AppControlFlow::Exit) {}
 }
 
-fn video(finished: Var<bool>) -> impl UiNode {
+fn video(finished: Var<bool>) -> UiNode {
     let bkg_rotate = var(0.turn());
     let txt_fade = var(0.fct());
     let txt_size = var(32.dip());

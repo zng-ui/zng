@@ -7,7 +7,7 @@ error: unexpected token
 error: property input can only have `impl OneTrait` types
  --> cases/property/incorrect_attr_args.rs:4:43
   |
-4 | fn unknown_arg(child: impl UiNode, input: bool) -> impl UiNode {
+4 | fn unknown_arg(child: impl IntoUiNode, input: bool) -> UiNode {
   |                                           ^^^^
 
 error[E0601]: `main` function not found in crate `$CRATE`

@@ -5,7 +5,7 @@ zng::hot_reload::zng_hot_entry!();
 
 /// Hot reloading node.
 #[hot_node]
-pub fn hot_node() -> impl UiNode {
+pub fn hot_node() -> UiNode {
     tracing::info!("`hot_node()` called");
     Text! {
         widget::on_init = hn!(|_| {
@@ -26,7 +26,7 @@ pub fn hot_node() -> impl UiNode {
 /// the property input can be hot reloaded.
 #[hot_node]
 #[property(FILL)]
-pub fn hot_prop(child: impl UiNode, input: impl IntoVar<bool>) -> impl UiNode {
+pub fn hot_prop(child: impl IntoUiNode, input: impl IntoVar<bool>) -> UiNode {
     let input = input.into_var();
 
     let mut clip = PxRect::zero();

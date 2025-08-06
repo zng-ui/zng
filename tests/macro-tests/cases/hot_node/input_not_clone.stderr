@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `Foo: Clone` is not satisfied
  --> cases/hot_node/input_not_clone.rs:8:22
   |
-8 | pub fn invalid(_foo: Foo) -> impl UiNode {
+8 | pub fn invalid(_foo: Foo) -> UiNode {
   |                ----  ^^^ the trait `Clone` is not implemented for `Foo`
   |                |
   |                required by a bound introduced by this call
@@ -22,7 +22,7 @@ error[E0277]: the trait bound `Foo: Clone` is not satisfied
   |
 7 | #[hot_node]
   | ----------- required by a bound introduced by this call
-8 | pub fn invalid(_foo: Foo) -> impl UiNode {
+8 | pub fn invalid(_foo: Foo) -> UiNode {
   |                      ^^^ the trait `Clone` is not implemented for `Foo`
   |
 note: required by a bound in `HotNodeArgs::pop_clone`

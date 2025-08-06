@@ -22,7 +22,7 @@
 		"body": [
 			"/// ",
 			"#[property(${1:CONTEXT})]",
-			"pub fn ${2:name}(child: impl UiNode, ${3:input}: ${4:impl IntoVar<bool>}) -> impl UiNode {",
+			"pub fn ${2:name}(child: impl IntoUiNode, ${3:input}: ${4:impl IntoVar<bool>}) -> UiNode {",
 			"    let $3 = ${5:$3.into_var()};",
 			"    match_node(child, move |_c, op| match op {",
 			"        UiNodeOp::Init => {$6}",
@@ -38,7 +38,7 @@
 		"body": [
 			"/// ",
 			"#[property(${1:CONTEXT}, widget_impl(${2:WgtName}))]",
-			"pub fn ${3:name}(child: impl UiNode, ${4:input}: ${5:impl IntoVar<bool>}) -> impl UiNode {",
+			"pub fn ${3:name}(child: impl IntoUiNode, ${4:input}: ${5:impl IntoVar<bool>}) -> UiNode {",
 			"    let $4 = ${6:$4.into_var()};",
 			"    match_node(child, move |_c, op| match op {",
 			"        UiNodeOp::Init => {$7}",
@@ -56,7 +56,7 @@
 			"/// ",
 			"/// This property sets the [`${1:FOO}_VAR`].",
 			"#[property(CONTEXT, default($1_VAR))]",
-			"fn ${1/(.*)/${1:/downcase}/}(child: impl UiNode, ${1/(.*)/${1:/downcase}/}: impl IntoVar<${2:bool}>) -> impl UiNode {",
+			"fn ${1/(.*)/${1:/downcase}/}(child: impl IntoUiNode, ${1/(.*)/${1:/downcase}/}: impl IntoVar<${2:bool}>) -> UiNode {",
 			"    with_context_var(child, $1_VAR, ${1/(.*)/${1:/downcase}/})",
 			"}"
 		]
@@ -70,7 +70,7 @@
 			"/// ",
 			"/// This property sets the [`${1:FOO}_VAR`].",
 			"#[property(CONTEXT, default($1_VAR), widget_impl(${2:WgtName}))]",
-			"fn ${1/(.*)/${1:/downcase}/}(child: impl UiNode, ${1/(.*)/${1:/downcase}/}: impl IntoVar<${3:bool}>) -> impl UiNode {",
+			"fn ${1/(.*)/${1:/downcase}/}(child: impl IntoUiNode, ${1/(.*)/${1:/downcase}/}: impl IntoVar<${3:bool}>) -> UiNode {",
 			"    with_context_var(child, $1_VAR, ${1/(.*)/${1:/downcase}/})",
 			"}"
 		]

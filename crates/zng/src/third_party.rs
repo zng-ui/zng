@@ -116,7 +116,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! fn review_licenses() -> impl UiNode {
+//! fn review_licenses() -> UiNode {
 //!     // zng::third_party::LICENSES.include_view_process().set(false);
 //!
 //!     Button!(zng::third_party::OPEN_LICENSES_CMD)
@@ -177,7 +177,7 @@ pub(crate) fn setup_default_view() {
         )
         .perm();
 
-    fn default_view() -> impl UiNode {
+    fn default_view() -> UiNode {
         let mut licenses = LICENSES.user_licenses();
         if licenses.is_empty() {
             // l10n-# "user" is the package that uses the license
@@ -255,7 +255,7 @@ pub(crate) fn setup_default_view() {
         }
     }
 
-    fn default_item_view(item: UserLicense) -> impl UiNode {
+    fn default_item_view(item: UserLicense) -> UiNode {
         let txt = if item.user.version.is_empty() {
             item.user.name.clone()
         } else {

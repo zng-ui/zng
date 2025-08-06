@@ -75,7 +75,7 @@ impl SubMenu {
 impl_style_fn!(SubMenu);
 
 /// Sub-menu implementation.
-pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>) -> impl UiNode {
+pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNodeList<BoxedUiNodeList>) -> UiNode {
     let mut open = None::<Var<PopupState>>;
     let is_open = var(false);
     let mut open_timer = None;
@@ -301,13 +301,13 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
 
 /// Defines the sub-menu header child.
 #[property(CHILD, capture, default(FillUiNode), widget_impl(SubMenu))]
-pub fn header(child: impl UiNode) {}
+pub fn header(child: impl IntoUiNode) {}
 
 /// Width of the icon/checkmark column.
 ///
 /// This property sets [`START_COLUMN_WIDTH_VAR`].
 #[property(CONTEXT, default(START_COLUMN_WIDTH_VAR), widget_impl(SubMenu))]
-pub fn start_column_width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
+pub fn start_column_width(child: impl IntoUiNode, width: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, START_COLUMN_WIDTH_VAR, width)
 }
 
@@ -315,7 +315,7 @@ pub fn start_column_width(child: impl UiNode, width: impl IntoVar<Length>) -> im
 ///
 /// This property sets [`END_COLUMN_WIDTH_VAR`].
 #[property(CONTEXT, default(END_COLUMN_WIDTH_VAR), widget_impl(SubMenu))]
-pub fn end_column_width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
+pub fn end_column_width(child: impl IntoUiNode, width: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, END_COLUMN_WIDTH_VAR, width)
 }
 
@@ -330,7 +330,7 @@ pub fn end_column_width(child: impl UiNode, width: impl IntoVar<Length>) -> impl
 /// [`start_column_fn`]: fn@start_column_fn
 /// [`Align::START`]: zng_wgt::prelude::Align::START
 #[property(FILL)]
-pub fn start_column(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
+pub fn start_column(child: impl IntoUiNode, cell: impl IntoUiNode) -> UiNode {
     let cell = width(cell, START_COLUMN_WIDTH_VAR);
     let cell = align(cell, Align::FILL_START);
     background(child, cell)
@@ -347,7 +347,7 @@ pub fn start_column(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
 /// [`end_column_fn`]: fn@end_column_fn
 /// [`Align::END`]: zng_wgt::prelude::Align::END
 #[property(FILL)]
-pub fn end_column(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
+pub fn end_column(child: impl IntoUiNode, cell: impl IntoUiNode) -> UiNode {
     let cell = width(cell, END_COLUMN_WIDTH_VAR);
     let cell = align(cell, Align::FILL_END);
     background(child, cell)
@@ -362,7 +362,7 @@ pub fn end_column(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
 /// [`WidgetFn<()>`]: WidgetFn
 /// [`Align::START`]: zng_wgt::prelude::Align::START
 #[property(FILL)]
-pub fn start_column_fn(child: impl UiNode, cell_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+pub fn start_column_fn(child: impl IntoUiNode, cell_fn: impl IntoVar<WidgetFn<()>>) -> UiNode {
     start_column(child, presenter((), cell_fn))
 }
 
@@ -375,7 +375,7 @@ pub fn start_column_fn(child: impl UiNode, cell_fn: impl IntoVar<WidgetFn<()>>) 
 /// [`WidgetFn<()>`]: WidgetFn
 /// [`Align::END`]: zng_wgt::prelude::Align::END
 #[property(FILL)]
-pub fn end_column_fn(child: impl UiNode, cell_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+pub fn end_column_fn(child: impl IntoUiNode, cell_fn: impl IntoVar<WidgetFn<()>>) -> UiNode {
     end_column(child, presenter((), cell_fn))
 }
 
@@ -386,7 +386,7 @@ pub fn end_column_fn(child: impl UiNode, cell_fn: impl IntoVar<WidgetFn<()>>) ->
 /// [`start_column_width`]: fn@start_column_width
 /// [`end_column_width`]: fn@end_column_width
 #[property(CHILD_LAYOUT, default(false))]
-pub fn column_width_padding(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn column_width_padding(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let spacing = merge_var!(
         START_COLUMN_WIDTH_VAR,
         END_COLUMN_WIDTH_VAR,
@@ -426,7 +426,7 @@ context_var! {
 
 /// If the sub-menu popup is open or opening.
 #[property(EVENT, widget_impl(SubMenu))]
-pub fn is_open(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_open(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state(child, IS_OPEN_VAR, state)
 }
 
@@ -436,7 +436,7 @@ pub fn is_open(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 ///
 /// This property sets the [`HOVER_OPEN_DELAY_VAR`].
 #[property(CONTEXT, default(HOVER_OPEN_DELAY_VAR), widget_impl(SubMenu))]
-pub fn hover_open_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl UiNode {
+pub fn hover_open_delay(child: impl IntoUiNode, delay: impl IntoVar<Duration>) -> UiNode {
     with_context_var(child, HOVER_OPEN_DELAY_VAR, delay)
 }
 

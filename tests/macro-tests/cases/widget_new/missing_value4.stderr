@@ -20,7 +20,7 @@ error[E0061]: this method takes 1 argument but 0 arguments were supplied
 note: method defined here
   --> $WORKSPACE/crates/zng-wgt-input/src/misc.rs
    |
-   | pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorSource>) -> impl UiNode {
+   | pub fn cursor(child: impl IntoUiNode, cursor: impl IntoVar<CursorSource>) -> UiNode {
    |        ^^^^^^
 help: provide the argument
   --> $WORKSPACE/crates/zng-wgt/src/wgt.rs

@@ -47,7 +47,7 @@ impl SettingsEditor {
 /// Implements the [`SettingsEditor!`] inner widgets.
 ///
 /// [`SettingsEditor!`]: struct@SettingsEditor
-pub fn settings_editor_node() -> impl UiNode {
+pub fn settings_editor_node() -> UiNode {
     match_node(NilUiNode.boxed(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET
@@ -180,7 +180,7 @@ fn editor_state() -> Var<Option<SettingsEditorState>> {
     r
 }
 
-fn settings_view_fn() -> impl UiNode {
+fn settings_view_fn() -> UiNode {
     let search = SETTINGS_SEARCH_FN_VAR.get()(SettingsSearchArgs {});
 
     let editor_state = SETTINGS.editor_state().current_context();
@@ -239,7 +239,7 @@ fn settings_view_fn() -> impl UiNode {
 /// This property is enabled by default in the `SettingsEditor!` widget, without a key. Note that without a config key
 /// this feature only actually enables if the settings widget ID has a name.
 #[property(CONTEXT, widget_impl(SettingsEditor))]
-pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> impl UiNode {
+pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) -> UiNode {
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
     struct SettingsEditorCfg {
         search: Txt,
@@ -273,7 +273,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
 }
 
 /// Intrinsic SETTINGS_CMD handler.
-fn command_handler(child: impl UiNode) -> impl UiNode {
+fn command_handler(child: impl IntoUiNode) -> UiNode {
     let mut _handle = CommandHandle::dummy();
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {

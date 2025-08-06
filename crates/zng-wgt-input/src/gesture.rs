@@ -128,18 +128,18 @@ event_property! {
 ///
 /// When any of the `shortcuts` is pressed, focus and click this widget.
 #[property(CONTEXT)]
-pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
+pub fn click_shortcut(child: impl IntoUiNode, shortcuts: impl IntoVar<Shortcuts>) -> UiNode {
     click_shortcut_node(child, shortcuts, ShortcutClick::Primary)
 }
 /// Keyboard shortcuts that focus and [context clicks](fn@on_context_click) this widget.
 ///
 /// When any of the `shortcuts` is pressed, focus and context clicks this widget.
 #[property(CONTEXT)]
-pub fn context_click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
+pub fn context_click_shortcut(child: impl IntoUiNode, shortcuts: impl IntoVar<Shortcuts>) -> UiNode {
     click_shortcut_node(child, shortcuts, ShortcutClick::Context)
 }
 
-fn click_shortcut_node(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>, kind: ShortcutClick) -> impl UiNode {
+fn click_shortcut_node(child: impl IntoUiNode, shortcuts: impl IntoVar<Shortcuts>, kind: ShortcutClick) -> UiNode {
     let shortcuts = shortcuts.into_var();
     let mut _handle = None;
 
@@ -162,10 +162,10 @@ fn click_shortcut_node(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>, k
     })
 }
 
-pub(crate) fn access_click(child: impl UiNode, _: bool) -> impl UiNode {
+pub(crate) fn access_click(child: impl IntoUiNode, _: bool) -> UiNode {
     access_capable(child, AccessCmdName::Click)
 }
-fn access_capable(child: impl UiNode, cmd: AccessCmdName) -> impl UiNode {
+fn access_capable(child: impl IntoUiNode, cmd: AccessCmdName) -> UiNode {
     match_node(child, move |_, op| {
         if let UiNodeOp::Info { info } = op {
             if let Some(mut access) = info.access() {

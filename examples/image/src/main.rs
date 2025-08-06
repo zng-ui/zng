@@ -60,7 +60,7 @@ fn main() {
                                 spacing = 2;
                                 align = Align::CENTER;
                                 cells = {
-                                    fn img(source: &str) -> impl UiNode {
+                                    fn img(source: &str) -> UiNode {
                                         Image! {
                                             grid::cell::at = grid::cell::AT_AUTO;
                                             source = zng::env::res(source);
@@ -214,7 +214,7 @@ fn main() {
     })
 }
 
-fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
+fn img_fit(fit: impl IntoVar<ImageFit>) -> UiNode {
     let fit = fit.into_var();
 
     Stack! {
@@ -237,7 +237,7 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
     }
 }
 
-fn img_filter(filter: impl IntoVar<Filter>) -> impl UiNode {
+fn img_filter(filter: impl IntoVar<Filter>) -> UiNode {
     let filter = filter.into_var();
 
     Stack! {
@@ -263,7 +263,7 @@ fn img_filter(filter: impl IntoVar<Filter>) -> impl UiNode {
     }
 }
 
-fn sprite() -> impl UiNode {
+fn sprite() -> UiNode {
     let timer = timer::TIMERS.interval((1.0 / 24.0).secs(), true);
     let label = var_from("play");
 
@@ -305,7 +305,7 @@ fn sprite() -> impl UiNode {
     }
 }
 
-fn large_image() -> impl UiNode {
+fn large_image() -> UiNode {
     Button! {
         child = Text!("Large Image (205MB download)");
         on_click = hn!(|_| {
@@ -350,7 +350,7 @@ fn large_image() -> impl UiNode {
     }
 }
 
-fn panorama_image() -> impl UiNode {
+fn panorama_image() -> UiNode {
     Button! {
         child = Text!("Panorama Image (100MB download)");
         on_click = hn!(|_| {
@@ -375,7 +375,7 @@ fn panorama_image() -> impl UiNode {
     }
 }
 
-fn block_window_load_image() -> impl UiNode {
+fn block_window_load_image() -> UiNode {
     let enabled = var(true);
     Button! {
         child = Text!(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Blocking new window until image loads.." }.into()));
@@ -414,7 +414,7 @@ fn block_window_load_image() -> impl UiNode {
     }
 }
 
-fn repeat_image() -> impl UiNode {
+fn repeat_image() -> UiNode {
     Button! {
         child = Text!("Repeat Image (2 MB download)");
         on_click = hn!(|_| {
@@ -463,7 +463,7 @@ fn repeat_image() -> impl UiNode {
     }
 }
 
-fn open_or_paste_image() -> impl UiNode {
+fn open_or_paste_image() -> UiNode {
     Button! {
         child = Text!("Open or Paste Image");
         on_click = hn!(|_| {
@@ -540,12 +540,12 @@ fn open_or_paste_image() -> impl UiNode {
     }
 }
 
-fn exif_rotated() -> impl UiNode {
+fn exif_rotated() -> UiNode {
     Button! {
         child = Text!("Exif Rotated");
         on_click = hn!(|_| {
             WINDOWS.open(async {
-                fn example(file: &'static str) -> impl UiNode {
+                fn example(file: &'static str) -> UiNode {
                     Image! {
                         zng::container::child_top = Text!{
                             txt = file;
@@ -605,7 +605,7 @@ fn img_cache_mode(req: &task::http::Request) -> http::CacheMode {
     http::CacheMode::default()
 }
 
-fn center_viewport(msg: impl UiNode) -> impl UiNode {
+fn center_viewport(msg: impl IntoUiNode) -> UiNode {
     Container! {
         // center the message on the scroll viewport:
         //
@@ -686,7 +686,7 @@ fn error_color() -> color::Rgba {
     colors::RED
 }
 
-pub fn loading() -> impl UiNode {
+pub fn loading() -> UiNode {
     let mut dots_count = 3;
     let msg = timer::TIMERS.interval(300.ms(), false).map(move |_| {
         dots_count += 1;
@@ -710,7 +710,7 @@ pub fn loading() -> impl UiNode {
     })
 }
 
-fn section(title: impl IntoVar<Txt>, children: impl UiNodeList) -> impl UiNode {
+fn section(title: impl IntoVar<Txt>, children: impl UiNodeList) -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
@@ -729,7 +729,7 @@ fn section(title: impl IntoVar<Txt>, children: impl UiNodeList) -> impl UiNode {
     }
 }
 
-fn title(txt: impl IntoVar<Txt>) -> impl UiNode {
+fn title(txt: impl IntoVar<Txt>) -> UiNode {
     Text! {
         txt;
         font_size = 20;
@@ -738,7 +738,7 @@ fn title(txt: impl IntoVar<Txt>) -> impl UiNode {
     }
 }
 
-fn sub_title(txt: impl IntoVar<Txt>) -> impl UiNode {
+fn sub_title(txt: impl IntoVar<Txt>) -> UiNode {
     Text! {
         txt;
 

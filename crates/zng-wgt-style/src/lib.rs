@@ -85,7 +85,7 @@ impl<P: WidgetImpl> StyleMix<P> {
 }
 impl<P> StyleMix<P> {
     /// The custom build that is set on intrinsic by the mixin.
-    pub fn custom_build(mut wgt: WidgetBuilder, cfg: Option<(ContextVar<StyleFn>, PropertyId)>) -> BoxedUiNode {
+    pub fn custom_build(mut wgt: WidgetBuilder, cfg: Option<(ContextVar<StyleFn>, PropertyId)>) -> UiNode {
         let (style_var, style_id) = cfg.unwrap_or_else(|| {
             tracing::error!("missing `style_intrinsic` in `{}`", wgt.widget_type().path);
             (MISSING_STYLE_VAR, property_id!(self::missing_style_fn))
@@ -114,7 +114,7 @@ impl<P> StyleMix<P> {
                 let style_base = b.capture_var::<StyleFn>(style_base_id).unwrap_or_else(|| const_var(StyleFn::nil()));
                 let style = b.capture_var::<StyleFn>(style_id).unwrap_or_else(|| const_var(StyleFn::nil()));
 
-                b.set_child(style_node(None, wgt.take().unwrap(), style_base, style_var, style));
+                b.set_child(style_node(UiNode::nil(), wgt.take().unwrap(), style_base, style_var, style));
             });
             // 4 - Build the "mini widget",
             //     if the `style` property was not affected by any `when` this just returns the `StyleNode`.
@@ -168,7 +168,7 @@ pub fn style_base_fn(style: impl IntoVar<StyleFn>) {}
 /// Helper for declaring the `style_fn` property.
 ///
 /// The [`impl_style_fn!`] macro uses this function as the implementation of `style_fn`.
-pub fn with_style_fn(child: impl UiNode, style_context: ContextVar<StyleFn>, style: impl IntoVar<StyleFn>) -> impl UiNode {
+pub fn with_style_fn(child: impl IntoUiNode, style_context: ContextVar<StyleFn>, style: impl IntoVar<StyleFn>) -> UiNode {
     with_context_var(
         child,
         style_context,
@@ -179,14 +179,14 @@ pub fn with_style_fn(child: impl UiNode, style_context: ContextVar<StyleFn>, sty
 }
 
 fn style_node(
-    child: Option<BoxedUiNode>,
+    child: UiNode,
     builder: WidgetBuilder,
     captured_style_base: Var<StyleFn>,
     style_var: ContextVar<StyleFn>,
     captured_style: Var<StyleFn>,
-) -> impl UiNode {
+) -> UiNode {
     let style_vars = [captured_style_base, style_var.into_var(), captured_style];
-    match_node_typed(child, move |c, op| match op {
+    match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             let mut style_builder = StyleBuilder::default();
             for var in &style_vars {
@@ -200,14 +200,14 @@ fn style_node(
             if !style_builder.is_empty() {
                 let mut builder = builder.clone();
                 builder.extend(style_builder.into_builder());
-                *c.child() = Some(builder.default_build());
+                *c.child() = builder.default_build();
             } else {
-                *c.child() = Some(builder.clone().default_build());
+                *c.child() = builder.clone().default_build();
             }
         }
         UiNodeOp::Deinit => {
             c.deinit();
-            *c.child() = None;
+            *c.child() = UiNode::nil();
         }
         UiNodeOp::Update { .. } => {
             if style_vars.iter().any(|v| v.is_new()) {
@@ -479,6 +479,6 @@ context_var! {
     static MISSING_STYLE_VAR: StyleFn = StyleFn::nil();
 }
 #[property(WIDGET)]
-fn missing_style_fn(child: impl UiNode, _s: impl IntoVar<StyleFn>) -> impl UiNode {
-    child
+fn missing_style_fn(child: impl IntoUiNode, _s: impl IntoVar<StyleFn>) -> UiNode {
+    child.into_node()
 }

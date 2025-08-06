@@ -13,5 +13,5 @@ error[E0277]: the trait bound `bool: IntoVar<SideOffsets>` is not satisfied
 note: required by a bound in `zng::layout::margin::margin`
  --> $WORKSPACE/crates/zng-wgt/src/layout_props.rs
   |
-  | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
+  | pub fn margin(child: impl IntoUiNode, margin: impl IntoVar<SideOffsets>) -> UiNode {
   |                                                ^^^^^^^^^^^^^^^^^^^^ required by this bound in `margin::margin`

@@ -15,7 +15,7 @@ use crate::{
 
 use super::{RICH_TEXT, RICH_TEXT_NOTIFY, RichCaretInfo, RichText, TEXT};
 
-pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub(crate) fn rich_text_node(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
     let child = rich_text_focus_change_broadcast(child);
     let child = rich_text_cmds(child);
@@ -89,7 +89,7 @@ pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) ->
     })
 }
 
-fn rich_text_cmds(child: impl UiNode) -> impl UiNode {
+fn rich_text_cmds(child: impl IntoUiNode) -> UiNode {
     #[derive(Default)]
     struct Cmds {
         // cut: CommandHandle,
@@ -169,7 +169,7 @@ fn rich_text_cmds(child: impl UiNode) -> impl UiNode {
     })
 }
 // some visuals (like selection background) depend on focused status of any rich leaf
-fn rich_text_focus_change_broadcast(child: impl UiNode) -> impl UiNode {
+fn rich_text_focus_change_broadcast(child: impl IntoUiNode) -> UiNode {
     match_node(child, move |c, op| {
         if let UiNodeOp::Event { update } = op {
             if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
@@ -199,7 +199,7 @@ fn rich_text_focus_change_broadcast(child: impl UiNode) -> impl UiNode {
 /// The `kind` identifies what kind of component, the value `"rich_text"` is used by the `rich_text` property, the value `"text"`
 /// is used by the `Text!` widget, any other value defines a [`RichTextComponent::Leaf`] that is expected to be focusable, inlined
 /// and able to handle rich text composition requests.
-pub fn rich_text_component(child: impl UiNode, kind: &'static str) -> impl UiNode {
+pub fn rich_text_component(child: impl IntoUiNode, kind: &'static str) -> UiNode {
     let mut focus_within = false;
     let mut prev_index = ZIndex::DEFAULT;
     let mut index_update = None;

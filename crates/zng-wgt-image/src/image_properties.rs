@@ -159,7 +159,7 @@ context_var! {
 ///
 /// This property sets the [`IMAGE_FIT_VAR`].
 #[property(CONTEXT, default(IMAGE_FIT_VAR), widget_impl(Image))]
-pub fn img_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
+pub fn img_fit(child: impl IntoUiNode, fit: impl IntoVar<ImageFit>) -> UiNode {
     with_context_var(child, IMAGE_FIT_VAR, fit)
 }
 
@@ -171,7 +171,7 @@ pub fn img_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
 ///
 /// [`img_scale_ppi`]: fn@img_scale_ppi
 #[property(CONTEXT, default(IMAGE_SCALE_VAR), widget_impl(Image))]
-pub fn img_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl UiNode {
+pub fn img_scale(child: impl IntoUiNode, scale: impl IntoVar<Factor2d>) -> UiNode {
     with_context_var(child, IMAGE_SCALE_VAR, scale)
 }
 
@@ -185,7 +185,7 @@ pub fn img_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl UiNo
 ///
 /// [`img_crop`]: fn@img_crop
 #[property(CONTEXT, default(IMAGE_SCALE_FACTOR_VAR), widget_impl(Image))]
-pub fn img_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn img_scale_factor(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, IMAGE_SCALE_FACTOR_VAR, enabled)
 }
 
@@ -202,7 +202,7 @@ pub fn img_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 /// [`img_crop`]: fn@img_crop
 /// [`MONITORS`]: zng_ext_window::MONITORS
 #[property(CONTEXT, default(IMAGE_SCALE_PPI_VAR), widget_impl(Image))]
-pub fn img_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn img_scale_ppi(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, IMAGE_SCALE_PPI_VAR, enabled)
 }
 
@@ -221,7 +221,7 @@ pub fn img_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 /// [`Align`]: zng_wgt::prelude::Align
 /// [`img_align`]: fn@crate::img_align
 #[property(CONTEXT, default(IMAGE_ALIGN_VAR), widget_impl(Image))]
-pub fn img_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
+pub fn img_align(child: impl IntoUiNode, align: impl IntoVar<Align>) -> UiNode {
     with_context_var(child, IMAGE_ALIGN_VAR, align)
 }
 
@@ -235,7 +235,7 @@ pub fn img_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode 
 /// [`img_offset`]: fn@crate::img_offset
 /// [`Point`]: zng_wgt::prelude::Point
 #[property(CONTEXT, default(IMAGE_OFFSET_VAR), widget_impl(Image))]
-pub fn img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
+pub fn img_offset(child: impl IntoUiNode, offset: impl IntoVar<Vector>) -> UiNode {
     with_context_var(child, IMAGE_OFFSET_VAR, offset)
 }
 
@@ -251,7 +251,7 @@ pub fn img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNo
 /// [texture atlas]: https://en.wikipedia.org/wiki/Texture_atlas
 /// [`Rect`]: zng_wgt::prelude::Rect
 #[property(CONTEXT, default(IMAGE_CROP_VAR), widget_impl(Image))]
-pub fn img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
+pub fn img_crop(child: impl IntoUiNode, crop: impl IntoVar<Rect>) -> UiNode {
     with_context_var(child, IMAGE_CROP_VAR, crop)
 }
 
@@ -266,7 +266,7 @@ pub fn img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
 ///
 /// [`img_repeat_spacing`]: fn@img_repeat_spacing
 #[property(CONTEXT, default(IMAGE_REPEAT_VAR), widget_impl(Image))]
-pub fn img_repeat(child: impl UiNode, repeat: impl IntoVar<ImageRepeat>) -> impl UiNode {
+pub fn img_repeat(child: impl IntoUiNode, repeat: impl IntoVar<ImageRepeat>) -> UiNode {
     with_context_var(child, IMAGE_REPEAT_VAR, repeat)
 }
 
@@ -278,7 +278,7 @@ pub fn img_repeat(child: impl UiNode, repeat: impl IntoVar<ImageRepeat>) -> impl
 ///
 /// This property sets the [`IMAGE_REPEAT_SPACING_VAR`].
 #[property(CONTEXT, default(IMAGE_REPEAT_SPACING_VAR), widget_impl(Image))]
-pub fn img_repeat_spacing(child: impl UiNode, spacing: impl IntoVar<Size>) -> impl UiNode {
+pub fn img_repeat_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Size>) -> UiNode {
     with_context_var(child, IMAGE_REPEAT_SPACING_VAR, spacing)
 }
 
@@ -299,7 +299,7 @@ pub fn img_repeat_spacing(child: impl UiNode, spacing: impl IntoVar<Size>) -> im
 /// [`ImageRendering`]: zng_app::render::ImageRendering
 /// [`ImageRendering::Auto`]: zng_app::render::ImageRendering::Auto
 #[property(CONTEXT, default(IMAGE_RENDERING_VAR), widget_impl(Image))]
-pub fn img_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>) -> impl UiNode {
+pub fn img_rendering(child: impl IntoUiNode, rendering: impl IntoVar<ImageRendering>) -> UiNode {
     with_context_var(child, IMAGE_RENDERING_VAR, rendering)
 }
 
@@ -316,7 +316,7 @@ pub fn img_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>
 /// [`source`]: fn@crate::source
 /// [`IMAGES`]: zng_ext_image::IMAGES
 #[property(CONTEXT, default(IMAGE_CACHE_VAR), widget_impl(Image))]
-pub fn img_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn img_cache(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, IMAGE_CACHE_VAR, enabled)
 }
 
@@ -329,7 +329,7 @@ pub fn img_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode
 /// [`IMAGES.limits`]: zng_ext_image::IMAGES::limits
 /// [`img_downscale`]: fn@img_downscale
 #[property(CONTEXT, default(IMAGE_LIMITS_VAR), widget_impl(Image))]
-pub fn img_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>) -> impl UiNode {
+pub fn img_limits(child: impl IntoUiNode, limits: impl IntoVar<Option<ImageLimits>>) -> UiNode {
     with_context_var(child, IMAGE_LIMITS_VAR, limits)
 }
 
@@ -346,31 +346,31 @@ pub fn img_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>)
 /// [`IMAGES.limits`]: zng_ext_image::IMAGES::limits
 /// [`img_limits`]: fn@img_limits
 #[property(CONTEXT, default(IMAGE_DOWNSCALE_VAR), widget_impl(Image))]
-pub fn img_downscale(child: impl UiNode, downscale: impl IntoVar<Option<ImageDownscale>>) -> impl UiNode {
+pub fn img_downscale(child: impl IntoUiNode, downscale: impl IntoVar<Option<ImageDownscale>>) -> UiNode {
     with_context_var(child, IMAGE_DOWNSCALE_VAR, downscale)
 }
 
 /// If the [`CONTEXT_IMAGE_VAR`] is an error.
 #[property(LAYOUT, widget_impl(Image))]
-pub fn is_error(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_error(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_error()), state)
 }
 
 /// If the [`CONTEXT_IMAGE_VAR`] has successfully loaded.
 #[property(LAYOUT, widget_impl(Image))]
-pub fn is_loaded(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_loaded(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_loaded()), state)
 }
 
 /// Gets the [`CONTEXT_IMAGE_VAR`].
 #[property(LAYOUT, widget_impl(Image))]
-pub fn get_img(child: impl UiNode, state: impl IntoVar<Option<Img>>) -> impl UiNode {
+pub fn get_img(child: impl IntoUiNode, state: impl IntoVar<Option<Img>>) -> UiNode {
     bind_state(child, CONTEXT_IMAGE_VAR.map_into(), state)
 }
 
 /// Gets the [`CONTEXT_IMAGE_VAR`] ideal size.
 #[property(LAYOUT, widget_impl(Image))]
-pub fn get_img_layout_size(child: impl UiNode, state: impl IntoVar<PxSize>) -> impl UiNode {
+pub fn get_img_layout_size(child: impl IntoUiNode, state: impl IntoVar<PxSize>) -> UiNode {
     let state = state.into_var();
     match_node(child, move |_, op| {
         if let UiNodeOp::Layout { .. } = op {
@@ -386,7 +386,7 @@ pub fn get_img_layout_size(child: impl UiNode, state: impl IntoVar<PxSize>) -> i
 ///
 /// [`wgt_fn!`]: zng_wgt::wgt_fn
 #[property(CONTEXT, default(IMAGE_ERROR_FN_VAR), widget_impl(Image))]
-pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgErrorArgs>>) -> impl UiNode {
+pub fn img_error_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<ImgErrorArgs>>) -> UiNode {
     with_context_var(child, IMAGE_ERROR_FN_VAR, wgt_fn)
 }
 
@@ -394,7 +394,7 @@ pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgErrorAr
 ///
 /// [`wgt_fn!`]: zng_wgt::wgt_fn
 #[property(CONTEXT, default(IMAGE_LOADING_FN_VAR), widget_impl(Image))]
-pub fn img_loading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgLoadingArgs>>) -> impl UiNode {
+pub fn img_loading_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<ImgLoadingArgs>>) -> UiNode {
     with_context_var(child, IMAGE_LOADING_FN_VAR, wgt_fn)
 }
 
@@ -450,7 +450,7 @@ impl ImgErrorArgs {
 /// [`async_hn!`]: zng_wgt::prelude::async_hn!
 /// [`async_hn_once!`]: zng_wgt::prelude::async_hn_once!
 #[property(EVENT, widget_impl(Image))]
-pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImgErrorArgs>) -> impl UiNode {
+pub fn on_error(child: impl IntoUiNode, handler: impl WidgetHandler<ImgErrorArgs>) -> UiNode {
     let mut handler = handler.cfg_boxed();
     let mut error = Txt::from_str("");
     let mut first_update = false;
@@ -510,7 +510,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImgErrorArgs>) -
 /// [`async_hn!`]: zng_wgt::prelude::async_hn!
 /// [`async_hn_once!`]: zng_wgt::prelude::async_hn_once!
 #[property(EVENT, widget_impl(Image))]
-pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> impl UiNode {
+pub fn on_load(child: impl IntoUiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> UiNode {
     let mut handler = handler.cfg_boxed();
     let mut first_update = false;
 
@@ -546,7 +546,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> 
 ///
 /// [`WindowLoadingHandle`]: zng_ext_window::WindowLoadingHandle
 #[property(LAYOUT, default(false), widget_impl(Image))]
-pub fn img_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWindowLoad>) -> impl UiNode {
+pub fn img_block_window_load(child: impl IntoUiNode, enabled: impl IntoValue<BlockWindowLoad>) -> UiNode {
     let enabled = enabled.into();
     let mut block = None;
 

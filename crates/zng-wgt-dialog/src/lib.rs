@@ -76,7 +76,7 @@ impl Dialog {
 }
 impl_style_fn!(Dialog);
 
-fn dialog_closing_node(child: impl UiNode) -> impl UiNode {
+fn dialog_closing_node(child: impl IntoUiNode) -> UiNode {
     match_node(child, move |_, op| {
         match op {
             UiNodeOp::Init => {
@@ -272,7 +272,7 @@ context_var! {
 }
 
 /// Default value of [`button_fn`](fn@button_fn)
-pub fn default_button_fn(args: DialogButtonArgs) -> impl UiNode {
+pub fn default_button_fn(args: DialogButtonArgs) -> UiNode {
     zng_wgt_button::Button! {
         child = Text!(args.response.label.clone());
         on_click = hn_once!(|a: &zng_wgt_input::gesture::ClickArgs| {
@@ -308,7 +308,7 @@ impl DialogButtonArgs {
 ///
 /// Note that this takes in an widget, you can use `Text!("title")` to set to a text.
 #[property(CONTEXT, default(NilUiNode), widget_impl(Dialog))]
-pub fn title(child: impl UiNode, title: impl UiNode) -> impl UiNode {
+pub fn title(child: impl IntoUiNode, title: impl IntoUiNode) -> UiNode {
     with_context_var(child, TITLE_VAR, WidgetFn::singleton(title))
 }
 
@@ -316,7 +316,7 @@ pub fn title(child: impl UiNode, title: impl UiNode) -> impl UiNode {
 ///
 /// Note that this takes in an widget, you can use the `ICONS` service to get an icon widget.
 #[property(CONTEXT, default(NilUiNode), widget_impl(Dialog))]
-pub fn icon(child: impl UiNode, icon: impl UiNode) -> impl UiNode {
+pub fn icon(child: impl IntoUiNode, icon: impl IntoUiNode) -> UiNode {
     with_context_var(child, ICON_VAR, WidgetFn::singleton(icon))
 }
 
@@ -324,25 +324,25 @@ pub fn icon(child: impl UiNode, icon: impl UiNode) -> impl UiNode {
 ///
 /// Note that this takes in an widget, you can use `SelectableText!("message")` for the message.
 #[property(CONTEXT, default(FillUiNode), widget_impl(Dialog))]
-pub fn content(child: impl UiNode, content: impl UiNode) -> impl UiNode {
+pub fn content(child: impl IntoUiNode, content: impl IntoUiNode) -> UiNode {
     with_context_var(child, CONTENT_VAR, WidgetFn::singleton(content))
 }
 
 /// Dialog button generator.
 #[property(CONTEXT, default(BUTTON_FN_VAR), widget_impl(Dialog))]
-pub fn button_fn(child: impl UiNode, button: impl IntoVar<WidgetFn<DialogButtonArgs>>) -> impl UiNode {
+pub fn button_fn(child: impl IntoUiNode, button: impl IntoVar<WidgetFn<DialogButtonArgs>>) -> UiNode {
     with_context_var(child, BUTTON_FN_VAR, button)
 }
 
 /// Dialog responses.
 #[property(CONTEXT, default(RESPONSES_VAR), widget_impl(Dialog))]
-pub fn responses(child: impl UiNode, responses: impl IntoVar<Responses>) -> impl UiNode {
+pub fn responses(child: impl IntoUiNode, responses: impl IntoVar<Responses>) -> UiNode {
     with_context_var(child, RESPONSES_VAR, responses)
 }
 
 /// Dialog response when closed without setting a response.
 #[property(CONTEXT, default(DEFAULT_RESPONSE_VAR), widget_impl(Dialog))]
-pub fn default_response(child: impl UiNode, response: impl IntoVar<Option<Response>>) -> impl UiNode {
+pub fn default_response(child: impl IntoUiNode, response: impl IntoVar<Option<Response>>) -> UiNode {
     with_context_var(child, DEFAULT_RESPONSE_VAR, response)
 }
 
@@ -350,7 +350,7 @@ pub fn default_response(child: impl UiNode, response: impl IntoVar<Option<Respon
 ///
 /// Sets [`NATIVE_DIALOGS_VAR`].
 #[property(CONTEXT, default(NATIVE_DIALOGS_VAR))]
-pub fn native_dialogs(child: impl UiNode, dialogs: impl IntoVar<DialogKind>) -> impl UiNode {
+pub fn native_dialogs(child: impl IntoUiNode, dialogs: impl IntoVar<DialogKind>) -> UiNode {
     with_context_var(child, NATIVE_DIALOGS_VAR, dialogs)
 }
 
@@ -754,7 +754,7 @@ impl DIALOG {
     /// Returns the selected response or [`close`] if the dialog is closed without response.
     ///
     /// [`close`]: Response::close
-    pub fn custom(&self, dialog: impl UiNode) -> ResponseVar<Response> {
+    pub fn custom(&self, dialog: impl IntoUiNode) -> ResponseVar<Response> {
         self.show_impl(dialog.boxed())
     }
 }

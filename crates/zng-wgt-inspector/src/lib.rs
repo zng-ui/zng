@@ -34,7 +34,7 @@ command! {
 
 /// Setup the inspector for the window.
 #[property(WIDGET)]
-pub fn inspector(child: impl UiNode, mut inspector: impl UiNode) -> impl UiNode {
+pub fn inspector(child: impl IntoUiNode, mut inspector: impl IntoUiNode) -> UiNode {
     match_node(child, move |c, op| match op {
         UiNodeOp::Measure { wm, desired_size } => {
             *desired_size = c.measure(wm);
@@ -61,6 +61,6 @@ pub fn inspector(child: impl UiNode, mut inspector: impl UiNode) -> impl UiNode 
 /// Can be set on a window using the [`inspector`](fn@inspector) property.
 /// Note that the main `APP.defaults()` already sets this for all windows when
 /// the `"inspector"` feature is enabled.
-pub fn live_inspector(can_inspect: impl IntoVar<bool>) -> impl UiNode {
+pub fn live_inspector(can_inspect: impl IntoVar<bool>) -> UiNode {
     live::inspect_node(can_inspect)
 }

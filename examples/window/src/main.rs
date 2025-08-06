@@ -76,8 +76,8 @@ async fn main_window() -> window::WindowRoot {
     }
 }
 
-fn background_color_example(color: Var<Rgba>) -> impl UiNode {
-    fn color_btn(c: Var<Rgba>, select_on_init: bool) -> impl UiNode {
+fn background_color_example(color: Var<Rgba>) -> UiNode {
+    fn color_btn(c: Var<Rgba>, select_on_init: bool) -> UiNode {
         Toggle! {
             value::<Rgba> = c.clone();
             select_on_init;
@@ -95,7 +95,7 @@ fn background_color_example(color: Var<Rgba>) -> impl UiNode {
             };
         }
     }
-    fn primary_color(c: Rgba) -> impl UiNode {
+    fn primary_color(c: Rgba) -> UiNode {
         let c = c.desaturate(50.pct());
         let c = light_dark(rgba(255, 255, 255, 20.pct()).mix_normal(c), rgba(0, 0, 0, 20.pct()).mix_normal(c));
         color_btn(c.rgba(), false)
@@ -114,8 +114,8 @@ fn background_color_example(color: Var<Rgba>) -> impl UiNode {
     )
 }
 
-fn screenshot() -> impl UiNode {
-    fn of_window() -> impl UiNode {
+fn screenshot() -> UiNode {
+    fn of_window() -> UiNode {
         let enabled = var(true);
         Button! {
             child = Text!(enabled.map(|&enabled| {
@@ -153,7 +153,7 @@ fn screenshot() -> impl UiNode {
         }
     }
 
-    fn of_headless_temp() -> impl UiNode {
+    fn of_headless_temp() -> UiNode {
         let enabled = var(true);
         Button! {
             child = Text!(enabled.map(|&enabled| {
@@ -201,7 +201,7 @@ fn screenshot() -> impl UiNode {
     section("Screenshot", ui_vec![of_window(), of_headless_temp(),])
 }
 
-fn icon_example() -> impl UiNode {
+fn icon_example() -> UiNode {
     let icon_btn = |label: &'static str, ico: WindowIcon| {
         Toggle! {
             child = Text!(label);
@@ -229,7 +229,7 @@ fn icon_example() -> impl UiNode {
     )
 }
 
-fn state_commands() -> impl UiNode {
+fn state_commands() -> UiNode {
     use zng::window::cmd::*;
 
     let window_id = WINDOW.id();
@@ -251,7 +251,7 @@ fn state_commands() -> impl UiNode {
     )
 }
 
-fn focus_control() -> impl UiNode {
+fn focus_control() -> UiNode {
     let enabled = var(true);
     let focus_btn = Button! {
         enabled = enabled.clone();
@@ -294,7 +294,7 @@ fn focus_control() -> impl UiNode {
     section("Focus", ui_vec![focus_btn, critical_btn, info_btn,])
 }
 
-fn state() -> impl UiNode {
+fn state() -> UiNode {
     let state_btn = |s: WindowState| {
         Toggle! {
             child = Text!("{s:?}");
@@ -327,7 +327,7 @@ fn state() -> impl UiNode {
     )
 }
 
-fn exclusive_mode() -> impl UiNode {
+fn exclusive_mode() -> UiNode {
     Toggle! {
         style_fn = toggle::ComboStyle!();
         corner_radius = (0, 0, 4, 4);
@@ -368,7 +368,7 @@ fn exclusive_mode() -> impl UiNode {
     }
 }
 
-fn visibility_example() -> impl UiNode {
+fn visibility_example() -> UiNode {
     let visible = WINDOW.vars().visible();
     let btn = Button! {
         enabled = visible.clone();
@@ -389,7 +389,7 @@ fn visibility_example() -> impl UiNode {
     section("Visibility", ui_vec![btn, chrome])
 }
 
-fn custom_chrome(title: Var<Txt>) -> impl UiNode {
+fn custom_chrome(title: Var<Txt>) -> UiNode {
     let vars = WINDOW.vars();
 
     let can_move = vars.state().map(|s| matches!(s, WindowState::Normal | WindowState::Maximized));
@@ -491,7 +491,7 @@ fn custom_chrome(title: Var<Txt>) -> impl UiNode {
     }
 }
 
-fn misc() -> impl UiNode {
+fn misc() -> UiNode {
     let window_vars = WINDOW.vars();
     let window_id = WINDOW.id();
 
@@ -561,7 +561,7 @@ fn misc() -> impl UiNode {
     )
 }
 
-fn native() -> impl UiNode {
+fn native() -> UiNode {
     let use_native = var(true);
     section(
         "Dialogs",
@@ -705,14 +705,14 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
     })
 }
 
-fn cmd_btn(cmd: Command) -> impl UiNode {
+fn cmd_btn(cmd: Command) -> UiNode {
     Button! {
         child = Text!(cmd.name_with_shortcut());
         cmd;
     }
 }
 
-fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
+fn section(header: &'static str, items: impl UiNodeList) -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
@@ -725,7 +725,7 @@ fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
     }
 }
 
-fn select<T: VarValue + PartialEq>(header: &'static str, selection: Var<T>, items: impl UiNodeList) -> impl UiNode {
+fn select<T: VarValue + PartialEq>(header: &'static str, selection: Var<T>, items: impl UiNodeList) -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
@@ -739,7 +739,7 @@ fn select<T: VarValue + PartialEq>(header: &'static str, selection: Var<T>, item
     }
 }
 
-fn separator() -> impl UiNode {
+fn separator() -> UiNode {
     Hr! {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);
@@ -747,7 +747,7 @@ fn separator() -> impl UiNode {
     }
 }
 
-fn logo_icon() -> impl UiNode {
+fn logo_icon() -> UiNode {
     let logo = Container! {
         layout::size = 50;
         layout::perspective = 125;

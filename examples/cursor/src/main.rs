@@ -37,7 +37,7 @@ fn main() {
     })
 }
 
-fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
+fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> UiNode {
     widgets::DemoEntry! {
         mouse::cursor = match icon {
             Some(i) => i.0.into(),
@@ -68,7 +68,7 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
     }
 }
 
-fn cursor_img_demo(label: &'static str, img: &'static [u8], hotspot: (i32, i32), fallback: CursorIcon) -> impl UiNode {
+fn cursor_img_demo(label: &'static str, img: &'static [u8], hotspot: (i32, i32), fallback: CursorIcon) -> UiNode {
     widgets::DemoEntry! {
         mouse::cursor = mouse::CursorImg {
             source: img.into(),

@@ -33,7 +33,7 @@ fn no_context_image() -> Img {
 ///
 /// [`img_cache`]: fn@crate::img_cache
 /// [`IMAGES`]: zng_ext_image::IMAGES
-pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
+pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> UiNode {
     let source = source.into_var();
     let ctx_img = var(Img::dummy(None));
     let child = with_context_var(child, CONTEXT_IMAGE_VAR, ctx_img.read_only());
@@ -129,7 +129,7 @@ context_local! {
 /// The error view is rendered under the `child`.
 ///
 /// The image widget adds this node around the [`image_presenter`] node.
-pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
+pub fn image_error_presenter(child: impl IntoUiNode) -> UiNode {
     let view = CONTEXT_IMAGE_VAR
         .map(|i| i.error().map(|e| ImgErrorArgs { error: e }))
         .present_opt(IMAGE_ERROR_FN_VAR.map(|f| {
@@ -156,7 +156,7 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
 /// The loading view is rendered under the `child`.
 ///
 /// The image widget adds this node around the [`image_error_presenter`] node.
-pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
+pub fn image_loading_presenter(child: impl IntoUiNode) -> UiNode {
     let view = CONTEXT_IMAGE_VAR
         .map(|i| if i.is_loading() { Some(ImgLoadingArgs {}) } else { None })
         .present_opt(IMAGE_LOADING_FN_VAR.map(|f| {
@@ -191,7 +191,7 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
 /// * [`IMAGE_ALIGN_VAR`]: Defines the image alignment in the presenter final size.
 /// * [`IMAGE_RENDERING_VAR`]: Defines the image resize algorithm used in the GPU.
 /// * [`IMAGE_OFFSET_VAR`]: Defines an offset applied to the image after all measure and arrange.
-pub fn image_presenter() -> impl UiNode {
+pub fn image_presenter() -> UiNode {
     let mut img_size = PxSize::zero();
     let mut render_clip = PxRect::zero();
     let mut render_img_size = PxSize::zero();

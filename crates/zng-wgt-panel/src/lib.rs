@@ -57,7 +57,7 @@ context_var! {
 ///
 /// [`Panel!`]: struct@Panel
 #[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(Panel))]
-pub fn panel_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<PanelArgs>>) -> impl UiNode {
+pub fn panel_fn(child: impl IntoUiNode, panel: impl IntoVar<WidgetFn<PanelArgs>>) -> UiNode {
     with_context_var(child, PANEL_FN_VAR, panel)
 }
 
@@ -81,7 +81,7 @@ impl PanelArgs {
 }
 
 /// Panel widget child node.
-pub fn node(children: ArcNodeList<BoxedUiNodeList>, panel_fn: impl IntoVar<WidgetFn<PanelArgs>>) -> impl UiNode {
+pub fn node(children: ArcNodeList<BoxedUiNodeList>, panel_fn: impl IntoVar<WidgetFn<PanelArgs>>) -> UiNode {
     let mut child = NilUiNode.boxed();
     let panel_fn = panel_fn.into_var();
     match_node_leaf(move |op| match op {

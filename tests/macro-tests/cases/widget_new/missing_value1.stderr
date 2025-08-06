@@ -11,7 +11,7 @@ error[E0061]: this method takes 1 argument but 0 arguments were supplied
 note: method defined here
  --> $WORKSPACE/crates/zng-wgt/src/layout_props.rs
   |
-  | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
+  | pub fn margin(child: impl IntoUiNode, margin: impl IntoVar<SideOffsets>) -> UiNode {
   |        ^^^^^^
 help: provide the argument
  --> $WORKSPACE/crates/zng-wgt/src/wgt.rs

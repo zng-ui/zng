@@ -70,7 +70,7 @@ context_var! {
 ///
 /// This property sets [`PANEL_FN_VAR`].
 #[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(SubMenuPopup))]
-pub fn panel_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<zng_wgt_panel::PanelArgs>>) -> impl UiNode {
+pub fn panel_fn(child: impl IntoUiNode, panel: impl IntoVar<WidgetFn<zng_wgt_panel::PanelArgs>>) -> UiNode {
     with_context_var(child, PANEL_FN_VAR, panel)
 }
 
@@ -97,7 +97,7 @@ impl DefaultStyle {
 /// Default sub-menu popup panel view.
 ///
 /// See [`PANEL_FN_VAR`] for more details.
-pub fn default_panel_fn(args: zng_wgt_panel::PanelArgs) -> impl UiNode {
+pub fn default_panel_fn(args: zng_wgt_panel::PanelArgs) -> UiNode {
     // remove arrow key shortcuts, they are used to navigate focus.
     let scroll_id = WidgetId::new_unique();
     zng_wgt_scroll::cmd::SCROLL_UP_CMD
@@ -123,7 +123,7 @@ pub fn default_panel_fn(args: zng_wgt_panel::PanelArgs) -> impl UiNode {
 }
 
 /// Sub-menu popup implementation.
-pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Option<WidgetId>) -> impl UiNode {
+pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Option<WidgetId>) -> UiNode {
     let child = zng_wgt_panel::node(
         children,
         if parent.is_none() {

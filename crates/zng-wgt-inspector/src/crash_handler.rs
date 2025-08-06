@@ -57,14 +57,14 @@ pub fn debug_dialog(args: CrashArgs) -> WindowRoot {
     }
 }
 
-fn header(error: &CrashError) -> impl UiNode {
+fn header(error: &CrashError) -> UiNode {
     SelectableText! {
         txt = error.message();
         margin = 10;
     }
 }
 
-fn panels(error: &CrashError) -> impl UiNode {
+fn panels(error: &CrashError) -> UiNode {
     let mut options = vec![ErrorPanel::Summary];
     let mut active = ErrorPanel::Summary;
 
@@ -144,7 +144,7 @@ impl ErrorPanel {
     }
 }
 
-fn summary_panel(error: &CrashError) -> impl UiNode {
+fn summary_panel(error: &CrashError) -> UiNode {
     let s = l10n!(
         "crash-handler/summary.text",
         "Timestamp: {$timestamp}
@@ -184,7 +184,7 @@ OS: {$os}
     plain_panel(s.get(), "summary")
 }
 
-fn std_panel(std: Txt, config_key: &'static str) -> impl UiNode {
+fn std_panel(std: Txt, config_key: &'static str) -> UiNode {
     Scroll! {
         child_align = Align::TOP_START;
         background_color = colors::BLACK;
@@ -198,13 +198,13 @@ fn std_panel(std: Txt, config_key: &'static str) -> impl UiNode {
         }
     }
 }
-fn panic_panel(panic: CrashPanic) -> impl UiNode {
+fn panic_panel(panic: CrashPanic) -> UiNode {
     plain_panel(panic.to_txt(), "panic")
 }
-fn widget_panel(widget_path: Txt) -> impl UiNode {
+fn widget_panel(widget_path: Txt) -> UiNode {
     plain_panel(widget_path, "widget")
 }
-fn minidump_panel(path: PathBuf) -> impl UiNode {
+fn minidump_panel(path: PathBuf) -> UiNode {
     let path_str = path.display().to_string();
     #[cfg(windows)]
     let path_str = path_str.trim_start_matches(r"\\?\").replace('/', "\\");
@@ -376,7 +376,7 @@ async fn remove_path(enabled: Var<bool>, path: PathBuf) {
     enabled.set(true);
 }
 
-fn plain_panel(txt: Txt, config_key: &'static str) -> impl UiNode {
+fn plain_panel(txt: Txt, config_key: &'static str) -> UiNode {
     Scroll! {
         child_align = Align::TOP_START;
         background_color = colors::BLACK;
@@ -392,7 +392,7 @@ fn plain_panel(txt: Txt, config_key: &'static str) -> impl UiNode {
     }
 }
 
-fn commands(args: CrashArgs) -> impl UiNode {
+fn commands(args: CrashArgs) -> UiNode {
     Stack! {
         spacing = 5;
         direction = StackDirection::start_to_end();

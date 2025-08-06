@@ -128,7 +128,7 @@ fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) {
     });
 }
 
-fn view_respawn() -> impl UiNode {
+fn view_respawn() -> UiNode {
     Button! {
         child = Text!("Respawn View-Process (F5)");
         gesture::click_shortcut = shortcut!(F5);
@@ -138,7 +138,7 @@ fn view_respawn() -> impl UiNode {
     }
 }
 
-fn view_crash() -> impl UiNode {
+fn view_crash() -> UiNode {
     Button! {
         child = Text!("Crash View-Process");
         on_click = hn!(|_| {
@@ -151,7 +151,7 @@ fn view_crash() -> impl UiNode {
     }
 }
 
-fn app_crash(crash_name: &'static str) -> impl UiNode {
+fn app_crash(crash_name: &'static str) -> UiNode {
     Button! {
         child = Text!("Crash ({crash_name})");
         on_click = hn!(|_| {
@@ -182,7 +182,7 @@ fn app_crash(crash_name: &'static str) -> impl UiNode {
     }
 }
 
-fn click_counter() -> impl UiNode {
+fn click_counter() -> UiNode {
     let t = var_from("Click Me!");
     let mut count = 0;
 
@@ -196,7 +196,7 @@ fn click_counter() -> impl UiNode {
     }
 }
 
-fn image() -> impl UiNode {
+fn image() -> UiNode {
     Image! {
         source = include_bytes!("../../window/res/icon-bytes.png");
         size = (32, 32);
@@ -204,7 +204,7 @@ fn image() -> impl UiNode {
     }
 }
 
-fn window_status() -> impl UiNode {
+fn window_status() -> UiNode {
     let vars = WINDOW.vars();
 
     macro_rules! status {
@@ -230,7 +230,7 @@ fn window_status() -> impl UiNode {
     }
 }
 
-fn icon() -> impl UiNode {
+fn icon() -> UiNode {
     Container! {
         size = (36, 36);
         widget::background_gradient = layout::Line::to_bottom_right(), stops![web_colors::ORANGE_RED, 70.pct(), web_colors::DARK_RED];

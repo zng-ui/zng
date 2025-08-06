@@ -47,12 +47,12 @@ pub fn run() {
     });
 }
 
-fn image() -> impl UiNode {
+fn image() -> UiNode {
     Container! {
         layout::size = (800, 600);
 
         widget::background = stack_nodes({
-            fn gradient(angle: i32, mut color: color::Rgba) -> impl UiNode {
+            fn gradient(angle: i32, mut color: color::Rgba) -> UiNode {
                 color.alpha = 0.3;
                 let stops = GradientStops::from_stripes(&[color, color.transparent()], 0.0);
                 linear_gradient(angle.deg(), stops)

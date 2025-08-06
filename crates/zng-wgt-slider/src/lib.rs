@@ -359,7 +359,7 @@ context_var! {
 
 /// Sets the slider selector that defines the values, ranges that are selected.
 #[property(CONTEXT, default(Selector::nil()), widget_impl(Slider))]
-pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl UiNode {
+pub fn selector(child: impl IntoUiNode, selector: impl IntoValue<Selector>) -> UiNode {
     with_context_local(child, &SELECTOR, selector)
 }
 
@@ -367,7 +367,7 @@ pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl 
 ///
 /// This property sets the [`THUMB_FN_VAR`].
 #[property(CONTEXT, default(THUMB_FN_VAR))]
-pub fn thumb_fn(child: impl UiNode, thumb: impl IntoVar<WidgetFn<ThumbArgs>>) -> impl UiNode {
+pub fn thumb_fn(child: impl IntoUiNode, thumb: impl IntoVar<WidgetFn<ThumbArgs>>) -> UiNode {
     with_context_var(child, THUMB_FN_VAR, thumb)
 }
 
@@ -481,7 +481,7 @@ context_var! {
 ///
 /// This property sets the [`SLIDER_DIRECTION_VAR`].
 #[property(CONTEXT, default(SLIDER_DIRECTION_VAR), widget_impl(Slider))]
-fn direction(child: impl UiNode, direction: impl IntoVar<SliderDirection>) -> impl UiNode {
+fn direction(child: impl IntoUiNode, direction: impl IntoVar<SliderDirection>) -> UiNode {
     with_context_var(child, SLIDER_DIRECTION_VAR, direction)
 }
 
@@ -503,7 +503,7 @@ impl SliderTrack {
     }
 }
 
-fn slider_track_node() -> impl UiNode {
+fn slider_track_node() -> UiNode {
     let mut thumbs = ui_vec![];
     let mut layout_direction = LayoutDirection::LTR;
     match_node_leaf(move |op| match op {

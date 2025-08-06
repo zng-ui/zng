@@ -70,7 +70,7 @@ impl WidgetBase {
     /// Build the widget.
     ///
     /// After this call trying to set a property will panic.
-    pub fn widget_build(&mut self) -> impl UiNode + use<> {
+    pub fn widget_build(&mut self) -> UiNode {
         let mut wgt = self.widget_take();
         wgt.push_build_action(|wgt| {
             if !wgt.has_child() {
@@ -451,7 +451,7 @@ pub mod node {
         widget::{
             WidgetCtx, WidgetUpdateMode,
             info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
-            node::BoxedUiNode,
+            node::{IntoUiNode, UiNode, UiNodeImpl, WidgetUiNodeImpl},
         },
     };
 
@@ -472,7 +472,7 @@ pub mod node {
     ///
     /// [`WidgetBase`]: struct@WidgetBase
     /// [`id`]: fn@id
-    pub fn build(mut wgt: WidgetBuilder) -> impl UiNode {
+    pub fn build(mut wgt: WidgetBuilder) -> UiNode {
         let id = wgt.capture_value_or_else(property_id!(id), WidgetId::new_unique);
         let child = wgt.build();
         node::widget(child, id)
@@ -488,7 +488,7 @@ pub mod node {
     /// This node must be intrinsic at [`NestGroup::CHILD`], the [`WidgetBase`] default intrinsic inserts it.
     ///
     /// [`WidgetBase`]: struct@WidgetBase
-    pub fn widget_child(child: impl UiNode) -> impl UiNode {
+    pub fn widget_child(child: impl IntoUiNode) -> UiNode {
         let key = FrameValueKey::new_unique();
         let mut define_ref_frame = false;
 
@@ -499,7 +499,9 @@ pub mod node {
                 if let Some(inline) = wm.inline() {
                     if inline.is_default() {
                         if let Some(child_inline) = child
-                            .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline())
+                            .child()
+                            .as_widget()
+                            .map(|mut w| w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline()))
                             .flatten()
                         {
                             // pass through child inline
@@ -521,13 +523,15 @@ pub mod node {
                     // child maybe widget, try to copy inline
                     if let Some(inline) = wl.inline() {
                         if inline.is_default() {
-                            child.with_context(WidgetUpdateMode::Ignore, || {
-                                let bounds = WIDGET.bounds();
-                                let child_inline = bounds.inline();
-                                if let Some(child_inline) = child_inline {
-                                    inline.clone_from(&*child_inline);
-                                }
-                            });
+                            if let Some(mut wgt) = child.child().as_widget() {
+                                wgt.with_context(WidgetUpdateMode::Ignore, || {
+                                    let bounds = WIDGET.bounds();
+                                    let child_inline = bounds.inline();
+                                    if let Some(child_inline) = child_inline {
+                                        inline.clone_from(&*child_inline);
+                                    }
+                                });
+                            }
                         }
                     }
                 }
@@ -562,7 +566,7 @@ pub mod node {
     /// This node must be intrinsic at [`NestGroup::BORDER`], the [`WidgetBase`] default intrinsic inserts it.
     ///
     /// [`WidgetBase`]: struct@WidgetBase
-    pub fn widget_inner(child: impl UiNode) -> impl UiNode {
+    pub fn widget_inner(child: impl IntoUiNode) -> UiNode {
         #[derive(Default, PartialEq)]
         struct HitClips {
             bounds: PxSize,
@@ -638,17 +642,36 @@ pub mod node {
     /// the state is cleared.
     ///
     /// [`WidgetBase`]: struct@WidgetBase
-    pub fn widget(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
-        struct WidgetNode<C> {
+    pub fn widget(child: impl IntoUiNode, id: impl IntoValue<WidgetId>) -> UiNode {
+        struct WidgetNode {
             ctx: WidgetCtx,
-            child: C,
+            child: UiNode,
 
             #[cfg(debug_assertions)]
             inited: bool,
             #[cfg(debug_assertions)]
             info_built: bool,
         }
-        impl<C: UiNode> UiNode for WidgetNode<C> {
+        impl WidgetUiNodeImpl for WidgetNode {
+            fn with_context(&mut self, update_mode: WidgetUpdateMode, visitor: &mut dyn FnMut()) {
+                WIDGET.with_context(&mut self.ctx, update_mode, visitor);
+            }
+        }
+        impl UiNodeImpl for WidgetNode {
+            fn children_len(&self) -> usize {
+                1
+            }
+
+            fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
+                if index == 0 {
+                    visitor(&mut self.child);
+                }
+            }
+
+            fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+                Some(self)
+            }
+
             fn init(&mut self) {
                 WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || {
                     #[cfg(debug_assertions)]
@@ -880,35 +903,19 @@ pub mod node {
                 }
             }
 
-            fn is_widget(&self) -> bool {
-                true
-            }
-
-            fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
-            where
-                F: FnOnce() -> R,
-            {
-                WIDGET.with_context(&mut self.ctx, update_mode, || Some(f()))
-            }
-
-            fn into_widget(self) -> BoxedUiNode
-            where
-                Self: Sized,
-            {
-                self.boxed()
-            }
+            // !!: TODO other defaults?
         }
 
         WidgetNode {
             ctx: WidgetCtx::new(id.into()),
-            child: child.cfg_boxed(),
+            child: child.into_node(),
 
             #[cfg(debug_assertions)]
             inited: false,
             #[cfg(debug_assertions)]
             info_built: false,
         }
-        .cfg_boxed()
+        .into_node()
     }
 }
 

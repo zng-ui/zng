@@ -8,7 +8,7 @@ use zng::{
     prelude::*,
     stack,
     var::ObservableVec,
-    widget::{LineStyle, node::EditableUiNodeList},
+    widget::{LineStyle, node::EditableUiVec},
 };
 
 fn main() {
@@ -48,7 +48,7 @@ fn main() {
     })
 }
 
-fn example() -> impl UiNode {
+fn example() -> UiNode {
     let t = var_from("Click Me!");
     let mut count = 0;
 
@@ -74,7 +74,7 @@ fn example() -> impl UiNode {
         child = Text!(t);
     }
 }
-fn disabled() -> impl UiNode {
+fn disabled() -> UiNode {
     Button! {
         on_click = hn!(|_| panic!("disabled button"));
         widget::enabled = false;
@@ -83,7 +83,7 @@ fn disabled() -> impl UiNode {
         tip::disabled_tooltip = Tip!(Text!("disabled tooltip"));
     }
 }
-fn image_button() -> impl UiNode {
+fn image_button() -> UiNode {
     Button! {
         id = "img-btn";
         tooltip = Tip!(Text!("image button"));
@@ -99,7 +99,7 @@ fn image_button() -> impl UiNode {
         child = Text!("Image!");
     }
 }
-fn light_button() -> impl UiNode {
+fn light_button() -> UiNode {
     Stack! {
         direction = StackDirection::left_to_right();
         spacing = 5;
@@ -120,7 +120,7 @@ fn light_button() -> impl UiNode {
         ]
     }
 }
-fn repeat_button() -> impl UiNode {
+fn repeat_button() -> UiNode {
     let t = var(Txt::from_static("Repeat Click!"));
 
     Button! {
@@ -136,7 +136,7 @@ fn repeat_button() -> impl UiNode {
     }
 }
 
-fn split_button() -> impl UiNode {
+fn split_button() -> UiNode {
     let button_count = var(0u32);
     let split_count = var(0u32);
 
@@ -167,7 +167,7 @@ fn split_button() -> impl UiNode {
     }
 }
 
-fn toggle_buttons() -> impl UiNode {
+fn toggle_buttons() -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
@@ -231,7 +231,7 @@ fn toggle_buttons() -> impl UiNode {
     }
 }
 
-fn combo_box() -> impl UiNode {
+fn combo_box() -> UiNode {
     let txt = var(Txt::from_static("Combo"));
     let options = ["Combo", "Congo", "Pombo"];
     Toggle! {
@@ -262,8 +262,8 @@ fn combo_box() -> impl UiNode {
 }
 
 // dynamic add and remove buttons created directly
-fn dyn_buttons() -> impl UiNode {
-    let dyn_children = EditableUiNodeList::new();
+fn dyn_buttons() -> UiNode {
+    let dyn_children = EditableUiVec::new();
     let children_ref = dyn_children.reference();
     let mut btn = 'A';
 
@@ -295,7 +295,7 @@ fn dyn_buttons() -> impl UiNode {
 }
 
 // dynamic add and remove buttons created from a data source.
-fn dyn_buttons_from_data() -> impl UiNode {
+fn dyn_buttons_from_data() -> UiNode {
     let data_source = var(ObservableVec::<char>::new());
     let mut btn = 'A';
 
@@ -337,7 +337,7 @@ fn dyn_buttons_from_data() -> impl UiNode {
 }
 
 // button that animates in and out.
-fn dyn_button(content: char, remove: impl Fn() + Send + Sync + 'static) -> impl UiNode {
+fn dyn_button(content: char, remove: impl Fn() + Send + Sync + 'static) -> UiNode {
     let remove = std::sync::Arc::new(remove);
     let removing = var(false);
 
@@ -369,7 +369,7 @@ fn dyn_button(content: char, remove: impl Fn() + Send + Sync + 'static) -> impl 
     }
 }
 
-fn separator() -> impl UiNode {
+fn separator() -> UiNode {
     Hr! {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);
@@ -377,7 +377,7 @@ fn separator() -> impl UiNode {
     }
 }
 
-fn separator_not_first() -> impl UiNode {
+fn separator_not_first() -> UiNode {
     Hr! {
         when #stack::is_first {
             widget::visibility = false;

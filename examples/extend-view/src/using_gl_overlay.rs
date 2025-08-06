@@ -7,7 +7,7 @@ pub mod app_side {
     use zng_view_api::api_extension::ApiExtensionId;
 
     /// Node that sends external display item and updates.
-    pub fn custom_render_node() -> impl UiNode {
+    pub fn custom_render_node() -> UiNode {
         crate::using_display_items::app_side::custom_ext_node(extension_id)
     }
 

@@ -70,7 +70,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         if item.sig.inputs.len() < 2 {
             errors.push(
-                "property functions must have at least 2 inputs: child: impl UiNode, arg0, ..",
+                "property functions must have at least 2 inputs: child: impl IntoUiNode, arg0, ..",
                 item.sig.inputs.span(),
             );
         }
@@ -79,7 +79,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     if item.sig.inputs.is_empty() {
         // patch to continue validation.
         let core = crate_core();
-        item.sig.inputs.push(parse_quote!(__child__: impl #core::widget::node::UiNode));
+        item.sig.inputs.push(parse_quote!(__child__: impl #core::widget::node::IntoUiNode));
     }
 
     if let Some(async_) = &item.sig.asyncness {
@@ -102,7 +102,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     if !inputs[0].ty.is_empty() && !capture {
         // first param passed Input::from_arg validation, check if is node.
         if !matches!(inputs[0].kind, InputKind::UiNode) {
-            errors.push("first input must be `impl UiNode`", inputs[0].ty.span());
+            errors.push("first input must be `impl IntoUiNode`", inputs[0].ty.span());
         }
     }
 
@@ -119,18 +119,16 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     let item = item;
     let first_input = if capture { 0 } else { 1 };
 
-    let output_span = match &item.sig.output {
+    match &item.sig.output {
         ReturnType::Default => {
             if !capture {
-                errors.push("output type must be `impl UiNode`", item.sig.ident.span());
+                errors.push("output type must be `UiNode`", item.sig.ident.span());
             }
-            proc_macro2::Span::call_site()
         }
         ReturnType::Type(_, ty) => {
             if capture {
                 errors.push("capture must not have output", ty.span());
             }
-            ty.span()
         }
     };
 
@@ -180,10 +178,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                             }
                         }
                         InputKind::UiNode => default.extend(quote! {
-                            #core::widget::node::NilUiNode,
-                        }),
-                        InputKind::UiNodeList => default.extend(quote! {
-                            #core::widget::node::UiVec::new(),
+                            #core::widget::node::UiNode::nil(),
                         }),
                         InputKind::WidgetHandler if !has_generics => default.extend(quote! {
                             #core::handler::hn!(|_| {}),
@@ -222,7 +217,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let mut get_var = quote!();
         let mut get_value = quote!();
         let mut get_ui_node = quote!();
-        let mut get_ui_node_list = quote!();
         let mut get_widget_handler = quote!();
 
         let mut instantiate = quote!();
@@ -329,8 +323,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         #core::widget::builder::ui_node_to_args(#ident)
                     });
                     named_into.extend(quote! {
-                        pub fn #ident(&self, #ident: #input_ty) -> #core::widget::node::BoxedUiNode {
-                            #core::widget::node::UiNode::boxed(#ident)
+                        pub fn #ident(&self, #ident: #input_ty) -> #core::widget::node::UiNode {
+                            #core::widget::node::IntoUiNode::into_node(#ident)
                         }
                     });
                     get_ui_node.extend(quote! {
@@ -353,39 +347,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         pub fn #get_ident_i(&self)
                         -> (#core::widget::builder::WhenInputVar, #core::var::Var<#core::widget::builder::UiNodeInWhenExprError>) {
                             #core::widget::builder::WhenInputVar::new::<#core::widget::builder::UiNodeInWhenExprError>()
-                        }
-                    });
-                }
-                InputKind::UiNodeList => {
-                    allowed_in_when_expr = false;
-                    input_to_storage.push(quote! {
-                        #core::widget::builder::ui_node_list_to_args(#ident)
-                    });
-                    named_into.extend(quote! {
-                        pub fn #ident(&self, #ident: #input_ty) -> #core::widget::node::BoxedUiNodeList {
-                            #core::widget::node::UiNodeList::boxed(#ident)
-                        }
-                    });
-                    get_ui_node_list.extend(quote! {
-                        #i => &self.#ident,
-                    });
-                    instantiate.extend(quote! {
-                        self.#ident.take_on_init(),
-                    });
-                    input_new_dyn.push(quote! {
-                        let __actions__ = #core::widget::builder::iter_input_build_actions(&__args__.build_actions, &__args__.build_actions_when_data, #i);
-                        #core::widget::builder::new_dyn_ui_node_list(&mut __inputs__, __actions__)
-                    });
-                    let get_ident = ident!("__w_{ident}__");
-                    let get_ident_i = ident!("__w_{i}__");
-                    get_when_input.extend(quote! {
-                        pub fn #get_ident(&self)
-                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#core::widget::builder::UiNodeListInWhenExprError>) {
-                            #core::widget::builder::WhenInputVar::new::<#core::widget::builder::UiNodeListInWhenExprError>()
-                        }
-                        pub fn #get_ident_i(&self)
-                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#core::widget::builder::UiNodeListInWhenExprError>) {
-                            #core::widget::builder::WhenInputVar::new::<#core::widget::builder::UiNodeListInWhenExprError>()
                         }
                     });
                 }
@@ -447,20 +408,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
         if !get_ui_node.is_empty() {
             get_ui_node = quote! {
-                fn ui_node(&self, __index__: usize) -> &#core::widget::node::ArcNode<#core::widget::node::BoxedUiNode> {
+                fn ui_node(&self, __index__: usize) -> &#core::widget::node::ArcNode {
                     match __index__ {
                         #get_ui_node
                         n => #core::widget::builder::panic_input(&self.property(), n, #core::widget::builder::InputKind::UiNode),
-                    }
-                }
-            }
-        }
-        if !get_ui_node_list.is_empty() {
-            get_ui_node_list = quote! {
-                fn ui_node_list(&self, __index__: usize) -> &#core::widget::node::ArcNodeList<#core::widget::node::BoxedUiNodeList> {
-                    match __index__ {
-                        #get_ui_node_list
-                        n => #core::widget::builder::panic_input(&self.property(), n, #core::widget::builder::InputKind::UiNodeList),
                     }
                 }
             }
@@ -480,8 +431,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         sorted_inputs.sort_by_key(|i| &i.ident);
         let sorted_idents: Vec<_> = sorted_inputs.iter().map(|i| &i.ident).collect();
         let sorted_tys: Vec<_> = sorted_inputs.iter().map(|i| &i.ty).collect();
-
-        let node_instance = ident_spanned!(output_span=> "__node__");
 
         let docs = &attrs.docs;
 
@@ -588,8 +537,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }
         } else {
             quote! {
-                let #node_instance = #ident(__child__, #instantiate);
-                #core::widget::node::UiNode::boxed(#node_instance)
+                #ident(__child__, #instantiate)
             }
         };
 
@@ -620,14 +568,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
 
                 #allow_deprecated
-                fn instantiate(&self, __child__: #core::widget::node::BoxedUiNode) -> #core::widget::node::BoxedUiNode {
+                fn instantiate(&self, __child__: #core::widget::node::UiNode) -> #core::widget::node::UiNode {
                     #instantiate
                 }
 
                 #get_var
                 #get_value
                 #get_ui_node
-                #get_ui_node_list
                 #get_widget_handler
             }
         };
@@ -835,7 +782,6 @@ enum InputKind {
     Value,
     UiNode,
     WidgetHandler,
-    UiNodeList,
 }
 impl ToTokens for InputKind {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -844,7 +790,6 @@ impl ToTokens for InputKind {
             InputKind::Value => ident!("Value"),
             InputKind::UiNode => ident!("UiNode"),
             InputKind::WidgetHandler => ident!("WidgetHandler"),
-            InputKind::UiNodeList => ident!("UiNodeList"),
         };
         let core = crate_core();
         tokens.extend(quote! {
@@ -936,20 +881,14 @@ impl Input {
                                             input.storage_ty = quote!(#core::widget::builder::ArcWidgetHandler<#t>);
                                         }
                                     }
-                                    "UiNode" => {
+                                    "IntoUiNode" => {
                                         input.kind = InputKind::UiNode;
                                         input.ty = t.ty.to_token_stream();
-                                        input.info_ty = quote_spanned!(t.ty.span()=> #core::widget::node::BoxedUiNode);
-                                        input.storage_ty = quote!(#core::widget::node::ArcNode<#core::widget::node::BoxedUiNode>);
-                                    }
-                                    "UiNodeList" => {
-                                        input.kind = InputKind::UiNodeList;
-                                        input.ty = t.ty.to_token_stream();
-                                        input.info_ty = quote_spanned!(t.ty.span()=> #core::widget::node::BoxedUiNodeList);
-                                        input.storage_ty = quote!(#core::widget::node::ArcNodeList<#core::widget::node::BoxedUiNodeList>)
+                                        input.info_ty = quote_spanned!(t.ty.span()=> #core::widget::node::UiNode);
+                                        input.storage_ty = quote!(#core::widget::node::ArcNode);
                                     }
                                     _ => {
-                                        errors.push("property input can only have impl types for: IntoVar<T>, IntoValue<T>, UiNode, WidgetHandler<A>, UiNodeList", seg.span());
+                                        errors.push("property input can only have impl types for: IntoVar<T>, IntoValue<T>, IntoUiNode, WidgetHandler<A>", seg.span());
                                     }
                                 }
                             }

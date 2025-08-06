@@ -160,7 +160,7 @@ pub mod builder {
 ///     }
 ///
 ///     #[property(CONTEXT)]
-///     pub fn flag_state(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+///     pub fn flag_state(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
 ///         let state = state.into_var();
 ///         match_node(child, move |_, op| match op {
 ///             UiNodeOp::Init => {
@@ -228,8 +228,8 @@ pub mod info {
 /// [`UiNodeList`]: crate::prelude::UiNodeList
 pub mod node {
     pub use zng_app::widget::node::{
-        AdoptiveChildNode, AdoptiveNode, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, DefaultPanelListData, EditableUiNodeList,
-        EditableUiNodeListRef, FillUiNode, MatchNodeChild, MatchNodeChildren, MatchWidgetChild, NilUiNode, OffsetUiListObserver, PanelList,
+        AdoptiveChildNode, AdoptiveNode, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, DefaultPanelListData, EditableUiVec,
+        EditableUiVecRef, FillUiNode, MatchNodeChild, MatchNodeChildren, MatchWidgetChild, NilUiNode, OffsetUiListObserver, PanelList,
         PanelListData, PanelListRange, SORTING_LIST, SortingList, UiNode, UiNodeList, UiNodeListChain, UiNodeListChainImpl,
         UiNodeListObserver, UiNodeOp, UiNodeOpMethod, UiVec, WeakNode, WeakNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder, Z_INDEX,
         extend_widget, match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec,
@@ -576,11 +576,11 @@ pub use zng_app::widget::widget_mixin;
 /// # use zng::prelude_wgt::*;
 /// # #[widget($crate::Foo)] pub struct Foo(WidgetBase);
 /// # #[property(FILL, default(colors::BLACK))]
-/// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+/// # pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
 /// #    child
 /// # }
 /// # #[property(LAYOUT, default(0))]
-/// # pub fn margin(child: impl UiNode, color: impl IntoVar<SideOffsets>) -> impl UiNode {
+/// # pub fn margin(child: impl IntoUiNode, color: impl IntoVar<SideOffsets>) -> UiNode {
 /// #    child
 /// # }
 /// # fn main() {
@@ -639,7 +639,7 @@ pub use zng_app::widget::easing;
 /// use zng::prelude_wgt::*;
 ///
 /// #[property(LAYOUT)]
-/// pub fn align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
+/// pub fn align(child: impl IntoUiNode, align: impl IntoVar<Align>) -> UiNode {
 ///     // ..
 /// #   child
 /// }
@@ -653,13 +653,13 @@ pub use zng_app::widget::easing;
 /// use zng::prelude_wgt::*;
 ///
 /// #[property(SIZE+1)]
-/// pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+/// pub fn size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
 ///     // ..
 /// #   child
 /// }
 ///
 /// #[property(SIZE)]
-/// pub fn max_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+/// pub fn max_size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
 ///     // ..
 /// #   child
 /// }
@@ -676,7 +676,7 @@ pub use zng_app::widget::easing;
 /// use zng::prelude_wgt::*;
 ///
 /// #[property(FILL, default(rgba(0, 0, 0, 0)))]
-/// pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+/// pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
 ///     // ..
 /// #   child
 /// }
@@ -980,9 +980,9 @@ pub use zng_app::widget::property;
 /// ```
 /// # fn main() { }
 /// # use zng::prelude_wgt::*;
-/// fn my_widget_node(child: impl UiNode, number: impl IntoVar<u32>) -> impl UiNode {
+/// fn my_widget_node(child: impl IntoUiNode, number: impl IntoVar<u32>) -> UiNode {
 ///     #[ui_node(struct MyNode {
-///         child: impl UiNode,
+///         child: impl IntoUiNode,
 ///         #[var] number: Var<u32>,
 ///     })]
 ///     impl UiNode for MyNode {

@@ -32,7 +32,7 @@
 //! # zng::hot_reload::zng_hot_entry!();
 //!
 //! #[hot_node]
-//! pub fn hello_text(input: impl IntoVar<bool>) -> impl UiNode {
+//! pub fn hello_text(input: impl IntoVar<bool>) -> UiNode {
 //!     let input = input.into_var();
 //!     Text! {
 //!         txt = greeting_text();
@@ -47,7 +47,7 @@
 //!     "Hello!".into()
 //! }
 //!
-//! fn other_ui() -> impl UiNode {
+//! fn other_ui() -> UiNode {
 //!     Container! {
 //!         child = hello_text(true);
 //!         text::font_size = 2.em();

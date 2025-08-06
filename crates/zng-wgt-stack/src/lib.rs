@@ -123,7 +123,7 @@ pub fn node(
     direction: impl IntoVar<StackDirection>,
     spacing: impl IntoVar<Length>,
     children_align: impl IntoVar<Align>,
-) -> impl UiNode {
+) -> UiNode {
     let children = PanelList::new(children).track_info_range(*PANEL_LIST_ID);
     let direction = direction.into_var();
     let spacing = spacing.into_var();
@@ -164,7 +164,7 @@ pub fn lazy_size(
     direction: impl IntoVar<StackDirection>,
     spacing: impl IntoVar<Length>,
     child_size: impl IntoVar<Size>,
-) -> impl UiNode {
+) -> UiNode {
     lazy_sample(children_len, direction, spacing, zng_wgt_size_offset::size(NilUiNode, child_size))
 }
 
@@ -175,8 +175,8 @@ pub fn lazy_sample(
     children_len: impl IntoVar<usize>,
     direction: impl IntoVar<StackDirection>,
     spacing: impl IntoVar<Length>,
-    child_sample: impl UiNode,
-) -> impl UiNode {
+    child_sample: impl IntoUiNode,
+) -> UiNode {
     let children_len = children_len.into_var();
     let direction = direction.into_var();
     let spacing = spacing.into_var();
@@ -469,7 +469,7 @@ fn child_max_size(wm: &mut WidgetMeasure, children: &mut PanelList, child_align:
 /// overlaying effects composed of multiple nodes, it does not do any alignment layout or z-sorting render.
 ///
 /// [`Stack!`]: struct@Stack
-pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
+pub fn stack_nodes(nodes: impl UiNodeList) -> UiNode {
     match_node_list(nodes, |_, _| {})
 }
 
@@ -485,7 +485,7 @@ pub fn stack_nodes_layout_by(
     nodes: impl UiNodeList,
     index: impl IntoVar<usize>,
     constraints: impl Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send + 'static,
-) -> impl UiNode {
+) -> UiNode {
     #[cfg(feature = "dyn_closure")]
     let constraints: Box<dyn Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send> = Box::new(constraints);
     stack_nodes_layout_by_impl(nodes, index, constraints)
@@ -495,7 +495,7 @@ fn stack_nodes_layout_by_impl(
     nodes: impl UiNodeList,
     index: impl IntoVar<usize>,
     constraints: impl Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send + 'static,
-) -> impl UiNode {
+) -> UiNode {
     let index = index.into_var();
 
     match_node_list(nodes, move |children, op| match op {
@@ -566,7 +566,7 @@ static_id! {
 ///
 /// The child index is zero-based.
 #[property(CONTEXT)]
-pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+pub fn get_index(child: impl IntoUiNode, state: impl IntoVar<usize>) -> UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id.unwrap_or(0));
@@ -575,7 +575,7 @@ pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode 
 
 /// Get the child index and number of children.
 #[property(CONTEXT)]
-pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
+pub fn get_index_len(child: impl IntoUiNode, state: impl IntoVar<(usize, usize)>) -> UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_len_node(child, *PANEL_LIST_ID, move |id_len| {
         state.set(id_len.unwrap_or((0, 0)));
@@ -584,7 +584,7 @@ pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) ->
 
 /// Get the child index, starting from the last child at `0`.
 #[property(CONTEXT)]
-pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+pub fn get_rev_index(child: impl IntoUiNode, state: impl IntoVar<usize>) -> UiNode {
     let state = state.into_var();
     zng_wgt::node::with_rev_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id.unwrap_or(0));
@@ -597,7 +597,7 @@ pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiN
 ///
 /// [`is_odd`]: fn@is_odd
 #[property(CONTEXT)]
-pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_even(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id.map(|i| i % 2 == 0).unwrap_or(false));
@@ -610,7 +610,7 @@ pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 ///
 /// [`is_even`]: fn@is_even
 #[property(CONTEXT)]
-pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_odd(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id.map(|i| i % 2 != 0).unwrap_or(false));
@@ -619,7 +619,7 @@ pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 
 /// If the child is the first.
 #[property(CONTEXT)]
-pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_first(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id == Some(0));
@@ -628,7 +628,7 @@ pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 
 /// If the child is the last.
 #[property(CONTEXT)]
-pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_last(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     zng_wgt::node::with_rev_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id == Some(0));

@@ -47,7 +47,7 @@ context_var! {
 /// [`image_fn`]: fn@crate::image_fn
 /// [`image::img_limits`]: fn@zng_wgt_image::img_limits
 #[property(CONTEXT, default(IMAGE_RESOLVER_VAR), widget_impl(Markdown))]
-pub fn image_resolver(child: impl UiNode, resolver: impl IntoVar<ImageResolver>) -> impl UiNode {
+pub fn image_resolver(child: impl IntoUiNode, resolver: impl IntoVar<ImageResolver>) -> UiNode {
     with_context_var(child, IMAGE_RESOLVER_VAR, resolver)
 }
 
@@ -57,13 +57,13 @@ pub fn image_resolver(child: impl UiNode, resolver: impl IntoVar<ImageResolver>)
 ///
 /// Sets the [`LINK_RESOLVER_VAR`].
 #[property(CONTEXT, default(LINK_RESOLVER_VAR), widget_impl(Markdown))]
-pub fn link_resolver(child: impl UiNode, resolver: impl IntoVar<LinkResolver>) -> impl UiNode {
+pub fn link_resolver(child: impl IntoUiNode, resolver: impl IntoVar<LinkResolver>) -> UiNode {
     with_context_var(child, LINK_RESOLVER_VAR, resolver)
 }
 
 /// Scroll-to mode used by anchor links.
 #[property(CONTEXT, default(LINK_SCROLL_MODE_VAR), widget_impl(Markdown))]
-pub fn link_scroll_mode(child: impl UiNode, mode: impl IntoVar<ScrollToMode>) -> impl UiNode {
+pub fn link_scroll_mode(child: impl IntoUiNode, mode: impl IntoVar<ScrollToMode>) -> UiNode {
     with_context_var(child, LINK_SCROLL_MODE_VAR, mode)
 }
 
@@ -466,7 +466,7 @@ static_id! {
 /// The anchor can be retried in the widget info using [`WidgetInfoExt::anchor`]. It is mostly used
 /// by markdown links to find scroll targets.
 #[property(CONTEXT, default(""))]
-pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Txt>) -> impl UiNode {
+pub fn anchor(child: impl IntoUiNode, anchor: impl IntoVar<Txt>) -> UiNode {
     let anchor = anchor.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {

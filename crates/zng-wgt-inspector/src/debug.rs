@@ -52,7 +52,7 @@ impl_from_and_into_var! {
 ///
 /// [center point]: zng_wgt::prelude::WidgetInfo::center
 #[property(CONTEXT, default(false))]
-pub fn show_center_points(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl UiNode {
+pub fn show_center_points(child: impl IntoUiNode, mode: impl IntoVar<InspectMode>) -> UiNode {
     show_widget_tree(
         child,
         |_, wgt, frame| {
@@ -66,7 +66,7 @@ pub fn show_center_points(child: impl UiNode, mode: impl IntoVar<InspectMode>) -
 ///
 /// The outer bounds is drawn dotted and in pink, the inner bounds is drawn solid and in blue.
 #[property(CONTEXT, default(false))]
-pub fn show_bounds(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl UiNode {
+pub fn show_bounds(child: impl IntoUiNode, mode: impl IntoVar<InspectMode>) -> UiNode {
     show_widget_tree(
         child,
         |_, wgt, frame| {
@@ -99,7 +99,7 @@ pub fn show_bounds(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl 
 
 /// Draws a border over every inlined widget row in the window.
 #[property(CONTEXT, default(false))]
-pub fn show_rows(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl UiNode {
+pub fn show_rows(child: impl IntoUiNode, mode: impl IntoVar<InspectMode>) -> UiNode {
     let spatial_id = SpatialFrameId::new_unique();
     show_widget_tree(
         child,
@@ -128,10 +128,10 @@ pub fn show_rows(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl Ui
 }
 
 fn show_widget_tree(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     mut render: impl FnMut(usize, WidgetInfo, &mut FrameBuilder) + Send + 'static,
     mode: impl IntoVar<InspectMode>,
-) -> impl UiNode {
+) -> UiNode {
     let mode = mode.into_var();
     let cancel_space = SpatialFrameId::new_unique();
     match_node(child, move |child, op| match op {
@@ -183,7 +183,7 @@ fn show_widget_tree(
 ///
 /// This property only works if set in a window, if set in another widget it will log an error and not render anything.
 #[property(CONTEXT, default(false))]
-pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn show_hit_test(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
     let mut handles = EventHandles::default();
     let mut valid = false;
@@ -296,7 +296,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 ///
 /// This property only works if set in a window, if set in another widget it will log an error and not render anything.
 #[property(CONTEXT, default(None))]
-pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Option<Orientation2D>>) -> impl UiNode {
+pub fn show_directional_query(child: impl IntoUiNode, orientation: impl IntoVar<Option<Orientation2D>>) -> UiNode {
     let orientation = orientation.into_var();
     let mut valid = false;
     let mut search_quads = vec![];

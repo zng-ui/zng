@@ -1,11 +1,11 @@
 error: hot node functions cannot declare lifetimes
  --> cases/hot_node/cannot_declare_lifetime.rs:6:16
   |
-6 | pub fn invalid<'a>(child: impl UiNode, input: &'a str) -> impl UiNode {
+6 | pub fn invalid<'a>(child: impl IntoUiNode, input: &'a str) -> UiNode {
   |                ^^
 
 error: hot node input can only have `Clone+Send+Any` types or `impl OneTrait` property types
  --> cases/hot_node/cannot_declare_lifetime.rs:6:47
   |
-6 | pub fn invalid<'a>(child: impl UiNode, input: &'a str) -> impl UiNode {
+6 | pub fn invalid<'a>(child: impl IntoUiNode, input: &'a str) -> UiNode {
   |                                               ^

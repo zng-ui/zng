@@ -76,7 +76,7 @@ context_var! {
 ///
 /// [`undo_button_style_fn`]: fn@undo_button_style_fn
 #[property(CONTEXT+1, default(UNDO_ENTRY_FN_VAR), widget_impl(UndoHistory))]
-pub fn undo_entry_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<UndoEntryArgs>>) -> impl UiNode {
+pub fn undo_entry_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<UndoEntryArgs>>) -> UiNode {
     with_context_var(child, UNDO_ENTRY_FN_VAR, wgt_fn)
 }
 
@@ -84,7 +84,7 @@ pub fn undo_entry_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<UndoEntry
 ///
 /// Sets the [`UNDO_STACK_FN_VAR`].
 #[property(CONTEXT+1, default(UNDO_STACK_FN_VAR), widget_impl(UndoHistory))]
-pub fn undo_stack_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<UndoStackArgs>>) -> impl UiNode {
+pub fn undo_stack_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<UndoStackArgs>>) -> UiNode {
     with_context_var(child, UNDO_STACK_FN_VAR, wgt_fn)
 }
 
@@ -92,7 +92,7 @@ pub fn undo_stack_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<UndoStack
 ///
 /// Sets the [`UNDO_PANEL_FN_VAR`].
 #[property(CONTEXT+1, default(UNDO_PANEL_FN_VAR), widget_impl(UndoHistory))]
-pub fn undo_panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<UndoPanelArgs>>) -> impl UiNode {
+pub fn undo_panel_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<UndoPanelArgs>>) -> UiNode {
     with_context_var(child, UNDO_PANEL_FN_VAR, wgt_fn)
 }
 
@@ -104,7 +104,7 @@ pub fn undo_panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<UndoPanel
 ///
 /// [`UNDO.undo_interval`]: UNDO::undo_interval
 #[property(CONTEXT+1, default(GROUP_BY_UNDO_INTERVAL_VAR), widget_impl(UndoHistory))]
-pub fn group_by_undo_interval(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn group_by_undo_interval(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, GROUP_BY_UNDO_INTERVAL_VAR, enabled)
 }
 
@@ -121,7 +121,7 @@ pub fn op(op: impl IntoValue<UndoOp>) {}
 /// [`UndoRedoButtonStyle!`]: struct@UndoRedoButtonStyle
 /// [`UNDO_CMD`]: zng_ext_undo::UNDO_CMD
 /// [`REDO_CMD`]: zng_ext_undo::REDO_CMD
-pub fn default_undo_entry_fn(args: UndoEntryArgs) -> impl UiNode {
+pub fn default_undo_entry_fn(args: UndoEntryArgs) -> UiNode {
     let ts = args.timestamp();
     let cmd = args.cmd;
 
@@ -163,7 +163,7 @@ pub fn default_undo_entry_fn(args: UndoEntryArgs) -> impl UiNode {
 /// Returns top-to-bottom `Stack!` of [`UNDO_ENTRY_FN_VAR`], latest first.
 ///
 /// [`UndoRedoButtonStyle!`]: struct@UndoRedoButtonStyle
-pub fn default_undo_stack_fn(args: UndoStackArgs) -> impl UiNode {
+pub fn default_undo_stack_fn(args: UndoStackArgs) -> UiNode {
     let entry = UNDO_ENTRY_FN_VAR.get();
 
     let timestamps;
@@ -241,7 +241,7 @@ pub fn default_undo_stack_fn(args: UndoStackArgs) -> impl UiNode {
 }
 
 /// Default [`UNDO_PANEL_FN_VAR`].
-pub fn default_undo_panel_fn(args: UndoPanelArgs) -> impl UiNode {
+pub fn default_undo_panel_fn(args: UndoPanelArgs) -> UiNode {
     let stack = UNDO_STACK_FN_VAR.get();
     match args.op {
         UndoOp::Undo => {
@@ -418,7 +418,7 @@ context_var! {
 
 /// Extend or replace the undo/redo entry button style in a context.
 #[property(CONTEXT, default(StyleFn::nil()))]
-pub fn undo_button_style_fn(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
+pub fn undo_button_style_fn(child: impl IntoUiNode, style: impl IntoVar<StyleFn>) -> UiNode {
     zng_wgt_style::with_style_fn(child, UNDO_BUTTON_STYLE_FN_VAR, style)
 }
 
@@ -426,7 +426,7 @@ pub fn undo_button_style_fn(child: impl UiNode, style: impl IntoVar<StyleFn>) ->
 ///
 /// In the widget style the [`UNDO_ENTRY_VAR`] can be used to access the [`UndoEntryArgs`].
 #[property(CONTEXT-1)]
-pub fn undo_entry(child: impl UiNode, entry: impl IntoValue<UndoEntryArgs>) -> impl UiNode {
+pub fn undo_entry(child: impl IntoUiNode, entry: impl IntoValue<UndoEntryArgs>) -> UiNode {
     let entry = entry.into();
 
     // set the hovered timestamp
@@ -459,7 +459,7 @@ pub fn undo_entry(child: impl UiNode, entry: impl IntoValue<UndoEntryArgs>) -> i
 ///
 /// If this is not set in the stack widget the entry widgets may not work properly.
 #[property(CONTEXT-1)]
-pub fn undo_stack(child: impl UiNode, op: impl IntoValue<UndoOp>) -> impl UiNode {
+pub fn undo_stack(child: impl IntoUiNode, op: impl IntoValue<UndoOp>) -> UiNode {
     let child = with_context_var(child, HOVERED_TIMESTAMP_VAR, var(None));
     with_context_var(child, UNDO_STACK_VAR, Some(op.into()))
 }
@@ -469,7 +469,7 @@ pub fn undo_stack(child: impl UiNode, op: impl IntoValue<UndoOp>) -> impl UiNode
 ///
 /// [`undo_entry`]: fn@undo_entry
 #[property(CONTEXT)]
-pub fn is_cap_hovered_timestamp(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_cap_hovered_timestamp(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     // check the hovered timestamp
     bind_state(
         child,

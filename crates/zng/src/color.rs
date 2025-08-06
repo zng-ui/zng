@@ -7,7 +7,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! fn sample(color: impl IntoVar<color::Rgba>) -> impl UiNode {
+//! fn sample(color: impl IntoVar<color::Rgba>) -> UiNode {
 //!     Wgt! {
 //!         layout::size = (100, 40);
 //!         widget::background_color = color;
@@ -33,8 +33,8 @@
 //!
 //! ```
 //! # use zng::prelude::*;
-//! # fn sample(_: impl IntoVar<color::Rgba>) -> impl UiNode {
-//! # widget::node::NilUiNode
+//! # fn sample(_: impl IntoVar<color::Rgba>) -> UiNode {
+//! # widget::node::UiNode::nil()
 //! # }
 //! # let _ = ui_vec![
 //! sample(colors::GREEN.darken(50.pct())),

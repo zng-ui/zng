@@ -20,7 +20,7 @@ use zng_wgt_style::{impl_style_fn, style_fn};
 /// [`ContextMenu!`]: struct@ContextMenu
 /// [`POPUP`]: zng_wgt_layer::popup::POPUP
 #[property(EVENT)]
-pub fn context_menu(child: impl UiNode, menu: impl UiNode) -> impl UiNode {
+pub fn context_menu(child: impl IntoUiNode, menu: impl IntoUiNode) -> UiNode {
     context_menu_fn(child, WidgetFn::singleton(menu))
 }
 
@@ -30,7 +30,7 @@ pub fn context_menu(child: impl UiNode, menu: impl UiNode) -> impl UiNode {
 ///
 /// [`ContextMenu!`]: struct@ContextMenu
 #[property(EVENT, default(WidgetFn::nil()))]
-pub fn context_menu_fn(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenuArgs>>) -> impl UiNode {
+pub fn context_menu_fn(child: impl IntoUiNode, menu: impl IntoVar<WidgetFn<ContextMenuArgs>>) -> UiNode {
     context_menu_node(child, menu, false)
 }
 
@@ -40,7 +40,7 @@ pub fn context_menu_fn(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMe
 ///
 /// [`ContextMenu!`]: struct@ContextMenu
 #[property(EVENT)]
-pub fn disabled_context_menu(child: impl UiNode, menu: impl UiNode) -> impl UiNode {
+pub fn disabled_context_menu(child: impl IntoUiNode, menu: impl IntoUiNode) -> UiNode {
     disabled_context_menu_fn(child, WidgetFn::singleton(menu))
 }
 
@@ -50,11 +50,11 @@ pub fn disabled_context_menu(child: impl UiNode, menu: impl UiNode) -> impl UiNo
 ///
 /// [`ContextMenu!`]: struct@ContextMenu
 #[property(EVENT, default(WidgetFn::nil()))]
-pub fn disabled_context_menu_fn(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenuArgs>>) -> impl UiNode {
+pub fn disabled_context_menu_fn(child: impl IntoUiNode, menu: impl IntoVar<WidgetFn<ContextMenuArgs>>) -> UiNode {
     context_menu_node(child, menu, true)
 }
 
-fn context_menu_node(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenuArgs>>, disabled_only: bool) -> impl UiNode {
+fn context_menu_node(child: impl IntoUiNode, menu: impl IntoVar<WidgetFn<ContextMenuArgs>>, disabled_only: bool) -> UiNode {
     let menu = menu.into_var();
     let mut pop_state = var(PopupState::Closed).read_only();
 
@@ -104,7 +104,7 @@ fn context_menu_node(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenu
 ///
 /// This property sets the [`CONTEXT_MENU_ANCHOR_VAR`].
 #[property(CONTEXT, default(CONTEXT_MENU_ANCHOR_VAR))]
-pub fn context_menu_anchor(child: impl UiNode, click_shortcut: impl IntoVar<(AnchorMode, AnchorMode)>) -> impl UiNode {
+pub fn context_menu_anchor(child: impl IntoUiNode, click_shortcut: impl IntoVar<(AnchorMode, AnchorMode)>) -> UiNode {
     with_context_var(child, CONTEXT_MENU_ANCHOR_VAR, click_shortcut)
 }
 
@@ -173,7 +173,7 @@ context_var! {
 ///
 /// This property sets [`PANEL_FN_VAR`].
 #[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(ContextMenu))]
-pub fn panel_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<zng_wgt_panel::PanelArgs>>) -> impl UiNode {
+pub fn panel_fn(child: impl IntoUiNode, panel: impl IntoVar<WidgetFn<zng_wgt_panel::PanelArgs>>) -> UiNode {
     with_context_var(child, PANEL_FN_VAR, panel)
 }
 

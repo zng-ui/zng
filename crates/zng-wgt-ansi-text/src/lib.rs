@@ -479,7 +479,7 @@ mod ansi_fn {
     /// not overridden by the ANSI style, like the font.
     ///
     /// Returns a `Text!` with the text and style.
-    pub fn default_text_fn(args: TextFnArgs) -> impl UiNode {
+    pub fn default_text_fn(args: TextFnArgs) -> UiNode {
         let mut text = Text::widget_new();
 
         widget_set! {
@@ -559,7 +559,7 @@ mod ansi_fn {
     /// Default [`LINE_FN_VAR`].
     ///
     /// Returns a `Wrap!` for text with multiple segments, or returns the single segment, or an empty text.
-    pub fn default_line_fn(mut args: LineFnArgs) -> impl UiNode {
+    pub fn default_line_fn(mut args: LineFnArgs) -> UiNode {
         use crate::prelude::*;
 
         if args.text.is_empty() {
@@ -579,7 +579,7 @@ mod ansi_fn {
     /// Default [`PAGE_FN_VAR`].
     ///
     /// Returns a `Stack!` for multiple lines, or return the single line, or a nil node.
-    pub fn default_page_fn(mut args: PageFnArgs) -> impl UiNode {
+    pub fn default_page_fn(mut args: PageFnArgs) -> UiNode {
         use crate::prelude::*;
 
         if args.lines.is_empty() {
@@ -604,7 +604,7 @@ mod ansi_fn {
     /// Default [`PANEL_FN_VAR`].
     ///
     /// Returns a `Stack!` for multiple pages, or returns the single page, or a nil node.
-    pub fn default_panel_fn(mut args: PanelFnArgs) -> impl UiNode {
+    pub fn default_panel_fn(mut args: PanelFnArgs) -> UiNode {
         use crate::prelude::*;
 
         if args.pages.is_empty() {
@@ -627,7 +627,7 @@ mod ansi_fn {
     ///
     /// Sets the [`BLINK_INTERVAL_VAR`].
     #[property(CONTEXT, default(BLINK_INTERVAL_VAR), widget_impl(AnsiText))]
-    pub fn blink_interval(child: impl UiNode, interval: impl IntoVar<Duration>) -> impl UiNode {
+    pub fn blink_interval(child: impl IntoUiNode, interval: impl IntoVar<Duration>) -> UiNode {
         with_context_var(child, BLINK_INTERVAL_VAR, interval)
     }
 
@@ -635,7 +635,7 @@ mod ansi_fn {
     ///
     /// Sets the [`TEXT_FN_VAR`].
     #[property(CONTEXT, default(TEXT_FN_VAR), widget_impl(AnsiText))]
-    pub fn text_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<TextFnArgs>>) -> impl UiNode {
+    pub fn text_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<TextFnArgs>>) -> UiNode {
         with_context_var(child, TEXT_FN_VAR, wgt_fn)
     }
 
@@ -643,7 +643,7 @@ mod ansi_fn {
     ///
     /// Sets the [`LINE_FN_VAR`].
     #[property(CONTEXT, default(LINE_FN_VAR), widget_impl(AnsiText))]
-    pub fn line_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<LineFnArgs>>) -> impl UiNode {
+    pub fn line_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<LineFnArgs>>) -> UiNode {
         with_context_var(child, LINE_FN_VAR, wgt_fn)
     }
 
@@ -655,13 +655,13 @@ mod ansi_fn {
     ///
     /// [`lines_per_page`]: fn@lines_per_page
     #[property(CONTEXT, default(PAGE_FN_VAR), widget_impl(AnsiText))]
-    pub fn page_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PageFnArgs>>) -> impl UiNode {
+    pub fn page_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<PageFnArgs>>) -> UiNode {
         with_context_var(child, PAGE_FN_VAR, wgt_fn)
     }
 
     /// Widget function that converts [`PanelFnArgs`] to widgets.
     #[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(AnsiText))]
-    pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelFnArgs>>) -> impl UiNode {
+    pub fn panel_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<PanelFnArgs>>) -> UiNode {
         with_context_var(child, PANEL_FN_VAR, wgt_fn)
     }
 
@@ -669,7 +669,7 @@ mod ansi_fn {
     ///
     /// Sets the [`LINES_PER_PAGE_VAR`].
     #[property(CONTEXT, default(LINES_PER_PAGE_VAR), widget_impl(AnsiText))]
-    pub fn lines_per_page(child: impl UiNode, count: impl IntoVar<u32>) -> impl UiNode {
+    pub fn lines_per_page(child: impl IntoUiNode, count: impl IntoVar<u32>) -> UiNode {
         with_context_var(child, LINES_PER_PAGE_VAR, count)
     }
 }
@@ -725,7 +725,7 @@ fn generate_ansi(txt: &Var<Txt>) -> BoxedUiNode {
 }
 
 /// Implements the ANSI parsing and view generation, configured by contextual properties.
-pub fn ansi_node(txt: impl IntoVar<Txt>) -> impl UiNode {
+pub fn ansi_node(txt: impl IntoVar<Txt>) -> UiNode {
     let txt = txt.into_var();
     match_node(NilUiNode.boxed(), move |c, op| match op {
         UiNodeOp::Init => {

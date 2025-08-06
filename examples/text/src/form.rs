@@ -10,7 +10,7 @@ use zng::{
     window::WindowRoot,
 };
 
-pub fn form_editor() -> impl UiNode {
+pub fn form_editor() -> UiNode {
     let is_open = var(false);
 
     Button! {

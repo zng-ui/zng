@@ -79,7 +79,7 @@ impl_style_fn!(TextInput);
 /// Context menu set by the [`DefaultStyle!`].
 ///
 /// [`DefaultStyle!`]: struct@DefaultStyle
-pub fn default_context_menu(args: menu::context::ContextMenuArgs) -> impl UiNode {
+pub fn default_context_menu(args: menu::context::ContextMenuArgs) -> UiNode {
     let id = args.anchor_id;
     ContextMenu!(ui_vec![
         Button!(CUT_CMD.scoped(id)),
@@ -93,7 +93,7 @@ pub fn default_context_menu(args: menu::context::ContextMenuArgs) -> impl UiNode
 /// Selection toolbar set by the [`DefaultStyle!`].
 ///
 /// [`DefaultStyle!`]: struct@DefaultStyle
-pub fn default_selection_toolbar(args: text::SelectionToolbarArgs) -> impl UiNode {
+pub fn default_selection_toolbar(args: text::SelectionToolbarArgs) -> UiNode {
     if args.is_touch {
         let id = args.anchor_id;
         ContextMenu! {
@@ -234,7 +234,7 @@ impl SearchStyle {
 /// The placeholder has the same text style as the parent widget, with 50% opacity.
 /// You can use the [`placeholder`](fn@placeholder) to use a custom widget placeholder.
 #[property(CHILD, default(""), widget_impl(TextInput))]
-pub fn placeholder_txt(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {
+pub fn placeholder_txt(child: impl IntoUiNode, txt: impl IntoVar<Txt>) -> UiNode {
     placeholder(
         child,
         Text! {
@@ -249,7 +249,7 @@ pub fn placeholder_txt(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNod
 ///
 /// The `placeholder` can be any widget, the `Text!` widget is recommended.
 #[property(CHILD, widget_impl(TextInput))]
-pub fn placeholder(child: impl UiNode, placeholder: impl UiNode) -> impl UiNode {
+pub fn placeholder(child: impl IntoUiNode, placeholder: impl IntoUiNode) -> UiNode {
     let mut txt_is_empty = None;
     zng_wgt_container::child_under(
         child,
@@ -381,7 +381,7 @@ impl FieldStyle {
 ///
 /// [`FieldStyle`]: struct@FieldStyle
 #[property(FILL, default(WidgetFn::nil()))]
-pub fn data_notes_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+pub fn data_notes_adorner_fn(child: impl IntoUiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> UiNode {
     zng_wgt_layer::adorner_fn(child, adorner_fn)
 }
 
@@ -389,7 +389,7 @@ pub fn data_notes_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<Widget
 ///
 /// [`FieldStyle`]: struct@FieldStyle
 #[property(FILL, default(WidgetFn::nil()))]
-pub fn max_chars_count_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+pub fn max_chars_count_adorner_fn(child: impl IntoUiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> UiNode {
     zng_wgt_layer::adorner_fn(child, adorner_fn)
 }
 
@@ -404,6 +404,6 @@ context_var! {
 ///
 /// [`FieldStyle`]: struct@FieldStyle
 #[property(CONTEXT, default(""))]
-pub fn field_help(child: impl UiNode, help: impl IntoVar<Txt>) -> impl UiNode {
+pub fn field_help(child: impl IntoUiNode, help: impl IntoVar<Txt>) -> UiNode {
     with_context_var(child, FIELD_HELP_VAR, help)
 }

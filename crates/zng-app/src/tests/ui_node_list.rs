@@ -8,7 +8,7 @@ use crate::{
     widget::{
         WidgetUpdateMode,
         base::PARALLEL_VAR,
-        node::{PanelList, UiNode, UiNodeList, UiVec},
+        node::{IntoUiNode, PanelList, UiNodeImpl as _, UiVec},
     },
     window::WINDOW,
 };
@@ -25,14 +25,13 @@ pub fn init_many() {
                 util::trace = "inited";
                 util::log_init_thread = true;
             }
-            .boxed()
         })
         .collect();
     let mut list = PanelList::new(list);
 
     WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         PARALLEL_VAR.with_context_var(ContextInitHandle::new(), true, || {
-            list.init_all();
+            list.init();
         })
     });
 
@@ -103,13 +102,13 @@ pub struct ListWgt(crate::widget::base::WidgetBase);
 impl ListWgt {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|wgt| {
-            let child = util::list_node(wgt.capture_ui_node_list_or_empty(crate::property_id!(Self::children)));
+            let child = wgt.capture_ui_node_or_nil(crate::property_id!(Self::children));
             wgt.set_child(child);
         });
     }
 }
 #[property(CHILD, capture, widget_impl(ListWgt))]
-pub fn children(children: impl UiNodeList) {}
+pub fn children(children: impl IntoUiNode) {}
 
 mod util {
     use std::{
@@ -126,13 +125,13 @@ mod util {
 
     use crate::widget::{
         WIDGET, WidgetUpdateMode,
-        node::{UiNode, UiNodeList, UiNodeOp, match_node, match_node_list},
+        node::{IntoUiNode, UiNode, UiNodeOp, match_node},
     };
 
     pub use super::super::widget::util::*;
 
     #[property(CONTEXT)]
-    pub fn log_init_thread(child: impl UiNode, enabled: impl IntoValue<bool>) -> impl UiNode {
+    pub fn log_init_thread(child: impl IntoUiNode, enabled: impl IntoValue<bool>) -> UiNode {
         let enabled = enabled.into();
         match_node(child, move |child, op| {
             if let UiNodeOp::Init = op {
@@ -144,11 +143,12 @@ mod util {
         })
     }
 
-    pub fn get_init_thread(wgt: &mut impl UiNode) -> ThreadId {
-        wgt.with_context(WidgetUpdateMode::Ignore, || {
-            WIDGET.get_state(*INIT_THREAD_ID).expect("did not log init thread")
-        })
-        .expect("node is not a widget")
+    pub fn get_init_thread(wgt: &mut UiNode) -> ThreadId {
+        wgt.as_widget()
+            .expect("node is not a widget")
+            .with_context(WidgetUpdateMode::Ignore, || {
+                WIDGET.get_state(*INIT_THREAD_ID).expect("did not log init thread")
+            })
     }
 
     static_id! {
@@ -160,12 +160,12 @@ mod util {
     }
 
     #[property(CONTEXT, default(*CTX_VAL.get()))]
-    pub fn ctx_val(child: impl UiNode, value: impl IntoValue<bool>) -> impl UiNode {
+    pub fn ctx_val(child: impl IntoUiNode, value: impl IntoValue<bool>) -> UiNode {
         with_context_local(child, &CTX_VAL, value)
     }
 
     #[property(CHILD)]
-    pub fn assert_ctx_val(child: impl UiNode, expected: impl IntoValue<bool>) -> impl UiNode {
+    pub fn assert_ctx_val(child: impl IntoUiNode, expected: impl IntoValue<bool>) -> UiNode {
         let expected = expected.into();
         match_node(child, move |child, op| {
             if let UiNodeOp::Init = op {
@@ -178,15 +178,11 @@ mod util {
         })
     }
 
-    pub fn list_node(children: impl UiNodeList) -> impl UiNode {
-        match_node_list(children, |_, _| {})
-    }
-
     fn with_context_local<T: Any + Send + Sync + 'static>(
-        child: impl UiNode,
+        child: impl IntoUiNode,
         context: &'static ContextLocal<T>,
         value: impl Into<T>,
-    ) -> impl UiNode {
+    ) -> UiNode {
         let mut value = Some(Arc::new(value.into()));
 
         match_node(child, move |child, op| {

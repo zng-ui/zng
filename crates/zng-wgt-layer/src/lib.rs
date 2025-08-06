@@ -28,7 +28,7 @@ use std::{fmt, mem, ops};
 pub mod popup;
 
 struct LayersCtx {
-    items: EditableUiNodeListRef,
+    items: EditableUiVecRef,
 }
 
 command! {
@@ -96,7 +96,7 @@ impl LAYERS {
     /// be removed later. Use [`insert_node`] to insert nodes that may not always be widgets.
     ///
     /// [`insert_node`]: Self::insert_node
-    pub fn insert(&self, layer: impl IntoVar<LayerIndex>, widget: impl UiNode) {
+    pub fn insert(&self, layer: impl IntoVar<LayerIndex>, widget: impl IntoUiNode) {
         let layer = layer.into_var().current_context();
         self.insert_impl(layer, widget.boxed());
     }
@@ -153,7 +153,7 @@ impl LAYERS {
     ///
     /// [`insert`]: Self::insert
     /// [`UiNode::init_widget`]: zng_wgt::prelude::UiNode::init_widget
-    pub fn insert_node(&self, layer: impl IntoVar<LayerIndex>, maybe_widget: impl UiNode) -> ResponseVar<WidgetId> {
+    pub fn insert_node(&self, layer: impl IntoVar<LayerIndex>, maybe_widget: impl IntoUiNode) -> ResponseVar<WidgetId> {
         let (widget, rsp) = maybe_widget.init_widget();
         self.insert(layer, widget);
         rsp
@@ -176,7 +176,7 @@ impl LAYERS {
         anchor: impl IntoVar<WidgetId>,
         mode: impl IntoVar<AnchorMode>,
 
-        widget: impl UiNode,
+        widget: impl IntoUiNode,
     ) {
         let layer = layer.into_var().current_context();
         let anchor = anchor.into_var().current_context();
@@ -669,7 +669,7 @@ impl LAYERS {
         anchor: impl IntoVar<WidgetId>,
         mode: impl IntoVar<AnchorMode>,
 
-        maybe_widget: impl UiNode,
+        maybe_widget: impl IntoUiNode,
     ) -> ResponseVar<WidgetId> {
         let (widget, rsp) = maybe_widget.init_widget();
         self.insert_anchored(layer, anchor, mode, widget);
@@ -746,7 +746,7 @@ fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> Px
     transform.then_translate(correction.cast())
 }
 
-fn with_anchor_id(child: impl UiNode, anchor: Var<WidgetId>) -> impl UiNode {
+fn with_anchor_id(child: impl IntoUiNode, anchor: Var<WidgetId>) -> UiNode {
     let mut ctx = Some(Arc::new(anchor.map(|id| Some(*id)).into()));
     let mut id = None;
     match_widget(child, move |c, op| {
@@ -1488,8 +1488,8 @@ impl_from_and_into_var! {
 /// Node that implements the layers, must be inserted in the [`NestGroup::EVENT`] group by the window implementer.
 ///
 /// [`NestGroup::EVENT`]: zng_app::widget::builder::NestGroup::EVENT
-pub fn layers_node(child: impl UiNode) -> impl UiNode {
-    let layers = EditableUiNodeList::new();
+pub fn layers_node(child: impl IntoUiNode) -> UiNode {
+    let layers = EditableUiVec::new();
     let layered = layers.reference();
 
     fn sort(a: &mut BoxedUiNode, b: &mut BoxedUiNode) -> std::cmp::Ordering {
@@ -1584,7 +1584,7 @@ pub fn layers_node(child: impl UiNode) -> impl UiNode {
 /// [layered]: LAYERS
 /// [`WidgetFn<()>`]: WidgetFn
 #[property(FILL, default(WidgetFn::nil()))]
-pub fn adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+pub fn adorner_fn(child: impl IntoUiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> UiNode {
     let adorner_fn = adorner_fn.into_var();
     let mut adorner_id = None;
 
@@ -1627,7 +1627,7 @@ pub fn adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) ->
 /// [`adorner_fn`]: fn@adorner_fn
 /// [`WidgetFn::singleton`]: zng_wgt::prelude::WidgetFn::singleton
 #[property(FILL, default(NilUiNode))]
-pub fn adorner(child: impl UiNode, adorner: impl UiNode) -> impl UiNode {
+pub fn adorner(child: impl IntoUiNode, adorner: impl IntoUiNode) -> UiNode {
     adorner_fn(child, WidgetFn::singleton(adorner))
 }
 

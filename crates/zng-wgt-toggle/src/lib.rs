@@ -73,7 +73,7 @@ context_var! {
 ///
 /// [`is_checked`]: fn@is_checked
 #[property(CONTEXT, default(false), widget_impl(Toggle))]
-pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
+pub fn checked(child: impl IntoUiNode, checked: impl IntoVar<bool>) -> UiNode {
     let checked = checked.into_var();
     let mut _toggle_handle = CommandHandle::dummy();
     let mut access_handle = VarHandle::dummy();
@@ -133,7 +133,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
 /// Toggle cycles between `Some(true)` and `Some(false)` and accepts `None`, if the
 /// widget is `tristate` also sets to `None` in the toggle cycle.
 #[property(CONTEXT + 1, default(None), widget_impl(Toggle))]
-pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> impl UiNode {
+pub fn checked_opt(child: impl IntoUiNode, checked: impl IntoVar<Option<bool>>) -> UiNode {
     let checked = checked.into_var();
     let mut _toggle_handle = CommandHandle::dummy();
     let mut access_handle = VarHandle::dummy();
@@ -223,7 +223,7 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
 ///
 /// [`checked_opt`]: fn@checked_opt
 #[property(CONTEXT, default(IS_TRISTATE_VAR), widget_impl(Toggle))]
-pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn tristate(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, IS_TRISTATE_VAR, enabled)
 }
 
@@ -231,7 +231,7 @@ pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode 
 ///
 /// Note to read the tristate directly use [`IS_CHECKED_VAR`] directly.
 #[property(EVENT, widget_impl(Toggle))]
-pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_checked(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)
 }
 
@@ -253,10 +253,10 @@ pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 ///
 /// [`selector`]: fn@selector
 #[property(CONTEXT+2, widget_impl(Toggle))]
-pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
+pub fn value<T: VarValue>(child: impl IntoUiNode, value: impl IntoVar<T>) -> UiNode {
     value_impl(child, value.into_var().into())
 }
-fn value_impl(child: impl UiNode, value: AnyVar) -> impl UiNode {
+fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
     // Returns `true` if selected.
     fn select(value: &dyn AnyVarValue) -> bool {
         let selector = SELECTOR.get();
@@ -452,7 +452,7 @@ fn value_impl(child: impl UiNode, value: AnyVar) -> impl UiNode {
 ///
 /// [`value`]: fn@value
 #[property(CONTEXT, default(SCROLL_ON_SELECT_VAR), widget_impl(Toggle))]
-pub fn scroll_on_select(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn scroll_on_select(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, SCROLL_ON_SELECT_VAR, enabled)
 }
 
@@ -470,7 +470,7 @@ pub fn scroll_on_select(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 /// [`value`]: fn@value
 /// [`AccessRole::RadioGroup`]: zng_wgt_access::AccessRole::RadioGroup
 #[property(CONTEXT, default(Selector::nil()), widget_impl(Toggle))]
-pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl UiNode {
+pub fn selector(child: impl IntoUiNode, selector: impl IntoValue<Selector>) -> UiNode {
     let mut _select_handle = CommandHandle::dummy();
     let child = match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
@@ -504,7 +504,7 @@ pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl 
 ///
 /// [`value`]: fn@value
 #[property(CONTEXT, default(SELECT_ON_INIT_VAR), widget_impl(Toggle))]
-pub fn select_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn select_on_init(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, SELECT_ON_INIT_VAR, enabled)
 }
 
@@ -512,7 +512,7 @@ pub fn select_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl U
 ///
 /// [`value`]: fn@value
 #[property(CONTEXT, default(DESELECT_ON_DEINIT_VAR), widget_impl(Toggle))]
-pub fn deselect_on_deinit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn deselect_on_deinit(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, DESELECT_ON_DEINIT_VAR, enabled)
 }
 
@@ -520,7 +520,7 @@ pub fn deselect_on_deinit(child: impl UiNode, enabled: impl IntoVar<bool>) -> im
 ///
 /// [`value`]: fn@value
 #[property(CONTEXT, default(SELECT_ON_NEW_VAR), widget_impl(Toggle))]
-pub fn select_on_new(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn select_on_new(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, SELECT_ON_NEW_VAR, enabled)
 }
 
@@ -528,7 +528,7 @@ pub fn select_on_new(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 ///
 /// [`value`]: fn@value
 #[property(CONTEXT, default(DESELECT_ON_NEW_VAR), widget_impl(Toggle))]
-pub fn deselect_on_new(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn deselect_on_new(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, DESELECT_ON_NEW_VAR, enabled)
 }
 
@@ -969,11 +969,11 @@ context_var! {
 
 /// Spacing between the checkmark and the content.
 #[property(CONTEXT, default(CHECK_SPACING_VAR), widget_impl(CheckStyle))]
-pub fn check_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+pub fn check_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, CHECK_SPACING_VAR, spacing)
 }
 
-fn checkmark_visual(parent_hovered: Var<bool>) -> impl UiNode {
+fn checkmark_visual(parent_hovered: Var<bool>) -> UiNode {
     let checked = ICONS.get_or(["toggle.checked", "check"], || {
         zng_wgt_text::Text! {
             txt = "✓";
@@ -1096,7 +1096,7 @@ context_var! {
 
 /// Spacing between the arrow symbol and the content.
 #[property(CONTEXT, default(COMBO_SPACING_VAR), widget_impl(ComboStyle))]
-pub fn combo_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+pub fn combo_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, COMBO_SPACING_VAR, spacing)
 }
 
@@ -1112,7 +1112,7 @@ pub fn combo_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 /// [`ComboStyle!`]: struct@ComboStyle
 /// [`Popup!`]: struct@zng_wgt_layer::popup::Popup
 #[property(CHILD, widget_impl(Toggle))]
-pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+pub fn checked_popup(child: impl IntoUiNode, popup: impl IntoVar<WidgetFn<()>>) -> UiNode {
     let popup = popup.into_var();
     let mut state = var(PopupState::Closed).read_only();
     let mut _state_handle = VarHandle::dummy();
@@ -1165,7 +1165,7 @@ pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> i
     })
 }
 
-fn combomark_visual() -> impl UiNode {
+fn combomark_visual() -> UiNode {
     let dropdown = ICONS.get_or(
         ["toggle.dropdown", "material/rounded/keyboard-arrow-down", "keyboard-arrow-down"],
         combomark_visual_fallback,
@@ -1181,7 +1181,7 @@ fn combomark_visual() -> impl UiNode {
         }
     }
 }
-fn combomark_visual_fallback() -> impl UiNode {
+fn combomark_visual_fallback() -> UiNode {
     let color_key = FrameValueKey::new_unique();
     let mut size = PxSize::zero();
     let mut bounds = PxBox::zero();
@@ -1261,11 +1261,11 @@ context_var! {
 
 /// Spacing between the switch and the content.
 #[property(CONTEXT, default(SWITCH_SPACING_VAR), widget_impl(SwitchStyle))]
-pub fn switch_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+pub fn switch_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, SWITCH_SPACING_VAR, spacing)
 }
 
-fn switch_visual(parent_hovered: Var<bool>) -> impl UiNode {
+fn switch_visual(parent_hovered: Var<bool>) -> UiNode {
     zng_wgt_container::Container! {
         hit_test_mode = false;
         size = (2.em(), 1.em());
@@ -1328,11 +1328,11 @@ context_var! {
 
 /// Spacing between the radio and the content.
 #[property(CONTEXT, default(RADIO_SPACING_VAR), widget_impl(RadioStyle))]
-pub fn radio_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+pub fn radio_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, RADIO_SPACING_VAR, spacing)
 }
 
-fn radio_visual(parent_hovered: Var<bool>) -> impl UiNode {
+fn radio_visual(parent_hovered: Var<bool>) -> UiNode {
     Wgt! {
         hit_test_mode = false;
         size = 0.9.em();

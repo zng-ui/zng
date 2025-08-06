@@ -3,11 +3,9 @@ use std::{any::Any, sync::Arc};
 use zng_app::{
     update::{EventUpdate, UPDATES},
     widget::{
-        WIDGET,
-        node::{BoxedUiNode, UiNode, UiNodeOp, match_node},
-        property,
+        node::{match_node, IntoUiNode, UiNode, UiNodeOp}, property, WIDGET
     },
-    window::{WINDOW, WindowId},
+    window::{WindowId, WINDOW},
 };
 use zng_layout::unit::Factor;
 use zng_state_map::{StateId, static_id};
@@ -36,10 +34,9 @@ impl ImagesService {
         result.read_only()
     }
 
-    fn render_node<U, N>(&mut self, render_mode: RenderMode, scale_factor: Factor, mask: Option<ImageMaskMode>, render: N) -> ImageVar
+    fn render_node<N>(&mut self, render_mode: RenderMode, scale_factor: Factor, mask: Option<ImageMaskMode>, render: N) -> ImageVar
     where
-        U: UiNode,
-        N: FnOnce() -> U + Send + Sync + 'static,
+        N: FnOnce() -> UiNode + Send + Sync + 'static,
     {
         let scale_factor = scale_factor.into();
         let result = var(Img::new_none(None));
@@ -48,7 +45,7 @@ impl ImagesService {
             mask,
             move || {
                 let node = render();
-                let r = windows.new_window_root(node.boxed(), render_mode, scale_factor);
+                let r = windows.new_window_root(node, render_mode, scale_factor);
                 windows.enable_frame_capture_in_window_context(mask);
                 r
             },
@@ -149,11 +146,7 @@ impl ImageSource {
     ///
     /// [`IMAGES.render`]: crate::IMAGES::render
     /// [`UiNode`]: zng_app::widget::node::UiNode
-    pub fn render_node<U, N>(render_mode: RenderMode, render: N) -> Self
-    where
-        U: UiNode,
-        N: Fn(&ImageRenderArgs) -> U + Send + Sync + 'static,
-    {
+    pub fn render_node(render_mode: RenderMode, render: impl Fn(&ImageRenderArgs) -> UiNode + Send + Sync + 'static) -> Self {
         let window = IMAGES_SV.read().render.windows();
         Self::Render(
             Arc::new(Box::new(move |args| {
@@ -162,7 +155,7 @@ impl ImageSource {
                 }
                 let node = render(args);
                 window.enable_frame_capture_in_window_context(None);
-                window.new_window_root(node.boxed(), render_mode, None)
+                window.new_window_root(node, render_mode, None)
             })),
             None,
         )
@@ -199,11 +192,8 @@ impl IMAGES {
         render_mode: RenderMode,
         scale_factor: impl Into<Factor>,
         mask: Option<ImageMaskMode>,
-        render: N,
+        render: impl FnOnce() -> UiNode + Send + Sync + 'static,
     ) -> ImageVar
-    where
-        U: UiNode,
-        N: FnOnce() -> U + Send + Sync + 'static,
     {
         IMAGES_SV.write().render_node(render_mode, scale_factor.into(), mask, render)
     }
@@ -357,7 +347,7 @@ impl IMAGE_RENDER {
 ///
 /// [`IMAGE_RENDER.retain`]: IMAGE_RENDER::retain
 #[property(CONTEXT, default(false))]
-pub fn render_retain(child: impl UiNode, retain: impl IntoVar<bool>) -> impl UiNode {
+pub fn render_retain(child: impl IntoUiNode, retain: impl IntoVar<bool>) -> UiNode {
     let retain = retain.into_var();
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
@@ -381,7 +371,7 @@ pub trait ImageRenderWindowsService: Send + Sync + 'static {
     fn clone_boxed(&self) -> Box<dyn ImageRenderWindowsService>;
 
     /// Create a window root that presents the node.
-    fn new_window_root(&self, node: BoxedUiNode, render_mode: RenderMode, scale_factor: Option<Factor>) -> Box<dyn ImageRenderWindowRoot>;
+    fn new_window_root(&self, node: UiNode, render_mode: RenderMode, scale_factor: Option<Factor>) -> Box<dyn ImageRenderWindowRoot>;
 
     /// Set parent window for the headless render window.
     fn set_parent_in_window_context(&self, parent_id: WindowId);

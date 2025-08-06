@@ -24,7 +24,7 @@ use zng_wgt::prelude::*;
 ///
 /// [`opacity`]: fn@opacity
 #[property(CONTEXT, default(Filter::default()))]
-pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
+pub fn filter(child: impl IntoUiNode, filter: impl IntoVar<Filter>) -> UiNode {
     filter_any(child, filter, false)
 }
 
@@ -41,7 +41,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
 ///
 /// [`opacity`]: fn@opacity
 #[property(CONTEXT, default(Filter::default()))]
-pub fn backdrop_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
+pub fn backdrop_filter(child: impl IntoUiNode, filter: impl IntoVar<Filter>) -> UiNode {
     backdrop_filter_any(child, filter)
 }
 
@@ -57,7 +57,7 @@ pub fn backdrop_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl
 ///
 /// [`child_opacity`]: fn@child_opacity
 #[property(CHILD_CONTEXT, default(Filter::default()))]
-pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
+pub fn child_filter(child: impl IntoUiNode, filter: impl IntoVar<Filter>) -> UiNode {
     filter_any(child, filter, true)
 }
 
@@ -70,7 +70,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
 /// [`filter`]: fn@filter
 /// [`Filter::new_invert`]: zng_color::filter::Filter::new_invert
 #[property(CONTEXT, default(false))]
-pub fn invert_color(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
+pub fn invert_color(child: impl IntoUiNode, amount: impl IntoVar<Factor>) -> UiNode {
     filter_render(child, amount.into_var().map(|&a| Filter::new_invert(a)), false)
 }
 
@@ -83,7 +83,7 @@ pub fn invert_color(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl Ui
 /// [`backdrop_filter`]: fn@backdrop_filter
 /// [`Filter::new_invert`]: zng_color::filter::Filter::new_invert
 #[property(CONTEXT, default(false))]
-pub fn backdrop_invert(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
+pub fn backdrop_invert(child: impl IntoUiNode, amount: impl IntoVar<Factor>) -> UiNode {
     backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_invert(a)))
 }
 
@@ -94,7 +94,7 @@ pub fn backdrop_invert(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl
 /// [`filter`]: fn@filter
 /// [`Filter::new_blur`]: zng_color::filter::Filter::new_blur
 #[property(CONTEXT, default(0))]
-pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
+pub fn blur(child: impl IntoUiNode, radius: impl IntoVar<Length>) -> UiNode {
     filter_layout(child, radius.into_var().map(|r| Filter::new_blur(r.clone())), false)
 }
 
@@ -105,7 +105,7 @@ pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
 /// [`backdrop_filter`]: fn@backdrop_filter
 /// [`Filter::new_blur`]: zng_color::filter::Filter::new_blur
 #[property(CONTEXT, default(0))]
-pub fn backdrop_blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
+pub fn backdrop_blur(child: impl IntoUiNode, radius: impl IntoVar<Length>) -> UiNode {
     backdrop_filter_layout(child, radius.into_var().map(|r| Filter::new_blur(r.clone())))
 }
 
@@ -118,7 +118,7 @@ pub fn backdrop_blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl U
 /// [`filter`]: fn@filter
 /// [`Filter::new_sepia`]: zng_color::filter::Filter::new_sepia
 #[property(CONTEXT, default(false))]
-pub fn sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
+pub fn sepia(child: impl IntoUiNode, amount: impl IntoVar<Factor>) -> UiNode {
     filter_render(child, amount.into_var().map(|&a| Filter::new_sepia(a)), false)
 }
 
@@ -131,7 +131,7 @@ pub fn sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
 /// [`backdrop_filter`]: fn@backdrop_filter
 /// [`Filter::new_sepia`]: zng_color::filter::Filter::new_sepia
 #[property(CONTEXT, default(false))]
-pub fn backdrop_sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
+pub fn backdrop_sepia(child: impl IntoUiNode, amount: impl IntoVar<Factor>) -> UiNode {
     backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_sepia(a)))
 }
 
@@ -144,7 +144,7 @@ pub fn backdrop_sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl 
 /// [`filter`]: fn@filter
 /// [`Filter::new_grayscale`]: zng_color::filter::Filter::new_grayscale
 #[property(CONTEXT, default(false))]
-pub fn grayscale(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
+pub fn grayscale(child: impl IntoUiNode, amount: impl IntoVar<Factor>) -> UiNode {
     filter_render(child, amount.into_var().map(|&a| Filter::new_grayscale(a)), false)
 }
 
@@ -157,7 +157,7 @@ pub fn grayscale(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNod
 /// [`backdrop_filter`]: fn@backdrop_filter
 /// [`Filter::new_grayscale`]: zng_color::filter::Filter::new_grayscale
 #[property(CONTEXT, default(false))]
-pub fn backdrop_grayscale(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
+pub fn backdrop_grayscale(child: impl IntoUiNode, amount: impl IntoVar<Factor>) -> UiNode {
     backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_grayscale(a)))
 }
 
@@ -171,11 +171,11 @@ pub fn backdrop_grayscale(child: impl UiNode, amount: impl IntoVar<Factor>) -> i
 /// [`Filter::new_drop_shadow`]: zng_color::filter::Filter::new_drop_shadow
 #[property(CONTEXT, default((0, 0), 0, colors::BLACK.transparent()))]
 pub fn drop_shadow(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     offset: impl IntoVar<Point>,
     blur_radius: impl IntoVar<Length>,
     color: impl IntoVar<Rgba>,
-) -> impl UiNode {
+) -> UiNode {
     filter_layout(
         child,
         merge_var!(offset.into_var(), blur_radius.into_var(), color.into_var(), |o, r, &c| {
@@ -194,7 +194,7 @@ pub fn drop_shadow(
 /// [`filter`]: fn@filter
 /// [`Filter::new_brightness`]: zng_color::filter::Filter::new_brightness
 #[property(CONTEXT, default(1.0))]
-pub fn brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
+pub fn brightness(child: impl IntoUiNode, amount: impl IntoVar<Factor>) -> UiNode {
     filter_render(child, amount.into_var().map(|&a| Filter::new_brightness(a)), false)
 }
 
@@ -207,7 +207,7 @@ pub fn brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNo
 /// [`backdrop_filter`]: fn@backdrop_filter
 /// [`Filter::new_brightness`]: zng_color::filter::Filter::new_brightness
 #[property(CONTEXT, default(1.0))]
-pub fn backdrop_brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
+pub fn backdrop_brightness(child: impl IntoUiNode, amount: impl IntoVar<Factor>) -> UiNode {
     backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_brightness(a)))
 }
 
@@ -220,7 +220,7 @@ pub fn backdrop_brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> 
 /// [`filter`]: fn@filter
 /// [`Filter::new_contrast`]: zng_color::filter::Filter::new_contrast
 #[property(CONTEXT, default(1.0))]
-pub fn contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
+pub fn contrast(child: impl IntoUiNode, amount: impl IntoVar<Factor>) -> UiNode {
     filter_render(child, amount.into_var().map(|&a| Filter::new_contrast(a)), false)
 }
 
@@ -233,7 +233,7 @@ pub fn contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode
 /// [`backdrop_filter`]: fn@backdrop_filter
 /// [`Filter::new_contrast`]: zng_color::filter::Filter::new_contrast
 #[property(CONTEXT, default(1.0))]
-pub fn backdrop_contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
+pub fn backdrop_contrast(child: impl IntoUiNode, amount: impl IntoVar<Factor>) -> UiNode {
     backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_contrast(a)))
 }
 
@@ -246,7 +246,7 @@ pub fn backdrop_contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> im
 /// [`filter`]: fn@filter
 /// [`Filter::new_saturate`]: zng_color::filter::Filter::new_saturate
 #[property(CONTEXT, default(1.0))]
-pub fn saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
+pub fn saturate(child: impl IntoUiNode, amount: impl IntoVar<Factor>) -> UiNode {
     filter_render(child, amount.into_var().map(|&a| Filter::new_saturate(a)), false)
 }
 
@@ -259,7 +259,7 @@ pub fn saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode
 /// [`backdrop_filter`]: fn@backdrop_filter
 /// [`Filter::new_saturate`]: zng_color::filter::Filter::new_saturate
 #[property(CONTEXT, default(1.0))]
-pub fn backdrop_saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
+pub fn backdrop_saturate(child: impl IntoUiNode, amount: impl IntoVar<Factor>) -> UiNode {
     backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_saturate(a)))
 }
 
@@ -273,7 +273,7 @@ pub fn backdrop_saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> im
 /// [`hue`]: Hsla::hue
 /// [`Filter::new_hue_rotate`]: zng_color::filter::Filter::new_hue_rotate
 #[property(CONTEXT, default(0.deg()))]
-pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl UiNode {
+pub fn hue_rotate(child: impl IntoUiNode, angle: impl IntoVar<AngleDegree>) -> UiNode {
     filter_render(child, angle.into_var().map(|&a| Filter::new_hue_rotate(a)), false)
 }
 
@@ -287,7 +287,7 @@ pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl 
 /// [`hue`]: Hsla::hue
 /// [`Filter::new_hue_rotate`]: zng_color::filter::Filter::new_hue_rotate
 #[property(CONTEXT, default(0.deg()))]
-pub fn backdrop_hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl UiNode {
+pub fn backdrop_hue_rotate(child: impl IntoUiNode, angle: impl IntoVar<AngleDegree>) -> UiNode {
     backdrop_filter_render(child, angle.into_var().map(|&a| Filter::new_hue_rotate(a)))
 }
 
@@ -295,7 +295,7 @@ pub fn backdrop_hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>)
 ///
 /// The color matrix is in the format of SVG color matrix, [0..5] is the first matrix row.
 #[property(CONTEXT, default(ColorMatrix::identity()))]
-pub fn color_matrix(child: impl UiNode, matrix: impl IntoVar<ColorMatrix>) -> impl UiNode {
+pub fn color_matrix(child: impl IntoUiNode, matrix: impl IntoVar<ColorMatrix>) -> UiNode {
     filter_render(child, matrix.into_var().map(|&m| Filter::new_color_matrix(m)), false)
 }
 
@@ -303,7 +303,7 @@ pub fn color_matrix(child: impl UiNode, matrix: impl IntoVar<ColorMatrix>) -> im
 ///
 /// The color matrix is in the format of SVG color matrix, [0..5] is the first matrix row.
 #[property(CONTEXT, default(ColorMatrix::identity()))]
-pub fn backdrop_color_matrix(child: impl UiNode, matrix: impl IntoVar<ColorMatrix>) -> impl UiNode {
+pub fn backdrop_color_matrix(child: impl IntoUiNode, matrix: impl IntoVar<ColorMatrix>) -> UiNode {
     backdrop_filter_render(child, matrix.into_var().map(|&m| Filter::new_color_matrix(m)))
 }
 
@@ -315,7 +315,7 @@ pub fn backdrop_color_matrix(child: impl UiNode, matrix: impl IntoVar<ColorMatri
 /// [`filter`]: fn@filter
 /// [`Filter::new_opacity`]: zng_color::filter::Filter::new_opacity
 #[property(CONTEXT, default(1.0))]
-pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
+pub fn opacity(child: impl IntoUiNode, alpha: impl IntoVar<Factor>) -> UiNode {
     opacity_impl(child, alpha, false)
 }
 
@@ -327,12 +327,12 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
 /// [`child_filter`]: fn@child_filter
 /// [`Filter::new_opacity`]: zng_color::filter::Filter::new_opacity
 #[property(CHILD_CONTEXT, default(1.0))]
-pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
+pub fn child_opacity(child: impl IntoUiNode, alpha: impl IntoVar<Factor>) -> UiNode {
     opacity_impl(child, alpha, true)
 }
 
 /// impl any filter, may need layout or not.
-fn filter_any(child: impl UiNode, filter: impl IntoVar<Filter>, target_child: bool) -> impl UiNode {
+fn filter_any(child: impl IntoUiNode, filter: impl IntoVar<Filter>, target_child: bool) -> UiNode {
     let filter = filter.into_var();
     let mut render_filter = None;
     match_node(child, move |child, op| match op {
@@ -376,7 +376,7 @@ fn filter_any(child: impl UiNode, filter: impl IntoVar<Filter>, target_child: bo
 }
 
 /// impl any backdrop filter, may need layout or not.
-fn backdrop_filter_any(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
+fn backdrop_filter_any(child: impl IntoUiNode, filter: impl IntoVar<Filter>) -> UiNode {
     let filter = filter.into_var();
     let mut render_filter = None;
     match_node(child, move |child, op| match op {
@@ -414,7 +414,7 @@ fn backdrop_filter_any(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl
 }
 
 /// impl filters that need layout.
-fn filter_layout(child: impl UiNode, filter: impl IntoVar<Filter>, target_child: bool) -> impl UiNode {
+fn filter_layout(child: impl IntoUiNode, filter: impl IntoVar<Filter>, target_child: bool) -> UiNode {
     let filter = filter.into_var();
 
     let mut render_filter = None;
@@ -447,7 +447,7 @@ fn filter_layout(child: impl UiNode, filter: impl IntoVar<Filter>, target_child:
 }
 
 /// impl backdrop filters that need layout.
-fn backdrop_filter_layout(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
+fn backdrop_filter_layout(child: impl IntoUiNode, filter: impl IntoVar<Filter>) -> UiNode {
     let filter = filter.into_var();
 
     let mut render_filter = None;
@@ -474,7 +474,7 @@ fn backdrop_filter_layout(child: impl UiNode, filter: impl IntoVar<Filter>) -> i
 }
 
 /// impl filters that only need render.
-fn filter_render(child: impl UiNode, filter: impl IntoVar<Filter>, target_child: bool) -> impl UiNode {
+fn filter_render(child: impl IntoUiNode, filter: impl IntoVar<Filter>, target_child: bool) -> UiNode {
     let filter = filter.into_var().map(|f| f.try_render().unwrap());
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -494,7 +494,7 @@ fn filter_render(child: impl UiNode, filter: impl IntoVar<Filter>, target_child:
 }
 
 /// impl backdrop filter that only need render.
-fn backdrop_filter_render(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
+fn backdrop_filter_render(child: impl IntoUiNode, filter: impl IntoVar<Filter>) -> UiNode {
     let filter = filter.into_var().map(|f| f.try_render().unwrap());
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -507,7 +507,7 @@ fn backdrop_filter_render(child: impl UiNode, filter: impl IntoVar<Filter>) -> i
     })
 }
 
-fn opacity_impl(child: impl UiNode, alpha: impl IntoVar<Factor>, target_child: bool) -> impl UiNode {
+fn opacity_impl(child: impl IntoUiNode, alpha: impl IntoVar<Factor>, target_child: bool) -> UiNode {
     let frame_key = FrameValueKey::new_unique();
     let alpha = alpha.into_var();
 
@@ -533,7 +533,7 @@ fn opacity_impl(child: impl UiNode, alpha: impl IntoVar<Factor>, target_child: b
 
 /// Sets how the widget blends with the parent widget.
 #[property(CONTEXT, default(MixBlendMode::default()))]
-pub fn mix_blend(child: impl UiNode, mode: impl IntoVar<MixBlendMode>) -> impl UiNode {
+pub fn mix_blend(child: impl IntoUiNode, mode: impl IntoVar<MixBlendMode>) -> UiNode {
     let mode = mode.into_var();
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
@@ -548,7 +548,7 @@ pub fn mix_blend(child: impl UiNode, mode: impl IntoVar<MixBlendMode>) -> impl U
 
 /// Sets how the widget's child content blends with the widget.
 #[property(CHILD_CONTEXT, default(MixBlendMode::default()))]
-pub fn child_mix_blend(child: impl UiNode, mode: impl IntoVar<MixBlendMode>) -> impl UiNode {
+pub fn child_mix_blend(child: impl IntoUiNode, mode: impl IntoVar<MixBlendMode>) -> UiNode {
     let mode = mode.into_var();
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {

@@ -31,7 +31,7 @@ use task::parking_lot::RwLock;
 /// Note that only one data context can be set at a time, the `data` will override the parent's
 /// data even if the type `T` does not match.
 #[property(CONTEXT - 1)]
-pub fn data<T: VarValue>(child: impl UiNode, data: impl IntoVar<T>) -> impl UiNode {
+pub fn data<T: VarValue>(child: impl IntoUiNode, data: impl IntoVar<T>) -> UiNode {
     with_context_local(child, &DATA_CTX, data.into_var())
 }
 
@@ -42,7 +42,7 @@ pub fn data<T: VarValue>(child: impl UiNode, data: impl IntoVar<T>) -> impl UiNo
 ///
 /// [`DATA.annotate`]: DATA::annotate
 #[property(CONTEXT, default(DataNoteLevel::INFO, ""))]
-pub fn data_note(child: impl UiNode, level: impl IntoVar<DataNoteLevel>, note: impl IntoVar<Txt>) -> impl UiNode {
+pub fn data_note(child: impl IntoUiNode, level: impl IntoVar<DataNoteLevel>, note: impl IntoVar<Txt>) -> UiNode {
     let level = level.into_var();
     let note = note.into_var();
     let mut _handle = DataNoteHandle::dummy();
@@ -80,7 +80,7 @@ pub fn data_note(child: impl UiNode, level: impl IntoVar<DataNoteLevel>, note: i
 /// [`DATA.inform`]: DATA::inform
 /// [`INFO`]: DataNoteLevel::INFO
 #[property(CONTEXT, default(""))]
-pub fn data_info(child: impl UiNode, note: impl IntoVar<Txt>) -> impl UiNode {
+pub fn data_info(child: impl IntoUiNode, note: impl IntoVar<Txt>) -> UiNode {
     data_note(child, DataNoteLevel::INFO, note)
 }
 
@@ -92,7 +92,7 @@ pub fn data_info(child: impl UiNode, note: impl IntoVar<Txt>) -> impl UiNode {
 /// [`DATA.warn`]: DATA::warn
 /// [`WARN`]: DataNoteLevel::WARN
 #[property(CONTEXT, default(""))]
-pub fn data_warn(child: impl UiNode, note: impl IntoVar<Txt>) -> impl UiNode {
+pub fn data_warn(child: impl IntoUiNode, note: impl IntoVar<Txt>) -> UiNode {
     data_note(child, DataNoteLevel::WARN, note)
 }
 
@@ -104,13 +104,13 @@ pub fn data_warn(child: impl UiNode, note: impl IntoVar<Txt>) -> impl UiNode {
 /// [`DATA.invalidate`]: DATA::invalidate
 /// [`ERROR`]: DataNoteLevel::ERROR
 #[property(CONTEXT, default(""))]
-pub fn data_error(child: impl UiNode, note: impl IntoVar<Txt>) -> impl UiNode {
+pub fn data_error(child: impl IntoUiNode, note: impl IntoVar<Txt>) -> UiNode {
     data_note(child, DataNoteLevel::ERROR, note)
 }
 
 /// Get all data notes set on the context.
 #[property(CONTEXT - 1)]
-pub fn get_data_notes(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
+pub fn get_data_notes(child: impl IntoUiNode, notes: impl IntoVar<DataNotes>) -> UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
         notes.set(n.clone());
@@ -119,7 +119,7 @@ pub fn get_data_notes(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> imp
 
 /// Gets if any data notes are set on the context.
 #[property(CONTEXT - 1)]
-pub fn has_data_notes(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode {
+pub fn has_data_notes(child: impl IntoUiNode, any: impl IntoVar<bool>) -> UiNode {
     let any = any.into_var();
     with_data_notes(child, move |n| {
         any.set(!n.is_empty());
@@ -130,7 +130,7 @@ pub fn has_data_notes(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNod
 ///
 /// [`INFO`]: DataNoteLevel::INFO
 #[property(CONTEXT - 1)]
-pub fn get_data_info(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
+pub fn get_data_info(child: impl IntoUiNode, notes: impl IntoVar<DataNotes>) -> UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
         notes.set(n.clone_level(DataNoteLevel::INFO));
@@ -141,7 +141,7 @@ pub fn get_data_info(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl
 ///
 /// [`INFO`]: DataNoteLevel::INFO
 #[property(CONTEXT - 1)]
-pub fn get_data_info_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl UiNode {
+pub fn get_data_info_txt(child: impl IntoUiNode, notes: impl IntoVar<Txt>) -> UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
         notes.set(n.level_txt(DataNoteLevel::INFO));
@@ -152,7 +152,7 @@ pub fn get_data_info_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl U
 ///
 /// [`INFO`]: DataNoteLevel::INFO
 #[property(CONTEXT - 1)]
-pub fn has_data_info(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode {
+pub fn has_data_info(child: impl IntoUiNode, any: impl IntoVar<bool>) -> UiNode {
     let any = any.into_var();
     with_data_notes(child, move |n| {
         any.set(n.iter().any(|n| n.level() == DataNoteLevel::INFO));
@@ -163,7 +163,7 @@ pub fn has_data_info(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode
 ///
 /// [`WARN`]: DataNoteLevel::WARN
 #[property(CONTEXT - 1)]
-pub fn get_data_warn(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
+pub fn get_data_warn(child: impl IntoUiNode, notes: impl IntoVar<DataNotes>) -> UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
         notes.set(n.clone_level(DataNoteLevel::WARN));
@@ -174,7 +174,7 @@ pub fn get_data_warn(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl
 ///
 /// [`WARN`]: DataNoteLevel::WARN
 #[property(CONTEXT - 1)]
-pub fn get_data_warn_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl UiNode {
+pub fn get_data_warn_txt(child: impl IntoUiNode, notes: impl IntoVar<Txt>) -> UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
         notes.set(n.level_txt(DataNoteLevel::WARN));
@@ -185,7 +185,7 @@ pub fn get_data_warn_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl U
 ///
 /// [`WARN`]: DataNoteLevel::WARN
 #[property(CONTEXT - 1)]
-pub fn has_data_warn(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode {
+pub fn has_data_warn(child: impl IntoUiNode, any: impl IntoVar<bool>) -> UiNode {
     let any = any.into_var();
     with_data_notes(child, move |n| {
         any.set(n.iter().any(|n| n.level() == DataNoteLevel::WARN));
@@ -196,7 +196,7 @@ pub fn has_data_warn(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode
 ///
 /// [`ERROR`]: DataNoteLevel::ERROR
 #[property(CONTEXT - 1)]
-pub fn get_data_error(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
+pub fn get_data_error(child: impl IntoUiNode, notes: impl IntoVar<DataNotes>) -> UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
         notes.set(n.clone_level(DataNoteLevel::ERROR));
@@ -207,7 +207,7 @@ pub fn get_data_error(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> imp
 ///
 /// [`ERROR`]: DataNoteLevel::ERROR
 #[property(CONTEXT - 1)]
-pub fn get_data_error_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl UiNode {
+pub fn get_data_error_txt(child: impl IntoUiNode, notes: impl IntoVar<Txt>) -> UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
         notes.set(n.level_txt(DataNoteLevel::ERROR));
@@ -218,7 +218,7 @@ pub fn get_data_error_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl 
 ///
 /// [`ERROR`]: DataNoteLevel::ERROR
 #[property(CONTEXT - 1)]
-pub fn has_data_error(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode {
+pub fn has_data_error(child: impl IntoUiNode, any: impl IntoVar<bool>) -> UiNode {
     let any = any.into_var();
     with_data_notes(child, move |n| {
         any.set(n.iter().any(|n| n.level() == DataNoteLevel::ERROR));
@@ -227,7 +227,7 @@ pub fn has_data_error(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNod
 
 /// Gets all the notes of highest data level set on the context.
 #[property(CONTEXT - 1)]
-pub fn get_data_notes_top(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
+pub fn get_data_notes_top(child: impl IntoUiNode, notes: impl IntoVar<DataNotes>) -> UiNode {
     let notes = notes.into_var();
     with_data_notes(child, move |n| {
         notes.set(if let Some(top) = n.iter().map(|n| n.level()).max() {
@@ -263,7 +263,7 @@ context_var! {
 ///
 /// This property sets the [`DATA_NOTE_COLORS_VAR`].
 #[property(CONTEXT, default(DATA_NOTE_COLORS_VAR))]
-pub fn replace_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap<DataNoteLevel, LightDark>>) -> impl UiNode {
+pub fn replace_data_note_colors(child: impl IntoUiNode, colors: impl IntoVar<HashMap<DataNoteLevel, LightDark>>) -> UiNode {
     with_context_var(child, DATA_NOTE_COLORS_VAR, colors)
 }
 
@@ -273,7 +273,7 @@ pub fn replace_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap
 ///
 /// This property sets the [`DATA_NOTE_COLORS_VAR`].
 #[property(CONTEXT, default(HashMap::new()))]
-pub fn extend_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap<DataNoteLevel, LightDark>>) -> impl UiNode {
+pub fn extend_data_note_colors(child: impl IntoUiNode, colors: impl IntoVar<HashMap<DataNoteLevel, LightDark>>) -> UiNode {
     with_context_var(
         child,
         DATA_NOTE_COLORS_VAR,
@@ -286,7 +286,7 @@ pub fn extend_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap<
 }
 
 /// Node that inserts a data note color in [`DATA_NOTE_COLORS_VAR`].
-pub fn with_data_note_color(child: impl UiNode, level: DataNoteLevel, color: impl IntoVar<LightDark>) -> impl UiNode {
+pub fn with_data_note_color(child: impl IntoUiNode, level: DataNoteLevel, color: impl IntoVar<LightDark>) -> UiNode {
     with_context_var(
         child,
         DATA_NOTE_COLORS_VAR,
@@ -304,7 +304,7 @@ pub fn with_data_note_color(child: impl UiNode, level: DataNoteLevel, color: imp
 ///
 /// [`INFO`]: DataNoteLevel::INFO
 #[property(CONTEXT)]
-pub fn data_info_color(child: impl UiNode, color: impl IntoVar<LightDark>) -> impl UiNode {
+pub fn data_info_color(child: impl IntoUiNode, color: impl IntoVar<LightDark>) -> UiNode {
     with_data_note_color(child, DataNoteLevel::INFO, color)
 }
 
@@ -314,7 +314,7 @@ pub fn data_info_color(child: impl UiNode, color: impl IntoVar<LightDark>) -> im
 ///
 /// [`WARN`]: DataNoteLevel::WARN
 #[property(CONTEXT)]
-pub fn data_warn_color(child: impl UiNode, color: impl IntoVar<LightDark>) -> impl UiNode {
+pub fn data_warn_color(child: impl IntoUiNode, color: impl IntoVar<LightDark>) -> UiNode {
     with_data_note_color(child, DataNoteLevel::WARN, color)
 }
 
@@ -324,7 +324,7 @@ pub fn data_warn_color(child: impl UiNode, color: impl IntoVar<LightDark>) -> im
 ///
 /// [`ERROR`]: DataNoteLevel::ERROR
 #[property(CONTEXT)]
-pub fn data_error_color(child: impl UiNode, color: impl IntoVar<LightDark>) -> impl UiNode {
+pub fn data_error_color(child: impl IntoUiNode, color: impl IntoVar<LightDark>) -> UiNode {
     with_data_note_color(child, DataNoteLevel::ERROR, color)
 }
 
@@ -719,7 +719,7 @@ struct DataNotesProbe {
 /// notes always change to empty on deinit.
 ///
 /// [`UiNodeOp`]: zng_wgt::prelude::UiNodeOp
-pub fn with_data_notes(child: impl UiNode, mut on_changed: impl FnMut(&DataNotes) + Send + 'static) -> impl UiNode {
+pub fn with_data_notes(child: impl IntoUiNode, mut on_changed: impl FnMut(&DataNotes) + Send + 'static) -> UiNode {
     let mut notes = None;
     match_node(child, move |c, op| {
         let is_deinit = match &op {

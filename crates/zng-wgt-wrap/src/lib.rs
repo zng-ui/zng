@@ -90,7 +90,7 @@ pub fn children_align(align: impl IntoVar<Align>) {}
 ///
 /// Can be used directly to inline widgets without declaring a wrap widget info. This node is the child
 /// of the `Wrap!` widget.
-pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, children_align: impl IntoVar<Align>) -> impl UiNode {
+pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, children_align: impl IntoVar<Align>) -> UiNode {
     let children = PanelList::new(children).track_info_range(*PANEL_LIST_ID);
     let spacing = spacing.into_var();
     let children_align = children_align.into_var();
@@ -126,7 +126,7 @@ pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, child
 /// Create a node that estimates the size of wrap panel children.
 ///
 /// The estimation assumes that all items have a size of `child_size`.
-pub fn lazy_size(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSpacing>, child_size: impl IntoVar<Size>) -> impl UiNode {
+pub fn lazy_size(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSpacing>, child_size: impl IntoVar<Size>) -> UiNode {
     // we don't use `properties::size(NilUiNode, child_size)` because that size disables inlining.
     let size = child_size.into_var();
     let sample = match_node_leaf(move |op| match op {
@@ -148,7 +148,7 @@ pub fn lazy_size(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSp
 /// Create a node that estimates the size of wrap panel children.
 ///
 /// The estimation assumes that all items have the size of `child_sample`.
-pub fn lazy_sample(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSpacing>, child_sample: impl UiNode) -> impl UiNode {
+pub fn lazy_sample(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSpacing>, child_sample: impl IntoUiNode) -> UiNode {
     let children_len = children_len.into_var();
     let spacing = spacing.into_var();
 
@@ -1078,7 +1078,7 @@ static_id! {
 ///
 /// The child index is zero-based.
 #[property(CONTEXT)]
-pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+pub fn get_index(child: impl IntoUiNode, state: impl IntoVar<usize>) -> UiNode {
     let state = state.into_var();
     with_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id.unwrap_or(0));
@@ -1087,7 +1087,7 @@ pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode 
 
 /// Get the child index and number of children.
 #[property(CONTEXT)]
-pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
+pub fn get_index_len(child: impl IntoUiNode, state: impl IntoVar<(usize, usize)>) -> UiNode {
     let state = state.into_var();
     with_index_len_node(child, *PANEL_LIST_ID, move |id_len| {
         state.set(id_len.unwrap_or((0, 0)));
@@ -1096,7 +1096,7 @@ pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) ->
 
 /// Get the child index, starting from the last child at `0`.
 #[property(CONTEXT)]
-pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+pub fn get_rev_index(child: impl IntoUiNode, state: impl IntoVar<usize>) -> UiNode {
     let state = state.into_var();
     with_rev_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id.unwrap_or(0));
@@ -1109,7 +1109,7 @@ pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiN
 ///
 /// [`is_odd`]: fn@is_odd
 #[property(CONTEXT)]
-pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_even(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     with_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id.map(|i| i % 2 == 0).unwrap_or(false));
@@ -1122,7 +1122,7 @@ pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 ///
 /// [`is_even`]: fn@is_even
 #[property(CONTEXT)]
-pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_odd(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     with_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id.map(|i| i % 2 != 0).unwrap_or(false));
@@ -1131,7 +1131,7 @@ pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 
 /// If the child is the first.
 #[property(CONTEXT)]
-pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_first(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     with_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id == Some(0));
@@ -1140,7 +1140,7 @@ pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 
 /// If the child is the last.
 #[property(CONTEXT)]
-pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_last(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     with_rev_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id == Some(0));

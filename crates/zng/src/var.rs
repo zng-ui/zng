@@ -281,11 +281,11 @@
 //! }
 //!
 //! #[zng::widget::property(CONTEXT, default(FOO_VAR))]
-//! pub fn foo(child: impl UiNode, foo: impl IntoVar<Txt>) -> impl UiNode {
+//! pub fn foo(child: impl IntoUiNode, foo: impl IntoVar<Txt>) -> UiNode {
 //!     zng::widget::node::with_context_var(child, FOO_VAR, foo)
 //! }
 //!
-//! fn demo() -> impl UiNode {
+//! fn demo() -> UiNode {
 //!     Stack! {
 //!         direction = StackDirection::top_to_bottom();
 //!         spacing = 5;

@@ -16,7 +16,7 @@ use zng_app::widget::info;
 /// [`is_collapsed`]: fn@is_collapsed
 /// [`WidgetInfo::visibility`]: zng_app::widget::info::WidgetInfo::visibility
 #[property(CONTEXT, default(true))]
-pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> impl UiNode {
+pub fn visibility(child: impl IntoUiNode, visibility: impl IntoVar<Visibility>) -> UiNode {
     let visibility = visibility.into_var();
     let mut prev_vis = Visibility::Visible;
 
@@ -92,7 +92,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
     })
 }
 
-fn visibility_eq_state(child: impl UiNode, state: impl IntoVar<bool>, expected: Visibility) -> impl UiNode {
+fn visibility_eq_state(child: impl IntoUiNode, state: impl IntoVar<bool>, expected: Visibility) -> UiNode {
     event_state(
         child,
         state,
@@ -107,17 +107,17 @@ fn visibility_eq_state(child: impl UiNode, state: impl IntoVar<bool>, expected: 
 }
 /// If the widget is [`Visible`](Visibility::Visible).
 #[property(CONTEXT)]
-pub fn is_visible(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_visible(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     visibility_eq_state(child, state, Visibility::Visible)
 }
 /// If the widget is [`Hidden`](Visibility::Hidden).
 #[property(CONTEXT)]
-pub fn is_hidden(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_hidden(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     visibility_eq_state(child, state, Visibility::Hidden)
 }
 /// If the widget is [`Collapsed`](Visibility::Collapsed).
 #[property(CONTEXT)]
-pub fn is_collapsed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_collapsed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     visibility_eq_state(child, state, Visibility::Collapsed)
 }
 
@@ -135,7 +135,7 @@ pub fn is_collapsed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNod
 /// ```
 /// # macro_rules! Container { ($($tt:tt)*) => { NilUiNode }}
 /// # use zng_app::widget::node::*;
-/// fn center_viewport(msg: impl UiNode) -> impl UiNode {
+/// fn center_viewport(msg: impl IntoUiNode) -> UiNode {
 ///     Container! {
 ///         layout::x = merge_var!(SCROLL.horizontal_offset(), SCROLL.zoom_scale(), |&h, &s| h.0.fct_l() - 1.vw() / s * h);
 ///         layout::y = merge_var!(SCROLL.vertical_offset(), SCROLL.zoom_scale(), |&v, &s| v.0.fct_l() - 1.vh() / s * v);
@@ -150,7 +150,7 @@ pub fn is_collapsed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNod
 /// }
 /// ```
 #[property(CONTEXT, default(true))]
-pub fn auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn auto_hide(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
 
     match_node(child, move |_, op| match op {

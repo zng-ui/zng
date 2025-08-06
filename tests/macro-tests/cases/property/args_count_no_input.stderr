@@ -1,5 +1,5 @@
-error: property functions must have at least 2 inputs: child: impl UiNode, arg0, ..
+error: property functions must have at least 2 inputs: child: impl IntoUiNode, arg0, ..
  --> cases/property/args_count_no_input.rs:4:18
   |
-4 | pub fn no_inputs(child: impl UiNode) -> impl UiNode {
+4 | pub fn no_inputs(child: impl IntoUiNode) -> UiNode {
   |                  ^^^^^

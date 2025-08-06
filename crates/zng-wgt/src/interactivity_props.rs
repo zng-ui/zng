@@ -37,7 +37,7 @@ context_var! {
 /// [`is_enabled`]: fn@is_enabled
 /// [`is_disabled`]: fn@is_disabled
 #[property(CONTEXT, default(true))]
-pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn enabled(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
 
     let child = match_node(
@@ -74,7 +74,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 /// [`WidgetInfo::interactivity`]: zng_app::widget::info::WidgetInfo::interactivity
 /// [`node::interactive_node`]: crate::node::interactive_node
 #[property(CONTEXT, default(true))]
-pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
+pub fn interactive(child: impl IntoUiNode, interactive: impl IntoVar<bool>) -> UiNode {
     let interactive = interactive.into_var();
 
     match_node(child, move |_, op| match op {
@@ -97,7 +97,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 ///
 /// [`enabled`]: fn@enabled
 #[property(EVENT)]
-pub fn is_enabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_enabled(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state(child, state, true, info::INTERACTIVITY_CHANGED_EVENT, move |args| {
         if let Some((_, new)) = args.vis_enabled_change(WIDGET.id()) {
             Some(new.is_vis_enabled())
@@ -113,7 +113,7 @@ pub fn is_enabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 ///
 /// [`enabled`]: fn@enabled
 #[property(EVENT)]
-pub fn is_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_disabled(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state(child, state, false, info::INTERACTIVITY_CHANGED_EVENT, move |args| {
         if let Some((_, new)) = args.vis_enabled_change(WIDGET.id()) {
             Some(!new.is_vis_enabled())
@@ -322,7 +322,7 @@ event_property! {
 ///
 /// [`modal_includes`]: fn@modal_includes
 #[property(CONTEXT, default(false))]
-pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn modal(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     static_id! {
         static ref MODAL_WIDGETS: StateId<Arc<Mutex<ModalWidgetsData>>>;
     }
@@ -463,7 +463,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 /// [`insert_modal_include`]: WidgetInfoBuilderModalExt::insert_modal_include
 /// [`modal_included`]: fn@modal_included
 #[property(CONTEXT, default(IdSet::new()))]
-pub fn modal_includes(child: impl UiNode, includes: impl IntoVar<IdSet<WidgetId>>) -> impl UiNode {
+pub fn modal_includes(child: impl IntoUiNode, includes: impl IntoVar<IdSet<WidgetId>>) -> UiNode {
     let includes = includes.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -491,7 +491,7 @@ pub fn modal_includes(child: impl UiNode, includes: impl IntoVar<IdSet<WidgetId>
 /// [`set_modal_included`]: WidgetInfoBuilderModalExt::set_modal_included
 /// [`modal_includes`]: fn@modal_includes
 #[property(CONTEXT)]
-pub fn modal_included(child: impl UiNode, modal_or_descendant: impl IntoVar<WidgetId>) -> impl UiNode {
+pub fn modal_included(child: impl IntoUiNode, modal_or_descendant: impl IntoVar<WidgetId>) -> UiNode {
     let modal = modal_or_descendant.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {

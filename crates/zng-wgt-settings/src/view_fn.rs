@@ -48,7 +48,7 @@ context_var! {
 ///
 /// Sets the [`CATEGORY_ITEM_FN_VAR`].
 #[property(CONTEXT, default(CATEGORY_ITEM_FN_VAR), widget_impl(SettingsEditor))]
-pub fn category_item_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<CategoryItemArgs>>) -> impl UiNode {
+pub fn category_item_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<CategoryItemArgs>>) -> UiNode {
     with_context_var(child, CATEGORY_ITEM_FN_VAR, wgt_fn)
 }
 
@@ -56,7 +56,7 @@ pub fn category_item_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<Catego
 ///
 /// Sets the [`CATEGORIES_LIST_FN_VAR`].
 #[property(CONTEXT, default(CATEGORIES_LIST_FN_VAR), widget_impl(SettingsEditor))]
-pub fn categories_list_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<CategoriesListArgs>>) -> impl UiNode {
+pub fn categories_list_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<CategoriesListArgs>>) -> UiNode {
     with_context_var(child, CATEGORIES_LIST_FN_VAR, wgt_fn)
 }
 
@@ -64,7 +64,7 @@ pub fn categories_list_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<Cate
 ///
 /// Sets the [`CATEGORY_HEADER_FN_VAR`].
 #[property(CONTEXT, default(CATEGORY_HEADER_FN_VAR), widget_impl(SettingsEditor))]
-pub fn category_header_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<CategoryHeaderArgs>>) -> impl UiNode {
+pub fn category_header_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<CategoryHeaderArgs>>) -> UiNode {
     with_context_var(child, CATEGORY_HEADER_FN_VAR, wgt_fn)
 }
 
@@ -76,7 +76,7 @@ pub fn category_header_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<Cate
 ///
 /// [`setting`]: fn@setting
 #[property(CONTEXT, default(SETTING_FN_VAR), widget_impl(SettingsEditor))]
-pub fn setting_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<SettingArgs>>) -> impl UiNode {
+pub fn setting_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<SettingArgs>>) -> UiNode {
     with_context_var(child, SETTING_FN_VAR, wgt_fn)
 }
 
@@ -84,7 +84,7 @@ pub fn setting_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<SettingArgs>
 ///
 /// Sets the [`SETTINGS_FN_VAR`].
 #[property(CONTEXT, default(SETTINGS_FN_VAR), widget_impl(SettingsEditor))]
-pub fn settings_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<SettingsArgs>>) -> impl UiNode {
+pub fn settings_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<SettingsArgs>>) -> UiNode {
     with_context_var(child, SETTINGS_FN_VAR, wgt_fn)
 }
 
@@ -92,20 +92,20 @@ pub fn settings_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<SettingsArg
 ///
 /// Sets the [`SETTINGS_SEARCH_FN_VAR`].
 #[property(CONTEXT, default(SETTINGS_SEARCH_FN_VAR), widget_impl(SettingsEditor))]
-pub fn settings_search_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<SettingsSearchArgs>>) -> impl UiNode {
+pub fn settings_search_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<SettingsSearchArgs>>) -> UiNode {
     with_context_var(child, SETTINGS_SEARCH_FN_VAR, wgt_fn)
 }
 
 /// Widget that defines the editor layout, bringing together the other component widgets.
 #[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(SettingsEditor))]
-pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelArgs>>) -> impl UiNode {
+pub fn panel_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<PanelArgs>>) -> UiNode {
     with_context_var(child, PANEL_FN_VAR, wgt_fn)
 }
 
 /// Default category item view.
 ///
 /// See [`CATEGORY_ITEM_FN_VAR`] for more details.
-pub fn default_category_item_fn(args: CategoryItemArgs) -> impl UiNode {
+pub fn default_category_item_fn(args: CategoryItemArgs) -> UiNode {
     Toggle! {
         child = Text!(args.category.name().clone());
         value::<CategoryId> = args.category.id().clone();
@@ -115,7 +115,7 @@ pub fn default_category_item_fn(args: CategoryItemArgs) -> impl UiNode {
 /// Default category item view.
 ///
 /// See [`CATEGORY_HEADER_FN_VAR`] for more details.
-pub fn default_category_header_fn(args: CategoryHeaderArgs) -> impl UiNode {
+pub fn default_category_header_fn(args: CategoryHeaderArgs) -> UiNode {
     Text! {
         txt = args.category.name().clone();
         font_size = 1.5.em();
@@ -126,13 +126,13 @@ pub fn default_category_header_fn(args: CategoryHeaderArgs) -> impl UiNode {
 /// Default categories list view on `actual_width > 400`.
 ///
 /// See [`CATEGORIES_LIST_FN_VAR`] for more details.
-pub fn default_categories_list_fn(args: CategoriesListArgs) -> impl UiNode {
+pub fn default_categories_list_fn(args: CategoriesListArgs) -> UiNode {
     Container! {
         child = categories_list(args.items.boxed());
         child_end = Vr!(zng_wgt::margin = 0), 0;
     }
 }
-fn categories_list(items: BoxedUiNodeList) -> impl UiNode {
+fn categories_list(items: BoxedUiNodeList) -> UiNode {
     let list = Stack! {
         zng_wgt_toggle::selector = Selector::single(SETTINGS.editor_selected_category());
         direction = StackDirection::top_to_bottom();
@@ -163,7 +163,7 @@ fn categories_list(items: BoxedUiNodeList) -> impl UiNode {
 }
 
 /// Default categories list view on `actual_width <= 400`.
-pub fn default_categories_list_mobile_fn(args: CategoriesListArgs) -> impl UiNode {
+pub fn default_categories_list_mobile_fn(args: CategoriesListArgs) -> UiNode {
     let items = ArcNodeList::new(args.items);
     Toggle! {
         zng_wgt::margin = 4;
@@ -182,7 +182,7 @@ pub fn default_categories_list_mobile_fn(args: CategoriesListArgs) -> impl UiNod
 }
 
 /// Default setting item view.
-pub fn default_setting_fn(args: SettingArgs) -> impl UiNode {
+pub fn default_setting_fn(args: SettingArgs) -> UiNode {
     let name = args.setting.name().clone();
     let description = args.setting.description().clone();
     let can_reset = args.setting.can_reset();
@@ -236,7 +236,7 @@ pub fn default_setting_fn(args: SettingArgs) -> impl UiNode {
 }
 
 /// Default settings for a category view.
-pub fn default_settings_fn(args: SettingsArgs) -> impl UiNode {
+pub fn default_settings_fn(args: SettingsArgs) -> UiNode {
     Container! {
         child_top = args.header, 5;
         child = Scroll! {
@@ -253,7 +253,7 @@ pub fn default_settings_fn(args: SettingsArgs) -> impl UiNode {
 }
 
 /// Default settings search box.
-pub fn default_settings_search_fn(_: SettingsSearchArgs) -> impl UiNode {
+pub fn default_settings_search_fn(_: SettingsSearchArgs) -> UiNode {
     Container! {
         child = TextInput! {
             txt = SETTINGS.editor_search();
@@ -266,7 +266,7 @@ pub fn default_settings_search_fn(_: SettingsSearchArgs) -> impl UiNode {
 }
 
 /// Default editor layout on `actual_width > 400`.
-pub fn default_panel_fn(args: PanelArgs) -> impl UiNode {
+pub fn default_panel_fn(args: PanelArgs) -> UiNode {
     Container! {
         child_top = args.search, 0;
         child = Container! {
@@ -277,7 +277,7 @@ pub fn default_panel_fn(args: PanelArgs) -> impl UiNode {
 }
 
 /// Default editor layout on `actual_width <= 400`.
-pub fn default_panel_mobile_fn(args: PanelArgs) -> impl UiNode {
+pub fn default_panel_mobile_fn(args: PanelArgs) -> UiNode {
     Container! {
         child_top = args.search, 0;
         child = Container! {
@@ -490,7 +490,7 @@ context_var! {
 ///
 /// [`setting_fn`]: fn@setting_fn
 #[property(CONTEXT)]
-pub fn setting(child: impl UiNode, setting: impl IntoValue<Setting>) -> impl UiNode {
+pub fn setting(child: impl IntoUiNode, setting: impl IntoValue<Setting>) -> UiNode {
     let setting = setting.into();
 
     let child = match_node(child, |_, op| {

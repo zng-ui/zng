@@ -6,7 +6,7 @@ use zng::{
 };
 
 #[property(CONTEXT)]
-pub fn foo(child: impl UiNode, value: impl UiNode) -> impl UiNode {
+pub fn foo(child: impl IntoUiNode, value: impl IntoUiNode) -> UiNode {
     let _ = value;
     child
 }

@@ -1332,7 +1332,7 @@ pub fn focused_removed_by_making_not_focusable() {
         || focusable.set(false),
     )
 }
-fn focused_removed_test(app: TestAppBuilder<impl AppExtension>, button1: impl UiNode, set_var: impl FnOnce()) {
+fn focused_removed_test(app: TestAppBuilder<impl AppExtension>, button1: impl IntoUiNode, set_var: impl FnOnce()) {
     let mut buttons = ui_vec![
         Button! {
             child = Text!("Button 0")
@@ -1998,7 +1998,7 @@ struct TestAppBuilder<E: AppExtension> {
     app: AppExtended<E>,
 }
 impl<E: AppExtension> TestAppBuilder<E> {
-    pub fn run(self, child: impl UiNode) -> TestApp {
+    pub fn run(self, child: impl IntoUiNode) -> TestApp {
         self.run_window(Window!(child; id = "window root"))
     }
     pub fn run_window(self, window: window::WindowRoot) -> TestApp {
@@ -2043,7 +2043,7 @@ impl TestApp {
         assert!(closed);
     }
 
-    pub fn open_window(&mut self, child: impl UiNode) -> WindowId {
+    pub fn open_window(&mut self, child: impl IntoUiNode) -> WindowId {
         let id = self.app.open_window(async {
             Window! {
                 child

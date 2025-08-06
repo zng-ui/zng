@@ -154,7 +154,7 @@ context_var! {
 ///
 /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.
 #[property(CONTEXT, default(ICON_SIZE_VAR), widget_impl(Icon))]
-pub fn ico_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
+pub fn ico_size(child: impl IntoUiNode, size: impl IntoVar<FontSize>) -> UiNode {
     with_context_var(child, ICON_SIZE_VAR, size)
 }
 
@@ -162,12 +162,12 @@ pub fn ico_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode
 ///
 /// Sets the [`ICON_COLOR_VAR`] that affects all icons inside the widget.
 #[property(CONTEXT, default(ICON_COLOR_VAR), widget_impl(Icon))]
-pub fn ico_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn ico_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
     with_context_var(child, ICON_COLOR_VAR, color)
 }
 
 /// Set the font-size from the parent size.
-fn icon_size(child: impl UiNode) -> impl UiNode {
+fn icon_size(child: impl IntoUiNode) -> UiNode {
     match_node(child, |child, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_layout(&ICON_SIZE_VAR);

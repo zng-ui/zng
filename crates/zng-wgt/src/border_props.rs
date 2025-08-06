@@ -9,7 +9,7 @@ use crate::prelude::*;
 /// [`Default`]: zng_layout::unit::Length::Default
 /// [`corner_radius_fit`]: fn@corner_radius_fit
 #[property(CONTEXT, default(CORNER_RADIUS_VAR))]
-pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
+pub fn corner_radius(child: impl IntoUiNode, radius: impl IntoVar<CornerRadius>) -> UiNode {
     let child = match_node(child, move |child, op| {
         if let UiNodeOp::Layout { wl, final_size } = op {
             *final_size = BORDER.with_corner_radius(|| child.layout(wl));
@@ -29,7 +29,7 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
 /// [`BORDER`]: zng_app::widget::border::BORDER
 /// [`CORNER_RADIUS_FIT_VAR`]: zng_app::widget::border::CORNER_RADIUS_FIT_VAR
 #[property(CONTEXT, default(CORNER_RADIUS_FIT_VAR))]
-pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>) -> impl UiNode {
+pub fn corner_radius_fit(child: impl IntoUiNode, fit: impl IntoVar<CornerRadiusFit>) -> UiNode {
     with_context_var(child, CORNER_RADIUS_FIT_VAR, fit)
 }
 
@@ -49,7 +49,7 @@ pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>)
 /// [`corner_radius`]: fn@corner_radius
 /// [`BORDER_ALIGN_VAR`]: zng_app::widget::border::BORDER_ALIGN_VAR
 #[property(CONTEXT, default(BORDER_ALIGN_VAR))]
-pub fn border_align(child: impl UiNode, align: impl IntoVar<FactorSideOffsets>) -> impl UiNode {
+pub fn border_align(child: impl IntoUiNode, align: impl IntoVar<FactorSideOffsets>) -> UiNode {
     with_context_var(child, BORDER_ALIGN_VAR, align)
 }
 
@@ -63,7 +63,7 @@ pub fn border_align(child: impl UiNode, align: impl IntoVar<FactorSideOffsets>) 
 /// [`border_align`]: fn@border_align
 /// [`BORDER_OVER_VAR`]: zng_app::widget::border::BORDER_OVER_VAR
 #[property(CONTEXT, default(BORDER_OVER_VAR))]
-pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode {
+pub fn border_over(child: impl IntoUiNode, over: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, BORDER_OVER_VAR, over)
 }
 
@@ -130,10 +130,10 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// /// Another border property.
 /// #[property(BORDER, default(0, BorderStyle::Hidden))]
 /// pub fn my_border(
-///     child: impl UiNode,
+///     child: impl IntoUiNode,
 ///     widths: impl IntoVar<SideOffsets>,
 ///     sides: impl IntoVar<BorderSides>
-/// ) -> impl UiNode {
+/// ) -> UiNode {
 ///     zng_wgt::border(child, widths, sides)
 /// }
 /// #
@@ -150,7 +150,7 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// # use zng_wgt::prelude::*;
 /// #
 /// # #[property(BORDER, default(0, BorderStyle::Hidden))]
-/// # pub fn my_border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+/// # pub fn my_border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> UiNode {
 /// #    zng_wgt::border(child, widths, sides)
 /// # }
 /// #
@@ -177,7 +177,7 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// # use zng_wgt::prelude::*;
 /// #
 /// # #[property(BORDER, default(0, BorderStyle::Hidden))]
-/// # pub fn my_border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+/// # pub fn my_border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> UiNode {
 /// #    zng_wgt::border(child, widths, sides)
 /// # }
 /// #
@@ -200,13 +200,13 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// #
 /// /// Border that is always around the other borders.
 /// #[property(BORDER-1, default(0, BorderStyle::Hidden))]
-/// pub fn outside_border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+/// pub fn outside_border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> UiNode {
 ///     zng_wgt::border(child, widths, sides)
 /// }
 ///  
 /// /// Border that is always inside the other borders.
 /// #[property(BORDER+1, default(0, BorderStyle::Hidden))]
-/// pub fn inside_border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+/// pub fn inside_border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> UiNode {
 ///     zng_wgt::border(child, widths, sides)
 /// }
 /// #
@@ -216,7 +216,7 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// [`corner_radius`]: fn@corner_radius
 /// [`NestGroup::BORDER`]: zng_app::widget::builder::NestGroup::BORDER
 #[property(BORDER, default(0, BorderStyle::Hidden))]
-pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+pub fn border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> UiNode {
     let sides = sides.into_var();
     let mut corners = PxCornerRadius::zero();
 

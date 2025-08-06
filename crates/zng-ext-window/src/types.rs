@@ -10,7 +10,7 @@ use zng_app::{
     update::UpdateOp,
     widget::{
         WidgetId,
-        node::{BoxedUiNode, UiNode},
+        node::{UiNode},
     },
     window::{WINDOW, WindowId},
 };
@@ -26,6 +26,7 @@ use zng_view_api::{
 };
 
 pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState};
+use zng_wgt::prelude::IntoUiNode;
 
 use crate::{HeadlessMonitor, WINDOW_Ext as _, WINDOWS};
 
@@ -44,7 +45,7 @@ pub struct WindowRoot {
     pub(super) render_mode: Option<RenderMode>,
     pub(super) headless_monitor: HeadlessMonitor,
     pub(super) start_focused: bool,
-    pub(super) child: BoxedUiNode,
+    pub(super) child: UiNode,
 }
 impl WindowRoot {
     /// New window from a `root` node that forms the window root widget.
@@ -67,7 +68,7 @@ impl WindowRoot {
         render_mode: Option<RenderMode>,
         headless_monitor: HeadlessMonitor,
         start_focused: bool,
-        root: impl UiNode,
+        root: impl IntoUiNode,
     ) -> Self {
         WindowRoot {
             id: root_id,
@@ -77,7 +78,7 @@ impl WindowRoot {
             render_mode,
             headless_monitor,
             start_focused,
-            child: root.boxed(),
+            child: root.into_node(),
         }
     }
 
@@ -99,7 +100,7 @@ impl WindowRoot {
         render_mode: Option<RenderMode>,
         headless_monitor: HeadlessMonitor,
         start_focused: bool,
-        child: impl UiNode,
+        child: impl IntoUiNode,
     ) -> Self {
         WindowRoot::new(
             root_id,
@@ -115,7 +116,7 @@ impl WindowRoot {
 
     /// New test window.
     #[cfg(any(test, doc, feature = "test_util"))]
-    pub fn new_test(child: impl UiNode) -> Self {
+    pub fn new_test(child: impl IntoUiNode) -> Self {
         WindowRoot::new_container(
             WidgetId::named("test-window-root"),
             StartPosition::Default,
@@ -270,11 +271,7 @@ impl WindowIcon {
     /// ```
     ///
     /// [`UiNode`]: zng_app::widget::node::UiNode
-    pub fn render<I, F>(new_icon: F) -> Self
-    where
-        I: UiNode,
-        F: Fn() -> I + Send + Sync + 'static,
-    {
+    pub fn render(new_icon: impl Fn() -> UiNode + Send + Sync + 'static) -> Self {
         Self::Image(ImageSource::render_node(RenderMode::Software, move |args| {
             let node = new_icon();
             WINDOW.vars().parent().set(args.parent);

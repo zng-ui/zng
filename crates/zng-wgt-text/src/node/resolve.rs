@@ -44,14 +44,14 @@ use super::{CaretInfo, ImePreview, PendingLayout, RESOLVED_TEXT, ResolvedText, R
 ///
 /// [`NestGroup::EVENT`]: zng_wgt::prelude::NestGroup::EVENT
 /// [`NestGroup::CONTEXT`]: zng_wgt::prelude::NestGroup::CONTEXT
-pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode {
+pub fn resolve_text(child: impl IntoUiNode, text: impl IntoVar<Txt>) -> UiNode {
     let child = resolve_text_font(child);
     let child = resolve_text_access(child);
     let child = resolve_text_edit(child);
     let child = resolve_text_segments(child);
     resolve_text_context(child, text.into_var())
 }
-fn resolve_text_context(child: impl UiNode, text: Var<Txt>) -> impl UiNode {
+fn resolve_text_context(child: impl IntoUiNode, text: Var<Txt>) -> UiNode {
     let mut resolved = None;
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -90,7 +90,7 @@ fn resolve_text_context(child: impl UiNode, text: Var<Txt>) -> impl UiNode {
         op => RESOLVED_TEXT.with_context(&mut resolved, || child.op(op)),
     })
 }
-fn resolve_text_font(child: impl UiNode) -> impl UiNode {
+fn resolve_text_font(child: impl IntoUiNode) -> UiNode {
     enum State {
         Reload,
         Loading {
@@ -177,7 +177,7 @@ fn resolve_text_font(child: impl UiNode) -> impl UiNode {
         }
     })
 }
-fn resolve_text_access(child: impl UiNode) -> impl UiNode {
+fn resolve_text_access(child: impl IntoUiNode) -> UiNode {
     match_node(child, |child, op| match op {
         UiNodeOp::Init => {
             WIDGET
@@ -203,7 +203,7 @@ fn resolve_text_access(child: impl UiNode) -> impl UiNode {
         _ => {}
     })
 }
-fn resolve_text_segments(child: impl UiNode) -> impl UiNode {
+fn resolve_text_segments(child: impl IntoUiNode) -> UiNode {
     match_node(child, |_, op| {
         let mut segment = false;
         match op {
@@ -254,7 +254,7 @@ fn resolve_text_segments(child: impl UiNode) -> impl UiNode {
         }
     })
 }
-fn resolve_text_edit(child: impl UiNode) -> impl UiNode {
+fn resolve_text_edit(child: impl IntoUiNode) -> UiNode {
     // Use `ResolveTextEdit::get` to access.
     let mut edit = None::<Box<ResolveTextEdit>>;
 

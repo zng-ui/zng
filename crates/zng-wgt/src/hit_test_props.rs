@@ -7,7 +7,7 @@ use crate::prelude::*;
 ///
 /// See [`HitTestMode`] for more details.
 #[property(CONTEXT, default(HIT_TEST_MODE_VAR))]
-pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> impl UiNode {
+pub fn hit_test_mode(child: impl IntoUiNode, mode: impl IntoVar<HitTestMode>) -> UiNode {
     let child = match_node(child, |child, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_render(&HIT_TEST_MODE_VAR);
@@ -44,6 +44,6 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
 ///
 /// [`hit_test_mode`]: fn@hit_test_mode
 #[property(EVENT)]
-pub fn is_hit_testable(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_hit_testable(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state(child, HIT_TEST_MODE_VAR.map(|m| m.is_hit_testable()), state)
 }

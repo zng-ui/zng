@@ -52,7 +52,7 @@ impl Scrollbar {
 ///
 /// [`Thumb!`]: struct@super::Thumb
 #[property(CHILD, capture, default(super::Thumb!()), widget_impl(Scrollbar))]
-pub fn thumb(node: impl UiNode) {}
+pub fn thumb(node: impl IntoUiNode) {}
 
 /// Scrollbar orientation.
 ///
@@ -152,7 +152,7 @@ fn scroll_click_handler() -> impl WidgetHandler<MouseClickArgs> {
     })
 }
 
-fn access_node(child: impl UiNode) -> impl UiNode {
+fn access_node(child: impl IntoUiNode) -> UiNode {
     let mut handle = VarHandle::dummy();
     match_node(child, move |_, op| {
         if let UiNodeOp::Info { info } = op {

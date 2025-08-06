@@ -78,7 +78,7 @@
 //! use zng::prelude_wgt::*;
 //!
 //! #[property(EVENT)]
-//! pub fn print_click(child: impl UiNode, preview: impl IntoVar<bool>) -> impl UiNode {
+//! pub fn print_click(child: impl IntoUiNode, preview: impl IntoVar<bool>) -> UiNode {
 //!     let preview = preview.into_var();
 //!     match_node(child, move |child, op| match op {
 //!         UiNodeOp::Init => {
@@ -182,7 +182,7 @@
 //!     }
 //! }
 //!
-//! # fn usage() -> impl UiNode {
+//! # fn usage() -> UiNode {
 //! zng::widget::Wgt! {
 //!     zng::widget::on_info_init = hn!(|_| {
 //!         let this_wgt = WIDGET.info().path();
@@ -232,7 +232,7 @@
 //!     }
 //! }
 //!
-//! # fn usage() -> impl UiNode {
+//! # fn usage() -> UiNode {
 //! zng::widget::Wgt! {
 //!     zng::widget::on_info_init = hn!(|_| {
 //!         FOO_CMD.scoped(WIDGET.id()).notify();

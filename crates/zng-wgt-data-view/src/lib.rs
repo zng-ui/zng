@@ -49,7 +49,7 @@ impl<D: VarValue> DataViewArgs<D> {
     /// Replace the child node.
     ///
     /// If set the current child node will be deinited and dropped.
-    pub fn set_view(&self, new_child: impl UiNode) {
+    pub fn set_view(&self, new_child: impl IntoUiNode) {
         *self.replace.lock() = Some(new_child.boxed());
     }
 
@@ -72,7 +72,7 @@ impl<D: VarValue> DataViewArgs<D> {
 /// # use zng_wgt_data_view::*;
 /// # use zng_wgt::prelude::*;
 /// # fn main() { }
-/// # fn shorthand_demo<T: VarValue>(data: impl IntoVar<T>, update: impl WidgetHandler<DataViewArgs<T>>) -> impl UiNode {
+/// # fn shorthand_demo<T: VarValue>(data: impl IntoVar<T>, update: impl WidgetHandler<DataViewArgs<T>>) -> UiNode {
 /// DataView!(::<T>, data, update)
 /// # }
 /// ```
@@ -86,7 +86,7 @@ impl<D: VarValue> DataViewArgs<D> {
 /// # use zng_wgt_data_view::*;
 /// # use zng_wgt::prelude::*;
 /// # fn main() { }
-/// # fn shorthand_demo<T: VarValue>(data: impl IntoVar<T>, update: impl WidgetHandler<DataViewArgs<T>>) -> impl UiNode {
+/// # fn shorthand_demo<T: VarValue>(data: impl IntoVar<T>, update: impl WidgetHandler<DataViewArgs<T>>) -> UiNode {
 /// DataView! {
 ///     view::<T> = { data: data, update: update };
 /// }
@@ -123,7 +123,7 @@ impl DataView {
 ///
 /// [`DataView!`]: struct@DataView
 #[property(CHILD, widget_impl(DataView))]
-pub fn view<D: VarValue>(child: impl UiNode, data: impl IntoVar<D>, update: impl WidgetHandler<DataViewArgs<D>>) -> impl UiNode {
+pub fn view<D: VarValue>(child: impl IntoUiNode, data: impl IntoVar<D>, update: impl WidgetHandler<DataViewArgs<D>>) -> UiNode {
     let data = data.into_var();
     let mut update = update.cfg_boxed();
     let replace = Arc::new(Mutex::new(None));

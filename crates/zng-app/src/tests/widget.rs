@@ -7,7 +7,11 @@ use zng_var::IntoValue;
 
 use crate::{
     APP,
-    widget::{WIDGET, WidgetId, WidgetUpdateMode, builder::WidgetBuilder, node::UiNode},
+    widget::{
+        WidgetId, WidgetUpdateMode,
+        builder::WidgetBuilder,
+        node::{IntoUiNode, UiNode},
+    },
     widget_set,
     window::WINDOW,
 };
@@ -28,7 +32,7 @@ pub fn implicit_inherited() {
     let mut wgt = EmptyWgt! {
         id = expected;
     };
-    let actual = wgt.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()).expect("expected widget");
+    let actual = wgt.as_widget().expect("expected widget").id();
     assert_eq!(expected, actual);
 }
 
@@ -47,12 +51,12 @@ impl BarWgt {
     }
 }
 #[property(CONTEXT)]
-pub fn foo_trace(child: impl UiNode, trace: impl crate::var::IntoValue<&'static str>) -> impl UiNode {
+pub fn foo_trace(child: impl IntoUiNode, trace: impl crate::var::IntoValue<&'static str>) -> UiNode {
     util::trace(child, trace)
 }
 
 #[property(CONTEXT, widget_impl(BarWgt))]
-pub fn bar_trace(child: impl UiNode, trace: impl crate::var::IntoValue<&'static str>) -> impl UiNode {
+pub fn bar_trace(child: impl IntoUiNode, trace: impl crate::var::IntoValue<&'static str>) -> UiNode {
     util::trace(child, trace)
 }
 
@@ -211,12 +215,12 @@ pub fn wgt_child_property_init_order() {
 pub struct SameNestGroupOrderWgt(crate::widget::base::WidgetBase);
 
 #[property(BORDER)]
-pub fn border_a(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+pub fn border_a(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
     util::count_border(child, count)
 }
 
 #[property(BORDER)]
-pub fn border_b(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+pub fn border_b(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
     util::count_border(child, count)
 }
 
@@ -395,11 +399,11 @@ impl CfgPropertyWgt {
 }
 #[cfg(never)]
 #[property(CONTEXT)]
-pub fn never_trace(child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
+pub fn never_trace(child: impl IntoUiNode, trace: impl IntoValue<&'static str>) -> UiNode {
     util::trace(child, trace)
 }
 #[property(CONTEXT)]
-pub fn always_trace(child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
+pub fn always_trace(child: impl IntoUiNode, trace: impl IntoValue<&'static str>) -> UiNode {
     util::trace(child, trace)
 }
 
@@ -546,7 +550,7 @@ pub fn user_cfg_when() {
 #[widget($crate::tests::widget::PropertyNestGroupSortingWgt)]
 pub struct PropertyNestGroupSortingWgt(crate::widget::base::WidgetBase);
 impl PropertyNestGroupSortingWgt {}
-fn property_nest_group_sorting_init1() -> impl UiNode {
+fn property_nest_group_sorting_init1() -> UiNode {
     PropertyNestGroupSortingWgt! {
         util::count_border = Position::next("count_border");
         util::count_border2 = Position::next("count_border2");
@@ -597,7 +601,7 @@ pub fn property_nest_group_sorting_value_init1() {
         );
     });
 }
-fn property_nest_group_sorting_init2() -> impl UiNode {
+fn property_nest_group_sorting_init2() -> UiNode {
     PropertyNestGroupSortingWgt! {
         util::count_child_context = Position::next("count_child_context");
         util::count_child_context2 = Position::next("count_child_context2");
@@ -648,7 +652,7 @@ pub fn property_nest_group_sorting_value_init2() {
         );
     });
 }
-fn assert_node_order(wgt: &mut impl UiNode) {
+fn assert_node_order(wgt: &mut UiNode) {
     // assert that `UiNode::init` position is sorted by `child` and
     // property priorities, followed by the typed position.
     assert_eq!(
@@ -970,9 +974,9 @@ pub fn allowed_in_when_without_wgt_assign2() {
 */
 #[property(CONTEXT)]
 pub fn util_live_trace(
-    child: impl crate::widget::node::UiNode,
+    child: impl crate::widget::node::IntoUiNode,
     not_str: impl crate::var::IntoVar<bool>,
-) -> impl crate::widget::node::UiNode {
+) -> crate::widget::node::UiNode {
     let var = not_str.into_var().map(|&b| if b { "true" } else { "false" });
     util::live_trace(child, var)
 }
@@ -1098,11 +1102,11 @@ mod macro_rules_generated {
 
             #[property(CONTEXT, widget_impl($name))]
             pub fn margin(
-                child: impl $crate::widget::node::UiNode,
+                child: impl $crate::widget::node::IntoUiNode,
                 margin: impl $crate::var::IntoVar<SideOffsets>
-            ) -> impl $crate::widget::node::UiNode {
+            ) -> $crate::widget::node::UiNode {
                 let _ = margin;
-                child
+                child.into_node()
             }
         }
     }
@@ -1132,12 +1136,12 @@ pub mod util {
 
     use crate::widget::{
         WIDGET, WidgetUpdateMode,
-        node::{UiNode, UiNodeOp, match_node},
+        node::{IntoUiNode, UiNode, UiNodeOp, match_node},
     };
 
     /// Insert `trace` in the widget state. Can be probed using [`traced`].
     #[property(CONTEXT)]
-    pub fn trace(child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
+    pub fn trace(child: impl IntoUiNode, trace: impl IntoValue<&'static str>) -> UiNode {
         let trace = trace.into();
         match_node(child, move |child, op| {
             if let UiNodeOp::Init = op {
@@ -1150,11 +1154,10 @@ pub mod util {
     }
 
     /// Probe for a [`trace`] in the widget state.
-    pub fn traced(wgt: &mut impl UiNode, trace: &'static str) -> bool {
-        wgt.with_context(WidgetUpdateMode::Ignore, || {
+    pub fn traced(wgt: &mut UiNode, trace: &'static str) -> bool {
+        wgt.as_widget().expect("expected widget").with_context(WidgetUpdateMode::Ignore, || {
             WIDGET.with_state(|s| s.get(*TRACE_ID).map(|t| t.contains(trace)).unwrap_or_default())
-        })
-        .expect("expected widget")
+        })        
     }
 
     static_id! {
@@ -1163,84 +1166,84 @@ pub mod util {
 
     /// Insert `count` in the widget state. Can get using [`Count::get`].
     #[property(CONTEXT)]
-    pub fn count(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
 
     /// Same as [`count`] but in `CHILD_CONTEXT` group.
     #[property(CHILD_CONTEXT)]
-    pub fn count_child_context(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_child_context(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
     /// Same as [`count`] but in `CHILD_CONTEXT` group.
     #[property(CHILD_CONTEXT)]
-    pub fn count_child_context2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_child_context2(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
 
     /// Same as [`count`] but in `CHILD_LAYOUT` group.
     #[property(CHILD_LAYOUT)]
-    pub fn count_child_layout(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_child_layout(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
     /// Same as [`count`] but in `CHILD_LAYOUT` group.
     #[property(CHILD_LAYOUT)]
-    pub fn count_child_layout2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_child_layout2(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
 
     /// Same as [`count`] but in `BORDER` group.
     #[property(BORDER)]
-    pub fn count_border(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_border(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
     /// Same as [`count`] but in `BORDER` group.
     #[property(BORDER)]
-    pub fn count_border2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_border2(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
 
     /// Same as [`count`] but in `LAYOUT` group.
     #[property(LAYOUT)]
-    pub fn count_layout(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_layout(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
     /// Same as [`count`] but in `LAYOUT` group.
     #[property(LAYOUT)]
-    pub fn count_layout2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_layout2(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
 
     /// Same as [`count`] but in `CONTEXT` group.
     #[property(CONTEXT)]
-    pub fn count_context(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_context(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
     /// Same as [`count`] but in `CONTEXT` group.
     #[property(CONTEXT)]
-    pub fn count_context2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_context2(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
 
     /// Same as [`count`] but in `SIZE` group.
     #[property(SIZE)]
-    pub fn count_size(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_size(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
     /// Same as [`count`] but in `SIZE` group.
     #[property(SIZE)]
-    pub fn count_size2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_size2(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
 
     /// Same as [`count`] but in `EVENT` group.
     #[property(EVENT)]
-    pub fn count_event(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_event(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
     /// Same as [`count`] but in `EVENT` group.
     #[property(EVENT)]
-    pub fn count_event2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_event2(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         count_node(child, count)
     }
 
@@ -1279,9 +1282,9 @@ pub mod util {
     }
 
     /// Gets the [`Position`] tags sorted by call to [`Position::next`].
-    pub fn sorted_value_init(wgt: &mut impl UiNode) -> Vec<&'static str> {
+    pub fn sorted_value_init(wgt: &mut UiNode) -> Vec<&'static str> {
         let mut vec = vec![];
-        wgt.with_context(WidgetUpdateMode::Ignore, || {
+        wgt.as_widget().unwrap().with_context(WidgetUpdateMode::Ignore, || {
             if let Some(m) = WIDGET.get_state(*VALUE_POSITION_ID) {
                 for (key, value) in m {
                     vec.push((key, value));
@@ -1293,9 +1296,9 @@ pub mod util {
     }
 
     /// Gets the [`Position`] tags sorted by the [`UiNode::init` call.
-    pub fn sorted_node_init(wgt: &mut impl UiNode) -> Vec<&'static str> {
+    pub fn sorted_node_init(wgt: &mut UiNode) -> Vec<&'static str> {
         let mut vec = vec![];
-        wgt.with_context(WidgetUpdateMode::Ignore, || {
+        wgt.as_widget().unwrap().with_context(WidgetUpdateMode::Ignore, || {
             if let Some(m) = WIDGET.get_state(*NODE_POSITION_ID) {
                 for (key, value) in m {
                     vec.push((key, value));
@@ -1311,7 +1314,7 @@ pub mod util {
         static ref NODE_POSITION_ID: StateId<HashMap<&'static str, u32>>;
     }
 
-    fn count_node(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    fn count_node(child: impl IntoUiNode, count: impl IntoValue<Position>) -> UiNode {
         let value_pos = count.into();
         match_node(child, move |_, op| {
             if let UiNodeOp::Init = op {
@@ -1326,7 +1329,7 @@ pub mod util {
 
     /// Test state property, state can be set using [`set_state`] followed by updating.
     #[property(CONTEXT)]
-    pub fn is_state(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    pub fn is_state(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
         let state = state.into_var();
         match_node(child, move |child, op| {
             let update = match op {
@@ -1351,14 +1354,13 @@ pub mod util {
     /// Sets the [`is_state`] of a widget.
     ///
     /// Note only applies after update.
-    pub fn set_state(wgt: &mut impl UiNode, state: bool) {
-        wgt.with_context(WidgetUpdateMode::Ignore, || {
+    pub fn set_state(wgt: &mut UiNode, state: bool) {
+        wgt.as_widget().expect("expected widget").with_context(WidgetUpdateMode::Ignore, || {
             WIDGET.with_state_mut(|mut s| {
                 *s.entry(*IS_STATE_ID).or_default() = state;
             });
             WIDGET.update();
-        })
-        .expect("expected widget");
+        });
     }
 
     static_id! {
@@ -1367,7 +1369,7 @@ pub mod util {
 
     /// A [trace] that can update.
     #[property(CONTEXT)]
-    pub fn live_trace(child: impl UiNode, trace: impl IntoVar<&'static str>) -> impl UiNode {
+    pub fn live_trace(child: impl IntoUiNode, trace: impl IntoVar<&'static str>) -> UiNode {
         let trace = trace.into_var();
         match_node(child, move |child, op| match op {
             UiNodeOp::Init => {
@@ -1390,23 +1392,23 @@ pub mod util {
     }
     /// A [trace] that can update and has a default value of `"default-trace"`.
     #[property(CONTEXT, default("default-trace"))]
-    pub fn live_trace_default(child: impl UiNode, trace: impl IntoVar<&'static str>) -> impl UiNode {
+    pub fn live_trace_default(child: impl IntoUiNode, trace: impl IntoVar<&'static str>) -> UiNode {
         live_trace(child, trace)
     }
 
     /// A capture_only property.
     #[property(CONTEXT)]
     #[expect(unreachable_code)]
-    pub fn capture_only_trace(_child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
+    pub fn capture_only_trace(_child: impl IntoUiNode, trace: impl IntoValue<&'static str>) -> UiNode {
         let _ = trace;
         panic!("capture-only property");
-        _child
+        _child.into_node()
     }
 
     #[property(CONTEXT)]
-    pub fn duo_members(child: impl UiNode, member_a: impl IntoVar<&'static str>, member_b: impl IntoVar<&'static str>) -> impl UiNode {
+    pub fn duo_members(child: impl IntoUiNode, member_a: impl IntoVar<&'static str>, member_b: impl IntoVar<&'static str>) -> UiNode {
         let _ = member_a;
         let _ = member_b;
-        child
+        child.into_node()
     }
 }

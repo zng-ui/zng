@@ -15,7 +15,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! fn undo_combo(op: zng::undo::UndoOp) -> impl UiNode {
+//! fn undo_combo(op: zng::undo::UndoOp) -> UiNode {
 //!     let cmd = op.cmd().undo_scoped();
 //!
 //!     Toggle! {

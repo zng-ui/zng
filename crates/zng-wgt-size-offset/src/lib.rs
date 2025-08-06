@@ -19,7 +19,7 @@ use zng_wgt::prelude::*;
 ///
 /// You can use the [`x`](fn@x) and [`y`](fn@y) properties to only set the position in one dimension.
 #[property(LAYOUT, default((0, 0)))]
-pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
+pub fn offset(child: impl IntoUiNode, offset: impl IntoVar<Vector>) -> UiNode {
     let offset = offset.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -45,7 +45,7 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
 ///
 /// You can set both `x` and `y` at the same time using the [`offset`](fn@offset) property.
 #[property(LAYOUT, default(0))]
-pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
+pub fn x(child: impl IntoUiNode, x: impl IntoVar<Length>) -> UiNode {
     let x = x.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -70,7 +70,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// You can set both `x` and `y` at the same time using the [`offset`](fn@offset) property.
 #[property(LAYOUT, default(0))]
-pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
+pub fn y(child: impl IntoUiNode, y: impl IntoVar<Length>) -> UiNode {
     let y = y.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -103,7 +103,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 /// You can use the [`min_width`](fn@min_width) and [`min_height`](fn@min_height) properties to only
 /// set the minimum size of one dimension.
 #[property(SIZE-2, default((0, 0)))]
-pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode {
+pub fn min_size(child: impl IntoUiNode, min_size: impl IntoVar<Size>) -> UiNode {
     let min_size = min_size.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -139,7 +139,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 ///
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
 #[property(SIZE-2, default(0))]
-pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl UiNode {
+pub fn min_width(child: impl IntoUiNode, min_width: impl IntoVar<Length>) -> UiNode {
     let min_width = min_width.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -177,7 +177,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 ///
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
 #[property(SIZE-2, default(0))]
-pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl UiNode {
+pub fn min_height(child: impl IntoUiNode, min_height: impl IntoVar<Length>) -> UiNode {
     let min_height = min_height.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -216,7 +216,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 /// You can use the [`max_width`](fn@max_width) and [`max_height`](fn@max_height) properties to only
 /// set the maximum size of one dimension.
 #[property(SIZE-1,  default(PxSize::splat(Px::MAX)))]
-pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode {
+pub fn max_size(child: impl IntoUiNode, max_size: impl IntoVar<Size>) -> UiNode {
     let max_size = max_size.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -253,7 +253,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 ///
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
 #[property(SIZE-1, default(Px::MAX))]
-pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl UiNode {
+pub fn max_width(child: impl IntoUiNode, max_width: impl IntoVar<Length>) -> UiNode {
     let max_width = max_width.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -295,7 +295,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 ///
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
 #[property(SIZE-1, default(Px::MAX))]
-pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl UiNode {
+pub fn max_height(child: impl IntoUiNode, max_height: impl IntoVar<Length>) -> UiNode {
     let max_height = max_height.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -344,7 +344,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// [`force_size`]: fn@force_size
 /// [`align`]: fn@zng_wgt::align
 #[property(SIZE, default(Size::default()))]
-pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+pub fn size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
     let size = size.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -361,7 +361,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
-            wm.measure_block(&mut NilUiNode); // no need to actually measure child
+            wm.measure_block(&mut UiNode::nil()); // no need to actually measure child
 
             let parent_constraints = LAYOUT.constraints();
 
@@ -400,7 +400,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 /// [`max_width`]: fn@max_width
 /// [`force_width`]: fn@force_width
 #[property(SIZE, default(Length::Default))]
-pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
+pub fn width(child: impl IntoUiNode, width: impl IntoVar<Length>) -> UiNode {
     let width = width.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -455,7 +455,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 /// [`max_height`]: fn@max_height
 /// [`force_height`]: fn@force_height
 #[property(SIZE, default(Length::Default))]
-pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
+pub fn height(child: impl IntoUiNode, height: impl IntoVar<Length>) -> UiNode {
     let height = height.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -508,7 +508,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
 /// [`force_width`]: fn@force_width
 /// [`force_height`]: fn@force_height
 #[property(SIZE, default(Size::default()))]
-pub fn force_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+pub fn force_size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
     let size = size.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -527,7 +527,7 @@ pub fn force_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
             child.delegated();
             let c = LAYOUT.constraints().with_new_min(Px(0), Px(0)).with_fill(false, false);
             let size = with_fill_metrics(c, |d| size.layout_dft(d));
-            wm.measure_block(&mut NilUiNode);
+            wm.measure_block(&mut UiNode::nil());
             *desired_size = Align::TOP_LEFT.measure(size, c);
         }
         UiNodeOp::Layout { wl, final_size } => {
@@ -552,7 +552,7 @@ pub fn force_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 ///
 /// You can set both `force_width` and `force_height` at the same time using the [`force_size`](fn@force_size) property.
 #[property(SIZE, default(Length::Default))]
-pub fn force_width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
+pub fn force_width(child: impl IntoUiNode, width: impl IntoVar<Length>) -> UiNode {
     let width = width.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -599,7 +599,7 @@ pub fn force_width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNo
 ///
 /// You can set both `force_width` and `force_height` at the same time using the [`force_size`](fn@force_size) property.
 #[property(SIZE, default(Length::Default))]
-pub fn force_height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
+pub fn force_height(child: impl IntoUiNode, height: impl IntoVar<Length>) -> UiNode {
     let height = height.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -647,7 +647,7 @@ fn with_fill_metrics<R>(c: PxConstraints2d, f: impl FnOnce(PxSize) -> R) -> R {
 ///
 /// Relative values are computed from the widget's height.
 #[property(BORDER, default(Length::Default))]
-pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNode {
+pub fn baseline(child: impl IntoUiNode, baseline: impl IntoVar<Length>) -> UiNode {
     let baseline = baseline.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -676,7 +676,7 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
 ///
 /// This property disables inline layout for the widget.
 #[property(SIZE, default(false))]
-pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
+pub fn sticky_width(child: impl IntoUiNode, sticky: impl IntoVar<bool>) -> UiNode {
     let sticky = sticky.into_var();
     let mut sticky_after_layout = false;
     match_node(child, move |child, op| match op {
@@ -720,7 +720,7 @@ pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNo
 ///
 /// This property disables inline layout for the widget.
 #[property(SIZE, default(false))]
-pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
+pub fn sticky_height(child: impl IntoUiNode, sticky: impl IntoVar<bool>) -> UiNode {
     let sticky = sticky.into_var();
     let mut sticky_after_layout = false;
     match_node(child, move |child, op| match op {
@@ -764,7 +764,7 @@ pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiN
 ///
 /// This property disables inline layout for the widget.
 #[property(SIZE, default(false))]
-pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
+pub fn sticky_size(child: impl IntoUiNode, sticky: impl IntoVar<bool>) -> UiNode {
     let sticky = sticky.into_var();
     let mut sticky_after_layout = false;
     match_node(child, move |child, op| match op {
@@ -852,8 +852,11 @@ impl WIDGET_SIZE {
     }
 
     /// Get the size set in the widget state.
-    pub fn get_wgt(&self, wgt: &mut impl UiNode) -> euclid::Size2D<WidgetLength, ()> {
-        wgt.with_context(WidgetUpdateMode::Ignore, || self.get()).unwrap_or_default()
+    pub fn get_wgt(&self, wgt: &mut UiNode) -> euclid::Size2D<WidgetLength, ()> {
+        match wgt.as_widget() {
+            Some(mut wgt) => wgt.with_context(WidgetUpdateMode::Ignore, || self.get()),
+            None => Default::default()
+        }
     }
 }
 
@@ -863,7 +866,7 @@ static_id! {
 
 /// Getter property, gets the latest rendered widget inner size.
 #[property(LAYOUT)]
-pub fn actual_size(child: impl UiNode, size: impl IntoVar<DipSize>) -> impl UiNode {
+pub fn actual_size(child: impl IntoUiNode, size: impl IntoVar<DipSize>) -> UiNode {
     let size = size.into_var();
     match_node(child, move |c, op| match op {
         UiNodeOp::Render { frame } => {
@@ -891,7 +894,7 @@ pub fn actual_size(child: impl UiNode, size: impl IntoVar<DipSize>) -> impl UiNo
 
 /// Getter property, gets the latest rendered widget inner width.
 #[property(LAYOUT)]
-pub fn actual_width(child: impl UiNode, width: impl IntoVar<Dip>) -> impl UiNode {
+pub fn actual_width(child: impl IntoUiNode, width: impl IntoVar<Dip>) -> UiNode {
     let width = width.into_var();
     match_node(child, move |c, op| match op {
         UiNodeOp::Render { frame } => {
@@ -919,7 +922,7 @@ pub fn actual_width(child: impl UiNode, width: impl IntoVar<Dip>) -> impl UiNode
 
 /// Getter property, gets the latest rendered widget inner height.
 #[property(LAYOUT)]
-pub fn actual_height(child: impl UiNode, height: impl IntoVar<Dip>) -> impl UiNode {
+pub fn actual_height(child: impl IntoUiNode, height: impl IntoVar<Dip>) -> UiNode {
     let height = height.into_var();
     match_node(child, move |c, op| match op {
         UiNodeOp::Render { frame } => {
@@ -947,7 +950,7 @@ pub fn actual_height(child: impl UiNode, height: impl IntoVar<Dip>) -> impl UiNo
 
 /// Getter property, gets the latest rendered widget inner size, in device pixels.
 #[property(LAYOUT)]
-pub fn actual_size_px(child: impl UiNode, size: impl IntoVar<PxSize>) -> impl UiNode {
+pub fn actual_size_px(child: impl IntoUiNode, size: impl IntoVar<PxSize>) -> UiNode {
     let size = size.into_var();
     match_node(child, move |c, op| match &op {
         UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
@@ -964,7 +967,7 @@ pub fn actual_size_px(child: impl UiNode, size: impl IntoVar<PxSize>) -> impl Ui
 
 /// Getter property, gets the latest rendered widget inner width, in device pixels.
 #[property(LAYOUT)]
-pub fn actual_width_px(child: impl UiNode, width: impl IntoVar<Px>) -> impl UiNode {
+pub fn actual_width_px(child: impl IntoUiNode, width: impl IntoVar<Px>) -> UiNode {
     let width = width.into_var();
     match_node(child, move |c, op| match &op {
         UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
@@ -980,7 +983,7 @@ pub fn actual_width_px(child: impl UiNode, width: impl IntoVar<Px>) -> impl UiNo
 
 /// Getter property, gets the latest rendered widget inner height, in device pixels.
 #[property(LAYOUT)]
-pub fn actual_height_px(child: impl UiNode, height: impl IntoVar<Px>) -> impl UiNode {
+pub fn actual_height_px(child: impl IntoUiNode, height: impl IntoVar<Px>) -> UiNode {
     let height = height.into_var();
     match_node(child, move |c, op| match &op {
         UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
@@ -996,7 +999,7 @@ pub fn actual_height_px(child: impl UiNode, height: impl IntoVar<Px>) -> impl Ui
 
 /// Getter property, gets the latest rendered widget inner transform.
 #[property(LAYOUT)]
-pub fn actual_transform(child: impl UiNode, transform: impl IntoVar<PxTransform>) -> impl UiNode {
+pub fn actual_transform(child: impl IntoUiNode, transform: impl IntoVar<PxTransform>) -> UiNode {
     let transform = transform.into_var();
     match_node(child, move |c, op| match &op {
         UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
@@ -1012,7 +1015,7 @@ pub fn actual_transform(child: impl UiNode, transform: impl IntoVar<PxTransform>
 
 /// Getter property, gets the latest rendered widget inner bounds in the window space.
 #[property(LAYOUT)]
-pub fn actual_bounds(child: impl UiNode, bounds: impl IntoVar<PxRect>) -> impl UiNode {
+pub fn actual_bounds(child: impl IntoUiNode, bounds: impl IntoVar<PxRect>) -> UiNode {
     let bounds = bounds.into_var();
     match_node(child, move |c, op| match &op {
         UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {

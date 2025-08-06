@@ -169,11 +169,11 @@ fn on_build(wgt: &mut WidgetBuilding) {
 }
 
 fn scroll_node(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     mode: impl IntoVar<ScrollMode>,
     child_align: impl IntoVar<Align>,
     clip_to_viewport: impl IntoVar<bool>,
-) -> impl UiNode {
+) -> UiNode {
     // # Layout
     //
     // +-----------------+---+

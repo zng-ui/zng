@@ -568,13 +568,13 @@ bitflags! {
 /// This node can be used to reserve space for a full text in lazy initing contexts.
 ///
 /// The contextual variables affect the layout size.
-pub fn line_placeholder(width: impl IntoVar<Length>) -> impl UiNode {
+pub fn line_placeholder(width: impl IntoVar<Length>) -> UiNode {
     let child = layout_text(FillUiNode);
     let child = resolve_text(child, " ");
     zng_wgt_size_offset::width(child, width)
 }
 
-pub(super) fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<CaretIndex>>) -> impl UiNode {
+pub(super) fn get_caret_index(child: impl IntoUiNode, index: impl IntoVar<Option<CaretIndex>>) -> UiNode {
     let index = index.into_var();
     match_node(child, move |c, op| {
         let mut u = false;
@@ -606,7 +606,7 @@ pub(super) fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<Car
     })
 }
 
-pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretStatus>) -> impl UiNode {
+pub(super) fn get_caret_status(child: impl IntoUiNode, status: impl IntoVar<CaretStatus>) -> UiNode {
     let status = status.into_var();
     match_node(child, move |c, op| {
         let mut u = false;
@@ -645,7 +645,7 @@ pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretSta
     })
 }
 
-pub(super) fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> impl UiNode {
+pub(super) fn get_lines_len(child: impl IntoUiNode, len: impl IntoVar<usize>) -> UiNode {
     let len = len.into_var();
     match_node(child, move |c, op| match op {
         UiNodeOp::Deinit => {
@@ -663,7 +663,7 @@ pub(super) fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> imp
     })
 }
 
-pub(super) fn get_lines_wrap_count(child: impl UiNode, lines: impl IntoVar<super::LinesWrapCount>) -> impl UiNode {
+pub(super) fn get_lines_wrap_count(child: impl IntoUiNode, lines: impl IntoVar<super::LinesWrapCount>) -> UiNode {
     let lines = lines.into_var();
     let mut version = 0;
     match_node(child, move |c, op| match op {
@@ -777,7 +777,7 @@ fn lines_wrap_counter(txt: &ShapedText) -> impl Iterator<Item = u32> + '_ {
     }
 }
 
-pub(super) fn parse_text<T>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode
+pub(super) fn parse_text<T>(child: impl IntoUiNode, value: impl IntoVar<T>) -> impl UiNode
 where
     T: super::TxtParseValue,
 {
@@ -904,7 +904,7 @@ where
     })
 }
 
-pub(super) fn on_change_stop(child: impl UiNode, mut handler: impl WidgetHandler<ChangeStopArgs>) -> impl UiNode {
+pub(super) fn on_change_stop(child: impl IntoUiNode, mut handler: impl WidgetHandler<ChangeStopArgs>) -> UiNode {
     let mut pending = None;
     match_node(child, move |c, op| match op {
         UiNodeOp::Event { update } => {
@@ -955,7 +955,7 @@ pub(super) fn on_change_stop(child: impl UiNode, mut handler: impl WidgetHandler
 }
 
 /// Implements the selection toolbar.
-pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
+pub fn selection_toolbar_node(child: impl IntoUiNode) -> UiNode {
     use super::node::*;
 
     let mut selection_range = None;

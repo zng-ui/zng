@@ -42,7 +42,7 @@ event_property! {
 /// [`Subtree`]: CaptureMode::Subtree
 /// [`Window`]: CaptureMode::Window
 #[property(CONTEXT, default(false))]
-pub fn capture_pointer(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> impl UiNode {
+pub fn capture_pointer(child: impl IntoUiNode, mode: impl IntoVar<CaptureMode>) -> UiNode {
     let mode = mode.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -103,7 +103,7 @@ pub fn capture_pointer(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> i
 /// [`Subtree`]: CaptureMode::Subtree
 /// [`Window`]: CaptureMode::Window
 #[property(CONTEXT, default(false))]
-pub fn capture_pointer_on_init(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> impl UiNode {
+pub fn capture_pointer_on_init(child: impl IntoUiNode, mode: impl IntoVar<CaptureMode>) -> UiNode {
     let mode = mode.into_var();
     let mut capture = true;
 

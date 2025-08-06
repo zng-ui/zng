@@ -84,7 +84,7 @@ impl Markdown {
 }
 
 /// Implements the markdown parsing and view generation, configured by contextual properties.
-pub fn markdown_node(md: impl IntoVar<Txt>) -> impl UiNode {
+pub fn markdown_node(md: impl IntoVar<Txt>) -> UiNode {
     let md = md.into_var();
     match_node(NilUiNode.boxed(), move |c, op| match op {
         UiNodeOp::Init => {

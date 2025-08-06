@@ -35,7 +35,7 @@ pub fn run() {
     // to use, with the trade-off that you have less control over the headless window.
 }
 
-fn logo() -> impl UiNode {
+fn logo() -> UiNode {
     let logo = Container! {
         layout::size = 200;
         layout::perspective = 500;

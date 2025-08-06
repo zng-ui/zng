@@ -8,7 +8,7 @@ use crate::prelude::*;
 ///
 /// [`corner_radius`]: fn@crate::corner_radius
 #[property(FILL, default(false))]
-pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {
+pub fn clip_to_bounds(child: impl IntoUiNode, clip: impl IntoVar<bool>) -> UiNode {
     let clip = clip.into_var();
     let mut corners = PxCornerRadius::zero();
 

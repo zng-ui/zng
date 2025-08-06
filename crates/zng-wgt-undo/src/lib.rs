@@ -22,7 +22,7 @@ use zng_wgt::prelude::*;
 /// [`UNDO_CMD`]: static@zng_ext_undo::UNDO_CMD
 /// [`REDO_CMD`]: static@zng_ext_undo::REDO_CMD
 #[property(CONTEXT - 10, default(false))]
-pub fn undo_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
+pub fn undo_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> UiNode {
     let mut scope = WidgetUndoScope::new();
     let mut undo_cmd = CommandHandle::dummy();
     let mut redo_cmd = CommandHandle::dummy();
@@ -141,7 +141,7 @@ pub fn undo_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNo
 
 /// Enable or disable undo inside the widget.
 #[property(CONTEXT, default(true))]
-pub fn undo_enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn undo_enabled(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
     match_node(child, move |c, op| {
         if !enabled.get() {
@@ -156,7 +156,7 @@ pub fn undo_enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiN
 ///
 /// [`UNDO_LIMIT_VAR`]: zng_ext_undo::UNDO_LIMIT_VAR
 #[property(CONTEXT - 11, default(UNDO_LIMIT_VAR))]
-pub fn undo_limit(child: impl UiNode, max: impl IntoVar<u32>) -> impl UiNode {
+pub fn undo_limit(child: impl IntoUiNode, max: impl IntoVar<u32>) -> UiNode {
     with_context_var(child, UNDO_LIMIT_VAR, max)
 }
 
@@ -169,7 +169,7 @@ pub fn undo_limit(child: impl UiNode, max: impl IntoVar<u32>) -> impl UiNode {
 ///
 /// [`UNDO_INTERVAL_VAR`]: zng_ext_undo::UNDO_INTERVAL_VAR
 #[property(CONTEXT - 11, default(UNDO_INTERVAL_VAR))]
-pub fn undo_interval(child: impl UiNode, interval: impl IntoVar<Duration>) -> impl UiNode {
+pub fn undo_interval(child: impl IntoUiNode, interval: impl IntoVar<Duration>) -> UiNode {
     with_context_var(child, UNDO_INTERVAL_VAR, interval)
 }
 

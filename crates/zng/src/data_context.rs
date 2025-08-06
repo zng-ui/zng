@@ -28,7 +28,7 @@
 //!         }
 //!     }
 //!
-//!     fn content() -> impl UiNode {
+//!     fn content() -> UiNode {
 //!         // `req` panics if context is not set to the same type.
 //!         let vm = DATA.req::<ViewModel>();
 //!         Container! {

@@ -66,7 +66,7 @@ impl DefaultStyle {
 ///
 /// If this is set focusable is disabled on the label widget.
 #[property(CONTEXT, widget_impl(Label))]
-pub fn target(child: impl UiNode, target: impl IntoVar<WidgetId>) -> impl UiNode {
+pub fn target(child: impl IntoUiNode, target: impl IntoVar<WidgetId>) -> UiNode {
     let target = target.into_var();
     let mut prev_target = None::<WidgetId>;
 

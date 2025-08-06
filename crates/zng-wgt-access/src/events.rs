@@ -70,27 +70,27 @@ event_property! {
     }
 }
 
-fn access_click(child: impl UiNode, _: bool) -> impl UiNode {
+fn access_click(child: impl IntoUiNode, _: bool) -> UiNode {
     access_capable(child, AccessCmdName::Click)
 }
 
-fn access_expander(child: impl UiNode, _: bool) -> impl UiNode {
+fn access_expander(child: impl IntoUiNode, _: bool) -> UiNode {
     access_capable(child, AccessCmdName::SetExpanded)
 }
 
-fn access_increment(child: impl UiNode, _: bool) -> impl UiNode {
+fn access_increment(child: impl IntoUiNode, _: bool) -> UiNode {
     access_capable(child, AccessCmdName::Increment)
 }
 
-fn access_tooltip(child: impl UiNode, _: bool) -> impl UiNode {
+fn access_tooltip(child: impl IntoUiNode, _: bool) -> UiNode {
     access_capable(child, AccessCmdName::SetToolTipVis)
 }
 
-fn access_scroll(child: impl UiNode, _: bool) -> impl UiNode {
+fn access_scroll(child: impl IntoUiNode, _: bool) -> UiNode {
     access_capable(child, AccessCmdName::Scroll)
 }
 
-fn access_text(child: impl UiNode, _: bool) -> impl UiNode {
+fn access_text(child: impl IntoUiNode, _: bool) -> UiNode {
     match_node(child, move |_, op| {
         if let UiNodeOp::Info { info } = op {
             if let Some(mut access) = info.access() {
@@ -101,15 +101,15 @@ fn access_text(child: impl UiNode, _: bool) -> impl UiNode {
     })
 }
 
-fn access_number(child: impl UiNode, _: bool) -> impl UiNode {
+fn access_number(child: impl IntoUiNode, _: bool) -> UiNode {
     access_capable(child, AccessCmdName::SetNumber)
 }
 
-fn access_selection(child: impl UiNode, _: bool) -> impl UiNode {
+fn access_selection(child: impl IntoUiNode, _: bool) -> UiNode {
     access_capable(child, AccessCmdName::SelectText)
 }
 
-fn access_capable(child: impl UiNode, cmd: AccessCmdName) -> impl UiNode {
+fn access_capable(child: impl IntoUiNode, cmd: AccessCmdName) -> UiNode {
     match_node(child, move |_, op| {
         if let UiNodeOp::Info { info } = op {
             if let Some(mut access) = info.access() {

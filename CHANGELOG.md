@@ -1,13 +1,38 @@
 # Unreleased
 
+* **Breaking** Refactor `zng::widget::node` API.
+
+    Unified UI node (and list) types into a new `UiNode` struct, most node types are implemented using `match_node` and not affected,
+    custom node types now must implement `UiNodeImpl`, it is a simplified version of the previous API. The main motivation
+    for this refactor is reduction of generics code bloat, the usage of `-> impl UiNode` scales extremely bad as the anonymous
+    node type is monomorphised for each generic input, this combined with node nesting causes an explosion of code copies.
+
+    To migrate UiNode:
+
+    - Replace output `-> impl UiNode` with just `UiNode`.
+    - Replace input `_: impl UiNode` with `_: impl IntoUiNode`.
+    - Replace `NilUiNode` with `UiNode::nil()`.
+    - Custom nodes now must implement `UiNodeImpl`.
+    - Replace `#[ui_node]` impls with manual impl of `UiNodeImpl`. The proc-macro attribute was removed, the new 
+      `UiNodeImpl` provides default impls for methods.
+
+    To migrate UiNodeList:
+
+    - Replace output `-> impl UiNodeList` with just `UiNode`.
+    - Replace input `_: impl UiNodeList` with `_: impl IntoUiNode`.
+    - Replace `EditableUiNodeList` with `EditableUiVec`.
+
+    UI nodes and lists are the same thing now, panel widgets use `UiNode::is_list` to distinguish, normal nodes are layout and rendered
+    as a list with a single item. You can also set lists directly on single child widgets, the multiple nodes will be Z-stacked.
+
 * Fix `accepts_enter` and `accepts_tag` in text editor widgets. 
 * Fix zero sized gradients causing render panic.
 
-* **Breaking** refactor `zng::var` API.
+* **Breaking** Refactor `zng::var` API.
     
     Unified var types to new `Var<T>` and `AnyVar` structs. Variables still behave the same 
     and everything that could be done before can still be done with the new API. The main motivation
-    for this refactor is the reduction of generics code bloat, and since a breaking change is already happening
+    for this refactor is reduction of generics code bloat, and since a breaking change is already happening
     some poorly named methods and functions where also renamed.
 
     To migrate:

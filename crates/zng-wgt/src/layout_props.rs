@@ -11,7 +11,7 @@ use crate::prelude::*;
 ///
 /// This property disables inline layout for the widget.
 #[property(LAYOUT, default(0))]
-pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
+pub fn margin(child: impl IntoUiNode, margin: impl IntoVar<SideOffsets>) -> UiNode {
     let margin = margin.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -20,7 +20,8 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
         UiNodeOp::Measure { wm, desired_size } => {
             let margin = margin.layout();
             let size_increment = PxSize::new(margin.horizontal(), margin.vertical());
-            *desired_size = LAYOUT.with_constraints(LAYOUT.constraints().with_less_size(size_increment), || wm.measure_block(child));
+            *desired_size = LAYOUT.with_constraints(LAYOUT.constraints().with_less_size(size_increment), || wm.measure_block(child.child()));
+            child.delegated();
             desired_size.width += size_increment.width;
             desired_size.height += size_increment.height;
         }
@@ -48,7 +49,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
 ///
 ///  [`Align`]: zng_layout::unit::Align
 #[property(LAYOUT, default(Align::FILL))]
-pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode {
+pub fn align(child: impl IntoUiNode, alignment: impl IntoVar<Align>) -> UiNode {
     let alignment = alignment.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -56,7 +57,8 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let align = alignment.get();
-            let child_size = LAYOUT.with_constraints(align.child_constraints(LAYOUT.constraints()), || wm.measure_block(child));
+            let child_size = LAYOUT.with_constraints(align.child_constraints(LAYOUT.constraints()), || wm.measure_block(child.child()));
+            child.delegated();
             *desired_size = align.measure(child_size, LAYOUT.constraints());
         }
         UiNodeOp::Layout { wl, final_size } => {
@@ -79,7 +81,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
 ///
 /// [`DIRECTION_VAR`]: zng_layout::context::DIRECTION_VAR
 #[property(LAYOUT)]
-pub fn is_rtl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_rtl(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state(child, DIRECTION_VAR.map(|s| s.is_rtl()), state)
 }
 
@@ -89,7 +91,7 @@ pub fn is_rtl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 ///
 /// [`DIRECTION_VAR`]: zng_layout::context::DIRECTION_VAR
 #[property(LAYOUT)]
-pub fn is_ltr(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_ltr(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state(child, DIRECTION_VAR.map(|s| s.is_ltr()), state)
 }
 
@@ -141,7 +143,7 @@ impl_from_and_into_var! {
 ///
 /// See [`InlineMode`] for more details.
 #[property(WIDGET, default(InlineMode::Allow))]
-pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode {
+pub fn inline(child: impl IntoUiNode, mode: impl IntoVar<InlineMode>) -> UiNode {
     let mode = mode.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -161,7 +163,8 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
                 }
                 InlineMode::Block => {
                     // disable inline, method also disables in `WidgetMeasure`
-                    wm.measure_block(child)
+                    child.delegated();
+                    wm.measure_block(child.child())
                 }
             };
         }
@@ -180,7 +183,8 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
                 InlineMode::Block => {
                     if wl.inline().is_some() {
                         tracing::error!("inline enabled in `layout` when it signaled disabled in the previous `measure`");
-                        wl.layout_block(child)
+                        child.delegated();
+                        wl.layout_block(child.child())
                     } else {
                         child.layout(wl)
                     }
@@ -202,12 +206,12 @@ context_var! {
 ///
 /// This property sets the [`IS_MOBILE_VAR`].
 #[property(CONTEXT, default(IS_MOBILE_VAR))]
-pub fn force_mobile(child: impl UiNode, is_mobile: impl IntoVar<bool>) -> impl UiNode {
+pub fn force_mobile(child: impl IntoUiNode, is_mobile: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, IS_MOBILE_VAR, is_mobile)
 }
 
 /// Gets the [`IS_MOBILE_VAR`] that indicates the window or widget should use mobile UI themes.
 #[property(EVENT)]
-pub fn is_mobile(child: impl UiNode, is_mobile: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_mobile(child: impl IntoUiNode, is_mobile: impl IntoVar<bool>) -> UiNode {
     zng_wgt::node::bind_state(child, IS_MOBILE_VAR, is_mobile)
 }

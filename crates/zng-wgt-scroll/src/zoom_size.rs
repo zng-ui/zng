@@ -6,7 +6,7 @@ use crate::SCROLL_SCALE_VAR;
 ///
 /// This property disables inline layout for the widget.
 #[property(SIZE+1, default(false))]
-pub fn zoom_size_only(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn zoom_size_only(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
     let mut scale = 1.fct();
     let mut _zoom_sub = VarHandle::dummy();

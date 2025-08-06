@@ -161,7 +161,7 @@ pub fn txt(txt: impl IntoVar<Txt>) {}
 /// [`has_data_error`]: fn@zng_wgt_data::has_data_error
 /// [`get_data_error_txt`]: fn@zng_wgt_data::get_data_error_txt
 #[property(CHILD, widget_impl(Text))]
-pub fn txt_parse<T>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode
+pub fn txt_parse<T>(child: impl IntoUiNode, value: impl IntoVar<T>) -> impl UiNode
 where
     T: TxtParseValue,
 {

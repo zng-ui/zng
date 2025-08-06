@@ -127,7 +127,7 @@ pub fn node(
     auto_grow_fn: impl IntoVar<WidgetFn<AutoGrowFnArgs>>,
     auto_grow_mode: impl IntoVar<AutoGrowMode>,
     spacing: impl IntoVar<GridSpacing>,
-) -> impl UiNode {
+) -> UiNode {
     let auto_columns: Vec<BoxedUiNode> = vec![];
     let auto_rows: Vec<BoxedUiNode> = vec![];
     let children = vec![
@@ -504,7 +504,7 @@ pub mod column {
     ///
     /// [`is_odd`]: fn@is_odd
     #[property(CONTEXT, widget_impl(Column))]
-    pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    pub fn is_even(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
         widget_state_is_state(child, |w| w.get(*INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 == 0, |_| false, state)
     }
 
@@ -514,13 +514,13 @@ pub mod column {
     ///
     /// [`is_even`]: fn@is_even
     #[property(CONTEXT, widget_impl(Column))]
-    pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    pub fn is_odd(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
         widget_state_is_state(child, |w| w.get(*INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 != 0, |_| false, state)
     }
 
     /// If the column is the first.
     #[property(CONTEXT, widget_impl(Column))]
-    pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    pub fn is_first(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
         widget_state_is_state(
             child,
             |w| {
@@ -534,7 +534,7 @@ pub mod column {
 
     /// If the column is the last.
     #[property(CONTEXT, widget_impl(Column))]
-    pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    pub fn is_last(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
         widget_state_is_state(
             child,
             |w| {
@@ -550,7 +550,7 @@ pub mod column {
     ///
     /// The column index is zero-based.
     #[property(CONTEXT, widget_impl(Column))]
-    pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+    pub fn get_index(child: impl IntoUiNode, state: impl IntoVar<usize>) -> UiNode {
         widget_state_get_state(
             child,
             |w, &i| {
@@ -564,7 +564,7 @@ pub mod column {
 
     /// Get the column index and number of columns.
     #[property(CONTEXT, widget_impl(Column))]
-    pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
+    pub fn get_index_len(child: impl IntoUiNode, state: impl IntoVar<(usize, usize)>) -> UiNode {
         widget_state_get_state(
             child,
             |w, &i| {
@@ -578,7 +578,7 @@ pub mod column {
 
     /// Get the column index, starting from the last column at `0`.
     #[property(CONTEXT, widget_impl(Column))]
-    pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+    pub fn get_rev_index(child: impl IntoUiNode, state: impl IntoVar<usize>) -> UiNode {
         widget_state_get_state(
             child,
             |w, &i| {
@@ -647,7 +647,7 @@ pub mod row {
     ///
     /// [`is_odd`]: fn@is_odd
     #[property(CONTEXT, widget_impl(Row))]
-    pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    pub fn is_even(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
         widget_state_is_state(child, |w| w.get(*INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 == 0, |_| false, state)
     }
 
@@ -657,13 +657,13 @@ pub mod row {
     ///
     /// [`is_even`]: fn@is_even
     #[property(CONTEXT, widget_impl(Row))]
-    pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    pub fn is_odd(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
         widget_state_is_state(child, |w| w.get(*INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 != 0, |_| false, state)
     }
 
     /// If the row is the first.
     #[property(CONTEXT, widget_impl(Row))]
-    pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    pub fn is_first(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
         widget_state_is_state(
             child,
             |w| {
@@ -677,7 +677,7 @@ pub mod row {
 
     /// If the row is the last.
     #[property(CONTEXT, widget_impl(Row))]
-    pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    pub fn is_last(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
         widget_state_is_state(
             child,
             |w| {
@@ -693,7 +693,7 @@ pub mod row {
     ///
     /// The row index is zero-based.
     #[property(CONTEXT, widget_impl(Row))]
-    pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+    pub fn get_index(child: impl IntoUiNode, state: impl IntoVar<usize>) -> UiNode {
         widget_state_get_state(
             child,
             |w, &i| {
@@ -707,7 +707,7 @@ pub mod row {
 
     /// Get the row index and number of rows.
     #[property(CONTEXT, widget_impl(Row))]
-    pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
+    pub fn get_index_len(child: impl IntoUiNode, state: impl IntoVar<(usize, usize)>) -> UiNode {
         widget_state_get_state(
             child,
             |w, &i| {
@@ -721,7 +721,7 @@ pub mod row {
 
     /// Get the row index, starting from the last row at `0`.
     #[property(CONTEXT, widget_impl(Row))]
-    pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+    pub fn get_rev_index(child: impl IntoUiNode, state: impl IntoVar<usize>) -> UiNode {
         widget_state_get_state(
             child,
             |w, &i| {
@@ -842,7 +842,7 @@ pub mod cell {
     ///
     /// [`at`]: fn@at
     #[property(CONTEXT, default(0), widget_impl(Cell))]
-    pub fn column(child: impl UiNode, col: impl IntoVar<usize>) -> impl UiNode {
+    pub fn column(child: impl IntoUiNode, col: impl IntoVar<usize>) -> UiNode {
         with_widget_state_modify(child, *INFO_ID, col, CellInfo::default, |i, &c| {
             if i.column != c {
                 i.column = c;
@@ -863,7 +863,7 @@ pub mod cell {
     ///
     /// [`at`]: fn@at
     #[property(CONTEXT, default(0), widget_impl(Cell))]
-    pub fn row(child: impl UiNode, row: impl IntoVar<usize>) -> impl UiNode {
+    pub fn row(child: impl IntoUiNode, row: impl IntoVar<usize>) -> UiNode {
         with_widget_state_modify(child, *INFO_ID, row, CellInfo::default, |i, &r| {
             if i.row != r {
                 i.row = r;
@@ -885,7 +885,7 @@ pub mod cell {
     /// [`column`]: fn@column
     /// [`row`]: fn@row
     #[property(CONTEXT, default((0, 0)), widget_impl(Cell))]
-    pub fn at(child: impl UiNode, column_row: impl IntoVar<(usize, usize)>) -> impl UiNode {
+    pub fn at(child: impl IntoUiNode, column_row: impl IntoVar<(usize, usize)>) -> UiNode {
         with_widget_state_modify(child, *INFO_ID, column_row, CellInfo::default, |i, &(col, row)| {
             if i.column != col || i.row != row {
                 i.column = col;
@@ -910,7 +910,7 @@ pub mod cell {
     ///
     /// [`span`]: fn@span
     #[property(CONTEXT, default(1), widget_impl(Cell))]
-    pub fn column_span(child: impl UiNode, span: impl IntoVar<usize>) -> impl UiNode {
+    pub fn column_span(child: impl IntoUiNode, span: impl IntoVar<usize>) -> UiNode {
         with_widget_state_modify(child, *INFO_ID, span, CellInfo::default, |i, &s| {
             if i.column_span != s {
                 i.column_span = s;
@@ -934,7 +934,7 @@ pub mod cell {
     ///
     /// [`span`]: fn@span
     #[property(CONTEXT, default(1), widget_impl(Cell))]
-    pub fn row_span(child: impl UiNode, span: impl IntoVar<usize>) -> impl UiNode {
+    pub fn row_span(child: impl IntoUiNode, span: impl IntoVar<usize>) -> UiNode {
         with_widget_state_modify(child, *INFO_ID, span, CellInfo::default, |i, &s| {
             if i.row_span != s {
                 i.row_span = s;
@@ -954,7 +954,7 @@ pub mod cell {
     /// [`column_span`]: fn@column_span
     /// [`row_span`]: fn@row_span
     #[property(CONTEXT, default((1, 1)), widget_impl(Cell))]
-    pub fn span(child: impl UiNode, span: impl IntoVar<(usize, usize)>) -> impl UiNode {
+    pub fn span(child: impl IntoUiNode, span: impl IntoVar<(usize, usize)>) -> UiNode {
         with_widget_state_modify(child, *INFO_ID, span, CellInfo::default, |i, &(cs, rs)| {
             if i.column_span != rs || i.row_span != rs {
                 i.column_span = cs;

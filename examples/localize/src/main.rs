@@ -55,7 +55,7 @@ fn main() {
     })
 }
 
-fn window_icon() -> impl UiNode {
+fn window_icon() -> UiNode {
     Text! {
         image::render_retain = true;
         layout::size = (36, 36);
@@ -74,7 +74,7 @@ fn window_icon() -> impl UiNode {
 
 // l10n-## Example Section
 
-fn window_content() -> impl UiNode {
+fn window_content() -> UiNode {
     let click_count = var(0u32);
     let click_msg = l10n!("msg/click-count", "Clicked {$n} times", n = click_count.clone());
 
@@ -133,7 +133,7 @@ fn window_content() -> impl UiNode {
 /// Note that in a real UI settings page you want to allows selection of
 /// multiple languages on a list that the user can sort, this way missing messages
 /// of the top preference can have a better fallback.
-fn locale_menu() -> impl UiNode {
+fn locale_menu() -> UiNode {
     Container! {
         alt_focus_scope = true;
         focus_click_behavior = FocusClickBehavior::Exit;

@@ -31,9 +31,9 @@
 //! ```
 //! # use zng::prelude::*;
 //! # let _scope = APP.defaults();
-//! # fn tools() -> impl UiNode { widget::node::NilUiNode }
-//! # fn content() -> impl UiNode { widget::node::NilUiNode }
-//! # fn status() -> impl UiNode { widget::node::NilUiNode }
+//! # fn tools() -> UiNode { widget::node::UiNode::nil() }
+//! # fn content() -> UiNode { widget::node::UiNode::nil() }
+//! # fn status() -> UiNode { widget::node::UiNode::nil() }
 //! # let _ =
 //! Window! {
 //!     child_top = tools(), 0;

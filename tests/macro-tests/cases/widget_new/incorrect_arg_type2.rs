@@ -5,7 +5,7 @@ use zng::{
 };
 
 #[property(CONTEXT)]
-pub fn simple_type(child: impl UiNode, simple: impl IntoVar<u32>) -> impl UiNode {
+pub fn simple_type(child: impl IntoUiNode, simple: impl IntoVar<u32>) -> UiNode {
     let _ = simple;
     child
 }

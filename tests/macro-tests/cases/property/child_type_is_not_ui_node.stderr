@@ -1,5 +1,5 @@
 error: property input can only have `impl OneTrait` types
  --> cases/property/child_type_is_not_ui_node.rs:6:29
   |
-6 | pub fn invalid_child(child: NotUiNode, input: impl IntoVar<bool>) -> impl UiNode {
+6 | pub fn invalid_child(child: NotUiNode, input: impl IntoVar<bool>) -> UiNode {
   |                             ^^^^^^^^^
