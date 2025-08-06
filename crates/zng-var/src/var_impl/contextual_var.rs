@@ -122,7 +122,7 @@ impl ContextualVar {
         }))
     }
 
-    fn load(&self) -> parking_lot::MappedRwLockReadGuard<AnyVar> {
+    fn load(&self) -> parking_lot::MappedRwLockReadGuard<'_, AnyVar> {
         let ctx = self.0.ctx.read();
         let id = ContextInitHandle::current();
         if ctx.1 == id {
