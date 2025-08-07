@@ -300,7 +300,7 @@ fn defaults() -> UiNode {
     )
 }
 
-fn section(header: &'static str, items: impl UiNodeList) -> UiNode {
+fn section(header: &'static str, items: impl IntoUiNode) -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;

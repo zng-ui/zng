@@ -170,17 +170,19 @@ pub fn child_insert(
             WIDGET.sub_var_layout(&placement).sub_var_layout(&spacing);
         }
         UiNodeOp::Measure { wm, desired_size } => {
+            children.delegated();
+
             let c = LAYOUT.constraints();
             let placement = placement.get();
             *desired_size = if placement.is_x_axis() {
                 let mut spacing = spacing.layout_x();
-                let insert_size = children.with_node(1, |n| {
+                let insert_size = children.node().with_child(1, |n| {
                     LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_x(false), || wm.measure_block(n))
                 });
                 if insert_size.width == 0 {
                     spacing = Px(0);
                 }
-                let child_size = children.with_node(0, |n| {
+                let child_size = children.node().with_child(0, |n| {
                     LAYOUT.with_constraints(c.with_less_x(insert_size.width + spacing), || wm.measure_block(n))
                 });
 
@@ -190,13 +192,13 @@ pub fn child_insert(
                 )
             } else if placement.is_y_axis() {
                 let mut spacing = spacing.layout_y();
-                let insert_size = children.with_node(1, |n| {
+                let insert_size = children.node().with_child(1, |n| {
                     LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_y(false), || wm.measure_block(n))
                 });
                 if insert_size.height == 0 {
                     spacing = Px(0);
                 }
-                let child_size = children.with_node(0, |n| {
+                let child_size = children.node().with_child(0, |n| {
                     LAYOUT.with_constraints(c.with_less_y(insert_size.height + spacing), || wm.measure_block(n))
                 });
                 if child_size.height == 0 {
@@ -207,10 +209,11 @@ pub fn child_insert(
                     insert_size.height + spacing + child_size.height,
                 )
             } else {
-                children.with_node(0, |n| wm.measure_block(n))
+                children.node().with_child(0, |n| wm.measure_block(n))
             };
         }
         UiNodeOp::Layout { wl, final_size } => {
+            children.delegated();
             wl.require_child_ref_frame();
 
             let placement = placement.get().resolve_direction(LAYOUT.direction());
@@ -227,13 +230,13 @@ pub fn child_insert(
                         let wm = &mut wm;
                         let mut spacing = spacing;
 
-                        let insert_size = children.with_node(1, |n| {
+                        let insert_size = children.node().with_child(1, |n| {
                             LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_x(false), || n.measure(wm))
                         });
                         if insert_size.width == 0 {
                             spacing = Px(0);
                         }
-                        let child_size = children.with_node(0, |n| {
+                        let child_size = children.node().with_child(0, |n| {
                             LAYOUT.with_constraints(c.with_less_x(insert_size.width + spacing), || n.measure(wm))
                         });
 
@@ -241,7 +244,7 @@ pub fn child_insert(
                     }
 
                     let mut spacing = spacing;
-                    let insert_size = children.with_node(1, |n| {
+                    let insert_size = children.node().with_child(1, |n| {
                         LAYOUT.with_constraints(
                             {
                                 let mut c = c;
@@ -254,7 +257,7 @@ pub fn child_insert(
                     if insert_size.width == 0 {
                         spacing = Px(0);
                     }
-                    let child_size = children.with_node(0, |n| {
+                    let child_size = children.node().with_child(0, |n| {
                         LAYOUT.with_constraints(
                             {
                                 let mut c = c;
@@ -297,13 +300,13 @@ pub fn child_insert(
                         let wm = &mut wm;
                         let mut spacing = spacing;
 
-                        let insert_size = children.with_node(1, |n| {
+                        let insert_size = children.node().with_child(1, |n| {
                             LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_y(false), || n.measure(wm))
                         });
                         if insert_size.height == 0 {
                             spacing = Px(0);
                         }
-                        let child_size = children.with_node(0, |n| {
+                        let child_size = children.node().with_child(0, |n| {
                             LAYOUT.with_constraints(c.with_less_y(insert_size.height + spacing), || n.measure(wm))
                         });
 
@@ -311,7 +314,7 @@ pub fn child_insert(
                     }
 
                     let mut spacing = spacing;
-                    let insert_size = children.with_node(1, |n| {
+                    let insert_size = children.node().with_child(1, |n| {
                         LAYOUT.with_constraints(
                             {
                                 let mut c = c;
@@ -324,7 +327,7 @@ pub fn child_insert(
                     if insert_size.height == 0 {
                         spacing = Px(0);
                     }
-                    let child_size = children.with_node(0, |n| {
+                    let child_size = children.node().with_child(0, |n| {
                         LAYOUT.with_constraints(
                             {
                                 let mut c = c;
@@ -354,37 +357,43 @@ pub fn child_insert(
                     )
                 }
                 ChildInsert::Over | ChildInsert::Under => {
-                    let child_size = children.with_node(0, |n| n.layout(wl));
-                    let insert_size = children.with_node(1, |n| n.layout(wl));
+                    let child_size = children.node().with_child(0, |n| n.layout(wl));
+                    let insert_size = children.node().with_child(1, |n| n.layout(wl));
                     child_size.max(insert_size)
                 }
                 ChildInsert::Start | ChildInsert::End => unreachable!(), // already resolved
             };
         }
         UiNodeOp::Render { frame } => match placement.get() {
-            ChildInsert::Over => children.render_all(frame),
+            ChildInsert::Over => children.render(frame),
             ChildInsert::Under => {
-                children.with_node(1, |n| n.render(frame));
-                children.with_node(0, |n| n.render(frame));
-            }
-            _ => children.for_each(|i, child| {
-                if i as u8 == offset_child {
-                    frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, true, |frame| {
-                        child.render(frame);
-                    });
-                } else {
-                    child.render(frame);
-                }
-            }),
-        },
-        UiNodeOp::RenderUpdate { update } => match placement.get() {
-            ChildInsert::Over => children.render_update_all(update),
-            ChildInsert::Under => {
-                children.with_node(1, |n| n.render_update(update));
-                children.with_node(0, |n| n.render_update(update));
+                children.delegated();
+                children.node().with_child(1, |n| n.render(frame));
+                children.node().with_child(0, |n| n.render(frame));
             }
             _ => {
-                children.for_each(|i, child| {
+                children.delegated();
+                children.node().for_each_child(|i, child| {
+                    if i as u8 == offset_child {
+                        frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, true, |frame| {
+                            child.render(frame);
+                        });
+                    } else {
+                        child.render(frame);
+                    }
+                })
+            }
+        },
+        UiNodeOp::RenderUpdate { update } => match placement.get() {
+            ChildInsert::Over => children.render_update(update),
+            ChildInsert::Under => {
+                children.delegated();
+                children.node().with_child(1, |n| n.render_update(update));
+                children.node().with_child(0, |n| n.render_update(update));
+            }
+            _ => {
+                children.delegated();
+                children.node().for_each_child(|i, child| {
                     if i as u8 == offset_child {
                         update.with_transform(offset_key.update(offset.into(), false), true, |update| {
                             child.render_update(update);

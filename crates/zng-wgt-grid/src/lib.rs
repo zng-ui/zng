@@ -23,9 +23,9 @@ impl Grid {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|w| {
             let child = node(
-                w.capture_ui_node_list_or_empty(property_id!(Self::cells)),
-                w.capture_ui_node_list_or_empty(property_id!(Self::columns)),
-                w.capture_ui_node_list_or_empty(property_id!(Self::rows)),
+                w.capture_ui_node_or_nil(property_id!(Self::cells)),
+                w.capture_ui_node_or_nil(property_id!(Self::columns)),
+                w.capture_ui_node_or_nil(property_id!(Self::rows)),
                 w.capture_var_or_else(property_id!(Self::auto_grow_fn), WidgetFn::nil),
                 w.capture_var_or_else(property_id!(Self::auto_grow_mode), AutoGrowMode::rows),
                 w.capture_var_or_default(property_id!(Self::spacing)),
@@ -51,7 +51,7 @@ impl Grid {
 ///
 /// [`Cell!`]: struct@Cell
 #[property(CHILD, capture, widget_impl(Grid))]
-pub fn cells(cells: impl UiNodeList) {}
+pub fn cells(cells: impl IntoUiNode) {}
 
 /// Column definitions.
 ///
@@ -84,7 +84,7 @@ pub fn cells(cells: impl UiNodeList) {}
 /// [`WIDGET_SIZE`]: zng_wgt_size_offset::WIDGET_SIZE
 /// [`Length::Default`]: zng_layout::unit::Length::Default
 #[property(CHILD, capture, widget_impl(Grid))]
-pub fn columns(cells: impl UiNodeList) {}
+pub fn columns(cells: impl IntoUiNode) {}
 
 /// Row definitions.
 ///
@@ -92,7 +92,7 @@ pub fn columns(cells: impl UiNodeList) {}
 ///
 /// [`columns`]: fn@columns
 #[property(CHILD, capture, widget_impl(Grid))]
-pub fn rows(cells: impl UiNodeList) {}
+pub fn rows(cells: impl IntoUiNode) {}
 
 /// Widget function used when new rows or columns are needed to cover a cell placement.
 ///
@@ -121,19 +121,19 @@ pub fn spacing(spacing: impl IntoVar<GridSpacing>) {}
 /// Can be used directly to layout widgets without declaring a grid widget info. This node is the child
 /// of the `Grid!` widget.
 pub fn node(
-    cells: impl UiNodeList,
-    columns: impl UiNodeList,
-    rows: impl UiNodeList,
+    cells: impl IntoUiNode,
+    columns: impl IntoUiNode,
+    rows: impl IntoUiNode,
     auto_grow_fn: impl IntoVar<WidgetFn<AutoGrowFnArgs>>,
     auto_grow_mode: impl IntoVar<AutoGrowMode>,
     spacing: impl IntoVar<GridSpacing>,
 ) -> UiNode {
-    let auto_columns: Vec<BoxedUiNode> = vec![];
-    let auto_rows: Vec<BoxedUiNode> = vec![];
-    let children = vec![
-        vec![columns.boxed(), auto_columns.boxed()].boxed(),
-        vec![rows.boxed(), auto_rows.boxed()].boxed(),
-        PanelList::new(cells).boxed(),
+    let auto_columns = ui_vec![];
+    let auto_rows = ui_vec![];
+    let children = ui_vec![
+        ui_vec![columns.into_node().into_list(), auto_columns],
+        ui_vec![rows.into_node().into_list(), auto_rows],
+        PanelList::new(cells),
     ];
     let spacing = spacing.into_var();
     let auto_grow_fn = auto_grow_fn.into_var();
@@ -143,33 +143,33 @@ pub fn node(
     let mut is_measured = false;
     let mut last_layout = LayoutMetrics::new(1.fct(), PxSize::zero(), Px(0));
 
-    match_node_list(children, move |c, op| match op {
+    match_node(children, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&auto_grow_fn).sub_var(&auto_grow_mode).sub_var_layout(&spacing);
-            c.init_all();
-            grid.update_entries(c.children(), auto_grow_mode.get(), &auto_grow_fn);
+            c.init();
+            grid.update_entries(c.node(), auto_grow_mode.get(), &auto_grow_fn);
         }
         UiNodeOp::Deinit => {
-            c.deinit_all();
-            downcast_auto(&mut c.children()[0]).clear();
-            downcast_auto(&mut c.children()[1]).clear();
+            c.deinit();
+            GridChildrenMut(c.node()).auto_columns().clear();
+            GridChildrenMut(c.node()).auto_rows().clear();
             is_measured = false;
         }
         UiNodeOp::Update { updates } => {
             let mut any = false;
-            c.update_all(updates, &mut any);
+            c.update_list(updates, &mut any);
 
             if auto_grow_fn.is_new() || auto_grow_mode.is_new() {
-                for mut auto in downcast_auto(&mut c.children()[0]).drain(..) {
+                for mut auto in GridChildrenMut(c.node()).auto_columns().drain(..) {
                     auto.deinit();
                 }
-                for mut auto in downcast_auto(&mut c.children()[1]).drain(..) {
+                for mut auto in GridChildrenMut(c.node()).auto_rows().drain(..) {
                     auto.deinit();
                 }
                 any = true;
             }
             if any {
-                grid.update_entries(c.children(), auto_grow_mode.get(), &auto_grow_fn);
+                grid.update_entries(c.node(), auto_grow_mode.get(), &auto_grow_fn);
                 WIDGET.layout();
             }
         }
@@ -180,7 +180,7 @@ pub fn node(
                 size
             } else {
                 is_measured = true;
-                grid.grid_layout(wm, c.children(), &spacing).1
+                grid.grid_layout(wm, c.node(), &spacing).1
             };
         }
         UiNodeOp::Layout { wl, final_size } => {
@@ -188,7 +188,7 @@ pub fn node(
             is_measured = false;
             last_layout = LAYOUT.metrics();
 
-            let (spacing, grid_size) = grid.grid_layout(&mut wl.to_measure(None), c.children(), &spacing);
+            let (spacing, grid_size) = grid.grid_layout(&mut wl.to_measure(None), c.node(), &spacing);
             let constraints = last_layout.constraints();
 
             if grid.is_collapse() {
@@ -197,16 +197,18 @@ pub fn node(
                 return;
             }
 
-            let mut children = c.children().iter_mut();
+            let mut children = GridChildrenMut(c.node());
+            let mut children = children.children().iter_mut();
             let columns = children.next().unwrap();
             let rows = children.next().unwrap();
             let cells = children.next().unwrap();
-            let cells: &mut PanelList = cells.as_any().downcast_mut().unwrap();
+            let cells: &mut PanelList = cells.downcast_mut().unwrap();
 
             let grid = &grid;
 
             // layout columns
-            let _ = columns.layout_each(
+            let _ = columns.layout_list(
+                // !!: TODO this is incorrect because columns is an UiVec[UiVec, UiVec]
                 wl,
                 |ci, col, wl| {
                     let info = grid.columns[ci];
@@ -215,7 +217,7 @@ pub fn node(
                 |_, _| PxSize::zero(),
             );
             // layout rows
-            let _ = rows.layout_each(
+            let _ = rows.layout_list(
                 wl,
                 |ri, row, wl| {
                     let info = grid.rows[ri];
@@ -224,7 +226,7 @@ pub fn node(
                 |_, _| PxSize::zero(),
             );
             // layout and translate cells
-            let cells_offset = columns.len() + rows.len();
+            let cells_offset = columns.children_len() + rows.children_len();
 
             cells.layout_each(
                 wl,
@@ -276,7 +278,7 @@ pub fn node(
 
             if mem::take(&mut is_measured) {
                 LAYOUT.with_context(last_layout.clone(), || {
-                    let _ = grid.grid_layout(&mut WidgetMeasure::new_reuse(None), c.children(), &spacing);
+                    let _ = grid.grid_layout(&mut WidgetMeasure::new_reuse(None), c.node(), &spacing);
                 });
             }
 
@@ -286,13 +288,14 @@ pub fn node(
                 return;
             }
 
-            let mut children = c.children().iter_mut();
+            let mut children = GridChildrenMut(c.node());
+            let mut children = children.children().iter_mut();
             let columns = children.next().unwrap();
             let rows = children.next().unwrap();
-            let cells: &mut PanelList = children.next().unwrap().as_any().downcast_mut().unwrap();
+            let cells: &mut PanelList = children.next().unwrap().downcast_mut().unwrap();
             let offset_key = cells.offset_key();
 
-            columns.for_each(|i, child| {
+            columns.for_each_child(|i, child| {
                 let offset = PxVector::new(grid.columns[i].x, Px(0));
                 frame.push_reference_frame(
                     (offset_key, i as u32).into(),
@@ -304,8 +307,8 @@ pub fn node(
                     },
                 );
             });
-            let i_extra = columns.len();
-            rows.for_each(|i, child| {
+            let i_extra = columns.children_len(); // !!: TODO fix this, need flatted vec
+            rows.for_each_child(|i, child| {
                 let offset = PxVector::new(Px(0), grid.rows[i].y);
                 frame.push_reference_frame(
                     (offset_key, (i + i_extra) as u32).into(),
@@ -317,7 +320,7 @@ pub fn node(
                     },
                 );
             });
-            let i_extra = i_extra + rows.len();
+            let i_extra = i_extra + rows.children_len();
             cells.for_each_z_sorted(|i, child, data| {
                 if data.define_reference_frame {
                     frame.push_reference_frame(
@@ -339,7 +342,7 @@ pub fn node(
 
             if mem::take(&mut is_measured) {
                 LAYOUT.with_context(last_layout.clone(), || {
-                    let _ = grid.grid_layout(&mut WidgetMeasure::new_reuse(None), c.children(), &spacing);
+                    let _ = grid.grid_layout(&mut WidgetMeasure::new_reuse(None), c.node(), &spacing);
                 });
             }
 
@@ -349,18 +352,19 @@ pub fn node(
                 return;
             }
 
-            let mut children = c.children().iter_mut();
+            let mut children = GridChildrenMut(c.node());
+            let mut children = children.children().iter_mut();
             let columns = children.next().unwrap();
             let rows = children.next().unwrap();
-            let cells: &mut PanelList = children.next().unwrap().as_any().downcast_mut().unwrap();
+            let cells: &mut PanelList = children.next().unwrap().downcast_mut().unwrap();
 
-            columns.for_each(|i, child| {
+            columns.for_each_child(|i, child| {
                 let offset = PxVector::new(grid.columns[i].x, Px(0));
                 update.with_transform_value(&offset.into(), |update| {
                     child.render_update(update);
                 });
             });
-            rows.for_each(|i, child| {
+            rows.for_each_child(|i, child| {
                 let offset = PxVector::new(Px(0), grid.rows[i].y);
                 update.with_transform_value(&offset.into(), |update| {
                     child.render_update(update);
@@ -818,8 +822,11 @@ pub mod cell {
         }
 
         /// Get the cell info stored in the `wgt` state.
-        pub fn get_wgt(wgt: &mut impl UiNode) -> Self {
-            wgt.with_context(WidgetUpdateMode::Ignore, Self::get).unwrap_or_default()
+        pub fn get_wgt(wgt: &mut UiNode) -> Self {
+            match wgt.as_widget() {
+                Some(mut wgt) => wgt.with_context(WidgetUpdateMode::Ignore, Self::get),
+                None => CellInfo::default(),
+            }
         }
     }
 
@@ -1068,11 +1075,13 @@ impl GridLayout {
 
     /// add/remove info entries, auto-grow/shrink
     fn update_entries(&mut self, children: &mut GridChildren, auto_mode: AutoGrowMode, auto_grow_fn: &Var<WidgetFn<AutoGrowFnArgs>>) {
+        let mut children = GridChildrenMut(children);
+
         // max needed column or row in the auto_mode axis.
         let mut max_custom = 0;
         let mut max_auto_placed_i = 0;
-        children[2].for_each(|i, c| {
-            let info = c.with_context(WidgetUpdateMode::Ignore, cell::CellInfo::get).unwrap_or_default();
+        children.cells().for_each(|i, c, _| {
+            let info = cell::CellInfo::get_wgt(c);
 
             let n = match auto_mode {
                 AutoGrowMode::Rows(_) => info.row,
@@ -1090,7 +1099,7 @@ impl GridLayout {
 
         match auto_mode {
             AutoGrowMode::Rows(max) => {
-                let columns_len = children[0].len();
+                let columns_len = children.all_columns().len();
                 if columns_len == 0 {
                     tracing::warn!(
                         "grid {} has no columns and auto_grow_mode={:?}, no cell will be visible",
@@ -1104,11 +1113,11 @@ impl GridLayout {
                 let max_auto_placed = max_auto_placed_i / columns_len;
                 let max_needed_len = max_auto_placed.max(max_custom).min(max as usize) + 1;
 
-                let rows_len = children[1].len();
+                let rows_len = children.all_rows().len();
 
                 #[expect(clippy::comparison_chain)]
                 if rows_len < max_needed_len {
-                    let auto = downcast_auto(&mut children[1]);
+                    let auto = children.auto_rows();
                     let mut index = rows_len;
 
                     let view = auto_grow_fn.get();
@@ -1124,14 +1133,15 @@ impl GridLayout {
                     }
                 } else if rows_len > max_needed_len {
                     let remove = rows_len - max_needed_len;
-                    let auto = downcast_auto(&mut children[1]);
-                    for mut auto in auto.drain(auto.len().saturating_sub(remove)..) {
+                    let auto = children.auto_rows();
+                    let s = auto.len().saturating_sub(remove);
+                    for mut auto in auto.drain(s..) {
                         auto.deinit();
                     }
                 }
             }
             AutoGrowMode::Columns(max) => {
-                let rows_len = children[1].len();
+                let rows_len = children.all_rows().len();
                 if rows_len == 0 {
                     tracing::warn!(
                         "grid {} has no rows and auto_grow_mode={:?}, no cell will be visible",
@@ -1145,11 +1155,11 @@ impl GridLayout {
                 let max_auto_placed = max_auto_placed_i / rows_len;
                 let max_needed_len = max_auto_placed.max(max_custom).min(max as usize) + 1;
 
-                let cols_len = children[0].len();
+                let cols_len = children.all_columns().len();
 
                 #[expect(clippy::comparison_chain)]
                 if cols_len < max_needed_len {
-                    let auto = downcast_auto(&mut children[0]);
+                    let auto = children.auto_columns();
                     let mut index = cols_len;
 
                     let view = auto_grow_fn.get();
@@ -1165,8 +1175,9 @@ impl GridLayout {
                     }
                 } else if cols_len > max_needed_len {
                     let remove = cols_len - max_needed_len;
-                    let auto = downcast_auto(&mut children[0]);
-                    for mut auto in auto.drain(auto.len().saturating_sub(remove)..) {
+                    let auto = children.auto_columns();
+                    let s = auto.len().saturating_sub(remove);
+                    for mut auto in auto.drain(s..) {
                         auto.deinit();
                     }
                 }
@@ -1174,23 +1185,27 @@ impl GridLayout {
         }
 
         // Set index for column and row.
-        let columns_len = children[0].len() + imaginary_cols;
-        children[0].for_each(|i, c| {
-            c.with_context(WidgetUpdateMode::Bubble, || {
-                let prev = WIDGET.set_state(*column::INDEX_ID, (i, columns_len));
-                if prev != Some((i, columns_len)) {
-                    WIDGET.update();
-                }
-            });
+        let columns_len = children.all_columns().len() + imaginary_cols;
+        children.all_columns_node().for_each_child(|i, c| {
+            if let Some(mut wgt) = c.as_widget() {
+                wgt.with_context(WidgetUpdateMode::Bubble, || {
+                    let prev = WIDGET.set_state(*column::INDEX_ID, (i, columns_len));
+                    if prev != Some((i, columns_len)) {
+                        WIDGET.update();
+                    }
+                });
+            }
         });
-        let rows_len = children[1].len() + imaginary_rows;
-        children[1].for_each(|i, r| {
-            r.with_context(WidgetUpdateMode::Bubble, || {
-                let prev = WIDGET.set_state(*row::INDEX_ID, (i, rows_len));
-                if prev != Some((i, rows_len)) {
-                    WIDGET.update();
-                }
-            });
+        let rows_len = children.all_rows().len() + imaginary_rows;
+        children.all_rows_node().for_each_child(|i, r| {
+            if let Some(mut wgt) = r.as_widget() {
+                wgt.with_context(WidgetUpdateMode::Bubble, || {
+                    let prev = WIDGET.set_state(*row::INDEX_ID, (i, rows_len));
+                    if prev != Some((i, rows_len)) {
+                        WIDGET.update();
+                    }
+                });
+            }
         });
 
         self.columns.resize(columns_len, ColumnLayout::default());
@@ -1209,7 +1224,8 @@ impl GridLayout {
         let fill_x = constraints.x.fill_or_exact();
         let fill_y = constraints.y.fill_or_exact();
 
-        let mut children = children.iter_mut();
+        let mut children = GridChildrenMut(children);
+        let mut children = children.children().iter_mut();
         let columns = children.next().unwrap();
         let rows = children.next().unwrap();
         let cells = children.next().unwrap();
@@ -1220,7 +1236,7 @@ impl GridLayout {
         let mut has_leftover_cols = false;
         let mut has_leftover_rows = false;
 
-        columns.for_each(|ci, col| {
+        columns.for_each_child(|ci, col| {
             let col_kind = WIDGET_SIZE.get_wgt(col).width;
 
             let col_info = &mut self.columns[ci];
@@ -1244,7 +1260,7 @@ impl GridLayout {
                 }
             }
         });
-        rows.for_each(|ri, row| {
+        rows.for_each_child(|ri, row| {
             let row_kind = WIDGET_SIZE.get_wgt(row).height;
 
             let row_info = &mut self.rows[ri];
@@ -1269,14 +1285,14 @@ impl GridLayout {
             }
         });
 
-        // reset imaginaries
-        for col in &mut self.columns[columns.len()..] {
+        // reset imaginary
+        for col in &mut self.columns[columns.children_len()..] {
             col.meta = ColRowMeta::default();
             col.x = Px::MIN;
             col.width = Px::MIN;
             has_default = true;
         }
-        for row in &mut self.rows[rows.len()..] {
+        for row in &mut self.rows[rows.children_len()..] {
             row.meta = ColRowMeta::default();
             row.y = Px::MIN;
             row.height = Px::MIN;
@@ -1292,7 +1308,7 @@ impl GridLayout {
         if has_default || (fill_x.is_none() && has_leftover_cols) || (fill_y.is_none() && has_leftover_rows) {
             let c = LAYOUT.constraints();
 
-            cells.for_each(|i, cell| {
+            cells.for_each_child(|i, cell| {
                 let cell_info = cell::CellInfo::get_wgt(cell);
                 if cell_info.column_span > 1 || cell_info.row_span > 1 {
                     return; // continue;
@@ -1422,7 +1438,7 @@ impl GridLayout {
             };
             leftover_width = leftover_width.max(Px(0));
 
-            let view_columns_len = columns.len();
+            let view_columns_len = columns.children_len();
 
             // find extra leftover space from columns that can't fully fill their requested leftover length.
             let mut settled_all = false;
@@ -1441,7 +1457,7 @@ impl GridLayout {
 
                     if i < view_columns_len {
                         let size = LAYOUT.with_constraints(LAYOUT.constraints().with_fill_x(true).with_max_x(col.width), || {
-                            columns.with_node(i, |col| col.measure(wm))
+                            columns.with_child(i, |col| col.measure(wm))
                         });
 
                         if col.width != size.width {
@@ -1551,7 +1567,7 @@ impl GridLayout {
             };
             leftover_height = leftover_height.max(Px(0));
 
-            let view_rows_len = rows.len();
+            let view_rows_len = rows.children_len();
 
             // find extra leftover space from leftover that can't fully fill their requested leftover length.
             let mut settled_all = false;
@@ -1570,7 +1586,7 @@ impl GridLayout {
 
                     if i < view_rows_len {
                         let size = LAYOUT.with_constraints(LAYOUT.constraints().with_fill_y(true).with_max_y(row.height), || {
-                            rows.with_node(i, |row| row.measure(wm))
+                            rows.with_child(i, |row| row.measure(wm))
                         });
 
                         if row.height != size.height {
@@ -1614,7 +1630,7 @@ impl GridLayout {
 
             let c = LAYOUT.constraints();
 
-            cells.for_each(|i, cell| {
+            cells.for_each_child(|i, cell| {
                 let cell_info = cell::CellInfo::get_wgt(cell);
                 if cell_info.column_span > 1 || cell_info.row_span > 1 {
                     return; // continue;
@@ -1669,13 +1685,35 @@ impl GridLayout {
     }
 }
 
-/// Downcast auto-grow column or row list.
-fn downcast_auto(cols_or_rows: &mut BoxedUiNodeList) -> &mut Vec<BoxedUiNode> {
-    cols_or_rows.as_any().downcast_mut::<Vec<BoxedUiNodeList>>().unwrap()[1]
-        .as_any()
-        .downcast_mut()
-        .unwrap()
-}
-
 /// [[columns, auto_columns], [rows, auto_rows], cells]
-type GridChildren = Vec<BoxedUiNodeList>;
+type GridChildren = UiNode;
+struct GridChildrenMut<'a>(&'a mut GridChildren);
+impl<'a> GridChildrenMut<'a> {
+    fn children(&mut self) -> &mut UiVec {
+        self.0.downcast_mut().unwrap()
+    }
+
+    fn all_columns_node(&mut self) -> &mut UiNode {
+        &mut self.children()[0]
+    }
+    fn all_columns(&mut self) -> &mut UiVec {
+        self.all_columns_node().downcast_mut().unwrap()
+    }
+    fn auto_columns(&mut self) -> &mut UiVec {
+        self.all_columns()[1].downcast_mut().unwrap()
+    }
+
+    fn all_rows_node(&mut self) -> &mut UiNode {
+        &mut self.children()[1]
+    }
+    fn all_rows(&mut self) -> &mut UiVec {
+        self.all_rows_node().downcast_mut().unwrap()
+    }
+    fn auto_rows(&mut self) -> &mut UiVec {
+        self.all_rows()[1].downcast_mut().unwrap()
+    }
+
+    fn cells(&mut self) -> &mut PanelList {
+        self.children()[2].downcast_mut().unwrap()
+    }
+}

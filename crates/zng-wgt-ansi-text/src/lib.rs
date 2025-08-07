@@ -61,7 +61,7 @@ impl AnsiText {
         self.widget_builder().push_build_action(|wgt| {
             let txt = wgt.capture_var_or_default(property_id!(txt));
             let child = ansi_node(txt);
-            wgt.set_child(child.boxed());
+            wgt.set_child(child);
         });
     }
 
@@ -560,10 +560,8 @@ mod ansi_fn {
     ///
     /// Returns a `Wrap!` for text with multiple segments, or returns the single segment, or an empty text.
     pub fn default_line_fn(mut args: LineFnArgs) -> UiNode {
-        use crate::prelude::*;
-
         if args.text.is_empty() {
-            Text!("").boxed()
+            Text!("")
         } else if args.text.len() == 1 {
             args.text.remove(0)
         } else {
@@ -572,7 +570,6 @@ mod ansi_fn {
                 direction = StackDirection::start_to_end();
                 children = args.text;
             }
-            .boxed()
         }
     }
 
@@ -583,7 +580,7 @@ mod ansi_fn {
         use crate::prelude::*;
 
         if args.lines.is_empty() {
-            NilUiNode.boxed()
+            UiNode::nil()
         } else if args.lines.len() == 1 {
             args.lines.remove(0)
         } else {
@@ -597,7 +594,6 @@ mod ansi_fn {
                     zng_wgt_stack::lazy_sample(len, StackDirection::top_to_bottom(), 0, height_sample)
                 }));
             }
-            .boxed()
         }
     }
 
@@ -608,7 +604,7 @@ mod ansi_fn {
         use crate::prelude::*;
 
         if args.pages.is_empty() {
-            NilUiNode.boxed()
+            UiNode::nil()
         } else if args.pages.len() == 1 {
             args.pages.remove(0)
         } else {
@@ -617,7 +613,6 @@ mod ansi_fn {
                 direction = StackDirection::top_to_bottom();
                 children = args.pages;
             }
-            .boxed()
         }
     }
 
@@ -674,7 +669,7 @@ mod ansi_fn {
     }
 }
 
-fn generate_ansi(txt: &Var<Txt>) -> BoxedUiNode {
+fn generate_ansi(txt: &Var<Txt>) -> UiNode {
     use ansi_fn::*;
     use std::mem;
 
@@ -727,7 +722,7 @@ fn generate_ansi(txt: &Var<Txt>) -> BoxedUiNode {
 /// Implements the ANSI parsing and view generation, configured by contextual properties.
 pub fn ansi_node(txt: impl IntoVar<Txt>) -> UiNode {
     let txt = txt.into_var();
-    match_node(NilUiNode.boxed(), move |c, op| match op {
+    match_node(UiNode::nil(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET
                 .sub_var(&txt)
@@ -738,11 +733,11 @@ pub fn ansi_node(txt: impl IntoVar<Txt>) -> UiNode {
                 .sub_var(&LINES_PER_PAGE_VAR)
                 .sub_var(&BLINK_INTERVAL_VAR);
 
-            *c.child() = generate_ansi(&txt);
+            *c.node() = generate_ansi(&txt);
         }
         UiNodeOp::Deinit => {
             c.deinit();
-            *c.child() = NilUiNode.boxed();
+            *c.node() = UiNode::nil();
         }
         UiNodeOp::Update { .. } => {
             use ansi_fn::*;
@@ -755,9 +750,9 @@ pub fn ansi_node(txt: impl IntoVar<Txt>) -> UiNode {
                 || LINES_PER_PAGE_VAR.is_new()
                 || BLINK_INTERVAL_VAR.is_new()
             {
-                c.child().deinit();
-                *c.child() = generate_ansi(&txt);
-                c.child().init();
+                c.node().deinit();
+                *c.node() = generate_ansi(&txt);
+                c.node().init();
                 WIDGET.update_info().layout().render();
             }
         }

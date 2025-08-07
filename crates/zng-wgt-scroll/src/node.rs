@@ -1454,7 +1454,7 @@ pub fn auto_scroll_node(child: impl IntoUiNode) -> UiNode {
     })
 }
 
-fn auto_scroller_wgt() -> (impl UiNode, WidgetId, Arc<Mutex<DInstant>>) {
+fn auto_scroller_wgt() -> (UiNode, WidgetId, Arc<Mutex<DInstant>>) {
     let id = WidgetId::new_unique();
     let mut wgt = Container::widget_new();
     let closed = Arc::new(Mutex::new(DInstant::MAX));

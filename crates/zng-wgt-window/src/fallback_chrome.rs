@@ -48,7 +48,7 @@ pub fn fallback_chrome() -> UiNode {
                                 font_size = size.pt();
                                 padding = (padding_top, 0, 0, 0);
                                 txt = symbol;
-                            }.boxed()
+                            }
                         } else {
                             ico
                         }

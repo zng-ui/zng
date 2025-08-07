@@ -66,16 +66,13 @@ fn plot(easing: EasingFn) -> ImageSource {
                 let y_fct = easing(EasingTime::new(x_fct));
                 let y = size.1 * (1.fct() - y_fct);
 
-                children.push(
-                    Wgt! {
-                        layout::offset = (x, y);
-                        layout::size = (3, 3);
-                        widget::corner_radius = 2;
-                        layout::translate = -1.5, -1.5;
-                        widget::background_color = color_t.sample(y_fct);
-                    }
-                    .boxed(),
-                )
+                children.push(Wgt! {
+                    layout::offset = (x, y);
+                    layout::size = (3, 3);
+                    widget::corner_radius = 2;
+                    layout::translate = -1.5, -1.5;
+                    widget::background_color = color_t.sample(y_fct);
+                })
             }
 
             image::IMAGE_RENDER.retain().set(true);
@@ -84,26 +81,20 @@ fn plot(easing: EasingFn) -> ImageSource {
                 ColorScheme::Light | _ => rgba(0, 0, 0, 0.4),
             });
 
-            children.push(
-                Text! {
-                    txt = "v";
-                    font_size = 12;
-                    font_style = FontStyle::Italic;
-                    font_color = meta_color.clone();
-                    layout::offset = ((-3).dip() - 100.pct(), (-3).dip());
-                }
-                .boxed(),
-            );
-            children.push(
-                Text! {
-                    txt = "t";
-                    font_size = 12;
-                    font_style = FontStyle::Italic;
-                    font_color = meta_color.clone();
-                    layout::offset = (size.0.dip() - 100.pct() - 3.dip(), size.1 - 3);
-                }
-                .boxed(),
-            );
+            children.push(Text! {
+                txt = "v";
+                font_size = 12;
+                font_style = FontStyle::Italic;
+                font_color = meta_color.clone();
+                layout::offset = ((-3).dip() - 100.pct(), (-3).dip());
+            });
+            children.push(Text! {
+                txt = "t";
+                font_size = 12;
+                font_style = FontStyle::Italic;
+                font_color = meta_color.clone();
+                layout::offset = (size.0.dip() - 100.pct() - 3.dip(), size.1 - 3);
+            });
             Stack! {
                 children_align = Align::TOP_LEFT;
                 children;
@@ -118,14 +109,22 @@ fn plot(easing: EasingFn) -> ImageSource {
 pub(crate) fn ruler() -> UiNode {
     Stack! {
         children_align = Align::LEFT;
-        children = (0..=300).step_by(10)
-            .map(|x| zng::rule_line::RuleLine! {
-                orientation = LineOrientation::Vertical;
-                color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(40.pct()));
-                layout::x = x.dip();
-                layout::height = if x % 100 == 0 { 52 } else if x % 50 == 0 { 22 } else { 12 };
-            }
-            .boxed())
-            .collect::<Vec<_>>(),
+        children = (0..=300)
+            .step_by(10)
+            .map(|x| {
+                zng::rule_line::RuleLine! {
+                    orientation = LineOrientation::Vertical;
+                    color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(40.pct()));
+                    layout::x = x.dip();
+                    layout::height = if x % 100 == 0 {
+                        52
+                    } else if x % 50 == 0 {
+                        22
+                    } else {
+                        12
+                    };
+                }
+            })
+            .collect::<UiVec>(); // !!: TODO maybe implement IntoUiNode for std::iter types?
     }
 }

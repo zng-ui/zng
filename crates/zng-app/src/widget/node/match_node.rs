@@ -353,11 +353,11 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
     }
     impl<F: FnMut(&mut MatchNodeChild, UiNodeOp) + Send + 'static> UiNodeImpl for MatchNode<F> {
         fn children_len(&self) -> usize {
-            self.child.child.0.children_len()
+            self.child.node.0.children_len()
         }
 
         fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
-            self.child.child.0.with_child(index, visitor);
+            self.child.node.0.with_child(index, visitor);
         }
         // !!: TODO delegate default methods too
 
@@ -367,7 +367,7 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
             (self.closure)(&mut self.child, UiNodeOp::Init);
 
             if !mem::take(&mut self.child.delegated) {
-                self.child.child.0.init();
+                self.child.node.0.init();
             }
         }
 
@@ -377,7 +377,7 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
             (self.closure)(&mut self.child, UiNodeOp::Deinit);
 
             if !mem::take(&mut self.child.delegated) {
-                self.child.child.0.deinit();
+                self.child.node.0.deinit();
             }
         }
 
@@ -387,7 +387,7 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
             (self.closure)(&mut self.child, UiNodeOp::Info { info });
 
             if !mem::take(&mut self.child.delegated) {
-                self.child.child.0.info(info);
+                self.child.node.0.info(info);
             }
         }
 
@@ -397,7 +397,7 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
             (self.closure)(&mut self.child, UiNodeOp::Event { update });
 
             if !mem::take(&mut self.child.delegated) {
-                self.child.child.0.event(update);
+                self.child.node.0.event(update);
             }
         }
 
@@ -407,7 +407,7 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
             (self.closure)(&mut self.child, UiNodeOp::Update { updates });
 
             if !mem::take(&mut self.child.delegated) {
-                self.child.child.0.update(updates);
+                self.child.node.0.update(updates);
             }
         }
 
@@ -431,7 +431,7 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
                     return size;
                 }
 
-                self.child.child.0.measure(wm)
+                self.child.node.0.measure(wm)
             } else {
                 size
             }
@@ -451,7 +451,7 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
                     return size;
                 }
 
-                self.child.child.0.layout(wl)
+                self.child.node.0.layout(wl)
             } else {
                 size
             }
@@ -463,7 +463,7 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
             (self.closure)(&mut self.child, UiNodeOp::Render { frame });
 
             if !mem::take(&mut self.child.delegated) {
-                self.child.child.0.render(frame);
+                self.child.node.0.render(frame);
             }
         }
 
@@ -473,12 +473,15 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
             (self.closure)(&mut self.child, UiNodeOp::RenderUpdate { update });
 
             if !mem::take(&mut self.child.delegated) {
-                self.child.child.0.render_update(update);
+                self.child.node.0.render_update(update);
             }
         }
     }
     MatchNode {
-        child: MatchNodeChild { child, delegated: false },
+        child: MatchNodeChild {
+            node: child,
+            delegated: false,
+        },
         closure,
     }
     .into_node()
@@ -490,7 +493,7 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
 ///
 /// [`match_node`]: fn@match_node
 pub struct MatchNodeChild {
-    child: UiNode,
+    node: UiNode,
     delegated: bool,
 }
 impl MatchNodeChild {
@@ -513,78 +516,125 @@ impl MatchNodeChild {
     /// Note that if you delegate using this reference you must call [`delegated`].
     ///
     /// [`delegated`]: Self::delegated
-    /// [`match_node`]: fn@match_node
     #[inline(always)]
-    pub fn child(&mut self) -> &mut UiNode {
-        &mut self.child
+    pub fn node(&mut self) -> &mut UiNode {
+        &mut self.node
+    }
+    /// Borrow the actual child implementation.
+    ///
+    /// Note that if you delegate using this reference you must call [`delegated`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the child node implementation does not match.
+    ///
+    /// [`delegated`]: Self::delegated
+    #[inline(always)]
+    pub fn node_impl<U: UiNodeImpl>(&mut self) -> &mut U {
+        self.node.downcast_mut::<U>().unwrap()
     }
 
     /// Delegate [`UiNode::init`].
     #[inline(always)]
     pub fn init(&mut self) {
-        self.child.0.init();
+        self.node.0.init();
         self.delegated = true;
     }
 
     /// Delegate [`UiNode::deinit`].
     #[inline(always)]
     pub fn deinit(&mut self) {
-        self.child.0.deinit();
+        self.node.0.deinit();
         self.delegated = true;
     }
 
     /// Delegate [`UiNode::info`].
     #[inline(always)]
     pub fn info(&mut self, info: &mut WidgetInfoBuilder) {
-        self.child.0.info(info);
+        self.node.0.info(info);
         self.delegated = true;
     }
 
     /// Delegate [`UiNode::event`].
     #[inline(always)]
     pub fn event(&mut self, update: &EventUpdate) {
-        self.child.0.event(update);
+        self.node.0.event(update);
         self.delegated = true;
     }
 
     /// Delegate [`UiNode::update`].
     #[inline(always)]
     pub fn update(&mut self, updates: &WidgetUpdates) {
-        self.child.0.update(updates);
+        self.node.0.update(updates);
+        self.delegated = true;
+    }
+
+    /// Delegate [`UiNode::update_list`].
+    #[inline(always)]
+    pub fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        self.node.0.update_list(updates, observer);
         self.delegated = true;
     }
 
     /// Delegate [`UiNode::measure`].
     #[inline(always)]
+    #[must_use]
     pub fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
         self.delegated = true;
-        self.child.0.measure(wm)
+        self.node.0.measure(wm)
+    }
+
+    /// Delegate [`UiNode::measure_list`].
+    #[inline(always)]
+    #[must_use]
+    pub fn measure_list(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        measure: impl Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync,
+        fold_size: impl Fn(PxSize, PxSize) -> PxSize + Sync,
+    ) -> PxSize {
+        self.delegated = true;
+        self.node.0.measure_list(wm, &measure, &fold_size)
     }
 
     /// Delegate [`UiNode::layout`].
     #[inline(always)]
+    #[must_use]
     pub fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
         self.delegated = true;
-        self.child.0.layout(wl)
+        self.node.0.layout(wl)
+    }
+
+    /// Delegate [`UiNode::layout_list`].
+    #[inline(always)]
+    #[must_use]
+    pub fn layout_list(
+        &mut self,
+        wl: &mut WidgetLayout,
+        layout: impl Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync,
+        fold_size: impl Fn(PxSize, PxSize) -> PxSize + Sync,
+    ) -> PxSize {
+        self.delegated = true;
+        self.node.0.layout_list(wl, &layout, &fold_size)
     }
 
     /// Delegate [`UiNode::render`].
     #[inline(always)]
     pub fn render(&mut self, frame: &mut FrameBuilder) {
-        self.child.0.render(frame);
+        self.node.0.render(frame);
         self.delegated = true;
     }
 
     /// Delegate [`UiNode::render_update`].
     #[inline(always)]
     pub fn render_update(&mut self, update: &mut FrameUpdate) {
-        self.child.0.render_update(update);
+        self.node.0.render_update(update);
         self.delegated = true;
     }
 
     /// Delegate [`UiNode::op`].
     pub fn op(&mut self, op: UiNodeOp) {
-        self.child.op(op);
+        self.node.op(op);
         self.delegated = true;
     }
 }
@@ -659,11 +709,11 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
     }
     impl<F: FnMut(&mut MatchWidgetChild, UiNodeOp) + Send + 'static> UiNodeImpl for MatchWidget<F> {
         fn children_len(&self) -> usize {
-            self.child.0.child.children_len()
+            self.child.0.node.children_len()
         }
 
         fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
-            self.child.0.child.with_child(index, visitor);
+            self.child.0.node.with_child(index, visitor);
         }
         // !!: TODO others too
 
@@ -673,7 +723,7 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
             (self.closure)(&mut self.child, UiNodeOp::Init);
 
             if !mem::take(&mut self.child.0.delegated) {
-                self.child.0.child.0.init();
+                self.child.0.node.0.init();
             }
         }
 
@@ -683,7 +733,7 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
             (self.closure)(&mut self.child, UiNodeOp::Deinit);
 
             if !mem::take(&mut self.child.0.delegated) {
-                self.child.0.child.0.deinit();
+                self.child.0.node.0.deinit();
             }
         }
 
@@ -693,13 +743,13 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
             (self.closure)(&mut self.child, UiNodeOp::Info { info });
 
             if !mem::take(&mut self.child.0.delegated) {
-                self.child.0.child.0.info(info);
+                self.child.0.node.0.info(info);
             } else {
                 #[cfg(debug_assertions)]
                 if self
                     .child
                     .0
-                    .child
+                    .node
                     .as_widget()
                     .map(|mut w| {
                         w.with_context(WidgetUpdateMode::Ignore, || {
@@ -720,7 +770,7 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
             (self.closure)(&mut self.child, UiNodeOp::Event { update });
 
             if !mem::take(&mut self.child.0.delegated) {
-                self.child.0.child.0.event(update);
+                self.child.0.node.0.event(update);
             }
         }
 
@@ -730,7 +780,7 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
             (self.closure)(&mut self.child, UiNodeOp::Update { updates });
 
             if !mem::take(&mut self.child.0.delegated) {
-                self.child.0.child.0.update(updates);
+                self.child.0.node.0.update(updates);
             }
         }
 
@@ -754,7 +804,7 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
                     return size;
                 }
 
-                self.child.0.child.0.measure(wm)
+                self.child.0.node.0.measure(wm)
             } else {
                 size
             }
@@ -774,13 +824,13 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
                     return size;
                 }
 
-                self.child.0.child.0.layout(wl)
+                self.child.0.node.0.layout(wl)
             } else {
                 #[cfg(debug_assertions)]
                 if self
                     .child
                     .0
-                    .child
+                    .node
                     .as_widget()
                     .map(|mut w| {
                         w.with_context(WidgetUpdateMode::Ignore, || {
@@ -802,13 +852,13 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
             (self.closure)(&mut self.child, UiNodeOp::Render { frame });
 
             if !mem::take(&mut self.child.0.delegated) {
-                self.child.0.child.0.render(frame);
+                self.child.0.node.0.render(frame);
             } else {
                 #[cfg(debug_assertions)]
                 if self
                     .child
                     .0
-                    .child
+                    .node
                     .as_widget()
                     .map(|mut w| {
                         w.with_context(WidgetUpdateMode::Ignore, || {
@@ -829,13 +879,13 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
             (self.closure)(&mut self.child, UiNodeOp::RenderUpdate { update });
 
             if !mem::take(&mut self.child.0.delegated) {
-                self.child.0.child.0.render_update(update);
+                self.child.0.node.0.render_update(update);
             } else {
                 #[cfg(debug_assertions)]
                 if self
                     .child
                     .0
-                    .child
+                    .node
                     .as_widget()
                     .map(|mut w| {
                         w.with_context(WidgetUpdateMode::Ignore, || {
@@ -852,7 +902,7 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
     }
     MatchWidget {
         child: MatchWidgetChild(MatchNodeChild {
-            child: child.into_node(),
+            node: child.into_node(),
             delegated: false,
         }),
         closure,

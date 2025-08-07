@@ -3,9 +3,11 @@ use std::{any::Any, sync::Arc};
 use zng_app::{
     update::{EventUpdate, UPDATES},
     widget::{
-        node::{match_node, IntoUiNode, UiNode, UiNodeOp}, property, WIDGET
+        WIDGET,
+        node::{IntoUiNode, UiNode, UiNodeOp, match_node},
+        property,
     },
-    window::{WindowId, WINDOW},
+    window::{WINDOW, WindowId},
 };
 use zng_layout::unit::Factor;
 use zng_state_map::{StateId, static_id};
@@ -187,14 +189,13 @@ impl IMAGES {
     ///
     /// [`render`]: Self::render
     /// [`UiNode`]: zng_app::widget::node::UiNode
-    pub fn render_node<U, N>(
+    pub fn render_node(
         &self,
         render_mode: RenderMode,
         scale_factor: impl Into<Factor>,
         mask: Option<ImageMaskMode>,
         render: impl FnOnce() -> UiNode + Send + Sync + 'static,
-    ) -> ImageVar
-    {
+    ) -> ImageVar {
         IMAGES_SV.write().render_node(render_mode, scale_factor.into(), mask, render)
     }
 }

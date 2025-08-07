@@ -168,7 +168,7 @@ impl ButtonStyle {
             }
 
             when *#is_mobile {
-                shortcut_txt = NilUiNode;
+                shortcut_txt = UiNode::nil();
             }
         }
     }

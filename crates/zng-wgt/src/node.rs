@@ -2,10 +2,7 @@
 //!
 //! This module defines some foundational nodes that can be used for declaring properties and widgets.
 
-use std::{
-    any::Any,
-    sync::Arc,
-};
+use std::{any::Any, sync::Arc};
 
 use crate::WidgetFn;
 use zng_app::{
@@ -703,9 +700,9 @@ macro_rules! __command_property {
         /// You can use async event handlers with this property.
         #[$crate::node::zng_app::widget::property(EVENT, default( $crate::node::zng_app::handler::hn!(|_|{}) ))]
         $vis fn [<on_ $command>](
-            child: impl $crate::node::zng_app::widget::node::UiNode,
+            child: impl $crate::node::zng_app::widget::node::IntoUiNode,
             handler: impl $crate::node::zng_app::handler::WidgetHandler<$crate::node::zng_app::event::CommandArgs>,
-        ) -> impl $crate::node::zng_app::widget::node::UiNode {
+        ) -> $crate::node::zng_app::widget::node::UiNode {
             $crate::node::on_command(child, || $cmd_init, || $enabled_var, handler)
         }
 
@@ -722,9 +719,9 @@ macro_rules! __command_property {
         /// subsequent code runs in widget updates.
         #[$crate::node::zng_app::widget::property(EVENT, default( $crate::node::zng_app::handler::hn!(|_|{}) ) $($widget_impl)*)]
         $vis fn [<on_pre_ $command>](
-            child: impl $crate::node::zng_app::widget::node::UiNode,
+            child: impl $crate::node::zng_app::widget::node::IntoUiNode,
             handler: impl $crate::node::zng_app::handler::WidgetHandler<$crate::node::zng_app::event::CommandArgs>,
-        ) -> impl $crate::node::zng_app::widget::node::UiNode {
+        ) -> $crate::node::zng_app::widget::node::UiNode {
             $crate::node::on_pre_command(child, || $cmd_init, || $enabled_var, handler)
         }
     } };
@@ -1630,7 +1627,7 @@ pub fn border_node(child: impl IntoUiNode, border_offsets: impl IntoVar<SideOffs
             let offsets = offsets.layout();
             *desired_size = BORDER.measure_border(offsets, || {
                 LAYOUT.with_sub_size(PxSize::new(offsets.horizontal(), offsets.vertical()), || {
-                    children.child().with_child(0, |n| wm.measure_block(n))
+                    children.node().with_child(0, |n| wm.measure_block(n))
                 })
             });
             children.delegated();
@@ -1661,12 +1658,12 @@ pub fn border_node(child: impl IntoUiNode, border_offsets: impl IntoVar<SideOffs
                 wl.translate(PxVector::new(offsets.left, offsets.top));
 
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
-                border_rect.size = LAYOUT.with_sub_size(taken_size, || children.child().with_child(0, |n| n.layout(wl)));
+                border_rect.size = LAYOUT.with_sub_size(taken_size, || children.node().with_child(0, |n| n.layout(wl)));
 
                 // layout border visual
                 LAYOUT.with_constraints(PxConstraints2d::new_exact_size(border_rect.size), || {
                     BORDER.with_border_layout(border_rect, offsets, || {
-                        children.child().with_child(1, |n| n.layout(wl));
+                        children.node().with_child(1, |n| n.layout(wl));
                     });
                 });
             });
@@ -1676,22 +1673,22 @@ pub fn border_node(child: impl IntoUiNode, border_offsets: impl IntoVar<SideOffs
         }
         UiNodeOp::Render { frame } => {
             if BORDER_OVER_VAR.get() {
-                children.child().with_child(0, |c| c.render(frame));
+                children.node().with_child(0, |c| c.render(frame));
                 BORDER.with_border_layout(border_rect, render_offsets, || {
-                    children.child().with_child(1, |c| c.render(frame));
+                    children.node().with_child(1, |c| c.render(frame));
                 });
             } else {
                 BORDER.with_border_layout(border_rect, render_offsets, || {
-                    children.child().with_child(1, |c| c.render(frame));
+                    children.node().with_child(1, |c| c.render(frame));
                 });
-                children.child().with_child(0, |c| c.render(frame));
+                children.node().with_child(0, |c| c.render(frame));
             }
             children.delegated();
         }
         UiNodeOp::RenderUpdate { update } => {
-            children.child().with_child(0, |c| c.render_update(update));
+            children.node().with_child(0, |c| c.render_update(update));
             BORDER.with_border_layout(border_rect, render_offsets, || {
-                children.child().with_child(1, |c| c.render_update(update));
+                children.node().with_child(1, |c| c.render_update(update));
             });
             children.delegated();
         }
@@ -1885,13 +1882,7 @@ where
 /// On deinit the `default` value is set on the state again.
 ///
 /// See [`with_widget_state`] for more details.
-pub fn with_widget_state_modify<U, S, V, I, M>(
-    child: U,
-    id: impl Into<StateId<S>>,
-    value: impl IntoVar<V>,
-    default: I,
-    modify: M,
-) -> UiNode
+pub fn with_widget_state_modify<U, S, V, I, M>(child: U, id: impl Into<StateId<S>>, value: impl IntoVar<V>, default: I, modify: M) -> UiNode
 where
     U: IntoUiNode,
     S: StateValue,
@@ -1972,7 +1963,7 @@ pub fn interactive_node(child: impl IntoUiNode, interactive: impl IntoVar<bool>)
         UiNodeOp::Info { info } => {
             if interactive.get() {
                 child.info(info);
-            } else if let Some(mut wgt) = child.child().as_widget() {
+            } else if let Some(mut wgt) = child.node().as_widget() {
                 let id = wgt.id();
                 // child is a widget.
                 info.push_interactivity_filter(move |args| {
@@ -2132,17 +2123,17 @@ pub fn presenter<D: VarValue>(data: impl IntoVar<D>, wgt_fn: impl IntoVar<Widget
     match_node(UiNode::nil(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&data).sub_var(&wgt_fn);
-            *c.child() = wgt_fn.get()(data.get());
+            *c.node() = wgt_fn.get()(data.get());
         }
         UiNodeOp::Deinit => {
             c.deinit();
-            *c.child() = UiNode::nil();
+            *c.node() = UiNode::nil();
         }
         UiNodeOp::Update { .. } => {
             if data.is_new() || wgt_fn.is_new() {
-                c.child().deinit();
-                *c.child() = wgt_fn.get()(data.get());
-                c.child().init();
+                c.node().deinit();
+                *c.node() = wgt_fn.get()(data.get());
+                c.node().init();
                 c.delegated();
                 WIDGET.update_info().layout().render();
             }
@@ -2164,24 +2155,24 @@ pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, wgt_fn: impl In
         UiNodeOp::Init => {
             WIDGET.sub_var(&data).sub_var(&wgt_fn);
             if let Some(data) = data.get() {
-                *c.child() = wgt_fn.get()(data);
+                *c.node() = wgt_fn.get()(data);
             }
         }
         UiNodeOp::Deinit => {
             c.deinit();
-            *c.child() = UiNode::nil();
+            *c.node() = UiNode::nil();
         }
         UiNodeOp::Update { .. } => {
             if data.is_new() || wgt_fn.is_new() {
                 if let Some(data) = data.get() {
-                    c.child().deinit();
-                    *c.child() = wgt_fn.get()(data);
-                    c.child().init();
+                    c.node().deinit();
+                    *c.node() = wgt_fn.get()(data);
+                    c.node().init();
                     c.delegated();
                     WIDGET.update_info().layout().render();
-                } else if !c.child().is_nil() {
-                    c.child().deinit();
-                    *c.child() = UiNode::nil();
+                } else if !c.node().is_nil() {
+                    c.node().deinit();
+                    *c.node() = UiNode::nil();
                     c.delegated();
                     WIDGET.update_info().layout().render();
                 }
@@ -2202,7 +2193,8 @@ pub fn list_presenter<D: VarValue>(list: impl IntoVar<ObservableVec<D>>, item_fn
         item_fn: item_fn.into_var(),
         view: vec![],
         _e: std::marker::PhantomData,
-    }.into_node()
+    }
+    .into_node()
 }
 
 /// Node list that presents `list` using `item_fn` for each list item.
@@ -2220,7 +2212,8 @@ where
         item_fn: item_fn.into_var(),
         view: vec![],
         _e: std::marker::PhantomData,
-    }.into_node()
+    }
+    .into_node()
 }
 
 struct ListPresenter<D>
@@ -2244,7 +2237,7 @@ where
     fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
         todo!()
     }
-    
+
     // fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     // where
     //     F: FnOnce(&mut BoxedUiNode) -> R,

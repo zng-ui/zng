@@ -712,29 +712,29 @@ fn cmd_btn(cmd: Command) -> UiNode {
     }
 }
 
-fn section(header: &'static str, items: impl UiNodeList) -> UiNode {
+fn section(header: &'static str, items: impl IntoUiNode) -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        children = ui_vec![Text! {
+        children =  Text! {
             txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
-        }]
+        }
         .chain(items);
     }
 }
 
-fn select<T: VarValue + PartialEq>(header: &'static str, selection: Var<T>, items: impl UiNodeList) -> UiNode {
+fn select<T: VarValue + PartialEq>(header: &'static str, selection: Var<T>, items: impl IntoUiNode) -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         toggle::selector = toggle::Selector::single(selection);
-        children = ui_vec![Text! {
+        children = Text! {
             txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
-        }]
+        }
         .chain(items);
     }
 }

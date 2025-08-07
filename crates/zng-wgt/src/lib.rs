@@ -50,11 +50,10 @@ mod __prelude {
                 WidgetLayout, WidgetMeasure, WidgetPath,
             },
             node::{
-                ArcNode, EditableUiVec, EditableUiVecRef, FillUiNode,  PanelList,
-                PanelListData as _, SORTING_LIST, SortingList, UiNode,  UiNodeListObserver, UiNodeOp,
-                UiVec, ZIndex, match_node, match_node_leaf, match_widget, ui_vec, IntoUiNode,
+                ArcNode, EditableUiVec, EditableUiVecRef, FillUiNode, IntoUiNode, PanelList, PanelListData as _, SORTING_LIST, SortingList,
+                UiNode, UiNodeImpl, UiNodeListObserver, UiNodeOp, UiVec, ZIndex, match_node, match_node_leaf, match_widget, ui_vec,
             },
-            property,  widget, widget_impl, widget_mixin, widget_set,
+            property, widget, widget_impl, widget_mixin, widget_set,
         },
         window::{MonitorId, WINDOW, WindowId},
     };

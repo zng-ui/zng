@@ -269,8 +269,8 @@ fn dyn_buttons() -> UiNode {
 
     Stack! {
         direction = StackDirection::top_to_bottom();
-        spacing = 5;
-        children = dyn_children.chain(ui_vec![
+        spacing = 5; // !!: TODO add chain method directly on list types?
+        children = UiNode::new(dyn_children).chain(ui_vec![
             separator_not_first(),
             Button! {
                 child = Text!("Add Button");

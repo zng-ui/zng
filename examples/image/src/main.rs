@@ -710,7 +710,7 @@ pub fn loading() -> UiNode {
     })
 }
 
-fn section(title: impl IntoVar<Txt>, children: impl UiNodeList) -> UiNode {
+fn section(title: impl IntoVar<Txt>, children: impl IntoUiNode) -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;

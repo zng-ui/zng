@@ -5,7 +5,6 @@ use zng::{
         gradient::{GradientStops, linear_gradient},
     },
     prelude::*,
-    stack::stack_nodes,
     window::{FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt},
 };
 
@@ -51,11 +50,11 @@ fn image() -> UiNode {
     Container! {
         layout::size = (800, 600);
 
-        widget::background = stack_nodes({
+        widget::background = {
             fn gradient(angle: i32, mut color: color::Rgba) -> UiNode {
                 color.alpha = 0.3;
                 let stops = GradientStops::from_stripes(&[color, color.transparent()], 0.0);
-                linear_gradient(angle.deg(), stops)
+                linear_gradient(angle.deg(), stops).into_node()
             }
 
             ui_vec![
@@ -70,7 +69,7 @@ fn image() -> UiNode {
                 gradient(260, colors::BLUE),
                 gradient(280, colors::BLUE),
             ]
-        });
+        };
 
         child = Text! {
             layout::align = Align::CENTER;

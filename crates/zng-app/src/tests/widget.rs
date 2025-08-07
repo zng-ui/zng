@@ -1155,9 +1155,11 @@ pub mod util {
 
     /// Probe for a [`trace`] in the widget state.
     pub fn traced(wgt: &mut UiNode, trace: &'static str) -> bool {
-        wgt.as_widget().expect("expected widget").with_context(WidgetUpdateMode::Ignore, || {
-            WIDGET.with_state(|s| s.get(*TRACE_ID).map(|t| t.contains(trace)).unwrap_or_default())
-        })        
+        wgt.as_widget()
+            .expect("expected widget")
+            .with_context(WidgetUpdateMode::Ignore, || {
+                WIDGET.with_state(|s| s.get(*TRACE_ID).map(|t| t.contains(trace)).unwrap_or_default())
+            })
     }
 
     static_id! {
@@ -1355,12 +1357,14 @@ pub mod util {
     ///
     /// Note only applies after update.
     pub fn set_state(wgt: &mut UiNode, state: bool) {
-        wgt.as_widget().expect("expected widget").with_context(WidgetUpdateMode::Ignore, || {
-            WIDGET.with_state_mut(|mut s| {
-                *s.entry(*IS_STATE_ID).or_default() = state;
+        wgt.as_widget()
+            .expect("expected widget")
+            .with_context(WidgetUpdateMode::Ignore, || {
+                WIDGET.with_state_mut(|mut s| {
+                    *s.entry(*IS_STATE_ID).or_default() = state;
+                });
+                WIDGET.update();
             });
-            WIDGET.update();
-        });
     }
 
     static_id! {

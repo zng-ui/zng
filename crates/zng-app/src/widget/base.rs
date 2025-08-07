@@ -499,7 +499,7 @@ pub mod node {
                 if let Some(inline) = wm.inline() {
                     if inline.is_default() {
                         if let Some(child_inline) = child
-                            .child()
+                            .node()
                             .as_widget()
                             .map(|mut w| w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline()))
                             .flatten()
@@ -523,7 +523,7 @@ pub mod node {
                     // child maybe widget, try to copy inline
                     if let Some(inline) = wl.inline() {
                         if inline.is_default() {
-                            if let Some(mut wgt) = child.child().as_widget() {
+                            if let Some(mut wgt) = child.node().as_widget() {
                                 wgt.with_context(WidgetUpdateMode::Ignore, || {
                                     let bounds = WIDGET.bounds();
                                     let child_inline = bounds.inline();

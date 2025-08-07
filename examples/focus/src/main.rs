@@ -109,7 +109,7 @@ fn functions(window_enabled: Var<bool>) -> UiNode {
             // Detach Button
             {
                 let detach_focused = ArcNode::new_cyclic(|wk| {
-                    let btn = Button! {
+                    Button! {
                         child = Text!("Detach Button");
                         // focus_on_init = true;
                         on_click = hn!(|_| {
@@ -122,8 +122,7 @@ fn functions(window_enabled: Var<bool>) -> UiNode {
                                 }
                             });
                         });
-                    };
-                    btn.boxed()
+                    }
                 });
                 detach_focused.take_on_init().into_widget()
             },
@@ -319,9 +318,8 @@ fn commands() -> UiNode {
                         font_color = light_dark(colors::BLACK, colors::WHITE);
                     }
                 }
-                .boxed()
             })
-            .collect::<Vec<_>>();
+            .collect::<UiVec>();
     }
 }
 
@@ -371,7 +369,7 @@ fn nested_focusables_group(g: char) -> UiNode {
         direction = StackDirection::left_to_right();
         align = Align::TOP;
         spacing = 10;
-        children = (0..5).map(|n| nested_focusable(g, n, 0).boxed()).collect::<Vec<_>>()
+        children = (0..5).map(|n| nested_focusable(g, n, 0)).collect::<UiVec>()
     }
 }
 fn nested_focusable(g: char, column: u8, row: u8) -> UiNode {

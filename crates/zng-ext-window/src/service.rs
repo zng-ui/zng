@@ -16,7 +16,7 @@ use zng_app::{
     widget::{
         UiTaskWidget, WidgetId,
         info::{InteractionPath, WidgetInfo, WidgetInfoTree},
-        node::{UiNode},
+        node::UiNode,
     },
     window::{WINDOW, WindowCtx, WindowId, WindowMode},
 };
@@ -712,13 +712,8 @@ impl WINDOWS {
     /// Note that the *root* node passed to the extender is the child node of the `WindowRoot` widget, not the widget itself.
     /// The extended root will be wrapped in the root widget node, that is, the final root widget will be
     /// `root(extender_nodes(CONTEXT(EVENT(..))))`, so extension nodes should operate as `CONTEXT` properties.
-    pub fn register_root_extender(&self, extender: impl FnMut(WindowRootExtenderArgs) -> UiNode + Send + 'static)
-    {
-        WINDOWS_SV
-            .write()
-            .root_extenders
-            .get_mut()
-            .push(Box::new(extender))
+    pub fn register_root_extender(&self, extender: impl FnMut(WindowRootExtenderArgs) -> UiNode + Send + 'static) {
+        WINDOWS_SV.write().root_extenders.get_mut().push(Box::new(extender))
     }
 
     /// Variable that tracks the OS window manager configuration for the window chrome.

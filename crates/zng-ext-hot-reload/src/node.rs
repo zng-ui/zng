@@ -4,7 +4,9 @@ use zng_app::{
     render::{FrameBuilder, FrameUpdate},
     update::{EventUpdate, WidgetUpdates},
     widget::{
-        info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure}, node::{ArcNode, IntoUiNode, UiNode, UiNodeImpl}, WidgetUpdateMode, WIDGET
+        WIDGET, WidgetUpdateMode,
+        info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
+        node::{ArcNode, IntoUiNode, UiNode, UiNodeImpl},
     },
 };
 use zng_app_context::LocalContext;
@@ -128,14 +130,14 @@ pub struct HotNodeHost {
     instance: HotNode,
 }
 impl HotNodeHost {
-    pub fn new(manifest_dir: &'static str, name: &'static str, args: HotNodeArgs, fallback: fn(HotNodeArgs) -> HotNode) -> Self {
-        Self {
+    pub fn new(manifest_dir: &'static str, name: &'static str, args: HotNodeArgs, fallback: fn(HotNodeArgs) -> HotNode) -> UiNode {
+        UiNode::new(Self {
             manifest_dir,
             name,
             args,
             fallback,
             instance: HotNode::new(UiNode::nil()),
-        }
+        })
     }
 }
 impl UiNodeImpl for HotNodeHost {

@@ -128,7 +128,7 @@ impl<P> StyleMix<P> {
 
 #[doc(hidden)]
 pub mod __impl_style_context_util {
-    pub use zng_wgt::prelude::{IntoVar, UiNode, context_var, property};
+    pub use zng_wgt::prelude::{IntoUiNode, IntoVar, UiNode, context_var, property};
 }
 
 /// Implements the contextual `STYLE_FN_VAR` and `style_fn`.
@@ -151,9 +151,9 @@ macro_rules! impl_style_fn {
         /// by default, you can set `replace` on a style to `true` to fully replace.
         #[$crate::__impl_style_context_util::property(WIDGET, default($crate::StyleFn::nil()), widget_impl($Widget))]
         pub fn style_fn(
-            child: impl $crate::__impl_style_context_util::UiNode,
+            child: impl $crate::__impl_style_context_util::IntoUiNode,
             style_fn: impl $crate::__impl_style_context_util::IntoVar<$crate::StyleFn>,
-        ) -> impl $crate::__impl_style_context_util::UiNode {
+        ) -> $crate::__impl_style_context_util::UiNode {
             $crate::with_style_fn(child, STYLE_FN_VAR, style_fn)
         }
     };
@@ -200,14 +200,14 @@ fn style_node(
             if !style_builder.is_empty() {
                 let mut builder = builder.clone();
                 builder.extend(style_builder.into_builder());
-                *c.child() = builder.default_build();
+                *c.node() = builder.default_build();
             } else {
-                *c.child() = builder.clone().default_build();
+                *c.node() = builder.clone().default_build();
             }
         }
         UiNodeOp::Deinit => {
             c.deinit();
-            *c.child() = UiNode::nil();
+            *c.node() = UiNode::nil();
         }
         UiNodeOp::Update { .. } => {
             if style_vars.iter().any(|v| v.is_new()) {

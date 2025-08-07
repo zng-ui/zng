@@ -68,7 +68,7 @@ impl Markdown {
         self.widget_builder().push_build_action(|wgt| {
             let md = wgt.capture_var_or_default(property_id!(text::txt));
             let child = markdown_node(md);
-            wgt.set_child(child.boxed());
+            wgt.set_child(child);
         });
     }
 
@@ -86,7 +86,7 @@ impl Markdown {
 /// Implements the markdown parsing and view generation, configured by contextual properties.
 pub fn markdown_node(md: impl IntoVar<Txt>) -> UiNode {
     let md = md.into_var();
-    match_node(NilUiNode.boxed(), move |c, op| match op {
+    match_node(UiNode::nil(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET
                 .sub_var(&md)
@@ -108,11 +108,11 @@ pub fn markdown_node(md: impl IntoVar<Txt>) -> UiNode {
                 .sub_var(&IMAGE_RESOLVER_VAR)
                 .sub_var(&LINK_RESOLVER_VAR);
 
-            *c.child() = md.with(|md| markdown_view_fn(md.as_str())).boxed();
+            *c.node() = md.with(|md| markdown_view_fn(md.as_str()));
         }
         UiNodeOp::Deinit => {
             c.deinit();
-            *c.child() = NilUiNode.boxed();
+            *c.node() = UiNode::nil();
         }
         UiNodeOp::Info { info } => {
             info.flag_meta(*MARKDOWN_INFO_ID);
@@ -141,9 +141,9 @@ pub fn markdown_node(md: impl IntoVar<Txt>) -> UiNode {
                 || LINK_RESOLVER_VAR.is_new()
             {
                 c.delegated();
-                c.child().deinit();
-                *c.child() = md.with(|md| markdown_view_fn(md.as_str())).boxed();
-                c.child().init();
+                c.node().deinit();
+                *c.node() = md.with(|md| markdown_view_fn(md.as_str()));
+                c.node().init();
                 WIDGET.update_info().layout().render();
             }
         }
@@ -151,7 +151,7 @@ pub fn markdown_node(md: impl IntoVar<Txt>) -> UiNode {
     })
 }
 
-fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode + use<> {
+fn markdown_view_fn<'a>(md: &'a str) -> UiNode {
     use pulldown_cmark::*;
     use resolvers::*;
     use view_fn::*;

@@ -105,9 +105,8 @@ pub fn default_selection_toolbar(args: text::SelectionToolbarArgs) -> UiNode {
                 Button!(text::cmd::SELECT_ALL_CMD.scoped(id)),
             ]
         }
-        .boxed()
     } else {
-        NilUiNode.boxed()
+        UiNode::nil()
     }
 }
 

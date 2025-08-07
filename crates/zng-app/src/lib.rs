@@ -116,7 +116,7 @@ pub mod __proc_macro_util {
 
         #[doc(hidden)]
         pub mod node {
-            pub use crate::widget::node::{ArcNode, UiNode, IntoUiNode};
+            pub use crate::widget::node::{ArcNode, IntoUiNode, UiNode};
         }
 
         #[doc(hidden)]

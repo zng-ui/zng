@@ -7,7 +7,6 @@ use zng::{
     },
     layout::{Line, size},
     prelude::*,
-    stack::stack_nodes,
     text::ToTxt,
 };
 
@@ -103,66 +102,60 @@ fn stack_linear() -> UiNode {
     sample_line(ui_vec![
         sample(
             "background",
-            stack_nodes(ui_vec![
+            ui_vec![
                 linear_gradient(45.deg(), [web_colors::RED, web_colors::GREEN]),
                 linear_gradient(135.deg(), [rgba(0, 0, 255, 0.5), rgba(1.0, 1.0, 1.0, 0.5)]),
-            ]),
+            ],
         ),
         sample(
             "over color",
-            stack_nodes(ui_vec![
+            ui_vec![
                 color::flood(web_colors::WHITE),
                 linear_gradient(0.deg(), stops![web_colors::RED, (web_colors::RED.transparent(), 50.pct())]),
                 linear_gradient(120.deg(), stops![web_colors::GREEN, (web_colors::GREEN.transparent(), 50.pct())]),
                 linear_gradient(240.deg(), stops![web_colors::BLUE, (web_colors::BLUE.transparent(), 50.pct())]),
-            ]),
+            ],
         ),
-        sample(
-            "rainbow",
-            stack_nodes({
-                let rainbow = GradientStops::from_stripes(
-                    &[
-                        web_colors::RED,
-                        web_colors::ORANGE,
-                        web_colors::YELLOW,
-                        web_colors::GREEN,
-                        web_colors::DODGER_BLUE,
-                        web_colors::INDIGO,
-                        web_colors::BLUE_VIOLET,
-                    ],
-                    0.0,
-                );
-                let mut cross_rainbow = rainbow.clone();
-                cross_rainbow.set_alpha(0.5);
-                ui_vec![
-                    linear_gradient(Line::to_right(), rainbow),
-                    linear_gradient(Line::to_bottom(), cross_rainbow),
-                ]
-            }),
-        ),
-        sample(
-            "angles",
-            stack_nodes({
-                fn gradient(angle: i32, mut color: color::Rgba) -> UiNode {
-                    color.alpha = 0.3;
-                    let stops = GradientStops::from_stripes(&[color, color.transparent()], 0.0);
-                    linear_gradient(angle.deg(), stops)
-                }
+        sample("rainbow", {
+            let rainbow = GradientStops::from_stripes(
+                &[
+                    web_colors::RED,
+                    web_colors::ORANGE,
+                    web_colors::YELLOW,
+                    web_colors::GREEN,
+                    web_colors::DODGER_BLUE,
+                    web_colors::INDIGO,
+                    web_colors::BLUE_VIOLET,
+                ],
+                0.0,
+            );
+            let mut cross_rainbow = rainbow.clone();
+            cross_rainbow.set_alpha(0.5);
+            ui_vec![
+                linear_gradient(Line::to_right(), rainbow),
+                linear_gradient(Line::to_bottom(), cross_rainbow),
+            ]
+        },),
+        sample("angles", {
+            fn gradient(angle: i32, mut color: color::Rgba) -> UiNode {
+                color.alpha = 0.3;
+                let stops = GradientStops::from_stripes(&[color, color.transparent()], 0.0);
+                linear_gradient(angle.deg(), stops).into_node()
+            }
 
-                ui_vec![
-                    color::flood(web_colors::WHITE),
-                    gradient(0, web_colors::RED),
-                    gradient(20, web_colors::RED),
-                    gradient(40, web_colors::RED),
-                    gradient(120, web_colors::GREEN),
-                    gradient(140, web_colors::GREEN),
-                    gradient(160, web_colors::GREEN),
-                    gradient(240, web_colors::BLUE),
-                    gradient(260, web_colors::BLUE),
-                    gradient(280, web_colors::BLUE),
-                ]
-            }),
-        ),
+            ui_vec![
+                color::flood(web_colors::WHITE),
+                gradient(0, web_colors::RED),
+                gradient(20, web_colors::RED),
+                gradient(40, web_colors::RED),
+                gradient(120, web_colors::GREEN),
+                gradient(140, web_colors::GREEN),
+                gradient(160, web_colors::GREEN),
+                gradient(240, web_colors::BLUE),
+                gradient(260, web_colors::BLUE),
+                gradient(280, web_colors::BLUE),
+            ]
+        },),
     ])
 }
 
@@ -181,7 +174,7 @@ fn sample(name: impl ToTxt, gradient: impl IntoUiNode) -> UiNode {
     }
 }
 
-fn sample_line(children: impl UiNodeList) -> UiNode {
+fn sample_line(children: impl IntoUiNode) -> UiNode {
     Stack! {
         direction = StackDirection::left_to_right();
         spacing = 5;

@@ -42,7 +42,7 @@ pub struct SubMenu(StyleMix<WidgetBase>);
 impl SubMenu {
     widget_impl! {
         /// Sub-menu items.
-        pub crate::popup::children(children: impl UiNodeList);
+        pub crate::popup::children(children: impl IntoUiNode);
     }
 
     fn widget_intrinsic(&mut self) {
@@ -59,12 +59,12 @@ impl SubMenu {
         self.widget_builder().push_build_action(|wgt| {
             let header = wgt
                 .capture_ui_node(property_id!(Self::header))
-                .unwrap_or_else(|| FillUiNode.boxed());
+                .unwrap_or_else(|| FillUiNode.into_node());
 
             let children = wgt
                 .capture_property(property_id!(Self::children))
-                .map(|p| p.args.ui_node_list(0).clone())
-                .unwrap_or_else(|| ArcNodeList::new(ui_vec![].boxed()));
+                .map(|p| p.args.ui_node(0).clone())
+                .unwrap_or_else(|| ArcNode::new(ui_vec![]));
 
             wgt.set_child(header);
 
@@ -75,7 +75,7 @@ impl SubMenu {
 impl_style_fn!(SubMenu);
 
 /// Sub-menu implementation.
-pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNodeList<BoxedUiNodeList>) -> UiNode {
+pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
     let mut open = None::<Var<PopupState>>;
     let is_open = var(false);
     let mut open_timer = None;
@@ -285,7 +285,7 @@ pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNodeList<BoxedUiNodeLi
         if open_pop {
             let pop = super::popup::SubMenuPopup! {
                 parent_id = WIDGET.id();
-                children = children.take_on_init().boxed();
+                children = children.take_on_init();
             };
             let state = POPUP.open(pop);
             state.subscribe(UpdateOp::Update, WIDGET.id()).perm();

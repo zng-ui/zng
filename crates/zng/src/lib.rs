@@ -578,7 +578,7 @@ mod __prelude {
         shortcut::{CommandShortcutExt as _, shortcut},
         widget::{
             AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _, WIDGET, WidgetId, easing,
-            node::{UiNode, UiNodeList, UiNodeListChain as _, UiVec, ui_vec},
+            node::{IntoUiNode, UiNode, UiVec, ui_vec},
         },
         window::{WINDOW, WindowId},
     };
@@ -775,11 +775,10 @@ mod __prelude_wgt {
                 WidgetLayout, WidgetMeasure, WidgetPath,
             },
             node::{
-                ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, EditableUiVec, EditableUiVecRef, FillUiNode, NilUiNode, PanelList,
-                SORTING_LIST, SortingList, UiNode, UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiVec, ZIndex,
-                match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec,
+                ArcNode, EditableUiVec, EditableUiVecRef, FillUiNode, IntoUiNode, PanelList, SORTING_LIST, SortingList, UiNode, UiNodeImpl,
+                UiNodeListObserver, UiNodeOp, UiVec, ZIndex, match_node, match_node_leaf, match_widget, ui_vec,
             },
-            property, ui_node, widget, widget_impl, widget_mixin, widget_set,
+            property, widget, widget_impl, widget_mixin, widget_set,
         },
         window::{MonitorId, WINDOW, WindowId},
     };
@@ -1054,34 +1053,28 @@ pub mod read_me_test {}
 mod default_editors {
     use zng::{
         prelude::*,
-        widget::{
-            EditorRequestArgs,
-            node::{BoxedUiNode, NilUiNode},
-        },
+        widget::{EditorRequestArgs, node::UiNode},
     };
 
-    pub fn handler(args: EditorRequestArgs) -> BoxedUiNode {
+    pub fn handler(args: EditorRequestArgs) -> UiNode {
         #[cfg(feature = "text_input")]
         if let Some(txt) = args.value::<Txt>() {
             return TextInput! {
                 txt;
-            }
-            .boxed();
+            };
         }
         #[cfg(feature = "text_input")]
         if let Some(s) = args.value::<String>() {
             return TextInput! {
                 txt = s.map_bidi(|s| Txt::from_str(s), |t: &Txt| t.to_string());
-            }
-            .boxed();
+            };
         }
         #[cfg(feature = "text_input")]
         if let Some(c) = args.value::<char>() {
             return TextInput! {
                 txt_parse::<char> = c;
                 style_fn = crate::text_input::FieldStyle!();
-            }
-            .boxed();
+            };
         }
 
         #[cfg(feature = "toggle")]
@@ -1089,8 +1082,7 @@ mod default_editors {
             return Toggle! {
                 style_fn = toggle::CheckStyle!();
                 checked;
-            }
-            .boxed();
+            };
         }
 
         macro_rules! parse {
@@ -1101,8 +1093,7 @@ mod default_editors {
                         return TextInput! {
                             txt_parse::<$ty> = n;
                             style_fn = crate::text_input::FieldStyle!();
-                        }
-                        .boxed();
+                        };
                     }
 
                 )+
@@ -1113,6 +1104,6 @@ mod default_editors {
         }
 
         let _ = args;
-        NilUiNode.boxed()
+        UiNode::nil()
     }
 }

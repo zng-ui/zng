@@ -161,6 +161,13 @@ impl UiVec {
     pub fn insert(&mut self, index: usize, node: impl IntoUiNode) {
         self.0.insert(index, node.into_node())
     }
+
+    /// Create a list chain node.
+    /// 
+    /// See [`UiNode::chain`] for more details.
+    pub fn chain(self, other: impl IntoUiNode) -> UiNode {
+        UiNode::new(self).chain(other)
+    }
 }
 impl ops::Deref for UiVec {
     type Target = Vec<UiNode>;

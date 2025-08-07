@@ -75,11 +75,11 @@ fn icons() -> UiNode {
                     children = {
                         let mut r = vec![];
                         c.par_iter()
-                                .map(|(name, ico)| icon_btn(name, ico.clone(), font_mod).boxed())
+                                .map(|(name, ico)| icon_btn(name, ico.clone(), font_mod))
                                 .collect_into_vec(&mut r);
                         r
                     };
-                }.boxed())
+                })
                 .collect_into_vec(&mut r);
                 r
             };
@@ -248,7 +248,7 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
                                             padding = 2;
                                         }
                                     ]
-                                }.boxed()
+                                    }
                             })).collect::<Vec<_>>()
                         },
                         code_copy("ICONS.req".into(), formatx!("ICONS.req(\"material/{font_mod}/{name}\")")),

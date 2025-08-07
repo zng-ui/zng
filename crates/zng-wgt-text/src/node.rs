@@ -777,7 +777,7 @@ fn lines_wrap_counter(txt: &ShapedText) -> impl Iterator<Item = u32> + '_ {
     }
 }
 
-pub(super) fn parse_text<T>(child: impl IntoUiNode, value: impl IntoVar<T>) -> impl UiNode
+pub(super) fn parse_text<T>(child: impl IntoUiNode, value: impl IntoVar<T>) -> UiNode
 where
     T: super::TxtParseValue,
 {
@@ -1064,7 +1064,9 @@ pub fn selection_toolbar_node(child: impl IntoUiNode) -> UiNode {
                     let node = match_widget(node, move |c, op| match op {
                         UiNodeOp::Init => {
                             c.init();
-                            c.with_context(WidgetUpdateMode::Bubble, || WIDGET.sub_var_layout(&SELECTION_TOOLBAR_ANCHOR_VAR));
+                            if let Some(mut wgt) = c.node().as_widget() {
+                                wgt.with_context(WidgetUpdateMode::Bubble, || WIDGET.sub_var_layout(&SELECTION_TOOLBAR_ANCHOR_VAR));
+                            }
                         }
                         UiNodeOp::Layout { wl, final_size } => {
                             let r_txt = TEXT.resolved();
@@ -1112,7 +1114,7 @@ pub fn selection_toolbar_node(child: impl IntoUiNode) -> UiNode {
                         UiNodeOp::Render { frame } => {
                             let l_txt = TEXT.laidout();
                             let transform = l_txt.render_info.transform.then_translate(translate.cast());
-                            let transform = adjust_viewport_bound(transform, c);
+                            let transform = adjust_viewport_bound(transform, c.node());
 
                             frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, false, |frame| {
                                 c.render(frame)
@@ -1121,7 +1123,7 @@ pub fn selection_toolbar_node(child: impl IntoUiNode) -> UiNode {
                         UiNodeOp::RenderUpdate { update } => {
                             let l_txt = TEXT.laidout();
                             let transform = l_txt.render_info.transform.then_translate(translate.cast());
-                            let transform = adjust_viewport_bound(transform, c);
+                            let transform = adjust_viewport_bound(transform, c.node());
 
                             update.with_transform(transform_key.update(transform, true), false, |update| c.render_update(update));
                         }
@@ -1157,13 +1159,12 @@ pub fn selection_toolbar_node(child: impl IntoUiNode) -> UiNode {
         }
     })
 }
-fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> PxTransform {
+fn adjust_viewport_bound(transform: PxTransform, widget: &mut UiNode) -> PxTransform {
     let window_bounds = WINDOW.vars().actual_size_px().get();
-    let wgt_bounds = PxBox::from(
-        widget
-            .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().outer_size())
-            .unwrap_or_else(PxSize::zero),
-    );
+    let wgt_bounds = PxBox::from(match widget.as_widget() {
+        Some(mut w) => w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().outer_size()),
+        None => PxSize::zero(),
+    });
     let wgt_bounds = transform.outer_transformed(wgt_bounds).unwrap_or_default();
 
     let x_underflow = -wgt_bounds.min.x.min(Px(0));

@@ -109,7 +109,7 @@ pub(super) fn new(
         child_right = Container! {
             width = 600;
             child = selected_wgt.present(wgt_fn!(|w| {
-                selected_view(w).boxed()
+                selected_view(w)
             }));
             background_color = SELECTED_BKG_VAR;
         }, 0;
@@ -376,7 +376,7 @@ fn tree_item_view(wgt: InspectedWidget, filter: Var<Txt>, parent_desc_filter: Va
                 tree_item_view(c, filter.clone(), descendants_pass_filter.clone())
             }).collect();
             if children.is_empty() {
-                NilUiNode.boxed()
+                UiNode::nil()
             } else {
                 Container! {
                     child = Stack! {
@@ -390,7 +390,7 @@ fn tree_item_view(wgt: InspectedWidget, filter: Var<Txt>, parent_desc_filter: Va
                         };
                     };
                     child_bottom = Text!("}}"), 0;
-                }.boxed()
+                }
 
             }
 
@@ -444,9 +444,9 @@ fn selected_view(wgt: Option<InspectedWidget>) -> UiNode {
                     },
                     wgt.inspector_info().present(wgt_fn!(|i| {
                         if let Some(i) = i {
-                            inspector_info_view(i).boxed()
+                            inspector_info_view(i)
                         } else {
-                            NilUiNode.boxed()
+                            UiNode::nil()
                         }
                     })),
                     Hr!(),

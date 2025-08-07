@@ -20,7 +20,9 @@ pub fn margin(child: impl IntoUiNode, margin: impl IntoVar<SideOffsets>) -> UiNo
         UiNodeOp::Measure { wm, desired_size } => {
             let margin = margin.layout();
             let size_increment = PxSize::new(margin.horizontal(), margin.vertical());
-            *desired_size = LAYOUT.with_constraints(LAYOUT.constraints().with_less_size(size_increment), || wm.measure_block(child.child()));
+            *desired_size = LAYOUT.with_constraints(LAYOUT.constraints().with_less_size(size_increment), || {
+                wm.measure_block(child.node())
+            });
             child.delegated();
             desired_size.width += size_increment.width;
             desired_size.height += size_increment.height;
@@ -57,7 +59,7 @@ pub fn align(child: impl IntoUiNode, alignment: impl IntoVar<Align>) -> UiNode {
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let align = alignment.get();
-            let child_size = LAYOUT.with_constraints(align.child_constraints(LAYOUT.constraints()), || wm.measure_block(child.child()));
+            let child_size = LAYOUT.with_constraints(align.child_constraints(LAYOUT.constraints()), || wm.measure_block(child.node()));
             child.delegated();
             *desired_size = align.measure(child_size, LAYOUT.constraints());
         }
@@ -164,7 +166,7 @@ pub fn inline(child: impl IntoUiNode, mode: impl IntoVar<InlineMode>) -> UiNode 
                 InlineMode::Block => {
                     // disable inline, method also disables in `WidgetMeasure`
                     child.delegated();
-                    wm.measure_block(child.child())
+                    wm.measure_block(child.node())
                 }
             };
         }
@@ -184,7 +186,7 @@ pub fn inline(child: impl IntoUiNode, mode: impl IntoVar<InlineMode>) -> UiNode 
                     if wl.inline().is_some() {
                         tracing::error!("inline enabled in `layout` when it signaled disabled in the previous `measure`");
                         child.delegated();
-                        wl.layout_block(child.child())
+                        wl.layout_block(child.node())
                     } else {
                         child.layout(wl)
                     }

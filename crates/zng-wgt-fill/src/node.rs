@@ -471,8 +471,13 @@ struct LinearNodeData {
     stops: Vec<RenderGradientStop>,
     size: PxSize,
 }
-#[ui_node(none)]
-impl UiNode for LinearGradient {
+impl UiNodeImpl for LinearGradient {
+    fn children_len(&self) -> usize {
+        0
+    }
+
+    fn with_child(&mut self, _: usize, _: &mut dyn FnMut(&mut UiNode)) {}
+
     fn init(&mut self) {
         WIDGET.sub_var_layout(&self.axis).sub_var(&self.stops).sub_var(&self.extend_mode);
     }
@@ -524,8 +529,13 @@ struct TiledNodeData {
     size: PxSize,
     spacing: PxSize,
 }
-#[ui_node(none)]
-impl UiNode for TiledLinearGradient {
+impl UiNodeImpl for TiledLinearGradient {
+    fn children_len(&self) -> usize {
+        0
+    }
+
+    fn with_child(&mut self, _: usize, _: &mut dyn FnMut(&mut UiNode)) {}
+
     fn init(&mut self) {
         WIDGET
             .sub_var_layout(&self.axis)
@@ -606,9 +616,13 @@ struct RadialNodeData {
     radius: PxSize,
     stops: Vec<RenderGradientStop>,
 }
+impl UiNodeImpl for RadialGradient {
+    fn children_len(&self) -> usize {
+        0
+    }
 
-#[ui_node(none)]
-impl UiNode for RadialGradient {
+    fn with_child(&mut self, _: usize, _: &mut dyn FnMut(&mut UiNode)) {}
+
     fn init(&mut self) {
         WIDGET
             .sub_var_layout(&self.center)
@@ -671,9 +685,13 @@ impl UiNode for RadialGradient {
         );
     }
 }
+impl UiNodeImpl for TiledRadialGradient {
+    fn children_len(&self) -> usize {
+        0
+    }
 
-#[ui_node(none)]
-impl UiNode for TiledRadialGradient {
+    fn with_child(&mut self, _: usize, _: &mut dyn FnMut(&mut UiNode)) {}
+
     fn init(&mut self) {
         WIDGET
             .sub_var_layout(&self.center)
@@ -760,9 +778,12 @@ struct ConicNodeData {
     center: PxPoint,
     stops: Vec<RenderGradientStop>,
 }
+impl UiNodeImpl for ConicGradient {
+    fn children_len(&self) -> usize {
+        0
+    }
+    fn with_child(&mut self, _: usize, _: &mut dyn FnMut(&mut UiNode)) {}
 
-#[ui_node(none)]
-impl UiNode for ConicGradient {
     fn init(&mut self) {
         WIDGET
             .sub_var_layout(&self.center)
@@ -823,9 +844,12 @@ impl UiNode for ConicGradient {
         );
     }
 }
+impl UiNodeImpl for TiledConicGradient {
+    fn children_len(&self) -> usize {
+        0
+    }
+    fn with_child(&mut self, _: usize, _: &mut dyn FnMut(&mut UiNode)) {}
 
-#[ui_node(none)]
-impl UiNode for TiledConicGradient {
     fn init(&mut self) {
         WIDGET
             .sub_var_layout(&self.center)

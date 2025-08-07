@@ -1071,9 +1071,9 @@ pub fn with_font_variation(child: impl IntoUiNode, name: FontVariationName, valu
 ///
 /// The modifications done in `set_feature` are visible only in the [`FONT_FEATURES_VAR`] in this context, and features
 /// already set in a parent context are included.
-pub fn with_font_feature<C, S, V, D>(child: C, state: V, set_feature: D) -> impl UiNode
+pub fn with_font_feature<C, S, V, D>(child: C, state: V, set_feature: D) -> UiNode
 where
-    C: UiNode,
+    C: IntoUiNode,
     S: VarValue,
     V: IntoVar<S>,
     D: FnMut(&mut FontFeatures, S) -> S + Send + 'static,

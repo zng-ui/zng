@@ -544,7 +544,7 @@ pub fn def_list_item_definition_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<
 ///
 /// Sets the [`LIST_ITEM_BULLET_FN_VAR`].
 #[property(CONTEXT, default(LIST_ITEM_BULLET_FN_VAR), widget_impl(Markdown))]
-pub fn list_item_bullet_fn(child: impl IntoUiNode,ode, wgt_fn: impl IntoVar<WidgetFn<ListItemBulletFnArgs>>) -> UiNode {
+pub fn list_item_bullet_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<ListItemBulletFnArgs>>) -> UiNode {
     with_context_var(child, LIST_ITEM_BULLET_FN_VAR, wgt_fn)
 }
 
@@ -592,7 +592,7 @@ pub fn footnote_ref_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<Foo
 ///
 /// Sets the [`FOOTNOTE_DEF_FN_VAR`].
 #[property(CONTEXT, default(FOOTNOTE_DEF_FN_VAR), widget_impl(Markdown))]
-pub fn footnote_def_fn(child: impl IntoUiNode,ode, wgt_fn: impl IntoVar<WidgetFn<FootnoteDefFnArgs>>) -> UiNode {
+pub fn footnote_def_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<FootnoteDefFnArgs>>) -> UiNode {
     with_context_var(child, FOOTNOTE_DEF_FN_VAR, wgt_fn)
 }
 
@@ -675,7 +675,7 @@ pub fn default_code_inline_fn(args: CodeInlineFnArgs) -> UiNode {
 /// See [`LINK_FN_VAR`] for more details.
 pub fn default_link_fn(args: LinkFnArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         let url = args.url;
 
@@ -686,7 +686,6 @@ pub fn default_link_fn(args: LinkFnArgs) -> UiNode {
             Wrap! {
                 children = items;
             }
-            .boxed()
         };
 
         Button! {
@@ -700,7 +699,6 @@ pub fn default_link_fn(args: LinkFnArgs) -> UiNode {
                 LINK_EVENT.notify(LinkArgs::now(url.clone(), link));
             });
         }
-        .boxed()
     }
 }
 
@@ -719,7 +717,6 @@ pub fn default_code_block_fn(args: CodeBlockFnArgs) -> UiNode {
             corner_radius = 4;
             background_color = light_dark(rgb(0.95, 0.95, 0.95), rgb(0.05, 0.05, 0.05));
         }
-        .boxed()
     } else {
         Text! {
             txt = args.txt;
@@ -728,7 +725,6 @@ pub fn default_code_block_fn(args: CodeBlockFnArgs) -> UiNode {
             font_family = ["JetBrains Mono", "Consolas", "monospace"];
             background_color = light_dark(rgb(0.95, 0.95, 0.95), rgb(0.05, 0.05, 0.05));
         }
-        .boxed()
     }
 }
 
@@ -737,14 +733,13 @@ pub fn default_code_block_fn(args: CodeBlockFnArgs) -> UiNode {
 /// See [`PARAGRAPH_FN_VAR`] for more details.
 pub fn default_paragraph_fn(mut args: ParagraphFnArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else if args.items.len() == 1 {
         args.items.remove(0)
     } else {
         Wrap! {
             children = args.items;
         }
-        .boxed()
     }
 }
 
@@ -753,7 +748,7 @@ pub fn default_paragraph_fn(mut args: ParagraphFnArgs) -> UiNode {
 /// See [`HEADING_FN_VAR`] for more details.
 pub fn default_heading_fn(args: HeadingFnArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         Wrap! {
             access_role = AccessRole::Heading;
@@ -769,7 +764,6 @@ pub fn default_heading_fn(args: HeadingFnArgs) -> UiNode {
             children = args.items;
             anchor = args.anchor;
         }
-        .boxed()
     }
 }
 
@@ -782,7 +776,7 @@ pub fn default_heading_fn(args: HeadingFnArgs) -> UiNode {
 /// [`Grid!`]: struct@Grid
 pub fn default_list_fn(args: ListFnArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         Grid! {
             grid::cell::at = grid::cell::AT_AUTO; // in case it is nested
@@ -797,7 +791,6 @@ pub fn default_list_fn(args: ListFnArgs) -> UiNode {
                 },
             ];
         }
-        .boxed()
     }
 }
 
@@ -808,7 +801,7 @@ pub fn default_list_fn(args: ListFnArgs) -> UiNode {
 /// [`Stack!`]: struct@Stack
 pub fn default_def_list_fn(args: DefListArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         Stack! {
             access_role = AccessRole::List;
@@ -816,7 +809,6 @@ pub fn default_def_list_fn(args: DefListArgs) -> UiNode {
             spacing = PARAGRAPH_SPACING_VAR;
             children = args.items;
         }
-        .boxed()
     }
 }
 
@@ -827,14 +819,13 @@ pub fn default_def_list_fn(args: DefListArgs) -> UiNode {
 /// [`Wrap!`]: struct@Wrap
 pub fn default_def_list_item_title_fn(args: DefListItemTitleArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         Wrap! {
             access_role = AccessRole::Term;
             children = args.items;
             font_weight = FontWeight::BOLD;
         }
-        .boxed()
     }
 }
 
@@ -845,14 +836,13 @@ pub fn default_def_list_item_title_fn(args: DefListItemTitleArgs) -> UiNode {
 /// [`Wrap!`]: struct@Wrap
 pub fn default_def_list_item_definition_fn(args: DefListItemDefinitionArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         Wrap! {
             access_role = AccessRole::Definition;
             children = args.items;
             margin = (0, 2.em());
         }
-        .boxed()
     }
 }
 
@@ -871,14 +861,12 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> UiNode {
             scale = 0.8.fct();
             offset = (-(0.1.fct()), 0);
         }
-        .boxed()
     } else if let Some(n) = args.num {
         Text! {
             grid::cell::at = grid::cell::AT_AUTO;
             txt = formatx!("{n}. ");
             align = Align::RIGHT;
         }
-        .boxed()
     } else {
         match args.depth {
             0 => Wgt! {
@@ -905,7 +893,6 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> UiNode {
                 background_color = FONT_COLOR_VAR;
             },
         }
-        .boxed()
     }
 }
 
@@ -918,10 +905,10 @@ pub fn default_list_item_fn(args: ListItemFnArgs) -> UiNode {
 
     if items.is_empty() {
         if blocks.is_empty() {
-            return NilUiNode.boxed();
+            return UiNode::nil();
         }
     } else {
-        let r = if items.len() == 1 { items.remove(0) } else { Wrap!(items).boxed() };
+        let r = if items.len() == 1 { items.remove(0) } else { Wrap!(items) };
         blocks.insert(0, r);
     }
 
@@ -932,14 +919,12 @@ pub fn default_list_item_fn(args: ListItemFnArgs) -> UiNode {
             direction = StackDirection::top_to_bottom();
             children = blocks;
         }
-        .boxed()
     } else {
         Container! {
             access_role = AccessRole::ListItem;
             grid::cell::at = grid::cell::AT_AUTO;
             child = blocks.remove(0);
         }
-        .boxed()
     }
 }
 
@@ -970,7 +955,6 @@ pub fn default_image_fn(args: ImageFnArgs) -> UiNode {
             Wrap! {
                 children = alt_items;
             }
-            .boxed()
         };
         let alt_items = ArcNode::new(alt_items);
         zng_wgt_image::Image! {
@@ -997,7 +981,7 @@ pub fn default_rule_fn(_: RuleFnArgs) -> UiNode {
 /// See [`BLOCK_QUOTE_FN_VAR`] for more details.
 pub fn default_block_quote_fn(args: BlockQuoteFnArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         Stack! {
             direction = StackDirection::top_to_bottom();
@@ -1015,7 +999,6 @@ pub fn default_block_quote_fn(args: BlockQuoteFnArgs) -> UiNode {
             };
             padding = 4;
         }
-        .boxed()
     }
 }
 
@@ -1045,7 +1028,7 @@ pub fn default_table_fn(args: TableFnArgs) -> UiNode {
                 }
             }
         });
-        columns = std::iter::repeat_with(|| grid::Column!{}.boxed()).take(args.columns.len()).collect::<UiVec>();
+        columns = std::iter::repeat_with(|| grid::Column!{}).take(args.columns.len()).collect::<UiVec>();
         cells = args.cells;
     }
 }
@@ -1055,7 +1038,7 @@ pub fn default_table_fn(args: TableFnArgs) -> UiNode {
 /// See [`TABLE_CELL_FN_VAR`] for more details.
 pub fn default_table_cell_fn(args: TableCellFnArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else if args.is_heading {
         Wrap! {
             access_role = AccessRole::Cell;
@@ -1065,7 +1048,6 @@ pub fn default_table_cell_fn(args: TableCellFnArgs) -> UiNode {
             child_align = args.col_align;
             children = args.items;
         }
-        .boxed()
     } else {
         Wrap! {
             access_role = AccessRole::Cell;
@@ -1074,7 +1056,6 @@ pub fn default_table_cell_fn(args: TableCellFnArgs) -> UiNode {
             child_align = args.col_align;
             children = args.items;
         }
-        .boxed()
     }
 }
 
@@ -1083,14 +1064,13 @@ pub fn default_table_cell_fn(args: TableCellFnArgs) -> UiNode {
 /// See [`PANEL_FN_VAR`] for more details.
 pub fn default_panel_fn(args: PanelFnArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         Stack! {
             direction = StackDirection::top_to_bottom();
             spacing = PARAGRAPH_SPACING_VAR;
             children = args.items;
         }
-        .boxed()
     }
 }
 
@@ -1120,7 +1100,7 @@ pub fn default_footnote_ref_fn(args: FootnoteRefFnArgs) -> UiNode {
 pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> UiNode {
     let mut items = args.items;
     let items = if items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else if items.len() == 1 {
         items.remove(0)
     } else {
@@ -1128,7 +1108,6 @@ pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> UiNode {
             direction = StackDirection::top_to_bottom();
             children = items;
         }
-        .boxed()
     };
 
     let url_back = formatx!("#footnote-ref-{}", args.label);

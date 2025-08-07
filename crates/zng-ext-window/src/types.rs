@@ -8,10 +8,7 @@ use zng_app::{
     AppEventSender, Deadline,
     event::{event, event_args},
     update::UpdateOp,
-    widget::{
-        WidgetId,
-        node::{UiNode},
-    },
+    widget::{WidgetId, node::UiNode},
     window::{WINDOW, WindowId},
 };
 use zng_ext_image::{ImageSource, ImageVar, Img};

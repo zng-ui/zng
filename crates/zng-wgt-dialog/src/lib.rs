@@ -211,7 +211,7 @@ impl DefaultStyle {
                             .map(|(i, r)| presenter(
                                 DialogButtonArgs { response: r, is_last: i == last },
                                 BUTTON_FN_VAR
-                            ).boxed())
+                            ))
                             .collect::<UiVec>()
                     };
                 }
@@ -307,7 +307,7 @@ impl DialogButtonArgs {
 /// Dialog title widget.
 ///
 /// Note that this takes in an widget, you can use `Text!("title")` to set to a text.
-#[property(CONTEXT, default(NilUiNode), widget_impl(Dialog))]
+#[property(CONTEXT, default(UiNode::nil()), widget_impl(Dialog))]
 pub fn title(child: impl IntoUiNode, title: impl IntoUiNode) -> UiNode {
     with_context_var(child, TITLE_VAR, WidgetFn::singleton(title))
 }
@@ -315,7 +315,7 @@ pub fn title(child: impl IntoUiNode, title: impl IntoUiNode) -> UiNode {
 /// Dialog icon widget.
 ///
 /// Note that this takes in an widget, you can use the `ICONS` service to get an icon widget.
-#[property(CONTEXT, default(NilUiNode), widget_impl(Dialog))]
+#[property(CONTEXT, default(UiNode::nil()), widget_impl(Dialog))]
 pub fn icon(child: impl IntoUiNode, icon: impl IntoUiNode) -> UiNode {
     with_context_var(child, ICON_VAR, WidgetFn::singleton(icon))
 }
@@ -755,7 +755,7 @@ impl DIALOG {
     ///
     /// [`close`]: Response::close
     pub fn custom(&self, dialog: impl IntoUiNode) -> ResponseVar<Response> {
-        self.show_impl(dialog.boxed())
+        self.show_impl(dialog.into_node())
     }
 }
 
@@ -867,7 +867,7 @@ impl DIALOG {
         }
     }
 
-    fn show_impl(&self, dialog: BoxedUiNode) -> ResponseVar<Response> {
+    fn show_impl(&self, dialog: UiNode) -> ResponseVar<Response> {
         let (responder, response) = response_var();
 
         let mut ctx = Some(Arc::new(DialogCtx {
@@ -882,10 +882,10 @@ impl DIALOG {
             clmv!(|c, op| {
                 match &op {
                     UiNodeOp::Init => {
-                        *ctx.as_ref().unwrap().dialog_id.lock() = c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id());
+                        *ctx.as_ref().unwrap().dialog_id.lock() = c.node().as_widget().map(|mut w| w.id());
                         DIALOG_CTX.with_context(&mut ctx, || c.op(op));
                         // in case a non-standard dialog widget is used
-                        *ctx.as_ref().unwrap().dialog_id.lock() = c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id());
+                        *ctx.as_ref().unwrap().dialog_id.lock() = c.node().as_widget().map(|mut w| w.id());
                     }
                     UiNodeOp::Deinit => {}
                     _ => {

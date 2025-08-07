@@ -3,7 +3,7 @@
 use std::mem;
 
 use zng_ext_image::{IMAGES, ImageCacheMode, ImagePpi, ImageRenderArgs};
-use zng_wgt_stack::stack_nodes_layout_by;
+use zng_wgt_stack::stack_nodes;
 
 use super::image_properties::{
     IMAGE_ALIGN_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_DOWNSCALE_VAR, IMAGE_ERROR_FN_VAR, IMAGE_FIT_VAR, IMAGE_LIMITS_VAR,
@@ -135,14 +135,14 @@ pub fn image_error_presenter(child: impl IntoUiNode) -> UiNode {
         .present_opt(IMAGE_ERROR_FN_VAR.map(|f| {
             wgt_fn!(f, |e| {
                 if IN_ERROR_VIEW.get_clone() {
-                    NilUiNode.boxed()
+                    UiNode::nil()
                 } else {
-                    with_context_local(f(e), &IN_ERROR_VIEW, true).boxed()
+                    with_context_local(f(e), &IN_ERROR_VIEW, true)
                 }
             })
         }));
 
-    stack_nodes_layout_by(ui_vec![view, child], 1, |constraints, _, img_size| {
+    stack_nodes(ui_vec![view, child], 1, |constraints, _, img_size| {
         if img_size == PxSize::zero() {
             constraints
         } else {
@@ -162,14 +162,14 @@ pub fn image_loading_presenter(child: impl IntoUiNode) -> UiNode {
         .present_opt(IMAGE_LOADING_FN_VAR.map(|f| {
             wgt_fn!(f, |a| {
                 if IN_LOADING_VIEW.get_clone() {
-                    NilUiNode.boxed()
+                    UiNode::nil()
                 } else {
-                    with_context_local(f(a), &IN_LOADING_VIEW, true).boxed()
+                    with_context_local(f(a), &IN_LOADING_VIEW, true)
                 }
             })
         }));
 
-    stack_nodes_layout_by(ui_vec![view, child], 1, |constraints, _, img_size| {
+    stack_nodes(ui_vec![view, child], 1, |constraints, _, img_size| {
         if img_size == PxSize::zero() {
             constraints
         } else {

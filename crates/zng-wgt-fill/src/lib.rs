@@ -27,15 +27,17 @@ pub fn background(child: impl IntoUiNode, background: impl IntoUiNode) -> UiNode
     let background = interactive_node(background, false);
     let background = fill_node(background);
 
-    match_node_list(ui_vec![background, child], |children, op| match op {
+    match_node(ui_vec![background, child], |children, op| match op {
         UiNodeOp::Measure { wm, desired_size } => {
-            *desired_size = children.with_node(1, |n| n.measure(wm));
+            children.delegated();
+            *desired_size = children.node().with_child(1, |n| n.measure(wm));
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let size = children.with_node(1, |n| n.layout(wl));
+            children.delegated();
+            let size = children.node().with_child(1, |n| n.layout(wl));
 
             LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || {
-                children.with_node(0, |n| n.layout(wl));
+                children.node().with_child(0, |n| n.layout(wl));
             });
             *final_size = size;
         }
@@ -132,14 +134,16 @@ pub fn foreground(child: impl IntoUiNode, foreground: impl IntoUiNode) -> UiNode
     let foreground = fill_node(foreground);
     let foreground = hit_test_mode(foreground, HitTestMode::Disabled);
 
-    match_node_list(ui_vec![child, foreground], |children, op| match op {
+    match_node(ui_vec![child, foreground], |children, op| match op {
         UiNodeOp::Measure { wm, desired_size } => {
-            *desired_size = children.with_node(0, |n| n.measure(wm));
+            children.delegated();
+            *desired_size = children.node().with_child(0, |n| n.measure(wm));
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let size = children.with_node(0, |n| n.layout(wl));
+            children.delegated();
+            let size = children.node().with_child(0, |n| n.layout(wl));
             LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || {
-                children.with_node(1, |n| n.layout(wl));
+                children.node().with_child(1, |n| n.layout(wl));
             });
             *final_size = size;
         }

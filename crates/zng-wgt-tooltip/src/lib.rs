@@ -259,27 +259,32 @@ fn tooltip_node(child: impl IntoUiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>
                 UiNodeOp::Init => {
                     c.init();
 
-                    c.with_context(WidgetUpdateMode::Bubble, || {
-                        // if the tooltip is hit-testable and the mouse hovers it, the anchor widget
-                        // will not receive mouse-leave, because it is not the logical parent of the tooltip,
-                        // so we need to duplicate cleanup logic here.
-                        WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
+                    if let Some(mut wgt) = c.node().as_widget() {
+                        wgt.with_context(WidgetUpdateMode::Bubble, || {
+                            // if the tooltip is hit-testable and the mouse hovers it, the anchor widget
+                            // will not receive mouse-leave, because it is not the logical parent of the tooltip,
+                            // so we need to duplicate cleanup logic here.
+                            WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
 
-                        let mut global = OPEN_TOOLTIP.write();
-                        if let Some(id) = global.take() {
-                            POPUP.force_close_id(id);
-                        }
-                        *global = Some(WIDGET.id());
-                    });
+                            let mut global = OPEN_TOOLTIP.write();
+                            if let Some(id) = global.take() {
+                                POPUP.force_close_id(id);
+                            }
+                            *global = Some(WIDGET.id());
+                        });
+                    }
                 }
                 UiNodeOp::Deinit => {
-                    c.with_context(WidgetUpdateMode::Bubble, || {
-                        let mut global = OPEN_TOOLTIP.write();
-                        if *global == Some(WIDGET.id()) {
-                            *global = None;
-                            TOOLTIP_LAST_CLOSED.set(Some(INSTANT.now()));
-                        }
-                    });
+                    if let Some(mut wgt) = c.node().as_widget() {
+                        wgt.with_context(WidgetUpdateMode::Bubble, || {
+                            let mut global = OPEN_TOOLTIP.write();
+                            if *global == Some(WIDGET.id()) {
+                                *global = None;
+                                TOOLTIP_LAST_CLOSED.set(Some(INSTANT.now()));
+                            }
+                        });
+                    }
+
                     c.deinit();
                 }
                 UiNodeOp::Event { update } => {
@@ -290,8 +295,8 @@ fn tooltip_node(child: impl IntoUiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>
                             return;
                         }
 
-                        let tooltip_id = match c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
-                            Some(id) => id,
+                        let tooltip_id = match c.node().as_widget() {
+                            Some(mut w) => w.id(),
                             None => {
                                 // was widget on init, now is not,
                                 // this can happen if child is an `ArcNode` that was moved

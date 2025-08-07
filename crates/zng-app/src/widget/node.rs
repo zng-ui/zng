@@ -497,10 +497,10 @@ impl IntoUiNode for UiNode {
         self
     }
 }
-impl IntoUiNode for Option<UiNode> {
+impl<U: IntoUiNode> IntoUiNode for Option<U> {
     /// Unwrap or nil.
     fn into_node(self) -> UiNode {
-        self.unwrap_or_else(UiNode::nil)
+        self.map(IntoUiNode::into_node).unwrap_or_else(UiNode::nil)
     }
 }
 
@@ -595,7 +595,7 @@ impl UiNode {
     ///
     /// See [`UiNodeImpl::update_list`] for more details.
     #[inline(always)]
-    pub fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    pub fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut impl UiNodeListObserver) {
         self.0.update_list(updates, observer);
     }
 
@@ -608,6 +608,24 @@ impl UiNode {
         self.0.measure(wm)
     }
 
+    /// If the node [`is_list`] measure each child and combine the size using `fold_size`.
+    ///
+    /// If the node is not a list, simply measures it.
+    ///
+    /// See [`UiNodeImpl::measure`] for more details.
+    ///
+    /// [`is_list`]: UiNode::is_list
+    #[inline(always)]
+    #[must_use]
+    pub fn measure_list(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        measure: impl Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync,
+        fold_size: impl Fn(PxSize, PxSize) -> PxSize + Sync,
+    ) -> PxSize {
+        self.0.measure_list(wm, &measure, &fold_size)
+    }
+
     /// Update node layout.
     ///
     /// See [`UiNodeImpl::layout`] for more details.
@@ -615,6 +633,22 @@ impl UiNode {
     #[must_use]
     pub fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
         self.0.layout(wl)
+    }
+
+    /// If the node [`is_list`] measure each child and combine the size using `fold_size`.
+    ///
+    /// If the node is not a list, simply measures it.
+    ///
+    /// See [`UiNodeImpl::layout`] for more details.
+    ///
+    /// [`is_list`]: UiNode::is_list
+    pub fn layout_list(
+        &mut self,
+        wl: &mut WidgetLayout,
+        layout: impl Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync,
+        fold_size: impl Fn(PxSize, PxSize) -> PxSize + Sync,
+    ) -> PxSize {
+        self.0.layout_list(wl, &layout, &fold_size)
     }
 
     /// Collect render instructions for a new frame.

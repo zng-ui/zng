@@ -246,7 +246,7 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
                         },
                         spacing: 5,
                     };
-                    child = node.lock().take().into_widget();
+                    child = node.lock().take().into_node().into_widget();
                 };
                 Container! {
                     id = host_wgt_id;

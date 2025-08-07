@@ -313,7 +313,6 @@ fn cube_example() -> UiNode {
                                     _ => unreachable!()
                                 });
                             }
-                            .boxed()
                         })
                         .collect::<UiVec>();
 

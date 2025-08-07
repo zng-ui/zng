@@ -37,7 +37,7 @@ impl Wrap {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|wgt| {
             let child = node(
-                wgt.capture_ui_node_list_or_empty(property_id!(Self::children)),
+                wgt.capture_ui_node_or_nil(property_id!(Self::children)),
                 wgt.capture_var_or_else(property_id!(Self::spacing), || {
                     LINE_SPACING_VAR.map(|s| GridSpacing {
                         column: Length::zero(),
@@ -69,7 +69,7 @@ impl Wrap {
 
 /// Inlined wrap items.
 #[property(CHILD, capture, default(ui_vec![]), widget_impl(Wrap))]
-pub fn children(children: impl UiNodeList) {}
+pub fn children(children: impl IntoUiNode) {}
 
 /// Space in between items and rows.
 ///
@@ -90,19 +90,19 @@ pub fn children_align(align: impl IntoVar<Align>) {}
 ///
 /// Can be used directly to inline widgets without declaring a wrap widget info. This node is the child
 /// of the `Wrap!` widget.
-pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, children_align: impl IntoVar<Align>) -> UiNode {
+pub fn node(children: impl IntoUiNode, spacing: impl IntoVar<GridSpacing>, children_align: impl IntoVar<Align>) -> UiNode {
     let children = PanelList::new(children).track_info_range(*PANEL_LIST_ID);
     let spacing = spacing.into_var();
     let children_align = children_align.into_var();
     let mut layout = InlineLayout::default();
 
-    match_node_list(children, move |children, op| match op {
+    match_node(children, move |children, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_layout(&spacing).sub_var_layout(&children_align);
         }
         UiNodeOp::Update { updates } => {
             let mut any = false;
-            children.update_all(updates, &mut any);
+            children.update_list(updates, &mut any);
 
             if any {
                 WIDGET.layout();
@@ -111,13 +111,13 @@ pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, child
         UiNodeOp::Measure { wm, desired_size } => {
             let spacing = spacing.layout();
             children.delegated();
-            *desired_size = layout.measure(wm, children.children(), children_align.get(), spacing);
+            *desired_size = layout.measure(wm, children.node_impl::<PanelList>(), children_align.get(), spacing);
         }
         UiNodeOp::Layout { wl, final_size } => {
             let spacing = spacing.layout();
             children.delegated();
             // rust-analyzer does not find `layout` here if called with dot.
-            *final_size = InlineLayout::layout(&mut layout, wl, children.children(), children_align.get(), spacing);
+            *final_size = InlineLayout::layout(&mut layout, wl, children.node_impl::<PanelList>(), children_align.get(), spacing);
         }
         _ => {}
     })
@@ -590,13 +590,10 @@ impl InlineLayout {
                     (Px(0), Px(0), self.bidi_default_segs.clone())
                 };
 
-                let child_inline = child
-                    .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline())
-                    .flatten();
-                if let Some(child_inline) = child_inline {
-                    let child_desired_size = child
-                        .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_outer_size())
-                        .unwrap_or_default();
+                if let Some(mut w) = child.as_widget()
+                    && let Some(child_inline) = w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline())
+                {
+                    let child_desired_size = w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_outer_size());
                     if child_desired_size.is_empty() {
                         // collapsed, continue.
                         wl.collapse_child(i);
@@ -676,19 +673,21 @@ impl InlineLayout {
                         // new row
                         if let Some(inline) = wl.inline() {
                             inline.rows.push(row);
-                            child.with_context(WidgetUpdateMode::Ignore, || {
-                                if let Some(inner) = WIDGET.bounds().inline() {
-                                    if inner.rows.len() >= 3 {
-                                        inline.rows.extend(inner.rows[1..inner.rows.len() - 1].iter().map(|r| {
-                                            let mut r = *r;
-                                            r.origin.y += row.origin.y;
-                                            r
-                                        }));
+                            if let Some(mut w) = child.as_widget() {
+                                w.with_context(WidgetUpdateMode::Ignore, || {
+                                    if let Some(inner) = WIDGET.bounds().inline() {
+                                        if inner.rows.len() >= 3 {
+                                            inline.rows.extend(inner.rows[1..inner.rows.len() - 1].iter().map(|r| {
+                                                let mut r = *r;
+                                                r.origin.y += row.origin.y;
+                                                r
+                                            }));
+                                        }
+                                    } else {
+                                        tracing::error!("child inlined in measure, but not in layout")
                                     }
-                                } else {
-                                    tracing::error!("child inlined in measure, but not in layout")
-                                }
-                            });
+                                });
+                            }
                         }
                         row = next_row;
                         row_advance = child_last.size.width + spacing.column;

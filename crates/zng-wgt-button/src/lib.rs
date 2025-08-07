@@ -70,10 +70,10 @@ impl Button {
                     "cmd-context",
                     clmv!(cmd, |mut child| {
                         if enabled {
-                            child = zng_wgt::enabled(child, cmd.flat_map(|c| c.is_enabled())).boxed();
+                            child = zng_wgt::enabled(child, cmd.flat_map(|c| c.is_enabled()));
                         }
                         if visibility {
-                            child = zng_wgt::visibility(child, cmd.flat_map(|c| c.has_handlers()).map_into()).boxed();
+                            child = zng_wgt::visibility(child, cmd.flat_map(|c| c.has_handlers()).map_into());
                         }
 
                         with_context_var(child, CMD_VAR, cmd.map(|c| Some(*c)))
@@ -105,8 +105,7 @@ impl Button {
                                             args.propagation().stop();
                                         }
                                     }),
-                                )
-                                .boxed();
+                                );
                             }
                             if on_disabled_click {
                                 child = self::on_disabled_click(
@@ -122,8 +121,7 @@ impl Button {
                                             args.propagation().stop();
                                         }
                                     }),
-                                )
-                                .boxed();
+                                );
                             }
                             #[cfg(feature = "tooltip")]
                             if tooltip {
@@ -136,8 +134,7 @@ impl Button {
                                             wgt_fn!(cmd, tt_fn, |tooltip| { tt_fn(CmdTooltipArgs { tooltip, cmd }) })
                                         }
                                     }),
-                                )
-                                .boxed();
+                                );
                             }
                             child
                         }),

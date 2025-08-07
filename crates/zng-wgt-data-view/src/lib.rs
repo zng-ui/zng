@@ -10,7 +10,7 @@
 #![warn(missing_docs)]
 
 use parking_lot::Mutex;
-use std::{any::TypeId, sync::Arc};
+use std::sync::Arc;
 
 use zng_wgt::prelude::*;
 
@@ -20,7 +20,7 @@ use zng_wgt::prelude::*;
 #[derive(Clone)]
 pub struct DataViewArgs<D: VarValue> {
     data: Var<D>,
-    replace: Arc<Mutex<Option<BoxedUiNode>>>,
+    replace: Arc<Mutex<(bool, UiNode)>>,
     is_nil: bool,
 }
 impl<D: VarValue> DataViewArgs<D> {
@@ -50,14 +50,12 @@ impl<D: VarValue> DataViewArgs<D> {
     ///
     /// If set the current child node will be deinited and dropped.
     pub fn set_view(&self, new_child: impl IntoUiNode) {
-        *self.replace.lock() = Some(new_child.boxed());
+        *self.replace.lock() = (true, new_child.into_node());
     }
 
-    /// Set the view to [`NilUiNode`].
-    ///
-    /// [`NilUiNode`]: zng_wgt::prelude::NilUiNode
+    /// Set the view to [`UiNode::nil`].
     pub fn unset_view(&self) {
-        self.set_view(NilUiNode)
+        self.set_view(UiNode::nil())
     }
 }
 
@@ -126,9 +124,9 @@ impl DataView {
 pub fn view<D: VarValue>(child: impl IntoUiNode, data: impl IntoVar<D>, update: impl WidgetHandler<DataViewArgs<D>>) -> UiNode {
     let data = data.into_var();
     let mut update = update.cfg_boxed();
-    let replace = Arc::new(Mutex::new(None));
+    let replace = Arc::new(Mutex::new((false, UiNode::nil())));
 
-    match_node(child.boxed(), move |c, op| match op {
+    match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&data);
             update.event(&DataViewArgs {
@@ -136,31 +134,35 @@ pub fn view<D: VarValue>(child: impl IntoUiNode, data: impl IntoVar<D>, update: 
                 replace: replace.clone(),
                 is_nil: true,
             });
-            if let Some(child) = replace.lock().take() {
-                *c.child() = child;
+            let child = std::mem::replace(&mut *replace.lock(), (false, UiNode::nil()));
+            if child.0 {
+                // replaced
+                *c.node() = child.1;
             }
         }
         UiNodeOp::Deinit => {
             c.deinit();
-            *c.child() = NilUiNode.boxed();
+            *c.node() = UiNode::nil();
         }
         UiNodeOp::Update { .. } => {
             if data.is_new() {
                 update.event(&DataViewArgs {
                     data: data.clone(),
                     replace: replace.clone(),
-                    is_nil: c.child().actual_type_id() == TypeId::of::<NilUiNode>(),
+                    is_nil: c.node().is_nil(),
                 });
             }
 
             update.update();
 
-            if let Some(child) = replace.lock().take() {
+            let child = std::mem::replace(&mut *replace.lock(), (false, UiNode::nil()));
+            if child.0 {
+                // replaced
                 // skip update if nil -> nil, otherwise updates
-                if c.child().actual_type_id() != TypeId::of::<NilUiNode>() || child.actual_type_id() != TypeId::of::<NilUiNode>() {
-                    c.child().deinit();
-                    *c.child() = child;
-                    c.child().init();
+                if !c.node().is_nil() || !child.1.is_nil() {
+                    c.node().deinit();
+                    *c.node() = child.1;
+                    c.node().init();
                     c.delegated();
                     WIDGET.update_info().layout().render();
                 }

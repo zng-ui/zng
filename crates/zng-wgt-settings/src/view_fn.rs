@@ -1,7 +1,7 @@
 use zng_app::{
     static_id,
     widget::{
-        node::{BoxedUiNode, UiNode, UiVec},
+        node::{UiNode, UiVec},
         property,
     },
 };
@@ -128,11 +128,11 @@ pub fn default_category_header_fn(args: CategoryHeaderArgs) -> UiNode {
 /// See [`CATEGORIES_LIST_FN_VAR`] for more details.
 pub fn default_categories_list_fn(args: CategoriesListArgs) -> UiNode {
     Container! {
-        child = categories_list(args.items.boxed());
+        child = categories_list(args.items.into_node());
         child_end = Vr!(zng_wgt::margin = 0), 0;
     }
 }
-fn categories_list(items: BoxedUiNodeList) -> UiNode {
+fn categories_list(items: UiNode) -> UiNode {
     let list = Stack! {
         zng_wgt_toggle::selector = Selector::single(SETTINGS.editor_selected_category());
         direction = StackDirection::top_to_bottom();
@@ -164,7 +164,7 @@ fn categories_list(items: BoxedUiNodeList) -> UiNode {
 
 /// Default categories list view on `actual_width <= 400`.
 pub fn default_categories_list_mobile_fn(args: CategoriesListArgs) -> UiNode {
-    let items = ArcNodeList::new(args.items);
+    let items = ArcNode::new(args.items);
     Toggle! {
         zng_wgt::margin = 4;
         style_fn = zng_wgt_toggle::ComboStyle!();
@@ -176,7 +176,7 @@ pub fn default_categories_list_mobile_fn(args: CategoriesListArgs) -> UiNode {
             zng_wgt_container::padding = 5;
         };
         checked_popup = wgt_fn!(|_| zng_wgt_layer::popup::Popup! {
-            child = categories_list(items.take_on_init().boxed());
+            child = categories_list(items.take_on_init());
         });
     }
 }
@@ -338,11 +338,11 @@ pub struct SettingArgs {
     /// The setting.
     pub setting: Setting,
     /// The setting value editor.
-    pub editor: BoxedUiNode,
+    pub editor: UiNode,
 }
 impl SettingArgs {
     /// New args.
-    pub fn new(index: usize, setting: Setting, editor: BoxedUiNode) -> Self {
+    pub fn new(index: usize, setting: Setting, editor: UiNode) -> Self {
         Self { index, setting, editor }
     }
 }
@@ -351,13 +351,13 @@ impl SettingArgs {
 #[non_exhaustive]
 pub struct SettingsArgs {
     /// The category header.
-    pub header: BoxedUiNode,
+    pub header: UiNode,
     /// The items.
     pub items: UiVec,
 }
 impl SettingsArgs {
     /// New args.
-    pub fn new(header: BoxedUiNode, items: UiVec) -> Self {
+    pub fn new(header: UiNode, items: UiVec) -> Self {
         Self { header, items }
     }
 }
@@ -373,15 +373,15 @@ pub struct SettingsSearchArgs {}
 #[non_exhaustive]
 pub struct PanelArgs {
     /// Search box widget.
-    pub search: BoxedUiNode,
+    pub search: UiNode,
     /// Categories widget.
-    pub categories: BoxedUiNode,
+    pub categories: UiNode,
     /// Settings widget.
-    pub settings: BoxedUiNode,
+    pub settings: UiNode,
 }
 impl PanelArgs {
     /// New args.
-    pub fn new(search: BoxedUiNode, categories: BoxedUiNode, settings: BoxedUiNode) -> Self {
+    pub fn new(search: UiNode, categories: UiNode, settings: UiNode) -> Self {
         Self {
             search,
             categories,
@@ -406,7 +406,7 @@ pub trait SettingEditorExt {
     /// Instantiate editor.
     ///
     /// If an editor is set the [`EDITORS`] service is used to instantiate the editor.
-    fn editor(&self) -> BoxedUiNode;
+    fn editor(&self) -> UiNode;
 }
 
 /// Extends [`WidgetInfo`] to provide the setting config key for setting widgets.
@@ -431,7 +431,7 @@ impl SettingEditorExt for Setting {
         self.meta().get_clone(*CUSTOM_EDITOR_ID)
     }
 
-    fn editor(&self) -> BoxedUiNode {
+    fn editor(&self) -> UiNode {
         match self.editor_fn() {
             Some(f) => f(self.clone()),
             None => EDITOR_SETTING_VAR.with_context_var(ContextInitHandle::current(), Some(self.clone()), || {

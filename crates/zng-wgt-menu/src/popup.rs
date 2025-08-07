@@ -40,8 +40,8 @@ impl SubMenuPopup {
             let id = wgt.capture_value::<WidgetId>(property_id!(Self::parent_id));
             let children = wgt
                 .capture_property(property_id!(Self::children))
-                .map(|p| p.args.ui_node_list(0).clone())
-                .unwrap_or_else(|| ArcNodeList::new(ui_vec![].boxed()));
+                .map(|p| p.args.ui_node(0).clone())
+                .unwrap_or_else(|| ArcNode::new(ui_vec![]));
 
             wgt.set_child(sub_menu_popup_node(children, id));
         });
@@ -51,7 +51,7 @@ impl_style_fn!(SubMenuPopup);
 
 /// Sub-menu items.
 #[property(CHILD, capture, default(ui_vec![]), widget_impl(SubMenuPopup))]
-pub fn children(children: impl UiNodeList) {}
+pub fn children(children: impl IntoUiNode) {}
 
 /// Parent sub-menu ID.
 #[property(CONTEXT, capture, widget_impl(SubMenuPopup))]
@@ -123,7 +123,7 @@ pub fn default_panel_fn(args: zng_wgt_panel::PanelArgs) -> UiNode {
 }
 
 /// Sub-menu popup implementation.
-pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Option<WidgetId>) -> UiNode {
+pub fn sub_menu_popup_node(children: ArcNode, parent: Option<WidgetId>) -> UiNode {
     let child = zng_wgt_panel::node(
         children,
         if parent.is_none() {

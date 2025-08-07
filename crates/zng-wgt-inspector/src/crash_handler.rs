@@ -132,14 +132,14 @@ impl ErrorPanel {
         }
     }
 
-    fn panel(&self, error: &CrashError) -> BoxedUiNode {
+    fn panel(&self, error: &CrashError) -> UiNode {
         match self {
-            ErrorPanel::Summary => summary_panel(error).boxed(),
-            ErrorPanel::Stdout => std_panel(error.stdout.clone(), "stdout").boxed(),
-            ErrorPanel::Stderr => std_panel(error.stderr.clone(), "stderr").boxed(),
-            ErrorPanel::Panic => panic_panel(error.find_panic().unwrap()).boxed(),
-            ErrorPanel::Widget => widget_panel(error.find_panic().unwrap().widget_path).boxed(),
-            ErrorPanel::Minidump => minidump_panel(error.minidump.clone().unwrap()).boxed(),
+            ErrorPanel::Summary => summary_panel(error),
+            ErrorPanel::Stdout => std_panel(error.stdout.clone(), "stdout"),
+            ErrorPanel::Stderr => std_panel(error.stderr.clone(), "stderr"),
+            ErrorPanel::Panic => panic_panel(error.find_panic().unwrap()),
+            ErrorPanel::Widget => widget_panel(error.find_panic().unwrap().widget_path),
+            ErrorPanel::Minidump => minidump_panel(error.minidump.clone().unwrap()),
         }
     }
 }

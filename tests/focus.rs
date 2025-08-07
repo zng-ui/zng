@@ -2044,6 +2044,7 @@ impl TestApp {
     }
 
     pub fn open_window(&mut self, child: impl IntoUiNode) -> WindowId {
+        let child = child.into_node();
         let id = self.app.open_window(async {
             Window! {
                 child
@@ -2150,8 +2151,13 @@ impl TestApp {
 trait TestList {
     fn item_id(&mut self, i: usize) -> WidgetId;
 }
-impl<L: UiNodeList> TestList for L {
+impl TestList for UiNode {
     fn item_id(&mut self, i: usize) -> WidgetId {
-        self.with_node(i, |n| n.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()).unwrap())
+        self.with_child(i, |n| n.as_widget().unwrap().id())
+    }
+}
+impl TestList for UiVec {
+    fn item_id(&mut self, i: usize) -> WidgetId {
+        self[i].as_widget().unwrap().id()
     }
 }

@@ -607,6 +607,7 @@ mod context {
         zng_app::test_log();
 
         let mut app = app.run_headless(false);
+        let root = root.into_node();
         WINDOWS.open(async move { window::WindowRoot::new_test(root) });
         let _ = app.update(false);
         app
@@ -760,7 +761,7 @@ mod context {
 
     #[test]
     fn context_var_set() {
-        let mut app = test_app(APP.defaults(), NilUiNode);
+        let mut app = test_app(APP.defaults(), UiNode::nil());
 
         let backing_var = var(Txt::from(""));
 
@@ -788,7 +789,7 @@ mod context {
                 on_init = hn_once!(other_var, |_| {
                     TEST_VAR.bind(&other_var).perm();
                 });
-                child = NilUiNode;
+                child = UiNode::nil();
             },
         );
 

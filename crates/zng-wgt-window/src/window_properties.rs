@@ -13,13 +13,13 @@ use zng_wgt_layer::adorner_fn;
 
 use super::Window;
 
-fn bind_window_var<T>(child: impl IntoUiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> Var<T> + Send + 'static) -> impl UiNode
+fn bind_window_var<T>(child: impl IntoUiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> Var<T> + Send + 'static) -> UiNode
 where
     T: VarValue + PartialEq,
 {
-    bind_window_var_impl(child.cfg_boxed(), user_var.into_var().into(), move |vars| select(vars).into()).cfg_boxed()
+    bind_window_var_impl(child.into_node(), user_var.into_var().into(), move |vars| select(vars).into())
 }
-fn bind_window_var_impl(child: impl IntoUiNode, user_var: AnyVar, select: impl Fn(&WindowVars) -> AnyVar + Send + 'static) -> UiNode {
+fn bind_window_var_impl(child: UiNode, user_var: AnyVar, select: impl Fn(&WindowVars) -> AnyVar + Send + 'static) -> UiNode {
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
             let window_var = select(&WINDOW.vars());

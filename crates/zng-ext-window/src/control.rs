@@ -4,13 +4,27 @@ use std::{mem, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
-    access::{ACCESS_DEINITED_EVENT, ACCESS_INITED_EVENT}, app_hn_once, event::{AnyEventArgs, CommandHandle}, render::{FrameBuilder, FrameUpdate}, static_id, timer::TIMERS, update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates, UPDATES}, view_process::{
+    Deadline,
+    access::{ACCESS_DEINITED_EVENT, ACCESS_INITED_EVENT},
+    app_hn_once,
+    event::{AnyEventArgs, CommandHandle},
+    render::{FrameBuilder, FrameUpdate},
+    static_id,
+    timer::TIMERS,
+    update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, WidgetUpdates},
+    view_process::{
+        VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewHeadless, ViewRenderer, ViewWindow,
         raw_events::{
-            RawWindowFocusArgs, RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_FRAME_RENDERED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_IME_EVENT, RAW_WINDOW_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OPEN_EVENT, RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT
-        }, ViewHeadless, ViewRenderer, ViewWindow, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT
-    }, widget::{
-        info::{access::AccessEnabled, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetMeasure, WidgetPath}, node::{IntoUiNode, UiNode, UiNodeImpl}, VarLayout, WidgetCtx, WidgetId, WidgetUpdateMode, WIDGET
-    }, window::{WindowCtx, WindowId, WindowMode, WINDOW}, Deadline
+            RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_FRAME_RENDERED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_IME_EVENT, RAW_WINDOW_CHANGED_EVENT,
+            RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OPEN_EVENT, RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT, RawWindowFocusArgs,
+        },
+    },
+    widget::{
+        VarLayout, WIDGET, WidgetCtx, WidgetId, WidgetUpdateMode,
+        info::{WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetMeasure, WidgetPath, access::AccessEnabled},
+        node::{IntoUiNode, UiNode, UiNodeImpl},
+    },
+    window::{WINDOW, WindowCtx, WindowId, WindowMode},
 };
 use zng_app_context::LocalContext;
 use zng_clone_move::clmv;
@@ -2622,7 +2636,6 @@ impl UiNodeImpl for NestedWindowNode {
     fn children_len(&self) -> usize {
         todo!()
     }
-
 
     fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
         todo!()

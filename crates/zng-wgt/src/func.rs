@@ -105,7 +105,7 @@ impl<D> WidgetFn<D> {
     ///
     /// [`ArcNode`]: zng_app::widget::node::ArcNode
     /// [`ArcNode::take_on_init`]: zng_app::widget::node::ArcNode::take_on_init
-    pub fn singleton(widget: UiNode) -> Self {
+    pub fn singleton(widget: impl IntoUiNode) -> Self {
         let widget = ArcNode::new(widget);
         Self::new(move |_| widget.take_on_init())
     }

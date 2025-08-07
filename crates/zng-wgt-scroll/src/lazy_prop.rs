@@ -166,12 +166,12 @@ pub fn lazy(child: impl IntoUiNode, mode: impl IntoVar<LazyMode>) -> UiNode {
     // max two nodes:
     // * in `deinit` mode can be two [0]: placeholder, [1]: actual.
     // * or can be only placeholder or only actual.
-    let children = vec![];
+    let children = ui_vec![];
     // actual child, not inited
-    let mut not_inited = Some(child.boxed());
+    let mut not_inited = Some(child.into_node());
     let mut in_viewport = false;
 
-    match_node_list(children, move |c, op| match op {
+    match_node(children, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&mode);
 
@@ -187,30 +187,30 @@ pub fn lazy(child: impl IntoUiNode, mode: impl IntoVar<LazyMode>) -> UiNode {
                         // have a place to store the layout info.
 
                         let placeholder = placeholder(()).into_widget();
-                        c.children().push(placeholder);
+                        c.node_impl::<UiVec>().push(placeholder);
                     }
-                    c.children().push(not_inited.take().unwrap());
+                    c.node_impl::<UiVec>().push(not_inited.take().unwrap());
                 } else {
                     // only placeholder
 
                     let placeholder = placeholder(());
-                    let placeholder = zng_app::widget::base::node::widget_inner(placeholder).boxed();
+                    let placeholder = zng_app::widget::base::node::widget_inner(placeholder);
 
                     // just placeholder, and as the `widget_inner`, first render may init
-                    c.children().push(placeholder);
+                    c.node_impl::<UiVec>().push(placeholder);
                 }
             } else {
                 // not enabled, just init actual
-                c.children().push(not_inited.take().unwrap());
+                c.node_impl::<UiVec>().push(not_inited.take().unwrap());
             }
         }
         UiNodeOp::Deinit => {
-            c.deinit_all();
+            c.deinit();
 
             if not_inited.is_none() {
-                not_inited = c.children().pop(); // pop actual
+                not_inited = c.node_impl::<UiVec>().pop(); // pop actual
             }
-            c.children().clear(); // drop placeholder, if any
+            c.node_impl::<UiVec>().clear(); // drop placeholder, if any
         }
         UiNodeOp::Update { .. } => {
             if mode.is_new() {
@@ -218,18 +218,20 @@ pub fn lazy(child: impl IntoUiNode, mode: impl IntoVar<LazyMode>) -> UiNode {
             }
         }
         UiNodeOp::Measure { wm, desired_size } => {
-            let mut size = c.with_node(0, |n| n.measure(wm));
+            c.delegated();
+            let mut size = c.node().with_child(0, |n| n.measure(wm));
 
-            if not_inited.is_none() && c.len() == 2 {
+            if not_inited.is_none() && c.node().children_len() == 2 {
                 // is inited and can deinit, measure the actual child and validate
 
                 let lazy_size = size;
-                let actual_size = c.with_node(1, |n| n.measure(wm));
+                let actual_size = c.node().with_child(1, |n| n.measure(wm));
 
                 let mut intersect_mode = ScrollMode::empty();
 
-                let lazy_inline = c.children()[0]
-                    .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline())
+                let lazy_inline = c.node_impl::<UiVec>()[0]
+                    .as_widget()
+                    .map(|mut w| w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline()))
                     .flatten();
                 if let Some(actual_inline) = wm.inline() {
                     if let Some(lazy_inline) = lazy_inline {
@@ -302,19 +304,22 @@ pub fn lazy(child: impl IntoUiNode, mode: impl IntoVar<LazyMode>) -> UiNode {
             *desired_size = size;
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let mut size = c.with_node(0, |n| n.layout(wl));
+            c.delegated();
 
-            if not_inited.is_none() && c.len() == 2 {
+            let mut size = c.node().with_child(0, |n| n.layout(wl));
+
+            if not_inited.is_none() && c.node().children_len() == 2 {
                 // is inited and can deinit, layout the actual child and validate
 
                 let lazy_size = size;
-                let actual_size = c.with_node(1, |n| n.layout(wl));
+                let actual_size = c.node().with_child(1, |n| n.layout(wl));
 
                 let mut intersect_mode = ScrollMode::empty();
 
-                let lazy_inlined = c.children()[0]
-                    .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().inline().is_some())
-                    .unwrap();
+                let lazy_inlined = c.node_impl::<UiVec>()[0]
+                    .as_widget()
+                    .unwrap()
+                    .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().inline().is_some());
                 if wl.inline().is_some() {
                     if !lazy_inlined {
                         tracing::debug!(target: "lazy", "widget `{}` inlined, but lazy did not inline", WIDGET.id());
@@ -372,7 +377,7 @@ pub fn lazy(child: impl IntoUiNode, mode: impl IntoVar<LazyMode>) -> UiNode {
             if not_inited.is_some() {
                 // not inited, verify
 
-                c.children()[0].render(frame); // update bounds
+                c.node_impl::<UiVec>()[0].render(frame); // update bounds
 
                 let intersect_mode = mode.with(|s| s.unwrap_intersect());
                 let outer_bounds = WIDGET.bounds().outer_bounds();
@@ -389,15 +394,15 @@ pub fn lazy(child: impl IntoUiNode, mode: impl IntoVar<LazyMode>) -> UiNode {
                     // request init
                     WIDGET.reinit();
                 }
-            } else if c.len() == 2 {
+            } else if c.node().children_len() == 2 {
                 // is inited and can deinit, check viewport on placeholder
 
-                c.children()[1].render(frame); // render + update bounds
+                c.node_impl::<UiVec>()[1].render(frame); // render + update bounds
 
                 frame.hide(|f| {
                     f.with_hit_tests_disabled(|f| {
                         // update bounds (not used but can be inspected)
-                        c.children()[0].render(f);
+                        c.node_impl::<UiVec>()[0].render(f);
                     });
                 });
 
@@ -418,26 +423,26 @@ pub fn lazy(child: impl IntoUiNode, mode: impl IntoVar<LazyMode>) -> UiNode {
                 }
             } else {
                 // is inited and cannot deinit
-                c.children()[0].render(frame);
+                c.node_impl::<UiVec>()[0].render(frame);
             }
         }
         UiNodeOp::RenderUpdate { update } => {
             c.delegated();
             if not_inited.is_none() {
                 // child is actual child
-                let last = c.children().len() - 1;
+                let last = c.node().children_len() - 1;
 
-                c.children()[last].render_update(update);
+                c.node_impl::<UiVec>()[last].render_update(update);
 
                 if last == 1 {
                     update.hidden(|u| {
                         // update bounds (not used but can be inspected)
-                        c.children()[0].render_update(u);
+                        c.node_impl::<UiVec>()[0].render_update(u);
                     });
                 }
             } else {
                 // update bounds
-                c.children()[0].render_update(update);
+                c.node_impl::<UiVec>().render_update(update);
             }
         }
         _ => {}

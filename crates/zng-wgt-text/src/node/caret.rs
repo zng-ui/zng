@@ -379,22 +379,22 @@ struct InteractiveCaretInputMut {
 fn interactive_caret_shape_node(input: Arc<Mutex<InteractiveCaretInputMut>>, visual_fn: WidgetFn<CaretShape>) -> UiNode {
     let mut shape = CaretShape::Insert;
 
-    match_node(NilUiNode.boxed(), move |visual, op| match op {
+    match_node(UiNode::nil(), move |visual, op| match op {
         UiNodeOp::Init => {
             shape = input.lock().shape;
-            *visual.child() = visual_fn(shape);
+            *visual.node() = visual_fn(shape);
             visual.init();
         }
         UiNodeOp::Deinit => {
             visual.deinit();
-            *visual.child() = NilUiNode.boxed();
+            *visual.node() = UiNode::nil();
         }
         UiNodeOp::Update { .. } => {
             let new_shape = input.lock().shape;
             if new_shape != shape {
                 shape = new_shape;
                 visual.deinit();
-                *visual.child() = visual_fn(shape);
+                *visual.node() = visual_fn(shape);
                 visual.init();
                 WIDGET.layout().render();
             }
