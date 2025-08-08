@@ -228,7 +228,7 @@ pub mod info {
 /// [`UiNodeList`]: crate::prelude::UiNodeList
 pub mod node {
     pub use zng_app::widget::node::{
-        AdoptiveChildNode, AdoptiveNode, ArcNode, DefaultPanelListData, EditableUiVec, EditableUiVecRef, FillUiNode, IntoUiNode,
+        AdoptiveChildNode, AdoptiveNode, ArcNode, ChainList, DefaultPanelListData, EditableUiVec, EditableUiVecRef, FillUiNode, IntoUiNode,
         MatchNodeChild, MatchWidgetChild, OffsetUiListObserver, PanelList, PanelListData, PanelListRange, SORTING_LIST, SortingList,
         UiNode, UiNodeImpl, UiNodeListObserver, UiNodeOp, UiNodeOpMethod, UiVec, WeakNode, WhenUiNodeBuilder, WidgetUiNode,
         WidgetUiNodeImpl, Z_INDEX, extend_widget, match_node, match_node_leaf, match_widget, ui_vec,

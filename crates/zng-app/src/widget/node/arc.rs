@@ -151,9 +151,9 @@ impl ArcNode {
         self.take_when(true)
     }
 
-    /// Calls `f` in the context of the node, if it can be locked and is a full widget.
+    /// Calls `f` in the context of the node, if it is a full widget.
     pub fn try_context<R>(&self, update_mode: WidgetUpdateMode, f: impl FnOnce() -> R) -> Option<R> {
-        Some(self.0.item.try_lock()?.as_widget()?.with_context(update_mode, f)) // !!: TODO review this, as_widget?
+        Some(self.0.item.try_lock()?.as_widget()?.with_context(update_mode, f))
     }
 }
 

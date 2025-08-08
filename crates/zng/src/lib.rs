@@ -775,8 +775,8 @@ mod __prelude_wgt {
                 WidgetLayout, WidgetMeasure, WidgetPath,
             },
             node::{
-                ArcNode, EditableUiVec, EditableUiVecRef, FillUiNode, IntoUiNode, PanelList, SORTING_LIST, SortingList, UiNode, UiNodeImpl,
-                UiNodeListObserver, UiNodeOp, UiVec, ZIndex, match_node, match_node_leaf, match_widget, ui_vec,
+                ArcNode, ChainList, EditableUiVec, EditableUiVecRef, FillUiNode, IntoUiNode, PanelList, SORTING_LIST, SortingList, UiNode,
+                UiNodeImpl, UiNodeListObserver, UiNodeOp, UiVec, ZIndex, match_node, match_node_leaf, match_widget, ui_vec,
             },
             property, widget, widget_impl, widget_mixin, widget_set,
         },

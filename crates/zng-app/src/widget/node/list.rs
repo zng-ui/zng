@@ -163,7 +163,7 @@ impl UiVec {
     }
 
     /// Create a list chain node.
-    /// 
+    ///
     /// See [`UiNode::chain`] for more details.
     pub fn chain(self, other: impl IntoUiNode) -> UiNode {
         UiNode::new(self).chain(other)
@@ -312,6 +312,9 @@ impl UiNodeImpl for UiVec {
         } else {
             self.iter_mut().for_each(|n| n.update(updates));
         }
+    }
+    fn update_list(&mut self, updates: &WidgetUpdates, _: &mut dyn UiNodeListObserver) {
+        self.update(updates);
     }
 
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
@@ -467,6 +470,32 @@ impl UiNodeImpl for UiVec {
         }
     }
 
+    fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            let b = self
+                .par_iter_mut()
+                .enumerate()
+                .with_ctx()
+                .fold(
+                    || frame.parallel_split(),
+                    |mut frame, (i, c)| {
+                        render(i, c, &mut frame);
+                        frame
+                    },
+                )
+                .reduce(
+                    || frame.parallel_split(),
+                    |mut a, b| {
+                        a.parallel_fold(b);
+                        a
+                    },
+                );
+            frame.parallel_fold(b);
+        } else {
+            self.iter_mut().enumerate().for_each(|(i, n)| render(i, n, frame));
+        }
+    }
+
     fn render_update(&mut self, update: &mut FrameUpdate) {
         if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::RENDER) {
             let b = self
@@ -492,16 +521,45 @@ impl UiNodeImpl for UiVec {
         }
     }
 
+    fn render_update_list(&mut self, update: &mut FrameUpdate, render_update: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
+        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            let b = self
+                .par_iter_mut()
+                .enumerate()
+                .with_ctx()
+                .fold(
+                    || update.parallel_split(),
+                    |mut update, (i, c)| {
+                        render_update(i, c, &mut update);
+                        update
+                    },
+                )
+                .reduce(
+                    || update.parallel_split(),
+                    |mut a, b| {
+                        a.parallel_fold(b);
+                        a
+                    },
+                );
+            update.parallel_fold(b);
+        } else {
+            self.iter_mut().enumerate().for_each(|(i, n)| render_update(i, n, update));
+        }
+    }
+
     fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
         None
     }
 }
 
-/// Chain list
+/// List methods.
 impl UiNode {
     /// Create a list node that has `self` followed by `other`.
     ///
     /// If `self` or `other` are already lists returns a list view that flattens the children when iterating.
+    ///
+    /// This method returns an optimized list view, it will reuse list items when possible,
+    /// ignore nil and other tricks, if you need the inner lists to be a predictable arrangement use [`ChainList`] directly.
     pub fn chain(self, other: impl IntoUiNode) -> UiNode {
         self.chain_impl(other.into_node())
     }
@@ -513,8 +571,8 @@ impl UiNode {
             return self;
         }
 
-        if let Some(chain) = self.downcast_mut::<UiNodeChain>() {
-            if let Some(other_too) = other.downcast_mut::<UiNodeChain>() {
+        if let Some(chain) = self.downcast_mut::<ChainList>() {
+            if let Some(other_too) = other.downcast_mut::<ChainList>() {
                 chain.0.append(&mut other_too.0);
             } else {
                 chain.0.push(other);
@@ -526,15 +584,32 @@ impl UiNode {
             vec.0.push(other);
             self
         } else {
-            UiNodeChain(vec![self, other]).into_node()
+            ChainList(ui_vec![self, other]).into_node()
+        }
+    }
+
+    /// Create a sorting list view for this node into list.
+    ///
+    /// The list items are not moved, they are sorted only for layout and render, see [`SortingList`] for more details.
+    ///
+    /// If this node is already a sorting list just replaces the `sort`.
+    pub fn sorting_by(mut self, sort: impl Fn(&mut UiNode, &mut UiNode) -> Ordering + Send + 'static) -> UiNode {
+        if let Some(already) = self.downcast_mut::<SortingList>() {
+            already.sort = Box::new(sort);
+            already.invalidate_sort();
+            self
+        } else {
+            SortingList::new(self, sort).into_node()
         }
     }
 }
-struct UiNodeChain(Vec<UiNode>);
-impl UiNodeImpl for UiNodeChain {
+
+/// UI node list implementation that flattens child lists.
+pub struct ChainList(pub UiVec);
+impl UiNodeImpl for ChainList {
     fn children_len(&self) -> usize {
         let mut len = 0;
-        for c in &self.0 {
+        for c in self.0.iter() {
             if c.is_list() {
                 len += c.children_len();
             } else {
@@ -546,7 +621,7 @@ impl UiNodeImpl for UiNodeChain {
 
     fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
         let mut offset = 0;
-        for c in &mut self.0 {
+        for c in self.0.iter_mut() {
             let next_offset = offset + if c.is_list() { c.children_len() } else { 1 };
             if next_offset > index {
                 c.with_child(index - offset, visitor);
@@ -556,7 +631,203 @@ impl UiNodeImpl for UiNodeChain {
         }
     }
 
-    // !!: TODO impl defaults
+    fn is_list(&self) -> bool {
+        true
+    }
+
+    fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+        let mut offset = 0;
+        for c in self.0.iter_mut() {
+            if c.is_list() {
+                c.for_each_child(|i, n| visitor(offset + i, n));
+                offset += c.children_len();
+            } else {
+                visitor(offset, c);
+                offset += 1;
+            }
+        }
+    }
+
+    fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+        let mut offset = 0;
+        for c in self.0.iter_mut() {
+            if c.is_list() {
+                c.par_each_child(|i, n| visitor(offset + i, n));
+                offset += c.children_len();
+            } else {
+                visitor(offset, c);
+                offset += 1;
+            }
+        }
+    }
+
+    fn par_fold_reduce(
+        &mut self,
+        identity: BoxAnyVarValue,
+        fold: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
+        reduce: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
+    ) -> BoxAnyVarValue {
+        let mut offset = 0;
+        let mut accumulator = identity.clone();
+        for c in self.0.iter_mut() {
+            if c.is_list() {
+                accumulator = c.0.par_fold_reduce(identity.clone(), &|acc, i, n| fold(acc, offset + i, n), reduce);
+                offset += c.children_len();
+            } else {
+                accumulator = fold(accumulator, offset, c);
+                offset += 1;
+            }
+        }
+        accumulator
+    }
+
+    fn init(&mut self) {
+        self.0.init();
+    }
+
+    fn deinit(&mut self) {
+        self.0.deinit();
+    }
+
+    fn info(&mut self, info: &mut WidgetInfoBuilder) {
+        self.0.info(info);
+    }
+
+    fn event(&mut self, update: &EventUpdate) {
+        self.0.event(update);
+    }
+
+    fn update(&mut self, updates: &WidgetUpdates) {
+        self.0.update(updates);
+    }
+
+    fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        if observer.is_reset_only() {
+            if self.children_len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::UPDATE) {
+                let changed = self
+                    .0
+                    .par_iter_mut()
+                    .with_ctx()
+                    .map(|n| {
+                        let mut changed = false;
+                        n.update_list(updates, &mut changed);
+                        changed
+                    })
+                    .reduce(|| false, |a, b| a || b);
+                if changed {
+                    observer.reset();
+                }
+            } else {
+                let mut changed = false;
+                for c in self.0.iter_mut() {
+                    c.update_list(updates, &mut changed);
+                }
+                if changed {
+                    observer.reset();
+                }
+            }
+        } else {
+            let mut offset = 0;
+            for c in self.0.iter_mut() {
+                if c.is_list() {
+                    c.0.update_list(updates, &mut OffsetUiListObserver(offset, observer));
+                    offset += c.children_len();
+                } else {
+                    offset += 1;
+                }
+            }
+        }
+    }
+
+    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+        self.0.measure(wm)
+    }
+
+    fn measure_list(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        measure: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        let mut offset = 0;
+        let mut accumulator = PxSize::zero();
+        for c in self.0.iter_mut() {
+            if c.is_list() {
+                let s = c.0.measure_list(wm, &|i, n, wm| measure(offset + i, n, wm), fold_size);
+                accumulator = fold_size(accumulator, s);
+                offset += c.children_len();
+            } else {
+                let s = measure(offset, c, wm);
+                accumulator = fold_size(accumulator, s);
+                offset += 1;
+            }
+        }
+        accumulator
+    }
+
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        self.0.layout(wl)
+    }
+
+    fn layout_list(
+        &mut self,
+        wl: &mut WidgetLayout,
+        layout: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        let mut offset = 0;
+        let mut accumulator = PxSize::zero();
+        for c in self.0.iter_mut() {
+            if c.is_list() {
+                let s = c.0.layout_list(wl, &|i, n, wl| layout(offset + i, n, wl), fold_size);
+                accumulator = fold_size(accumulator, s);
+                offset += c.children_len();
+            } else {
+                let s = layout(offset, c, wl);
+                accumulator = fold_size(accumulator, s);
+                offset += 1;
+            }
+        }
+        accumulator
+    }
+
+    fn render(&mut self, frame: &mut FrameBuilder) {
+        self.0.render(frame);
+    }
+
+    fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+        let mut offset = 0;
+        for c in self.0.iter_mut() {
+            if c.is_list() {
+                c.render_list(frame, render);
+                offset += c.children_len();
+            } else {
+                render(offset, c, frame);
+                offset += 1;
+            }
+        }
+    }
+
+    fn render_update(&mut self, update: &mut FrameUpdate) {
+        self.0.render_update(update);
+    }
+
+    fn render_update_list(&mut self, update: &mut FrameUpdate, render_update: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
+        let mut offset = 0;
+        for c in self.0.iter_mut() {
+            if c.is_list() {
+                c.render_update_list(update, render_update);
+                offset += c.children_len();
+            } else {
+                render_update(offset, c, update);
+                offset += 1;
+            }
+        }
+    }
+
+    fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+        None
+    }
 }
 
 /// Represents the contextual parent [`SortingList`] during an update.
@@ -588,10 +859,13 @@ context_local! {
 ///
 /// The underlying list is not changed, a sorted index map is used to iterate the underlying list.
 ///
-/// Note that the `*_all` methods are not sorted, only the other accessors map to the sorted position of nodes. The sorting is lazy
-/// and gets invalidated on every init and every time there are changes observed in [`update_all`].
+/// The sorting is lazy and gets invalidated on every init and every time there are changes observed in [`update_list`].
 ///
-/// [`update_all`]: UiNodeList
+/// Methods `measure_list`, `layout_list`, `render`, `for_each_child` and `par_each_child` are the **only that iterate sorted**. Method
+/// `with_child` uses the sort index. Method `update_list` notifies a reset if there is any change in the list or sorting.
+/// Other methods delegate to the unsorted list.
+///
+/// [`update_list`]: UiNode::update_list
 pub struct SortingList {
     list: UiNode,
 
@@ -601,12 +875,8 @@ pub struct SortingList {
 impl SortingList {
     /// New from list and sort function.
     pub fn new(list: impl IntoUiNode, sort: impl Fn(&mut UiNode, &mut UiNode) -> Ordering + Send + 'static) -> Self {
-        let mut list = list.into_node();
-        if !list.is_list() {
-            list = UiVec(vec![list]).into_node();
-        }
         Self {
-            list,
+            list: list.into_node().into_list(),
             map: vec![],
             sort: Box::new(sort),
         }
@@ -665,213 +935,131 @@ impl UiNodeImpl for SortingList {
     }
 
     fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
-        todo!()
-    }
-}
-
-#[derive(Default, Debug)]
-struct ZIndexCtx {
-    // used in `z_index` to validate that it will have an effect.
-    panel_id: Option<WidgetId>,
-    // set by `z_index` to signal a z-resort is needed.
-    resort: AtomicBool,
-}
-
-context_local! {
-    static Z_INDEX_CTX: ZIndexCtx = ZIndexCtx::default();
-}
-
-/// Access to widget z-index in a parent [`PanelList`].
-#[expect(non_camel_case_types)]
-pub struct Z_INDEX;
-impl Z_INDEX {
-    fn with(&self, panel_id: WidgetId, action: impl FnOnce()) -> bool {
-        let ctx = ZIndexCtx {
-            panel_id: Some(panel_id),
-            resort: AtomicBool::new(false),
-        };
-        Z_INDEX_CTX.with_context(&mut Some(Arc::new(ctx)), || {
-            action();
-            Z_INDEX_CTX.get().resort.load(Relaxed)
+        self.with_map(|map, list| {
+            if let Some(index) = map.get(index) {
+                list.0.with_child(*index, visitor)
+            }
         })
     }
 
-    /// Gets the index set on the [`WIDGET`].
-    ///
-    /// Returns `DEFAULT` if the node is not a widget.
-    pub fn get(&self) -> ZIndex {
-        WIDGET.get_state(*Z_INDEX_ID).unwrap_or_default()
+    fn is_list(&self) -> bool {
+        true
     }
 
-    /// Gets the index set on the `widget`.
-    ///
-    /// Returns `DEFAULT` if the node is not a widget.
-    pub fn get_wgt(&self, widget: &mut UiNode) -> ZIndex {
-        match widget.as_widget() {
-            Some(mut w) => w.with_context(WidgetUpdateMode::Ignore, || self.get()),
-            None => ZIndex::DEFAULT,
-        }
-    }
-
-    /// Try set the z-index in the current [`WIDGET`].
-    ///
-    /// Returns if z-index can be set on the widget, this is only `true` if the current [`WIDGET`]
-    /// is a direct child of a panel widget that supports z-index.
-    ///
-    /// This must be called on node init and update only, always returns `false` if called during
-    /// other node operations.
-    pub fn set(&self, index: ZIndex) -> bool {
-        let z_ctx = Z_INDEX_CTX.get();
-        let valid = z_ctx.panel_id == WIDGET.parent_id() && z_ctx.panel_id.is_some();
-        if valid {
-            z_ctx.resort.store(true, Relaxed);
-            WIDGET.set_state(*Z_INDEX_ID, index);
-        }
-        valid
-    }
-}
-
-static_id! {
-    static ref Z_INDEX_ID: StateId<ZIndex>;
-}
-
-/// Position of a widget inside an [`UiNodeList`] render operation.
-///
-/// When two widgets have the same index their logical position defines the render order.
-///
-/// # Examples
-///
-/// Create a Z-index that causes the widget to render in front of all siblings that don't set Z-index.
-///
-/// ```
-/// # use zng_app::widget::node::ZIndex;
-/// #
-/// let highlight_z = ZIndex::DEFAULT + 1;
-/// ```
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Transitionable)]
-pub struct ZIndex(u32);
-impl ZIndex {
-    /// Widget is rendered first causing all overlapping siblings to render on top of it.
-    ///
-    /// The value is `0`.
-    pub const BACK: ZIndex = ZIndex(0);
-
-    /// Z-index of widgets that don't set the index.
-    ///
-    /// The value is `u32::MAX / 2`.
-    pub const DEFAULT: ZIndex = ZIndex(u32::MAX / 2);
-
-    /// Widget is rendered after all siblings causing it to render on top.
-    pub const FRONT: ZIndex = ZIndex(u32::MAX);
-
-    /// Computes `other` above `self`, caps at [`FRONT`].
-    ///
-    /// This is the default ZIndex addition, equivalent to `self + other`.
-    ///
-    /// [`FRONT`]: Self::FRONT
-    pub fn saturating_add(self, other: impl Into<Self>) -> Self {
-        ZIndex(self.0.saturating_add(other.into().0))
-    }
-
-    /// Computes `other` below `self`, stops at [`BACK`].
-    ///
-    /// This is the default ZIndex subtraction, equivalent to `self - other`.
-    ///
-    /// [`BACK`]: Self::BACK
-    pub fn saturating_sub(self, other: impl Into<Self>) -> Self {
-        ZIndex(self.0.saturating_sub(other.into().0))
-    }
-}
-impl Default for ZIndex {
-    fn default() -> Self {
-        ZIndex::DEFAULT
-    }
-}
-impl<Z: Into<ZIndex>> ops::Add<Z> for ZIndex {
-    type Output = Self;
-
-    fn add(self, rhs: Z) -> Self::Output {
-        self.saturating_add(rhs)
-    }
-}
-impl<Z: Into<ZIndex>> ops::AddAssign<Z> for ZIndex {
-    fn add_assign(&mut self, rhs: Z) {
-        *self = *self + rhs;
-    }
-}
-impl<Z: Into<ZIndex>> ops::Sub<Z> for ZIndex {
-    type Output = Self;
-
-    fn sub(self, rhs: Z) -> Self::Output {
-        self.saturating_sub(rhs)
-    }
-}
-impl<Z: Into<ZIndex>> ops::SubAssign<Z> for ZIndex {
-    fn sub_assign(&mut self, rhs: Z) {
-        *self = *self - rhs;
-    }
-}
-impl ops::Mul<Factor> for ZIndex {
-    type Output = Self;
-
-    fn mul(self, rhs: Factor) -> Self::Output {
-        ZIndex(self.0 * rhs)
-    }
-}
-impl ops::Div<Factor> for ZIndex {
-    type Output = Self;
-
-    fn div(self, rhs: Factor) -> Self::Output {
-        ZIndex(self.0 / rhs)
-    }
-}
-impl ops::MulAssign<Factor> for ZIndex {
-    fn mul_assign(&mut self, rhs: Factor) {
-        self.0 *= rhs;
-    }
-}
-impl ops::DivAssign<Factor> for ZIndex {
-    fn div_assign(&mut self, rhs: Factor) {
-        self.0 /= rhs;
-    }
-}
-impl fmt::Debug for ZIndex {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let z = *self;
-        if f.alternate() {
-            write!(f, "ZIndex::")?;
-        }
-
-        if z == Self::DEFAULT {
-            write!(f, "DEFAULT")
-        } else if z == Self::BACK {
-            write!(f, "BACK")
-        } else if z == Self::FRONT {
-            write!(f, "FRONT")
-        } else if z > Self::DEFAULT {
-            if z > Self::FRONT - 10000 {
-                write!(f, "FRONT-{}", Self::FRONT.0 - z.0)
-            } else {
-                write!(f, "DEFAULT+{}", z.0 - Self::DEFAULT.0)
+    fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+        self.with_map(|map, list| {
+            for (i, &actual_i) in map.iter().enumerate() {
+                list.with_child(actual_i, |n| visitor(i, n));
             }
-        } else if z < Self::BACK + 10000 {
-            write!(f, "BACK+{}", z.0 - Self::BACK.0)
-        } else {
-            write!(f, "DEFAULT-{}", Self::DEFAULT.0 - z.0)
+        })
+    }
+
+    fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+        self.for_each_child(&mut |i, n| visitor(i, n));
+    }
+
+    fn par_fold_reduce(
+        &mut self,
+        identity: BoxAnyVarValue,
+        fold: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
+        _: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
+    ) -> BoxAnyVarValue {
+        let mut acc = Some(identity);
+        self.for_each_child(&mut |i, n| {
+            acc = Some(fold(acc.take().unwrap(), i, n));
+        });
+        acc.unwrap()
+    }
+
+    fn init(&mut self) {
+        let _ = SORTING_LIST.with(|| self.list.0.init());
+        self.invalidate_sort();
+    }
+
+    fn deinit(&mut self) {
+        let _ = SORTING_LIST.with(|| self.list.0.deinit());
+        self.invalidate_sort();
+    }
+
+    fn info(&mut self, info: &mut WidgetInfoBuilder) {
+        self.list.0.info(info);
+    }
+
+    fn event(&mut self, update: &EventUpdate) {
+        self.list.0.event(update);
+    }
+
+    fn update(&mut self, updates: &WidgetUpdates) {
+        self.list.0.update(updates);
+    }
+
+    fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        let mut changed = false;
+        let (_, resort) = SORTING_LIST.with(|| self.list.0.update_list(updates, &mut changed));
+        if changed || resort {
+            self.invalidate_sort();
+            observer.reset();
         }
     }
-}
-impl_from_and_into_var! {
-    fn from(index: u32) -> ZIndex {
-        ZIndex(index)
+
+    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+        self.list.0.measure(wm)
     }
-    fn from(index: ZIndex) -> u32 {
-        index.0
+
+    fn measure_list(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        measure: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        let mut acc = PxSize::zero();
+        self.for_each_child(&mut |i, n| {
+            let s = measure(i, n, wm);
+            acc = fold_size(acc, s);
+        });
+        acc
     }
-    fn from(index: ZIndex) -> Option<ZIndex>;
+
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        self.list.0.layout(wl)
+    }
+
+    fn layout_list(
+        &mut self,
+        wl: &mut WidgetLayout,
+        layout: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        let mut acc = PxSize::zero();
+        self.for_each_child(&mut |i, n| {
+            let s = layout(i, n, wl);
+            acc = fold_size(acc, s);
+        });
+        acc
+    }
+
+    fn render(&mut self, frame: &mut FrameBuilder) {
+        self.for_each_child(&mut |_, n| n.render(frame));
+    }
+
+    fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+        self.for_each_child(&mut |i, n| render(i, n, frame));
+    }
+
+    fn render_update(&mut self, update: &mut FrameUpdate) {
+        self.list.0.render_update(update);
+    }
+
+    fn render_update_list(&mut self, update: &mut FrameUpdate, render_update: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
+        self.list.0.render_update_list(update, render_update);
+    }
+
+    fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+        None
+    }
 }
 
-/// Represents an [`UiNodeList::update_all`] observer that can be used to monitor widget insertion, removal and re-order.
+/// Represents an [`UiNode::update_list`] observer that can be used to monitor widget insertion, removal and re-order.
 ///
 /// All indexes are in the context of the previous changes, if you are maintaining a *mirror* vector simply using the
 /// [`Vec::insert`] and [`Vec::remove`] commands in the same order as they are received should keep the vector in sync.
@@ -1181,6 +1369,101 @@ impl UiNodeImpl for EditableUiVec {
     fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
         self.vec.with_child(index, visitor);
     }
+
+    fn is_list(&self) -> bool {
+        true
+    }
+
+    fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+        self.vec.for_each_child(visitor);
+    }
+
+    fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+        self.vec.par_each_child(visitor);
+    }
+
+    fn par_fold_reduce(
+        &mut self,
+        identity: BoxAnyVarValue,
+        fold: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
+        reduce: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
+    ) -> BoxAnyVarValue {
+        self.vec.par_fold_reduce(identity, fold, reduce)
+    }
+
+    fn init(&mut self) {
+        self.ctrl.0.lock().target = Some(WIDGET.id());
+        self.vec.init();
+    }
+
+    fn deinit(&mut self) {
+        self.ctrl.0.lock().target = None;
+        self.vec.deinit();
+    }
+
+    fn info(&mut self, info: &mut WidgetInfoBuilder) {
+        self.vec.info(info);
+    }
+
+    fn event(&mut self, update: &EventUpdate) {
+        self.vec.event(update);
+    }
+
+    fn update(&mut self, updates: &WidgetUpdates) {
+        self.vec.update(updates);
+        self.fulfill_requests(&mut ());
+    }
+
+    fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        self.vec.update(updates);
+        self.fulfill_requests(observer);
+    }
+
+    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+        self.vec.measure(wm)
+    }
+
+    fn measure_list(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        measure: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.vec.measure_list(wm, measure, fold_size)
+    }
+
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        self.vec.layout(wl)
+    }
+
+    fn layout_list(
+        &mut self,
+        wl: &mut WidgetLayout,
+        layout: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.vec.layout_list(wl, layout, fold_size)
+    }
+
+    fn render(&mut self, frame: &mut FrameBuilder) {
+        self.vec.render(frame);
+    }
+
+    fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+        self.vec.render_list(frame, render);
+    }
+
+    fn render_update(&mut self, update: &mut FrameUpdate) {
+        self.vec.render_update(update);
+    }
+
+    fn render_update_list(&mut self, update: &mut FrameUpdate, render_update: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
+        self.vec.render_update_list(update, render_update);
+    }
+
+    fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+        None
+    }
 }
 
 /// See [`EditableUiNodeListRef::move_to`] for more details
@@ -1412,6 +1695,205 @@ impl EditableUiVecRef {
     }
 }
 
+static_id! {
+    static ref Z_INDEX_ID: StateId<ZIndex>;
+}
+
+/// Position of a widget inside an UI node list render operation.
+///
+/// When two widgets have the same index their logical position defines the render order.
+///
+/// # Examples
+///
+/// Create a Z-index that causes the widget to render in front of all siblings that don't set Z-index.
+///
+/// ```
+/// # use zng_app::widget::node::ZIndex;
+/// #
+/// let highlight_z = ZIndex::DEFAULT + 1;
+/// ```
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Transitionable)]
+pub struct ZIndex(u32);
+impl ZIndex {
+    /// Widget is rendered first causing all overlapping siblings to render on top of it.
+    ///
+    /// The value is `0`.
+    pub const BACK: ZIndex = ZIndex(0);
+
+    /// Z-index of widgets that don't set the index.
+    ///
+    /// The value is `u32::MAX / 2`.
+    pub const DEFAULT: ZIndex = ZIndex(u32::MAX / 2);
+
+    /// Widget is rendered after all siblings causing it to render on top.
+    pub const FRONT: ZIndex = ZIndex(u32::MAX);
+
+    /// Computes `other` above `self`, caps at [`FRONT`].
+    ///
+    /// This is the default ZIndex addition, equivalent to `self + other`.
+    ///
+    /// [`FRONT`]: Self::FRONT
+    pub fn saturating_add(self, other: impl Into<Self>) -> Self {
+        ZIndex(self.0.saturating_add(other.into().0))
+    }
+
+    /// Computes `other` below `self`, stops at [`BACK`].
+    ///
+    /// This is the default ZIndex subtraction, equivalent to `self - other`.
+    ///
+    /// [`BACK`]: Self::BACK
+    pub fn saturating_sub(self, other: impl Into<Self>) -> Self {
+        ZIndex(self.0.saturating_sub(other.into().0))
+    }
+}
+impl Default for ZIndex {
+    fn default() -> Self {
+        ZIndex::DEFAULT
+    }
+}
+impl<Z: Into<ZIndex>> ops::Add<Z> for ZIndex {
+    type Output = Self;
+
+    fn add(self, rhs: Z) -> Self::Output {
+        self.saturating_add(rhs)
+    }
+}
+impl<Z: Into<ZIndex>> ops::AddAssign<Z> for ZIndex {
+    fn add_assign(&mut self, rhs: Z) {
+        *self = *self + rhs;
+    }
+}
+impl<Z: Into<ZIndex>> ops::Sub<Z> for ZIndex {
+    type Output = Self;
+
+    fn sub(self, rhs: Z) -> Self::Output {
+        self.saturating_sub(rhs)
+    }
+}
+impl<Z: Into<ZIndex>> ops::SubAssign<Z> for ZIndex {
+    fn sub_assign(&mut self, rhs: Z) {
+        *self = *self - rhs;
+    }
+}
+impl ops::Mul<Factor> for ZIndex {
+    type Output = Self;
+
+    fn mul(self, rhs: Factor) -> Self::Output {
+        ZIndex(self.0 * rhs)
+    }
+}
+impl ops::Div<Factor> for ZIndex {
+    type Output = Self;
+
+    fn div(self, rhs: Factor) -> Self::Output {
+        ZIndex(self.0 / rhs)
+    }
+}
+impl ops::MulAssign<Factor> for ZIndex {
+    fn mul_assign(&mut self, rhs: Factor) {
+        self.0 *= rhs;
+    }
+}
+impl ops::DivAssign<Factor> for ZIndex {
+    fn div_assign(&mut self, rhs: Factor) {
+        self.0 /= rhs;
+    }
+}
+impl fmt::Debug for ZIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let z = *self;
+        if f.alternate() {
+            write!(f, "ZIndex::")?;
+        }
+
+        if z == Self::DEFAULT {
+            write!(f, "DEFAULT")
+        } else if z == Self::BACK {
+            write!(f, "BACK")
+        } else if z == Self::FRONT {
+            write!(f, "FRONT")
+        } else if z > Self::DEFAULT {
+            if z > Self::FRONT - 10000 {
+                write!(f, "FRONT-{}", Self::FRONT.0 - z.0)
+            } else {
+                write!(f, "DEFAULT+{}", z.0 - Self::DEFAULT.0)
+            }
+        } else if z < Self::BACK + 10000 {
+            write!(f, "BACK+{}", z.0 - Self::BACK.0)
+        } else {
+            write!(f, "DEFAULT-{}", Self::DEFAULT.0 - z.0)
+        }
+    }
+}
+impl_from_and_into_var! {
+    fn from(index: u32) -> ZIndex {
+        ZIndex(index)
+    }
+    fn from(index: ZIndex) -> u32 {
+        index.0
+    }
+    fn from(index: ZIndex) -> Option<ZIndex>;
+}
+#[derive(Default, Debug)]
+struct ZIndexCtx {
+    // used in `z_index` to validate that it will have an effect.
+    panel_id: Option<WidgetId>,
+    // set by `z_index` to signal a z-resort is needed.
+    resort: AtomicBool,
+}
+context_local! {
+    static Z_INDEX_CTX: ZIndexCtx = ZIndexCtx::default();
+}
+/// Access to widget z-index in a parent [`PanelList`].
+#[expect(non_camel_case_types)]
+pub struct Z_INDEX;
+impl Z_INDEX {
+    fn with(&self, panel_id: WidgetId, action: impl FnOnce()) -> bool {
+        let ctx = ZIndexCtx {
+            panel_id: Some(panel_id),
+            resort: AtomicBool::new(false),
+        };
+        Z_INDEX_CTX.with_context(&mut Some(Arc::new(ctx)), || {
+            action();
+            Z_INDEX_CTX.get().resort.load(Relaxed)
+        })
+    }
+
+    /// Gets the index set on the [`WIDGET`].
+    ///
+    /// Returns `DEFAULT` if the node is not a widget.
+    pub fn get(&self) -> ZIndex {
+        WIDGET.get_state(*Z_INDEX_ID).unwrap_or_default()
+    }
+
+    /// Gets the index set on the `widget`.
+    ///
+    /// Returns `DEFAULT` if the node is not a widget.
+    pub fn get_wgt(&self, widget: &mut UiNode) -> ZIndex {
+        match widget.as_widget() {
+            Some(mut w) => w.with_context(WidgetUpdateMode::Ignore, || self.get()),
+            None => ZIndex::DEFAULT,
+        }
+    }
+
+    /// Try set the z-index in the current [`WIDGET`].
+    ///
+    /// Returns if z-index can be set on the widget, this is only `true` if the current [`WIDGET`]
+    /// is a direct child of a panel widget that supports z-index.
+    ///
+    /// This must be called on node init and update only, always returns `false` if called during
+    /// other node operations.
+    pub fn set(&self, index: ZIndex) -> bool {
+        let z_ctx = Z_INDEX_CTX.get();
+        let valid = z_ctx.panel_id == WIDGET.parent_id() && z_ctx.panel_id.is_some();
+        if valid {
+            z_ctx.resort.store(true, Relaxed);
+            WIDGET.set_state(*Z_INDEX_ID, index);
+        }
+        valid
+    }
+}
+
 /// First and last child widget in a [`PanelList`].
 #[derive(Debug, Clone)]
 pub struct PanelListRange {
@@ -1572,71 +2054,199 @@ where
         self.info_id.as_ref().map(|t| t.0)
     }
 
-    // !!: TODO renames these to match UiNode API
-
-    /// Visit the specific node with associated data, panics if `index` is out of bounds.
-    pub fn with_node<R, F>(&mut self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&mut UiNode, &mut D) -> R,
-    {
-        todo!()
+    /// Call `visitor` with a exclusive reference to the child node and associated data identified by `index`.
+    ///
+    /// Panics if the `index` is out of bounds.
+    pub fn with_child<R>(&mut self, index: usize, visitor: impl FnOnce(&mut UiNode, &mut D) -> R) -> R {
+        let data = self.data[index].get_mut();
+        self.list.with_child(index, |u| visitor(u, data))
     }
 
-    /// Calls `f` for each node in the list with the index and associated data.
-    pub fn for_each<F>(&mut self, f: F)
-    where
-        F: FnMut(usize, &mut UiNode, &mut D),
-    {
-        todo!()
+    /// Call `visitor` for each child node of `self`, one at a time.
+    ///
+    /// The closure parameters are the child index, the child and the associated data.
+    pub fn for_each_child(&mut self, mut visitor: impl FnMut(usize, &mut UiNode, &mut D)) {
+        let data = &mut self.data;
+        self.list.for_each_child(|i, u| visitor(i, u, data[i].get_mut()));
     }
 
-    /// Calls `f` for each node in the list with the index and associated data in parallel.
-    pub fn par_each<F>(&mut self, f: F)
+    /// Calls `visitor` for each child node in parallel.
+    ///
+    /// The closure parameters are the child index, the child and the associated data.
+    pub fn par_each_child(&mut self, visitor: impl Fn(usize, &mut UiNode, &mut D) + Sync)
     where
-        F: Fn(usize, &mut UiNode, &mut D) + Send + Sync,
         D: Sync,
     {
-        todo!()
+        let data = &self.data;
+        self.list.par_each_child(|i, u| {
+            visitor(
+                i,
+                u,
+                &mut *data[i].try_lock().expect("par_each_child called visitor twice on same index"),
+            )
+        });
     }
 
-    /// Calls `fold` for each node in the list with the index and associated data in parallel.
+    /// Calls `fold` for each child node with associated data in parallel, with fold accumulators produced by cloning
+    /// `identity`, then merges the folded results using `reduce` to produce the final value also in parallel.
     ///
-    /// This method behaves the same as [`UiNodeList::par_fold_reduce`], with the added data.
-    pub fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
+    /// The `reduce` call is [associative], the order is preserved in the result.
+    ///
+    /// [associative]: https://en.wikipedia.org/wiki/Associative_property
+    pub fn par_fold_reduce<T>(
+        &mut self,
+        identity: T,
+        fold: impl Fn(T, usize, &mut UiNode, &mut D) -> T + Sync,
+        reduce: impl Fn(T, T) -> T + Send + Sync,
+    ) -> T
     where
-        T: Send + 'static,
-        I: Fn() -> T + Send + Sync,
-        F: Fn(T, usize, &mut UiNode, &mut D) -> T + Send + Sync,
-        R: Fn(T, T) -> T + Send + Sync,
+        T: zng_var::VarValue,
     {
-        todo!()
+        let data = &self.data;
+        self.list.par_fold_reduce(
+            identity,
+            |acc, i, n| {
+                fold(
+                    acc,
+                    i,
+                    n,
+                    &mut *data[i].try_lock().expect("par_fold_reduce called visitor twice on same index"),
+                )
+            },
+            reduce,
+        )
     }
 
-    /// Call `measure` for each node and combines the final size using `fold_size`.
-    ///
-    /// The call to `measure` can be parallel if [`Parallel::LAYOUT`] is enabled, the inputs are the child index, node, data and the [`WidgetMeasure`].
-    pub fn measure_each<F, S>(&mut self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
-    where
-        F: Fn(usize, &mut UiNode, &mut D, &mut WidgetMeasure) -> PxSize + Send + Sync,
-        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
-    {
-        todo!()
+    /// Call `measure` for each node with associated data and combines the final size using `fold_size`.
+    pub fn measure_list(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        measure: impl Fn(usize, &mut UiNode, &mut D, &mut WidgetMeasure) -> PxSize + Sync,
+        fold_size: impl Fn(PxSize, PxSize) -> PxSize + Sync,
+    ) -> PxSize {
+        let data = &self.data;
+        self.list.measure_list(
+            wm,
+            |i, n, wm| {
+                measure(
+                    i,
+                    n,
+                    &mut *data[i].try_lock().expect("measure_list called visitor twice on same index"),
+                    wm,
+                )
+            },
+            fold_size,
+        )
     }
 
-    /// Call `layout` for each node and combines the final size using `fold_size`.
+    /// Call `layout` for each node with associated data and combines the final size using `fold_size`.
+    pub fn layout_list(
+        &mut self,
+        wl: &mut WidgetLayout,
+        layout: impl Fn(usize, &mut UiNode, &mut D, &mut WidgetLayout) -> PxSize + Sync,
+        fold_size: impl Fn(PxSize, PxSize) -> PxSize + Sync,
+    ) -> PxSize {
+        let data = &self.data;
+        self.list.layout_list(
+            wl,
+            |i, n, wl| {
+                layout(
+                    i,
+                    n,
+                    &mut *data[i].try_lock().expect("layout_list called visitor twice on same index"),
+                    wl,
+                )
+            },
+            fold_size,
+        )
+    }
+
+    /// Call `render` for each node with associated data.
     ///
-    /// The call to `layout` can be parallel if [`Parallel::LAYOUT`] is enabled, the inputs are the child index, node, data and the [`WidgetLayout`].
-    pub fn layout_each<F, S>(&mut self, wl: &mut WidgetLayout, layout: F, fold_size: S) -> PxSize
-    where
-        F: Fn(usize, &mut UiNode, &mut D, &mut WidgetLayout) -> PxSize + Send + Sync,
-        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
-    {
-        todo!()
+    /// Note that the [`PanelListData`] child offset and reference frame are already pushed when `render` is called.
+    pub fn render_list(&mut self, frame: &mut FrameBuilder, render: impl Fn(usize, &mut UiNode, &mut D, &mut FrameBuilder) + Sync) {
+        let offset_key = self.offset_key;
+
+        if self.z_naturally_sorted {
+            let data = &self.data;
+            self.list.render_list(frame, |i, child, frame| {
+                let mut data = data[i].try_lock().expect("render_list called visitor twice on same index");
+                let offset = data.child_offset();
+                if data.define_reference_frame() {
+                    frame.push_reference_frame(
+                        (offset_key, i as u32).into(),
+                        offset_key.bind_child(i as u32, offset.into(), false),
+                        true,
+                        true,
+                        |frame| render(i, child, &mut *data, frame),
+                    );
+                } else {
+                    frame.push_child(offset, |frame| render(i, child, &mut *data, frame));
+                }
+            });
+        } else {
+            self.for_each_z_sorted(|i, child, data| {
+                let offset = data.child_offset();
+                if data.define_reference_frame() {
+                    frame.push_reference_frame(
+                        (offset_key, i as u32).into(),
+                        offset_key.bind_child(i as u32, offset.into(), false),
+                        true,
+                        true,
+                        |frame| render(i, child, data, frame),
+                    );
+                } else {
+                    frame.push_child(offset, |frame| render(i, child, data, frame));
+                }
+            });
+        }
+    }
+
+    /// Call `render_update` for each node with associated data.
+    ///
+    /// Note that the [`PanelListData`] child offset and reference frame are already pushed when `render_update` is called.
+    pub fn render_update_list(
+        &mut self,
+        update: &mut FrameUpdate,
+        render_update: impl Fn(usize, &mut UiNode, &mut D, &mut FrameUpdate) + Sync,
+    ) {
+        let offset_key = self.offset_key;
+        let data = &self.data;
+        self.list.render_update_list(update, |i, n, update| {
+            let mut data = data[i].try_lock().expect("render_update_list called visitor twice on same index");
+
+            let offset = data.child_offset();
+            if data.define_reference_frame() {
+                update.with_transform(offset_key.update_child(i as u32, offset.into(), false), true, |update| {
+                    render_update(i, n, &mut *data, update);
+                });
+            } else {
+                update.with_child(offset, |update| {
+                    render_update(i, n, &mut *data, update);
+                });
+            }
+        });
     }
 
     /// Iterate over the list in the Z order.
-    pub fn for_each_z_sorted(&mut self, f: impl FnMut(usize, &mut UiNode, &mut D)) {
-        todo!()
+    pub fn for_each_z_sorted(&mut self, mut visitor: impl FnMut(usize, &mut UiNode, &mut D)) {
+        if self.z_naturally_sorted {
+            self.for_each_child(visitor)
+        } else {
+            if self.z_map.len() != self.list.children_len() {
+                self.z_sort();
+            }
+
+            if self.z_naturally_sorted {
+                self.for_each_child(visitor);
+            } else {
+                for &index in self.z_map.iter() {
+                    let index = index as usize;
+                    let data = self.data[index].get_mut();
+                    self.list.with_child(index, |node| visitor(index, node, data));
+                }
+            }
+        }
     }
 
     fn z_sort(&mut self) {
@@ -1734,11 +2344,142 @@ where
     D: PanelListData,
 {
     fn children_len(&self) -> usize {
-        todo!()
+        self.list.0.children_len()
     }
 
     fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
-        todo!()
+        self.list.0.with_child(index, visitor)
+    }
+
+    fn is_list(&self) -> bool {
+        true
+    }
+
+    fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+        self.list.0.for_each_child(visitor);
+    }
+
+    fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+        self.list.0.par_each_child(visitor);
+    }
+
+    fn par_fold_reduce(
+        &mut self,
+        identity: BoxAnyVarValue,
+        fold: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
+        reduce: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
+    ) -> BoxAnyVarValue {
+        self.list.0.par_fold_reduce(identity, fold, reduce)
+    }
+
+    fn init(&mut self) {
+        self.z_map.clear();
+        let resort = Z_INDEX.with(WIDGET.id(), || self.list.0.init());
+        self.z_naturally_sorted = !resort;
+        self.data.resize_with(self.list.0.children_len(), Default::default);
+    }
+
+    fn deinit(&mut self) {
+        self.list.deinit();
+    }
+
+    fn info(&mut self, info: &mut WidgetInfoBuilder) {
+        let len = self.list.0.children_len();
+        if len == 0 {
+            return;
+        }
+
+        self.list.0.info(info);
+
+        if let Some((id, version, pump_update)) = &mut self.info_id {
+            let start = self.list.with_child(0, |c| c.as_widget().map(|mut w| w.id()));
+            let end = self.list.with_child(len - 1, |c| c.as_widget().map(|mut w| w.id()));
+            let range = match (start, end) {
+                (Some(s), Some(e)) => Some((s, e)),
+                _ => None,
+            };
+            info.set_meta(*id, PanelListRange { range, version: *version });
+
+            if mem::take(pump_update) {
+                self.list.for_each_child(|_, c| {
+                    if let Some(mut w) = c.as_widget() {
+                        w.with_context(WidgetUpdateMode::Bubble, || WIDGET.update());
+                    }
+                });
+            }
+        }
+    }
+
+    fn event(&mut self, update: &EventUpdate) {
+        self.list.event(update);
+    }
+
+    fn update(&mut self, updates: &WidgetUpdates) {
+        self.update_list(updates, &mut ());
+    }
+
+    fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        let mut observer = PanelObserver {
+            changed: false,
+            data: &mut self.data,
+            observer,
+        };
+        let resort = Z_INDEX.with(WIDGET.id(), || self.list.update_list(updates, &mut observer));
+        let observer_changed = observer.changed;
+        if resort || (observer.changed && self.z_naturally_sorted) {
+            self.z_map.clear();
+            self.z_naturally_sorted = false;
+            WIDGET.render();
+        }
+        self.data.resize_with(self.list.children_len(), Default::default);
+
+        if observer_changed {
+            if let Some((_, v, u)) = &mut self.info_id {
+                if !*u {
+                    *v = v.wrapping_add(1);
+                    *u = true;
+                }
+                WIDGET.info();
+            }
+        }
+    }
+
+    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+        self.list.measure(wm)
+    }
+
+    fn measure_list(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        measure: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.list.measure_list(wm, measure, fold_size)
+    }
+
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        self.list.layout(wl)
+    }
+
+    fn layout_list(
+        &mut self,
+        wl: &mut WidgetLayout,
+        layout: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.list.layout_list(wl, layout, fold_size)
+    }
+
+    fn render(&mut self, frame: &mut FrameBuilder) {
+        self.render_list(frame, |_, n, _, frame| n.render(frame));
+    }
+
+    fn render_update(&mut self, update: &mut FrameUpdate) {
+        self.render_update_list(update, |_, n, _, update| n.render_update(update));
+    }
+
+    fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+        self.list.0.as_widget()
     }
 }
 

@@ -37,7 +37,7 @@ pub fn init_many() {
 
     let mut count = 0;
     let mut threads = HashSet::new();
-    list.for_each(|i, wgt, _| {
+    list.for_each_child(|i, wgt, _| {
         assert!(util::traced(wgt, "inited"));
         assert_eq!(count, i);
         count += 1;

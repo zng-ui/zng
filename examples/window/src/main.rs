@@ -716,7 +716,7 @@ fn section(header: &'static str, items: impl IntoUiNode) -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        children =  Text! {
+        children = Text! {
             txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);

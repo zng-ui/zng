@@ -549,7 +549,7 @@ impl InlineLayout {
                 fill_scale = Some(f / self.rows[0].size.width.0 as f32);
             }
 
-            children.for_each(|i, child, o| {
+            children.for_each_child(|i, child, o| {
                 if next_row_i < self.rows.len() && self.rows[next_row_i].first_child == i {
                     // new row
                     if let Some(inline) = wl.inline() {
@@ -798,7 +798,7 @@ impl InlineLayout {
             .with_max_x(child_inline_constrain);
         let mut row = self.rows.new_item();
         LAYOUT.with_constraints(child_constraints, || {
-            children.for_each(|i, child, _| {
+            children.for_each_child(|i, child, _| {
                 let mut inline_constrain = child_inline_constrain;
                 let mut wrap_clear_min = Px(0);
                 if self.rows.is_empty() && !self.first_wrapped {

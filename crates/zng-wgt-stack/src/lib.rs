@@ -276,7 +276,7 @@ fn measure(wm: &mut WidgetMeasure, children: &mut PanelList, direction: StackDir
             .with_new_min(Px(0), Px(0)),
         || {
             // parallel measure full widgets first
-            children.measure_each(
+            children.measure_list(
                 wm,
                 |_, c, _, wm| {
                     if c.as_widget().is_some() { c.measure(wm) } else { PxSize::zero() }
@@ -286,7 +286,7 @@ fn measure(wm: &mut WidgetMeasure, children: &mut PanelList, direction: StackDir
 
             let mut item_rect = PxRect::zero();
             let mut child_spacing = PxVector::zero();
-            children.for_each(|_, c, _| {
+            children.for_each_child(|_, c, _| {
                 let size = match c.as_widget() {
                     // already parallel measured widgets, only measure other nodes.
                     Some(mut w) => w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_outer_size()),
@@ -328,7 +328,7 @@ fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirec
             .with_new_min(Px(0), Px(0)),
         || {
             // parallel layout widgets
-            children.layout_each(
+            children.layout_list(
                 wl,
                 |_, c, o, wl| {
                     if c.as_widget().is_some() {
@@ -346,7 +346,7 @@ fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirec
             // layout other nodes and position everything.
             let mut item_rect = PxRect::zero();
             let mut child_spacing = PxVector::zero();
-            children.for_each(|_, c, o| {
+            children.for_each_child(|_, c, o| {
                 let size = match c.as_widget() {
                     Some(mut w) => w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().outer_size()),
                     None => {
@@ -382,7 +382,7 @@ fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirec
     let align_baseline = children_align.is_baseline();
     let child_align = child_align.xy(LAYOUT.direction());
 
-    children.for_each(|_, c, o| {
+    children.for_each_child(|_, c, o| {
         match c.as_widget() {
             Some(mut w) => {
                 let (size, baseline) = w.with_context(WidgetUpdateMode::Ignore, || {
@@ -458,7 +458,7 @@ fn child_max_size(wm: &mut WidgetMeasure, children: &mut PanelList, child_align:
     // find largest child, the others will fill to its size.
     if need_measure {
         let max_items = LAYOUT.with_constraints(measure_constraints.with_new_min(Px(0), Px(0)), || {
-            children.measure_each(wm, |_, c, _, wm| c.measure(wm), PxSize::max)
+            children.measure_list(wm, |_, c, _, wm| c.measure(wm), PxSize::max)
         });
 
         max_size = constraints.clamp_size(max_size.max(max_items));

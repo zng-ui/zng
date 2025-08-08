@@ -35,7 +35,18 @@ impl UiNodeImpl for ExtendWidgetChildNode {
     }
 
     fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
-        todo!("!!: TODO")
+        self.widget.lock().0.as_widget()?;
+        Some(self)
+    }
+}
+impl WidgetUiNodeImpl for ExtendWidgetChildNode {
+    fn with_context(&mut self, update_mode: WidgetUpdateMode, visitor: &mut dyn FnMut()) {
+        if let Some(wgt) = self.widget.lock().0.as_widget() {
+            wgt.with_context(update_mode, visitor);
+        } else {
+            // this could be intentional, like nodes that only become widgets on init
+            tracing::debug!("extend_widget child is not a widget");
+        }
     }
 }
 
@@ -55,6 +66,17 @@ impl UiNodeImpl for ExtendWidgetNode {
     }
 
     fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
-        todo!("!!: TODO self.widget")
+        self.widget.lock().0.as_widget()?;
+        Some(self)
+    }
+}
+impl WidgetUiNodeImpl for ExtendWidgetNode {
+    fn with_context(&mut self, update_mode: WidgetUpdateMode, visitor: &mut dyn FnMut()) {
+        if let Some(wgt) = self.widget.lock().0.as_widget() {
+            wgt.with_context(update_mode, visitor);
+        } else {
+            // this could be intentional, like nodes that only become widgets on init
+            tracing::debug!("extend_widget child is not a widget");
+        }
     }
 }

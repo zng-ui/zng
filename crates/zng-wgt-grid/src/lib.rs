@@ -228,7 +228,7 @@ pub fn node(
             // layout and translate cells
             let cells_offset = columns.children_len() + rows.children_len();
 
-            cells.layout_each(
+            cells.layout_list(
                 wl,
                 |i, cell, o, wl| {
                     let cell_info = cell::CellInfo::get_wgt(cell).actual(i, grid.columns.len());
@@ -370,7 +370,7 @@ pub fn node(
                     child.render_update(update);
                 });
             });
-            cells.for_each(|_, child, data| {
+            cells.for_each_child(|_, child, data| {
                 if data.define_reference_frame {
                     update.with_transform_value(&data.child_offset.into(), |update| {
                         child.render_update(update);
@@ -1080,7 +1080,7 @@ impl GridLayout {
         // max needed column or row in the auto_mode axis.
         let mut max_custom = 0;
         let mut max_auto_placed_i = 0;
-        children.cells().for_each(|i, c, _| {
+        children.cells().for_each_child(|i, c, _| {
             let info = cell::CellInfo::get_wgt(c);
 
             let n = match auto_mode {
