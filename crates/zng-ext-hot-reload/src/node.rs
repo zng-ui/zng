@@ -142,11 +142,11 @@ impl HotNodeHost {
 }
 impl UiNodeImpl for HotNodeHost {
     fn children_len(&self) -> usize {
-        1
+        self.instance.children_len()
     }
 
     fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
-        todo!()
+        
     }
 
     fn init(&mut self) {
@@ -240,6 +240,10 @@ impl HotNode {
         }
     }
 
+    fn children_len(&self) -> usize {
+        (self.api.children_len)(&self.child)
+    }
+
     fn init(&mut self, ctx: &mut LocalContext) {
         (self.api.init)(&mut self.child, ctx)
     }
@@ -275,23 +279,12 @@ impl HotNode {
     fn render_update(&mut self, ctx: &mut LocalContext, update: &mut FrameUpdate) {
         (self.api.render_update)(&mut self.child, ctx, update)
     }
-
-    fn is_widget(&self, ctx: &mut LocalContext) -> bool {
-        (self.api.is_widget)(&self.child, ctx)
-    }
-
-    fn is_nil(&self, ctx: &mut LocalContext) -> bool {
-        (self.api.is_nil)(&self.child, ctx)
-    }
-
-    fn with_context(&mut self, ctx: &mut LocalContext, update_mode: WidgetUpdateMode, f: &mut dyn FnMut()) {
-        (self.api.with_context)(&mut self.child, ctx, update_mode, f)
-    }
 }
 
 // HotNode "methods" references from the dynamic loaded code to be called from the static code.
 struct HotNodeApi {
     // !!: TODO update to new UiNode API
+    children_len: fn(&UiNode) -> usize,
     init: fn(&mut UiNode, &mut LocalContext),
     deinit: fn(&mut UiNode, &mut LocalContext),
     info: fn(&mut UiNode, &mut LocalContext, &mut WidgetInfoBuilder),
@@ -301,11 +294,12 @@ struct HotNodeApi {
     layout: fn(&mut UiNode, &mut LocalContext, &mut WidgetLayout) -> PxSize,
     render: fn(&mut UiNode, &mut LocalContext, &mut FrameBuilder),
     render_update: fn(&mut UiNode, &mut LocalContext, &mut FrameUpdate),
-    is_widget: fn(&UiNode, &mut LocalContext) -> bool,
-    is_nil: fn(&UiNode, &mut LocalContext) -> bool,
-    with_context: fn(&mut UiNode, &mut LocalContext, WidgetUpdateMode, &mut dyn FnMut()),
 }
 impl HotNodeApi {
+    fn children_len(child: &UiNode) -> usize {
+        child.children_len()
+    }
+
     fn init(child: &mut UiNode, ctx: &mut LocalContext) {
         ctx.with_context(|| child.init())
     }
@@ -342,20 +336,9 @@ impl HotNodeApi {
         ctx.with_context(|| child.render_update(update))
     }
 
-    fn is_widget(child: &UiNode, ctx: &mut LocalContext) -> bool {
-        todo!()
-    }
-
-    fn is_nil(child: &UiNode, ctx: &mut LocalContext) -> bool {
-        ctx.with_context(|| child.is_nil())
-    }
-
-    fn with_context(child: &mut UiNode, ctx: &mut LocalContext, update_mode: WidgetUpdateMode, f: &mut dyn FnMut()) {
-        todo!()
-    }
-
     fn capture() -> Self {
         Self {
+            children_len: Self::children_len,
             init: Self::init,
             deinit: Self::deinit,
             info: Self::info,
@@ -365,9 +348,7 @@ impl HotNodeApi {
             layout: Self::layout,
             render: Self::render,
             render_update: Self::render_update,
-            is_widget: Self::is_widget,
-            is_nil: Self::is_nil,
-            with_context: Self::with_context,
+            
         }
     }
 }

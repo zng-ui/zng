@@ -970,7 +970,7 @@ impl<'u> WidgetUiNode<'u> {
         self.with_context(WidgetUpdateMode::Ignore, || WIDGET.id())
     }
 
-    // TODO(non-breaking) other helpers, with_state, state_get?
+    // TODO other helpers, with_state, state_get?
 }
 
 /// See [`UiNode::into_widget`]

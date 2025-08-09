@@ -733,8 +733,10 @@ impl WINDOWS {
     /// Nested windows can be manipulated using the `WINDOWS` API just like other windows, but are layout and rendered inside another window.
     ///
     /// This is primarily an adapter for mobile platforms that only support one real window, it accelerates cross platform support from
-    /// projects originally desktop only. Note that this API is not recommended for implementing features such as *window docking* or
-    /// *tabbing*, you probably need to model *tabs* as objects that can outlive their host windows and use [`ArcNode`]
+    /// projects originally desktop only.
+    ///
+    /// Note that this API is not recommended for implementing features such as *window docking* or
+    /// *tabbing*, for that you probably need to model *tabs* as objects that can outlive their host windows and use [`ArcNode`]
     /// to transfer the content between host windows.
     ///
     /// [`NestedWindowNode`]: crate::NestedWindowNode

@@ -9,8 +9,9 @@ use zng_app::{
     event::{Command, CommandArgs, CommandHandle, CommandScope, Event, EventArgs},
     handler::WidgetHandler,
     render::{FrameBuilder, FrameValueKey},
+    update::WidgetUpdates,
     widget::{
-        VarLayout, WIDGET, WidgetUpdateMode,
+        VarLayout, WIDGET,
         border::{BORDER, BORDER_ALIGN_VAR, BORDER_OVER_VAR},
         info::Interactivity,
         node::*,
@@ -2191,7 +2192,7 @@ pub fn list_presenter<D: VarValue>(list: impl IntoVar<ObservableVec<D>>, item_fn
     ListPresenter {
         list: list.into_var(),
         item_fn: item_fn.into_var(),
-        view: vec![],
+        view: ui_vec![],
         _e: std::marker::PhantomData,
     }
     .into_node()
@@ -2210,7 +2211,7 @@ where
     ListPresenterFromIter {
         list: list.into_var(),
         item_fn: item_fn.into_var(),
-        view: vec![],
+        view: ui_vec![],
         _e: std::marker::PhantomData,
     }
     .into_node()
@@ -2222,7 +2223,7 @@ where
 {
     list: Var<ObservableVec<D>>,
     item_fn: Var<WidgetFn<D>>,
-    view: Vec<UiNode>,
+    view: UiVec,
     _e: std::marker::PhantomData<D>,
 }
 
@@ -2231,149 +2232,188 @@ where
     D: VarValue,
 {
     fn children_len(&self) -> usize {
-        todo!()
+        self.view.len()
     }
 
     fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
-        todo!()
+        self.view.with_child(index, visitor)
     }
 
-    // fn with_node<R, F>(&mut self, index: usize, f: F) -> R
-    // where
-    //     F: FnOnce(&mut BoxedUiNode) -> R,
-    // {
-    //     self.view.with_node(index, f)
-    // }
+    fn is_list(&self) -> bool {
+        true
+    }
 
-    // fn for_each<F>(&mut self, f: F)
-    // where
-    //     F: FnMut(usize, &mut BoxedUiNode),
-    // {
-    //     self.view.for_each(f)
-    // }
+    fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+        self.view.for_each_child(visitor);
+    }
 
-    // fn par_each<F>(&mut self, f: F)
-    // where
-    //     F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
-    // {
-    //     self.view.par_each(f)
-    // }
+    fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+        self.view.par_each_child(visitor);
+    }
 
-    // fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
-    // where
-    //     T: Send + 'static,
-    //     I: Fn() -> T + Send + Sync,
-    //     F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
-    //     R: Fn(T, T) -> T + Send + Sync,
-    // {
-    //     self.view.par_fold_reduce(identity, fold, reduce)
-    // }
+    fn par_fold_reduce(
+        &mut self,
+        identity: BoxAnyVarValue,
+        fold: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
+        reduce: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
+    ) -> BoxAnyVarValue {
+        self.view.par_fold_reduce(identity, fold, reduce)
+    }
 
-    // fn len(&self) -> usize {
-    //     self.view.len()
-    // }
+    fn init(&mut self) {
+        debug_assert!(self.view.is_empty());
+        self.view.clear();
 
-    // fn boxed(self) -> BoxedUiNodeList {
-    //     Box::new(self)
-    // }
+        WIDGET.sub_var(&self.list).sub_var(&self.item_fn);
 
-    // fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
-    //     self.view.drain_into(vec);
-    //     tracing::warn!("drained `list_presenter`, now out of sync with data");
-    // }
+        let e_fn = self.item_fn.get();
+        self.list.with(|l| {
+            for el in l.iter() {
+                let child = e_fn(el.clone());
+                self.view.push(child);
+            }
+        });
 
-    // fn init_all(&mut self) {
-    //     debug_assert!(self.view.is_empty());
-    //     self.view.clear();
+        self.view.init();
+    }
 
-    //     WIDGET.sub_var(&self.list).sub_var(&self.item_fn);
+    fn deinit(&mut self) {
+        self.view.deinit();
+        self.view.clear();
+    }
 
-    //     let e_fn = self.item_fn.get();
-    //     self.list.with(|l| {
-    //         for el in l.iter() {
-    //             let child = e_fn(el.clone());
-    //             self.view.push(child);
-    //         }
-    //     });
+    fn update(&mut self, updates: &WidgetUpdates) {
+        self.update_list(updates, &mut ());
+    }
 
-    //     self.view.init_all();
-    // }
+    fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        let mut need_reset = self.item_fn.is_new();
 
-    // fn deinit_all(&mut self) {
-    //     self.view.deinit_all();
-    //     self.view.clear();
-    // }
+        let is_new = self
+            .list
+            .with_new(|l| {
+                need_reset |= l.changes().is_empty() || l.changes() == [VecChange::Clear];
 
-    // fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-    //     let mut need_reset = self.item_fn.is_new();
+                if need_reset {
+                    return;
+                }
 
-    //     let is_new = self
-    //         .list
-    //         .with_new(|l| {
-    //             need_reset |= l.changes().is_empty() || l.changes() == [VecChange::Clear];
+                // update before new items to avoid update before init.
+                self.view.update_list(updates, observer);
 
-    //             if need_reset {
-    //                 return;
-    //             }
+                let e_fn = self.item_fn.get();
 
-    //             // update before new items to avoid update before init.
-    //             self.view.update_all(updates, observer);
+                for change in l.changes() {
+                    match change {
+                        VecChange::Insert { index, count } => {
+                            for i in *index..(*index + count) {
+                                let mut el = e_fn(l[i].clone());
+                                el.init();
+                                self.view.insert(i, el);
+                                observer.inserted(i);
+                            }
+                        }
+                        VecChange::Remove { index, count } => {
+                            let mut count = *count;
+                            let index = *index;
+                            while count > 0 {
+                                count -= 1;
 
-    //             let e_fn = self.item_fn.get();
+                                let mut el = self.view.remove(index);
+                                el.deinit();
+                                observer.removed(index);
+                            }
+                        }
+                        VecChange::Move { from_index, to_index } => {
+                            let el = self.view.remove(*from_index);
+                            self.view.insert(*to_index, el);
+                            observer.moved(*from_index, *to_index);
+                        }
+                        VecChange::Clear => unreachable!(),
+                    }
+                }
+            })
+            .is_some();
 
-    //             for change in l.changes() {
-    //                 match change {
-    //                     VecChange::Insert { index, count } => {
-    //                         for i in *index..(*index + count) {
-    //                             let mut el = e_fn(l[i].clone());
-    //                             el.init();
-    //                             self.view.insert(i, el);
-    //                             observer.inserted(i);
-    //                         }
-    //                     }
-    //                     VecChange::Remove { index, count } => {
-    //                         let mut count = *count;
-    //                         let index = *index;
-    //                         while count > 0 {
-    //                             count -= 1;
+        if !need_reset && !is_new && self.list.with(|l| l.len() != self.view.len()) {
+            need_reset = true;
+        }
 
-    //                             let mut el = self.view.remove(index);
-    //                             el.deinit();
-    //                             observer.removed(index);
-    //                         }
-    //                     }
-    //                     VecChange::Move { from_index, to_index } => {
-    //                         let el = self.view.remove(*from_index);
-    //                         self.view.insert(*to_index, el);
-    //                         observer.moved(*from_index, *to_index);
-    //                     }
-    //                     VecChange::Clear => unreachable!(),
-    //                 }
-    //             }
-    //         })
-    //         .is_some();
+        if need_reset {
+            self.view.deinit();
+            self.view.clear();
 
-    //     if !need_reset && !is_new && self.list.with(|l| l.len() != self.view.len()) {
-    //         need_reset = true;
-    //     }
+            let e_fn = self.item_fn.get();
+            self.list.with(|l| {
+                for el in l.iter() {
+                    let child = e_fn(el.clone());
+                    self.view.push(child);
+                }
+            });
 
-    //     if need_reset {
-    //         self.view.deinit_all();
-    //         self.view.clear();
+            self.view.init();
+        } else if !is_new {
+            self.view.update_list(updates, observer);
+        }
+    }
 
-    //         let e_fn = self.item_fn.get();
-    //         self.list.with(|l| {
-    //             for el in l.iter() {
-    //                 let child = e_fn(el.clone());
-    //                 self.view.push(child);
-    //             }
-    //         });
+    fn info(&mut self, info: &mut zng_app::widget::info::WidgetInfoBuilder) {
+        self.view.info(info);
+    }
 
-    //         self.view.init_all();
-    //     } else if !is_new {
-    //         self.view.update_all(updates, observer);
-    //     }
-    // }
+    fn event(&mut self, update: &zng_app::update::EventUpdate) {
+        self.view.event(update);
+    }
+
+    fn measure(&mut self, wm: &mut zng_app::widget::info::WidgetMeasure) -> PxSize {
+        self.view.measure(wm)
+    }
+
+    fn measure_list(
+        &mut self,
+        wm: &mut zng_app::widget::info::WidgetMeasure,
+        measure: &(dyn Fn(usize, &mut UiNode, &mut zng_app::widget::info::WidgetMeasure) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.view.measure_list(wm, measure, fold_size)
+    }
+
+    fn layout(&mut self, wl: &mut zng_app::widget::info::WidgetLayout) -> PxSize {
+        self.view.layout(wl)
+    }
+
+    fn layout_list(
+        &mut self,
+        wl: &mut zng_app::widget::info::WidgetLayout,
+        layout: &(dyn Fn(usize, &mut UiNode, &mut zng_app::widget::info::WidgetLayout) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.view.layout_list(wl, layout, fold_size)
+    }
+
+    fn render(&mut self, frame: &mut FrameBuilder) {
+        self.view.render(frame);
+    }
+
+    fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+        self.view.render_list(frame, render);
+    }
+
+    fn render_update(&mut self, update: &mut zng_app::render::FrameUpdate) {
+        self.view.render_update(update);
+    }
+
+    fn render_update_list(
+        &mut self,
+        update: &mut zng_app::render::FrameUpdate,
+        render_update: &(dyn Fn(usize, &mut UiNode, &mut zng_app::render::FrameUpdate) + Sync),
+    ) {
+        self.view.render_update_list(update, render_update);
+    }
+
+    fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+        None
+    }
 }
 
 struct ListPresenterFromIter<D, L>
@@ -2383,7 +2423,7 @@ where
 {
     list: Var<L>,
     item_fn: Var<WidgetFn<D>>,
-    view: Vec<UiNode>,
+    view: UiVec,
     _e: std::marker::PhantomData<(D, L)>,
 }
 
@@ -2393,86 +2433,124 @@ where
     L: IntoIterator<Item = D> + VarValue,
 {
     fn children_len(&self) -> usize {
-        todo!()
+        self.view.len()
     }
 
     fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
-        todo!()
+        self.view.with_child(index, visitor)
     }
 
-    // fn with_node<R, F>(&mut self, index: usize, f: F) -> R
-    // where
-    //     F: FnOnce(&mut BoxedUiNode) -> R,
-    // {
-    //     self.view.with_node(index, f)
-    // }
+    fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+        self.view.for_each_child(visitor)
+    }
 
-    // fn for_each<F>(&mut self, f: F)
-    // where
-    //     F: FnMut(usize, &mut BoxedUiNode),
-    // {
-    //     self.view.for_each(f)
-    // }
+    fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+        self.view.par_each_child(visitor);
+    }
 
-    // fn par_each<F>(&mut self, f: F)
-    // where
-    //     F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
-    // {
-    //     self.view.par_each(f)
-    // }
+    fn par_fold_reduce(
+        &mut self,
+        identity: BoxAnyVarValue,
+        fold: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
+        reduce: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
+    ) -> BoxAnyVarValue {
+        self.view.par_fold_reduce(identity, fold, reduce)
+    }
 
-    // fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
-    // where
-    //     T: Send + 'static,
-    //     I: Fn() -> T + Send + Sync,
-    //     F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
-    //     R: Fn(T, T) -> T + Send + Sync,
-    // {
-    //     self.view.par_fold_reduce(identity, fold, reduce)
-    // }
+    fn is_list(&self) -> bool {
+        true
+    }
 
-    // fn len(&self) -> usize {
-    //     self.view.len()
-    // }
+    fn init(&mut self) {
+        debug_assert!(self.view.is_empty());
+        self.view.clear();
 
-    // fn boxed(self) -> BoxedUiNodeList {
-    //     Box::new(self)
-    // }
+        WIDGET.sub_var(&self.list).sub_var(&self.item_fn);
 
-    // fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
-    //     self.view.drain_into(vec);
-    //     tracing::warn!("drained `list_presenter_from_iter`, now out of sync with data");
-    // }
+        let e_fn = self.item_fn.get();
 
-    // fn init_all(&mut self) {
-    //     debug_assert!(self.view.is_empty());
-    //     self.view.clear();
+        self.view.extend(self.list.get().into_iter().map(&*e_fn));
+        self.view.init();
+    }
 
-    //     WIDGET.sub_var(&self.list).sub_var(&self.item_fn);
+    fn deinit(&mut self) {
+        self.view.deinit();
+        self.view.clear();
+    }
 
-    //     let e_fn = self.item_fn.get();
+    fn update(&mut self, updates: &WidgetUpdates) {
+        self.update_list(updates, &mut ())
+    }
+    fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        if self.list.is_new() || self.item_fn.is_new() {
+            self.view.deinit();
+            self.view.clear();
+            let e_fn = self.item_fn.get();
+            self.view.extend(self.list.get().into_iter().map(&*e_fn));
+            self.view.init();
+            observer.reset();
+        } else {
+            self.view.update_list(updates, observer);
+        }
+    }
 
-    //     self.view.extend(self.list.get().into_iter().map(&*e_fn));
-    //     self.view.init_all();
-    // }
+    fn info(&mut self, info: &mut zng_app::widget::info::WidgetInfoBuilder) {
+        self.view.info(info)
+    }
 
-    // fn deinit_all(&mut self) {
-    //     self.view.deinit_all();
-    //     self.view.clear();
-    // }
+    fn event(&mut self, update: &zng_app::update::EventUpdate) {
+        self.view.event(update);
+    }
 
-    // fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-    //     if self.list.is_new() || self.item_fn.is_new() {
-    //         self.view.deinit_all();
-    //         self.view.clear();
-    //         let e_fn = self.item_fn.get();
-    //         self.view.extend(self.list.get().into_iter().map(&*e_fn));
-    //         self.view.init_all();
-    //         observer.reset();
-    //     } else {
-    //         self.view.update_all(updates, observer);
-    //     }
-    // }
+    fn measure(&mut self, wm: &mut zng_app::widget::info::WidgetMeasure) -> PxSize {
+        self.view.measure(wm)
+    }
+
+    fn measure_list(
+        &mut self,
+        wm: &mut zng_app::widget::info::WidgetMeasure,
+        measure: &(dyn Fn(usize, &mut UiNode, &mut zng_app::widget::info::WidgetMeasure) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.view.measure_list(wm, measure, fold_size)
+    }
+
+    fn layout(&mut self, wl: &mut zng_app::widget::info::WidgetLayout) -> PxSize {
+        self.view.layout(wl)
+    }
+
+    fn layout_list(
+        &mut self,
+        wl: &mut zng_app::widget::info::WidgetLayout,
+        layout: &(dyn Fn(usize, &mut UiNode, &mut zng_app::widget::info::WidgetLayout) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.view.layout_list(wl, layout, fold_size)
+    }
+
+    fn render(&mut self, frame: &mut FrameBuilder) {
+        self.view.render(frame);
+    }
+
+    fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+        self.view.render_list(frame, render);
+    }
+
+    fn render_update(&mut self, update: &mut zng_app::render::FrameUpdate) {
+        self.view.render_update(update);
+    }
+
+    fn render_update_list(
+        &mut self,
+        update: &mut zng_app::render::FrameUpdate,
+        render_update: &(dyn Fn(usize, &mut UiNode, &mut zng_app::render::FrameUpdate) + Sync),
+    ) {
+        self.view.render_update_list(update, render_update);
+    }
+
+    fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+        None
+    }
 }
 
 /// Extension method to *convert* a variable to a node.

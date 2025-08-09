@@ -782,6 +782,9 @@ pub mod node {
                     self.init();
                 }
             }
+            fn update_list(&mut self, updates: &WidgetUpdates, _: &mut dyn crate::widget::node::UiNodeListObserver) {
+                self.update(updates);
+            }
 
             fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
                 let desired_size = WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Ignore, || {
@@ -821,6 +824,14 @@ pub mod node {
                 let _ = self.ctx.take_reinit();
 
                 desired_size
+            }
+            fn measure_list(
+                &mut self,
+                wm: &mut WidgetMeasure,
+                _: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+                _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+            ) -> PxSize {
+                self.measure(wm)
             }
 
             fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -868,6 +879,14 @@ pub mod node {
 
                 final_size
             }
+            fn layout_list(
+                &mut self,
+                wl: &mut WidgetLayout,
+                _: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+                _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+            ) -> PxSize {
+                self.layout(wl)
+            }
 
             fn render(&mut self, frame: &mut FrameBuilder) {
                 WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || {
@@ -884,6 +903,9 @@ pub mod node {
                 if self.ctx.is_pending_reinit() {
                     WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || WIDGET.update());
                 }
+            }
+            fn render_list(&mut self, frame: &mut FrameBuilder, _: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+                self.render(frame);
             }
 
             fn render_update(&mut self, update: &mut FrameUpdate) {
@@ -902,8 +924,30 @@ pub mod node {
                     WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || WIDGET.update());
                 }
             }
+            fn render_update_list(&mut self, update: &mut FrameUpdate, _: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
+                self.render_update(update);
+            }
 
-            // !!: TODO other defaults?
+            fn is_list(&self) -> bool {
+                false
+            }
+
+            fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+                visitor(0, &mut self.child)
+            }
+
+            fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+                visitor(0, &mut self.child)
+            }
+
+            fn par_fold_reduce(
+                &mut self,
+                identity: zng_var::BoxAnyVarValue,
+                fold: &(dyn Fn(zng_var::BoxAnyVarValue, usize, &mut UiNode) -> zng_var::BoxAnyVarValue + Sync),
+                _: &(dyn Fn(zng_var::BoxAnyVarValue, zng_var::BoxAnyVarValue) -> zng_var::BoxAnyVarValue + Sync),
+            ) -> zng_var::BoxAnyVarValue {
+                fold(identity, 0, &mut self.child)
+            }
         }
 
         WidgetNode {

@@ -1511,7 +1511,7 @@ pub fn layers_node(child: impl IntoUiNode) -> UiNode {
         a.cmp(&b)
     }
     let sorting_layers = SortingList::new(layers, sort);
-    let children = ui_vec![child].into_node().chain(sorting_layers);
+    let children = ChainList(ui_vec![child, sorting_layers]);
 
     let mut _insert_handle = CommandHandle::dummy();
     let mut _remove_handle = CommandHandle::dummy();
@@ -1564,25 +1564,29 @@ pub fn layers_node(child: impl IntoUiNode) -> UiNode {
         }
         UiNodeOp::Measure { wm, desired_size } => {
             c.delegated();
-            *desired_size = c.node().with_child(0, |n| n.measure(wm));
+            *desired_size = c.node_impl::<ChainList>().0[0].measure(wm);
         }
         UiNodeOp::Layout { wl, final_size } => {
             c.delegated();
-            *final_size = c.node().with_child(0, |n| n.layout(wl));
-            let _ = c.node().layout_list(
+            let list = c.node_impl::<ChainList>();
+            *final_size = list.0[0].layout(wl);
+            let _ = list.0[1].layout_list(
                 wl,
                 |i, l, wl| if i > 0 { l.layout(wl) } else { PxSize::zero() },
                 |_, _| PxSize::zero(),
             );
         }
         UiNodeOp::Render { frame } => {
-            // !!: TODO
-            // c.with_node(0, |n| n.render(frame)); // render main UI first
-            // c.children().1.render_all(frame);
+            c.delegated();
+            let list = c.node_impl::<ChainList>();
+            list.0[0].render(frame); // render main UI first
+            list.0[1].render(frame);
         }
         UiNodeOp::RenderUpdate { update } => {
-            // c.with_node(0, |n| n.render_update(update));
-            // c.children().1.render_update_all(update);
+            c.delegated();
+            let list = c.node_impl::<ChainList>();
+            list.0[0].render_update(update);
+            list.0[1].render_update(update);
         }
         _ => {}
     })

@@ -353,13 +353,14 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
     }
     impl<F: FnMut(&mut MatchNodeChild, UiNodeOp) + Send + 'static> UiNodeImpl for MatchNode<F> {
         fn children_len(&self) -> usize {
-            self.child.node.0.children_len()
+            1
         }
 
         fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
-            self.child.node.0.with_child(index, visitor);
+            if index == 0 {
+                visitor(&mut self.child.node)
+            }
         }
-        // !!: TODO delegate default methods too
 
         fn init(&mut self) {
             self.child.delegated = false;
@@ -475,6 +476,61 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
             if !mem::take(&mut self.child.delegated) {
                 self.child.node.0.render_update(update);
             }
+        }
+
+        fn is_list(&self) -> bool {
+            false
+        }
+
+        fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+            visitor(0, &mut self.child.node)
+        }
+
+        fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+            visitor(0, &mut self.child.node)
+        }
+
+        fn par_fold_reduce(
+            &mut self,
+            identity: BoxAnyVarValue,
+            fold: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
+            _: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
+        ) -> BoxAnyVarValue {
+            fold(identity, 0, &mut self.child.node)
+        }
+
+        fn update_list(&mut self, updates: &WidgetUpdates, _: &mut dyn UiNodeListObserver) {
+            self.update(updates);
+        }
+
+        fn measure_list(
+            &mut self,
+            wm: &mut WidgetMeasure,
+            _: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+            _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+        ) -> PxSize {
+            self.measure(wm)
+        }
+
+        fn layout_list(
+            &mut self,
+            wl: &mut WidgetLayout,
+            _: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+            _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+        ) -> PxSize {
+            self.layout(wl)
+        }
+
+        fn render_list(&mut self, frame: &mut FrameBuilder, _: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+            self.render(frame)
+        }
+
+        fn render_update_list(&mut self, update: &mut FrameUpdate, _: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
+            self.render_update(update);
+        }
+
+        fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+            None
         }
     }
     MatchNode {
@@ -625,11 +681,24 @@ impl MatchNodeChild {
         self.delegated = true;
     }
 
+    /// Delegate [`UiNode::render_list`].
+    #[inline(always)]
+    pub fn render_list(&mut self, frame: &mut FrameBuilder, render: impl Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync) {
+        self.node.render_list(frame, render);
+        self.delegated = true;
+    }
+
     /// Delegate [`UiNode::render_update`].
     #[inline(always)]
     pub fn render_update(&mut self, update: &mut FrameUpdate) {
         self.node.0.render_update(update);
         self.delegated = true;
+    }
+
+    /// Delegate [`UiNode::render_update_list`].
+    #[inline(always)]
+    pub fn render_update_list(&mut self, update: &mut FrameUpdate, render_update: impl Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync) {
+        self.node.render_update_list(update, render_update);
     }
 
     /// Delegate [`UiNode::op`].
@@ -649,7 +718,6 @@ pub fn match_node_leaf(closure: impl FnMut(UiNodeOp) + Send + 'static) -> UiNode
             0
         }
         fn with_child(&mut self, _: usize, _: &mut dyn FnMut(&mut UiNode)) {}
-        // !!: TODO no-op for defaults too
 
         fn init(&mut self) {
             (self.closure)(UiNodeOp::Init);
@@ -693,6 +761,57 @@ pub fn match_node_leaf(closure: impl FnMut(UiNodeOp) + Send + 'static) -> UiNode
         fn render_update(&mut self, update: &mut FrameUpdate) {
             (self.closure)(UiNodeOp::RenderUpdate { update });
         }
+
+        fn is_list(&self) -> bool {
+            false
+        }
+
+        fn for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode)) {}
+
+        fn par_each_child(&mut self, _: &(dyn Fn(usize, &mut UiNode) + Sync)) {}
+
+        fn par_fold_reduce(
+            &mut self,
+            identity: BoxAnyVarValue,
+            _: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
+            _: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
+        ) -> BoxAnyVarValue {
+            identity
+        }
+
+        fn update_list(&mut self, updates: &WidgetUpdates, _: &mut dyn UiNodeListObserver) {
+            self.update(updates);
+        }
+
+        fn measure_list(
+            &mut self,
+            wm: &mut WidgetMeasure,
+            _: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+            _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+        ) -> PxSize {
+            self.measure(wm)
+        }
+
+        fn layout_list(
+            &mut self,
+            wl: &mut WidgetLayout,
+            _: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+            _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+        ) -> PxSize {
+            self.layout(wl)
+        }
+
+        fn render_list(&mut self, frame: &mut FrameBuilder, _: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+            self.render(frame);
+        }
+
+        fn render_update_list(&mut self, update: &mut FrameUpdate, _: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
+            self.render_update(update);
+        }
+
+        fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+            None
+        }
     }
     UiNode::new(MatchNodeLeaf { closure })
 }
@@ -709,13 +828,14 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
     }
     impl<F: FnMut(&mut MatchWidgetChild, UiNodeOp) + Send + 'static> UiNodeImpl for MatchWidget<F> {
         fn children_len(&self) -> usize {
-            self.child.0.node.children_len()
+            1
         }
 
         fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
-            self.child.0.node.with_child(index, visitor);
+            if index == 0 {
+                visitor(&mut self.child.node)
+            }
         }
-        // !!: TODO others too
 
         fn init(&mut self) {
             self.child.0.delegated = false;
@@ -898,6 +1018,61 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
                     tracing::warn!(target: "match_widget-pending", "pending render_update after render_update delegated in {:?}", WIDGET.id());
                 }
             }
+        }
+
+        fn is_list(&self) -> bool {
+            false
+        }
+
+        fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+            visitor(0, &mut self.child.node)
+        }
+
+        fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+            visitor(0, &mut self.child.node)
+        }
+
+        fn par_fold_reduce(
+            &mut self,
+            identity: BoxAnyVarValue,
+            fold: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
+            _: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
+        ) -> BoxAnyVarValue {
+            fold(identity, 0, &mut self.child.node)
+        }
+
+        fn update_list(&mut self, updates: &WidgetUpdates, _: &mut dyn UiNodeListObserver) {
+            self.update(updates);
+        }
+
+        fn measure_list(
+            &mut self,
+            wm: &mut WidgetMeasure,
+            _: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+            _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+        ) -> PxSize {
+            self.measure(wm)
+        }
+
+        fn layout_list(
+            &mut self,
+            wl: &mut WidgetLayout,
+            _: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+            _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+        ) -> PxSize {
+            self.layout(wl)
+        }
+
+        fn render_list(&mut self, frame: &mut FrameBuilder, _: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+            self.render(frame);
+        }
+
+        fn render_update_list(&mut self, update: &mut FrameUpdate, _: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
+            self.render_update(update);
+        }
+
+        fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+            self.child.node.0.as_widget()
         }
     }
     MatchWidget {

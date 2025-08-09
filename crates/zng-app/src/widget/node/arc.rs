@@ -188,7 +188,7 @@ mod impls {
         widget::{
             WIDGET, WidgetHandlesCtx,
             info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
-            node::{UiNode, UiNodeImpl},
+            node::{UiNode, UiNodeImpl, WidgetUiNodeImpl},
         },
     };
 
@@ -457,8 +457,21 @@ mod impls {
                 .unwrap_or(identity)
         }
 
-        fn as_widget(&mut self) -> Option<&mut dyn crate::widget::node::WidgetUiNodeImpl> {
-            todo!("!!: TODO")
+        fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+            if self.delegate_owned_mut(|w| w.as_widget().is_some()).unwrap_or(false) {
+                Some(self)
+            } else {
+                None
+            }
+        }
+    }
+    impl<T: TakeOn> WidgetUiNodeImpl for TakeSlot<T> {
+        fn with_context(&mut self, update_mode: crate::widget::WidgetUpdateMode, visitor: &mut dyn FnMut()) {
+            self.delegate_owned_mut_with_handles(|w| {
+                if let Some(mut w) = w.as_widget() {
+                    w.with_context(update_mode, visitor)
+                }
+            });
         }
     }
 }
