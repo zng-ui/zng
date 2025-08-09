@@ -4,7 +4,7 @@ use zng_app::{
     render::{FrameBuilder, FrameUpdate},
     update::{EventUpdate, WidgetUpdates},
     widget::{
-        WIDGET, WidgetUpdateMode,
+        WIDGET,
         info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
         node::{ArcNode, IntoUiNode, UiNode, UiNodeImpl},
     },
@@ -142,11 +142,20 @@ impl HotNodeHost {
 }
 impl UiNodeImpl for HotNodeHost {
     fn children_len(&self) -> usize {
-        self.instance.children_len()
+        // become the node, not a wrapper
+        self.instance.node.children_len()
     }
 
     fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
-        
+        self.instance.node.with_child(index, visitor)
+    }
+
+    fn is_list(&self) -> bool {
+        self.instance.node.is_list()
+    }
+
+    fn as_widget(&mut self) -> Option<&mut dyn zng_app::widget::node::WidgetUiNodeImpl> {
+        self.instance.node.as_dyn().as_widget()
     }
 
     fn init(&mut self) {
@@ -171,23 +180,20 @@ impl UiNodeImpl for HotNodeHost {
             }
         };
 
-        self.instance.init(&mut ctx);
+        self.instance.node.init();
     }
 
     fn deinit(&mut self) {
-        let mut ctx = LocalContext::capture();
-        self.instance.deinit(&mut ctx);
-        self.instance = HotNode::new(UiNode::nil());
+        self.instance.node.deinit();
+        self.instance.node = UiNode::nil();
     }
 
     fn info(&mut self, info: &mut WidgetInfoBuilder) {
-        let mut ctx = LocalContext::capture();
-        self.instance.info(&mut ctx, info);
+        self.instance.node.info(info);
     }
 
     fn event(&mut self, update: &EventUpdate) {
-        let mut ctx = LocalContext::capture();
-        self.instance.event(&mut ctx, update);
+        self.instance.node.event(update);
 
         if let Some(args) = HOT_RELOAD_EVENT.on(update) {
             if args.lib.manifest_dir() == self.manifest_dir {
@@ -198,157 +204,80 @@ impl UiNodeImpl for HotNodeHost {
     }
 
     fn update(&mut self, updates: &WidgetUpdates) {
-        let mut ctx = LocalContext::capture();
-        self.instance.update(&mut ctx, updates);
+        self.instance.node.update(updates);
+    }
+    fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn zng_app::widget::node::UiNodeListObserver) {
+        self.instance.node.as_dyn().update_list(updates, observer);
     }
 
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-        let mut ctx = LocalContext::capture();
-        self.instance.measure(&mut ctx, wm)
+        self.instance.node.measure(wm)
+    }
+    fn measure_list(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        measure: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.instance.node.as_dyn().measure_list(wm, measure, fold_size)
     }
 
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        let mut ctx = LocalContext::capture();
-        self.instance.layout(&mut ctx, wl)
+        self.instance.node.layout(wl)
+    }
+    fn layout_list(
+        &mut self,
+        wl: &mut WidgetLayout,
+        layout: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.instance.node.as_dyn().layout_list(wl, layout, fold_size)
     }
 
     fn render(&mut self, frame: &mut FrameBuilder) {
-        let mut ctx = LocalContext::capture();
-        self.instance.render(&mut ctx, frame)
+        self.instance.node.render(frame)
+    }
+    fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+        self.instance.node.as_dyn().render_list(frame, render);
     }
 
     fn render_update(&mut self, update: &mut FrameUpdate) {
-        let mut ctx = LocalContext::capture();
-        self.instance.render_update(&mut ctx, update)
+        self.instance.node.render_update(update)
+    }
+    fn render_update_list(&mut self, update: &mut FrameUpdate, render_update: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
+        self.instance.node.as_dyn().render_update_list(update, render_update);
+    }
+
+    fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+        self.instance.node.as_dyn().for_each_child(visitor);
+    }
+
+    fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+        self.instance.node.as_dyn().par_each_child(visitor);
+    }
+
+    fn par_fold_reduce(
+        &mut self,
+        identity: zng_var::BoxAnyVarValue,
+        fold: &(dyn Fn(zng_var::BoxAnyVarValue, usize, &mut UiNode) -> zng_var::BoxAnyVarValue + Sync),
+        reduce: &(dyn Fn(zng_var::BoxAnyVarValue, zng_var::BoxAnyVarValue) -> zng_var::BoxAnyVarValue + Sync),
+    ) -> zng_var::BoxAnyVarValue {
+        self.instance.node.as_dyn().par_fold_reduce(identity, fold, reduce)
     }
 }
 
 /// Hot loaded node.
 #[doc(hidden)]
 pub struct HotNode {
-    child: UiNode,
-    api: HotNodeApi,
+    node: UiNode,
     // keep alive because `child` is code from it.
     pub(crate) _lib: Option<Arc<libloading::Library>>,
 }
 impl HotNode {
     pub fn new(node: impl IntoUiNode) -> Self {
         Self {
-            child: node.into_node(),
-            api: HotNodeApi::capture(),
+            node: node.into_node(),
             _lib: None,
-        }
-    }
-
-    fn children_len(&self) -> usize {
-        (self.api.children_len)(&self.child)
-    }
-
-    fn init(&mut self, ctx: &mut LocalContext) {
-        (self.api.init)(&mut self.child, ctx)
-    }
-
-    fn deinit(&mut self, ctx: &mut LocalContext) {
-        (self.api.deinit)(&mut self.child, ctx)
-    }
-
-    fn info(&mut self, ctx: &mut LocalContext, info: &mut WidgetInfoBuilder) {
-        (self.api.info)(&mut self.child, ctx, info)
-    }
-
-    fn event(&mut self, ctx: &mut LocalContext, update: &EventUpdate) {
-        (self.api.event)(&mut self.child, ctx, update)
-    }
-
-    fn update(&mut self, ctx: &mut LocalContext, updates: &WidgetUpdates) {
-        (self.api.update)(&mut self.child, ctx, updates)
-    }
-
-    fn measure(&mut self, ctx: &mut LocalContext, wm: &mut WidgetMeasure) -> PxSize {
-        (self.api.measure)(&mut self.child, ctx, wm)
-    }
-
-    fn layout(&mut self, ctx: &mut LocalContext, wl: &mut WidgetLayout) -> PxSize {
-        (self.api.layout)(&mut self.child, ctx, wl)
-    }
-
-    fn render(&mut self, ctx: &mut LocalContext, frame: &mut FrameBuilder) {
-        (self.api.render)(&mut self.child, ctx, frame)
-    }
-
-    fn render_update(&mut self, ctx: &mut LocalContext, update: &mut FrameUpdate) {
-        (self.api.render_update)(&mut self.child, ctx, update)
-    }
-}
-
-// HotNode "methods" references from the dynamic loaded code to be called from the static code.
-struct HotNodeApi {
-    // !!: TODO update to new UiNode API
-    children_len: fn(&UiNode) -> usize,
-    init: fn(&mut UiNode, &mut LocalContext),
-    deinit: fn(&mut UiNode, &mut LocalContext),
-    info: fn(&mut UiNode, &mut LocalContext, &mut WidgetInfoBuilder),
-    event: fn(&mut UiNode, &mut LocalContext, &EventUpdate),
-    update: fn(&mut UiNode, &mut LocalContext, &WidgetUpdates),
-    measure: fn(&mut UiNode, &mut LocalContext, &mut WidgetMeasure) -> PxSize,
-    layout: fn(&mut UiNode, &mut LocalContext, &mut WidgetLayout) -> PxSize,
-    render: fn(&mut UiNode, &mut LocalContext, &mut FrameBuilder),
-    render_update: fn(&mut UiNode, &mut LocalContext, &mut FrameUpdate),
-}
-impl HotNodeApi {
-    fn children_len(child: &UiNode) -> usize {
-        child.children_len()
-    }
-
-    fn init(child: &mut UiNode, ctx: &mut LocalContext) {
-        ctx.with_context(|| child.init())
-    }
-
-    fn deinit(child: &mut UiNode, ctx: &mut LocalContext) {
-        ctx.with_context(|| child.deinit())
-    }
-
-    fn info(child: &mut UiNode, ctx: &mut LocalContext, info: &mut WidgetInfoBuilder) {
-        ctx.with_context(|| child.info(info))
-    }
-
-    fn event(child: &mut UiNode, ctx: &mut LocalContext, update: &EventUpdate) {
-        ctx.with_context(|| child.event(update))
-    }
-
-    fn update(child: &mut UiNode, ctx: &mut LocalContext, updates: &WidgetUpdates) {
-        ctx.with_context(|| child.update(updates))
-    }
-
-    fn measure(child: &mut UiNode, ctx: &mut LocalContext, wm: &mut WidgetMeasure) -> PxSize {
-        ctx.with_context(|| child.measure(wm))
-    }
-
-    fn layout(child: &mut UiNode, ctx: &mut LocalContext, wl: &mut WidgetLayout) -> PxSize {
-        ctx.with_context(|| child.layout(wl))
-    }
-
-    fn render(child: &mut UiNode, ctx: &mut LocalContext, frame: &mut FrameBuilder) {
-        ctx.with_context(|| child.render(frame))
-    }
-
-    fn render_update(child: &mut UiNode, ctx: &mut LocalContext, update: &mut FrameUpdate) {
-        ctx.with_context(|| child.render_update(update))
-    }
-
-    fn capture() -> Self {
-        Self {
-            children_len: Self::children_len,
-            init: Self::init,
-            deinit: Self::deinit,
-            info: Self::info,
-            event: Self::event,
-            update: Self::update,
-            measure: Self::measure,
-            layout: Self::layout,
-            render: Self::render,
-            render_update: Self::render_update,
-            
         }
     }
 }

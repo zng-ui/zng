@@ -815,20 +815,29 @@ impl UiNode {
 /// Node type.
 impl UiNode {
     /// Returns some reference to implementation of type `U`, if the node instance is of that implementation.
+    #[inline(always)]
     pub fn downcast_ref<U: UiNodeImpl>(&self) -> Option<&U> {
         let u: &dyn Any = &*self.0;
         u.downcast_ref::<U>()
     }
 
     /// Returns some mutable reference to implementation of type `U`, if the node instance is of that implementation.
+    #[inline(always)]
     pub fn downcast_mut<U: UiNodeImpl>(&mut self) -> Option<&mut U> {
         let u: &mut dyn Any = &mut *self.0;
         u.downcast_mut::<U>()
     }
 
     /// Gets if the node is an instance of implementation `U`.
+    #[inline(always)]
     pub fn is<U: UiNodeImpl>(&self) -> bool {
         self.downcast_ref::<U>().is_some()
+    }
+
+    /// Exclusive borrow the node implementation directly.
+    #[inline(always)]
+    pub fn as_dyn(&mut self) -> &mut dyn UiNodeImpl {
+        &mut *self.0
     }
 
     /// Gets if the node represents a list of other nodes.
@@ -838,6 +847,7 @@ impl UiNode {
     ///
     /// [`measure_list`]: Self::measure_list
     /// [`layout_list`]: Self::layout_list
+    #[inline(always)]
     pub fn is_list(&self) -> bool {
         self.0.is_list()
     }
@@ -864,6 +874,7 @@ impl UiNode {
     /// Gets if is [`nil`].
     ///
     /// [`nil`]: Self::nil
+    #[inline(always)]
     pub fn is_nil(&self) -> bool {
         self.is::<NilUiNode>()
     }
@@ -871,6 +882,7 @@ impl UiNode {
     /// Access widget node methods, if the node defines a widget context.
     ///
     /// [`is_widget`]: Self::is_widget
+    #[inline(always)]
     pub fn as_widget(&mut self) -> Option<WidgetUiNode<'_>> {
         self.0.as_widget().map(WidgetUiNode)
     }
