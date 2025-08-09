@@ -1,4 +1,4 @@
-//! Widget nodes types, [`UiNode`], [`UiNodeList`] and others.
+//! Widget nodes types, [`UiNode`], [`UiVec`] and others.
 
 use std::any::Any;
 
@@ -121,12 +121,11 @@ pub trait UiNodeImpl: Any + Send {
     /// Common init operations are subscribing to variables and events and initializing data.
     /// You can use [`WIDGET`] to subscribe events and vars, the subscriptions live until the widget is deinited.
     ///
-    /// If the node is a custom widget ([`is_widget`]) it must request an info, layout and render updates, other nodes
+    /// If the node is a custom widget it must request an info, layout and render updates, other nodes
     /// do not need to request any sort of update on init.
     ///
     /// Note that this method can be called again, after a [`deinit`].
     ///
-    /// [`is_widget`]: UiNode::is_widget
     /// [`deinit`]: UiNode::deinit
     fn init(&mut self) {
         match self.children_len() {
@@ -143,12 +142,11 @@ pub trait UiNodeImpl: Any + Send {
     ///
     /// Common deinit operations include dropping allocations and handlers.
     ///
-    /// If the node is a custom widget ([`is_widget`]) it must request an info, layout and render updates, other nodes
+    /// If the node is a custom widget it must request an info, layout and render updates, other nodes
     /// do not need to request any sort of update on deinit.
     ///
     /// Note that [`init`] can be called again after this.
     ///
-    /// [`is_widget`]: UiNode::is_widget
     /// [`init`]: UiNode::init
     fn deinit(&mut self) {
         match self.children_len() {
@@ -237,6 +235,8 @@ pub trait UiNodeImpl: Any + Send {
     }
 
     /// Does [`update`] and if the node is a list notifies list changes to the `observer`.
+    /// 
+    /// [`update`]: UiNodeImpl::update
     fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         if self.is_list() {
             #[cfg(debug_assertions)]
@@ -880,8 +880,6 @@ impl UiNode {
     }
 
     /// Access widget node methods, if the node defines a widget context.
-    ///
-    /// [`is_widget`]: Self::is_widget
     #[inline(always)]
     pub fn as_widget(&mut self) -> Option<WidgetUiNode<'_>> {
         self.0.as_widget().map(WidgetUiNode)
@@ -892,6 +890,8 @@ impl UiNode {
     /// If this node already defines a widget just returns it, if not wraps it in a minimal widget implementation.
     ///
     /// See also [`init_widget`] for a node that awaits until `self` is inited to verify if a new widget really needs to be declared.
+    /// 
+    /// [`init_widget`]: Self::init_widget
     pub fn into_widget(mut self) -> UiNode {
         if self.0.as_widget().is_some() {
             self

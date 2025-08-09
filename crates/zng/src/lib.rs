@@ -82,14 +82,14 @@
 //! an struct represents a widget it is tagged with <strong><code>W</code></strong>. Each properties is declared as a function,
 //! in the documentation property functions are tagged with <strong><code>P</code></strong>.
 //!
-//! Widget instances can be of any type, usually they are an opaque [`impl UiNode`], some special widgets have an instance type,
-//! the [`Window!`] widget for example has the instance type [`WindowRoot`]. Property instances are always of type `impl UiNode`,
-//! each property function takes an `impl UiNode` input plus one or more value inputs and returns an `impl UiNode` output that
-//! wraps the input node adding the property behavior, the widgets take care of this node chaining nesting each property
-//! instance in the proper order, internally every widget instance is a tree of nested node instances.
+//! Widget instances can be of any type, usually they are an opaque [`UiNode`] or a type that is [`IntoUiNode`], 
+//! some special widgets have non node instance type, the [`Window!`] widget for example has the instance type [`WindowRoot`]. 
+//! Property instances are always of type [`UiNode`], each property function takes an `impl IntoUiNode` input plus one or more value 
+//! inputs and returns an `UiNode` output that wraps the input node adding the property behavior, the widgets take care of this
+//! node chaining nesting each property instance in the proper order, internally every widget instance is a tree of nested node instances.
 //!
-//! Widgets and properties are very versatile, each widget documentation page will promote the properties that the widget implementer
-//! explicitly associated with the widget, but that is only a starting point.
+//! Widgets and properties are very versatile and extendable, widget docs will promote properties that are explicitly associated 
+//! with the widget type, but that is only a starting point, many other standalone properties can be set in any widget.
 //!
 //! ```
 //! use zng::prelude::*;
@@ -111,7 +111,7 @@
 //! ```
 //!
 //! In the example above an [`Wgt!`] is completely defined by stand-alone properties, [`align`] and [`size`] define
-//! the bounds of the widget, [`background_color`] fills the bounds with color and [`is_hovered`] reacts to pointer interaction.
+//! the layout bounds of the widget, [`background_color`] fills the bounds with color and [`is_hovered`] reacts to pointer interaction.
 //!
 //! The example also introduces [`when`] blocks, [state properties] and the [`easing`] property attribute. State properties
 //! compute an state from the widget, this state can be used to change the value of other properties. When blocks are a powerful
@@ -132,7 +132,8 @@
 //! [`when`]: widget#when
 //! [state properties]: widget#state-properties
 //! [`easing`]: widget::easing
-//! [`impl UiNode`]: widget::node::UiNode
+//! [`UiNode`]: widget::node::UiNode
+//! [`IntoUiNode`]: widget::node::IntoUiNode
 //! [`WindowRoot`]: window::WindowRoot
 //!
 //! # Variables

@@ -51,7 +51,7 @@
 //!
 //! # Child Nodes
 //!
-//! The child can by any [`UiNode`] type, not just widgets, you can use this to plug nodes directly on the UI.
+//! The child can by any [`IntoUiNode`] type, not just widgets, you can use this to plug nodes directly on the UI.
 //!
 //! ```
 //! use zng::{prelude::*, prelude_wgt::*};
@@ -81,7 +81,7 @@
 //! # ;
 //! ```
 //!
-//! [`UiNode`]: crate::widget::node::UiNode
+//! [`IntoUiNode`]: crate::widget::node::IntoUiNode
 //!
 //! # Full API
 //!

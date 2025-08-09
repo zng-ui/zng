@@ -80,14 +80,14 @@
 //! ##### Only Node Functions
 //!
 //! Currently this is only implemented for node functions, this covers all property nodes, intrinsic nodes and functions like
-//! in the example above that instantiate widgets, but the widget type must implement `UiNode`, widgets that build different types
+//! in the example above that instantiate widgets, but the widget type must implement `IntoUiNode`, widgets that build different types
 //! cannot be hot reloaded, because of this the `Window!` widget cannot be hot reloaded.
 //!
 //! ##### Limited Function Signature
 //!
 //! Some input types are not supported for the hot node function. Only the `impl` generics supported by [`property`] and
 //! types that are `Clone + Any + Send` are supported. A compile time error is generated if you attempt to use an invalid function
-//! signature. Only the output type `impl UiNode` is supported. Generic properties (named generic params) are also not supported.
+//! signature. Only the output type `UiNode` is supported. Generic properties (named generic params) are also not supported.
 //!
 //! ##### Rebuild Speed
 //!
@@ -143,7 +143,7 @@
 /// This attribute only accepts inputs with a single name, no destructuring, and of type that is `Clone + Any + Send` or
 /// the `impl` generics supported by [`property`]. Unlike property this function does not support named generic parameters.
 ///
-/// The function output type must be `impl UiNode`, the attribute will change the internal node type.
+/// The function output type must be `UiNode`, the attribute will change the internal node type.
 ///
 /// [`property`]: crate::widget::property#input-types
 #[cfg(hot_reload)]

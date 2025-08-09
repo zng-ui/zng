@@ -29,7 +29,7 @@ use super::*;
 
 /// Creates an [`UiVec`] containing the arguments.
 ///  
-/// Note that the items can be node type, `ui_vec!` automatically calls [`UiNode::boxed`] for each item.
+/// Note that the items can be any type that converts to nodes, `ui_vec!` automatically calls [`IntoUiNode::into_node`] for each item.
 ///
 /// # Examples
 ///
@@ -1142,7 +1142,7 @@ impl UiNodeListObserver for bool {
 
 /// Represents an [`UiNodeListObserver`] that applies an offset to all indexes.
 ///
-/// This type is useful for implementing [`UiNodeList`] that are composed of other lists.
+/// This type is useful for implementing node lists that are composed of other lists.
 pub struct OffsetUiListObserver<'o>(pub usize, pub &'o mut dyn UiNodeListObserver);
 impl UiNodeListObserver for OffsetUiListObserver<'_> {
     fn is_reset_only(&self) -> bool {
@@ -1491,7 +1491,7 @@ impl UiNodeImpl for EditableUiVec {
 /// See [`EditableUiNodeListRef::move_to`] for more details
 type NodeMoveToFn = fn(usize, usize) -> usize;
 
-/// Represents a sender to an [`EditableUiNodeList`].
+/// Represents a sender to an [`EditableUiVec`].
 #[derive(Clone, Debug)]
 pub struct EditableUiVecRef(Arc<Mutex<EditRequests>>);
 struct EditRequests {
@@ -1542,7 +1542,7 @@ impl EditableUiVecRef {
         Self::new(false)
     }
 
-    /// Returns `true` if the [`EditableUiNodeList`] still exists.
+    /// Returns `true` if the [`EditableUiVec`] still exists.
     pub fn alive(&self) -> bool {
         self.0.lock().alive
     }

@@ -222,10 +222,10 @@ pub mod info {
     }
 }
 
-/// Widget node types, [`UiNode`], [`UiNodeList`] and others.
+/// Widget node types, [`UiNode`], [`UiVec`] and others.
 ///
 /// [`UiNode`]: crate::prelude::UiNode
-/// [`UiNodeList`]: crate::prelude::UiNodeList
+/// [`UiVec`]: crate::prelude::UiVec
 pub mod node {
     pub use zng_app::widget::node::{
         AdoptiveChildNode, AdoptiveNode, ArcNode, ChainList, DefaultPanelListData, EditableUiVec, EditableUiVecRef, FillUiNode, IntoUiNode,
@@ -316,7 +316,7 @@ pub mod node {
 ///
 /// impl Foo {
 ///     /// Custom build.
-///     pub fn widget_build(&mut self) -> impl UiNode + use<> {
+///     pub fn widget_build(&mut self) -> UiNode {
 ///         println!("on build!");
 ///         WidgetBase::widget_build(self)
 ///     }
@@ -328,9 +328,9 @@ pub mod node {
 ///
 /// Unlike the [intrinsic](#intrinsic) method, the widget only has one `widget_build`, if defined it overrides the parent
 /// `widget_build`. Most widgets don't define their own build, leaving it to be inherited from [`WidgetBase`]. The base instance type
-/// is an opaque `impl UiNode`.
+/// is an opaque `UiNode`.
 ///
-/// Normal widgets must implement [`UiNode`], otherwise they cannot be used as child of other widgets.
+/// Normal widgets instance types must implement [`IntoUiNode`], otherwise they cannot be used as child of other widgets.
 /// The widget outer-node also must implement the widget context, to ensure that the widget is correctly placed in the UI tree.
 /// Note that you can still use the parent type build implementation, so even if you need
 /// to run code on build or define a custom type you don't need to deref to the parent type to build.
@@ -468,6 +468,7 @@ pub mod node {
 /// [`Importance`]: builder::Importance
 /// [`push_build_action`]: builder::WidgetBuilder::push_build_action
 /// [`UiNode`]: node::UiNode
+/// [`IntoUiNode`]: node::IntoUiNode
 /// [`WidgetBase`]: struct@WidgetBase
 /// [`Importance::WIDGET`]: builder::Importance::WIDGET
 /// [`Importance::INSTANCE`]: builder::Importance::INSTANCE
@@ -613,7 +614,7 @@ pub use zng_app::widget::easing;
 
 /// Expands a function to a widget property.
 ///
-/// Property functions take one [`UiNode`] child input and one or more other inputs and produces an [`UiNode`] that implements
+/// Property functions take one [`IntoUiNode`] child input and one or more other inputs and produces an [`UiNode`] that implements
 /// the property feature.
 ///
 /// The attribute expansion does not modify the function, it can still be used as a function directly. Some
@@ -714,7 +715,7 @@ pub use zng_app::widget::easing;
 ///
 /// /// Children property, must be captured by panel widgets.
 /// #[property(CONTEXT, capture)]
-/// pub fn children(children: impl UiNodeList) { }
+/// pub fn children(children: impl IntoUiNode) { }
 /// ```
 ///
 /// # Args
@@ -725,8 +726,8 @@ pub use zng_app::widget::easing;
 ///
 /// #### Child
 ///
-/// The first function arg must be of type `impl UiNode`, it represents the child node and the property node must
-/// delegate to it so that the UI tree functions correctly. The type must be an `impl` generic, a full path to [`UiNode`]
+/// The first function arg must be of type `impl IntoUiNode`, it represents the child node and the property node must
+/// delegate to it so that the UI tree functions correctly. The type must be an `impl` generic, a full path to [`IntoUiNode`]
 /// is allowed, but no import renames as the proc-macro attribute can only use tokens to identify the type.
 ///
 /// #### Inputs
@@ -755,19 +756,14 @@ pub use zng_app::widget::easing;
 ///
 /// The input can be read in `when` expressions, but cannot be assigned in `when` blocks.
 ///
-/// ##### `impl UiNode`
+/// ##### `impl IntoUiNode`
 ///
 /// This input accepts another [`UiNode`], the implementation must handle it like it handles the child node, delegating all methods. The
-/// input kind is [`InputKind::UiNode`]. The [`NilUiNode`] is used as the default value if no other is provided.
+/// input kind is [`InputKind::UiNode`]. The [`UiNode::nil`] is used as the default value if no other is provided.
 ///
 /// The input cannot be read in `when` expressions, but can be assigned in `when` blocks.
-///
-/// ##### `impl UiNodeList`
-///
-/// This input accepts an [`UiNodeList`], the implementation must handle it like it handles the child node, delegating all methods. The
-/// input kind is [`InputKind::UiNodeList`]. An empty list is used as the default value if no other is provided.
-///
-/// The input cannot be read in `when` expressions, but can be assigned in `when` blocks.
+/// 
+/// Note that UI lists like [`ui_vec!`] are also nodes, so panel children properties also receive `impl IntoUiNode`.
 ///
 /// ##### `impl WidgetHandler<A>`
 ///
@@ -802,8 +798,8 @@ pub use zng_app::widget::easing;
 ///
 /// # Output
 ///
-/// The property output type must be any type that implements [`UiNode`], usually an opaque type `impl UiNode` is used. The property
-/// node can be anything, as long as it delegates to the child node, see [`match_node`] or [`ui_node`] about implementing a node.
+/// The property output type must be [`UiNode`]. The property node implementation can be anything, as long as it delegates
+/// to the child node, see [`match_node`] or [`ui_node`] about implementing a node.
 ///
 /// Some common property patterns have helper functions, for example, to setup a context var you can use the [`with_context_var`] function.
 ///
@@ -822,8 +818,9 @@ pub use zng_app::widget::easing;
 /// [`IntoVar<T>`]: crate::var::IntoVar
 /// [`WidgetHandler<A>`]: crate::handler::WidgetHandler
 /// [`UiNode`]: crate::widget::node::UiNode
-/// [`UiNodeList`]: crate::widget::node::UiNodeList
-/// [`NilUiNode`]: crate::widget::node::NilUiNode
+/// [`IntoUiNode`]: crate::widget::node::IntoUiNode
+/// [`UiNode::nil`]: crate::widget::node::UiNode::nil
+/// [`ui_vec!`]: crate::widget::node::ui_vec
 /// [`InputKind::Var`]: crate::widget::builder::InputKind::Var
 /// [`InputKind::Value`]: crate::widget::builder::InputKind::Value
 /// [`InputKind::UiNode`]: crate::widget::builder::InputKind::UiNode

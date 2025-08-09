@@ -1762,7 +1762,7 @@ fn with_context_local_init_impl<T: Any + Send + Sync + 'static>(
 /// of an *original* parent.
 ///
 /// See [`LocalContext::with_context_blend`] for more details about `over`. The returned
-/// node will delegate all node operations to inside the blend. The [`UiNode::with_context`]
+/// node will delegate all node operations to inside the blend. The [`WidgetUiNode::with_context`]
 /// will delegate to the `child` widget context, but the `ctx` is not blended for this method, only
 /// for [`UiNodeOp`] methods.
 ///
@@ -1785,7 +1785,6 @@ fn with_context_local_init_impl<T: Any + Send + Sync + 'static>(
 ///
 /// [`NestGroup::CHILD`]: zng_app::widget::builder::NestGroup::CHILD
 /// [`UiNodeOp`]: zng_app::widget::node::UiNodeOp
-/// [`UiNode::with_context`]: zng_app::widget::node::UiNode::with_context
 /// [`LocalContext::with_context_blend`]: zng_app_context::LocalContext::with_context_blend
 pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl IntoUiNode) -> UiNode {
     match_widget(child, move |c, op| {
@@ -1827,8 +1826,12 @@ pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl IntoUiN
 /// // after the property is used and the widget initializes:
 ///
 /// /// Get the value from outside the widget.
-/// fn get_foo_outer(widget: &mut impl UiNode) -> u32 {
-///     widget.with_context(WidgetUpdateMode::Ignore, || WIDGET.get_state(*FOO_ID)).flatten().unwrap_or_default()
+/// fn get_foo_outer(widget: &mut UiNode) -> u32 {
+///     if let Some(mut wgt) = widget {
+///         wgt.with_context(WidgetUpdateMode::Ignore, || WIDGET.get_state(*FOO_ID))
+///     } else {
+///         0
+///     }
 /// }
 ///
 /// /// Get the value from inside the widget.

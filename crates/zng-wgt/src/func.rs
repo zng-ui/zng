@@ -46,11 +46,9 @@ impl<D> WidgetFn<D> {
         WidgetFn(Some(Arc::new(Box::new(func))))
     }
 
-    /// Function that always produces the [`NilUiNode`].
+    /// Function that always produces the [`UiNode::nil`].
     ///
-    /// No heap allocation happens to create this value.
-    ///
-    /// [`NilUiNode`]: zng_app::widget::node::NilUiNode
+    /// No heap allocation happens to create this `WidgetFn`.
     pub const fn nil() -> Self {
         WidgetFn(None)
     }
@@ -230,7 +228,7 @@ pub struct EDITORS;
 impl EDITORS {
     /// Register an `editor` handler.
     ///
-    /// The handler must return [`NilUiNode`] if it cannot handle the request. Later added handlers are called first.
+    /// The handler must return [`UiNode::nil`] if it cannot handle the request. Later added handlers are called first.
     pub fn register(&self, editor: WidgetFn<EditorRequestArgs>) {
         if !editor.is_nil() {
             UPDATES
@@ -243,7 +241,7 @@ impl EDITORS {
 
     /// Register an `editor` handler to be called if none of the `register` editors can handle the value.
     ///
-    /// The handler must return [`NilUiNode`] if it cannot handle the request. Later added handlers are called last.
+    /// The handler must return [`UiNode::nil`] if it cannot handle the request. Later added handlers are called last.
     pub fn register_fallback(&self, editor: WidgetFn<EditorRequestArgs>) {
         if !editor.is_nil() {
             UPDATES
@@ -256,7 +254,7 @@ impl EDITORS {
 
     /// Instantiate an editor for the `value`.
     ///
-    /// Returns [`NilUiNode`] if no registered editor can handle the value type.
+    /// Returns [`UiNode::nil`] if no registered editor can handle the value type.
     pub fn get(&self, value: AnyVar) -> UiNode {
         EDITORS_SV.read().get(EditorRequestArgs { value })
     }
@@ -281,7 +279,7 @@ pub struct ICONS;
 impl ICONS {
     /// Register an `icon` handler.
     ///
-    /// The handler must return [`NilUiNode`] if it cannot handle the request. Later added handlers are called first.
+    /// The handler must return [`UiNode::nil`] if it cannot handle the request. Later added handlers are called first.
     pub fn register(&self, icon: WidgetFn<IconRequestArgs>) {
         if !icon.is_nil() {
             UPDATES
@@ -294,7 +292,7 @@ impl ICONS {
 
     /// Register an `icon` handler to be called if none of the `register` handlers can handle request.
     ///
-    /// The handler must return [`NilUiNode`] if it cannot handle the request. Later added handlers are called last.
+    /// The handler must return [`UiNode::nil`] if it cannot handle the request. Later added handlers are called last.
     pub fn register_fallback(&self, icon: WidgetFn<IconRequestArgs>) {
         if !icon.is_nil() {
             UPDATES
@@ -307,7 +305,7 @@ impl ICONS {
 
     /// Instantiate an icon drawing widget for the `icon_name`.
     ///
-    /// Returns [`NilUiNode`] if no registered handler can provide an icon.
+    /// Returns [`UiNode::nil`] if no registered handler can provide an icon.
     pub fn get(&self, icon_name: impl IconNames) -> UiNode {
         self.get_impl(&mut icon_name.names())
     }

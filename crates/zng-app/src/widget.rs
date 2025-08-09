@@ -636,7 +636,6 @@ pub enum WidgetUpdateMode {
     ///
     /// This mode is used by [`UiNodeOp::Measure`].
     ///
-    /// [`UiNode::with_context`]: crate::widget::node::UiNode::with_context
     /// [`UiNodeOp::Measure`]: crate::widget::node::UiNodeOp::Measure
     Ignore,
     /// All updates flagged after the closure call are retained and propagate to the parent widget flags.

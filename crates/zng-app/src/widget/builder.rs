@@ -926,7 +926,7 @@ impl dyn PropertyArgs + '_ {
         match p.inputs[i].kind {
             InputKind::Var => self.var(i).map_debug(false),
             InputKind::Value => const_var(formatx!("{:?}", self.value(i))),
-            InputKind::UiNode => const_var(Txt::from_static("<impl UiNode>")),
+            InputKind::UiNode => const_var(Txt::from_static("UiNode")),
             InputKind::WidgetHandler => const_var(formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name())),
         }
     }
@@ -939,7 +939,7 @@ impl dyn PropertyArgs + '_ {
         match p.inputs[i].kind {
             InputKind::Var => formatx!("{:?}", self.var(i).get()),
             InputKind::Value => formatx!("{:?}", self.value(i)),
-            InputKind::UiNode => Txt::from_static("<impl UiNode>"),
+            InputKind::UiNode => Txt::from_static("UiNode"),
             InputKind::WidgetHandler => formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name()),
         }
     }
@@ -1122,7 +1122,7 @@ impl fmt::Display for UiNodeInWhenExprError {
 }
 impl std::error::Error for UiNodeInWhenExprError {}
 
-/// Error value used in a reference to an [`UiNodeList`] property input is made in `when` expression.
+/// Error value used in a reference to an [`WidgetHandler`] property input is made in `when` expression.
 ///
 /// Only variables and values can be referenced in `when` expression.
 #[derive(Clone, PartialEq)]
@@ -2786,13 +2786,11 @@ pub struct PropertyBuildActionArgs<'a, I: Any + Send> {
 /// | [`Var`]             | `Var<T>`
 /// | [`Value`]           | `T`
 /// | [`UiNode`]          | `ArcNode<BoxedUiNode>`
-/// | [`UiNodeList`]      | `ArcNodeList<BoxedUiNodeList>`
 /// | [`WidgetHandler`]   | `ArcWidgetHandler<A>`
 ///
 /// [`Var`]: InputKind::Var
 /// [`Value`]: InputKind::Value
 /// [`UiNode`]: InputKind::UiNode
-/// [`UiNodeList`]: InputKind::UiNodeList
 /// [`WidgetHandler`]: InputKind::WidgetHandler
 pub struct PropertyBuildAction<I: Any + Send>(Arc<Mutex<dyn FnMut(PropertyBuildActionArgs<I>) -> I + Send>>);
 impl<I: Any + Send> crate::private::Sealed for PropertyBuildAction<I> {}
