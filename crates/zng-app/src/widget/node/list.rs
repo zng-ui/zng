@@ -558,7 +558,7 @@ impl UiNode {
     ///
     /// If `self` or `other` are already lists returns a list view that flattens the children when iterating.
     ///
-    /// This method returns an optimized list view, it will reuse list items when possible,
+    /// This method returns an optimized list view, it will reuse chain lists when possible,
     /// ignore nil and other tricks, if you need the inner lists to be a predictable arrangement use [`ChainList`] directly.
     pub fn chain(self, other: impl IntoUiNode) -> UiNode {
         self.chain_impl(other.into_node())
@@ -577,11 +577,6 @@ impl UiNode {
             } else {
                 chain.0.push(other);
             }
-            self
-        } else if !other.is_list()
-            && let Some(vec) = self.downcast_mut::<UiVec>()
-        {
-            vec.0.push(other);
             self
         } else {
             ChainList(ui_vec![self, other]).into_node()
@@ -741,6 +736,7 @@ impl UiNodeImpl for ChainList {
                     c.0.update_list(updates, &mut OffsetUiListObserver(offset, observer));
                     offset += c.children_len();
                 } else {
+                    c.update(updates);
                     offset += 1;
                 }
             }
@@ -807,7 +803,7 @@ impl UiNodeImpl for ChainList {
         let mut offset = 0;
         for c in self.0.iter_mut() {
             if c.is_list() {
-                c.render_list(frame, render);
+                c.0.render_list(frame, &|i, n, frame| render(offset + i, n, frame));
                 offset += c.children_len();
             } else {
                 render(offset, c, frame);
@@ -824,7 +820,7 @@ impl UiNodeImpl for ChainList {
         let mut offset = 0;
         for c in self.0.iter_mut() {
             if c.is_list() {
-                c.render_update_list(update, render_update);
+                c.0.render_update_list(update, &|i, n, update| render_update(offset + i, n, update));
                 offset += c.children_len();
             } else {
                 render_update(offset, c, update);

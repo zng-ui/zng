@@ -431,25 +431,49 @@ mod impls {
             self.delegate_owned_mut_with_handles(|n| n.0.update(updates));
             self.on_update(updates);
         }
+        fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn crate::widget::node::UiNodeListObserver) {
+            self.delegate_owned_mut(|n| n.0.update_list(updates, observer));
+            self.on_update(updates);
+        }
 
         fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.delegate_owned_mut(|n| n.0.measure(wm)).unwrap_or_default()
+        }
+        fn measure_list(
+            &mut self,
+            wm: &mut WidgetMeasure,
+            measure: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+            fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+        ) -> PxSize {
+            self.delegate_owned_mut(|n| n.0.measure_list(wm, measure, fold_size))
+                .unwrap_or_default()
         }
 
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             self.delegate_owned_mut(|n| n.0.layout(wl)).unwrap_or_default()
         }
+        fn layout_list(
+            &mut self,
+            wl: &mut WidgetLayout,
+            layout: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+            fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+        ) -> PxSize {
+            self.delegate_owned_mut(|n| n.0.layout_list(wl, layout, fold_size))
+                .unwrap_or_default()
+        }
 
         fn render(&mut self, frame: &mut FrameBuilder) {
             self.delegate_owned_mut(|n| n.0.render(frame));
+        }
+        fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+            self.delegate_owned_mut(|n| n.0.render_list(frame, render));
         }
 
         fn render_update(&mut self, update: &mut FrameUpdate) {
             self.delegate_owned_mut(|n| n.0.render_update(update));
         }
-
-        fn is_list(&self) -> bool {
-            self.delegate_owned(|n| n.is_list()).unwrap_or(false)
+        fn render_update_list(&mut self, update: &mut FrameUpdate, render_update: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
+            self.delegate_owned_mut(|n| n.0.render_update_list(update, render_update));
         }
 
         fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
@@ -470,6 +494,11 @@ mod impls {
                 .unwrap_or(identity)
         }
 
+        fn is_list(&self) -> bool {
+            // check directly to avoid into_list wrapping lists nodes
+            self.rc.item.lock().0.is_list()
+        }
+
         fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
             if self.delegate_owned_mut(|w| w.as_widget().is_some()).unwrap_or(false) {
                 Some(self)
@@ -480,11 +509,27 @@ mod impls {
     }
     impl<T: TakeOn> WidgetUiNodeImpl for TakeSlot<T> {
         fn with_context(&mut self, update_mode: crate::widget::WidgetUpdateMode, visitor: &mut dyn FnMut()) {
+            #[cfg(debug_assertions)]
+            let mut called = 0;
             self.delegate_owned_mut_with_handles(|w| {
+                #[cfg(debug_assertions)]
+                {
+                    called = 1;
+                }
                 if let Some(mut w) = w.as_widget() {
+                    #[cfg(debug_assertions)]
+                    {
+                        called = 2;
+                    }
                     w.with_context(update_mode, visitor)
                 }
             });
+            #[cfg(debug_assertions)]
+            match called {
+                0 => tracing::error!("ArcNode TakeSlot node taken while as_widget is held"),
+                1 => tracing::error!("ArcNode TakeSlot node was widget when as_widget returned, but not anymore"),
+                _ => {}
+            }
         }
     }
 }

@@ -1570,11 +1570,7 @@ pub fn layers_node(child: impl IntoUiNode) -> UiNode {
             c.delegated();
             let list = c.node_impl::<ChainList>();
             *final_size = list.0[0].layout(wl);
-            let _ = list.0[1].layout_list(
-                wl,
-                |i, l, wl| if i > 0 { l.layout(wl) } else { PxSize::zero() },
-                |_, _| PxSize::zero(),
-            );
+            let _ = list.0[1].layout(wl);
         }
         UiNodeOp::Render { frame } => {
             c.delegated();
