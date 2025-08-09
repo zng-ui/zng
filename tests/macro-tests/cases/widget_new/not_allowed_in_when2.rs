@@ -1,7 +1,7 @@
 use zng::{
     gesture::is_pressed,
     layout::margin,
-    prelude_wgt::{property, IntoValue, UiNode},
+    prelude_wgt::{property, IntoUiNode, IntoValue, UiNode},
     widget::Wgt,
     APP,
 };
@@ -11,7 +11,7 @@ struct NotVarValue;
 #[property(CONTEXT)]
 pub fn foo(child: impl IntoUiNode, value: impl IntoValue<bool>) -> UiNode {
     let _ = value;
-    child
+    child.into_node()
 }
 
 fn main() {

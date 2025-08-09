@@ -1,11 +1,11 @@
 error: property input can only have a simple ident
- --> cases/property/invalid_input_pattern.rs:4:45
+ --> cases/property/invalid_input_pattern.rs:4:49
   |
 4 | pub fn invalid_destruct(child: impl IntoUiNode, (a, b): (bool, u8)) -> UiNode {
-  |                                             ^^^^^^
+  |                                                 ^^^^^^
 
 error: property input can only have `impl OneTrait` types
- --> cases/property/invalid_input_pattern.rs:4:53
+ --> cases/property/invalid_input_pattern.rs:4:57
   |
 4 | pub fn invalid_destruct(child: impl IntoUiNode, (a, b): (bool, u8)) -> UiNode {
-  |                                                     ^^^^^^^^^^
+  |                                                         ^^^^^^^^^^

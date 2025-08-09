@@ -1,10 +1,10 @@
-error: hot node functions must output `impl UiNode`
- --> cases/hot_node/return_type_is_not_ui_node.rs:8:76
+error: hot node functions must output `UiNode`
+ --> cases/hot_node/return_type_is_not_ui_node.rs:8:80
   |
 8 | pub fn invalid_output1(_child: impl IntoUiNode, _input: impl IntoVar<bool>) -> NotUiNode {
-  |                                                                            ^^^^^^^^^
+  |                                                                                ^^^^^^^^^
 
-error: hot node functions must output `impl UiNode`
+error: hot node functions must output `UiNode`
   --> cases/hot_node/return_type_is_not_ui_node.rs:13:5
    |
 13 | pub fn invalid_output2(_child: impl IntoUiNode, _input: impl IntoVar<bool>) {}

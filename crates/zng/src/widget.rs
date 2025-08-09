@@ -577,11 +577,11 @@ pub use zng_app::widget::widget_mixin;
 /// # #[widget($crate::Foo)] pub struct Foo(WidgetBase);
 /// # #[property(FILL, default(colors::BLACK))]
 /// # pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
-/// #    child
+/// #    child.into_node()
 /// # }
 /// # #[property(LAYOUT, default(0))]
 /// # pub fn margin(child: impl IntoUiNode, color: impl IntoVar<SideOffsets>) -> UiNode {
-/// #    child
+/// #    child.into_node()
 /// # }
 /// # fn main() {
 /// Foo! {
@@ -641,7 +641,7 @@ pub use zng_app::widget::easing;
 /// #[property(LAYOUT)]
 /// pub fn align(child: impl IntoUiNode, align: impl IntoVar<Align>) -> UiNode {
 ///     // ..
-/// #   child
+/// #   child.into_node()
 /// }
 /// ```
 ///
@@ -655,13 +655,13 @@ pub use zng_app::widget::easing;
 /// #[property(SIZE+1)]
 /// pub fn size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
 ///     // ..
-/// #   child
+/// #   child.into_node()
 /// }
 ///
 /// #[property(SIZE)]
 /// pub fn max_size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
 ///     // ..
-/// #   child
+/// #   child.into_node()
 /// }
 /// ```
 ///
@@ -678,7 +678,7 @@ pub use zng_app::widget::easing;
 /// #[property(FILL, default(rgba(0, 0, 0, 0)))]
 /// pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
 ///     // ..
-/// #   child
+/// #   child.into_node()
 /// }
 /// ```
 ///
@@ -762,7 +762,7 @@ pub use zng_app::widget::easing;
 /// input kind is [`InputKind::UiNode`]. The [`UiNode::nil`] is used as the default value if no other is provided.
 ///
 /// The input cannot be read in `when` expressions, but can be assigned in `when` blocks.
-/// 
+///
 /// Note that UI lists like [`ui_vec!`] are also nodes, so panel children properties also receive `impl IntoUiNode`.
 ///
 /// ##### `impl WidgetHandler<A>`

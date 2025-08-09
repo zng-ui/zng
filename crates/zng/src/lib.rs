@@ -82,13 +82,13 @@
 //! an struct represents a widget it is tagged with <strong><code>W</code></strong>. Each properties is declared as a function,
 //! in the documentation property functions are tagged with <strong><code>P</code></strong>.
 //!
-//! Widget instances can be of any type, usually they are an opaque [`UiNode`] or a type that is [`IntoUiNode`], 
-//! some special widgets have non node instance type, the [`Window!`] widget for example has the instance type [`WindowRoot`]. 
-//! Property instances are always of type [`UiNode`], each property function takes an `impl IntoUiNode` input plus one or more value 
+//! Widget instances can be of any type, usually they are an opaque [`UiNode`] or a type that is [`IntoUiNode`],
+//! some special widgets have non node instance type, the [`Window!`] widget for example has the instance type [`WindowRoot`].
+//! Property instances are always of type [`UiNode`], each property function takes an `impl IntoUiNode` input plus one or more value
 //! inputs and returns an `UiNode` output that wraps the input node adding the property behavior, the widgets take care of this
 //! node chaining nesting each property instance in the proper order, internally every widget instance is a tree of nested node instances.
 //!
-//! Widgets and properties are very versatile and extendable, widget docs will promote properties that are explicitly associated 
+//! Widgets and properties are very versatile and extendable, widget docs will promote properties that are explicitly associated
 //! with the widget type, but that is only a starting point, many other standalone properties can be set in any widget.
 //!
 //! ```

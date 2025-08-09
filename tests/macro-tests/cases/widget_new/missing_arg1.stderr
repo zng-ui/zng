@@ -18,5 +18,5 @@ help: provide the argument
   --> $WORKSPACE/crates/zng-wgt/src/wgt.rs
    |
    - #[widget($crate::Wgt)]
-   + background_gradient(0.deg(), /* stops */)
+   + (0.deg(), /* stops */)
    |

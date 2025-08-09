@@ -14,4 +14,4 @@ note: required by a bound in `zng::widget::background_gradient::background_gradi
   --> $WORKSPACE/crates/zng-wgt-fill/src/lib.rs
    |
    | pub fn background_gradient(child: impl IntoUiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> UiNode {
-   |                                                                                                    ^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `background_gradient::background_gradient`
+   |                                                                                                        ^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `background_gradient::background_gradient`

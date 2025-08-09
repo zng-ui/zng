@@ -235,7 +235,7 @@ pub trait UiNodeImpl: Any + Send {
     }
 
     /// Does [`update`] and if the node is a list notifies list changes to the `observer`.
-    /// 
+    ///
     /// [`update`]: UiNodeImpl::update
     fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         if self.is_list() {
@@ -890,7 +890,7 @@ impl UiNode {
     /// If this node already defines a widget just returns it, if not wraps it in a minimal widget implementation.
     ///
     /// See also [`init_widget`] for a node that awaits until `self` is inited to verify if a new widget really needs to be declared.
-    /// 
+    ///
     /// [`init_widget`]: Self::init_widget
     pub fn into_widget(mut self) -> UiNode {
         if self.0.as_widget().is_some() {

@@ -27,5 +27,5 @@ help: provide the argument
   --> $WORKSPACE/crates/zng-wgt/src/wgt.rs
    |
    - #[widget($crate::Wgt)]
-   + margin(/* margin */)
+   + (/* margin */)
    |

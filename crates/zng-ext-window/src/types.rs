@@ -251,7 +251,7 @@ impl WindowIcon {
     ///
     /// ```no_run
     /// # use zng_ext_window::WindowIcon;
-    /// # macro_rules! Container { ($($tt:tt)*) => { zng_app::widget::node::FillUiNode } }
+    /// # macro_rules! Container { ($($tt:tt)*) => { zng_app::widget::node::UiNode::nil() } }
     /// # let _ =
     /// WindowIcon::render(
     ///     || Container! {

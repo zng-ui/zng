@@ -14,7 +14,7 @@ note: required by a bound in `zng::widget::background_gradient::background_gradi
   --> $WORKSPACE/crates/zng-wgt-fill/src/lib.rs
    |
    | pub fn background_gradient(child: impl IntoUiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> UiNode {
-   |                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `background_gradient::background_gradient`
+   |                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `background_gradient::background_gradient`
 
 error[E0061]: this method takes 2 arguments but 1 argument was supplied
   --> cases/widget_new/missing_field_all_multi.rs:12:9
@@ -36,5 +36,5 @@ help: provide the argument
   --> $WORKSPACE/crates/zng-wgt/src/wgt.rs
    |
    - #[widget($crate::Wgt)]
-   + background_gradient({}, /* stops */)
+   + ({}, /* stops */)
    |

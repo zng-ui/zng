@@ -15,7 +15,7 @@
 //!     match a.name() {
 //!         "accessibility" => Text!("A"),
 //!         "settings" => Text!("S"),
-//!         _ => UiNode.nil()
+//!         _ => UiNode::nil()
 //!     }
 //! }));
 //! ```

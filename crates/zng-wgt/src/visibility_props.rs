@@ -133,7 +133,7 @@ pub fn is_collapsed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode
 /// auto-hides while visible, the example uses `auto_hide = false;` to fix the issue.
 ///
 /// ```
-/// # macro_rules! Container { ($($tt:tt)*) => { NilUiNode }}
+/// # macro_rules! Container { ($($tt:tt)*) => { UiNode::nil() }}
 /// # use zng_app::widget::node::*;
 /// fn center_viewport(msg: impl IntoUiNode) -> UiNode {
 ///     Container! {

@@ -1,12 +1,18 @@
-error[E0277]: the trait bound `NotUiNode: zng::prelude::UiNode` is not satisfied
- --> cases/property/return_type_is_not_ui_node.rs:6:75
+warning: unused import: `UiNode`
+ --> cases/property/return_type_is_not_ui_node.rs:1:55
+  |
+1 | use zng::prelude_wgt::{property, IntoUiNode, IntoVar, UiNode};
+  |                                                       ^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+error[E0308]: mismatched types
+ --> cases/property/return_type_is_not_ui_node.rs:5:1
   |
 5 | #[property(CONTEXT)]
-  | -------------------- required by a bound introduced by this call
-6 | pub fn invalid_output(_child: impl IntoUiNode, _input: impl IntoVar<bool>) -> NotUiNode {
-  |                                                                           ^^^^^^^^^ the trait `zng::prelude::UiNode` is not implemented for `NotUiNode`
+  | ^^^^^^^^^^^^^^^^^^^^
+  | |
+  | expected `UiNode`, found `NotUiNode`
+  | expected `zng::prelude::UiNode` because of return type
   |
-  = note: you can use `match_node` to declare a node from a closure
-  = note: you can use `#[ui_node]` to implement `UiNode` for `NotUiNode`
-  = help: the following other types implement trait `zng::prelude::UiNode`:
-            <implementers-list>
+  = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -14,4 +14,4 @@ note: required by a bound in `Toggle::value`
  --> $WORKSPACE/crates/zng-wgt-toggle/src/lib.rs
   |
   | pub fn value<T: VarValue>(child: impl IntoUiNode, value: impl IntoVar<T>) -> UiNode {
-  |                                                           ^^^^^^^^^^ required by this bound in `Toggle::value`
+  |                                                               ^^^^^^^^^^ required by this bound in `Toggle::value`

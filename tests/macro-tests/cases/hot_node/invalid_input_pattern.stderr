@@ -1,5 +1,5 @@
 error: hot node input can only have a simple ident
- --> cases/hot_node/invalid_input_pattern.rs:6:45
+ --> cases/hot_node/invalid_input_pattern.rs:6:49
   |
 6 | pub fn invalid_destruct(child: impl IntoUiNode, (a, b): (bool, u8)) -> UiNode {
-  |                                             ^^^^^^
+  |                                                 ^^^^^^

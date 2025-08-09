@@ -1,4 +1,4 @@
-use zng::prelude_wgt::{hot_node, IntoVar, UiNode};
+use zng::prelude_wgt::{hot_node, IntoUiNode, IntoVar};
 
 zng::hot_reload::zng_hot_entry!();
 

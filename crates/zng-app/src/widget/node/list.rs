@@ -38,7 +38,7 @@ use super::*;
 /// ```
 /// # use zng_app::widget::node::*;
 /// # use zng_app::widget::base::*;
-/// # macro_rules! Text { ($($tt:tt)*) => { NilUiNode } }
+/// # macro_rules! Text { ($($tt:tt)*) => { UiNode::nil() } }
 /// let widgets = ui_vec![
 ///     Text!("Hello"),
 ///     Text!("World!")
@@ -50,7 +50,7 @@ use super::*;
 /// ```
 /// # use zng_app::widget::node::*;
 /// # use zng_app::widget::base::*;
-/// # macro_rules! Text { ($($tt:tt)*) => { NilUiNode } }
+/// # macro_rules! Text { ($($tt:tt)*) => { UiNode::nil() } }
 /// let widgets = ui_vec![Text!(" . "); 10];
 /// ```
 ///
@@ -1488,7 +1488,7 @@ impl UiNodeImpl for EditableUiVec {
     }
 }
 
-/// See [`EditableUiNodeListRef::move_to`] for more details
+/// See [`EditableUiVecRef::move_to`] for more details
 type NodeMoveToFn = fn(usize, usize) -> usize;
 
 /// Represents a sender to an [`EditableUiVec`].
@@ -1645,7 +1645,7 @@ impl EditableUiVecRef {
     /// If the widget vectors is layout as a vertical stack to move the widget *up* by one stopping at the top:
     ///
     /// ```
-    /// # fn demo(items: zng_app::widget::node::EditableUiNodeListRef) {
+    /// # fn demo(items: zng_app::widget::node::EditableUiVecRef) {
     /// items.move_id("my-widget", |i, _len| i.saturating_sub(1));
     /// # }
     /// ```
@@ -1653,7 +1653,7 @@ impl EditableUiVecRef {
     /// And to move *down* stopping at the bottom:
     ///
     /// ```
-    /// # fn demo(items: zng_app::widget::node::EditableUiNodeListRef) {
+    /// # fn demo(items: zng_app::widget::node::EditableUiVecRef) {
     /// items.move_id("my-widget", |i, _len| i.saturating_add(1));
     /// # }
     /// ```
@@ -1664,7 +1664,7 @@ impl EditableUiVecRef {
     /// The length can be used for implementing wrapping move *down*:
     ///
     /// ```
-    /// # fn demo(items: zng_app::widget::node::EditableUiNodeListRef) {
+    /// # fn demo(items: zng_app::widget::node::EditableUiVecRef) {
     /// items.move_id("my-widget", |i, len| {
     ///     let next = i + 1;
     ///     if next < len { next } else { 0 }

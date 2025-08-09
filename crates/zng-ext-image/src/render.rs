@@ -131,7 +131,7 @@ impl ImageSource {
     /// # use std::any::Any;
     /// # struct WindowRoot;
     /// # impl ImageRenderWindowRoot for WindowRoot { fn into_any(self: Box<Self>) -> Box<dyn Any> { self } }
-    /// # macro_rules! Container { ($($tt:tt)*) => { zng_app::widget::node::FillUiNode } }
+    /// # macro_rules! Container { ($($tt:tt)*) => { zng_app::widget::node::UiNode::nil() } }
     /// # fn main() { }
     /// # fn demo() {
     /// # let _ =

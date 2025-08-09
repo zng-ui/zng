@@ -127,7 +127,7 @@ pub fn node(children: impl IntoUiNode, spacing: impl IntoVar<GridSpacing>, child
 ///
 /// The estimation assumes that all items have a size of `child_size`.
 pub fn lazy_size(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSpacing>, child_size: impl IntoVar<Size>) -> UiNode {
-    // we don't use `properties::size(NilUiNode, child_size)` because that size disables inlining.
+    // we don't use `properties::size(UiNode::nil(), child_size)` because that size disables inlining.
     let size = child_size.into_var();
     let sample = match_node_leaf(move |op| match op {
         UiNodeOp::Init => {

@@ -2,4 +2,4 @@ error[E0599]: no method named `unknown` found for struct `zng_wgt::layout_props:
  --> cases/widget_new/unknown_field.rs:6:20
   |
 6 |         margin = { unknown: 0 }
-  |                    ^^^^^^^ method not found in `margin_inputs__`
+  |                    ^^^^^^^ method not found in `zng_wgt::layout_props::margin_inputs__`

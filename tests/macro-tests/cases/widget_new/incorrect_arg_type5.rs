@@ -1,5 +1,5 @@
 use zng::{
-    prelude_wgt::{property, IntoVar, UiNode},
+    prelude_wgt::{property, IntoUiNode, IntoVar, UiNode},
     widget::Wgt,
     APP,
 };

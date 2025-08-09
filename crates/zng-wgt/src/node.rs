@@ -236,11 +236,11 @@ pub fn with_context_var_init<T: VarValue>(
 ///
 /// ```
 /// # fn main() { }
-/// # use zng_app::{event::*, widget::{node::UiNode, widget_mixin}};
+/// # use zng_app::{event::*, widget::{node::{UiNode, IntoUiNode}, widget_mixin}};
 /// # use zng_wgt::node::*;
 /// # event_args! { pub struct KeyInputArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
-/// # fn some_node(child: impl IntoUiNode) -> UiNode { child }
+/// # fn some_node(child: impl IntoUiNode) -> UiNode { child.into_node() }
 /// /// Keyboard events.
 /// #[widget_mixin]
 /// pub struct KeyboardMix<P>(P);
@@ -260,11 +260,11 @@ pub fn with_context_var_init<T: VarValue>(
 ///
 /// ```
 /// # fn main() { }
-/// # use zng_app::{event::*, widget::node::UiNode};
+/// # use zng_app::{event::*, widget::node::{UiNode, IntoUiNode}};
 /// # use zng_wgt::node::*;
 /// # event_args! { pub struct KeyInputArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
-/// # fn some_node(child: impl IntoUiNode) -> UiNode { child }
+/// # fn some_node(child: impl IntoUiNode) -> UiNode { child.into_node() }
 /// event_property! {
 ///     pub fn key_input {
 ///         event: KEY_INPUT_EVENT,
@@ -1809,7 +1809,7 @@ pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl IntoUiN
 ///
 /// ```
 /// # fn main() -> () { }
-/// # use zng_app::{widget::{property, node::UiNode, WIDGET, WidgetUpdateMode}};
+/// # use zng_app::{widget::{property, node::{UiNode, IntoUiNode}, WIDGET, WidgetUpdateMode}};
 /// # use zng_var::IntoVar;
 /// # use zng_wgt::node::with_widget_state;
 /// # use zng_state_map::{StateId, static_id};
@@ -1827,8 +1827,8 @@ pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl IntoUiN
 ///
 /// /// Get the value from outside the widget.
 /// fn get_foo_outer(widget: &mut UiNode) -> u32 {
-///     if let Some(mut wgt) = widget {
-///         wgt.with_context(WidgetUpdateMode::Ignore, || WIDGET.get_state(*FOO_ID))
+///     if let Some(mut wgt) = widget.as_widget() {
+///         wgt.with_context(WidgetUpdateMode::Ignore, || WIDGET.get_state(*FOO_ID)).unwrap_or(0)
 ///     } else {
 ///         0
 ///     }
