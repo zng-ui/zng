@@ -125,6 +125,6 @@ pub(crate) fn ruler() -> UiNode {
                     };
                 }
             })
-            .collect::<UiVec>(); // !!: TODO maybe implement IntoUiNode for std::iter types?
+            .collect::<UiVec>();
     }
 }

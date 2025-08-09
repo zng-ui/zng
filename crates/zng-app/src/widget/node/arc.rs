@@ -151,9 +151,22 @@ impl ArcNode {
         self.take_when(true)
     }
 
-    /// Calls `f` in the context of the node, if it is a full widget.
-    pub fn try_context<R>(&self, update_mode: WidgetUpdateMode, f: impl FnOnce() -> R) -> Option<R> {
-        Some(self.0.item.try_lock()?.as_widget()?.with_context(update_mode, f))
+    /// Call `visitor` on a exclusive lock of the node.
+    ///
+    /// Note that the node is not visited in their current slot context, only use this to inspect state.
+    ///
+    /// Returns `None` if the node is locked, this will happen if calling from inside the node or an ancestor.
+    pub fn try_node<R>(&self, visitor: impl FnOnce(&mut UiNode) -> R) -> Option<R> {
+        Some(visitor(&mut *self.0.item.try_lock()?))
+    }
+
+    /// Calls `visitor` in the widget context of the node, if it is an widget.
+    ///
+    /// Note that only the widget context is loaded in `visitor`, not the full slot context.
+    ///
+    /// Returns `None` if the node is locked or is not an widget. The node will be locked if calling from inside the node or an ancestor.
+    pub fn try_context<R>(&self, update_mode: WidgetUpdateMode, visitor: impl FnOnce() -> R) -> Option<R> {
+        Some(self.0.item.try_lock()?.as_widget()?.with_context(update_mode, visitor))
     }
 }
 

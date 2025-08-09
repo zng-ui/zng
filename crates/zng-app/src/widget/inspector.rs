@@ -53,7 +53,6 @@ use zng_var::{AnyVar, Var, VarValue};
 use std::{any::TypeId, collections::HashMap, sync::Arc};
 
 use super::{
-    WIDGET, WidgetUpdateMode,
     builder::{InputKind, NestGroup, PropertyArgs, PropertyId, WidgetBuilder, WidgetType},
     info::WidgetInfo,
 };
@@ -254,23 +253,24 @@ impl WidgetInfoInspectorExt for WidgetInfo {
                 match input.kind {
                     InputKind::UiNode => {
                         let node = args.ui_node(i);
-                        if let Some(true) = node.try_context(WidgetUpdateMode::Ignore, || WIDGET.id() == id) {
+                        let mut found = false;
+                        node.try_node(|n| {
+                            if n.is_list() {
+                                // parent's property input is a list, are we on that list?
+                                n.for_each_child(|_, n| {
+                                    if !found && let Some(mut wgt) = n.as_widget() {
+                                        found = wgt.id() == id;
+                                    }
+                                });
+                            } else if let Some(mut wgt) = n.as_widget() {
+                                // parent's property input is an widget, is that us?
+                                found = wgt.id() == id;
+                            }
+                        });
+                        if found {
                             return Some((args.id(), i));
                         }
                     }
-                    // !!: TODO check node.is_list?
-                    // InputKind::UiNodeList => {
-                    //     let list = args.ui_node_list(i);
-                    //     let mut found = false;
-                    //     list.for_each_ctx(WidgetUpdateMode::Ignore, |_| {
-                    //         if !found {
-                    //             found = WIDGET.id() == id;
-                    //         }
-                    //     });
-                    //     if found {
-                    //         return Some((args.id(), i));
-                    //     }
-                    // }
                     _ => continue,
                 }
             }

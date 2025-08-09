@@ -131,8 +131,8 @@ pub fn node(
     let auto_columns = ui_vec![];
     let auto_rows = ui_vec![];
     let children = ui_vec![
-        ui_vec![columns.into_node().into_list(), auto_columns],
-        ui_vec![rows.into_node().into_list(), auto_rows],
+        ChainList(ui_vec![columns.into_node().into_list(), auto_columns]),
+        ChainList(ui_vec![rows.into_node().into_list(), auto_rows]),
         PanelList::new(cells),
     ];
     let spacing = spacing.into_var();
@@ -208,7 +208,6 @@ pub fn node(
 
             // layout columns
             let _ = columns.layout_list(
-                // !!: TODO this is incorrect because columns is an UiVec[UiVec, UiVec]
                 wl,
                 |ci, col, wl| {
                     let info = grid.columns[ci];
@@ -307,7 +306,7 @@ pub fn node(
                     },
                 );
             });
-            let i_extra = columns.children_len(); // !!: TODO fix this, need flatted vec
+            let i_extra = columns.children_len();
             rows.for_each_child(|i, child| {
                 let offset = PxVector::new(Px(0), grid.rows[i].y);
                 frame.push_reference_frame(
@@ -1099,7 +1098,7 @@ impl GridLayout {
 
         match auto_mode {
             AutoGrowMode::Rows(max) => {
-                let columns_len = children.all_columns().len();
+                let columns_len = children.all_columns().children_len();
                 if columns_len == 0 {
                     tracing::warn!(
                         "grid {} has no columns and auto_grow_mode={:?}, no cell will be visible",
@@ -1113,7 +1112,7 @@ impl GridLayout {
                 let max_auto_placed = max_auto_placed_i / columns_len;
                 let max_needed_len = max_auto_placed.max(max_custom).min(max as usize) + 1;
 
-                let rows_len = children.all_rows().len();
+                let rows_len = children.all_rows().children_len();
 
                 #[expect(clippy::comparison_chain)]
                 if rows_len < max_needed_len {
@@ -1141,7 +1140,7 @@ impl GridLayout {
                 }
             }
             AutoGrowMode::Columns(max) => {
-                let rows_len = children.all_rows().len();
+                let rows_len = children.all_rows().children_len();
                 if rows_len == 0 {
                     tracing::warn!(
                         "grid {} has no rows and auto_grow_mode={:?}, no cell will be visible",
@@ -1155,7 +1154,7 @@ impl GridLayout {
                 let max_auto_placed = max_auto_placed_i / rows_len;
                 let max_needed_len = max_auto_placed.max(max_custom).min(max as usize) + 1;
 
-                let cols_len = children.all_columns().len();
+                let cols_len = children.all_columns().children_len();
 
                 #[expect(clippy::comparison_chain)]
                 if cols_len < max_needed_len {
@@ -1185,7 +1184,7 @@ impl GridLayout {
         }
 
         // Set index for column and row.
-        let columns_len = children.all_columns().len() + imaginary_cols;
+        let columns_len = children.all_columns().children_len() + imaginary_cols;
         children.all_columns_node().for_each_child(|i, c| {
             if let Some(mut wgt) = c.as_widget() {
                 wgt.with_context(WidgetUpdateMode::Bubble, || {
@@ -1196,7 +1195,7 @@ impl GridLayout {
                 });
             }
         });
-        let rows_len = children.all_rows().len() + imaginary_rows;
+        let rows_len = children.all_rows().children_len() + imaginary_rows;
         children.all_rows_node().for_each_child(|i, r| {
             if let Some(mut wgt) = r.as_widget() {
                 wgt.with_context(WidgetUpdateMode::Bubble, || {
@@ -1696,21 +1695,21 @@ impl<'a> GridChildrenMut<'a> {
     fn all_columns_node(&mut self) -> &mut UiNode {
         &mut self.children()[0]
     }
-    fn all_columns(&mut self) -> &mut UiVec {
+    fn all_columns(&mut self) -> &mut ChainList {
         self.all_columns_node().downcast_mut().unwrap()
     }
     fn auto_columns(&mut self) -> &mut UiVec {
-        self.all_columns()[1].downcast_mut().unwrap()
+        self.all_columns().0[1].downcast_mut().unwrap()
     }
 
     fn all_rows_node(&mut self) -> &mut UiNode {
         &mut self.children()[1]
     }
-    fn all_rows(&mut self) -> &mut UiVec {
+    fn all_rows(&mut self) -> &mut ChainList {
         self.all_rows_node().downcast_mut().unwrap()
     }
     fn auto_rows(&mut self) -> &mut UiVec {
-        self.all_rows()[1].downcast_mut().unwrap()
+        self.all_rows().0[1].downcast_mut().unwrap()
     }
 
     fn cells(&mut self) -> &mut PanelList {

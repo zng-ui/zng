@@ -11,7 +11,7 @@ use zng::{
     },
     keyboard::{Key, KeyCode, KeyState},
     prelude::*,
-    widget::{Visibility, WidgetUpdateMode, info::InteractionPath, interactive, node::ArcNode, visibility},
+    widget::{Visibility, info::InteractionPath, interactive, node::ArcNode, visibility},
 };
 
 #[test]

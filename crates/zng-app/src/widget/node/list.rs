@@ -606,6 +606,14 @@ impl UiNode {
 
 /// UI node list implementation that flattens child lists.
 pub struct ChainList(pub UiVec);
+impl ChainList {
+    /// Append another list chain node.
+    ///
+    /// See [`UiNode::chain`] for more details.
+    pub fn chain(self, other: impl IntoUiNode) -> UiNode {
+        self.into_node().chain(other)
+    }
+}
 impl UiNodeImpl for ChainList {
     fn children_len(&self) -> usize {
         let mut len = 0;
@@ -928,6 +936,13 @@ impl SortingList {
 
         r
     }
+
+    /// Create a list chain node.
+    ///
+    /// See [`UiNode::chain`] for more details.
+    pub fn chain(self, other: impl IntoUiNode) -> UiNode {
+        self.into_node().chain(other)
+    }
 }
 impl UiNodeImpl for SortingList {
     fn children_len(&self) -> usize {
@@ -1211,6 +1226,13 @@ impl EditableUiVec {
     /// Create a sender that can edit this list.
     pub fn reference(&self) -> EditableUiVecRef {
         self.ctrl.clone()
+    }
+
+    /// Create a list chain node.
+    ///
+    /// See [`UiNode::chain`] for more details.
+    pub fn chain(self, other: impl IntoUiNode) -> UiNode {
+        self.into_node().chain(other)
     }
 
     fn fulfill_requests(&mut self, observer: &mut dyn UiNodeListObserver) {

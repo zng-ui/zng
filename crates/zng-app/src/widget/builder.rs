@@ -578,7 +578,7 @@ pub enum InputKind {
     Var,
     /// Input is `impl IntoValue<T>`, build value is `T`.
     Value,
-    /// Input is `impl UiNode`, build value is `ArcNode`.
+    /// Input is `impl IntoUiNode`, build value is `ArcNode`.
     UiNode,
     /// Input is `impl WidgetHandler<A>`, build value is `ArcWidgetHandler<A>`.
     WidgetHandler,
