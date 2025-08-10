@@ -674,7 +674,7 @@ impl fmt::Debug for HotLib {
 impl HotLib {
     pub fn new(patch: &StaticPatch, manifest_dir: Txt, lib: impl AsRef<std::ffi::OsStr>) -> Result<Self, libloading::Error> {
         unsafe {
-            // SAFETY: assuming the hot lib was setup as the documented, this works,
+            // SAFETY: assuming the hot lib was setup as the docs instruct, this works,
             // even the `linkme` stuff does not require any special care.
             //
             // If the hot lib developer add some "ctor/dtor" stuff and that fails they will probably

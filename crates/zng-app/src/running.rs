@@ -1292,8 +1292,8 @@ pub(crate) fn assert_not_view_process() {
     }
 }
 /// When compiled with `"deadlock_detection"` spawns a thread that monitors for `parking_lot` deadlocks.
-/// 
-/// Note that this method is already called on app scope spawn. 
+///
+/// Note that this method is already called on app scope spawn.
 /// You can call it before `zng::env::init!` to detect deadlocks in other processes too.
 #[cfg(feature = "deadlock_detection")]
 pub fn spawn_deadlock_detection() {
@@ -1346,8 +1346,8 @@ pub fn spawn_deadlock_detection() {
     });
 }
 /// When compiled with `"deadlock_detection"` spawns a thread that monitors for `parking_lot` deadlocks.
-/// 
-/// Note that this method is already called on app scope spawn. 
+///
+/// Note that this method is already called on app scope spawn.
 /// You can call it before `zng::env::init!` to detect deadlocks in other processes too.
 #[cfg(not(feature = "deadlock_detection"))]
 pub fn spawn_deadlock_detection() {}
