@@ -54,7 +54,7 @@ macro_rules! zng_hot_entry {
         #[doc(hidden)] // used by proc-macro
         pub use $crate::zng_hot_entry;
 
-        #[unsafe(no_mangle)] // SAFETY: docs struct users to call the macro only once, name is unlikely to have collisions.
+        #[unsafe(no_mangle)] // SAFETY: docs instruct users to call the macro only once, name is unlikely to have collisions.
         #[doc(hidden)] // used by lib loader
         pub extern "C" fn zng_hot_entry(
             manifest_dir: &&str,
@@ -65,7 +65,7 @@ macro_rules! zng_hot_entry {
             $crate::zng_hot_entry::entry(manifest_dir, node_name, ctx, exchange)
         }
 
-        #[unsafe(no_mangle)] // SAFETY: docs struct users to call the macro only once, name is unlikely to have collisions.
+        #[unsafe(no_mangle)] // SAFETY: docs instruct users to call the macro only once, name is unlikely to have collisions.
         #[doc(hidden)]
         pub extern "C" fn zng_hot_entry_init(patch: &$crate::StaticPatch) {
             $crate::zng_hot_entry::init(patch)

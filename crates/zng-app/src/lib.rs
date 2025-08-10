@@ -1156,7 +1156,7 @@ impl APP {
         print_tracing(tracing::Level::INFO);
         assert_not_view_process();
         Self::assert_can_run();
-        check_deadlock();
+        spawn_deadlock_detection();
 
         let _ = INSTANT.now();
         let scope = LocalContext::start_app(AppId::new_unique());
@@ -1175,7 +1175,7 @@ impl APP {
         print_tracing(tracing::Level::INFO);
         assert_not_view_process();
         Self::assert_can_run();
-        check_deadlock();
+        spawn_deadlock_detection();
         let scope = LocalContext::start_app(AppId::new_unique());
         AppExtended {
             extensions: (),

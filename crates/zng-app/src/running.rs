@@ -1291,9 +1291,12 @@ pub(crate) fn assert_not_view_process() {
         panic!("cannot start App in view-process");
     }
 }
-
+/// When compiled with `"deadlock_detection"` spawns a thread that monitors for `parking_lot` deadlocks.
+/// 
+/// Note that this method is already called on app scope spawn. 
+/// You can call it before `zng::env::init!` to detect deadlocks in other processes too.
 #[cfg(feature = "deadlock_detection")]
-pub(crate) fn check_deadlock() {
+pub fn spawn_deadlock_detection() {
     use parking_lot::deadlock;
     use std::{
         sync::atomic::{self, AtomicBool},
@@ -1342,8 +1345,12 @@ pub(crate) fn check_deadlock() {
         }
     });
 }
+/// When compiled with `"deadlock_detection"` spawns a thread that monitors for `parking_lot` deadlocks.
+/// 
+/// Note that this method is already called on app scope spawn. 
+/// You can call it before `zng::env::init!` to detect deadlocks in other processes too.
 #[cfg(not(feature = "deadlock_detection"))]
-pub(crate) fn check_deadlock() {}
+pub fn spawn_deadlock_detection() {}
 
 app_local! {
     pub(super) static APP_PROCESS_SV: AppProcessService = AppProcessService {
