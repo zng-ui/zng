@@ -5,10 +5,7 @@ use zng_layout::unit::PxSize;
 use crate::{
     render::{FrameBuilder, FrameUpdate},
     update::{EventUpdate, WidgetUpdates},
-    widget::{
-        WidgetUpdateMode,
-        info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
-    },
+    widget::info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
 };
 
 use super::*;
@@ -872,7 +869,7 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
                     .node
                     .as_widget()
                     .map(|mut w| {
-                        w.with_context(WidgetUpdateMode::Ignore, || {
+                        w.with_context(crate::widget::WidgetUpdateMode::Ignore, || {
                             WIDGET.pending_update().contains(crate::update::UpdateFlags::INFO)
                         })
                     })
@@ -953,7 +950,7 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
                     .node
                     .as_widget()
                     .map(|mut w| {
-                        w.with_context(WidgetUpdateMode::Ignore, || {
+                        w.with_context(crate::widget::WidgetUpdateMode::Ignore, || {
                             WIDGET.pending_update().contains(crate::update::UpdateFlags::LAYOUT)
                         })
                     })
@@ -981,7 +978,7 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
                     .node
                     .as_widget()
                     .map(|mut w| {
-                        w.with_context(WidgetUpdateMode::Ignore, || {
+                        w.with_context(crate::widget::WidgetUpdateMode::Ignore, || {
                             WIDGET.pending_update().contains(crate::update::UpdateFlags::RENDER)
                         })
                     })
@@ -1008,7 +1005,7 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
                     .node
                     .as_widget()
                     .map(|mut w| {
-                        w.with_context(WidgetUpdateMode::Ignore, || {
+                        w.with_context(crate::widget::WidgetUpdateMode::Ignore, || {
                             WIDGET.pending_update().contains(crate::update::UpdateFlags::RENDER_UPDATE)
                         })
                     })
