@@ -58,7 +58,7 @@ pub fn run() {
                 recorded.wait_match(|&f| f).await;
 
                 let encoded = var(false);
-                print_status("encoding", &encoded);
+                print_status("encoding ./screencast.mp4 ", &encoded);
 
                 task::spawn_wait(clmv!(encoded, || {
                     // https://www.ffmpeg.org/download.html
@@ -86,7 +86,7 @@ pub fn run() {
                     }
                 }));
                 encoded.wait_match(|&f| f).await;
-                println!("\rfinished.");
+                println!("\rencoding ./screencast.mp4 ... done");
 
                 APP.exit();
             });
@@ -166,7 +166,7 @@ fn print_status(task: &'static str, done: &Var<bool>) {
             if dots > 3 {
                 dots = 0;
             }
-            print!("\r                      ");
+            print!("\r                                         ");
             print!("\r{task}{}", String::from_utf8(vec![b'.'; dots]).unwrap());
             std::io::stdout().lock().flush().ok();
             task::deadline(500.ms()).await;
