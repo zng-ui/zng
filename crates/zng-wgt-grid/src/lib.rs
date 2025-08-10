@@ -1114,7 +1114,6 @@ impl GridLayout {
 
                 let rows_len = children.all_rows().children_len();
 
-                #[expect(clippy::comparison_chain)]
                 if rows_len < max_needed_len {
                     let auto = children.auto_rows();
                     let mut index = rows_len;
@@ -1156,7 +1155,6 @@ impl GridLayout {
 
                 let cols_len = children.all_columns().children_len();
 
-                #[expect(clippy::comparison_chain)]
                 if cols_len < max_needed_len {
                     let auto = children.auto_columns();
                     let mut index = cols_len;

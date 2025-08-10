@@ -315,13 +315,13 @@ impl ResponseLimits {
         if self.require_length || self.max_length.is_some() {
             let response = Response(response);
             if let Some(len) = response.content_len() {
-                if let Some(max) = self.max_length {
-                    if max < len {
-                        return Err(Error::MaxLength {
-                            content_length: Some(len),
-                            max_length: max,
-                        });
-                    }
+                if let Some(max) = self.max_length
+                    && max < len
+                {
+                    return Err(Error::MaxLength {
+                        content_length: Some(len),
+                        max_length: max,
+                    });
                 }
             } else if self.require_length {
                 return Err(Error::RequireLength);

@@ -238,7 +238,7 @@ pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> UiNode {
 ///
 /// * [`child`]: Set to a widget produced by [`cmd_child_fn`](fn@cmd_child_fn), by default is `Text!(cmd.name())`.
 /// * [`tooltip_fn`]: Set to a widget function provided by [`cmd_tooltip_fn`](fn@cmd_tooltip_fn), by default it
-///    shows the command info and first shortcut.
+///   shows the command info and first shortcut.
 /// * [`enabled`]: Set to `cmd.is_enabled()`.
 /// * [`visibility`]: Set to `cmd.has_handlers().into()`.
 /// * [`on_click`]: Set to a handler that notifies the command if `cmd.is_enabled()`.

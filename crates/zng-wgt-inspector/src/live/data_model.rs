@@ -192,15 +192,15 @@ impl InspectedWidget {
         self.info.set(info);
 
         let mut cache = self.cache.lock();
-        if let Some(c) = &cache.children {
-            if c.strong_count() == 1 {
-                cache.children = None;
-            }
+        if let Some(c) = &cache.children
+            && c.strong_count() == 1
+        {
+            cache.children = None;
         }
-        if let Some(c) = &cache.parent_property_name {
-            if c.strong_count() == 1 {
-                cache.parent_property_name = None;
-            }
+        if let Some(c) = &cache.parent_property_name
+            && c.strong_count() == 1
+        {
+            cache.parent_property_name = None;
         }
     }
 

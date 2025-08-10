@@ -492,10 +492,10 @@ fn fallback_reset_entry() {
 }
 
 fn rmv_file_assert(path: &Path) {
-    if let Err(e) = std::fs::remove_file(path) {
-        if !matches!(e.kind(), std::io::ErrorKind::NotFound) {
-            panic!("cannot remove `{}`\n{e}", path.display());
-        }
+    if let Err(e) = std::fs::remove_file(path)
+        && !matches!(e.kind(), std::io::ErrorKind::NotFound)
+    {
+        panic!("cannot remove `{}`\n{e}", path.display());
     }
 }
 

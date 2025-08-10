@@ -2451,14 +2451,12 @@ where
         }
         self.data.resize_with(self.list.children_len(), Default::default);
 
-        if observer_changed {
-            if let Some((_, v, u)) = &mut self.info_id {
-                if !*u {
-                    *v = v.wrapping_add(1);
-                    *u = true;
-                }
-                WIDGET.info();
+        if observer_changed && let Some((_, v, u)) = &mut self.info_id {
+            if !*u {
+                *v = v.wrapping_add(1);
+                *u = true;
             }
+            WIDGET.info();
         }
     }
 

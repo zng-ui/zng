@@ -628,11 +628,12 @@ impl<S: FontFeatureExclusiveSetState> FontFeatureExclusiveSet<'_, S> {
         let mut state = 0;
 
         for (i, name) in S::names().iter().enumerate() {
-            if let Some(&s) = self.features.get(name) {
-                if s == FEATURE_ENABLED && state == 0 {
-                    state = i + 1; // found state.
-                    continue;
-                }
+            if let Some(&s) = self.features.get(name)
+                && s == FEATURE_ENABLED
+                && state == 0
+            {
+                state = i + 1; // found state.
+                continue;
             }
             // found `auto`, a custom state set externally or a second feature activated externally.
             return S::auto();
@@ -847,10 +848,10 @@ impl FontFeatureState {
 
     /// Is [`enabled`](Self::enabled) or [`enabled_alt`](Self::enabled_alt).
     pub fn is_enabled(self) -> bool {
-        if let Some(n) = self.0 {
-            if n >= 1 {
-                return true;
-            }
+        if let Some(n) = self.0
+            && n >= 1
+        {
+            return true;
         }
         false
     }
@@ -862,10 +863,10 @@ impl FontFeatureState {
 
     /// Gets the enabled alternative.
     pub fn alt(self) -> Option<u32> {
-        if let Some(n) = self.0 {
-            if n >= 1 {
-                return Some(n);
-            }
+        if let Some(n) = self.0
+            && n >= 1
+        {
+            return Some(n);
         }
         None
     }

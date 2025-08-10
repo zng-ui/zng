@@ -324,28 +324,28 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
     ///
     /// The worker cannot be used if this is set, run requests will immediately disconnect.
     pub fn crash_error(&mut self) -> Option<&WorkerCrashError> {
-        if let Some((t, _)) = &self.running {
-            if t.is_finished() {
-                let (t, p) = self.running.take().unwrap();
+        if let Some((t, _)) = &self.running
+            && t.is_finished()
+        {
+            let (t, p) = self.running.take().unwrap();
 
-                if let Err(e) = t.join() {
-                    tracing::error!("panic in worker receiver thread, {}", crate::crate_util::panic_str(&e));
-                }
+            if let Err(e) = t.join() {
+                tracing::error!("panic in worker receiver thread, {}", crate::crate_util::panic_str(&e));
+            }
 
-                if let Err(e) = p.kill() {
-                    tracing::error!("error killing worker process after receiver exit, {e}");
-                }
+            if let Err(e) = p.kill() {
+                tracing::error!("error killing worker process after receiver exit, {e}");
+            }
 
-                match p.into_output() {
-                    Ok(o) => {
-                        self.crash = Some(WorkerCrashError {
-                            status: o.status,
-                            stdout: String::from_utf8_lossy(&o.stdout[..]).as_ref().to_txt(),
-                            stderr: String::from_utf8_lossy(&o.stderr[..]).as_ref().to_txt(),
-                        });
-                    }
-                    Err(e) => tracing::error!("error reading crashed worker output, {e}"),
+            match p.into_output() {
+                Ok(o) => {
+                    self.crash = Some(WorkerCrashError {
+                        status: o.status,
+                        stdout: String::from_utf8_lossy(&o.stdout[..]).as_ref().to_txt(),
+                        stderr: String::from_utf8_lossy(&o.stderr[..]).as_ref().to_txt(),
+                    });
                 }
+                Err(e) => tracing::error!("error reading crashed worker output, {e}"),
             }
         }
 

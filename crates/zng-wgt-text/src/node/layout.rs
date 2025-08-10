@@ -180,26 +180,26 @@ fn layout_text_layout(child: impl IntoUiNode) -> UiNode {
                 WIDGET.layout();
             }
 
-            if let Some(lb) = LINE_BREAK_VAR.get_new() {
-                if txt.shaping_args.line_break != lb {
-                    txt.shaping_args.line_break = lb;
-                    txt.pending.insert(PendingLayout::RESHAPE);
-                    WIDGET.layout();
-                }
+            if let Some(lb) = LINE_BREAK_VAR.get_new()
+                && txt.shaping_args.line_break != lb
+            {
+                txt.shaping_args.line_break = lb;
+                txt.pending.insert(PendingLayout::RESHAPE);
+                WIDGET.layout();
             }
-            if let Some(wb) = WORD_BREAK_VAR.get_new() {
-                if txt.shaping_args.word_break != wb {
-                    txt.shaping_args.word_break = wb;
-                    txt.pending.insert(PendingLayout::RESHAPE);
-                    WIDGET.layout();
-                }
+            if let Some(wb) = WORD_BREAK_VAR.get_new()
+                && txt.shaping_args.word_break != wb
+            {
+                txt.shaping_args.word_break = wb;
+                txt.pending.insert(PendingLayout::RESHAPE);
+                WIDGET.layout();
             }
-            if let Some(h) = HYPHENS_VAR.get_new() {
-                if txt.shaping_args.hyphens != h {
-                    txt.shaping_args.hyphens = h;
-                    txt.pending.insert(PendingLayout::RESHAPE);
-                    WIDGET.layout();
-                }
+            if let Some(h) = HYPHENS_VAR.get_new()
+                && txt.shaping_args.hyphens != h
+            {
+                txt.shaping_args.hyphens = h;
+                txt.pending.insert(PendingLayout::RESHAPE);
+                WIDGET.layout();
             }
             if let Some(c) = HYPHEN_CHAR_VAR.get_new() {
                 txt.shaping_args.hyphen_char = c;
@@ -847,15 +847,15 @@ fn layout_text_edit(child: impl IntoUiNode) -> UiNode {
                     });
                 }
 
-                if OBSCURE_TXT_VAR.is_new() || OBSCURING_CHAR_VAR.is_new() {
-                    if let Some(obscure) = OBSCURE_TXT_VAR.get_new() {
-                        if edit.is_none() && WINDOW.info().access_enabled().is_enabled() {
-                            WIDGET.info();
-                        }
+                if (OBSCURE_TXT_VAR.is_new() || OBSCURING_CHAR_VAR.is_new())
+                    && let Some(obscure) = OBSCURE_TXT_VAR.get_new()
+                {
+                    if edit.is_none() && WINDOW.info().access_enabled().is_enabled() {
+                        WIDGET.info();
+                    }
 
-                        if obscure {
-                            UNDO.clear();
-                        }
+                    if obscure {
+                        UNDO.clear();
                     }
                 }
             }

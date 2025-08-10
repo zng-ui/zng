@@ -489,12 +489,12 @@ impl WINDOWS {
     pub fn frame_image(&self, window_id: impl Into<WindowId>, mask: Option<ImageMaskMode>) -> ImageVar {
         let window_id = window_id.into();
         if let Some((win, wgt)) = self.nest_parent(window_id) {
-            if let Ok(tree) = self.widget_tree(win) {
-                if let Some(wgt) = tree.get(wgt) {
-                    return WINDOWS_SV
-                        .write()
-                        .frame_image_impl(win, |vr| vr.frame_image_rect(wgt.inner_bounds(), mask));
-                }
+            if let Ok(tree) = self.widget_tree(win)
+                && let Some(wgt) = tree.get(wgt)
+            {
+                return WINDOWS_SV
+                    .write()
+                    .frame_image_impl(win, |vr| vr.frame_image_rect(wgt.inner_bounds(), mask));
             }
             tracing::error!("did not find nest parent {win:?}//.../{wgt:?}, will capture parent window frame")
         }
@@ -511,13 +511,13 @@ impl WINDOWS {
     pub fn frame_image_rect(&self, window_id: impl Into<WindowId>, mut rect: PxRect, mask: Option<ImageMaskMode>) -> ImageVar {
         let mut window_id = window_id.into();
         if let Some((win, wgt)) = self.nest_parent(window_id) {
-            if let Ok(tree) = self.widget_tree(win) {
-                if let Some(wgt) = tree.get(wgt) {
-                    window_id = win;
-                    let bounds = wgt.inner_bounds();
-                    rect.origin += bounds.origin.to_vector();
-                    rect = rect.intersection(&bounds).unwrap_or_default();
-                }
+            if let Ok(tree) = self.widget_tree(win)
+                && let Some(wgt) = tree.get(wgt)
+            {
+                window_id = win;
+                let bounds = wgt.inner_bounds();
+                rect.origin += bounds.origin.to_vector();
+                rect = rect.intersection(&bounds).unwrap_or_default();
             }
             if window_id != win {
                 tracing::error!("did not find nest parent {win:?}//.../{wgt:?}, will capture parent window frame")
@@ -623,13 +623,13 @@ impl WINDOWS {
         let recv = WINDOW_LOAD_EVENT.receiver();
         while Self.is_loading(window_id) {
             while let Ok(msg) = zng_task::with_deadline(recv.recv_async(), 1.secs()).await {
-                if let Ok(args) = msg {
-                    if args.window_id == window_id {
-                        if wait_event {
-                            zng_task::yield_now().await;
-                        }
-                        return true;
+                if let Ok(args) = msg
+                    && args.window_id == window_id
+                {
+                    if wait_event {
+                        zng_task::yield_now().await;
                     }
+                    return true;
                 }
             }
             // deadline, rare case window closes before load
@@ -944,38 +944,37 @@ impl WINDOWS {
             let mut prev = None;
             let mut new = None;
 
-            if let Some(prev_focus) = args.prev_focus {
-                if let Some(window) = wns.windows_info.get_mut(&prev_focus) {
-                    if window.is_focused {
-                        window.is_focused = false;
-                        prev = Some(prev_focus);
-                    } else if args.new_focus.is_none() {
-                        if let Some(focused) = wns.windows_info.values_mut().find(|w| w.is_focused) {
-                            if focused.vars.nest_parent().get().is_some() && focused.vars.parent().get() == Some(prev_focus) {
-                                // focus is in nested window of the system window that lost app focus.
-                                focused.is_focused = false;
-                                prev = Some(focused.id);
-                            }
-                        }
-                    }
+            if let Some(prev_focus) = args.prev_focus
+                && let Some(window) = wns.windows_info.get_mut(&prev_focus)
+            {
+                if window.is_focused {
+                    window.is_focused = false;
+                    prev = Some(prev_focus);
+                } else if args.new_focus.is_none()
+                    && let Some(focused) = wns.windows_info.values_mut().find(|w| w.is_focused)
+                    && focused.vars.nest_parent().get().is_some()
+                    && focused.vars.parent().get() == Some(prev_focus)
+                {
+                    // focus is in nested window of the system window that lost app focus.
+                    focused.is_focused = false;
+                    prev = Some(focused.id);
                 }
             }
             if let Some(new_focus) = args.new_focus {
-                if prev.is_none() {
-                    if let Some((&id, window)) = wns.windows_info.iter_mut().find(|w| w.1.is_focused) {
-                        if new_focus != id {
-                            window.is_focused = false;
-                            prev = Some(id);
-                        }
-                    }
+                if prev.is_none()
+                    && let Some((&id, window)) = wns.windows_info.iter_mut().find(|w| w.1.is_focused)
+                    && new_focus != id
+                {
+                    window.is_focused = false;
+                    prev = Some(id);
                 }
 
-                if let Some(window) = wns.windows_info.get_mut(&new_focus) {
-                    if !window.is_focused {
-                        window.is_focused = true;
-                        window.vars.focus_indicator().set(None);
-                        new = Some(new_focus);
-                    }
+                if let Some(window) = wns.windows_info.get_mut(&new_focus)
+                    && !window.is_focused
+                {
+                    window.is_focused = true;
+                    window.vars.focus_indicator().set(None);
+                    new = Some(new_focus);
                 }
             }
 
@@ -1109,15 +1108,15 @@ impl WINDOWS {
                 // fulfill `exit_on_close` or `exit_on_last_close`
                 APP.exit();
             }
-        } else if let Some(args) = EXIT_REQUESTED_EVENT.on(update) {
-            if !args.propagation().is_stopped() {
-                let mut windows = WINDOWS_SV.write();
-                if !windows.windows_info.is_empty() {
-                    args.propagation().stop();
-                    windows.exit_on_close = true;
-                    drop(windows);
-                    WINDOWS.close_all();
-                }
+        } else if let Some(args) = EXIT_REQUESTED_EVENT.on(update)
+            && !args.propagation().is_stopped()
+        {
+            let mut windows = WINDOWS_SV.write();
+            if !windows.windows_info.is_empty() {
+                args.propagation().stop();
+                windows.exit_on_close = true;
+                drop(windows);
+                WINDOWS.close_all();
             }
         }
     }
@@ -1234,24 +1233,24 @@ impl WINDOWS {
 
             for r in close {
                 for w in r.windows {
-                    if let Some(info) = wns.windows_info.get(&w) {
-                        if close_wns.insert(w) {
-                            wns.close_responders
-                                .entry(w)
-                                .or_insert_with(Default::default)
-                                .push(r.responder.clone());
+                    if let Some(info) = wns.windows_info.get(&w)
+                        && close_wns.insert(w)
+                    {
+                        wns.close_responders
+                            .entry(w)
+                            .or_insert_with(Default::default)
+                            .push(r.responder.clone());
 
-                            info.vars.0.children.with(|c| {
-                                for &c in c.iter() {
-                                    if wns.windows_info.contains_key(&c) && close_wns.insert(c) {
-                                        wns.close_responders
-                                            .entry(c)
-                                            .or_insert_with(Default::default)
-                                            .push(r.responder.clone());
-                                    }
+                        info.vars.0.children.with(|c| {
+                            for &c in c.iter() {
+                                if wns.windows_info.contains_key(&c) && close_wns.insert(c) {
+                                    wns.close_responders
+                                        .entry(c)
+                                        .or_insert_with(Default::default)
+                                        .push(r.responder.clone());
                                 }
-                            });
-                        }
+                            }
+                        });
                     }
                 }
             }
@@ -1736,10 +1735,10 @@ impl WindowLoading {
             self.timer = None;
             true
         } else {
-            if let Some(t) = &self.timer {
-                if t.deadline() != deadline {
-                    self.timer = None;
-                }
+            if let Some(t) = &self.timer
+                && t.deadline() != deadline
+            {
+                self.timer = None;
             }
             if self.timer.is_none() {
                 let t = TIMERS.on_deadline(
@@ -1908,10 +1907,10 @@ impl ImageRenderWindowsService for WINDOWS {
     }
 
     fn on_frame_image_ready(&self, update: &EventUpdate) -> Option<(WindowId, Img)> {
-        if let Some(args) = FRAME_IMAGE_READY_EVENT.on(update) {
-            if let Some(img) = &args.frame_image {
-                return Some((args.window_id, img.clone()));
-            }
+        if let Some(args) = FRAME_IMAGE_READY_EVENT.on(update)
+            && let Some(img) = &args.frame_image
+        {
+            return Some((args.window_id, img.clone()));
         }
         None
     }

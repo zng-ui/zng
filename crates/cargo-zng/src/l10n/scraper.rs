@@ -128,10 +128,10 @@ fn scrape_file(rs_file: PathBuf, custom_macro_names: &[&str]) -> FluentTemplate 
                     if str_lit {
                         line = comment;
                     } else {
-                        if let Some(c) = comment.trim_start().strip_prefix("l10n-#") {
-                            if !c.starts_with('#') {
-                                comments.push((ln + 1, c.trim()));
-                            }
+                        if let Some(c) = comment.trim_start().strip_prefix("l10n-#")
+                            && !c.starts_with('#')
+                        {
+                            comments.push((ln + 1, c.trim()));
                         }
 
                         // comment end

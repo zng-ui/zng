@@ -129,11 +129,11 @@ fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
         };
 
         if let Some(new_state) = new_state {
-            if let State::Dependency(name) = state {
-                if name == orig_name {
-                    // finished `[*dependencies.<name>]` without finding a `package = "other"`
-                    return Ok(FoundCrate::Name(orig_name.replace('-', "_")));
-                }
+            if let State::Dependency(name) = state
+                && name == orig_name
+            {
+                // finished `[*dependencies.<name>]` without finding a `package = "other"`
+                return Ok(FoundCrate::Name(orig_name.replace('-', "_")));
             }
 
             state = new_state;
@@ -144,19 +144,18 @@ fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
             State::Seeking => continue,
             // Check if it is the crate itself, or one of its tests.
             State::Package => {
-                if line.starts_with("name ") || line.starts_with("name=") {
-                    if let Some(name_start) = line.find('"') {
-                        if let Some(name_end) = line.rfind('"') {
-                            let name = &line[name_start + 1..name_end];
+                if (line.starts_with("name ") || line.starts_with("name="))
+                    && let Some(name_start) = line.find('"')
+                    && let Some(name_end) = line.rfind('"')
+                {
+                    let name = &line[name_start + 1..name_end];
 
-                            if name == orig_name {
-                                return Ok(if env::var_os("CARGO_TARGET_TMPDIR").is_none() {
-                                    FoundCrate::Itself
-                                } else {
-                                    FoundCrate::Name(orig_name.replace('-', "_"))
-                                });
-                            }
-                        }
+                    if name == orig_name {
+                        return Ok(if env::var_os("CARGO_TARGET_TMPDIR").is_none() {
+                            FoundCrate::Itself
+                        } else {
+                            FoundCrate::Name(orig_name.replace('-', "_"))
+                        });
                     }
                 }
             }
@@ -188,26 +187,25 @@ fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
             }
             // Check a dependency in the style [dependency.foo]
             State::Dependency(name) => {
-                if line.starts_with("package ") || line.starts_with("package=") {
-                    if let Some(pkg_name_start) = line.find('"') {
-                        if let Some(pkg_name_end) = line.rfind('"') {
-                            let pkg_name = &line[pkg_name_start + 1..pkg_name_end];
+                if (line.starts_with("package ") || line.starts_with("package="))
+                    && let Some(pkg_name_start) = line.find('"')
+                    && let Some(pkg_name_end) = line.rfind('"')
+                {
+                    let pkg_name = &line[pkg_name_start + 1..pkg_name_end];
 
-                            if pkg_name == orig_name {
-                                return Ok(FoundCrate::Name(name.replace('-', "_")));
-                            }
-                        }
+                    if pkg_name == orig_name {
+                        return Ok(FoundCrate::Name(name.replace('-', "_")));
                     }
                 }
             }
         }
     }
 
-    if let State::Dependency(name) = state {
-        if name == orig_name {
-            // finished `[*dependencies.<name>]` without finding a `package = "other"`
-            return Ok(FoundCrate::Name(orig_name.replace('-', "_")));
-        }
+    if let State::Dependency(name) = state
+        && name == orig_name
+    {
+        // finished `[*dependencies.<name>]` without finding a `package = "other"`
+        return Ok(FoundCrate::Name(orig_name.replace('-', "_")));
     }
 
     Err(())
@@ -487,14 +485,14 @@ pub fn format_rust_expr(value: String) -> String {
             stdin.write_all(value.as_bytes()).unwrap();
             stdin.write_all(SUFFIX.as_bytes()).unwrap();
         }
-        if let Ok(output) = proc.wait_with_output() {
-            if output.status.success() {
-                // slice between after the prefix and before the suffix
-                // (currently 14 from the start and 2 before the end, respectively)
-                let start = PREFIX.len() + 1;
-                let end = output.stdout.len() - SUFFIX.len();
-                return std::str::from_utf8(&output.stdout[start..end]).unwrap().to_owned();
-            }
+        if let Ok(output) = proc.wait_with_output()
+            && output.status.success()
+        {
+            // slice between after the prefix and before the suffix
+            // (currently 14 from the start and 2 before the end, respectively)
+            let start = PREFIX.len() + 1;
+            let end = output.stdout.len() - SUFFIX.len();
+            return std::str::from_utf8(&output.stdout[start..end]).unwrap().to_owned();
         }
     }
     value
@@ -678,14 +676,12 @@ pub fn peek_any3(stream: ParseStream) -> bool {
         cursor = group.0;
     }
 
-    if let Some((_, cursor)) = cursor.token_tree() {
-        if let Some((_, cursor)) = cursor.token_tree() {
-            if let Some((_tt, _)) = cursor.token_tree() {
-                return true;
-            }
-        }
+    if let Some((_, cursor)) = cursor.token_tree()
+        && let Some((_, cursor)) = cursor.token_tree()
+        && let Some((_tt, _)) = cursor.token_tree()
+    {
+        return true;
     }
-
     false
 }
 

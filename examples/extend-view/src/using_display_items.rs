@@ -72,10 +72,10 @@ pub mod app_side {
                 // if extension is available
                 if ext_id != ApiExtensionId::INVALID {
                     let mut cursor = PxPoint::splat(Px::MIN);
-                    if cursor_px != cursor {
-                        if let Some(c) = frame.transform().inverse().and_then(|t| t.transform_point(cursor_px)) {
-                            cursor = c;
-                        }
+                    if cursor_px != cursor
+                        && let Some(c) = frame.transform().inverse().and_then(|t| t.transform_point(cursor_px))
+                    {
+                        cursor = c;
                     }
 
                     let window_pos = frame.transform().transform_point(PxPoint::zero()).unwrap_or_default();
@@ -96,10 +96,10 @@ pub mod app_side {
                 // if extension is available
                 if ext_id != ApiExtensionId::INVALID {
                     let mut cursor = PxPoint::splat(Px::MIN);
-                    if cursor_px != cursor {
-                        if let Some(c) = update.transform().inverse().and_then(|t| t.transform_point(cursor_px)) {
-                            cursor = c;
-                        }
+                    if cursor_px != cursor
+                        && let Some(c) = update.transform().inverse().and_then(|t| t.transform_point(cursor_px))
+                    {
+                        cursor = c;
                     }
 
                     // push an update.

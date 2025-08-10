@@ -938,9 +938,8 @@ fn fmt(mut args: Vec<&str>) {
 // do check, c
 //    Runs clippy on the workspace.
 fn check(args: Vec<&str>) {
-    // !!: TODO change back to clippy after refactor (Rust update added many lints)
-    // cmd("cargo", &["clippy", "--no-deps", "--tests", "--workspace", "--examples"], &args);
-    cmd("cargo", &["check", "--tests", "--workspace", "--examples"], &args);
+    cmd("cargo", &["clippy", "--no-deps", "--tests", "--workspace", "--examples"], &args);
+    // cmd("cargo", &["check", "--tests", "--workspace", "--examples"], &args);
 }
 
 // do build, b [-e, --example] [-t, --timings] [--release-lto] [-Z*] [<cargo-build-args>]

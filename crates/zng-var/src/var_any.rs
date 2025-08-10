@@ -1209,13 +1209,12 @@ impl AnyVar {
                 }
                 let animate = Mutex::new(animate);
                 let animate = Arc::new(move || {
-                    if let Some(target) = wk_target.upgrade() {
-                        if target.modify_importance() <= VARS.current_modify().importance()
-                            && (Arc::strong_count(&handle_hook) > 1 || handle_hook.load(std::sync::atomic::Ordering::Relaxed))
-                            && VARS.animations_enabled().get()
-                        {
-                            (animate.lock())(target).perm();
-                        }
+                    if let Some(target) = wk_target.upgrade()
+                        && target.modify_importance() <= VARS.current_modify().importance()
+                        && (Arc::strong_count(&handle_hook) > 1 || handle_hook.load(std::sync::atomic::Ordering::Relaxed))
+                        && VARS.animations_enabled().get()
+                    {
+                        (animate.lock())(target).perm();
                     }
                 });
                 VARS.with_animation_controller(SequenceController(animate.clone()), || {

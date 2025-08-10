@@ -243,13 +243,15 @@ pub fn show_hit_test(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiN
                         WIDGET.render();
                     }
                 }
-            } else if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                if args.target.is_none() && !fails.is_empty() && !hits.is_empty() {
-                    fails.clear();
-                    hits.clear();
+            } else if let Some(args) = MOUSE_HOVERED_EVENT.on(update)
+                && args.target.is_none()
+                && !fails.is_empty()
+                && !hits.is_empty()
+            {
+                fails.clear();
+                hits.clear();
 
-                    WIDGET.render();
-                }
+                WIDGET.render();
             }
         }
         UiNodeOp::Update { .. } => {
@@ -321,35 +323,35 @@ pub fn show_directional_query(child: impl IntoUiNode, orientation: impl IntoVar<
             if !valid {
                 return;
             }
-            if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                if let Some(orientation) = orientation.get() {
-                    let mut none = true;
-                    if let Some(target) = &args.target {
-                        let tree = WINDOW.info();
-                        for w_id in target.widgets_path().iter().rev() {
-                            if let Some(w) = tree.get(*w_id) {
-                                if let Some(w) = w.into_focusable(true, true) {
-                                    let sq: Vec<_> = orientation
-                                        .search_bounds(w.info().center(), Px::MAX, tree.spatial_bounds().to_box2d())
-                                        .map(|q| q.to_rect())
-                                        .collect();
+            if let Some(args) = MOUSE_HOVERED_EVENT.on(update)
+                && let Some(orientation) = orientation.get()
+            {
+                let mut none = true;
+                if let Some(target) = &args.target {
+                    let tree = WINDOW.info();
+                    for w_id in target.widgets_path().iter().rev() {
+                        if let Some(w) = tree.get(*w_id)
+                            && let Some(w) = w.into_focusable(true, true)
+                        {
+                            let sq: Vec<_> = orientation
+                                .search_bounds(w.info().center(), Px::MAX, tree.spatial_bounds().to_box2d())
+                                .map(|q| q.to_rect())
+                                .collect();
 
-                                    if search_quads != sq {
-                                        search_quads = sq;
-                                        WIDGET.render();
-                                    }
-
-                                    none = false;
-                                    break;
-                                }
+                            if search_quads != sq {
+                                search_quads = sq;
+                                WIDGET.render();
                             }
+
+                            none = false;
+                            break;
                         }
                     }
+                }
 
-                    if none && !search_quads.is_empty() {
-                        search_quads.clear();
-                        WIDGET.render();
-                    }
+                if none && !search_quads.is_empty() {
+                    search_quads.clear();
+                    WIDGET.render();
                 }
             }
         }

@@ -311,10 +311,10 @@ impl AnyConfig for MemoryConfig {
             hash_map::Entry::Vacant(e) => {
                 let r = var(default);
 
-                if let Some(v) = self.contains.get(e.key()) {
-                    if let Some(v) = v.upgrade() {
-                        v.set(true);
-                    }
+                if let Some(v) = self.contains.get(e.key())
+                    && let Some(v) = v.upgrade()
+                {
+                    v.set(true);
                 }
 
                 e.insert(r).clone()
@@ -345,10 +345,10 @@ impl AnyConfig for MemoryConfig {
         if self.values.remove(key).is_some() {
             self.contains.retain(|_, v| v.strong_count() > 0);
 
-            if let Some(v) = self.contains.get(key) {
-                if let Some(v) = v.upgrade() {
-                    v.set(false);
-                }
+            if let Some(v) = self.contains.get(key)
+                && let Some(v) = v.upgrade()
+            {
+                v.set(false);
             }
             true
         } else {

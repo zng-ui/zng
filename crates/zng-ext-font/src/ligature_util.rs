@@ -226,17 +226,17 @@ impl LigatureCaretList {
     /// Returns an empty slice if the font does not provide caret positions for `lig`, in this
     /// case app must divide the glyph advance in equal parts to find caret positions.
     pub fn carets(&self, lig: GlyphIndex) -> &[LigatureCaret] {
-        if let Some(p) = self.coverage.position(lig) {
-            if let Some(&start) = self.lig_caret_start.get(p) {
-                let start = start as usize;
-                let next_p = p + 1;
-                return if next_p < self.lig_carets.len() {
-                    let end = self.lig_caret_start[next_p] as usize;
-                    &self.lig_carets[start..end]
-                } else {
-                    &self.lig_carets[start..]
-                };
-            }
+        if let Some(p) = self.coverage.position(lig)
+            && let Some(&start) = self.lig_caret_start.get(p)
+        {
+            let start = start as usize;
+            let next_p = p + 1;
+            return if next_p < self.lig_carets.len() {
+                let end = self.lig_caret_start[next_p] as usize;
+                &self.lig_carets[start..end]
+            } else {
+                &self.lig_carets[start..]
+            };
         }
         &[]
     }

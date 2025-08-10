@@ -130,14 +130,13 @@ fn resolve_text_font(child: impl IntoUiNode) -> UiNode {
 
                         WIDGET.layout();
                     }
-                } else if let State::Loaded = &state {
-                    if FONT_SYNTHESIS_VAR.is_new() {
-                        let mut txt = TEXT.resolve();
-                        txt.synthesis =
-                            FONT_SYNTHESIS_VAR.get() & txt.faces.best().synthesis_for(FONT_STYLE_VAR.get(), FONT_WEIGHT_VAR.get());
+                } else if let State::Loaded = &state
+                    && FONT_SYNTHESIS_VAR.is_new()
+                {
+                    let mut txt = TEXT.resolve();
+                    txt.synthesis = FONT_SYNTHESIS_VAR.get() & txt.faces.best().synthesis_for(FONT_STYLE_VAR.get(), FONT_WEIGHT_VAR.get());
 
-                        WIDGET.render();
-                    }
+                    WIDGET.render();
                 }
             }
             UiNodeOp::Deinit => {
@@ -194,10 +193,11 @@ fn resolve_text_access(child: impl IntoUiNode) -> UiNode {
 
             child.info(info);
 
-            if !editable && !OBSCURE_TXT_VAR.get() {
-                if let Some(mut a) = info.access() {
-                    a.set_label(TEXT.resolved().segmented_text.text().clone());
-                }
+            if !editable
+                && !OBSCURE_TXT_VAR.get()
+                && let Some(mut a) = info.access()
+            {
+                a.set_label(TEXT.resolved().segmented_text.text().clone());
             }
         }
         _ => {}
@@ -380,11 +380,11 @@ fn enforce_max_count(text: &Var<Txt>) {
     }
 }
 fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
-    if let Some(args) = INTERACTIVITY_CHANGED_EVENT.on(update) {
-        if args.is_disable(WIDGET.id()) {
-            edit.caret_animation = VarHandle::dummy();
-            TEXT.resolve().caret.opacity = var(0.fct()).read_only();
-        }
+    if let Some(args) = INTERACTIVITY_CHANGED_EVENT.on(update)
+        && args.is_disable(WIDGET.id())
+    {
+        edit.caret_animation = VarHandle::dummy();
+        TEXT.resolve().caret.opacity = var(0.fct()).read_only();
     }
 
     if TEXT.resolved().pending_edit {
@@ -480,14 +480,13 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
                             let alt_return = FOCUS.alt_return().with(|p| p.as_ref().map(|p| p.widget_id()));
                             if alt_return.is_none() || rich_root.descendants().all(|d| d.id() != alt_return.unwrap()) {
                                 // not ALT return
-                                if let Some(info) = WIDGET.info().into_focusable(true, true) {
-                                    if let Some(scope) = info.scope() {
-                                        let parent_return =
-                                            FOCUS.return_focused(scope.info().id()).with(|p| p.as_ref().map(|p| p.widget_id()));
-                                        if parent_return.is_none() || rich_root.descendants().all(|d| d.id() != alt_return.unwrap()) {
-                                            // not parent scope return
-                                            SELECT_CMD.scoped(widget.id()).notify_param(TextSelectOp::next());
-                                        }
+                                if let Some(info) = WIDGET.info().into_focusable(true, true)
+                                    && let Some(scope) = info.scope()
+                                {
+                                    let parent_return = FOCUS.return_focused(scope.info().id()).with(|p| p.as_ref().map(|p| p.widget_id()));
+                                    if parent_return.is_none() || rich_root.descendants().all(|d| d.id() != alt_return.unwrap()) {
+                                        // not parent scope return
+                                        SELECT_CMD.scoped(widget.id()).notify_param(TextSelectOp::next());
                                     }
                                 }
                             }
@@ -500,13 +499,13 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
                     let alt_return = FOCUS.alt_return().with(|p| p.as_ref().map(|p| p.widget_id()));
                     if alt_return != us {
                         // not ALT return
-                        if let Some(info) = WIDGET.info().into_focusable(true, true) {
-                            if let Some(scope) = info.scope() {
-                                let parent_return = FOCUS.return_focused(scope.info().id()).with(|p| p.as_ref().map(|p| p.widget_id()));
-                                if parent_return != us {
-                                    // not parent scope return
-                                    SELECT_CMD.scoped(widget.id()).notify_param(TextSelectOp::next());
-                                }
+                        if let Some(info) = WIDGET.info().into_focusable(true, true)
+                            && let Some(scope) = info.scope()
+                        {
+                            let parent_return = FOCUS.return_focused(scope.info().id()).with(|p| p.as_ref().map(|p| p.widget_id()));
+                            if parent_return != us {
+                                // not parent scope return
+                                SELECT_CMD.scoped(widget.id()).notify_param(TextSelectOp::next());
                             }
                         }
                     }
@@ -530,12 +529,12 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
             TextEditOp::delete().call_edit_op();
         }
     } else if let Some(args) = PASTE_CMD.scoped(widget.id()).on_unhandled(update) {
-        if let Some(paste) = CLIPBOARD.text().ok().flatten() {
-            if !paste.is_empty() {
-                args.propagation().stop();
-                TEXT.resolve().selection_by = SelectionBy::Command;
-                TextEditOp::insert(paste).call_edit_op();
-            }
+        if let Some(paste) = CLIPBOARD.text().ok().flatten()
+            && !paste.is_empty()
+        {
+            args.propagation().stop();
+            TEXT.resolve().selection_by = SelectionBy::Command;
+            TextEditOp::insert(paste).call_edit_op();
         }
     } else if let Some(args) = EDIT_CMD.scoped(widget.id()).on_unhandled(update) {
         if let Some(op) = args.param::<UndoTextEditOp>() {
@@ -705,17 +704,18 @@ fn resolve_text_edit_or_select_events(update: &EventUpdate, _: &mut ResolveTextE
                 let _ = CLIPBOARD.set_text(txt);
             }
         }
-    } else if let Some(args) = ACCESS_SELECTION_EVENT.on_unhandled(update) {
-        if args.start.0 == widget_id && args.caret.0 == widget_id {
-            args.propagation().stop();
+    } else if let Some(args) = ACCESS_SELECTION_EVENT.on_unhandled(update)
+        && args.start.0 == widget_id
+        && args.caret.0 == widget_id
+    {
+        args.propagation().stop();
 
-            let mut ctx = TEXT.resolve();
+        let mut ctx = TEXT.resolve();
 
-            ctx.caret.set_char_selection(args.start.1, args.caret.1);
+        ctx.caret.set_char_selection(args.start.1, args.caret.1);
 
-            ctx.pending_layout |= PendingLayout::CARET;
-            WIDGET.layout();
-        }
+        ctx.pending_layout |= PendingLayout::CARET;
+        WIDGET.layout();
     }
 }
 fn resolve_text_edit_update(_: &mut ResolveTextEdit) {

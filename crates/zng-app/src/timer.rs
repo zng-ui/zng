@@ -168,14 +168,15 @@ impl TimersService {
         }
 
         for t in &self.timers {
-            if let Some(var) = t.weak_var.upgrade() {
-                if !t.handle.is_dropped() && !t.handle.data().paused.load(Ordering::Relaxed) {
-                    // not dropped and not paused
-                    var.with(|t| {
-                        let deadline = t.0.0.data().deadline.lock();
-                        timer.register(deadline.current_deadline());
-                    });
-                }
+            if let Some(var) = t.weak_var.upgrade()
+                && !t.handle.is_dropped()
+                && !t.handle.data().paused.load(Ordering::Relaxed)
+            {
+                // not dropped and not paused
+                var.with(|t| {
+                    let deadline = t.0.0.data().deadline.lock();
+                    timer.register(deadline.current_deadline());
+                });
             }
         }
 
@@ -233,24 +234,24 @@ impl TimersService {
 
         // update `interval` vars
         self.timers.retain(|t| {
-            if let Some(var) = t.weak_var.upgrade() {
-                if !t.handle.is_dropped() {
-                    if !t.handle.data().paused.load(Ordering::Relaxed) {
-                        var.with(|t| {
-                            let mut deadline = t.0.0.data().deadline.lock();
+            if let Some(var) = t.weak_var.upgrade()
+                && !t.handle.is_dropped()
+            {
+                if !t.handle.data().paused.load(Ordering::Relaxed) {
+                    var.with(|t| {
+                        let mut deadline = t.0.0.data().deadline.lock();
 
-                            if timer.elapsed(deadline.current_deadline()) {
-                                t.0.0.data().count.fetch_add(1, Ordering::Relaxed);
-                                var.update();
+                        if timer.elapsed(deadline.current_deadline()) {
+                            t.0.0.data().count.fetch_add(1, Ordering::Relaxed);
+                            var.update();
 
-                                deadline.last = now;
-                                timer.register(deadline.current_deadline());
-                            }
-                        })
-                    }
-
-                    return true; // retain, var is alive and did not call stop.
+                            deadline.last = now;
+                            timer.register(deadline.current_deadline());
+                        }
+                    })
                 }
+
+                return true; // retain, var is alive and did not call stop.
             }
             false // don't retain.
         });

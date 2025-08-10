@@ -541,10 +541,10 @@ impl WriteFile {
     /// Open or create the file.
     pub fn open(path: PathBuf) -> io::Result<Self> {
         let actual_path = path.absolutize()?.into_owned();
-        if !actual_path.exists() {
-            if let Some(parent) = actual_path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
+        if !actual_path.exists()
+            && let Some(parent) = actual_path.parent()
+        {
+            std::fs::create_dir_all(parent)?;
         }
 
         let hidden_name = match actual_path.file_name() {
@@ -569,10 +569,10 @@ impl WriteFile {
         let mut n = 0;
         let mut temp_path = actual_path.with_file_name(format!("{hidden_name}.{TRANSACTION_GUID}-{n}.tmp"));
         let temp_file = loop {
-            if let Ok(f) = fs::OpenOptions::new().write(true).create(true).truncate(true).open(&temp_path) {
-                if let Ok(true) = f.try_lock_exclusive() {
-                    break f;
-                }
+            if let Ok(f) = fs::OpenOptions::new().write(true).create(true).truncate(true).open(&temp_path)
+                && let Ok(true) = f.try_lock_exclusive()
+            {
+                break f;
             }
 
             n += 1;

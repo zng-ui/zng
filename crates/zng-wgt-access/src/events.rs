@@ -92,11 +92,11 @@ fn access_scroll(child: impl IntoUiNode, _: bool) -> UiNode {
 
 fn access_text(child: impl IntoUiNode, _: bool) -> UiNode {
     match_node(child, move |_, op| {
-        if let UiNodeOp::Info { info } = op {
-            if let Some(mut access) = info.access() {
-                access.push_command(AccessCmdName::SetString);
-                access.push_command(AccessCmdName::ReplaceSelectedText);
-            }
+        if let UiNodeOp::Info { info } = op
+            && let Some(mut access) = info.access()
+        {
+            access.push_command(AccessCmdName::SetString);
+            access.push_command(AccessCmdName::ReplaceSelectedText);
         }
     })
 }
@@ -111,10 +111,10 @@ fn access_selection(child: impl IntoUiNode, _: bool) -> UiNode {
 
 fn access_capable(child: impl IntoUiNode, cmd: AccessCmdName) -> UiNode {
     match_node(child, move |_, op| {
-        if let UiNodeOp::Info { info } = op {
-            if let Some(mut access) = info.access() {
-                access.push_command(cmd)
-            }
+        if let UiNodeOp::Info { info } = op
+            && let Some(mut access) = info.access()
+        {
+            access.push_command(cmd)
         }
     })
 }

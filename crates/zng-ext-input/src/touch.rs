@@ -75,11 +75,11 @@ struct PressedInfo {
 }
 impl PressedInfo {
     fn push_velocity_sample(&mut self, timestamp: DInstant, position: DipPoint) {
-        if let Some(last) = self.velocity_samples.last_mut() {
-            if timestamp.duration_since(last.0) < 1.ms() {
-                last.1 = position;
-                return;
-            }
+        if let Some(last) = self.velocity_samples.last_mut()
+            && timestamp.duration_since(last.0) < 1.ms()
+        {
+            last.1 = position;
+            return;
         }
 
         if self.velocity_samples.len() == 4 {
@@ -730,10 +730,10 @@ impl TouchedArgs {
     /// [`prev_capture`]: Self::prev_capture
     /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn was_touched(&self) -> bool {
-        if let Some(cap) = &self.prev_capture {
-            if !cap.allows() {
-                return false;
-            }
+        if let Some(cap) = &self.prev_capture
+            && !cap.allows()
+        {
+            return false;
         }
 
         if let Some(t) = &self.prev_target {
@@ -749,10 +749,10 @@ impl TouchedArgs {
     /// [`capture`]: Self::capture
     /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_touched(&self) -> bool {
-        if let Some(cap) = &self.capture {
-            if !cap.allows() {
-                return false;
-            }
+        if let Some(cap) = &self.capture
+            && !cap.allows()
+        {
+            return false;
         }
 
         if let Some(t) = &self.target {
@@ -1145,14 +1145,14 @@ impl AppExtension for TouchManager {
                         vec![TouchUpdate::new(TouchId(u64::MAX), phase, args.position, None)],
                     ));
                 }
-            } else if let Some(args) = RAW_MOUSE_LEFT_EVENT.on(update) {
-                if let Some(id) = self.mouse_touch.take() {
-                    RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
-                        args.window_id,
-                        args.device_id,
-                        vec![TouchUpdate::new(id, TouchPhase::Cancel, DipPoint::zero(), None)],
-                    ))
-                }
+            } else if let Some(args) = RAW_MOUSE_LEFT_EVENT.on(update)
+                && let Some(id) = self.mouse_touch.take()
+            {
+                RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
+                    args.window_id,
+                    args.device_id,
+                    vec![TouchUpdate::new(id, TouchPhase::Cancel, DipPoint::zero(), None)],
+                ))
             }
         }
     }
@@ -1203,19 +1203,19 @@ impl TouchManager {
             let mut position = update.position;
 
             // hit-test for nested windows
-            if let Some(wgt) = w.get(target.widget_id()) {
-                if let Some(w) = wgt.nested_window_tree() {
-                    let f = w.scale_factor();
-                    let p = update.position.to_px(f);
-                    let p = wgt.inner_transform().inverse().and_then(|t| t.transform_point(p)).unwrap_or(p);
-                    position = p.to_dip(f);
-                    hits = w.root().hit_test(p);
-                    target = hits
-                        .target()
-                        .and_then(|t| w.get(t.widget_id))
-                        .map(|t| t.interaction_path())
-                        .unwrap_or_else(|| w.root().interaction_path());
-                }
+            if let Some(wgt) = w.get(target.widget_id())
+                && let Some(w) = wgt.nested_window_tree()
+            {
+                let f = w.scale_factor();
+                let p = update.position.to_px(f);
+                let p = wgt.inner_transform().inverse().and_then(|t| t.transform_point(p)).unwrap_or(p);
+                position = p.to_dip(f);
+                hits = w.root().hit_test(p);
+                target = hits
+                    .target()
+                    .and_then(|t| w.get(t.widget_id))
+                    .map(|t| t.interaction_path())
+                    .unwrap_or_else(|| w.root().interaction_path());
             }
 
             let target = match target.unblocked() {
@@ -1357,137 +1357,137 @@ impl TouchManager {
     }
 
     fn on_move(&mut self, args: &RawTouchArgs, mut moves: Vec<TouchMove>) {
-        if !moves.is_empty() {
-            if let Ok(w) = WINDOWS.widget_tree(args.window_id) {
-                let mut window_blocked_remove = vec![];
-                for m in &mut moves {
-                    m.hits = w.root().hit_test(m.position().to_px(w.scale_factor()));
-                    let target = m
-                        .hits
-                        .target()
-                        .and_then(|t| w.get(t.widget_id))
-                        .map(|t| t.interaction_path())
-                        .unwrap_or_else(|| w.root().interaction_path());
+        if !moves.is_empty()
+            && let Ok(w) = WINDOWS.widget_tree(args.window_id)
+        {
+            let mut window_blocked_remove = vec![];
+            for m in &mut moves {
+                m.hits = w.root().hit_test(m.position().to_px(w.scale_factor()));
+                let target = m
+                    .hits
+                    .target()
+                    .and_then(|t| w.get(t.widget_id))
+                    .map(|t| t.interaction_path())
+                    .unwrap_or_else(|| w.root().interaction_path());
 
-                    match target.unblocked() {
-                        Some(t) => {
-                            m.target = t;
-                            // hit-test for nested windows
-                            if let Some(wgt) = w.get(m.target.widget_id()) {
-                                if let Some(w) = wgt.nested_window_tree() {
-                                    let transform = wgt.inner_transform().inverse();
-                                    let factor = w.scale_factor();
-                                    let mut position = PxPoint::zero(); // last
-                                    for (mv, _) in &mut m.moves {
-                                        let p = mv.to_px(factor);
-                                        let p = transform.and_then(|t| t.transform_point(p)).unwrap_or(p);
-                                        *mv = p.to_dip(factor);
-                                        position = p;
-                                    }
-                                    m.hits = w.root().hit_test(position);
-                                    let target = m
-                                        .hits
-                                        .target()
-                                        .and_then(|t| w.get(t.widget_id))
-                                        .map(|t| t.interaction_path())
-                                        .unwrap_or_else(|| w.root().interaction_path());
+                match target.unblocked() {
+                    Some(t) => {
+                        m.target = t;
+                        // hit-test for nested windows
+                        if let Some(wgt) = w.get(m.target.widget_id())
+                            && let Some(w) = wgt.nested_window_tree()
+                        {
+                            let transform = wgt.inner_transform().inverse();
+                            let factor = w.scale_factor();
+                            let mut position = PxPoint::zero(); // last
+                            for (mv, _) in &mut m.moves {
+                                let p = mv.to_px(factor);
+                                let p = transform.and_then(|t| t.transform_point(p)).unwrap_or(p);
+                                *mv = p.to_dip(factor);
+                                position = p;
+                            }
+                            m.hits = w.root().hit_test(position);
+                            let target = m
+                                .hits
+                                .target()
+                                .and_then(|t| w.get(t.widget_id))
+                                .map(|t| t.interaction_path())
+                                .unwrap_or_else(|| w.root().interaction_path());
 
-                                    match target.unblocked() {
-                                        Some(t) => m.target = t,
-                                        None => window_blocked_remove.push(m.touch),
-                                    }
-                                }
+                            match target.unblocked() {
+                                Some(t) => m.target = t,
+                                None => window_blocked_remove.push(m.touch),
                             }
                         }
-                        None => {
-                            window_blocked_remove.push(m.touch);
-                        }
+                    }
+                    None => {
+                        window_blocked_remove.push(m.touch);
                     }
                 }
+            }
 
-                let position_updates: Vec<_> = moves
-                    .iter()
-                    .map(|m| TouchPosition {
-                        window_id: args.window_id,
-                        touch: m.touch,
-                        position: m.position(),
-                        start_time: args.timestamp, // ignored
-                        update_time: args.timestamp,
-                    })
-                    .collect();
-                TOUCH_SV.read().positions.modify(move |p| {
-                    for mut update in position_updates {
-                        if let Some(i) = p.iter().position(|p| p.touch == update.touch) {
-                            update.start_time = p[i].start_time;
-                            p[i] = update;
-                        }
+            let position_updates: Vec<_> = moves
+                .iter()
+                .map(|m| TouchPosition {
+                    window_id: args.window_id,
+                    touch: m.touch,
+                    position: m.position(),
+                    start_time: args.timestamp, // ignored
+                    update_time: args.timestamp,
+                })
+                .collect();
+            TOUCH_SV.read().positions.modify(move |p| {
+                for mut update in position_updates {
+                    if let Some(i) = p.iter().position(|p| p.touch == update.touch) {
+                        update.start_time = p[i].start_time;
+                        p[i] = update;
                     }
-                });
+                }
+            });
 
-                let capture_info = POINTER_CAPTURE.current_capture_value();
+            let capture_info = POINTER_CAPTURE.current_capture_value();
 
-                let mut touched_events = vec![];
+            let mut touched_events = vec![];
 
-                for touch in window_blocked_remove {
-                    let touch_move = moves.iter().position(|t| t.touch == touch).unwrap();
-                    moves.swap_remove(touch_move);
+            for touch in window_blocked_remove {
+                let touch_move = moves.iter().position(|t| t.touch == touch).unwrap();
+                moves.swap_remove(touch_move);
 
-                    if let Some(i) = self.pressed.remove(&touch) {
-                        i.touch_propagation.stop();
+                if let Some(i) = self.pressed.remove(&touch) {
+                    i.touch_propagation.stop();
+                    let args = TouchedArgs::now(
+                        args.window_id,
+                        args.device_id,
+                        touch,
+                        i.touch_propagation,
+                        DipPoint::splat(Dip::new(-1)),
+                        None,
+                        TouchPhase::Cancel,
+                        HitTestInfo::no_hits(args.window_id),
+                        i.target,
+                        None,
+                        None,
+                        None,
+                    );
+                    touched_events.push(args);
+                }
+            }
+            for m in &mut moves {
+                if let Some(i) = self.pressed.get_mut(&m.touch) {
+                    let (position, force) = *m.moves.last().unwrap();
+                    i.push_velocity_sample(args.timestamp, position);
+                    m.velocity = i.velocity();
+                    i.position = position;
+                    i.force = force;
+                    i.hits = m.hits.clone();
+                    if i.target != m.target {
                         let args = TouchedArgs::now(
                             args.window_id,
                             args.device_id,
-                            touch,
-                            i.touch_propagation,
-                            DipPoint::splat(Dip::new(-1)),
-                            None,
-                            TouchPhase::Cancel,
-                            HitTestInfo::no_hits(args.window_id),
-                            i.target,
-                            None,
-                            None,
-                            None,
+                            m.touch,
+                            m.touch_propagation.clone(),
+                            position,
+                            force,
+                            TouchPhase::Move,
+                            m.hits.clone(),
+                            i.target.clone(),
+                            m.target.clone(),
+                            capture_info.clone(),
+                            capture_info.clone(),
                         );
+                        i.target = m.target.clone();
                         touched_events.push(args);
                     }
                 }
-                for m in &mut moves {
-                    if let Some(i) = self.pressed.get_mut(&m.touch) {
-                        let (position, force) = *m.moves.last().unwrap();
-                        i.push_velocity_sample(args.timestamp, position);
-                        m.velocity = i.velocity();
-                        i.position = position;
-                        i.force = force;
-                        i.hits = m.hits.clone();
-                        if i.target != m.target {
-                            let args = TouchedArgs::now(
-                                args.window_id,
-                                args.device_id,
-                                m.touch,
-                                m.touch_propagation.clone(),
-                                position,
-                                force,
-                                TouchPhase::Move,
-                                m.hits.clone(),
-                                i.target.clone(),
-                                m.target.clone(),
-                                capture_info.clone(),
-                                capture_info.clone(),
-                            );
-                            i.target = m.target.clone();
-                            touched_events.push(args);
-                        }
-                    }
-                }
+            }
 
-                if !moves.is_empty() {
-                    let args = TouchMoveArgs::now(args.window_id, args.device_id, moves, capture_info, self.modifiers);
-                    TOUCH_MOVE_EVENT.notify(args);
-                }
+            if !moves.is_empty() {
+                let args = TouchMoveArgs::now(args.window_id, args.device_id, moves, capture_info, self.modifiers);
+                TOUCH_MOVE_EVENT.notify(args);
+            }
 
-                for args in touched_events {
-                    TOUCHED_EVENT.notify(args);
-                }
+            for args in touched_events {
+                TOUCHED_EVENT.notify(args);
             }
         }
     }
@@ -1648,10 +1648,10 @@ impl LongPressGesture {
                 }
             }
             TouchPhase::End | TouchPhase::Cancel => {
-                if let Some(p) = &self.pending {
-                    if args.touch_propagation == p.propagation {
-                        self.pending = None;
-                    }
+                if let Some(p) = &self.pending
+                    && args.touch_propagation == p.propagation
+                {
+                    self.pending = None;
                 }
             }
             TouchPhase::Move => unreachable!(),
@@ -1659,51 +1659,54 @@ impl LongPressGesture {
     }
 
     fn on_move(&mut self, args: &TouchMoveArgs) {
-        if let Some(p) = &mut self.pending {
-            if !p.canceled && !p.propagation.is_stopped() {
-                for m in &args.touches {
-                    if p.propagation == m.touch_propagation {
-                        let dist = p.position - m.position().to_vector();
-                        let max = TOUCH.touch_config().get().tap_area;
-                        if dist.x.abs() > max.width || dist.y.abs() > max.height {
-                            p.canceled = true;
-                            break;
-                        }
-                    } else {
+        if let Some(p) = &mut self.pending
+            && !p.canceled
+            && !p.propagation.is_stopped()
+        {
+            for m in &args.touches {
+                if p.propagation == m.touch_propagation {
+                    let dist = p.position - m.position().to_vector();
+                    let max = TOUCH.touch_config().get().tap_area;
+                    if dist.x.abs() > max.width || dist.y.abs() > max.height {
                         p.canceled = true;
                         break;
                     }
+                } else {
+                    p.canceled = true;
+                    break;
                 }
             }
         }
     }
 
     fn on_update(&mut self) {
-        if let Some(p) = &mut self.pending {
-            if !p.canceled && !p.propagation.is_stopped() && p.delay.get().has_elapsed() {
-                if let Ok(w) = WINDOWS.widget_tree(p.window_id) {
-                    if let Some(w) = w.get(p.target) {
-                        let hits = w.hit_test(p.position.to_px(w.tree().scale_factor()));
-                        if hits.contains(p.target) {
-                            p.propagation.stop();
+        if let Some(p) = &mut self.pending
+            && !p.canceled
+            && !p.propagation.is_stopped()
+            && p.delay.get().has_elapsed()
+        {
+            if let Ok(w) = WINDOWS.widget_tree(p.window_id)
+                && let Some(w) = w.get(p.target)
+            {
+                let hits = w.hit_test(p.position.to_px(w.tree().scale_factor()));
+                if hits.contains(p.target) {
+                    p.propagation.stop();
 
-                            let args = TouchLongPressArgs::now(
-                                p.window_id,
-                                p.device_id,
-                                p.touch,
-                                p.position,
-                                hits,
-                                w.interaction_path(),
-                                p.modifiers,
-                                p.start_time,
-                            );
-                            TOUCH_LONG_PRESS_EVENT.notify(args);
-                            return;
-                        }
-                    }
+                    let args = TouchLongPressArgs::now(
+                        p.window_id,
+                        p.device_id,
+                        p.touch,
+                        p.position,
+                        hits,
+                        w.interaction_path(),
+                        p.modifiers,
+                        p.start_time,
+                    );
+                    TOUCH_LONG_PRESS_EVENT.notify(args);
+                    return;
                 }
-                p.canceled = true;
             }
+            p.canceled = true;
         }
     }
 
@@ -2129,16 +2132,15 @@ impl TransformGesture {
                     && !args.touch_propagation.is_stopped()
                     && !handle.is_stopped()
                     && handle != args.touch_propagation
+                    && let Ok(w) = WINDOWS.widget_tree(args.window_id)
                 {
-                    if let Ok(w) = WINDOWS.widget_tree(args.window_id) {
-                        *self = Self::NotStartedTwo {
-                            window_id: args.window_id,
-                            device_id: args.device_id,
-                            start_position: [position, args.position],
-                            position: [position, args.position],
-                            handle: [handle, args.touch_propagation.clone()],
-                            scale_factor: w.scale_factor(),
-                        }
+                    *self = Self::NotStartedTwo {
+                        window_id: args.window_id,
+                        device_id: args.device_id,
+                        start_position: [position, args.position],
+                        position: [position, args.position],
+                        handle: [handle, args.touch_propagation.clone()],
+                        scale_factor: w.scale_factor(),
                     }
                 }
             }

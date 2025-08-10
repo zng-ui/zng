@@ -38,13 +38,13 @@ pub fn renderer_debug(child: impl IntoUiNode, debug: impl IntoVar<RendererDebug>
             }
         }
         UiNodeOp::Layout { .. } => {
-            if std::mem::take(&mut send) {
-                if let Some(ext_id) = VIEW_PROCESS.extension_id("zng-view.webrender_debug").ok().flatten() {
-                    debug.with(|d| match WINDOWS.view_render_extension(WINDOW.id(), ext_id, d) {
-                        Ok(()) => {}
-                        Err(e) => tracing::error!("{e}"),
-                    });
-                }
+            if std::mem::take(&mut send)
+                && let Some(ext_id) = VIEW_PROCESS.extension_id("zng-view.webrender_debug").ok().flatten()
+            {
+                debug.with(|d| match WINDOWS.view_render_extension(WINDOW.id(), ext_id, d) {
+                    Ok(()) => {}
+                    Err(e) => tracing::error!("{e}"),
+                });
             }
         }
         _ => {}

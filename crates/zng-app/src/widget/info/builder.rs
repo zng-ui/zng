@@ -904,36 +904,36 @@ impl WidgetInlineInfo {
             ));
         }
 
-        if let Some(r) = self.rows.first() {
-            if !self.first_segs.is_empty() {
-                let mut x = r.origin.x;
-                for seg in self.first_segs.iter() {
-                    let blank = seg.x - x;
-                    if blank > Px(0) {
-                        space.push(PxRect::new(PxPoint::new(x, r.origin.y), PxSize::new(blank, r.size.height)));
-                    }
-                    x = seg.x + seg.width;
-                }
-                let blank = r.max_x() - x;
+        if let Some(r) = self.rows.first()
+            && !self.first_segs.is_empty()
+        {
+            let mut x = r.origin.x;
+            for seg in self.first_segs.iter() {
+                let blank = seg.x - x;
                 if blank > Px(0) {
                     space.push(PxRect::new(PxPoint::new(x, r.origin.y), PxSize::new(blank, r.size.height)));
                 }
+                x = seg.x + seg.width;
+            }
+            let blank = r.max_x() - x;
+            if blank > Px(0) {
+                space.push(PxRect::new(PxPoint::new(x, r.origin.y), PxSize::new(blank, r.size.height)));
             }
         }
-        if let Some(r) = self.rows.last() {
-            if !self.last_segs.is_empty() {
-                let mut x = r.origin.x;
-                for seg in self.last_segs.iter() {
-                    let blank = seg.x - x;
-                    if blank > Px(0) {
-                        space.push(PxRect::new(PxPoint::new(x, r.origin.y), PxSize::new(blank, r.size.height)));
-                    }
-                    x = seg.x + seg.width;
-                }
-                let blank = r.max_x() - x;
+        if let Some(r) = self.rows.last()
+            && !self.last_segs.is_empty()
+        {
+            let mut x = r.origin.x;
+            for seg in self.last_segs.iter() {
+                let blank = seg.x - x;
                 if blank > Px(0) {
                     space.push(PxRect::new(PxPoint::new(x, r.origin.y), PxSize::new(blank, r.size.height)));
                 }
+                x = seg.x + seg.width;
+            }
+            let blank = r.max_x() - x;
+            if blank > Px(0) {
+                space.push(PxRect::new(PxPoint::new(x, r.origin.y), PxSize::new(blank, r.size.height)));
             }
         }
     }

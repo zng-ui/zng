@@ -75,10 +75,10 @@ impl zng_app::AppExtension for MaterialIconsManager {
                     ("sharp/", sharp::get),
                 ];
                 for (name, get) in sets {
-                    if let Some(key) = strong_key.strip_prefix(name) {
-                        if let Some(ico) = get(key) {
-                            return Icon!(ico);
-                        }
+                    if let Some(key) = strong_key.strip_prefix(name)
+                        && let Some(ico) = get(key)
+                    {
+                        return Icon!(ico);
                     }
                 }
             }

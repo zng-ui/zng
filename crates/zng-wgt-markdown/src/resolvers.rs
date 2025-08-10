@@ -241,15 +241,15 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
     // Note: file names can start with #, but we are choosing to always interpret URLs with this prefix as an anchor.
     if let Some(anchor) = args.url.strip_prefix('#') {
         let tree = WINDOW.info();
-        if let Some(md) = tree.get(WIDGET.id()).and_then(|w| w.self_and_ancestors().find(|w| w.is_markdown())) {
-            if let Some(target) = md.find_anchor(anchor) {
-                // scroll-to
-                zng_wgt_scroll::cmd::scroll_to(target.clone(), LINK_SCROLL_MODE_VAR.get());
+        if let Some(md) = tree.get(WIDGET.id()).and_then(|w| w.self_and_ancestors().find(|w| w.is_markdown()))
+            && let Some(target) = md.find_anchor(anchor)
+        {
+            // scroll-to
+            zng_wgt_scroll::cmd::scroll_to(target.clone(), LINK_SCROLL_MODE_VAR.get());
 
-                // focus if target if focusable
-                if let Some(focus) = target.into_focus_info(true, true).self_and_descendants().find(|w| w.is_focusable()) {
-                    FOCUS.focus_widget(focus.info().id(), false);
-                }
+            // focus if target if focusable
+            if let Some(focus) = target.into_focus_info(true, true).self_and_descendants().find(|w| w.is_focusable()) {
+                FOCUS.focus_widget(focus.info().id(), false);
             }
         }
         args.propagation().stop();

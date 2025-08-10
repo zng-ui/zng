@@ -158,10 +158,10 @@ fn editor_state() -> Var<Option<SettingsEditorState>> {
     let sel = SETTINGS.editor_selected_category().current_context();
     let wk_sel_cat = sel.downgrade();
     fn correct_sel(options: &[Category], sel: &Var<CategoryId>) {
-        if sel.with(|s| !options.iter().any(|c| c.id() == s)) {
-            if let Some(first) = options.first() {
-                sel.set(first.id().clone());
-            }
+        if sel.with(|s| !options.iter().any(|c| c.id() == s))
+            && let Some(first) = options.first()
+        {
+            sel.set(first.id().clone());
         }
     }
     r.hook(move |r| {
@@ -332,11 +332,11 @@ pub fn handle_settings_cmd() {
                 let parent = WINDOWS.focused_window_id();
 
                 let new_window = WINDOWS.focus_or_open("zng-config-settings-default", async move {
-                    if let Some(p) = parent {
-                        if let Ok(p) = WINDOWS.vars(p) {
-                            let v = WINDOW.vars();
-                            p.icon().set_bind(&v.icon()).perm();
-                        }
+                    if let Some(p) = parent
+                        && let Ok(p) = WINDOWS.vars(p)
+                    {
+                        let v = WINDOW.vars();
+                        p.icon().set_bind(&v.icon()).perm();
                     }
 
                     Window! {

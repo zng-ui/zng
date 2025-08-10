@@ -52,10 +52,10 @@ pub fn zoom_size_only(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> Ui
         }
         UiNodeOp::Render { frame } => {
             if frame.is_outer() {
-                if scale != 1.fct() {
-                    if let Some(t) = PxTransform::scale(scale.0, scale.0).inverse() {
-                        frame.push_inner_transform(&t, |frame| c.render(frame));
-                    }
+                if scale != 1.fct()
+                    && let Some(t) = PxTransform::scale(scale.0, scale.0).inverse()
+                {
+                    frame.push_inner_transform(&t, |frame| c.render(frame));
                 }
             } else {
                 tracing::error!("zoom_size_only must render outside NestGroup::WIDGET_INNER")
@@ -63,10 +63,10 @@ pub fn zoom_size_only(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> Ui
         }
         UiNodeOp::RenderUpdate { update } => {
             if update.is_outer() {
-                if scale != 1.fct() {
-                    if let Some(t) = PxTransform::scale(scale.0, scale.0).inverse() {
-                        update.with_inner_transform(&t, |update| c.render_update(update));
-                    }
+                if scale != 1.fct()
+                    && let Some(t) = PxTransform::scale(scale.0, scale.0).inverse()
+                {
+                    update.with_inner_transform(&t, |update| c.render_update(update));
                 }
             } else {
                 tracing::error!("zoom_size_only must render outside NestGroup::WIDGET_INNER")

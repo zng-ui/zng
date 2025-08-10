@@ -187,10 +187,12 @@ fn parse_template(arg: String) -> Template {
         return Template::Local(PathBuf::from(arg), branch.to_owned());
     }
 
-    if let Some((owner, repo)) = arg.split_once('/') {
-        if !owner.is_empty() && !repo.is_empty() && !repo.contains('/') {
-            return Template::Git(format!("https://github.com/{owner}/{repo}.git"), branch.to_owned());
-        }
+    if let Some((owner, repo)) = arg.split_once('/')
+        && !owner.is_empty()
+        && !repo.is_empty()
+        && !repo.contains('/')
+    {
+        return Template::Git(format!("https://github.com/{owner}/{repo}.git"), branch.to_owned());
     }
 
     let path = PathBuf::from(arg);
@@ -501,25 +503,25 @@ fn parse_keys(zng_template_v1: String, include_docs: bool) -> io::Result<KeyMap>
         }
 
         let docs = mem::take(&mut docs);
-        if let Some((key, val)) = line.split_once('=') {
-            if is_key(key) {
-                if val.is_empty() {
-                    r.push(TemplateKey {
-                        docs,
-                        key: key.to_owned(),
-                        value: None,
-                        required: true,
-                    });
-                    continue;
-                } else if val.starts_with('"') && val.ends_with('"') {
-                    r.push(TemplateKey {
-                        docs,
-                        key: key.to_owned(),
-                        value: Some(val[1..val.len() - 1].to_owned()),
-                        required: false,
-                    });
-                    continue;
-                }
+        if let Some((key, val)) = line.split_once('=')
+            && is_key(key)
+        {
+            if val.is_empty() {
+                r.push(TemplateKey {
+                    docs,
+                    key: key.to_owned(),
+                    value: None,
+                    required: true,
+                });
+                continue;
+            } else if val.starts_with('"') && val.ends_with('"') {
+                r.push(TemplateKey {
+                    docs,
+                    key: key.to_owned(),
+                    value: Some(val[1..val.len() - 1].to_owned()),
+                    required: false,
+                });
+                continue;
             }
         }
         return Err(io::Error::new(

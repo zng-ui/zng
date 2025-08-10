@@ -168,10 +168,10 @@ impl fmt::Debug for BorderSide {
                 .field("style", &self.style)
                 .finish()
         } else {
-            if let BorderStyle::Hidden = self.style {
-                if self.color.alpha.abs() < 0.0001 {
-                    return write!(f, "Hidden");
-                }
+            if let BorderStyle::Hidden = self.style
+                && self.color.alpha.abs() < 0.0001
+            {
+                return write!(f, "Hidden");
             }
             write!(f, "({:?}, {:?})", self.color, self.style)
         }

@@ -2046,21 +2046,19 @@ pub fn get_selection(child: impl IntoUiNode, state: impl IntoVar<Txt>) -> UiNode
 
         c.op(op);
 
-        if update {
-            if let Some(ctx) = TEXT.try_resolved() {
-                let new_sel = (ctx.caret.index.unwrap_or(CaretIndex::ZERO), ctx.caret.selection_index);
+        if update && let Some(ctx) = TEXT.try_resolved() {
+            let new_sel = (ctx.caret.index.unwrap_or(CaretIndex::ZERO), ctx.caret.selection_index);
 
-                if last_sel != new_sel {
-                    last_sel = new_sel;
+            if last_sel != new_sel {
+                last_sel = new_sel;
 
-                    let txt = if let Some(range) = ctx.caret.selection_char_range() {
-                        Txt::from_str(&ctx.segmented_text.text()[range])
-                    } else {
-                        Txt::from_static("")
-                    };
+                let txt = if let Some(range) = ctx.caret.selection_char_range() {
+                    Txt::from_str(&ctx.segmented_text.text()[range])
+                } else {
+                    Txt::from_static("")
+                };
 
-                    state.set(txt);
-                }
+                state.set(txt);
             }
         }
     })

@@ -496,18 +496,15 @@ pub mod node {
             UiNodeOp::Measure { wm, desired_size } => {
                 *desired_size = child.measure(wm);
 
-                if let Some(inline) = wm.inline() {
-                    if inline.is_default() {
-                        if let Some(child_inline) = child
-                            .node()
-                            .as_widget()
-                            .map(|mut w| w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline()))
-                            .flatten()
-                        {
-                            // pass through child inline
-                            *inline = child_inline;
-                        }
-                    }
+                if let Some(inline) = wm.inline()
+                    && inline.is_default()
+                    && let Some(child_inline) = child
+                        .node()
+                        .as_widget()
+                        .and_then(|mut w| w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline()))
+                {
+                    // pass through child inline
+                    *inline = child_inline;
                 }
             }
             UiNodeOp::Layout { wl, final_size } => {
@@ -521,18 +518,17 @@ pub mod node {
 
                 if !define_ref_frame {
                     // child maybe widget, try to copy inline
-                    if let Some(inline) = wl.inline() {
-                        if inline.is_default() {
-                            if let Some(mut wgt) = child.node().as_widget() {
-                                wgt.with_context(WidgetUpdateMode::Ignore, || {
-                                    let bounds = WIDGET.bounds();
-                                    let child_inline = bounds.inline();
-                                    if let Some(child_inline) = child_inline {
-                                        inline.clone_from(&*child_inline);
-                                    }
-                                });
+                    if let Some(inline) = wl.inline()
+                        && inline.is_default()
+                        && let Some(mut wgt) = child.node().as_widget()
+                    {
+                        wgt.with_context(WidgetUpdateMode::Ignore, || {
+                            let bounds = WIDGET.bounds();
+                            let child_inline = bounds.inline();
+                            if let Some(child_inline) = child_inline {
+                                inline.clone_from(&*child_inline);
                             }
-                        }
+                        });
                     }
                 }
             }

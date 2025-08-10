@@ -83,14 +83,14 @@ pub fn visit_tools(local: &Path, mut tool: impl FnMut(Tool) -> anyhow::Result<Co
             .path();
         if path.is_file() {
             let name = path.file_name().unwrap().to_string_lossy();
-            if let Some(name) = name.strip_prefix("cargo-zng-res-") {
-                if path.is_executable() {
-                    tool!(Tool {
-                        name: name.split('.').next().unwrap().to_owned(),
-                        kind: ToolKind::Installed,
-                        path,
-                    });
-                }
+            if let Some(name) = name.strip_prefix("cargo-zng-res-")
+                && path.is_executable()
+            {
+                tool!(Tool {
+                    name: name.split('.').next().unwrap().to_owned(),
+                    kind: ToolKind::Installed,
+                    path,
+                });
             }
         }
     }
@@ -268,14 +268,13 @@ impl Tool {
                 }
 
                 at_line_start = s.last() == Some(&b'\n');
-                if at_line_start {
-                    if let Some(i) = maybe_request_start.take() {
-                        if !requests[i..].starts_with(REQUEST) {
-                            out.write_all(&requests[i..])?;
-                            out.flush()?;
-                            requests.truncate(i);
-                        }
-                    }
+                if at_line_start
+                    && let Some(i) = maybe_request_start.take()
+                    && !requests[i..].starts_with(REQUEST)
+                {
+                    out.write_all(&requests[i..])?;
+                    out.flush()?;
+                    requests.truncate(i);
                 }
             }
         }

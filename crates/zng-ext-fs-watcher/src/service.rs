@@ -104,12 +104,11 @@ impl WatcherService {
         if let Some(n) = self.poll_interval.get_new() {
             self.watcher.set_poll_interval(n);
         }
-        if !self.debounce_buffer.is_empty() {
-            if let Some(n) = self.debounce.get_new() {
-                if self.debounce_oldest.elapsed() >= n {
-                    self.notify();
-                }
-            }
+        if !self.debounce_buffer.is_empty()
+            && let Some(n) = self.debounce.get_new()
+            && self.debounce_oldest.elapsed() >= n
+        {
+            self.notify();
         }
         self.read_to_var.retain_mut(|f| f.retain());
         let sync_debounce = self.sync_debounce.get();
@@ -338,11 +337,11 @@ impl WatcherService {
     }
 
     fn on_watcher(&mut self, r: Result<fs_event::Event, fs_event::Error>) {
-        if let Ok(r) = &r {
-            if !self.watcher.allow(r) {
-                // file parent watcher, file not affected.
-                return;
-            }
+        if let Ok(r) = &r
+            && !self.watcher.allow(r)
+        {
+            // file parent watcher, file not affected.
+            return;
         }
 
         let notify = self.debounce_oldest.elapsed() >= self.debounce.get();
@@ -757,10 +756,10 @@ impl Watchers {
         let w = self.dirs.entry(path.clone()).or_default();
 
         for (m, handle) in &w.modes {
-            if m == &mode {
-                if let Some(h) = handle.weak_handle().upgrade() {
-                    return WatcherHandle(h);
-                }
+            if m == &mode
+                && let Some(h) = handle.weak_handle().upgrade()
+            {
+                return WatcherHandle(h);
             }
         }
 
@@ -919,10 +918,10 @@ impl Watchers {
     }
 
     fn allow(&mut self, r: &fs_event::Event) -> bool {
-        if let notify::EventKind::Access(_) = r.kind {
-            if !r.need_rescan() {
-                return false;
-            }
+        if let notify::EventKind::Access(_) = r.kind
+            && !r.need_rescan()
+        {
+            return false;
         }
 
         for (dir, w) in &mut self.dirs {
@@ -932,27 +931,25 @@ impl Watchers {
                 match mode {
                     WatchMode::File(f) => {
                         for path in &r.paths {
-                            if let Some(name) = path.file_name() {
-                                if name == f {
-                                    if let Some(path) = path.parent() {
-                                        if path == dir {
-                                            // matched `dir/exact`
-                                            matched = true;
-                                            break 'modes;
-                                        }
-                                    }
-                                }
+                            if let Some(name) = path.file_name()
+                                && name == f
+                                && let Some(path) = path.parent()
+                                && path == dir
+                            {
+                                // matched `dir/exact`
+                                matched = true;
+                                break 'modes;
                             }
                         }
                     }
                     WatchMode::Children => {
                         for path in &r.paths {
-                            if let Some(path) = path.parent() {
-                                if path == dir {
-                                    // matched `dir/*`
-                                    matched = true;
-                                    break 'modes;
-                                }
+                            if let Some(path) = path.parent()
+                                && path == dir
+                            {
+                                // matched `dir/*`
+                                matched = true;
+                                break 'modes;
                             }
                         }
                     }
@@ -1026,12 +1023,11 @@ struct PollWatcher {
 
 impl PollWatcher {
     fn send_msg(&mut self, msg: PollMsg) {
-        if self.sender.send(msg).is_err() {
-            if let Some(worker) = self.worker.take() {
-                if let Err(panic) = worker.join() {
-                    std::panic::resume_unwind(panic);
-                }
-            }
+        if self.sender.send(msg).is_err()
+            && let Some(worker) = self.worker.take()
+            && let Err(panic) = worker.join()
+        {
+            std::panic::resume_unwind(panic);
         }
     }
 }

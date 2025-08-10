@@ -437,12 +437,12 @@ impl Controller {
                     use std::os::unix::process::ExitStatusExt as _;
                     signal = c.signal();
 
-                    if let Some(sig) = signal {
-                        if [2, 9, 17, 19, 23].contains(&sig) {
-                            tracing::warn!(target: "vp_respawn", "view-process exited by signal ({sig}), \
+                    if let Some(sig) = signal
+                        && [2, 9, 17, 19, 23].contains(&sig)
+                    {
+                        tracing::warn!(target: "vp_respawn", "view-process exited by signal ({sig}), \
                                             will exit app-process with code 1");
-                            zng_env::exit(1);
-                        }
+                        zng_env::exit(1);
                     }
                 }
             }
@@ -513,14 +513,14 @@ impl Drop for Controller {
     fn drop(&mut self) {
         let _ = self.exit();
         #[cfg(ipc)]
-        if let Some(mut process) = self.process.take() {
+        if let Some(mut process) = self.process.take()
+            && process.try_wait().is_err()
+        {
+            std::thread::sleep(Duration::from_secs(1));
             if process.try_wait().is_err() {
-                std::thread::sleep(Duration::from_secs(1));
-                if process.try_wait().is_err() {
-                    tracing::error!("view-process did not exit after 1s, killing");
-                    let _ = process.kill();
-                    let _ = process.wait();
-                }
+                tracing::error!("view-process did not exit after 1s, killing");
+                let _ = process.kill();
+                let _ = process.wait();
             }
         }
     }

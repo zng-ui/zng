@@ -312,10 +312,10 @@ impl ModifyInfo {
     ///
     /// [`importance`]: Self::importance
     pub fn hook_animation_stop(&self, handler: AnimationStopFn) -> Result<(), AnimationStopFn> {
-        if let Some(h) = &self.handle {
-            if let Some(h) = h.upgrade() {
-                return h.hook_animation_stop(handler);
-            }
+        if let Some(h) = &self.handle
+            && let Some(h) = h.upgrade()
+        {
+            return h.hook_animation_stop(handler);
         }
         Err(handler)
     }

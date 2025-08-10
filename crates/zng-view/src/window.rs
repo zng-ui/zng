@@ -1071,12 +1071,12 @@ impl Window {
 
             self.set_inner_position(new_state.restore_rect.origin);
             let new_size = new_state.restore_rect.size.to_winit();
-            if let Some(immediate_new_size) = self.window.request_inner_size(new_size) {
-                if immediate_new_size == new_size.to_physical(self.window.scale_factor()) {
-                    // size changed immediately, winit says: "resize event in such case may not be generated"
-                    // * Review of Windows and Linux shows that the resize event is send.
-                    tracing::debug!("immediate resize may not have notified, new size: {immediate_new_size:?}");
-                }
+            if let Some(immediate_new_size) = self.window.request_inner_size(new_size)
+                && immediate_new_size == new_size.to_physical(self.window.scale_factor())
+            {
+                // size changed immediately, winit says: "resize event in such case may not be generated"
+                // * Review of Windows and Linux shows that the resize event is send.
+                tracing::debug!("immediate resize may not have notified, new size: {immediate_new_size:?}");
             }
 
             self.window.set_min_inner_size(Some(new_state.min_size.to_winit()));

@@ -29,10 +29,8 @@ pub fn z_index(child: impl IntoUiNode, index: impl IntoVar<ZIndex>) -> UiNode {
             }
         }
         UiNodeOp::Update { .. } => {
-            if valid {
-                if let Some(i) = index.get_new() {
-                    assert!(Z_INDEX.set(i));
-                }
+            if valid && let Some(i) = index.get_new() {
+                assert!(Z_INDEX.set(i));
             }
         }
         _ => {}

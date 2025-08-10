@@ -722,10 +722,10 @@ fn best_effort_clear(path: &Path) -> io::Result<()> {
                                     }
                                 }
                             }
-                        } else if path.is_file() {
-                            if let Err(e) = fs::remove_file(&path) {
-                                error = Some(e);
-                            }
+                        } else if path.is_file()
+                            && let Err(e) = fs::remove_file(&path)
+                        {
+                            error = Some(e);
                         }
                     }
                     Err(e) => {

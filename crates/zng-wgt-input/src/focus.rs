@@ -232,19 +232,20 @@ pub fn focus_click_behavior(child: impl IntoUiNode, behavior: impl IntoVar<Focus
                         FOCUS.focus_exit();
                     }
                 }
-            } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
-                if args.propagation().is_stopped() && !delegate() {
-                    // CLICK_EVENT not send if source mouse-input is already handled.
+            } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update)
+                && args.propagation().is_stopped()
+                && !delegate()
+            {
+                // CLICK_EVENT not send if source mouse-input is already handled.
 
-                    let exit = match behavior.get() {
-                        FocusClickBehavior::Ignore => false,
-                        FocusClickBehavior::Exit => true,
-                        FocusClickBehavior::ExitEnabled => args.target.interactivity().is_enabled(),
-                        FocusClickBehavior::ExitHandled => true,
-                    };
-                    if exit {
-                        FOCUS.focus_exit();
-                    }
+                let exit = match behavior.get() {
+                    FocusClickBehavior::Ignore => false,
+                    FocusClickBehavior::Exit => true,
+                    FocusClickBehavior::ExitEnabled => args.target.interactivity().is_enabled(),
+                    FocusClickBehavior::ExitHandled => true,
+                };
+                if exit {
+                    FOCUS.focus_exit();
                 }
             }
         }
@@ -507,24 +508,24 @@ pub fn return_focus_on_deinit(child: impl IntoUiNode, enabled: impl IntoVar<bool
             return_focus = FOCUS.focused().with(|p| p.as_ref().map(|p| p.widget_id()));
         }
         UiNodeOp::Deinit => {
-            if let Some(id) = return_focus.take() {
-                if enabled.get() {
-                    if let Some(w) = zng_ext_window::WINDOWS.widget_info(id) {
-                        if w.into_focusable(false, false).is_some() {
-                            // can focus on the next update
-                            FOCUS.focus_widget(id, false);
-                            return;
-                        }
-                    }
-                    // try focus after info rebuild.
-                    WIDGET_INFO_CHANGED_EVENT
-                        .on_pre_event(app_hn_once!(|_| {
-                            FOCUS.focus_widget(id, false);
-                        }))
-                        .perm();
-                    // ensure info rebuilds to clear the event at least
-                    WIDGET.update_info();
+            if let Some(id) = return_focus.take()
+                && enabled.get()
+            {
+                if let Some(w) = zng_ext_window::WINDOWS.widget_info(id)
+                    && w.into_focusable(false, false).is_some()
+                {
+                    // can focus on the next update
+                    FOCUS.focus_widget(id, false);
+                    return;
                 }
+                // try focus after info rebuild.
+                WIDGET_INFO_CHANGED_EVENT
+                    .on_pre_event(app_hn_once!(|_| {
+                        FOCUS.focus_widget(id, false);
+                    }))
+                    .perm();
+                // ensure info rebuilds to clear the event at least
+                WIDGET.update_info();
             }
         }
         _ => {}

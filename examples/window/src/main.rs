@@ -410,10 +410,10 @@ fn custom_chrome(title: Var<Txt>) -> UiNode {
         });
 
         gesture::on_context_click = hn!(|args: &gesture::ClickArgs| {
-            if matches!(WINDOW.vars().state().get(), WindowState::Normal | WindowState::Maximized) {
-                if let Some(p) = args.position() {
-                    window::cmd::OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(WINDOW.id()).notify_param(p);
-                }
+            if matches!(WINDOW.vars().state().get(), WindowState::Normal | WindowState::Maximized)
+                && let Some(p) = args.position()
+            {
+                window::cmd::OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(WINDOW.id()).notify_param(p);
             }
         });
     };
@@ -481,11 +481,10 @@ fn custom_chrome(title: Var<Txt>) -> UiNode {
                 });
             });
             mouse::on_mouse_down = hn!(|args: &mouse::MouseInputArgs| {
-                if args.is_primary() {
-                    if let Some(d) = args.position_wgt().and_then(resize_direction) {
+                if args.is_primary()
+                    && let Some(d) = args.position_wgt().and_then(resize_direction) {
                         window::cmd::DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify_param(d);
                     }
-                }
             });
         }
     }

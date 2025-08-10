@@ -533,12 +533,11 @@ fn when_var_easing_tail<O: VarValue + Transitionable>(builder: AnimatingWhenVarB
             if let Some(output) = weak_output.upgrade() {
                 let source = weak_source.upgrade().unwrap();
                 for ((c, _), easing) in source.conditions.iter().zip(&condition_easing) {
-                    if let Some((duration, func)) = easing {
-                        if c.get() {
-                            _animation_handle =
-                                output.ease(args.downcast_value::<O>().unwrap().clone(), *duration, clmv!(func, |t| func(t)));
-                            return true;
-                        }
+                    if let Some((duration, func)) = easing
+                        && c.get()
+                    {
+                        _animation_handle = output.ease(args.downcast_value::<O>().unwrap().clone(), *duration, clmv!(func, |t| func(t)));
+                        return true;
                     }
                 }
                 // else default

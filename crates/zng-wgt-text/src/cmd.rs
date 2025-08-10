@@ -1340,17 +1340,17 @@ fn rich_select_op_start<D0: Send + 'static, D1: Send + 'static, D2: Send + 'stat
         notify_leaf_select_op(
             index,
             TextSelectOp::new(move || {
-                if let Some(ctx) = TEXT.try_rich() {
-                    if index == WIDGET.id() {
-                        rich_select_op_get_caret(
-                            ctx,
-                            index,
-                            d0.take().unwrap(),
-                            f0.take().unwrap(),
-                            f1.take().unwrap(),
-                            f2.take().unwrap(),
-                        );
-                    }
+                if let Some(ctx) = TEXT.try_rich()
+                    && index == WIDGET.id()
+                {
+                    rich_select_op_get_caret(
+                        ctx,
+                        index,
+                        d0.take().unwrap(),
+                        f0.take().unwrap(),
+                        f1.take().unwrap(),
+                        f2.take().unwrap(),
+                    );
                 }
             }),
         );
@@ -1380,16 +1380,16 @@ fn rich_select_op_get_caret<D0, D1, D2: Send + 'static>(
                 notify_leaf_select_op(
                     selection_index,
                     TextSelectOp::new(move || {
-                        if let Some(ctx) = TEXT.try_rich() {
-                            if selection_index == WIDGET.id() {
-                                rich_select_op_get_selection(
-                                    ctx,
-                                    (rich_caret_index, index),
-                                    selection_index,
-                                    d2.take().unwrap(),
-                                    f0.take().unwrap(),
-                                );
-                            }
+                        if let Some(ctx) = TEXT.try_rich()
+                            && selection_index == WIDGET.id()
+                        {
+                            rich_select_op_get_selection(
+                                ctx,
+                                (rich_caret_index, index),
+                                selection_index,
+                                d2.take().unwrap(),
+                                f0.take().unwrap(),
+                            );
                         }
                     }),
                 );
@@ -1486,10 +1486,10 @@ fn rich_clear_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
                     let index = local_ctx.caret.index.unwrap_or(CaretIndex::ZERO).index;
                     if index == local_ctx.segmented_text.text().len() {
                         // next from end, check if has next sibling
-                        if let Some(info) = ctx.leaf_info(WIDGET.id()) {
-                            if let Some(next) = info.rich_text_next().next() {
-                                return (next.id(), true);
-                            }
+                        if let Some(info) = ctx.leaf_info(WIDGET.id())
+                            && let Some(next) = info.rich_text_next().next()
+                        {
+                            return (next.id(), true);
                         }
                     }
 
@@ -1502,10 +1502,10 @@ fn rich_clear_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
                     if local_ctx.caret.index.unwrap_or(CaretIndex::ZERO).index <= cutout {
                         // next moves to the start (or is already in start)
 
-                        if let Some(info) = ctx.leaf_info(WIDGET.id()) {
-                            if let Some(prev) = info.rich_text_prev().next() {
-                                return (prev.id(), true);
-                            }
+                        if let Some(info) = ctx.leaf_info(WIDGET.id())
+                            && let Some(prev) = info.rich_text_prev().next()
+                        {
+                            return (prev.id(), true);
                         }
                     }
 
@@ -1581,10 +1581,10 @@ fn rich_select_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
             if is_next {
                 if index == local_ctx.segmented_text.text().len() {
                     // next from end
-                    if let Some(info) = ctx.leaf_info(WIDGET.id()) {
-                        if let Some(next) = info.rich_text_next().next() {
-                            return (next.id(), true);
-                        }
+                    if let Some(info) = ctx.leaf_info(WIDGET.id())
+                        && let Some(next) = info.rich_text_next().next()
+                    {
+                        return (next.id(), true);
                     }
                 }
             } else {
@@ -1593,10 +1593,10 @@ fn rich_select_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
                 let cutout = if is_word { local_ctx.segmented_text.next_word_index(0) } else { 1 };
                 if local_ctx.caret.index.unwrap_or(CaretIndex::ZERO).index <= cutout {
                     // next moves to the start (or is already in start)
-                    if let Some(info) = ctx.leaf_info(WIDGET.id()) {
-                        if let Some(prev) = info.rich_text_prev().next() {
-                            return (prev.id(), true);
-                        }
+                    if let Some(info) = ctx.leaf_info(WIDGET.id())
+                        && let Some(prev) = info.rich_text_prev().next()
+                    {
+                        return (prev.id(), true);
                     }
                 }
             }
@@ -1792,43 +1792,43 @@ fn rich_up_down(clear_selection: bool, is_down: bool, is_page: bool) -> TextSele
 
                         // get the next(wgt) local line that is in the next/prev rich line
                         let mut next_line = 0;
-                        if let Some(next_inline_rows_len) = next_info.bounds_info().inline().map(|i| i.rows.len()) {
-                            if next_inline_rows_len > 1 {
-                                if is_down {
-                                    // next is logical next
+                        if let Some(next_inline_rows_len) = next_info.bounds_info().inline().map(|i| i.rows.len())
+                            && next_inline_rows_len > 1
+                        {
+                            if is_down {
+                                // next is logical next
 
-                                    if local_line_i == last_line_i {
-                                        // local did not start next line
+                                if local_line_i == last_line_i {
+                                    // local did not start next line
 
-                                        for l_next in local_info.rich_text_next() {
-                                            let line_info = l_next.rich_text_line_info();
-                                            if line_info.starts_new_line || line_info.ends_in_new_line {
-                                                // found rich line end
-                                                if l_next == next {
-                                                    // its inside the `next`, meaning it starts on the same rich line
-                                                    next_line = 1;
-                                                }
-                                                break;
+                                    for l_next in local_info.rich_text_next() {
+                                        let line_info = l_next.rich_text_line_info();
+                                        if line_info.starts_new_line || line_info.ends_in_new_line {
+                                            // found rich line end
+                                            if l_next == next {
+                                                // its inside the `next`, meaning it starts on the same rich line
+                                                next_line = 1;
                                             }
+                                            break;
                                         }
                                     }
-                                } else {
-                                    // next is up (logical prev)
-                                    next_line = next_inline_rows_len - 1;
+                                }
+                            } else {
+                                // next is up (logical prev)
+                                next_line = next_inline_rows_len - 1;
 
-                                    if local_line_i == 0 && !local_line_info.starts_new_line {
-                                        // local did not start current line
+                                if local_line_i == 0 && !local_line_info.starts_new_line {
+                                    // local did not start current line
 
-                                        for l_prev in local_info.rich_text_prev() {
-                                            let line_info = l_prev.rich_text_line_info();
-                                            if line_info.starts_new_line || line_info.ends_in_new_line {
-                                                // found rich line start
-                                                if l_prev == next {
-                                                    // its inside the `next`, meaning it ends on the same rich line
-                                                    next_line -= 1;
-                                                }
-                                                break;
+                                    for l_prev in local_info.rich_text_prev() {
+                                        let line_info = l_prev.rich_text_line_info();
+                                        if line_info.starts_new_line || line_info.ends_in_new_line {
+                                            // found rich line start
+                                            if l_prev == next {
+                                                // its inside the `next`, meaning it ends on the same rich line
+                                                next_line -= 1;
                                             }
+                                            break;
                                         }
                                     }
                                 }
@@ -1847,19 +1847,20 @@ fn rich_up_down(clear_selection: bool, is_down: bool, is_page: bool) -> TextSele
                 // if already at first line
                 local_line_i == 0
             };
-            if is_page && !cant_go_down_up {
-                if let Some(local_line) = laidout.shaped_text.line(local_line_i) {
-                    if is_down {
-                        if let Some(last_line) = laidout.shaped_text.line(last_line_i) {
-                            // if page down distance greater than distance to last line
-                            let max_local_y = last_line.rect().max_y() - local_line.rect().min_y();
-                            cant_go_down_up = max_local_y < page_h;
-                        }
-                    } else if let Some(first_line) = laidout.shaped_text.line(0) {
-                        // if page up distance greater than distance to first line
-                        let max_local_y = local_line.rect().max_y() - first_line.rect().min_y();
+            if is_page
+                && !cant_go_down_up
+                && let Some(local_line) = laidout.shaped_text.line(local_line_i)
+            {
+                if is_down {
+                    if let Some(last_line) = laidout.shaped_text.line(last_line_i) {
+                        // if page down distance greater than distance to last line
+                        let max_local_y = last_line.rect().max_y() - local_line.rect().min_y();
                         cant_go_down_up = max_local_y < page_h;
                     }
+                } else if let Some(first_line) = laidout.shaped_text.line(0) {
+                    // if page up distance greater than distance to first line
+                    let max_local_y = local_line.rect().max_y() - first_line.rect().min_y();
+                    cant_go_down_up = max_local_y < page_h;
                 }
             }
             if cant_go_down_up {
@@ -2082,18 +2083,18 @@ fn rich_line_start_end(clear_selection: bool, is_end: bool) -> TextSelectOp {
         },
         // get local caret index in the rich line start/end widget
         move |from_id| {
-            if let Some(from_id) = from_id {
-                if from_id != WIDGET.id() {
-                    // ensure the caret is at a start/end from the other sibling for `local_line_start_end`
-                    if is_end {
-                        TEXT.resolve_caret().index = Some(CaretIndex::ZERO);
-                    } else {
-                        let local_ctx = TEXT.laidout();
-                        let line = local_ctx.shaped_text.lines_len() - 1;
-                        let index = local_ctx.shaped_text.line(line).unwrap().text_caret_range().end;
-                        drop(local_ctx);
-                        TEXT.resolve_caret().index = Some(CaretIndex { index, line })
-                    }
+            if let Some(from_id) = from_id
+                && from_id != WIDGET.id()
+            {
+                // ensure the caret is at a start/end from the other sibling for `local_line_start_end`
+                if is_end {
+                    TEXT.resolve_caret().index = Some(CaretIndex::ZERO);
+                } else {
+                    let local_ctx = TEXT.laidout();
+                    let line = local_ctx.shaped_text.lines_len() - 1;
+                    let index = local_ctx.shaped_text.line(line).unwrap().text_caret_range().end;
+                    drop(local_ctx);
+                    TEXT.resolve_caret().index = Some(CaretIndex { index, line })
                 }
             }
             local_line_start_end(clear_selection, is_end);
@@ -2197,10 +2198,10 @@ fn local_text_start_end(clear_selection: bool, is_end: bool) {
 fn rich_nearest_char_word_to(clear_selection: bool, window_point: DipPoint, is_word: bool) -> TextSelectOp {
     TextSelectOp::new_rich(
         move |ctx| {
-            if let Some(root) = ctx.root_info() {
-                if let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point.to_px(root.tree().scale_factor())) {
-                    return (nearest_leaf.id(), ());
-                }
+            if let Some(root) = ctx.root_info()
+                && let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point.to_px(root.tree().scale_factor()))
+            {
+                return (nearest_leaf.id(), ());
             }
             (WIDGET.id(), ())
         },
@@ -2297,10 +2298,10 @@ fn rich_selection_index_nearest_to(window_point: DipPoint, move_selection_index:
                 return (ctx.caret.index.unwrap_or_else(|| WIDGET.id()), ());
             }
 
-            if let Some(root) = ctx.root_info() {
-                if let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point.to_px(root.tree().scale_factor())) {
-                    return (nearest_leaf.id(), ());
-                }
+            if let Some(root) = ctx.root_info()
+                && let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point.to_px(root.tree().scale_factor()))
+            {
+                return (nearest_leaf.id(), ());
             }
             (WIDGET.id(), ())
         },
@@ -2315,10 +2316,10 @@ fn rich_selection_index_nearest_to(window_point: DipPoint, move_selection_index:
                 return Some((ctx.caret.selection_index.unwrap_or_else(|| WIDGET.id()), ()));
             }
 
-            if let Some(root) = ctx.root_info() {
-                if let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point.to_px(root.tree().scale_factor())) {
-                    return Some((nearest_leaf.id(), ()));
-                }
+            if let Some(root) = ctx.root_info()
+                && let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point.to_px(root.tree().scale_factor()))
+            {
+                return Some((nearest_leaf.id(), ()));
             }
             Some((WIDGET.id(), ()))
         },
@@ -2451,13 +2452,12 @@ fn rich_nearest_line_to(replace_selection: bool, window_point: DipPoint) -> Text
                         }
                         first = false;
                     }
-                    if !replace_selection {
-                        if let Some(sel) = ctx.caret_selection_index_info() {
-                            if let Some(std::cmp::Ordering::Less) = sel.cmp_sibling_in(&line_start, &sel.root()) {
-                                // rich line start already inside selection
-                                return Some((sel.id(), false));
-                            }
-                        }
+                    if !replace_selection
+                        && let Some(sel) = ctx.caret_selection_index_info()
+                        && let Some(std::cmp::Ordering::Less) = sel.cmp_sibling_in(&line_start, &sel.root())
+                    {
+                        // rich line start already inside selection
+                        return Some((sel.id(), false));
                     }
                     return Some((line_start.id(), line_start.id() != id));
                 }
@@ -2471,10 +2471,8 @@ fn rich_nearest_line_to(replace_selection: bool, window_point: DipPoint) -> Text
             if replace_selection {
                 let local_ctx = TEXT.laidout();
                 let mut line_i = local_ctx.shaped_text.lines_len().saturating_sub(1);
-                if !start_of_last_line {
-                    if let Some(i) = TEXT.resolved().caret.index {
-                        line_i = i.line;
-                    }
+                if !start_of_last_line && let Some(i) = TEXT.resolved().caret.index {
+                    line_i = i.line;
                 }
                 if let Some(last_line) = local_ctx.shaped_text.line(line_i) {
                     return Some(CaretIndex {

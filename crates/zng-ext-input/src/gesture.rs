@@ -479,17 +479,15 @@ impl GesturesService {
         }
     }
     fn on_shortcut_pressed(&mut self, mut shortcut: Shortcut, key_args: &KeyInputArgs) {
-        if let Some(starter) = self.primed_starter.take() {
-            if let Shortcut::Gesture(g) = &shortcut {
-                if let Some(complements) = self.chords.get(&starter) {
-                    if complements.contains(g) {
-                        shortcut = Shortcut::Chord(KeyChord {
-                            starter,
-                            complement: g.clone(),
-                        });
-                    }
-                }
-            }
+        if let Some(starter) = self.primed_starter.take()
+            && let Shortcut::Gesture(g) = &shortcut
+            && let Some(complements) = self.chords.get(&starter)
+            && complements.contains(g)
+        {
+            shortcut = Shortcut::Chord(KeyChord {
+                starter,
+                complement: g.clone(),
+            });
         }
 
         let actions = ShortcutActions::new(self, shortcut.clone());
@@ -509,31 +507,31 @@ impl GesturesService {
         if args.actions.has_actions() {
             args.actions
                 .run(args.timestamp, args.propagation(), args.device_id, args.repeat_count);
-        } else if let Shortcut::Gesture(k) = &args.shortcut {
-            if self.chords.contains_key(k) {
-                self.primed_starter = Some(k.clone());
-            }
+        } else if let Shortcut::Gesture(k) = &args.shortcut
+            && self.chords.contains_key(k)
+        {
+            self.primed_starter = Some(k.clone());
         }
     }
 
     fn on_access(&mut self, args: &AccessClickArgs) {
-        if let Ok(tree) = WINDOWS.widget_tree(args.window_id) {
-            if let Some(wgt) = tree.get(args.widget_id) {
-                let path = wgt.interaction_path();
-                if !path.interactivity().is_blocked() {
-                    let args = ClickArgs::now(
-                        args.window_id,
-                        None,
-                        ClickArgsSource::Access {
-                            is_primary: args.is_primary,
-                        },
-                        NonZeroU32::new(1).unwrap(),
-                        false,
-                        ModifiersState::empty(),
-                        path,
-                    );
-                    CLICK_EVENT.notify(args);
-                }
+        if let Ok(tree) = WINDOWS.widget_tree(args.window_id)
+            && let Some(wgt) = tree.get(args.widget_id)
+        {
+            let path = wgt.interaction_path();
+            if !path.interactivity().is_blocked() {
+                let args = ClickArgs::now(
+                    args.window_id,
+                    None,
+                    ClickArgsSource::Access {
+                        is_primary: args.is_primary,
+                    },
+                    NonZeroU32::new(1).unwrap(),
+                    false,
+                    ModifiersState::empty(),
+                    path,
+                );
+                CLICK_EVENT.notify(args);
             }
         }
     }
@@ -620,15 +618,14 @@ struct ShortcutTarget {
 impl ShortcutTarget {
     fn resolve_path(&self) -> Option<InteractionPath> {
         let mut found = self.last_found.lock();
-        if let Some(found) = &mut *found {
-            if let Ok(tree) = WINDOWS.widget_tree(found.window_id()) {
-                if let Some(w) = tree.get(found.widget_id()) {
-                    let path = w.interaction_path();
-                    *found = path.as_path().clone();
+        if let Some(found) = &mut *found
+            && let Ok(tree) = WINDOWS.widget_tree(found.window_id())
+            && let Some(w) = tree.get(found.widget_id())
+        {
+            let path = w.interaction_path();
+            *found = path.as_path().clone();
 
-                    return path.unblocked();
-                }
-            }
+            return path.unblocked();
         }
 
         if let Some(w) = WINDOWS.widget_info(self.widget_id) {
@@ -770,16 +767,16 @@ impl ShortcutActions {
 
         fn distance_key(focused: &Option<InteractionPath>, p: &InteractionPath) -> u32 {
             let mut key = u32::MAX - 1;
-            if let Some(focused) = focused {
-                if p.window_id() == focused.window_id() {
-                    key -= 1;
-                    if let Some(i) = p.widgets_path().iter().position(|&id| id == focused.widget_id()) {
-                        // is descendant of focused (or it)
-                        key = (p.widgets_path().len() - i) as u32;
-                    } else if let Some(i) = focused.widgets_path().iter().position(|&id| id == p.widget_id()) {
-                        // is ancestor of focused
-                        key = key / 2 + (focused.widgets_path().len() - i) as u32;
-                    }
+            if let Some(focused) = focused
+                && p.window_id() == focused.window_id()
+            {
+                key -= 1;
+                if let Some(i) = p.widgets_path().iter().position(|&id| id == focused.widget_id()) {
+                    // is descendant of focused (or it)
+                    key = (p.widgets_path().len() - i) as u32;
+                } else if let Some(i) = focused.widgets_path().iter().position(|&id| id == p.widget_id()) {
+                    // is ancestor of focused
+                    key = key / 2 + (focused.widgets_path().len() - i) as u32;
                 }
             }
             key
@@ -836,10 +833,10 @@ impl ShortcutActions {
 
             match cmd.scope() {
                 CommandScope::Window(w) => {
-                    if let Some(f) = &focused {
-                        if f.window_id() == w {
-                            cmd_window.push(cmd);
-                        }
+                    if let Some(f) = &focused
+                        && f.window_id() == w
+                    {
+                        cmd_window.push(cmd);
                     }
                 }
                 CommandScope::Widget(id) => {
@@ -930,12 +927,11 @@ impl ShortcutActions {
     pub fn focus(&self) -> Option<FocusTarget> {
         if let Some((p, _)) = &self.click {
             return Some(FocusTarget::Direct { target: p.widget_id() });
-        } else if let Some(c) = self.commands.first() {
-            if let CommandScope::Widget(w) = c.scope() {
-                if FOCUS.focused().with(|f| f.as_ref().map(|p| !p.contains(w)).unwrap_or(true)) {
-                    return Some(FocusTarget::Direct { target: w });
-                }
-            }
+        } else if let Some(c) = self.commands.first()
+            && let CommandScope::Widget(w) = c.scope()
+            && FOCUS.focused().with(|f| f.as_ref().map(|p| !p.contains(w)).unwrap_or(true))
+        {
+            return Some(FocusTarget::Direct { target: w });
         }
         self.focus.map(|target| FocusTarget::DirectOrRelated {
             target,

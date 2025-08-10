@@ -165,8 +165,10 @@ pub(super) fn explicit_compute(
                     last_level.new_explicit_next_ltr()
                 };
 
-                if new_level.is_ok() && overflow_isolate_count == 0 && overflow_embedding_count == 0 {
-                    let new_level = new_level.unwrap();
+                if let Ok(new_level) = new_level
+                    && overflow_isolate_count == 0
+                    && overflow_embedding_count == 0
+                {
                     stack.push(
                         new_level,
                         match original_classes[i] {

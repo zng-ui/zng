@@ -186,11 +186,11 @@ impl HitTestClips {
 
     pub fn update_transform(&mut self, value: FrameValueUpdate<PxTransform>) {
         for item in &mut self.items {
-            if let HitTestItem::Transform(FrameValue::Bind { id, value: t, .. }) = item {
-                if *id == value.id {
-                    *t = value.value;
-                    break;
-                }
+            if let HitTestItem::Transform(FrameValue::Bind { id, value: t, .. }) = item
+                && *id == value.id
+            {
+                *t = value.value;
+                break;
             }
         }
     }

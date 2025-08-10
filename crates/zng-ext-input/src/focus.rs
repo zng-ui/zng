@@ -397,10 +397,10 @@ impl AppExtension for FocusManager {
 
             if let Some(f) = &focus.focused {
                 let w_id = f.path.window_id();
-                if let Ok(tree) = WINDOWS.widget_tree(w_id) {
-                    if focus.enabled_nav.needs_refresh(&tree) {
-                        invalidated_cmds_or_focused = Some(tree);
-                    }
+                if let Ok(tree) = WINDOWS.widget_tree(w_id)
+                    && focus.enabled_nav.needs_refresh(&tree)
+                {
+                    invalidated_cmds_or_focused = Some(tree);
                 }
             }
 
@@ -430,21 +430,20 @@ impl AppExtension for FocusManager {
         } else if let Some(args) = WINDOW_FOCUS_CHANGED_EVENT.on(update) {
             // foreground window maybe changed
             let mut focus = FOCUS_SV.write();
-            if args.new_focus.is_some() {
-                if let Some(pending) = focus.pending_window_focus.take() {
-                    if args.is_focus(pending.window) {
-                        request = Some(FocusRequest::direct_or_related(
-                            pending.target,
-                            pending.nav_origin.is_some(),
-                            pending.highlight,
-                        ));
-                    }
-                }
+            if args.new_focus.is_some()
+                && let Some(pending) = focus.pending_window_focus.take()
+                && args.is_focus(pending.window)
+            {
+                request = Some(FocusRequest::direct_or_related(
+                    pending.target,
+                    pending.nav_origin.is_some(),
+                    pending.highlight,
+                ));
             }
-            if request.is_none() {
-                if let Some(args) = focus.continue_focus() {
-                    self.notify(&mut focus, Some(args));
-                }
+            if request.is_none()
+                && let Some(args) = focus.continue_focus()
+            {
+                self.notify(&mut focus, Some(args));
             }
 
             if let Some(window_id) = args.closed() {
@@ -479,13 +478,13 @@ impl AppExtension for FocusManager {
             self.notify(&mut focus, args);
         }
 
-        if let Some(wgt_id) = focus.navigation_origin_var.get_new() {
-            if wgt_id != focus.navigation_origin {
-                focus.navigation_origin = wgt_id;
-                focus.update_enabled_nav_with_origin();
-                let commands = self.commands.as_mut().unwrap();
-                commands.update_enabled(focus.enabled_nav.nav);
-            }
+        if let Some(wgt_id) = focus.navigation_origin_var.get_new()
+            && wgt_id != focus.navigation_origin
+        {
+            focus.navigation_origin = wgt_id;
+            focus.update_enabled_nav_with_origin();
+            let commands = self.commands.as_mut().unwrap();
+            commands.update_enabled(focus.enabled_nav.nav);
         }
     }
 
@@ -959,10 +958,10 @@ impl FocusService {
     }
 
     fn auto_highlight(&self, timestamp: DInstant) -> bool {
-        if let Some(dur) = self.auto_highlight.get() {
-            if timestamp.duration_since(self.last_keyboard_event) <= dur {
-                return true;
-            }
+        if let Some(dur) = self.auto_highlight.get()
+            && timestamp.duration_since(self.last_keyboard_event) <= dur
+        {
+            return true;
         }
         false
     }
@@ -1092,23 +1091,25 @@ impl FocusService {
         let info = prev_w.focus_tree();
 
         let r = info.get_or_parent(return_path);
-        if let Some(w) = &r {
-            if w.info().id() != return_id && !is_info_retry && return_int.is_blocked() {
-                // blocked return may not have unblocked yet
+        if let Some(w) = &r
+            && w.info().id() != return_id
+            && !is_info_retry
+            && return_int.is_blocked()
+        {
+            // blocked return may not have unblocked yet
 
-                if let Some(exists) = info.tree().get(return_id) {
-                    let exists = exists.into_focus_info(info.focus_disabled_widgets(), info.focus_hidden_widgets());
-                    if !exists.is_focusable() && exists.info().interactivity().is_blocked() {
-                        // Still blocked. A common pattern is to set a `modal` filter on the alt-scope
-                        // then remove the modal filter when alt-scope loses focus.
-                        //
-                        // Here we know that the return focus was blocked after the alt got focus, because
-                        // blocked widgets can't before return focus, and we know that we are moving focus
-                        // to some `r`. So we setup an info retry, the focus will move to `r` momentarily,
-                        // exiting the alt-scope, and if it removes the modal filter the focus will return.
-                        self.request =
-                            PendingFocusRequest::InfoRetry(FocusRequest::direct_or_related(return_id, false, highlight), INSTANT.now());
-                    }
+            if let Some(exists) = info.tree().get(return_id) {
+                let exists = exists.into_focus_info(info.focus_disabled_widgets(), info.focus_hidden_widgets());
+                if !exists.is_focusable() && exists.info().interactivity().is_blocked() {
+                    // Still blocked. A common pattern is to set a `modal` filter on the alt-scope
+                    // then remove the modal filter when alt-scope loses focus.
+                    //
+                    // Here we know that the return focus was blocked after the alt got focus, because
+                    // blocked widgets can't before return focus, and we know that we are moving focus
+                    // to some `r`. So we setup an info retry, the focus will move to `r` momentarily,
+                    // exiting the alt-scope, and if it removes the modal filter the focus will return.
+                    self.request =
+                        PendingFocusRequest::InfoRetry(FocusRequest::direct_or_related(return_id, false, highlight), INSTANT.now());
                 }
             }
         }
@@ -1119,60 +1120,61 @@ impl FocusService {
     /// Checks if `focused()` is still valid, if not moves focus to nearest valid.
     #[must_use]
     fn continue_focus(&mut self) -> Option<FocusChangedArgs> {
-        if let Some(focused) = &self.focused {
-            if let Ok(true) = WINDOWS.is_focused(focused.path.window_id()) {
-                let info = WINDOWS.widget_tree(focused.path.window_id()).unwrap();
-                if let Some(widget) = info
-                    .get(focused.path.widget_id())
-                    .map(|w| w.into_focus_info(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get()))
-                {
-                    if widget.is_focusable() {
-                        // :-) probably in the same place, maybe moved inside same window.
-                        self.enabled_nav = widget.enabled_nav_with_frame();
+        if let Some(focused) = &self.focused
+            && let Ok(true) = WINDOWS.is_focused(focused.path.window_id())
+        {
+            let info = WINDOWS.widget_tree(focused.path.window_id()).unwrap();
+            if let Some(widget) = info
+                .get(focused.path.widget_id())
+                .map(|w| w.into_focus_info(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get()))
+            {
+                if widget.is_focusable() {
+                    // :-) probably in the same place, maybe moved inside same window.
+                    self.enabled_nav = widget.enabled_nav_with_frame();
+                    return self.move_focus(
+                        Some(FocusedInfo::new(widget)),
+                        self.navigation_origin_var.get(),
+                        self.is_highlighting,
+                        FocusChangedCause::Recovery,
+                    );
+                } else {
+                    // widget no longer focusable
+                    if let Some(parent) = widget.parent() {
+                        // move to nearest inside focusable parent, or parent
+                        let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
+                        self.enabled_nav = new_focus.enabled_nav_with_frame();
                         return self.move_focus(
-                            Some(FocusedInfo::new(widget)),
+                            Some(FocusedInfo::new(new_focus)),
                             self.navigation_origin_var.get(),
                             self.is_highlighting,
                             FocusChangedCause::Recovery,
                         );
                     } else {
-                        // widget no longer focusable
-                        if let Some(parent) = widget.parent() {
-                            // move to nearest inside focusable parent, or parent
-                            let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
-                            self.enabled_nav = new_focus.enabled_nav_with_frame();
-                            return self.move_focus(
-                                Some(FocusedInfo::new(new_focus)),
-                                self.navigation_origin_var.get(),
-                                self.is_highlighting,
-                                FocusChangedCause::Recovery,
-                            );
-                        } else {
-                            // no focusable parent or root
-                            return self.focus_focused_window(self.is_highlighting);
-                        }
-                    }
-                } else {
-                    // widget not found
-                    for &parent in focused.path.ancestors().iter().rev() {
-                        if let Some(parent) = info
-                            .get(parent)
-                            .and_then(|w| w.into_focusable(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get()))
-                        {
-                            // move to nearest inside focusable parent, or parent
-                            let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
-                            self.enabled_nav = new_focus.enabled_nav_with_frame();
-                            return self.move_focus(
-                                Some(FocusedInfo::new(new_focus)),
-                                self.navigation_origin_var.get(),
-                                self.is_highlighting,
-                                FocusChangedCause::Recovery,
-                            );
-                        }
+                        // no focusable parent or root
+                        return self.focus_focused_window(self.is_highlighting);
                     }
                 }
-            } // else window not found or not focused
-        } // else no current focus
+            } else {
+                // widget not found
+                for &parent in focused.path.ancestors().iter().rev() {
+                    if let Some(parent) = info
+                        .get(parent)
+                        .and_then(|w| w.into_focusable(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get()))
+                    {
+                        // move to nearest inside focusable parent, or parent
+                        let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
+                        self.enabled_nav = new_focus.enabled_nav_with_frame();
+                        return self.move_focus(
+                            Some(FocusedInfo::new(new_focus)),
+                            self.navigation_origin_var.get(),
+                            self.is_highlighting,
+                            FocusChangedCause::Recovery,
+                        );
+                    }
+                }
+            }
+        } // else window not found or not focused
+        // else no current focus
         self.focus_focused_window(false)
     }
 
@@ -1366,26 +1368,24 @@ impl FocusService {
 
     #[must_use]
     fn move_after_focus(&mut self, is_tab_cycle_reentry: bool, reverse: bool) -> Option<FocusChangedArgs> {
-        if let Some(focused) = &self.focused {
-            if let Some(info) = WINDOWS.focused_info() {
-                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get())
-                    .get(focused.path.widget_id())
-                {
-                    if let Some(nested) = widget.nested_window() {
-                        tracing::debug!("focus nested window {nested:?}");
-                        let _ = WINDOWS.focus(nested);
-                    } else if widget.is_scope() {
-                        let last_focused = |id| self.return_focused.get(&id).map(|p| p.as_path());
-                        if let Some(widget) = widget.on_focus_scope_move(last_focused, is_tab_cycle_reentry, reverse) {
-                            self.enabled_nav = widget.enabled_nav_with_frame();
-                            return self.move_focus(
-                                Some(FocusedInfo::new(widget)),
-                                self.navigation_origin,
-                                self.is_highlighting,
-                                FocusChangedCause::ScopeGotFocus(reverse),
-                            );
-                        }
-                    }
+        if let Some(focused) = &self.focused
+            && let Some(info) = WINDOWS.focused_info()
+            && let Some(widget) =
+                FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get()).get(focused.path.widget_id())
+        {
+            if let Some(nested) = widget.nested_window() {
+                tracing::debug!("focus nested window {nested:?}");
+                let _ = WINDOWS.focus(nested);
+            } else if widget.is_scope() {
+                let last_focused = |id| self.return_focused.get(&id).map(|p| p.as_path());
+                if let Some(widget) = widget.on_focus_scope_move(last_focused, is_tab_cycle_reentry, reverse) {
+                    self.enabled_nav = widget.enabled_nav_with_frame();
+                    return self.move_focus(
+                        Some(FocusedInfo::new(widget)),
+                        self.navigation_origin,
+                        self.is_highlighting,
+                        FocusChangedCause::ScopeGotFocus(reverse),
+                    );
                 }
             }
         }
@@ -1405,21 +1405,20 @@ impl FocusService {
                 if let Some(s) = new_focus.path.ancestor_path(scope.widget_id()) {
                     retain_alt = true; // just a focus move inside the ALT.
                     *scope = s.into_owned();
-                } else if let Ok(info) = WINDOWS.widget_tree(new_focus.path.window_id()) {
-                    if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get())
+                } else if let Ok(info) = WINDOWS.widget_tree(new_focus.path.window_id())
+                    && let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get())
                         .get(new_focus.path.widget_id())
-                    {
-                        let alt_scope = if widget.is_alt_scope() {
-                            Some(widget)
-                        } else {
-                            widget.scopes().find(|s| s.is_alt_scope())
-                        };
+                {
+                    let alt_scope = if widget.is_alt_scope() {
+                        Some(widget)
+                    } else {
+                        widget.scopes().find(|s| s.is_alt_scope())
+                    };
 
-                        if let Some(alt_scope) = alt_scope {
-                            // entered another ALT
-                            retain_alt = true;
-                            *scope = alt_scope.info().interaction_path();
-                        }
+                    if let Some(alt_scope) = alt_scope {
+                        // entered another ALT
+                        retain_alt = true;
+                        *scope = alt_scope.info().interaction_path();
                     }
                 }
             }
@@ -1433,31 +1432,30 @@ impl FocusService {
             // if we don't have an `alt_return` but focused something, check if focus
             // moved inside an ALT.
 
-            if let Ok(info) = WINDOWS.widget_tree(new_focus.path.window_id()) {
-                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get())
+            if let Ok(info) = WINDOWS.widget_tree(new_focus.path.window_id())
+                && let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get())
                     .get(new_focus.path.widget_id())
-                {
-                    let alt_scope = if widget.is_alt_scope() {
-                        Some(widget)
-                    } else {
-                        widget.scopes().find(|s| s.is_alt_scope())
-                    };
-                    if let Some(alt_scope) = alt_scope {
-                        let scope = alt_scope.info().interaction_path();
-                        // entered an alt_scope.
+            {
+                let alt_scope = if widget.is_alt_scope() {
+                    Some(widget)
+                } else {
+                    widget.scopes().find(|s| s.is_alt_scope())
+                };
+                if let Some(alt_scope) = alt_scope {
+                    let scope = alt_scope.info().interaction_path();
+                    // entered an alt_scope.
 
-                        if let Some(prev) = &prev_focus {
-                            // previous focus is the return.
-                            r.push(ReturnFocusChangedArgs::now(scope.clone(), None, Some(prev.clone())));
-                            self.alt_return = Some((scope, prev.clone()));
-                            self.alt_return_var.set(prev.clone());
-                        } else if let Some(parent) = alt_scope.parent() {
-                            // no previous focus, ALT parent is the return.
-                            let parent_path = parent.info().interaction_path();
-                            r.push(ReturnFocusChangedArgs::now(scope.clone(), None, Some(parent_path.clone())));
-                            self.alt_return = Some((scope, parent_path.clone()));
-                            self.alt_return_var.set(parent_path);
-                        }
+                    if let Some(prev) = &prev_focus {
+                        // previous focus is the return.
+                        r.push(ReturnFocusChangedArgs::now(scope.clone(), None, Some(prev.clone())));
+                        self.alt_return = Some((scope, prev.clone()));
+                        self.alt_return_var.set(prev.clone());
+                    } else if let Some(parent) = alt_scope.parent() {
+                        // no previous focus, ALT parent is the return.
+                        let parent_path = parent.info().interaction_path();
+                        r.push(ReturnFocusChangedArgs::now(scope.clone(), None, Some(parent_path.clone())));
+                        self.alt_return = Some((scope, parent_path.clone()));
+                        self.alt_return_var.set(parent_path);
                     }
                 }
             }
@@ -1467,38 +1465,36 @@ impl FocusService {
          *   Update `return_focused`
          */
 
-        if let Some(new_focus) = &self.focused {
-            if let Ok(info) = WINDOWS.widget_tree(new_focus.path.window_id()) {
-                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get())
-                    .get(new_focus.path.widget_id())
-                {
-                    if !widget.is_alt_scope() && widget.scopes().all(|s| !s.is_alt_scope()) {
-                        // if not inside ALT, update return for each LastFocused parent scopes.
+        if let Some(new_focus) = &self.focused
+            && let Ok(info) = WINDOWS.widget_tree(new_focus.path.window_id())
+            && let Some(widget) =
+                FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get()).get(new_focus.path.widget_id())
+            && !widget.is_alt_scope()
+            && widget.scopes().all(|s| !s.is_alt_scope())
+        {
+            // if not inside ALT, update return for each LastFocused parent scopes.
 
-                        for scope in widget
-                            .scopes()
-                            .filter(|s| s.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused)
-                        {
-                            let scope = scope.info().interaction_path();
-                            let path = widget.info().interaction_path();
-                            if let Some(current) = self.return_focused.get_mut(&scope.widget_id()) {
-                                if current != &path {
-                                    let prev = std::mem::replace(current, path);
-                                    self.return_focused_var.get(&scope.widget_id()).unwrap().set(current.clone());
-                                    r.push(ReturnFocusChangedArgs::now(scope, Some(prev), Some(current.clone())));
-                                }
-                            } else {
-                                self.return_focused.insert(scope.widget_id(), path.clone());
-                                match self.return_focused_var.entry(scope.widget_id()) {
-                                    IdEntry::Occupied(e) => e.get().set(Some(path.clone())),
-                                    IdEntry::Vacant(e) => {
-                                        e.insert(var(Some(path.clone())));
-                                    }
-                                }
-                                r.push(ReturnFocusChangedArgs::now(scope, None, Some(path)));
-                            }
+            for scope in widget
+                .scopes()
+                .filter(|s| s.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused)
+            {
+                let scope = scope.info().interaction_path();
+                let path = widget.info().interaction_path();
+                if let Some(current) = self.return_focused.get_mut(&scope.widget_id()) {
+                    if current != &path {
+                        let prev = std::mem::replace(current, path);
+                        self.return_focused_var.get(&scope.widget_id()).unwrap().set(current.clone());
+                        r.push(ReturnFocusChangedArgs::now(scope, Some(prev), Some(current.clone())));
+                    }
+                } else {
+                    self.return_focused.insert(scope.widget_id(), path.clone());
+                    match self.return_focused_var.entry(scope.widget_id()) {
+                        IdEntry::Occupied(e) => e.get().set(Some(path.clone())),
+                        IdEntry::Vacant(e) => {
+                            e.insert(var(Some(path.clone())));
                         }
                     }
+                    r.push(ReturnFocusChangedArgs::now(scope, None, Some(path)));
                 }
             }
         }
@@ -1544,31 +1540,15 @@ impl FocusService {
                             *widget_path = path;
                         }
                     }
-                } else if let Some(scope) = info.get(scope_id) {
-                    if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
-                        // widget not inside scope anymore, but scope still exists and is valid.
-                        if let Some(first) = scope.first_tab_descendant() {
-                            // LastFocused goes to the first descendant as fallback.
-                            retain = true;
-
-                            let path = first.info().interaction_path();
-                            r.push(ReturnFocusChangedArgs::now(
-                                scope.info().interaction_path(),
-                                Some(widget_path.clone()),
-                                Some(path.clone()),
-                            ));
-                            *widget_path = path;
-                        }
-                    }
-                }
-            } else if let Some(parent) = info.get_or_parent(widget_path) {
-                // widget not in window anymore, but a focusable parent is..
-                if let Some(scope) = parent.scopes().find(|s| s.info().id() == scope_id) {
-                    if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
-                        // ..and the parent is inside the scope, and the scope is still valid.
+                } else if let Some(scope) = info.get(scope_id)
+                    && scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused
+                {
+                    // widget not inside scope anymore, but scope still exists and is valid.
+                    if let Some(first) = scope.first_tab_descendant() {
+                        // LastFocused goes to the first descendant as fallback.
                         retain = true;
 
-                        let path = parent.info().interaction_path();
+                        let path = first.info().interaction_path();
                         r.push(ReturnFocusChangedArgs::now(
                             scope.info().interaction_path(),
                             Some(widget_path.clone()),
@@ -1576,6 +1556,22 @@ impl FocusService {
                         ));
                         *widget_path = path;
                     }
+                }
+            } else if let Some(parent) = info.get_or_parent(widget_path) {
+                // widget not in window anymore, but a focusable parent is..
+                if let Some(scope) = parent.scopes().find(|s| s.info().id() == scope_id)
+                    && scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused
+                {
+                    // ..and the parent is inside the scope, and the scope is still valid.
+                    retain = true;
+
+                    let path = parent.info().interaction_path();
+                    r.push(ReturnFocusChangedArgs::now(
+                        scope.info().interaction_path(),
+                        Some(widget_path.clone()),
+                        Some(path.clone()),
+                    ));
+                    *widget_path = path;
                 }
             }
 
@@ -1593,10 +1589,10 @@ impl FocusService {
                         }
                         IdEntry::Vacant(_) => {}
                     }
-                } else if let Some(var) = self.return_focused_var.remove(&scope_id) {
-                    if var.strong_count() > 1 {
-                        var.set(None);
-                    }
+                } else if let Some(var) = self.return_focused_var.remove(&scope_id)
+                    && var.strong_count() > 1
+                {
+                    var.set(None);
                 }
 
                 r.push(ReturnFocusChangedArgs::now(scope_path, Some(widget_path.clone()), None));
@@ -1605,47 +1601,47 @@ impl FocusService {
         });
 
         let mut retain_alt = true;
-        if let Some((scope, widget_path)) = &mut self.alt_return {
-            if widget_path.window_id() == info.tree().window_id() {
-                // we need to update alt_return
+        if let Some((scope, widget_path)) = &mut self.alt_return
+            && widget_path.window_id() == info.tree().window_id()
+        {
+            // we need to update alt_return
 
-                retain_alt = false; // will retain only if still valid
+            retain_alt = false; // will retain only if still valid
 
-                if let Some(widget) = info.tree().get(widget_path.widget_id()) {
-                    if !widget
-                        .clone()
-                        .into_focus_info(info.focus_disabled_widgets(), info.focus_hidden_widgets())
-                        .scopes()
-                        .any(|s| s.info().id() == scope.widget_id())
-                    {
-                        retain_alt = true; // retain, widget still exists outside of the ALT scope.
+            if let Some(widget) = info.tree().get(widget_path.widget_id()) {
+                if !widget
+                    .clone()
+                    .into_focus_info(info.focus_disabled_widgets(), info.focus_hidden_widgets())
+                    .scopes()
+                    .any(|s| s.info().id() == scope.widget_id())
+                {
+                    retain_alt = true; // retain, widget still exists outside of the ALT scope.
 
-                        let path = widget.interaction_path();
-                        if &path != widget_path {
-                            // widget moved without entering the ALT scope.
-                            r.push(ReturnFocusChangedArgs::now(
-                                scope.clone(),
-                                Some(widget_path.clone()),
-                                Some(path.clone()),
-                            ));
-                            *widget_path = path;
-                        }
-                    }
-                } else if let Some(parent) = info.get_or_parent(widget_path) {
-                    // widget not in window anymore, but a focusable parent is..
-                    if !parent.scopes().any(|s| s.info().id() == scope.widget_id()) {
-                        // ..and the parent is not inside the ALT scope.
-                        retain_alt = true;
-
-                        let path = parent.info().interaction_path();
+                    let path = widget.interaction_path();
+                    if &path != widget_path {
+                        // widget moved without entering the ALT scope.
                         r.push(ReturnFocusChangedArgs::now(
                             scope.clone(),
                             Some(widget_path.clone()),
                             Some(path.clone()),
                         ));
-                        *widget_path = path.clone();
-                        self.alt_return_var.set(path);
+                        *widget_path = path;
                     }
+                }
+            } else if let Some(parent) = info.get_or_parent(widget_path) {
+                // widget not in window anymore, but a focusable parent is..
+                if !parent.scopes().any(|s| s.info().id() == scope.widget_id()) {
+                    // ..and the parent is not inside the ALT scope.
+                    retain_alt = true;
+
+                    let path = parent.info().interaction_path();
+                    r.push(ReturnFocusChangedArgs::now(
+                        scope.clone(),
+                        Some(widget_path.clone()),
+                        Some(path.clone()),
+                    ));
+                    *widget_path = path.clone();
+                    self.alt_return_var.set(path);
                 }
             }
         }

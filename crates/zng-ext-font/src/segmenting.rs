@@ -553,10 +553,10 @@ impl SegmentedText {
                 }
                 c if c == '\u{FE0F}' || emoji_util::is_modifier(c) => {
                     // VS16 || Emoji-Modifier
-                    if let Some((i, c)) = text[..i].char_indices().next_back() {
-                        if emoji_util::maybe_emoji(c) {
-                            start = i;
-                        }
+                    if let Some((i, c)) = text[..i].char_indices().next_back()
+                        && emoji_util::maybe_emoji(c)
+                    {
+                        start = i;
                     }
                 }
                 _ => {}

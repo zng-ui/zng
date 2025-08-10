@@ -410,14 +410,14 @@ impl MonitorQuery {
     }
 
     fn parent_or_primary_query(win_id: WindowId) -> Option<MonitorInfo> {
-        if let Some(parent) = WINDOWS.vars(win_id).unwrap().parent().get() {
-            if let Ok(w) = WINDOWS.vars(parent) {
-                return if let Some(monitor) = w.actual_monitor().get() {
-                    MONITORS.monitor(monitor)
-                } else {
-                    w.monitor().get().select_for(parent)
-                };
-            }
+        if let Some(parent) = WINDOWS.vars(win_id).unwrap().parent().get()
+            && let Ok(w) = WINDOWS.vars(parent)
+        {
+            return if let Some(monitor) = w.actual_monitor().get() {
+                MONITORS.monitor(monitor)
+            } else {
+                w.monitor().get().select_for(parent)
+            };
         }
         MONITORS.primary_monitor()
     }

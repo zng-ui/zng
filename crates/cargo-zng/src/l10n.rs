@@ -197,10 +197,10 @@ fn run_impl(mut args: L10nArgs, is_local_scrap_recursion: bool) {
                         if args.verbose {
                             println!("removing `{}` to clean template", output.display());
                         }
-                        if let Err(e) = fs::remove_dir_all(&output) {
-                            if !matches!(e.kind(), io::ErrorKind::NotFound) {
-                                error!("cannot remove `{}`, {e}", output.display());
-                            }
+                        if let Err(e) = fs::remove_dir_all(&output)
+                            && !matches!(e.kind(), io::ErrorKind::NotFound)
+                        {
+                            error!("cannot remove `{}`, {e}", output.display());
                         }
                     }
                     util::check_or_create_dir_all(args.check, &output)?;
@@ -223,10 +223,10 @@ fn run_impl(mut args: L10nArgs, is_local_scrap_recursion: bool) {
                 if args.verbose {
                     println!("removing `{}` to clean deps", dir.display());
                 }
-                if let Err(e) = std::fs::remove_dir_all(&dir) {
-                    if !matches!(e.kind(), io::ErrorKind::NotFound) {
-                        error!("cannot remove `{}`, {e}", dir.display());
-                    }
+                if let Err(e) = std::fs::remove_dir_all(&dir)
+                    && !matches!(e.kind(), io::ErrorKind::NotFound)
+                {
+                    error!("cannot remove `{}`, {e}", dir.display());
                 }
             }
         }
@@ -377,10 +377,11 @@ fn run_impl(mut args: L10nArgs, is_local_scrap_recursion: bool) {
                     for entry in glob::glob(&deps.join("*/*/*.ftl").display().to_string()).unwrap() {
                         let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{}` entry, {e}", deps.display()));
                         let target = target.join(entry.strip_prefix(&deps).unwrap());
-                        if !target.exists() && entry.is_file() {
-                            if let Err(e) = util::check_or_copy(args.check, &entry, &target, args.verbose) {
-                                error!("cannot copy `{}` to `{}`, {e}", entry.display(), target.display());
-                            }
+                        if !target.exists()
+                            && entry.is_file()
+                            && let Err(e) = util::check_or_copy(args.check, &entry, &target, args.verbose)
+                        {
+                            error!("cannot copy `{}` to `{}`, {e}", entry.display(), target.display());
                         }
                     }
                 }

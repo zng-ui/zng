@@ -654,11 +654,11 @@ impl<V> LangMap<HashMap<LangFilePath, V>> {
         let mut best = None;
         let mut best_dist = u64::MAX;
         for (k, v) in files {
-            if let Some(d) = k.matches(file) {
-                if d < best_dist {
-                    best = Some((k, v));
-                    best_dist = d;
-                }
+            if let Some(d) = k.matches(file)
+                && d < best_dist
+            {
+                best = Some((k, v));
+                best_dist = d;
             }
         }
         best

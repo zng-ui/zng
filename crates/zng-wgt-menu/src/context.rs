@@ -67,27 +67,27 @@ fn context_menu_node(child: impl IntoUiNode, menu: impl IntoVar<WidgetFn<Context
         }
         UiNodeOp::Event { update } => {
             c.event(update);
-            if let Some(args) = CLICK_EVENT.on_unhandled(update) {
-                if args.is_context() {
-                    let apply = if disabled_only {
-                        args.target.interactivity().is_disabled()
-                    } else {
-                        args.target.interactivity().is_enabled()
-                    };
-                    if apply {
-                        args.propagation().stop();
+            if let Some(args) = CLICK_EVENT.on_unhandled(update)
+                && args.is_context()
+            {
+                let apply = if disabled_only {
+                    args.target.interactivity().is_disabled()
+                } else {
+                    args.target.interactivity().is_enabled()
+                };
+                if apply {
+                    args.propagation().stop();
 
-                        let menu = menu.get()(ContextMenuArgs {
-                            anchor_id: WIDGET.id(),
-                            disabled: disabled_only,
-                        });
-                        let is_shortcut = args.is_from_keyboard();
-                        pop_state = POPUP.open_config(
-                            menu,
-                            CONTEXT_MENU_ANCHOR_VAR.map(move |(c, s)| if is_shortcut { s } else { c }.clone()),
-                            CONTEXT_CAPTURE_VAR.get(),
-                        );
-                    }
+                    let menu = menu.get()(ContextMenuArgs {
+                        anchor_id: WIDGET.id(),
+                        disabled: disabled_only,
+                    });
+                    let is_shortcut = args.is_from_keyboard();
+                    pop_state = POPUP.open_config(
+                        menu,
+                        CONTEXT_MENU_ANCHOR_VAR.map(move |(c, s)| if is_shortcut { s } else { c }.clone()),
+                        CONTEXT_CAPTURE_VAR.get(),
+                    );
                 }
             }
         }

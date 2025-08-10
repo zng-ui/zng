@@ -40,10 +40,10 @@ mod desktop {
         weight: FontWeight,
         stretch: FontStretch,
     ) -> Result<Option<(FontDataRef, u32)>, FontLoadingError> {
-        if font_name == "Ubuntu" {
-            if let Ok(Some(h)) = workaround_ubuntu(style, weight, stretch) {
-                return Ok(Some(h));
-            }
+        if font_name == "Ubuntu"
+            && let Ok(Some(h)) = workaround_ubuntu(style, weight, stretch)
+        {
+            return Ok(Some(h));
         }
 
         let family_name = font_kit::family_name::FamilyName::from(font_name.clone());
@@ -160,25 +160,23 @@ mod desktop {
                 // Example case from default Ubuntu fonts:
                 // /usr/share/fonts/type1/urw-base35/Z003-MediumItalic.t1
                 // /usr/share/fonts/opentype/urw-base35/Z003-MediumItalic.otf
-                if let Ok(base) = path.strip_prefix("/usr/share/fonts/type1/") {
-                    if let Some(name) = base.file_name() {
-                        if let Some(name) = name.to_str() {
-                            if name.ends_with(".t1") {
-                                let rep = Path::new("/usr/share/fonts/opentype/").join(base.with_extension("otf"));
-                                if rep.exists() {
-                                    tracing::debug!("replaced `{name}` with .otf of same name");
-                                    path = Cow::Owned(rep);
-                                }
-                            }
-                        }
+                if let Ok(base) = path.strip_prefix("/usr/share/fonts/type1/")
+                    && let Some(name) = base.file_name()
+                    && let Some(name) = name.to_str()
+                    && name.ends_with(".t1")
+                {
+                    let rep = Path::new("/usr/share/fonts/opentype/").join(base.with_extension("otf"));
+                    if rep.exists() {
+                        tracing::debug!("replaced `{name}` with .otf of same name");
+                        path = Cow::Owned(rep);
                     }
                 }
 
                 for (k, data) in DATA_CACHE.lock().iter() {
-                    if *k == *path {
-                        if let Some(data) = data.upgrade() {
-                            return Ok((FontDataRef(data), *font_index));
-                        }
+                    if *k == *path
+                        && let Some(data) = data.upgrade()
+                    {
+                        return Ok((FontDataRef(data), *font_index));
                     }
                 }
 

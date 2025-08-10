@@ -719,13 +719,13 @@ impl FrameBuilder {
     /// [`can_reuse`]: Self::can_reuse
     /// [`push_widget`]: Self::push_widget
     pub fn push_reuse(&mut self, group: &mut Option<ReuseRange>, generate: impl FnOnce(&mut Self)) {
-        if self.can_reuse {
-            if let Some(g) = &group {
-                if self.visible {
-                    self.display_list.push_reuse_range(g);
-                }
-                return;
+        if self.can_reuse
+            && let Some(g) = &group
+        {
+            if self.visible {
+                self.display_list.push_reuse_range(g);
             }
+            return;
         }
         *group = None;
         let parent_group = self.open_reuse.replace(self.display_list.start_reuse_range());
@@ -1210,11 +1210,11 @@ impl FrameBuilder {
     /// Push an image mask that affects all visual rendered by `render`.
     pub fn push_mask(&mut self, image: &impl Img, rect: PxRect, render: impl FnOnce(&mut Self)) {
         let mut pop = false;
-        if self.visible {
-            if let Some(r) = &self.renderer {
-                self.display_list.push_mask(image.renderer_id(r), rect);
-                pop = true;
-            }
+        if self.visible
+            && let Some(r) = &self.renderer
+        {
+            self.display_list.push_mask(image.renderer_id(r), rect);
+            pop = true;
         }
 
         render(self);
@@ -1537,20 +1537,22 @@ impl FrameBuilder {
         expect_inner!(self.push_text);
         warn_empty!(self.push_text(clip_rect));
 
-        if let Some(r) = &self.renderer {
-            if !glyphs.is_empty() && self.visible && !font.is_empty_fallback() {
-                let font_id = font.renderer_id(r, synthesis);
+        if let Some(r) = &self.renderer
+            && !glyphs.is_empty()
+            && self.visible
+            && !font.is_empty_fallback()
+        {
+            let font_id = font.renderer_id(r, synthesis);
 
-                let opts = GlyphOptions::new(
-                    match aa {
-                        FontAntiAliasing::Default => self.default_font_aa,
-                        aa => aa,
-                    },
-                    synthesis.contains(FontSynthesis::BOLD),
-                    synthesis.contains(FontSynthesis::OBLIQUE),
-                );
-                self.display_list.push_text(clip_rect, font_id, glyphs, color, opts);
-            }
+            let opts = GlyphOptions::new(
+                match aa {
+                    FontAntiAliasing::Default => self.default_font_aa,
+                    aa => aa,
+                },
+                synthesis.contains(FontSynthesis::BOLD),
+                synthesis.contains(FontSynthesis::OBLIQUE),
+            );
+            self.display_list.push_text(clip_rect, font_id, glyphs, color, opts);
         }
 
         if self.auto_hit_test {
@@ -1571,19 +1573,19 @@ impl FrameBuilder {
         expect_inner!(self.push_image);
         warn_empty!(self.push_image(clip_rect));
 
-        if let Some(r) = &self.renderer {
-            if self.visible {
-                let image_key = image.renderer_id(r);
-                self.display_list.push_image(
-                    clip_rect,
-                    image_key,
-                    img_size,
-                    tile_size,
-                    tile_spacing,
-                    rendering,
-                    image.alpha_type(),
-                );
-            }
+        if let Some(r) = &self.renderer
+            && self.visible
+        {
+            let image_key = image.renderer_id(r);
+            self.display_list.push_image(
+                clip_rect,
+                image_key,
+                img_size,
+                tile_size,
+                tile_spacing,
+                rendering,
+                image.alpha_type(),
+            );
         }
 
         if self.auto_hit_test {
@@ -2585,10 +2587,10 @@ impl FrameUpdate {
         }
 
         let render_info = bounds.render_info();
-        if let Some(i) = &render_info {
-            if i.parent_perspective != self.perspective {
-                self.can_reuse_widget = false;
-            }
+        if let Some(i) = &render_info
+            && i.parent_perspective != self.perspective
+        {
+            self.can_reuse_widget = false;
         }
 
         let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);

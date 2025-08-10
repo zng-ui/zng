@@ -1991,10 +1991,10 @@ impl Key {
     #[expect(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         let mut n = s.chars();
-        if let Some(c) = n.next() {
-            if n.next().is_none() {
-                return Self::Char(c);
-            }
+        if let Some(c) = n.next()
+            && n.next().is_none()
+        {
+            return Self::Char(c);
         }
 
         for v in Self::all_named() {

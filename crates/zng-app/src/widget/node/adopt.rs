@@ -119,7 +119,7 @@ impl UiNodeImpl for AdoptiveChildNode {
 
     fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
         if index == 0 {
-            visitor(&mut *self.child.lock())
+            visitor(&mut self.child.lock())
         }
     }
 }

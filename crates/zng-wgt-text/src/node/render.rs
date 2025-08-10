@@ -249,12 +249,11 @@ pub fn render_text() -> UiNode {
             has_loading_images = false;
         }
         UiNodeOp::Update { .. } => {
-            if FONT_PALETTE_VAR.is_new() || FONT_PALETTE_COLORS_VAR.is_new() {
-                if let Some(t) = TEXT.try_laidout() {
-                    if t.shaped_text.has_colored_glyphs() {
-                        WIDGET.render();
-                    }
-                }
+            if (FONT_PALETTE_VAR.is_new() || FONT_PALETTE_COLORS_VAR.is_new())
+                && let Some(t) = TEXT.try_laidout()
+                && t.shaped_text.has_colored_glyphs()
+            {
+                WIDGET.render();
             }
         }
         UiNodeOp::Measure { desired_size, .. } => {

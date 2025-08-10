@@ -155,21 +155,21 @@ fn scroll_click_handler() -> impl WidgetHandler<MouseClickArgs> {
 fn access_node(child: impl IntoUiNode) -> UiNode {
     let mut handle = VarHandle::dummy();
     match_node(child, move |_, op| {
-        if let UiNodeOp::Info { info } = op {
-            if let Some(mut info) = info.access() {
-                use crate::*;
+        if let UiNodeOp::Info { info } = op
+            && let Some(mut info) = info.access()
+        {
+            use crate::*;
 
-                if handle.is_dummy() {
-                    handle = ORIENTATION_VAR.subscribe(UpdateOp::Info, WIDGET.id());
-                }
-
-                match ORIENTATION_VAR.get() {
-                    Orientation::Horizontal => info.set_scroll_horizontal(SCROLL_HORIZONTAL_OFFSET_VAR.current_context()),
-                    Orientation::Vertical => info.set_scroll_vertical(SCROLL_VERTICAL_OFFSET_VAR.current_context()),
-                }
-
-                info.push_controls(SCROLL.id());
+            if handle.is_dummy() {
+                handle = ORIENTATION_VAR.subscribe(UpdateOp::Info, WIDGET.id());
             }
+
+            match ORIENTATION_VAR.get() {
+                Orientation::Horizontal => info.set_scroll_horizontal(SCROLL_HORIZONTAL_OFFSET_VAR.current_context()),
+                Orientation::Vertical => info.set_scroll_vertical(SCROLL_VERTICAL_OFFSET_VAR.current_context()),
+            }
+
+            info.push_controls(SCROLL.id());
         }
     })
 }

@@ -197,18 +197,18 @@ fn fmt_code(code: &str, stream: TokenStream) -> String {
                     let group_bytes = g.span().byte_range();
                     let group_code = &code[group_bytes.clone()];
 
-                    if let Some(formatted) = try_fmt_macro(base_indent, group_code) {
-                        if formatted != group_code {
-                            // changed by custom format
-                            if let Some(stable) = try_fmt_macro(base_indent, &formatted) {
-                                if formatted == stable {
-                                    // change is sable
-                                    let already_fmt = &code[last_already_fmt_start..group_bytes.start];
-                                    formatted_code.push_str(already_fmt);
-                                    formatted_code.push_str(&formatted);
-                                    last_already_fmt_start = group_bytes.end;
-                                }
-                            }
+                    if let Some(formatted) = try_fmt_macro(base_indent, group_code)
+                        && formatted != group_code
+                    {
+                        // changed by custom format
+                        if let Some(stable) = try_fmt_macro(base_indent, &formatted)
+                            && formatted == stable
+                        {
+                            // change is sable
+                            let already_fmt = &code[last_already_fmt_start..group_bytes.start];
+                            formatted_code.push_str(already_fmt);
+                            formatted_code.push_str(&formatted);
+                            last_already_fmt_start = group_bytes.end;
                         }
                     }
                 } else if !tail2.is_empty()
@@ -225,11 +225,13 @@ fn fmt_code(code: &str, stream: TokenStream) -> String {
                         Some(TokenTree::Ident(i1)),
                         None,
                     ] = attr
+                        && i0 == "rustfmt"
+                        && p0.as_char() == ':'
+                        && p1.as_char() == ':'
+                        && i1 == "skip"
                     {
-                        if i0 == "rustfmt" && p0.as_char() == ':' && p1.as_char() == ':' && i1 == "skip" {
-                            // #[rustfmt::skip]
-                            skip_next_group = true;
-                        }
+                        // #[rustfmt::skip]
+                        skip_next_group = true;
                     }
                 } else if !std::mem::take(&mut skip_next_group) {
                     stream_stack.push(g.stream().into_iter());
@@ -379,10 +381,10 @@ fn replace_widget_prop(code: &str, reverse: bool) -> Cow<'_, str> {
                     }
                 };
                 for tt in stream {
-                    if let TokenTree::Punct(p) = tt {
-                        if p.as_char() == ',' {
-                            return true;
-                        }
+                    if let TokenTree::Punct(p) = tt
+                        && p.as_char() == ','
+                    {
+                        return true;
                     }
                 }
                 false

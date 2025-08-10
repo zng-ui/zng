@@ -586,12 +586,12 @@ fn sh() {
 
 fn sh_options() -> Vec<std::ffi::OsString> {
     let mut r = vec![];
-    if let Ok(sh) = env::var("ZR_SH") {
-        if !sh.is_empty() {
-            let sh = PathBuf::from(sh);
-            if sh.exists() {
-                r.push(sh.into_os_string());
-            }
+    if let Ok(sh) = env::var("ZR_SH")
+        && !sh.is_empty()
+    {
+        let sh = PathBuf::from(sh);
+        if sh.exists() {
+            r.push(sh.into_os_string());
         }
     }
 
@@ -810,11 +810,11 @@ fn apk() {
             .file_name()
             .and_then(|f| f.to_str())
             .and_then(|f| semver::Version::parse(f).ok())
+            && ver > best_version
+            && dir.join(AAPT2_NAME).exists()
         {
-            if ver > best_version && dir.join(AAPT2_NAME).exists() {
-                best_build = Some(dir);
-                best_version = ver;
-            }
+            best_build = Some(dir);
+            best_version = ver;
         }
     }
     let build_tools = match best_build {
@@ -882,11 +882,12 @@ fn apk() {
             .and_then(|f| f.to_str())
             .and_then(|f| f.strip_prefix("android-"))
             .and_then(|f| f.parse().ok())
+            && manifest.uses_sdk.matches(ver)
+            && ver > best_version
+            && dir.join("android.jar").exists()
         {
-            if manifest.uses_sdk.matches(ver) && ver > best_version && dir.join("android.jar").exists() {
-                best_platform = Some(dir);
-                best_version = ver;
-            }
+            best_platform = Some(dir);
+            best_version = ver;
         }
     }
     let platform = match best_platform {
@@ -1048,15 +1049,15 @@ impl AndroidSdk {
         if let Some(v) = self.target_sdk_version {
             return v == version;
         }
-        if let Some(m) = self.min_sdk_version {
-            if version < m {
-                return false;
-            }
+        if let Some(m) = self.min_sdk_version
+            && version < m
+        {
+            return false;
         }
-        if let Some(m) = self.max_sdk_version {
-            if version > m {
-                return false;
-            }
+        if let Some(m) = self.max_sdk_version
+            && version > m
+        {
+            return false;
         }
         true
     }

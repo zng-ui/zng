@@ -357,20 +357,20 @@ async fn save_copy(enabled: Var<bool>, path: PathBuf) {
 async fn remove_path(enabled: Var<bool>, path: PathBuf) {
     enabled.set(false);
 
-    if let Err(e) = task::wait(move || std::fs::remove_file(path)).await {
-        if e.kind() != std::io::ErrorKind::NotFound {
-            DIALOG
-                .error(
-                    "",
-                    l10n!(
-                        "crash-handler/minidump.remove-error",
-                        "Failed to remove minidump.\n{$error}",
-                        error = e.to_string()
-                    ),
-                )
-                .wait_rsp()
-                .await
-        }
+    if let Err(e) = task::wait(move || std::fs::remove_file(path)).await
+        && e.kind() != std::io::ErrorKind::NotFound
+    {
+        DIALOG
+            .error(
+                "",
+                l10n!(
+                    "crash-handler/minidump.remove-error",
+                    "Failed to remove minidump.\n{$error}",
+                    error = e.to_string()
+                ),
+            )
+            .wait_rsp()
+            .await
     }
 
     enabled.set(true);

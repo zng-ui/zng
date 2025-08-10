@@ -195,10 +195,10 @@ pub fn foreground_highlight(
             let radius = radius.deflate(offsets);
 
             let mut bounds = PxRect::zero();
-            if let Some(inline) = wl.inline() {
-                if let Some(first) = inline.rows.iter().find(|r| !r.size.is_empty()) {
-                    bounds = *first;
-                }
+            if let Some(inline) = wl.inline()
+                && let Some(first) = inline.rows.iter().find(|r| !r.size.is_empty())
+            {
+                bounds = *first;
             }
             if bounds.size.is_empty() {
                 let border_offsets = BORDER.inner_offsets();
