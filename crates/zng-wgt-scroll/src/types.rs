@@ -203,7 +203,7 @@ impl SCROLL {
     /// New node that holds data for the [`SCROLL`] context.
     ///
     /// Scroll implementers must add this node to their context.
-    pub fn config_node(&self, child: impl UiNode) -> impl UiNode {
+    pub fn config_node(&self, child: impl IntoUiNode) -> UiNode {
         let child = match_node(child, move |_, op| {
             if let UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } = op {
                 let h = SCROLL_HORIZONTAL_OFFSET_VAR.get();

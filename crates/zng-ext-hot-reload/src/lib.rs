@@ -54,7 +54,7 @@ macro_rules! zng_hot_entry {
         #[doc(hidden)] // used by proc-macro
         pub use $crate::zng_hot_entry;
 
-        #[unsafe(no_mangle)] // SAFETY: docs struct users to call the macro only once, name is unlikely to have collisions.
+        #[unsafe(no_mangle)] // SAFETY: docs instruct users to call the macro only once, name is unlikely to have collisions.
         #[doc(hidden)] // used by lib loader
         pub extern "C" fn zng_hot_entry(
             manifest_dir: &&str,
@@ -65,7 +65,7 @@ macro_rules! zng_hot_entry {
             $crate::zng_hot_entry::entry(manifest_dir, node_name, ctx, exchange)
         }
 
-        #[unsafe(no_mangle)] // SAFETY: docs struct users to call the macro only once, name is unlikely to have collisions.
+        #[unsafe(no_mangle)] // SAFETY: docs instruct users to call the macro only once, name is unlikely to have collisions.
         #[doc(hidden)]
         pub extern "C" fn zng_hot_entry_init(patch: &$crate::StaticPatch) {
             $crate::zng_hot_entry::init(patch)
@@ -674,7 +674,7 @@ impl fmt::Debug for HotLib {
 impl HotLib {
     pub fn new(patch: &StaticPatch, manifest_dir: Txt, lib: impl AsRef<std::ffi::OsStr>) -> Result<Self, libloading::Error> {
         unsafe {
-            // SAFETY: assuming the hot lib was setup as the documented, this works,
+            // SAFETY: assuming the hot lib was setup as the docs instruct, this works,
             // even the `linkme` stuff does not require any special care.
             //
             // If the hot lib developer add some "ctor/dtor" stuff and that fails they will probably

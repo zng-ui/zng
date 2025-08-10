@@ -56,8 +56,7 @@ impl MaterialIconsManager {
 impl zng_app::AppExtension for MaterialIconsManager {
     #[cfg(any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp"))]
     fn init(&mut self) {
-        use zng_app::widget::node::{NilUiNode, UiNode as _};
-        use zng_wgt::{ICONS, IconRequestArgs, wgt_fn};
+        use zng_wgt::{ICONS, IconRequestArgs, prelude::UiNode, wgt_fn};
         use zng_wgt_text::icon::{GlyphIcon, Icon};
 
         self.register_fonts();
@@ -78,13 +77,13 @@ impl zng_app::AppExtension for MaterialIconsManager {
                 for (name, get) in sets {
                     if let Some(key) = strong_key.strip_prefix(name) {
                         if let Some(ico) = get(key) {
-                            return Icon!(ico).boxed();
+                            return Icon!(ico);
                         }
                     }
                 }
             }
 
-            NilUiNode.boxed()
+            UiNode::nil()
         }));
 
         ICONS.register_fallback(wgt_fn!(|args: IconRequestArgs| {
@@ -100,10 +99,10 @@ impl zng_app::AppExtension for MaterialIconsManager {
             ];
             for get in sets {
                 if let Some(ico) = get(args.name()) {
-                    return Icon!(ico).boxed();
+                    return Icon!(ico);
                 }
             }
-            NilUiNode.boxed()
+            UiNode::nil()
         }));
     }
 }

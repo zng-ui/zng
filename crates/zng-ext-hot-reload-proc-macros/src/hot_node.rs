@@ -66,17 +66,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     let inputs: Vec<_> = item.sig.inputs.iter().map(|arg| Input::from_arg(arg, &mut errors)).collect();
 
     match &item.sig.output {
-        ReturnType::Default => errors.push("hot node functions must output `impl UiNode`", item.sig.fn_token.span()),
+        ReturnType::Default => errors.push("hot node functions must output `UiNode`", item.sig.fn_token.span()),
         ReturnType::Type(_, t) => match &**t {
-            Type::ImplTrait(t) => match t.bounds.last().unwrap() {
-                TypeParamBound::Trait(t)
-                    if t.lifetimes.is_none() && t.paren_token.is_none() && t.path.segments.last().unwrap().ident == "UiNode" =>
-                {
-                    // ok
-                }
-                _ => errors.push("hot node functions must output `impl UiNode`", t.span()),
-            },
-            _ => errors.push("hot node functions must output `impl UiNode`", t.span()),
+            Type::Path(p) if p.qself.is_none() && p.path.get_ident().map(|i| i == "UiNode").unwrap_or(false) => {
+                // ok
+            }
+            _ => errors.push("hot node functions must output `UiNode`", t.span()),
         },
     }
 
@@ -103,9 +98,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }),
             InputKind::WidgetHandler => unpack_args.extend(quote! {
                 __args__.pop_widget_handler::<#t>(),
-            }),
-            InputKind::UiNodeList => unpack_args.extend(quote! {
-                __args__.pop_ui_node_list(),
             }),
             InputKind::TryClone => unpack_args.extend(quote! {
                 __args__.pop_clone::<#t>(),
@@ -169,11 +161,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     __args__.push_widget_handler::<#t>(#ident);
                 });
             }
-            InputKind::UiNodeList => {
-                pack_args.extend(quote_spanned! {ident.span()=>
-                    __args__.push_ui_node_list(#ident);
-                });
-            }
             InputKind::TryClone => {
                 pack_args.extend(quote_spanned! {ident.span()=>
                     __args__.push_clone::<#t>(#ident);
@@ -226,7 +213,6 @@ enum InputKind {
     Value,
     UiNode,
     WidgetHandler,
-    UiNodeList,
     TryClone,
 }
 struct Input {
@@ -292,14 +278,11 @@ impl Input {
                                     "WidgetHandler" if !seg.arguments.is_empty() => {
                                         ty_from_generic(&mut input, errors, InputKind::WidgetHandler, &seg.arguments);
                                     }
-                                    "UiNode" => {
+                                    "IntoUiNode" => {
                                         input.kind = InputKind::UiNode;
                                     }
-                                    "UiNodeList" => {
-                                        input.kind = InputKind::UiNodeList;
-                                    }
                                     _ => {
-                                        errors.push("hot node input can only have impl types for: IntoVar<T>, IntoValue<T>, UiNode, WidgetHandler<A>, UiNodeList", seg.span());
+                                        errors.push("hot node input can only have impl types for: IntoVar<T>, IntoValue<T>, IntoUiNode, WidgetHandler<A>", seg.span());
                                     }
                                 }
                             }

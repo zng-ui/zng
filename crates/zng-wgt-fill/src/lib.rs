@@ -23,19 +23,21 @@ pub mod node;
 /// in a style the background node will only appear in the last widget that uses the style, the
 /// [`background_fn`](fn@background_fn) property does not have this issue.
 #[property(FILL)]
-pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
+pub fn background(child: impl IntoUiNode, background: impl IntoUiNode) -> UiNode {
     let background = interactive_node(background, false);
     let background = fill_node(background);
 
-    match_node_list(ui_vec![background, child], |children, op| match op {
+    match_node(ui_vec![background, child], |children, op| match op {
         UiNodeOp::Measure { wm, desired_size } => {
-            *desired_size = children.with_node(1, |n| n.measure(wm));
+            children.delegated();
+            *desired_size = children.node().with_child(1, |n| n.measure(wm));
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let size = children.with_node(1, |n| n.layout(wl));
+            children.delegated();
+            let size = children.node().with_child(1, |n| n.layout(wl));
 
             LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || {
-                children.with_node(0, |n| n.layout(wl));
+                children.node().with_child(0, |n| n.layout(wl));
             });
             *final_size = size;
         }
@@ -53,7 +55,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
 /// [`background`]: fn@background
 /// [`presenter`]: zng_wgt::prelude::presenter
 #[property(FILL, default(WidgetFn::nil()))]
-pub fn background_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+pub fn background_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> UiNode {
     background(child, presenter((), wgt_fn))
 }
 
@@ -63,7 +65,7 @@ pub fn background_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> 
 ///
 /// [`background`]: fn@background
 #[property(FILL, default(colors::BLACK.transparent()))]
-pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
     background(child, node::flood(color))
 }
 
@@ -76,7 +78,7 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
     let c = colors::BLACK.transparent();
     stops![c, c]
 }))]
-pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+pub fn background_gradient(child: impl IntoUiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> UiNode {
     background(child, node::linear_gradient(axis, stops))
 }
 
@@ -90,11 +92,11 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
     stops![c, c]
 }))]
 pub fn background_radial(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     center: impl IntoVar<Point>,
     radius: impl IntoVar<GradientRadius>,
     stops: impl IntoVar<GradientStops>,
-) -> impl UiNode {
+) -> UiNode {
     background(child, node::radial_gradient(center, radius, stops))
 }
 
@@ -108,11 +110,11 @@ pub fn background_radial(
     stops![c, c]
 }))]
 pub fn background_conic(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     center: impl IntoVar<Point>,
     angle: impl IntoVar<AngleRadian>,
     stops: impl IntoVar<GradientStops>,
-) -> impl UiNode {
+) -> UiNode {
     background(child, node::conic_gradient(center, angle, stops))
 }
 
@@ -126,20 +128,22 @@ pub fn background_conic(
 /// the foreground node will only appear in the last widget that uses the style, the [`foreground_fn`] property does not have this issue.
 ///
 /// [`foreground_fn`]: fn@foreground_fn
-#[property(FILL, default(NilUiNode))]
-pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
+#[property(FILL, default(UiNode::nil()))]
+pub fn foreground(child: impl IntoUiNode, foreground: impl IntoUiNode) -> UiNode {
     let foreground = interactive_node(foreground, false);
     let foreground = fill_node(foreground);
     let foreground = hit_test_mode(foreground, HitTestMode::Disabled);
 
-    match_node_list(ui_vec![child, foreground], |children, op| match op {
+    match_node(ui_vec![child, foreground], |children, op| match op {
         UiNodeOp::Measure { wm, desired_size } => {
-            *desired_size = children.with_node(0, |n| n.measure(wm));
+            children.delegated();
+            *desired_size = children.node().with_child(0, |n| n.measure(wm));
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let size = children.with_node(0, |n| n.layout(wl));
+            children.delegated();
+            let size = children.node().with_child(0, |n| n.layout(wl));
             LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || {
-                children.with_node(1, |n| n.layout(wl));
+                children.node().with_child(1, |n| n.layout(wl));
             });
             *final_size = size;
         }
@@ -157,7 +161,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 /// [`foreground`]: fn@foreground
 /// [`presenter`]: zng_wgt::prelude::presenter
 #[property(FILL, default(WidgetFn::nil()))]
-pub fn foreground_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+pub fn foreground_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> UiNode {
     foreground(child, presenter((), wgt_fn))
 }
 
@@ -166,11 +170,11 @@ pub fn foreground_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> 
 /// This property draws a border contour overlay that can be positioned using `offsets`.
 #[property(FILL, default(0, 0, BorderStyle::Hidden))]
 pub fn foreground_highlight(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     offsets: impl IntoVar<SideOffsets>,
     widths: impl IntoVar<SideOffsets>,
     sides: impl IntoVar<BorderSides>,
-) -> impl UiNode {
+) -> UiNode {
     let offsets = offsets.into_var();
     let widths = widths.into_var();
     let sides = sides.into_var();
@@ -230,7 +234,7 @@ pub fn foreground_highlight(
 ///
 /// [`foreground`]: fn@foreground
 #[property(FILL, default(colors::BLACK.transparent()))]
-pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn foreground_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
     foreground(child, node::flood(color))
 }
 
@@ -243,7 +247,7 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
     let c = colors::BLACK.transparent();
     stops![c, c]
 }))]
-pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+pub fn foreground_gradient(child: impl IntoUiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> UiNode {
     foreground(child, node::linear_gradient(axis, stops))
 }
 
@@ -257,11 +261,11 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
     stops![c, c]
 }))]
 pub fn foreground_radial(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     center: impl IntoVar<Point>,
     radius: impl IntoVar<GradientRadius>,
     stops: impl IntoVar<GradientStops>,
-) -> impl UiNode {
+) -> UiNode {
     foreground(child, node::radial_gradient(center, radius, stops))
 }
 
@@ -275,10 +279,10 @@ pub fn foreground_radial(
     stops![c, c]
 }))]
 pub fn foreground_conic(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     center: impl IntoVar<Point>,
     angle: impl IntoVar<AngleRadian>,
     stops: impl IntoVar<GradientStops>,
-) -> impl UiNode {
+) -> UiNode {
     foreground(child, node::conic_gradient(center, angle, stops))
 }

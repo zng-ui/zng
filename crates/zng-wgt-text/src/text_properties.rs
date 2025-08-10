@@ -82,7 +82,7 @@ impl FontMix<()> {
 /// [`font_weight`]: fn@font_weight
 /// [`font_stretch`]: fn@font_stretch
 #[property(CONTEXT, default(FONT_FAMILY_VAR), widget_impl(FontMix<P>))]
-pub fn font_family(child: impl UiNode, names: impl IntoVar<FontNames>) -> impl UiNode {
+pub fn font_family(child: impl IntoUiNode, names: impl IntoVar<FontNames>) -> UiNode {
     with_context_var(child, FONT_FAMILY_VAR, names)
 }
 
@@ -95,7 +95,7 @@ pub fn font_family(child: impl UiNode, names: impl IntoVar<FontNames>) -> impl U
 /// [`LayoutMetrics::font_size`]: zng_wgt::prelude::LayoutMetrics::font_size
 /// [`Length::Em`]: zng_wgt::prelude::Length::Em
 #[property(CONTEXT, default(FONT_SIZE_VAR), widget_impl(FontMix<P>))]
-pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
+pub fn font_size(child: impl IntoUiNode, size: impl IntoVar<FontSize>) -> UiNode {
     let child = match_node(child, |child, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_layout(&FONT_SIZE_VAR);
@@ -131,7 +131,7 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
 ///
 /// Sets the [`FONT_WEIGHT_VAR`].
 #[property(CONTEXT, default(FONT_WEIGHT_VAR), widget_impl(FontMix<P>))]
-pub fn font_weight(child: impl UiNode, weight: impl IntoVar<FontWeight>) -> impl UiNode {
+pub fn font_weight(child: impl IntoUiNode, weight: impl IntoVar<FontWeight>) -> UiNode {
     with_context_var(child, FONT_WEIGHT_VAR, weight)
 }
 
@@ -141,7 +141,7 @@ pub fn font_weight(child: impl UiNode, weight: impl IntoVar<FontWeight>) -> impl
 ///
 /// Sets the [`FONT_STYLE_VAR`].
 #[property(CONTEXT, default(FONT_STYLE_VAR), widget_impl(FontMix<P>))]
-pub fn font_style(child: impl UiNode, style: impl IntoVar<FontStyle>) -> impl UiNode {
+pub fn font_style(child: impl IntoUiNode, style: impl IntoVar<FontStyle>) -> UiNode {
     with_context_var(child, FONT_STYLE_VAR, style)
 }
 
@@ -151,7 +151,7 @@ pub fn font_style(child: impl UiNode, style: impl IntoVar<FontStyle>) -> impl Ui
 ///
 /// Sets the [`FONT_STRETCH_VAR`].
 #[property(CONTEXT, default(FONT_STRETCH_VAR), widget_impl(FontMix<P>))]
-pub fn font_stretch(child: impl UiNode, stretch: impl IntoVar<FontStretch>) -> impl UiNode {
+pub fn font_stretch(child: impl IntoUiNode, stretch: impl IntoVar<FontStretch>) -> UiNode {
     with_context_var(child, FONT_STRETCH_VAR, stretch)
 }
 
@@ -165,7 +165,7 @@ pub fn font_stretch(child: impl UiNode, stretch: impl IntoVar<FontStretch>) -> i
 /// [`font_weight`]: fn@font_weight
 /// [`font_style`]: fn@font_style
 #[property(CONTEXT, default(FONT_SYNTHESIS_VAR), widget_impl(FontMix<P>))]
-pub fn font_synthesis(child: impl UiNode, enabled: impl IntoVar<FontSynthesis>) -> impl UiNode {
+pub fn font_synthesis(child: impl IntoUiNode, enabled: impl IntoVar<FontSynthesis>) -> UiNode {
     with_context_var(child, FONT_SYNTHESIS_VAR, enabled)
 }
 
@@ -175,7 +175,7 @@ pub fn font_synthesis(child: impl UiNode, enabled: impl IntoVar<FontSynthesis>) 
 ///
 /// Sets the [`FONT_AA_VAR`].
 #[property(CONTEXT, default(FONT_AA_VAR), widget_impl(FontMix<P>))]
-pub fn font_aa(child: impl UiNode, aa: impl IntoVar<FontAntiAliasing>) -> impl UiNode {
+pub fn font_aa(child: impl IntoUiNode, aa: impl IntoVar<FontAntiAliasing>) -> UiNode {
     with_context_var(child, FONT_AA_VAR, aa)
 }
 
@@ -224,7 +224,7 @@ impl TextFillMix<()> {
 ///
 /// [`font_palette`]: fn@font_palette
 #[property(CONTEXT, default(FONT_COLOR_VAR), widget_impl(TextFillMix<P>))]
-pub fn font_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn font_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
     with_context_var(child, FONT_COLOR_VAR, color)
 }
 
@@ -238,7 +238,7 @@ pub fn font_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode 
 /// [`font_color`]: fn@font_color
 /// [`font_palette_colors`]: fn@font_palette_colors
 #[property(CONTEXT, default(FONT_PALETTE_VAR), widget_impl(TextFillMix<P>))]
-pub fn font_palette(child: impl UiNode, palette: impl IntoVar<FontColorPalette>) -> impl UiNode {
+pub fn font_palette(child: impl IntoUiNode, palette: impl IntoVar<FontColorPalette>) -> UiNode {
     with_context_var(child, FONT_PALETTE_VAR, palette)
 }
 
@@ -250,7 +250,7 @@ pub fn font_palette(child: impl UiNode, palette: impl IntoVar<FontColorPalette>)
 /// can use [`font_palette_colors`] to set all color overrides directly.
 ///
 /// [`font_palette_colors`]: fn@font_palette_colors
-pub fn with_font_palette_color(child: impl UiNode, index: u16, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn with_font_palette_color(child: impl IntoUiNode, index: u16, color: impl IntoVar<Rgba>) -> UiNode {
     with_context_var(
         child,
         FONT_PALETTE_COLORS_VAR,
@@ -275,7 +275,7 @@ pub fn with_font_palette_color(child: impl UiNode, index: u16, color: impl IntoV
 ///
 /// [`font_palette`]: fn@font_palette
 #[property(CONTEXT, default(FONT_PALETTE_COLORS_VAR), widget_impl(TextFillMix<P>))]
-pub fn font_palette_colors(child: impl UiNode, colors: impl IntoVar<Vec<(u16, Rgba)>>) -> impl UiNode {
+pub fn font_palette_colors(child: impl IntoUiNode, colors: impl IntoVar<Vec<(u16, Rgba)>>) -> UiNode {
     with_context_var(child, FONT_PALETTE_COLORS_VAR, colors)
 }
 
@@ -322,7 +322,7 @@ impl TextAlignMix<()> {
 /// [`Text!`]: struct@crate::Text
 /// [`txt_overflow_align`]: fn@txt_overflow_align
 #[property(CONTEXT, default(TEXT_ALIGN_VAR), widget_impl(TextAlignMix<P>))]
-pub fn txt_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
+pub fn txt_align(child: impl IntoUiNode, mode: impl IntoVar<Align>) -> UiNode {
     with_context_var(child, TEXT_ALIGN_VAR, mode)
 }
 
@@ -339,7 +339,7 @@ pub fn txt_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
 /// [`txt_overflow`]: fn@txt_overflow
 /// [`Align::TOP_START`]: zng_wgt::prelude::Align::TOP_START
 #[property(CONTEXT, default(TEXT_OVERFLOW_ALIGN_VAR), widget_impl(TextAlignMix<P>))]
-pub fn txt_overflow_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
+pub fn txt_overflow_align(child: impl IntoUiNode, mode: impl IntoVar<Align>) -> UiNode {
     with_context_var(child, TEXT_OVERFLOW_ALIGN_VAR, mode)
 }
 
@@ -352,7 +352,7 @@ pub fn txt_overflow_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl
 ///
 /// [`Align::FILL_X`]: zng_wgt::prelude::Align::FILL_X
 #[property(CONTEXT, default(JUSTIFY_MODE_VAR), widget_impl(TextAlignMix<P>))]
-pub fn justify_mode(child: impl UiNode, mode: impl IntoVar<Justify>) -> impl UiNode {
+pub fn justify_mode(child: impl IntoUiNode, mode: impl IntoVar<Justify>) -> UiNode {
     with_context_var(child, JUSTIFY_MODE_VAR, mode)
 }
 
@@ -474,7 +474,7 @@ impl_from_and_into_var! {
 /// [`word_break`]: fn@word_break
 /// [`hyphens`]: fn@hyphens
 #[property(CONTEXT, default(TEXT_WRAP_VAR), widget_impl(TextWrapMix<P>))]
-pub fn txt_wrap(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn txt_wrap(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, TEXT_WRAP_VAR, enabled)
 }
 
@@ -488,7 +488,7 @@ pub fn txt_wrap(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode 
 ///
 /// [`hyphens`]: fn@hyphens
 #[property(CONTEXT, default(WORD_BREAK_VAR), widget_impl(TextWrapMix<P>))]
-pub fn word_break(child: impl UiNode, mode: impl IntoVar<WordBreak>) -> impl UiNode {
+pub fn word_break(child: impl IntoUiNode, mode: impl IntoVar<WordBreak>) -> UiNode {
     with_context_var(child, WORD_BREAK_VAR, mode)
 }
 
@@ -496,7 +496,7 @@ pub fn word_break(child: impl UiNode, mode: impl IntoVar<WordBreak>) -> impl UiN
 ///
 /// Sets the [`LINE_BREAK_VAR`].
 #[property(CONTEXT, default(LINE_BREAK_VAR), widget_impl(TextWrapMix<P>))]
-pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiNode {
+pub fn line_break(child: impl IntoUiNode, mode: impl IntoVar<LineBreak>) -> UiNode {
     with_context_var(child, LINE_BREAK_VAR, mode)
 }
 
@@ -510,7 +510,7 @@ pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiN
 /// [`lang`]: fn@lang
 /// [`hyphen_char`]: fn@hyphen_char
 #[property(CONTEXT, default(HYPHENS_VAR), widget_impl(TextWrapMix<P>))]
-pub fn hyphens(child: impl UiNode, hyphens: impl IntoVar<Hyphens>) -> impl UiNode {
+pub fn hyphens(child: impl IntoUiNode, hyphens: impl IntoVar<Hyphens>) -> UiNode {
     with_context_var(child, HYPHENS_VAR, hyphens)
 }
 
@@ -520,7 +520,7 @@ pub fn hyphens(child: impl UiNode, hyphens: impl IntoVar<Hyphens>) -> impl UiNod
 ///
 /// [`hyphens`]: fn@hyphens
 #[property(CONTEXT, default(HYPHEN_CHAR_VAR), widget_impl(TextWrapMix<P>))]
-pub fn hyphen_char(child: impl UiNode, hyphen: impl IntoVar<Txt>) -> impl UiNode {
+pub fn hyphen_char(child: impl IntoUiNode, hyphen: impl IntoVar<Txt>) -> UiNode {
     with_context_var(child, HYPHEN_CHAR_VAR, hyphen)
 }
 
@@ -532,13 +532,13 @@ pub fn hyphen_char(child: impl UiNode, hyphen: impl IntoVar<Txt>) -> impl UiNode
 ///
 /// [`txt_wrap`]: fn@txt_wrap
 #[property(CONTEXT, default(TEXT_OVERFLOW_VAR), widget_impl(TextWrapMix<P>))]
-pub fn txt_overflow(child: impl UiNode, overflow: impl IntoVar<TextOverflow>) -> impl UiNode {
+pub fn txt_overflow(child: impl IntoUiNode, overflow: impl IntoVar<TextOverflow>) -> UiNode {
     with_context_var(child, TEXT_OVERFLOW_VAR, overflow)
 }
 
 /// Gets if the text is overflown.
 #[property(CHILD_LAYOUT+100, widget_impl(TextWrapMix<P>))]
-pub fn is_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_overflown(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Deinit => {
@@ -559,7 +559,7 @@ pub fn is_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNod
 /// This is `true` when the text has multiple lines, either due to line-break or wrap, and at
 /// least one line overflows the allowed height, partially or fully.
 #[property(CHILD_LAYOUT+100, widget_impl(TextWrapMix<P>))]
-pub fn is_line_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_line_overflown(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Deinit => {
@@ -586,7 +586,7 @@ pub fn is_line_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl 
 ///
 /// [`txt_overflow`]: fn@txt_overflow
 #[property(CHILD_LAYOUT+100, widget_impl(TextWrapMix<P>))]
-pub fn get_overflow(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {
+pub fn get_overflow(child: impl IntoUiNode, txt: impl IntoVar<Txt>) -> UiNode {
     let txt = txt.into_var();
     match_node(child, move |_, op| {
         if let UiNodeOp::Layout { .. } = op {
@@ -701,7 +701,7 @@ impl TextDecorationMix<()> {
 ///
 /// Sets the [`UNDERLINE_THICKNESS_VAR`] and [`UNDERLINE_STYLE_VAR`].
 #[property(CONTEXT, default(UNDERLINE_THICKNESS_VAR, UNDERLINE_STYLE_VAR), widget_impl(TextDecorationMix<P>))]
-pub fn underline(child: impl UiNode, thickness: impl IntoVar<UnderlineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
+pub fn underline(child: impl IntoUiNode, thickness: impl IntoVar<UnderlineThickness>, style: impl IntoVar<LineStyle>) -> UiNode {
     let child = with_context_var(child, UNDERLINE_THICKNESS_VAR, thickness);
     with_context_var(child, UNDERLINE_STYLE_VAR, style)
 }
@@ -710,7 +710,7 @@ pub fn underline(child: impl UiNode, thickness: impl IntoVar<UnderlineThickness>
 ///
 /// Sets the [`UNDERLINE_COLOR_VAR`].
 #[property(CONTEXT, default(UNDERLINE_COLOR_VAR), widget_impl(TextDecorationMix<P>))]
-pub fn underline_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn underline_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
     with_context_var(child, UNDERLINE_COLOR_VAR, color)
 }
 /// Defines what segments of each text line are skipped when tracing the [`underline`](fn@underline).
@@ -719,7 +719,7 @@ pub fn underline_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl Ui
 ///
 /// Sets the [`UNDERLINE_SKIP_VAR`].
 #[property(CONTEXT, default(UNDERLINE_SKIP_VAR), widget_impl(TextDecorationMix<P>))]
-pub fn underline_skip(child: impl UiNode, skip: impl IntoVar<UnderlineSkip>) -> impl UiNode {
+pub fn underline_skip(child: impl IntoUiNode, skip: impl IntoVar<UnderlineSkip>) -> UiNode {
     with_context_var(child, UNDERLINE_SKIP_VAR, skip)
 }
 /// Defines what font line gets traced by the underline.
@@ -729,7 +729,7 @@ pub fn underline_skip(child: impl UiNode, skip: impl IntoVar<UnderlineSkip>) -> 
 ///
 /// Sets the [`UNDERLINE_POSITION_VAR`].
 #[property(CONTEXT, default(UNDERLINE_POSITION_VAR), widget_impl(TextDecorationMix<P>))]
-pub fn underline_position(child: impl UiNode, position: impl IntoVar<UnderlinePosition>) -> impl UiNode {
+pub fn underline_position(child: impl IntoUiNode, position: impl IntoVar<UnderlinePosition>) -> UiNode {
     with_context_var(child, UNDERLINE_POSITION_VAR, position)
 }
 
@@ -737,7 +737,7 @@ pub fn underline_position(child: impl UiNode, position: impl IntoVar<UnderlinePo
 ///
 /// Sets the [`OVERLINE_THICKNESS_VAR`] and [`OVERLINE_STYLE_VAR`].
 #[property(CONTEXT, default(OVERLINE_THICKNESS_VAR, OVERLINE_STYLE_VAR), widget_impl(TextDecorationMix<P>))]
-pub fn overline(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
+pub fn overline(child: impl IntoUiNode, thickness: impl IntoVar<TextLineThickness>, style: impl IntoVar<LineStyle>) -> UiNode {
     let child = with_context_var(child, OVERLINE_THICKNESS_VAR, thickness);
     with_context_var(child, OVERLINE_STYLE_VAR, style)
 }
@@ -746,7 +746,7 @@ pub fn overline(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, 
 ///
 /// Sets the [`OVERLINE_COLOR_VAR`].
 #[property(CONTEXT, default(OVERLINE_COLOR_VAR), widget_impl(TextDecorationMix<P>))]
-pub fn overline_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn overline_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
     with_context_var(child, OVERLINE_COLOR_VAR, color)
 }
 
@@ -754,7 +754,7 @@ pub fn overline_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiN
 ///
 /// Sets the [`STRIKETHROUGH_THICKNESS_VAR`] and [`STRIKETHROUGH_STYLE_VAR`].
 #[property(CONTEXT, default(STRIKETHROUGH_THICKNESS_VAR, STRIKETHROUGH_STYLE_VAR), widget_impl(TextDecorationMix<P>))]
-pub fn strikethrough(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
+pub fn strikethrough(child: impl IntoUiNode, thickness: impl IntoVar<TextLineThickness>, style: impl IntoVar<LineStyle>) -> UiNode {
     let child = with_context_var(child, STRIKETHROUGH_THICKNESS_VAR, thickness);
     with_context_var(child, STRIKETHROUGH_STYLE_VAR, style)
 }
@@ -763,7 +763,7 @@ pub fn strikethrough(child: impl UiNode, thickness: impl IntoVar<TextLineThickne
 ///
 /// Sets the [`STRIKETHROUGH_COLOR_VAR`].
 #[property(CONTEXT, default(STRIKETHROUGH_COLOR_VAR), widget_impl(TextDecorationMix<P>))]
-pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn strikethrough_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
     with_context_var(child, STRIKETHROUGH_COLOR_VAR, color)
 }
 
@@ -771,7 +771,7 @@ pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> imp
 ///
 /// Sets the [`IME_UNDERLINE_THICKNESS_VAR`] and [`IME_UNDERLINE_STYLE_VAR`].
 #[property(CONTEXT, default(IME_UNDERLINE_THICKNESS_VAR, IME_UNDERLINE_STYLE_VAR), widget_impl(TextDecorationMix<P>))]
-pub fn ime_underline(child: impl UiNode, thickness: impl IntoVar<UnderlineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
+pub fn ime_underline(child: impl IntoUiNode, thickness: impl IntoVar<UnderlineThickness>, style: impl IntoVar<LineStyle>) -> UiNode {
     let child = with_context_var(child, IME_UNDERLINE_THICKNESS_VAR, thickness);
     with_context_var(child, IME_UNDERLINE_STYLE_VAR, style)
 }
@@ -834,7 +834,7 @@ impl TextSpacingMix<()> {
 ///
 /// Sets the [`LINE_HEIGHT_VAR`].
 #[property(CONTEXT, default(LINE_HEIGHT_VAR), widget_impl(TextSpacingMix<P>))]
-pub fn line_height(child: impl UiNode, height: impl IntoVar<LineHeight>) -> impl UiNode {
+pub fn line_height(child: impl IntoUiNode, height: impl IntoVar<LineHeight>) -> UiNode {
     with_context_var(child, LINE_HEIGHT_VAR, height)
 }
 
@@ -854,7 +854,7 @@ pub fn line_height(child: impl UiNode, height: impl IntoVar<LineHeight>) -> impl
 ///
 /// This property sets the [`LETTER_SPACING_VAR`] context var that affects all inner texts.
 #[property(CONTEXT, default(LETTER_SPACING_VAR), widget_impl(TextSpacingMix<P>))]
-pub fn letter_spacing(child: impl UiNode, extra: impl IntoVar<LetterSpacing>) -> impl UiNode {
+pub fn letter_spacing(child: impl IntoUiNode, extra: impl IntoVar<LetterSpacing>) -> UiNode {
     with_context_var(child, LETTER_SPACING_VAR, extra)
 }
 
@@ -869,7 +869,7 @@ pub fn letter_spacing(child: impl UiNode, extra: impl IntoVar<LetterSpacing>) ->
 ///
 /// [`LineHeight`]: zng_ext_font::LineHeight
 #[property(CONTEXT, default(LINE_SPACING_VAR), widget_impl(TextSpacingMix<P>))]
-pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<LineSpacing>) -> impl UiNode {
+pub fn line_spacing(child: impl IntoUiNode, extra: impl IntoVar<LineSpacing>) -> UiNode {
     with_context_var(child, LINE_SPACING_VAR, extra)
 }
 
@@ -893,7 +893,7 @@ pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<LineSpacing>) -> imp
 ///
 /// [`WhiteSpace`]: zng_ext_font::WhiteSpace
 #[property(CONTEXT, default(WORD_SPACING_VAR), widget_impl(TextSpacingMix<P>))]
-pub fn word_spacing(child: impl UiNode, extra: impl IntoVar<WordSpacing>) -> impl UiNode {
+pub fn word_spacing(child: impl IntoUiNode, extra: impl IntoVar<WordSpacing>) -> UiNode {
     with_context_var(child, WORD_SPACING_VAR, extra)
 }
 
@@ -903,7 +903,7 @@ pub fn word_spacing(child: impl UiNode, extra: impl IntoVar<WordSpacing>) -> imp
 ///
 /// Sets the [`TAB_LENGTH_VAR`].
 #[property(CONTEXT, default(TAB_LENGTH_VAR), widget_impl(TextSpacingMix<P>))]
-pub fn tab_length(child: impl UiNode, length: impl IntoVar<TabLength>) -> impl UiNode {
+pub fn tab_length(child: impl IntoUiNode, length: impl IntoVar<TabLength>) -> UiNode {
     with_context_var(child, TAB_LENGTH_VAR, length)
 }
 
@@ -947,7 +947,7 @@ impl TextTransformMix<()> {
 /// [`txt_editable`]: fn@txt_editable
 /// [`WhiteSpace::Preserve`]: zng_ext_font::WhiteSpace::Preserve
 #[property(CONTEXT, default(WHITE_SPACE_VAR), widget_impl(TextTransformMix<P>))]
-pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> impl UiNode {
+pub fn white_space(child: impl IntoUiNode, transform: impl IntoVar<WhiteSpace>) -> UiNode {
     with_context_var(child, WHITE_SPACE_VAR, transform)
 }
 
@@ -959,7 +959,7 @@ pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> i
 ///  
 /// [`txt_editable`]: fn@txt_editable
 #[property(CONTEXT, default(TEXT_TRANSFORM_VAR), widget_impl(TextTransformMix<P>))]
-pub fn txt_transform(child: impl UiNode, transform: impl IntoVar<TextTransformFn>) -> impl UiNode {
+pub fn txt_transform(child: impl IntoUiNode, transform: impl IntoVar<TextTransformFn>) -> UiNode {
     with_context_var(child, TEXT_TRANSFORM_VAR, transform)
 }
 
@@ -983,7 +983,7 @@ pub struct LangMix<P>(P);
 /// [`DIRECTION_VAR`]: zng_wgt::prelude::DIRECTION_VAR
 /// [`LayoutMetrics::direction`]: zng_wgt::prelude::LayoutMetrics::direction
 #[property(CONTEXT, default(LANG_VAR), widget_impl(LangMix<P>))]
-pub fn lang(child: impl UiNode, lang: impl IntoVar<Langs>) -> impl UiNode {
+pub fn lang(child: impl IntoUiNode, lang: impl IntoVar<Langs>) -> UiNode {
     let lang = lang.into_var();
     let child = direction(child, lang.map(|l| l.best().direction()));
     let child = zng_wgt_access::lang(child, lang.map(|l| l.best().clone()));
@@ -1001,7 +1001,7 @@ pub fn lang(child: impl UiNode, lang: impl IntoVar<Langs>) -> impl UiNode {
 /// [`DIRECTION_VAR`]: zng_wgt::prelude::DIRECTION_VAR
 /// [`LayoutMetrics::direction`]: zng_wgt::prelude::LayoutMetrics::direction
 #[property(CONTEXT+1, default(DIRECTION_VAR), widget_impl(LangMix<P>))]
-pub fn direction(child: impl UiNode, direction: impl IntoVar<LayoutDirection>) -> impl UiNode {
+pub fn direction(child: impl IntoUiNode, direction: impl IntoVar<LayoutDirection>) -> UiNode {
     let child = match_node(child, |child, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_layout(&DIRECTION_VAR);
@@ -1055,7 +1055,7 @@ impl FontFeaturesMix<()> {
 ///
 /// The variation `name` is set for the [`FONT_VARIATIONS_VAR`] in this context, variations already set in the parent
 /// context that are not the same `name` are also included.
-pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: impl IntoVar<f32>) -> impl UiNode {
+pub fn with_font_variation(child: impl IntoUiNode, name: FontVariationName, value: impl IntoVar<f32>) -> UiNode {
     with_context_var(
         child,
         FONT_VARIATIONS_VAR,
@@ -1071,9 +1071,9 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
 ///
 /// The modifications done in `set_feature` are visible only in the [`FONT_FEATURES_VAR`] in this context, and features
 /// already set in a parent context are included.
-pub fn with_font_feature<C, S, V, D>(child: C, state: V, set_feature: D) -> impl UiNode
+pub fn with_font_feature<C, S, V, D>(child: C, state: V, set_feature: D) -> UiNode
 where
-    C: UiNode,
+    C: IntoUiNode,
     S: VarValue,
     V: IntoVar<S>,
     D: FnMut(&mut FontFeatures, S) -> S + Send + 'static,
@@ -1095,7 +1095,7 @@ where
 /// **Note:** This property fully replaces the font variations for the widget and descendants, use [`with_font_variation`]
 /// to create a property that sets a variation but retains others from the context.
 #[property(CONTEXT, default(FONT_VARIATIONS_VAR), widget_impl(FontFeaturesMix<P>))]
-pub fn font_variations(child: impl UiNode, variations: impl IntoVar<FontVariations>) -> impl UiNode {
+pub fn font_variations(child: impl IntoUiNode, variations: impl IntoVar<FontVariations>) -> UiNode {
     with_context_var(child, FONT_VARIATIONS_VAR, variations)
 }
 
@@ -1104,127 +1104,127 @@ pub fn font_variations(child: impl UiNode, variations: impl IntoVar<FontVariatio
 /// **Note:** This property fully replaces the font variations for the widget and descendants, use [`with_font_variation`]
 /// to create a property that sets a variation but retains others from the context.
 #[property(CONTEXT, default(FONT_FEATURES_VAR), widget_impl(FontFeaturesMix<P>))]
-pub fn font_features(child: impl UiNode, features: impl IntoVar<FontFeatures>) -> impl UiNode {
+pub fn font_features(child: impl IntoUiNode, features: impl IntoVar<FontFeatures>) -> UiNode {
     with_context_var(child, FONT_FEATURES_VAR, features)
 }
 
 /// Sets the font kerning feature.
 #[property(CONTEXT, default(FontFeatureState::auto()), widget_impl(FontFeaturesMix<P>))]
-pub fn font_kerning(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+pub fn font_kerning(child: impl IntoUiNode, state: impl IntoVar<FontFeatureState>) -> UiNode {
     with_font_feature(child, state, |f, s| f.kerning().set(s))
 }
 
 /// Sets the font common ligatures features.
 #[property(CONTEXT, default(FontFeatureState::auto()), widget_impl(FontFeaturesMix<P>))]
-pub fn font_common_lig(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+pub fn font_common_lig(child: impl IntoUiNode, state: impl IntoVar<FontFeatureState>) -> UiNode {
     with_font_feature(child, state, |f, s| f.common_lig().set(s))
 }
 
 /// Sets the font discretionary ligatures feature.
 #[property(CONTEXT, default(FontFeatureState::auto()), widget_impl(FontFeaturesMix<P>))]
-pub fn font_discretionary_lig(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+pub fn font_discretionary_lig(child: impl IntoUiNode, state: impl IntoVar<FontFeatureState>) -> UiNode {
     with_font_feature(child, state, |f, s| f.discretionary_lig().set(s))
 }
 
 /// Sets the font historical ligatures feature.
 #[property(CONTEXT, default(FontFeatureState::auto()), widget_impl(FontFeaturesMix<P>))]
-pub fn font_historical_lig(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+pub fn font_historical_lig(child: impl IntoUiNode, state: impl IntoVar<FontFeatureState>) -> UiNode {
     with_font_feature(child, state, |f, s| f.historical_lig().set(s))
 }
 
 /// Sets the font contextual alternatives feature.
 #[property(CONTEXT, default(FontFeatureState::auto()), widget_impl(FontFeaturesMix<P>))]
-pub fn font_contextual_alt(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+pub fn font_contextual_alt(child: impl IntoUiNode, state: impl IntoVar<FontFeatureState>) -> UiNode {
     with_font_feature(child, state, |f, s| f.contextual_alt().set(s))
 }
 
 /// Sets the font capital variant features.
 #[property(CONTEXT, default(CapsVariant::Auto), widget_impl(FontFeaturesMix<P>))]
-pub fn font_caps(child: impl UiNode, state: impl IntoVar<CapsVariant>) -> impl UiNode {
+pub fn font_caps(child: impl IntoUiNode, state: impl IntoVar<CapsVariant>) -> UiNode {
     with_font_feature(child, state, |f, s| f.caps().set(s))
 }
 
 /// Sets the font numeric variant features.
 #[property(CONTEXT, default(NumVariant::Auto), widget_impl(FontFeaturesMix<P>))]
-pub fn font_numeric(child: impl UiNode, state: impl IntoVar<NumVariant>) -> impl UiNode {
+pub fn font_numeric(child: impl IntoUiNode, state: impl IntoVar<NumVariant>) -> UiNode {
     with_font_feature(child, state, |f, s| f.numeric().set(s))
 }
 
 /// Sets the font numeric spacing features.
 #[property(CONTEXT, default(NumSpacing::Auto), widget_impl(FontFeaturesMix<P>))]
-pub fn font_num_spacing(child: impl UiNode, state: impl IntoVar<NumSpacing>) -> impl UiNode {
+pub fn font_num_spacing(child: impl IntoUiNode, state: impl IntoVar<NumSpacing>) -> UiNode {
     with_font_feature(child, state, |f, s| f.num_spacing().set(s))
 }
 
 /// Sets the font numeric fraction features.
 #[property(CONTEXT, default(NumFraction::Auto), widget_impl(FontFeaturesMix<P>))]
-pub fn font_num_fraction(child: impl UiNode, state: impl IntoVar<NumFraction>) -> impl UiNode {
+pub fn font_num_fraction(child: impl IntoUiNode, state: impl IntoVar<NumFraction>) -> UiNode {
     with_font_feature(child, state, |f, s| f.num_fraction().set(s))
 }
 
 /// Sets the font swash features.
 #[property(CONTEXT, default(FontFeatureState::auto()), widget_impl(FontFeaturesMix<P>))]
-pub fn font_swash(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+pub fn font_swash(child: impl IntoUiNode, state: impl IntoVar<FontFeatureState>) -> UiNode {
     with_font_feature(child, state, |f, s| f.swash().set(s))
 }
 
 /// Sets the font stylistic alternative feature.
 #[property(CONTEXT, default(FontFeatureState::auto()), widget_impl(FontFeaturesMix<P>))]
-pub fn font_stylistic(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+pub fn font_stylistic(child: impl IntoUiNode, state: impl IntoVar<FontFeatureState>) -> UiNode {
     with_font_feature(child, state, |f, s| f.stylistic().set(s))
 }
 
 /// Sets the font historical forms alternative feature.
 #[property(CONTEXT, default(FontFeatureState::auto()), widget_impl(FontFeaturesMix<P>))]
-pub fn font_historical_forms(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+pub fn font_historical_forms(child: impl IntoUiNode, state: impl IntoVar<FontFeatureState>) -> UiNode {
     with_font_feature(child, state, |f, s| f.historical_forms().set(s))
 }
 
 /// Sets the font ornaments alternative feature.
 #[property(CONTEXT, default(FontFeatureState::auto()), widget_impl(FontFeaturesMix<P>))]
-pub fn font_ornaments(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+pub fn font_ornaments(child: impl IntoUiNode, state: impl IntoVar<FontFeatureState>) -> UiNode {
     with_font_feature(child, state, |f, s| f.ornaments().set(s))
 }
 
 /// Sets the font annotation alternative feature.
 #[property(CONTEXT, default(FontFeatureState::auto()), widget_impl(FontFeaturesMix<P>))]
-pub fn font_annotation(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+pub fn font_annotation(child: impl IntoUiNode, state: impl IntoVar<FontFeatureState>) -> UiNode {
     with_font_feature(child, state, |f, s| f.annotation().set(s))
 }
 
 /// Sets the font stylistic set alternative feature.
 #[property(CONTEXT, default(FontStyleSet::auto()), widget_impl(FontFeaturesMix<P>))]
-pub fn font_style_set(child: impl UiNode, state: impl IntoVar<FontStyleSet>) -> impl UiNode {
+pub fn font_style_set(child: impl IntoUiNode, state: impl IntoVar<FontStyleSet>) -> UiNode {
     with_font_feature(child, state, |f, s| f.style_set().set(s))
 }
 
 /// Sets the font character variant alternative feature.
 #[property(CONTEXT, default(CharVariant::auto()), widget_impl(FontFeaturesMix<P>))]
-pub fn font_char_variant(child: impl UiNode, state: impl IntoVar<CharVariant>) -> impl UiNode {
+pub fn font_char_variant(child: impl IntoUiNode, state: impl IntoVar<CharVariant>) -> UiNode {
     with_font_feature(child, state, |f, s| f.char_variant().set(s))
 }
 
 /// Sets the font sub/super script position alternative feature.
 #[property(CONTEXT, default(FontPosition::Auto), widget_impl(FontFeaturesMix<P>))]
-pub fn font_position(child: impl UiNode, state: impl IntoVar<FontPosition>) -> impl UiNode {
+pub fn font_position(child: impl IntoUiNode, state: impl IntoVar<FontPosition>) -> UiNode {
     with_font_feature(child, state, |f, s| f.position().set(s))
 }
 
 /// Sets the Japanese logographic set.
 #[property(CONTEXT, default(JpVariant::Auto), widget_impl(FontFeaturesMix<P>))]
-pub fn font_jp_variant(child: impl UiNode, state: impl IntoVar<JpVariant>) -> impl UiNode {
+pub fn font_jp_variant(child: impl IntoUiNode, state: impl IntoVar<JpVariant>) -> UiNode {
     with_font_feature(child, state, |f, s| f.jp_variant().set(s))
 }
 
 /// Sets the Chinese logographic set.
 #[property(CONTEXT, default(CnVariant::Auto), widget_impl(FontFeaturesMix<P>))]
-pub fn font_cn_variant(child: impl UiNode, state: impl IntoVar<CnVariant>) -> impl UiNode {
+pub fn font_cn_variant(child: impl IntoUiNode, state: impl IntoVar<CnVariant>) -> UiNode {
     with_font_feature(child, state, |f, s| f.cn_variant().set(s))
 }
 
 /// Sets the East Asian figure width.
 #[property(CONTEXT, default(EastAsianWidth::Auto), widget_impl(FontFeaturesMix<P>))]
-pub fn font_ea_width(child: impl UiNode, state: impl IntoVar<EastAsianWidth>) -> impl UiNode {
+pub fn font_ea_width(child: impl IntoUiNode, state: impl IntoVar<EastAsianWidth>) -> UiNode {
     with_font_feature(child, state, |f, s| f.ea_width().set(s))
 }
 
@@ -1371,7 +1371,7 @@ impl_from_and_into_var! {
 ///
 /// Sets the [`TEXT_EDITABLE_VAR`].
 #[property(CONTEXT, default(TEXT_EDITABLE_VAR), widget_impl(TextEditMix<P>))]
-pub fn txt_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn txt_editable(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, TEXT_EDITABLE_VAR, enabled)
 }
 
@@ -1384,7 +1384,7 @@ pub fn txt_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiN
 ///
 /// [`txt_selectable_alt_only`]: fn@txt_selectable_alt_only
 #[property(CONTEXT, default(TEXT_SELECTABLE_VAR), widget_impl(TextEditMix<P>))]
-pub fn txt_selectable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn txt_selectable(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, TEXT_SELECTABLE_VAR, enabled)
 }
 
@@ -1399,7 +1399,7 @@ pub fn txt_selectable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl U
 ///
 /// [`txt_selectable`]: fn@txt_selectable
 #[property(CONTEXT, default(TEXT_SELECTABLE_ALT_ONLY_VAR), widget_impl(TextEditMix<P>))]
-pub fn txt_selectable_alt_only(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn txt_selectable_alt_only(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, TEXT_SELECTABLE_ALT_ONLY_VAR, enabled)
 }
 
@@ -1409,7 +1409,7 @@ pub fn txt_selectable_alt_only(child: impl UiNode, enabled: impl IntoVar<bool>) 
 ///
 /// Sets the [`ACCEPTS_TAB_VAR`].
 #[property(CONTEXT, default(ACCEPTS_TAB_VAR), widget_impl(TextEditMix<P>))]
-pub fn accepts_tab(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn accepts_tab(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, ACCEPTS_TAB_VAR, enabled)
 }
 
@@ -1417,7 +1417,7 @@ pub fn accepts_tab(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNo
 ///
 /// Sets the [`ACCEPTS_ENTER_VAR`].
 #[property(CONTEXT, default(ACCEPTS_ENTER_VAR), widget_impl(TextEditMix<P>))]
-pub fn accepts_enter(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn accepts_enter(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, ACCEPTS_ENTER_VAR, enabled)
 }
 
@@ -1425,7 +1425,7 @@ pub fn accepts_enter(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 ///
 /// Sets the [`CARET_COLOR_VAR`].
 #[property(CONTEXT, default(CARET_COLOR_VAR), widget_impl(TextEditMix<P>))]
-pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn caret_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
     with_context_var(child, CARET_COLOR_VAR, color)
 }
 
@@ -1442,7 +1442,7 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 /// [layered widget]: zng_wgt_layer
 /// [`set_interactive_caret_spot`]: super::node::set_interactive_caret_spot
 #[property(CONTEXT, default(INTERACTIVE_CARET_VISUAL_VAR), widget_impl(TextEditMix<P>))]
-pub fn interactive_caret_visual(child: impl UiNode, visual: impl IntoVar<WidgetFn<CaretShape>>) -> impl UiNode {
+pub fn interactive_caret_visual(child: impl IntoUiNode, visual: impl IntoVar<WidgetFn<CaretShape>>) -> UiNode {
     with_context_var(child, INTERACTIVE_CARET_VISUAL_VAR, visual)
 }
 
@@ -1450,13 +1450,13 @@ pub fn interactive_caret_visual(child: impl UiNode, visual: impl IntoVar<WidgetF
 ///
 /// By default only uses interactive carets for touch selections.
 #[property(CONTEXT, default(INTERACTIVE_CARET_VAR), widget_impl(TextEditMix<P>))]
-pub fn interactive_caret(child: impl UiNode, mode: impl IntoVar<InteractiveCaretMode>) -> impl UiNode {
+pub fn interactive_caret(child: impl IntoUiNode, mode: impl IntoVar<InteractiveCaretMode>) -> UiNode {
     with_context_var(child, INTERACTIVE_CARET_VAR, mode)
 }
 
 /// Sets the [`SELECTION_COLOR_VAR`].
 #[property(CONTEXT, default(SELECTION_COLOR_VAR), widget_impl(TextEditMix<P>))]
-pub fn selection_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn selection_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
     with_context_var(child, SELECTION_COLOR_VAR, color)
 }
 
@@ -1469,7 +1469,7 @@ pub fn selection_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl Ui
 /// [`txt_parse`]: fn@super::txt_parse
 /// [`PARSE_CMD`]: super::cmd::PARSE_CMD
 #[property(CONTEXT, default(TXT_PARSE_LIVE_VAR), widget_impl(TextEditMix<P>))]
-pub fn txt_parse_live(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn txt_parse_live(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, TXT_PARSE_LIVE_VAR, enabled)
 }
 
@@ -1480,7 +1480,7 @@ pub fn txt_parse_live(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl U
 /// [`txt_parse_live`]: fn@txt_parse_live
 /// [`on_change_stop`]: fn@on_change_stop
 #[property(EVENT, widget_impl(TextEditMix<P>))]
-pub fn txt_parse_on_stop(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn txt_parse_on_stop(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
     let child = txt_parse_live(child, enabled.map(|&b| !b));
     on_change_stop(
@@ -1499,7 +1499,7 @@ pub fn txt_parse_on_stop(child: impl UiNode, enabled: impl IntoVar<bool>) -> imp
 ///
 /// This property sets the [`MAX_CHARS_COUNT_VAR`].
 #[property(CONTEXT, default(MAX_CHARS_COUNT_VAR), widget_impl(TextEditMix<P>))]
-pub fn max_chars_count(child: impl UiNode, max: impl IntoVar<usize>) -> impl UiNode {
+pub fn max_chars_count(child: impl IntoUiNode, max: impl IntoVar<usize>) -> UiNode {
     with_context_var(child, MAX_CHARS_COUNT_VAR, max)
 }
 
@@ -1510,7 +1510,7 @@ pub fn max_chars_count(child: impl UiNode, max: impl IntoVar<usize>) -> impl UiN
 /// [`txt_parse`]: fn@super::txt_parse
 /// [`txt_parse_live`]: fn@txt_parse_live
 #[property(CONTEXT, default(false), widget_impl(TextEditMix<P>))]
-pub fn is_parse_pending(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_parse_pending(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     // reverse context, `txt_parse` sets `TXT_PARSE_PENDING_VAR`
     with_context_var(child, TXT_PARSE_PENDING_VAR, state)
 }
@@ -1524,7 +1524,7 @@ pub fn is_parse_pending(child: impl UiNode, state: impl IntoVar<bool>) -> impl U
 /// [`accepts_enter`]: fn@accepts_enter
 /// [`Key::Enter`]: zng_ext_input::keyboard::Key::Enter
 #[property(EVENT, widget_impl(TextEditMix<P>))]
-pub fn on_change_stop(child: impl UiNode, handler: impl WidgetHandler<ChangeStopArgs>) -> impl UiNode {
+pub fn on_change_stop(child: impl IntoUiNode, handler: impl WidgetHandler<ChangeStopArgs>) -> UiNode {
     super::node::on_change_stop(child, handler)
 }
 
@@ -1539,7 +1539,7 @@ pub fn on_change_stop(child: impl UiNode, handler: impl WidgetHandler<ChangeStop
 ///
 /// [`on_change_stop`]: fn@on_change_stop
 #[property(CONTEXT, default(CHANGE_STOP_DELAY_VAR), widget_impl(TextEditMix<P>))]
-pub fn change_stop_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl UiNode {
+pub fn change_stop_delay(child: impl IntoUiNode, delay: impl IntoVar<Duration>) -> UiNode {
     with_context_var(child, CHANGE_STOP_DELAY_VAR, delay)
 }
 
@@ -1549,7 +1549,7 @@ pub fn change_stop_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> i
 ///
 /// In rich text contexts applies to all sub-component texts.
 #[property(CONTEXT, default(AUTO_SELECTION_VAR), widget_impl(TextEditMix<P>))]
-pub fn auto_selection(child: impl UiNode, mode: impl IntoVar<AutoSelection>) -> impl UiNode {
+pub fn auto_selection(child: impl IntoUiNode, mode: impl IntoVar<AutoSelection>) -> UiNode {
     with_context_var(child, AUTO_SELECTION_VAR, mode)
 }
 
@@ -1559,7 +1559,7 @@ pub fn auto_selection(child: impl UiNode, mode: impl IntoVar<AutoSelection>) -> 
 ///
 /// [`obscure_txt`]: fn@obscure_txt
 #[property(CONTEXT, default(OBSCURING_CHAR_VAR), widget_impl(TextEditMix<P>))]
-pub fn obscuring_char(child: impl UiNode, character: impl IntoVar<char>) -> impl UiNode {
+pub fn obscuring_char(child: impl IntoUiNode, character: impl IntoVar<char>) -> UiNode {
     with_context_var(child, OBSCURING_CHAR_VAR, character)
 }
 
@@ -1574,7 +1574,7 @@ pub fn obscuring_char(child: impl UiNode, character: impl IntoVar<char>) -> impl
 ///
 /// [`obscuring_char`]: fn@obscuring_char
 #[property(CONTEXT, default(OBSCURE_TXT_VAR), widget_impl(TextEditMix<P>))]
-pub fn obscure_txt(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn obscure_txt(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, OBSCURE_TXT_VAR, enabled)
 }
 
@@ -1782,7 +1782,7 @@ impl ParagraphMix<()> {
 ///
 /// [`Text!`]: struct@crate::Text
 #[property(CONTEXT, default(PARAGRAPH_SPACING_VAR), widget_impl(ParagraphMix<P>))]
-pub fn paragraph_spacing(child: impl UiNode, extra: impl IntoVar<ParagraphSpacing>) -> impl UiNode {
+pub fn paragraph_spacing(child: impl IntoUiNode, extra: impl IntoVar<ParagraphSpacing>) -> UiNode {
     with_context_var(child, PARAGRAPH_SPACING_VAR, extra)
 }
 
@@ -1809,7 +1809,7 @@ impl SelectionToolbarMix<()> {
 ///
 /// The `toolbar` is used
 #[property(CONTEXT, widget_impl(SelectionToolbarMix<P>))]
-pub fn selection_toolbar(child: impl UiNode, toolbar: impl UiNode) -> impl UiNode {
+pub fn selection_toolbar(child: impl IntoUiNode, toolbar: impl IntoUiNode) -> UiNode {
     selection_toolbar_fn(child, WidgetFn::singleton(toolbar))
 }
 
@@ -1817,7 +1817,7 @@ pub fn selection_toolbar(child: impl UiNode, toolbar: impl UiNode) -> impl UiNod
 ///
 /// Sets the [`SELECTION_TOOLBAR_FN_VAR`].
 #[property(CONTEXT, default(SELECTION_TOOLBAR_FN_VAR), widget_impl(SelectionToolbarMix<P>))]
-pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<SelectionToolbarArgs>>) -> impl UiNode {
+pub fn selection_toolbar_fn(child: impl IntoUiNode, toolbar: impl IntoVar<WidgetFn<SelectionToolbarArgs>>) -> UiNode {
     with_context_var(child, SELECTION_TOOLBAR_FN_VAR, toolbar)
 }
 
@@ -1847,7 +1847,7 @@ impl SelectionToolbarArgs {
 ///
 /// Sets the [`SELECTION_TOOLBAR_ANCHOR_VAR`].
 #[property(CONTEXT, default(SELECTION_TOOLBAR_ANCHOR_VAR), widget_impl(SelectionToolbarMix<P>))]
-pub fn selection_toolbar_anchor(child: impl UiNode, offset: impl IntoVar<AnchorOffset>) -> impl UiNode {
+pub fn selection_toolbar_anchor(child: impl IntoUiNode, offset: impl IntoVar<AnchorOffset>) -> UiNode {
     with_context_var(child, SELECTION_TOOLBAR_ANCHOR_VAR, offset)
 }
 
@@ -1864,13 +1864,13 @@ impl TextInspectMix<()> {
 
 /// Gets the caret char index, if the text is editable.
 #[property(EVENT, default(None), widget_impl(TextInspectMix<P>))]
-pub fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<CaretIndex>>) -> impl UiNode {
+pub fn get_caret_index(child: impl IntoUiNode, index: impl IntoVar<Option<CaretIndex>>) -> UiNode {
     super::node::get_caret_index(child, index)
 }
 
 /// Gets the caret display status, if the text is editable.
 #[property(EVENT, default(CaretStatus::none()), widget_impl(TextInspectMix<P>))]
-pub fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretStatus>) -> impl UiNode {
+pub fn get_caret_status(child: impl IntoUiNode, status: impl IntoVar<CaretStatus>) -> UiNode {
     super::node::get_caret_status(child, status)
 }
 
@@ -1881,19 +1881,19 @@ pub fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretStatus>) -
 ///
 /// [`get_lines_wrap_count`]: fn@get_lines_wrap_count
 #[property(CHILD_LAYOUT+100, default(0), widget_impl(TextInspectMix<P>))]
-pub fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> impl UiNode {
+pub fn get_lines_len(child: impl IntoUiNode, len: impl IntoVar<usize>) -> UiNode {
     super::node::get_lines_len(child, len)
 }
 
 /// Gets the number of wrap lines per text lines.
 #[property(CHILD_LAYOUT+100, default(LinesWrapCount::NoWrap(0)), widget_impl(TextInspectMix<P>))]
-pub fn get_lines_wrap_count(child: impl UiNode, lines: impl IntoVar<LinesWrapCount>) -> impl UiNode {
+pub fn get_lines_wrap_count(child: impl IntoUiNode, lines: impl IntoVar<LinesWrapCount>) -> UiNode {
     super::node::get_lines_wrap_count(child, lines)
 }
 
 /// Gets the number of character in the text.
 #[property(EVENT, default(0), widget_impl(TextInspectMix<P>))]
-pub fn get_chars_count(child: impl UiNode, chars: impl IntoVar<usize>) -> impl UiNode {
+pub fn get_chars_count(child: impl IntoUiNode, chars: impl IntoVar<usize>) -> UiNode {
     let chars = chars.into_var();
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
@@ -1909,7 +1909,7 @@ pub fn get_chars_count(child: impl UiNode, chars: impl IntoVar<usize>) -> impl U
 ///
 /// This property must be set in the text widget.
 #[property(CHILD_LAYOUT+100, widget_impl(TextInspectMix<P>))]
-pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<CaretIndex>>, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn txt_highlight(child: impl IntoUiNode, range: impl IntoVar<std::ops::Range<CaretIndex>>, color: impl IntoVar<Rgba>) -> UiNode {
     let range = range.into_var();
     let color = color.into_var();
     let color_key = FrameValueKey::new_unique();
@@ -1939,7 +1939,7 @@ pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<Car
 ///
 /// This property must be set in the text widget.
 #[property(CHILD_LAYOUT+100, widget_impl(TextInspectMix<P>))]
-pub fn get_font_use(child: impl UiNode, font_use: impl IntoVar<Vec<(Font, std::ops::Range<usize>)>>) -> impl UiNode {
+pub fn get_font_use(child: impl IntoUiNode, font_use: impl IntoVar<Vec<(Font, std::ops::Range<usize>)>>) -> UiNode {
     let font_use = font_use.into_var();
     let mut shaped_text_version = u32::MAX;
     match_node(child, move |c, op| {
@@ -1984,7 +1984,7 @@ pub fn get_font_use(child: impl UiNode, font_use: impl IntoVar<Vec<(Font, std::o
 ///
 /// If set on a text widget gets if the local text has a selection, otherwise gets if the rich text context has a selection.
 #[property(EVENT, widget_impl(TextInspectMix<P>))]
-pub fn has_selection(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn has_selection(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     match_node(child, move |c, op| {
         let mut update = false;
@@ -2023,7 +2023,7 @@ pub fn has_selection(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNo
 
 /// Gets the selected text in the widget.
 #[property(EVENT, default(Txt::from_static("")), widget_impl(TextInspectMix<P>))]
-pub fn get_selection(child: impl UiNode, state: impl IntoVar<Txt>) -> impl UiNode {
+pub fn get_selection(child: impl IntoUiNode, state: impl IntoVar<Txt>) -> UiNode {
     let state = state.into_var();
     let mut last_sel = (CaretIndex::ZERO, None::<CaretIndex>);
     match_node(child, move |c, op| {
@@ -2095,7 +2095,7 @@ impl RichTextMix<()> {
 ///
 /// When enabled and not nested the widget will handle text commands, it also broadcasts focus change events to all text descendants.
 #[property(CONTEXT, default(false), widget_impl(RichTextMix<P>))]
-pub fn rich_text(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn rich_text(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     crate::node::rich_text_node(child, enabled)
 }
 
@@ -2106,6 +2106,6 @@ pub fn rich_text(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode
 ///
 /// Sets the [`RICH_TEXT_FOCUSED_Z_VAR`].
 #[property(CONTEXT, default(RICH_TEXT_FOCUSED_Z_VAR), widget_impl(RichTextMix<P>))]
-pub fn rich_text_focused_z(child: impl UiNode, z_index: impl IntoVar<Option<ZIndex>>) -> impl UiNode {
+pub fn rich_text_focused_z(child: impl IntoUiNode, z_index: impl IntoVar<Option<ZIndex>>) -> UiNode {
     with_context_var(child, RICH_TEXT_FOCUSED_Z_VAR, z_index)
 }

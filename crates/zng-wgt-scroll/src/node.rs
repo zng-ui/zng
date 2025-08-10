@@ -28,7 +28,7 @@ use super::scrollbar::Orientation;
 use super::types::*;
 
 /// The actual content presenter.
-pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align: impl IntoVar<Align>) -> impl UiNode {
+pub fn viewport(child: impl IntoUiNode, mode: impl IntoVar<ScrollMode>, child_align: impl IntoVar<Align>) -> UiNode {
     let mode = mode.into_var();
     let child_align = child_align.into_var();
     let binding_key = FrameValueKey::new_unique();
@@ -271,31 +271,31 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
 /// Create a node that generates and presents the [vertical scrollbar].
 ///
 /// [vertical scrollbar]: VERTICAL_SCROLLBAR_FN_VAR
-pub fn v_scrollbar_presenter() -> impl UiNode {
+pub fn v_scrollbar_presenter() -> UiNode {
     scrollbar_presenter(VERTICAL_SCROLLBAR_FN_VAR, Orientation::Vertical)
 }
 
 /// Create a node that generates and presents the [horizontal scrollbar].
 ///
 /// [horizontal scrollbar]: HORIZONTAL_SCROLLBAR_FN_VAR
-pub fn h_scrollbar_presenter() -> impl UiNode {
+pub fn h_scrollbar_presenter() -> UiNode {
     scrollbar_presenter(HORIZONTAL_SCROLLBAR_FN_VAR, Orientation::Horizontal)
 }
 
-fn scrollbar_presenter(var: impl IntoVar<WidgetFn<ScrollBarArgs>>, orientation: Orientation) -> impl UiNode {
+fn scrollbar_presenter(var: impl IntoVar<WidgetFn<ScrollBarArgs>>, orientation: Orientation) -> UiNode {
     presenter(ScrollBarArgs::new(orientation), var)
 }
 
 /// Create a node that generates and presents the [scrollbar joiner].
 ///
 /// [scrollbar joiner]: SCROLLBAR_JOINER_FN_VAR
-pub fn scrollbar_joiner_presenter() -> impl UiNode {
+pub fn scrollbar_joiner_presenter() -> UiNode {
     SCROLLBAR_JOINER_FN_VAR.present_data(())
 }
 
 /// Create a node that implements [`SCROLL_UP_CMD`], [`SCROLL_DOWN_CMD`],
 /// [`SCROLL_LEFT_CMD`] and [`SCROLL_RIGHT_CMD`] scoped on the widget.
-pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
+pub fn scroll_commands_node(child: impl IntoUiNode) -> UiNode {
     let mut up = CommandHandle::dummy();
     let mut down = CommandHandle::dummy();
     let mut left = CommandHandle::dummy();
@@ -396,7 +396,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
 
 /// Create a node that implements [`PAGE_UP_CMD`], [`PAGE_DOWN_CMD`],
 /// [`PAGE_LEFT_CMD`] and [`PAGE_RIGHT_CMD`] scoped on the widget.
-pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
+pub fn page_commands_node(child: impl IntoUiNode) -> UiNode {
     let mut up = CommandHandle::dummy();
     let mut down = CommandHandle::dummy();
     let mut left = CommandHandle::dummy();
@@ -490,7 +490,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
 
 /// Create a node that implements [`SCROLL_TO_TOP_CMD`], [`SCROLL_TO_BOTTOM_CMD`],
 /// [`SCROLL_TO_LEFTMOST_CMD`] and [`SCROLL_TO_RIGHTMOST_CMD`] scoped on the widget.
-pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
+pub fn scroll_to_edge_commands_node(child: impl IntoUiNode) -> UiNode {
     let mut top = CommandHandle::dummy();
     let mut bottom = CommandHandle::dummy();
     let mut leftmost = CommandHandle::dummy();
@@ -548,7 +548,7 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
 
 /// Create a node that implements [`ZOOM_IN_CMD`], [`ZOOM_OUT_CMD`], [`ZOOM_TO_FIT_CMD`],
 /// and [`ZOOM_RESET_CMD`] scoped on the widget.
-pub fn zoom_commands_node(child: impl UiNode) -> impl UiNode {
+pub fn zoom_commands_node(child: impl IntoUiNode) -> UiNode {
     let mut zoom_in = CommandHandle::dummy();
     let mut zoom_out = CommandHandle::dummy();
     let mut zoom_to_fit = CommandHandle::dummy();
@@ -644,7 +644,7 @@ pub fn zoom_commands_node(child: impl UiNode) -> impl UiNode {
 }
 
 /// Create a node that implements [`SCROLL_TO_CMD`] scoped on the widget and scroll to focused.
-pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
+pub fn scroll_to_node(child: impl IntoUiNode) -> UiNode {
     let mut _handle = CommandHandle::dummy();
     let mut scroll_to = None;
     let mut scroll_to_from_cmd = false;
@@ -941,7 +941,7 @@ fn inflate_margin(mut r: PxRect, margin: PxSideOffsets) -> PxRect {
 }
 
 /// Create a node that implements scroll by touch gestures for the widget.
-pub fn scroll_touch_node(child: impl UiNode) -> impl UiNode {
+pub fn scroll_touch_node(child: impl IntoUiNode) -> UiNode {
     let mut applied_offset = PxVector::zero();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -1021,7 +1021,7 @@ pub fn scroll_touch_node(child: impl UiNode) -> impl UiNode {
 }
 
 /// Create a node that implements scroll-wheel handling for the widget.
-pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
+pub fn scroll_wheel_node(child: impl IntoUiNode) -> UiNode {
     let mut offset = Vector::zero();
     let mut scale_delta = 0.fct();
     let mut scale_position = DipPoint::zero();
@@ -1176,7 +1176,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
 }
 
 /// Overscroll visual indicator.
-pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
+pub fn overscroll_node(child: impl IntoUiNode) -> UiNode {
     let mut v_rect = PxRect::zero();
     let mut v_center = PxPoint::zero();
     let mut v_radius_w = Px(0);
@@ -1306,7 +1306,7 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
 /// Create a node that converts [`ACCESS_SCROLL_EVENT`] to command requests.
 ///
 /// [`ACCESS_SCROLL_EVENT`]: zng_app::access::ACCESS_SCROLL_EVENT
-pub fn access_scroll_node(child: impl UiNode) -> impl UiNode {
+pub fn access_scroll_node(child: impl IntoUiNode) -> UiNode {
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_event(&ACCESS_SCROLL_EVENT);
@@ -1348,7 +1348,7 @@ pub fn access_scroll_node(child: impl UiNode) -> impl UiNode {
 }
 
 /// Create a note that spawns the auto scroller on middle click and fulfill `AUTO_SCROLL_CMD` requests.
-pub fn auto_scroll_node(child: impl UiNode) -> impl UiNode {
+pub fn auto_scroll_node(child: impl IntoUiNode) -> UiNode {
     let mut middle_handle = EventHandle::dummy();
     let mut cmd_handle = CommandHandle::dummy();
     let mut auto_scrolling = None::<(WidgetId, Arc<Mutex<DInstant>>)>;
@@ -1454,7 +1454,7 @@ pub fn auto_scroll_node(child: impl UiNode) -> impl UiNode {
     })
 }
 
-fn auto_scroller_wgt() -> (impl UiNode, WidgetId, Arc<Mutex<DInstant>>) {
+fn auto_scroller_wgt() -> (UiNode, WidgetId, Arc<Mutex<DInstant>>) {
     let id = WidgetId::new_unique();
     let mut wgt = Container::widget_new();
     let closed = Arc::new(Mutex::new(DInstant::MAX));
@@ -1482,7 +1482,7 @@ fn auto_scroller_wgt() -> (impl UiNode, WidgetId, Arc<Mutex<DInstant>>) {
 
     (wgt.widget_build(), id, closed)
 }
-fn auto_scroller_node(child: impl UiNode, closed: Arc<Mutex<DInstant>>) -> impl UiNode {
+fn auto_scroller_node(child: impl IntoUiNode, closed: Arc<Mutex<DInstant>>) -> UiNode {
     let mut requested_vel = DipVector::zero();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -1558,7 +1558,7 @@ fn auto_scroller_node(child: impl UiNode, closed: Arc<Mutex<DInstant>>) -> impl 
 /// This is the default [`auto_scroll_indicator`].
 ///
 /// [`auto_scroll_indicator`]: fn@crate::auto_scroll_indicator
-pub fn default_auto_scroll_indicator() -> impl UiNode {
+pub fn default_auto_scroll_indicator() -> UiNode {
     match_node_leaf(|op| {
         match op {
             UiNodeOp::Init => {

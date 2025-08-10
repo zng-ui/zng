@@ -71,7 +71,7 @@
 //! ```
 //! # use zng::prelude::*;
 //! # let _scope = APP.defaults();
-//! # fn cmd_btn_example() -> impl UiNode { widget::node::NilUiNode }
+//! # fn cmd_btn_example() -> UiNode { widget::node::UiNode::nil() }
 //! # let _ =
 //! zng::clipboard::COPY_CMD.on_event(true, app_hn!(|_, _| { println!("copy") })).perm();
 //! zng::clipboard::PASTE_CMD.on_event(true, app_hn!(|_, _| { println!("paste") })).perm();

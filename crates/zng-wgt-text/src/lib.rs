@@ -161,7 +161,7 @@ pub fn txt(txt: impl IntoVar<Txt>) {}
 /// [`has_data_error`]: fn@zng_wgt_data::has_data_error
 /// [`get_data_error_txt`]: fn@zng_wgt_data::get_data_error_txt
 #[property(CHILD, widget_impl(Text))]
-pub fn txt_parse<T>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode
+pub fn txt_parse<T>(child: impl IntoUiNode, value: impl IntoVar<T>) -> UiNode
 where
     T: TxtParseValue,
 {
@@ -210,7 +210,7 @@ impl Text {
             let child = node::render_underlines(child);
             let child = node::render_ime_preview_underlines(child);
             let child = node::render_selection(child);
-            wgt.set_child(child.boxed());
+            wgt.set_child(child);
 
             wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", |child| {
                 let child = node::selection_toolbar_node(child);

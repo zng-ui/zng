@@ -55,7 +55,7 @@ fn main() {
     })
 }
 
-fn commands(mouse_pan: Var<bool>, smooth_scrolling: Var<bool>) -> impl UiNode {
+fn commands(mouse_pan: Var<bool>, smooth_scrolling: Var<bool>) -> UiNode {
     use zng::scroll::cmd::*;
 
     let scope = WidgetId::named("scroll");
@@ -123,7 +123,7 @@ fn commands(mouse_pan: Var<bool>, smooth_scrolling: Var<bool>) -> impl UiNode {
         ];
     }
 }
-fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
+fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> UiNode {
     use zng::scroll::cmd;
 
     let scroll = WidgetId::named("scroll");
@@ -146,7 +146,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
         cmd;
     }
 }
-fn scroll_to_zoom_btn(target: WidgetId, zoom: layout::FactorPercent) -> impl UiNode {
+fn scroll_to_zoom_btn(target: WidgetId, zoom: layout::FactorPercent) -> UiNode {
     use zng::scroll::cmd;
 
     let scroll = WidgetId::named("scroll");
@@ -162,7 +162,7 @@ fn scroll_to_zoom_btn(target: WidgetId, zoom: layout::FactorPercent) -> impl UiN
     }
 }
 
-fn scroll_to_rect(target: layout::Rect, mode: ScrollToMode) -> impl UiNode {
+fn scroll_to_rect(target: layout::Rect, mode: ScrollToMode) -> UiNode {
     use zng::scroll::cmd;
 
     let scroll = WidgetId::named("scroll");

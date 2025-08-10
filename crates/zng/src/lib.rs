@@ -82,14 +82,14 @@
 //! an struct represents a widget it is tagged with <strong><code>W</code></strong>. Each properties is declared as a function,
 //! in the documentation property functions are tagged with <strong><code>P</code></strong>.
 //!
-//! Widget instances can be of any type, usually they are an opaque [`impl UiNode`], some special widgets have an instance type,
-//! the [`Window!`] widget for example has the instance type [`WindowRoot`]. Property instances are always of type `impl UiNode`,
-//! each property function takes an `impl UiNode` input plus one or more value inputs and returns an `impl UiNode` output that
-//! wraps the input node adding the property behavior, the widgets take care of this node chaining nesting each property
-//! instance in the proper order, internally every widget instance is a tree of nested node instances.
+//! Widget instances can be of any type, usually they are an opaque [`UiNode`] or a type that is [`IntoUiNode`],
+//! some special widgets have non node instance type, the [`Window!`] widget for example has the instance type [`WindowRoot`].
+//! Property instances are always of type [`UiNode`], each property function takes an `impl IntoUiNode` input plus one or more value
+//! inputs and returns an `UiNode` output that wraps the input node adding the property behavior, the widgets take care of this
+//! node chaining nesting each property instance in the proper order, internally every widget instance is a tree of nested node instances.
 //!
-//! Widgets and properties are very versatile, each widget documentation page will promote the properties that the widget implementer
-//! explicitly associated with the widget, but that is only a starting point.
+//! Widgets and properties are very versatile and extendable, widget docs will promote properties that are explicitly associated
+//! with the widget type, but that is only a starting point, many other standalone properties can be set in any widget.
 //!
 //! ```
 //! use zng::prelude::*;
@@ -111,7 +111,7 @@
 //! ```
 //!
 //! In the example above an [`Wgt!`] is completely defined by stand-alone properties, [`align`] and [`size`] define
-//! the bounds of the widget, [`background_color`] fills the bounds with color and [`is_hovered`] reacts to pointer interaction.
+//! the layout bounds of the widget, [`background_color`] fills the bounds with color and [`is_hovered`] reacts to pointer interaction.
 //!
 //! The example also introduces [`when`] blocks, [state properties] and the [`easing`] property attribute. State properties
 //! compute an state from the widget, this state can be used to change the value of other properties. When blocks are a powerful
@@ -132,7 +132,8 @@
 //! [`when`]: widget#when
 //! [state properties]: widget#state-properties
 //! [`easing`]: widget::easing
-//! [`impl UiNode`]: widget::node::UiNode
+//! [`UiNode`]: widget::node::UiNode
+//! [`IntoUiNode`]: widget::node::IntoUiNode
 //! [`WindowRoot`]: window::WindowRoot
 //!
 //! # Variables
@@ -179,7 +180,7 @@
 //! use zng::prelude::*;
 //!
 //! # let _app = APP.minimal();
-//! fn ui(txt: impl IntoVar<Txt>) -> impl UiNode {
+//! fn ui(txt: impl IntoVar<Txt>) -> UiNode {
 //!     Text!(txt)
 //! }
 //!
@@ -578,7 +579,7 @@ mod __prelude {
         shortcut::{CommandShortcutExt as _, shortcut},
         widget::{
             AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _, WIDGET, WidgetId, easing,
-            node::{UiNode, UiNodeList, UiNodeListChain as _, UiVec, ui_vec},
+            node::{IntoUiNode, UiNode, UiVec, ui_vec},
         },
         window::{WINDOW, WindowId},
     };
@@ -775,11 +776,10 @@ mod __prelude_wgt {
                 WidgetLayout, WidgetMeasure, WidgetPath,
             },
             node::{
-                ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode,
-                PanelList, SORTING_LIST, SortingList, UiNode, UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiVec,
-                ZIndex, match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec,
+                ArcNode, ChainList, EditableUiVec, EditableUiVecRef, FillUiNode, IntoUiNode, PanelList, SORTING_LIST, SortingList, UiNode,
+                UiNodeImpl, UiNodeListObserver, UiNodeOp, UiVec, ZIndex, match_node, match_node_leaf, match_widget, ui_vec,
             },
-            property, ui_node, widget, widget_impl, widget_mixin, widget_set,
+            property, widget, widget_impl, widget_mixin, widget_set,
         },
         window::{MonitorId, WINDOW, WindowId},
     };
@@ -1054,34 +1054,28 @@ pub mod read_me_test {}
 mod default_editors {
     use zng::{
         prelude::*,
-        widget::{
-            EditorRequestArgs,
-            node::{BoxedUiNode, NilUiNode},
-        },
+        widget::{EditorRequestArgs, node::UiNode},
     };
 
-    pub fn handler(args: EditorRequestArgs) -> BoxedUiNode {
+    pub fn handler(args: EditorRequestArgs) -> UiNode {
         #[cfg(feature = "text_input")]
         if let Some(txt) = args.value::<Txt>() {
             return TextInput! {
                 txt;
-            }
-            .boxed();
+            };
         }
         #[cfg(feature = "text_input")]
         if let Some(s) = args.value::<String>() {
             return TextInput! {
                 txt = s.map_bidi(|s| Txt::from_str(s), |t: &Txt| t.to_string());
-            }
-            .boxed();
+            };
         }
         #[cfg(feature = "text_input")]
         if let Some(c) = args.value::<char>() {
             return TextInput! {
                 txt_parse::<char> = c;
                 style_fn = crate::text_input::FieldStyle!();
-            }
-            .boxed();
+            };
         }
 
         #[cfg(feature = "toggle")]
@@ -1089,8 +1083,7 @@ mod default_editors {
             return Toggle! {
                 style_fn = toggle::CheckStyle!();
                 checked;
-            }
-            .boxed();
+            };
         }
 
         macro_rules! parse {
@@ -1101,8 +1094,7 @@ mod default_editors {
                         return TextInput! {
                             txt_parse::<$ty> = n;
                             style_fn = crate::text_input::FieldStyle!();
-                        }
-                        .boxed();
+                        };
                     }
 
                 )+
@@ -1113,6 +1105,6 @@ mod default_editors {
         }
 
         let _ = args;
-        NilUiNode.boxed()
+        UiNode::nil()
     }
 }

@@ -359,7 +359,7 @@ context_var! {
 
 /// Sets the slider selector that defines the values, ranges that are selected.
 #[property(CONTEXT, default(Selector::nil()), widget_impl(Slider))]
-pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl UiNode {
+pub fn selector(child: impl IntoUiNode, selector: impl IntoValue<Selector>) -> UiNode {
     with_context_local(child, &SELECTOR, selector)
 }
 
@@ -367,7 +367,7 @@ pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl 
 ///
 /// This property sets the [`THUMB_FN_VAR`].
 #[property(CONTEXT, default(THUMB_FN_VAR))]
-pub fn thumb_fn(child: impl UiNode, thumb: impl IntoVar<WidgetFn<ThumbArgs>>) -> impl UiNode {
+pub fn thumb_fn(child: impl IntoUiNode, thumb: impl IntoVar<WidgetFn<ThumbArgs>>) -> UiNode {
     with_context_var(child, THUMB_FN_VAR, thumb)
 }
 
@@ -481,7 +481,7 @@ context_var! {
 ///
 /// This property sets the [`SLIDER_DIRECTION_VAR`].
 #[property(CONTEXT, default(SLIDER_DIRECTION_VAR), widget_impl(Slider))]
-fn direction(child: impl UiNode, direction: impl IntoVar<SliderDirection>) -> impl UiNode {
+fn direction(child: impl IntoUiNode, direction: impl IntoVar<SliderDirection>) -> UiNode {
     with_context_var(child, SLIDER_DIRECTION_VAR, direction)
 }
 
@@ -503,10 +503,9 @@ impl SliderTrack {
     }
 }
 
-fn slider_track_node() -> impl UiNode {
-    let mut thumbs = ui_vec![];
+fn slider_track_node() -> UiNode {
     let mut layout_direction = LayoutDirection::LTR;
-    match_node_leaf(move |op| match op {
+    match_node(ui_vec![], move |thumbs, op| match op {
         UiNodeOp::Init => {
             WIDGET
                 .sub_var(&THUMB_FN_VAR)
@@ -518,7 +517,8 @@ fn slider_track_node() -> impl UiNode {
 
             let thumbs_var = SELECTOR.get().thumbs();
             let thumbs_len = thumbs_var.with(|t| t.len());
-            thumbs.reserve(thumbs_len);
+            let thumbs_typed = thumbs.node_impl::<UiVec>();
+            thumbs_typed.reserve(thumbs_len);
             for i in 0..thumbs_len {
                 let thumb_var = thumbs_var.map(move |t| {
                     t.get(i).copied().unwrap_or(ThumbValue {
@@ -526,29 +526,30 @@ fn slider_track_node() -> impl UiNode {
                         n_of: (0, 0),
                     })
                 });
-                thumbs.push(thumb_fn(ThumbArgs { thumb: thumb_var }))
+                thumbs_typed.push(thumb_fn(ThumbArgs { thumb: thumb_var }))
             }
 
-            thumbs.init_all();
+            thumbs.init();
         }
         UiNodeOp::Deinit => {
-            thumbs.deinit_all();
-            thumbs = ui_vec![];
+            thumbs.deinit();
+            *thumbs.node_impl::<UiVec>() = ui_vec![];
         }
         UiNodeOp::Info { info } => {
             info.flag_meta(*IS_SLIDER_ID);
-            thumbs.info_all(info);
+            thumbs.info(info);
         }
         UiNodeOp::Measure { desired_size, .. } => {
+            thumbs.delegated();
             *desired_size = LAYOUT.constraints().fill_size();
         }
         UiNodeOp::Layout { final_size, wl } => {
             *final_size = LAYOUT.constraints().fill_size();
             layout_direction = LAYOUT.direction();
-            let _ = thumbs.layout_each(wl, |_, n, wl| n.layout(wl), |_, _| PxSize::zero());
+            let _ = thumbs.layout_list(wl, |_, n, wl| n.layout(wl), |_, _| PxSize::zero());
         }
         UiNodeOp::Event { update } => {
-            thumbs.event_all(update);
+            thumbs.event(update);
 
             let mut pos = None;
 
@@ -597,12 +598,14 @@ fn slider_track_node() -> impl UiNode {
         }
         UiNodeOp::Update { updates } => {
             if let Some(thumb_fn) = THUMB_FN_VAR.get_new() {
-                thumbs.deinit_all();
-                thumbs.clear();
+                thumbs.deinit();
+
+                let thumbs_vec = thumbs.node_impl::<UiVec>();
+                thumbs_vec.clear();
 
                 let thumbs_var = SELECTOR.get().thumbs();
                 let thumbs_len = thumbs_var.with(|t| t.len());
-                thumbs.reserve(thumbs_len);
+                thumbs_vec.reserve(thumbs_len);
                 for i in 0..thumbs_len {
                     let thumb_var = thumbs_var.map(move |t| {
                         t.get(i).copied().unwrap_or(ThumbValue {
@@ -610,32 +613,33 @@ fn slider_track_node() -> impl UiNode {
                             n_of: (0, 0),
                         })
                     });
-                    thumbs.push(thumb_fn(ThumbArgs { thumb: thumb_var }))
+                    thumbs_vec.push(thumb_fn(ThumbArgs { thumb: thumb_var }))
                 }
 
-                thumbs.init_all();
+                thumbs.init();
 
                 WIDGET.update_info().layout().render();
             } else {
-                thumbs.update_all(updates, &mut ());
+                thumbs.update(updates);
 
                 // sync views and vars with updated SELECTOR thumbs
 
                 let thumbs_var = SELECTOR.get().thumbs();
                 let thumbs_len = thumbs_var.with(|t| t.len());
 
-                match thumbs_len.cmp(&thumbs.len()) {
+                match thumbs_len.cmp(&thumbs.node().children_len()) {
                     std::cmp::Ordering::Less => {
                         // now has less thumbs
-                        for mut drop in thumbs.drain(thumbs_len..) {
+                        for mut drop in thumbs.node_impl::<UiVec>().drain(thumbs_len..) {
                             drop.deinit();
                         }
                     }
                     std::cmp::Ordering::Greater => {
                         // now has more thumbs
+                        let thumbs_vec = thumbs.node_impl::<UiVec>();
                         let thumb_fn = THUMB_FN_VAR.get();
-                        let from_len = thumbs.len();
-                        thumbs.reserve(thumbs_len - from_len);
+                        let from_len = thumbs_vec.len();
+                        thumbs_vec.reserve(thumbs_len - from_len);
                         for i in from_len..thumbs_len {
                             let thumb_var = thumbs_var.map(move |t| {
                                 t.get(i).copied().unwrap_or(ThumbValue {
@@ -643,14 +647,14 @@ fn slider_track_node() -> impl UiNode {
                                     n_of: (0, 0),
                                 })
                             });
-                            thumbs.push(thumb_fn(ThumbArgs { thumb: thumb_var }))
+                            thumbs_vec.push(thumb_fn(ThumbArgs { thumb: thumb_var }))
                         }
                     }
                     std::cmp::Ordering::Equal => {}
                 }
             }
         }
-        op => thumbs.op(op),
+        _ => {}
     })
 }
 

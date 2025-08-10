@@ -25,7 +25,7 @@
 //!
 //! /// State the state info.
 //! #[property(CONTEXT)]
-//! pub fn state(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+//! pub fn state(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
 //!     let state = state.into_var();
 //!     match_node(child, move |_, op| match op {
 //!         UiNodeOp::Init => {

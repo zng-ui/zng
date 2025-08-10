@@ -33,7 +33,7 @@ use super::TEXT;
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_strikethroughs`] node.
 ///
 /// [`LaidoutText`]: super::LaidoutText
-pub fn render_underlines(child: impl UiNode) -> impl UiNode {
+pub fn render_underlines(child: impl IntoUiNode) -> UiNode {
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_render(&UNDERLINE_STYLE_VAR).sub_var_render(&UNDERLINE_COLOR_VAR);
@@ -68,7 +68,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_underlines`] node.
 ///
 /// [`LaidoutText`]: super::LaidoutText
-pub fn render_ime_preview_underlines(child: impl UiNode) -> impl UiNode {
+pub fn render_ime_preview_underlines(child: impl IntoUiNode) -> UiNode {
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_render(&IME_UNDERLINE_STYLE_VAR).sub_var_render(&FONT_COLOR_VAR);
@@ -102,7 +102,7 @@ pub fn render_ime_preview_underlines(child: impl UiNode) -> impl UiNode {
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_overlines`] node.
 ///
 /// [`LaidoutText`]: super::LaidoutText
-pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
+pub fn render_strikethroughs(child: impl IntoUiNode) -> UiNode {
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET
@@ -137,7 +137,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
 ///
 /// [`LaidoutText`]: super::LaidoutText
-pub fn render_overlines(child: impl UiNode) -> impl UiNode {
+pub fn render_overlines(child: impl IntoUiNode) -> UiNode {
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_render(&OVERLINE_STYLE_VAR).sub_var_render(&OVERLINE_COLOR_VAR);
@@ -168,7 +168,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
 ///
 /// [`LaidoutText`]: super::LaidoutText
-pub fn render_selection(child: impl UiNode) -> impl UiNode {
+pub fn render_selection(child: impl IntoUiNode) -> UiNode {
     let mut is_focused = false;
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -215,7 +215,7 @@ pub fn render_selection(child: impl UiNode) -> impl UiNode {
 /// This is the `Text!` widget inner most child node.
 ///
 /// [`LaidoutText`]: super::LaidoutText
-pub fn render_text() -> impl UiNode {
+pub fn render_text() -> UiNode {
     #[derive(Clone, Copy, PartialEq)]
     struct RenderedText {
         version: u32,

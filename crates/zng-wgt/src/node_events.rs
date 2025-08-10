@@ -56,15 +56,14 @@ impl OnNodeOpArgs {
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
 /// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
-pub fn on_node_op(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
-    on_node_op_impl(child, handler, |_| true)
+pub fn on_node_op(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+    on_node_op_impl(child.into_node(), handler.cfg_boxed(), |_| true)
 }
 fn on_node_op_impl(
-    child: impl UiNode,
-    handler: impl WidgetHandler<OnNodeOpArgs>,
+    child: UiNode,
+    mut handler: impl WidgetHandler<OnNodeOpArgs>,
     filter: impl Fn(UiNodeOpMethod) -> bool + Send + 'static,
-) -> impl UiNode {
-    let mut handler = handler.cfg_boxed();
+) -> UiNode {
     let mut count = 1;
     match_node(child, move |child, op| {
         let mtd = op.mtd();
@@ -105,15 +104,14 @@ fn on_node_op_impl(
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
 /// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
-pub fn on_pre_node_op(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
-    on_pre_node_op_impl(child, handler, |_| true)
+pub fn on_pre_node_op(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+    on_pre_node_op_impl(child.into_node(), handler.cfg_boxed(), |_| true)
 }
 fn on_pre_node_op_impl(
-    child: impl UiNode,
-    handler: impl WidgetHandler<OnNodeOpArgs>,
+    child: UiNode,
+    mut handler: impl WidgetHandler<OnNodeOpArgs>,
     filter: impl Fn(UiNodeOpMethod) -> bool + Send + 'static,
-) -> impl UiNode {
-    let mut handler = handler.cfg_boxed();
+) -> UiNode {
     let mut count = 1;
     match_node(child, move |_, op| {
         if let UiNodeOp::Update { .. } = &op {
@@ -156,16 +154,16 @@ fn on_pre_node_op_impl(
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
 /// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
-pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
-    on_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Init))
+pub fn on_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+    on_node_op_impl(child.into_node(), handler.cfg_boxed(), |op| matches!(op, UiNodeOpMethod::Init))
 }
 
 /// Preview [`on_init`] event.
 ///
 /// [`on_init`]: fn@on_init
 #[property(EVENT)]
-pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
-    on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Init))
+pub fn on_pre_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+    on_pre_node_op_impl(child.into_node(), handler.cfg_boxed(), |op| matches!(op, UiNodeOpMethod::Init))
 }
 
 /// Widget info is now available.
@@ -193,7 +191,7 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
 /// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
-pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
+pub fn on_info_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
     let mut handler = handler.cfg_boxed();
     let mut count = 1;
     enum State {
@@ -240,8 +238,8 @@ pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs
 /// [`hn!`]: zng_app::handler::hn!
 /// [`hn_once!`]: zng_app::handler::hn_once!
 #[property(EVENT)]
-pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
-    on_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Update))
+pub fn on_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+    on_node_op_impl(child.into_node(), handler.cfg_boxed(), |op| matches!(op, UiNodeOpMethod::Update))
 }
 
 /// Preview [`on_update`] event.
@@ -259,8 +257,8 @@ pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) 
 /// [`hn!`]: zng_app::handler::hn!
 /// [`hn_once!`]: zng_app::handler::hn_once!
 #[property(EVENT)]
-pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
-    on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Update))
+pub fn on_pre_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+    on_pre_node_op_impl(child.into_node(), handler.cfg_boxed(), |op| matches!(op, UiNodeOpMethod::Update))
 }
 
 /// Widget deinited.
@@ -290,16 +288,16 @@ pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArg
 /// [`hn_once!`]: zng_app::handler::hn_once!
 /// [`task::spawn`]: zng_task::spawn
 #[property(EVENT)]
-pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
-    on_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Deinit))
+pub fn on_deinit(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+    on_node_op_impl(child.into_node(), handler.cfg_boxed(), |op| matches!(op, UiNodeOpMethod::Deinit))
 }
 
 /// Preview [`on_deinit`] event.
 ///
 /// [`on_deinit`]: fn@on_deinit
 #[property(EVENT)]
-pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
-    on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Deinit))
+pub fn on_pre_deinit(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+    on_pre_node_op_impl(child.into_node(), handler.cfg_boxed(), |op| matches!(op, UiNodeOpMethod::Deinit))
 }
 
 /// If the widget has been initialized.
@@ -307,7 +305,7 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArg
 /// The `state` is set to `true` on init and to `false` on deinit. This property is useful for
 /// declaring transition animations that play on init using `when` blocks.
 #[property(CONTEXT)]
-pub fn is_inited(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_inited(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {

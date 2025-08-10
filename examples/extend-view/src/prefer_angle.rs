@@ -16,7 +16,7 @@ pub fn extension_id() -> ApiExtensionId {
 ///
 /// Note that ANGLE requires some DLLs, see the `build.rs` script for more details.
 #[property(CONTEXT)]
-pub fn use_angle_egl(child: impl UiNode, enable: impl IntoValue<bool>) -> impl UiNode {
+pub fn use_angle_egl(child: impl IntoUiNode, enable: impl IntoValue<bool>) -> UiNode {
     let enable = enable.into() && cfg!(windows);
     match_node(child, move |_c, op| {
         if let UiNodeOp::Init = op {

@@ -1,5 +1,0 @@
-error[E0609]: no field `children` on type `&mut Node`
- --> cases/ui_node/delegate_expr_no_children_field.rs:5:11
-  |
-5 | #[ui_node(children)]
-  |           ^^^^^^^^ unknown field

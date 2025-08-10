@@ -29,11 +29,11 @@ error[E0061]: this method takes 2 arguments but 1 argument was supplied
 note: method defined here
   --> $WORKSPACE/crates/zng-wgt-fill/src/lib.rs
    |
-   | pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+   | pub fn background_gradient(child: impl IntoUiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> UiNode {
    |        ^^^^^^^^^^^^^^^^^^^
 help: provide the argument
   --> $WORKSPACE/crates/zng-wgt/src/wgt.rs
    |
    - #[widget($crate::Wgt)]
-   + background_gradient(0.deg(), /* stops */)
+   + (0.deg(), /* stops */)
    |

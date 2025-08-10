@@ -1,7 +1,26 @@
 error[E0277]: the trait bound `Foo: Clone` is not satisfied
  --> cases/hot_node/input_not_clone.rs:8:22
   |
-8 | pub fn invalid(_foo: Foo) -> impl UiNode {
+7 | #[hot_node]
+  | ----------- required by a bound introduced by this call
+8 | pub fn invalid(_foo: Foo) -> UiNode {
+  |                      ^^^ the trait `Clone` is not implemented for `Foo`
+  |
+note: required by a bound in `HotNodeArgs::pop_clone`
+ --> $WORKSPACE/crates/zng-ext-hot-reload/src/node.rs
+  |
+  |     pub fn pop_clone<T: Clone + Send + Any>(&mut self) -> T {
+  |                         ^^^^^ required by this bound in `HotNodeArgs::pop_clone`
+help: consider annotating `Foo` with `#[derive(Clone)]`
+  |
+5   + #[derive(Clone)]
+6   | pub struct Foo {}
+    |
+
+error[E0277]: the trait bound `Foo: Clone` is not satisfied
+ --> cases/hot_node/input_not_clone.rs:8:22
+  |
+8 | pub fn invalid(_foo: Foo) -> UiNode {
   |                ----  ^^^ the trait `Clone` is not implemented for `Foo`
   |                |
   |                required by a bound introduced by this call
@@ -16,22 +35,3 @@ help: consider annotating `Foo` with `#[derive(Clone)]`
 5  + #[derive(Clone)]
 6  | pub struct Foo {}
    |
-
-error[E0277]: the trait bound `Foo: Clone` is not satisfied
- --> cases/hot_node/input_not_clone.rs:8:22
-  |
-7 | #[hot_node]
-  | ----------- required by a bound introduced by this call
-8 | pub fn invalid(_foo: Foo) -> impl UiNode {
-  |                      ^^^ the trait `Clone` is not implemented for `Foo`
-  |
-note: required by a bound in `HotNodeArgs::pop_clone`
- --> $WORKSPACE/crates/zng-ext-hot-reload/src/node.rs
-  |
-  |     pub fn pop_clone<T: Clone + Send + Any>(&mut self) -> T {
-  |                         ^^^^^ required by this bound in `HotNodeArgs::pop_clone`
-help: consider annotating `Foo` with `#[derive(Clone)]`
-  |
-5   + #[derive(Clone)]
-6   | pub struct Foo {}
-    |

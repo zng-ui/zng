@@ -43,7 +43,7 @@ fn main() {
     })
 }
 
-fn transform2d_examples() -> impl UiNode {
+fn transform2d_examples() -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 25;
@@ -61,7 +61,7 @@ fn transform2d_examples() -> impl UiNode {
     }
 }
 
-fn transform3d_examples() -> impl UiNode {
+fn transform3d_examples() -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 25;
@@ -129,7 +129,7 @@ fn transform3d_examples() -> impl UiNode {
     }
 }
 
-fn transformed(label: impl Into<Txt>, transform: Transform) -> impl UiNode {
+fn transformed(label: impl Into<Txt>, transform: Transform) -> UiNode {
     let parent_is_hovered = var(false);
     Container! {
         child = Container! {
@@ -147,7 +147,7 @@ fn transformed(label: impl Into<Txt>, transform: Transform) -> impl UiNode {
         border = 2, (web_colors::GRAY, BorderStyle::Dashed);
     }
 }
-fn transformed_3d(label: impl Into<Txt>, transform: Transform, origin: Point) -> impl UiNode {
+fn transformed_3d(label: impl Into<Txt>, transform: Transform, origin: Point) -> UiNode {
     let parent_is_hovered = var(false);
     Container! {
         child = Container! {
@@ -169,7 +169,7 @@ fn transformed_3d(label: impl Into<Txt>, transform: Transform, origin: Point) ->
         border = 2, (colors::GRAY, BorderStyle::Dashed);
     }
 }
-fn transformed_at(label: impl Into<Txt>, transform: Transform, origin: impl Into<Point>) -> impl UiNode {
+fn transformed_at(label: impl Into<Txt>, transform: Transform, origin: impl Into<Point>) -> UiNode {
     let parent_is_hovered = var(false);
     Container! {
         child = Container! {
@@ -192,7 +192,7 @@ fn transformed_at(label: impl Into<Txt>, transform: Transform, origin: impl Into
 fn transformed_sampler(
     label: impl Into<Txt>,
     sampler: impl Fn(&animation::Transition<AngleRadian>, EasingStep) -> AngleRadian + Send + Sync + 'static,
-) -> impl UiNode {
+) -> UiNode {
     let parent_is_hovered = var(false);
     Container! {
         child = {
@@ -214,7 +214,7 @@ fn transformed_sampler(
     }
 }
 
-fn transform_stack() -> impl UiNode {
+fn transform_stack() -> UiNode {
     // the panel widget uses its child transform to position the widget for performance reasons,
     // the widget transform does not affect.
     Stack! {
@@ -246,7 +246,7 @@ fn transform_stack() -> impl UiNode {
     }
 }
 
-fn transform_order() -> impl UiNode {
+fn transform_order() -> UiNode {
     // transform created using a single property or two properties generate the same transform because
     // are in the same order.
     Stack!(ui_vec![
@@ -276,7 +276,7 @@ fn transform_order() -> impl UiNode {
     ])
 }
 
-fn cube_example() -> impl UiNode {
+fn cube_example() -> UiNode {
     // Based on https://codepen.io/desandro/pen/KRWjzm?editors=1100
     let show = var(1u8);
     Stack! {
@@ -313,7 +313,6 @@ fn cube_example() -> impl UiNode {
                                     _ => unreachable!()
                                 });
                             }
-                            .boxed()
                         })
                         .collect::<UiVec>();
 
@@ -351,7 +350,7 @@ fn cube_example() -> impl UiNode {
     }
 }
 
-fn open_touch_example() -> impl UiNode {
+fn open_touch_example() -> UiNode {
     let is_open = var(false);
     Button! {
         align = Align::TOP_END;
@@ -385,7 +384,7 @@ fn open_touch_example() -> impl UiNode {
     }
 }
 
-fn touch_example() -> impl UiNode {
+fn touch_example() -> UiNode {
     use zng::touch::TouchTransformMode;
 
     let mode = var(TouchTransformMode::ALL);

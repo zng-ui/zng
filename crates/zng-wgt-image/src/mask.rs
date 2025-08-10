@@ -16,7 +16,7 @@ use crate::ImageFit;
 /// [`mask`]: crate::mask
 /// [`mask_mode`]: fn@mask_mode
 #[property(FILL-1)]
-pub fn mask_image(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
+pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> UiNode {
     let source = source.into_var();
     let mut img = None;
     let mut img_size = PxSize::zero();
@@ -228,7 +228,7 @@ context_var! {
 ///
 /// [`mask_image`]: fn@mask_image
 #[property(CONTEXT, default(MASK_MODE_VAR))]
-pub fn mask_mode(child: impl UiNode, mode: impl IntoVar<ImageMaskMode>) -> impl UiNode {
+pub fn mask_mode(child: impl IntoUiNode, mode: impl IntoVar<ImageMaskMode>) -> UiNode {
     with_context_var(child, MASK_MODE_VAR, mode)
 }
 
@@ -239,7 +239,7 @@ pub fn mask_mode(child: impl UiNode, mode: impl IntoVar<ImageMaskMode>) -> impl 
 ///
 /// [`mask_image`]: fn@mask_image
 #[property(CONTEXT, default(MASK_IMAGE_CACHE_VAR))]
-pub fn mask_image_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn mask_image_cache(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, MASK_IMAGE_CACHE_VAR, enabled)
 }
 
@@ -249,7 +249,7 @@ pub fn mask_image_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 ///
 /// [`IMAGES.limits`]: zng_ext_image::IMAGES::limits
 #[property(CONTEXT, default(MASK_IMAGE_LIMITS_VAR))]
-pub fn mask_image_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>) -> impl UiNode {
+pub fn mask_image_limits(child: impl IntoUiNode, limits: impl IntoVar<Option<ImageLimits>>) -> UiNode {
     with_context_var(child, MASK_IMAGE_LIMITS_VAR, limits)
 }
 
@@ -267,7 +267,7 @@ pub fn mask_image_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLi
 /// [`IMAGES.limits`]: zng_ext_image::IMAGES::limits
 /// [`mask_image_limits`]: fn@mask_image_limits
 #[property(CONTEXT, default(MASK_IMAGE_DOWNSCALE_VAR))]
-pub fn mask_image_downscale(child: impl UiNode, downscale: impl IntoVar<Option<ImageDownscale>>) -> impl UiNode {
+pub fn mask_image_downscale(child: impl IntoUiNode, downscale: impl IntoVar<Option<ImageDownscale>>) -> UiNode {
     with_context_var(child, MASK_IMAGE_DOWNSCALE_VAR, downscale)
 }
 
@@ -278,7 +278,7 @@ pub fn mask_image_downscale(child: impl UiNode, downscale: impl IntoVar<Option<I
 ///
 /// [`mask_image`]: fn@mask_image
 #[property(CONTEXT, default(MASK_FIT_VAR))]
-pub fn mask_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
+pub fn mask_fit(child: impl IntoUiNode, fit: impl IntoVar<ImageFit>) -> UiNode {
     with_context_var(child, MASK_FIT_VAR, fit)
 }
 
@@ -289,7 +289,7 @@ pub fn mask_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode 
 ///
 /// [`mask_image`]: fn@mask_image
 #[property(CONTEXT, default(MASK_ALIGN_VAR))]
-pub fn mask_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
+pub fn mask_align(child: impl IntoUiNode, align: impl IntoVar<Align>) -> UiNode {
     with_context_var(child, MASK_ALIGN_VAR, align)
 }
 
@@ -300,6 +300,6 @@ pub fn mask_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode
 ///
 /// [`mask_image`]: fn@mask_image
 #[property(CONTEXT, default(MASK_OFFSET_VAR))]
-pub fn mask_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
+pub fn mask_offset(child: impl IntoUiNode, offset: impl IntoVar<Vector>) -> UiNode {
     with_context_var(child, MASK_OFFSET_VAR, offset)
 }

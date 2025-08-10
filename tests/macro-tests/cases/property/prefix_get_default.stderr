@@ -1,8 +1,8 @@
 error[E0277]: the trait bound `NotDefault: VarValue` is not satisfied
-  --> cases/property/prefix_get_default.rs:10:58
+  --> cases/property/prefix_get_default.rs:10:62
    |
-10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
-   |                                                          ^^^^^^^^^^^^^^^^^^^ the trait `PartialEq` is not implemented for `NotDefault`
+10 | pub fn get_state_invalid(child: impl IntoUiNode, state: impl IntoVar<NotDefault>) -> UiNode {
+   |                                                              ^^^^^^^^^^^^^^^^^^^ the trait `PartialEq` is not implemented for `NotDefault`
    |
    = note: required for `NotDefault` to implement `VarValue`
 note: required by a bound in `IntoVar`
@@ -37,24 +37,24 @@ help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
    |
 
 error[E0277]: can't compare `NotDefault` with `NotDefault`
-  --> cases/property/prefix_get_default.rs:10:53
+  --> cases/property/prefix_get_default.rs:10:57
    |
 9  | #[property(CONTEXT)]
    | -------------------- required by a bound introduced by this call
-10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
-   |                                                     ^^^^ no implementation for `NotDefault == NotDefault`
+10 | pub fn get_state_invalid(child: impl IntoUiNode, state: impl IntoVar<NotDefault>) -> UiNode {
+   |                                                         ^^^^ no implementation for `NotDefault == NotDefault`
    |
    = help: the trait `PartialEq` is not implemented for `NotDefault`
    = help: the following other types implement trait `IntoVar<T>`:
             <implementers-list>
    = note: required for `zng::var::Var<NotDefault>` to implement `IntoVar<NotDefault>`
 note: required by a bound in `get_state_invalid_::args`
-  --> cases/property/prefix_get_default.rs:10:58
+  --> cases/property/prefix_get_default.rs:10:62
    |
 9  | #[property(CONTEXT)]
    | -------------------- required by a bound in this associated function
-10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
-   |                                                          ^^^^^^^^^^^^^^^^^^^ required by this bound in `get_state_invalid_::args`
+10 | pub fn get_state_invalid(child: impl IntoUiNode, state: impl IntoVar<NotDefault>) -> UiNode {
+   |                                                              ^^^^^^^^^^^^^^^^^^^ required by this bound in `get_state_invalid_::args`
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
    |
 16 + #[derive(PartialEq)]
@@ -62,10 +62,10 @@ help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
    |
 
 error[E0277]: the trait bound `NotDefault: std::default::Default` is not satisfied
-  --> cases/property/prefix_get_default.rs:10:53
+  --> cases/property/prefix_get_default.rs:10:57
    |
-10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
-   |                                                     ^^^^ the trait `std::default::Default` is not implemented for `NotDefault`
+10 | pub fn get_state_invalid(child: impl IntoUiNode, state: impl IntoVar<NotDefault>) -> UiNode {
+   |                                                         ^^^^ the trait `std::default::Default` is not implemented for `NotDefault`
    |
 note: required by a bound in `var_getter`
   --> $WORKSPACE/crates/zng-var/src/var_impl/shared_var.rs
@@ -79,10 +79,10 @@ help: consider annotating `NotDefault` with `#[derive(Default)]`
    |
 
 error[E0277]: can't compare `NotDefault` with `NotDefault`
-  --> cases/property/prefix_get_default.rs:10:46
+  --> cases/property/prefix_get_default.rs:10:50
    |
-10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
-   |                                              ^^^^^ no implementation for `NotDefault == NotDefault`
+10 | pub fn get_state_invalid(child: impl IntoUiNode, state: impl IntoVar<NotDefault>) -> UiNode {
+   |                                                  ^^^^^ no implementation for `NotDefault == NotDefault`
    |
    = help: the trait `PartialEq` is not implemented for `NotDefault`
    = note: required for `NotDefault` to implement `VarValue`
@@ -160,15 +160,15 @@ note: required by a bound in `var_to_args`
   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
   |
-16   + #[derive(PartialEq)]
-17   | pub struct NotDefault {}
-     |
+16  + #[derive(PartialEq)]
+17  | pub struct NotDefault {}
+    |
 
 error[E0277]: the trait bound `NotDefault: VarValue` is not satisfied
-  --> cases/property/prefix_get_default.rs:10:66
+  --> cases/property/prefix_get_default.rs:10:70
    |
-10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
-   |                                                                  ^^^^^^^^^^ the trait `PartialEq` is not implemented for `NotDefault`
+10 | pub fn get_state_invalid(child: impl IntoUiNode, state: impl IntoVar<NotDefault>) -> UiNode {
+   |                                                                      ^^^^^^^^^^ the trait `PartialEq` is not implemented for `NotDefault`
    |
    = note: required for `NotDefault` to implement `VarValue`
 note: required by a bound in `WhenInputVar::new`

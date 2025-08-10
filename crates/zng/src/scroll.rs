@@ -29,7 +29,7 @@
 //! }
 //! # ; }
 //!
-//! fn center_viewport(msg: impl UiNode) -> impl UiNode {
+//! fn center_viewport(msg: impl IntoUiNode) -> UiNode {
 //!     use zng::scroll::SCROLL;
 //!     Container! {
 //!         // center the message on the scroll viewport:

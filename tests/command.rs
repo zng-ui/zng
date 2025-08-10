@@ -102,7 +102,7 @@ fn shortcut_scoped() {
 }
 
 async fn listener_window(focused_wgt: bool) -> window::WindowRoot {
-    fn foo_handler() -> impl UiNode {
+    fn foo_handler() -> UiNode {
         let mut _handle = None;
         let mut _handle_scoped = None;
         match_node_leaf(move |op| match op {
@@ -131,7 +131,7 @@ async fn listener_window(focused_wgt: bool) -> window::WindowRoot {
         })
     }
 
-    fn foo_window_handler() -> impl UiNode {
+    fn foo_window_handler() -> UiNode {
         let mut _handle_scoped = None;
 
         match_node_leaf(move |op| match op {

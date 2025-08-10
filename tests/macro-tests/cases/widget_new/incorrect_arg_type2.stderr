@@ -1,3 +1,15 @@
+error[E0308]: mismatched types
+  --> cases/widget_new/incorrect_arg_type2.rs:10:5
+   |
+8  | pub fn simple_type(child: impl IntoUiNode, simple: impl IntoVar<u32>) -> UiNode {
+   |                           --------------- found this type parameter      ------ expected `zng::prelude::UiNode` because of return type
+9  |     let _ = simple;
+10 |     child
+   |     ^^^^^ expected `UiNode`, found type parameter `impl IntoUiNode`
+   |
+   = note:      expected struct `zng::prelude::UiNode`
+           found type parameter `impl IntoUiNode`
+
 error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
   --> cases/widget_new/incorrect_arg_type2.rs:16:23
    |
@@ -11,7 +23,7 @@ error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
    = help: the following other types implement trait `IntoVar<T>`:
             <implementers-list>
 note: required by a bound in `simple_type::simple_type`
-  --> cases/widget_new/incorrect_arg_type2.rs:8:53
+  --> cases/widget_new/incorrect_arg_type2.rs:8:57
    |
-8  | pub fn simple_type(child: impl UiNode, simple: impl IntoVar<u32>) -> impl UiNode {
-   |                                                     ^^^^^^^^^^^^ required by this bound in `simple_type::simple_type`
+8  | pub fn simple_type(child: impl IntoUiNode, simple: impl IntoVar<u32>) -> UiNode {
+   |                                                         ^^^^^^^^^^^^ required by this bound in `simple_type::simple_type`

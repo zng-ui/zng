@@ -1,11 +1,11 @@
 use zng::{
-    prelude_wgt::{property, IntoVar, UiNode},
+    prelude_wgt::{property, IntoUiNode, IntoVar, UiNode},
     widget::Wgt,
     APP,
 };
 
 #[property(CONTEXT)]
-pub fn simple_type(child: impl UiNode, simple_a: impl IntoVar<u32>, simple_b: impl IntoVar<u32>) -> impl UiNode {
+pub fn simple_type(child: impl IntoUiNode, simple_a: impl IntoVar<u32>, simple_b: impl IntoVar<u32>) -> UiNode {
     let _ = (simple_a, simple_b);
     child
 }

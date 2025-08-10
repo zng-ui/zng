@@ -1,17 +1,17 @@
 error: hot node functions cannot be `async`
  --> cases/hot_node/invalid_function_qualifiers.rs:7:5
   |
-7 | pub async fn invalid_async(child: impl UiNode, _input: impl IntoVar<u32>) -> impl UiNode {
+7 | pub async fn invalid_async(child: impl IntoUiNode, _input: impl IntoVar<u32>) -> UiNode {
   |     ^^^^^
 
 error: hot node functions cannot be `unsafe`
   --> cases/hot_node/invalid_function_qualifiers.rs:12:5
    |
-12 | pub unsafe fn invalid_unsafe(child: impl UiNode, _input: impl IntoVar<u32>) -> impl UiNode {
+12 | pub unsafe fn invalid_unsafe(child: impl IntoUiNode, _input: impl IntoVar<u32>) -> UiNode {
    |     ^^^^^^
 
 error: hot node functions cannot be `extern`
   --> cases/hot_node/invalid_function_qualifiers.rs:17:5
    |
-17 | pub extern "C" fn invalid_extern(child: impl UiNode, _input: impl IntoVar<u32>) -> impl UiNode {
+17 | pub extern "C" fn invalid_extern(child: impl IntoUiNode, _input: impl IntoVar<u32>) -> UiNode {
    |     ^^^^^^

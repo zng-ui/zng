@@ -69,7 +69,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
     });
 }
 
-fn thumb_layout(child: impl UiNode) -> impl UiNode {
+fn thumb_layout(child: impl IntoUiNode) -> UiNode {
     let mut content_length = Px(0);
     let mut viewport_length = Px(0);
     let mut thumb_length = Px(0);

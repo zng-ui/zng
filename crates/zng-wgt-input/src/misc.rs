@@ -20,7 +20,7 @@ context_local! {
 /// You can set this property to a [`CursorIcon`] for a named platform dependent icon, [`CursorImg`] for a custom image,
 /// or to `false` that converts to [`CursorSource::Hidden`].
 #[property(CONTEXT, default(CursorIcon::Default))]
-pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorSource>) -> impl UiNode {
+pub fn cursor(child: impl IntoUiNode, cursor: impl IntoVar<CursorSource>) -> UiNode {
     let cursor = cursor.into_var();
     let mut binding = None;
     let mut child_sets_ctx = None::<Arc<AtomicBool>>;
@@ -88,7 +88,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorSource>) -> impl Ui
 ///
 /// [`ClickMode::default`]: zng_ext_input::mouse::ClickMode::default
 #[property(CONTEXT, default(None))]
-pub fn click_mode(child: impl UiNode, mode: impl IntoVar<Option<ClickMode>>) -> impl UiNode {
+pub fn click_mode(child: impl IntoUiNode, mode: impl IntoVar<Option<ClickMode>>) -> UiNode {
     let mode = mode.into_var();
 
     match_node(child, move |_, op| match op {

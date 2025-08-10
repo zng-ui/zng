@@ -9,10 +9,10 @@ mod inspector_only {
 
     use crate::widget::{
         builder::{InputKind, PropertyId},
-        node::{BoxedUiNode, UiNode, UiNodeOp, match_node},
+        node::{UiNode, UiNodeOp, match_node},
     };
 
-    pub(crate) fn insert_widget_builder_info(child: BoxedUiNode, info: super::InspectorInfo) -> impl UiNode {
+    pub(crate) fn insert_widget_builder_info(child: UiNode, info: super::InspectorInfo) -> UiNode {
         let insp_info = Arc::new(info);
         match_node(child, move |_, op| {
             if let UiNodeOp::Info { info } = op {
@@ -21,7 +21,7 @@ mod inspector_only {
         })
     }
 
-    pub(crate) fn actualize_var_info(child: BoxedUiNode, property: PropertyId) -> impl UiNode {
+    pub(crate) fn actualize_var_info(child: UiNode, property: PropertyId) -> UiNode {
         match_node(child, move |_, op| {
             if let UiNodeOp::Info { info } = op {
                 info.with_meta(|mut m| {
@@ -53,7 +53,6 @@ use zng_var::{AnyVar, Var, VarValue};
 use std::{any::TypeId, collections::HashMap, sync::Arc};
 
 use super::{
-    WIDGET, WidgetUpdateMode,
     builder::{InputKind, NestGroup, PropertyArgs, PropertyId, WidgetBuilder, WidgetType},
     info::WidgetInfo,
 };
@@ -254,16 +253,18 @@ impl WidgetInfoInspectorExt for WidgetInfo {
                 match input.kind {
                     InputKind::UiNode => {
                         let node = args.ui_node(i);
-                        if let Some(true) = node.try_context(WidgetUpdateMode::Ignore, || WIDGET.id() == id) {
-                            return Some((args.id(), i));
-                        }
-                    }
-                    InputKind::UiNodeList => {
-                        let list = args.ui_node_list(i);
                         let mut found = false;
-                        list.for_each_ctx(WidgetUpdateMode::Ignore, |_| {
-                            if !found {
-                                found = WIDGET.id() == id;
+                        node.try_node(|n| {
+                            if n.is_list() {
+                                // parent's property input is a list, are we on that list?
+                                n.for_each_child(|_, n| {
+                                    if !found && let Some(mut wgt) = n.as_widget() {
+                                        found = wgt.id() == id;
+                                    }
+                                });
+                            } else if let Some(mut wgt) = n.as_widget() {
+                                // parent's property input is an widget, is that us?
+                                found = wgt.id() == id;
                             }
                         });
                         if found {

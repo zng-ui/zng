@@ -10,12 +10,12 @@ pub mod app_side {
     use zng_view_api::api_extension::ApiExtensionId;
 
     /// Node that sends external display item and updates.
-    pub fn custom_render_node() -> impl UiNode {
+    pub fn custom_render_node() -> UiNode {
         custom_ext_node(extension_id)
     }
     // node that sends the cursor position, widget size and widget position in window to a view extension.
     // abstracted here to be reused by the other demos.
-    pub(crate) fn custom_ext_node(extension_id: fn() -> ApiExtensionId) -> impl UiNode {
+    pub(crate) fn custom_ext_node(extension_id: fn() -> ApiExtensionId) -> UiNode {
         let mut ext_id = ApiExtensionId::INVALID;
         let mut cursor = DipPoint::splat(Dip::MIN);
         let mut cursor_px = PxPoint::splat(Px::MIN);

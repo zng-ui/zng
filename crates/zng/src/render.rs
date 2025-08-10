@@ -18,7 +18,7 @@
 //! /// Fills the available space with a centered circle of the color.
 //! ///
 //! /// This node disables inline layout for the widget.
-//! pub fn color_circle(color: impl IntoVar<Rgba>) -> impl UiNode {
+//! pub fn color_circle(color: impl IntoVar<Rgba>) -> UiNode {
 //!     let color = color.into_var();
 //!     let mut area = PxRect::zero();
 //!
@@ -75,7 +75,7 @@
 //! ```
 //! # use zng::prelude::*;
 //! # let _scope = APP.defaults();
-//! # fn color_circle(_color: impl IntoVar<zng::color::Rgba>) -> impl UiNode { widget::node::FillUiNode }
+//! # fn color_circle(_color: impl IntoVar<zng::color::Rgba>) -> UiNode { UiNode::nil() }
 //! let color = var(colors::RED);
 //! let mut i = 0u8;
 //! # let _ =

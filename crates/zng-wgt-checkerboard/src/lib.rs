@@ -74,7 +74,7 @@ context_var! {
 ///
 /// This property sets [`COLORS_VAR`] for all inner checkerboard widgets.
 #[property(CONTEXT, default(COLORS_VAR), widget_impl(Checkerboard))]
-pub fn colors(child: impl UiNode, colors: impl IntoVar<Colors>) -> impl UiNode {
+pub fn colors(child: impl IntoUiNode, colors: impl IntoVar<Colors>) -> UiNode {
     with_context_var(child, COLORS_VAR, colors)
 }
 
@@ -82,7 +82,7 @@ pub fn colors(child: impl UiNode, colors: impl IntoVar<Colors>) -> impl UiNode {
 ///
 /// This property sets the [`SIZE_VAR`] for all inner checkerboard widgets.
 #[property(CONTEXT, default(SIZE_VAR), widget_impl(Checkerboard))]
-pub fn cb_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+pub fn cb_size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
     with_context_var(child, SIZE_VAR, size)
 }
 
@@ -92,14 +92,14 @@ pub fn cb_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 ///
 /// This property sets the [`ORIGIN_VAR`] for all inner checkerboard widgets.
 #[property(CONTEXT, default(ORIGIN_VAR), widget_impl(Checkerboard))]
-pub fn cb_origin(child: impl UiNode, offset: impl IntoVar<Point>) -> impl UiNode {
+pub fn cb_origin(child: impl IntoUiNode, offset: impl IntoVar<Point>) -> UiNode {
     with_context_var(child, ORIGIN_VAR, offset)
 }
 
 /// Checkerboard node.
 ///
 /// The node is configured by the contextual variables defined in the widget.
-pub fn node() -> impl UiNode {
+pub fn node() -> UiNode {
     let mut render_size = PxSize::zero();
     let mut tile_origin = PxPoint::zero();
     let mut tile_size = PxSize::zero();

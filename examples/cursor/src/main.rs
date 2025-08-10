@@ -1,6 +1,6 @@
 //! Demonstrates each `CursorIcon`, tooltip anchored to cursor.
 
-use zng::{color::filter::invert_color, image::ImageFit, mouse::CursorIcon, prelude::*, prelude_wgt::NilUiNode};
+use zng::{color::filter::invert_color, image::ImageFit, mouse::CursorIcon, prelude::*};
 
 mod widgets;
 
@@ -37,7 +37,7 @@ fn main() {
     })
 }
 
-fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
+fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> UiNode {
     widgets::DemoEntry! {
         mouse::cursor = match icon {
             Some(i) => i.0.into(),
@@ -49,9 +49,8 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
                 source = img;
                 img_fit = ImageFit::None;
                 invert_color = color::COLOR_SCHEME_VAR.map(|c| (*c == color::ColorScheme::Dark).into());
-            }
-            .boxed(),
-            None => NilUiNode.boxed(),
+            },
+            None => UiNode::nil(),
         };
 
         child = Text! {
@@ -68,7 +67,7 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
     }
 }
 
-fn cursor_img_demo(label: &'static str, img: &'static [u8], hotspot: (i32, i32), fallback: CursorIcon) -> impl UiNode {
+fn cursor_img_demo(label: &'static str, img: &'static [u8], hotspot: (i32, i32), fallback: CursorIcon) -> UiNode {
     widgets::DemoEntry! {
         mouse::cursor = mouse::CursorImg {
             source: img.into(),

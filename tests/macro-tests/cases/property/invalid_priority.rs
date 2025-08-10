@@ -1,9 +1,9 @@
-use zng::prelude_wgt::{property, IntoVar, UiNode};
+use zng::prelude_wgt::{property, IntoUiNode, IntoVar, UiNode};
 
 #[property(INVALID_PRI)]
-pub fn invalid_priority(child: impl UiNode, input: impl IntoVar<bool>) -> impl UiNode {
+pub fn invalid_priority(child: impl IntoUiNode, input: impl IntoVar<bool>) -> UiNode {
     let _ = input;
-    child
+    child.into_node()
 }
 
 fn main() {}

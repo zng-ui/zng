@@ -47,8 +47,8 @@ impl SettingsEditor {
 /// Implements the [`SettingsEditor!`] inner widgets.
 ///
 /// [`SettingsEditor!`]: struct@SettingsEditor
-pub fn settings_editor_node() -> impl UiNode {
-    match_node(NilUiNode.boxed(), move |c, op| match op {
+pub fn settings_editor_node() -> UiNode {
+    match_node(UiNode::nil(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET
                 .sub_var(&SETTINGS_FN_VAR)
@@ -58,11 +58,11 @@ pub fn settings_editor_node() -> impl UiNode {
                 .sub_var(&CATEGORY_HEADER_FN_VAR)
                 .sub_var(&CATEGORY_ITEM_FN_VAR)
                 .sub_var(&PANEL_FN_VAR);
-            *c.child() = settings_view_fn().boxed();
+            *c.node() = settings_view_fn();
         }
         UiNodeOp::Deinit => {
             c.deinit();
-            *c.child() = NilUiNode.boxed();
+            *c.node() = UiNode::nil();
         }
         UiNodeOp::Update { .. } => {
             if PANEL_FN_VAR.is_new()
@@ -74,9 +74,9 @@ pub fn settings_editor_node() -> impl UiNode {
                 || CATEGORY_ITEM_FN_VAR.is_new()
             {
                 c.delegated();
-                c.child().deinit();
-                *c.child() = settings_view_fn().boxed();
-                c.child().init();
+                c.node().deinit();
+                *c.node() = settings_view_fn();
+                c.node().init();
                 WIDGET.update_info().layout().render();
             }
         }
@@ -180,7 +180,7 @@ fn editor_state() -> Var<Option<SettingsEditorState>> {
     r
 }
 
-fn settings_view_fn() -> impl UiNode {
+fn settings_view_fn() -> UiNode {
     let search = SETTINGS_SEARCH_FN_VAR.get()(SettingsSearchArgs {});
 
     let editor_state = SETTINGS.editor_state().current_context();
@@ -196,36 +196,33 @@ fn settings_view_fn() -> impl UiNode {
                 .collect();
 
             CATEGORIES_LIST_FN_VAR.get()(CategoriesListArgs { items: categories })
-        }))
-        .boxed();
+        }));
 
-    let settings = editor_state
-        .present(wgt_fn!(|state: Option<SettingsEditorState>| {
-            let SettingsEditorState {
-                selected_cat,
-                selected_settings,
-                ..
-            } = state.unwrap();
-            let setting_fn = SETTING_FN_VAR.get();
+    let settings = editor_state.present(wgt_fn!(|state: Option<SettingsEditorState>| {
+        let SettingsEditorState {
+            selected_cat,
+            selected_settings,
+            ..
+        } = state.unwrap();
+        let setting_fn = SETTING_FN_VAR.get();
 
-            let settings: UiVec = selected_settings
-                .into_iter()
-                .enumerate()
-                .map(|(i, s)| {
-                    let editor = s.editor();
-                    setting_fn(SettingArgs {
-                        index: i,
-                        setting: s.clone(),
-                        editor,
-                    })
+        let settings: UiVec = selected_settings
+            .into_iter()
+            .enumerate()
+            .map(|(i, s)| {
+                let editor = s.editor();
+                setting_fn(SettingArgs {
+                    index: i,
+                    setting: s.clone(),
+                    editor,
                 })
-                .collect();
+            })
+            .collect();
 
-            let header = CATEGORY_HEADER_FN_VAR.get()(CategoryHeaderArgs { category: selected_cat });
+        let header = CATEGORY_HEADER_FN_VAR.get()(CategoryHeaderArgs { category: selected_cat });
 
-            SETTINGS_FN_VAR.get()(SettingsArgs { header, items: settings })
-        }))
-        .boxed();
+        SETTINGS_FN_VAR.get()(SettingsArgs { header, items: settings })
+    }));
 
     PANEL_FN_VAR.get()(PanelArgs {
         search,
@@ -239,7 +236,7 @@ fn settings_view_fn() -> impl UiNode {
 /// This property is enabled by default in the `SettingsEditor!` widget, without a key. Note that without a config key
 /// this feature only actually enables if the settings widget ID has a name.
 #[property(CONTEXT, widget_impl(SettingsEditor))]
-pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> impl UiNode {
+pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) -> UiNode {
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
     struct SettingsEditorCfg {
         search: Txt,
@@ -273,7 +270,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
 }
 
 /// Intrinsic SETTINGS_CMD handler.
-fn command_handler(child: impl UiNode) -> impl UiNode {
+fn command_handler(child: impl IntoUiNode) -> UiNode {
     let mut _handle = CommandHandle::dummy();
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {

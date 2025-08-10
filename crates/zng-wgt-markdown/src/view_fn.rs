@@ -464,7 +464,7 @@ context_var! {
 ///
 /// Sets the [`TEXT_FN_VAR`].
 #[property(CONTEXT, default(TEXT_FN_VAR), widget_impl(Markdown))]
-pub fn text_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<TextFnArgs>>) -> impl UiNode {
+pub fn text_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<TextFnArgs>>) -> UiNode {
     with_context_var(child, TEXT_FN_VAR, wgt_fn)
 }
 
@@ -472,7 +472,7 @@ pub fn text_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<TextFnArgs>>) -
 ///
 /// Sets the [`LINK_FN_VAR`].
 #[property(CONTEXT, default(LINK_FN_VAR), widget_impl(Markdown))]
-pub fn link_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<LinkFnArgs>>) -> impl UiNode {
+pub fn link_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<LinkFnArgs>>) -> UiNode {
     with_context_var(child, LINK_FN_VAR, wgt_fn)
 }
 
@@ -480,7 +480,7 @@ pub fn link_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<LinkFnArgs>>) -
 ///
 /// Sets the [`CODE_INLINE_FN_VAR`].
 #[property(CONTEXT, default(CODE_INLINE_FN_VAR), widget_impl(Markdown))]
-pub fn code_inline_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<CodeInlineFnArgs>>) -> impl UiNode {
+pub fn code_inline_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<CodeInlineFnArgs>>) -> UiNode {
     with_context_var(child, CODE_INLINE_FN_VAR, wgt_fn)
 }
 
@@ -488,7 +488,7 @@ pub fn code_inline_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<CodeInli
 ///
 /// Sets the [`CODE_BLOCK_FN_VAR`].
 #[property(CONTEXT, default(CODE_BLOCK_FN_VAR), widget_impl(Markdown))]
-pub fn code_block_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<CodeBlockFnArgs>>) -> impl UiNode {
+pub fn code_block_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<CodeBlockFnArgs>>) -> UiNode {
     with_context_var(child, CODE_BLOCK_FN_VAR, wgt_fn)
 }
 
@@ -496,7 +496,7 @@ pub fn code_block_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<CodeBlock
 ///
 /// Sets the [`PARAGRAPH_FN_VAR`].
 #[property(CONTEXT, default(PARAGRAPH_FN_VAR), widget_impl(Markdown))]
-pub fn paragraph_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ParagraphFnArgs>>) -> impl UiNode {
+pub fn paragraph_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<ParagraphFnArgs>>) -> UiNode {
     with_context_var(child, PARAGRAPH_FN_VAR, wgt_fn)
 }
 
@@ -504,7 +504,7 @@ pub fn paragraph_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ParagraphF
 ///
 /// Sets the [`HEADING_FN_VAR`].
 #[property(CONTEXT, default(HEADING_FN_VAR), widget_impl(Markdown))]
-pub fn heading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<HeadingFnArgs>>) -> impl UiNode {
+pub fn heading_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<HeadingFnArgs>>) -> UiNode {
     with_context_var(child, HEADING_FN_VAR, wgt_fn)
 }
 
@@ -512,7 +512,7 @@ pub fn heading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<HeadingFnArg
 ///
 /// Sets the [`LIST_FN_VAR`].
 #[property(CONTEXT, default(LIST_FN_VAR), widget_impl(Markdown))]
-pub fn list_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListFnArgs>>) -> impl UiNode {
+pub fn list_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<ListFnArgs>>) -> UiNode {
     with_context_var(child, LIST_FN_VAR, wgt_fn)
 }
 
@@ -520,7 +520,7 @@ pub fn list_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListFnArgs>>) -
 ///
 /// Sets the [`DEF_LIST_FN_VAR`].
 #[property(CONTEXT, default(DEF_LIST_FN_VAR), widget_impl(Markdown))]
-pub fn def_list_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<DefListArgs>>) -> impl UiNode {
+pub fn def_list_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<DefListArgs>>) -> UiNode {
     with_context_var(child, DEF_LIST_FN_VAR, wgt_fn)
 }
 
@@ -528,7 +528,7 @@ pub fn def_list_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<DefListArgs
 ///
 /// Sets the [`DEF_LIST_ITEM_TITLE_FN_VAR`].
 #[property(CONTEXT, default(DEF_LIST_ITEM_TITLE_FN_VAR), widget_impl(Markdown))]
-pub fn def_list_item_title_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<DefListItemTitleArgs>>) -> impl UiNode {
+pub fn def_list_item_title_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<DefListItemTitleArgs>>) -> UiNode {
     with_context_var(child, DEF_LIST_ITEM_TITLE_FN_VAR, wgt_fn)
 }
 
@@ -536,7 +536,7 @@ pub fn def_list_item_title_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<
 ///
 /// Sets the [`DEF_LIST_ITEM_DEFINITION_FN_VAR`].
 #[property(CONTEXT, default(DEF_LIST_ITEM_DEFINITION_FN_VAR), widget_impl(Markdown))]
-pub fn def_list_item_definition_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<DefListItemDefinitionArgs>>) -> impl UiNode {
+pub fn def_list_item_definition_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<DefListItemDefinitionArgs>>) -> UiNode {
     with_context_var(child, DEF_LIST_ITEM_DEFINITION_FN_VAR, wgt_fn)
 }
 
@@ -544,7 +544,7 @@ pub fn def_list_item_definition_fn(child: impl UiNode, wgt_fn: impl IntoVar<Widg
 ///
 /// Sets the [`LIST_ITEM_BULLET_FN_VAR`].
 #[property(CONTEXT, default(LIST_ITEM_BULLET_FN_VAR), widget_impl(Markdown))]
-pub fn list_item_bullet_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListItemBulletFnArgs>>) -> impl UiNode {
+pub fn list_item_bullet_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<ListItemBulletFnArgs>>) -> UiNode {
     with_context_var(child, LIST_ITEM_BULLET_FN_VAR, wgt_fn)
 }
 
@@ -552,7 +552,7 @@ pub fn list_item_bullet_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<Lis
 ///
 /// Sets the [`LIST_ITEM_FN_VAR`].
 #[property(CONTEXT, default(LIST_ITEM_FN_VAR), widget_impl(Markdown))]
-pub fn list_item_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListItemFnArgs>>) -> impl UiNode {
+pub fn list_item_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<ListItemFnArgs>>) -> UiNode {
     with_context_var(child, LIST_ITEM_FN_VAR, wgt_fn)
 }
 
@@ -560,7 +560,7 @@ pub fn list_item_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListItemFn
 ///
 /// Sets the [`IMAGE_FN_VAR`].
 #[property(CONTEXT, default(IMAGE_FN_VAR), widget_impl(Markdown))]
-pub fn image_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImageFnArgs>>) -> impl UiNode {
+pub fn image_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<ImageFnArgs>>) -> UiNode {
     with_context_var(child, IMAGE_FN_VAR, wgt_fn)
 }
 
@@ -568,7 +568,7 @@ pub fn image_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImageFnArgs>>)
 ///
 /// Sets the [`RULE_FN_VAR`].
 #[property(CONTEXT, default(RULE_FN_VAR), widget_impl(Markdown))]
-pub fn rule_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<RuleFnArgs>>) -> impl UiNode {
+pub fn rule_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<RuleFnArgs>>) -> UiNode {
     with_context_var(child, RULE_FN_VAR, wgt_fn)
 }
 
@@ -576,7 +576,7 @@ pub fn rule_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<RuleFnArgs>>) -
 ///
 /// Sets the [`BLOCK_QUOTE_FN_VAR`].
 #[property(CONTEXT, default(BLOCK_QUOTE_FN_VAR), widget_impl(Markdown))]
-pub fn block_quote_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<BlockQuoteFnArgs>>) -> impl UiNode {
+pub fn block_quote_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<BlockQuoteFnArgs>>) -> UiNode {
     with_context_var(child, BLOCK_QUOTE_FN_VAR, wgt_fn)
 }
 
@@ -584,7 +584,7 @@ pub fn block_quote_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<BlockQuo
 ///
 /// Sets the [`FOOTNOTE_REF_FN_VAR`].
 #[property(CONTEXT, default(FOOTNOTE_REF_FN_VAR), widget_impl(Markdown))]
-pub fn footnote_ref_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<FootnoteRefFnArgs>>) -> impl UiNode {
+pub fn footnote_ref_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<FootnoteRefFnArgs>>) -> UiNode {
     with_context_var(child, FOOTNOTE_REF_FN_VAR, wgt_fn)
 }
 
@@ -592,7 +592,7 @@ pub fn footnote_ref_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<Footnot
 ///
 /// Sets the [`FOOTNOTE_DEF_FN_VAR`].
 #[property(CONTEXT, default(FOOTNOTE_DEF_FN_VAR), widget_impl(Markdown))]
-pub fn footnote_def_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<FootnoteDefFnArgs>>) -> impl UiNode {
+pub fn footnote_def_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<FootnoteDefFnArgs>>) -> UiNode {
     with_context_var(child, FOOTNOTE_DEF_FN_VAR, wgt_fn)
 }
 
@@ -600,7 +600,7 @@ pub fn footnote_def_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<Footnot
 ///
 /// Sets the [`TABLE_FN_VAR`].
 #[property(CONTEXT, default(TABLE_FN_VAR), widget_impl(Markdown))]
-pub fn table_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<TableFnArgs>>) -> impl UiNode {
+pub fn table_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<TableFnArgs>>) -> UiNode {
     with_context_var(child, TABLE_FN_VAR, wgt_fn)
 }
 
@@ -612,7 +612,7 @@ pub fn table_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<TableFnArgs>>)
 ///
 /// [`Markdown!`]: struct@crate::Markdown
 #[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(Markdown))]
-pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelFnArgs>>) -> impl UiNode {
+pub fn panel_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<PanelFnArgs>>) -> UiNode {
     with_context_var(child, PANEL_FN_VAR, wgt_fn)
 }
 
@@ -650,7 +650,7 @@ fn text_view_builder(txt: Txt, style: MarkdownStyle) -> Text {
 /// Default text view.
 ///
 /// See [`TEXT_FN_VAR`] for more details.
-pub fn default_text_fn(args: TextFnArgs) -> impl UiNode {
+pub fn default_text_fn(args: TextFnArgs) -> UiNode {
     let mut builder = text_view_builder(args.txt, args.style);
     builder.widget_build()
 }
@@ -658,7 +658,7 @@ pub fn default_text_fn(args: TextFnArgs) -> impl UiNode {
 /// Default inlined code text view.
 ///
 /// See [`CODE_INLINE_FN_VAR`] for more details.
-pub fn default_code_inline_fn(args: CodeInlineFnArgs) -> impl UiNode {
+pub fn default_code_inline_fn(args: CodeInlineFnArgs) -> UiNode {
     let mut builder = text_view_builder(args.txt, args.style);
 
     widget_set! {
@@ -673,9 +673,9 @@ pub fn default_code_inline_fn(args: CodeInlineFnArgs) -> impl UiNode {
 /// Default inlined link view.
 ///
 /// See [`LINK_FN_VAR`] for more details.
-pub fn default_link_fn(args: LinkFnArgs) -> impl UiNode {
+pub fn default_link_fn(args: LinkFnArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         let url = args.url;
 
@@ -686,7 +686,6 @@ pub fn default_link_fn(args: LinkFnArgs) -> impl UiNode {
             Wrap! {
                 children = items;
             }
-            .boxed()
         };
 
         Button! {
@@ -700,7 +699,6 @@ pub fn default_link_fn(args: LinkFnArgs) -> impl UiNode {
                 LINK_EVENT.notify(LinkArgs::now(url.clone(), link));
             });
         }
-        .boxed()
     }
 }
 
@@ -711,7 +709,7 @@ pub fn default_link_fn(args: LinkFnArgs) -> impl UiNode {
 /// See [`CODE_BLOCK_FN_VAR`] for more details.
 ///
 /// [`AnsiText!`]: struct@zng_wgt_ansi_text::AnsiText
-pub fn default_code_block_fn(args: CodeBlockFnArgs) -> impl UiNode {
+pub fn default_code_block_fn(args: CodeBlockFnArgs) -> UiNode {
     if ["ansi", "console"].contains(&args.lang.as_str()) {
         zng_wgt_ansi_text::AnsiText! {
             txt = args.txt;
@@ -719,7 +717,6 @@ pub fn default_code_block_fn(args: CodeBlockFnArgs) -> impl UiNode {
             corner_radius = 4;
             background_color = light_dark(rgb(0.95, 0.95, 0.95), rgb(0.05, 0.05, 0.05));
         }
-        .boxed()
     } else {
         Text! {
             txt = args.txt;
@@ -728,32 +725,30 @@ pub fn default_code_block_fn(args: CodeBlockFnArgs) -> impl UiNode {
             font_family = ["JetBrains Mono", "Consolas", "monospace"];
             background_color = light_dark(rgb(0.95, 0.95, 0.95), rgb(0.05, 0.05, 0.05));
         }
-        .boxed()
     }
 }
 
 /// Default paragraph view.
 ///
 /// See [`PARAGRAPH_FN_VAR`] for more details.
-pub fn default_paragraph_fn(mut args: ParagraphFnArgs) -> impl UiNode {
+pub fn default_paragraph_fn(mut args: ParagraphFnArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else if args.items.len() == 1 {
         args.items.remove(0)
     } else {
         Wrap! {
             children = args.items;
         }
-        .boxed()
     }
 }
 
 /// Default heading view.
 ///
 /// See [`HEADING_FN_VAR`] for more details.
-pub fn default_heading_fn(args: HeadingFnArgs) -> impl UiNode {
+pub fn default_heading_fn(args: HeadingFnArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         Wrap! {
             access_role = AccessRole::Heading;
@@ -769,7 +764,6 @@ pub fn default_heading_fn(args: HeadingFnArgs) -> impl UiNode {
             children = args.items;
             anchor = args.anchor;
         }
-        .boxed()
     }
 }
 
@@ -780,9 +774,9 @@ pub fn default_heading_fn(args: HeadingFnArgs) -> impl UiNode {
 /// See [`LIST_FN_VAR`] for more details.
 ///
 /// [`Grid!`]: struct@Grid
-pub fn default_list_fn(args: ListFnArgs) -> impl UiNode {
+pub fn default_list_fn(args: ListFnArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         Grid! {
             grid::cell::at = grid::cell::AT_AUTO; // in case it is nested
@@ -797,7 +791,6 @@ pub fn default_list_fn(args: ListFnArgs) -> impl UiNode {
                 },
             ];
         }
-        .boxed()
     }
 }
 
@@ -806,9 +799,9 @@ pub fn default_list_fn(args: ListFnArgs) -> impl UiNode {
 /// Is a simple vertical [`Stack!`].
 ///
 /// [`Stack!`]: struct@Stack
-pub fn default_def_list_fn(args: DefListArgs) -> impl UiNode {
+pub fn default_def_list_fn(args: DefListArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         Stack! {
             access_role = AccessRole::List;
@@ -816,7 +809,6 @@ pub fn default_def_list_fn(args: DefListArgs) -> impl UiNode {
             spacing = PARAGRAPH_SPACING_VAR;
             children = args.items;
         }
-        .boxed()
     }
 }
 
@@ -825,16 +817,15 @@ pub fn default_def_list_fn(args: DefListArgs) -> impl UiNode {
 /// Is a [`Wrap!`] with bold text.
 ///
 /// [`Wrap!`]: struct@Wrap
-pub fn default_def_list_item_title_fn(args: DefListItemTitleArgs) -> impl UiNode {
+pub fn default_def_list_item_title_fn(args: DefListItemTitleArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         Wrap! {
             access_role = AccessRole::Term;
             children = args.items;
             font_weight = FontWeight::BOLD;
         }
-        .boxed()
     }
 }
 
@@ -843,23 +834,22 @@ pub fn default_def_list_item_title_fn(args: DefListItemTitleArgs) -> impl UiNode
 /// Is a [`Wrap!`].
 ///
 /// [`Wrap!`]: struct@Wrap
-pub fn default_def_list_item_definition_fn(args: DefListItemDefinitionArgs) -> impl UiNode {
+pub fn default_def_list_item_definition_fn(args: DefListItemDefinitionArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         Wrap! {
             access_role = AccessRole::Definition;
             children = args.items;
             margin = (0, 2.em());
         }
-        .boxed()
     }
 }
 
 /// Default list item bullet, check mark or number view.
 ///
 /// See [`LIST_ITEM_BULLET_FN_VAR`] for more details.
-pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
+pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> UiNode {
     if let Some(checked) = args.checked {
         Text! {
             grid::cell::at = grid::cell::AT_AUTO;
@@ -871,14 +861,12 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
             scale = 0.8.fct();
             offset = (-(0.1.fct()), 0);
         }
-        .boxed()
     } else if let Some(n) = args.num {
         Text! {
             grid::cell::at = grid::cell::AT_AUTO;
             txt = formatx!("{n}. ");
             align = Align::RIGHT;
         }
-        .boxed()
     } else {
         match args.depth {
             0 => Wgt! {
@@ -905,23 +893,22 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
                 background_color = FONT_COLOR_VAR;
             },
         }
-        .boxed()
     }
 }
 
 /// Default list item view.
 ///
 /// See [`LIST_ITEM_FN_VAR`] for more details.
-pub fn default_list_item_fn(args: ListItemFnArgs) -> impl UiNode {
+pub fn default_list_item_fn(args: ListItemFnArgs) -> UiNode {
     let mut blocks = args.blocks;
     let mut items = args.items;
 
     if items.is_empty() {
         if blocks.is_empty() {
-            return NilUiNode.boxed();
+            return UiNode::nil();
         }
     } else {
-        let r = if items.len() == 1 { items.remove(0) } else { Wrap!(items).boxed() };
+        let r = if items.len() == 1 { items.remove(0) } else { Wrap!(items) };
         blocks.insert(0, r);
     }
 
@@ -932,21 +919,19 @@ pub fn default_list_item_fn(args: ListItemFnArgs) -> impl UiNode {
             direction = StackDirection::top_to_bottom();
             children = blocks;
         }
-        .boxed()
     } else {
         Container! {
             access_role = AccessRole::ListItem;
             grid::cell::at = grid::cell::AT_AUTO;
             child = blocks.remove(0);
         }
-        .boxed()
     }
 }
 
 /// Default image view.
 ///
 /// See [`IMAGE_FN_VAR`] for more details.
-pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
+pub fn default_image_fn(args: ImageFnArgs) -> UiNode {
     let tooltip_fn = if args.title.is_empty() {
         wgt_fn!()
     } else {
@@ -970,7 +955,6 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
             Wrap! {
                 children = alt_items;
             }
-            .boxed()
         };
         let alt_items = ArcNode::new(alt_items);
         zng_wgt_image::Image! {
@@ -986,7 +970,7 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
 /// Default rule view.
 ///
 /// See [`RULE_FN_VAR`] for more details.
-pub fn default_rule_fn(_: RuleFnArgs) -> impl UiNode {
+pub fn default_rule_fn(_: RuleFnArgs) -> UiNode {
     zng_wgt_rule_line::hr::Hr! {
         opacity = 50.pct();
     }
@@ -995,9 +979,9 @@ pub fn default_rule_fn(_: RuleFnArgs) -> impl UiNode {
 /// Default block quote view.
 ///
 /// See [`BLOCK_QUOTE_FN_VAR`] for more details.
-pub fn default_block_quote_fn(args: BlockQuoteFnArgs) -> impl UiNode {
+pub fn default_block_quote_fn(args: BlockQuoteFnArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         Stack! {
             direction = StackDirection::top_to_bottom();
@@ -1015,14 +999,13 @@ pub fn default_block_quote_fn(args: BlockQuoteFnArgs) -> impl UiNode {
             };
             padding = 4;
         }
-        .boxed()
     }
 }
 
 /// Default markdown table.
 ///
 /// See [`TABLE_FN_VAR`] for more details.
-pub fn default_table_fn(args: TableFnArgs) -> impl UiNode {
+pub fn default_table_fn(args: TableFnArgs) -> UiNode {
     Grid! {
         access_role = AccessRole::Table;
         background_color = FONT_COLOR_VAR.map(|c| c.with_alpha(5.pct()));
@@ -1045,7 +1028,7 @@ pub fn default_table_fn(args: TableFnArgs) -> impl UiNode {
                 }
             }
         });
-        columns = std::iter::repeat_with(|| grid::Column!{}.boxed()).take(args.columns.len()).collect::<UiVec>();
+        columns = std::iter::repeat_with(|| grid::Column!{}).take(args.columns.len()).collect::<UiVec>();
         cells = args.cells;
     }
 }
@@ -1053,9 +1036,9 @@ pub fn default_table_fn(args: TableFnArgs) -> impl UiNode {
 /// Default markdown table.
 ///
 /// See [`TABLE_CELL_FN_VAR`] for more details.
-pub fn default_table_cell_fn(args: TableCellFnArgs) -> impl UiNode {
+pub fn default_table_cell_fn(args: TableCellFnArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else if args.is_heading {
         Wrap! {
             access_role = AccessRole::Cell;
@@ -1065,7 +1048,6 @@ pub fn default_table_cell_fn(args: TableCellFnArgs) -> impl UiNode {
             child_align = args.col_align;
             children = args.items;
         }
-        .boxed()
     } else {
         Wrap! {
             access_role = AccessRole::Cell;
@@ -1074,30 +1056,28 @@ pub fn default_table_cell_fn(args: TableCellFnArgs) -> impl UiNode {
             child_align = args.col_align;
             children = args.items;
         }
-        .boxed()
     }
 }
 
 /// Default markdown panel.
 ///
 /// See [`PANEL_FN_VAR`] for more details.
-pub fn default_panel_fn(args: PanelFnArgs) -> impl UiNode {
+pub fn default_panel_fn(args: PanelFnArgs) -> UiNode {
     if args.items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else {
         Stack! {
             direction = StackDirection::top_to_bottom();
             spacing = PARAGRAPH_SPACING_VAR;
             children = args.items;
         }
-        .boxed()
     }
 }
 
 /// Default markdown footnote reference.
 ///
 /// See [`FOOTNOTE_REF_FN_VAR`] for more details.
-pub fn default_footnote_ref_fn(args: FootnoteRefFnArgs) -> impl UiNode {
+pub fn default_footnote_ref_fn(args: FootnoteRefFnArgs) -> UiNode {
     let url = formatx!("#footnote-{}", args.label);
     Button! {
         style_fn = LinkStyle!();
@@ -1117,10 +1097,10 @@ pub fn default_footnote_ref_fn(args: FootnoteRefFnArgs) -> impl UiNode {
 /// Default markdown footnote definition.
 ///
 /// See [`FOOTNOTE_DEF_FN_VAR`] for more details.
-pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> impl UiNode {
+pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> UiNode {
     let mut items = args.items;
     let items = if items.is_empty() {
-        NilUiNode.boxed()
+        UiNode::nil()
     } else if items.len() == 1 {
         items.remove(0)
     } else {
@@ -1128,7 +1108,6 @@ pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> impl UiNode {
             direction = StackDirection::top_to_bottom();
             children = items;
         }
-        .boxed()
     };
 
     let url_back = formatx!("#footnote-ref-{}", args.label);

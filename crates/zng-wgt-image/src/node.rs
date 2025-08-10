@@ -3,7 +3,7 @@
 use std::mem;
 
 use zng_ext_image::{IMAGES, ImageCacheMode, ImagePpi, ImageRenderArgs};
-use zng_wgt_stack::stack_nodes_layout_by;
+use zng_wgt_stack::stack_nodes;
 
 use super::image_properties::{
     IMAGE_ALIGN_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_DOWNSCALE_VAR, IMAGE_ERROR_FN_VAR, IMAGE_FIT_VAR, IMAGE_LIMITS_VAR,
@@ -33,7 +33,7 @@ fn no_context_image() -> Img {
 ///
 /// [`img_cache`]: fn@crate::img_cache
 /// [`IMAGES`]: zng_ext_image::IMAGES
-pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
+pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> UiNode {
     let source = source.into_var();
     let ctx_img = var(Img::dummy(None));
     let child = with_context_var(child, CONTEXT_IMAGE_VAR, ctx_img.read_only());
@@ -129,20 +129,20 @@ context_local! {
 /// The error view is rendered under the `child`.
 ///
 /// The image widget adds this node around the [`image_presenter`] node.
-pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
+pub fn image_error_presenter(child: impl IntoUiNode) -> UiNode {
     let view = CONTEXT_IMAGE_VAR
         .map(|i| i.error().map(|e| ImgErrorArgs { error: e }))
         .present_opt(IMAGE_ERROR_FN_VAR.map(|f| {
             wgt_fn!(f, |e| {
                 if IN_ERROR_VIEW.get_clone() {
-                    NilUiNode.boxed()
+                    UiNode::nil()
                 } else {
-                    with_context_local(f(e), &IN_ERROR_VIEW, true).boxed()
+                    with_context_local(f(e), &IN_ERROR_VIEW, true)
                 }
             })
         }));
 
-    stack_nodes_layout_by(ui_vec![view, child], 1, |constraints, _, img_size| {
+    stack_nodes(ui_vec![view, child], 1, |constraints, _, img_size| {
         if img_size == PxSize::zero() {
             constraints
         } else {
@@ -156,20 +156,20 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
 /// The loading view is rendered under the `child`.
 ///
 /// The image widget adds this node around the [`image_error_presenter`] node.
-pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
+pub fn image_loading_presenter(child: impl IntoUiNode) -> UiNode {
     let view = CONTEXT_IMAGE_VAR
         .map(|i| if i.is_loading() { Some(ImgLoadingArgs {}) } else { None })
         .present_opt(IMAGE_LOADING_FN_VAR.map(|f| {
             wgt_fn!(f, |a| {
                 if IN_LOADING_VIEW.get_clone() {
-                    NilUiNode.boxed()
+                    UiNode::nil()
                 } else {
-                    with_context_local(f(a), &IN_LOADING_VIEW, true).boxed()
+                    with_context_local(f(a), &IN_LOADING_VIEW, true)
                 }
             })
         }));
 
-    stack_nodes_layout_by(ui_vec![view, child], 1, |constraints, _, img_size| {
+    stack_nodes(ui_vec![view, child], 1, |constraints, _, img_size| {
         if img_size == PxSize::zero() {
             constraints
         } else {
@@ -191,7 +191,7 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
 /// * [`IMAGE_ALIGN_VAR`]: Defines the image alignment in the presenter final size.
 /// * [`IMAGE_RENDERING_VAR`]: Defines the image resize algorithm used in the GPU.
 /// * [`IMAGE_OFFSET_VAR`]: Defines an offset applied to the image after all measure and arrange.
-pub fn image_presenter() -> impl UiNode {
+pub fn image_presenter() -> UiNode {
     let mut img_size = PxSize::zero();
     let mut render_clip = PxRect::zero();
     let mut render_img_size = PxSize::zero();

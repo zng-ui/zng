@@ -17,7 +17,7 @@ use zng::{
     window::WindowRoot,
 };
 
-pub fn text_editor() -> impl UiNode {
+pub fn text_editor() -> UiNode {
     let is_open = var(false);
 
     Button! {
@@ -107,7 +107,7 @@ fn text_editor_window(is_open: Var<bool>) -> WindowRoot {
     }
 }
 
-fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
+fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
     let menu_width = var(Dip::MAX);
     let gt_700 = menu_width.map(|&w| Visibility::from(w > Dip::new(700)));
     let gt_600 = menu_width.map(|&w| Visibility::from(w > Dip::new(600)));

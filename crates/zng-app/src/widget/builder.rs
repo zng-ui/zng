@@ -1,6 +1,6 @@
 //! Widget and property builder types.
 
-use crate::{handler::WidgetHandler, widget::node::WhenUiNodeListBuilder};
+use crate::{handler::WidgetHandler, widget::node::IntoUiNode};
 use std::{
     any::{Any, TypeId},
     collections::{HashMap, hash_map},
@@ -78,15 +78,15 @@ impl WidgetExt for WgtInfo {
 /// # pub mod path {
 /// #   use super::*;
 /// #   #[property(CONTEXT)]
-/// #   pub fn foo(child: impl UiNode, bar: impl IntoValue<bool>) -> impl UiNode {
-/// #     child
+/// #   pub fn foo(child: impl IntoUiNode, bar: impl IntoValue<bool>) -> UiNode {
+/// #     child.into_node()
 /// #   }
 /// # }
 /// # #[widget($crate::FooWgt)]
 /// # pub struct FooWgt(zng_app::widget::base::WidgetBase);
 /// # #[property(CONTEXT, widget_impl(FooWgt))]
-/// # pub fn bar(child: impl UiNode, bar: impl IntoValue<bool>) -> impl UiNode {
-/// #   child
+/// # pub fn bar(child: impl IntoUiNode, bar: impl IntoValue<bool>) -> UiNode {
+/// #   child.into_node()
 /// # }
 /// # fn main() {
 /// let foo_id = property_id!(path::foo);
@@ -119,9 +119,9 @@ pub use crate::property_id;
 /// # pub mod path {
 /// #   use super::*;
 /// #[property(CONTEXT)]
-/// pub fn foo(child: impl UiNode, bar: impl IntoValue<bool>) -> impl UiNode {
+/// pub fn foo(child: impl IntoUiNode, bar: impl IntoValue<bool>) -> UiNode {
 ///     // ..
-/// #     child
+/// #     child.into_node()
 /// }
 /// # }
 /// # fn main() {
@@ -224,9 +224,7 @@ use zng_var::{
 
 use super::{
     base::{WidgetBase, WidgetExt},
-    node::{
-        ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, FillUiNode, UiNode, UiNodeList, WhenUiNodeBuilder, with_new_context_init_id,
-    },
+    node::{ArcNode, FillUiNode, UiNode, WhenUiNodeBuilder, with_new_context_init_id},
 };
 
 #[doc(hidden)]
@@ -580,10 +578,8 @@ pub enum InputKind {
     Var,
     /// Input is `impl IntoValue<T>`, build value is `T`.
     Value,
-    /// Input is `impl UiNode`, build value is `ArcNode<BoxedUiNode>`.
+    /// Input is `impl IntoUiNode`, build value is `ArcNode`.
     UiNode,
-    /// Input is `impl UiNodeList`, build value is `ArcNodeList<BoxedUiNodeList>`.
-    UiNodeList,
     /// Input is `impl WidgetHandler<A>`, build value is `ArcWidgetHandler<A>`.
     WidgetHandler,
 }
@@ -726,8 +722,7 @@ pub struct PropertyNewArgs {
     /// |---------------------|-------------------------------------------------
     /// | [`Var`]             | `Box<AnyVar>` or `Box<AnyWhenVarBuilder>`
     /// | [`Value`]           | `Box<T>`
-    /// | [`UiNode`]          | `Box<ArcNode<BoxedUiNode>>` or `Box<WhenUiNodeBuilder>`
-    /// | [`UiNodeList`]      | `Box<ArcNodeList<BoxedUiNodeList>>` or `Box<WhenUiNodeListBuilder>`
+    /// | [`UiNode`]          | `Box<ArcNode>` or `Box<WhenUiNodeBuilder>`
     /// | [`WidgetHandler`]   | `Box<ArcWidgetHandler<A>>` or `Box<AnyWhenArcWidgetHandlerBuilder>`
     ///
     /// The new function will downcast and unbox the args.
@@ -735,7 +730,6 @@ pub struct PropertyNewArgs {
     /// [`Var`]: InputKind::Var
     /// [`Value`]: InputKind::Value
     /// [`UiNode`]: InputKind::UiNode
-    /// [`UiNodeList`]: InputKind::UiNodeList
     /// [`WidgetHandler`]: InputKind::WidgetHandler
     pub args: Vec<Box<dyn Any>>,
 
@@ -749,7 +743,6 @@ pub struct PropertyNewArgs {
     /// | [`Var`]             | `Box<PropertyBuildAction<Var<T>>>`
     /// | [`Value`]           | `Box<PropertyBuildAction<BoxAnyVarValue>>`
     /// | [`UiNode`]          | `Box<PropertyBuildAction<ArcNode<BoxedUiNode>>>`
-    /// | [`UiNodeList`]      | `Box<PropertyBuildAction<ArcNodeList<BoxedUiNodeList>>>`
     /// | [`WidgetHandler`]   | `Box<PropertyBuildAction<ArcWidgetHandler<A>>>`
     ///
     /// The new function will downcast and unbox the args.
@@ -757,7 +750,6 @@ pub struct PropertyNewArgs {
     /// [`Var`]: InputKind::Var
     /// [`Value`]: InputKind::Value
     /// [`UiNode`]: InputKind::UiNode
-    /// [`UiNodeList`]: InputKind::UiNodeList
     /// [`WidgetHandler`]: InputKind::WidgetHandler
     pub build_actions: PropertyBuildActions,
 
@@ -861,13 +853,8 @@ pub trait PropertyArgs: Send + Sync {
     }
 
     /// Gets a [`InputKind::UiNode`].
-    fn ui_node(&self, i: usize) -> &ArcNode<BoxedUiNode> {
+    fn ui_node(&self, i: usize) -> &ArcNode {
         panic_input(&self.property(), i, InputKind::UiNode)
-    }
-
-    /// Gets a [`InputKind::UiNodeList`].
-    fn ui_node_list(&self, i: usize) -> &ArcNodeList<BoxedUiNodeList> {
-        panic_input(&self.property(), i, InputKind::UiNodeList)
     }
 
     /// Gets a [`InputKind::WidgetHandler`].
@@ -880,7 +867,7 @@ pub trait PropertyArgs: Send + Sync {
     /// Create a property instance with args clone or taken.
     ///
     /// If the property is [`PropertyInfo::capture`] the `child` is returned.
-    fn instantiate(&self, child: BoxedUiNode) -> BoxedUiNode;
+    fn instantiate(&self, child: UiNode) -> UiNode;
 }
 impl dyn PropertyArgs + '_ {
     /// Unique ID.
@@ -939,8 +926,7 @@ impl dyn PropertyArgs + '_ {
         match p.inputs[i].kind {
             InputKind::Var => self.var(i).map_debug(false),
             InputKind::Value => const_var(formatx!("{:?}", self.value(i))),
-            InputKind::UiNode => const_var(Txt::from_static("<impl UiNode>")),
-            InputKind::UiNodeList => const_var(Txt::from_static("<impl UiNodeList>")),
+            InputKind::UiNode => const_var(Txt::from_static("UiNode")),
             InputKind::WidgetHandler => const_var(formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name())),
         }
     }
@@ -953,8 +939,7 @@ impl dyn PropertyArgs + '_ {
         match p.inputs[i].kind {
             InputKind::Var => formatx!("{:?}", self.var(i).get()),
             InputKind::Value => formatx!("{:?}", self.value(i)),
-            InputKind::UiNode => Txt::from_static("<impl UiNode>"),
-            InputKind::UiNodeList => Txt::from_static("<impl UiNodeList>"),
+            InputKind::UiNode => Txt::from_static("UiNode"),
             InputKind::WidgetHandler => formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name()),
         }
     }
@@ -975,7 +960,6 @@ impl dyn PropertyArgs + '_ {
                 InputKind::Var => args.push(Box::new(self.var(i).clone())),
                 InputKind::Value => args.push(Box::new(self.value(i).clone_boxed())),
                 InputKind::UiNode => args.push(Box::new(self.ui_node(i).clone())),
-                InputKind::UiNodeList => args.push(Box::new(self.ui_node_list(i).clone())),
                 InputKind::WidgetHandler => args.push(self.widget_handler(i).clone_boxed().into_any()),
             }
         }
@@ -1013,13 +997,8 @@ pub fn value_to_args<T: VarValue>(value: impl IntoValue<T>) -> T {
 }
 
 #[doc(hidden)]
-pub fn ui_node_to_args(node: impl UiNode) -> ArcNode<BoxedUiNode> {
-    ArcNode::new(node.boxed())
-}
-
-#[doc(hidden)]
-pub fn ui_node_list_to_args(node_list: impl UiNodeList) -> ArcNodeList<BoxedUiNodeList> {
-    ArcNodeList::new(node_list.boxed())
+pub fn ui_node_to_args(node: impl IntoUiNode) -> ArcNode {
+    ArcNode::new(node)
 }
 
 #[doc(hidden)]
@@ -1084,31 +1063,12 @@ pub fn new_dyn_var<'a, T: VarValue>(
 pub fn new_dyn_ui_node<'a>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
     actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
-) -> ArcNode<BoxedUiNode> {
+) -> ArcNode {
     let item = inputs.next().expect("missing input");
 
     let item = match item.downcast::<WhenUiNodeBuilder>() {
-        Ok(builder) => ArcNode::new(builder.build().boxed()),
-        Err(item) => *item
-            .downcast::<ArcNode<BoxedUiNode>>()
-            .expect("input did not match expected UiNode types"),
-    };
-
-    apply_build_actions(item, actions)
-}
-
-#[doc(hidden)]
-pub fn new_dyn_ui_node_list<'a>(
-    inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
-    actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
-) -> ArcNodeList<BoxedUiNodeList> {
-    let item = inputs.next().expect("missing input");
-
-    let item = match item.downcast::<WhenUiNodeListBuilder>() {
-        Ok(builder) => ArcNodeList::new(builder.build().boxed()),
-        Err(item) => *item
-            .downcast::<ArcNodeList<BoxedUiNodeList>>()
-            .expect("input did not match expected UiNodeList types"),
+        Ok(builder) => ArcNode::new(builder.build()),
+        Err(item) => *item.downcast::<ArcNode>().expect("input did not match expected UiNode types"),
     };
 
     apply_build_actions(item, actions)
@@ -1157,35 +1117,12 @@ impl fmt::Debug for UiNodeInWhenExprError {
 }
 impl fmt::Display for UiNodeInWhenExprError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "cannot ref `impl UiNode` in when expression, only var and value properties allowed"
-        )
+        write!(f, "cannot ref `UiNode` in when expression, only var and value properties allowed")
     }
 }
 impl std::error::Error for UiNodeInWhenExprError {}
 
-/// Error value used in a reference to an [`UiNodeList`] property input is made in `when` expression.
-///
-/// Only variables and values can be referenced in `when` expression.
-#[derive(Clone, PartialEq)]
-pub struct UiNodeListInWhenExprError;
-impl fmt::Debug for UiNodeListInWhenExprError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self}")
-    }
-}
-impl fmt::Display for UiNodeListInWhenExprError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "cannot ref `impl UiNodeList` in when expression, only var and value properties allowed"
-        )
-    }
-}
-impl std::error::Error for UiNodeListInWhenExprError {}
-
-/// Error value used in a reference to an [`UiNodeList`] property input is made in `when` expression.
+/// Error value used in a reference to an [`WidgetHandler`] property input is made in `when` expression.
 ///
 /// Only variables and values can be referenced in `when` expression.
 #[derive(Clone, PartialEq)]
@@ -1516,7 +1453,7 @@ enum WidgetItem {
     },
     Intrinsic {
         name: &'static str,
-        new: Box<dyn FnOnce(BoxedUiNode) -> BoxedUiNode + Send + Sync>,
+        new: Box<dyn FnOnce(UiNode) -> UiNode + Send + Sync>,
     },
 }
 impl Clone for WidgetItem {
@@ -1556,7 +1493,7 @@ pub struct WidgetBuilder {
 
     build_actions: Vec<Arc<Mutex<dyn FnMut(&mut WidgetBuilding) + Send>>>,
 
-    custom_build: Option<Arc<Mutex<dyn FnMut(WidgetBuilder) -> BoxedUiNode + Send>>>,
+    custom_build: Option<Arc<Mutex<dyn FnMut(WidgetBuilder) -> UiNode + Send>>>,
 }
 impl Clone for WidgetBuilder {
     fn clone(&self) -> Self {
@@ -1810,8 +1747,8 @@ impl WidgetBuilder {
     ///
     /// [`build`]: Self::build
     /// [`default_build`]: Self::default_build
-    pub fn set_custom_build<R: UiNode>(&mut self, mut build: impl FnMut(WidgetBuilder) -> R + Send + 'static) {
-        self.custom_build = Some(Arc::new(Mutex::new(move |b| build(b).boxed())));
+    pub fn set_custom_build(&mut self, build: impl FnMut(WidgetBuilder) -> UiNode + Send + 'static) {
+        self.custom_build = Some(Arc::new(Mutex::new(build)));
     }
 
     /// Remove the custom build handler, if any was set.
@@ -1991,7 +1928,7 @@ impl WidgetBuilder {
     /// If a custom build is set it is run, unless it is already running, otherwise the [`default_build`] is called.
     ///
     /// [`default_build`]: Self::default_build
-    pub fn build(self) -> BoxedUiNode {
+    pub fn build(self) -> UiNode {
         if let Some(custom) = self.custom_build.clone() {
             match custom.try_lock() {
                 Some(mut c) => c(self),
@@ -2005,7 +1942,7 @@ impl WidgetBuilder {
     /// Instantiate the widget.
     ///
     /// Runs all build actions, but ignores custom build.
-    pub fn default_build(self) -> BoxedUiNode {
+    pub fn default_build(self) -> UiNode {
         #[cfg(feature = "inspector")]
         let builder = self.clone();
 
@@ -2073,7 +2010,7 @@ pub struct WidgetBuilding {
 
     widget_type: WidgetType,
     p: WidgetBuilderProperties,
-    child: Option<BoxedUiNode>,
+    child: Option<UiNode>,
 }
 impl WidgetBuilding {
     /// The widget that started this builder.
@@ -2089,8 +2026,8 @@ impl WidgetBuilding {
     }
 
     /// Set/replace the innermost node of the widget.
-    pub fn set_child(&mut self, node: impl UiNode) {
-        self.child = Some(node.boxed());
+    pub fn set_child(&mut self, node: impl IntoUiNode) {
+        self.child = Some(node.into_node());
     }
 
     /// Don't insert the inspector node and inspector metadata on build.
@@ -2120,11 +2057,11 @@ impl WidgetBuilding {
     /// Insert intrinsic node, that is a core functionality node of the widget that cannot be overridden.
     ///
     /// The `name` is used for inspector/trace only, intrinsic nodes are not deduplicated.
-    pub fn push_intrinsic<I: UiNode>(
+    pub fn push_intrinsic(
         &mut self,
         group: NestGroup,
         name: &'static str,
-        intrinsic: impl FnOnce(BoxedUiNode) -> I + Send + Sync + 'static,
+        intrinsic: impl FnOnce(UiNode) -> UiNode + Send + Sync + 'static,
     ) {
         self.push_intrinsic_positioned(NestPosition::intrinsic(group), name, intrinsic)
     }
@@ -2132,18 +2069,18 @@ impl WidgetBuilding {
     /// Insert intrinsic node with custom nest position.
     ///
     /// The `name` is used for inspector/trace only, intrinsic nodes are not deduplicated.
-    pub fn push_intrinsic_positioned<I: UiNode>(
+    pub fn push_intrinsic_positioned(
         &mut self,
         position: NestPosition,
         name: &'static str,
-        intrinsic: impl FnOnce(BoxedUiNode) -> I + Send + Sync + 'static,
+        intrinsic: impl FnOnce(UiNode) -> UiNode + Send + Sync + 'static,
     ) {
         self.items.push(WidgetItemPositioned {
             position,
             insert_idx: u32::MAX,
             item: WidgetItem::Intrinsic {
                 name,
-                new: Box::new(move |n| intrinsic(n).boxed()),
+                new: Box::new(intrinsic),
             },
         });
     }
@@ -2215,44 +2152,23 @@ impl WidgetBuilding {
     }
 
     /// Flags the property as captured and get the input node.
-    pub fn capture_ui_node(&mut self, property_id: PropertyId) -> Option<BoxedUiNode> {
+    pub fn capture_ui_node(&mut self, property_id: PropertyId) -> Option<UiNode> {
         let p = self.capture_property(property_id)?;
-        let node = p.args.ui_node(0).take_on_init().boxed();
+        let node = p.args.ui_node(0).take_on_init();
         Some(node)
     }
 
     /// Flags the property as captured and get the input node, or calls `or_else` to generate a fallback node.
-    pub fn capture_ui_node_or_else<F>(&mut self, property_id: PropertyId, or_else: impl FnOnce() -> F) -> BoxedUiNode
-    where
-        F: UiNode,
-    {
+    pub fn capture_ui_node_or_else(&mut self, property_id: PropertyId, or_else: impl FnOnce() -> UiNode) -> UiNode {
         match self.capture_ui_node(property_id) {
             Some(u) => u,
-            None => or_else().boxed(),
+            None => or_else(),
         }
     }
 
-    /// Flags the property as captured and get the input list.
-    pub fn capture_ui_node_list(&mut self, property_id: PropertyId) -> Option<BoxedUiNodeList> {
-        let p = self.capture_property(property_id)?;
-        let list = p.args.ui_node_list(0).take_on_init().boxed();
-        Some(list)
-    }
-
-    /// Flags the property as captured and get the input list, or calls `or_else` to generate a fallback list.
-    pub fn capture_ui_node_list_or_else<F>(&mut self, property_id: PropertyId, or_else: impl FnOnce() -> F) -> BoxedUiNodeList
-    where
-        F: UiNodeList,
-    {
-        match self.capture_ui_node_list(property_id) {
-            Some(u) => u,
-            None => or_else().boxed(),
-        }
-    }
-
-    /// Flags the property as captured and get the input list, or returns an empty list.
-    pub fn capture_ui_node_list_or_empty(&mut self, property_id: PropertyId) -> BoxedUiNodeList {
-        self.capture_ui_node_list_or_else(property_id, Vec::<BoxedUiNode>::new)
+    /// Flags the property as captured and get the input node, or [`UiNode::nil`] if the property is not found.
+    pub fn capture_ui_node_or_nil(&mut self, property_id: PropertyId) -> UiNode {
+        self.capture_ui_node_or_else(property_id, UiNode::nil)
     }
 
     /// Flags the property as captured and downcast the input handler.
@@ -2372,9 +2288,6 @@ impl WidgetBuilding {
                             .map(|(i, input)| match input.kind {
                                 InputKind::Var => Box::new(AnyWhenVarBuilder::new(default_args.var(i).clone())) as _,
                                 InputKind::UiNode => Box::new(WhenUiNodeBuilder::new(default_args.ui_node(i).take_on_init())) as _,
-                                InputKind::UiNodeList => {
-                                    Box::new(WhenUiNodeListBuilder::new(default_args.ui_node_list(i).take_on_init())) as _
-                                }
                                 InputKind::WidgetHandler => {
                                     Box::new(AnyWhenArcWidgetHandlerBuilder::new(default_args.widget_handler(i).clone_boxed())) as _
                                 }
@@ -2398,11 +2311,6 @@ impl WidgetBuilding {
                             let entry = entry.downcast_mut::<WhenUiNodeBuilder>().unwrap();
                             let node = assign.ui_node(i).take_on_init();
                             entry.push(when.state.clone(), node);
-                        }
-                        InputKind::UiNodeList => {
-                            let entry = entry.downcast_mut::<WhenUiNodeListBuilder>().unwrap();
-                            let list = assign.ui_node_list(i).take_on_init();
-                            entry.push(when.state.clone(), list);
                         }
                         InputKind::WidgetHandler => {
                             let entry = entry.downcast_mut::<AnyWhenArcWidgetHandlerBuilder>().unwrap();
@@ -2537,14 +2445,14 @@ impl WidgetBuilding {
         }
     }
 
-    fn build(mut self, when_init_context_handle: Option<ContextInitHandle>) -> BoxedUiNode {
+    fn build(mut self, when_init_context_handle: Option<ContextInitHandle>) -> UiNode {
         // sort by group, index and insert index.
         self.items.sort_unstable_by_key(|b| b.sort_key());
 
         #[cfg(feature = "inspector")]
         let mut inspector_items = Vec::with_capacity(self.p.items.len());
 
-        let mut node = self.child.take().unwrap_or_else(|| FillUiNode.boxed());
+        let mut node = self.child.take().unwrap_or_else(|| FillUiNode.into_node());
         for WidgetItemPositioned { position, item, .. } in self.p.items.into_iter().rev() {
             match item {
                 WidgetItem::Property { args, captured, .. } => {
@@ -2573,7 +2481,7 @@ impl WidgetBuilding {
                     #[cfg(feature = "inspector")]
                     {
                         if args.property().inputs.iter().any(|i| matches!(i.kind, InputKind::Var)) {
-                            node = crate::widget::inspector::actualize_var_info(node, args.id()).boxed();
+                            node = crate::widget::inspector::actualize_var_info(node, args.id());
                         }
 
                         inspector_items.push(crate::widget::inspector::InstanceItem::Property { args, captured });
@@ -2608,28 +2516,24 @@ impl WidgetBuilding {
                     items: inspector_items.into_boxed_slice(),
                     actual_vars: crate::widget::inspector::InspectorActualVars::default(),
                 },
-            )
-            .boxed();
+            );
         }
 
         #[cfg(feature = "trace_widget")]
         if self.trace_widget {
             let name = self.widget_type.name();
-            node = node
-                .trace(move |op| crate::update::UpdatesTrace::widget_span(crate::widget::WIDGET.id(), name, op.mtd_name()))
-                .boxed();
+            node = node.trace(move |op| crate::update::UpdatesTrace::widget_span(crate::widget::WIDGET.id(), name, op.mtd_name()));
         }
 
         // ensure `when` reuse works, by forcing input refresh on (re)init.
-        node = with_new_context_init_id(node).boxed();
+        node = with_new_context_init_id(node);
 
         if let Some(handle) = when_init_context_handle {
             // ensure shared/cloned when input expressions work.
             let mut handle = Some(Arc::new(handle));
             node = crate::widget::node::match_node(node, move |c, op| {
                 WHEN_INPUT_CONTEXT_INIT_ID.with_context(&mut handle, || c.op(op));
-            })
-            .boxed();
+            });
         }
 
         node
@@ -2882,13 +2786,11 @@ pub struct PropertyBuildActionArgs<'a, I: Any + Send> {
 /// | [`Var`]             | `Var<T>`
 /// | [`Value`]           | `T`
 /// | [`UiNode`]          | `ArcNode<BoxedUiNode>`
-/// | [`UiNodeList`]      | `ArcNodeList<BoxedUiNodeList>`
 /// | [`WidgetHandler`]   | `ArcWidgetHandler<A>`
 ///
 /// [`Var`]: InputKind::Var
 /// [`Value`]: InputKind::Value
 /// [`UiNode`]: InputKind::UiNode
-/// [`UiNodeList`]: InputKind::UiNodeList
 /// [`WidgetHandler`]: InputKind::WidgetHandler
 pub struct PropertyBuildAction<I: Any + Send>(Arc<Mutex<dyn FnMut(PropertyBuildActionArgs<I>) -> I + Send>>);
 impl<I: Any + Send> crate::private::Sealed for PropertyBuildAction<I> {}
@@ -2940,8 +2842,8 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// # use zng_var::*;
 /// # use std::any::Any;
 /// #[property(CONTEXT)]
-/// pub fn foo(child: impl UiNode, bar: impl IntoVar<bool>) -> impl UiNode {
-/// #    child
+/// pub fn foo(child: impl IntoUiNode, bar: impl IntoVar<bool>) -> UiNode {
+/// #    child.into_node()
 /// }
 ///
 /// # fn main() {
@@ -2959,8 +2861,8 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// # use zng_app::{*, widget::{node::*, builder::*, property}};
 /// # use zng_var::*;
 /// #[property(CONTEXT)]
-/// pub fn foo(child: impl UiNode, bar: impl IntoVar<bool>) -> impl UiNode {
-/// #    child
+/// pub fn foo(child: impl IntoUiNode, bar: impl IntoVar<bool>) -> UiNode {
+/// #    child.into_node()
 /// }
 ///
 /// trait SingleBoolVar {

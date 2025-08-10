@@ -4,16 +4,16 @@ use crate::{
     event::{Event, EventArgs},
     update::UPDATES,
     var::*,
-    widget::{WidgetHandlesCtx, WidgetId, WidgetUpdateMode},
+    widget::{WidgetHandlesCtx, WidgetId, WidgetUpdateMode, node::IntoUiNode},
 };
 
 type SlotId = usize;
 
-struct SlotData<U> {
-    item: Mutex<U>,
-    slots: Mutex<SlotsData<U>>,
+struct SlotData {
+    item: Mutex<UiNode>,
+    slots: Mutex<SlotsData>,
 }
-struct SlotsData<U> {
+struct SlotsData {
     // id of the next slot created.
     next_slot: SlotId,
 
@@ -23,16 +23,16 @@ struct SlotsData<U> {
     move_request: Option<(SlotId, WidgetId)>,
 
     // node instance that must replace the current in the active slot.
-    replacement: Option<U>,
+    replacement: Option<UiNode>,
 }
-impl<U> SlotsData<U> {
+impl SlotsData {
     fn next_slot(&mut self) -> SlotId {
         let r = self.next_slot;
         self.next_slot = self.next_slot.wrapping_add(1);
         r
     }
 }
-impl<U> Default for SlotsData<U> {
+impl Default for SlotsData {
     fn default() -> Self {
         Self {
             next_slot: Default::default(),
@@ -52,15 +52,18 @@ impl<U> Default for SlotsData<U> {
 /// When a slot takes the node it is deinited in the previous place and reinited in the slot place.
 ///
 /// Slots hold a strong reference to the node when they have it as their child and a weak reference when they don't.
-pub struct ArcNode<U: UiNode>(Arc<SlotData<U>>);
-impl<U: UiNode> Clone for ArcNode<U> {
+pub struct ArcNode(Arc<SlotData>);
+impl Clone for ArcNode {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
-impl<U: UiNode> ArcNode<U> {
+impl ArcNode {
     /// New node.
-    pub fn new(node: U) -> Self {
+    pub fn new(node: impl IntoUiNode) -> Self {
+        Self::new_impl(node.into_node())
+    }
+    fn new_impl(node: UiNode) -> Self {
         ArcNode(Arc::new(SlotData {
             item: Mutex::new(node),
             slots: Mutex::default(),
@@ -70,7 +73,7 @@ impl<U: UiNode> ArcNode<U> {
     /// New node that contains a weak reference to itself.
     ///
     /// Note that the weak reference cannot be [upgraded](WeakNode::upgrade) during the call to `node`.
-    pub fn new_cyclic(node: impl FnOnce(WeakNode<U>) -> U) -> Self {
+    pub fn new_cyclic(node: impl FnOnce(WeakNode) -> UiNode) -> Self {
         Self(Arc::new_cyclic(|wk| {
             let node = node(WeakNode(wk.clone()));
             SlotData {
@@ -80,15 +83,18 @@ impl<U: UiNode> ArcNode<U> {
         }))
     }
 
-    /// Creates a [`WeakNode<U>`] reference to this node.
-    pub fn downgrade(&self) -> WeakNode<U> {
+    /// Creates a [`WeakNode`] reference to this node.
+    pub fn downgrade(&self) -> WeakNode {
         WeakNode(Arc::downgrade(&self.0))
     }
 
     /// Replace the current node with the `new_node` in the current slot.
     ///
     /// The previous node is deinited and the `new_node` is inited.
-    pub fn set(&self, new_node: U) {
+    pub fn set(&self, new_node: impl IntoUiNode) {
+        self.set_impl(new_node.into_node())
+    }
+    fn set_impl(&self, new_node: UiNode) {
         let mut slots = self.0.slots.lock();
         let slots = &mut *slots;
         if let Some((_, id)) = &slots.owner {
@@ -104,24 +110,23 @@ impl<U: UiNode> ArcNode<U> {
     /// Create a slot node that takes ownership of this node when `var` updates to `true`.
     ///
     /// The slot node also takes ownership on init if the `var` is already `true`.
-    pub fn take_when<I>(&self, var: I) -> TakeSlot<U, impls::TakeWhenVar>
-    where
-        I: IntoVar<bool>,
-    {
+    pub fn take_when(&self, var: impl IntoVar<bool>) -> UiNode {
+        self.take_when_impl(var.into_var())
+    }
+    fn take_when_impl(&self, var: Var<bool>) -> UiNode {
         impls::TakeSlot {
             slot: self.0.slots.lock().next_slot(),
             rc: self.0.clone(),
             take: impls::TakeWhenVar { var: var.into_var() },
-            delegate_init: |n| n.init(),
-            delegate_deinit: |n| n.deinit(),
             wgt_handles: WidgetHandlesCtx::new(),
         }
+        .into_node()
     }
 
     /// Create a slot node that takes ownership of this node when `event` updates and `filter` returns `true`.
     ///
     /// The slot node also takes ownership on init if `take_on_init` is `true`.
-    pub fn take_on<A, F>(&self, event: Event<A>, filter: F, take_on_init: bool) -> TakeSlot<U, impls::TakeOnEvent<A, F>>
+    pub fn take_on<A, F>(&self, event: Event<A>, filter: F, take_on_init: bool) -> UiNode
     where
         A: EventArgs,
         F: FnMut(&A) -> bool + Send + 'static,
@@ -134,171 +139,54 @@ impl<U: UiNode> ArcNode<U> {
                 filter,
                 take_on_init,
             },
-            delegate_init: |n| n.init(),
-            delegate_deinit: |n| n.deinit(),
             wgt_handles: WidgetHandlesCtx::new(),
         }
+        .into_node()
     }
 
     /// Create a slot node that takes ownership of this node as soon as the node is inited.
     ///
     /// This is equivalent to `self.take_when(true)`.
-    pub fn take_on_init(&self) -> TakeSlot<U, impls::TakeWhenVar> {
+    pub fn take_on_init(&self) -> UiNode {
         self.take_when(true)
     }
 
-    /// Calls `f` in the context of the node, if it can be locked and is a full widget.
-    pub fn try_context<R>(&self, update_mode: WidgetUpdateMode, f: impl FnOnce() -> R) -> Option<R> {
-        self.0.item.try_lock()?.with_context(update_mode, f)
+    /// Call `visitor` on a exclusive lock of the node.
+    ///
+    /// Note that the node is not visited in their current slot context, only use this to inspect state.
+    ///
+    /// Returns `None` if the node is locked, this will happen if calling from inside the node or an ancestor.
+    pub fn try_node<R>(&self, visitor: impl FnOnce(&mut UiNode) -> R) -> Option<R> {
+        Some(visitor(&mut *self.0.item.try_lock()?))
+    }
+
+    /// Calls `visitor` in the widget context of the node, if it is an widget.
+    ///
+    /// Note that only the widget context is loaded in `visitor`, not the full slot context.
+    ///
+    /// Returns `None` if the node is locked or is not an widget. The node will be locked if calling from inside the node or an ancestor.
+    pub fn try_context<R>(&self, update_mode: WidgetUpdateMode, visitor: impl FnOnce() -> R) -> Option<R> {
+        Some(self.0.item.try_lock()?.as_widget()?.with_context(update_mode, visitor))
     }
 }
 
-/// Weak reference to a [`ArcNode<U>`].
-pub struct WeakNode<U: UiNode>(Weak<SlotData<U>>);
-impl<U: UiNode> Clone for WeakNode<U> {
+/// Weak reference to a [`ArcNode`].
+pub struct WeakNode(Weak<SlotData>);
+impl Clone for WeakNode {
     fn clone(&self) -> Self {
         Self(Weak::clone(&self.0))
     }
 }
-impl<U: UiNode> WeakNode<U> {
-    /// Attempts to upgrade to a [`ArcNode<U>`].
-    pub fn upgrade(&self) -> Option<ArcNode<U>> {
+impl WeakNode {
+    /// Attempts to upgrade to a [`ArcNode`].
+    pub fn upgrade(&self) -> Option<ArcNode> {
         self.0.upgrade().map(ArcNode)
     }
 }
 
-/// A reference counted [`UiNodeList`].
-///
-/// Nodes can only be used in one place at a time, this `struct` allows the
-/// creation of ***slots*** that are [`UiNodeList`] implementers that can ***exclusive take*** the
-/// referenced list as the children.
-///
-/// When a slot takes the list it is deinited in the previous place and reinited in the slot place.
-///
-/// Slots hold a strong reference to the list when they have it as their child and a weak reference when they don't.
-pub struct ArcNodeList<L: UiNodeList>(Arc<SlotData<L>>);
-impl<L: UiNodeList> Clone for ArcNodeList<L> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-impl<L: UiNodeList> ArcNodeList<L> {
-    /// New list.
-    pub fn new(list: L) -> Self {
-        ArcNodeList(Arc::new(SlotData {
-            item: Mutex::new(list),
-            slots: Mutex::default(),
-        }))
-    }
-
-    /// New rc list that contains a weak reference to itself.
-    ///
-    /// Note that the weak reference cannot be [upgraded](WeakNodeList::upgrade) during the call to `list`.
-    pub fn new_cyclic(list: impl FnOnce(WeakNodeList<L>) -> L) -> Self {
-        Self(Arc::new_cyclic(|wk| {
-            let list = list(WeakNodeList(wk.clone()));
-            SlotData {
-                item: Mutex::new(list),
-                slots: Mutex::default(),
-            }
-        }))
-    }
-
-    /// Creates a [`WeakNodeList<L>`] reference to this list.
-    pub fn downgrade(&self) -> WeakNodeList<L> {
-        WeakNodeList(Arc::downgrade(&self.0))
-    }
-
-    /// Replace the current list with the `new_list` in the current slot.
-    ///
-    /// The previous list is deinited and the `new_list` is inited.
-    pub fn set(&self, new_list: L) {
-        let mut slots = self.0.slots.lock();
-        let slots = &mut *slots;
-        if let Some((_, id)) = &slots.owner {
-            // current node inited on a slot, signal it to replace.
-            slots.replacement = Some(new_list);
-            UPDATES.update(*id);
-        } else {
-            // node already not inited, just replace.
-            *self.0.item.lock() = new_list;
-        }
-    }
-
-    /// Create a slot list that takes ownership of this list when `var` updates to `true`.
-    ///
-    /// The slot node also takes ownership on init if the `var` is already `true`.
-    ///
-    /// The return type implements [`UiNodeList`].
-    pub fn take_when(&self, var: impl IntoVar<bool>) -> TakeSlot<L, impl TakeOn> {
-        impls::TakeSlot {
-            slot: self.0.slots.lock().next_slot(),
-            rc: self.0.clone(),
-            take: impls::TakeWhenVar { var: var.into_var() },
-            delegate_init: |n| n.init_all(),
-            delegate_deinit: |n| n.deinit_all(),
-            wgt_handles: WidgetHandlesCtx::new(),
-        }
-    }
-
-    /// Create a slot list that takes ownership of this list when `event` updates and `filter` returns `true`.
-    ///
-    /// The slot list also takes ownership on init if `take_on_init` is `true`.
-    ///
-    /// The return type implements [`UiNodeList`].
-    pub fn take_on<A: EventArgs>(
-        &self,
-        event: Event<A>,
-        filter: impl FnMut(&A) -> bool + Send + 'static,
-        take_on_init: bool,
-    ) -> TakeSlot<L, impl TakeOn> {
-        impls::TakeSlot {
-            slot: self.0.slots.lock().next_slot(),
-            rc: self.0.clone(),
-            take: impls::TakeOnEvent {
-                event,
-                filter,
-                take_on_init,
-            },
-            delegate_init: |n| n.init_all(),
-            delegate_deinit: |n| n.deinit_all(),
-            wgt_handles: WidgetHandlesCtx::new(),
-        }
-    }
-
-    /// Create a slot node list that takes ownership of this list as soon as the node is inited.
-    ///
-    /// This is equivalent to `self.take_when(true)`.
-    pub fn take_on_init(&self) -> TakeSlot<L, impl TakeOn> {
-        self.take_when(true)
-    }
-
-    /// Iterate over widget contexts.
-    pub fn for_each_ctx(&self, update_mode: WidgetUpdateMode, mut f: impl FnMut(usize)) {
-        self.0.item.lock().for_each(|i, n| {
-            n.with_context(update_mode, || f(i));
-        })
-    }
-}
-
-/// Weak reference to a [`ArcNodeList<U>`].
-pub struct WeakNodeList<L: UiNodeList>(Weak<SlotData<L>>);
-impl<L: UiNodeList> Clone for WeakNodeList<L> {
-    fn clone(&self) -> Self {
-        Self(Weak::clone(&self.0))
-    }
-}
-impl<L: UiNodeList> WeakNodeList<L> {
-    /// Attempts to upgrade to a [`ArcNodeList<U>`].
-    pub fn upgrade(&self) -> Option<ArcNodeList<L>> {
-        self.0.upgrade().map(ArcNodeList)
-    }
-}
-
-pub use impls::*;
 use parking_lot::Mutex;
 
-use super::{UiNode, UiNodeList};
+use super::UiNode;
 
 mod impls {
     use std::sync::Arc;
@@ -311,16 +199,15 @@ mod impls {
         render::{FrameBuilder, FrameUpdate},
         update::{EventUpdate, UPDATES, WidgetUpdates},
         widget::{
-            WIDGET, WidgetHandlesCtx, WidgetUpdateMode,
+            WIDGET, WidgetHandlesCtx,
             info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
-            node::{BoxedUiNode, BoxedUiNodeList, UiNode, UiNodeList, UiNodeListObserver},
+            node::{UiNode, UiNodeImpl, WidgetUiNodeImpl},
         },
     };
 
     use super::{SlotData, SlotId};
 
-    #[doc(hidden)]
-    pub trait TakeOn: Send + 'static {
+    pub(super) trait TakeOn: Send + 'static {
         fn take_on_init(&mut self) -> bool {
             false
         }
@@ -336,8 +223,7 @@ mod impls {
         }
     }
 
-    #[doc(hidden)]
-    pub struct TakeWhenVar {
+    pub(super) struct TakeWhenVar {
         pub(super) var: Var<bool>,
     }
     impl TakeOn for TakeWhenVar {
@@ -351,8 +237,7 @@ mod impls {
         }
     }
 
-    #[doc(hidden)]
-    pub struct TakeOnEvent<A: EventArgs, F: FnMut(&A) -> bool + Send + 'static> {
+    pub(super) struct TakeOnEvent<A: EventArgs, F: FnMut(&A) -> bool + Send + 'static> {
         pub(super) event: Event<A>,
         pub(super) filter: F,
         pub(super) take_on_init: bool,
@@ -372,17 +257,14 @@ mod impls {
         }
     }
 
-    #[doc(hidden)]
-    pub struct TakeSlot<U, T: TakeOn> {
+    pub(super) struct TakeSlot<T: TakeOn> {
         pub(super) slot: SlotId,
-        pub(super) rc: Arc<SlotData<U>>,
+        pub(super) rc: Arc<SlotData>,
         pub(super) take: T,
 
-        pub(super) delegate_init: fn(&mut U),
-        pub(super) delegate_deinit: fn(&mut U),
         pub(super) wgt_handles: WidgetHandlesCtx,
     }
-    impl<U, T: TakeOn> TakeSlot<U, T> {
+    impl<T: TakeOn> TakeSlot<T> {
         fn on_init(&mut self) {
             if self.take.take_on_init() {
                 self.take();
@@ -403,7 +285,7 @@ mod impls {
             }
 
             if was_owner {
-                WIDGET.with_handles(&mut self.wgt_handles, || (self.delegate_deinit)(&mut *self.rc.item.lock()));
+                WIDGET.with_handles(&mut self.wgt_handles, || self.rc.item.lock().deinit());
             }
 
             self.wgt_handles.clear();
@@ -428,7 +310,7 @@ mod impls {
                     drop(slots);
 
                     let mut node = self.rc.item.lock();
-                    (self.delegate_deinit)(&mut node);
+                    node.deinit();
 
                     WIDGET.update_info().layout().render();
 
@@ -444,12 +326,12 @@ mod impls {
 
                     let mut node = self.rc.item.lock();
                     WIDGET.with_handles(&mut self.wgt_handles, || {
-                        (self.delegate_deinit)(&mut node);
+                        node.deinit();
                     });
                     self.wgt_handles.clear();
 
                     WIDGET.with_handles(&mut self.wgt_handles, || {
-                        (self.delegate_init)(&mut new);
+                        new.init();
                     });
                     *node = new;
 
@@ -489,7 +371,7 @@ mod impls {
 
             if self.is_owner() {
                 WIDGET.with_handles(&mut self.wgt_handles, || {
-                    (self.delegate_init)(&mut *self.rc.item.lock());
+                    self.rc.item.lock().init();
                 });
                 WIDGET.update_info().layout().render();
             }
@@ -499,10 +381,10 @@ mod impls {
             self.rc.slots.lock().owner.as_ref().map(|(sl, _)| *sl == self.slot).unwrap_or(false)
         }
 
-        fn delegate_owned<R>(&self, del: impl FnOnce(&U) -> R) -> Option<R> {
+        fn delegate_owned<R>(&self, del: impl FnOnce(&UiNode) -> R) -> Option<R> {
             if self.is_owner() { Some(del(&*self.rc.item.lock())) } else { None }
         }
-        fn delegate_owned_mut<R>(&mut self, del: impl FnOnce(&mut U) -> R) -> Option<R> {
+        fn delegate_owned_mut<R>(&mut self, del: impl FnOnce(&mut UiNode) -> R) -> Option<R> {
             if self.is_owner() {
                 Some(del(&mut *self.rc.item.lock()))
             } else {
@@ -510,7 +392,7 @@ mod impls {
             }
         }
 
-        fn delegate_owned_mut_with_handles<R>(&mut self, del: impl FnOnce(&mut U) -> R) -> Option<R> {
+        fn delegate_owned_mut_with_handles<R>(&mut self, del: impl FnOnce(&mut UiNode) -> R) -> Option<R> {
             if self.is_owner() {
                 WIDGET.with_handles(&mut self.wgt_handles, || Some(del(&mut *self.rc.item.lock())))
             } else {
@@ -519,7 +401,15 @@ mod impls {
         }
     }
 
-    impl<U: UiNode, T: TakeOn> UiNode for TakeSlot<U, T> {
+    impl<T: TakeOn> UiNodeImpl for TakeSlot<T> {
+        fn children_len(&self) -> usize {
+            self.delegate_owned(|n| n.0.children_len()).unwrap_or(0)
+        }
+
+        fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
+            self.delegate_owned_mut(|n| n.0.with_child(index, visitor));
+        }
+
         fn init(&mut self) {
             self.on_init();
         }
@@ -529,124 +419,117 @@ mod impls {
         }
 
         fn info(&mut self, info: &mut WidgetInfoBuilder) {
-            self.delegate_owned_mut(|n| n.info(info));
+            self.delegate_owned_mut(|n| n.0.info(info));
         }
 
         fn event(&mut self, update: &EventUpdate) {
-            self.delegate_owned_mut_with_handles(|n| n.event(update));
+            self.delegate_owned_mut_with_handles(|n| n.0.event(update));
             self.on_event(update);
         }
 
         fn update(&mut self, updates: &WidgetUpdates) {
-            self.delegate_owned_mut_with_handles(|n| n.update(updates));
+            self.delegate_owned_mut_with_handles(|n| n.0.update(updates));
+            self.on_update(updates);
+        }
+        fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn crate::widget::node::UiNodeListObserver) {
+            self.delegate_owned_mut(|n| n.0.update_list(updates, observer));
             self.on_update(updates);
         }
 
         fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.delegate_owned_mut(|n| n.measure(wm)).unwrap_or_default()
+            self.delegate_owned_mut(|n| n.0.measure(wm)).unwrap_or_default()
+        }
+        fn measure_list(
+            &mut self,
+            wm: &mut WidgetMeasure,
+            measure: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+            fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+        ) -> PxSize {
+            self.delegate_owned_mut(|n| n.0.measure_list(wm, measure, fold_size))
+                .unwrap_or_default()
         }
 
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            self.delegate_owned_mut(|n| n.layout(wl)).unwrap_or_default()
+            self.delegate_owned_mut(|n| n.0.layout(wl)).unwrap_or_default()
+        }
+        fn layout_list(
+            &mut self,
+            wl: &mut WidgetLayout,
+            layout: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+            fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+        ) -> PxSize {
+            self.delegate_owned_mut(|n| n.0.layout_list(wl, layout, fold_size))
+                .unwrap_or_default()
         }
 
         fn render(&mut self, frame: &mut FrameBuilder) {
-            self.delegate_owned_mut(|n| n.render(frame));
+            self.delegate_owned_mut(|n| n.0.render(frame));
+        }
+        fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+            self.delegate_owned_mut(|n| n.0.render_list(frame, render));
         }
 
         fn render_update(&mut self, update: &mut FrameUpdate) {
-            self.delegate_owned_mut(|n| n.render_update(update));
+            self.delegate_owned_mut(|n| n.0.render_update(update));
+        }
+        fn render_update_list(&mut self, update: &mut FrameUpdate, render_update: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
+            self.delegate_owned_mut(|n| n.0.render_update_list(update, render_update));
         }
 
-        fn is_widget(&self) -> bool {
-            self.delegate_owned(UiNode::is_widget).unwrap_or(false)
+        fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+            self.delegate_owned_mut(|n| n.0.for_each_child(visitor));
         }
 
-        fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
-        where
-            F: FnOnce() -> R,
-        {
-            self.delegate_owned_mut(|n| n.with_context(update_mode, f)).flatten()
+        fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+            self.delegate_owned_mut(|n| n.0.par_each_child(visitor));
+        }
+
+        fn par_fold_reduce(
+            &mut self,
+            identity: zng_var::BoxAnyVarValue,
+            fold: &(dyn Fn(zng_var::BoxAnyVarValue, usize, &mut UiNode) -> zng_var::BoxAnyVarValue + Sync),
+            reduce: &(dyn Fn(zng_var::BoxAnyVarValue, zng_var::BoxAnyVarValue) -> zng_var::BoxAnyVarValue + Sync),
+        ) -> zng_var::BoxAnyVarValue {
+            self.delegate_owned_mut(|n| n.0.par_fold_reduce(identity.clone(), fold, reduce))
+                .unwrap_or(identity)
+        }
+
+        fn is_list(&self) -> bool {
+            // check directly to avoid into_list wrapping lists nodes
+            self.rc.item.lock().0.is_list()
+        }
+
+        fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+            if self.delegate_owned_mut(|w| w.as_widget().is_some()).unwrap_or(false) {
+                Some(self)
+            } else {
+                None
+            }
         }
     }
-
-    impl<U: UiNodeList, T: TakeOn> UiNodeList for TakeSlot<U, T> {
-        fn with_node<R, F>(&mut self, index: usize, f: F) -> R
-        where
-            F: FnOnce(&mut BoxedUiNode) -> R,
-        {
-            self.delegate_owned_mut(move |l| l.with_node(index, f))
-                .unwrap_or_else(|| panic!("index `{index}` is >= len `0`"))
-        }
-
-        fn for_each<F>(&mut self, f: F)
-        where
-            F: FnMut(usize, &mut BoxedUiNode),
-        {
-            self.delegate_owned_mut(|l| l.for_each(f));
-        }
-
-        fn par_each<F>(&mut self, f: F)
-        where
-            F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
-        {
-            self.delegate_owned_mut(|l| l.par_each(f));
-        }
-
-        fn par_fold_reduce<TF, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> TF
-        where
-            TF: Send + 'static,
-            I: Fn() -> TF + Send + Sync,
-            F: Fn(TF, usize, &mut BoxedUiNode) -> TF + Send + Sync,
-            R: Fn(TF, TF) -> TF + Send + Sync,
-        {
-            self.delegate_owned_mut(|l| l.par_fold_reduce(&identity, fold, reduce))
-                .unwrap_or_else(identity)
-        }
-
-        fn len(&self) -> usize {
-            self.delegate_owned(UiNodeList::len).unwrap_or(0)
-        }
-
-        fn boxed(self) -> BoxedUiNodeList {
-            Box::new(self)
-        }
-
-        fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
-            self.delegate_owned_mut(|l| l.drain_into(vec));
-        }
-
-        fn init_all(&mut self) {
-            self.on_init();
-            // delegation done in the handler
-        }
-
-        fn deinit_all(&mut self) {
-            self.on_deinit();
-            // delegation done in the handler
-        }
-
-        fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
-            self.delegate_owned_mut_with_handles(|l| l.info_all(info));
-        }
-
-        fn event_all(&mut self, update: &EventUpdate) {
-            self.delegate_owned_mut_with_handles(|l| l.event_all(update));
-            self.on_event(update);
-        }
-
-        fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-            let _ = observer;
-            self.delegate_owned_mut_with_handles(|l| l.update_all(updates, observer));
-            self.on_update(updates);
-        }
-
-        fn render_all(&mut self, frame: &mut FrameBuilder) {
-            self.delegate_owned_mut(|l| l.render_all(frame));
-        }
-
-        fn render_update_all(&mut self, update: &mut FrameUpdate) {
-            self.delegate_owned_mut(|l| l.render_update_all(update));
+    impl<T: TakeOn> WidgetUiNodeImpl for TakeSlot<T> {
+        fn with_context(&mut self, update_mode: crate::widget::WidgetUpdateMode, visitor: &mut dyn FnMut()) {
+            #[cfg(debug_assertions)]
+            let mut called = 0;
+            self.delegate_owned_mut_with_handles(|w| {
+                #[cfg(debug_assertions)]
+                {
+                    called = 1;
+                }
+                if let Some(mut w) = w.as_widget() {
+                    #[cfg(debug_assertions)]
+                    {
+                        called = 2;
+                    }
+                    w.with_context(update_mode, visitor)
+                }
+            });
+            #[cfg(debug_assertions)]
+            match called {
+                0 => tracing::error!("ArcNode TakeSlot node taken while as_widget is held"),
+                1 => tracing::error!("ArcNode TakeSlot node was widget when as_widget returned, but not anymore"),
+                _ => {}
+            }
         }
     }
 }

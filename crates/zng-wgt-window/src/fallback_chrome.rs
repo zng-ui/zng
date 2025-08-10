@@ -11,7 +11,7 @@ use zng_wgt_text::Text;
 /// Custom window chrome adorner used when the window manager does not provide one.
 ///
 /// You also must set a padding of `5` for maximized window and `(28 + 5, 5, 5, 5)` for normal window.
-pub fn fallback_chrome() -> impl UiNode {
+pub fn fallback_chrome() -> UiNode {
     let vars = WINDOW.vars();
     let can_move = vars.state().map(|s| matches!(s, WindowState::Normal | WindowState::Maximized));
     let win_id = WINDOW.id();
@@ -48,7 +48,7 @@ pub fn fallback_chrome() -> impl UiNode {
                                 font_size = size.pt();
                                 padding = (padding_top, 0, 0, 0);
                                 txt = symbol;
-                            }.boxed()
+                            }
                         } else {
                             ico
                         }
@@ -170,7 +170,7 @@ pub fn fallback_chrome() -> impl UiNode {
 }
 
 #[property(WIDGET)]
-fn exclude_text_context(child: impl UiNode, exclude: impl IntoValue<bool>) -> impl UiNode {
+fn exclude_text_context(child: impl IntoUiNode, exclude: impl IntoValue<bool>) -> UiNode {
     assert!(exclude.into());
 
     // exclude all text context vars set on the window

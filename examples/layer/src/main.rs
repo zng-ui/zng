@@ -49,7 +49,7 @@ fn main() {
     })
 }
 
-fn overlay_example() -> impl UiNode {
+fn overlay_example() -> UiNode {
     Button! {
         child = Text!("TOP_MOST");
         on_click = hn!(|_| {
@@ -57,7 +57,7 @@ fn overlay_example() -> impl UiNode {
         });
     }
 }
-fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
+fn overlay(id: impl Into<WidgetId>, offset: i32) -> UiNode {
     let id = id.into();
     Container! {
         id;
@@ -109,7 +109,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
     }
 }
 
-fn layer_index_example() -> impl UiNode {
+fn layer_index_example() -> UiNode {
     // demonstrates that the z-order is not affected by the order of insertion.
     Stack! {
         direction = StackDirection::left_to_right();
@@ -121,7 +121,7 @@ fn layer_index_example() -> impl UiNode {
         ]
     }
 }
-fn layer_n_btn(n: u32, color: color::Rgba) -> impl UiNode {
+fn layer_n_btn(n: u32, color: color::Rgba) -> UiNode {
     let label = formatx!("Layer {n}");
     Button! {
         child = Text!(label.clone());
@@ -155,7 +155,7 @@ fn layer_n_btn(n: u32, color: color::Rgba) -> impl UiNode {
     }
 }
 
-fn anchor_example() -> impl UiNode {
+fn anchor_example() -> UiNode {
     let offsets = [
         AnchorOffset::out_top_left(),
         AnchorOffset::out_top(),
@@ -218,7 +218,7 @@ fn anchor_example() -> impl UiNode {
     }
 }
 
-fn transform_anchor_example() -> impl UiNode {
+fn transform_anchor_example() -> UiNode {
     let mut insert = true;
     Button! {
         id = "t-anchor";

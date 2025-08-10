@@ -9,7 +9,7 @@ use crate::prelude::*;
 ///
 /// Sets the [`COLOR_SCHEME_VAR`].
 #[property(CONTEXT, default(COLOR_SCHEME_VAR))]
-pub fn color_scheme(child: impl UiNode, pref: impl IntoVar<ColorScheme>) -> impl UiNode {
+pub fn color_scheme(child: impl IntoUiNode, pref: impl IntoVar<ColorScheme>) -> UiNode {
     with_context_var(child, COLOR_SCHEME_VAR, pref)
 }
 
@@ -19,7 +19,7 @@ pub fn color_scheme(child: impl UiNode, pref: impl IntoVar<ColorScheme>) -> impl
 ///
 /// Sets the [`COLOR_SCHEME_VAR`].
 #[property(CONTEXT, default(ACCENT_COLOR_VAR))]
-pub fn accent_color(child: impl UiNode, color: impl IntoVar<LightDark>) -> impl UiNode {
+pub fn accent_color(child: impl IntoUiNode, color: impl IntoVar<LightDark>) -> UiNode {
     with_context_var(child, ACCENT_COLOR_VAR, color)
 }
 
@@ -27,6 +27,6 @@ pub fn accent_color(child: impl UiNode, color: impl IntoVar<LightDark>) -> impl 
 ///
 /// Usually the color is used directly for background fill and highlighted for others.
 #[property(CONTEXT, default(BASE_COLOR_VAR))]
-pub fn base_color(child: impl UiNode, color: impl IntoVar<LightDark>) -> impl UiNode {
+pub fn base_color(child: impl IntoUiNode, color: impl IntoVar<LightDark>) -> UiNode {
     with_context_var(child, BASE_COLOR_VAR, color)
 }

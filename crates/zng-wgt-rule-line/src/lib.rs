@@ -171,25 +171,25 @@ pub mod hr {
 
     /// Sets the [`COLOR_VAR`] that affects all horizontal rules inside the widget.
     #[property(CONTEXT, default(COLOR_VAR))]
-    pub fn color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+    pub fn color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
         with_context_var(child, COLOR_VAR, color)
     }
 
     /// Sets the [`STROKE_THICKNESS_VAR`] that affects all horizontal rules inside the widget.
     #[property(CONTEXT, default(STROKE_THICKNESS_VAR))]
-    pub fn stroke_thickness(child: impl UiNode, thickness: impl IntoVar<Length>) -> impl UiNode {
+    pub fn stroke_thickness(child: impl IntoUiNode, thickness: impl IntoVar<Length>) -> UiNode {
         with_context_var(child, STROKE_THICKNESS_VAR, thickness)
     }
 
     /// Sets the [`LINE_STYLE_VAR`] that affects all horizontal rules inside the widget.
     #[property(CONTEXT, default(LINE_STYLE_VAR))]
-    pub fn line_style(child: impl UiNode, style: impl IntoVar<LineStyle>) -> impl UiNode {
+    pub fn line_style(child: impl IntoUiNode, style: impl IntoVar<LineStyle>) -> UiNode {
         with_context_var(child, LINE_STYLE_VAR, style)
     }
 
     /// Sets the [`MARGIN_VAR`] that affects all horizontal rules inside the widget.
     #[property(CONTEXT, default(MARGIN_VAR))]
-    pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
+    pub fn margin(child: impl IntoUiNode, margin: impl IntoVar<SideOffsets>) -> UiNode {
         with_context_var(child, MARGIN_VAR, margin)
     }
 }
@@ -234,25 +234,25 @@ pub mod vr {
 
     /// Sets the [`COLOR_VAR`] that affects all vertical rules inside the widget.
     #[property(CONTEXT, default(COLOR_VAR))]
-    pub fn color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+    pub fn color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
         with_context_var(child, COLOR_VAR, color)
     }
 
     /// Sets the [`STROKE_THICKNESS_VAR`] that affects all vertical rules inside the widget.
     #[property(CONTEXT, default(STROKE_THICKNESS_VAR))]
-    pub fn stroke_thickness(child: impl UiNode, thickness: impl IntoVar<Length>) -> impl UiNode {
+    pub fn stroke_thickness(child: impl IntoUiNode, thickness: impl IntoVar<Length>) -> UiNode {
         with_context_var(child, STROKE_THICKNESS_VAR, thickness)
     }
 
     /// Sets the [`LINE_STYLE_VAR`] that affects all vertical rules inside the widget.
     #[property(CONTEXT, default(LINE_STYLE_VAR))]
-    pub fn line_style(child: impl UiNode, style: impl IntoVar<LineStyle>) -> impl UiNode {
+    pub fn line_style(child: impl IntoUiNode, style: impl IntoVar<LineStyle>) -> UiNode {
         with_context_var(child, LINE_STYLE_VAR, style)
     }
 
     /// Sets the [`MARGIN_VAR`] that affects all vertical rules inside the widget.
     #[property(CONTEXT, default(MARGIN_VAR))]
-    pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
+    pub fn margin(child: impl IntoUiNode, margin: impl IntoVar<SideOffsets>) -> UiNode {
         with_context_var(child, MARGIN_VAR, margin)
     }
 }

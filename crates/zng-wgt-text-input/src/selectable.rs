@@ -67,7 +67,7 @@ impl DefaultStyle {
 /// Context menu set by the [`DefaultStyle!`].
 ///
 /// [`DefaultStyle!`]: struct@DefaultStyle
-pub fn default_context_menu(args: menu::context::ContextMenuArgs) -> impl UiNode {
+pub fn default_context_menu(args: menu::context::ContextMenuArgs) -> UiNode {
     let id = args.anchor_id;
     ContextMenu!(ui_vec![Button!(COPY_CMD.scoped(id)), Button!(text::cmd::SELECT_ALL_CMD.scoped(id)),])
 }
@@ -75,15 +75,14 @@ pub fn default_context_menu(args: menu::context::ContextMenuArgs) -> impl UiNode
 /// Selection toolbar set by the [`DefaultStyle!`].
 ///
 /// [`DefaultStyle!`]: struct@DefaultStyle
-pub fn default_selection_toolbar(args: text::SelectionToolbarArgs) -> impl UiNode {
+pub fn default_selection_toolbar(args: text::SelectionToolbarArgs) -> UiNode {
     if args.is_touch {
         let id = args.anchor_id;
         ContextMenu! {
             style_fn = menu::context::TouchStyle!();
             children = ui_vec![Button!(COPY_CMD.scoped(id)), Button!(text::cmd::SELECT_ALL_CMD.scoped(id)),]
         }
-        .boxed()
     } else {
-        NilUiNode.boxed()
+        UiNode::nil()
     }
 }

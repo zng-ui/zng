@@ -12,7 +12,7 @@ use zng_wgt::prelude::*;
 
 /// Makes the widget focusable when set to `true`.
 #[property(CONTEXT, default(false), widget_impl(FocusableMix<P>))]
-pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNode {
+pub fn focusable(child: impl IntoUiNode, focusable: impl IntoVar<bool>) -> UiNode {
     let focusable = focusable.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -27,7 +27,7 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
 
 /// Customizes the widget order during TAB navigation.
 #[property(CONTEXT, default(TabIndex::default()))]
-pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl UiNode {
+pub fn tab_index(child: impl IntoUiNode, tab_index: impl IntoVar<TabIndex>) -> UiNode {
     let tab_index = tab_index.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -42,7 +42,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
 
 /// Makes the widget into a focus scope when set to `true`.
 #[property(CONTEXT, default(false))]
-pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
+pub fn focus_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> UiNode {
     focus_scope_impl(child, is_scope, false)
 }
 /// Widget is the ALT focus scope.
@@ -54,11 +54,11 @@ pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiN
 ///
 /// [`focus_click_behavior`]: fn@focus_click_behavior
 #[property(CONTEXT, default(false))]
-pub fn alt_focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
+pub fn alt_focus_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> UiNode {
     focus_scope_impl(child, is_scope, true)
 }
 
-fn focus_scope_impl(child: impl UiNode, is_scope: impl IntoVar<bool>, is_alt: bool) -> impl UiNode {
+fn focus_scope_impl(child: impl IntoUiNode, is_scope: impl IntoVar<bool>, is_alt: bool) -> UiNode {
     let is_scope = is_scope.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -84,7 +84,7 @@ fn focus_scope_impl(child: impl UiNode, is_scope: impl IntoVar<bool>, is_alt: bo
 
 /// Behavior of a focus scope when it receives direct focus.
 #[property(CONTEXT, default(FocusScopeOnFocus::default()))]
-pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScopeOnFocus>) -> impl UiNode {
+pub fn focus_scope_behavior(child: impl IntoUiNode, behavior: impl IntoVar<FocusScopeOnFocus>) -> UiNode {
     let behavior = behavior.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -99,7 +99,7 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
 
 /// Tab navigation within this focus scope.
 #[property(CONTEXT, default(TabNav::Continue))]
-pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode {
+pub fn tab_nav(child: impl IntoUiNode, tab_nav: impl IntoVar<TabNav>) -> UiNode {
     let tab_nav = tab_nav.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -114,7 +114,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
 
 /// Keyboard arrows navigation within this focus scope.
 #[property(CONTEXT, default(DirectionalNav::Continue))]
-pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<DirectionalNav>) -> impl UiNode {
+pub fn directional_nav(child: impl IntoUiNode, directional_nav: impl IntoVar<DirectionalNav>) -> UiNode {
     let directional_nav = directional_nav.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -129,7 +129,7 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
 
 /// Keyboard shortcuts that focus this widget or its first focusable descendant or its first focusable parent.
 #[property(CONTEXT, default(Shortcuts::default()))]
-pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
+pub fn focus_shortcut(child: impl IntoUiNode, shortcuts: impl IntoVar<Shortcuts>) -> UiNode {
     let shortcuts = shortcuts.into_var();
     let mut _handle = None;
     match_node(child, move |_, op| match op {
@@ -151,7 +151,7 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
 ///
 /// Setting this to `true` is the directional navigation equivalent of setting `tab_index` to `SKIP`.
 #[property(CONTEXT, default(false))]
-pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn skip_directional(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -204,7 +204,7 @@ impl std::fmt::Debug for FocusClickBehavior {
 ///
 /// Note that this property does not subscribe to any event, it only observes events flowing trough.
 #[property(CONTEXT, default(FocusClickBehavior::Ignore))]
-pub fn focus_click_behavior(child: impl UiNode, behavior: impl IntoVar<FocusClickBehavior>) -> impl UiNode {
+pub fn focus_click_behavior(child: impl IntoUiNode, behavior: impl IntoVar<FocusClickBehavior>) -> UiNode {
     let behavior = behavior.into_var();
     match_node(child, move |c, op| {
         if let UiNodeOp::Event { update } = op {
@@ -312,7 +312,7 @@ event_property! {
 /// [`is_focused_hgl`]: fn@is_focused_hgl
 /// [`is_return_focus`]: fn@is_return_focus
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
-pub fn is_focused(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_focused(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
         let id = WIDGET.id();
         if args.is_focus(id) {
@@ -334,7 +334,7 @@ pub fn is_focused(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// [`is_focused`]: fn@is_focused
 /// [`is_focus_within_hgl`]: fn@is_focus_within_hgl
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
-pub fn is_focus_within(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_focus_within(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
         let id = WIDGET.id();
         if args.is_focus_enter(id) {
@@ -360,7 +360,7 @@ pub fn is_focus_within(child: impl UiNode, state: impl IntoVar<bool>) -> impl Ui
 /// [`is_focus_within_hgl`]: fn@is_focus_within_hgl
 /// [`is_focused`]: fn@is_focused
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
-pub fn is_focused_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_focused_hgl(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
         let id = WIDGET.id();
         if args.is_focus(id) {
@@ -384,7 +384,7 @@ pub fn is_focused_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
 /// [`is_focused_hgl`]: fn@is_focused_hgl
 /// [`is_focus_within`]: fn@is_focus_within
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
-pub fn is_focus_within_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_focus_within_hgl(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
         let id = WIDGET.id();
         if args.is_focus_enter(id) {
@@ -416,7 +416,7 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> imp
 /// [`is_focused`]: fn@is_focused_hgl
 /// [`is_focused_hgl`]: fn@is_focused_hgl
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
-pub fn is_return_focus(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_return_focus(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state(child, state, false, RETURN_FOCUS_CHANGED_EVENT, |args| {
         let id = WIDGET.id();
         if args.is_return_focus(id) {
@@ -435,7 +435,7 @@ pub fn is_return_focus(child: impl UiNode, state: impl IntoVar<bool>) -> impl Ui
 ///
 /// [`is_return_focus`]: fn@is_return_focus
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
-pub fn is_return_focus_within(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_return_focus_within(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state(child, state, false, RETURN_FOCUS_CHANGED_EVENT, |args| {
         let id = WIDGET.id();
         if args.is_return_focus_enter(id) {
@@ -454,7 +454,7 @@ pub fn is_return_focus_within(child: impl UiNode, state: impl IntoVar<bool>) -> 
 ///
 /// [`FOCUS.focus_widget_or_related`]: FOCUS::focus_widget_or_related
 #[property(CONTEXT, default(false), widget_impl(FocusableMix<P>))]
-pub fn focus_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn focus_on_init(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
 
     enum State {
@@ -499,7 +499,7 @@ pub fn focus_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 /// [`modal`]: fn@zng_wgt::modal
 /// [`focus_click_behavior`]: fn@focus_click_behavior
 #[property(CONTEXT, default(false), widget_impl(FocusableMix<P>))]
-pub fn return_focus_on_deinit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn return_focus_on_deinit(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
     let mut return_focus = None;
     match_node(child, move |_, op| match op {
@@ -566,11 +566,11 @@ context_var! {
     widget_impl(FocusableMix<P>)
 )]
 pub fn focus_highlight(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     offsets: impl IntoVar<SideOffsets>,
     widths: impl IntoVar<SideOffsets>,
     sides: impl IntoVar<BorderSides>,
-) -> impl UiNode {
+) -> UiNode {
     let child = with_context_var(child, FOCUS_HIGHLIGHT_WIDTHS_VAR, offsets);
     let child = with_context_var(child, FOCUS_HIGHLIGHT_OFFSETS_VAR, widths);
     with_context_var(child, FOCUS_HIGHLIGHT_SIDES_VAR, sides)

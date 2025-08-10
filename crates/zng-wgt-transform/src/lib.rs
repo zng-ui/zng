@@ -19,7 +19,7 @@ use zng_wgt::prelude::*;
 /// [`transform_origin`]: fn@transform_origin
 /// [`Transform`]: zng_wgt::prelude::Transform
 #[property(LAYOUT, default(Transform::identity()))]
-pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl UiNode {
+pub fn transform(child: impl IntoUiNode, transform: impl IntoVar<Transform>) -> UiNode {
     let binding_key = FrameValueKey::new_unique();
     let transform = transform.into_var();
     let mut render_transform = PxTransform::identity();
@@ -84,7 +84,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 /// [`transform`]: fn@transform
 /// [`transform_origin`]: fn@transform_origin
 #[property(LAYOUT, default(0.rad()))]
-pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
+pub fn rotate(child: impl IntoUiNode, angle: impl IntoVar<AngleRadian>) -> UiNode {
     transform(child, angle.into_var().map(|&a| Transform::new_rotate(a)))
 }
 
@@ -97,7 +97,7 @@ pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNo
 /// [`transform`]: fn@transform
 /// [`transform_origin`]: fn@transform_origin
 #[property(LAYOUT, default(0.rad()))]
-pub fn rotate_x(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
+pub fn rotate_x(child: impl IntoUiNode, angle: impl IntoVar<AngleRadian>) -> UiNode {
     transform(child, angle.into_var().map(|&a| Transform::new_rotate_x(a)))
 }
 
@@ -110,7 +110,7 @@ pub fn rotate_x(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl Ui
 /// [`transform`]: fn@transform
 /// [`transform_origin`]: fn@transform_origin
 #[property(LAYOUT, default(0.rad()))]
-pub fn rotate_y(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
+pub fn rotate_y(child: impl IntoUiNode, angle: impl IntoVar<AngleRadian>) -> UiNode {
     transform(child, angle.into_var().map(|&a| Transform::new_rotate_y(a)))
 }
 
@@ -118,7 +118,7 @@ pub fn rotate_y(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl Ui
 ///
 /// [`rotate`]: fn@rotate
 #[property(LAYOUT, default(0.rad()))]
-pub fn rotate_z(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
+pub fn rotate_z(child: impl IntoUiNode, angle: impl IntoVar<AngleRadian>) -> UiNode {
     transform(child, angle.into_var().map(|&a| Transform::new_rotate_z(a)))
 }
 
@@ -128,7 +128,7 @@ pub fn rotate_z(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl Ui
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(1.0))]
-pub fn scale(child: impl UiNode, s: impl IntoVar<Factor>) -> impl UiNode {
+pub fn scale(child: impl IntoUiNode, s: impl IntoVar<Factor>) -> UiNode {
     transform(child, s.into_var().map(|&x| Transform::new_scale(x)))
 }
 
@@ -138,7 +138,7 @@ pub fn scale(child: impl UiNode, s: impl IntoVar<Factor>) -> impl UiNode {
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(1.0, 1.0))]
-pub fn scale_xy(child: impl UiNode, x: impl IntoVar<Factor>, y: impl IntoVar<Factor>) -> impl UiNode {
+pub fn scale_xy(child: impl IntoUiNode, x: impl IntoVar<Factor>, y: impl IntoVar<Factor>) -> UiNode {
     transform(
         child,
         merge_var!(x.into_var(), y.into_var(), |&x, &y| Transform::new_scale_xy(x, y)),
@@ -151,7 +151,7 @@ pub fn scale_xy(child: impl UiNode, x: impl IntoVar<Factor>, y: impl IntoVar<Fac
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(1.0))]
-pub fn scale_x(child: impl UiNode, x: impl IntoVar<Factor>) -> impl UiNode {
+pub fn scale_x(child: impl IntoUiNode, x: impl IntoVar<Factor>) -> UiNode {
     transform(child, x.into_var().map(|&x| Transform::new_scale_x(x)))
 }
 
@@ -161,7 +161,7 @@ pub fn scale_x(child: impl UiNode, x: impl IntoVar<Factor>) -> impl UiNode {
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(1.0))]
-pub fn scale_y(child: impl UiNode, y: impl IntoVar<Factor>) -> impl UiNode {
+pub fn scale_y(child: impl IntoUiNode, y: impl IntoVar<Factor>) -> UiNode {
     transform(child, y.into_var().map(|&y| Transform::new_scale_y(y)))
 }
 
@@ -171,7 +171,7 @@ pub fn scale_y(child: impl UiNode, y: impl IntoVar<Factor>) -> impl UiNode {
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(0.rad(), 0.rad()))]
-pub fn skew(child: impl UiNode, x: impl IntoVar<AngleRadian>, y: impl IntoVar<AngleRadian>) -> impl UiNode {
+pub fn skew(child: impl IntoUiNode, x: impl IntoVar<AngleRadian>, y: impl IntoVar<AngleRadian>) -> UiNode {
     transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| Transform::new_skew(x, y)))
 }
 
@@ -181,7 +181,7 @@ pub fn skew(child: impl UiNode, x: impl IntoVar<AngleRadian>, y: impl IntoVar<An
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(0.rad()))]
-pub fn skew_x(child: impl UiNode, x: impl IntoVar<AngleRadian>) -> impl UiNode {
+pub fn skew_x(child: impl IntoUiNode, x: impl IntoVar<AngleRadian>) -> UiNode {
     transform(child, x.into_var().map(|&x| Transform::new_skew_x(x)))
 }
 
@@ -191,7 +191,7 @@ pub fn skew_x(child: impl UiNode, x: impl IntoVar<AngleRadian>) -> impl UiNode {
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT)]
-pub fn skew_y(child: impl UiNode, y: impl IntoVar<AngleRadian>) -> impl UiNode {
+pub fn skew_y(child: impl IntoUiNode, y: impl IntoVar<AngleRadian>) -> UiNode {
     transform(child, y.into_var().map(|&y| Transform::new_skew_y(y)))
 }
 
@@ -201,7 +201,7 @@ pub fn skew_y(child: impl UiNode, y: impl IntoVar<AngleRadian>) -> impl UiNode {
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(0, 0))]
-pub fn translate(child: impl UiNode, x: impl IntoVar<Length>, y: impl IntoVar<Length>) -> impl UiNode {
+pub fn translate(child: impl IntoUiNode, x: impl IntoVar<Length>, y: impl IntoVar<Length>) -> UiNode {
     transform(
         child,
         merge_var!(x.into_var(), y.into_var(), |x, y| Transform::new_translate(x.clone(), y.clone())),
@@ -214,7 +214,7 @@ pub fn translate(child: impl UiNode, x: impl IntoVar<Length>, y: impl IntoVar<Le
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(0))]
-pub fn translate_x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
+pub fn translate_x(child: impl IntoUiNode, x: impl IntoVar<Length>) -> UiNode {
     transform(child, x.into_var().map(|x| Transform::new_translate_x(x.clone())))
 }
 
@@ -224,7 +224,7 @@ pub fn translate_x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(0))]
-pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
+pub fn translate_y(child: impl IntoUiNode, y: impl IntoVar<Length>) -> UiNode {
     transform(child, y.into_var().map(|y| Transform::new_translate_y(y.clone())))
 }
 
@@ -234,7 +234,7 @@ pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(0))]
-pub fn translate_z(child: impl UiNode, z: impl IntoVar<Length>) -> impl UiNode {
+pub fn translate_z(child: impl IntoUiNode, z: impl IntoVar<Length>) -> UiNode {
     transform(child, z.into_var().map(|z| Transform::new_translate_z(z.clone())))
 }
 
@@ -244,7 +244,7 @@ pub fn translate_z(child: impl UiNode, z: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// [`transform`]: fn@transform
 #[property(CONTEXT, default(TRANSFORM_ORIGIN_VAR))]
-pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
+pub fn transform_origin(child: impl IntoUiNode, origin: impl IntoVar<Point>) -> UiNode {
     with_context_var(child, TRANSFORM_ORIGIN_VAR, origin)
 }
 
@@ -255,7 +255,7 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
 ///
 /// [`Length::Default`]: zng_wgt::prelude::Length::Default
 #[property(LAYOUT-20, default(Length::Default))]
-pub fn perspective(child: impl UiNode, distance: impl IntoVar<Length>) -> impl UiNode {
+pub fn perspective(child: impl IntoUiNode, distance: impl IntoVar<Length>) -> UiNode {
     let distance = distance.into_var();
 
     match_node(child, move |_, op| match op {
@@ -277,7 +277,7 @@ pub fn perspective(child: impl UiNode, distance: impl IntoVar<Length>) -> impl U
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT-20, default(Point::default()))]
-pub fn perspective_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
+pub fn perspective_origin(child: impl IntoUiNode, origin: impl IntoVar<Point>) -> UiNode {
     let origin = origin.into_var();
 
     match_node(child, move |c, op| match op {
@@ -303,7 +303,7 @@ pub fn perspective_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> im
 ///
 /// [`transform`]: fn@transform
 #[property(CONTEXT, default(TransformStyle::Flat))]
-pub fn transform_style(child: impl UiNode, style: impl IntoVar<TransformStyle>) -> impl UiNode {
+pub fn transform_style(child: impl IntoUiNode, style: impl IntoVar<TransformStyle>) -> UiNode {
     let style = style.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -325,7 +325,7 @@ pub fn transform_style(child: impl UiNode, style: impl IntoVar<TransformStyle>) 
 ///
 /// This property affects any descendant widgets too, unless they also set `backface_visibility`.
 #[property(CONTEXT, default(true))]
-pub fn backface_visibility(child: impl UiNode, visible: impl IntoVar<bool>) -> impl UiNode {
+pub fn backface_visibility(child: impl IntoUiNode, visible: impl IntoVar<bool>) -> UiNode {
     let visible = visible.into_var();
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {

@@ -35,8 +35,8 @@ note: method defined here
    |
 9  | #[property(CONTEXT, default())]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-10 | pub fn missing_default_values(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
-   |                                                   ---------------------  --------------------
+10 | pub fn missing_default_values(child: impl IntoUiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> UiNode {
+   |                                                       ---------------------  --------------------
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the arguments
    |
@@ -54,8 +54,8 @@ note: method defined here
    |
 15 | #[property(CONTEXT, default(true))]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-16 | pub fn incorrect_default_args_count_u_1(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
-   |                                                                                    --------------------
+16 | pub fn incorrect_default_args_count_u_1(child: impl IntoUiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> UiNode {
+   |                                                                                        --------------------
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
    |
@@ -93,12 +93,12 @@ error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
    = help: the following other types implement trait `IntoVar<T>`:
             <implementers-list>
 note: required by a bound in `invalid_default_args_types_u_2_::args`
-  --> cases/property/defaults.rs:40:67
+  --> cases/property/defaults.rs:40:71
    |
 39 | #[property(CONTEXT, default(2555, true))]
    | ----------------------------------------- required by a bound in this associated function
-40 | pub fn invalid_default_args_types_u_2(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
-   |                                                                   ^^^^^^^^^^^^^ required by this bound in `invalid_default_args_types_u_2_::args`
+40 | pub fn invalid_default_args_types_u_2(child: impl IntoUiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> UiNode {
+   |                                                                       ^^^^^^^^^^^^^ required by this bound in `invalid_default_args_types_u_2_::args`
 
 error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
   --> cases/property/defaults.rs:39:35
@@ -113,9 +113,9 @@ error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
    = help: the following other types implement trait `IntoVar<T>`:
             <implementers-list>
 note: required by a bound in `invalid_default_args_types_u_2_::args`
-  --> cases/property/defaults.rs:40:90
+  --> cases/property/defaults.rs:40:94
    |
 39 | #[property(CONTEXT, default(2555, true))]
    | ----------------------------------------- required by a bound in this associated function
-40 | pub fn invalid_default_args_types_u_2(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
-   |                                                                                          ^^^^^^^^^^^^ required by this bound in `invalid_default_args_types_u_2_::args`
+40 | pub fn invalid_default_args_types_u_2(child: impl IntoUiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> UiNode {
+   |                                                                                              ^^^^^^^^^^^^ required by this bound in `invalid_default_args_types_u_2_::args`

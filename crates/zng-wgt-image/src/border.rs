@@ -18,11 +18,11 @@ use crate::{IMAGE_CACHE_VAR, IMAGE_LIMITS_VAR, IMAGE_RENDERING_VAR};
 /// [`border_img_fill`]: fn@border_img_fill
 #[property(BORDER)]
 pub fn border_img(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     widths: impl IntoVar<SideOffsets>,
     source: impl IntoVar<ImageSource>,
     slices: impl IntoVar<SideOffsets>,
-) -> impl UiNode {
+) -> UiNode {
     let widths = widths.into_var();
     let source = source.into_var();
     let slices = slices.into_var();
@@ -161,7 +161,7 @@ pub fn border_img(
 ///
 /// This property sets the [`BORDER_IMG_REPEAT_VAR`].
 #[property(CONTEXT, default(BORDER_IMG_REPEAT_VAR))]
-pub fn border_img_repeat(child: impl UiNode, repeats: impl IntoVar<BorderRepeats>) -> impl UiNode {
+pub fn border_img_repeat(child: impl IntoUiNode, repeats: impl IntoVar<BorderRepeats>) -> UiNode {
     with_context_var(child, BORDER_IMG_REPEAT_VAR, repeats)
 }
 
@@ -169,7 +169,7 @@ pub fn border_img_repeat(child: impl UiNode, repeats: impl IntoVar<BorderRepeats
 ///
 /// This property sets the [`BORDER_IMG_FILL_VAR`].
 #[property(CONTEXT, default(BORDER_IMG_FILL_VAR))]
-pub fn border_img_fill(child: impl UiNode, fill: impl IntoVar<bool>) -> impl UiNode {
+pub fn border_img_fill(child: impl IntoUiNode, fill: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, BORDER_IMG_FILL_VAR, fill)
 }
 

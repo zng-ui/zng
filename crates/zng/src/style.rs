@@ -92,7 +92,7 @@
 //!
 //! Style instances can be set directly on `style_fn` properties, but if the style is used by more then one widget property values
 //! that can't be cloned will only appear on the last widget to use the style. The [`style_fn!`] macro can be used to declare a
-//! closure that instantiates the style for each usage. The property values that can't be cloned are `impl UiNode` and `impl UiNodeList`.
+//! closure that instantiates the style for each usage. The property values that can't be cloned are `impl IntoUiNode`.
 //!
 //! The example below demonstrates this issue:
 //!
@@ -111,7 +111,7 @@
 //!             widget::parallel = false; // init buttons sequentially
 //!
 //!             zng::button::style_fn = Style! {
-//!                 // background is `impl UiNode` that can't be cloned. Nodes
+//!                 // background is `impl IntoUiNode` that can't be cloned. Nodes
 //!                 // are moved to the last place that requests it.
 //!                 widget::background = zng::color::flood(colors::AZURE);
 //!             };

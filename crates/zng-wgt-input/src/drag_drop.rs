@@ -16,7 +16,7 @@ use zng_wgt::prelude::*;
 /// [`on_drag_start`]: fn@on_drag_start
 /// [`DRAG_DROP.drag`]: zng_ext_input::drag_drop::DRAG_DROP::drag
 #[property(CONTEXT, default(false))]
-pub fn draggable(child: impl UiNode, input: impl IntoVar<bool>) -> impl UiNode {
+pub fn draggable(child: impl IntoUiNode, input: impl IntoVar<bool>) -> UiNode {
     let input = input.into_var();
     match_node(child, move |_c, op| match op {
         UiNodeOp::Init => {
@@ -86,7 +86,7 @@ event_property! {
 /// [`ENABLED`]: Interactivity::ENABLED
 /// [`is_drag_hovered_disabled`]: fn@is_drag_hovered_disabled
 #[property(EVENT)]
-pub fn is_drag_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_drag_hovered(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state(child, state, false, DRAG_HOVERED_EVENT, |args| {
         if args.is_drag_enter_enabled() {
             Some(true)
@@ -100,7 +100,7 @@ pub fn is_drag_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl Ui
 
 /// If the dragging cursor is over the widget or a descendant and the widget is disabled.
 #[property(EVENT)]
-pub fn is_drag_hovered_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_drag_hovered_disabled(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state(child, state, false, DRAG_HOVERED_EVENT, |args| {
         if args.is_drag_enter_disabled() {
             Some(true)
@@ -114,7 +114,7 @@ pub fn is_drag_hovered_disabled(child: impl UiNode, state: impl IntoVar<bool>) -
 
 /// If the draggable widget is dragging.
 #[property(EVENT)]
-pub fn is_dragging(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_dragging(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {

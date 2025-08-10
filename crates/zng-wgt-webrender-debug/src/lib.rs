@@ -17,7 +17,7 @@ use zng_wgt::prelude::*;
 ///
 /// Fails silently if the view-process does not implement the `"zng-view.webrender_debug"` extension.
 #[property(CONTEXT, default(RendererDebug::disabled()))]
-pub fn renderer_debug(child: impl UiNode, debug: impl IntoVar<RendererDebug>) -> impl UiNode {
+pub fn renderer_debug(child: impl IntoUiNode, debug: impl IntoVar<RendererDebug>) -> UiNode {
     let debug = debug.into_var();
     let mut send = false;
     match_node(child, move |_, op| match op {

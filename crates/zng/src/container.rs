@@ -31,9 +31,9 @@
 //! ```
 //! # use zng::prelude::*;
 //! # let _scope = APP.defaults();
-//! # fn tools() -> impl UiNode { widget::node::NilUiNode }
-//! # fn content() -> impl UiNode { widget::node::NilUiNode }
-//! # fn status() -> impl UiNode { widget::node::NilUiNode }
+//! # fn tools() -> UiNode { widget::node::UiNode::nil() }
+//! # fn content() -> UiNode { widget::node::UiNode::nil() }
+//! # fn status() -> UiNode { widget::node::UiNode::nil() }
 //! # let _ =
 //! Window! {
 //!     child_top = tools(), 0;
@@ -51,7 +51,7 @@
 //!
 //! # Child Nodes
 //!
-//! The child can by any [`UiNode`] type, not just widgets, you can use this to plug nodes directly on the UI.
+//! The child can by any [`IntoUiNode`] type, not just widgets, you can use this to plug nodes directly on the UI.
 //!
 //! ```
 //! use zng::{prelude::*, prelude_wgt::*};
@@ -81,7 +81,7 @@
 //! # ;
 //! ```
 //!
-//! [`UiNode`]: crate::widget::node::UiNode
+//! [`IntoUiNode`]: crate::widget::node::IntoUiNode
 //!
 //! # Full API
 //!

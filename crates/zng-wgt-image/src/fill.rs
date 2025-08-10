@@ -24,7 +24,7 @@ use crate::{ImageFit, ImageRepeat};
 /// [`background_img_opacity`]: fn@background_img_opacity
 /// [`Image!`]: struct@crate::Image
 #[property(FILL)]
-pub fn background_img(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
+pub fn background_img(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> UiNode {
     background(
         child,
         fill_img_node(
@@ -46,7 +46,7 @@ pub fn background_img(child: impl UiNode, source: impl IntoVar<ImageSource>) -> 
 ///
 /// [`img_fit`]: fn@crate::img_fit
 #[property(CONTEXT, default(BACKGROUND_IMG_FIT_VAR))]
-pub fn background_img_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
+pub fn background_img_fit(child: impl IntoUiNode, fit: impl IntoVar<ImageFit>) -> UiNode {
     with_context_var(child, BACKGROUND_IMG_FIT_VAR, fit)
 }
 
@@ -56,7 +56,7 @@ pub fn background_img_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> im
 ///
 /// [`img_align`]: fn@crate::img_align
 #[property(CONTEXT, default(BACKGROUND_IMG_ALIGN_VAR))]
-pub fn background_img_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
+pub fn background_img_align(child: impl IntoUiNode, align: impl IntoVar<Align>) -> UiNode {
     with_context_var(child, BACKGROUND_IMG_ALIGN_VAR, align)
 }
 
@@ -66,7 +66,7 @@ pub fn background_img_align(child: impl UiNode, align: impl IntoVar<Align>) -> i
 ///
 /// [`img_offset`]: fn@crate::img_offset
 #[property(CONTEXT, default(BACKGROUND_IMG_OFFSET_VAR))]
-pub fn background_img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
+pub fn background_img_offset(child: impl IntoUiNode, offset: impl IntoVar<Vector>) -> UiNode {
     with_context_var(child, BACKGROUND_IMG_OFFSET_VAR, offset)
 }
 
@@ -76,7 +76,7 @@ pub fn background_img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -
 ///
 /// [`img_crop`]: fn@crate::img_crop
 #[property(CONTEXT, default(BACKGROUND_IMG_CROP_VAR))]
-pub fn background_img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
+pub fn background_img_crop(child: impl IntoUiNode, crop: impl IntoVar<Rect>) -> UiNode {
     with_context_var(child, BACKGROUND_IMG_CROP_VAR, crop)
 }
 
@@ -86,7 +86,7 @@ pub fn background_img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl
 ///
 /// [`img_repeat`]: fn@crate::img_repeat
 #[property(CONTEXT, default(BACKGROUND_IMG_REPEAT_VAR))]
-pub fn background_img_repeat(child: impl UiNode, repeat: impl IntoVar<ImageRepeat>) -> impl UiNode {
+pub fn background_img_repeat(child: impl IntoUiNode, repeat: impl IntoVar<ImageRepeat>) -> UiNode {
     with_context_var(child, BACKGROUND_IMG_REPEAT_VAR, repeat)
 }
 
@@ -96,7 +96,7 @@ pub fn background_img_repeat(child: impl UiNode, repeat: impl IntoVar<ImageRepea
 ///
 /// [`img_repeat_spacing`]: fn@crate::img_repeat_spacing
 #[property(CONTEXT, default(BACKGROUND_IMG_REPEAT_SPACING_VAR))]
-pub fn background_img_repeat_spacing(child: impl UiNode, spacing: impl IntoVar<Size>) -> impl UiNode {
+pub fn background_img_repeat_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Size>) -> UiNode {
     with_context_var(child, BACKGROUND_IMG_REPEAT_SPACING_VAR, spacing)
 }
 
@@ -106,7 +106,7 @@ pub fn background_img_repeat_spacing(child: impl UiNode, spacing: impl IntoVar<S
 ///
 /// [`img_repeat_spacing`]: fn@crate::img_repeat_spacing
 #[property(CONTEXT, default(BACKGROUND_IMG_OPACITY_VAR))]
-pub fn background_img_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
+pub fn background_img_opacity(child: impl IntoUiNode, alpha: impl IntoVar<Factor>) -> UiNode {
     with_context_var(child, BACKGROUND_IMG_OPACITY_VAR, alpha)
 }
 
@@ -175,7 +175,7 @@ context_var! {
 /// [`foreground_img_opacity`]: fn@foreground_img_opacity
 /// [`Image!`]: struct@crate::Image
 #[property(FILL)]
-pub fn foreground_img(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
+pub fn foreground_img(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> UiNode {
     foreground(
         child,
         fill_img_node(
@@ -197,7 +197,7 @@ pub fn foreground_img(child: impl UiNode, source: impl IntoVar<ImageSource>) -> 
 ///
 /// [`img_fit`]: fn@crate::img_fit
 #[property(CONTEXT, default(FOREGROUND_IMG_FIT_VAR))]
-pub fn foreground_img_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
+pub fn foreground_img_fit(child: impl IntoUiNode, fit: impl IntoVar<ImageFit>) -> UiNode {
     with_context_var(child, FOREGROUND_IMG_FIT_VAR, fit)
 }
 
@@ -207,7 +207,7 @@ pub fn foreground_img_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> im
 ///
 /// [`img_align`]: fn@crate::img_align
 #[property(CONTEXT, default(FOREGROUND_IMG_ALIGN_VAR))]
-pub fn foreground_img_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
+pub fn foreground_img_align(child: impl IntoUiNode, align: impl IntoVar<Align>) -> UiNode {
     with_context_var(child, FOREGROUND_IMG_ALIGN_VAR, align)
 }
 
@@ -217,7 +217,7 @@ pub fn foreground_img_align(child: impl UiNode, align: impl IntoVar<Align>) -> i
 ///
 /// [`img_offset`]: fn@crate::img_offset
 #[property(CONTEXT, default(FOREGROUND_IMG_OFFSET_VAR))]
-pub fn foreground_img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
+pub fn foreground_img_offset(child: impl IntoUiNode, offset: impl IntoVar<Vector>) -> UiNode {
     with_context_var(child, FOREGROUND_IMG_OFFSET_VAR, offset)
 }
 
@@ -227,7 +227,7 @@ pub fn foreground_img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -
 ///
 /// [`img_crop`]: fn@crate::img_crop
 #[property(CONTEXT, default(FOREGROUND_IMG_CROP_VAR))]
-pub fn foreground_img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
+pub fn foreground_img_crop(child: impl IntoUiNode, crop: impl IntoVar<Rect>) -> UiNode {
     with_context_var(child, FOREGROUND_IMG_CROP_VAR, crop)
 }
 
@@ -237,7 +237,7 @@ pub fn foreground_img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl
 ///
 /// [`img_repeat`]: fn@crate::img_repeat
 #[property(CONTEXT, default(FOREGROUND_IMG_REPEAT_VAR))]
-pub fn foreground_img_repeat(child: impl UiNode, repeat: impl IntoVar<ImageRepeat>) -> impl UiNode {
+pub fn foreground_img_repeat(child: impl IntoUiNode, repeat: impl IntoVar<ImageRepeat>) -> UiNode {
     with_context_var(child, FOREGROUND_IMG_REPEAT_VAR, repeat)
 }
 
@@ -247,7 +247,7 @@ pub fn foreground_img_repeat(child: impl UiNode, repeat: impl IntoVar<ImageRepea
 ///
 /// [`img_repeat_spacing`]: fn@crate::img_repeat_spacing
 #[property(CONTEXT, default(FOREGROUND_IMG_REPEAT_SPACING_VAR))]
-pub fn foreground_img_repeat_spacing(child: impl UiNode, spacing: impl IntoVar<Size>) -> impl UiNode {
+pub fn foreground_img_repeat_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Size>) -> UiNode {
     with_context_var(child, FOREGROUND_IMG_REPEAT_SPACING_VAR, spacing)
 }
 
@@ -257,7 +257,7 @@ pub fn foreground_img_repeat_spacing(child: impl UiNode, spacing: impl IntoVar<S
 ///
 /// [`img_repeat_spacing`]: fn@crate::img_repeat_spacing
 #[property(CONTEXT, default(FOREGROUND_IMG_OPACITY_VAR))]
-pub fn foreground_img_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
+pub fn foreground_img_opacity(child: impl IntoUiNode, alpha: impl IntoVar<Factor>) -> UiNode {
     with_context_var(child, FOREGROUND_IMG_OPACITY_VAR, alpha)
 }
 
@@ -320,7 +320,7 @@ fn fill_img_node(
     img_repeat: impl IntoVar<ImageRepeat>,
     img_repeat_spacing: impl IntoVar<Size>,
     img_opacity: impl IntoVar<Factor>,
-) -> impl UiNode {
+) -> UiNode {
     use crate::node;
     // child
     let child = node::image_presenter();
@@ -341,7 +341,7 @@ fn fill_img_node(
 }
 
 // very similar to `child_opacity`, code copied here to avoid importing the full `zng-wgt-filter`.
-fn opacity_node(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
+fn opacity_node(child: impl IntoUiNode, alpha: impl IntoVar<Factor>) -> UiNode {
     let frame_key = FrameValueKey::new_unique();
     let alpha = alpha.into_var();
 

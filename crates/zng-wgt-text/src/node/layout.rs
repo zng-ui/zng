@@ -52,12 +52,12 @@ use super::{LAIDOUT_TEXT, LaidoutText, PendingLayout, RenderInfo, TEXT};
 /// [`ResolvedText`]: super::ResolvedText
 ///
 /// [`NestGroup::CHILD_LAYOUT`]: zng_wgt::prelude::NestGroup::CHILD_LAYOUT
-pub fn layout_text(child: impl UiNode) -> impl UiNode {
+pub fn layout_text(child: impl IntoUiNode) -> UiNode {
     let child = layout_text_edit(child);
     let child = layout_text_layout(child);
     layout_text_context(child)
 }
-fn layout_text_context(child: impl UiNode) -> impl UiNode {
+fn layout_text_context(child: impl IntoUiNode) -> UiNode {
     let mut laidout = None;
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -96,7 +96,7 @@ fn layout_text_context(child: impl UiNode) -> impl UiNode {
         op => LAIDOUT_TEXT.with_context(&mut laidout, || child.op(op)),
     })
 }
-fn layout_text_layout(child: impl UiNode) -> impl UiNode {
+fn layout_text_layout(child: impl IntoUiNode) -> UiNode {
     let mut txt = LayoutTextFinal {
         shaping_args: TextShapingArgs::default(),
         pending: PendingLayout::empty(),
@@ -809,7 +809,7 @@ impl LayoutTextFinal {
     }
 }
 
-fn layout_text_edit(child: impl UiNode) -> impl UiNode {
+fn layout_text_edit(child: impl IntoUiNode) -> UiNode {
     // Use `LayoutTextEdit::get` to access.
     let mut edit = None::<Box<LayoutTextEdit>>;
 

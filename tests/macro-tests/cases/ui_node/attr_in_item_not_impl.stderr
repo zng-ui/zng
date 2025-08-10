@@ -1,5 +1,0 @@
-error: expected `impl`
- --> $DIR/attr_in_item_not_impl.rs:4:1
-  |
-4 | struct Foo {}
-  | ^^^^^^

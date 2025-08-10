@@ -153,7 +153,7 @@ fn default_scrollbar() -> WidgetFn<ScrollBarArgs> {
 ///
 /// This property sets the [`VERTICAL_SCROLLBAR_FN_VAR`].
 #[property(CONTEXT, default(VERTICAL_SCROLLBAR_FN_VAR), widget_impl(super::ScrollbarFnMix<P>))]
-pub fn v_scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarArgs>>) -> impl UiNode {
+pub fn v_scrollbar_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarArgs>>) -> UiNode {
     with_context_var(child, VERTICAL_SCROLLBAR_FN_VAR, wgt_fn)
 }
 
@@ -161,7 +161,7 @@ pub fn v_scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBa
 ///
 /// This property sets the [`HORIZONTAL_SCROLLBAR_FN_VAR`].
 #[property(CONTEXT, default(HORIZONTAL_SCROLLBAR_FN_VAR), widget_impl(super::ScrollbarFnMix<P>))]
-pub fn h_scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarArgs>>) -> impl UiNode {
+pub fn h_scrollbar_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarArgs>>) -> UiNode {
     with_context_var(child, HORIZONTAL_SCROLLBAR_FN_VAR, wgt_fn)
 }
 
@@ -172,7 +172,7 @@ pub fn h_scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBa
 /// [`v_scrollbar_fn`]: fn@v_scrollbar_fn
 /// [`h_scrollbar_fn`]: fn@h_scrollbar_fn
 #[property(CONTEXT, default(WidgetFn::nil()), widget_impl(super::ScrollbarFnMix<P>))]
-pub fn scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarArgs>>) -> impl UiNode {
+pub fn scrollbar_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarArgs>>) -> UiNode {
     let wgt_fn = wgt_fn.into_var();
     let child = v_scrollbar_fn(child, wgt_fn.clone());
     h_scrollbar_fn(child, wgt_fn)
@@ -182,7 +182,7 @@ pub fn scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarA
 ///
 /// This property sets the [`SCROLLBAR_JOINER_FN_VAR`].
 #[property(CONTEXT, default(SCROLLBAR_JOINER_FN_VAR), widget_impl(super::ScrollbarFnMix<P>))]
-pub fn scrollbar_joiner_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+pub fn scrollbar_joiner_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> UiNode {
     with_context_var(child, SCROLLBAR_JOINER_FN_VAR, wgt_fn)
 }
 
@@ -195,7 +195,7 @@ pub fn scrollbar_joiner_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>
 ///  
 /// This property sets the [`VERTICAL_LINE_UNIT_VAR`].
 #[property(CONTEXT, default(VERTICAL_LINE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
-pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
+pub fn v_line_unit(child: impl IntoUiNode, unit: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, VERTICAL_LINE_UNIT_VAR, unit)
 }
 
@@ -208,7 +208,7 @@ pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// This property sets the [`HORIZONTAL_LINE_UNIT_VAR`].
 #[property(CONTEXT, default(HORIZONTAL_LINE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
-pub fn h_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
+pub fn h_line_unit(child: impl IntoUiNode, unit: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, HORIZONTAL_LINE_UNIT_VAR, unit)
 }
 
@@ -219,7 +219,7 @@ pub fn h_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 /// [`h_line_unit`]: fn@h_line_unit
 /// [`v_line_unit`]: fn@v_line_unit
 #[property(CONTEXT, default(HORIZONTAL_LINE_UNIT_VAR, VERTICAL_LINE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
-pub fn line_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
+pub fn line_units(child: impl IntoUiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> UiNode {
     let child = h_line_unit(child, horizontal);
     v_line_unit(child, vertical)
 }
@@ -228,7 +228,7 @@ pub fn line_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical
 ///
 /// This property sets the [`ALT_FACTOR_VAR`].
 #[property(CONTEXT, default(ALT_FACTOR_VAR), widget_impl(super::ScrollUnitsMix<P>))]
-pub fn alt_factor(child: impl UiNode, factor: impl IntoVar<Factor>) -> impl UiNode {
+pub fn alt_factor(child: impl IntoUiNode, factor: impl IntoVar<Factor>) -> UiNode {
     with_context_var(child, ALT_FACTOR_VAR, factor)
 }
 
@@ -241,7 +241,7 @@ pub fn alt_factor(child: impl UiNode, factor: impl IntoVar<Factor>) -> impl UiNo
 ///
 /// This property sets the [`VERTICAL_PAGE_UNIT_VAR`].
 #[property(CONTEXT, default(VERTICAL_PAGE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
-pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
+pub fn v_page_unit(child: impl IntoUiNode, unit: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, VERTICAL_PAGE_UNIT_VAR, unit)
 }
 
@@ -254,7 +254,7 @@ pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// This property sets the [`HORIZONTAL_PAGE_UNIT_VAR`].
 #[property(CONTEXT, default(HORIZONTAL_PAGE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
-pub fn h_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
+pub fn h_page_unit(child: impl IntoUiNode, unit: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, HORIZONTAL_PAGE_UNIT_VAR, unit)
 }
 
@@ -265,7 +265,7 @@ pub fn h_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 /// [`h_page_unit`]: fn@h_page_unit
 /// [`v_page_unit`]: fn@v_page_unit
 #[property(CONTEXT, default(HORIZONTAL_PAGE_UNIT_VAR, VERTICAL_PAGE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
-pub fn page_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
+pub fn page_units(child: impl IntoUiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> UiNode {
     let child = h_page_unit(child, horizontal);
     v_page_unit(child, vertical)
 }
@@ -278,7 +278,7 @@ pub fn page_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical
 ///
 /// This property sets the [`HORIZONTAL_WHEEL_UNIT_VAR`].
 #[property(CONTEXT, default(HORIZONTAL_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
-pub fn h_wheel_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
+pub fn h_wheel_unit(child: impl IntoUiNode, unit: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, HORIZONTAL_WHEEL_UNIT_VAR, unit)
 }
 
@@ -290,7 +290,7 @@ pub fn h_wheel_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNo
 ///
 /// This property sets the [`VERTICAL_WHEEL_UNIT_VAR`]`.
 #[property(CONTEXT, default(VERTICAL_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
-pub fn v_wheel_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
+pub fn v_wheel_unit(child: impl IntoUiNode, unit: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, VERTICAL_WHEEL_UNIT_VAR, unit)
 }
 
@@ -301,7 +301,7 @@ pub fn v_wheel_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNo
 /// [`h_wheel_unit`]: fn@h_wheel_unit
 /// [`v_wheel_unit`]: fn@v_wheel_unit
 #[property(CONTEXT, default(HORIZONTAL_WHEEL_UNIT_VAR, VERTICAL_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
-pub fn wheel_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
+pub fn wheel_units(child: impl IntoUiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> UiNode {
     let child = h_wheel_unit(child, horizontal);
     v_wheel_unit(child, vertical)
 }
@@ -314,7 +314,7 @@ pub fn wheel_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertica
 ///
 /// This property sets the [`ZOOM_WHEEL_UNIT_VAR`].
 #[property(CONTEXT, default(ZOOM_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
-pub fn zoom_wheel_unit(child: impl UiNode, unit: impl IntoVar<Factor>) -> impl UiNode {
+pub fn zoom_wheel_unit(child: impl IntoUiNode, unit: impl IntoVar<Factor>) -> UiNode {
     with_context_var(child, ZOOM_WHEEL_UNIT_VAR, unit)
 }
 
@@ -324,7 +324,7 @@ pub fn zoom_wheel_unit(child: impl UiNode, unit: impl IntoVar<Factor>) -> impl U
 ///
 /// [`LayoutMetrics::viewport`]: zng_wgt::prelude::LayoutMetrics::viewport
 #[property(CONTEXT, default(DEFINE_VIEWPORT_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
-pub fn define_viewport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn define_viewport_unit(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, DEFINE_VIEWPORT_UNIT_VAR, enabled)
 }
 
@@ -334,7 +334,7 @@ pub fn define_viewport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> 
 ///
 /// This property sets the [`SMOOTH_SCROLLING_VAR`].
 #[property(CONTEXT, default(SMOOTH_SCROLLING_VAR), widget_impl(Scroll))]
-pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling>) -> impl UiNode {
+pub fn smooth_scrolling(child: impl IntoUiNode, config: impl IntoVar<SmoothScrolling>) -> UiNode {
     with_context_var(child, SMOOTH_SCROLLING_VAR, config)
 }
 
@@ -349,7 +349,7 @@ pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling
 ///
 /// This property sets the [`SCROLL_TO_FOCUSED_MODE_VAR`].
 #[property(CONTEXT, default(SCROLL_TO_FOCUSED_MODE_VAR), widget_impl(Scroll))]
-pub fn scroll_to_focused_mode(child: impl UiNode, mode: impl IntoVar<Option<ScrollToMode>>) -> impl UiNode {
+pub fn scroll_to_focused_mode(child: impl IntoUiNode, mode: impl IntoVar<Option<ScrollToMode>>) -> UiNode {
     with_context_var(child, SCROLL_TO_FOCUSED_MODE_VAR, mode)
 }
 
@@ -368,7 +368,7 @@ pub fn scroll_to_focused_mode(child: impl UiNode, mode: impl IntoVar<Option<Scro
 ///
 /// [`FrameBuilder::auto_hide_rect`]: zng_wgt::prelude::FrameBuilder::auto_hide_rect
 #[property(CONTEXT, default(AUTO_HIDE_EXTRA_VAR), widget_impl(Scroll))]
-pub fn auto_hide_extra(child: impl UiNode, extra: impl IntoVar<SideOffsets>) -> impl UiNode {
+pub fn auto_hide_extra(child: impl IntoUiNode, extra: impl IntoVar<SideOffsets>) -> UiNode {
     with_context_var(child, AUTO_HIDE_EXTRA_VAR, extra)
 }
 
@@ -379,7 +379,7 @@ pub fn auto_hide_extra(child: impl UiNode, extra: impl IntoVar<SideOffsets>) -> 
 ///
 /// This property sets the [`OVERSCROLL_COLOR_VAR`].
 #[property(CONTEXT, default(OVERSCROLL_COLOR_VAR), widget_impl(Scroll))]
-pub fn overscroll_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn overscroll_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
     with_context_var(child, OVERSCROLL_COLOR_VAR, color)
 }
 
@@ -387,7 +387,7 @@ pub fn overscroll_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 ///
 /// This property sets the [`MIN_ZOOM_VAR`].
 #[property(CONTEXT, default(MIN_ZOOM_VAR), widget_impl(Scroll))]
-pub fn min_zoom(child: impl UiNode, min: impl IntoVar<Factor>) -> impl UiNode {
+pub fn min_zoom(child: impl IntoUiNode, min: impl IntoVar<Factor>) -> UiNode {
     with_context_var(child, MIN_ZOOM_VAR, min)
 }
 
@@ -395,7 +395,7 @@ pub fn min_zoom(child: impl UiNode, min: impl IntoVar<Factor>) -> impl UiNode {
 ///
 /// This property sets the [`MAX_ZOOM_VAR`].
 #[property(CONTEXT, default(MAX_ZOOM_VAR), widget_impl(Scroll))]
-pub fn max_zoom(child: impl UiNode, max: impl IntoVar<Factor>) -> impl UiNode {
+pub fn max_zoom(child: impl IntoUiNode, max: impl IntoVar<Factor>) -> UiNode {
     with_context_var(child, MAX_ZOOM_VAR, max)
 }
 
@@ -410,7 +410,7 @@ pub fn max_zoom(child: impl UiNode, max: impl IntoVar<Factor>) -> impl UiNode {
 ///
 /// [`Length::Default`]: zng_wgt::prelude::Length::Default
 #[property(CONTEXT, default(ZOOM_WHEEL_ORIGIN_VAR), widget_impl(Scroll))]
-pub fn zoom_wheel_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
+pub fn zoom_wheel_origin(child: impl IntoUiNode, origin: impl IntoVar<Point>) -> UiNode {
     with_context_var(child, ZOOM_WHEEL_ORIGIN_VAR, origin)
 }
 
@@ -425,7 +425,7 @@ pub fn zoom_wheel_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> imp
 ///
 /// [`Length::Default`]: zng_wgt::prelude::Length::Default
 #[property(CONTEXT, default(ZOOM_TOUCH_ORIGIN_VAR), widget_impl(Scroll))]
-pub fn zoom_touch_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
+pub fn zoom_touch_origin(child: impl IntoUiNode, origin: impl IntoVar<Point>) -> UiNode {
     with_context_var(child, ZOOM_TOUCH_ORIGIN_VAR, origin)
 }
 
@@ -436,7 +436,7 @@ pub fn zoom_touch_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> imp
 /// [`zoom_wheel_origin`]: fn@zoom_wheel_origin
 /// [`zoom_touch_origin`]: fn@zoom_touch_origin
 #[property(CONTEXT, default(Point::default()), widget_impl(Scroll))]
-pub fn zoom_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
+pub fn zoom_origin(child: impl IntoUiNode, origin: impl IntoVar<Point>) -> UiNode {
     let origin = origin.into_var();
     let child = zoom_wheel_origin(child, origin.clone());
     zoom_touch_origin(child, origin)
@@ -451,7 +451,7 @@ pub fn zoom_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNo
 ///
 /// [`auto_scroll_indicator`]: fn@auto_scroll_indicator
 #[property(CONTEXT, default(AUTO_SCROLL_VAR), widget_impl(Scroll))]
-pub fn auto_scroll(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn auto_scroll(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, AUTO_SCROLL_VAR, enabled)
 }
 
@@ -465,7 +465,7 @@ pub fn auto_scroll(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNo
 /// [`node::default_auto_scroll_indicator`]: crate::node::default_auto_scroll_indicator
 /// [`auto_scroll`]: fn@auto_scroll
 #[property(CONTEXT, default(AUTO_SCROLL_INDICATOR_VAR), widget_impl(Scroll))]
-pub fn auto_scroll_indicator(child: impl UiNode, indicator: impl IntoVar<WidgetFn<AutoScrollArgs>>) -> impl UiNode {
+pub fn auto_scroll_indicator(child: impl IntoUiNode, indicator: impl IntoVar<WidgetFn<AutoScrollArgs>>) -> UiNode {
     with_context_var(child, AUTO_SCROLL_INDICATOR_VAR, indicator)
 }
 
@@ -478,7 +478,7 @@ pub fn auto_scroll_indicator(child: impl UiNode, indicator: impl IntoVar<WidgetF
 ///
 /// [`horizontal_offset`]: super::SCROLL::horizontal_offset
 #[property(EVENT, widget_impl(Scroll))]
-pub fn horizontal_offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> impl UiNode {
+pub fn horizontal_offset(child: impl IntoUiNode, offset: impl IntoVar<Factor>) -> UiNode {
     let offset = offset.into_var();
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
@@ -502,7 +502,7 @@ pub fn horizontal_offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> im
 ///
 /// [`vertical_offset`]: super::SCROLL::vertical_offset
 #[property(EVENT, widget_impl(Scroll))]
-pub fn vertical_offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> impl UiNode {
+pub fn vertical_offset(child: impl IntoUiNode, offset: impl IntoVar<Factor>) -> UiNode {
     let offset = offset.into_var();
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
@@ -526,7 +526,7 @@ pub fn vertical_offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> impl
 ///
 /// [`zoom_scale`]: super::SCROLL::zoom_scale
 #[property(EVENT, widget_impl(Scroll))]
-pub fn zoom_scale(child: impl UiNode, scale: impl IntoVar<Factor>) -> impl UiNode {
+pub fn zoom_scale(child: impl IntoUiNode, scale: impl IntoVar<Factor>) -> UiNode {
     let scale = scale.into_var();
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
@@ -599,7 +599,7 @@ impl ScrollBarArgs {
 /// This is not enabled by default. Note that couch pan is always enabled, this property implements
 /// a similar behavior for the mouse pointer.
 #[property(LAYOUT, default(false), widget_impl(Scroll))]
-pub fn mouse_pan(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn mouse_pan(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
     let mut mouse_input = EventHandle::dummy();
 

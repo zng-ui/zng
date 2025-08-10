@@ -1,11 +1,11 @@
 error: methods cannot be hot nodes
  --> cases/hot_node/method_cannot_be_hot_node.rs:8:25
   |
-8 |     pub fn self_method1(self, input: impl IntoVar<bool>) -> impl UiNode {
+8 |     pub fn self_method1(self, input: impl IntoVar<bool>) -> UiNode {
   |                         ^^^^
 
 error: methods cannot be hot nodes
   --> cases/hot_node/method_cannot_be_hot_node.rs:14:25
    |
-14 |     pub fn self_method2(self: Box<Self>, input: impl IntoVar<bool>) -> impl UiNode {
+14 |     pub fn self_method2(self: Box<Self>, input: impl IntoVar<bool>) -> UiNode {
    |                         ^^^^

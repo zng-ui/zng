@@ -6,7 +6,7 @@
 //! use zng::prelude::*;
 //! # APP.defaults().run_window(async {
 //!
-//! fn main_menu() -> impl UiNode {
+//! fn main_menu() -> UiNode {
 //!     Menu!(ui_vec![
 //!         SubMenu!(
 //!             "File",

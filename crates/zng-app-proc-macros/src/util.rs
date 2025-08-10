@@ -1,4 +1,4 @@
-use std::{borrow::Cow, env, fmt, fs, path::PathBuf};
+use std::{borrow::Cow, env, fs, path::PathBuf};
 
 use proc_macro2::*;
 use quote::{ToTokens, quote_spanned};
@@ -211,23 +211,6 @@ fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
     }
 
     Err(())
-}
-
-/// Generates a return of a compile_error message in the given span.
-macro_rules! abort {
-    ($span:expr, $($tt:tt)*) => {{
-        let error = format!($($tt)*);
-        let error = syn::LitStr::new(&error, proc_macro2::Span::call_site());
-
-        return quote_spanned!($span=> compile_error!{#error}).into();
-    }};
-}
-
-/// Generates a return of a compile_error message in the call_site span.
-macro_rules! abort_call_site {
-    ($($tt:tt)*) => {
-        abort!(proc_macro2::Span::call_site(), $($tt)*)
-    };
 }
 
 /// Input error not caused by the user.
@@ -527,97 +510,6 @@ pub fn last_span(tts: TokenStream) -> Span {
         }
     } else {
         Span::call_site()
-    }
-}
-
-/// A lint level.
-///
-/// NOTE: We add an underline `_` after the lint display name because rustc validates
-/// custom tools even for lint attributes removed by proc-macros.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum LintLevel {
-    Allow,
-    Warn,
-    Deny,
-    Forbid,
-}
-impl fmt::Display for LintLevel {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            LintLevel::Allow => write!(f, "allow_"),
-            LintLevel::Warn => write!(f, "warn_"),
-            LintLevel::Deny => write!(f, "deny_"),
-            LintLevel::Forbid => write!(f, "forbid_"),
-        }
-    }
-}
-
-/// Takes lint attributes in the `zng::` namespace.
-///
-/// Pushes `errors` for unsupported `warn` and already attempt of setting
-/// level of forbidden zng lints.
-///
-/// NOTE: We add an underline `_` after the lint ident because rustc validates
-/// custom tools even for lint attributes removed by proc-macros.
-pub fn take_zng_lints(
-    attrs: &mut Vec<Attribute>,
-    errors: &mut Errors,
-    forbidden: &std::collections::HashSet<&Ident>,
-) -> Vec<(Ident, LintLevel, Attribute)> {
-    let mut r = vec![];
-    let mut i = 0;
-    while i < attrs.len() {
-        if let Some(ident) = attrs[i].path().get_ident() {
-            let level = if ident == "allow_" {
-                LintLevel::Allow
-            } else if ident == "warn_" {
-                LintLevel::Warn
-            } else if ident == "deny_" {
-                LintLevel::Deny
-            } else if ident == "forbid_" {
-                LintLevel::Forbid
-            } else {
-                i += 1;
-                continue;
-            };
-            if let Ok(path) = syn::parse2::<LintPath>(attrs[i].tokens()) {
-                let path = path.path;
-                if path.segments.len() == 2 && path.segments[0].ident == "zng" {
-                    let attr = attrs.remove(i);
-                    let lint_ident = path.segments[1].ident.clone();
-                    match level {
-                        LintLevel::Warn => errors.push(
-                            "cannot set zng lints to warn because warning diagnostics are not stable",
-                            attr.path().span(),
-                        ),
-                        LintLevel::Allow if forbidden.contains(&lint_ident) => {
-                            errors.push(format_args!("lint `zng::{lint_ident}` is `forbid` in this context"), attr.span())
-                        }
-                        _ => {
-                            r.push((lint_ident, level, attr));
-                        }
-                    }
-
-                    continue; // same i new attribute
-                }
-            }
-        }
-
-        i += 1;
-    }
-    r
-}
-struct LintPath {
-    _paren: syn::token::Paren,
-    path: syn::Path,
-}
-impl syn::parse::Parse for LintPath {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let inner;
-        Ok(LintPath {
-            _paren: syn::parenthesized!(inner in input),
-            path: inner.parse()?,
-        })
     }
 }
 

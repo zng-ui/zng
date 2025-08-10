@@ -44,7 +44,7 @@ fn main() {
     })
 }
 
-fn alt_scope() -> impl UiNode {
+fn alt_scope() -> UiNode {
     Stack! {
         direction = StackDirection::left_to_right();
         alt_focus_scope = true;
@@ -57,7 +57,7 @@ fn alt_scope() -> impl UiNode {
     }
 }
 
-fn tab_index_example() -> impl UiNode {
+fn tab_index_example() -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
@@ -73,7 +73,7 @@ fn tab_index_example() -> impl UiNode {
     }
 }
 
-fn functions(window_enabled: Var<bool>) -> impl UiNode {
+fn functions(window_enabled: Var<bool>) -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
@@ -109,7 +109,7 @@ fn functions(window_enabled: Var<bool>) -> impl UiNode {
             // Detach Button
             {
                 let detach_focused = ArcNode::new_cyclic(|wk| {
-                    let btn = Button! {
+                    Button! {
                         child = Text!("Detach Button");
                         // focus_on_init = true;
                         on_click = hn!(|_| {
@@ -122,8 +122,7 @@ fn functions(window_enabled: Var<bool>) -> impl UiNode {
                                 }
                             });
                         });
-                    };
-                    btn.boxed()
+                    }
                 });
                 detach_focused.take_on_init().into_widget()
             },
@@ -141,7 +140,7 @@ fn functions(window_enabled: Var<bool>) -> impl UiNode {
         ]
     }
 }
-fn disable_window(window_enabled: Var<bool>) -> impl UiNode {
+fn disable_window(window_enabled: Var<bool>) -> UiNode {
     Button! {
         child = Text!(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
         layout::min_width = 140;
@@ -152,7 +151,7 @@ fn disable_window(window_enabled: Var<bool>) -> impl UiNode {
         });
     }
 }
-fn overlay(window_enabled: Var<bool>) -> impl UiNode {
+fn overlay(window_enabled: Var<bool>) -> UiNode {
     Container! {
         id = "overlay";
         widget::modal = true;
@@ -192,7 +191,7 @@ fn overlay(window_enabled: Var<bool>) -> impl UiNode {
     }
 }
 
-fn delayed_focus() -> impl UiNode {
+fn delayed_focus() -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
@@ -247,7 +246,7 @@ fn delayed_focus() -> impl UiNode {
         ]
     }
 }
-fn delayed_btn(content: impl Into<Txt>, on_timeout: impl FnMut() + Send + 'static) -> impl UiNode {
+fn delayed_btn(content: impl Into<Txt>, on_timeout: impl FnMut() + Send + 'static) -> UiNode {
     use std::sync::Arc;
     use task::parking_lot::Mutex;
 
@@ -266,7 +265,7 @@ fn delayed_btn(content: impl Into<Txt>, on_timeout: impl FnMut() + Send + 'stati
     }
 }
 
-fn title(txt: impl IntoVar<Txt>) -> impl UiNode {
+fn title(txt: impl IntoVar<Txt>) -> UiNode {
     Text! {
         txt;
         font_weight = FontWeight::BOLD;
@@ -274,7 +273,7 @@ fn title(txt: impl IntoVar<Txt>) -> impl UiNode {
     }
 }
 
-fn button(content: impl Into<Txt>, tab_index: impl Into<TabIndex>) -> impl UiNode {
+fn button(content: impl Into<Txt>, tab_index: impl Into<TabIndex>) -> UiNode {
     let content = content.into();
     let tab_index = tab_index.into();
     Button! {
@@ -284,7 +283,7 @@ fn button(content: impl Into<Txt>, tab_index: impl Into<TabIndex>) -> impl UiNod
     }
 }
 
-fn commands() -> impl UiNode {
+fn commands() -> UiNode {
     use zng::focus::cmd::*;
 
     let cmds = [
@@ -319,9 +318,8 @@ fn commands() -> impl UiNode {
                         font_color = light_dark(colors::BLACK, colors::WHITE);
                     }
                 }
-                .boxed()
             })
-            .collect::<Vec<_>>();
+            .collect::<UiVec>();
     }
 }
 
@@ -341,7 +339,7 @@ fn trace_focus() {
         .perm();
 }
 
-fn nested_focusables() -> impl UiNode {
+fn nested_focusables() -> UiNode {
     Button! {
         child = Text!("Nested Focusables");
 
@@ -366,15 +364,15 @@ fn nested_focusables() -> impl UiNode {
         })
     }
 }
-fn nested_focusables_group(g: char) -> impl UiNode {
+fn nested_focusables_group(g: char) -> UiNode {
     Stack! {
         direction = StackDirection::left_to_right();
         align = Align::TOP;
         spacing = 10;
-        children = (0..5).map(|n| nested_focusable(g, n, 0).boxed()).collect::<Vec<_>>()
+        children = (0..5).map(|n| nested_focusable(g, n, 0)).collect::<UiVec>()
     }
 }
-fn nested_focusable(g: char, column: u8, row: u8) -> impl UiNode {
+fn nested_focusable(g: char, column: u8, row: u8) -> UiNode {
     let nested = Text! {
         txt = format!("Focusable {column}, {row}");
         margin = 5;

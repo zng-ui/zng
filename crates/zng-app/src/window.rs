@@ -290,7 +290,7 @@ mod _impl {
         /// Call inside [`with_test_context`] to init the `content` as a child of the test window root.
         ///
         /// [`with_test_context`]: Self::with_test_context
-        pub fn test_init(&self, content: &mut impl UiNode) -> ContextUpdates {
+        pub fn test_init(&self, content: &mut UiNode) -> ContextUpdates {
             content.init();
             WIDGET.test_root_updates();
             UPDATES.apply()
@@ -299,7 +299,7 @@ mod _impl {
         /// Call inside [`with_test_context`] to deinit the `content` as a child of the test window root.
         ///
         /// [`with_test_context`]: Self::with_test_context
-        pub fn test_deinit(&self, content: &mut impl UiNode) -> ContextUpdates {
+        pub fn test_deinit(&self, content: &mut UiNode) -> ContextUpdates {
             content.deinit();
             WIDGET.test_root_updates();
             UPDATES.apply()
@@ -308,7 +308,7 @@ mod _impl {
         /// Call inside [`with_test_context`] to rebuild info the `content` as a child of the test window root.
         ///
         /// [`with_test_context`]: Self::with_test_context
-        pub fn test_info(&self, content: &mut impl UiNode) -> ContextUpdates {
+        pub fn test_info(&self, content: &mut UiNode) -> ContextUpdates {
             let l_size = self.test_window_size();
             let mut info = crate::widget::info::WidgetInfoBuilder::new(
                 Arc::default(),
@@ -329,7 +329,7 @@ mod _impl {
         /// Call inside [`with_test_context`] to delivery an event to the `content` as a child of the test window root.
         ///
         /// [`with_test_context`]: Self::with_test_context
-        pub fn test_event(&self, content: &mut impl UiNode, update: &mut EventUpdate) -> ContextUpdates {
+        pub fn test_event(&self, content: &mut UiNode, update: &mut EventUpdate) -> ContextUpdates {
             update.delivery_list_mut().fulfill_search([&WINDOW.info()].into_iter());
             content.event(update);
             WIDGET.test_root_updates();
@@ -341,12 +341,13 @@ mod _impl {
         /// The `updates` can be set to a custom delivery list, otherwise window root and `content` widget are flagged for update.
         ///
         /// [`with_test_context`]: Self::with_test_context
-        pub fn test_update(&self, content: &mut impl UiNode, updates: Option<&mut WidgetUpdates>) -> ContextUpdates {
+        pub fn test_update(&self, content: &mut UiNode, updates: Option<&mut WidgetUpdates>) -> ContextUpdates {
             if let Some(updates) = updates {
                 updates.delivery_list_mut().fulfill_search([&WINDOW.info()].into_iter());
                 content.update(updates)
             } else {
-                let target = if let Some(content_id) = content.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
+                let target = if let Some(mut wgt) = content.as_widget() {
+                    let content_id = wgt.id();
                     WidgetPath::new(WINDOW.id(), vec![WIDGET.id(), content_id].into())
                 } else {
                     WidgetPath::new(WINDOW.id(), vec![WIDGET.id()].into())
@@ -364,7 +365,7 @@ mod _impl {
         /// Call inside [`with_test_context`] to layout the `content` as a child of the test window root.
         ///
         /// [`with_test_context`]: Self::with_test_context
-        pub fn test_layout(&self, content: &mut impl UiNode, constraints: Option<PxConstraints2d>) -> (PxSize, ContextUpdates) {
+        pub fn test_layout(&self, content: &mut UiNode, constraints: Option<PxConstraints2d>) -> (PxSize, ContextUpdates) {
             let font_size = Length::pt_to_px(14.0, 1.0.fct());
             let viewport = self.test_window_size();
             let mut metrics = LayoutMetrics::new(1.fct(), viewport, font_size);
@@ -387,7 +388,7 @@ mod _impl {
         /// [`with_test_context`]: Self::with_test_context
         pub fn test_layout_inline(
             &self,
-            content: &mut impl UiNode,
+            content: &mut UiNode,
             measure_constraints: (PxConstraints2d, InlineConstraintsMeasure),
             layout_constraints: (PxConstraints2d, InlineConstraintsLayout),
         ) -> ((PxSize, PxSize), ContextUpdates) {
@@ -418,7 +419,7 @@ mod _impl {
         /// Call inside [`with_test_context`] to render the `content` as a child of the test window root.
         ///
         /// [`with_test_context`]: Self::with_test_context
-        pub fn test_render(&self, content: &mut impl UiNode) -> (crate::render::BuiltFrame, ContextUpdates) {
+        pub fn test_render(&self, content: &mut UiNode) -> (crate::render::BuiltFrame, ContextUpdates) {
             use crate::render::*;
 
             let mut frame = {
@@ -453,7 +454,7 @@ mod _impl {
         /// Call inside [`with_test_context`] to render_update the `content` as a child of the test window root.
         ///
         /// [`with_test_context`]: Self::with_test_context
-        pub fn test_render_update(&self, content: &mut impl UiNode) -> (crate::render::BuiltFrameUpdate, ContextUpdates) {
+        pub fn test_render_update(&self, content: &mut UiNode) -> (crate::render::BuiltFrameUpdate, ContextUpdates) {
             use crate::render::*;
 
             let mut update = {

@@ -44,7 +44,7 @@ impl DialogBackdrop {
 impl_style_fn!(DialogBackdrop);
 
 /// Share popup events with the dialog child.
-fn backdrop_node(child: impl UiNode) -> impl UiNode {
+fn backdrop_node(child: impl IntoUiNode) -> UiNode {
     match_node(child, |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_event(&POPUP_CLOSE_REQUESTED_EVENT);

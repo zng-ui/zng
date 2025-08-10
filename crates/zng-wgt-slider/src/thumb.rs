@@ -72,7 +72,7 @@ pub fn value(thumb: impl IntoVar<ThumbValue>) {}
 /// Main thumb implementation.
 ///
 /// Handles mouse and touch drag, applies the thumb offset as translation on layout.
-fn thumb_event_layout_node(child: impl UiNode, value: impl IntoVar<ThumbValue>) -> impl UiNode {
+fn thumb_event_layout_node(child: impl IntoUiNode, value: impl IntoVar<ThumbValue>) -> UiNode {
     let value = value.into_var();
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {

@@ -147,7 +147,7 @@ fn on_border_img() {
     });
 }
 
-fn clip_to_bounds_demo() -> impl UiNode {
+fn clip_to_bounds_demo() -> UiNode {
     let clip = var(true);
     Container! {
         child_align = Align::FILL;

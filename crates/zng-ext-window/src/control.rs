@@ -22,7 +22,7 @@ use zng_app::{
     widget::{
         VarLayout, WIDGET, WidgetCtx, WidgetId, WidgetUpdateMode,
         info::{WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetMeasure, WidgetPath, access::AccessEnabled},
-        node::{BoxedUiNode, UiNode},
+        node::{UiNode, UiNodeImpl, WidgetUiNodeImpl},
     },
     window::{WINDOW, WindowCtx, WindowId, WindowMode},
 };
@@ -1941,7 +1941,7 @@ struct ContentCtrl {
     commands: WindowCommands,
 
     root_ctx: WidgetCtx,
-    root: BoxedUiNode,
+    root: UiNode,
     layout_pass: LayoutPassId,
 
     init_state: InitState,
@@ -2570,12 +2570,12 @@ impl NestedCtrl {
     }
 }
 
-/// UI node that presents a [`WindowRoot`] as embedded content.
+/// UI node implementation that presents a [`WindowRoot`] as embedded content.
 pub struct NestedWindowNode {
     c: Arc<Mutex<NestedContentCtrl>>,
 }
 impl NestedWindowNode {
-    fn layout_impl(&mut self, is_measure: bool, measure_layout: impl FnOnce(&mut BoxedUiNode) -> PxSize) -> PxSize {
+    fn layout_impl(&mut self, is_measure: bool, measure_layout: impl FnOnce(&mut UiNode) -> PxSize) -> PxSize {
         let mut c = self.c.lock();
         let c = &mut *c;
 
@@ -2632,7 +2632,17 @@ impl NestedWindowNode {
         })
     }
 }
-impl UiNode for NestedWindowNode {
+impl UiNodeImpl for NestedWindowNode {
+    fn children_len(&self) -> usize {
+        1
+    }
+
+    fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
+        if index == 0 {
+            visitor(&mut self.c.lock().content.root)
+        }
+    }
+
     fn init(&mut self) {
         let mut c = self.c.lock();
         let parent_id = WINDOW.id();
@@ -2747,6 +2757,111 @@ impl UiNode for NestedWindowNode {
             })
         })
     }
+
+    fn is_list(&self) -> bool {
+        false
+    }
+
+    fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+        visitor(0, &mut self.c.lock().content.root)
+    }
+
+    fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+        visitor(0, &mut self.c.lock().content.root)
+    }
+
+    fn par_fold_reduce(
+        &mut self,
+        identity: zng_var::BoxAnyVarValue,
+        fold: &(dyn Fn(zng_var::BoxAnyVarValue, usize, &mut UiNode) -> zng_var::BoxAnyVarValue + Sync),
+        _: &(dyn Fn(zng_var::BoxAnyVarValue, zng_var::BoxAnyVarValue) -> zng_var::BoxAnyVarValue + Sync),
+    ) -> zng_var::BoxAnyVarValue {
+        fold(identity, 0, &mut self.c.lock().content.root)
+    }
+
+    fn update_list(&mut self, updates: &WidgetUpdates, _: &mut dyn zng_wgt::prelude::UiNodeListObserver) {
+        self.update(updates);
+    }
+
+    fn measure_list(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        _: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+        _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.measure(wm)
+    }
+
+    fn layout_list(
+        &mut self,
+        wl: &mut WidgetLayout,
+        _: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+        _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.layout(wl)
+    }
+
+    fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+        if self.is_list() {
+            match self.children_len() {
+                0 => {}
+                1 => self.with_child(0, &mut |n| render(0, n, frame)),
+                _ => {
+                    #[cfg(debug_assertions)]
+                    if zng_app::widget::base::PARALLEL_VAR
+                        .get()
+                        .contains(zng_app::widget::base::Parallel::RENDER)
+                    {
+                        // wm.parallel_split() is too large to fit in BoxAnyVarValue stack space,
+                        // so default parallel here would alloc
+                        tracing::info!("UiNodeImpl is_list without implementing `render_list`");
+                    }
+                    self.for_each_child(&mut |i, n| render(i, n, frame));
+                }
+            }
+        } else {
+            self.render(frame);
+        }
+    }
+
+    fn render_update_list(&mut self, update: &mut FrameUpdate, render_update: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
+        if self.is_list() {
+            match self.children_len() {
+                0 => {}
+                1 => self.with_child(0, &mut |n| render_update(0, n, update)),
+                _ => {
+                    #[cfg(debug_assertions)]
+                    if zng_app::widget::base::PARALLEL_VAR
+                        .get()
+                        .contains(zng_app::widget::base::Parallel::RENDER)
+                    {
+                        // wm.parallel_split() is too large to fit in BoxAnyVarValue stack space,
+                        // so default parallel here would alloc
+                        tracing::info!("UiNodeImpl is_list without implementing `render_list`");
+                    }
+                    self.for_each_child(&mut |i, n| render_update(i, n, update));
+                }
+            }
+        } else {
+            self.render_update(update);
+        }
+    }
+
+    fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+        if self.c.lock().content.root.as_widget().is_some() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+}
+impl WidgetUiNodeImpl for NestedWindowNode {
+    fn with_context(&mut self, update_mode: WidgetUpdateMode, visitor: &mut dyn FnMut()) {
+        let mut lock = self.c.lock();
+        if let Some(mut w) = lock.content.root.as_widget() {
+            w.with_context(update_mode, visitor)
+        }
+    }
 }
 
 static_id! {
@@ -2821,6 +2936,9 @@ impl OpenNestedHandlerArgs {
     }
 
     /// Instantiate a node that layouts and renders the window content.
+    ///
+    /// Calling this will stop the normal window chrome from opening, the caller is responsible for inserting the node into the
+    /// main window layout.
     ///
     /// Note that the window will notify *open* like normal, but it will only be visible on this node.
     pub fn nest(&mut self) -> NestedWindowNode {

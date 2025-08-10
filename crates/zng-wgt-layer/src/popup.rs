@@ -85,7 +85,7 @@ context_var! {
 ///
 /// Sets the [`CLOSE_ON_FOCUS_LEAVE_VAR`].
 #[property(CONTEXT, default(CLOSE_ON_FOCUS_LEAVE_VAR))]
-pub fn close_on_focus_leave(child: impl UiNode, close: impl IntoVar<bool>) -> impl UiNode {
+pub fn close_on_focus_leave(child: impl IntoUiNode, close: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, CLOSE_ON_FOCUS_LEAVE_VAR, close)
 }
 
@@ -95,7 +95,7 @@ pub fn close_on_focus_leave(child: impl UiNode, close: impl IntoVar<bool>) -> im
 ///
 /// This property sets the [`ANCHOR_MODE_VAR`].
 #[property(CONTEXT, default(ANCHOR_MODE_VAR))]
-pub fn anchor_mode(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
+pub fn anchor_mode(child: impl IntoUiNode, mode: impl IntoVar<AnchorMode>) -> UiNode {
     with_context_var(child, ANCHOR_MODE_VAR, mode)
 }
 
@@ -110,7 +110,7 @@ pub fn anchor_mode(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl U
 ///
 /// This property sets the [`CONTEXT_CAPTURE_VAR`].
 #[property(CONTEXT, default(CONTEXT_CAPTURE_VAR))]
-pub fn context_capture(child: impl UiNode, capture: impl IntoVar<ContextCapture>) -> impl UiNode {
+pub fn context_capture(child: impl IntoUiNode, capture: impl IntoVar<ContextCapture>) -> UiNode {
     with_context_var(child, CONTEXT_CAPTURE_VAR, capture)
 }
 
@@ -121,8 +121,8 @@ impl POPUP {
     ///
     /// If the popup node is not a full widget after init it is upgraded to one. Returns
     /// a variable that tracks the popup state and ID.
-    pub fn open(&self, popup: impl UiNode) -> Var<PopupState> {
-        self.open_impl(popup.boxed(), ANCHOR_MODE_VAR.into(), CONTEXT_CAPTURE_VAR.get())
+    pub fn open(&self, popup: impl IntoUiNode) -> Var<PopupState> {
+        self.open_impl(popup.into_node(), ANCHOR_MODE_VAR.into(), CONTEXT_CAPTURE_VAR.get())
     }
 
     /// Open the `popup` using the custom config vars.
@@ -131,14 +131,14 @@ impl POPUP {
     /// a variable that tracks the popup state and ID.
     pub fn open_config(
         &self,
-        popup: impl UiNode,
+        popup: impl IntoUiNode,
         anchor_mode: impl IntoVar<AnchorMode>,
         context_capture: impl IntoValue<ContextCapture>,
     ) -> Var<PopupState> {
-        self.open_impl(popup.boxed(), anchor_mode.into_var(), context_capture.into())
+        self.open_impl(popup.into_node(), anchor_mode.into_var(), context_capture.into())
     }
 
-    fn open_impl(&self, mut popup: BoxedUiNode, anchor_mode: Var<AnchorMode>, context_capture: ContextCapture) -> Var<PopupState> {
+    fn open_impl(&self, mut popup: UiNode, anchor_mode: Var<AnchorMode>, context_capture: ContextCapture) -> Var<PopupState> {
         let state = var(PopupState::Opening);
         let mut _close_handle = CommandHandle::dummy();
 
@@ -150,11 +150,11 @@ impl POPUP {
                 UiNodeOp::Init => {
                     c.init();
 
-                    let id = c.with_context(WidgetUpdateMode::Bubble, || {
-                        WIDGET.sub_event(&FOCUS_CHANGED_EVENT);
-                        WIDGET.id()
-                    });
-                    if let Some(id) = id {
+                    if let Some(mut wgt) = c.node().as_widget() {
+                        wgt.with_context(WidgetUpdateMode::Bubble, || {
+                            WIDGET.sub_event(&FOCUS_CHANGED_EVENT);
+                        });
+                        let id = wgt.id();
                         state.set(PopupState::Open(id));
                         _close_handle = POPUP_CLOSE_CMD.scoped(id).subscribe(true);
                     } else {
@@ -165,14 +165,15 @@ impl POPUP {
                         // if it is a widget at the time of the event.
                         c.deinit();
 
-                        let not_widget = std::mem::replace(c.child(), NilUiNode.boxed());
+                        let not_widget = std::mem::replace(c.node(), UiNode::nil());
                         let not_widget = match_node(not_widget, |c, op| match op {
                             UiNodeOp::Init => {
                                 WIDGET.sub_event(&FOCUS_CHANGED_EVENT).sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
                             }
                             UiNodeOp::Event { update } => {
                                 if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on(update) {
-                                    if let Some(now_is_widget) = c.with_context(WidgetUpdateMode::Ignore, || WIDGET.info().path()) {
+                                    if let Some(mut now_is_widget) = c.node().as_widget() {
+                                        let now_is_widget = now_is_widget.with_context(WidgetUpdateMode::Ignore, || WIDGET.info().path());
                                         if POPUP_CLOSE_REQUESTED_EVENT.is_subscriber(now_is_widget.widget_id()) {
                                             // node become widget after init, and it expects POPUP_CLOSE_REQUESTED_EVENT.
                                             let mut delivery = UpdateDeliveryList::new_any();
@@ -186,10 +187,10 @@ impl POPUP {
                             _ => {}
                         });
 
-                        *c.child() = not_widget.into_widget();
+                        *c.node() = not_widget.into_widget();
 
                         c.init();
-                        let id = c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()).unwrap();
+                        let id = c.node().as_widget().unwrap().id();
 
                         state.set(PopupState::Open(id));
                         _close_handle = POPUP_CLOSE_CMD.scoped(id).subscribe(true);
@@ -200,7 +201,7 @@ impl POPUP {
                     _close_handle = CommandHandle::dummy();
                 }
                 UiNodeOp::Event { update } => {
-                    c.with_context(WidgetUpdateMode::Bubble, || {
+                    c.node().as_widget().unwrap().with_context(WidgetUpdateMode::Bubble, || {
                         let id = WIDGET.id();
 
                         if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
@@ -220,8 +221,7 @@ impl POPUP {
                 }
                 _ => {}
             }),
-        )
-        .boxed();
+        );
 
         let (filter, over) = match context_capture {
             ContextCapture::NoCapture => {
@@ -237,7 +237,7 @@ impl POPUP {
             ContextCapture::CaptureBlend { filter, over } => (filter, over),
         };
         if filter != CaptureFilter::None {
-            popup = with_context_blend(LocalContext::capture_filtered(filter), over, popup).boxed();
+            popup = with_context_blend(LocalContext::capture_filtered(filter), over, popup);
         }
         LAYERS.insert_anchored(LayerIndex::TOP_MOST, anchor_id, anchor_mode, popup);
 
@@ -472,7 +472,7 @@ fn setup_popup_close_service() {
 ///
 /// [`is_close_delaying`]: fn@is_close_delaying
 #[property(EVENT, default(Duration::ZERO), widget_impl(Popup))]
-pub fn close_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl UiNode {
+pub fn close_delay(child: impl IntoUiNode, delay: impl IntoVar<Duration>) -> UiNode {
     let delay = delay.into_var();
     let mut timer = None::<DeadlineHandle>;
 
@@ -525,7 +525,7 @@ pub fn close_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl Ui
 ///
 /// [`close_delay`]: fn@close_delay
 #[property(EVENT+1, widget_impl(Popup))]
-pub fn is_close_delaying(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_close_delaying(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state(child, IS_CLOSE_DELAYED_VAR, state)
 }
 

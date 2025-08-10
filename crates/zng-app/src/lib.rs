@@ -102,10 +102,10 @@ pub mod __proc_macro_util {
             #[doc(hidden)]
             pub use crate::widget::builder::{
                 AnyArcWidgetHandler, ArcWidgetHandler, Importance, InputKind, PropertyArgs, PropertyId, PropertyInfo, PropertyInput,
-                PropertyInputTypes, PropertyNewArgs, SourceLocation, UiNodeInWhenExprError, UiNodeListInWhenExprError, WgtInfo, WhenInput,
-                WhenInputMember, WhenInputVar, WidgetHandlerInWhenExprError, WidgetType, iter_input_build_actions, nest_group_items,
-                new_dyn_other, new_dyn_ui_node, new_dyn_ui_node_list, new_dyn_var, new_dyn_widget_handler, panic_input,
-                ui_node_list_to_args, ui_node_to_args, value_to_args, var_getter, var_state, var_to_args, widget_handler_to_args,
+                PropertyInputTypes, PropertyNewArgs, SourceLocation, UiNodeInWhenExprError, WgtInfo, WhenInput, WhenInputMember,
+                WhenInputVar, WidgetHandlerInWhenExprError, WidgetType, iter_input_build_actions, nest_group_items, new_dyn_other,
+                new_dyn_ui_node, new_dyn_var, new_dyn_widget_handler, panic_input, ui_node_to_args, value_to_args, var_getter, var_state,
+                var_to_args, widget_handler_to_args,
             };
         }
 
@@ -116,9 +116,7 @@ pub mod __proc_macro_util {
 
         #[doc(hidden)]
         pub mod node {
-            pub use crate::widget::node::{
-                ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList, UiVec, ui_node_list_default,
-            };
+            pub use crate::widget::node::{ArcNode, IntoUiNode, UiNode};
         }
 
         #[doc(hidden)]
@@ -1158,7 +1156,7 @@ impl APP {
         print_tracing(tracing::Level::INFO);
         assert_not_view_process();
         Self::assert_can_run();
-        check_deadlock();
+        spawn_deadlock_detection();
 
         let _ = INSTANT.now();
         let scope = LocalContext::start_app(AppId::new_unique());
@@ -1177,7 +1175,7 @@ impl APP {
         print_tracing(tracing::Level::INFO);
         assert_not_view_process();
         Self::assert_can_run();
-        check_deadlock();
+        spawn_deadlock_detection();
         let scope = LocalContext::start_app(AppId::new_unique());
         AppExtended {
             extensions: (),

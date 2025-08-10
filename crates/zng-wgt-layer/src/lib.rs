@@ -28,7 +28,7 @@ use std::{fmt, mem, ops};
 pub mod popup;
 
 struct LayersCtx {
-    items: EditableUiNodeListRef,
+    items: EditableUiVecRef,
 }
 
 command! {
@@ -96,37 +96,39 @@ impl LAYERS {
     /// be removed later. Use [`insert_node`] to insert nodes that may not always be widgets.
     ///
     /// [`insert_node`]: Self::insert_node
-    pub fn insert(&self, layer: impl IntoVar<LayerIndex>, widget: impl UiNode) {
+    pub fn insert(&self, layer: impl IntoVar<LayerIndex>, widget: impl IntoUiNode) {
         let layer = layer.into_var().current_context();
-        self.insert_impl(layer, widget.boxed());
+        self.insert_impl(layer, widget.into_node());
     }
-    fn insert_impl(&self, layer: Var<LayerIndex>, widget: BoxedUiNode) {
+    fn insert_impl(&self, layer: Var<LayerIndex>, widget: UiNode) {
         let widget = match_widget(widget, move |widget, op| match op {
             UiNodeOp::Init => {
                 widget.init();
 
-                if !widget.is_widget() {
-                    *widget.child() = NilUiNode.boxed();
+                // widget may only become a full widget after init (ArcNode)
+
+                if let Some(mut wgt) = widget.node().as_widget() {
+                    wgt.with_context(WidgetUpdateMode::Bubble, || {
+                        WIDGET.set_state(*LAYER_INDEX_ID, layer.get());
+                        WIDGET.sub_var(&layer);
+                    });
+                } else {
+                    *widget.node() = UiNode::nil();
                     LAYERS.cleanup();
                 }
-
-                // widget may only become a full widget after init (ArcNode)
-                widget.with_context(WidgetUpdateMode::Bubble, || {
-                    WIDGET.set_state(*LAYER_INDEX_ID, layer.get());
-                    WIDGET.sub_var(&layer);
-                });
             }
             UiNodeOp::Update { .. } => {
-                if let Some(index) = layer.get_new() {
-                    widget.with_context(WidgetUpdateMode::Bubble, || {
+                if let Some(mut wgt) = widget.node().as_widget()
+                    && let Some(index) = layer.get_new()
+                {
+                    wgt.with_context(WidgetUpdateMode::Bubble, || {
                         WIDGET.set_state(*LAYER_INDEX_ID, index);
                         SORTING_LIST.invalidate_sort();
                     });
                 }
             }
             _ => {}
-        })
-        .boxed();
+        });
 
         let r = WINDOW.with_state(|s| match s.get(*WINDOW_LAYERS_ID) {
             Some(open) => {
@@ -153,8 +155,8 @@ impl LAYERS {
     ///
     /// [`insert`]: Self::insert
     /// [`UiNode::init_widget`]: zng_wgt::prelude::UiNode::init_widget
-    pub fn insert_node(&self, layer: impl IntoVar<LayerIndex>, maybe_widget: impl UiNode) -> ResponseVar<WidgetId> {
-        let (widget, rsp) = maybe_widget.init_widget();
+    pub fn insert_node(&self, layer: impl IntoVar<LayerIndex>, maybe_widget: impl IntoUiNode) -> ResponseVar<WidgetId> {
+        let (widget, rsp) = maybe_widget.into_node().init_widget();
         self.insert(layer, widget);
         rsp
     }
@@ -176,15 +178,15 @@ impl LAYERS {
         anchor: impl IntoVar<WidgetId>,
         mode: impl IntoVar<AnchorMode>,
 
-        widget: impl UiNode,
+        widget: impl IntoUiNode,
     ) {
         let layer = layer.into_var().current_context();
         let anchor = anchor.into_var().current_context();
         let mode = mode.into_var().current_context();
 
-        self.insert_anchored_impl(layer, anchor, mode, widget.boxed())
+        self.insert_anchored_impl(layer, anchor, mode, widget.into_node())
     }
-    fn insert_anchored_impl(&self, layer: Var<LayerIndex>, anchor: Var<WidgetId>, mode: Var<AnchorMode>, widget: BoxedUiNode) {
+    fn insert_anchored_impl(&self, layer: Var<LayerIndex>, anchor: Var<WidgetId>, mode: Var<AnchorMode>, widget: UiNode) {
         let mut _info_changed_handle = None;
         let mut mouse_pos_handle = None;
 
@@ -205,30 +207,30 @@ impl LAYERS {
             (w.bounds_info(), w.border_info())
         }
 
-        let widget = match_widget(widget.boxed(), move |widget, op| match op {
+        let widget = match_widget(widget, move |widget, op| match op {
             UiNodeOp::Init => {
                 widget.init();
 
-                if !widget.is_widget() {
+                if let Some(mut wgt) = widget.node().as_widget() {
+                    wgt.with_context(WidgetUpdateMode::Bubble, || {
+                        WIDGET.sub_var(&anchor).sub_var(&mode);
+
+                        anchor_info = Some(get_anchor_info(anchor.get()));
+
+                        interactivity = mode.with(|m| m.interactivity);
+                        _info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(WIDGET.id()));
+
+                        if mode.with(|m| matches!(&m.transform, AnchorTransform::Cursor { .. })) {
+                            mouse_pos_handle = Some(MOUSE.position().subscribe(UpdateOp::Update, WIDGET.id()));
+                        } else if mode.with(|m| matches!(&m.transform, AnchorTransform::CursorOnce { .. })) {
+                            cursor_once_pending = true;
+                        }
+                    })
+                } else {
                     widget.deinit();
-                    *widget.child() = NilUiNode.boxed();
+                    *widget.node() = UiNode::nil();
                     // cleanup requested by the `insert` node.
                 }
-
-                widget.with_context(WidgetUpdateMode::Bubble, || {
-                    WIDGET.sub_var(&anchor).sub_var(&mode);
-
-                    anchor_info = Some(get_anchor_info(anchor.get()));
-
-                    interactivity = mode.with(|m| m.interactivity);
-                    _info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(WIDGET.id()));
-
-                    if mode.with(|m| matches!(&m.transform, AnchorTransform::Cursor { .. })) {
-                        mouse_pos_handle = Some(MOUSE.position().subscribe(UpdateOp::Update, WIDGET.id()));
-                    } else if mode.with(|m| matches!(&m.transform, AnchorTransform::CursorOnce { .. })) {
-                        cursor_once_pending = true;
-                    }
-                });
             }
             UiNodeOp::Deinit => {
                 widget.deinit();
@@ -240,26 +242,25 @@ impl LAYERS {
                 cursor_once_pending = false;
             }
             UiNodeOp::Info { info } => {
-                if interactivity {
-                    if let Some(widget) = widget.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
-                        let anchor = anchor.get();
-                        let querying = AtomicBool::new(false);
-                        info.push_interactivity_filter(move |args| {
-                            if args.info.id() == widget {
-                                if querying.swap(true, Ordering::Relaxed) {
-                                    return Interactivity::ENABLED; // avoid recursion.
-                                }
-                                let _q = RunOnDrop::new(|| querying.store(false, Ordering::Relaxed));
-                                args.info
-                                    .tree()
-                                    .get(anchor)
-                                    .map(|a| a.interactivity())
-                                    .unwrap_or(Interactivity::BLOCKED)
-                            } else {
-                                Interactivity::ENABLED
+                if interactivity && let Some(mut wgt) = widget.node().as_widget() {
+                    let wgt = wgt.id();
+                    let anchor = anchor.get();
+                    let querying = AtomicBool::new(false);
+                    info.push_interactivity_filter(move |args| {
+                        if args.info.id() == wgt {
+                            if querying.swap(true, Ordering::Relaxed) {
+                                return Interactivity::ENABLED; // avoid recursion.
                             }
-                        });
-                    }
+                            let _q = RunOnDrop::new(|| querying.store(false, Ordering::Relaxed));
+                            args.info
+                                .tree()
+                                .get(anchor)
+                                .map(|a| a.interactivity())
+                                .unwrap_or(Interactivity::BLOCKED)
+                        } else {
+                            Interactivity::ENABLED
+                        }
+                    });
                 }
             }
             UiNodeOp::Event { update } => {
@@ -270,33 +271,35 @@ impl LAYERS {
                 }
             }
             UiNodeOp::Update { .. } => {
-                widget.with_context(WidgetUpdateMode::Bubble, || {
-                    if let Some(anchor) = anchor.get_new() {
-                        anchor_info = Some(get_anchor_info(anchor));
-                        if mode.with(|m| m.interactivity) {
-                            WIDGET.update_info();
-                        }
-                        WIDGET.layout().render();
-                    }
-                    if let Some(mode) = mode.get_new() {
-                        if mode.interactivity != interactivity {
-                            interactivity = mode.interactivity;
-                            WIDGET.update_info();
-                        }
-                        if matches!(&mode.transform, AnchorTransform::Cursor { .. }) {
-                            if mouse_pos_handle.is_none() {
-                                mouse_pos_handle = Some(MOUSE.position().subscribe(UpdateOp::Update, WIDGET.id()));
+                if let Some(mut wgt) = widget.node().as_widget() {
+                    wgt.with_context(WidgetUpdateMode::Bubble, || {
+                        if let Some(anchor) = anchor.get_new() {
+                            anchor_info = Some(get_anchor_info(anchor));
+                            if mode.with(|m| m.interactivity) {
+                                WIDGET.update_info();
                             }
-                            cursor_once_pending = false;
-                        } else {
-                            cursor_once_pending = matches!(&mode.transform, AnchorTransform::CursorOnce { .. });
-                            mouse_pos_handle = None;
+                            WIDGET.layout().render();
                         }
-                        WIDGET.layout().render();
-                    } else if mouse_pos_handle.is_some() && MOUSE.position().is_new() {
-                        WIDGET.layout();
-                    }
-                });
+                        if let Some(mode) = mode.get_new() {
+                            if mode.interactivity != interactivity {
+                                interactivity = mode.interactivity;
+                                WIDGET.update_info();
+                            }
+                            if matches!(&mode.transform, AnchorTransform::Cursor { .. }) {
+                                if mouse_pos_handle.is_none() {
+                                    mouse_pos_handle = Some(MOUSE.position().subscribe(UpdateOp::Update, WIDGET.id()));
+                                }
+                                cursor_once_pending = false;
+                            } else {
+                                cursor_once_pending = matches!(&mode.transform, AnchorTransform::CursorOnce { .. });
+                                mouse_pos_handle = None;
+                            }
+                            WIDGET.layout().render();
+                        } else if mouse_pos_handle.is_some() && MOUSE.position().is_new() {
+                            WIDGET.layout();
+                        }
+                    })
+                }
             }
             UiNodeOp::Measure { wm, desired_size } => {
                 widget.delegated();
@@ -508,9 +511,11 @@ impl LAYERS {
                     }
                 }
 
-                widget.with_context(WidgetUpdateMode::Bubble, || {
-                    wl.collapse();
-                });
+                if let Some(mut wgt) = widget.node().as_widget() {
+                    wgt.with_context(WidgetUpdateMode::Bubble, || {
+                        wl.collapse();
+                    });
+                }
             }
             UiNodeOp::Render { frame } => {
                 widget.delegated();
@@ -520,7 +525,7 @@ impl LAYERS {
                     if !mode.visibility || bounds_info.rendered().is_some() {
                         let mut push_reference_frame = |mut transform: PxTransform, is_translate_only: bool| {
                             if mode.viewport_bound {
-                                transform = adjust_viewport_bound(transform, widget);
+                                transform = adjust_viewport_bound(transform, widget.node());
                             }
                             frame.push_reference_frame(
                                 transform_key.into(),
@@ -605,7 +610,7 @@ impl LAYERS {
                     if !mode.visibility || bounds_info.rendered().is_some() {
                         let mut with_transform = |mut transform: PxTransform| {
                             if mode.viewport_bound {
-                                transform = adjust_viewport_bound(transform, widget);
+                                transform = adjust_viewport_bound(transform, widget.node());
                             }
                             update.with_transform(transform_key.update(transform, true), false, |update| widget.render_update(update));
                         };
@@ -649,7 +654,7 @@ impl LAYERS {
             }
             _ => {}
         });
-        self.insert_impl(layer, widget.boxed());
+        self.insert_impl(layer, widget);
     }
 
     /// Like [`insert_anchored`], but does not fail if `maybe_widget` is not a full widget.
@@ -669,9 +674,9 @@ impl LAYERS {
         anchor: impl IntoVar<WidgetId>,
         mode: impl IntoVar<AnchorMode>,
 
-        maybe_widget: impl UiNode,
+        maybe_widget: impl IntoUiNode,
     ) -> ResponseVar<WidgetId> {
-        let (widget, rsp) = maybe_widget.init_widget();
+        let (widget, rsp) = maybe_widget.into_node().init_widget();
         self.insert_anchored(layer, anchor, mode, widget);
         rsp
     }
@@ -719,16 +724,17 @@ impl LAYERS {
 
     fn cleanup(&self) {
         WINDOW.with_state(|s| {
-            s.req(*WINDOW_LAYERS_ID).items.retain(|n| n.is_widget());
+            s.req(*WINDOW_LAYERS_ID).items.retain(|n| n.as_widget().is_some());
         });
     }
 }
 
-fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> PxTransform {
+fn adjust_viewport_bound(transform: PxTransform, widget: &mut UiNode) -> PxTransform {
     let window_bounds = WINDOW.vars().actual_size_px().get();
     let wgt_bounds = PxBox::from(
         widget
-            .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().outer_size())
+            .as_widget()
+            .map(|mut w| w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().outer_size()))
             .unwrap_or_else(PxSize::zero),
     );
     let wgt_bounds = transform.outer_transformed(wgt_bounds).unwrap_or_default();
@@ -746,7 +752,7 @@ fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> Px
     transform.then_translate(correction.cast())
 }
 
-fn with_anchor_id(child: impl UiNode, anchor: Var<WidgetId>) -> impl UiNode {
+fn with_anchor_id(child: impl IntoUiNode, anchor: Var<WidgetId>) -> UiNode {
     let mut ctx = Some(Arc::new(anchor.map(|id| Some(*id)).into()));
     let mut id = None;
     match_widget(child, move |c, op| {
@@ -773,7 +779,7 @@ context_var! {
 }
 
 static_id! {
-    static ref WINDOW_PRE_INIT_LAYERS_ID: StateId<Vec<Mutex<BoxedUiNode>>>;
+    static ref WINDOW_PRE_INIT_LAYERS_ID: StateId<Vec<Mutex<UiNode>>>;
     static ref WINDOW_LAYERS_ID: StateId<LayersCtx>;
     static ref LAYER_INDEX_ID: StateId<LayerIndex>;
 }
@@ -1488,27 +1494,29 @@ impl_from_and_into_var! {
 /// Node that implements the layers, must be inserted in the [`NestGroup::EVENT`] group by the window implementer.
 ///
 /// [`NestGroup::EVENT`]: zng_app::widget::builder::NestGroup::EVENT
-pub fn layers_node(child: impl UiNode) -> impl UiNode {
-    let layers = EditableUiNodeList::new();
+pub fn layers_node(child: impl IntoUiNode) -> UiNode {
+    let layers = EditableUiVec::new();
     let layered = layers.reference();
 
-    fn sort(a: &mut BoxedUiNode, b: &mut BoxedUiNode) -> std::cmp::Ordering {
+    fn sort(a: &mut UiNode, b: &mut UiNode) -> std::cmp::Ordering {
         let a = a
-            .with_context(WidgetUpdateMode::Ignore, || WIDGET.req_state(*LAYER_INDEX_ID))
+            .as_widget()
+            .map(|mut w| w.with_context(WidgetUpdateMode::Ignore, || WIDGET.req_state(*LAYER_INDEX_ID)))
             .unwrap_or(LayerIndex::DEFAULT);
         let b = b
-            .with_context(WidgetUpdateMode::Ignore, || WIDGET.req_state(*LAYER_INDEX_ID))
+            .as_widget()
+            .map(|mut w| w.with_context(WidgetUpdateMode::Ignore, || WIDGET.req_state(*LAYER_INDEX_ID)))
             .unwrap_or(LayerIndex::DEFAULT);
 
         a.cmp(&b)
     }
     let sorting_layers = SortingList::new(layers, sort);
-    let children = ui_vec![child].chain(sorting_layers);
+    let children = ChainList(ui_vec![child, sorting_layers]);
 
     let mut _insert_handle = CommandHandle::dummy();
     let mut _remove_handle = CommandHandle::dummy();
 
-    match_node_list(children, move |c, op| match op {
+    match_node(children, move |c, op| match op {
         UiNodeOp::Init => {
             WINDOW.with_state_mut(|mut s| {
                 s.set(*WINDOW_LAYERS_ID, LayersCtx { items: layered.clone() });
@@ -1527,7 +1535,7 @@ pub fn layers_node(child: impl UiNode) -> impl UiNode {
             _remove_handle = CommandHandle::dummy();
         }
         UiNodeOp::Event { update } => {
-            c.event_all(update);
+            c.event(update);
             if let Some(args) = LAYERS_INSERT_CMD.scoped(WINDOW.id()).on_unhandled(update) {
                 if let Some((layer, widget)) = args.param::<(LayerIndex, WidgetFn<()>)>() {
                     LAYERS.insert(*layer, widget(()));
@@ -1548,26 +1556,33 @@ pub fn layers_node(child: impl UiNode) -> impl UiNode {
         }
         UiNodeOp::Update { updates } => {
             let mut changed = false;
-            c.update_all(updates, &mut changed);
+            c.update_list(updates, &mut changed);
 
             if changed {
                 WIDGET.layout().render();
             }
         }
         UiNodeOp::Measure { wm, desired_size } => {
-            *desired_size = c.with_node(0, |n| n.measure(wm));
+            c.delegated();
+            *desired_size = c.node_impl::<ChainList>().0[0].measure(wm);
         }
         UiNodeOp::Layout { wl, final_size } => {
-            *final_size = c.with_node(0, |n| n.layout(wl));
-            let _ = c.children().1.layout_each(wl, |_, l, wl| l.layout(wl), |_, _| PxSize::zero());
+            c.delegated();
+            let list = c.node_impl::<ChainList>();
+            *final_size = list.0[0].layout(wl);
+            let _ = list.0[1].layout(wl);
         }
         UiNodeOp::Render { frame } => {
-            c.with_node(0, |n| n.render(frame));
-            c.children().1.render_all(frame);
+            c.delegated();
+            let list = c.node_impl::<ChainList>();
+            list.0[0].render(frame); // render main UI first
+            list.0[1].render(frame);
         }
         UiNodeOp::RenderUpdate { update } => {
-            c.with_node(0, |n| n.render_update(update));
-            c.children().1.render_update_all(update);
+            c.delegated();
+            let list = c.node_impl::<ChainList>();
+            list.0[0].render_update(update);
+            list.0[1].render_update(update);
         }
         _ => {}
     })
@@ -1584,7 +1599,7 @@ pub fn layers_node(child: impl UiNode) -> impl UiNode {
 /// [layered]: LAYERS
 /// [`WidgetFn<()>`]: WidgetFn
 #[property(FILL, default(WidgetFn::nil()))]
-pub fn adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+pub fn adorner_fn(child: impl IntoUiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> UiNode {
     let adorner_fn = adorner_fn.into_var();
     let mut adorner_id = None;
 
@@ -1626,8 +1641,8 @@ pub fn adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) ->
 ///
 /// [`adorner_fn`]: fn@adorner_fn
 /// [`WidgetFn::singleton`]: zng_wgt::prelude::WidgetFn::singleton
-#[property(FILL, default(NilUiNode))]
-pub fn adorner(child: impl UiNode, adorner: impl UiNode) -> impl UiNode {
+#[property(FILL, default(UiNode::nil()))]
+pub fn adorner(child: impl IntoUiNode, adorner: impl IntoUiNode) -> UiNode {
     adorner_fn(child, WidgetFn::singleton(adorner))
 }
 

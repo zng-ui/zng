@@ -4,9 +4,9 @@ use zng_app::{
     render::{FrameBuilder, FrameUpdate},
     update::{EventUpdate, WidgetUpdates},
     widget::{
-        WIDGET, WidgetUpdateMode,
+        WIDGET,
         info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
-        node::{ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList},
+        node::{ArcNode, IntoUiNode, UiNode, UiNodeImpl},
     },
 };
 use zng_app_context::LocalContext;
@@ -39,16 +39,7 @@ impl<T: Clone + Send + Any> Arg for ValueArg<T> {
         self
     }
 }
-impl Arg for ArcNode<BoxedUiNode> {
-    fn clone_boxed(&self) -> Box<dyn Arg> {
-        Box::new(self.clone())
-    }
-
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-}
-impl Arg for ArcNodeList<BoxedUiNodeList> {
+impl Arg for ArcNode {
     fn clone_boxed(&self) -> Box<dyn Arg> {
         Box::new(self.clone())
     }
@@ -80,13 +71,8 @@ impl HotNodeArgs {
         self.args.push(Box::new(arg))
     }
 
-    pub fn push_ui_node(&mut self, arg: impl UiNode) {
-        let arg = ArcNode::new(arg.boxed());
-        self.args.push(Box::new(arg))
-    }
-
-    pub fn push_ui_node_list(&mut self, arg: impl UiNodeList) {
-        let arg = ArcNodeList::new(arg.boxed());
+    pub fn push_ui_node(&mut self, arg: impl IntoUiNode) {
+        let arg = ArcNode::new(arg.into_node());
         self.args.push(Box::new(arg))
     }
 
@@ -107,12 +93,8 @@ impl HotNodeArgs {
         self.pop_downcast::<ValueArg<T>>().0
     }
 
-    pub fn pop_ui_node(&mut self) -> BoxedUiNode {
-        self.pop_downcast::<ArcNode<BoxedUiNode>>().take_on_init().boxed()
-    }
-
-    pub fn pop_ui_node_list(&mut self) -> BoxedUiNodeList {
-        self.pop_downcast::<ArcNodeList<BoxedUiNodeList>>().take_on_init().boxed()
+    pub fn pop_ui_node(&mut self) -> UiNode {
+        self.pop_downcast::<ArcNode>().take_on_init()
     }
 
     pub fn pop_clone<T: Clone + Send + Any>(&mut self) -> T {
@@ -148,17 +130,34 @@ pub struct HotNodeHost {
     instance: HotNode,
 }
 impl HotNodeHost {
-    pub fn new(manifest_dir: &'static str, name: &'static str, args: HotNodeArgs, fallback: fn(HotNodeArgs) -> HotNode) -> Self {
-        Self {
+    pub fn new(manifest_dir: &'static str, name: &'static str, args: HotNodeArgs, fallback: fn(HotNodeArgs) -> HotNode) -> UiNode {
+        UiNode::new(Self {
             manifest_dir,
             name,
             args,
             fallback,
-            instance: HotNode::new(NilUiNode),
-        }
+            instance: HotNode::new(UiNode::nil()),
+        })
     }
 }
-impl UiNode for HotNodeHost {
+// become the node, not a wrapper
+impl UiNodeImpl for HotNodeHost {
+    fn children_len(&self) -> usize {
+        self.instance.children_len()
+    }
+
+    fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
+        self.instance.with_child(index, visitor)
+    }
+
+    fn is_list(&self) -> bool {
+        self.instance.is_list()
+    }
+
+    fn as_widget(&mut self) -> Option<&mut dyn zng_app::widget::node::WidgetUiNodeImpl> {
+        self.instance.node.as_dyn().as_widget()
+    }
+
     fn init(&mut self) {
         WIDGET.sub_event(&HOT_RELOAD_EVENT);
 
@@ -181,23 +180,20 @@ impl UiNode for HotNodeHost {
             }
         };
 
-        self.instance.init(&mut ctx);
+        self.instance.init();
     }
 
     fn deinit(&mut self) {
-        let mut ctx = LocalContext::capture();
-        self.instance.deinit(&mut ctx);
-        self.instance = HotNode::new(NilUiNode);
+        self.instance.deinit();
+        self.instance.node = UiNode::nil();
     }
 
     fn info(&mut self, info: &mut WidgetInfoBuilder) {
-        let mut ctx = LocalContext::capture();
-        self.instance.info(&mut ctx, info);
+        self.instance.info(info);
     }
 
     fn event(&mut self, update: &EventUpdate) {
-        let mut ctx = LocalContext::capture();
-        self.instance.event(&mut ctx, update);
+        self.instance.event(update);
 
         if let Some(args) = HOT_RELOAD_EVENT.on(update) {
             if args.lib.manifest_dir() == self.manifest_dir {
@@ -208,200 +204,179 @@ impl UiNode for HotNodeHost {
     }
 
     fn update(&mut self, updates: &WidgetUpdates) {
-        let mut ctx = LocalContext::capture();
-        self.instance.update(&mut ctx, updates);
+        self.instance.update(updates);
+    }
+    fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn zng_app::widget::node::UiNodeListObserver) {
+        self.instance.update_list(updates, observer);
     }
 
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-        let mut ctx = LocalContext::capture();
-        self.instance.measure(&mut ctx, wm)
+        self.instance.measure(wm)
+    }
+    fn measure_list(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        measure: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.instance.measure_list(wm, measure, fold_size)
     }
 
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        let mut ctx = LocalContext::capture();
-        self.instance.layout(&mut ctx, wl)
+        self.instance.layout(wl)
+    }
+    fn layout_list(
+        &mut self,
+        wl: &mut WidgetLayout,
+        layout: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.instance.layout_list(wl, layout, fold_size)
     }
 
     fn render(&mut self, frame: &mut FrameBuilder) {
-        let mut ctx = LocalContext::capture();
-        self.instance.render(&mut ctx, frame)
+        self.instance.render(frame)
+    }
+    fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+        self.instance.render_list(frame, render);
     }
 
     fn render_update(&mut self, update: &mut FrameUpdate) {
-        let mut ctx = LocalContext::capture();
-        self.instance.render_update(&mut ctx, update)
+        self.instance.render_update(update)
+    }
+    fn render_update_list(&mut self, update: &mut FrameUpdate, render_update: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
+        self.instance.render_update_list(update, render_update);
     }
 
-    fn is_widget(&self) -> bool {
-        let mut ctx = LocalContext::capture();
-        self.instance.is_widget(&mut ctx)
+    fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+        self.instance.for_each_child(visitor);
     }
 
-    fn is_nil(&self) -> bool {
-        let mut ctx = LocalContext::capture();
-        self.instance.is_nil(&mut ctx)
+    fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+        self.instance.par_each_child(visitor);
     }
 
-    fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
-    where
-        F: FnOnce() -> R,
-    {
-        let mut ctx = LocalContext::capture();
-        let mut r = None;
-        let mut f = Some(f);
-        self.instance.with_context(&mut ctx, update_mode, &mut || {
-            r = Some(f.take().unwrap()());
-        });
-        r
+    fn par_fold_reduce(
+        &mut self,
+        identity: zng_var::BoxAnyVarValue,
+        fold: &(dyn Fn(zng_var::BoxAnyVarValue, usize, &mut UiNode) -> zng_var::BoxAnyVarValue + Sync),
+        reduce: &(dyn Fn(zng_var::BoxAnyVarValue, zng_var::BoxAnyVarValue) -> zng_var::BoxAnyVarValue + Sync),
+    ) -> zng_var::BoxAnyVarValue {
+        self.instance.par_fold_reduce(identity, fold, reduce)
     }
 }
 
 /// Hot loaded node.
 #[doc(hidden)]
 pub struct HotNode {
-    child: BoxedUiNode,
     api: HotNodeApi,
+    api_m: HotNodeApiManual,
+    node: UiNode,
     // keep alive because `child` is code from it.
     pub(crate) _lib: Option<Arc<libloading::Library>>,
 }
 impl HotNode {
-    pub fn new(node: impl UiNode) -> Self {
+    pub fn new(node: impl IntoUiNode) -> Self {
         Self {
-            child: node.boxed(),
             api: HotNodeApi::capture(),
+            api_m: HotNodeApiManual::capture(),
+            node: node.into_node(),
             _lib: None,
         }
     }
-
-    fn init(&mut self, ctx: &mut LocalContext) {
-        (self.api.init)(&mut self.child, ctx)
-    }
-
-    fn deinit(&mut self, ctx: &mut LocalContext) {
-        (self.api.deinit)(&mut self.child, ctx)
-    }
-
-    fn info(&mut self, ctx: &mut LocalContext, info: &mut WidgetInfoBuilder) {
-        (self.api.info)(&mut self.child, ctx, info)
-    }
-
-    fn event(&mut self, ctx: &mut LocalContext, update: &EventUpdate) {
-        (self.api.event)(&mut self.child, ctx, update)
-    }
-
-    fn update(&mut self, ctx: &mut LocalContext, updates: &WidgetUpdates) {
-        (self.api.update)(&mut self.child, ctx, updates)
-    }
-
-    fn measure(&mut self, ctx: &mut LocalContext, wm: &mut WidgetMeasure) -> PxSize {
-        (self.api.measure)(&mut self.child, ctx, wm)
-    }
-
-    fn layout(&mut self, ctx: &mut LocalContext, wl: &mut WidgetLayout) -> PxSize {
-        (self.api.layout)(&mut self.child, ctx, wl)
-    }
-
-    fn render(&mut self, ctx: &mut LocalContext, frame: &mut FrameBuilder) {
-        (self.api.render)(&mut self.child, ctx, frame)
-    }
-
-    fn render_update(&mut self, ctx: &mut LocalContext, update: &mut FrameUpdate) {
-        (self.api.render_update)(&mut self.child, ctx, update)
-    }
-
-    fn is_widget(&self, ctx: &mut LocalContext) -> bool {
-        (self.api.is_widget)(&self.child, ctx)
-    }
-
-    fn is_nil(&self, ctx: &mut LocalContext) -> bool {
-        (self.api.is_nil)(&self.child, ctx)
-    }
-
-    fn with_context(&mut self, ctx: &mut LocalContext, update_mode: WidgetUpdateMode, f: &mut dyn FnMut()) {
-        (self.api.with_context)(&mut self.child, ctx, update_mode, f)
-    }
 }
 
-// HotNode "methods" references from the dynamic loaded code to be called from the static code.
-struct HotNodeApi {
-    init: fn(&mut BoxedUiNode, &mut LocalContext),
-    deinit: fn(&mut BoxedUiNode, &mut LocalContext),
-    info: fn(&mut BoxedUiNode, &mut LocalContext, &mut WidgetInfoBuilder),
-    event: fn(&mut BoxedUiNode, &mut LocalContext, &EventUpdate),
-    update: fn(&mut BoxedUiNode, &mut LocalContext, &WidgetUpdates),
-    measure: fn(&mut BoxedUiNode, &mut LocalContext, &mut WidgetMeasure) -> PxSize,
-    layout: fn(&mut BoxedUiNode, &mut LocalContext, &mut WidgetLayout) -> PxSize,
-    render: fn(&mut BoxedUiNode, &mut LocalContext, &mut FrameBuilder),
-    render_update: fn(&mut BoxedUiNode, &mut LocalContext, &mut FrameUpdate),
-    is_widget: fn(&BoxedUiNode, &mut LocalContext) -> bool,
-    is_nil: fn(&BoxedUiNode, &mut LocalContext) -> bool,
-    with_context: fn(&mut BoxedUiNode, &mut LocalContext, WidgetUpdateMode, &mut dyn FnMut()),
+struct HotNodeApiManual {
+    // stuff that cannot be defined by define_api
+    children_len: fn(&UiNode, &mut LocalContext) -> usize,
+    is_list: fn(&UiNode, &mut LocalContext) -> bool,
 }
-impl HotNodeApi {
-    fn init(child: &mut BoxedUiNode, ctx: &mut LocalContext) {
-        ctx.with_context(|| child.init())
+impl HotNodeApiManual {
+    fn children_len(child: &UiNode, ctx: &mut LocalContext) -> usize {
+        ctx.with_context(|| child.children_len())
     }
-
-    fn deinit(child: &mut BoxedUiNode, ctx: &mut LocalContext) {
-        ctx.with_context(|| child.deinit())
-    }
-
-    fn info(child: &mut BoxedUiNode, ctx: &mut LocalContext, info: &mut WidgetInfoBuilder) {
-        ctx.with_context(|| child.info(info))
-    }
-
-    fn event(child: &mut BoxedUiNode, ctx: &mut LocalContext, update: &EventUpdate) {
-        ctx.with_context(|| child.event(update))
-    }
-
-    fn update(child: &mut BoxedUiNode, ctx: &mut LocalContext, updates: &WidgetUpdates) {
-        ctx.with_context(|| child.update(updates))
-    }
-
-    fn measure(child: &mut BoxedUiNode, ctx: &mut LocalContext, wm: &mut WidgetMeasure) -> PxSize {
-        ctx.with_context(|| child.measure(wm))
-    }
-
-    fn layout(child: &mut BoxedUiNode, ctx: &mut LocalContext, wl: &mut WidgetLayout) -> PxSize {
-        ctx.with_context(|| child.layout(wl))
-    }
-
-    fn render(child: &mut BoxedUiNode, ctx: &mut LocalContext, frame: &mut FrameBuilder) {
-        ctx.with_context(|| child.render(frame))
-    }
-
-    fn render_update(child: &mut BoxedUiNode, ctx: &mut LocalContext, update: &mut FrameUpdate) {
-        ctx.with_context(|| child.render_update(update))
-    }
-
-    fn is_widget(child: &BoxedUiNode, ctx: &mut LocalContext) -> bool {
-        ctx.with_context(|| child.is_widget())
-    }
-
-    fn is_nil(child: &BoxedUiNode, ctx: &mut LocalContext) -> bool {
-        ctx.with_context(|| child.is_nil())
-    }
-
-    fn with_context(child: &mut BoxedUiNode, ctx: &mut LocalContext, update_mode: WidgetUpdateMode, f: &mut dyn FnMut()) {
-        ctx.with_context(|| {
-            child.with_context(update_mode, f);
-        })
+    fn is_list(child: &UiNode, ctx: &mut LocalContext) -> bool {
+        ctx.with_context(|| child.is_list())
     }
 
     fn capture() -> Self {
         Self {
-            init: Self::init,
-            deinit: Self::deinit,
-            info: Self::info,
-            event: Self::event,
-            update: Self::update,
-            measure: Self::measure,
-            layout: Self::layout,
-            render: Self::render,
-            render_update: Self::render_update,
-            is_widget: Self::is_widget,
-            is_nil: Self::is_nil,
-            with_context: Self::with_context,
+            children_len: Self::children_len,
+            is_list: Self::is_list,
         }
     }
+}
+impl HotNode {
+    fn children_len(&self) -> usize {
+        (self.api_m.children_len)(&self.node, &mut LocalContext::capture())
+    }
+
+    fn is_list(&self) -> bool {
+        (self.api_m.is_list)(&self.node, &mut LocalContext::capture())
+    }
+}
+
+macro_rules! define_api {
+    ($(
+        fn $ident:ident($($arg:ident : $ArgTy:ty),* $(,)?) $(-> $OutTy:ty)?;
+    )+) => {
+        struct HotNodeApi {
+            $(
+                $ident: fn(&mut UiNode, &mut LocalContext $(, $ArgTy)*) $(-> $OutTy)?,
+            )+
+        }
+        impl HotNodeApi {
+            $(
+                fn $ident(child: &mut UiNode, ctx: &mut LocalContext $(, $arg: $ArgTy)*) $(-> $OutTy)? {
+                    ctx.with_context(|| child.as_dyn().$ident($($arg),*))
+                }
+            )+
+
+            fn capture() -> Self {
+                Self {
+                    $($ident: Self::$ident,)+
+                }
+            }
+        }
+        impl HotNode {
+            $(
+                fn $ident(&mut self $(, $arg: $ArgTy)*) $(-> $OutTy)? {
+                    (self.api.$ident)(&mut self.node, &mut LocalContext::capture() $(, $arg)*)
+                }
+            )+
+        }
+    };
+}
+define_api! {
+    fn init();
+    fn deinit();
+    fn info(info: &mut WidgetInfoBuilder);
+    fn event(update: &EventUpdate);
+    fn update(updates: &WidgetUpdates);
+    fn update_list(updates: &WidgetUpdates, observer: &mut dyn zng_app::widget::node::UiNodeListObserver);
+    fn measure(wm: &mut WidgetMeasure) -> PxSize;
+    fn measure_list(
+        wm: &mut WidgetMeasure,
+        measure: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize;
+    fn layout(wl: &mut WidgetLayout) -> PxSize;
+    fn layout_list(
+        wl: &mut WidgetLayout,
+        layout: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize;
+    fn render(frame: &mut FrameBuilder);
+    fn render_list(frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync));
+    fn render_update(update: &mut FrameUpdate);
+    fn render_update_list(update: &mut FrameUpdate, render_update: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync));
+
+    fn with_child(index: usize, visitor: &mut dyn FnMut(&mut UiNode));
+    fn for_each_child(visitor: &mut dyn FnMut(usize, &mut UiNode));
+    fn par_each_child(visitor: &(dyn Fn(usize, &mut UiNode) + Sync));
+    fn par_fold_reduce(
+        identity: zng_var::BoxAnyVarValue,
+        fold: &(dyn Fn(zng_var::BoxAnyVarValue, usize, &mut UiNode) -> zng_var::BoxAnyVarValue + Sync),
+        reduce: &(dyn Fn(zng_var::BoxAnyVarValue, zng_var::BoxAnyVarValue) -> zng_var::BoxAnyVarValue + Sync),
+    ) -> zng_var::BoxAnyVarValue;
 }

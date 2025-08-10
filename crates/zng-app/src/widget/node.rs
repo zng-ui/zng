@@ -1,9 +1,6 @@
-//! Widget nodes types, [`UiNode`], [`UiNodeList`] and others.
+//! Widget nodes types, [`UiNode`], [`UiVec`] and others.
 
-use std::{
-    any::{Any, TypeId},
-    fmt,
-};
+use std::any::Any;
 
 mod adopt;
 pub use adopt::*;
@@ -22,9 +19,9 @@ pub use when::*;
 
 mod list;
 pub use list::*;
-use zng_app_proc_macros::{ui_node, widget};
-use zng_layout::unit::PxSize;
-use zng_var::{ContextInitHandle, ResponseVar};
+use zng_app_proc_macros::widget;
+use zng_layout::{context::LAYOUT, unit::PxSize};
+use zng_var::{BoxAnyVarValue, ContextInitHandle, ResponseVar, response_done_var, response_var};
 
 use crate::{
     render::{FrameBuilder, FrameUpdate},
@@ -37,43 +34,130 @@ use super::{
     info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
 };
 
-/// Represents an UI tree node.
+/// Represents an [`UiNode`] implementation.
 ///
 /// You can use the [`match_node`] helper to quickly declare a new node from a closure, most property nodes are implemented
-/// using the match helpers. For more advanced nodes you can use the [`ui_node`] proc-macro attribute.
-///
-/// [`match_node`]:fn@match_node
-#[diagnostic::on_unimplemented(
-    note = "you can use `match_node` to declare a node from a closure",
-    note = "you can use `#[ui_node]` to implement `UiNode` for `{Self}`"
-)]
-pub trait UiNode: Any + Send {
+/// using the match helpers. For more advanced nodes you can manually implement this trait.
+pub trait UiNodeImpl: Any + Send {
+    /// Gets the current count of children nodes.
+    fn children_len(&self) -> usize;
+
+    /// Gets if the node represents a list of other nodes.
+    ///
+    /// If `true` the node provides only minimal layout implementations and expects the caller
+    /// to use [`measure_list`], [`layout_list`] or direct access to child nodes for layout.
+    ///
+    /// [`measure_list`]: UiNodeImpl::measure_list
+    /// [`layout_list`]: UiNodeImpl::layout_list
+    fn is_list(&self) -> bool {
+        false
+    }
+
+    /// Visit a child node by `index`. If the index is not valid `visitor` is not called.
+    ///
+    /// Nodes with many children should also implement [`for_each_child`] and [`par_each_child`] for better performance.
+    ///
+    /// [`for_each_child`]: UiNodeImpl::for_each_child
+    /// [`par_each_child`]: UiNodeImpl::par_each_child
+    fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode));
+
+    /// Call `visitor` for each child node of `self`, one at a time.
+    ///
+    /// The closure parameters are the child index and the child.
+    fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+        #[cfg(debug_assertions)]
+        if self.is_list() {
+            tracing::warn!("UiNodeImpl is_list without implementing `for_each_child`");
+        }
+
+        for i in 0..self.children_len() {
+            self.with_child(i, &mut |n| visitor(i, n));
+        }
+    }
+
+    /// Calls `visitor` for each child node in parallel.
+    ///
+    /// The closure parameters are the child index and the child.
+    fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+        #[cfg(debug_assertions)]
+        if self.is_list() {
+            tracing::warn!("UiNodeImpl is_list without implementing `par_each_child`");
+        }
+
+        for i in 0..self.children_len() {
+            self.with_child(i, &mut |n| visitor(i, n));
+        }
+    }
+
+    /// Calls `fold` for each child node in parallel, with fold accumulators produced by cloning `identity`, then merges the folded results
+    /// using `reduce` to produce the final value also in parallel.
+    ///
+    /// If the `reduce` closure is [associative], an *append* like operation will produce a result in the same order as the input items.
+    ///
+    /// [associative]: https://en.wikipedia.org/wiki/Associative_property
+    fn par_fold_reduce(
+        &mut self,
+        identity: BoxAnyVarValue,
+        fold: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
+        reduce: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
+    ) -> BoxAnyVarValue {
+        #[cfg(debug_assertions)]
+        if self.is_list() {
+            tracing::warn!("UiNodeImpl is_list without implementing `par_fold_reduce`");
+        }
+
+        let _ = reduce;
+        let mut accumulator = identity;
+        for i in 0..self.children_len() {
+            self.with_child(i, &mut |n| {
+                accumulator = fold(std::mem::replace(&mut accumulator, BoxAnyVarValue::new(())), i, n);
+            });
+        }
+        accumulator
+    }
+
     /// Initializes the node in a new UI context.
     ///
     /// Common init operations are subscribing to variables and events and initializing data.
     /// You can use [`WIDGET`] to subscribe events and vars, the subscriptions live until the widget is deinited.
     ///
-    /// If the node is a custom widget ([`is_widget`]) it must request an info, layout and render updates, other nodes
+    /// If the node is a custom widget it must request an info, layout and render updates, other nodes
     /// do not need to request any sort of update on init.
     ///
     /// Note that this method can be called again, after a [`deinit`].
     ///
-    /// [`is_widget`]: UiNode::is_widget
     /// [`deinit`]: UiNode::deinit
-    fn init(&mut self);
+    fn init(&mut self) {
+        match self.children_len() {
+            0 => {}
+            1 => self.with_child(0, &mut |c| c.0.init()),
+            _ if PARALLEL_VAR.get().contains(Parallel::INIT) => {
+                self.par_each_child(&|_, n| n.0.init());
+            }
+            _ => self.for_each_child(&mut |_, n| n.0.init()),
+        }
+    }
 
     /// Deinitializes the node in the current UI context.
     ///
     /// Common deinit operations include dropping allocations and handlers.
     ///
-    /// If the node is a custom widget ([`is_widget`]) it must request an info, layout and render updates, other nodes
+    /// If the node is a custom widget it must request an info, layout and render updates, other nodes
     /// do not need to request any sort of update on deinit.
     ///
     /// Note that [`init`] can be called again after this.
     ///
-    /// [`is_widget`]: UiNode::is_widget
     /// [`init`]: UiNode::init
-    fn deinit(&mut self);
+    fn deinit(&mut self) {
+        match self.children_len() {
+            0 => {}
+            1 => self.with_child(0, &mut |c| c.0.deinit()),
+            _ if PARALLEL_VAR.get().contains(Parallel::DEINIT) => {
+                self.par_each_child(&|_, n| n.0.deinit());
+            }
+            _ => self.for_each_child(&mut |_, n| n.0.deinit()),
+        }
+    }
 
     /// Builds widget info.
     ///
@@ -89,7 +173,21 @@ pub trait UiNode: Any + Send {
     ///
     /// [`WIDGET.info`]: crate::widget::WIDGET::info
     /// [`WIDGET.update_info`]: crate::widget::WIDGET::update_info
-    fn info(&mut self, info: &mut WidgetInfoBuilder);
+    fn info(&mut self, info: &mut WidgetInfoBuilder) {
+        match self.children_len() {
+            0 => {}
+            1 => self.with_child(0, &mut |c| c.0.info(info)),
+            _ => {
+                #[cfg(debug_assertions)]
+                if self.is_list() && PARALLEL_VAR.get().contains(Parallel::INFO) {
+                    // info.parallel_split() is too large to fit in BoxAnyVarValue stack space,
+                    // so default parallel here would alloc
+                    tracing::info!("UiNodeImpl is_list without implementing `info`");
+                }
+                self.for_each_child(&mut |_, n| n.0.info(info))
+            }
+        }
+    }
 
     /// Receives an event.
     ///
@@ -101,7 +199,16 @@ pub trait UiNode: Any + Send {
     /// you delegate first, then check the event propagation.
     ///
     /// [`Event::on`]: crate::event::Event::on
-    fn event(&mut self, update: &EventUpdate);
+    fn event(&mut self, update: &EventUpdate) {
+        match self.children_len() {
+            0 => {}
+            1 => self.with_child(0, &mut |c| c.0.event(update)),
+            _ if PARALLEL_VAR.get().contains(Parallel::DEINIT) => {
+                self.par_each_child(&|_, n| n.0.event(update));
+            }
+            _ => self.for_each_child(&mut |_, n| n.0.event(update)),
+        }
+    }
 
     /// Receives variable and other non-event updates.
     ///
@@ -116,7 +223,34 @@ pub trait UiNode: Any + Send {
     ///
     /// [`Var::get_new`]: zng_var::Var::get_new
     /// [`WIDGET.update`]: crate::widget::WIDGET::update
-    fn update(&mut self, updates: &WidgetUpdates);
+    fn update(&mut self, updates: &WidgetUpdates) {
+        match self.children_len() {
+            0 => {}
+            1 => self.with_child(0, &mut |c| c.0.update(updates)),
+            _ if PARALLEL_VAR.get().contains(Parallel::DEINIT) => {
+                self.par_each_child(&|_, n| n.0.update(updates));
+            }
+            _ => self.for_each_child(&mut |_, n| n.0.update(updates)),
+        }
+    }
+
+    /// Does [`update`] and if the node is a list notifies list changes to the `observer`.
+    ///
+    /// [`update`]: UiNodeImpl::update
+    fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        if self.is_list() {
+            #[cfg(debug_assertions)]
+            tracing::info!("UiNodeImpl is_list without implementing `update_list`");
+
+            let len = self.children_len();
+            self.update(updates);
+            if len != self.children_len() {
+                observer.reset();
+            }
+        } else {
+            self.update(updates);
+        }
+    }
 
     /// Computes the widget size given the contextual layout metrics without actually updating the widget layout.
     ///
@@ -133,7 +267,68 @@ pub trait UiNode: Any + Send {
     /// [`LAYOUT`]: zng_layout::context::LAYOUT
     /// [`PxSize`]: zng_layout::unit::PxSize
     #[must_use]
-    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize;
+    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+        match self.children_len() {
+            0 => LAYOUT.constraints().fill_size(),
+            1 => {
+                let mut r = PxSize::zero();
+                self.with_child(0, &mut |c| r = c.measure(wm));
+                r
+            }
+            _ => {
+                #[cfg(debug_assertions)]
+                if self.is_list() && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+                    // wm.parallel_split() is too large to fit in BoxAnyVarValue stack space,
+                    // so default parallel here would alloc
+                    tracing::info!("UiNodeImpl is_list without implementing `measure`");
+                }
+                let mut accumulator = PxSize::zero();
+                self.for_each_child(&mut |_, n| accumulator = accumulator.max(n.0.measure(wm)));
+                accumulator
+            }
+        }
+    }
+
+    /// If the node [`is_list`] measure each child and combine the size using `fold_size`.
+    ///
+    /// If the node is not a list, simply measures it.
+    ///
+    /// [`is_list`]: UiNodeImpl::is_list
+    #[must_use]
+    fn measure_list(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        measure: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        if self.is_list() {
+            match self.children_len() {
+                0 => PxSize::zero(),
+                1 => {
+                    let mut r = PxSize::zero();
+                    self.with_child(0, &mut |c| r = measure(0, c, wm));
+                    r
+                }
+                _ => {
+                    #[cfg(debug_assertions)]
+                    if PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+                        // wm.parallel_split() is too large to fit in BoxAnyVarValue stack space,
+                        // so default parallel here would alloc
+                        tracing::info!("UiNodeImpl is_list without implementing `measure_list`");
+                    }
+
+                    let mut accumulator = PxSize::zero();
+                    self.for_each_child(&mut |i, n| {
+                        let c_s = measure(i, n, wm);
+                        accumulator = fold_size(accumulator, c_s)
+                    });
+                    accumulator
+                }
+            }
+        } else {
+            self.measure(wm)
+        }
+    }
 
     /// Computes the widget layout given the contextual layout metrics.
     ///
@@ -155,7 +350,68 @@ pub trait UiNode: Any + Send {
     /// [`LAYOUT`]: zng_layout::context::LAYOUT
     /// [`PxSize`]: zng_layout::unit::PxSize
     #[must_use]
-    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize;
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        match self.children_len() {
+            0 => LAYOUT.constraints().fill_size(),
+            1 => {
+                let mut r = PxSize::zero();
+                self.with_child(0, &mut |c| r = c.layout(wl));
+                r
+            }
+            _ => {
+                #[cfg(debug_assertions)]
+                if self.is_list() && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+                    // wl.parallel_split() is too large to fit in BoxAnyVarValue stack space,
+                    // so default parallel here would alloc
+                    tracing::info!("UiNodeImpl is_list without implementing `layout`");
+                }
+                let mut accumulator = PxSize::zero();
+                self.for_each_child(&mut |_, n| accumulator = accumulator.max(n.0.layout(wl)));
+                accumulator
+            }
+        }
+    }
+
+    /// If the node [`is_list`] layout each child and combine the size using `fold_size`.
+    ///
+    /// If the node is not a list, simply layout it.
+    ///
+    /// [`is_list`]: UiNodeImpl::is_list
+    #[must_use]
+    fn layout_list(
+        &mut self,
+        wl: &mut WidgetLayout,
+        layout: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        if self.is_list() {
+            match self.children_len() {
+                0 => PxSize::zero(),
+                1 => {
+                    let mut r = PxSize::zero();
+                    self.with_child(0, &mut |c| r = layout(0, c, wl));
+                    r
+                }
+                _ => {
+                    #[cfg(debug_assertions)]
+                    if PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+                        // wm.parallel_split() is too large to fit in BoxAnyVarValue stack space,
+                        // so default parallel here would alloc
+                        tracing::info!("UiNodeImpl is_list without implementing `layout_list`");
+                    }
+
+                    let mut accumulator = PxSize::zero();
+                    self.for_each_child(&mut |i, n| {
+                        let c_s = layout(i, n, wl);
+                        accumulator = fold_size(accumulator, c_s)
+                    });
+                    accumulator
+                }
+            }
+        } else {
+            self.layout(wl)
+        }
+    }
 
     /// Generates render instructions and updates transforms and hit-test areas.
     ///
@@ -164,7 +420,46 @@ pub trait UiNode: Any + Send {
     ///
     /// Only widgets and ancestors that requested render receive this call, other widgets reuse the display items and transforms
     /// from the last frame.
-    fn render(&mut self, frame: &mut FrameBuilder);
+    fn render(&mut self, frame: &mut FrameBuilder) {
+        match self.children_len() {
+            0 => {}
+            1 => self.with_child(0, &mut |c| c.render(frame)),
+            _ => {
+                #[cfg(debug_assertions)]
+                if self.is_list() && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+                    // frame.parallel_split() is too large to fit in BoxAnyVarValue stack space,
+                    // so default parallel here would alloc
+                    tracing::info!("UiNodeImpl is_list without implementing `render`");
+                }
+                self.for_each_child(&mut |_, n| n.0.render(frame));
+            }
+        }
+    }
+
+    /// If the node [`is_list`] render each child.
+    ///
+    /// If the node is not a list, simply renders it.
+    ///
+    /// [`is_list`]: UiNodeImpl::is_list
+    fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+        if self.is_list() {
+            match self.children_len() {
+                0 => {}
+                1 => self.with_child(0, &mut |n| render(0, n, frame)),
+                _ => {
+                    #[cfg(debug_assertions)]
+                    if PARALLEL_VAR.get().contains(Parallel::RENDER) {
+                        // wm.parallel_split() is too large to fit in BoxAnyVarValue stack space,
+                        // so default parallel here would alloc
+                        tracing::info!("UiNodeImpl is_list without implementing `render_list`");
+                    }
+                    self.for_each_child(&mut |i, n| render(i, n, frame));
+                }
+            }
+        } else {
+            self.render(frame);
+        }
+    }
 
     /// Updates values in the last generated frame.
     ///
@@ -175,192 +470,118 @@ pub trait UiNode: Any + Send {
     /// requests render all pending render update requests are upgraded to render requests.
     ///
     /// [`FrameValue<T>`]: crate::render::FrameValue
-    fn render_update(&mut self, update: &mut FrameUpdate);
-
-    /// Box this node or just returns `self` if it is already a `BoxedUiNode`.
-    fn boxed(self) -> BoxedUiNode
-    where
-        Self: Sized,
-    {
-        debug_assert_ne!(self.type_id(), TypeId::of::<BoxedUiNode>());
-        Box::new(self)
+    fn render_update(&mut self, update: &mut FrameUpdate) {
+        match self.children_len() {
+            0 => {}
+            1 => self.with_child(0, &mut |c| c.render_update(update)),
+            _ => {
+                #[cfg(debug_assertions)]
+                if self.is_list() && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+                    // update.parallel_split() is too large to fit in BoxAnyVarValue stack space,
+                    // so default parallel here would alloc
+                    tracing::info!("UiNodeImpl is_list without implementing `update`");
+                }
+                self.for_each_child(&mut |_, n| n.0.render_update(update));
+            }
+        }
     }
 
-    /// Helper for complying with the `"dyn_node"` feature, boxes the node or just returns it depending of the
-    /// compile time feature.
-    #[cfg(feature = "dyn_node")]
-    fn cfg_boxed(self) -> BoxedUiNode
-    where
-        Self: Sized,
-    {
-        self.boxed()
+    /// If the node [`is_list`] render_update each child.
+    ///
+    /// If the node is not a list, simply render_update it.
+    ///
+    /// [`is_list`]: UiNodeImpl::is_list
+    fn render_update_list(&mut self, update: &mut FrameUpdate, render_update: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
+        if self.is_list() {
+            match self.children_len() {
+                0 => {}
+                1 => self.with_child(0, &mut |n| render_update(0, n, update)),
+                _ => {
+                    #[cfg(debug_assertions)]
+                    if PARALLEL_VAR.get().contains(Parallel::RENDER) {
+                        // wm.parallel_split() is too large to fit in BoxAnyVarValue stack space,
+                        // so default parallel here would alloc
+                        tracing::info!("UiNodeImpl is_list without implementing `render_list`");
+                    }
+                    self.for_each_child(&mut |i, n| render_update(i, n, update));
+                }
+            }
+        } else {
+            self.render_update(update);
+        }
     }
 
-    /// Helper for complying with the `"dyn_node"` feature, boxes the node or just returns it depending of the
-    /// compile time feature.
-    #[cfg(not(feature = "dyn_node"))]
-    fn cfg_boxed(self) -> Self
-    where
-        Self: Sized,
-    {
-        self
-    }
-
-    /// Gets if this node represents a full widget, that is, it is the outer-most widget node and defines a widget context.
-    ///
-    /// If this is `true` the [`with_context`] method can be used to get the widget context.
-    ///
-    /// [`with_context`]: UiNode::with_context
-    fn is_widget(&self) -> bool {
-        false
-    }
-
-    /// Gets if this node does nothing and is layout collapsed.
-    ///
-    /// Implementers must return `true` only if the node will always do nothing, nodes that may change
-    /// and stop being collapsed are not nil.
-    fn is_nil(&self) -> bool {
-        false
-    }
-
-    /// Calls `f` with the [`WIDGET`] context of the node if it [`is_widget`].
-    ///
-    /// Returns `None` if the node does not represent a widget.
-    ///
-    /// If `update_mode` is [`WidgetUpdateMode::Bubble`] the update flags requested for the widget in `f` will be copied to the
-    /// caller widget context, otherwise they are ignored.
-    ///
-    /// [`is_widget`]: UiNode::is_widget
-    fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
-    where
-        F: FnOnce() -> R,
-    {
-        let _ = (update_mode, f);
+    /// Gets the node implementation as a [`WidgetUiNodeImpl`], if the node defines a widget instance scope.
+    fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
         None
     }
+}
 
-    /// Gets a [`BoxedUiNode`] that is a full widget.
+/// Represents an [`UiNodeImpl`] that defines a widget instance scope.
+///
+/// Widget defining nodes implement this trait and [`UiNodeImpl::as_widget`].
+pub trait WidgetUiNodeImpl: UiNodeImpl {
+    /// Calls `visitor` with the [`WIDGET`] context of the widget instance defined by the node.
     ///
-    /// If this node [`is_widget`] returns `self` boxed. Otherwise returns a new minimal widget
-    /// that has `self` as a child node.
-    ///
-    /// Use this if you know that the widget is not a full widget or you don't mind that some
-    /// nodes become full widgets only after init, otherwise use [`init_widget`].
-    ///
-    /// [`is_widget`]: UiNode::is_widget
-    /// [`init_widget`]: UiNode::init_widget
-    fn into_widget(self) -> BoxedUiNode
-    where
-        Self: Sized,
-    {
-        if self.is_widget() {
-            return self.boxed();
-        }
+    /// If `update_mode` is [`WidgetUpdateMode::Bubble`] the update flags requested for the widget in `visitor` will be copied to the
+    /// caller widget context, otherwise they are ignored.
+    fn with_context(&mut self, update_mode: WidgetUpdateMode, visitor: &mut dyn FnMut());
+}
 
-        into_widget! {
-            child = self;
-        }
-        .boxed()
+/// Represents a value that can become a [`UiNode`] instance.
+#[diagnostic::on_unimplemented(note = "`IntoUiNode` is implemented for all `U: UiNodeImpl`")]
+pub trait IntoUiNode {
+    /// Instantiate the UI node.
+    fn into_node(self) -> UiNode;
+}
+
+impl<U: UiNodeImpl> IntoUiNode for U {
+    #[inline(always)]
+    fn into_node(self) -> UiNode {
+        UiNode::new(self)
     }
-
-    /// Gets a [`BoxedUiNode`] that already is a full widget or will be after init and a response var that
-    /// already is the widget ID or will update once after init with the ID.
-    ///
-    /// If this node [`is_widget`] returns `self` boxed and an already responded var. Otherwise returns
-    /// a node that will ensure `self` is a full widget after init and update the response var with the
-    /// widget ID.
-    ///
-    /// Some nodes become full widgets only after init, the [`ArcNode::take_on_init`] for example, this node
-    /// supports these cases at the expense of having to reinit inside the generated widget when `self` is
-    /// not a full widget even after init.
-    ///
-    /// [`is_widget`]: UiNode::is_widget
-    /// [`ArcNode::take_on_init`]: crate::widget::node::ArcNode::take_on_init
-    fn init_widget(mut self) -> (BoxedUiNode, ResponseVar<WidgetId>)
-    where
-        Self: Sized,
-    {
-        if let Some(id) = self.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
-            return (self.boxed(), crate::var::response_done_var(id));
-        }
-
-        let (responder, response) = crate::var::response_var();
-        let widget = match_widget(self.boxed(), move |c, op| {
-            if let UiNodeOp::Init = op {
-                c.init();
-                let widget_id = if let Some(id) = c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
-                    id
-                } else {
-                    c.deinit();
-                    let not_widget = std::mem::replace(c.child(), NilUiNode.boxed());
-                    *c.child() = not_widget.into_widget();
-
-                    c.init();
-                    c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()).unwrap()
-                };
-
-                responder.respond(widget_id);
-            }
-        });
-        (widget.boxed(), response)
-    }
-
-    /// Downcast to `T`, if `self` is `T` or `self` is a [`BoxedUiNode`] that is `T`.
-    fn downcast_unbox<T: UiNode>(self) -> Result<T, BoxedUiNode>
-    where
-        Self: Sized,
-    {
-        let boxed = self.boxed();
-        if boxed.actual_type_id() == TypeId::of::<T>() {
-            Ok(*boxed.into_any_boxed().downcast().unwrap())
-        } else if TypeId::of::<T>() == TypeId::of::<BoxedUiNode>() {
-            Ok(*(Box::new(boxed) as Box<dyn Any>).downcast().unwrap())
-        } else {
-            Err(boxed)
-        }
-    }
-
-    /// Returns the [`type_id`] of the unboxed node.
-    ///
-    /// [`type_id`]: Any::type_id
-    fn actual_type_id(&self) -> TypeId {
-        self.type_id()
-    }
-
-    /// Access to `dyn Any` methods.
-    fn as_any(&self) -> &dyn Any
-    where
-        Self: Sized,
-    {
+}
+impl IntoUiNode for UiNode {
+    #[inline(always)]
+    fn into_node(self) -> UiNode {
         self
     }
-
-    /// Access to mut `dyn Any` methods.
-    fn as_any_mut(&mut self) -> &mut dyn Any
-    where
-        Self: Sized,
-    {
-        self
+}
+impl<U: IntoUiNode> IntoUiNode for Option<U> {
+    /// Unwrap or nil.
+    fn into_node(self) -> UiNode {
+        self.map(IntoUiNode::into_node).unwrap_or_else(UiNode::nil)
     }
+}
 
-    /// Wraps the node in a node that, before delegating each method, calls a closure with
-    /// the [`UiNodeOpMethod`], the closure can return a *span* that is dropped after the method delegation.
+/// Represents an UI tree node instance.
+///
+/// You can use the [`match_node`] helper to quickly declare a new node from a closure, most property nodes are implemented
+/// using the match helpers. For more advanced nodes can implement the [`UiNodeImpl`] trait. Other types can be converted to nodes
+/// if they implement [`IntoUiNode`].
+///
+/// [`match_node`]:fn@match_node
+pub struct UiNode(Box<dyn UiNodeImpl>);
+
+/// Constructors.
+impl UiNode {
+    /// New UI node instance from implementation.
     ///
-    /// You can use the [`tracing`](https://docs.rs/tracing) crate to create the span.
-    fn trace<E, S>(self, mut enter_mtd: E) -> BoxedUiNode
-    where
-        Self: Sized,
-        E: FnMut(UiNodeOpMethod) -> S + Send + 'static,
-    {
-        match_node(self, move |node, op| {
-            let _span = enter_mtd(op.mtd());
-            node.op(op);
-        })
-        .boxed()
+    /// Note that [`IntoUiNode`] is implemented for all `U: UiNodeImpl` so you don't usually need to call this.
+    pub fn new(implementation: impl UiNodeImpl) -> Self {
+        Self(Box::new(implementation))
     }
 
-    /// Runs the [ `UiNodeOp`].
-    fn op(&mut self, op: UiNodeOp) {
+    /// New UI node that does nothing and collapses layout.
+    pub fn nil() -> Self {
+        Self::new(NilUiNode)
+    }
+}
+
+/// UI operations.
+impl UiNode {
+    /// Calls the [`UiNodeOp`].
+    pub fn op(&mut self, op: UiNodeOp) {
         match op {
             UiNodeOp::Init => self.init(),
             UiNodeOp::Deinit => self.deinit(),
@@ -373,6 +594,395 @@ pub trait UiNode: Any + Send {
             UiNodeOp::RenderUpdate { update } => self.render_update(update),
         }
     }
+
+    /// Initialize the node in a new UI context.
+    ///
+    /// See [`UiNodeImpl::init`] for more details.
+    #[inline(always)]
+    pub fn init(&mut self) {
+        self.0.init();
+    }
+
+    /// Deinitialize the node in the current UI context.
+    ///
+    /// This must be called before dropping the node.
+    ///
+    /// After calling this you can move the node to a new context and call [`init`] again.
+    ///
+    /// See [`UiNodeImpl::deinit`] for more details.
+    ///
+    /// [`init`]: Self::init
+    #[inline(always)]
+    pub fn deinit(&mut self) {
+        self.0.deinit();
+    }
+
+    /// Continue building widget info metadata.
+    ///
+    /// See [`UiNodeImpl::info`] for more details.
+    #[inline(always)]
+    pub fn info(&mut self, info: &mut WidgetInfoBuilder) {
+        self.0.info(info);
+    }
+
+    /// Notify event update.
+    ///
+    /// See [`UiNodeImpl::event`] for more details.
+    #[inline(always)]
+    pub fn event(&mut self, update: &EventUpdate) {
+        self.0.event(update);
+    }
+
+    /// Notify non-event update.
+    ///
+    /// See [`UiNodeImpl::update`] for more details.
+    #[inline(always)]
+    pub fn update(&mut self, updates: &WidgetUpdates) {
+        self.0.update(updates);
+    }
+
+    /// Notify non-event update and observe list changes if the widget is a list.
+    ///
+    /// See [`UiNodeImpl::update_list`] for more details.
+    #[inline(always)]
+    pub fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut impl UiNodeListObserver) {
+        self.0.update_list(updates, observer);
+    }
+
+    /// Estimate node layout without actually updating the node render state.
+    ///
+    /// See [`UiNodeImpl::measure`] for more details.
+    #[inline(always)]
+    #[must_use]
+    pub fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+        self.0.measure(wm)
+    }
+
+    /// If the node [`is_list`] measure each child and combine the size using `fold_size`.
+    ///
+    /// If the node is not a list, simply measures it.
+    ///
+    /// See [`UiNodeImpl::measure_list`] for more details.
+    ///
+    /// [`is_list`]: UiNode::is_list
+    #[inline(always)]
+    #[must_use]
+    pub fn measure_list(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        measure: impl Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync,
+        fold_size: impl Fn(PxSize, PxSize) -> PxSize + Sync,
+    ) -> PxSize {
+        self.0.measure_list(wm, &measure, &fold_size)
+    }
+
+    /// Update node layout.
+    ///
+    /// See [`UiNodeImpl::layout`] for more details.
+    #[inline(always)]
+    #[must_use]
+    pub fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        self.0.layout(wl)
+    }
+
+    /// If the node [`is_list`] layout each child and combine the size using `fold_size`.
+    ///
+    /// If the node is not a list, simply layout it.
+    ///
+    /// See [`UiNodeImpl::layout_list`] for more details.
+    ///
+    /// [`is_list`]: UiNode::is_list
+    #[inline(always)]
+    #[must_use]
+    pub fn layout_list(
+        &mut self,
+        wl: &mut WidgetLayout,
+        layout: impl Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync,
+        fold_size: impl Fn(PxSize, PxSize) -> PxSize + Sync,
+    ) -> PxSize {
+        self.0.layout_list(wl, &layout, &fold_size)
+    }
+
+    /// Collect render instructions for a new frame.
+    ///
+    /// See [`UiNodeImpl::render`] for more details.
+    #[inline(always)]
+    pub fn render(&mut self, frame: &mut FrameBuilder) {
+        self.0.render(frame)
+    }
+
+    /// If the node [`is_list`] render each child.
+    ///
+    /// If the node is not a list, simply renders it.
+    ///
+    /// See [`UiNodeImpl::render_list`] for more details.
+    ///
+    /// [`is_list`]: UiNode::is_list
+    #[inline(always)]
+    pub fn render_list(&mut self, frame: &mut FrameBuilder, render: impl Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync) {
+        self.0.render_list(frame, &render);
+    }
+
+    /// Collect render patches to apply to the previous frame.
+    ///
+    /// See [`UiNodeImpl::render_update`] for more details.
+    #[inline(always)]
+    pub fn render_update(&mut self, update: &mut FrameUpdate) {
+        self.0.render_update(update);
+    }
+
+    /// If the node [`is_list`] render_update each child.
+    ///
+    /// If the node is not a list, simply render_update it.
+    ///
+    /// See [`UiNodeImpl::render_update_list`] for more details.
+    ///
+    /// [`is_list`]: UiNode::is_list
+    #[inline(always)]
+    pub fn render_update_list(&mut self, update: &mut FrameUpdate, render_update: impl Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync) {
+        self.0.render_update_list(update, &render_update);
+    }
+}
+
+/// Children.
+impl UiNode {
+    /// Number of direct descendants of this node.
+    pub fn children_len(&self) -> usize {
+        self.0.children_len()
+    }
+
+    /// Call `visitor` with a exclusive reference to the child node identified by `index`.
+    ///
+    /// If the `index` is out of bounds the closure is not called and returns `None`.
+    pub fn try_with_child<R>(&mut self, index: usize, visitor: impl FnOnce(&mut UiNode) -> R) -> Option<R> {
+        let mut once = Some(visitor);
+        let mut r = None;
+        self.0.with_child(index, &mut |child| r = Some(once.take().unwrap()(child)));
+        r
+    }
+
+    /// Call `visitor` with a exclusive reference to the child node identified by `index`.
+    ///
+    /// Panics if the `index` is out of bounds.
+    pub fn with_child<R>(&mut self, index: usize, visitor: impl FnOnce(&mut UiNode) -> R) -> R {
+        self.try_with_child(index, visitor).expect("index out of bounds")
+    }
+
+    /// Call `visitor` for each child node of `self`, one at a time.
+    ///
+    /// The closure parameters are the child index and the child.
+    pub fn for_each_child(&mut self, mut visitor: impl FnMut(usize, &mut UiNode)) {
+        self.0.for_each_child(&mut visitor);
+    }
+
+    /// Calls `visitor` for each child node in parallel.
+    ///
+    /// The closure parameters are the child index and the child.
+    pub fn par_each_child(&mut self, visitor: impl Fn(usize, &mut UiNode) + Sync) {
+        self.0.par_each_child(&visitor);
+    }
+
+    /// Calls `fold` for each child node in parallel, with fold accumulators produced by cloning `identity`, then merges the folded results
+    /// using `reduce` to produce the final value also in parallel.
+    ///
+    /// If the `reduce` closure is [associative], an *append* like operation will produce a result in the same order as the input items.
+    ///
+    /// [associative]: https://en.wikipedia.org/wiki/Associative_property
+    pub fn par_fold_reduce<T: zng_var::VarValue>(
+        &mut self,
+        identity: T,
+        fold: impl Fn(T, usize, &mut UiNode) -> T + Sync,
+        reduce: impl Fn(T, T) -> T + Sync,
+    ) -> T {
+        use zng_var::BoxAnyVarValue as B;
+        self.0
+            .par_fold_reduce(
+                B::new(identity),
+                &|accumulator, index, node| {
+                    let r = fold(accumulator.downcast::<T>().unwrap(), index, node);
+                    B::new(r)
+                },
+                &|a, b| {
+                    let r = reduce(a.downcast::<T>().unwrap(), b.downcast::<T>().unwrap());
+                    B::new(r)
+                },
+            )
+            .downcast::<T>()
+            .unwrap()
+    }
+}
+
+/// Node type.
+impl UiNode {
+    /// Returns some reference to implementation of type `U`, if the node instance is of that implementation.
+    #[inline(always)]
+    pub fn downcast_ref<U: UiNodeImpl>(&self) -> Option<&U> {
+        let u: &dyn Any = &*self.0;
+        u.downcast_ref::<U>()
+    }
+
+    /// Returns some mutable reference to implementation of type `U`, if the node instance is of that implementation.
+    #[inline(always)]
+    pub fn downcast_mut<U: UiNodeImpl>(&mut self) -> Option<&mut U> {
+        let u: &mut dyn Any = &mut *self.0;
+        u.downcast_mut::<U>()
+    }
+
+    /// Gets if the node is an instance of implementation `U`.
+    #[inline(always)]
+    pub fn is<U: UiNodeImpl>(&self) -> bool {
+        self.downcast_ref::<U>().is_some()
+    }
+
+    /// Exclusive borrow the node implementation directly.
+    #[inline(always)]
+    pub fn as_dyn(&mut self) -> &mut dyn UiNodeImpl {
+        &mut *self.0
+    }
+
+    /// Gets if the node represents a list of other nodes.
+    ///
+    /// If `true` the node provides only minimal layout implementations and expects the caller
+    /// to use [`measure_list`], [`layout_list`] or direct access to the child nodes for layout.
+    ///
+    /// [`measure_list`]: Self::measure_list
+    /// [`layout_list`]: Self::layout_list
+    #[inline(always)]
+    pub fn is_list(&self) -> bool {
+        self.0.is_list()
+    }
+
+    /// Returns a node that [`is_list`].
+    ///
+    /// If `self` is a list returns it unchanged.
+    ///
+    /// If `self` is nil returns an empty list node.
+    ///
+    /// Otherwise returns a new list node with `self` as the single entry.
+    ///
+    /// [`is_list`]: Self::is_list
+    pub fn into_list(self) -> UiNode {
+        if self.is_list() {
+            self
+        } else if self.is_nil() {
+            ui_vec![].into_node()
+        } else {
+            ui_vec![self].into_node()
+        }
+    }
+
+    /// Gets if is [`nil`].
+    ///
+    /// [`nil`]: Self::nil
+    #[inline(always)]
+    pub fn is_nil(&self) -> bool {
+        self.is::<NilUiNode>()
+    }
+
+    /// Access widget node methods, if the node defines a widget context.
+    #[inline(always)]
+    pub fn as_widget(&mut self) -> Option<WidgetUiNode<'_>> {
+        self.0.as_widget().map(WidgetUiNode)
+    }
+
+    /// Returns a node that defines a widget context.
+    ///
+    /// If this node already defines a widget just returns it, if not wraps it in a minimal widget implementation.
+    ///
+    /// See also [`init_widget`] for a node that awaits until `self` is inited to verify if a new widget really needs to be declared.
+    ///
+    /// [`init_widget`]: Self::init_widget
+    pub fn into_widget(mut self) -> UiNode {
+        if self.0.as_widget().is_some() {
+            self
+        } else {
+            into_widget!(child = self)
+        }
+    }
+
+    /// Returns a node that defines a widget context or will begin defining it after [`init`].
+    ///
+    /// Also returns a response var that contains or will contain the widget instance ID.
+    ///
+    /// If `self` is already an widget node simply returns it and the ID, otherwise returns a node that wraps `self`
+    /// and checks again if `self` is a widget after init, if `self` is still not a widget after init the wrapper node starts
+    /// defining a minimal widget context.
+    ///
+    /// Some nodes like [`ArcNode::take_on_init`] can only become widgets on init, this helper is an alternative to [`into_widget`]
+    /// that avoids declaring a second wrapper widget in those cases. Note that because the wrapper node needs to define a widget context
+    /// after the [`init`] call the wrapped `self` node will need to be reinited inside the new widget.
+    ///
+    /// [`init`]: Self::init
+    /// [`into_widget`]: Self::into_widget
+    pub fn init_widget(mut self) -> (UiNode, ResponseVar<WidgetId>) {
+        if let Some(mut wgt) = self.as_widget() {
+            let id = response_done_var(wgt.id());
+            (self, id)
+        } else {
+            let (r, id) = response_var::<WidgetId>();
+            let mut first_init = Some(r);
+            let wgt = match_widget(self, move |c, op| {
+                if let UiNodeOp::Init = op {
+                    c.init();
+
+                    if let Some(r) = first_init.take() {
+                        if let Some(mut wgt) = c.node().as_widget() {
+                            r.respond(wgt.id());
+                        } else {
+                            // reinit inside a new widget
+                            c.deinit();
+                            let not_wgt = std::mem::replace(c.node(), UiNode::nil());
+                            *c.node() = into_widget!(child = not_wgt);
+                            c.init();
+
+                            r.respond(c.node().as_widget().unwrap().id());
+                        }
+                    }
+                }
+            });
+            (wgt, id)
+        }
+    }
+
+    /// Wraps the node in a node that, before delegating each method, calls a closure with
+    /// the [`UiNodeOpMethod`], the closure can return a *span* that is dropped after the method delegation.
+    ///
+    /// You can use the [`tracing`](https://docs.rs/tracing) crate to create the span.
+    pub fn trace<E, S>(self, mut enter_mtd: E) -> UiNode
+    where
+        Self: Sized,
+        E: FnMut(UiNodeOpMethod) -> S + Send + 'static,
+    {
+        match_node(self, move |node, op| {
+            let _span = enter_mtd(op.mtd());
+            node.op(op);
+        })
+    }
+}
+
+/// Extra [`UiNode`] methods for nodes that define a widget instance context.
+///
+/// See [`UiNode::as_widget`] for more details.
+pub struct WidgetUiNode<'u>(&'u mut dyn WidgetUiNodeImpl);
+
+impl<'u> WidgetUiNode<'u> {
+    /// Calls `visitor` with the [`WIDGET`] context of the widget instance defined by the node.
+    ///
+    /// If `update_mode` is [`WidgetUpdateMode::Bubble`] the update flags requested for the widget in `visitor` will be copied to the
+    /// caller widget context, otherwise they are ignored.
+    pub fn with_context<R>(&mut self, update_mode: WidgetUpdateMode, visitor: impl FnOnce() -> R) -> R {
+        let mut once = Some(visitor);
+        let mut r = None;
+        self.0.with_context(update_mode, &mut || r = Some(once.take().unwrap()()));
+        r.unwrap()
+    }
+
+    /// Gets the widget instance ID.
+    pub fn id(&mut self) -> WidgetId {
+        self.with_context(WidgetUpdateMode::Ignore, || WIDGET.id())
+    }
+
+    // TODO other helpers, with_state, state_get?
 }
 
 /// See [`UiNode::into_widget`]
@@ -380,7 +990,7 @@ pub trait UiNode: Any + Send {
 #[widget($crate::widget::node::into_widget)]
 struct into_widget(crate::widget::base::WidgetBase);
 #[zng_app_proc_macros::property(CHILD, capture, widget_impl(into_widget))]
-fn child(child: impl UiNode) {}
+fn child(child: impl IntoUiNode) {}
 impl into_widget {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|b| {
@@ -390,1042 +1000,8 @@ impl into_widget {
     }
 }
 
-/// Represents a list of UI nodes.
-///
-/// There are multiple node list types, panel implementers receive children as `impl UiNodeList` and usually wrap it in a [`PanelList`].
-///
-/// UI node lists delegate the [`UiNode`] method for each node in the list, potentially in parallel. Panel implementers call the `*_all`
-/// methods to delegate, they can also use the [`match_node_list`] to implement delegation. The trait also offers [`for_each`], [`par_each`]
-/// and other methods for direct access to the nodes, both sequentially and in parallel.
-///
-/// Note that trying to access the nodes before init will probably not work, the [`ArcNodeList`] type is used by properties that request
-/// `impl UiNodeList` input, so captured property lists will always be empty before init.
-///
-/// [`for_each`]: UiNodeList::for_each
-/// [`par_each`]: UiNodeList::par_each
-pub trait UiNodeList: UiNodeListBoxed {
-    /// Visit the specific node.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` is out of bounds.
-    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&mut BoxedUiNode) -> R;
-
-    /// Calls `f` for each node in the list with the index, sequentially.
-    fn for_each<F>(&mut self, f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode);
-
-    /// Calls `f` for each node in the list with the index, in parallel.
-    fn par_each<F>(&mut self, f: F)
-    where
-        F: Fn(usize, &mut BoxedUiNode) + Send + Sync;
-
-    /// Calls `fold` for each node in the list in parallel, with fold accumulators produced by `identity`, then merges the folded results
-    /// using `reduce` to produce the final value also in parallel.
-    ///
-    /// If `reduce` is [associative] the order is preserved in the result.
-    ///
-    /// # Example
-    ///
-    /// This example will collect the node indexes in order:
-    ///
-    /// ```
-    /// # use zng_app::widget::node::UiNodeList;
-    /// # fn demo(mut list: impl UiNodeList) -> Vec<usize> {
-    /// list.par_fold_reduce(
-    ///     Vec::new,
-    ///     |mut v, i, _| {
-    ///         v.push(i);
-    ///         v
-    ///     },
-    ///     |mut a, b| {
-    ///         a.extend(b);
-    ///         a
-    ///     },
-    /// )
-    /// # }
-    /// ```
-    ///
-    /// [associative]: https://en.wikipedia.org/wiki/Associative_property
-    fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
-    where
-        T: Send + 'static,
-        I: Fn() -> T + Send + Sync,
-        F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
-        R: Fn(T, T) -> T + Send + Sync;
-
-    /// Gets the current number of nodes in the list.
-    fn len(&self) -> usize;
-
-    /// Returns `true` if the list does not contain any nodes.
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    /// Gets `self` boxed, or itself if it is already boxed.
-    fn boxed(self) -> BoxedUiNodeList;
-
-    /// Move all nodes into `vec`.
-    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>);
-
-    /// Init the list in a context, all nodes are also inited.
-    ///
-    /// The behavior of some list implementations depend on this call, manually initializing nodes is an error.
-    fn init_all(&mut self) {
-        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::INIT) {
-            self.par_each(|_, c| {
-                c.init();
-            });
-        } else {
-            self.for_each(|_, c| {
-                c.init();
-            })
-        }
-    }
-
-    /// Deinit the list in a context, all nodes are also deinited.
-    ///
-    /// The behavior of some list implementations depend on this call, manually deiniting nodes is an error.
-    fn deinit_all(&mut self) {
-        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::DEINIT) {
-            self.par_each(|_, c| {
-                c.deinit();
-            });
-        } else {
-            self.for_each(|_, c| {
-                c.deinit();
-            });
-        }
-    }
-
-    /// Rebuilds the list in a context, all node info is rebuilt.
-    fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
-        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::INFO) {
-            let p_info = self.par_fold_reduce(
-                || info.parallel_split(),
-                |mut info, _, node| {
-                    node.info(&mut info);
-                    info
-                },
-                |mut a, b| {
-                    a.parallel_fold(b);
-                    a
-                },
-            );
-            info.parallel_fold(p_info);
-        } else {
-            self.for_each(|_, c| {
-                c.info(info);
-            });
-        }
-    }
-
-    /// Receive updates for the list in a context, all nodes are also updated.
-    ///
-    /// The behavior of some list implementations depend on this call, manually updating nodes is an error.
-    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        let _ = observer;
-
-        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::UPDATE) {
-            self.par_each(|_, c| {
-                c.update(updates);
-            });
-        } else {
-            self.for_each(|_, c| {
-                c.update(updates);
-            });
-        }
-    }
-
-    /// Receive an event for the list in a context, all nodes are also notified.
-    ///
-    /// The behavior of some list implementations depend on this call, manually notifying nodes is an error.
-    fn event_all(&mut self, update: &EventUpdate) {
-        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::EVENT) {
-            self.par_each(|_, c| {
-                c.event(update);
-            });
-        } else {
-            self.for_each(|_, c| {
-                c.event(update);
-            });
-        }
-    }
-
-    /// Call `measure` for each node and combines the final size using `fold_size`.
-    ///
-    /// The call to `measure` can be parallel if [`Parallel::LAYOUT`] is enabled.
-    #[must_use]
-    fn measure_each<F, S>(&mut self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
-    where
-        F: Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync,
-        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
-        Self: Sized,
-    {
-        default_measure_each(self, wm, measure, fold_size)
-    }
-
-    /// Call `layout` for each node and combines the final size using `fold_size`.
-    ///
-    /// The call to `layout` can be parallel if [`Parallel::LAYOUT`] is enabled.
-    #[must_use]
-    fn layout_each<F, S>(&mut self, wl: &mut WidgetLayout, layout: F, fold_size: S) -> PxSize
-    where
-        F: Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync,
-        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
-        Self: Sized,
-    {
-        default_layout_each(self, wl, layout, fold_size)
-    }
-
-    /// Render all nodes.
-    ///
-    /// The correct behavior of some list implementations depend on this call, using [`for_each`] to render nodes can
-    /// break it.
-    ///
-    /// [`for_each`]: UiNodeList::for_each
-    fn render_all(&mut self, frame: &mut FrameBuilder) {
-        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
-            let p_frame = self.par_fold_reduce(
-                || frame.parallel_split(),
-                |mut frame, _, node| {
-                    node.render(&mut frame);
-                    frame
-                },
-                |mut a, b| {
-                    a.parallel_fold(b);
-                    a
-                },
-            );
-            frame.parallel_fold(p_frame);
-        } else {
-            self.for_each(|_, c| {
-                c.render(frame);
-            })
-        }
-    }
-
-    /// Render all nodes.
-    ///
-    /// The correct behavior of some list implementations depend on this call, using [`for_each`] to render nodes can
-    /// break it.
-    ///
-    /// [`for_each`]: UiNodeList::for_each
-    fn render_update_all(&mut self, update: &mut FrameUpdate) {
-        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
-            let p_update = self.par_fold_reduce(
-                || update.parallel_split(),
-                |mut update, _, node| {
-                    node.render_update(&mut update);
-                    update
-                },
-                |mut a, b| {
-                    a.parallel_fold(b);
-                    a
-                },
-            );
-            update.parallel_fold(p_update);
-        } else {
-            self.for_each(|_, c| {
-                c.render_update(update);
-            })
-        }
-    }
-    /// Downcast to `L`, if `self` is `L` or is a [`BoxedUiNodeList`] that is `L`.
-    fn downcast_unbox<L: UiNodeList>(self) -> Result<L, BoxedUiNodeList>
-    where
-        Self: Sized,
-    {
-        let boxed = self.boxed();
-        if boxed.actual_type_id() == TypeId::of::<L>() {
-            Ok(*boxed.into_any_boxed().downcast().unwrap())
-        } else if TypeId::of::<L>() == TypeId::of::<BoxedUiNodeList>() {
-            Ok(*(Box::new(boxed) as Box<dyn Any>).downcast().unwrap())
-        } else {
-            Err(boxed)
-        }
-    }
-
-    /// Returns the [`type_id`] of the unboxed list.
-    ///
-    /// [`type_id`]: Any::type_id
-    fn actual_type_id(&self) -> TypeId {
-        self.type_id()
-    }
-
-    /// Access to mut `dyn Any` methods.
-    fn as_any(&mut self) -> &mut dyn Any
-    where
-        Self: Sized,
-    {
-        self
-    }
-
-    /// Runs the [`UiNodeOp`].
-    fn op(&mut self, op: UiNodeOp)
-    where
-        Self: Sized,
-    {
-        match op {
-            UiNodeOp::Init => ui_node_list_default::init_all(self),
-            UiNodeOp::Deinit => ui_node_list_default::deinit_all(self),
-            UiNodeOp::Info { info } => ui_node_list_default::info_all(self, info),
-            UiNodeOp::Event { update } => ui_node_list_default::event_all(self, update),
-            UiNodeOp::Update { updates } => ui_node_list_default::update_all(self, updates),
-            UiNodeOp::Measure { wm, desired_size } => *desired_size = ui_node_list_default::measure_all(self, wm),
-            UiNodeOp::Layout { wl, final_size } => *final_size = ui_node_list_default::layout_all(self, wl),
-            UiNodeOp::Render { frame } => ui_node_list_default::render_all(self, frame),
-            UiNodeOp::RenderUpdate { update } => ui_node_list_default::render_update_all(self, update),
-        }
-    }
-}
-
-fn default_measure_each<F, S>(self_: &mut impl UiNodeList, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
-where
-    F: Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync,
-    S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
-{
-    #[cfg(feature = "dyn_closure")]
-    let measure: Box<dyn Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync> = Box::new(measure);
-    #[cfg(feature = "dyn_closure")]
-    let fold_size: Box<dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync> = Box::new(fold_size);
-
-    default_measure_each_impl(self_, wm, measure, fold_size)
-}
-fn default_measure_each_impl<F, S>(self_: &mut impl UiNodeList, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
-where
-    F: Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync,
-    S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
-{
-    if self_.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-        // fold a tuple of `(wm, size)`
-        let (pwm, size) = self_.par_fold_reduce(
-            || (wm.parallel_split(), PxSize::zero()),
-            |(mut a_wm, a_size), i, n| {
-                let b_size = measure(i, n, &mut a_wm);
-                (a_wm, fold_size(a_size, b_size))
-            },
-            |(mut awm, a_size), (bwm, b_size)| {
-                (
-                    {
-                        awm.parallel_fold(bwm);
-                        awm
-                    },
-                    fold_size(a_size, b_size),
-                )
-            },
-        );
-        wm.parallel_fold(pwm);
-        size
-    } else {
-        let mut size = PxSize::zero();
-        self_.for_each(|i, n| {
-            let b = measure(i, n, wm);
-            size = fold_size(size, b);
-        });
-        size
-    }
-}
-
-fn default_layout_each<F, S>(self_: &mut impl UiNodeList, wl: &mut WidgetLayout, layout: F, fold_size: S) -> PxSize
-where
-    F: Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync,
-    S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
-{
-    #[cfg(feature = "dyn_closure")]
-    let layout: Box<dyn Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync> = Box::new(layout);
-    #[cfg(feature = "dyn_closure")]
-    let fold_size: Box<dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync> = Box::new(fold_size);
-
-    default_layout_each_impl(self_, wl, layout, fold_size)
-}
-fn default_layout_each_impl<F, S>(self_: &mut impl UiNodeList, wl: &mut WidgetLayout, layout: F, fold_size: S) -> PxSize
-where
-    F: Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync,
-    S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
-{
-    if self_.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-        // fold a tuple of `(wl, size)`
-        let (pwl, size) = self_.par_fold_reduce(
-            || (wl.parallel_split(), PxSize::zero()),
-            |(mut awl, a_size), i, n| {
-                let b_size = layout(i, n, &mut awl);
-                (awl, fold_size(a_size, b_size))
-            },
-            |(mut awl, a_size), (bwl, b_size)| {
-                (
-                    {
-                        awl.parallel_fold(bwl);
-                        awl
-                    },
-                    fold_size(a_size, b_size),
-                )
-            },
-        );
-        wl.parallel_fold(pwl);
-        size
-    } else {
-        let mut size = PxSize::zero();
-        self_.for_each(|i, n| {
-            let b = layout(i, n, wl);
-            size = fold_size(size, b);
-        });
-        size
-    }
-}
-
-#[doc(hidden)]
-pub mod ui_node_list_default {
-    use super::*;
-
-    pub fn init_all(list: &mut impl UiNodeList) {
-        list.init_all();
-    }
-
-    pub fn deinit_all(list: &mut impl UiNodeList) {
-        list.deinit_all();
-    }
-
-    pub fn info_all(list: &mut impl UiNodeList, info: &mut WidgetInfoBuilder) {
-        list.info_all(info)
-    }
-
-    pub fn event_all(list: &mut impl UiNodeList, update: &EventUpdate) {
-        list.event_all(update);
-    }
-
-    pub fn update_all(list: &mut impl UiNodeList, updates: &WidgetUpdates) {
-        let mut changed = false;
-
-        list.update_all(updates, &mut changed);
-
-        if changed {
-            WIDGET.layout().render();
-        }
-    }
-
-    pub fn measure_all(list: &mut impl UiNodeList, wm: &mut WidgetMeasure) -> PxSize {
-        list.measure_each(wm, |_, n, wm| n.measure(wm), PxSize::max)
-    }
-
-    pub fn layout_all(list: &mut impl UiNodeList, wl: &mut WidgetLayout) -> PxSize {
-        list.layout_each(wl, |_, n, wl| n.layout(wl), PxSize::max)
-    }
-
-    pub fn render_all(list: &mut impl UiNodeList, frame: &mut FrameBuilder) {
-        list.render_all(frame);
-    }
-
-    pub fn render_update_all(list: &mut impl UiNodeList, update: &mut FrameUpdate) {
-        list.render_update_all(update)
-    }
-}
-
-#[doc(hidden)]
-pub trait UiNodeBoxed: Any + Send {
-    fn info_boxed(&mut self, info: &mut WidgetInfoBuilder);
-    fn init_boxed(&mut self);
-    fn deinit_boxed(&mut self);
-    fn update_boxed(&mut self, updates: &WidgetUpdates);
-    fn event_boxed(&mut self, update: &EventUpdate);
-    fn measure_boxed(&mut self, wm: &mut WidgetMeasure) -> PxSize;
-    fn layout_boxed(&mut self, wl: &mut WidgetLayout) -> PxSize;
-    fn render_boxed(&mut self, frame: &mut FrameBuilder);
-    fn render_update_boxed(&mut self, update: &mut FrameUpdate);
-
-    fn is_widget_boxed(&self) -> bool;
-    fn is_nil_boxed(&self) -> bool;
-    fn with_context_boxed(&mut self, update_mode: WidgetUpdateMode, f: &mut dyn FnMut());
-    fn into_widget_boxed(self: Box<Self>) -> BoxedUiNode;
-    fn as_any_boxed(&self) -> &dyn Any;
-    fn as_any_mut_boxed(&mut self) -> &mut dyn Any;
-
-    fn actual_type_id_boxed(&self) -> TypeId;
-    fn into_any_boxed(self: Box<Self>) -> Box<dyn Any>;
-}
-
-impl<U: UiNode> UiNodeBoxed for U {
-    fn info_boxed(&mut self, info: &mut WidgetInfoBuilder) {
-        self.info(info);
-    }
-
-    fn init_boxed(&mut self) {
-        self.init();
-    }
-
-    fn deinit_boxed(&mut self) {
-        self.deinit();
-    }
-
-    fn update_boxed(&mut self, updates: &WidgetUpdates) {
-        self.update(updates);
-    }
-
-    fn event_boxed(&mut self, update: &EventUpdate) {
-        self.event(update);
-    }
-
-    fn measure_boxed(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-        self.measure(wm)
-    }
-
-    fn layout_boxed(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        self.layout(wl)
-    }
-
-    fn render_boxed(&mut self, frame: &mut FrameBuilder) {
-        self.render(frame);
-    }
-
-    fn render_update_boxed(&mut self, update: &mut FrameUpdate) {
-        self.render_update(update);
-    }
-
-    fn is_widget_boxed(&self) -> bool {
-        self.is_widget()
-    }
-
-    fn is_nil_boxed(&self) -> bool {
-        self.is_nil()
-    }
-
-    fn into_widget_boxed(self: Box<Self>) -> BoxedUiNode {
-        self.into_widget()
-    }
-
-    fn actual_type_id_boxed(&self) -> TypeId {
-        self.type_id()
-    }
-
-    fn into_any_boxed(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-
-    fn with_context_boxed(&mut self, update_mode: WidgetUpdateMode, f: &mut dyn FnMut()) {
-        self.with_context(update_mode, f);
-    }
-
-    fn as_any_boxed(&self) -> &dyn Any {
-        self.as_any()
-    }
-
-    fn as_any_mut_boxed(&mut self) -> &mut dyn Any {
-        self.as_any_mut()
-    }
-}
-
-#[doc(hidden)]
-pub trait UiNodeListBoxed: Any + Send {
-    fn with_node_boxed(&mut self, index: usize, f: &mut dyn FnMut(&mut BoxedUiNode));
-    fn for_each_boxed(&mut self, f: &mut dyn FnMut(usize, &mut BoxedUiNode));
-    fn par_each_boxed(&mut self, f: &(dyn Fn(usize, &mut BoxedUiNode) + Send + Sync));
-    fn par_fold_reduce_boxed(
-        &mut self,
-        identity: &(dyn Fn() -> Box<dyn Any + Send> + Send + Sync),
-        fold: &(dyn Fn(Box<dyn Any + Send>, usize, &mut BoxedUiNode) -> Box<dyn Any + Send> + Send + Sync),
-        reduce: &(dyn Fn(Box<dyn Any + Send>, Box<dyn Any + Send>) -> Box<dyn Any + Send> + Send + Sync),
-    ) -> Box<dyn Any + Send>;
-    fn measure_each_boxed(
-        &mut self,
-        wm: &mut WidgetMeasure,
-        measure: &(dyn Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync),
-        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync),
-    ) -> PxSize;
-    fn layout_each_boxed(
-        &mut self,
-        wl: &mut WidgetLayout,
-        layout: &(dyn Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync),
-        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync),
-    ) -> PxSize;
-    fn len_boxed(&self) -> usize;
-    fn drain_into_boxed(&mut self, vec: &mut Vec<BoxedUiNode>);
-    fn init_all_boxed(&mut self);
-    fn deinit_all_boxed(&mut self);
-    fn info_all_boxed(&mut self, info: &mut WidgetInfoBuilder);
-    fn event_all_boxed(&mut self, update: &EventUpdate);
-    fn update_all_boxed(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver);
-    fn render_all_boxed(&mut self, frame: &mut FrameBuilder);
-    fn render_update_all_boxed(&mut self, update: &mut FrameUpdate);
-    fn actual_type_id_boxed(&self) -> TypeId;
-    fn into_any_boxed(self: Box<Self>) -> Box<dyn Any>;
-    fn as_any_boxed(&mut self) -> &mut dyn Any;
-}
-impl<L: UiNodeList> UiNodeListBoxed for L {
-    fn with_node_boxed(&mut self, index: usize, f: &mut dyn FnMut(&mut BoxedUiNode)) {
-        self.with_node(index, f)
-    }
-
-    fn for_each_boxed(&mut self, f: &mut dyn FnMut(usize, &mut BoxedUiNode)) {
-        self.for_each(f);
-    }
-
-    fn par_each_boxed(&mut self, f: &(dyn Fn(usize, &mut BoxedUiNode) + Send + Sync)) {
-        self.par_each(f)
-    }
-
-    fn par_fold_reduce_boxed(
-        &mut self,
-        identity: &(dyn Fn() -> Box<dyn Any + Send> + Send + Sync),
-        fold: &(dyn Fn(Box<dyn Any + Send>, usize, &mut BoxedUiNode) -> Box<dyn Any + Send> + Send + Sync),
-        reduce: &(dyn Fn(Box<dyn Any + Send>, Box<dyn Any + Send>) -> Box<dyn Any + Send> + Send + Sync),
-    ) -> Box<dyn Any + Send> {
-        self.par_fold_reduce(identity, fold, reduce)
-    }
-
-    fn measure_each_boxed(
-        &mut self,
-        wm: &mut WidgetMeasure,
-        measure: &(dyn Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync),
-        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync),
-    ) -> PxSize {
-        self.measure_each(wm, measure, fold_size)
-    }
-
-    fn layout_each_boxed(
-        &mut self,
-        wl: &mut WidgetLayout,
-        layout: &(dyn Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync),
-        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync),
-    ) -> PxSize {
-        self.layout_each(wl, layout, fold_size)
-    }
-
-    fn len_boxed(&self) -> usize {
-        self.len()
-    }
-
-    fn drain_into_boxed(&mut self, vec: &mut Vec<BoxedUiNode>) {
-        self.drain_into(vec)
-    }
-
-    fn init_all_boxed(&mut self) {
-        self.init_all();
-    }
-
-    fn deinit_all_boxed(&mut self) {
-        self.deinit_all();
-    }
-
-    fn info_all_boxed(&mut self, info: &mut WidgetInfoBuilder) {
-        self.info_all(info);
-    }
-
-    fn event_all_boxed(&mut self, update: &EventUpdate) {
-        self.event_all(update);
-    }
-
-    fn update_all_boxed(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        self.update_all(updates, observer);
-    }
-
-    fn render_all_boxed(&mut self, frame: &mut FrameBuilder) {
-        self.render_all(frame);
-    }
-
-    fn render_update_all_boxed(&mut self, update: &mut FrameUpdate) {
-        self.render_update_all(update);
-    }
-
-    fn actual_type_id_boxed(&self) -> TypeId {
-        self.type_id()
-    }
-
-    fn into_any_boxed(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-
-    fn as_any_boxed(&mut self) -> &mut dyn Any {
-        self.as_any()
-    }
-}
-
-/// An [`UiNode`] in a box.
-pub type BoxedUiNode = Box<dyn UiNodeBoxed>;
-
-/// An [`UiNodeList`] in a box.
-pub type BoxedUiNodeList = Box<dyn UiNodeListBoxed>;
-
-impl UiNode for BoxedUiNode {
-    fn info(&mut self, info: &mut WidgetInfoBuilder) {
-        self.as_mut().info_boxed(info);
-    }
-
-    fn init(&mut self) {
-        self.as_mut().init_boxed();
-    }
-
-    fn deinit(&mut self) {
-        self.as_mut().deinit_boxed();
-    }
-
-    fn update(&mut self, updates: &WidgetUpdates) {
-        self.as_mut().update_boxed(updates);
-    }
-
-    fn event(&mut self, update: &EventUpdate) {
-        self.as_mut().event_boxed(update);
-    }
-
-    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-        self.as_mut().measure_boxed(wm)
-    }
-
-    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        self.as_mut().layout_boxed(wl)
-    }
-
-    fn render(&mut self, frame: &mut FrameBuilder) {
-        self.as_mut().render_boxed(frame);
-    }
-
-    fn render_update(&mut self, update: &mut FrameUpdate) {
-        self.as_mut().render_update_boxed(update);
-    }
-
-    fn boxed(self) -> BoxedUiNode
-    where
-        Self: Sized,
-    {
-        self
-    }
-
-    fn actual_type_id(&self) -> TypeId {
-        self.as_ref().actual_type_id_boxed()
-    }
-
-    fn is_widget(&self) -> bool {
-        self.as_ref().is_widget_boxed()
-    }
-
-    fn is_nil(&self) -> bool {
-        self.as_ref().is_nil_boxed()
-    }
-
-    fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
-    where
-        F: FnOnce() -> R,
-    {
-        let mut f = Some(f);
-        let mut r = None;
-        self.as_mut()
-            .with_context_boxed(update_mode, &mut || r = Some((f.take().unwrap())()));
-        r
-    }
-
-    fn into_widget(self) -> BoxedUiNode
-    where
-        Self: Sized,
-    {
-        self.into_widget_boxed()
-    }
-
-    fn as_any(&self) -> &dyn Any
-    where
-        Self: Sized,
-    {
-        self.as_ref().as_any_boxed()
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any
-    where
-        Self: Sized,
-    {
-        self.as_mut().as_any_mut_boxed()
-    }
-}
-
-impl UiNodeList for BoxedUiNodeList {
-    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&mut BoxedUiNode) -> R,
-    {
-        let mut f = Some(f);
-        let mut r = None;
-        self.as_mut().with_node_boxed(index, &mut |n| r = Some((f.take().unwrap())(n)));
-        r.unwrap()
-    }
-
-    fn for_each<F>(&mut self, mut f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode),
-    {
-        self.as_mut().for_each_boxed(&mut f)
-    }
-
-    fn par_each<F>(&mut self, f: F)
-    where
-        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
-    {
-        self.as_mut().par_each_boxed(&f)
-    }
-
-    fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
-    where
-        T: Send + 'static,
-        I: Fn() -> T + Send + Sync,
-        F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
-        R: Fn(T, T) -> T + Send + Sync,
-    {
-        self.as_mut()
-            .par_fold_reduce_boxed(
-                &move || Box::new(Some(identity())),
-                &move |mut r, i, n| {
-                    let r_mut = r.downcast_mut::<Option<T>>().unwrap();
-                    *r_mut = Some(fold(r_mut.take().unwrap(), i, n));
-                    r
-                },
-                &|mut a, b| {
-                    let a_mut = a.downcast_mut::<Option<T>>().unwrap();
-                    *a_mut = Some(reduce(a_mut.take().unwrap(), b.downcast::<Option<T>>().unwrap().unwrap()));
-                    a
-                },
-            )
-            .downcast::<Option<T>>()
-            .unwrap()
-            .unwrap()
-    }
-
-    fn len(&self) -> usize {
-        self.as_ref().len_boxed()
-    }
-
-    fn boxed(self) -> BoxedUiNodeList {
-        self
-    }
-
-    fn actual_type_id(&self) -> TypeId {
-        self.as_ref().actual_type_id_boxed()
-    }
-
-    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
-        self.as_mut().drain_into_boxed(vec)
-    }
-
-    fn init_all(&mut self) {
-        self.as_mut().init_all_boxed();
-    }
-
-    fn deinit_all(&mut self) {
-        self.as_mut().deinit_all_boxed();
-    }
-
-    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        self.as_mut().update_all_boxed(updates, observer);
-    }
-
-    fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
-        self.as_mut().info_all_boxed(info);
-    }
-
-    fn event_all(&mut self, update: &EventUpdate) {
-        self.as_mut().event_all_boxed(update);
-    }
-
-    fn render_all(&mut self, frame: &mut FrameBuilder) {
-        self.as_mut().render_all_boxed(frame);
-    }
-
-    fn render_update_all(&mut self, update: &mut FrameUpdate) {
-        self.as_mut().render_update_all_boxed(update);
-    }
-
-    fn measure_each<F, S>(&mut self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
-    where
-        F: Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync,
-        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
-    {
-        self.as_mut().measure_each_boxed(wm, &measure, &fold_size)
-    }
-
-    fn layout_each<F, S>(&mut self, wl: &mut WidgetLayout, layout: F, fold_size: S) -> PxSize
-    where
-        F: Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync,
-        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
-    {
-        self.as_mut().layout_each_boxed(wl, &layout, &fold_size)
-    }
-
-    fn as_any(&mut self) -> &mut dyn Any
-    where
-        Self: Sized,
-    {
-        self.as_mut().as_any_boxed()
-    }
-}
-
-impl<U: UiNode> UiNode for Option<U> {
-    fn info(&mut self, info: &mut WidgetInfoBuilder) {
-        if let Some(node) = self {
-            node.info(info);
-        }
-    }
-
-    fn init(&mut self) {
-        if let Some(node) = self {
-            node.init();
-        }
-    }
-
-    fn deinit(&mut self) {
-        if let Some(node) = self {
-            node.deinit();
-        }
-    }
-
-    fn event(&mut self, update: &EventUpdate) {
-        if let Some(node) = self {
-            node.event(update);
-        }
-    }
-
-    fn update(&mut self, updates: &WidgetUpdates) {
-        if let Some(node) = self {
-            node.update(updates);
-        }
-    }
-
-    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-        if let Some(node) = self { node.measure(wm) } else { PxSize::zero() }
-    }
-
-    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        if let Some(node) = self { node.layout(wl) } else { PxSize::zero() }
-    }
-
-    fn render(&mut self, frame: &mut FrameBuilder) {
-        if let Some(node) = self {
-            node.render(frame);
-        }
-    }
-
-    fn render_update(&mut self, update: &mut FrameUpdate) {
-        if let Some(node) = self {
-            node.render_update(update);
-        }
-    }
-
-    fn boxed(self) -> BoxedUiNode
-    where
-        Self: Sized,
-    {
-        match self {
-            Some(node) => node.boxed(),
-            None => NilUiNode.boxed(),
-        }
-    }
-
-    fn is_widget(&self) -> bool {
-        match self {
-            Some(node) => node.is_widget(),
-            None => false,
-        }
-    }
-
-    fn is_nil(&self) -> bool {
-        self.is_none()
-    }
-
-    fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
-    where
-        F: FnOnce() -> R,
-    {
-        match self {
-            Some(node) => node.with_context(update_mode, f),
-            None => None,
-        }
-    }
-
-    fn into_widget(self) -> BoxedUiNode
-    where
-        Self: Sized,
-    {
-        match self {
-            Some(node) => node.into_widget(),
-            None => NilUiNode.into_widget(),
-        }
-    }
-}
-
-impl UiNodeList for Option<BoxedUiNode> {
-    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&mut BoxedUiNode) -> R,
-    {
-        match self {
-            Some(node) => {
-                assert_bounds(1, index);
-                f(node)
-            }
-            None => {
-                assert_bounds(0, index);
-                unreachable!()
-            }
-        }
-    }
-
-    fn for_each<F>(&mut self, mut f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode),
-    {
-        if let Some(node) = self {
-            f(0, node);
-        }
-    }
-
-    fn par_each<F>(&mut self, f: F)
-    where
-        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
-    {
-        if let Some(node) = self {
-            f(0, node);
-        }
-    }
-
-    fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, _: R) -> T
-    where
-        T: Send,
-        I: Fn() -> T + Send + Sync,
-        F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
-        R: Fn(T, T) -> T + Send + Sync,
-    {
-        if let Some(node) = self {
-            fold(identity(), 0, node)
-        } else {
-            identity()
-        }
-    }
-
-    fn len(&self) -> usize {
-        match self {
-            Some(_) => 1,
-            None => 0,
-        }
-    }
-
-    fn boxed(self) -> BoxedUiNodeList {
-        Box::new(self)
-    }
-
-    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
-        if let Some(n) = self.take() {
-            vec.push(n);
-        }
-    }
-}
-
-fn assert_bounds(len: usize, i: usize) {
-    if i >= len {
-        panic!("index `{i}` is >= len `{len}`")
-    }
-}
-
-/// A UI node that does nothing and has collapsed layout (zero size).
-pub struct NilUiNode;
-#[super::ui_node(none)]
-impl UiNode for NilUiNode {
+struct NilUiNode;
+impl UiNodeImpl for NilUiNode {
     fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
         PxSize::zero()
     }
@@ -1434,8 +1010,65 @@ impl UiNode for NilUiNode {
         PxSize::zero()
     }
 
-    fn is_nil(&self) -> bool {
-        true
+    fn children_len(&self) -> usize {
+        0
+    }
+
+    fn with_child(&mut self, _: usize, _: &mut dyn FnMut(&mut UiNode)) {}
+
+    fn is_list(&self) -> bool {
+        false
+    }
+
+    fn for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode)) {}
+
+    fn par_each_child(&mut self, _: &(dyn Fn(usize, &mut UiNode) + Sync)) {}
+
+    fn par_fold_reduce(
+        &mut self,
+        identity: BoxAnyVarValue,
+        _: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
+        _: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
+    ) -> BoxAnyVarValue {
+        identity
+    }
+
+    fn init(&mut self) {}
+
+    fn deinit(&mut self) {}
+
+    fn info(&mut self, _: &mut WidgetInfoBuilder) {}
+
+    fn event(&mut self, _: &EventUpdate) {}
+
+    fn update(&mut self, _: &WidgetUpdates) {}
+
+    fn update_list(&mut self, _: &WidgetUpdates, _: &mut dyn UiNodeListObserver) {}
+
+    fn measure_list(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        _: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+        _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.measure(wm)
+    }
+
+    fn layout_list(
+        &mut self,
+        wl: &mut WidgetLayout,
+        _: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+        _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.layout(wl)
+    }
+
+    fn render(&mut self, _: &mut FrameBuilder) {}
+
+    fn render_update(&mut self, _: &mut FrameUpdate) {}
+
+    fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+        None
     }
 }
 
@@ -1443,13 +1076,81 @@ impl UiNode for NilUiNode {
 ///
 /// The space is blank, the node does nothing other then layout to fill.
 pub struct FillUiNode;
-#[ui_node(none)]
-impl UiNode for FillUiNode {}
+impl UiNodeImpl for FillUiNode {
+    fn children_len(&self) -> usize {
+        0
+    }
+
+    fn with_child(&mut self, _: usize, _: &mut dyn FnMut(&mut UiNode)) {}
+
+    fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
+        LAYOUT.constraints().fill_size()
+    }
+
+    fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
+        LAYOUT.constraints().fill_size()
+    }
+
+    fn is_list(&self) -> bool {
+        false
+    }
+
+    fn for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode)) {}
+
+    fn par_each_child(&mut self, _: &(dyn Fn(usize, &mut UiNode) + Sync)) {}
+
+    fn par_fold_reduce(
+        &mut self,
+        identity: BoxAnyVarValue,
+        _: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
+        _: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
+    ) -> BoxAnyVarValue {
+        identity
+    }
+
+    fn init(&mut self) {}
+
+    fn deinit(&mut self) {}
+
+    fn info(&mut self, _: &mut WidgetInfoBuilder) {}
+
+    fn event(&mut self, _: &EventUpdate) {}
+
+    fn update(&mut self, _: &WidgetUpdates) {}
+
+    fn update_list(&mut self, _: &WidgetUpdates, _: &mut dyn UiNodeListObserver) {}
+
+    fn measure_list(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        _: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
+        _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.measure(wm)
+    }
+
+    fn layout_list(
+        &mut self,
+        wl: &mut WidgetLayout,
+        _: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
+        _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.layout(wl)
+    }
+
+    fn render(&mut self, _: &mut FrameBuilder) {}
+
+    fn render_update(&mut self, _: &mut FrameUpdate) {}
+
+    fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+        None
+    }
+}
 
 /// Wraps `child` in a node that provides a unique [`ContextInitHandle`], refreshed every (re)init.
 ///
 /// [`ContextInitHandle`]: zng_var::ContextInitHandle
-pub fn with_new_context_init_id(child: impl UiNode) -> impl UiNode {
+pub fn with_new_context_init_id(child: impl IntoUiNode) -> UiNode {
     let mut id = None;
 
     match_node(child, move |child, op| {
@@ -1460,45 +1161,4 @@ pub fn with_new_context_init_id(child: impl UiNode) -> impl UiNode {
             id = None;
         }
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    pub fn downcast_unbox() {
-        fn node() -> impl UiNode {
-            NilUiNode
-        }
-
-        assert!(node().downcast_unbox::<NilUiNode>().is_ok())
-    }
-
-    #[test]
-    pub fn downcast_unbox_boxed() {
-        fn node() -> BoxedUiNode {
-            NilUiNode.boxed()
-        }
-
-        assert!(node().downcast_unbox::<NilUiNode>().is_ok())
-    }
-
-    #[test]
-    pub fn downcast_unbox_to_boxed() {
-        fn node() -> impl UiNode {
-            NilUiNode.boxed()
-        }
-
-        assert!(node().downcast_unbox::<BoxedUiNode>().is_ok())
-    }
-
-    #[test]
-    pub fn downcast_unbox_widget() {
-        fn node() -> BoxedUiNode {
-            NilUiNode.into_widget()
-        }
-
-        assert!(node().downcast_unbox::<BoxedUiNode>().is_ok())
-    }
 }

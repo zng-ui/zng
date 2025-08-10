@@ -63,7 +63,6 @@
 //!             child = Text!("Item {i}");
 //!             value::<i32> = i;
 //!         }
-//!         .boxed()
 //!     }).collect::<Vec<_>>();
 //! }
 //! # ;

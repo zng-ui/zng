@@ -38,7 +38,7 @@ use self::info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo};
 #[doc(hidden)]
 pub use zng_app_proc_macros::{property_impl, property_meta, widget_new};
 
-pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
+pub use zng_app_proc_macros::{property, widget, widget_mixin};
 
 /// <span data-del-macro-root></span> Sets properties and when condition on a widget builder.
 ///
@@ -47,7 +47,7 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// ```
 /// # use zng_app::{*, widget::{base::*, node::*, widget, property}};
 /// # use zng_var::*;
-/// # #[property(CONTEXT)] pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn enabled(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode { child.into_node() }
 /// # #[widget($crate::Wgt)]
 /// # pub struct Wgt(WidgetBase);
 /// # fn main() {
@@ -81,7 +81,7 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # #[widget($crate::Wgt)] pub struct Wgt(WidgetBase);
-/// # #[property(CONTEXT)] pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn enabled(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// # let flag = true;
 /// let wgt = Wgt! {
@@ -104,7 +104,7 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// # let wgt = zng_app::widget::base::WidgetBase! {
 /// id = "name";
@@ -119,7 +119,7 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// # let mut wgt = zng_app::widget::base::WidgetBase::widget_new();
 /// wgt.id("name");
@@ -140,7 +140,7 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// # let wgt = zng_app::widget::base::WidgetBase! {
 /// self::background_color = colors::BLUE;
@@ -157,7 +157,7 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// # let mut wgt = zng_app::widget::base::WidgetBase::widget_new();
 /// self::background_color::background_color(&mut wgt, colors::BLUE);
@@ -173,7 +173,7 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// # let wgt = zng_app::widget::base::WidgetBase! {
 /// border = {
@@ -190,7 +190,7 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// # let wgt = zng_app::widget::base::WidgetBase! {
 /// border = {
@@ -208,7 +208,7 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// let mut eval_order = vec![];
 ///
@@ -238,7 +238,7 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// # let wgt = zng_app::widget::base::WidgetBase! {
 /// border = 1, colors::RED;
@@ -252,7 +252,7 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// # let mut wgt = zng_app::widget::base::WidgetBase::widget_new();
 /// wgt.border(1, colors::RED);
@@ -268,8 +268,8 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
-/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
+/// # #[property(CONTEXT)] pub fn border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// let id = "name";
 /// let background_color = colors::BLUE;
@@ -295,8 +295,8 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
-/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
+/// # #[property(CONTEXT)] pub fn border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// let id = "name";
 /// let background_color = colors::BLUE;
@@ -323,7 +323,7 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// # let wgt = zng_app::widget::base::WidgetBase! {
 /// border = unset!;
@@ -337,7 +337,7 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// # let mut wgt = zng_app::widget::base::WidgetBase::widget_new();
 /// wgt.unset_border();
@@ -357,7 +357,7 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn value<T: VarValue>(child: impl IntoUiNode, value: impl IntoVar<T>) -> UiNode { child.into_node() }
 /// #
 /// # fn main() {
 /// # let wgt = zng_app::widget::base::WidgetBase! {
@@ -375,8 +375,8 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_color::*;
 /// # use zng_var::*;
 /// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
-/// # #[property(EVENT)] pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
+/// # #[property(EVENT)] pub fn is_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode { child.into_node() }
 /// # fn main() {
 /// # let _scope = APP.minimal();
 /// # let wgt = zng_app::widget::base::WidgetBase! {
@@ -421,9 +421,9 @@ pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zng_layout::unit::*;
 /// #
 /// # #[property(FILL)]
-/// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+/// # pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
 /// #   let _ = color;
-/// #   child
+/// #   child.into_node()
 /// # }
 /// #
 /// context_var! {
@@ -527,10 +527,10 @@ pub use widget_set;
 ///
 /// ```
 /// # fn main() { }
-/// # use zng_app::widget::{*, node::UiNode, base::WidgetBase};
+/// # use zng_app::widget::{*, node::{UiNode, IntoUiNode}, base::WidgetBase};
 /// # use zng_layout::unit::Align;
 /// # use zng_var::IntoVar;
-/// # mod zng { use super::*; pub mod widget { use super::*; #[zng_app::widget::property(LAYOUT)] pub fn align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode { child } } }
+/// # mod zng { use super::*; pub mod widget { use super::*; #[zng_app::widget::property(LAYOUT)] pub fn align(child: impl IntoUiNode, align: impl IntoVar<Align>) -> UiNode { child.into_node() } } }
 /// #
 /// #[widget($crate::MyWgt)]
 /// pub struct MyWgt(WidgetBase);
@@ -636,7 +636,6 @@ pub enum WidgetUpdateMode {
     ///
     /// This mode is used by [`UiNodeOp::Measure`].
     ///
-    /// [`UiNode::with_context`]: crate::widget::node::UiNode::with_context
     /// [`UiNodeOp::Measure`]: crate::widget::node::UiNodeOp::Measure
     Ignore,
     /// All updates flagged after the closure call are retained and propagate to the parent widget flags.

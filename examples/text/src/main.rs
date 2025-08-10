@@ -63,7 +63,7 @@ fn main() {
     })
 }
 
-fn font_size_example(font_size: Var<Length>) -> impl UiNode {
+fn font_size_example(font_size: Var<Length>) -> UiNode {
     fn change_size(font_size: &Var<Length>, change: f32) {
         font_size.modify(move |s| {
             **s += Length::Pt(change);
@@ -100,7 +100,7 @@ fn font_size_example(font_size: Var<Length>) -> impl UiNode {
     }
 }
 
-fn basic() -> impl UiNode {
+fn basic() -> UiNode {
     section(
         "basic",
         ui_vec![
@@ -120,7 +120,7 @@ fn basic() -> impl UiNode {
     )
 }
 
-fn line_height() -> impl UiNode {
+fn line_height() -> UiNode {
     section(
         "line_height",
         ui_vec![
@@ -139,7 +139,7 @@ fn line_height() -> impl UiNode {
     )
 }
 
-fn line_spacing() -> impl UiNode {
+fn line_spacing() -> UiNode {
     section(
         "line_spacing",
         ui_vec![Container! {
@@ -159,7 +159,7 @@ fn line_spacing() -> impl UiNode {
     )
 }
 
-fn word_spacing() -> impl UiNode {
+fn word_spacing() -> UiNode {
     section(
         "word_spacing",
         ui_vec![Text! {
@@ -174,7 +174,7 @@ fn word_spacing() -> impl UiNode {
     )
 }
 
-fn letter_spacing() -> impl UiNode {
+fn letter_spacing() -> UiNode {
     section(
         "letter_spacing",
         ui_vec![Text! {
@@ -189,7 +189,7 @@ fn letter_spacing() -> impl UiNode {
     )
 }
 
-fn decoration_lines() -> impl UiNode {
+fn decoration_lines() -> UiNode {
     section(
         "Decorations",
         ui_vec![
@@ -250,8 +250,8 @@ fn decoration_lines() -> impl UiNode {
     )
 }
 
-fn defaults() -> impl UiNode {
-    fn demo(title: &str, font_family: impl Into<FontNames>) -> impl UiNode {
+fn defaults() -> UiNode {
+    fn demo(title: &str, font_family: impl Into<FontNames>) -> UiNode {
         let font_family = font_family.into();
 
         let font_name = zng::font::FONTS
@@ -300,7 +300,7 @@ fn defaults() -> impl UiNode {
     )
 }
 
-fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
+fn section(header: &'static str, items: impl IntoUiNode) -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;

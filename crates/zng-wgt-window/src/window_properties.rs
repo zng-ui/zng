@@ -13,13 +13,13 @@ use zng_wgt_layer::adorner_fn;
 
 use super::Window;
 
-fn bind_window_var<T>(child: impl UiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> Var<T> + Send + 'static) -> impl UiNode
+fn bind_window_var<T>(child: impl IntoUiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> Var<T> + Send + 'static) -> UiNode
 where
     T: VarValue + PartialEq,
 {
-    bind_window_var_impl(child.cfg_boxed(), user_var.into_var().into(), move |vars| select(vars).into()).cfg_boxed()
+    bind_window_var_impl(child.into_node(), user_var.into_var().into(), move |vars| select(vars).into())
 }
-fn bind_window_var_impl(child: impl UiNode, user_var: AnyVar, select: impl Fn(&WindowVars) -> AnyVar + Send + 'static) -> impl UiNode {
+fn bind_window_var_impl(child: UiNode, user_var: AnyVar, select: impl Fn(&WindowVars) -> AnyVar + Send + 'static) -> UiNode {
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
             let window_var = select(&WINDOW.vars());
@@ -42,7 +42,7 @@ macro_rules! set_properties {
             ///
             /// The binding is bidirectional and the window variable is assigned on init.
             #[property(CONTEXT, widget_impl(Window))]
-            pub fn $ident(child: impl UiNode, $ident: impl IntoVar<$Type>) -> impl UiNode {
+            pub fn $ident(child: impl IntoUiNode, $ident: impl IntoVar<$Type>) -> UiNode {
                 bind_window_var(child, $ident, |w|w.$ident().clone())
             }
         })+
@@ -94,7 +94,7 @@ macro_rules! map_properties {
         ///
         /// The binding is bidirectional and the window variable is assigned on init.
         #[property(CONTEXT, widget_impl(Window))]
-        pub fn $name(child: impl UiNode, $name: impl IntoVar<$Type>) -> impl UiNode {
+        pub fn $name(child: impl IntoUiNode, $name: impl IntoVar<$Type>) -> UiNode {
             bind_window_var(child, $name, |w|w.$ident().map_bidi_modify(|v| v.$member.clone(), |v, m|m.$member = v.clone()))
         }
     })+}
@@ -117,7 +117,7 @@ map_properties! {
 /// can happen if you do not set a background or the background is semi-transparent, also
 /// can happen during very fast resizes.
 #[property(CONTEXT, default(colors::WHITE), widget_impl(Window))]
-pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn clear_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
     let clear_color = color.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -219,11 +219,11 @@ impl_from_and_into_var! {
 /// If the argument is `true` the closure must return a value, this value is used as the CONFIG fallback value that is required
 /// by some config backends even when the config is already present.
 pub fn save_state_node<S: ConfigValue>(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     enabled: impl IntoValue<SaveState>,
     mut on_load_restore: impl FnMut(Option<S>) + Send + 'static,
     mut on_update_save: impl FnMut(bool) -> Option<S> + Send + 'static,
-) -> impl UiNode {
+) -> UiNode {
     let enabled = enabled.into();
     enum State<S: ConfigValue> {
         Disabled,
@@ -304,7 +304,7 @@ pub fn save_state_node<S: ConfigValue>(
 ///
 /// [`CONFIG`]: zng_ext_config::CONFIG
 #[property(CONTEXT, default(SaveState::Disabled), widget_impl(Window))]
-pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> impl UiNode {
+pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) -> UiNode {
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     struct WindowStateCfg {
         state: WindowState,
@@ -414,7 +414,7 @@ impl_from_and_into_var! {
 ///
 /// [`CONFIG.status`]: CONFIG::status
 #[property(CONTEXT, default(false), widget_impl(Window))]
-pub fn config_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWindowLoad>) -> impl UiNode {
+pub fn config_block_window_load(child: impl IntoUiNode, enabled: impl IntoValue<BlockWindowLoad>) -> UiNode {
     let enabled = enabled.into();
 
     enum State {
@@ -459,7 +459,7 @@ pub fn config_block_window_load(child: impl UiNode, enabled: impl IntoValue<Bloc
 /// [`state`]: fn@state
 /// [`WINDOWS.system_chrome`]: WINDOWS::system_chrome
 #[property(EVENT, default(var_state()), widget_impl(Window))]
-pub fn needs_fallback_chrome(child: impl UiNode, needs: impl IntoVar<bool>) -> impl UiNode {
+pub fn needs_fallback_chrome(child: impl IntoUiNode, needs: impl IntoVar<bool>) -> UiNode {
     zng_wgt::node::bind_state_init(
         child,
         || {
@@ -483,7 +483,7 @@ pub fn needs_fallback_chrome(child: impl UiNode, needs: impl IntoVar<bool>) -> i
 /// [`chrome`]: fn@chrome
 /// [`WINDOWS.system_chrome`]: WINDOWS::system_chrome
 #[property(EVENT, default(var_state()), widget_impl(Window))]
-pub fn prefer_custom_chrome(child: impl UiNode, prefer: impl IntoVar<bool>) -> impl UiNode {
+pub fn prefer_custom_chrome(child: impl IntoUiNode, prefer: impl IntoVar<bool>) -> UiNode {
     zng_wgt::node::bind_state(child, WINDOWS.system_chrome().map(|c| c.prefer_custom), prefer)
 }
 
@@ -496,7 +496,7 @@ pub fn prefer_custom_chrome(child: impl UiNode, prefer: impl IntoVar<bool>) -> i
 ///
 /// [`adorner_fn`]: fn@adorner_fn
 #[property(FILL, default(WidgetFn::nil()), widget_impl(Window))]
-pub fn custom_chrome_adorner_fn(child: impl UiNode, custom_chrome: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+pub fn custom_chrome_adorner_fn(child: impl IntoUiNode, custom_chrome: impl IntoVar<WidgetFn<()>>) -> UiNode {
     adorner_fn(child, custom_chrome)
 }
 
@@ -504,6 +504,6 @@ pub fn custom_chrome_adorner_fn(child: impl UiNode, custom_chrome: impl IntoVar<
 ///
 /// [`custom_chrome_adorner_fn`]: fn@custom_chrome_adorner_fn
 #[property(CHILD_LAYOUT, default(0), widget_impl(Window))]
-pub fn custom_chrome_padding_fn(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+pub fn custom_chrome_padding_fn(child: impl IntoUiNode, padding: impl IntoVar<SideOffsets>) -> UiNode {
     zng_wgt_container::padding(child, padding)
 }

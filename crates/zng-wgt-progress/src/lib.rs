@@ -47,13 +47,13 @@ context_var! {
 ///
 /// This property sets the [`PROGRESS_VAR`].
 #[property(CONTEXT, default(PROGRESS_VAR), widget_impl(ProgressView))]
-pub fn progress(child: impl UiNode, progress: impl IntoVar<Progress>) -> impl UiNode {
+pub fn progress(child: impl IntoUiNode, progress: impl IntoVar<Progress>) -> UiNode {
     with_context_var(child, PROGRESS_VAR, progress)
 }
 
 /// Collapse visibility when [`Progress::is_complete`].
 #[property(CONTEXT, default(false), widget_impl(ProgressView))]
-pub fn collapse_complete(child: impl UiNode, collapse: impl IntoVar<bool>) -> impl UiNode {
+pub fn collapse_complete(child: impl IntoUiNode, collapse: impl IntoVar<bool>) -> UiNode {
     let collapse = collapse.into_var();
     visibility(
         child,
@@ -71,7 +71,7 @@ pub fn collapse_complete(child: impl UiNode, collapse: impl IntoVar<bool>) -> im
 ///
 /// This event works in any context that sets [`PROGRESS_VAR`].
 #[property(EVENT, widget_impl(ProgressView))]
-pub fn on_progress(child: impl UiNode, mut handler: impl WidgetHandler<Progress>) -> impl UiNode {
+pub fn on_progress(child: impl IntoUiNode, mut handler: impl WidgetHandler<Progress>) -> UiNode {
     // copied from `on_info_init`
     enum State {
         WaitInfo,
@@ -117,7 +117,7 @@ pub fn on_progress(child: impl UiNode, mut handler: impl WidgetHandler<Progress>
 ///
 /// This event works in any context that sets [`PROGRESS_VAR`].
 #[property(EVENT, widget_impl(ProgressView))]
-pub fn on_complete(child: impl UiNode, handler: impl WidgetHandler<Progress>) -> impl UiNode {
+pub fn on_complete(child: impl IntoUiNode, handler: impl WidgetHandler<Progress>) -> UiNode {
     let mut is_complete = false;
     on_progress(
         child,
@@ -136,7 +136,7 @@ pub fn on_complete(child: impl UiNode, handler: impl WidgetHandler<Progress>) ->
 ///
 /// This event works in any context that sets [`PROGRESS_VAR`].
 #[property(EVENT, widget_impl(ProgressView))]
-pub fn is_indeterminate(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_indeterminate(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state(child, PROGRESS_VAR.map(|p| p.is_indeterminate()), state)
 }
 

@@ -1041,7 +1041,7 @@ impl WidgetMeasure {
     }
 
     /// Disable inline and measure child with no inline constraints.
-    pub fn measure_block(&mut self, child: &mut impl UiNode) -> PxSize {
+    pub fn measure_block(&mut self, child: &mut UiNode) -> PxSize {
         self.disable_inline();
         LAYOUT.with_no_inline(|| child.measure(self))
     }
@@ -1058,13 +1058,13 @@ impl WidgetMeasure {
     /// disables inline or is not a full widget.
     ///
     /// [`InlineConstraintsMeasure`]: zng_layout::context::InlineConstraintsMeasure
-    pub fn measure_inline(&mut self, first_max: Px, mid_clear_min: Px, child: &mut impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
+    pub fn measure_inline(&mut self, first_max: Px, mid_clear_min: Px, child: &mut UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
         let constraints = InlineConstraints::Measure(InlineConstraintsMeasure::new(first_max, mid_clear_min));
         let metrics = LAYOUT.metrics().with_inline_constraints(Some(constraints));
         let size = LAYOUT.with_context(metrics, || child.measure(self));
         let inline = child
-            .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline())
-            .flatten();
+            .as_widget()
+            .and_then(|mut w| w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline()));
         (inline, size)
     }
 
@@ -1636,7 +1636,7 @@ impl WidgetLayout {
     ///
     /// This must be called inside inlining widgets to layout block child nodes, otherwise the inline constraints from
     /// the calling widget propagate to the child.
-    pub fn layout_block(&mut self, child: &mut impl UiNode) -> PxSize {
+    pub fn layout_block(&mut self, child: &mut UiNode) -> PxSize {
         LAYOUT.with_no_inline(|| child.layout(self))
     }
 
@@ -1655,7 +1655,7 @@ impl WidgetLayout {
         last: PxRect,
         first_segs: Arc<Vec<InlineSegmentPos>>,
         last_segs: Arc<Vec<InlineSegmentPos>>,
-        child: &mut impl UiNode,
+        child: &mut UiNode,
     ) -> PxSize {
         let constraints = InlineConstraints::Layout(InlineConstraintsLayout::new(first, mid_clear, last, first_segs, last_segs));
         let metrics = LAYOUT.metrics().with_inline_constraints(Some(constraints));

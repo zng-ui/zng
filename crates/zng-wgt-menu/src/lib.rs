@@ -84,7 +84,7 @@ context_var! {
 ///
 /// [`Menu!`]: struct@Menu
 #[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(Menu))]
-pub fn panel_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<zng_wgt_panel::PanelArgs>>) -> impl UiNode {
+pub fn panel_fn(child: impl IntoUiNode, panel: impl IntoVar<WidgetFn<zng_wgt_panel::PanelArgs>>) -> UiNode {
     with_context_var(child, PANEL_FN_VAR, panel)
 }
 
@@ -168,7 +168,7 @@ impl ButtonStyle {
             }
 
             when *#is_mobile {
-                shortcut_txt = NilUiNode;
+                shortcut_txt = UiNode::nil();
             }
         }
     }
@@ -242,7 +242,7 @@ impl ToggleStyle {
 /// [`Icon!`]: struct@zng_wgt_text::icon::Icon
 /// [`sub::start_column`]: fn@sub::start_column
 #[property(FILL)]
-pub fn icon(child: impl UiNode, icon: impl UiNode) -> impl UiNode {
+pub fn icon(child: impl IntoUiNode, icon: impl IntoUiNode) -> UiNode {
     sub::start_column(child, icon)
 }
 
@@ -256,7 +256,7 @@ pub fn icon(child: impl UiNode, icon: impl UiNode) -> impl UiNode {
 /// [`Icon!`]: struct@zng_wgt_text::icon::Icon
 /// [`sub::start_column_fn`]: fn@sub::start_column_fn
 #[property(FILL)]
-pub fn icon_fn(child: impl UiNode, icon: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+pub fn icon_fn(child: impl IntoUiNode, icon: impl IntoVar<WidgetFn<()>>) -> UiNode {
     sub::start_column_fn(child, icon)
 }
 
@@ -268,7 +268,7 @@ pub fn icon_fn(child: impl UiNode, icon: impl IntoVar<WidgetFn<()>>) -> impl UiN
 ///
 /// [`Button!`]: struct@zng_wgt_button::Button
 #[property(CHILD_CONTEXT)]
-pub fn shortcut_txt(child: impl UiNode, shortcut: impl UiNode) -> impl UiNode {
+pub fn shortcut_txt(child: impl IntoUiNode, shortcut: impl IntoUiNode) -> UiNode {
     let shortcut = margin(shortcut, sub::END_COLUMN_WIDTH_VAR.map(|w| SideOffsets::new(0, w.clone(), 0, 0)));
     child_end(child, shortcut, SHORTCUT_SPACING_VAR)
 }
@@ -282,6 +282,6 @@ pub fn shortcut_txt(child: impl UiNode, shortcut: impl UiNode) -> impl UiNode {
 ///
 /// [`shortcut_txt`]: fn@shortcut_txt
 #[property(CONTEXT, default(SHORTCUT_SPACING_VAR))]
-pub fn shortcut_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+pub fn shortcut_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, SHORTCUT_SPACING_VAR, spacing)
 }

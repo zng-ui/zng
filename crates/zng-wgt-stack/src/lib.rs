@@ -75,7 +75,7 @@ impl Stack {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|wgt| {
             let child = node(
-                wgt.capture_ui_node_list_or_empty(property_id!(Self::children)),
+                wgt.capture_ui_node_or_nil(property_id!(Self::children)),
                 wgt.capture_var_or_default(property_id!(Self::direction)),
                 wgt.capture_var_or_default(property_id!(Self::spacing)),
                 wgt.capture_var_or_else(property_id!(Self::children_align), || Align::FILL),
@@ -87,7 +87,7 @@ impl Stack {
 
 /// Stack items.
 #[property(CHILD, capture, default(ui_vec![]), widget_impl(Stack))]
-pub fn children(children: impl UiNodeList) {}
+pub fn children(children: impl IntoUiNode) {}
 
 /// Stack direction.
 #[property(LAYOUT, capture, widget_impl(Stack))]
@@ -119,17 +119,17 @@ pub fn children_align(align: impl IntoVar<Align>) {}
 /// Can be used directly to stack widgets without declaring a stack widget info. This node is the child
 /// of the `Stack!` widget.
 pub fn node(
-    children: impl UiNodeList,
+    children: impl IntoUiNode,
     direction: impl IntoVar<StackDirection>,
     spacing: impl IntoVar<Length>,
     children_align: impl IntoVar<Align>,
-) -> impl UiNode {
+) -> UiNode {
     let children = PanelList::new(children).track_info_range(*PANEL_LIST_ID);
     let direction = direction.into_var();
     let spacing = spacing.into_var();
     let children_align = children_align.into_var();
 
-    match_node_list(children, move |c, op| match op {
+    match_node(children, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET
                 .sub_var_layout(&direction)
@@ -138,7 +138,7 @@ pub fn node(
         }
         UiNodeOp::Update { updates } => {
             let mut changed = false;
-            c.update_all(updates, &mut changed);
+            c.update_list(updates, &mut changed);
 
             if changed {
                 WIDGET.layout();
@@ -146,11 +146,11 @@ pub fn node(
         }
         UiNodeOp::Measure { wm, desired_size } => {
             c.delegated();
-            *desired_size = measure(wm, c.children(), direction.get(), spacing.get(), children_align.get());
+            *desired_size = measure(wm, c.node_impl::<PanelList>(), direction.get(), spacing.get(), children_align.get());
         }
         UiNodeOp::Layout { wl, final_size } => {
             c.delegated();
-            *final_size = layout(wl, c.children(), direction.get(), spacing.get(), children_align.get());
+            *final_size = layout(wl, c.node_impl::<PanelList>(), direction.get(), spacing.get(), children_align.get());
         }
         _ => {}
     })
@@ -164,8 +164,13 @@ pub fn lazy_size(
     direction: impl IntoVar<StackDirection>,
     spacing: impl IntoVar<Length>,
     child_size: impl IntoVar<Size>,
-) -> impl UiNode {
-    lazy_sample(children_len, direction, spacing, zng_wgt_size_offset::size(NilUiNode, child_size))
+) -> UiNode {
+    lazy_sample(
+        children_len,
+        direction,
+        spacing,
+        zng_wgt_size_offset::size(UiNode::nil(), child_size),
+    )
 }
 
 /// Create a node that estimates the size of stack panel children.
@@ -175,8 +180,8 @@ pub fn lazy_sample(
     children_len: impl IntoVar<usize>,
     direction: impl IntoVar<StackDirection>,
     spacing: impl IntoVar<Length>,
-    child_sample: impl UiNode,
-) -> impl UiNode {
+    child_sample: impl IntoUiNode,
+) -> UiNode {
     let children_len = children_len.into_var();
     let direction = direction.into_var();
     let spacing = spacing.into_var();
@@ -271,20 +276,20 @@ fn measure(wm: &mut WidgetMeasure, children: &mut PanelList, direction: StackDir
             .with_new_min(Px(0), Px(0)),
         || {
             // parallel measure full widgets first
-            children.measure_each(
+            children.measure_list(
                 wm,
                 |_, c, _, wm| {
-                    if c.is_widget() { c.measure(wm) } else { PxSize::zero() }
+                    if c.as_widget().is_some() { c.measure(wm) } else { PxSize::zero() }
                 },
                 |_, _| PxSize::zero(),
             );
 
             let mut item_rect = PxRect::zero();
             let mut child_spacing = PxVector::zero();
-            children.for_each(|_, c, _| {
-                // already parallel measured widgets, only measure other nodes.
-                let size = match c.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_outer_size()) {
-                    Some(wgt_size) => wgt_size,
+            children.for_each_child(|_, c, _| {
+                let size = match c.as_widget() {
+                    // already parallel measured widgets, only measure other nodes.
+                    Some(mut w) => w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_outer_size()),
                     None => c.measure(wm),
                 };
                 if size.is_empty() {
@@ -323,10 +328,10 @@ fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirec
             .with_new_min(Px(0), Px(0)),
         || {
             // parallel layout widgets
-            children.layout_each(
+            children.layout_list(
                 wl,
                 |_, c, o, wl| {
-                    if c.is_widget() {
+                    if c.as_widget().is_some() {
                         let (size, define_ref_frame) = wl.with_child(|wl| c.layout(wl));
                         debug_assert!(!define_ref_frame); // is widget, should define own frame.
                         o.define_reference_frame = define_ref_frame;
@@ -341,16 +346,15 @@ fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirec
             // layout other nodes and position everything.
             let mut item_rect = PxRect::zero();
             let mut child_spacing = PxVector::zero();
-            children.for_each(|_, c, o| {
-                let size = match c.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().outer_size()) {
-                    Some(wgt_size) => wgt_size,
+            children.for_each_child(|_, c, o| {
+                let size = match c.as_widget() {
+                    Some(mut w) => w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().outer_size()),
                     None => {
                         let (size, define_ref_frame) = wl.with_child(|wl| c.layout(wl));
                         o.define_reference_frame = define_ref_frame;
                         size
                     }
                 };
-
                 if size.is_empty() {
                     o.child_offset = PxVector::zero();
                     o.define_reference_frame = false;
@@ -378,20 +382,24 @@ fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirec
     let align_baseline = children_align.is_baseline();
     let child_align = child_align.xy(LAYOUT.direction());
 
-    children.for_each(|_, c, o| {
-        if let Some((size, baseline)) = c.with_context(WidgetUpdateMode::Ignore, || {
-            let bounds = WIDGET.bounds();
-            (bounds.outer_size(), bounds.final_baseline())
-        }) {
-            let child_offset = (items_size - size).to_vector() * child_align;
-            o.child_offset += children_offset + child_offset;
+    children.for_each_child(|_, c, o| {
+        match c.as_widget() {
+            Some(mut w) => {
+                let (size, baseline) = w.with_context(WidgetUpdateMode::Ignore, || {
+                    let bounds = WIDGET.bounds();
+                    (bounds.outer_size(), bounds.final_baseline())
+                });
+                let child_offset = (items_size - size).to_vector() * child_align;
+                o.child_offset += children_offset + child_offset;
 
-            if align_baseline {
-                o.child_offset.y += baseline;
+                if align_baseline {
+                    o.child_offset.y += baseline;
+                }
             }
-        } else {
-            // non-widgets only align with item_bounds
-            o.child_offset += children_offset;
+            None => {
+                // non-widgets only align with item_bounds
+                o.child_offset += children_offset;
+            }
         }
     });
 
@@ -450,7 +458,7 @@ fn child_max_size(wm: &mut WidgetMeasure, children: &mut PanelList, child_align:
     // find largest child, the others will fill to its size.
     if need_measure {
         let max_items = LAYOUT.with_constraints(measure_constraints.with_new_min(Px(0), Px(0)), || {
-            children.measure_each(wm, |_, c, _, wm| c.measure(wm), PxSize::max)
+            children.measure_list(wm, |_, c, _, wm| c.measure(wm), PxSize::max)
         });
 
         max_size = constraints.clamp_size(max_size.max(max_items));
@@ -459,66 +467,49 @@ fn child_max_size(wm: &mut WidgetMeasure, children: &mut PanelList, child_align:
     max_size
 }
 
-/// Basic z-stack node.
-///
-/// Creates a node that updates and layouts the `nodes` in the logical order they appear in the list
-/// and renders them one on top of the other from back(0) to front(len-1). The layout size is the largest item width and height,
-/// the parent constraints are used for the layout of each item.
-///
-/// This is the most simple *z-stack* implementation possible, it is a building block useful for quickly declaring
-/// overlaying effects composed of multiple nodes, it does not do any alignment layout or z-sorting render.
-///
-/// [`Stack!`]: struct@Stack
-pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
-    match_node_list(nodes, |_, _| {})
-}
-
-/// Basic z-stack node sized by one of the items.
+/// Basic Z-stack node sized by one of the items.
 ///
 /// Creates a node that updates the `nodes` in the logical order they appear, renders them one on top of the other from back(0)
 /// to front(len-1), but layouts the `index` item first and uses its size to get `constraints` for the other items.
 ///
 /// The layout size is the largest item width and height, usually the `index` size.
 ///
-/// If the `index` is out of range the node logs an error and behaves like [`stack_nodes`].
-pub fn stack_nodes_layout_by(
-    nodes: impl UiNodeList,
+/// Note that if you don't need a custom `index` you can just use [`UiVec`] as a node directly, it implements basic Z-stack layout by default.
+pub fn stack_nodes(
+    nodes: impl IntoUiNode,
     index: impl IntoVar<usize>,
     constraints: impl Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send + 'static,
-) -> impl UiNode {
+) -> UiNode {
     #[cfg(feature = "dyn_closure")]
     let constraints: Box<dyn Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send> = Box::new(constraints);
-    stack_nodes_layout_by_impl(nodes, index, constraints)
+    stack_nodes_impl(nodes.into_node(), index, constraints)
 }
 
-fn stack_nodes_layout_by_impl(
-    nodes: impl UiNodeList,
+fn stack_nodes_impl(
+    nodes: UiNode,
     index: impl IntoVar<usize>,
     constraints: impl Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send + 'static,
-) -> impl UiNode {
+) -> UiNode {
+    let nodes = nodes.into_list();
     let index = index.into_var();
 
-    match_node_list(nodes, move |children, op| match op {
+    match_node(nodes, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_layout(&index);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let index = index.get();
-            let len = children.len();
+            let len = c.node().children_len();
             *desired_size = if index >= len {
-                tracing::error!(
-                    "index {} out of range for length {} in `{:?}#stack_nodes_layout_by`",
-                    index,
-                    len,
-                    WIDGET.id()
-                );
+                tracing::error!("index {} out of range for length {} in `{:?}#stack_nodes`", index, len, WIDGET.id());
 
-                children.measure_each(wm, |_, n, wm| n.measure(wm), PxSize::max)
+                c.measure(wm)
             } else {
-                let index_size = children.with_node(index, |n| n.measure(wm));
+                c.delegated();
+                let index_size = c.node().with_child(index, |n| n.measure(wm));
                 let constraints = constraints(LAYOUT.metrics().constraints(), index, index_size);
                 LAYOUT.with_constraints(constraints, || {
-                    children.measure_each(
+                    c.measure_list(
                         wm,
                         |i, n, wm| {
                             if i != index { n.measure(wm) } else { index_size }
@@ -530,7 +521,7 @@ fn stack_nodes_layout_by_impl(
         }
         UiNodeOp::Layout { wl, final_size } => {
             let index = index.get();
-            let len = children.len();
+            let len = c.node().children_len();
             *final_size = if index >= len {
                 tracing::error!(
                     "index {} out of range for length {} in `{:?}#stack_nodes_layout_by`",
@@ -539,12 +530,13 @@ fn stack_nodes_layout_by_impl(
                     WIDGET.id()
                 );
 
-                children.layout_each(wl, |_, n, wl| n.layout(wl), PxSize::max)
+                c.layout(wl)
             } else {
-                let index_size = children.with_node(index, |n| n.layout(wl));
+                c.delegated();
+                let index_size = c.node().with_child(index, |n| n.layout(wl));
                 let constraints = constraints(LAYOUT.metrics().constraints(), index, index_size);
                 LAYOUT.with_constraints(constraints, || {
-                    children.layout_each(
+                    c.layout_list(
                         wl,
                         |i, n, wl| {
                             if i != index { n.layout(wl) } else { index_size }
@@ -566,7 +558,7 @@ static_id! {
 ///
 /// The child index is zero-based.
 #[property(CONTEXT)]
-pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+pub fn get_index(child: impl IntoUiNode, state: impl IntoVar<usize>) -> UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id.unwrap_or(0));
@@ -575,7 +567,7 @@ pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode 
 
 /// Get the child index and number of children.
 #[property(CONTEXT)]
-pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
+pub fn get_index_len(child: impl IntoUiNode, state: impl IntoVar<(usize, usize)>) -> UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_len_node(child, *PANEL_LIST_ID, move |id_len| {
         state.set(id_len.unwrap_or((0, 0)));
@@ -584,7 +576,7 @@ pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) ->
 
 /// Get the child index, starting from the last child at `0`.
 #[property(CONTEXT)]
-pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+pub fn get_rev_index(child: impl IntoUiNode, state: impl IntoVar<usize>) -> UiNode {
     let state = state.into_var();
     zng_wgt::node::with_rev_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id.unwrap_or(0));
@@ -597,7 +589,7 @@ pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiN
 ///
 /// [`is_odd`]: fn@is_odd
 #[property(CONTEXT)]
-pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_even(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id.map(|i| i % 2 == 0).unwrap_or(false));
@@ -610,7 +602,7 @@ pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 ///
 /// [`is_even`]: fn@is_even
 #[property(CONTEXT)]
-pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_odd(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id.map(|i| i % 2 != 0).unwrap_or(false));
@@ -619,7 +611,7 @@ pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 
 /// If the child is the first.
 #[property(CONTEXT)]
-pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_first(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id == Some(0));
@@ -628,7 +620,7 @@ pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 
 /// If the child is the last.
 #[property(CONTEXT)]
-pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_last(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     zng_wgt::node::with_rev_index_node(child, *PANEL_LIST_ID, move |id| {
         state.set(id == Some(0));

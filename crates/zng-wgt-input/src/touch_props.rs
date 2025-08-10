@@ -4,7 +4,7 @@ use zng_wgt::prelude::*;
 
 /// Applies transforms from touch gestures on the widget.
 #[property(LAYOUT, default(false))]
-pub fn touch_transform(child: impl UiNode, mode: impl IntoVar<TouchTransformMode>) -> impl UiNode {
+pub fn touch_transform(child: impl IntoUiNode, mode: impl IntoVar<TouchTransformMode>) -> UiNode {
     let mode = mode.into_var();
     let mut handle = EventHandle::dummy();
     let mut transform_committed = PxTransform::identity();

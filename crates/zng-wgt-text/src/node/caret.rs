@@ -44,7 +44,7 @@ use super::TEXT;
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
 ///
 /// [`render_text`]: super::render_text
-pub fn non_interactive_caret(child: impl UiNode) -> impl UiNode {
+pub fn non_interactive_caret(child: impl IntoUiNode) -> UiNode {
     let color_key = FrameValueKey::new_unique();
 
     match_node(child, move |child, op| match op {
@@ -95,7 +95,7 @@ pub fn non_interactive_caret(child: impl UiNode) -> impl UiNode {
 /// An Ui node that implements interaction and renders the interactive carets.
 ///
 /// Caret visuals defined by [`INTERACTIVE_CARET_VISUAL_VAR`].
-pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
+pub fn interactive_carets(child: impl IntoUiNode) -> UiNode {
     let mut carets: Vec<Caret> = vec![];
     let mut is_focused = false;
 
@@ -376,25 +376,25 @@ struct InteractiveCaretInputMut {
     spot: PxPoint,
 }
 
-fn interactive_caret_shape_node(input: Arc<Mutex<InteractiveCaretInputMut>>, visual_fn: WidgetFn<CaretShape>) -> impl UiNode {
+fn interactive_caret_shape_node(input: Arc<Mutex<InteractiveCaretInputMut>>, visual_fn: WidgetFn<CaretShape>) -> UiNode {
     let mut shape = CaretShape::Insert;
 
-    match_node(NilUiNode.boxed(), move |visual, op| match op {
+    match_node(UiNode::nil(), move |visual, op| match op {
         UiNodeOp::Init => {
             shape = input.lock().shape;
-            *visual.child() = visual_fn(shape);
+            *visual.node() = visual_fn(shape);
             visual.init();
         }
         UiNodeOp::Deinit => {
             visual.deinit();
-            *visual.child() = NilUiNode.boxed();
+            *visual.node() = UiNode::nil();
         }
         UiNodeOp::Update { .. } => {
             let new_shape = input.lock().shape;
             if new_shape != shape {
                 shape = new_shape;
                 visual.deinit();
-                *visual.child() = visual_fn(shape);
+                *visual.node() = visual_fn(shape);
                 visual.init();
                 WIDGET.layout().render();
             }
@@ -404,11 +404,11 @@ fn interactive_caret_shape_node(input: Arc<Mutex<InteractiveCaretInputMut>>, vis
 }
 
 fn interactive_caret_node(
-    child: impl UiNode,
+    child: impl IntoUiNode,
     parent_id: WidgetId,
     is_selection_index: bool,
     input: Arc<Mutex<InteractiveCaretInputMut>>,
-) -> impl UiNode {
+) -> UiNode {
     let mut caret_spot_buf = Some(Arc::new(Atomic::new(PxPoint::zero())));
     let mut touch_move = None::<(TouchId, EventHandles)>;
     let mut mouse_move = EventHandles::dummy();
@@ -570,7 +570,7 @@ fn interactive_caret_input(input: impl IntoValue<InteractiveCaretInput>) {}
 /// See [`interactive_caret_visual`] for more details.
 ///
 /// [`interactive_caret_visual`]: fn@super::interactive_caret_visual
-pub fn default_interactive_caret_visual(shape: CaretShape) -> impl UiNode {
+pub fn default_interactive_caret_visual(shape: CaretShape) -> UiNode {
     match_node_leaf(move |op| match op {
         UiNodeOp::Layout { final_size, .. } => {
             let factor = LAYOUT.scale_factor();

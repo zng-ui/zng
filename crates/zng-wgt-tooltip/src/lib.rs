@@ -49,7 +49,7 @@ use zng_wgt_style::{Style, impl_style_fn, style_fn};
 /// [`tooltip_duration`]: fn@tooltip_duration
 /// [`disabled_tooltip`]: fn@disabled_tooltip
 #[property(EVENT)]
-pub fn tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
+pub fn tooltip(child: impl IntoUiNode, tip: impl IntoUiNode) -> UiNode {
     tooltip_fn(child, WidgetFn::singleton(tip))
 }
 
@@ -69,7 +69,7 @@ pub fn tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
 /// [`tooltip_duration`]: fn@tooltip_duration
 /// [`disabled_tooltip_fn`]: fn@disabled_tooltip_fn
 #[property(EVENT, default(WidgetFn::nil()))]
-pub fn tooltip_fn(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) -> impl UiNode {
+pub fn tooltip_fn(child: impl IntoUiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) -> UiNode {
     tooltip_node(child, tip, false)
 }
 
@@ -79,7 +79,7 @@ pub fn tooltip_fn(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) 
 ///
 /// [`tooltip`]: fn@tooltip
 #[property(EVENT)]
-pub fn disabled_tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
+pub fn disabled_tooltip(child: impl IntoUiNode, tip: impl IntoUiNode) -> UiNode {
     disabled_tooltip_fn(child, WidgetFn::singleton(tip))
 }
 
@@ -89,11 +89,11 @@ pub fn disabled_tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
 ///
 /// [`tooltip_fn`]: fn@tooltip
 #[property(EVENT, default(WidgetFn::nil()))]
-pub fn disabled_tooltip_fn(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) -> impl UiNode {
+pub fn disabled_tooltip_fn(child: impl IntoUiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) -> UiNode {
     tooltip_node(child, tip, true)
 }
 
-fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, disabled_only: bool) -> impl UiNode {
+fn tooltip_node(child: impl IntoUiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, disabled_only: bool) -> UiNode {
     let tip = tip.into_var();
     let mut pop_state = var(PopupState::Closed).read_only();
     let mut open_delay = None::<DeadlineVar>;
@@ -259,27 +259,32 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 UiNodeOp::Init => {
                     c.init();
 
-                    c.with_context(WidgetUpdateMode::Bubble, || {
-                        // if the tooltip is hit-testable and the mouse hovers it, the anchor widget
-                        // will not receive mouse-leave, because it is not the logical parent of the tooltip,
-                        // so we need to duplicate cleanup logic here.
-                        WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
+                    if let Some(mut wgt) = c.node().as_widget() {
+                        wgt.with_context(WidgetUpdateMode::Bubble, || {
+                            // if the tooltip is hit-testable and the mouse hovers it, the anchor widget
+                            // will not receive mouse-leave, because it is not the logical parent of the tooltip,
+                            // so we need to duplicate cleanup logic here.
+                            WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
 
-                        let mut global = OPEN_TOOLTIP.write();
-                        if let Some(id) = global.take() {
-                            POPUP.force_close_id(id);
-                        }
-                        *global = Some(WIDGET.id());
-                    });
+                            let mut global = OPEN_TOOLTIP.write();
+                            if let Some(id) = global.take() {
+                                POPUP.force_close_id(id);
+                            }
+                            *global = Some(WIDGET.id());
+                        });
+                    }
                 }
                 UiNodeOp::Deinit => {
-                    c.with_context(WidgetUpdateMode::Bubble, || {
-                        let mut global = OPEN_TOOLTIP.write();
-                        if *global == Some(WIDGET.id()) {
-                            *global = None;
-                            TOOLTIP_LAST_CLOSED.set(Some(INSTANT.now()));
-                        }
-                    });
+                    if let Some(mut wgt) = c.node().as_widget() {
+                        wgt.with_context(WidgetUpdateMode::Bubble, || {
+                            let mut global = OPEN_TOOLTIP.write();
+                            if *global == Some(WIDGET.id()) {
+                                *global = None;
+                                TOOLTIP_LAST_CLOSED.set(Some(INSTANT.now()));
+                            }
+                        });
+                    }
+
                     c.deinit();
                 }
                 UiNodeOp::Event { update } => {
@@ -290,8 +295,8 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                             return;
                         }
 
-                        let tooltip_id = match c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
-                            Some(id) => id,
+                        let tooltip_id = match c.node().as_widget() {
+                            Some(mut w) => w.id(),
                             None => {
                                 // was widget on init, now is not,
                                 // this can happen if child is an `ArcNode` that was moved
@@ -358,7 +363,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 /// [`access_tooltip_anchor`]: fn@access_tooltip_anchor
 /// [`POPUP`]: zng_wgt_layer::popup::POPUP::force_close
 #[property(CONTEXT, default(TOOLTIP_ANCHOR_VAR))]
-pub fn tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
+pub fn tooltip_anchor(child: impl IntoUiNode, mode: impl IntoVar<AnchorMode>) -> UiNode {
     with_context_var(child, TOOLTIP_ANCHOR_VAR, mode)
 }
 
@@ -372,7 +377,7 @@ pub fn tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> imp
 /// [`tooltip_anchor`]: fn@tooltip_anchor
 /// [`ACCESS.show_tooltip`]: zng_app::access::ACCESS::show_tooltip
 #[property(CONTEXT, default(ACCESS_TOOLTIP_ANCHOR_VAR))]
-pub fn access_tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
+pub fn access_tooltip_anchor(child: impl IntoUiNode, mode: impl IntoVar<AnchorMode>) -> UiNode {
     with_context_var(child, ACCESS_TOOLTIP_ANCHOR_VAR, mode)
 }
 
@@ -386,7 +391,7 @@ pub fn access_tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>)
 ///
 /// This property sets the [`TOOLTIP_CONTEXT_CAPTURE_VAR`].
 #[property(CONTEXT, default(TOOLTIP_CONTEXT_CAPTURE_VAR))]
-pub fn tooltip_context_capture(child: impl UiNode, capture: impl IntoVar<ContextCapture>) -> impl UiNode {
+pub fn tooltip_context_capture(child: impl IntoUiNode, capture: impl IntoVar<ContextCapture>) -> UiNode {
     with_context_var(child, TOOLTIP_CONTEXT_CAPTURE_VAR, capture)
 }
 
@@ -399,7 +404,7 @@ pub fn tooltip_context_capture(child: impl UiNode, capture: impl IntoVar<Context
 ///
 /// [`tooltip_interval`]: fn@tooltip_interval
 #[property(CONTEXT, default(TOOLTIP_DELAY_VAR))]
-pub fn tooltip_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl UiNode {
+pub fn tooltip_delay(child: impl IntoUiNode, delay: impl IntoVar<Duration>) -> UiNode {
     with_context_var(child, TOOLTIP_DELAY_VAR, delay)
 }
 
@@ -409,7 +414,7 @@ pub fn tooltip_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl 
 ///
 /// This property sets the [`TOOLTIP_INTERVAL_VAR`].
 #[property(CONTEXT, default(TOOLTIP_INTERVAL_VAR))]
-pub fn tooltip_interval(child: impl UiNode, interval: impl IntoVar<Duration>) -> impl UiNode {
+pub fn tooltip_interval(child: impl IntoUiNode, interval: impl IntoVar<Duration>) -> UiNode {
     with_context_var(child, TOOLTIP_INTERVAL_VAR, interval)
 }
 
@@ -425,7 +430,7 @@ pub fn tooltip_interval(child: impl UiNode, interval: impl IntoVar<Duration>) ->
 ///
 /// [`access_tooltip_duration`]: fn@access_tooltip_duration
 #[property(CONTEXT, default(TOOLTIP_DURATION_VAR))]
-pub fn tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) -> impl UiNode {
+pub fn tooltip_duration(child: impl IntoUiNode, duration: impl IntoVar<Duration>) -> UiNode {
     with_context_var(child, TOOLTIP_DURATION_VAR, duration)
 }
 
@@ -442,7 +447,7 @@ pub fn tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) ->
 /// [`ACCESS.show_tooltip`]: zng_app::access::ACCESS::show_tooltip
 /// [`ACCESS.hide_tooltip`]: zng_app::access::ACCESS::hide_tooltip
 #[property(CONTEXT, default(ACCESS_TOOLTIP_DURATION_VAR))]
-pub fn access_tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) -> impl UiNode {
+pub fn access_tooltip_duration(child: impl IntoUiNode, duration: impl IntoVar<Duration>) -> UiNode {
     with_context_var(child, ACCESS_TOOLTIP_DURATION_VAR, duration)
 }
 

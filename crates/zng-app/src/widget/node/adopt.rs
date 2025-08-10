@@ -1,22 +1,21 @@
 use parking_lot::Mutex;
 
 use super::*;
-use crate::widget::ui_node;
 use std::{mem, sync::Arc};
 
 /// Represents a node setup to dynamically swap child.
 ///
 /// Any property node can be made adoptive by wrapping it with this node.
-pub struct AdoptiveNode<U> {
-    child: Arc<Mutex<BoxedUiNode>>,
-    node: U,
+pub struct AdoptiveNode {
+    child: Arc<Mutex<UiNode>>,
+    node: UiNode,
     is_inited: bool,
 }
-impl<U: UiNode> AdoptiveNode<U> {
+impl AdoptiveNode {
     /// Create the adoptive node, the [`AdoptiveChildNode`] must be used as the child of the created node.
     ///
     /// The created node is assumed to not be inited.
-    pub fn new(create: impl FnOnce(AdoptiveChildNode) -> U) -> Self {
+    pub fn new(create: impl FnOnce(AdoptiveChildNode) -> UiNode) -> Self {
         let ad_child = AdoptiveChildNode::nil();
         let child = ad_child.child.clone();
         let node = create(ad_child);
@@ -30,7 +29,7 @@ impl<U: UiNode> AdoptiveNode<U> {
     /// Create the adoptive node using a closure that can fail.
     ///
     /// The created node is assumed to not be inited.
-    pub fn try_new<E>(create: impl FnOnce(AdoptiveChildNode) -> Result<U, E>) -> Result<Self, E> {
+    pub fn try_new<E>(create: impl FnOnce(AdoptiveChildNode) -> Result<UiNode, E>) -> Result<Self, E> {
         let ad_child = AdoptiveChildNode::nil();
         let child = ad_child.child.clone();
         let node = create(ad_child)?;
@@ -43,14 +42,14 @@ impl<U: UiNode> AdoptiveNode<U> {
 
     /// Replaces the child node.
     ///
-    /// Returns the previous child, the initial child is a [`NilUiNode`].
+    /// Returns the previous child, the initial child is a [`UiNode::nil`].
     ///
     /// # Panics
     ///
     /// Panics if [`is_inited`](Self::is_inited).
-    pub fn replace_child(&mut self, new_child: impl UiNode) -> BoxedUiNode {
+    pub fn replace_child(&mut self, new_child: UiNode) -> UiNode {
         assert!(!self.is_inited);
-        mem::replace(&mut *self.child.lock(), new_child.boxed())
+        mem::replace(&mut *self.child.lock(), new_child)
     }
 
     /// Returns `true` if this node is inited.
@@ -63,13 +62,13 @@ impl<U: UiNode> AdoptiveNode<U> {
     /// # Panics
     ///
     /// Panics if [`is_inited`](Self::is_inited).
-    pub fn into_parts(self) -> (Arc<Mutex<BoxedUiNode>>, U) {
+    pub fn into_parts(self) -> (Arc<Mutex<UiNode>>, UiNode) {
         assert!(!self.is_inited);
         (self.child, self.node)
     }
 
     /// From parts, assumes the nodes are not inited and that `child` is the actual child of `node`.
-    pub fn from_parts(child: Arc<Mutex<BoxedUiNode>>, node: U) -> Self {
+    pub fn from_parts(child: Arc<Mutex<UiNode>>, node: UiNode) -> Self {
         Self {
             child,
             node,
@@ -77,8 +76,8 @@ impl<U: UiNode> AdoptiveNode<U> {
         }
     }
 }
-#[ui_node(delegate = &mut self.node)]
-impl<U: UiNode> UiNode for AdoptiveNode<U> {
+
+impl UiNodeImpl for AdoptiveNode {
     fn init(&mut self) {
         self.is_inited = true;
         self.node.init();
@@ -87,20 +86,40 @@ impl<U: UiNode> UiNode for AdoptiveNode<U> {
         self.is_inited = false;
         self.node.deinit();
     }
+
+    fn children_len(&self) -> usize {
+        1
+    }
+
+    fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
+        if index == 0 {
+            visitor(&mut self.node);
+        }
+    }
 }
 
 /// Placeholder for the dynamic child of an adoptive node.
 ///
 /// This node must be used as the child of the adoptive node, see [`AdoptiveNode::new`] for more details.
 pub struct AdoptiveChildNode {
-    child: Arc<Mutex<BoxedUiNode>>,
+    child: Arc<Mutex<UiNode>>,
 }
 impl AdoptiveChildNode {
     fn nil() -> Self {
         Self {
-            child: Arc::new(Mutex::new(NilUiNode.boxed())),
+            child: Arc::new(Mutex::new(UiNode::nil())),
         }
     }
 }
-#[ui_node(delegate = self.child.lock())]
-impl UiNode for AdoptiveChildNode {}
+
+impl UiNodeImpl for AdoptiveChildNode {
+    fn children_len(&self) -> usize {
+        1
+    }
+
+    fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
+        if index == 0 {
+            visitor(&mut *self.child.lock())
+        }
+    }
+}

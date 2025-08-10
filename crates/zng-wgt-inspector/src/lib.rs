@@ -34,24 +34,25 @@ command! {
 
 /// Setup the inspector for the window.
 #[property(WIDGET)]
-pub fn inspector(child: impl UiNode, mut inspector: impl UiNode) -> impl UiNode {
-    match_node(child, move |c, op| match op {
+pub fn inspector(child: impl IntoUiNode, inspector: impl IntoUiNode) -> UiNode {
+    match_node(ui_vec![child, inspector], move |c, op| match op {
         UiNodeOp::Measure { wm, desired_size } => {
-            *desired_size = c.measure(wm);
+            c.delegated();
+            let children = c.node_impl::<UiVec>();
+            *desired_size = children[0].measure(wm);
             LAYOUT.with_constraints(PxConstraints2d::new_exact_size(*desired_size), || {
-                let _ = inspector.measure(wm);
+                let _ = children[1].measure(wm);
             });
         }
         UiNodeOp::Layout { wl, final_size } => {
-            *final_size = c.layout(wl);
+            c.delegated();
+            let children = c.node_impl::<UiVec>();
+            *final_size = children[0].layout(wl);
             LAYOUT.with_constraints(PxConstraints2d::new_exact_size(*final_size), || {
-                let _ = inspector.layout(wl);
+                let _ = children[1].layout(wl);
             });
         }
-        mut op => {
-            c.op(op.reborrow());
-            inspector.op(op);
-        }
+        _ => {}
     })
 }
 
@@ -61,6 +62,6 @@ pub fn inspector(child: impl UiNode, mut inspector: impl UiNode) -> impl UiNode 
 /// Can be set on a window using the [`inspector`](fn@inspector) property.
 /// Note that the main `APP.defaults()` already sets this for all windows when
 /// the `"inspector"` feature is enabled.
-pub fn live_inspector(can_inspect: impl IntoVar<bool>) -> impl UiNode {
+pub fn live_inspector(can_inspect: impl IntoVar<bool>) -> UiNode {
     live::inspect_node(can_inspect)
 }

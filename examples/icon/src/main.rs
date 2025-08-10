@@ -43,16 +43,16 @@ fn main() {
     })
 }
 
-fn icons() -> impl UiNode {
+fn icons() -> UiNode {
     let selected_font = var("outlined");
     let search = var(Txt::from_static(""));
-    fn select_font(key: &'static str) -> impl UiNode {
+    fn select_font(key: &'static str) -> UiNode {
         Toggle! {
             child = Text!(key);
             value::<&'static str> = key;
         }
     }
-    fn show_font(icons: Vec<(&'static str, GlyphIcon)>, font_mod: &'static str) -> impl UiNode {
+    fn show_font(icons: Vec<(&'static str, GlyphIcon)>, font_mod: &'static str) -> UiNode {
         let _scope = tracing::error_span!("show_font").entered();
         let icons_len = icons.len();
         Wrap! {
@@ -75,11 +75,11 @@ fn icons() -> impl UiNode {
                     children = {
                         let mut r = vec![];
                         c.par_iter()
-                                .map(|(name, ico)| icon_btn(name, ico.clone(), font_mod).boxed())
+                                .map(|(name, ico)| icon_btn(name, ico.clone(), font_mod))
                                 .collect_into_vec(&mut r);
                         r
                     };
-                }.boxed())
+                })
                 .collect_into_vec(&mut r);
                 r
             };
@@ -164,7 +164,7 @@ fn icons() -> impl UiNode {
     }
 }
 
-fn icon_btn(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static str) -> impl UiNode {
+fn icon_btn(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static str) -> UiNode {
     Button! {
         padding = 2;
         layout::size = (80, 80);
@@ -191,7 +191,7 @@ fn icon_btn(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static str) ->
     }
 }
 
-fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static str) -> impl UiNode {
+fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static str) -> UiNode {
     let opacity = var(0.fct());
     opacity.ease(1.fct(), 200.ms(), easing::linear).perm();
     Container! {
@@ -248,7 +248,7 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
                                             padding = 2;
                                         }
                                     ]
-                                }.boxed()
+                                    }
                             })).collect::<Vec<_>>()
                         },
                         code_copy("ICONS.req".into(), formatx!("ICONS.req(\"material/{font_mod}/{name}\")")),
@@ -276,7 +276,7 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
     }
 }
 
-fn title(title: Txt) -> impl UiNode {
+fn title(title: Txt) -> UiNode {
     Text! {
         txt = title;
         font_size = 24;
@@ -284,7 +284,7 @@ fn title(title: Txt) -> impl UiNode {
     }
 }
 
-fn size_label(size: Txt) -> impl UiNode {
+fn size_label(size: Txt) -> UiNode {
     Text! {
         txt = size;
         font_size = 10;
@@ -292,7 +292,7 @@ fn size_label(size: Txt) -> impl UiNode {
     }
 }
 
-fn code_copy(label: Txt, code: Txt) -> impl UiNode {
+fn code_copy(label: Txt, code: Txt) -> UiNode {
     let enabled = var(true);
     let copy_status = var(Txt::from(""));
     Button! {

@@ -109,7 +109,7 @@ pub(super) fn new(
         child_right = Container! {
             width = 600;
             child = selected_wgt.present(wgt_fn!(|w| {
-                selected_view(w).boxed()
+                selected_view(w)
             }));
             background_color = SELECTED_BKG_VAR;
         }, 0;
@@ -122,7 +122,7 @@ pub(super) fn new(
 
 /// Sets the inspected window on the inspector root widget info.
 #[property(CONTEXT)]
-fn set_inspected(child: impl UiNode, inspected: impl IntoValue<WindowId>) -> impl UiNode {
+fn set_inspected(child: impl IntoUiNode, inspected: impl IntoValue<WindowId>) -> UiNode {
     let inspected = inspected.into();
     match_node(child, move |_, op| {
         if let UiNodeOp::Info { info } = op {
@@ -155,7 +155,7 @@ context_var! {
     pub static SELECTED_BORDER_VAR: Rgba = colors::AZURE;
 }
 
-fn menu(hit_test_select: Var<HitSelect>, adorn_selected: Var<bool>, select_focused: Var<bool>, search: Var<Txt>) -> impl UiNode {
+fn menu(hit_test_select: Var<HitSelect>, adorn_selected: Var<bool>, select_focused: Var<bool>, search: Var<Txt>) -> UiNode {
     Container! {
         background_color = MENU_BKG_VAR;
         child_left = Stack! {
@@ -262,7 +262,7 @@ fn menu(hit_test_select: Var<HitSelect>, adorn_selected: Var<bool>, select_focus
     }
 }
 
-fn crosshair_16x16() -> impl UiNode {
+fn crosshair_16x16() -> UiNode {
     match_node_leaf(|op| match op {
         UiNodeOp::Layout { final_size, .. } => {
             *final_size = DipSize::splat(Dip::new(16)).to_px(LAYOUT.scale_factor());
@@ -283,14 +283,14 @@ fn crosshair_16x16() -> impl UiNode {
 }
 
 /// Widgets tree view.
-fn tree_view(tree: InspectedTree, filter: Var<Txt>) -> impl UiNode {
+fn tree_view(tree: InspectedTree, filter: Var<Txt>) -> UiNode {
     Container! {
         font_family = ["JetBrains Mono", "Consolas", "monospace"];
         child = tree_item_view(tree.inspect_root(), filter, const_var(0u32));
     }
 }
 
-fn tree_item_view(wgt: InspectedWidget, filter: Var<Txt>, parent_desc_filter: Var<u32>) -> impl UiNode {
+fn tree_item_view(wgt: InspectedWidget, filter: Var<Txt>, parent_desc_filter: Var<u32>) -> UiNode {
     let wgt_type = wgt.wgt_type();
     let wgt_id = wgt.id();
 
@@ -376,7 +376,7 @@ fn tree_item_view(wgt: InspectedWidget, filter: Var<Txt>, parent_desc_filter: Va
                 tree_item_view(c, filter.clone(), descendants_pass_filter.clone())
             }).collect();
             if children.is_empty() {
-                NilUiNode.boxed()
+                UiNode::nil()
             } else {
                 Container! {
                     child = Stack! {
@@ -390,7 +390,7 @@ fn tree_item_view(wgt: InspectedWidget, filter: Var<Txt>, parent_desc_filter: Va
                         };
                     };
                     child_bottom = Text!("}}"), 0;
-                }.boxed()
+                }
 
             }
 
@@ -399,7 +399,7 @@ fn tree_item_view(wgt: InspectedWidget, filter: Var<Txt>, parent_desc_filter: Va
 }
 
 /// Selected widget properties, info.
-fn selected_view(wgt: Option<InspectedWidget>) -> impl UiNode {
+fn selected_view(wgt: Option<InspectedWidget>) -> UiNode {
     if let Some(wgt) = wgt {
         Scroll! {
             mode = ScrollMode::VERTICAL;
@@ -444,9 +444,9 @@ fn selected_view(wgt: Option<InspectedWidget>) -> impl UiNode {
                     },
                     wgt.inspector_info().present(wgt_fn!(|i| {
                         if let Some(i) = i {
-                            inspector_info_view(i).boxed()
+                            inspector_info_view(i)
                         } else {
-                            NilUiNode.boxed()
+                            UiNode::nil()
                         }
                     })),
                     Hr!(),
@@ -464,7 +464,7 @@ fn selected_view(wgt: Option<InspectedWidget>) -> impl UiNode {
     }
 }
 
-fn inspector_info_view(info: InspectedInfo) -> impl UiNode {
+fn inspector_info_view(info: InspectedInfo) -> UiNode {
     let mut current_group = None;
     let mut group_items = UiVec::new();
     let mut out = UiVec::new();
@@ -510,7 +510,7 @@ fn inspector_info_view(info: InspectedInfo) -> impl UiNode {
     }
 }
 
-fn nest_group_view(group: NestGroup, mut items: UiVec) -> impl UiNode {
+fn nest_group_view(group: NestGroup, mut items: UiVec) -> UiNode {
     items.insert(
         0,
         Text! {
@@ -546,7 +546,7 @@ fn property_view(
     info: PropertyInfo,
     captured: bool,
     user_assigned: bool,
-) -> impl UiNode {
+) -> UiNode {
     let mut children = ui_vec![
         Text! {
             txt = info.name;
@@ -589,7 +589,7 @@ fn property_view(
     }
 }
 
-fn intrinsic_view(name: &'static str) -> impl UiNode {
+fn intrinsic_view(name: &'static str) -> UiNode {
     Text! {
         txt = name;
         font_style = FontStyle::Italic;
@@ -597,7 +597,7 @@ fn intrinsic_view(name: &'static str) -> impl UiNode {
     }
 }
 
-fn info_watchers(wgt: &InspectedWidget) -> impl UiNode {
+fn info_watchers(wgt: &InspectedWidget) -> UiNode {
     let mut children = UiVec::new();
 
     let mut sep = "";

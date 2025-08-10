@@ -1,14 +1,14 @@
 use zng::{
     layout::margin,
-    prelude_wgt::{property, UiNode},
+    prelude_wgt::{property, IntoUiNode, UiNode},
     widget::Wgt,
     APP,
 };
 
 #[property(CONTEXT)]
-pub fn foo(child: impl UiNode, value: impl UiNode) -> impl UiNode {
+pub fn foo(child: impl IntoUiNode, value: impl IntoUiNode) -> UiNode {
     let _ = value;
-    child
+    child.into_node()
 }
 
 fn main() {

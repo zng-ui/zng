@@ -70,10 +70,10 @@ impl Button {
                     "cmd-context",
                     clmv!(cmd, |mut child| {
                         if enabled {
-                            child = zng_wgt::enabled(child, cmd.flat_map(|c| c.is_enabled())).boxed();
+                            child = zng_wgt::enabled(child, cmd.flat_map(|c| c.is_enabled()));
                         }
                         if visibility {
-                            child = zng_wgt::visibility(child, cmd.flat_map(|c| c.has_handlers()).map_into()).boxed();
+                            child = zng_wgt::visibility(child, cmd.flat_map(|c| c.has_handlers()).map_into());
                         }
 
                         with_context_var(child, CMD_VAR, cmd.map(|c| Some(*c)))
@@ -105,8 +105,7 @@ impl Button {
                                             args.propagation().stop();
                                         }
                                     }),
-                                )
-                                .boxed();
+                                );
                             }
                             if on_disabled_click {
                                 child = self::on_disabled_click(
@@ -122,8 +121,7 @@ impl Button {
                                             args.propagation().stop();
                                         }
                                     }),
-                                )
-                                .boxed();
+                                );
                             }
                             #[cfg(feature = "tooltip")]
                             if tooltip {
@@ -136,8 +134,7 @@ impl Button {
                                             wgt_fn!(cmd, tt_fn, |tooltip| { tt_fn(CmdTooltipArgs { tooltip, cmd }) })
                                         }
                                     }),
-                                )
-                                .boxed();
+                                );
                             }
                             child
                         }),
@@ -203,13 +200,13 @@ impl std::ops::Deref for CmdTooltipArgs {
 }
 
 /// Default [`CMD_CHILD_FN_VAR`].
-pub fn default_cmd_child_fn(cmd: Command) -> impl UiNode {
+pub fn default_cmd_child_fn(cmd: Command) -> UiNode {
     Text!(cmd.name())
 }
 
 #[cfg(feature = "tooltip")]
 /// Default [`CMD_TOOLTIP_FN_VAR`].
-pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> impl UiNode {
+pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> UiNode {
     let info = args.cmd.info();
     let has_info = info.map(|s| !s.is_empty());
     let shortcut = args.cmd.shortcut().map(|s| match s.first() {
@@ -263,7 +260,7 @@ pub fn cmd(cmd: impl IntoVar<Command>) {}
 ///
 /// [`cmd`]: fn@cmd
 #[property(CONTEXT, default(CMD_PARAM_VAR), widget_impl(Button))]
-pub fn cmd_param<T: VarValue>(child: impl UiNode, cmd_param: impl IntoVar<T>) -> impl UiNode {
+pub fn cmd_param<T: VarValue>(child: impl IntoUiNode, cmd_param: impl IntoVar<T>) -> UiNode {
     if TypeId::of::<T>() == TypeId::of::<Option<CommandParam>>() {
         with_context_var(
             child,
@@ -286,7 +283,7 @@ pub fn cmd_param<T: VarValue>(child: impl UiNode, cmd_param: impl IntoVar<T>) ->
 /// [`cmd`]: fn@cmd
 /// [`child`]: fn@zng_wgt_container::child
 #[property(CONTEXT, default(CMD_CHILD_FN_VAR), widget_impl(Button))]
-pub fn cmd_child_fn(child: impl UiNode, cmd_child: impl IntoVar<WidgetFn<Command>>) -> impl UiNode {
+pub fn cmd_child_fn(child: impl IntoUiNode, cmd_child: impl IntoVar<WidgetFn<Command>>) -> UiNode {
     with_context_var(child, CMD_CHILD_FN_VAR, cmd_child)
 }
 
@@ -295,7 +292,7 @@ pub fn cmd_child_fn(child: impl UiNode, cmd_child: impl IntoVar<WidgetFn<Command
 ///
 /// [`cmd`]: fn@cmd
 #[property(CONTEXT, default(CMD_TOOLTIP_FN_VAR), widget_impl(Button))]
-pub fn cmd_tooltip_fn(child: impl UiNode, cmd_tooltip: impl IntoVar<WidgetFn<CmdTooltipArgs>>) -> impl UiNode {
+pub fn cmd_tooltip_fn(child: impl IntoUiNode, cmd_tooltip: impl IntoVar<WidgetFn<CmdTooltipArgs>>) -> UiNode {
     with_context_var(child, CMD_TOOLTIP_FN_VAR, cmd_tooltip)
 }
 

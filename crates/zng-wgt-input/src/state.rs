@@ -12,7 +12,7 @@ use zng_wgt::prelude::*;
 
 /// If the mouse pointer is over the widget or a descendant and the widget is disabled.
 #[property(EVENT)]
-pub fn is_hovered_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_hovered_disabled(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state(child, state, false, MOUSE_HOVERED_EVENT, |args| {
         if args.is_mouse_enter_disabled() {
             Some(true)
@@ -35,7 +35,7 @@ pub fn is_hovered_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> imp
 /// [`ENABLED`]: Interactivity::ENABLED
 /// [`is_hovered_disabled`]: fn@is_hovered_disabled
 #[property(EVENT)]
-pub fn is_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_hovered(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state(child, state, false, MOUSE_HOVERED_EVENT, |args| {
         if args.is_mouse_enter_enabled() {
             Some(true)
@@ -53,7 +53,7 @@ pub fn is_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
-pub fn is_cap_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_cap_hovered(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state2(
         child,
         state,
@@ -98,7 +98,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
 /// [`is_cap_mouse_pressed`]: fn@is_cap_mouse_pressed
 /// [`ClickMode::repeat`]: zng_ext_input::mouse::ClickMode::repeat
 #[property(EVENT)]
-pub fn is_mouse_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_mouse_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state3(
         child,
         state,
@@ -166,7 +166,7 @@ pub fn is_mouse_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl U
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
-pub fn is_cap_mouse_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_cap_mouse_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state2(
         child,
         state,
@@ -205,7 +205,7 @@ pub fn is_cap_mouse_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> im
 ///
 /// [`shortcut_pressed_duration`]: GESTURES::shortcut_pressed_duration
 #[property(EVENT)]
-pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_shortcut_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     let mut shortcut_press = None;
 
@@ -265,7 +265,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
 /// [`is_touched_from_start`]: fn@is_touched_from_start
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
-pub fn is_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_touched(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state(child, state, false, TOUCHED_EVENT, |args| {
         if args.is_touch_enter_enabled() {
             Some(true)
@@ -287,7 +287,7 @@ pub fn is_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// [`ENABLED`]: Interactivity::ENABLED
 /// [`is_cap_touched_from_start`]: fn@is_cap_touched_from_start
 #[property(EVENT)]
-pub fn is_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_touched_from_start(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     #[expect(clippy::mutable_key_type)] // EventPropagationHandle compares pointers, not value
     let mut touches_started = HashSet::new();
     event_state(child, state, false, TOUCHED_EVENT, move |args| {
@@ -318,7 +318,7 @@ pub fn is_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) -> i
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
-pub fn is_cap_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_cap_touched(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state2(
         child,
         state,
@@ -355,7 +355,7 @@ pub fn is_cap_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
-pub fn is_cap_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_cap_touched_from_start(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     #[expect(clippy::mutable_key_type)] // EventPropagationHandle compares pointers, not value
     let mut touches_started = HashSet::new();
     event_state2(
@@ -408,7 +408,7 @@ pub fn is_cap_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) 
 /// [`is_touched_from_start`]: fn@is_touched_from_start
 /// [`is_cap_pointer_pressed`]: fn@is_cap_pointer_pressed
 #[property(EVENT)]
-pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_pointer_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let pressed = var_state();
     let child = is_mouse_pressed(child, pressed.clone());
 
@@ -428,7 +428,7 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
 /// [`is_shortcut_pressed`]: fn@is_shortcut_pressed
 /// [`is_cap_pressed`]: fn@is_cap_pressed
 #[property(EVENT)]
-pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let pressed = var_state();
     let child = is_mouse_pressed(child, pressed.clone());
 
@@ -450,7 +450,7 @@ pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// [`is_cap_mouse_pressed`]: fn@is_cap_mouse_pressed
 /// [`is_cap_touched_from_start`]: fn@is_cap_touched_from_start
 #[property(EVENT)]
-pub fn is_cap_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_cap_pointer_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let pressed = var_state();
     let child = is_cap_mouse_pressed(child, pressed.clone());
 
@@ -466,7 +466,7 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> 
 /// [`is_cap_touched_from_start`]: fn@is_cap_touched_from_start
 /// [`is_shortcut_pressed`]: fn@is_shortcut_pressed
 #[property(EVENT)]
-pub fn is_cap_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn is_cap_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let pressed = var_state();
     let child = is_cap_mouse_pressed(child, pressed.clone());
 

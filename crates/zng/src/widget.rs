@@ -160,7 +160,7 @@ pub mod builder {
 ///     }
 ///
 ///     #[property(CONTEXT)]
-///     pub fn flag_state(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+///     pub fn flag_state(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
 ///         let state = state.into_var();
 ///         match_node(child, move |_, op| match op {
 ///             UiNodeOp::Init => {
@@ -222,17 +222,16 @@ pub mod info {
     }
 }
 
-/// Widget node types, [`UiNode`], [`UiNodeList`] and others.
+/// Widget node types, [`UiNode`], [`UiVec`] and others.
 ///
 /// [`UiNode`]: crate::prelude::UiNode
-/// [`UiNodeList`]: crate::prelude::UiNodeList
+/// [`UiVec`]: crate::prelude::UiVec
 pub mod node {
     pub use zng_app::widget::node::{
-        AdoptiveChildNode, AdoptiveNode, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, DefaultPanelListData, EditableUiNodeList,
-        EditableUiNodeListRef, FillUiNode, MatchNodeChild, MatchNodeChildren, MatchWidgetChild, NilUiNode, OffsetUiListObserver, PanelList,
-        PanelListData, PanelListRange, SORTING_LIST, SortingList, UiNode, UiNodeList, UiNodeListChain, UiNodeListChainImpl,
-        UiNodeListObserver, UiNodeOp, UiNodeOpMethod, UiVec, WeakNode, WeakNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder, Z_INDEX,
-        extend_widget, match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec,
+        AdoptiveChildNode, AdoptiveNode, ArcNode, ChainList, DefaultPanelListData, EditableUiVec, EditableUiVecRef, FillUiNode, IntoUiNode,
+        MatchNodeChild, MatchWidgetChild, OffsetUiListObserver, PanelList, PanelListData, PanelListRange, SORTING_LIST, SortingList,
+        UiNode, UiNodeImpl, UiNodeListObserver, UiNodeOp, UiNodeOpMethod, UiVec, WeakNode, WhenUiNodeBuilder, WidgetUiNode,
+        WidgetUiNodeImpl, Z_INDEX, extend_widget, match_node, match_node_leaf, match_widget, ui_vec,
     };
 
     pub use zng_wgt::node::{
@@ -317,7 +316,7 @@ pub mod node {
 ///
 /// impl Foo {
 ///     /// Custom build.
-///     pub fn widget_build(&mut self) -> impl UiNode + use<> {
+///     pub fn widget_build(&mut self) -> UiNode {
 ///         println!("on build!");
 ///         WidgetBase::widget_build(self)
 ///     }
@@ -329,9 +328,9 @@ pub mod node {
 ///
 /// Unlike the [intrinsic](#intrinsic) method, the widget only has one `widget_build`, if defined it overrides the parent
 /// `widget_build`. Most widgets don't define their own build, leaving it to be inherited from [`WidgetBase`]. The base instance type
-/// is an opaque `impl UiNode`.
+/// is an opaque `UiNode`.
 ///
-/// Normal widgets must implement [`UiNode`], otherwise they cannot be used as child of other widgets.
+/// Normal widgets instance types must implement [`IntoUiNode`], otherwise they cannot be used as child of other widgets.
 /// The widget outer-node also must implement the widget context, to ensure that the widget is correctly placed in the UI tree.
 /// Note that you can still use the parent type build implementation, so even if you need
 /// to run code on build or define a custom type you don't need to deref to the parent type to build.
@@ -469,6 +468,7 @@ pub mod node {
 /// [`Importance`]: builder::Importance
 /// [`push_build_action`]: builder::WidgetBuilder::push_build_action
 /// [`UiNode`]: node::UiNode
+/// [`IntoUiNode`]: node::IntoUiNode
 /// [`WidgetBase`]: struct@WidgetBase
 /// [`Importance::WIDGET`]: builder::Importance::WIDGET
 /// [`Importance::INSTANCE`]: builder::Importance::INSTANCE
@@ -576,12 +576,12 @@ pub use zng_app::widget::widget_mixin;
 /// # use zng::prelude_wgt::*;
 /// # #[widget($crate::Foo)] pub struct Foo(WidgetBase);
 /// # #[property(FILL, default(colors::BLACK))]
-/// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-/// #    child
+/// # pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
+/// #    child.into_node()
 /// # }
 /// # #[property(LAYOUT, default(0))]
-/// # pub fn margin(child: impl UiNode, color: impl IntoVar<SideOffsets>) -> impl UiNode {
-/// #    child
+/// # pub fn margin(child: impl IntoUiNode, color: impl IntoVar<SideOffsets>) -> UiNode {
+/// #    child.into_node()
 /// # }
 /// # fn main() {
 /// Foo! {
@@ -614,7 +614,7 @@ pub use zng_app::widget::easing;
 
 /// Expands a function to a widget property.
 ///
-/// Property functions take one [`UiNode`] child input and one or more other inputs and produces an [`UiNode`] that implements
+/// Property functions take one [`IntoUiNode`] child input and one or more other inputs and produces an [`UiNode`] that implements
 /// the property feature.
 ///
 /// The attribute expansion does not modify the function, it can still be used as a function directly. Some
@@ -639,9 +639,9 @@ pub use zng_app::widget::easing;
 /// use zng::prelude_wgt::*;
 ///
 /// #[property(LAYOUT)]
-/// pub fn align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
+/// pub fn align(child: impl IntoUiNode, align: impl IntoVar<Align>) -> UiNode {
 ///     // ..
-/// #   child
+/// #   child.into_node()
 /// }
 /// ```
 ///
@@ -653,15 +653,15 @@ pub use zng_app::widget::easing;
 /// use zng::prelude_wgt::*;
 ///
 /// #[property(SIZE+1)]
-/// pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+/// pub fn size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
 ///     // ..
-/// #   child
+/// #   child.into_node()
 /// }
 ///
 /// #[property(SIZE)]
-/// pub fn max_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+/// pub fn max_size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
 ///     // ..
-/// #   child
+/// #   child.into_node()
 /// }
 /// ```
 ///
@@ -676,9 +676,9 @@ pub use zng_app::widget::easing;
 /// use zng::prelude_wgt::*;
 ///
 /// #[property(FILL, default(rgba(0, 0, 0, 0)))]
-/// pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+/// pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
 ///     // ..
-/// #   child
+/// #   child.into_node()
 /// }
 /// ```
 ///
@@ -715,7 +715,7 @@ pub use zng_app::widget::easing;
 ///
 /// /// Children property, must be captured by panel widgets.
 /// #[property(CONTEXT, capture)]
-/// pub fn children(children: impl UiNodeList) { }
+/// pub fn children(children: impl IntoUiNode) { }
 /// ```
 ///
 /// # Args
@@ -726,8 +726,8 @@ pub use zng_app::widget::easing;
 ///
 /// #### Child
 ///
-/// The first function arg must be of type `impl UiNode`, it represents the child node and the property node must
-/// delegate to it so that the UI tree functions correctly. The type must be an `impl` generic, a full path to [`UiNode`]
+/// The first function arg must be of type `impl IntoUiNode`, it represents the child node and the property node must
+/// delegate to it so that the UI tree functions correctly. The type must be an `impl` generic, a full path to [`IntoUiNode`]
 /// is allowed, but no import renames as the proc-macro attribute can only use tokens to identify the type.
 ///
 /// #### Inputs
@@ -756,19 +756,14 @@ pub use zng_app::widget::easing;
 ///
 /// The input can be read in `when` expressions, but cannot be assigned in `when` blocks.
 ///
-/// ##### `impl UiNode`
+/// ##### `impl IntoUiNode`
 ///
 /// This input accepts another [`UiNode`], the implementation must handle it like it handles the child node, delegating all methods. The
-/// input kind is [`InputKind::UiNode`]. The [`NilUiNode`] is used as the default value if no other is provided.
+/// input kind is [`InputKind::UiNode`]. The [`UiNode::nil`] is used as the default value if no other is provided.
 ///
 /// The input cannot be read in `when` expressions, but can be assigned in `when` blocks.
 ///
-/// ##### `impl UiNodeList`
-///
-/// This input accepts an [`UiNodeList`], the implementation must handle it like it handles the child node, delegating all methods. The
-/// input kind is [`InputKind::UiNodeList`]. An empty list is used as the default value if no other is provided.
-///
-/// The input cannot be read in `when` expressions, but can be assigned in `when` blocks.
+/// Note that UI lists like [`ui_vec!`] are also nodes, so panel children properties also receive `impl IntoUiNode`.
 ///
 /// ##### `impl WidgetHandler<A>`
 ///
@@ -803,8 +798,8 @@ pub use zng_app::widget::easing;
 ///
 /// # Output
 ///
-/// The property output type must be any type that implements [`UiNode`], usually an opaque type `impl UiNode` is used. The property
-/// node can be anything, as long as it delegates to the child node, see [`match_node`] or [`ui_node`] about implementing a node.
+/// The property output type must be [`UiNode`]. The property node implementation can be anything, as long as it delegates
+/// to the child node, see [`match_node`] or [`ui_node`] about implementing a node.
 ///
 /// Some common property patterns have helper functions, for example, to setup a context var you can use the [`with_context_var`] function.
 ///
@@ -823,8 +818,9 @@ pub use zng_app::widget::easing;
 /// [`IntoVar<T>`]: crate::var::IntoVar
 /// [`WidgetHandler<A>`]: crate::handler::WidgetHandler
 /// [`UiNode`]: crate::widget::node::UiNode
-/// [`UiNodeList`]: crate::widget::node::UiNodeList
-/// [`NilUiNode`]: crate::widget::node::NilUiNode
+/// [`IntoUiNode`]: crate::widget::node::IntoUiNode
+/// [`UiNode::nil`]: crate::widget::node::UiNode::nil
+/// [`ui_vec!`]: crate::widget::node::ui_vec
 /// [`InputKind::Var`]: crate::widget::builder::InputKind::Var
 /// [`InputKind::Value`]: crate::widget::builder::InputKind::Value
 /// [`InputKind::UiNode`]: crate::widget::builder::InputKind::UiNode
@@ -842,213 +838,3 @@ pub use zng_app::widget::easing;
 /// });
 /// </script>
 pub use zng_app::widget::property;
-
-/// Expands an impl block into an [`UiNode`] trait implementation.
-///
-/// Missing [`UiNode`] methods are generated by this macro. The generation is configured in the macro arguments.
-/// The arguments can be a single keyword, a delegate or an entire struct declaration.
-///
-/// The general idea is you implement only the methods required by your node and configure this macro to generate the methods
-/// that are just boilerplate UI tree propagation, and in [new node](#new-node) mode var and event handlers can be inited automatically
-/// as well.
-///
-/// # Delegate to single `impl UiNode`
-///
-/// If your node contains a single child node, you can configure the attribute
-/// to delegate the method calls for the child node.
-///
-/// ```
-/// # fn main() { }
-/// use zng::prelude_wgt::*;
-///
-/// struct MyNode<C> {
-///     child: C
-/// }
-/// #[ui_node(delegate = &mut self.child)]
-/// impl<C: UiNode> UiNode for MyNode<C> { }
-/// ```
-///
-/// If the child node is in a field named `child` you can use this shorthand to the same effect:
-///
-/// ```
-/// # fn main() { }
-/// # use zng::prelude_wgt::*;
-/// # struct MyNode<C> { child: C }
-/// #[ui_node(child)]
-/// impl<C: UiNode> UiNode for MyNode<C> { }
-/// ```
-///
-/// The generated code simply calls the same [`UiNode`] method in the child.
-///
-/// # Delegate to a `impl UiNodeList`
-///
-/// If your node contains multiple children nodes in a type that implements [`UiNodeList`],
-/// you can configure the attribute to delegate to the equivalent list methods.
-///
-/// ```
-/// # fn main() { }
-/// use zng::prelude_wgt::*;
-///
-/// struct MyNode<L> {
-///     children: L
-/// }
-/// #[ui_node(delegate_list = &mut self.children)]
-/// impl<L: UiNodeList> UiNode for MyNode<L> { }
-/// ```
-///
-/// If the children list is a member named `children` you can use this shorthand to the same effect:
-///
-/// ```
-/// # fn main() { }
-/// # use zng::prelude_wgt::*;
-/// # struct MyNode<L> { children: L }
-/// #[ui_node(children)]
-/// impl<L: UiNodeList> UiNode for MyNode<L> { }
-/// ```
-///
-/// The generated code simply calls the equivalent [`UiNodeList`] method in the list.
-/// That is the same method name with the `_all` prefix. So `UiNode::init` maps to `UiNodeList::init_all` and so on.
-///
-/// ## Don't Delegate
-///
-/// If your node does not have any child nodes you can configure the attribute to generate empty missing methods.
-///
-/// ```
-/// # fn main() { }
-/// # use zng::prelude_wgt::*;
-/// # struct MyNode { }
-/// #[ui_node(none)]
-/// impl UiNode for MyNode { }
-/// ```
-///
-/// The generated [`measure`] and [`layout`] code returns the fill size.
-///
-/// The other generated methods are empty.
-///
-/// # Validation
-///
-/// If delegation is configured but no delegation occurs in the manually implemented methods
-/// you get the error ``"auto impl delegates call to `{}` but this manual impl does not"``.
-///
-/// To disable this error use `#[allow_(zng::missing_delegate)]` in the method or in the `impl` block. The
-/// error is also not shown if the method body contains a call to the [`todo!()`] macro.
-///
-/// The [`measure`] method is an exception to this and will not show the error, its ideal implementation
-/// is one where the entire sub-tree is skipped from the computation.
-///
-/// # Mixing Methods
-///
-/// You can use the same `impl` block to define [`UiNode`] methods and
-/// associated methods by using this attribute in a `impl` block without trait. The [`UiNode`]
-/// methods must be tagged with the `#[UiNode]` pseudo-attribute.
-///
-/// ```
-/// # fn main() { }
-/// # use zng::prelude_wgt::*;
-/// # struct MyNode { child: BoxedUiNode }
-/// #[ui_node(child)]
-/// impl MyNode {
-///     fn do_the_thing(&mut self) {
-///         // ..
-///     }
-///
-///     #[UiNode]
-///     fn init(&mut self) {
-///         self.child.init();
-///         self.do_the_thing();
-///     }
-///
-///     #[UiNode]
-///     fn update(&mut self, updates: &WidgetUpdates) {
-///         self.child.update(updates);
-///         self.do_the_thing();
-///     }
-/// }
-/// ```
-///
-/// The above code expands to two `impl` blocks, one with the associated method and the other with
-/// the [`UiNode`] implementation.
-///
-/// This is particularly useful for nodes that have a large amount of generic constraints, you just type them once.
-///
-/// # New Node
-///
-/// In all the usage seen so far you must declare the `struct` type and the generic bounds to
-/// make it work in the `impl` block, and any var or event in it needs to be subscribed manually. You can
-/// avoid this extra boilerplate by declaring the node `struct` as an arg for the macro.
-///
-/// ```
-/// # fn main() { }
-/// # use zng::prelude_wgt::*;
-/// fn my_widget_node(child: impl UiNode, number: impl IntoVar<u32>) -> impl UiNode {
-///     #[ui_node(struct MyNode {
-///         child: impl UiNode,
-///         #[var] number: Var<u32>,
-///     })]
-///     impl UiNode for MyNode {
-///         fn update(&mut self, updates: &WidgetUpdates) {
-///             self.child.update(updates);
-///             if let Some(n) = self.number.get_new() {
-///                 println!("new number: {n}");
-///             }
-///         }
-///     }
-///     MyNode {
-///         child,
-///         number: number.into_var(),
-///     }
-/// }
-/// ```
-///
-/// In the example above the `MyNode` struct is declared with two generic params: `T_child` and `T_var`, the unimplemented
-/// node methods are delegated to `child` because of the name, and the `number` var is subscribed automatically because of
-/// the `#[var]` pseudo attribute.
-///
-/// Note that you can also use [`node::match_node`] to declare *anonymous* nodes, most of the properties are implemented using
-/// this node instead of the `#[ui_node]` macro.
-///
-/// #### Generics
-///
-/// You can declare named generics in the `struct`, those are copied to the implement block, you can also have members with type
-/// `impl Trait`, a named generic is generated for these, the generated name is `T_member`. You can use named generics in the `impl`
-/// generics the same way as you would in a function.
-///
-/// #### Impl Block
-///
-/// The impl block cannot have any generics, they are added automatically, the `UiNode for` part is optional, like in the delegating
-/// mode, if you omit the trait you must annotate each node method with the `#[UiNode]` pseudo attribute.
-///
-/// #### Delegation
-///
-/// Delegation is limited to members named `child` or `children`, there is no way to declare a custom delegation in *new node*
-/// mode. If no specially named member is present the `none` delegation is used.
-///
-/// #### Subscription
-///
-/// You can mark members with the `#[var]` or `#[event]` pseudo attributes to generate initialization code that subscribes the var or
-/// event to the [`WIDGET`] context. The init code is placed in a method with signature `fn auto_subs(&mut self)`,
-/// if you manually implement the `init` node method you must call `self.auto_subs();` in it, a compile time error is emitted if the call is missing.
-///
-/// #### Limitations
-///
-/// The new node type must be private, you cannot set visibility modifiers. The struct cannot have any attribute set on it, but you can
-/// have attributes in members, the `#[cfg]` attribute is copied to generated generics. The `impl Trait` auto-generics only works for
-/// the entire type of a generic, you cannot declare a type `Vec<impl Debug>` for example.
-///
-/// [`UiNode`]: crate::widget::node::UiNode
-/// [`UiNodeList`]: crate::widget::node::UiNodeList
-/// [`measure`]: crate::widget::node::UiNode::measure
-/// [`layout`]: crate::widget::node::UiNode::layout
-/// [`render`]: crate::widget::node::UiNode::render
-/// [`WIDGET`]: crate::widget::WIDGET
-///
-/// <script>
-/// // hide re-exported docs
-/// let me = document.currentScript;
-/// document.addEventListener("DOMContentLoaded", function() {
-///     while(me.nextElementSibling !== null) {
-///         me.nextElementSibling.remove();
-///     }
-/// });
-/// </script>
-pub use zng_app::widget::ui_node;

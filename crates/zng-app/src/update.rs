@@ -21,7 +21,7 @@ use crate::{
     widget::{
         WIDGET, WidgetId,
         info::{InteractionPath, WidgetInfo, WidgetInfoTree, WidgetPath},
-        node::{BoxedUiNode, UiNode},
+        node::UiNode,
     },
     window::{WINDOW, WindowId},
 };
@@ -545,14 +545,14 @@ impl RenderUpdates {
 /// Extension methods for infinite loop diagnostics.
 ///
 /// You can also use [`updates_trace_span`] and [`updates_trace_event`] to define custom scopes and entries.
-pub trait UpdatesTraceUiNodeExt: UiNode {
+pub trait UpdatesTraceUiNodeExt {
     /// Defines a custom span.
-    fn instrument<S: Into<String>>(self, tag: S) -> BoxedUiNode
+    fn instrument<S: Into<String>>(self, tag: S) -> UiNode
     where
         Self: Sized;
 }
-impl<U: UiNode> UpdatesTraceUiNodeExt for U {
-    fn instrument<S: Into<String>>(self, tag: S) -> BoxedUiNode {
+impl UpdatesTraceUiNodeExt for UiNode {
+    fn instrument<S: Into<String>>(self, tag: S) -> UiNode {
         let tag = tag.into();
         self.trace(move |op| UpdatesTrace::custom_span(&tag, op.mtd_name()))
     }

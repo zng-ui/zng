@@ -568,13 +568,13 @@ bitflags! {
 /// This node can be used to reserve space for a full text in lazy initing contexts.
 ///
 /// The contextual variables affect the layout size.
-pub fn line_placeholder(width: impl IntoVar<Length>) -> impl UiNode {
+pub fn line_placeholder(width: impl IntoVar<Length>) -> UiNode {
     let child = layout_text(FillUiNode);
     let child = resolve_text(child, " ");
     zng_wgt_size_offset::width(child, width)
 }
 
-pub(super) fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<CaretIndex>>) -> impl UiNode {
+pub(super) fn get_caret_index(child: impl IntoUiNode, index: impl IntoVar<Option<CaretIndex>>) -> UiNode {
     let index = index.into_var();
     match_node(child, move |c, op| {
         let mut u = false;
@@ -606,7 +606,7 @@ pub(super) fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<Car
     })
 }
 
-pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretStatus>) -> impl UiNode {
+pub(super) fn get_caret_status(child: impl IntoUiNode, status: impl IntoVar<CaretStatus>) -> UiNode {
     let status = status.into_var();
     match_node(child, move |c, op| {
         let mut u = false;
@@ -645,7 +645,7 @@ pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretSta
     })
 }
 
-pub(super) fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> impl UiNode {
+pub(super) fn get_lines_len(child: impl IntoUiNode, len: impl IntoVar<usize>) -> UiNode {
     let len = len.into_var();
     match_node(child, move |c, op| match op {
         UiNodeOp::Deinit => {
@@ -663,7 +663,7 @@ pub(super) fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> imp
     })
 }
 
-pub(super) fn get_lines_wrap_count(child: impl UiNode, lines: impl IntoVar<super::LinesWrapCount>) -> impl UiNode {
+pub(super) fn get_lines_wrap_count(child: impl IntoUiNode, lines: impl IntoVar<super::LinesWrapCount>) -> UiNode {
     let lines = lines.into_var();
     let mut version = 0;
     match_node(child, move |c, op| match op {
@@ -777,7 +777,7 @@ fn lines_wrap_counter(txt: &ShapedText) -> impl Iterator<Item = u32> + '_ {
     }
 }
 
-pub(super) fn parse_text<T>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode
+pub(super) fn parse_text<T>(child: impl IntoUiNode, value: impl IntoVar<T>) -> UiNode
 where
     T: super::TxtParseValue,
 {
@@ -904,7 +904,7 @@ where
     })
 }
 
-pub(super) fn on_change_stop(child: impl UiNode, mut handler: impl WidgetHandler<ChangeStopArgs>) -> impl UiNode {
+pub(super) fn on_change_stop(child: impl IntoUiNode, mut handler: impl WidgetHandler<ChangeStopArgs>) -> UiNode {
     let mut pending = None;
     match_node(child, move |c, op| match op {
         UiNodeOp::Event { update } => {
@@ -955,7 +955,7 @@ pub(super) fn on_change_stop(child: impl UiNode, mut handler: impl WidgetHandler
 }
 
 /// Implements the selection toolbar.
-pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
+pub fn selection_toolbar_node(child: impl IntoUiNode) -> UiNode {
     use super::node::*;
 
     let mut selection_range = None;
@@ -1064,7 +1064,9 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                     let node = match_widget(node, move |c, op| match op {
                         UiNodeOp::Init => {
                             c.init();
-                            c.with_context(WidgetUpdateMode::Bubble, || WIDGET.sub_var_layout(&SELECTION_TOOLBAR_ANCHOR_VAR));
+                            if let Some(mut wgt) = c.node().as_widget() {
+                                wgt.with_context(WidgetUpdateMode::Bubble, || WIDGET.sub_var_layout(&SELECTION_TOOLBAR_ANCHOR_VAR));
+                            }
                         }
                         UiNodeOp::Layout { wl, final_size } => {
                             let r_txt = TEXT.resolved();
@@ -1112,7 +1114,7 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                         UiNodeOp::Render { frame } => {
                             let l_txt = TEXT.laidout();
                             let transform = l_txt.render_info.transform.then_translate(translate.cast());
-                            let transform = adjust_viewport_bound(transform, c);
+                            let transform = adjust_viewport_bound(transform, c.node());
 
                             frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, false, |frame| {
                                 c.render(frame)
@@ -1121,7 +1123,7 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                         UiNodeOp::RenderUpdate { update } => {
                             let l_txt = TEXT.laidout();
                             let transform = l_txt.render_info.transform.then_translate(translate.cast());
-                            let transform = adjust_viewport_bound(transform, c);
+                            let transform = adjust_viewport_bound(transform, c.node());
 
                             update.with_transform(transform_key.update(transform, true), false, |update| c.render_update(update));
                         }
@@ -1157,13 +1159,12 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
         }
     })
 }
-fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> PxTransform {
+fn adjust_viewport_bound(transform: PxTransform, widget: &mut UiNode) -> PxTransform {
     let window_bounds = WINDOW.vars().actual_size_px().get();
-    let wgt_bounds = PxBox::from(
-        widget
-            .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().outer_size())
-            .unwrap_or_else(PxSize::zero),
-    );
+    let wgt_bounds = PxBox::from(match widget.as_widget() {
+        Some(mut w) => w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().outer_size()),
+        None => PxSize::zero(),
+    });
     let wgt_bounds = transform.outer_transformed(wgt_bounds).unwrap_or_default();
 
     let x_underflow = -wgt_bounds.min.x.min(Px(0));

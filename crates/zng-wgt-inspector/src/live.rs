@@ -32,7 +32,7 @@ impl Default for Config {
 }
 
 /// Node set on the window to inspect.
-pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> impl UiNode {
+pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> UiNode {
     let mut inspected_tree = None::<data_model::InspectedTree>;
     let inspector = WindowId::new_unique();
 
@@ -131,7 +131,7 @@ pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> impl UiNode {
 }
 
 /// Node in the inspected window, draws adorners around widgets selected on the inspector window.
-fn adorn_selected(child: impl UiNode, selected_wgt: Var<Option<data_model::InspectedWidget>>, enabled: Var<bool>) -> impl UiNode {
+fn adorn_selected(child: impl IntoUiNode, selected_wgt: Var<Option<data_model::InspectedWidget>>, enabled: Var<bool>) -> UiNode {
     use inspector_window::SELECTED_BORDER_VAR;
 
     let selected_info = selected_wgt.flat_map(|s| {
@@ -178,7 +178,7 @@ fn adorn_selected(child: impl UiNode, selected_wgt: Var<Option<data_model::Inspe
 }
 
 // node in the inspected window, handles selection on click.
-fn select_on_click(child: impl UiNode, hit_select: Var<HitSelect>) -> impl UiNode {
+fn select_on_click(child: impl IntoUiNode, hit_select: Var<HitSelect>) -> UiNode {
     // when `pending` we need to block interaction with window content, as if a modal
     // overlay was opened, but we can't rebuild info, and we actually want the click target,
     // so we only manually block common pointer events.
