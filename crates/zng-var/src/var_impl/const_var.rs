@@ -133,8 +133,8 @@ impl VarImpl for ConstVar {
         false
     }
 
-    fn hook_animation_stop(&self, handler: AnimationStopFn) -> Result<(), AnimationStopFn> {
-        Err(handler)
+    fn hook_animation_stop(&self, _: AnimationStopFn) -> VarHandle {
+        VarHandle::dummy()
     }
 }
 

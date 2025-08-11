@@ -252,8 +252,8 @@ impl VarImpl for CowVar {
         is_anim
     }
 
-    fn hook_animation_stop(&self, handler: AnimationStopFn) -> Result<(), AnimationStopFn> {
-        let mut result = Ok(());
+    fn hook_animation_stop(&self, handler: AnimationStopFn) -> VarHandle {
+        let mut result = VarHandle::dummy();
         let mut handler = Some(handler);
         self.0.with(&mut |v| {
             if let Some(s) = v.downcast_ref::<CowVarSource>() {

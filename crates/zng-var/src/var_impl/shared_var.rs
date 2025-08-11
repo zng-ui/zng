@@ -2,7 +2,7 @@
 
 use std::{
     mem,
-    sync::{Arc, Weak, atomic::AtomicBool},
+    sync::{Arc, Weak},
 };
 
 use parking_lot::{Mutex, RwLock};
@@ -188,7 +188,7 @@ impl VarImpl for SharedVar {
         self.0.value.read().2.is_animating()
     }
 
-    fn hook_animation_stop(&self, handler: AnimationStopFn) -> Result<(), AnimationStopFn> {
+    fn hook_animation_stop(&self, handler: AnimationStopFn) -> VarHandle {
         self.0.value.read().2.hook_animation_stop(handler)
     }
 }
@@ -282,23 +282,20 @@ impl WeakVarImpl for WeakSharedVar {
 
 #[derive(Default)]
 pub(super) struct MutexHooks {
-    h: Mutex<SmallVec<[(HookFn, Arc<AtomicBool>); 1]>>,
+    h: Mutex<SmallVec<[(HookFn, VarHandlerOwner); 1]>>,
 }
 impl MutexHooks {
     pub fn push(&self, on_new: HookFn) -> VarHandle {
-        let handle = Arc::new(AtomicBool::new(false));
-        self.h.lock().push((on_new, handle.clone()));
-        VarHandle::new(handle)
+        let (owner, handle) = VarHandle::new();
+        self.h.lock().push((on_new, owner));
+        handle
     }
 
     pub fn notify(&self, args: &AnyVarHookArgs) {
         let mut hooks = mem::take(&mut *self.h.lock());
 
         hooks.retain(|(f, handle)| {
-            if Arc::strong_count(handle) == 1 && !handle.load(std::sync::atomic::Ordering::Relaxed) {
-                return false; // handle dropped
-            }
-            f(args)
+            handle.is_alive() && f(args)
         });
 
         if !hooks.is_empty() {
@@ -317,11 +314,7 @@ impl fmt::Debug for MutexHooks {
         if let Some(h) = self.h.try_lock() {
             let mut b = f.debug_list();
             for (_, h) in h.iter() {
-                if h.load(std::sync::atomic::Ordering::Relaxed) {
-                    b.entry(&"perm");
-                } else {
-                    b.entry(&Arc::strong_count(h));
-                }
+               b.entry(h);
             }
             b.finish()
         } else {

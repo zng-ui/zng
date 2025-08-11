@@ -86,7 +86,7 @@ impl Future for WaitIsNotAnimatingFut<'_> {
                     let r = self.var.hook_animation_stop(move || {
                         waker.wake_by_ref();
                     });
-                    if r.is_err() {
+                    if r.is_dummy() {
                         // failed to hook with new animation too.
                         if self.var.is_animating() {
                             // but has yet another animation, try again.
@@ -130,7 +130,7 @@ impl Future for WaitIsNotAnimatingFut<'_> {
                     let r = self.var.hook_animation_stop(Box::new(move || {
                         waker.wake_by_ref();
                     }));
-                    if r.is_err() {
+                    if r.is_dummy() {
                         // failed to hook, animation already stopped during hook setup.
                         if self.var.is_animating() {
                             // but var is still animating, reason a new animation replaced the previous one (that stopped).
@@ -142,6 +142,7 @@ impl Future for WaitIsNotAnimatingFut<'_> {
                             return Poll::Ready(());
                         }
                     } else {
+                        r.perm();
                         // animation hook setup ok, break loop.
                         return Poll::Pending;
                     }

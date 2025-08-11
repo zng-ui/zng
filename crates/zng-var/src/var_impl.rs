@@ -147,7 +147,7 @@ declare! {
     fn last_update(&self) -> VarUpdateId;
     fn modify_importance(&self) -> usize;
     fn is_animating(&self) -> bool;
-    fn hook_animation_stop(&self, handler: AnimationStopFn) -> Result<(), AnimationStopFn>;
+    fn hook_animation_stop(&self, handler: AnimationStopFn) -> VarHandle;
     fn current_context(&self) -> DynAnyVar;
     fn modify_info(&self) -> ModifyInfo;
 }
@@ -485,10 +485,13 @@ impl<'s, 'a, T: VarValue> ops::DerefMut for VarModify<'s, 'a, T> {
     }
 }
 
-/// Handle to a variable hook.
+/// Handle to a variable or animation hook.
 ///
 /// This can represent a widget subscriber, a var binding, var app handler or animation, dropping the handler stops
 /// the behavior it represents.
+/// 
+/// Note that the hook closure is not dropped immediately when the handle is dropped, usually it will drop only the next
+/// time it would have been called.
 #[derive(Clone, Default)]
 #[must_use = "var handle stops the behavior it represents on drop"]
 pub struct VarHandle(Option<Arc<AtomicBool>>);
@@ -518,8 +521,9 @@ impl VarHandle {
         VarHandle(None)
     }
 
-    pub(crate) fn new(handle: Arc<AtomicBool>) -> Self {
-        Self(Some(handle))
+    pub(crate) fn new() -> (VarHandlerOwner, Self) {
+        let h = Arc::new(AtomicBool::new(false));
+        (VarHandlerOwner(h.clone()), Self(Some(h)))
     }
 
     /// Returns `true` if the handle is a [`dummy`].
@@ -541,6 +545,22 @@ impl VarHandle {
     /// Create a [`VarHandles`] collection with `self` and `other`.
     pub fn chain(self, other: Self) -> VarHandles {
         VarHandles(smallvec::smallvec![self, other])
+    }
+}
+pub(crate) struct VarHandlerOwner(Arc<AtomicBool>);
+impl fmt::Debug for VarHandlerOwner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", Arc::strong_count(&self.0) - 1)?;
+        if self.0.load(std::sync::atomic::Ordering::Relaxed) {
+            write!(f, " perm")
+        } else {
+            Ok(())
+        }
+    }
+}
+impl VarHandlerOwner {
+    pub fn is_alive(&self) -> bool {
+        Arc::strong_count(&self.0) > 1 || self.0.load(std::sync::atomic::Ordering::Relaxed)
     }
 }
 

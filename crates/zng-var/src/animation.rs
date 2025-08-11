@@ -10,8 +10,7 @@ use zng_time::{DInstant, Deadline};
 use zng_unit::Factor;
 
 use crate::{
-    Var, VarValue,
-    animation::easing::{EasingStep, EasingTime},
+    animation::easing::{EasingStep, EasingTime}, Var, VarHandle, VarHandlerOwner, VarValue
 };
 
 pub mod easing;
@@ -311,13 +310,13 @@ impl ModifyInfo {
     /// Register a `handler` to be called once when the current animation stops.
     ///
     /// [`importance`]: Self::importance
-    pub fn hook_animation_stop(&self, handler: AnimationStopFn) -> Result<(), AnimationStopFn> {
+    pub fn hook_animation_stop(&self, handler: AnimationStopFn) -> VarHandle {
         if let Some(h) = &self.handle
             && let Some(h) = h.upgrade()
         {
             return h.hook_animation_stop(handler);
         }
-        Err(handler)
+        VarHandle::dummy()
     }
 }
 impl fmt::Debug for ModifyInfo {
@@ -333,12 +332,14 @@ pub(crate) type AnimationStopFn = SmallBox<dyn FnMut() + Send + 'static, smallbo
 
 #[derive(Default)]
 pub(super) struct AnimationHandleData {
-    on_drop: Mutex<Vec<AnimationStopFn>>,
+    on_drop: Mutex<Vec<(AnimationStopFn, VarHandlerOwner)>>,
 }
 impl Drop for AnimationHandleData {
     fn drop(&mut self) {
-        for mut f in self.on_drop.get_mut().drain(..) {
-            f()
+        for (mut f, h) in self.on_drop.get_mut().drain(..) {
+            if h.is_alive() {
+                f()
+            }
         }
     }
 }
@@ -407,12 +408,13 @@ impl AnimationHandle {
     /// Returns the `handler` if the animation has already stopped.
     ///
     /// [`importance`]: ModifyInfo::importance
-    pub fn hook_animation_stop(&self, handler: AnimationStopFn) -> Result<(), AnimationStopFn> {
+    pub fn hook_animation_stop(&self, handler: AnimationStopFn) -> VarHandle {
         if !self.is_stopped() {
-            self.0.data().on_drop.lock().push(handler);
-            Ok(())
+            let (owner, handle) = VarHandle::new();
+            self.0.data().on_drop.lock().push((handler, owner));
+            handle
         } else {
-            Err(handler)
+            VarHandle::dummy()
         }
     }
 }

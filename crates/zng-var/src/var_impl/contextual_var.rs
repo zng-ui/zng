@@ -10,7 +10,7 @@ use parking_lot::{Mutex, RwLock};
 use smallbox::{SmallBox, smallbox};
 use zng_app_context::context_local;
 
-use crate::{AnyVar, DynAnyVar, DynWeakAnyVar, Var, VarImpl, VarInstanceTag, VarValue, WeakVarImpl};
+use crate::{AnyVar, DynAnyVar, DynWeakAnyVar, Var, VarHandle, VarImpl, VarInstanceTag, VarValue, WeakVarImpl};
 
 use super::VarCapability;
 
@@ -242,7 +242,7 @@ impl VarImpl for ContextualVar {
         self.load().0.is_animating()
     }
 
-    fn hook_animation_stop(&self, handler: crate::animation::AnimationStopFn) -> Result<(), crate::animation::AnimationStopFn> {
+    fn hook_animation_stop(&self, handler: crate::animation::AnimationStopFn) -> VarHandle {
         self.load().0.hook_animation_stop(handler)
     }
 }
