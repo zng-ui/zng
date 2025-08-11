@@ -248,7 +248,7 @@
 //! # }
 //! ```
 //!
-//! The example above declares `FOO_CMD`, `on_pre_foo` and `on_foo`. The example then declares
+//! The example above declares `FOO_CMD`, `on_pre_foo`, `on_foo`, `can_foo` and `CAN_FOO_VAR`. The example then declares
 //! a widget that sends the `FOO_CMD` to itself on init and receives it using the event properties.
 //!
 //! ## Metadata

@@ -116,7 +116,7 @@ pub mod settings {
     pub use zng_ext_config::settings::{
         CategoriesBuilder, Category, CategoryBuilder, CategoryId, SETTINGS, Setting, SettingBuilder, SettingsBuilder,
     };
-    pub use zng_wgt_input::cmd::{SETTINGS_CMD, on_pre_settings, on_settings};
+    pub use zng_wgt_input::cmd::{SETTINGS_CMD, can_settings, on_pre_settings, on_settings};
 
     /// Settings editor widget.
     ///

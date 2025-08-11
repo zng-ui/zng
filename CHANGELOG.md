@@ -48,6 +48,12 @@
     - Modify methods `Var::{set, update, modify}` now simply DEBUG log if the variable is read-only, 
       use `try_set, try_update, try_modify` to get the error.
 
+* **Breaking** `zng::command_property::command_property!` now also generates contextual property and var that enable/disable the handlers.
+    - Adds `zng::clipboard::{can_cut, can_copy, can_paste}`.
+    - Adds `zng::config::settings::can_settings`.
+    - Adds `zng::app::{can_new, can_open, can_save, can_save_as}`.
+    - Will not generate this if `enabled:` is set.
+
 * **Breaking** Refactor `MONITORS` state reporting to use variables.
 
 * Fix deserialization of `PxConstraints` failing when the `max` field is not set and format is "human readable".
