@@ -33,6 +33,7 @@ pub(crate) fn rich_text_node(child: impl IntoUiNode, enabled: impl IntoVar<bool>
                         index: None,
                         selection_index: None,
                     },
+                    selection_started_by_alt: false,
                 })));
                 dispatch = Some(Arc::new(RwLock::new(vec![])));
 

@@ -437,7 +437,6 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
             if let Some(Some(true)) = checked.get_new()
                 && SCROLL_ON_SELECT_VAR.get()
             {
-                // TODO(breaking) - only scroll if parent selector scope is in view?
                 use zng_wgt_scroll::cmd::*;
                 scroll_to(WIDGET.id(), ScrollToMode::minimal(10));
             }

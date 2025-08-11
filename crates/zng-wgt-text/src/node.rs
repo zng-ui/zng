@@ -300,11 +300,11 @@ impl TEXT {
     }
 
     pub(crate) fn take_rich_selection_started_by_alt(&self) -> bool {
-        std::mem::take(&mut *RICH_TEXT_SELECTION_STARTED_BY_ALT.write())
+        std::mem::take(&mut RICH_TEXT.write().selection_started_by_alt)
     }
 
     pub(crate) fn flag_rich_selection_started_by_alt(&self) {
-        *RICH_TEXT_SELECTION_STARTED_BY_ALT.write() = true;
+        RICH_TEXT.write().selection_started_by_alt = true;
     }
 }
 
@@ -501,6 +501,8 @@ pub struct RichText {
 
     /// Widgets that define the caret and selection indexes.
     pub caret: RichCaretInfo,
+
+    selection_started_by_alt: bool,
 }
 impl RichText {
     fn no_context() -> Self {
@@ -520,8 +522,6 @@ context_local! {
     static LAIDOUT_TEXT: RwLock<LaidoutText> = RwLock::new(LaidoutText::no_context());
     /// Represents a list of events send from rich text leaves to other leaves.
     static RICH_TEXT_NOTIFY: RwLock<Vec<EventUpdate>> = RwLock::new(RichText::no_dispatch_context());
-    /// TODO(breaking) refactor into RichCaretInfo private field.
-    static RICH_TEXT_SELECTION_STARTED_BY_ALT: RwLock<bool> = RwLock::new(false);
 }
 
 impl RichText {

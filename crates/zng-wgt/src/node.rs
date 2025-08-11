@@ -30,7 +30,17 @@ use zng_var::*;
 pub use pastey::paste;
 
 #[doc(hidden)]
-pub use zng_app;
+pub mod __macro_util {
+    pub use zng_app::{
+        event::CommandArgs,
+        handler::{WidgetHandler, hn},
+        widget::{
+            node::{IntoUiNode, UiNode},
+            property,
+        },
+    };
+    pub use zng_var::{IntoVar, context_var};
+}
 
 /// Helper for declaring properties that sets a context var.
 ///
@@ -474,15 +484,15 @@ macro_rules! __event_property {
             /// # Async
             ///
             /// You can use async event handlers with this property.
-            #[$crate::node::zng_app::widget::property(
+            #[$crate::node::__macro_util::property(
                 EVENT,
-                default( $crate::node::zng_app::handler::hn!(|_|{}) )
+                default( $crate::node::__macro_util::hn!(|_|{}) )
                 $($widget_impl)*
             )]
             $vis fn [<on_ $event>](
-                child: impl $crate::node::zng_app::widget::node::IntoUiNode,
-                handler: impl $crate::node::zng_app::handler::WidgetHandler<$Args>,
-            ) -> $crate::node::zng_app::widget::node::UiNode {
+                child: impl $crate::node::__macro_util::IntoUiNode,
+                handler: impl $crate::node::__macro_util::WidgetHandler<$Args>,
+            ) -> $crate::node::__macro_util::UiNode {
                 $crate::__event_property!(=> with($crate::node::on_event(child, $EVENT, $filter, handler), false, $($with)?))
             }
 
@@ -497,15 +507,15 @@ macro_rules! __event_property {
             ///
             /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
             /// subsequent code runs in widget updates.
-            #[$crate::node::zng_app::widget::property(
+            #[$crate::node::__macro_util::property(
                 EVENT,
-                default( $crate::node::zng_app::handler::hn!(|_|{}) )
+                default( $crate::node::__macro_util::hn!(|_|{}) )
                 $($widget_impl)*
             )]
             $vis fn [<on_pre_ $event>](
-                child: impl $crate::node::zng_app::widget::node::IntoUiNode,
-                handler: impl $crate::node::zng_app::handler::WidgetHandler<$Args>,
-            ) -> $crate::node::zng_app::widget::node::UiNode {
+                child: impl $crate::node::__macro_util::IntoUiNode,
+                handler: impl $crate::node::__macro_util::WidgetHandler<$Args>,
+            ) -> $crate::node::__macro_util::UiNode {
                 $crate::__event_property!(=> with($crate::node::on_pre_event(child, $EVENT, $filter, handler), true, $($with)?))
             }
         }
@@ -683,12 +693,14 @@ where
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __command_property {
+    // final match, command_property! never calls this directly
     (
         $(#[$on_cmd_attrs:meta])*
         $vis:vis fn $command:ident {
             cmd { $cmd_init:expr }
-            enabled { $enabled_var:expr }
             widget_impl { $($widget_impl:tt)* }
+            enabled_var { $enabled_var:expr }
+            generate_can_property: false
         }
     ) => { $crate::node::paste! {
         $(#[$on_cmd_attrs])*
@@ -701,11 +713,11 @@ macro_rules! __command_property {
         /// # Async
         ///
         /// You can use async event handlers with this property.
-        #[$crate::node::zng_app::widget::property(EVENT, default( $crate::node::zng_app::handler::hn!(|_|{}) ))]
+        #[$crate::node::__macro_util::property(EVENT, default( $crate::node::__macro_util::hn!(|_|{}) ))]
         $vis fn [<on_ $command>](
-            child: impl $crate::node::zng_app::widget::node::IntoUiNode,
-            handler: impl $crate::node::zng_app::handler::WidgetHandler<$crate::node::zng_app::event::CommandArgs>,
-        ) -> $crate::node::zng_app::widget::node::UiNode {
+            child: impl $crate::node::__macro_util::IntoUiNode,
+            handler: impl $crate::node::__macro_util::WidgetHandler<$crate::node::__macro_util::CommandArgs>,
+        ) -> $crate::node::__macro_util::UiNode {
             $crate::node::on_command(child, || $cmd_init, || $enabled_var, handler)
         }
 
@@ -720,15 +732,91 @@ macro_rules! __command_property {
         ///
         /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
         /// subsequent code runs in widget updates.
-        #[$crate::node::zng_app::widget::property(EVENT, default( $crate::node::zng_app::handler::hn!(|_|{}) ) $($widget_impl)*)]
+        #[$crate::node::__macro_util::property(EVENT, default( $crate::node::__macro_util::hn!(|_|{}) ) $($widget_impl)*)]
         $vis fn [<on_pre_ $command>](
-            child: impl $crate::node::zng_app::widget::node::IntoUiNode,
-            handler: impl $crate::node::zng_app::handler::WidgetHandler<$crate::node::zng_app::event::CommandArgs>,
-        ) -> $crate::node::zng_app::widget::node::UiNode {
+            child: impl $crate::node::__macro_util::IntoUiNode,
+            handler: impl $crate::node::__macro_util::WidgetHandler<$crate::node::__macro_util::CommandArgs>,
+        ) -> $crate::node::__macro_util::UiNode {
             $crate::node::on_pre_command(child, || $cmd_init, || $enabled_var, handler)
         }
     } };
+    (
+        $(#[$on_cmd_attrs:meta])*
+        $vis:vis fn $command:ident {
+            cmd { $cmd_init:expr }
+            widget_impl { $($widget_impl:tt)* }
+            generate_can_property: true
+        }
+    ) => { $crate::node::paste! {
+        $(#[$on_cmd_attrs])*
+        ///
+        /// # Preview
+        ///
+        #[doc = "You can preview this command event using [`on_pre_"$command "`](fn.on_pre_"$command ".html)."]
+        /// Otherwise the handler is only called after the widget content has a chance to stop propagation.
+        ///
+        /// # Async
+        ///
+        /// You can use async event handlers with this property.
+        ///
+        /// # Enabled
+        ///
+        #[doc = "You can use the [`can_"$command "`] context property to disable the command handle."]
+        /// When disabled the `handler` is not called and the command handle signals as disabled.
+        #[$crate::node::__macro_util::property(EVENT, default( $crate::node::__macro_util::hn!(|_|{}) ))]
+        $vis fn [<on_ $command>](
+            child: impl $crate::node::__macro_util::IntoUiNode,
+            handler: impl $crate::node::__macro_util::WidgetHandler<$crate::node::__macro_util::CommandArgs>,
+        ) -> $crate::node::__macro_util::UiNode {
+            $crate::node::on_command(child, || $cmd_init, || $crate::node::__macro_util::IntoVar::into_var(self::[<CAN_ $command:upper _VAR>]), handler)
+        }
 
+        #[doc = "Preview [`on_"$command "`](fn.on_"$command ".html) command."]
+        ///
+        /// # Preview
+        ///
+        /// Preview event properties call the handler before the main event property and before the widget content, if you stop
+        /// the propagation of a preview event the main event handler is not called.
+        ///
+        /// # Async
+        ///
+        /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
+        /// subsequent code runs in widget updates.
+        ///
+        /// # Enabled
+        ///
+        #[doc = "You can use the [`can_"$command "`](fn@can_"$command ") context property to disable the command handle."]
+        #[$crate::node::__macro_util::property(EVENT, default( $crate::node::__macro_util::hn!(|_|{}) ) $($widget_impl)*)]
+        $vis fn [<on_pre_ $command>](
+            child: impl $crate::node::__macro_util::IntoUiNode,
+            handler: impl $crate::node::__macro_util::WidgetHandler<$crate::node::__macro_util::CommandArgs>,
+        ) -> $crate::node::__macro_util::UiNode {
+            $crate::node::on_pre_command(child, || $cmd_init, || $crate::node::__macro_util::IntoVar::into_var(self::[<CAN_ $command:upper _VAR>]), handler)
+        }
+
+        $crate::node::__macro_util::context_var! {
+            #[doc = "Enable/disable [`on_"$command "`](fn@on_"$command ") and [`on_pre_"$command "`](fn@on_pre_"$command ") command handles."]
+            ///
+            #[doc = "Enabled by default, use the [`can_"$command "`](fn@can_" $command ") property to set."]
+            $vis static [<CAN_ $command:upper _VAR>]: bool = true;
+        }
+
+        #[doc = "Defines if [`on_"$command "`](fn@on_"$command ") and [`on_pre_"$command "`](fn@on_pre_"$command ") command handles"]
+        /// are enabled in the context.
+        ///
+        /// Is enabled by default.
+        ///
+        #[doc = "Sets the [`CAN_"$command:upper "_VAR`]."]
+        #[$crate::node::__macro_util::property(CONTEXT, default(true) $($widget_impl)*)]
+        $vis fn [<can_ $command>](
+            child: impl $crate::node::__macro_util::IntoUiNode,
+            enabled: impl $crate::node::__macro_util::IntoVar<bool>,
+        ) -> $crate::node::__macro_util::UiNode {
+            $crate::node::with_context_var(child, self::[<CAN_ $command:upper _VAR>], enabled)
+        }
+    } };
+
+    // custom enabled + widget_impl
     (
         $(#[$on_cmd_attrs:meta])*
         $vis:vis fn $command:ident {
@@ -741,12 +829,14 @@ macro_rules! __command_property {
             $(#[$on_cmd_attrs])*
             $vis fn $command {
                 cmd { $cmd_init }
-                enabled { $enabled_var }
                 widget_impl { , widget_impl($Wgt) }
+                enabled_var { $enabled_var }
+                generate_can_property: false
             }
         }
     };
 
+    // default enabled + widget_impl
     (
         $(#[$on_cmd_attrs:meta])*
         $vis:vis fn $command:ident {
@@ -754,16 +844,19 @@ macro_rules! __command_property {
             widget_impl_ty { $Wgt:ty }
         }
     ) => {
-        $crate::__command_property! {
-            $(#[$on_cmd_attrs])*
-            $vis fn $command {
-                cmd { $cmd_init }
-                enabled { $crate::node::zng_app::var::const_var(true) }
-                widget_impl { , widget_impl($Wgt) }
+        $crate::node::paste! {
+            $crate::__command_property! {
+                $(#[$on_cmd_attrs])*
+                $vis fn $command {
+                    cmd { $cmd_init }
+                    widget_impl { , widget_impl($Wgt) }
+                    generate_can_property: true
+                }
             }
         }
     };
 
+    // custom enabled, no widget_impl
     (
         $(#[$on_cmd_attrs:meta])*
         $vis:vis fn $command:ident {
@@ -775,12 +868,14 @@ macro_rules! __command_property {
             $(#[$on_cmd_attrs])*
             $vis fn $command {
                 cmd { $cmd_init }
-                enabled { $enabled_var }
                 widget_impl { }
+                enabled_var { $enabled_var }
+                generate_can_property: false
             }
         }
     };
 
+    // default enabled, no widget_impl
     (
         $(#[$on_cmd_attrs:meta])*
         $vis:vis fn $command:ident {
@@ -791,8 +886,8 @@ macro_rules! __command_property {
             $(#[$on_cmd_attrs])*
             $vis fn $command {
                 cmd { $cmd_init }
-                enabled { $crate::node::zng_app::var::const_var(true) }
                 widget_impl { }
+                generate_can_property: true
             }
         }
     };
@@ -802,6 +897,8 @@ macro_rules! __command_property {
 ///
 /// Each declaration expands to two properties `on_$command` and `on_pre_$command`.
 /// The preview properties call [`on_pre_command`], the main event properties call [`on_command`].
+///
+/// By default a `CAN_$COMMAND_VAR` and `can_$command` var and property are also generated.
 ///
 /// # Examples
 ///
@@ -817,10 +914,15 @@ macro_rules! __command_property {
 ///     /// Paste command property docs.
 ///     pub fn paste {
 ///         cmd: PASTE_CMD.scoped(WIDGET.id()),
-///         // enabled: const_var(true), // default enabled
 ///     }
 /// }
 /// ```
+///
+/// The example above generates event properties `on_pre_paste` and `on_paste`, context property `can_paste` and
+/// context var `CAN_PASTE_VAR`.
+///
+/// The event properties will hold a [`CommandHandle`] when the widget is inited, the handle wil signal enabled based
+/// on the contextual var value. The context property sets that var in a widget context.
 ///
 /// # Command
 ///
@@ -837,12 +939,27 @@ macro_rules! __command_property {
 /// if the command handle is enabled. Command event handlers track both their existence and
 /// the enabled flag, see [`Command::subscribe`] for details.
 ///
-/// If not provided the command is always enabled.
+/// If not provided a `CAN_$CMD_VAR` and `can_$cmd` contextual  var and property are generated.
 ///
-/// # Async
+/// ```
+/// # fn main() { }
+/// # use zng_app::{event::*, widget::*};
+/// # use zng_app::var::*;
+/// # use zng_wgt::node::*;
+/// # command! {
+/// #   pub static PASTE_CMD;
+/// # }
+/// command_property! {
+///     /// Paste command property docs.
+///     pub fn paste {
+///         cmd: PASTE_CMD.scoped(WIDGET.id()),
+///         enabled: const_var(true), // command handle always enabled
+///     }
+/// }
+/// ```
 ///
-/// Async event handlers are supported by properties generated by this macro, but only the code before the first `.await` executes
-/// in the event track, subsequent code runs in widget updates.
+/// In the example above `enabled:` is set to a custom variable, so the associated
+/// `CAN_PASTE_VAR` and `can_paste` will not be generated.
 ///
 /// # Implement For
 ///
@@ -872,7 +989,7 @@ macro_rules! __command_property {
 ///
 /// [`Command::subscribe`]: zng_app::event::Command::subscribe
 #[macro_export]
-macro_rules! command_property { // TODO(breaking): generate `can_foo` property and `CAN_FOO_VAR` when `enabled` is not set
+macro_rules! command_property {
     ($(
         $(#[$on_cmd_attrs:meta])*
         $vis:vis fn $command:ident {

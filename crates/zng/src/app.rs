@@ -412,7 +412,8 @@ pub use zng_app_context::{
     MappedRwLockWriteGuardOwned, ReadOnlyRwLock, RunOnDrop, RwLockReadGuardOwned, RwLockWriteGuardOwned, app_local, context_local,
 };
 pub use zng_wgt_input::cmd::{
-    NEW_CMD, OPEN_CMD, SAVE_AS_CMD, SAVE_CMD, on_new, on_open, on_pre_new, on_pre_open, on_pre_save, on_pre_save_as, on_save, on_save_as,
+    NEW_CMD, OPEN_CMD, SAVE_AS_CMD, SAVE_CMD, can_new, can_open, can_save, can_save_as, on_new, on_open, on_pre_new, on_pre_open,
+    on_pre_save, on_pre_save_as, on_save, on_save_as,
 };
 
 pub use zng_app::view_process::raw_events::{LOW_MEMORY_EVENT, LowMemoryArgs};
