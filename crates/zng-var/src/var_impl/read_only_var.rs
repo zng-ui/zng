@@ -92,7 +92,7 @@ impl VarImpl for ReadOnlyVar {
         self.0.0.is_animating()
     }
 
-    fn hook_animation_stop(&self, handler: AnimationStopFn) -> Result<(), AnimationStopFn> {
+    fn hook_animation_stop(&self, handler: AnimationStopFn) -> VarHandle {
         self.0.0.hook_animation_stop(handler)
     }
 }

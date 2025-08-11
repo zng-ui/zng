@@ -1063,7 +1063,6 @@ impl IMAGES {
     ///
     /// Each text is the lower-case file extension, without the dot.
     pub fn available_decoders(&self) -> Vec<Txt> {
-        // TODO(breaking) HashSet
         VIEW_PROCESS.image_decoders().unwrap_or_default()
     }
 

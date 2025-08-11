@@ -186,7 +186,7 @@ impl VarImpl for FlatMapVar {
         self.0.current.read().0.0.is_animating()
     }
 
-    fn hook_animation_stop(&self, handler: crate::animation::AnimationStopFn) -> Result<(), crate::animation::AnimationStopFn> {
+    fn hook_animation_stop(&self, handler: crate::animation::AnimationStopFn) -> VarHandle {
         self.0.current.read().0.0.hook_animation_stop(handler)
     }
 }

@@ -7,7 +7,6 @@
 //!
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 // suppress nag about very simple boxed closure signatures.
-#![expect(clippy::type_complexity)]
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 #![deny(clippy::future_not_send)]

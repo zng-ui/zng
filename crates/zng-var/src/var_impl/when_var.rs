@@ -467,7 +467,7 @@ impl VarImpl for WhenVar {
         self.active().0.is_animating()
     }
 
-    fn hook_animation_stop(&self, handler: AnimationStopFn) -> Result<(), AnimationStopFn> {
+    fn hook_animation_stop(&self, handler: AnimationStopFn) -> VarHandle {
         self.active().0.hook_animation_stop(handler)
     }
 

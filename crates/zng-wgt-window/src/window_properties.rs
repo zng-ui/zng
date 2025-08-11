@@ -322,7 +322,9 @@ pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) ->
 
                 // restore normal position if it is valid (visible in a monitor)
                 let restore_rect: DipRect = cfg.restore_rect.cast();
-                let visible = MONITORS.available_monitors().iter().any(|m| m.dip_rect().intersects(&restore_rect));
+                let visible = MONITORS
+                    .available_monitors()
+                    .with(|w| w.iter().any(|m| m.dip_rect().intersects(&restore_rect)));
                 if visible {
                     vars.position().set(restore_rect.origin);
                 }

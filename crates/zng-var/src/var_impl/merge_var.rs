@@ -56,8 +56,8 @@ use zng_clone_move::clmv;
 pub use zng_var_proc_macros::merge_var as __merge_var;
 
 use crate::{
-    AnyVar, AnyVarValue, BoxAnyVarValue, ContextVar, DynAnyVar, DynWeakAnyVar, Response, ResponseVar, Var, VarImpl, VarInstanceTag,
-    VarValue, WeakVarImpl, any_contextual_var, any_var, contextual_var,
+    AnyVar, AnyVarValue, BoxAnyVarValue, ContextVar, DynAnyVar, DynWeakAnyVar, Response, ResponseVar, Var, VarHandle, VarImpl,
+    VarInstanceTag, VarValue, WeakVarImpl, any_contextual_var, any_var, contextual_var,
 };
 
 use super::VarCapability;
@@ -257,7 +257,7 @@ impl VarImpl for MergeVar {
         self.0.output.0.is_animating()
     }
 
-    fn hook_animation_stop(&self, handler: crate::animation::AnimationStopFn) -> Result<(), crate::animation::AnimationStopFn> {
+    fn hook_animation_stop(&self, handler: crate::animation::AnimationStopFn) -> VarHandle {
         self.0.output.0.hook_animation_stop(handler)
     }
 

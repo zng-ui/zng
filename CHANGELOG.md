@@ -48,6 +48,8 @@
     - Modify methods `Var::{set, update, modify}` now simply DEBUG log if the variable is read-only, 
       use `try_set, try_update, try_modify` to get the error.
 
+* **Breaking** Refactor `MONITORS` state reporting to use variables.
+
 * Fix deserialization of `PxConstraints` failing when the `max` field is not set and format is "human readable".
 
 * **Breaking** Refactor `zng::config::SyncConfig` to use a map of `RawConfigValue` directly.
@@ -61,7 +63,7 @@
 * **Breaking** Refactor how view-process config events notify.
     - Initial non default config state now reported as events on init.
     - All config and monitors info removed from `ViewProcessInitedArgs` and related API.
-* Fix  `VARS.animations_enabled` not updating when it is not set and the `sys_animations_enabled` changes. 
+* Fix `VARS.animations_enabled` not updating when it is not set and the `sys_animations_enabled` changes. 
 
 * **Breaking** Refactor how raw device events are enabled on the view-process.
     - Now can dynamically enable/disable and with more precision of what kind of events.

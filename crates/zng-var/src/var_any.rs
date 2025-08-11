@@ -4,7 +4,7 @@ use std::{
     borrow::Cow,
     marker::PhantomData,
     mem,
-    sync::{Arc, atomic::AtomicBool},
+    sync::Arc,
 };
 
 use parking_lot::Mutex;
@@ -1194,8 +1194,7 @@ impl AnyVar {
             if !target.capabilities().is_always_read_only() {
                 // target var can be animated.
 
-                let handle_hook = Arc::new(AtomicBool::new(false));
-                let handle = VarHandle::new(handle_hook.clone());
+                let (handle_hook, handle) = VarHandle::new();
 
                 let wk_target = target.downgrade();
 
@@ -1211,7 +1210,7 @@ impl AnyVar {
                 let animate = Arc::new(move || {
                     if let Some(target) = wk_target.upgrade()
                         && target.modify_importance() <= VARS.current_modify().importance()
-                        && (Arc::strong_count(&handle_hook) > 1 || handle_hook.load(std::sync::atomic::Ordering::Relaxed))
+                        && handle_hook.is_alive()
                         && VARS.animations_enabled().get()
                     {
                         (animate.lock())(target).perm();
@@ -1226,16 +1225,6 @@ impl AnyVar {
         }
         VarHandle::dummy()
     }
-
-    /*
-       TODO(breaking)
-
-       This entire setup of no update on animation stop does not work?
-       If the variable is overridden it is cut out from the animation (so `is_animating`) changes to `false`, but
-       the `hook_animation_stop` and `wait_animation` continue linked to the underlying animation.
-
-       This limitation was already present before the rewrite.
-    */
 
     /// If the variable current value was set by an active animation.
     ///
@@ -1270,13 +1259,13 @@ impl AnyVar {
     /// Note that the `handler` is owned by the animation, not the variable, it will only be called/dropped when the
     /// animation stops.
     ///
-    /// Returns the `handler` as an error if the variable is not animating. Note that if you are interacting
+    /// Returns the [`VarHandle::is_dummy`] if the variable is not animating. Note that if you are interacting
     /// with the variable from a non-UI thread the variable can stops animating between checking [`is_animating`]
-    /// and registering the hook, in this case the `handler` will be returned as an error as well.
+    /// and registering the hook, in this case the dummy is returned as well.
     ///
     /// [`modify_importance`]: AnyVar::modify_importance
     /// [`is_animating`]: AnyVar::is_animating
-    pub fn hook_animation_stop(&self, handler: impl FnOnce() + Send + 'static) -> Result<(), AnimationStopFn> {
+    pub fn hook_animation_stop(&self, handler: impl FnOnce() + Send + 'static) -> VarHandle {
         let mut once = Some(handler);
         let handler: AnimationStopFn = smallbox!(move || { once.take().unwrap()() });
         self.0.hook_animation_stop(handler)
