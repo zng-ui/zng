@@ -1896,9 +1896,12 @@ impl FrameBuilder {
     ///
     /// Note that split list must be folded before any current open reference frames, stacking contexts or clips are closed in this list.
     ///
+    /// Note that calling this inside [`is_outer`] is an error, the current widget must be *finished* first.
+    ///
     /// [`parallel_fold`]: Self::parallel_fold
+    /// [`is_outer`]: Self::is_outer
     pub fn parallel_split(&self) -> ParallelBuilder<Self> {
-        if self.widget_data.is_some() && WIDGET.parent_id().is_some() {
+        if self.widget_data.is_some() {
             tracing::error!(
                 "called `parallel_split` inside `{}` and before calling `push_inner`",
                 self.widget_id

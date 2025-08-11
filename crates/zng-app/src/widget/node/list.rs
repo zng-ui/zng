@@ -447,7 +447,13 @@ impl UiNodeImpl for UiVec {
 
     fn render(&mut self, frame: &mut FrameBuilder) {
         if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::RENDER) {
-            let b = self
+            let mut par_start = 0;
+            while frame.is_outer() && par_start < self.len() {
+                // complete current widget first
+                self[par_start].render(frame);
+                par_start += 1;
+            }
+            let b = self[par_start..]
                 .par_iter_mut()
                 .with_ctx()
                 .fold(
@@ -472,7 +478,13 @@ impl UiNodeImpl for UiVec {
 
     fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
         if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::RENDER) {
-            let b = self
+            let mut par_start = 0;
+            while frame.is_outer() && par_start < self.len() {
+                // complete current widget first
+                self[par_start].render(frame);
+                par_start += 1;
+            }
+            let b = self[par_start..]
                 .par_iter_mut()
                 .enumerate()
                 .with_ctx()
@@ -498,6 +510,12 @@ impl UiNodeImpl for UiVec {
 
     fn render_update(&mut self, update: &mut FrameUpdate) {
         if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            let mut par_start = 0;
+            while update.is_outer() && par_start < self.len() {
+                // complete current widget first
+                self[par_start].render_update(update);
+                par_start += 1;
+            }
             let b = self
                 .par_iter_mut()
                 .with_ctx()
@@ -523,6 +541,12 @@ impl UiNodeImpl for UiVec {
 
     fn render_update_list(&mut self, update: &mut FrameUpdate, render_update: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
         if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            let mut par_start = 0;
+            while update.is_outer() && par_start < self.len() {
+                // complete current widget first
+                self[par_start].render_update(update);
+                par_start += 1;
+            }
             let b = self
                 .par_iter_mut()
                 .enumerate()

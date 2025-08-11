@@ -534,7 +534,8 @@ impl ImageRenderArgs {
 }
 
 /// The different sources of an image resource.
-#[derive(Clone)] // TODO(breaking): non_exhaustive?
+#[derive(Clone)]
+#[non_exhaustive]
 pub enum ImageSource {
     /// A path to an image file in the file system.
     ///
@@ -565,7 +566,7 @@ pub enum ImageSource {
     /// Use the [`render`](Self::render) or [`render_node`](Self::render_node) functions to construct this variant.
     ///
     /// The closure is set by the image widget user, the args is set by the image widget.
-    Render(RenderFn, Option<ImageRenderArgs>), // TODO(breaking): Option<ImageHash> for better caching?
+    Render(RenderFn, Option<ImageRenderArgs>),
 
     /// Already resolved (loaded or loading) image.
     ///
