@@ -102,10 +102,10 @@ impl AppExtension for ImageManager {
                 image.with(|img| {
                     img.done_signal.set();
 
-                    if let Some(k) = &img.cache_key {
-                        if let Some(e) = images.cache.get(k) {
-                            e.error.store(true, Ordering::Relaxed);
-                        }
+                    if let Some(k) = &img.cache_key
+                        && let Some(e) = images.cache.get(k)
+                    {
+                        e.error.store(true, Ordering::Relaxed);
                     }
 
                     tracing::error!("decode error: {:?}", img.error().unwrap());
@@ -220,12 +220,12 @@ impl AppExtension for ImageManager {
                         Ok(data) => {
                             if let Some((key, mode)) = &t.is_data_proxy_source {
                                 for proxy in &mut proxies {
-                                    if proxy.is_data_proxy() {
-                                        if let Some(replaced) = proxy.data(key, &data, &d.format, *mode, t.downscale, t.mask, true) {
-                                            replaced.set_bind(&t.image).perm();
-                                            t.image.hold(replaced).perm();
-                                            continue 'loading_tasks;
-                                        }
+                                    if proxy.is_data_proxy()
+                                        && let Some(replaced) = proxy.data(key, &data, &d.format, *mode, t.downscale, t.mask, true)
+                                    {
+                                        replaced.set_bind(&t.image).perm();
+                                        t.image.hold(replaced).perm();
+                                        continue 'loading_tasks;
                                     }
                                 }
                             }
@@ -277,10 +277,10 @@ impl AppExtension for ImageManager {
                             });
 
                             // flag error for user retry
-                            if let Some(k) = &t.image.with(|img| img.cache_key) {
-                                if let Some(e) = IMAGES_SV.read().cache.get(k) {
-                                    e.error.store(true, Ordering::Relaxed);
-                                }
+                            if let Some(k) = &t.image.with(|img| img.cache_key)
+                                && let Some(e) = IMAGES_SV.read().cache.get(k)
+                            {
+                                e.error.store(true, Ordering::Relaxed);
                             }
                         }
                     }
@@ -562,10 +562,10 @@ impl ImagesService {
                 }
             }
             ImageCacheMode::Retry => {
-                if let Some(e) = self.cache.get(&key) {
-                    if !e.error.load(Ordering::Relaxed) {
-                        return e.image.read_only();
-                    }
+                if let Some(e) = self.cache.get(&key)
+                    && !e.error.load(Ordering::Relaxed)
+                {
+                    return e.image.read_only();
                 }
             }
             ImageCacheMode::Ignore | ImageCacheMode::Reload => {}
@@ -958,10 +958,10 @@ impl IMAGES {
                     }
                 }
                 ImageCacheMode::Retry => {
-                    if let Some(e) = IMAGES_SV.read().cache.get(&key) {
-                        if !e.error.load(Ordering::Relaxed) {
-                            return e.image.read_only();
-                        }
+                    if let Some(e) = IMAGES_SV.read().cache.get(&key)
+                        && !e.error.load(Ordering::Relaxed)
+                    {
+                        return e.image.read_only();
                     }
                 }
                 ImageCacheMode::Ignore | ImageCacheMode::Reload => {}
@@ -1010,10 +1010,10 @@ impl IMAGES {
 
     /// Gets the cache key of an image.
     pub fn cache_key(&self, image: &Img) -> Option<ImageHash> {
-        if let Some(key) = &image.cache_key {
-            if IMAGES_SV.read().cache.contains_key(key) {
-                return Some(*key);
-            }
+        if let Some(key) = &image.cache_key
+            && IMAGES_SV.read().cache.contains_key(key)
+        {
+            return Some(*key);
         }
         None
     }

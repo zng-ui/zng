@@ -29,10 +29,10 @@ fn main() {
                     /// fix path to local images.
                     image_resolver = markdown::ImageResolver::new(|img| {
                         let mut r: ImageSource = img.into();
-                        if let ImageSource::Read(file) = &mut r {
-                            if file.is_relative() {
-                                *file = zng::env::res(&file);
-                            }
+                        if let ImageSource::Read(file) = &mut r
+                            && file.is_relative()
+                        {
+                            *file = zng::env::res(&file);
                         }
                         r
                     });

@@ -75,22 +75,22 @@ impl AppExtension for DragDropManager {
 
             // view-process can notify multiple drops in sequence with the same ID, so we only notify DROP_EVENT
             // on he next update
-            if self.pos_window == Some(args.window_id) {
-                if let Some(hovered) = &self.hovered {
-                    match &mut sv.pending_drop {
-                        Some((id, target, data, allowed)) => {
-                            if target != hovered {
-                                tracing::error!("drop sequence across different hovered")
-                            } else if *id != args.drop_id {
-                                tracing::error!("drop_id changed mid sequence")
-                            } else if *allowed != args.allowed {
-                                tracing::error!("allowed effects changed mid sequence")
-                            } else {
-                                data.extend(args.data.iter().cloned());
-                            }
+            if self.pos_window == Some(args.window_id)
+                && let Some(hovered) = &self.hovered
+            {
+                match &mut sv.pending_drop {
+                    Some((id, target, data, allowed)) => {
+                        if target != hovered {
+                            tracing::error!("drop sequence across different hovered")
+                        } else if *id != args.drop_id {
+                            tracing::error!("drop_id changed mid sequence")
+                        } else if *allowed != args.allowed {
+                            tracing::error!("allowed effects changed mid sequence")
+                        } else {
+                            data.extend(args.data.iter().cloned());
                         }
-                        None => sv.pending_drop = Some((args.drop_id, hovered.clone(), args.data.clone(), args.allowed)),
                     }
+                    None => sv.pending_drop = Some((args.drop_id, hovered.clone(), args.data.clone(), args.allowed)),
                 }
             }
             UPDATES.update(None);
@@ -218,42 +218,40 @@ impl AppExtension for DragDropManager {
 
     fn event(&mut self, update: &mut EventUpdate) {
         if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
-            if matches!(args.state, ButtonState::Pressed) {
-                if let Some(wgt) = WINDOWS.widget_info(args.target.widget_id()) {
-                    if let Some(wgt) = wgt.self_and_ancestors().find(|w| w.is_draggable()) {
-                        // unhandled mouse press on draggable
-                        args.propagation().stop();
-                        let target = wgt.interaction_path();
-                        let args = DragStartArgs::now(target.clone());
-                        DRAG_START_EVENT.notify(args);
-                        DRAG_DROP_SV.write().app_drag = Some(AppDragging {
-                            target,
-                            data: vec![],
-                            handles: vec![],
-                            allowed: DragDropEffect::empty(),
-                            view_id: DragDropId(0),
-                        }); // calls to DRAG_DROP.drag are now valid
-                    }
-                }
+            if matches!(args.state, ButtonState::Pressed)
+                && let Some(wgt) = WINDOWS.widget_info(args.target.widget_id())
+                && let Some(wgt) = wgt.self_and_ancestors().find(|w| w.is_draggable())
+            {
+                // unhandled mouse press on draggable
+                args.propagation().stop();
+                let target = wgt.interaction_path();
+                let args = DragStartArgs::now(target.clone());
+                DRAG_START_EVENT.notify(args);
+                DRAG_DROP_SV.write().app_drag = Some(AppDragging {
+                    target,
+                    data: vec![],
+                    handles: vec![],
+                    allowed: DragDropEffect::empty(),
+                    view_id: DragDropId(0),
+                }); // calls to DRAG_DROP.drag are now valid
             }
         } else if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
-            if matches!(args.phase, TouchPhase::Start) {
-                if let Some(wgt) = WINDOWS.widget_info(args.target.widget_id()) {
-                    if let Some(wgt) = wgt.self_and_ancestors().find(|w| w.is_draggable()) {
-                        // unhandled touch start on draggable
-                        args.propagation().stop();
-                        let target = wgt.interaction_path();
-                        let args = DragStartArgs::now(target.clone());
-                        DRAG_START_EVENT.notify(args);
-                        DRAG_DROP_SV.write().app_drag = Some(AppDragging {
-                            target,
-                            data: vec![],
-                            handles: vec![],
-                            allowed: DragDropEffect::empty(),
-                            view_id: DragDropId(0),
-                        }); // calls to DRAG_DROP.drag are now valid
-                    }
-                }
+            if matches!(args.phase, TouchPhase::Start)
+                && let Some(wgt) = WINDOWS.widget_info(args.target.widget_id())
+                && let Some(wgt) = wgt.self_and_ancestors().find(|w| w.is_draggable())
+            {
+                // unhandled touch start on draggable
+                args.propagation().stop();
+                let target = wgt.interaction_path();
+                let args = DragStartArgs::now(target.clone());
+                DRAG_START_EVENT.notify(args);
+                DRAG_DROP_SV.write().app_drag = Some(AppDragging {
+                    target,
+                    data: vec![],
+                    handles: vec![],
+                    allowed: DragDropEffect::empty(),
+                    view_id: DragDropId(0),
+                }); // calls to DRAG_DROP.drag are now valid
             }
         } else if let Some(args) = DRAG_START_EVENT.on(update) {
             // finished notifying draggable drag start
@@ -280,10 +278,8 @@ impl AppExtension for DragDropManager {
                     tracing::warn!("external notification of DRAG_START_EVENT ignored")
                 }
             }
-            if cancel {
-                if let Some(d) = data {
-                    DRAG_END_EVENT.notify(DragEndArgs::now(d.target, DragDropEffect::empty()));
-                }
+            if cancel && let Some(d) = data {
+                DRAG_END_EVENT.notify(DragEndArgs::now(d.target, DragDropEffect::empty()));
             }
         } else if let Some(args) = DROP_EVENT.on(update) {
             let _ = WINDOWS_DRAG_DROP.drag_dropped(args.target.window_id(), args.drop_id, *args.applied.lock());
@@ -773,16 +769,13 @@ pub fn encode_widget_id(id: WidgetId) -> DragDropData {
 ///
 /// The ID will only decode if it was encoded by the same app instance.
 pub fn decode_widget_id(data: &DragDropData) -> Option<WidgetId> {
-    if let DragDropData::Text { format, data } = data {
-        if let Some(guid) = format.strip_prefix("zng/") {
-            if let Some(id) = data.strip_prefix("wgt-") {
-                if guid == APP_GUID.read().simple().to_string() {
-                    if let Ok(id) = id.parse::<u64>() {
-                        return Some(WidgetId::from_raw(id));
-                    }
-                }
-            }
-        }
+    if let DragDropData::Text { format, data } = data
+        && let Some(guid) = format.strip_prefix("zng/")
+        && let Some(id) = data.strip_prefix("wgt-")
+        && guid == APP_GUID.read().simple().to_string()
+        && let Ok(id) = id.parse::<u64>()
+    {
+        return Some(WidgetId::from_raw(id));
     }
     None
 }

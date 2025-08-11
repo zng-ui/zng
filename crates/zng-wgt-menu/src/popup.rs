@@ -171,14 +171,14 @@ pub fn sub_menu_popup_node(children: ArcNode, parent: Option<WidgetId>) -> UiNod
                                     // escape to parent or change root.
                                     if let Some(m) = info.info().submenu_parent() {
                                         let mut escape = false;
-                                        if m.submenu_parent().is_some() {
-                                            if let Some(o) = m.orientation_from(info.info().center()) {
-                                                escape = match o {
-                                                    Orientation2D::Left => args.key == Key::ArrowLeft,
-                                                    Orientation2D::Right => args.key == Key::ArrowRight,
-                                                    Orientation2D::Below | Orientation2D::Above => false,
-                                                };
-                                            }
+                                        if m.submenu_parent().is_some()
+                                            && let Some(o) = m.orientation_from(info.info().center())
+                                        {
+                                            escape = match o {
+                                                Orientation2D::Left => args.key == Key::ArrowLeft,
+                                                Orientation2D::Right => args.key == Key::ArrowRight,
+                                                Orientation2D::Below | Orientation2D::Above => false,
+                                            };
                                         }
 
                                         if escape {
@@ -218,22 +218,21 @@ pub fn sub_menu_popup_node(children: ArcNode, parent: Option<WidgetId>) -> UiNod
                 if let Some(sub_self) = sub_self {
                     let mut close_ancestors = Some(None);
 
-                    if let Some(focused) = FOCUS.focused().get() {
-                        if let Some(focused) = sub_self.tree().get(focused.widget_id()) {
-                            if let Some(sub_focused) = focused.submenu_parent() {
-                                if sub_focused.submenu_ancestors().any(|a| a.id() == sub_self.id()) {
-                                    // keep open, focused child.
-                                    args.propagation().stop();
-                                    close_ancestors = None;
-                                } else if sub_self.submenu_ancestors().any(|a| a.id() == sub_focused.id()) {
-                                    if Some(sub_focused.id()) == sub_self.submenu_parent().map(|s| s.id()) {
-                                        // keep open, focused parent.
-                                        args.propagation().stop();
-                                        close_ancestors = None;
-                                    } else {
-                                        close_ancestors = Some(Some(sub_focused.id()));
-                                    }
-                                }
+                    if let Some(focused) = FOCUS.focused().get()
+                        && let Some(focused) = sub_self.tree().get(focused.widget_id())
+                        && let Some(sub_focused) = focused.submenu_parent()
+                    {
+                        if sub_focused.submenu_ancestors().any(|a| a.id() == sub_self.id()) {
+                            // keep open, focused child.
+                            args.propagation().stop();
+                            close_ancestors = None;
+                        } else if sub_self.submenu_ancestors().any(|a| a.id() == sub_focused.id()) {
+                            if Some(sub_focused.id()) == sub_self.submenu_parent().map(|s| s.id()) {
+                                // keep open, focused parent.
+                                args.propagation().stop();
+                                close_ancestors = None;
+                            } else {
+                                close_ancestors = Some(Some(sub_focused.id()));
                             }
                         }
                     }
@@ -257,40 +256,39 @@ pub fn sub_menu_popup_node(children: ArcNode, parent: Option<WidgetId>) -> UiNod
                         }
                     }
                 }
-            } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                if args.is_focus_leave(WIDGET.id()) {
-                    if let Some(f) = &args.new_focus {
-                        let info = WIDGET.info();
-                        let sub_self = if parent.is_some() {
-                            info.submenu_parent()
-                        } else {
-                            // is context menu
-                            Some(info.clone())
-                        };
-                        if let Some(sub_menu) = sub_self
-                            && let Some(f) = info.tree().get(f.widget_id())
-                            && !f.submenu_self_and_ancestors().any(|s| s.id() == sub_menu.id())
-                        {
-                            // Focus did not move to child sub-menu nor parent,
-                            // close after delay.
-                            //
-                            // This covers the case of focus moving to a widget that is not
-                            // a child sub-menu and is not the parent sub-menu,
-                            // `sub_menu_node` covers the case of focus moving to the parent sub-menu and out.
-                            let t = TIMERS.deadline(HOVER_OPEN_DELAY_VAR.get());
-                            t.subscribe(UpdateOp::Update, info.id()).perm();
-                            close_timer = Some(t);
-                        }
-                    }
+            } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update)
+                && args.is_focus_leave(WIDGET.id())
+                && let Some(f) = &args.new_focus
+            {
+                let info = WIDGET.info();
+                let sub_self = if parent.is_some() {
+                    info.submenu_parent()
+                } else {
+                    // is context menu
+                    Some(info.clone())
+                };
+                if let Some(sub_menu) = sub_self
+                    && let Some(f) = info.tree().get(f.widget_id())
+                    && !f.submenu_self_and_ancestors().any(|s| s.id() == sub_menu.id())
+                {
+                    // Focus did not move to child sub-menu nor parent,
+                    // close after delay.
+                    //
+                    // This covers the case of focus moving to a widget that is not
+                    // a child sub-menu and is not the parent sub-menu,
+                    // `sub_menu_node` covers the case of focus moving to the parent sub-menu and out.
+                    let t = TIMERS.deadline(HOVER_OPEN_DELAY_VAR.get());
+                    t.subscribe(UpdateOp::Update, info.id()).perm();
+                    close_timer = Some(t);
                 }
             }
         }
         UiNodeOp::Update { .. } => {
-            if let Some(t) = &close_timer {
-                if t.get().has_elapsed() {
-                    close_timer = None;
-                    POPUP.force_close_id(WIDGET.id());
-                }
+            if let Some(t) = &close_timer
+                && t.get().has_elapsed()
+            {
+                close_timer = None;
+                POPUP.force_close_id(WIDGET.id());
             }
         }
         _ => {}

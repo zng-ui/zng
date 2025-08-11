@@ -100,10 +100,10 @@ pub(crate) fn run(mut args: ResArgs) {
     if let Err(e) = fs::create_dir_all(&args.tool_cache) {
         fatal!("cannot create cache dir, {e}");
     }
-    if let Err(e) = fs::remove_dir_all(&args.target) {
-        if e.kind() != io::ErrorKind::NotFound {
-            fatal!("cannot remove target dir, {e}");
-        }
+    if let Err(e) = fs::remove_dir_all(&args.target)
+        && e.kind() != io::ErrorKind::NotFound
+    {
+        fatal!("cannot remove target dir, {e}");
     }
     if let Err(e) = fs::create_dir_all(&args.target) {
         fatal!("cannot create target dir, {e}");

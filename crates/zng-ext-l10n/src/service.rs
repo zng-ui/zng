@@ -300,10 +300,10 @@ fn format_fallback(file: &str, id: &str, attribute: &str, fallback: &Txt, args: 
     }
     match fluent_syntax::parser::parse_runtime(entry.as_str()) {
         Ok(mut f) => {
-            if let Some(fluent_syntax::ast::Entry::Message(m)) = f.body.pop() {
-                if let Some(p) = m.value {
-                    fallback_pattern = Some(p)
-                }
+            if let Some(fluent_syntax::ast::Entry::Message(m)) = f.body.pop()
+                && let Some(p) = m.value
+            {
+                fallback_pattern = Some(p)
             }
         }
         Err(e) => {

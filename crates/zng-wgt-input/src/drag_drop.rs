@@ -128,10 +128,10 @@ pub fn is_dragging(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode 
                 if args.target.contains(WIDGET.id()) {
                     state.set(true);
                 }
-            } else if let Some(args) = DRAG_END_EVENT.on(update) {
-                if args.target.contains(WIDGET.id()) {
-                    state.set(false);
-                }
+            } else if let Some(args) = DRAG_END_EVENT.on(update)
+                && args.target.contains(WIDGET.id())
+            {
+                state.set(false);
             }
         }
         _ => {}

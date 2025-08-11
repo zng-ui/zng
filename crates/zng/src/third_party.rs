@@ -160,11 +160,11 @@ pub(crate) fn setup_default_view() {
                 let parent = WINDOWS.focused_window_id();
 
                 WINDOWS.focus_or_open(id, async move {
-                    if let Some(p) = parent {
-                        if let Ok(p) = WINDOWS.vars(p) {
-                            let v = WINDOW.vars();
-                            p.icon().set_bind(&v.icon()).perm();
-                        }
+                    if let Some(p) = parent
+                        && let Ok(p) = WINDOWS.vars(p)
+                    {
+                        let v = WINDOW.vars();
+                        p.icon().set_bind(&v.icon()).perm();
                     }
 
                     Window! {

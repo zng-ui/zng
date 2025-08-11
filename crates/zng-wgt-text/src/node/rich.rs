@@ -171,21 +171,21 @@ fn rich_text_cmds(child: impl IntoUiNode) -> UiNode {
 // some visuals (like selection background) depend on focused status of any rich leaf
 fn rich_text_focus_change_broadcast(child: impl IntoUiNode) -> UiNode {
     match_node(child, move |c, op| {
-        if let UiNodeOp::Event { update } = op {
-            if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                let ctx = match TEXT.try_rich() {
-                    Some(c) => c,
-                    None => return, // disabled
-                };
-                if args.prev_focus.iter().chain(args.new_focus.iter()).any(|p| p.contains(ctx.root_id)) {
-                    let mut extended_list = UpdateDeliveryList::new_any();
-                    for leaf in ctx.leaves() {
-                        extended_list.insert_wgt(&leaf);
-                    }
-                    args.delivery_list(&mut extended_list);
-                    debug_assert!(!extended_list.has_pending_search()); // FocusChangedArgs inserts full paths.
-                    c.event(&update.custom(extended_list));
+        if let UiNodeOp::Event { update } = op
+            && let Some(args) = FOCUS_CHANGED_EVENT.on(update)
+        {
+            let ctx = match TEXT.try_rich() {
+                Some(c) => c,
+                None => return, // disabled
+            };
+            if args.prev_focus.iter().chain(args.new_focus.iter()).any(|p| p.contains(ctx.root_id)) {
+                let mut extended_list = UpdateDeliveryList::new_any();
+                for leaf in ctx.leaves() {
+                    extended_list.insert_wgt(&leaf);
                 }
+                args.delivery_list(&mut extended_list);
+                debug_assert!(!extended_list.has_pending_search()); // FocusChangedArgs inserts full paths.
+                c.event(&update.custom(extended_list));
             }
         }
     })
@@ -256,10 +256,10 @@ pub fn rich_text_component(child: impl IntoUiNode, kind: &'static str) -> UiNode
                     Z_INDEX.set(prev_index);
                 }
             }
-            if let Some(idx) = RICH_TEXT_FOCUSED_Z_VAR.get_new() {
-                if focus_within {
-                    Z_INDEX.set(idx.unwrap_or(prev_index));
-                }
+            if let Some(idx) = RICH_TEXT_FOCUSED_Z_VAR.get_new()
+                && focus_within
+            {
+                Z_INDEX.set(idx.unwrap_or(prev_index));
             }
         }
         _ => {}

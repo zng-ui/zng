@@ -1593,10 +1593,10 @@ impl WidgetBuilder {
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             }
         } else {
-            if let Some(imp) = self.unset.get(&property_id) {
-                if *imp >= importance {
-                    return; // unset blocks.
-                }
+            if let Some(imp) = self.unset.get(&property_id)
+                && *imp >= importance
+            {
+                return; // unset blocks.
             }
             self.p.items.push(WidgetItemPositioned {
                 position,
@@ -1688,11 +1688,11 @@ impl WidgetBuilder {
                 }
             }
             hash_map::Entry::Vacant(e) => {
-                if let Some(imp) = self.p_build_actions_unset.get(&(property_id, action_name)) {
-                    if *imp >= importance {
-                        // blocked by unset
-                        return;
-                    }
+                if let Some(imp) = self.p_build_actions_unset.get(&(property_id, action_name))
+                    && *imp >= importance
+                {
+                    // blocked by unset
+                    return;
                 }
                 e.insert((importance, input_actions));
             }

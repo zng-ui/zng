@@ -528,12 +528,11 @@ impl Command {
     /// Schedule a command update without param for all scopes inside `parent`.
     pub fn notify_descendants(&self, parent: &WidgetInfo) {
         self.visit_scopes::<()>(|parse_cmd| {
-            if let CommandScope::Widget(id) = parse_cmd.scope() {
-                if let Some(scope) = parent.tree().get(id) {
-                    if scope.is_descendant(parent) {
-                        parse_cmd.notify();
-                    }
-                }
+            if let CommandScope::Widget(id) = parse_cmd.scope()
+                && let Some(scope) = parent.tree().get(id)
+                && scope.is_descendant(parent)
+            {
+                parse_cmd.notify();
             }
             ControlFlow::Continue(())
         });
@@ -835,30 +834,30 @@ impl CommandHandle {
     ///
     /// When at least one [`CommandHandle`] is enabled the command is [`is_enabled`](Command::is_enabled).
     pub fn set_enabled(&self, enabled: bool) {
-        if let Some(command) = self.command {
-            if self.local_enabled.swap(enabled, Ordering::Relaxed) != enabled {
-                if self.app_id != APP.id() {
-                    return;
-                }
+        if let Some(command) = self.command
+            && self.local_enabled.swap(enabled, Ordering::Relaxed) != enabled
+        {
+            if self.app_id != APP.id() {
+                return;
+            }
 
-                UpdatesTrace::log_var(std::any::type_name::<bool>());
+            UpdatesTrace::log_var(std::any::type_name::<bool>());
 
-                let mut write = command.local.write();
-                match command.scope {
-                    CommandScope::App => {
-                        if enabled {
-                            write.enabled_count += 1;
-                        } else {
-                            write.enabled_count -= 1;
-                        }
+            let mut write = command.local.write();
+            match command.scope {
+                CommandScope::App => {
+                    if enabled {
+                        write.enabled_count += 1;
+                    } else {
+                        write.enabled_count -= 1;
                     }
-                    scope => {
-                        if let Some(data) = write.scopes.get_mut(&scope) {
-                            if enabled {
-                                data.enabled_count += 1;
-                            } else {
-                                data.enabled_count -= 1;
-                            }
+                }
+                scope => {
+                    if let Some(data) = write.scopes.get_mut(&scope) {
+                        if enabled {
+                            data.enabled_count += 1;
+                        } else {
+                            data.enabled_count -= 1;
                         }
                     }
                 }

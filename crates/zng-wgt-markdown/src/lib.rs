@@ -581,13 +581,13 @@ fn markdown_view_fn<'a>(md: &'a str) -> UiNode {
                     strikethrough: strikethrough > 0,
                 };
 
-                if last_txt_end.is_whitespace() {
-                    if let Some(txt) = text_view.call_checked(TextFnArgs {
+                if last_txt_end.is_whitespace()
+                    && let Some(txt) = text_view.call_checked(TextFnArgs {
                         txt: ' '.into(),
                         style: style.clone(),
-                    }) {
-                        inlines.push(txt);
-                    }
+                    })
+                {
+                    inlines.push(txt);
                 }
 
                 if let Some(txt) = code_inline_view.call_checked(CodeInlineFnArgs { txt: txt.to_txt(), style }) {

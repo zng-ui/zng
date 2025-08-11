@@ -169,12 +169,12 @@ impl FocusCommands {
             FOCUS_EXIT_CMD(exit_handle) => focus_exit,
         }
 
-        if let Some(args) = FOCUS_CMD.on(update) {
-            if let Some(req) = args.param::<FocusRequest>() {
-                args.handle_enabled(&self.focus_handle, |_| {
-                    FOCUS.focus(*req);
-                });
-            }
+        if let Some(args) = FOCUS_CMD.on(update)
+            && let Some(req) = args.param::<FocusRequest>()
+        {
+            args.handle_enabled(&self.focus_handle, |_| {
+                FOCUS.focus(*req);
+            });
         }
     }
 }

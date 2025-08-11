@@ -632,11 +632,11 @@ impl AppExtension for FontManager {
             FONTS_SV.read().font_aa.set(args.aa);
         } else if FONT_CHANGED_EVENT.has(update) {
             FONTS_SV.write().on_fonts_changed();
-        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            if args.is_respawn {
-                let mut fonts = FONTS_SV.write();
-                fonts.loader.on_view_process_respawn();
-            }
+        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update)
+            && args.is_respawn
+        {
+            let mut fonts = FONTS_SV.write();
+            fonts.loader.on_view_process_respawn();
         }
     }
 

@@ -358,12 +358,11 @@ mod file_cache {
                 if let Ok(entries) = std::fs::read_dir(dir) {
                     for entry in entries.flatten() {
                         let entry = entry.path();
-                        if entry.is_dir() {
-                            if let Ok(lock) = File::open(entry.join(CacheEntry::LOCK)) {
-                                if FileExt::try_lock_shared(&lock).is_ok() {
-                                    CacheEntry::try_delete_locked_dir(&entry, &lock);
-                                }
-                            }
+                        if entry.is_dir()
+                            && let Ok(lock) = File::open(entry.join(CacheEntry::LOCK))
+                            && FileExt::try_lock_shared(&lock).is_ok()
+                        {
+                            CacheEntry::try_delete_locked_dir(&entry, &lock);
                         }
                     }
                 }
@@ -380,12 +379,12 @@ mod file_cache {
 
                     for entry in entries.flatten() {
                         let entry = entry.path();
-                        if entry.is_dir() {
-                            if let Some(entry) = CacheEntry::open(entry, false) {
-                                let policy = entry.policy.as_ref().unwrap();
-                                if policy.is_stale(now) && policy.age(now) > old {
-                                    CacheEntry::try_delete_locked_dir(&entry.dir, &entry.lock);
-                                }
+                        if entry.is_dir()
+                            && let Some(entry) = CacheEntry::open(entry, false)
+                        {
+                            let policy = entry.policy.as_ref().unwrap();
+                            if policy.is_stale(now) && policy.age(now) > old {
+                                CacheEntry::try_delete_locked_dir(&entry.dir, &entry.lock);
                             }
                         }
                     }
@@ -409,11 +408,12 @@ mod file_cache {
 
         /// Open or create an entry.
         fn open(dir: PathBuf, write: bool) -> Option<Self> {
-            if write && !dir.exists() {
-                if let Err(e) = fs::create_dir_all(&dir) {
-                    tracing::error!("cache dir error, {e:?}");
-                    return None;
-                }
+            if write
+                && !dir.exists()
+                && let Err(e) = fs::create_dir_all(&dir)
+            {
+                tracing::error!("cache dir error, {e:?}");
+                return None;
             }
 
             let lock = dir.join(Self::LOCK);

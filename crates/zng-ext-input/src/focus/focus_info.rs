@@ -754,10 +754,10 @@ impl WidgetFocusInfo {
 
     /// Widget focus metadata, all things equal except the widget interactivity is blocked.
     pub fn focus_info_ignore_blocked(&self) -> FocusInfo {
-        if self.mode_allows_focus_ignore_blocked() {
-            if let Some(builder) = self.info.meta().get(*FOCUS_INFO_ID) {
-                return builder.build();
-            }
+        if self.mode_allows_focus_ignore_blocked()
+            && let Some(builder) = self.info.meta().get(*FOCUS_INFO_ID)
+        {
+            return builder.build();
         }
         FocusInfo::NotFocusable
     }
@@ -837,21 +837,22 @@ impl WidgetFocusInfo {
     }
     fn inner_alt_scope(&self) -> Option<WidgetFocusInfo> {
         let inner_alt = self.info.meta().get(*FOCUS_INFO_ID)?.inner_alt.load(Relaxed);
-        if let Some(id) = inner_alt {
-            if let Some(wgt) = self.info.tree().get(id) {
-                let wgt = wgt.into_focus_info(self.focus_disabled_widgets(), self.focus_hidden_widgets());
-                if wgt.is_alt_scope() && wgt.info.is_descendant(&self.info) {
-                    return Some(wgt);
-                }
+        if let Some(id) = inner_alt
+            && let Some(wgt) = self.info.tree().get(id)
+        {
+            let wgt = wgt.into_focus_info(self.focus_disabled_widgets(), self.focus_hidden_widgets());
+            if wgt.is_alt_scope() && wgt.info.is_descendant(&self.info) {
+                return Some(wgt);
             }
         }
         None
     }
     fn inner_alt_scope_skip(&self, skip: &WidgetFocusInfo) -> Option<WidgetFocusInfo> {
-        if let Some(alt) = self.inner_alt_scope() {
-            if !alt.info.is_descendant(&skip.info) && alt.info != skip.info {
-                return Some(alt);
-            }
+        if let Some(alt) = self.inner_alt_scope()
+            && !alt.info.is_descendant(&skip.info)
+            && alt.info != skip.info
+        {
+            return Some(alt);
         }
         None
     }
@@ -1517,10 +1518,11 @@ impl WidgetFocusInfo {
                     nav |= FocusNavAction::NEXT;
                 }
 
-                if !nav.contains(FocusNavAction::PREV | FocusNavAction::NEXT) && tab_nav == TabNav::Continue {
-                    if let Some(p_scope) = scope.scope() {
-                        nav |= scope.enabled_tab_nav(&p_scope, p_scope.focus_info(), true, nav)
-                    }
+                if !nav.contains(FocusNavAction::PREV | FocusNavAction::NEXT)
+                    && tab_nav == TabNav::Continue
+                    && let Some(p_scope) = scope.scope()
+                {
+                    nav |= scope.enabled_tab_nav(&p_scope, p_scope.focus_info(), true, nav)
                 }
                 nav
             }
@@ -1920,21 +1922,20 @@ impl FocusTreeData {
         }
 
         alt_scopes.retain(|id| {
-            if let Some(wgt) = new_tree.get(*id) {
-                if let Some(info) = wgt.meta().get(*FOCUS_INFO_ID) {
-                    if info.build().is_alt_scope() {
-                        for parent in wgt.ancestors() {
-                            if let Some(info) = parent.meta().get(*FOCUS_INFO_ID) {
-                                if info.build().is_scope() {
-                                    info.inner_alt.store(Some(*id), Relaxed);
-                                    break;
-                                }
-                            }
-                        }
-
-                        return true;
+            if let Some(wgt) = new_tree.get(*id)
+                && let Some(info) = wgt.meta().get(*FOCUS_INFO_ID)
+                && info.build().is_alt_scope()
+            {
+                for parent in wgt.ancestors() {
+                    if let Some(info) = parent.meta().get(*FOCUS_INFO_ID)
+                        && info.build().is_scope()
+                    {
+                        info.inner_alt.store(Some(*id), Relaxed);
+                        break;
                     }
                 }
+
+                return true;
             }
             false
         });

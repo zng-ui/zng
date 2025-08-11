@@ -89,10 +89,10 @@ impl VIEW_PROCESS {
 
     fn try_write(&self) -> Result<MappedRwLockWriteGuard<'_, ViewProcessService>> {
         let vp = VIEW_PROCESS_SV.write();
-        if let Some(w) = &*vp {
-            if w.process.is_connected() {
-                return Ok(MappedRwLockWriteGuard::map(vp, |w| w.as_mut().unwrap()));
-            }
+        if let Some(w) = &*vp
+            && w.process.is_connected()
+        {
+            return Ok(MappedRwLockWriteGuard::map(vp, |w| w.as_mut().unwrap()));
         }
         Err(ViewChannelError::Disconnected)
     }
@@ -1547,10 +1547,10 @@ impl ViewClipboard {
     ///
     /// [`ClipboardType::Image`]: zng_view_api::clipboard::ClipboardType::Image
     pub fn write_image(&self, img: &ViewImage) -> Result<ClipboardResult<()>> {
-        if img.is_loaded() {
-            if let Some(id) = img.id() {
-                return VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::Image(id));
-            }
+        if img.is_loaded()
+            && let Some(id) = img.id()
+        {
+            return VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::Image(id));
         }
         Ok(Err(ClipboardError::Other(Txt::from_static("image not loaded"))))
     }

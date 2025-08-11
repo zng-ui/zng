@@ -174,7 +174,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             let mut __args__ = crate::zng_hot_entry::HotNodeArgs::with_capacity(#input_len);
             #pack_args
 
-            crate::zng_hot_entry::HotNodeHost::new(env!("CARGO_MANIFEST_DIR"), #name, __args__, #builder_ident)
+            crate::zng_hot_entry::HotNodeHost::new_node(env!("CARGO_MANIFEST_DIR"), #name, __args__, #builder_ident)
         }
     };
 
@@ -257,12 +257,12 @@ impl Input {
                                 let seg = path.segments.last().unwrap();
 
                                 fn ty_from_generic(input: &mut Input, errors: &mut Errors, kind: InputKind, args: &PathArguments) -> bool {
-                                    if let PathArguments::AngleBracketed(it) = args {
-                                        if it.args.len() == 1 {
-                                            input.kind = kind;
-                                            input.gen_ty = it.args.last().unwrap().to_token_stream();
-                                            return true;
-                                        }
+                                    if let PathArguments::AngleBracketed(it) = args
+                                        && it.args.len() == 1
+                                    {
+                                        input.kind = kind;
+                                        input.gen_ty = it.args.last().unwrap().to_token_stream();
+                                        return true;
                                     }
                                     errors.push("expected single generic param", args.span());
                                     false

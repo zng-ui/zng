@@ -851,13 +851,13 @@ impl Input {
                                     kind: InputKind,
                                     args: &PathArguments,
                                 ) -> bool {
-                                    if let PathArguments::AngleBracketed(it) = args {
-                                        if it.args.len() == 1 {
-                                            input.kind = kind;
-                                            input.ty = t.to_token_stream();
-                                            input.info_ty = it.args.last().unwrap().to_token_stream();
-                                            return true;
-                                        }
+                                    if let PathArguments::AngleBracketed(it) = args
+                                        && it.args.len() == 1
+                                    {
+                                        input.kind = kind;
+                                        input.ty = t.to_token_stream();
+                                        input.info_ty = it.args.last().unwrap().to_token_stream();
+                                        return true;
                                     }
                                     errors.push("expected single generic param", args.span());
                                     false

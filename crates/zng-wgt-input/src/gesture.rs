@@ -167,10 +167,10 @@ pub(crate) fn access_click(child: impl IntoUiNode, _: bool) -> UiNode {
 }
 fn access_capable(child: impl IntoUiNode, cmd: AccessCmdName) -> UiNode {
     match_node(child, move |_, op| {
-        if let UiNodeOp::Info { info } = op {
-            if let Some(mut access) = info.access() {
-                access.push_command(cmd)
-            }
+        if let UiNodeOp::Info { info } = op
+            && let Some(mut access) = info.access()
+        {
+            access.push_command(cmd)
         }
     })
 }

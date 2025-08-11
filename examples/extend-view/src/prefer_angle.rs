@@ -19,12 +19,12 @@ pub fn extension_id() -> ApiExtensionId {
 pub fn use_angle_egl(child: impl IntoUiNode, enable: impl IntoValue<bool>) -> UiNode {
     let enable = enable.into() && cfg!(windows);
     match_node(child, move |_c, op| {
-        if let UiNodeOp::Init = op {
-            if enable {
-                WINDOWS
-                    .view_extensions_init(WINDOW.id(), extension_id(), ApiExtensionPayload::serialize(&true).unwrap())
-                    .unwrap();
-            }
+        if let UiNodeOp::Init = op
+            && enable
+        {
+            WINDOWS
+                .view_extensions_init(WINDOW.id(), extension_id(), ApiExtensionPayload::serialize(&true).unwrap())
+                .unwrap();
         }
     })
 }

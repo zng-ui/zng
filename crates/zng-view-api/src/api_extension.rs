@@ -65,13 +65,13 @@ impl ApiExtensionPayload {
     /// [`unknown_extension`]: Self::unknown_extension
     pub fn parse_unknown_extension(&self) -> Option<ApiExtensionId> {
         let p = self.0.strip_prefix(b"zng-view-api.unknown_extension;")?;
-        if let Some(p) = p.strip_prefix(b"id=") {
-            if let Ok(id_str) = std::str::from_utf8(p) {
-                return match id_str.parse::<ApiExtensionId>() {
-                    Ok(id) => Some(id),
-                    Err(id) => Some(id),
-                };
-            }
+        if let Some(p) = p.strip_prefix(b"id=")
+            && let Ok(id_str) = std::str::from_utf8(p)
+        {
+            return match id_str.parse::<ApiExtensionId>() {
+                Ok(id) => Some(id),
+                Err(id) => Some(id),
+            };
         }
         Some(ApiExtensionId::INVALID)
     }
@@ -84,21 +84,20 @@ impl ApiExtensionPayload {
     /// [`invalid_request`]: Self::invalid_request
     pub fn parse_invalid_request(&self) -> Option<(ApiExtensionId, &str)> {
         let p = self.0.strip_prefix(b"zng-view-api.invalid_request;")?;
-        if let Some(p) = p.strip_prefix(b"id=") {
-            if let Some(id_end) = p.iter().position(|&b| b == b';') {
-                if let Ok(id_str) = std::str::from_utf8(&p[..id_end]) {
-                    let id = match id_str.parse::<ApiExtensionId>() {
-                        Ok(id) => id,
-                        Err(id) => id,
-                    };
-                    if let Some(p) = p[id_end..].strip_prefix(b";error=") {
-                        if let Ok(err_str) = std::str::from_utf8(p) {
-                            return Some((id, err_str));
-                        }
-                    }
-                    return Some((id, "invalid request, corrupted payload, unknown error"));
-                }
+        if let Some(p) = p.strip_prefix(b"id=")
+            && let Some(id_end) = p.iter().position(|&b| b == b';')
+            && let Ok(id_str) = std::str::from_utf8(&p[..id_end])
+        {
+            let id = match id_str.parse::<ApiExtensionId>() {
+                Ok(id) => id,
+                Err(id) => id,
+            };
+            if let Some(p) = p[id_end..].strip_prefix(b";error=")
+                && let Ok(err_str) = std::str::from_utf8(p)
+            {
+                return Some((id, err_str));
             }
+            return Some((id, "invalid request, corrupted payload, unknown error"));
         }
         Some((
             ApiExtensionId::INVALID,

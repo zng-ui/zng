@@ -922,15 +922,15 @@ impl fmt::Display for UpdateContext {
         if let Some((id, name)) = &self.widget {
             write!(f, "/../{name}#{id}")?;
         }
-        if let Some(p) = &self.node_parent {
-            if !p.is_empty() {
-                write!(f, "//{p}")?;
-            }
+        if let Some(p) = &self.node_parent
+            && !p.is_empty()
+        {
+            write!(f, "//{p}")?;
         }
-        if let Some(t) = &self.tag {
-            if !t.is_empty() {
-                write!(f, "//{t}")?;
-            }
+        if let Some(t) = &self.tag
+            && !t.is_empty()
+        {
+            write!(f, "//{t}")?;
         }
         Ok(())
     }

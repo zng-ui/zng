@@ -149,20 +149,20 @@ impl std::str::FromStr for Version {
         let mut r = Self::default();
 
         let mut split = s.split('.');
-        if let Some(major) = split.next() {
-            if !major.is_empty() {
-                r.major = u32::from_str(major).map_err(|e| e.to_txt())?;
-            }
+        if let Some(major) = split.next()
+            && !major.is_empty()
+        {
+            r.major = u32::from_str(major).map_err(|e| e.to_txt())?;
         }
-        if let Some(minor) = split.next() {
-            if !minor.is_empty() {
-                r.minor = u32::from_str(minor).map_err(|e| e.to_txt())?;
-            }
+        if let Some(minor) = split.next()
+            && !minor.is_empty()
+        {
+            r.minor = u32::from_str(minor).map_err(|e| e.to_txt())?;
         }
-        if let Some(rev) = split.next() {
-            if !rev.is_empty() {
-                r.rev = u32::from_str(rev).map_err(|e| e.to_txt())?;
-            }
+        if let Some(rev) = split.next()
+            && !rev.is_empty()
+        {
+            r.rev = u32::from_str(rev).map_err(|e| e.to_txt())?;
         }
         if split.next().is_some() {
             return Err("expected maximum of 3 version numbers".into());

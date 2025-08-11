@@ -596,11 +596,11 @@ async fn open_dialog() -> Option<PathBuf> {
 }
 
 fn img_cache_mode(req: &task::http::Request) -> http::CacheMode {
-    if let Some(a) = req.uri().authority() {
-        if a.host().contains("wikimedia.org") {
-            // Wikimedia not configured for caching.
-            return http::CacheMode::Permanent;
-        }
+    if let Some(a) = req.uri().authority()
+        && a.host().contains("wikimedia.org")
+    {
+        // Wikimedia not configured for caching.
+        return http::CacheMode::Permanent;
     }
     http::CacheMode::default()
 }

@@ -55,14 +55,13 @@ pub struct PointerCaptureManager {
 impl AppExtension for PointerCaptureManager {
     fn event(&mut self, update: &mut EventUpdate) {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
-            if let Some(c) = &self.capture {
-                if c.target.window_id() == args.window_id {
-                    if let Ok(info) = WINDOWS.widget_tree(args.window_id) {
-                        self.continue_capture(&info);
-                    }
-                    // else will receive close event.
-                }
+            if let Some(c) = &self.capture
+                && c.target.window_id() == args.window_id
+                && let Ok(info) = WINDOWS.widget_tree(args.window_id)
+            {
+                self.continue_capture(&info);
             }
+            // else will receive close event.
         } else if let Some(args) = RAW_MOUSE_MOVED_EVENT.on(update) {
             self.mouse_position.insert((args.window_id, args.device_id), args.position);
         } else if let Some(args) = RAW_MOUSE_INPUT_EVENT.on(update) {
@@ -113,10 +112,10 @@ impl AppExtension for PointerCaptureManager {
                 }
             }
         } else if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
-            if let Some(c) = &self.capture {
-                if c.target.window_id() == args.window_id {
-                    self.continue_capture(&args.tree);
-                }
+            if let Some(c) = &self.capture
+                && c.target.window_id() == args.window_id
+            {
+                self.continue_capture(&args.tree);
             }
         } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
             self.remove_window(args.window_id);
@@ -132,12 +131,13 @@ impl AppExtension for PointerCaptureManager {
             if let Some(w) = actual_prev {
                 self.remove_window(w);
             }
-        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            if args.is_respawn && (!self.mouse_down.is_empty() || !self.touch_down.is_empty()) {
-                self.mouse_down.clear();
-                self.touch_down.clear();
-                self.on_last_up();
-            }
+        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update)
+            && args.is_respawn
+            && (!self.mouse_down.is_empty() || !self.touch_down.is_empty())
+        {
+            self.mouse_down.clear();
+            self.touch_down.clear();
+            self.on_last_up();
         }
     }
 
@@ -194,27 +194,25 @@ impl PointerCaptureManager {
             let mut point = point.to_px(info.scale_factor());
 
             // hit-test for nested window
-            if let Some(t) = info.root().hit_test(point).target() {
-                if let Some(w) = info.get(t.widget_id) {
-                    if let Some(t) = w.nested_window_tree() {
-                        info = t;
-                        point = w
-                            .inner_transform()
-                            .inverse()
-                            .and_then(|t| t.transform_point(point))
-                            .unwrap_or(point);
-                    }
-                }
+            if let Some(t) = info.root().hit_test(point).target()
+                && let Some(w) = info.get(t.widget_id)
+                && let Some(t) = w.nested_window_tree()
+            {
+                info = t;
+                point = w
+                    .inner_transform()
+                    .inverse()
+                    .and_then(|t| t.transform_point(point))
+                    .unwrap_or(point);
             }
 
-            if let Some((widget_id, mode)) = cap.capture_request.take() {
-                if let Some(w_info) = info.get(widget_id) {
-                    if w_info.hit_test(point).contains(widget_id) {
-                        // capture for widget
-                        self.set_capture(&mut cap, w_info.interaction_path(), mode);
-                        return;
-                    }
-                }
+            if let Some((widget_id, mode)) = cap.capture_request.take()
+                && let Some(w_info) = info.get(widget_id)
+                && w_info.hit_test(point).contains(widget_id)
+            {
+                // capture for widget
+                self.set_capture(&mut cap, w_info.interaction_path(), mode);
+                return;
             }
 
             // default capture

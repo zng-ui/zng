@@ -351,10 +351,10 @@ impl MouseHoverArgs {
     /// [`prev_capture`]: Self::prev_capture
     /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn was_over(&self) -> bool {
-        if let Some(cap) = &self.prev_capture {
-            if !cap.allows() {
-                return false;
-            }
+        if let Some(cap) = &self.prev_capture
+            && !cap.allows()
+        {
+            return false;
         }
 
         if let Some(t) = &self.prev_target {
@@ -370,10 +370,10 @@ impl MouseHoverArgs {
     /// [`capture`]: Self::capture
     /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_over(&self) -> bool {
-        if let Some(cap) = &self.capture {
-            if !cap.allows() {
-                return false;
-            }
+        if let Some(cap) = &self.capture
+            && !cap.allows()
+        {
+            return false;
         }
 
         if let Some(t) = &self.target {
@@ -1084,39 +1084,39 @@ impl MouseManager {
 
     fn clean_all_state(&mut self) {
         let mouse = MOUSE_SV.read();
-        if self.pos_window.take().is_some() {
-            if let Some(path) = self.hovered.take() {
-                let window_id = path.window_id();
-                mouse.buttons.with(|b| {
-                    for btn in b {
-                        let args = MouseInputArgs::now(
-                            window_id,
-                            None,
-                            *btn,
-                            DipPoint::new(Dip::new(-1), Dip::new(-1)),
-                            ModifiersState::empty(),
-                            ButtonState::Released,
-                            HitTestInfo::no_hits(window_id),
-                            path.clone(),
-                            None,
-                            false,
-                        );
-                        MOUSE_INPUT_EVENT.notify(args);
-                    }
-                });
+        if self.pos_window.take().is_some()
+            && let Some(path) = self.hovered.take()
+        {
+            let window_id = path.window_id();
+            mouse.buttons.with(|b| {
+                for btn in b {
+                    let args = MouseInputArgs::now(
+                        window_id,
+                        None,
+                        *btn,
+                        DipPoint::new(Dip::new(-1), Dip::new(-1)),
+                        ModifiersState::empty(),
+                        ButtonState::Released,
+                        HitTestInfo::no_hits(window_id),
+                        path.clone(),
+                        None,
+                        false,
+                    );
+                    MOUSE_INPUT_EVENT.notify(args);
+                }
+            });
 
-                let args = MouseHoverArgs::now(
-                    window_id,
-                    None,
-                    DipPoint::new(Dip::new(-1), Dip::new(-1)),
-                    HitTestInfo::no_hits(window_id),
-                    Some(path),
-                    None,
-                    None,
-                    None,
-                );
-                MOUSE_HOVERED_EVENT.notify(args);
-            }
+            let args = MouseHoverArgs::now(
+                window_id,
+                None,
+                DipPoint::new(Dip::new(-1), Dip::new(-1)),
+                HitTestInfo::no_hits(window_id),
+                Some(path),
+                None,
+                None,
+                None,
+            );
+            MOUSE_HOVERED_EVENT.notify(args);
         }
         mouse.buttons.set(vec![]);
         self.clicking.clear();
@@ -1150,31 +1150,30 @@ impl AppExtension for MouseManager {
         } else if let Some(args) = RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.on(update) {
             MOUSE_SV.read().multi_click_config.set(args.config);
             self.clicking.clear();
-        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            if args.is_respawn {
-                self.clean_all_state();
-            }
+        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update)
+            && args.is_respawn
+        {
+            self.clean_all_state();
         }
     }
 
     fn event(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
-            if let Some(path) = &self.hovered {
-                if self.pos_window.is_some() {
-                    let window_id = path.window_id();
-                    let hover_args = MouseHoverArgs::now(
-                        window_id,
-                        self.pos_device.unwrap(),
-                        self.pos,
-                        self.hits.clone().unwrap_or_else(|| HitTestInfo::no_hits(window_id)),
-                        Some(path.clone()),
-                        Some(path.clone()),
-                        args.prev_capture.clone(),
-                        args.new_capture.clone(),
-                    );
-                    MOUSE_HOVERED_EVENT.notify(hover_args);
-                }
-            }
+        if let Some(args) = POINTER_CAPTURE_EVENT.on(update)
+            && let Some(path) = &self.hovered
+            && self.pos_window.is_some()
+        {
+            let window_id = path.window_id();
+            let hover_args = MouseHoverArgs::now(
+                window_id,
+                self.pos_device.unwrap(),
+                self.pos,
+                self.hits.clone().unwrap_or_else(|| HitTestInfo::no_hits(window_id)),
+                Some(path.clone()),
+                Some(path.clone()),
+                args.prev_capture.clone(),
+                args.new_capture.clone(),
+            );
+            MOUSE_HOVERED_EVENT.notify(hover_args);
         }
     }
 

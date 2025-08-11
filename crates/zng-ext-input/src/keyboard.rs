@@ -422,23 +422,23 @@ impl KeyboardService {
         }
 
         // notify events
-        if let Some(target) = focused {
-            if target.window_id() == args.window_id || WINDOWS.nest_parent(target.window_id()).map(|(p, _)| p) == Some(args.window_id) {
-                let args = KeyInputArgs::now(
-                    target.window_id(),
-                    args.device_id,
-                    args.key_code,
-                    args.key_location,
-                    args.state,
-                    args.key.clone(),
-                    args.key_modified.clone(),
-                    args.text.clone(),
-                    self.current_modifiers(),
-                    repeat,
-                    target,
-                );
-                KEY_INPUT_EVENT.notify(args);
-            }
+        if let Some(target) = focused
+            && (target.window_id() == args.window_id || WINDOWS.nest_parent(target.window_id()).map(|(p, _)| p) == Some(args.window_id))
+        {
+            let args = KeyInputArgs::now(
+                target.window_id(),
+                args.device_id,
+                args.key_code,
+                args.key_location,
+                args.state,
+                args.key.clone(),
+                args.key_modified.clone(),
+                args.text.clone(),
+                self.current_modifiers(),
+                repeat,
+                target,
+            );
+            KEY_INPUT_EVENT.notify(args);
         }
     }
     fn set_modifiers(&mut self, key: Key, pressed: bool) {

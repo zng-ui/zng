@@ -233,10 +233,10 @@ impl Trace {
                             "E" => Phase::End,
                             "i" => Phase::Event,
                             "M" => {
-                                if name == "thread_name" {
-                                    if let Some(n) = args.get("name") {
-                                        thread_names.insert(tid, n.to_txt());
-                                    }
+                                if name == "thread_name"
+                                    && let Some(n) = args.get("name")
+                                {
+                                    thread_names.insert(tid, n.to_txt());
                                 }
                                 continue;
                             }

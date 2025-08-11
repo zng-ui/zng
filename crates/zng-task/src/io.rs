@@ -858,10 +858,10 @@ mod tests {
                 self.b = self.b.wrapping_add(1);
             }
 
-            if len == 0 {
-                if let Some(e) = &self.error {
-                    return e.err();
-                }
+            if len == 0
+                && let Some(e) = &self.error
+            {
+                return e.err();
             }
 
             Ok(buf.len().min(len))

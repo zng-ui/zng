@@ -765,30 +765,31 @@ impl BacktraceFrame {
 
     /// Reads the code line + four surrounding lines if the code file can be found.
     pub fn code_snippet(&self) -> Txt {
-        if !self.file.is_empty() && self.line > 0 {
-            if let Ok(file) = std::fs::File::open(&self.file) {
-                use std::fmt::Write as _;
-                let mut r = String::new();
+        if !self.file.is_empty()
+            && self.line > 0
+            && let Ok(file) = std::fs::File::open(&self.file)
+        {
+            use std::fmt::Write as _;
+            let mut r = String::new();
 
-                let reader = std::io::BufReader::new(file);
+            let reader = std::io::BufReader::new(file);
 
-                let line_s = self.line - 2.min(self.line - 1);
-                let lines = reader.lines().skip(line_s as usize - 1).take(5);
-                for (line, line_n) in lines.zip(line_s..) {
-                    let line = match line {
-                        Ok(l) => l,
-                        Err(_) => return Txt::from(""),
-                    };
+            let line_s = self.line - 2.min(self.line - 1);
+            let lines = reader.lines().skip(line_s as usize - 1).take(5);
+            for (line, line_n) in lines.zip(line_s..) {
+                let line = match line {
+                    Ok(l) => l,
+                    Err(_) => return Txt::from(""),
+                };
 
-                    if line_n == self.line {
-                        writeln!(&mut r, "      {line_n:>4} > {line}").unwrap();
-                    } else {
-                        writeln!(&mut r, "      {line_n:>4} │ {line}").unwrap();
-                    }
+                if line_n == self.line {
+                    writeln!(&mut r, "      {line_n:>4} > {line}").unwrap();
+                } else {
+                    writeln!(&mut r, "      {line_n:>4} │ {line}").unwrap();
                 }
-
-                return r.into();
             }
+
+            return r.into();
         }
         Txt::from("")
     }
@@ -850,14 +851,14 @@ fn crash_handler_monitor_process(
                         use std::os::unix::process::ExitStatusExt as _;
                         signal = status.signal();
 
-                        if let Some(sig) = signal {
-                            if [2, 9, 17, 19, 23].contains(&sig) {
-                                tracing::warn!(
-                                    "app-process exited by signal ({sig}), \
+                        if let Some(sig) = signal
+                            && [2, 9, 17, 19, 23].contains(&sig)
+                        {
+                            tracing::warn!(
+                                "app-process exited by signal ({sig}), \
                                                 will exit monitor-process with code 1"
-                                );
-                                zng_env::exit(1);
-                            }
+                            );
+                            zng_env::exit(1);
                         }
                     }
 
@@ -964,14 +965,14 @@ fn crash_handler_monitor_process(
                                         use std::os::unix::process::ExitStatusExt as _;
                                         signal = status.signal();
 
-                                        if let Some(sig) = signal {
-                                            if [2, 9, 17, 19, 23].contains(&sig) {
-                                                tracing::warn!(
-                                                    "dialog-process exited by signal ({sig}), \
+                                        if let Some(sig) = signal
+                                            && [2, 9, 17, 19, 23].contains(&sig)
+                                        {
+                                            tracing::warn!(
+                                                "dialog-process exited by signal ({sig}), \
                                                                 will exit monitor-process with code 1"
-                                                );
-                                                zng_env::exit(1);
-                                            }
+                                            );
+                                            zng_env::exit(1);
                                         }
                                     }
 

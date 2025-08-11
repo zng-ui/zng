@@ -505,11 +505,11 @@ impl VARS {
         };
 
         let mut anim_imp = None;
-        if let Some(c) = VARS_MODIFY_CTX.get_clone() {
-            if c.is_animating() {
-                // nested animation uses parent importance.
-                anim_imp = Some(c.importance);
-            }
+        if let Some(c) = VARS_MODIFY_CTX.get_clone()
+            && c.is_animating()
+        {
+            // nested animation uses parent importance.
+            anim_imp = Some(c.importance);
         }
         let anim_imp = match anim_imp {
             Some(i) => i,
@@ -598,46 +598,46 @@ impl VARS {
 
     fn update_animations_impl(&self, timer: &mut dyn AnimationTimer) {
         let mut vars = VARS_SV.write();
-        if let Some(next_frame) = vars.ans_next_frame {
-            if timer.elapsed(next_frame) {
-                let mut animations = mem::take(vars.ans_animations.get_mut());
-                debug_assert!(!animations.is_empty());
+        if let Some(next_frame) = vars.ans_next_frame
+            && timer.elapsed(next_frame)
+        {
+            let mut animations = mem::take(vars.ans_animations.get_mut());
+            debug_assert!(!animations.is_empty());
 
-                let info = AnimationUpdateInfo {
-                    animations_enabled: vars.animations_enabled.get(),
-                    time_scale: vars.animation_time_scale.get(),
-                    now: timer.now(),
-                    next_frame: next_frame + vars.frame_duration.get(),
-                };
+            let info = AnimationUpdateInfo {
+                animations_enabled: vars.animations_enabled.get(),
+                time_scale: vars.animation_time_scale.get(),
+                now: timer.now(),
+                next_frame: next_frame + vars.frame_duration.get(),
+            };
 
-                let mut min_sleep = Deadline(info.now + Duration::from_secs(60 * 60));
+            let mut min_sleep = Deadline(info.now + Duration::from_secs(60 * 60));
 
-                drop(vars);
+            drop(vars);
 
-                animations.retain_mut(|animate| {
-                    if let Some(sleep) = animate(info) {
-                        min_sleep = min_sleep.min(sleep);
-                        true
-                    } else {
-                        false
-                    }
-                });
-
-                let mut vars = VARS_SV.write();
-
-                let self_animations = vars.ans_animations.get_mut();
-                if !self_animations.is_empty() {
-                    min_sleep = Deadline(info.now);
-                }
-                animations.append(self_animations);
-                *self_animations = animations;
-
-                if !self_animations.is_empty() {
-                    vars.ans_next_frame = Some(min_sleep);
-                    timer.register(min_sleep);
+            animations.retain_mut(|animate| {
+                if let Some(sleep) = animate(info) {
+                    min_sleep = min_sleep.min(sleep);
+                    true
                 } else {
-                    vars.ans_next_frame = None;
+                    false
                 }
+            });
+
+            let mut vars = VARS_SV.write();
+
+            let self_animations = vars.ans_animations.get_mut();
+            if !self_animations.is_empty() {
+                min_sleep = Deadline(info.now);
+            }
+            animations.append(self_animations);
+            *self_animations = animations;
+
+            if !self_animations.is_empty() {
+                vars.ans_next_frame = Some(min_sleep);
+                timer.register(min_sleep);
+            } else {
+                vars.ans_next_frame = None;
             }
         }
     }

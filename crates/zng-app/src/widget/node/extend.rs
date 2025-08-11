@@ -30,7 +30,7 @@ impl UiNodeImpl for ExtendWidgetChildNode {
 
     fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
         if index == 0 {
-            visitor(&mut *self.widget.lock())
+            visitor(&mut self.widget.lock())
         }
     }
 

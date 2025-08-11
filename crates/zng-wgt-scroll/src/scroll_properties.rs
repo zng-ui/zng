@@ -654,18 +654,18 @@ pub fn mouse_pan(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode 
                             SCROLL.clear_horizontal_overscroll();
                         }
                     }
-                } else if let Some(d) = &mut dragging {
-                    if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
-                        let offset = d.start - args.position.to_px(d.factor);
-                        let delta = d.applied_offset - offset;
-                        d.applied_offset = offset;
+                } else if let Some(d) = &mut dragging
+                    && let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update)
+                {
+                    let offset = d.start - args.position.to_px(d.factor);
+                    let delta = d.applied_offset - offset;
+                    d.applied_offset = offset;
 
-                        if delta.y != Px(0) {
-                            SCROLL.scroll_vertical_touch(-delta.y);
-                        }
-                        if delta.x != Px(0) {
-                            SCROLL.scroll_horizontal_touch(-delta.x);
-                        }
+                    if delta.y != Px(0) {
+                        SCROLL.scroll_vertical_touch(-delta.y);
+                    }
+                    if delta.x != Px(0) {
+                        SCROLL.scroll_horizontal_touch(-delta.x);
                     }
                 }
             }

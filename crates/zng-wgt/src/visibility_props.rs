@@ -158,10 +158,10 @@ pub fn auto_hide(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode 
             WIDGET.sub_var(&enabled);
         }
         UiNodeOp::Update { .. } => {
-            if let Some(new) = enabled.get_new() {
-                if WIDGET.bounds().can_auto_hide() != new {
-                    WIDGET.layout().render();
-                }
+            if let Some(new) = enabled.get_new()
+                && WIDGET.bounds().can_auto_hide() != new
+            {
+                WIDGET.layout().render();
             }
         }
         UiNodeOp::Layout { wl, .. } => {

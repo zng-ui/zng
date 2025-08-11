@@ -130,7 +130,8 @@ pub struct HotNodeHost {
     instance: HotNode,
 }
 impl HotNodeHost {
-    pub fn new(manifest_dir: &'static str, name: &'static str, args: HotNodeArgs, fallback: fn(HotNodeArgs) -> HotNode) -> UiNode {
+    #[doc(hidden)]
+    pub fn new_node(manifest_dir: &'static str, name: &'static str, args: HotNodeArgs, fallback: fn(HotNodeArgs) -> HotNode) -> UiNode {
         UiNode::new(Self {
             manifest_dir,
             name,
@@ -195,11 +196,11 @@ impl UiNodeImpl for HotNodeHost {
     fn event(&mut self, update: &EventUpdate) {
         self.instance.event(update);
 
-        if let Some(args) = HOT_RELOAD_EVENT.on(update) {
-            if args.lib.manifest_dir() == self.manifest_dir {
-                WIDGET.reinit();
-                tracing::debug!("reinit `{}` to hot reload `{}`", WIDGET.trace_id(), self.name);
-            }
+        if let Some(args) = HOT_RELOAD_EVENT.on(update)
+            && args.lib.manifest_dir() == self.manifest_dir
+        {
+            WIDGET.reinit();
+            tracing::debug!("reinit `{}` to hot reload `{}`", WIDGET.trace_id(), self.name);
         }
     }
 

@@ -681,12 +681,12 @@ impl DataNotes {
         let mut txt = Txt::from_string(String::new());
         let mut sep = "";
         for note in &self.notes {
-            if note.level == level {
-                if let Some(value) = note.value() {
-                    use std::fmt::Write;
-                    let _ = write!(&mut txt, "{sep}{value}");
-                    sep = "\n";
-                }
+            if note.level == level
+                && let Some(value) = note.value()
+            {
+                use std::fmt::Write;
+                let _ = write!(&mut txt, "{sep}{value}");
+                sep = "\n";
             }
         }
         txt.end_mut();

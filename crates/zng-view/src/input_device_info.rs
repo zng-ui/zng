@@ -82,10 +82,10 @@ fn device_info(device_path: &str) -> Option<RID_DEVICE_INFO> {
 
     for dev in devices {
         let h_device = dev.hDevice;
-        if let Some(name) = device_name(h_device) {
-            if name.eq_ignore_ascii_case(device_path) {
-                return device_info_by_handle(h_device);
-            }
+        if let Some(name) = device_name(h_device)
+            && name.eq_ignore_ascii_case(device_path)
+        {
+            return device_info_by_handle(h_device);
         }
     }
 

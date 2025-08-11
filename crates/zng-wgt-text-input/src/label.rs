@@ -100,10 +100,10 @@ pub fn target(child: impl IntoUiNode, target: impl IntoVar<WidgetId>) -> UiNode 
                 if args.is_touch_start() {
                     FOCUS.focus_widget_or_enter(target.get(), true, false);
                 }
-            } else if let Some(args) = ACCESS_CLICK_EVENT.on(update) {
-                if args.is_primary {
-                    FOCUS.focus_widget_or_enter(target.get(), true, false);
-                }
+            } else if let Some(args) = ACCESS_CLICK_EVENT.on(update)
+                && args.is_primary
+            {
+                FOCUS.focus_widget_or_enter(target.get(), true, false);
             }
         }
         UiNodeOp::Update { .. } => {

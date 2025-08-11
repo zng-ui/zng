@@ -405,11 +405,12 @@ impl Txt {
         match &mut self.0 {
             TxtData::String(str) => str.push_str(s),
             TxtData::Inline(inlined) => {
-                if let Some(len) = inlined.iter().position(|&c| c == b'\0') {
-                    if len + s.len() <= INLINE_MAX && !s.contains('\0') {
-                        inlined[len..len + s.len()].copy_from_slice(s.as_bytes());
-                        return;
-                    }
+                if let Some(len) = inlined.iter().position(|&c| c == b'\0')
+                    && len + s.len() <= INLINE_MAX
+                    && !s.contains('\0')
+                {
+                    inlined[len..len + s.len()].copy_from_slice(s.as_bytes());
+                    return;
                 }
                 self.to_mut().push_str(s)
             }

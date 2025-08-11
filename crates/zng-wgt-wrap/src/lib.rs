@@ -573,14 +573,14 @@ impl InlineLayout {
                     row_advance = Px(0);
 
                     fill_scale = None;
-                    if let Some(mut f) = fill_width {
-                        if wl.is_inline() || next_row_i < self.rows.len() {
-                            if wl.is_inline() && next_row_i == self.rows.len() {
-                                f = last.width().0 as f32;
-                            }
-                            // fill row, if it is not the last in a block layout
-                            fill_scale = Some(f / self.rows[next_row_i - 1].size.width.0 as f32);
+                    if let Some(mut f) = fill_width
+                        && (wl.is_inline() || next_row_i < self.rows.len())
+                    {
+                        if wl.is_inline() && next_row_i == self.rows.len() {
+                            f = last.width().0 as f32;
                         }
+                        // fill row, if it is not the last in a block layout
+                        fill_scale = Some(f / self.rows[next_row_i - 1].size.width.0 as f32);
                     }
                 }
 
@@ -801,14 +801,14 @@ impl InlineLayout {
             children.for_each_child(|i, child, _| {
                 let mut inline_constrain = child_inline_constrain;
                 let mut wrap_clear_min = Px(0);
-                if self.rows.is_empty() && !self.first_wrapped {
-                    if let Some(InlineConstraints::Measure(InlineConstraintsMeasure {
+                if self.rows.is_empty()
+                    && !self.first_wrapped
+                    && let Some(InlineConstraints::Measure(InlineConstraintsMeasure {
                         first_max, mid_clear_min, ..
                     })) = inline_constraints
-                    {
-                        inline_constrain = first_max;
-                        wrap_clear_min = mid_clear_min;
-                    }
+                {
+                    inline_constrain = first_max;
+                    wrap_clear_min = mid_clear_min;
                 }
                 if inline_constrain < Px::MAX {
                     inline_constrain -= row.size.width;

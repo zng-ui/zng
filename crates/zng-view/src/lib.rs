@@ -709,11 +709,11 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 if !is_synthetic && self.windows[i].is_focused() {
                     // see the Window::focus comments.
                     #[cfg(windows)]
-                    if self.skip_ralt {
-                        if let winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::AltRight) = event.physical_key {
-                            winit_loop_guard.unset(&mut self.winit_loop);
-                            return;
-                        }
+                    if self.skip_ralt
+                        && let winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::AltRight) = event.physical_key
+                    {
+                        winit_loop_guard.unset(&mut self.winit_loop);
+                        return;
                     }
 
                     let state = util::element_state_to_key_state(event.state);
@@ -792,21 +792,21 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     });
                 }
 
-                if let Some((drop_moment, file)) = self.drag_drop_next_move.take() {
-                    if drop_moment.elapsed() < Duration::from_millis(300) {
-                        let window_id = self.windows[i].id();
-                        self.notify(Event::DragMoved {
-                            window: window_id,
-                            coalesced_pos: vec![],
-                            position: p,
-                        });
-                        self.notify(Event::DragDropped {
-                            window: window_id,
-                            data: vec![DragDropData::Path(file)],
-                            allowed: DragDropEffect::all(),
-                            drop_id: DragDropId(0),
-                        });
-                    }
+                if let Some((drop_moment, file)) = self.drag_drop_next_move.take()
+                    && drop_moment.elapsed() < Duration::from_millis(300)
+                {
+                    let window_id = self.windows[i].id();
+                    self.notify(Event::DragMoved {
+                        window: window_id,
+                        coalesced_pos: vec![],
+                        position: p,
+                    });
+                    self.notify(Event::DragDropped {
+                        window: window_id,
+                        data: vec![DragDropData::Path(file)],
+                        allowed: DragDropEffect::all(),
+                        drop_id: DragDropId(0),
+                    });
                 }
             }
             WindowEvent::CursorEntered { device_id } => {
@@ -1103,22 +1103,19 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             winit_loop_guard.unset(&mut self.winit_loop);
         }
 
-        if let Some((id, pos)) = &mut self.drag_drop_hovered {
-            if let DeviceEvent::MouseMotion { .. } = &event {
-                if let Some(win) = self.windows.iter().find(|w| w.id() == *id) {
-                    if let Some(new_pos) = win.drag_drop_cursor_pos() {
-                        if *pos != new_pos {
-                            *pos = new_pos;
-                            let event = Event::DragMoved {
-                                window: *id,
-                                coalesced_pos: vec![],
-                                position: *pos,
-                            };
-                            self.notify(event);
-                        }
-                    }
-                }
-            }
+        if let Some((id, pos)) = &mut self.drag_drop_hovered
+            && let DeviceEvent::MouseMotion { .. } = &event
+            && let Some(win) = self.windows.iter().find(|w| w.id() == *id)
+            && let Some(new_pos) = win.drag_drop_cursor_pos()
+            && *pos != new_pos
+        {
+            *pos = new_pos;
+            let event = Event::DragMoved {
+                window: *id,
+                coalesced_pos: vec![],
+                position: *pos,
+            };
+            self.notify(event);
         }
     }
 
@@ -1459,69 +1456,69 @@ impl App {
             self.pressed_modifiers.clear();
         }
 
-        if let Some(m) = self.pending_modifiers_update.take() {
-            if let Some(id) = self.windows.iter().find(|w| w.is_focused()).map(|w| w.id()) {
-                let mut notify = vec![];
-                self.pressed_modifiers.retain(|(key, location), (d_id, s_code)| {
-                    let mut retain = true;
-                    if matches!(key, Key::Super) && !m.super_key() {
-                        retain = false;
-                        notify.push(Event::KeyboardInput {
-                            window: id,
-                            device: *d_id,
-                            key_code: *s_code,
-                            state: KeyState::Released,
-                            key: key.clone(),
-                            key_location: *location,
-                            key_modified: key.clone(),
-                            text: Txt::from_str(""),
-                        });
-                    }
-                    if matches!(key, Key::Shift) && !m.shift_key() {
-                        retain = false;
-                        notify.push(Event::KeyboardInput {
-                            window: id,
-                            device: *d_id,
-                            key_code: *s_code,
-                            state: KeyState::Released,
-                            key: key.clone(),
-                            key_location: *location,
-                            key_modified: key.clone(),
-                            text: Txt::from_str(""),
-                        });
-                    }
-                    if matches!(key, Key::Alt | Key::AltGraph) && !m.alt_key() {
-                        retain = false;
-                        notify.push(Event::KeyboardInput {
-                            window: id,
-                            device: *d_id,
-                            key_code: *s_code,
-                            state: KeyState::Released,
-                            key: key.clone(),
-                            key_location: *location,
-                            key_modified: key.clone(),
-                            text: Txt::from_str(""),
-                        });
-                    }
-                    if matches!(key, Key::Ctrl) && !m.control_key() {
-                        retain = false;
-                        notify.push(Event::KeyboardInput {
-                            window: id,
-                            device: *d_id,
-                            key_code: *s_code,
-                            state: KeyState::Released,
-                            key: key.clone(),
-                            key_location: *location,
-                            key_modified: key.clone(),
-                            text: Txt::from_str(""),
-                        });
-                    }
-                    retain
-                });
-
-                for ev in notify {
-                    self.notify(ev);
+        if let Some(m) = self.pending_modifiers_update.take()
+            && let Some(id) = self.windows.iter().find(|w| w.is_focused()).map(|w| w.id())
+        {
+            let mut notify = vec![];
+            self.pressed_modifiers.retain(|(key, location), (d_id, s_code)| {
+                let mut retain = true;
+                if matches!(key, Key::Super) && !m.super_key() {
+                    retain = false;
+                    notify.push(Event::KeyboardInput {
+                        window: id,
+                        device: *d_id,
+                        key_code: *s_code,
+                        state: KeyState::Released,
+                        key: key.clone(),
+                        key_location: *location,
+                        key_modified: key.clone(),
+                        text: Txt::from_str(""),
+                    });
                 }
+                if matches!(key, Key::Shift) && !m.shift_key() {
+                    retain = false;
+                    notify.push(Event::KeyboardInput {
+                        window: id,
+                        device: *d_id,
+                        key_code: *s_code,
+                        state: KeyState::Released,
+                        key: key.clone(),
+                        key_location: *location,
+                        key_modified: key.clone(),
+                        text: Txt::from_str(""),
+                    });
+                }
+                if matches!(key, Key::Alt | Key::AltGraph) && !m.alt_key() {
+                    retain = false;
+                    notify.push(Event::KeyboardInput {
+                        window: id,
+                        device: *d_id,
+                        key_code: *s_code,
+                        state: KeyState::Released,
+                        key: key.clone(),
+                        key_location: *location,
+                        key_modified: key.clone(),
+                        text: Txt::from_str(""),
+                    });
+                }
+                if matches!(key, Key::Ctrl) && !m.control_key() {
+                    retain = false;
+                    notify.push(Event::KeyboardInput {
+                        window: id,
+                        device: *d_id,
+                        key_code: *s_code,
+                        state: KeyState::Released,
+                        key: key.clone(),
+                        key_location: *location,
+                        key_modified: key.clone(),
+                        text: Txt::from_str(""),
+                    });
+                }
+                retain
+            });
+
+            for ev in notify {
+                self.notify(ev);
             }
         }
     }
@@ -1643,10 +1640,10 @@ impl App {
 
     /// Send pending coalesced events.
     pub(crate) fn flush_coalesced(&mut self) {
-        if let Some((coal, _)) = self.coalescing_event.take() {
-            if self.event_sender.send(coal).is_err() {
-                let _ = self.app_sender.send(AppEvent::ParentProcessExited);
-            }
+        if let Some((coal, _)) = self.coalescing_event.take()
+            && self.event_sender.send(coal).is_err()
+        {
+            let _ = self.app_sender.send(AppEvent::ParentProcessExited);
         }
     }
 
@@ -1990,19 +1987,19 @@ impl Api for App {
     }
 
     fn set_state(&mut self, id: WindowId, state: WindowStateAll) {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            if w.set_state(state.clone()) {
-                let mut change = WindowChanged::state_changed(id, state, EventCause::App);
+        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id)
+            && w.set_state(state.clone())
+        {
+            let mut change = WindowChanged::state_changed(id, state, EventCause::App);
 
-                change.size = w.resized();
-                change.position = w.moved();
-                if let Some(handle) = w.monitor_change() {
-                    let monitor = self.monitor_handle_to_id(&handle);
-                    change.monitor = Some(monitor);
-                }
-
-                let _ = self.app_sender.send(AppEvent::Notify(Event::WindowChanged(change)));
+            change.size = w.resized();
+            change.position = w.moved();
+            if let Some(handle) = w.monitor_change() {
+                let monitor = self.monitor_handle_to_id(&handle);
+                change.monitor = Some(monitor);
             }
+
+            let _ = self.app_sender.send(AppEvent::Notify(Event::WindowChanged(change)));
         }
     }
 

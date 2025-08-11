@@ -74,16 +74,15 @@ pub fn capture_pointer(child: impl IntoUiNode, mode: impl IntoVar<CaptureMode>) 
             if let Some(new_mode) = mode.get_new() {
                 let tree = WINDOW.info();
                 let widget_id = WIDGET.id();
-                if tree.get(widget_id).map(|w| w.interactivity().is_enabled()).unwrap_or(false) {
-                    if let Some(current) = POINTER_CAPTURE.current_capture().get() {
-                        if current.target.widget_id() == widget_id {
-                            // If mode updated and we are capturing the mouse:
-                            match new_mode {
-                                CaptureMode::Widget => POINTER_CAPTURE.capture_widget(widget_id),
-                                CaptureMode::Subtree => POINTER_CAPTURE.capture_subtree(widget_id),
-                                CaptureMode::Window => POINTER_CAPTURE.release_capture(),
-                            }
-                        }
+                if tree.get(widget_id).map(|w| w.interactivity().is_enabled()).unwrap_or(false)
+                    && let Some(current) = POINTER_CAPTURE.current_capture().get()
+                    && current.target.widget_id() == widget_id
+                {
+                    // If mode updated and we are capturing the mouse:
+                    match new_mode {
+                        CaptureMode::Widget => POINTER_CAPTURE.capture_widget(widget_id),
+                        CaptureMode::Subtree => POINTER_CAPTURE.capture_subtree(widget_id),
+                        CaptureMode::Window => POINTER_CAPTURE.release_capture(),
                     }
                 }
             }
@@ -131,16 +130,15 @@ pub fn capture_pointer_on_init(child: impl IntoUiNode, mode: impl IntoVar<Captur
             if let Some(new_mode) = mode.get_new() {
                 let tree = WINDOW.info();
                 let widget_id = WIDGET.id();
-                if tree.get(widget_id).map(|w| w.interactivity().is_enabled()).unwrap_or(false) {
-                    if let Some(current) = POINTER_CAPTURE.current_capture().get() {
-                        if current.target.widget_id() == widget_id {
-                            // If mode updated and we are capturing the mouse:
-                            match new_mode {
-                                CaptureMode::Widget => POINTER_CAPTURE.capture_widget(widget_id),
-                                CaptureMode::Subtree => POINTER_CAPTURE.capture_subtree(widget_id),
-                                CaptureMode::Window => POINTER_CAPTURE.release_capture(),
-                            }
-                        }
+                if tree.get(widget_id).map(|w| w.interactivity().is_enabled()).unwrap_or(false)
+                    && let Some(current) = POINTER_CAPTURE.current_capture().get()
+                    && current.target.widget_id() == widget_id
+                {
+                    // If mode updated and we are capturing the mouse:
+                    match new_mode {
+                        CaptureMode::Widget => POINTER_CAPTURE.capture_widget(widget_id),
+                        CaptureMode::Subtree => POINTER_CAPTURE.capture_subtree(widget_id),
+                        CaptureMode::Window => POINTER_CAPTURE.release_capture(),
                     }
                 }
             }

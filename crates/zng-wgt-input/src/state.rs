@@ -218,33 +218,34 @@ pub fn is_shortcut_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) ->
             state.set(false);
         }
         UiNodeOp::Event { update } => {
-            if let Some(args) = CLICK_EVENT.on(update) {
-                if (args.is_from_keyboard() || args.is_from_access()) && args.target.contains_enabled(WIDGET.id()) {
-                    // if a shortcut click happened, we show pressed for the duration of `shortcut_pressed_duration`
-                    // unless we where already doing that, then we just stop showing pressed, this causes
-                    // a flickering effect when rapid clicks are happening.
-                    if shortcut_press.take().is_none() {
-                        let duration = GESTURES.shortcut_pressed_duration().get();
-                        if duration != Duration::default() {
-                            let dl = TIMERS.deadline(duration);
-                            dl.subscribe(UpdateOp::Update, WIDGET.id()).perm();
-                            shortcut_press = Some(dl);
-                            state.set(true);
-                        }
-                    } else {
-                        state.set(false);
+            if let Some(args) = CLICK_EVENT.on(update)
+                && (args.is_from_keyboard() || args.is_from_access())
+                && args.target.contains_enabled(WIDGET.id())
+            {
+                // if a shortcut click happened, we show pressed for the duration of `shortcut_pressed_duration`
+                // unless we where already doing that, then we just stop showing pressed, this causes
+                // a flickering effect when rapid clicks are happening.
+                if shortcut_press.take().is_none() {
+                    let duration = GESTURES.shortcut_pressed_duration().get();
+                    if duration != Duration::default() {
+                        let dl = TIMERS.deadline(duration);
+                        dl.subscribe(UpdateOp::Update, WIDGET.id()).perm();
+                        shortcut_press = Some(dl);
+                        state.set(true);
                     }
+                } else {
+                    state.set(false);
                 }
             }
         }
         UiNodeOp::Update { updates } => {
             child.update(updates);
 
-            if let Some(timer) = &shortcut_press {
-                if timer.is_new() {
-                    shortcut_press = None;
-                    state.set(false);
-                }
+            if let Some(timer) = &shortcut_press
+                && timer.is_new()
+            {
+                shortcut_press = None;
+                state.set(false);
             }
         }
         _ => {}

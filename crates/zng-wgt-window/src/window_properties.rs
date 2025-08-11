@@ -185,12 +185,10 @@ impl SaveState {
                     }
                     try_win = WIDGET.parent_id().is_none();
                 }
-                if try_win {
-                    if let Some(win) = WINDOW.try_id() {
-                        let name = win.name();
-                        if !name.is_empty() {
-                            return Some(formatx!("win-{name}"));
-                        }
+                if try_win && let Some(win) = WINDOW.try_id() {
+                    let name = win.name();
+                    if !name.is_empty() {
+                        return Some(formatx!("win-{name}"));
                     }
                 }
                 None
@@ -430,11 +428,11 @@ pub fn config_block_window_load(child: impl IntoUiNode, enabled: impl IntoValue<
         UiNodeOp::Init => {
             if let Some(delay) = enabled.deadline() {
                 let cfg = CONFIG.status();
-                if !cfg.get().is_idle() {
-                    if let Some(_handle) = WINDOW.loading_handle(delay) {
-                        WIDGET.sub_var(&cfg);
-                        state = State::Block { _handle, cfg };
-                    }
+                if !cfg.get().is_idle()
+                    && let Some(_handle) = WINDOW.loading_handle(delay)
+                {
+                    WIDGET.sub_var(&cfg);
+                    state = State::Block { _handle, cfg };
                 }
             }
         }
@@ -442,10 +440,10 @@ pub fn config_block_window_load(child: impl IntoUiNode, enabled: impl IntoValue<
             state = State::Allow;
         }
         UiNodeOp::Update { .. } => {
-            if let State::Block { cfg, .. } = &state {
-                if cfg.get().is_idle() {
-                    state = State::Allow;
-                }
+            if let State::Block { cfg, .. } = &state
+                && cfg.get().is_idle()
+            {
+                state = State::Allow;
             }
         }
         _ => {}

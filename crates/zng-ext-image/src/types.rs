@@ -936,13 +936,13 @@ impl_from_and_into_var! {
     /// [`Read`]: ImageSource::Read
     fn from(s: &str) -> ImageSource {
         use crate::task::http::uri::*;
-        if let Ok(uri) = Uri::try_from(s) {
-            if let Some(scheme) = uri.scheme() {
-                if scheme == &Scheme::HTTPS || scheme == &Scheme::HTTP {
-                    return ImageSource::Download(uri, None);
-                } else if scheme.as_str() == "file" {
-                    return PathBuf::from(uri.path()).into();
-                }
+        if let Ok(uri) = Uri::try_from(s)
+            && let Some(scheme) = uri.scheme()
+        {
+            if scheme == &Scheme::HTTPS || scheme == &Scheme::HTTP {
+                return ImageSource::Download(uri, None);
+            } else if scheme.as_str() == "file" {
+                return PathBuf::from(uri.path()).into();
             }
         }
         PathBuf::from(s).into()
@@ -1195,10 +1195,10 @@ impl PathFilter {
 
     /// Allow any file inside the current executable directory or sub-directories.
     pub fn allow_exe_dir() -> Self {
-        if let Ok(mut p) = env::current_exe().and_then(dunce::canonicalize) {
-            if p.pop() {
-                return Self::allow_dir(p);
-            }
+        if let Ok(mut p) = env::current_exe().and_then(dunce::canonicalize)
+            && p.pop()
+        {
+            return Self::allow_dir(p);
         }
 
         // not `BlockAll` so this can still be composed using `or`.

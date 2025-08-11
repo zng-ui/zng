@@ -1001,11 +1001,11 @@ impl LoopTimer {
     /// Maybe awake timer.
     pub(crate) fn awake(&mut self) -> bool {
         self.now = INSTANT.now();
-        if let Some(d) = self.deadline {
-            if d.0 <= self.now {
-                self.deadline = None;
-                return true;
-            }
+        if let Some(d) = self.deadline
+            && d.0 <= self.now
+        {
+            self.deadline = None;
+            return true;
         }
         false
     }
@@ -1256,10 +1256,10 @@ impl AppExtension for AppIntrinsic {
     fn event_preview(&mut self, update: &mut EventUpdate) {
         if VIEW_PROCESS_INITED_EVENT.has(update) {
             let filter = APP_PROCESS_SV.read().device_events_filter.get();
-            if !filter.is_empty() {
-                if let Err(e) = VIEW_PROCESS.set_device_events_filter(filter) {
-                    tracing::error!("cannot set device events on the view-process, {e}");
-                }
+            if !filter.is_empty()
+                && let Err(e) = VIEW_PROCESS.set_device_events_filter(filter)
+            {
+                tracing::error!("cannot set device events on the view-process, {e}");
             }
         } else if let Some(args) = EXIT_CMD.on(update) {
             args.handle_enabled(&self.exit_handle, |_| {
@@ -1270,10 +1270,10 @@ impl AppExtension for AppIntrinsic {
 
     fn update(&mut self) {
         let mut sv = APP_PROCESS_SV.write();
-        if let Some(filter) = sv.device_events_filter.get_new() {
-            if let Err(e) = VIEW_PROCESS.set_device_events_filter(filter) {
-                tracing::error!("cannot set device events on the view-process, {e}");
-            }
+        if let Some(filter) = sv.device_events_filter.get_new()
+            && let Err(e) = VIEW_PROCESS.set_device_events_filter(filter)
+        {
+            tracing::error!("cannot set device events on the view-process, {e}");
         }
         if let Some(response) = sv.take_requests() {
             let args = ExitRequestedArgs::now();

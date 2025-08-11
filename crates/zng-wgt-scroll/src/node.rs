@@ -660,78 +660,77 @@ pub fn scroll_to_node(child: impl IntoUiNode) -> UiNode {
         UiNodeOp::Event { update } => {
             let self_id = WIDGET.id();
             if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                if let Some(path) = &args.new_focus {
-                    if (scroll_to.is_none() || !scroll_to_from_cmd)
-                        && path.contains(self_id)
-                        && path.widget_id() != self_id
-                        && !args.is_enabled_change()
-                        && !args.is_highlight_changed()
-                        && !args.is_focus_leave_enabled(self_id)
-                    {
-                        // focus move inside.
-                        if let Some(mode) = SCROLL_TO_FOCUSED_MODE_VAR.get() {
-                            // scroll_to_focused enabled
+                if let Some(path) = &args.new_focus
+                    && (scroll_to.is_none() || !scroll_to_from_cmd)
+                    && path.contains(self_id)
+                    && path.widget_id() != self_id
+                    && !args.is_enabled_change()
+                    && !args.is_highlight_changed()
+                    && !args.is_focus_leave_enabled(self_id)
+                {
+                    // focus move inside.
+                    if let Some(mode) = SCROLL_TO_FOCUSED_MODE_VAR.get() {
+                        // scroll_to_focused enabled
 
-                            let can_scroll_v = SCROLL.can_scroll_vertical().get();
-                            let can_scroll_h = SCROLL.can_scroll_horizontal().get();
-                            if can_scroll_v || can_scroll_h {
-                                // auto scroll if can scroll AND focus did not change by a click on the
-                                // Scroll! scope restoring focus back to a child AND the target is not already visible.
+                        let can_scroll_v = SCROLL.can_scroll_vertical().get();
+                        let can_scroll_h = SCROLL.can_scroll_horizontal().get();
+                        if can_scroll_v || can_scroll_h {
+                            // auto scroll if can scroll AND focus did not change by a click on the
+                            // Scroll! scope restoring focus back to a child AND the target is not already visible.
 
-                                let tree = WINDOW.info();
-                                if let Some(mut target) = tree.get(path.widget_id()) {
-                                    let mut is_focus_restore = false;
+                            let tree = WINDOW.info();
+                            if let Some(mut target) = tree.get(path.widget_id()) {
+                                let mut is_focus_restore = false;
 
-                                    if args.prev_focus.as_ref().map(|p| p.widget_id()) == Some(self_id) {
-                                        // focus moved to child from Scroll! scope (self)
+                                if args.prev_focus.as_ref().map(|p| p.widget_id()) == Some(self_id) {
+                                    // focus moved to child from Scroll! scope (self)
 
-                                        // Check if not caused by a click on a non-focusable child:
-                                        // - On a click in a non-focusable child the focus goes back to the Scroll!.
-                                        // - The Scroll! is a focus scope, it restores the focus to the previous focused child.
-                                        // - The clicked non-focusable becomes the `navigation_origin`.
-                                        // - We don't want to scroll back to the focusable child in this case.
-                                        if let Some(id) = FOCUS.navigation_origin().get() {
-                                            if let Some(origin) = tree.get(id) {
-                                                for a in origin.ancestors() {
-                                                    if a.id() == self_id {
-                                                        is_focus_restore = true;
-                                                        break;
-                                                    }
-                                                }
+                                    // Check if not caused by a click on a non-focusable child:
+                                    // - On a click in a non-focusable child the focus goes back to the Scroll!.
+                                    // - The Scroll! is a focus scope, it restores the focus to the previous focused child.
+                                    // - The clicked non-focusable becomes the `navigation_origin`.
+                                    // - We don't want to scroll back to the focusable child in this case.
+                                    if let Some(id) = FOCUS.navigation_origin().get()
+                                        && let Some(origin) = tree.get(id)
+                                    {
+                                        for a in origin.ancestors() {
+                                            if a.id() == self_id {
+                                                is_focus_restore = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if !is_focus_restore {
+                                    for a in target.ancestors() {
+                                        if a.is_scroll() {
+                                            if a.id() == self_id {
+                                                break;
+                                            } else {
+                                                // actually focus move inside an inner scroll,
+                                                // the inner-most scroll scrolls to the target,
+                                                // the outer scrolls scroll to the child scroll.
+                                                target = a;
                                             }
                                         }
                                     }
 
-                                    if !is_focus_restore {
-                                        for a in target.ancestors() {
-                                            if a.is_scroll() {
-                                                if a.id() == self_id {
-                                                    break;
-                                                } else {
-                                                    // actually focus move inside an inner scroll,
-                                                    // the inner-most scroll scrolls to the target,
-                                                    // the outer scrolls scroll to the child scroll.
-                                                    target = a;
-                                                }
-                                            }
-                                        }
+                                    // check if widget is not large and already visible.
+                                    let mut scroll = true;
+                                    let scroll_bounds = tree.get(self_id).unwrap().inner_bounds();
+                                    let target_bounds = target.inner_bounds();
+                                    if let Some(r) = scroll_bounds.intersection(&target_bounds) {
+                                        let is_large_visible_v =
+                                            can_scroll_v && r.height() > Px(20) && target_bounds.height() > scroll_bounds.height();
+                                        let is_large_visible_h =
+                                            can_scroll_h && r.width() > Px(20) && target_bounds.width() > scroll_bounds.width();
 
-                                        // check if widget is not large and already visible.
-                                        let mut scroll = true;
-                                        let scroll_bounds = tree.get(self_id).unwrap().inner_bounds();
-                                        let target_bounds = target.inner_bounds();
-                                        if let Some(r) = scroll_bounds.intersection(&target_bounds) {
-                                            let is_large_visible_v =
-                                                can_scroll_v && r.height() > Px(20) && target_bounds.height() > scroll_bounds.height();
-                                            let is_large_visible_h =
-                                                can_scroll_h && r.width() > Px(20) && target_bounds.width() > scroll_bounds.width();
-
-                                            scroll = !is_large_visible_v && !is_large_visible_h;
-                                        }
-                                        if scroll {
-                                            scroll_to = Some((Rect::from(target_bounds), mode, None, false));
-                                            WIDGET.layout();
-                                        }
+                                        scroll = !is_large_visible_v && !is_large_visible_h;
+                                    }
+                                    if scroll {
+                                        scroll_to = Some((Rect::from(target_bounds), mode, None, false));
+                                        WIDGET.layout();
                                     }
                                 }
                             }
@@ -1414,13 +1413,13 @@ pub fn auto_scroll_node(child: impl IntoUiNode) -> UiNode {
                             auto_scrolling = Some((wgt_id, closed));
                         }
                     }
-                } else if let Some(args) = AUTO_SCROLL_CMD.scoped(WIDGET.id()).on_unhandled(update) {
-                    if cmd_handle.is_enabled() {
-                        args.propagation().stop();
+                } else if let Some(args) = AUTO_SCROLL_CMD.scoped(WIDGET.id()).on_unhandled(update)
+                    && cmd_handle.is_enabled()
+                {
+                    args.propagation().stop();
 
-                        let acc = args.param::<DipVector>().copied().unwrap_or_else(DipVector::zero);
-                        SCROLL.auto_scroll(acc)
-                    }
+                    let acc = args.param::<DipVector>().copied().unwrap_or_else(DipVector::zero);
+                    SCROLL.auto_scroll(acc)
                 }
             }
             UiNodeOp::Layout { wl, final_size } => {
@@ -1443,10 +1442,10 @@ pub fn auto_scroll_node(child: impl IntoUiNode) -> UiNode {
                 }
                 Task::Disable => {
                     middle_handle = EventHandle::dummy();
-                    if let Some((wgt_id, closed)) = auto_scrolling.take() {
-                        if *closed.lock() == DInstant::MAX {
-                            LAYERS.remove(wgt_id);
-                        }
+                    if let Some((wgt_id, closed)) = auto_scrolling.take()
+                        && *closed.lock() == DInstant::MAX
+                    {
+                        LAYERS.remove(wgt_id);
                     }
                 }
             }
@@ -1542,11 +1541,11 @@ fn auto_scroller_node(child: impl IntoUiNode, closed: Arc<Mutex<DInstant>>) -> U
                     LAYERS.remove(WIDGET.id());
                     SCROLL.auto_scroll(DipVector::zero());
                 }
-            } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                if args.is_blur(WIDGET.id()) {
-                    LAYERS.remove(WIDGET.id());
-                    SCROLL.auto_scroll(DipVector::zero());
-                }
+            } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update)
+                && args.is_blur(WIDGET.id())
+            {
+                LAYERS.remove(WIDGET.id());
+                SCROLL.auto_scroll(DipVector::zero());
             }
         }
         _ => {}

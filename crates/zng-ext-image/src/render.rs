@@ -268,14 +268,12 @@ impl ImageManager {
     /// AppExtension::event_preview
     pub(super) fn event_preview_render(&mut self, update: &EventUpdate) {
         let imgs = IMAGES_SV.read();
-        if !imgs.render.active.is_empty() {
-            if let Some((id, img)) = imgs.render.windows().on_frame_image_ready(update) {
-                if let Some(a) = imgs.render.active.iter().find(|a| a.window_id == id) {
-                    if let Some(img_var) = a.image.upgrade() {
-                        img_var.set(img.clone());
-                    }
-                }
-            }
+        if !imgs.render.active.is_empty()
+            && let Some((id, img)) = imgs.render.windows().on_frame_image_ready(update)
+            && let Some(a) = imgs.render.active.iter().find(|a| a.window_id == id)
+            && let Some(img_var) = a.image.upgrade()
+        {
+            img_var.set(img.clone());
         }
     }
 }

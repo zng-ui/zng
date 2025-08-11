@@ -28,10 +28,10 @@ impl INSTANT {
     /// time on the same pass, you can use [`mode`](Self::mode) to check how `now` updates and you
     /// can use the `APP.pause_time_for_update` variable to disable pausing.
     pub fn now(&self) -> DInstant {
-        if zng_app_context::LocalContext::current_app().is_some() {
-            if let Some(now) = INSTANT_SV.read().now {
-                return now;
-            }
+        if zng_app_context::LocalContext::current_app().is_some()
+            && let Some(now) = INSTANT_SV.read().now
+        {
+            return now;
         }
         DInstant(self.epoch().elapsed())
     }

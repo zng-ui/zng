@@ -438,10 +438,10 @@ impl serde::Serialize for Align {
     where
         S: serde::Serializer,
     {
-        if serializer.is_human_readable() {
-            if let Some(name) = self.name() {
-                return AlignSerde::Named(Cow::Borrowed(name)).serialize(serializer);
-            }
+        if serializer.is_human_readable()
+            && let Some(name) = self.name()
+        {
+            return AlignSerde::Named(Cow::Borrowed(name)).serialize(serializer);
         }
 
         AlignSerde::Unnamed {

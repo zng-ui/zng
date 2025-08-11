@@ -264,10 +264,10 @@ impl LAYERS {
                 }
             }
             UiNodeOp::Event { update } => {
-                if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
-                    if args.window_id == WINDOW.id() {
-                        anchor_info = Some(get_anchor_info(anchor.get()));
-                    }
+                if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update)
+                    && args.window_id == WINDOW.id()
+                {
+                    anchor_info = Some(get_anchor_info(anchor.get()));
                 }
             }
             UiNodeOp::Update { .. } => {
@@ -564,14 +564,14 @@ impl LAYERS {
                                 if let Some(b) = cursor_bounds {
                                     // transform `place` to bounds space, clamp to bounds, transform back to window space.
                                     let transform = bounds_info.inner_transform();
-                                    if let Some(inverse) = transform.inverse() {
-                                        if let Some(p) = inverse.transform_point(place) {
-                                            let bound_p = PxPoint::new(p.x.clamp(b.min_x(), b.max_x()), p.y.clamp(b.min_y(), b.max_y()));
-                                            if p != bound_p {
-                                                if let Some(p) = transform.transform_point(bound_p) {
-                                                    place = p;
-                                                }
-                                            }
+                                    if let Some(inverse) = transform.inverse()
+                                        && let Some(p) = inverse.transform_point(place)
+                                    {
+                                        let bound_p = PxPoint::new(p.x.clamp(b.min_x(), b.max_x()), p.y.clamp(b.min_y(), b.max_y()));
+                                        if p != bound_p
+                                            && let Some(p) = transform.transform_point(bound_p)
+                                        {
+                                            place = p;
                                         }
                                     }
                                 }
@@ -930,10 +930,10 @@ impl serde::Serialize for LayerIndex {
     where
         S: serde::Serializer,
     {
-        if serializer.is_human_readable() {
-            if let Some(name) = self.name() {
-                return LayerIndexSerde::Named(name).serialize(serializer);
-            }
+        if serializer.is_human_readable()
+            && let Some(name) = self.name()
+        {
+            return LayerIndexSerde::Named(name).serialize(serializer);
         }
         LayerIndexSerde::Unnamed(self.0).serialize(serializer)
     }

@@ -264,10 +264,11 @@ impl TreeIter {
     pub(super) fn prev_siblings_in(wgt: WidgetInfo, ancestor: WidgetInfo) -> RevTreeIter {
         if let Some(wgt) = wgt.prev_sibling() {
             return Self::self_and_prev_siblings_in(wgt, ancestor);
-        } else if let Some(parent) = wgt.parent() {
-            if parent != ancestor && wgt.tree == ancestor.tree {
-                return Self::prev_siblings_in(parent, ancestor);
-            }
+        } else if let Some(parent) = wgt.parent()
+            && parent != ancestor
+            && wgt.tree == ancestor.tree
+        {
+            return Self::prev_siblings_in(parent, ancestor);
         }
         RevTreeIter {
             tree: wgt.tree,
@@ -293,10 +294,11 @@ impl TreeIter {
     pub(super) fn next_siblings_in(wgt: WidgetInfo, ancestor: WidgetInfo) -> Self {
         if let Some(wgt) = wgt.next_sibling() {
             return Self::self_and_next_siblings_in(wgt, ancestor);
-        } else if let Some(parent) = wgt.parent() {
-            if parent != ancestor && wgt.tree == ancestor.tree {
-                return Self::next_siblings_in(parent, ancestor);
-            }
+        } else if let Some(parent) = wgt.parent()
+            && parent != ancestor
+            && wgt.tree == ancestor.tree
+        {
+            return Self::next_siblings_in(parent, ancestor);
         }
         TreeIter {
             tree: wgt.tree,

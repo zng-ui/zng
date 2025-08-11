@@ -87,11 +87,10 @@ pub fn fallback_chrome() -> UiNode {
         });
 
         gesture::on_context_click = hn!(|args: &gesture::ClickArgs| {
-            if matches!(WINDOW.vars().state().get(), WindowState::Normal | WindowState::Maximized) && args.target.widget_id() == WIDGET.id() {
-                if let Some(p) = args.position() {
+            if matches!(WINDOW.vars().state().get(), WindowState::Normal | WindowState::Maximized) && args.target.widget_id() == WIDGET.id()
+                && let Some(p) = args.position() {
                     OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(WINDOW.id()).notify_param(p);
                 }
-            }
         });
     };
 
@@ -159,11 +158,10 @@ pub fn fallback_chrome() -> UiNode {
                 });
             });
             on_mouse_down = hn!(|args: &MouseInputArgs| {
-                if args.is_primary() {
-                    if let Some(d) = args.position_wgt().and_then(resize_direction) {
+                if args.is_primary()
+                    && let Some(d) = args.position_wgt().and_then(resize_direction) {
                         DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify_param(d);
                     }
-                }
             });
         }
     }

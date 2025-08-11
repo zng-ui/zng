@@ -149,10 +149,10 @@ fn tooltip_node(child: impl IntoUiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>
                             check_cursor = true;
                         }
                     }
-                } else if let Some(args) = INTERACTIVITY_CHANGED_EVENT.on(update) {
-                    if disabled_only != args.new_interactivity(WIDGET.id()).is_disabled() {
-                        show_hide = Some(false);
-                    }
+                } else if let Some(args) = INTERACTIVITY_CHANGED_EVENT.on(update)
+                    && disabled_only != args.new_interactivity(WIDGET.id()).is_disabled()
+                {
+                    show_hide = Some(false);
                 }
 
                 if let Some(show) = show_hide {
@@ -222,17 +222,17 @@ fn tooltip_node(child: impl IntoUiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>
                 }
             }
             UiNodeOp::Update { .. } => {
-                if let Some(d) = &open_delay {
-                    if d.get().has_elapsed() {
-                        open = true;
-                        open_delay = None;
-                    }
+                if let Some(d) = &open_delay
+                    && d.get().has_elapsed()
+                {
+                    open = true;
+                    open_delay = None;
                 }
-                if let Some(d) = &auto_close {
-                    if d.get().has_elapsed() {
-                        auto_close = None;
-                        POPUP.close(&pop_state);
-                    }
+                if let Some(d) = &auto_close
+                    && d.get().has_elapsed()
+                {
+                    auto_close = None;
+                    POPUP.close(&pop_state);
                 }
 
                 if let Some(PopupState::Closed) = pop_state.get_new() {
@@ -304,10 +304,11 @@ fn tooltip_node(child: impl IntoUiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>
                             }
                         };
 
-                        if let Some(t) = &args.target {
-                            if !t.contains(anchor_id) && !t.contains(tooltip_id) {
-                                POPUP.close_id(tooltip_id);
-                            }
+                        if let Some(t) = &args.target
+                            && !t.contains(anchor_id)
+                            && !t.contains(tooltip_id)
+                        {
+                            POPUP.close_id(tooltip_id);
                         }
                     }
                 }

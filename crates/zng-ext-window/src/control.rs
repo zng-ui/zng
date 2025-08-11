@@ -226,66 +226,66 @@ impl HeadedCtrl {
                 self.vars.0.restore_state.set(new_state.restore_state);
             }
 
-            if self.vars.min_size().is_new() || self.vars.max_size().is_new() {
-                if let Some(m) = &self.monitor {
-                    let scale_factor = m.scale_factor().get();
-                    let screen_ppi = m.ppi().get();
-                    let screen_size = m.size().get();
-                    let (min_size, max_size) = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-                        let min_size = self.vars.min_size().layout_dft(default_min_size(scale_factor));
-                        let max_size = self.vars.max_size().layout_dft(screen_size);
+            if (self.vars.min_size().is_new() || self.vars.max_size().is_new())
+                && let Some(m) = &self.monitor
+            {
+                let scale_factor = m.scale_factor().get();
+                let screen_ppi = m.ppi().get();
+                let screen_size = m.size().get();
+                let (min_size, max_size) = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+                    let min_size = self.vars.min_size().layout_dft(default_min_size(scale_factor));
+                    let max_size = self.vars.max_size().layout_dft(screen_size);
 
-                        (min_size.to_dip(scale_factor), max_size.to_dip(scale_factor))
-                    });
+                    (min_size.to_dip(scale_factor), max_size.to_dip(scale_factor))
+                });
 
-                    let size = new_state.restore_rect.size;
+                let size = new_state.restore_rect.size;
 
-                    new_state.restore_rect.size = size.min(max_size).max(min_size);
-                    new_state.min_size = min_size;
-                    new_state.max_size = max_size;
-                }
+                new_state.restore_rect.size = size.min(max_size).max(min_size);
+                new_state.min_size = min_size;
+                new_state.max_size = max_size;
             }
 
-            if let Some(auto) = self.vars.auto_size().get_new() {
-                if auto != AutoSize::DISABLED {
-                    UPDATES.layout_window(WINDOW.id());
-                }
+            if let Some(auto) = self.vars.auto_size().get_new()
+                && auto != AutoSize::DISABLED
+            {
+                UPDATES.layout_window(WINDOW.id());
             }
 
             if self.vars.size().is_new() {
                 let auto_size = self.vars.auto_size().get();
 
-                if auto_size != AutoSize::CONTENT {
-                    if let Some(m) = &self.monitor {
-                        let scale_factor = m.scale_factor().get();
-                        let screen_ppi = m.ppi().get();
-                        let screen_size = m.size().get();
-                        let size = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-                            self.vars.size().layout_dft(default_size(scale_factor)).to_dip(scale_factor)
-                        });
+                if auto_size != AutoSize::CONTENT
+                    && let Some(m) = &self.monitor
+                {
+                    let scale_factor = m.scale_factor().get();
+                    let screen_ppi = m.ppi().get();
+                    let screen_size = m.size().get();
+                    let size = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+                        self.vars.size().layout_dft(default_size(scale_factor)).to_dip(scale_factor)
+                    });
 
-                        let size = size.min(new_state.max_size).max(new_state.min_size);
+                    let size = size.min(new_state.max_size).max(new_state.min_size);
 
-                        if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                            new_state.restore_rect.size.width = size.width;
-                        }
-                        if !auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                            new_state.restore_rect.size.height = size.height;
-                        }
+                    if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                        new_state.restore_rect.size.width = size.width;
+                    }
+                    if !auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                        new_state.restore_rect.size.height = size.height;
                     }
                 }
             }
 
-            if let Some(pos) = self.vars.position().get_new() {
-                if let Some(m) = &self.monitor {
-                    let scale_factor = m.scale_factor().get();
-                    let screen_ppi = m.ppi().get();
-                    let screen_size = m.size().get();
-                    let pos = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-                        pos.layout_dft(PxPoint::new(Px(50), Px(50)))
-                    });
-                    new_state.restore_rect.origin = pos.to_dip(scale_factor);
-                }
+            if let Some(pos) = self.vars.position().get_new()
+                && let Some(m) = &self.monitor
+            {
+                let scale_factor = m.scale_factor().get();
+                let screen_ppi = m.ppi().get();
+                let screen_size = m.size().get();
+                let pos = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+                    pos.layout_dft(PxPoint::new(Px(50), Px(50)))
+                });
+                new_state.restore_rect.origin = pos.to_dip(scale_factor);
             }
 
             if let Some(mut visible) = self.vars.visible().get_new() {
@@ -330,24 +330,24 @@ impl HeadedCtrl {
             }
         }
 
-        if let Some(font_size) = self.vars.font_size().get_new() {
-            if let Some(m) = &self.monitor {
-                let scale_factor = m.scale_factor().get();
-                let screen_ppi = m.ppi().get();
-                let screen_size = m.size().get();
-                let mut font_size_px = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-                    font_size.layout_dft_x(Length::pt_to_px(11.0, scale_factor))
-                });
-                if font_size_px < Px(0) {
-                    tracing::error!("invalid font size {font_size:?} => {font_size_px:?}");
-                    font_size_px = Length::pt_to_px(11.0, scale_factor);
-                }
-                let font_size_dip = font_size_px.to_dip(scale_factor);
+        if let Some(font_size) = self.vars.font_size().get_new()
+            && let Some(m) = &self.monitor
+        {
+            let scale_factor = m.scale_factor().get();
+            let screen_ppi = m.ppi().get();
+            let screen_size = m.size().get();
+            let mut font_size_px = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+                font_size.layout_dft_x(Length::pt_to_px(11.0, scale_factor))
+            });
+            if font_size_px < Px(0) {
+                tracing::error!("invalid font size {font_size:?} => {font_size_px:?}");
+                font_size_px = Length::pt_to_px(11.0, scale_factor);
+            }
+            let font_size_dip = font_size_px.to_dip(scale_factor);
 
-                if font_size_dip != self.root_font_size {
-                    self.root_font_size = font_size_dip;
-                    UPDATES.layout_window(WINDOW.id());
-                }
+            if font_size_dip != self.root_font_size {
+                self.root_font_size = font_size_dip;
+                UPDATES.layout_window(WINDOW.id());
             }
         }
 
@@ -577,16 +577,16 @@ impl HeadedCtrl {
                 let mut pos_change = None;
                 let mut size_change = None;
 
-                if let Some(monitor) = args.monitor {
-                    if self.vars.0.actual_monitor.get().map(|m| m != monitor).unwrap_or(true) {
-                        self.vars.0.actual_monitor.set(Some(monitor));
-                        self.monitor = MONITORS.monitor(monitor);
-                        if let Some(m) = &self.monitor {
-                            let fct = m.scale_factor().get();
-                            self.vars.0.scale_factor.set(fct);
-                        }
-                        UPDATES.layout_window(WINDOW.id());
+                if let Some(monitor) = args.monitor
+                    && self.vars.0.actual_monitor.get().map(|m| m != monitor).unwrap_or(true)
+                {
+                    self.vars.0.actual_monitor.set(Some(monitor));
+                    self.monitor = MONITORS.monitor(monitor);
+                    if let Some(m) = &self.monitor {
+                        let fct = m.scale_factor().get();
+                        self.vars.0.scale_factor.set(fct);
                     }
+                    UPDATES.layout_window(WINDOW.id());
                 }
 
                 if let Some(state) = args.state.clone() {
@@ -628,25 +628,25 @@ impl HeadedCtrl {
                     self.state = Some(state);
                 }
 
-                if let Some((global_pos, pos)) = args.position {
-                    if self.vars.0.actual_position.get() != pos || self.vars.0.global_position.get() != global_pos {
-                        self.vars.0.actual_position.set(pos);
-                        self.vars.0.global_position.set(global_pos);
-                        pos_change = Some((global_pos, pos));
-                    }
+                if let Some((global_pos, pos)) = args.position
+                    && (self.vars.0.actual_position.get() != pos || self.vars.0.global_position.get() != global_pos)
+                {
+                    self.vars.0.actual_position.set(pos);
+                    self.vars.0.global_position.set(global_pos);
+                    pos_change = Some((global_pos, pos));
                 }
 
-                if let Some(size) = args.size {
-                    if self.vars.0.actual_size.get() != size {
-                        self.vars.0.actual_size.set(size);
-                        size_change = Some(size);
+                if let Some(size) = args.size
+                    && self.vars.0.actual_size.get() != size
+                {
+                    self.vars.0.actual_size.set(size);
+                    size_change = Some(size);
 
-                        UPDATES.layout_window(WINDOW.id());
+                    UPDATES.layout_window(WINDOW.id());
 
-                        if args.cause == EventCause::System {
-                            // resize by system (user)
-                            self.vars.auto_size().set(AutoSize::DISABLED);
-                        }
+                    if args.cause == EventCause::System {
+                        // resize by system (user)
+                        self.vars.auto_size().set(AutoSize::DISABLED);
                     }
                 }
 
@@ -702,11 +702,11 @@ impl HeadedCtrl {
                 });
             }
         } else if let Some(args) = MONITORS_CHANGED_EVENT.on(update) {
-            if let Some(m) = &self.monitor {
-                if args.removed.contains(&m.id()) {
-                    self.monitor = None;
-                    self.vars.0.actual_monitor.set(None);
-                }
+            if let Some(m) = &self.monitor
+                && args.removed.contains(&m.id())
+            {
+                self.monitor = None;
+                self.vars.0.actual_monitor.set(None);
             }
             self.vars.monitor().update();
         } else if let Some(args) = RAW_WINDOW_OPEN_EVENT.on(update) {
@@ -817,23 +817,22 @@ impl HeadedCtrl {
                     }
                 });
             }
-        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            if let Some(view) = &self.window {
-                if view.renderer().generation() != Ok(args.generation) {
-                    debug_assert!(args.is_respawn);
+        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update)
+            && let Some(view) = &self.window
+            && view.renderer().generation() != Ok(args.generation)
+        {
+            debug_assert!(args.is_respawn);
 
-                    self.window = None;
-                    self.cancel_ime_handle = CommandHandle::dummy();
-                    self.open_title_menu_handle = CommandHandle::dummy();
-                    self.drag_move_handle = CommandHandle::dummy();
-                    self.waiting_view = false;
-                    self.delayed_view_updates = vec![];
-                    self.respawned = true;
+            self.window = None;
+            self.cancel_ime_handle = CommandHandle::dummy();
+            self.open_title_menu_handle = CommandHandle::dummy();
+            self.drag_move_handle = CommandHandle::dummy();
+            self.waiting_view = false;
+            self.delayed_view_updates = vec![];
+            self.respawned = true;
 
-                    let w_id = WINDOW.id();
-                    UPDATES.layout_window(w_id).render_window(w_id);
-                }
-            }
+            let w_id = WINDOW.id();
+            UPDATES.layout_window(w_id).render_window(w_id);
         }
 
         self.content.pre_event(update);
@@ -903,17 +902,14 @@ impl HeadedCtrl {
     fn accessible_focused(&self, info: &WidgetInfoTree) -> Option<WidgetId> {
         if WINDOWS.is_focused(info.window_id()).unwrap_or(false) {
             WINDOW_FOCUS.focused().with(|p| {
-                if let Some(p) = p {
-                    if p.window_id() == info.window_id() {
-                        if let Some(wgt) = info.get(p.widget_id()) {
-                            if let Some(wgt) = wgt.access() {
-                                if wgt.is_accessible() {
-                                    // is focused accessible widget inside window
-                                    return Some(wgt.info().id());
-                                }
-                            }
-                        }
-                    }
+                if let Some(p) = p
+                    && p.window_id() == info.window_id()
+                    && let Some(wgt) = info.get(p.widget_id())
+                    && let Some(wgt) = wgt.access()
+                    && wgt.is_accessible()
+                {
+                    // is focused accessible widget inside window
+                    return Some(wgt.info().id());
                 }
                 None
             })
@@ -942,10 +938,12 @@ impl HeadedCtrl {
     fn update_ime(&mut self) {
         WINDOW_FOCUS.focused().with(|f| {
             let mut ime_path = None;
-            if let Some(f) = f {
-                if f.interactivity().is_enabled() && f.window_id() == WINDOW.id() && super::IME_EVENT.is_subscriber(f.widget_id()) {
-                    ime_path = Some(f.as_path().clone());
-                }
+            if let Some(f) = f
+                && f.interactivity().is_enabled()
+                && f.window_id() == WINDOW.id()
+                && super::IME_EVENT.is_subscriber(f.widget_id())
+            {
+                ime_path = Some(f.as_path().clone());
             }
 
             if ime_path.as_ref() == self.ime_info.as_ref().map(|p| &p.target) {
@@ -955,12 +953,12 @@ impl HeadedCtrl {
             if let Some(p) = ime_path {
                 let info = WINDOW.info();
                 if let Some(w) = info.get(p.widget_id()) {
-                    if let Some(prev) = self.ime_info.take() {
-                        if prev.has_preview {
-                            // clear
-                            let args = super::ImeArgs::now(prev.target, "", (0, 0));
-                            super::IME_EVENT.notify(args);
-                        }
+                    if let Some(prev) = self.ime_info.take()
+                        && prev.has_preview
+                    {
+                        // clear
+                        let args = super::ImeArgs::now(prev.target, "", (0, 0));
+                        super::IME_EVENT.notify(args);
                     }
 
                     self.ime_info = Some(ImeInfo {
@@ -1017,15 +1015,15 @@ impl HeadedCtrl {
     fn layout_init(&mut self) {
         // await images load up to 1s.
         if self.img_res.deadline.has_elapsed() {
-            if let Some(icon) = &self.img_res.icon_var {
-                if icon.get().is_loading() {
-                    return;
-                }
+            if let Some(icon) = &self.img_res.icon_var
+                && icon.get().is_loading()
+            {
+                return;
             }
-            if let Some(cursor) = &self.img_res.cursor_var {
-                if cursor.get().is_loading() {
-                    return;
-                }
+            if let Some(cursor) = &self.img_res.cursor_var
+                && cursor.get().is_loading()
+            {
+                return;
             }
         }
         // update window "load" state, `is_loaded` and the `WindowLoadEvent` happen here.
@@ -1099,14 +1097,14 @@ impl HeadedCtrl {
                 // center monitor if no parent
                 let mut parent_rect = screen_rect;
 
-                if let Some(parent) = self.vars.parent().get() {
-                    if let Ok(w) = WINDOWS.vars(parent) {
-                        let factor = w.scale_factor().get();
-                        let pos = w.actual_position().get().to_px(factor);
-                        let size = w.actual_size().get().to_px(factor);
+                if let Some(parent) = self.vars.parent().get()
+                    && let Ok(w) = WINDOWS.vars(parent)
+                {
+                    let factor = w.scale_factor().get();
+                    let pos = w.actual_position().get().to_px(factor);
+                    let size = w.actual_size().get().to_px(factor);
 
-                        parent_rect = PxRect::new(pos, size);
-                    }
+                    parent_rect = PxRect::new(pos, size);
                 }
 
                 PxPoint::new(
@@ -1324,24 +1322,24 @@ impl HeadedCtrl {
                 }
             } else {
                 let info = WINDOW.info();
-                if info.access_enabled() == AccessEnabled::VIEW {
-                    if let Some(mut update) = info.to_access_updates_bounds() {
-                        // updated transforms or visibility access info
-                        update.focused = self.accessible_focused(&info).unwrap_or_else(|| info.root().id()).into();
-                        let _ = view.access_update(update);
-                    }
+                if info.access_enabled() == AccessEnabled::VIEW
+                    && let Some(mut update) = info.to_access_updates_bounds()
+                {
+                    // updated transforms or visibility access info
+                    update.focused = self.accessible_focused(&info).unwrap_or_else(|| info.root().id()).into();
+                    let _ = view.access_update(update);
                 }
             }
 
-            if let Some(ime) = &mut self.ime_info {
-                if let Some(w) = &self.window {
-                    let info = WINDOW.info();
-                    if let Some(wgt) = info.get(ime.target.widget_id()) {
-                        let area = wgt.ime_area().to_dip(scale_factor);
-                        if ime.area != area {
-                            ime.area = area;
-                            let _ = w.set_ime_area(Some(area));
-                        }
+            if let Some(ime) = &mut self.ime_info
+                && let Some(w) = &self.window
+            {
+                let info = WINDOW.info();
+                if let Some(wgt) = info.get(ime.target.widget_id()) {
+                    let area = wgt.ime_area().to_dip(scale_factor);
+                    if ime.area != area {
+                        ime.area = area;
+                        let _ = w.set_ime_area(Some(area));
                     }
                 }
             }
@@ -1363,10 +1361,10 @@ impl HeadedCtrl {
     }
 
     pub fn start_drag_drop(&mut self, data: Vec<DragDropData>, allowed_effects: DragDropEffect) -> Result<DragDropId, DragDropError> {
-        if let Some(view) = &self.window {
-            if let Ok(r) = view.start_drag_drop(data, allowed_effects) {
-                return r;
-            }
+        if let Some(view) = &self.window
+            && let Ok(r) = view.start_drag_drop(data, allowed_effects)
+        {
+            return r;
         }
         Err(DragDropError::CannotStart("view not available".into()))
     }
@@ -1435,13 +1433,13 @@ fn update_parent(parent: &mut Option<WindowId>, vars: &WindowVars) -> bool {
                     }
 
                     // remove previous
-                    if let Some(parent_id) = parent.take() {
-                        if let Ok(parent_vars) = WINDOWS.vars(parent_id) {
-                            let id = WINDOW.id();
-                            parent_vars.0.children.modify(move |c| {
-                                c.remove(&id);
-                            });
-                        }
+                    if let Some(parent_id) = parent.take()
+                        && let Ok(parent_vars) = WINDOWS.vars(parent_id)
+                    {
+                        let id = WINDOW.id();
+                        parent_vars.0.children.modify(move |c| {
+                            c.remove(&id);
+                        });
                     }
 
                     // insert new
@@ -1575,17 +1573,16 @@ impl HeadlessWithRendererCtrl {
 
                 UPDATES.layout_window(args.window_id).render_window(args.window_id);
             }
-        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            if let Some(view) = &self.surface {
-                if view.renderer().generation() != Ok(args.generation) {
-                    debug_assert!(args.is_respawn);
+        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update)
+            && let Some(view) = &self.surface
+            && view.renderer().generation() != Ok(args.generation)
+        {
+            debug_assert!(args.is_respawn);
 
-                    self.surface = None;
+            self.surface = None;
 
-                    let w_id = WINDOW.id();
-                    UPDATES.layout_window(w_id).render_window(w_id);
-                }
-            }
+            let w_id = WINDOW.id();
+            UPDATES.layout_window(w_id).render_window(w_id);
         }
 
         self.content.pre_event(update);
@@ -2486,17 +2483,17 @@ impl NestedCtrl {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             let mut c = self.c.lock();
             let c = &mut *c;
-            if let Some((win, _)) = c.host {
-                if args.window_id == win {
-                    let image = match mem::take(&mut c.pending_frame_capture) {
-                        FrameCapture::None => None,
-                        FrameCapture::Full => Some(WINDOWS.frame_image(win, None).get()),
-                        FrameCapture::Mask(m) => Some(WINDOWS.frame_image(win, Some(m)).get()),
-                        _ => None,
-                    };
-                    let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), win, args.frame_id, image);
-                    FRAME_IMAGE_READY_EVENT.notify(args);
-                }
+            if let Some((win, _)) = c.host
+                && args.window_id == win
+            {
+                let image = match mem::take(&mut c.pending_frame_capture) {
+                    FrameCapture::None => None,
+                    FrameCapture::Full => Some(WINDOWS.frame_image(win, None).get()),
+                    FrameCapture::Mask(m) => Some(WINDOWS.frame_image(win, Some(m)).get()),
+                    _ => None,
+                };
+                let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), win, args.frame_id, image);
+                FRAME_IMAGE_READY_EVENT.notify(args);
             }
         } else {
             self.c.lock().content.pre_event(update)

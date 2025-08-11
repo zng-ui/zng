@@ -231,8 +231,7 @@ pub fn lazy(child: impl IntoUiNode, mode: impl IntoVar<LazyMode>) -> UiNode {
 
                 let lazy_inline = c.node_impl::<UiVec>()[0]
                     .as_widget()
-                    .map(|mut w| w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline()))
-                    .flatten();
+                    .and_then(|mut w| w.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline()));
                 if let Some(actual_inline) = wm.inline() {
                     if let Some(lazy_inline) = lazy_inline {
                         fn validate<T: PartialEq + fmt::Debug>(actual: T, lazy: T, name: &'static str) {

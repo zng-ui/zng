@@ -29,10 +29,10 @@ pub struct TraceArgs {
 pub fn run(args: TraceArgs) {
     let mut cmd = {
         let mut cmd = args.command.into_iter().peekable();
-        if let Some(c) = cmd.peek() {
-            if c == "--" {
-                cmd.next();
-            }
+        if let Some(c) = cmd.peek()
+            && c == "--"
+        {
+            cmd.next();
         }
         if let Some(c) = cmd.next() {
             let mut o = std::process::Command::new(c);
@@ -57,10 +57,10 @@ pub fn run(args: TraceArgs) {
     let _ = std::fs::remove_dir_all(&out_dir);
 
     let out_file = PathBuf::from(args.output.replace("{timestamp}", &ts).replace("{ts}", &ts));
-    if let Some(p) = out_file.parent() {
-        if let Err(e) = std::fs::create_dir_all(p) {
-            fatal!("cannot output to {}, {e}", out_file.display());
-        }
+    if let Some(p) = out_file.parent()
+        && let Err(e) = std::fs::create_dir_all(p)
+    {
+        fatal!("cannot output to {}, {e}", out_file.display());
     }
     let mut out = match std::fs::File::create(&out_file) {
         Ok(f) => f,

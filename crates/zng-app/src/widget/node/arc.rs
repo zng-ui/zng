@@ -13,6 +13,7 @@ struct SlotData {
     item: Mutex<UiNode>,
     slots: Mutex<SlotsData>,
 }
+#[derive(Default)]
 struct SlotsData {
     // id of the next slot created.
     next_slot: SlotId,
@@ -30,16 +31,6 @@ impl SlotsData {
         let r = self.next_slot;
         self.next_slot = self.next_slot.wrapping_add(1);
         r
-    }
-}
-impl Default for SlotsData {
-    fn default() -> Self {
-        Self {
-            next_slot: Default::default(),
-            owner: Default::default(),
-            move_request: Default::default(),
-            replacement: Default::default(),
-        }
     }
 }
 
@@ -276,11 +267,11 @@ mod impls {
             {
                 let mut slots = self.rc.slots.lock();
                 let slots = &mut *slots;
-                if let Some((slot, _)) = &slots.owner {
-                    if *slot == self.slot {
-                        slots.owner = None;
-                        was_owner = true;
-                    }
+                if let Some((slot, _)) = &slots.owner
+                    && *slot == self.slot
+                {
+                    slots.owner = None;
+                    was_owner = true;
                 }
             }
 
@@ -342,13 +333,14 @@ mod impls {
                 self.take();
             } else {
                 let mut slots = self.rc.slots.lock();
-                if let Some((slot, _)) = &slots.move_request {
-                    if *slot == self.slot && slots.owner.is_none() {
-                        slots.move_request = None;
-                        // requested move in prev update, now can take ownership.
-                        drop(slots);
-                        self.take();
-                    }
+                if let Some((slot, _)) = &slots.move_request
+                    && *slot == self.slot
+                    && slots.owner.is_none()
+                {
+                    slots.move_request = None;
+                    // requested move in prev update, now can take ownership.
+                    drop(slots);
+                    self.take();
                 }
             }
         }
@@ -382,11 +374,11 @@ mod impls {
         }
 
         fn delegate_owned<R>(&self, del: impl FnOnce(&UiNode) -> R) -> Option<R> {
-            if self.is_owner() { Some(del(&*self.rc.item.lock())) } else { None }
+            if self.is_owner() { Some(del(&self.rc.item.lock())) } else { None }
         }
         fn delegate_owned_mut<R>(&mut self, del: impl FnOnce(&mut UiNode) -> R) -> Option<R> {
             if self.is_owner() {
-                Some(del(&mut *self.rc.item.lock()))
+                Some(del(&mut self.rc.item.lock()))
             } else {
                 None
             }
@@ -394,7 +386,7 @@ mod impls {
 
         fn delegate_owned_mut_with_handles<R>(&mut self, del: impl FnOnce(&mut UiNode) -> R) -> Option<R> {
             if self.is_owner() {
-                WIDGET.with_handles(&mut self.wgt_handles, || Some(del(&mut *self.rc.item.lock())))
+                WIDGET.with_handles(&mut self.wgt_handles, || Some(del(&mut self.rc.item.lock())))
             } else {
                 None
             }

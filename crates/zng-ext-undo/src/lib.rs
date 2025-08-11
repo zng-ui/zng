@@ -1234,10 +1234,10 @@ impl CommandUndoExt for Command {
 
     fn undo_stack(self) -> UndoStackInfo {
         let scope = self.with_meta(|m| m.get(*WEAK_UNDO_SCOPE_ID));
-        if let Some(scope) = scope {
-            if let Some(s) = scope.0.upgrade() {
-                return UndoStackInfo::undo(&s, scope.1.get());
-            }
+        if let Some(scope) = scope
+            && let Some(s) = scope.0.upgrade()
+        {
+            return UndoStackInfo::undo(&s, scope.1.get());
         }
 
         if let CommandScope::App = self.scope() {
@@ -1254,10 +1254,10 @@ impl CommandUndoExt for Command {
 
     fn redo_stack(self) -> UndoStackInfo {
         let scope = self.with_meta(|m| m.get(*WEAK_UNDO_SCOPE_ID));
-        if let Some(scope) = scope {
-            if let Some(s) = scope.0.upgrade() {
-                return UndoStackInfo::redo(&s, scope.1.get());
-            }
+        if let Some(scope) = scope
+            && let Some(s) = scope.0.upgrade()
+        {
+            return UndoStackInfo::redo(&s, scope.1.get());
         }
 
         if let CommandScope::App = self.scope() {

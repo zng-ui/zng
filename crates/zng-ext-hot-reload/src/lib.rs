@@ -250,43 +250,43 @@ impl AppExtension for HotReloadManager {
 
     fn update_preview(&mut self) {
         for (manifest_dir, watched) in self.libs.iter_mut() {
-            if let Some(b) = &watched.building {
-                if let Some(r) = b.rebuild_load.rsp() {
-                    let build_time = b.start_time.elapsed();
-                    let mut lib = None;
-                    let status_r = match r {
-                        Ok(l) => {
-                            lib = Some(l);
-                            Ok(build_time)
-                        }
-                        Err(e) => {
-                            if matches!(&e, BuildError::Cancelled) {
-                                tracing::warn!("cancelled rebuild `{manifest_dir}`");
-                            } else {
-                                tracing::error!("failed rebuild `{manifest_dir}`, {e}");
-                            }
-                            Err(e)
-                        }
-                    };
-                    if let Some(lib) = lib {
-                        tracing::info!("rebuilt and reloaded `{manifest_dir}` in {build_time:?}");
-                        HOT_RELOAD.set(lib.clone());
-                        HOT_RELOAD_EVENT.notify(HotReloadArgs::now(lib));
+            if let Some(b) = &watched.building
+                && let Some(r) = b.rebuild_load.rsp()
+            {
+                let build_time = b.start_time.elapsed();
+                let mut lib = None;
+                let status_r = match r {
+                    Ok(l) => {
+                        lib = Some(l);
+                        Ok(build_time)
                     }
-
-                    watched.building = None;
-
-                    let manifest_dir = *manifest_dir;
-                    HOT_RELOAD_SV.read().status.modify(move |s| {
-                        let s = s.iter_mut().find(|s| s.manifest_dir == manifest_dir).unwrap();
-                        s.building = None;
-                        s.last_build = status_r;
-                        s.rebuild_count += 1;
-                    });
-
-                    if mem::take(&mut watched.rebuild_again) {
-                        HOT_RELOAD_SV.write().rebuild_requests.push(manifest_dir.into());
+                    Err(e) => {
+                        if matches!(&e, BuildError::Cancelled) {
+                            tracing::warn!("cancelled rebuild `{manifest_dir}`");
+                        } else {
+                            tracing::error!("failed rebuild `{manifest_dir}`, {e}");
+                        }
+                        Err(e)
                     }
+                };
+                if let Some(lib) = lib {
+                    tracing::info!("rebuilt and reloaded `{manifest_dir}` in {build_time:?}");
+                    HOT_RELOAD.set(lib.clone());
+                    HOT_RELOAD_EVENT.notify(HotReloadArgs::now(lib));
+                }
+
+                watched.building = None;
+
+                let manifest_dir = *manifest_dir;
+                HOT_RELOAD_SV.read().status.modify(move |s| {
+                    let s = s.iter_mut().find(|s| s.manifest_dir == manifest_dir).unwrap();
+                    s.building = None;
+                    s.last_build = status_r;
+                    s.rebuild_count += 1;
+                });
+
+                if mem::take(&mut watched.rebuild_again) {
+                    HOT_RELOAD_SV.write().rebuild_requests.push(manifest_dir.into());
                 }
             }
         }
@@ -294,10 +294,10 @@ impl AppExtension for HotReloadManager {
         let mut sv = HOT_RELOAD_SV.write();
         let requests: HashSet<Txt> = sv.cancel_requests.drain(..).collect();
         for r in requests {
-            if let Some(watched) = self.libs.get_mut(r.as_str()) {
-                if let Some(b) = &watched.building {
-                    b.cancel_build.set();
-                }
+            if let Some(watched) = self.libs.get_mut(r.as_str())
+                && let Some(b) = &watched.building
+            {
+                b.cancel_build.set();
             }
         }
 

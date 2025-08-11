@@ -385,16 +385,16 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
                         });
                     }
                 }
-            } else if let Some(args) = cmd::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
-                if args.param.is_none() {
-                    args.propagation().stop();
-                    value.with(|value| {
-                        let selected = checked.get() == Some(true);
-                        if !selected && select(value) {
-                            checked.set(Some(true));
-                        }
-                    });
-                }
+            } else if let Some(args) = cmd::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update)
+                && args.param.is_none()
+            {
+                args.propagation().stop();
+                value.with(|value| {
+                    let selected = checked.get() == Some(true);
+                    if !selected && select(value) {
+                        checked.set(Some(true));
+                    }
+                });
             }
         }
         UiNodeOp::Update { .. } => {
@@ -408,11 +408,11 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
                 });
 
                 // auto deselect prev, need to be done after potential auto select new to avoid `CannotClear` error.
-                if let Some(prev) = prev_value.take() {
-                    if DESELECT_ON_NEW_VAR.get() {
-                        deselect(&*prev);
-                        prev_value = Some(new.clone_boxed());
-                    }
+                if let Some(prev) = prev_value.take()
+                    && DESELECT_ON_NEW_VAR.get()
+                {
+                    deselect(&*prev);
+                    prev_value = Some(new.clone_boxed());
                 }
             });
             let selected = selected.unwrap_or_else(|| {
@@ -487,12 +487,12 @@ pub fn selector(child: impl IntoUiNode, selector: impl IntoValue<Selector>) -> U
         UiNodeOp::Event { update } => {
             c.event(update);
 
-            if let Some(args) = cmd::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
-                if let Some(p) = args.param::<cmd::SelectOp>() {
-                    args.propagation().stop();
+            if let Some(args) = cmd::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update)
+                && let Some(p) = args.param::<cmd::SelectOp>()
+            {
+                args.propagation().stop();
 
-                    p.call();
-                }
+                p.call();
             }
         }
         _ => {}

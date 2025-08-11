@@ -361,10 +361,10 @@ impl LocalContext {
             });
 
             let mut _tracing_restore = None;
-            if let Some(d) = &self.tracing {
-                if over {
-                    _tracing_restore = Some(tracing::dispatcher::set_default(d));
-                }
+            if let Some(d) = &self.tracing
+                && over
+            {
+                _tracing_restore = Some(tracing::dispatcher::set_default(d));
             }
 
             let _restore = RunOnDrop::new(|| {

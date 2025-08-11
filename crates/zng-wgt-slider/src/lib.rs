@@ -554,22 +554,22 @@ fn slider_track_node() -> UiNode {
             let mut pos = None;
 
             if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
-                if let Some(cap) = &args.capture {
-                    if cap.target.contains(WIDGET.id()) {
-                        pos = Some(args.position);
-                        args.propagation().stop();
-                    }
+                if let Some(cap) = &args.capture
+                    && cap.target.contains(WIDGET.id())
+                {
+                    pos = Some(args.position);
+                    args.propagation().stop();
                 }
             } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
                 if args.state == ButtonState::Pressed {
                     pos = Some(args.position);
                     args.propagation().stop();
                 }
-            } else if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
-                if args.phase == TouchPhase::Start {
-                    pos = Some(args.position);
-                    args.propagation().stop();
-                }
+            } else if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update)
+                && args.phase == TouchPhase::Start
+            {
+                pos = Some(args.position);
+                args.propagation().stop();
             }
 
             if let Some(pos) = pos {

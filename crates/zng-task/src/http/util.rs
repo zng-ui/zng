@@ -129,10 +129,10 @@ pub fn test_log() {
 
     static IS_SET: AtomicBool = AtomicBool::new(false);
 
-    if !IS_SET.swap(true, Ordering::Relaxed) {
-        if let Err(e) = subscriber::set_global_default(TestSubscriber) {
-            panic!("failed to set test log subscriber, {e:?}");
-        }
+    if !IS_SET.swap(true, Ordering::Relaxed)
+        && let Err(e) = subscriber::set_global_default(TestSubscriber)
+    {
+        panic!("failed to set test log subscriber, {e:?}");
     }
 }
 

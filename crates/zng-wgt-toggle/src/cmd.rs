@@ -71,10 +71,10 @@ impl SelectOp {
     pub fn select(value: BoxAnyVarValue) -> Self {
         let mut value = Some(value);
         Self::new(move || {
-            if let Some(value) = value.take() {
-                if let Err(e) = SELECTOR.get().select(value) {
-                    tracing::error!("select error: {e}");
-                }
+            if let Some(value) = value.take()
+                && let Err(e) = SELECTOR.get().select(value)
+            {
+                tracing::error!("select error: {e}");
             }
         })
     }

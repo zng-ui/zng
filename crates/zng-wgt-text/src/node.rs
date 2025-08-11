@@ -871,23 +871,23 @@ where
             _error_note = DataNoteHandle::dummy();
         }
         UiNodeOp::Event { update } => {
-            if let Some(args) = super::cmd::PARSE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
-                if matches!(state.load(Ordering::Relaxed), State::Pending) {
-                    // requested parse and parse is pending
+            if let Some(args) = super::cmd::PARSE_CMD.scoped(WIDGET.id()).on_unhandled(update)
+                && matches!(state.load(Ordering::Relaxed), State::Pending)
+            {
+                // requested parse and parse is pending
 
-                    state.store(State::Requested, Ordering::Relaxed);
-                    TEXT.resolved().txt.update();
-                    args.propagation().stop();
-                }
+                state.store(State::Requested, Ordering::Relaxed);
+                TEXT.resolved().txt.update();
+                args.propagation().stop();
             }
         }
         UiNodeOp::Update { .. } => {
-            if let Some(true) = TXT_PARSE_LIVE_VAR.get_new() {
-                if matches!(state.load(Ordering::Relaxed), State::Pending) {
-                    // enabled live parse and parse is pending
+            if let Some(true) = TXT_PARSE_LIVE_VAR.get_new()
+                && matches!(state.load(Ordering::Relaxed), State::Pending)
+            {
+                // enabled live parse and parse is pending
 
-                    TEXT.resolved().txt.update();
-                }
+                TEXT.resolved().txt.update();
             }
 
             if let Some(error) = error.get_new() {
@@ -937,14 +937,14 @@ pub(super) fn on_change_stop(child: impl IntoUiNode, mut handler: impl WidgetHan
                 let deadline = TIMERS.deadline(CHANGE_STOP_DELAY_VAR.get());
                 deadline.subscribe(UpdateOp::Update, WIDGET.id()).perm();
                 pending = Some(deadline);
-            } else if let Some(p) = &pending {
-                if p.get().has_elapsed() {
-                    pending = None;
+            } else if let Some(p) = &pending
+                && p.get().has_elapsed()
+            {
+                pending = None;
 
-                    handler.event(&ChangeStopArgs {
-                        cause: ChangeStopCause::DelayElapsed,
-                    });
-                }
+                handler.event(&ChangeStopArgs {
+                    cause: ChangeStopCause::DelayElapsed,
+                });
             }
 
             c.update(updates);
@@ -975,10 +975,10 @@ pub fn selection_toolbar_node(child: impl IntoUiNode) -> UiNode {
                 c.event(update);
 
                 let open_id = || {
-                    if let Some(popup_state) = &popup_state {
-                        if let PopupState::Open(id) = popup_state.get() {
-                            return Some(id);
-                        }
+                    if let Some(popup_state) = &popup_state
+                        && let PopupState::Open(id) = popup_state.get()
+                    {
+                        return Some(id);
                     }
                     None
                 };
@@ -1003,12 +1003,11 @@ pub fn selection_toolbar_node(child: impl IntoUiNode) -> UiNode {
                     {
                         close = true;
                     }
-                } else if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
-                    if matches!(args.phase, TouchPhase::Start | TouchPhase::Move)
-                        && open_id().map(|id| !args.target.contains(id)).unwrap_or(false)
-                    {
-                        close = true;
-                    }
+                } else if let Some(args) = TOUCH_INPUT_EVENT.on(update)
+                    && matches!(args.phase, TouchPhase::Start | TouchPhase::Move)
+                    && open_id().map(|id| !args.target.contains(id)).unwrap_or(false)
+                {
+                    close = true;
                 }
 
                 if popup_state.is_some() {
@@ -1037,13 +1036,11 @@ pub fn selection_toolbar_node(child: impl IntoUiNode) -> UiNode {
             }
             _ => {}
         }
-        if close {
-            if let Some(state) = &popup_state.take() {
-                selection_range = None;
-                POPUP.close(state);
-                TEXT.resolve().selection_toolbar_is_open = false;
-                WIDGET.layout().render();
-            }
+        if close && let Some(state) = &popup_state.take() {
+            selection_range = None;
+            POPUP.close(state);
+            TEXT.resolve().selection_toolbar_is_open = false;
+            WIDGET.layout().render();
         }
         if open {
             let r_txt = TEXT.resolved();

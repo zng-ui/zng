@@ -72,10 +72,10 @@ pub(super) fn new(
         FOCUS.focused(),
         select_focused.clone(),
         clmv!(inspected_tree, selected_wgt, |focused, select| {
-            if let Some(p) = focused {
-                if p.window_id() == inspected {
-                    last_focused = Some(p.widget_id())
-                }
+            if let Some(p) = focused
+                && p.window_id() == inspected
+            {
+                last_focused = Some(p.widget_id())
             }
 
             if let Some(id) = last_focused
@@ -653,12 +653,11 @@ fn wgt_filter(filter: &str, wgt_ty: Option<WidgetType>, wgt_id: WidgetId) -> boo
         return true;
     }
 
-    if let Some(f) = filter.strip_prefix('#') {
-        if let Ok(i) = f.parse::<u64>() {
-            if wgt_id.sequential() == i {
-                return true;
-            }
-        }
+    if let Some(f) = filter.strip_prefix('#')
+        && let Ok(i) = f.parse::<u64>()
+        && wgt_id.sequential() == i
+    {
+        return true;
     }
 
     false

@@ -568,25 +568,26 @@ where
         UiNodeOp::Event { update } => {
             child.event(update);
 
-            if let Some(args) = event.on(update) {
-                if !args.propagation().is_stopped() && filter(args) {
-                    #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
-                    let t = std::time::Instant::now();
-                    #[cfg(all(debug_assertions, target_arch = "wasm32"))]
-                    let t = web_time::Instant::now();
+            if let Some(args) = event.on(update)
+                && !args.propagation().is_stopped()
+                && filter(args)
+            {
+                #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
+                let t = std::time::Instant::now();
+                #[cfg(all(debug_assertions, target_arch = "wasm32"))]
+                let t = web_time::Instant::now();
 
-                    handler.event(args);
+                handler.event(args);
 
-                    #[cfg(debug_assertions)]
-                    {
-                        let t = t.elapsed();
-                        if t > std::time::Duration::from_millis(300) {
-                            tracing::warn!(
-                                "event handler for `{}` in {:?} blocked for {t:?}, consider using `async_hn!`",
-                                event.as_any().name(),
-                                WIDGET.id()
-                            );
-                        }
+                #[cfg(debug_assertions)]
+                {
+                    let t = t.elapsed();
+                    if t > std::time::Duration::from_millis(300) {
+                        tracing::warn!(
+                            "event handler for `{}` in {:?} blocked for {t:?}, consider using `async_hn!`",
+                            event.as_any().name(),
+                            WIDGET.id()
+                        );
                     }
                 }
             }
@@ -650,23 +651,24 @@ where
             WIDGET.sub_event(&event);
         }
         UiNodeOp::Event { update } => {
-            if let Some(args) = event.on(update) {
-                if !args.propagation().is_stopped() && filter(args) {
-                    #[cfg(debug_assertions)]
-                    let t = std::time::Instant::now();
+            if let Some(args) = event.on(update)
+                && !args.propagation().is_stopped()
+                && filter(args)
+            {
+                #[cfg(debug_assertions)]
+                let t = std::time::Instant::now();
 
-                    handler.event(args);
+                handler.event(args);
 
-                    #[cfg(debug_assertions)]
-                    {
-                        let t = t.elapsed();
-                        if t > std::time::Duration::from_millis(300) {
-                            tracing::warn!(
-                                "preview event handler for `{}` in {:?} blocked for {t:?}, consider using `async_hn!`",
-                                event.as_any().name(),
-                                WIDGET.id()
-                            );
-                        }
+                #[cfg(debug_assertions)]
+                {
+                    let t = t.elapsed();
+                    if t > std::time::Duration::from_millis(300) {
+                        tracing::warn!(
+                            "preview event handler for `{}` in {:?} blocked for {t:?}, consider using `async_hn!`",
+                            event.as_any().name(),
+                            WIDGET.id()
+                        );
                     }
                 }
             }
@@ -986,10 +988,10 @@ where
 
             if let Some(args) = command.on_unhandled(update) {
                 handler.event(args);
-            } else if !win_handle.is_dummy() {
-                if let Some(args) = command.scoped(WINDOW.id()).on_unhandled(update) {
-                    handler.event(args);
-                }
+            } else if !win_handle.is_dummy()
+                && let Some(args) = command.scoped(WINDOW.id()).on_unhandled(update)
+            {
+                handler.event(args);
             }
         }
         UiNodeOp::Update { updates } => {
@@ -1076,10 +1078,10 @@ where
         UiNodeOp::Event { update } => {
             if let Some(args) = command.on_unhandled(update) {
                 handler.event(args);
-            } else if !win_handle.is_dummy() {
-                if let Some(args) = command.scoped(WINDOW.id()).on_unhandled(update) {
-                    handler.event(args);
-                }
+            } else if !win_handle.is_dummy()
+                && let Some(args) = command.scoped(WINDOW.id()).on_unhandled(update)
+            {
+                handler.event(args);
             }
         }
         UiNodeOp::Update { .. } => {
@@ -1127,10 +1129,10 @@ pub fn event_state<A: EventArgs, S: VarValue>(
             state.set(default.clone());
         }
         UiNodeOp::Event { update } => {
-            if let Some(args) = event.on(update) {
-                if let Some(s) = on_event(args) {
-                    state.set(s);
-                }
+            if let Some(args) = event.on(update)
+                && let Some(s) = on_event(args)
+            {
+                state.set(s);
             }
         }
         _ => {}
@@ -1179,26 +1181,23 @@ where
         UiNodeOp::Event { update } => {
             let mut updated = false;
             if let Some(args) = event0.on(update) {
-                if let Some(state) = on_event0(args) {
-                    if partial.0 != state {
-                        partial.0 = state;
-                        updated = true;
-                    }
+                if let Some(state) = on_event0(args)
+                    && partial.0 != state
+                {
+                    partial.0 = state;
+                    updated = true;
                 }
-            } else if let Some(args) = event1.on(update) {
-                if let Some(state) = on_event1(args) {
-                    if partial.1 != state {
-                        partial.1 = state;
-                        updated = true;
-                    }
-                }
+            } else if let Some(args) = event1.on(update)
+                && let Some(state) = on_event1(args)
+                && partial.1 != state
+            {
+                partial.1 = state;
+                updated = true;
             }
             child.event(update);
 
-            if updated {
-                if let Some(value) = merge(partial.0.clone(), partial.1.clone()) {
-                    state.set(value);
-                }
+            if updated && let Some(value) = merge(partial.0.clone(), partial.1.clone()) {
+                state.set(value);
             }
         }
         _ => {}
@@ -1252,33 +1251,30 @@ where
         UiNodeOp::Event { update } => {
             let mut updated = false;
             if let Some(args) = event0.on(update) {
-                if let Some(state) = on_event0(args) {
-                    if partial.0 != state {
-                        partial.0 = state;
-                        updated = true;
-                    }
+                if let Some(state) = on_event0(args)
+                    && partial.0 != state
+                {
+                    partial.0 = state;
+                    updated = true;
                 }
             } else if let Some(args) = event1.on(update) {
-                if let Some(state) = on_event1(args) {
-                    if partial.1 != state {
-                        partial.1 = state;
-                        updated = true;
-                    }
+                if let Some(state) = on_event1(args)
+                    && partial.1 != state
+                {
+                    partial.1 = state;
+                    updated = true;
                 }
-            } else if let Some(args) = event2.on(update) {
-                if let Some(state) = on_event2(args) {
-                    if partial.2 != state {
-                        partial.2 = state;
-                        updated = true;
-                    }
-                }
+            } else if let Some(args) = event2.on(update)
+                && let Some(state) = on_event2(args)
+                && partial.2 != state
+            {
+                partial.2 = state;
+                updated = true;
             }
             child.event(update);
 
-            if updated {
-                if let Some(value) = merge(partial.0.clone(), partial.1.clone(), partial.2.clone()) {
-                    state.set(value);
-                }
+            if updated && let Some(value) = merge(partial.0.clone(), partial.1.clone(), partial.2.clone()) {
+                state.set(value);
             }
         }
         _ => {}
@@ -1337,40 +1333,37 @@ where
         UiNodeOp::Event { update } => {
             let mut updated = false;
             if let Some(args) = event0.on(update) {
-                if let Some(state) = on_event0(args) {
-                    if partial.0 != state {
-                        partial.0 = state;
-                        updated = true;
-                    }
+                if let Some(state) = on_event0(args)
+                    && partial.0 != state
+                {
+                    partial.0 = state;
+                    updated = true;
                 }
             } else if let Some(args) = event1.on(update) {
-                if let Some(state) = on_event1(args) {
-                    if partial.1 != state {
-                        partial.1 = state;
-                        updated = true;
-                    }
+                if let Some(state) = on_event1(args)
+                    && partial.1 != state
+                {
+                    partial.1 = state;
+                    updated = true;
                 }
             } else if let Some(args) = event2.on(update) {
-                if let Some(state) = on_event2(args) {
-                    if partial.2 != state {
-                        partial.2 = state;
-                        updated = true;
-                    }
+                if let Some(state) = on_event2(args)
+                    && partial.2 != state
+                {
+                    partial.2 = state;
+                    updated = true;
                 }
-            } else if let Some(args) = event3.on(update) {
-                if let Some(state) = on_event3(args) {
-                    if partial.3 != state {
-                        partial.3 = state;
-                        updated = true;
-                    }
-                }
+            } else if let Some(args) = event3.on(update)
+                && let Some(state) = on_event3(args)
+                && partial.3 != state
+            {
+                partial.3 = state;
+                updated = true;
             }
             child.event(update);
 
-            if updated {
-                if let Some(value) = merge(partial.0.clone(), partial.1.clone(), partial.2.clone(), partial.3.clone()) {
-                    state.set(value);
-                }
+            if updated && let Some(value) = merge(partial.0.clone(), partial.1.clone(), partial.2.clone(), partial.3.clone()) {
+                state.set(value);
             }
         }
         _ => {}
@@ -1985,19 +1978,19 @@ pub fn interactive_node(child: impl IntoUiNode, interactive: impl IntoVar<bool>)
 
                     let id = WIDGET.id();
                     info.push_interactivity_filter(move |args| {
-                        if let Some(parent) = args.info.parent() {
-                            if parent.id() == id {
-                                // check child range
-                                for (i, item) in parent.children().enumerate() {
-                                    if item == args.info {
-                                        return if !block_range.contains(&i) {
-                                            Interactivity::ENABLED
-                                        } else {
-                                            Interactivity::BLOCKED
-                                        };
-                                    } else if i >= block_range.end {
-                                        break;
-                                    }
+                        if let Some(parent) = args.info.parent()
+                            && parent.id() == id
+                        {
+                            // check child range
+                            for (i, item) in parent.children().enumerate() {
+                                if item == args.info {
+                                    return if !block_range.contains(&i) {
+                                        Interactivity::ENABLED
+                                    } else {
+                                        Interactivity::BLOCKED
+                                    };
+                                } else if i >= block_range.end {
+                                    break;
                                 }
                             }
                         }
@@ -2028,12 +2021,12 @@ pub fn with_index_node(
         UiNodeOp::Update { .. } => {
             // parent PanelList requests updates for this widget every time there is an update.
             let info = WIDGET.info();
-            if let Some(parent) = info.parent() {
-                if let Some(mut c) = PanelListRange::update(&parent, panel_list_id, &mut version) {
-                    let id = info.id();
-                    let p = c.position(|w| w.id() == id);
-                    update(p);
-                }
+            if let Some(parent) = info.parent()
+                && let Some(mut c) = PanelListRange::update(&parent, panel_list_id, &mut version)
+            {
+                let id = info.id();
+                let p = c.position(|w| w.id() == id);
+                update(p);
             }
         }
         _ => {}
@@ -2057,12 +2050,12 @@ pub fn with_rev_index_node(
         }
         UiNodeOp::Update { .. } => {
             let info = WIDGET.info();
-            if let Some(parent) = info.parent() {
-                if let Some(c) = PanelListRange::update(&parent, panel_list_id, &mut version) {
-                    let id = info.id();
-                    let p = c.rev().position(|w| w.id() == id);
-                    update(p);
-                }
+            if let Some(parent) = info.parent()
+                && let Some(c) = PanelListRange::update(&parent, panel_list_id, &mut version)
+            {
+                let id = info.id();
+                let p = c.rev().position(|w| w.id() == id);
+                update(p);
             }
         }
         _ => {}
@@ -2089,22 +2082,22 @@ pub fn with_index_len_node(
         }
         UiNodeOp::Update { .. } => {
             let info = WIDGET.info();
-            if let Some(parent) = info.parent() {
-                if let Some(mut iter) = PanelListRange::update(&parent, panel_list_id, &mut version) {
-                    let id = info.id();
-                    let mut p = 0;
-                    let mut count = 0;
-                    for c in &mut iter {
-                        if c.id() == id {
-                            p = count;
-                            count += 1 + iter.count();
-                            break;
-                        } else {
-                            count += 1;
-                        }
+            if let Some(parent) = info.parent()
+                && let Some(mut iter) = PanelListRange::update(&parent, panel_list_id, &mut version)
+            {
+                let id = info.id();
+                let mut p = 0;
+                let mut count = 0;
+                for c in &mut iter {
+                    if c.id() == id {
+                        p = count;
+                        count += 1 + iter.count();
+                        break;
+                    } else {
+                        count += 1;
                     }
-                    update(Some((p, count)));
                 }
+                update(Some((p, count)));
             }
         }
         _ => {}

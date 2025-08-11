@@ -127,23 +127,25 @@ fn thumb_layout(child: impl IntoUiNode) -> UiNode {
                     WIDGET.layout();
 
                     args.propagation().stop();
-                } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
-                    if args.is_primary() && args.is_mouse_up() {
-                        mouse_down = None;
-
-                        args.propagation().stop();
-                    }
-                }
-            } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
-                if args.is_primary() && args.is_mouse_down() {
-                    let a = match ORIENTATION_VAR.get() {
-                        scrollbar::Orientation::Vertical => args.position.y.to_px(scale_factor),
-                        scrollbar::Orientation::Horizontal => args.position.x.to_px(scale_factor),
-                    };
-                    mouse_down = Some((a, THUMB_OFFSET_VAR.get()));
+                } else if let Some(args) = MOUSE_INPUT_EVENT.on(update)
+                    && args.is_primary()
+                    && args.is_mouse_up()
+                {
+                    mouse_down = None;
 
                     args.propagation().stop();
                 }
+            } else if let Some(args) = MOUSE_INPUT_EVENT.on(update)
+                && args.is_primary()
+                && args.is_mouse_down()
+            {
+                let a = match ORIENTATION_VAR.get() {
+                    scrollbar::Orientation::Vertical => args.position.y.to_px(scale_factor),
+                    scrollbar::Orientation::Horizontal => args.position.x.to_px(scale_factor),
+                };
+                mouse_down = Some((a, THUMB_OFFSET_VAR.get()));
+
+                args.propagation().stop();
             }
         }
         UiNodeOp::Layout { wl, .. } => {

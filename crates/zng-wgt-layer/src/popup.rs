@@ -171,16 +171,16 @@ impl POPUP {
                                 WIDGET.sub_event(&FOCUS_CHANGED_EVENT).sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
                             }
                             UiNodeOp::Event { update } => {
-                                if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on(update) {
-                                    if let Some(mut now_is_widget) = c.node().as_widget() {
-                                        let now_is_widget = now_is_widget.with_context(WidgetUpdateMode::Ignore, || WIDGET.info().path());
-                                        if POPUP_CLOSE_REQUESTED_EVENT.is_subscriber(now_is_widget.widget_id()) {
-                                            // node become widget after init, and it expects POPUP_CLOSE_REQUESTED_EVENT.
-                                            let mut delivery = UpdateDeliveryList::new_any();
-                                            delivery.insert_wgt(&now_is_widget);
-                                            let update = POPUP_CLOSE_REQUESTED_EVENT.new_update_custom(args.clone(), delivery);
-                                            c.event(&update);
-                                        }
+                                if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on(update)
+                                    && let Some(mut now_is_widget) = c.node().as_widget()
+                                {
+                                    let now_is_widget = now_is_widget.with_context(WidgetUpdateMode::Ignore, || WIDGET.info().path());
+                                    if POPUP_CLOSE_REQUESTED_EVENT.is_subscriber(now_is_widget.widget_id()) {
+                                        // node become widget after init, and it expects POPUP_CLOSE_REQUESTED_EVENT.
+                                        let mut delivery = UpdateDeliveryList::new_any();
+                                        delivery.insert_wgt(&now_is_widget);
+                                        let update = POPUP_CLOSE_REQUESTED_EVENT.new_update_custom(args.clone(), delivery);
+                                        c.event(&update);
                                     }
                                 }
                             }

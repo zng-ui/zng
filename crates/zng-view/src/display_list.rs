@@ -176,10 +176,10 @@ impl SpaceAndClip {
     pub fn pop_clip(&mut self) {
         self.clip_stack.truncate(self.clip_stack.len() - 1);
 
-        if let Some((_, i)) = self.clip_chain_stack.last() {
-            if *i > self.clip_stack.len() {
-                self.clip_chain_stack.truncate(self.clip_chain_stack.len() - 1);
-            }
+        if let Some((_, i)) = self.clip_chain_stack.last()
+            && *i > self.clip_stack.len()
+        {
+            self.clip_chain_stack.truncate(self.clip_chain_stack.len() - 1);
         }
     }
 
@@ -335,12 +335,11 @@ impl DisplayListCache {
     }
 
     fn get_update_target(&mut self, id: FrameValueId) -> Option<&mut DisplayItem> {
-        if let Some((frame_id, i)) = self.bindings.get(&id) {
-            if let Some(list) = self.lists.get_mut(frame_id) {
-                if let Some(item) = list.list.get_mut(*i) {
-                    return Some(item);
-                }
-            }
+        if let Some((frame_id, i)) = self.bindings.get(&id)
+            && let Some(list) = self.lists.get_mut(frame_id)
+            && let Some(item) = list.list.get_mut(*i)
+        {
+            return Some(item);
         }
         None
     }

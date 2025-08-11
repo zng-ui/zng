@@ -31,11 +31,12 @@ pub fn animations_config() -> AnimationsConfig {
     if let Some(d) = gsettings_uint("org.gnome.desktop.interface", "cursor-blink-time") {
         cfg.caret_blink_interval = (d / 2).ms();
     }
-    if let Some(e) = gsettings_bool("org.gnome.desktop.interface", "cursor-blink") {
-        if !e {
-            cfg.caret_blink_interval = Duration::MAX;
-        }
+    if let Some(e) = gsettings_bool("org.gnome.desktop.interface", "cursor-blink")
+        && !e
+    {
+        cfg.caret_blink_interval = Duration::MAX;
     }
+
     cfg
 }
 

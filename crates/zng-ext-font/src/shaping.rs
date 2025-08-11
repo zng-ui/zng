@@ -1076,23 +1076,23 @@ impl ShapedText {
                 // trim spaces at start and end
                 let mut first_is_space = false;
 
-                if let Some(s) = line.seg(0) {
-                    if s.kind().is_space() && (!self.is_inlined || li > 0 || self.first_line.origin.x == Px(0)) {
-                        // trim start, unless it inlining and the first seg is actually a continuation of another text on the same row
-                        first_is_space = true;
-                        count -= 1;
-                        space += s.advance();
-                    }
+                if let Some(s) = line.seg(0)
+                    && s.kind().is_space()
+                    && (!self.is_inlined || li > 0 || self.first_line.origin.x == Px(0))
+                {
+                    // trim start, unless it inlining and the first seg is actually a continuation of another text on the same row
+                    first_is_space = true;
+                    count -= 1;
+                    space += s.advance();
                 }
-                if let Some(s) = line.seg(line.segs_len().saturating_sub(1)) {
-                    if s.kind().is_space()
-                        && (!self.is_inlined || li < range.end - 1 || about_eq(self.first_line.size.width.0 as f32, fill_width, 1.0))
-                    {
-                        // trim end, unless its inlining and the last seg continues
-                        last_is_space = true;
-                        count -= 1;
-                        space += s.advance();
-                    }
+                if let Some(s) = line.seg(line.segs_len().saturating_sub(1))
+                    && s.kind().is_space()
+                    && (!self.is_inlined || li < range.end - 1 || about_eq(self.first_line.size.width.0 as f32, fill_width, 1.0))
+                {
+                    // trim end, unless its inlining and the last seg continues
+                    last_is_space = true;
+                    count -= 1;
+                    space += s.advance();
                 }
                 if first_is_space {
                     line_seg_range.start += 1;
@@ -1551,49 +1551,47 @@ impl ShapedText {
                     }
                 }
 
-                if search_lig {
-                    if let Some((font, g_index, advance)) = search_lig_data {
-                        let lig_start = txt_range.start + clusters[cluster_i] as usize;
-                        let lig_end = if is_rtl {
-                            if cluster_i == 0 {
-                                txt_range.end
-                            } else {
-                                txt_range.start + clusters[cluster_i - 1] as usize
-                            }
+                if search_lig && let Some((font, g_index, advance)) = search_lig_data {
+                    let lig_start = txt_range.start + clusters[cluster_i] as usize;
+                    let lig_end = if is_rtl {
+                        if cluster_i == 0 {
+                            txt_range.end
                         } else {
-                            clusters
-                                .get(cluster_i + 1)
-                                .map(|c| txt_range.start + *c as usize)
-                                .unwrap_or_else(|| txt_range.end)
-                        };
+                            txt_range.start + clusters[cluster_i - 1] as usize
+                        }
+                    } else {
+                        clusters
+                            .get(cluster_i + 1)
+                            .map(|c| txt_range.start + *c as usize)
+                            .unwrap_or_else(|| txt_range.end)
+                    };
 
-                        let maybe_lig = &full_text[lig_start..lig_end];
+                    let maybe_lig = &full_text[lig_start..lig_end];
 
-                        let lig_len = unicode_segmentation::UnicodeSegmentation::grapheme_indices(maybe_lig, true).count();
-                        if lig_len > 1 {
-                            // is ligature
+                    let lig_len = unicode_segmentation::UnicodeSegmentation::grapheme_indices(maybe_lig, true).count();
+                    if lig_len > 1 {
+                        // is ligature
 
-                            let lig_taken = &full_text[lig_start..index];
-                            let lig_taken = unicode_segmentation::UnicodeSegmentation::grapheme_indices(lig_taken, true).count();
+                        let lig_taken = &full_text[lig_start..index];
+                        let lig_taken = unicode_segmentation::UnicodeSegmentation::grapheme_indices(lig_taken, true).count();
 
-                            for (i, lig_advance) in font.ligature_caret_offsets(g_index).enumerate() {
-                                if i == lig_taken {
-                                    // font provided ligature caret for index
-                                    origin_x += lig_advance;
-                                    search_lig = false;
-                                    break;
-                                }
+                        for (i, lig_advance) in font.ligature_caret_offsets(g_index).enumerate() {
+                            if i == lig_taken {
+                                // font provided ligature caret for index
+                                origin_x += lig_advance;
+                                search_lig = false;
+                                break;
                             }
+                        }
 
-                            if search_lig {
-                                // synthetic lig. caret
-                                let lig_advance = advance * (lig_taken as f32 / lig_len as f32);
+                        if search_lig {
+                            // synthetic lig. caret
+                            let lig_advance = advance * (lig_taken as f32 / lig_len as f32);
 
-                                if is_rtl {
-                                    origin_x -= lig_advance;
-                                } else {
-                                    origin_x += lig_advance;
-                                }
+                            if is_rtl {
+                                origin_x -= lig_advance;
+                            } else {
+                                origin_x += lig_advance;
                             }
                         }
                     }
@@ -1745,11 +1743,11 @@ impl ShapedText {
                             glyphs_range.start += g + 1;
                             text_range.start += c;
                         }
-                    } else if seg_max_x > max_x {
-                        if let Some((c, g)) = seg.overflow_char_glyph((width - seg_max_x - max_x).0 as f32) {
-                            glyphs_range.end -= g;
-                            text_range.end -= c;
-                        }
+                    } else if seg_max_x > max_x
+                        && let Some((c, g)) = seg.overflow_char_glyph((width - seg_max_x - max_x).0 as f32)
+                    {
+                        glyphs_range.end -= g;
+                        text_range.end -= c;
                     }
 
                     if let Some(l) = included_glyphs.last_mut() {
@@ -1804,11 +1802,11 @@ impl ShapedText {
                             let seg_range = seg.glyphs_range().iter();
                             let mut o = r.origin.cast().cast_unit();
                             let mut w = r.width();
-                            if seg_range != glyphs_range {
-                                if let Some(g) = seg.glyph(glyphs_range.end - seg_range.start) {
-                                    o.x = g.1.point.x;
-                                    w = Px(0);
-                                }
+                            if seg_range != glyphs_range
+                                && let Some(g) = seg.glyph(glyphs_range.end - seg_range.start)
+                            {
+                                o.x = g.1.point.x;
+                                w = Px(0);
                             }
                             o.x += w.0 as f32;
                             o
@@ -1822,10 +1820,10 @@ impl ShapedText {
                             let r = seg.rect();
                             let mut o = r.origin.cast().cast_unit();
                             let seg_range = seg.glyphs_range().iter();
-                            if seg_range != glyphs_range {
-                                if let Some(g) = seg.glyph(glyphs_range.start - seg_range.start) {
-                                    o.x = g.1.point.x;
-                                }
+                            if seg_range != glyphs_range
+                                && let Some(g) = seg.glyph(glyphs_range.start - seg_range.start)
+                            {
+                                o.x = g.1.point.x;
                             }
                             o.x -= overflow_suffix_width.0 as f32;
                             o
@@ -2632,19 +2630,19 @@ impl ShapedTextBuilder {
                     if !font.face().color_glyphs().is_empty() {
                         self.out.has_colored_glyphs = true;
                     }
-                    if font.face().has_raster_images() || (cfg!(feature = "svg") && font.face().has_svg_images()) {
-                        if let Some(ttf) = font.face().ttf() {
-                            for (i, g) in shaped_seg.glyphs.iter().enumerate() {
-                                let id = ttf_parser::GlyphId(g.index as _);
-                                let ppm = font.size().0 as u16;
-                                let glyphs_i = self.out.glyphs.len() - shaped_seg.glyphs.len() + i;
-                                if let Some(img) = ttf.glyph_raster_image(id, ppm) {
-                                    self.push_glyph_raster(glyphs_i as _, img);
-                                } else if cfg!(feature = "svg") {
-                                    if let Some(img) = ttf.glyph_svg_image(id) {
-                                        self.push_glyph_svg(glyphs_i as _, img);
-                                    }
-                                }
+                    if (font.face().has_raster_images() || (cfg!(feature = "svg") && font.face().has_svg_images()))
+                        && let Some(ttf) = font.face().ttf()
+                    {
+                        for (i, g) in shaped_seg.glyphs.iter().enumerate() {
+                            let id = ttf_parser::GlyphId(g.index as _);
+                            let ppm = font.size().0 as u16;
+                            let glyphs_i = self.out.glyphs.len() - shaped_seg.glyphs.len() + i;
+                            if let Some(img) = ttf.glyph_raster_image(id, ppm) {
+                                self.push_glyph_raster(glyphs_i as _, img);
+                            } else if cfg!(feature = "svg")
+                                && let Some(img) = ttf.glyph_svg_image(id)
+                            {
+                                self.push_glyph_svg(glyphs_i as _, img);
                             }
                         }
                     }
@@ -4400,7 +4398,7 @@ impl Font {
 
     /// Calculates a [`ShapedText`].
     pub fn shape_text(self: &Font, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
-        ShapedTextBuilder::shape_text(&[self.clone()], text, config)
+        ShapedTextBuilder::shape_text(std::slice::from_ref(self), text, config)
     }
 
     /// Sends the sized vector path for a glyph to `sink`.
@@ -4513,10 +4511,10 @@ impl Font {
             }
 
             fn close(&mut self) {
-                if let Some(s) = self.start.take() {
-                    if s != self.current {
-                        self.line_to(s);
-                    }
+                if let Some(s) = self.start.take()
+                    && s != self.current
+                {
+                    self.line_to(s);
                 }
             }
         }
