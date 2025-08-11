@@ -1065,7 +1065,6 @@ pub struct DeviceEventsFilter {
     /// Note that although the view-process will filter input device events using these flags setting
     /// just one of them may cause a general native listener to init.
     pub input: InputDeviceCapability,
-    // TODO(breaking): add audio.
 }
 impl DeviceEventsFilter {
     /// Default value, no device events are needed.
