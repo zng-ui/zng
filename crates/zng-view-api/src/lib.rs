@@ -420,7 +420,7 @@ declare_api! {
     /// Returns a list of image decoders supported by this implementation.
     ///
     /// Each text is the lower-case file extension, without the dot.
-    pub fn image_decoders(&mut self) -> Vec<Txt>; // TODO(breaking) return HashSet?
+    pub fn image_decoders(&mut self) -> Vec<Txt>;
 
     /// Returns a list of image encoders supported by this implementation.
     ///

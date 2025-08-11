@@ -1226,7 +1226,6 @@ impl AnyVar {
         VarHandle::dummy()
     }
 
-
     /// If the variable current value was set by an active animation.
     ///
     /// The variable [`is_new`] when this changes to `true`, but it **may not be new** when the value changes to `false`.

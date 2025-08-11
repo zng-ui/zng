@@ -56,7 +56,8 @@ use zng_clone_move::clmv;
 pub use zng_var_proc_macros::merge_var as __merge_var;
 
 use crate::{
-    any_contextual_var, any_var, contextual_var, AnyVar, AnyVarValue, BoxAnyVarValue, ContextVar, DynAnyVar, DynWeakAnyVar, Response, ResponseVar, Var, VarHandle, VarImpl, VarInstanceTag, VarValue, WeakVarImpl
+    AnyVar, AnyVarValue, BoxAnyVarValue, ContextVar, DynAnyVar, DynWeakAnyVar, Response, ResponseVar, Var, VarHandle, VarImpl,
+    VarInstanceTag, VarValue, WeakVarImpl, any_contextual_var, any_var, contextual_var,
 };
 
 use super::VarCapability;

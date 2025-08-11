@@ -1545,6 +1545,7 @@ impl AppWindowTask {
         let primary_scale_factor = match mode {
             WindowMode::Headed => MONITORS
                 .primary_monitor()
+                .get()
                 .map(|m| m.scale_factor().get())
                 .unwrap_or_else(|| 1.fct()),
             WindowMode::Headless | WindowMode::HeadlessWithRenderer => 1.fct(),

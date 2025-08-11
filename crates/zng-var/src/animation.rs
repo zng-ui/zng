@@ -10,7 +10,8 @@ use zng_time::{DInstant, Deadline};
 use zng_unit::Factor;
 
 use crate::{
-    animation::easing::{EasingStep, EasingTime}, Var, VarHandle, VarHandlerOwner, VarValue
+    Var, VarHandle, VarHandlerOwner, VarValue,
+    animation::easing::{EasingStep, EasingTime},
 };
 
 pub mod easing;

@@ -97,6 +97,7 @@ impl Future for WaitIsNotAnimatingFut<'_> {
                             return Poll::Ready(());
                         }
                     } else {
+                        r.perm();
                         // new animation hook setup ok, break loop.
                         return Poll::Pending;
                     }

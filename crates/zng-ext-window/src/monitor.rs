@@ -15,7 +15,9 @@ use zng_view_api::window::VideoMode;
 use crate::WINDOWS;
 
 app_local! {
-    pub(super) static MONITORS_SV: MonitorsService = const { MonitorsService { monitors: IdMap::new() } };
+    pub(super) static MONITORS_SV: MonitorsService = MonitorsService {
+        monitors: var(IdMap::new()),
+    };
 }
 
 /// Monitors service.
@@ -60,64 +62,76 @@ impl MONITORS {
     ///
     /// Returns `None` if the monitor was not found or the app is running in headless mode without renderer.
     pub fn monitor(&self, monitor_id: MonitorId) -> Option<MonitorInfo> {
-        MONITORS_SV.read().monitors.get(&monitor_id).cloned()
+        MONITORS_SV.read().monitors.with(|m| m.get(&monitor_id).cloned())
     }
 
     /// List all available monitors.
     ///
     /// Is empty if no monitor was found or the app is running in headless mode without renderer.
-    pub fn available_monitors(&self) -> Vec<MonitorInfo> {
-        // TODO(breaking) turn this into a var?
-        MONITORS_SV.read().monitors.values().cloned().collect()
+    pub fn available_monitors(&self) -> Var<Vec<MonitorInfo>> {
+        MONITORS_SV.read().monitors.map(|w| {
+            let mut list: Vec<_> = w.values().cloned().collect();
+            list.sort_by(|a, b| a.name.with(|a| b.name.with(|b| a.cmp(b))));
+            list
+        })
     }
 
     /// Gets the monitor info marked as primary.
-    pub fn primary_monitor(&self) -> Option<MonitorInfo> {
-        MONITORS_SV.read().monitors.values().find(|m| m.is_primary().get()).cloned()
+    pub fn primary_monitor(&self) -> Var<Option<MonitorInfo>> {
+        MONITORS_SV
+            .read()
+            .monitors
+            .map(|w| w.values().find(|m| m.is_primary().get()).cloned())
     }
 }
 
 pub(super) struct MonitorsService {
-    monitors: IdMap<MonitorId, MonitorInfo>,
+    monitors: Var<IdMap<MonitorId, MonitorInfo>>,
 }
 impl MonitorsService {
     fn on_monitors_changed(&mut self, args: &RawMonitorsChangedArgs) {
         let mut available_monitors: IdMap<_, _> = args.available_monitors.iter().cloned().collect();
+        let event_ts = args.timestamp;
+        let event_propagation = args.propagation().clone();
 
-        let mut removed = vec![];
-        let mut changed = vec![];
+        self.monitors.modify(move |m| {
+            let mut removed = vec![];
+            let mut changed = vec![];
 
-        self.monitors.retain(|key, value| {
-            if let Some(new) = available_monitors.remove(key) {
-                if value.update(new) {
-                    changed.push(*key);
+            m.retain(|key, value| {
+                if let Some(new) = available_monitors.remove(key) {
+                    if value.update(new) {
+                        changed.push(*key);
+                    }
+                    true
+                } else {
+                    removed.push(*key);
+                    false
                 }
-                true
-            } else {
-                removed.push(*key);
-                false
+            });
+
+            let mut added = Vec::with_capacity(available_monitors.len());
+
+            for (id, info) in available_monitors {
+                added.push(id);
+
+                m.insert(id, MonitorInfo::from_gen(id, info));
+            }
+
+            if !removed.is_empty() || !added.is_empty() || !changed.is_empty() {
+                let args = MonitorsChangedArgs::new(event_ts, event_propagation, removed, added, changed);
+                MONITORS_CHANGED_EVENT.notify(args);
             }
         });
-
-        let mut added = Vec::with_capacity(available_monitors.len());
-
-        for (id, info) in available_monitors {
-            added.push(id);
-
-            self.monitors.insert(id, MonitorInfo::from_gen(id, info));
-        }
-
-        if !removed.is_empty() || !added.is_empty() || !changed.is_empty() {
-            let args = MonitorsChangedArgs::new(args.timestamp, args.propagation().clone(), removed, added, changed);
-            MONITORS_CHANGED_EVENT.notify(args);
-        }
     }
 
     pub(super) fn on_pre_event(update: &EventUpdate) {
         if let Some(args) = RAW_SCALE_FACTOR_CHANGED_EVENT.on(update) {
-            if let Some(m) = MONITORS_SV.read().monitors.get(&args.monitor_id) {
-                m.scale_factor.set(args.scale_factor);
-            }
+            MONITORS_SV.read().monitors.with(|m| {
+                if let Some(m) = m.get(&args.monitor_id) {
+                    m.scale_factor.set(args.scale_factor);
+                }
+            });
         } else if let Some(args) = RAW_MONITORS_CHANGED_EVENT.on(update) {
             MONITORS_SV.write().on_monitors_changed(args);
         }
@@ -225,6 +239,11 @@ impl fmt::Debug for MonitorInfo {
             .field("position", &self.position.get())
             .field("size", &self.size.get())
             .finish_non_exhaustive()
+    }
+}
+impl PartialEq for MonitorInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && self.name.var_eq(&other.name)
     }
 }
 impl MonitorInfo {
@@ -397,16 +416,18 @@ impl MonitorQuery {
     }
 
     fn fallback() -> MonitorInfo {
-        let mut best = MonitorInfo::fallback();
-        let mut best_area = Px(0);
-        for m in MONITORS.available_monitors() {
-            let m_area = m.px_rect().area();
-            if m_area > best_area {
-                best = m;
-                best_area = m_area;
+        MONITORS_SV.read().monitors.with(|m| {
+            let mut best = None;
+            let mut best_area = Px(0);
+            for m in m.values() {
+                let m_area = m.px_rect().area();
+                if m_area > best_area {
+                    best = Some(m);
+                    best_area = m_area;
+                }
             }
-        }
-        best
+            best.cloned().unwrap_or_else(MonitorInfo::fallback)
+        })
     }
 
     fn parent_or_primary_query(win_id: WindowId) -> Option<MonitorInfo> {
@@ -419,11 +440,11 @@ impl MonitorQuery {
                 w.monitor().get().select_for(parent)
             };
         }
-        MONITORS.primary_monitor()
+        MONITORS.primary_monitor().get()
     }
 
     fn primary_query() -> Option<MonitorInfo> {
-        MONITORS.primary_monitor()
+        MONITORS.primary_monitor().get()
     }
 }
 impl PartialEq for MonitorQuery {

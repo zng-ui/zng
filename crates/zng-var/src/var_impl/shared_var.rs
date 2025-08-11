@@ -294,9 +294,7 @@ impl MutexHooks {
     pub fn notify(&self, args: &AnyVarHookArgs) {
         let mut hooks = mem::take(&mut *self.h.lock());
 
-        hooks.retain(|(f, handle)| {
-            handle.is_alive() && f(args)
-        });
+        hooks.retain(|(f, handle)| handle.is_alive() && f(args));
 
         if !hooks.is_empty() {
             let mut hs = self.h.lock();
@@ -314,7 +312,7 @@ impl fmt::Debug for MutexHooks {
         if let Some(h) = self.h.try_lock() {
             let mut b = f.debug_list();
             for (_, h) in h.iter() {
-               b.entry(h);
+                b.entry(h);
             }
             b.finish()
         } else {

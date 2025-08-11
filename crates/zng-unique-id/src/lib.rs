@@ -412,6 +412,12 @@ pub fn un_splitmix64(z: u64) -> u64 {
 /// Map specialized for unique IDs that are already a randomized hash.
 #[derive(Clone, Debug)]
 pub struct IdMap<K, V>(hashbrown::HashMap<K, V, BuildIdHasher>);
+
+impl<K: Eq + Hash, V: PartialEq> PartialEq for IdMap<K, V> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
 impl<K, V> IdMap<K, V> {
     /// New `const` default.
     pub const fn new() -> Self {

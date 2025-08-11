@@ -489,7 +489,7 @@ impl<'s, 'a, T: VarValue> ops::DerefMut for VarModify<'s, 'a, T> {
 ///
 /// This can represent a widget subscriber, a var binding, var app handler or animation, dropping the handler stops
 /// the behavior it represents.
-/// 
+///
 /// Note that the hook closure is not dropped immediately when the handle is dropped, usually it will drop only the next
 /// time it would have been called.
 #[derive(Clone, Default)]
