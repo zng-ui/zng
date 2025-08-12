@@ -65,7 +65,6 @@ The `Cargo.toml` fragment below show changes you can add to the previous example
 ```toml
 [features]
 release = [
-    "zng/dyn_node", # avoids deep nesting generics
     "zng/dyn_closure", # avoids many monomorphised copies of generic functions
 ]
 

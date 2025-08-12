@@ -1,11 +1,16 @@
 # Unreleased
 
+This release contains breaking changes that affect the normal surface API. All changes are trivial to fix, its mostly a job for find & replace.
+
+These changes where necessary to fix the rampant code bloat issue. Release builds of the example projects are now 55% smaller on average. 
+Optimized release builds (following the `./docs/optimized-release.md` guide) are now 30% smaller.
+
 * **Breaking** Refactor `zng::widget::node` API.
 
     Unified UI node (and list) types into a new `UiNode` struct, most node types are implemented using `match_node` and not affected,
     custom node types now must implement `UiNodeImpl`, it is a simplified version of the previous API. The main motivation
     for this refactor is reduction of generics code bloat, the usage of `-> impl UiNode` scales extremely bad as the anonymous
-    node type is monomorphised for each generic input, this combined with node nesting causes an explosion of code copies.
+    type is monomorphised for each generic input, this combined with node nesting causes an explosion of code copies.
 
     To migrate UiNode:
 
