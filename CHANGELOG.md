@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix missing mouse move events when cursor is captured and leaves the window in Windows.
 * Implement `IntoUiNode` for `std::iter` iterators of `UiNode` items.
     - You can now omit `.collect::<UiVec>()` in code that generates widget lists from iterators.
 
