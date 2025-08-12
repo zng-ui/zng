@@ -437,6 +437,54 @@ declare_api! {
     /// [`image_encoders`]: Api::image_encoders
     pub fn encode_image(&mut self, id: ImageId, format: Txt);
 
+    /// Cache an audio resource.
+    ///
+    /// # Unimplemented
+    ///
+    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
+    pub fn add_audio(&mut self, request: audio::AudioRequest<IpcBytes>) -> audio::AudioId;
+
+    /// Cache an streaming audio resource.
+    ///
+    /// The audio is decoded as bytes are buffered in.
+    ///
+    /// # Unimplemented
+    ///
+    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
+    pub fn add_audio_pro(&mut self, request: audio::AudioRequest<IpcBytesReceiver>) -> audio::AudioId;
+
+    /// Remove an audio from cache.
+    ///
+    /// Note that if the audio is in use by a playback it will remain in memory until the playback ends.
+    ///
+    /// # Unimplemented
+    ///
+    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
+    pub fn forget_audio(&mut self, id: audio::AudioId);
+
+    /// Returns a list of image decoders supported by this implementation.
+    ///
+    /// Each text is the lower-case file extension, without the dot.
+    ///
+    /// # Unimplemented
+    ///
+    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
+    pub fn audio_decoders(&mut self) -> Vec<Txt>;
+
+    /// Start playing audio.
+    ///
+    /// # Unimplemented
+    ///
+    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
+    pub fn playback(&mut self, request: audio::PlaybackRequest) -> audio::PlaybackId;
+
+    /// Update an existing playback.
+    ///
+    /// # Unimplemented
+    ///
+    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
+    pub fn playback_update(&mut self, id: audio::PlaybackId, request: audio::PlaybackUpdateRequest);
+
     /// Add a raw font resource to the window renderer.
     ///
     /// Returns the new font key.
