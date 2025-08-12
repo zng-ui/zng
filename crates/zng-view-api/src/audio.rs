@@ -15,6 +15,16 @@ crate::declare_id! {
     ///
     /// The View Process defines the ID.
     pub struct AudioDeviceId(_);
+
+    /// Id of a decoded audio in the cache.
+    ///
+    /// The View Process defines the ID.
+    pub struct AudioId(_);
+
+    /// Audio playback ID.
+    ///
+    /// The View Process defines the ID.
+    pub struct PlaybackId(_);
 }
 
 /// Info about an input or output device.
@@ -78,4 +88,39 @@ pub enum BufferSize {
     },
     /// Platform cannot describe buffer size for this device.
     Unknown,
+}
+
+/// Represent an audio load/decode request.
+///
+/// # Unimplemented
+///
+/// This type is a stub for a future API, it is not implemented by app-process nor the default view-process.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct AudioRequest<D> {
+    /// Audio data.
+    pub data: D,
+}
+
+/// Represents an audio playback request.
+///
+/// # Unimplemented
+///
+/// This type is a stub for a future API, it is not implemented by app-process nor the default view-process.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct PlaybackRequest {
+    // app-process will define a timeline of AudioId clips, with effects and such
+    // this will allow the view-process to synchronize stuff
+}
+
+/// Represents an audio playback update request.
+///
+/// # Unimplemented
+///
+/// This type is a stub for a future API, it is not implemented by app-process nor the default view-process.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct PlaybackUpdateRequest {
+    // pause, stop
 }

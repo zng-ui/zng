@@ -2108,6 +2108,30 @@ impl Api for App {
         with_window_or_surface!(self, id, |w| w.delete_image(texture_id), || ())
     }
 
+    fn add_audio(&mut self, _request: audio::AudioRequest<IpcBytes>) -> audio::AudioId {
+        unimplemented!()
+    }
+
+    fn add_audio_pro(&mut self, _request: audio::AudioRequest<IpcBytesReceiver>) -> audio::AudioId {
+        unimplemented!()
+    }
+
+    fn audio_decoders(&mut self) -> Vec<Txt> {
+        unimplemented!()
+    }
+
+    fn forget_audio(&mut self, _id: audio::AudioId) {
+        unimplemented!()
+    }
+
+    fn playback(&mut self, _request: audio::PlaybackRequest) -> audio::PlaybackId {
+        unimplemented!()
+    }
+
+    fn playback_update(&mut self, _id: audio::PlaybackId, _request: audio::PlaybackUpdateRequest) {
+        unimplemented!()
+    }
+
     fn add_font_face(&mut self, id: WindowId, bytes: IpcBytes, index: u32) -> FontFaceId {
         with_window_or_surface!(self, id, |w| w.add_font_face(bytes.to_vec(), index), || FontFaceId::INVALID)
     }

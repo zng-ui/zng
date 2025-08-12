@@ -23,7 +23,7 @@ type_names = []
 # Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
 #
 # This speeds-up compilation time at the cost of runtime.
-dyn_closure = [] # TODO(breaking) review this, not used after rewrite
+dyn_closure = []
 
 [dependencies]
 zng-var-proc-macros = { path = "../zng-var-proc-macros", version = "0.3.0" }

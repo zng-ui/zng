@@ -85,6 +85,8 @@
 * Fix `Slider!` not reacting to value changes.
 * Fix inherited widget properties not showing in documentation.
 
+* **Breaking** Add unimplemented audio decoding and playback to the view-process API in preparation of a future release.
+
 # 0.15.11
 
 * Fix `DIALOG.confirm` always cancelling.
