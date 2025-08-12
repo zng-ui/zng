@@ -22,7 +22,6 @@
 //!                     "Recent",
 //!                     (0..10)
 //!                         .map(|i| Button! { child = Text!(formatx!("recent file {i}")) })
-//!                         .collect::<UiVec>()
 //!                 ),
 //!                 Hr!(),
 //!                 Button!(zng::app::EXIT_CMD),

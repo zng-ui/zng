@@ -168,8 +168,7 @@
 //!             children = options.into_iter().map(|o| Toggle! {
 //!                 child = Text!(o);
 //!                 value::<Txt> = o;
-//!             })
-//!             .collect::<UiVec>();
+//!             });
 //!         };
 //!     })
 //! }

@@ -138,7 +138,7 @@ fn on_border_img() {
                                 value::<zng::widget::BorderRepeats> = m;
                                 child = if m.0 == m.1 { Text!("{:?};", m.0) } else { Text!("{m:?};") };
                                 style_fn = toggle::RadioStyle!();
-                            }).collect::<UiVec>()
+                            })
                         }
                     }
                 ])

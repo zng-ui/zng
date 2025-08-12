@@ -8,7 +8,7 @@ use crate::{
     widget::{
         WidgetUpdateMode,
         base::PARALLEL_VAR,
-        node::{IntoUiNode, PanelList, UiNodeImpl as _, UiVec},
+        node::{IntoUiNode, PanelList, UiNodeImpl as _},
     },
     window::WINDOW,
 };
@@ -51,21 +51,19 @@ pub fn init_many() {
 pub fn nested_par_each_ctx() {
     let _app = APP.minimal().run_headless(false);
     let mut test = ListWgt! {
-        children = (0..1000)
-            .map(|_| {
-                ListWgt! {
-                    children = ui_vec![
-                        EmptyWgt! {
-                            util::ctx_val = true;
-                            util::assert_ctx_val = true;
-                        },
-                        EmptyWgt! {
-                            util::assert_ctx_val = false;
-                        }
-                    ];
-                }
-            })
-            .collect::<UiVec>();
+        children = (0..1000).map(|_| {
+            ListWgt! {
+                children = ui_vec![
+                    EmptyWgt! {
+                        util::ctx_val = true;
+                        util::assert_ctx_val = true;
+                    },
+                    EmptyWgt! {
+                        util::assert_ctx_val = false;
+                    }
+                ];
+            }
+        });
     };
 
     WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
@@ -77,19 +75,17 @@ pub fn nested_par_each_ctx() {
 pub fn par_each_ctx() {
     let _app = APP.minimal().run_headless(false);
     let mut test = ListWgt! {
-        children = (0..1000)
-            .flat_map(|_| {
-                ui_vec![
-                    EmptyWgt! {
-                        util::ctx_val = true;
-                        util::assert_ctx_val = true;
-                    },
-                    EmptyWgt! {
-                        util::assert_ctx_val = false;
-                    }
-                ]
-            })
-            .collect::<UiVec>();
+        children = (0..1000).flat_map(|_| {
+            ui_vec![
+                EmptyWgt! {
+                    util::ctx_val = true;
+                    util::assert_ctx_val = true;
+                },
+                EmptyWgt! {
+                    util::assert_ctx_val = false;
+                }
+            ]
+        });
     };
 
     WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {

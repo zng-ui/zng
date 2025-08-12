@@ -208,11 +208,10 @@ impl DefaultStyle {
                         responses.0
                             .into_iter()
                             .enumerate()
-                            .map(|(i, r)| presenter(
+                            .map(move |(i, r)| presenter(
                                 DialogButtonArgs { response: r, is_last: i == last },
                                 BUTTON_FN_VAR
                             ))
-                            .collect::<UiVec>()
                     };
                 }
             })), 0;

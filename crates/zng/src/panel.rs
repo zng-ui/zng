@@ -48,7 +48,7 @@
 //!             child = Text!(*name);
 //!             grid::cell::at = grid::cell::AT_AUTO;
 //!         }
-//!     }).collect::<UiVec>();
+//!     });
 //!     toggle::selector = toggle::Selector::single(selected_layout.clone());
 //!
 //!     panel_fn = selected_layout.map(move |&i| layouts[i].1.clone());

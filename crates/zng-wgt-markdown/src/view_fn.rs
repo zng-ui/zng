@@ -1028,7 +1028,7 @@ pub fn default_table_fn(args: TableFnArgs) -> UiNode {
                 }
             }
         });
-        columns = std::iter::repeat_with(|| grid::Column!{}).take(args.columns.len()).collect::<UiVec>();
+        columns = std::iter::repeat_with(|| grid::Column!{}).take(args.columns.len());
         cells = args.cells;
     }
 }

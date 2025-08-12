@@ -33,8 +33,7 @@
 //!     .map(|(label, direction)| Toggle! {
 //!         child = Text!(label);
 //!         value::<StackDirection> = direction;
-//!     })
-//!     .collect::<UiVec>();
+//!     });
 //! }
 //! # ;
 //! ```

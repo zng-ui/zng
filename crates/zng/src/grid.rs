@@ -22,14 +22,12 @@
 //!     columns = length_color.iter().map(|(length, color)| grid::Column! {
 //!         width = length.clone();
 //!         widget::background_color = color.with_alpha(10.pct());
-//!     })
-//!     .collect::<UiVec>();
+//!     });
 //!
 //!     rows = length_color.iter().map(|(length, color)| grid::Row! {
 //!         height = length.clone();
 //!         widget::background_color = color.with_alpha(10.pct());
-//!     })
-//!     .collect::<UiVec>();
+//!     });
 //!
 //!     cells = (0..3).flat_map(|col| (0..3usize).map(move |row| Text! {
 //!         grid::cell::at = (col, row);
@@ -41,8 +39,7 @@
 //!         when *#gesture::is_hovered {
 //!             widget::border = 1, colors::AZURE;
 //!         }
-//!     }))
-//!     .collect::<UiVec>();
+//!     }));
 //! };
 //! # ;
 //! ```
@@ -74,8 +71,7 @@
 //!         when *#gesture::is_hovered {
 //!             widget::border = 1, colors::AZURE;
 //!         }
-//!     }))
-//!     .collect::<UiVec>();
+//!     }));
 //! }
 //! # ;
 //! ```
