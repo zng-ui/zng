@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-wrap"
-version = "0.6.10"
+version = "0.7.0"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,10 +12,10 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.8.9" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.7.10" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.7.9" }
-zng-layout = { path = "../zng-layout", version = "0.4.5" }
-zng-app = { path = "../zng-app", version = "0.16.9" }
+zng-wgt = { path = "../zng-wgt", version = "0.9.0" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.8.0" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.8.0" }
+zng-layout = { path = "../zng-layout", version = "0.5.0" }
+zng-app = { path = "../zng-app", version = "0.17.0" }
 
 tracing = "0.1"

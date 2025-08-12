@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-l10n"
-version = "0.8.9"
+version = "0.9.0"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -19,16 +19,16 @@ default = ["tar"]
 [dependencies]
 zng-ext-l10n-proc-macros = { path = "../zng-ext-l10n-proc-macros", version = "0.3.1" }
 
-zng-app-context = { path = "../zng-app-context", version = "0.7.3" }
-zng-app = { path = "../zng-app", version = "0.16.9" }
-zng-var = { path = "../zng-var", version = "0.7.5" }
-zng-txt = { path = "../zng-txt", version = "0.3.2" }
+zng-app-context = { path = "../zng-app-context", version = "0.8.0" }
+zng-app = { path = "../zng-app", version = "0.17.0" }
+zng-var = { path = "../zng-var", version = "0.8.0" }
+zng-txt = { path = "../zng-txt", version = "0.4.0" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.3.0" }
-zng-view-api = { path = "../zng-view-api", version = "0.13.7" }
-zng-layout = { path = "../zng-layout", version = "0.4.5" }
-zng-task = { path = "../zng-task", version = "0.6.7" }
-zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.5.9" }
-zng-env = { path = "../zng-env", version = "0.5.3" }
+zng-view-api = { path = "../zng-view-api", version = "0.14.0" }
+zng-layout = { path = "../zng-layout", version = "0.5.0" }
+zng-task = { path = "../zng-task", version = "0.7.0" }
+zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.6.0" }
+zng-env = { path = "../zng-env", version = "0.6.0" }
 
 fluent = "0.17"
 fluent-syntax = "0.12"
