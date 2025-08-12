@@ -308,18 +308,15 @@ fn commands() -> UiNode {
         text::font_family = FontName::monospace();
         font_color = colors::GRAY;
 
-        children = cmds
-            .into_iter()
-            .map(|cmd| {
-                Text! {
-                    txt = cmd.name_with_shortcut();
+        children = cmds.into_iter().map(|cmd| {
+            Text! {
+                txt = cmd.name_with_shortcut();
 
-                    when *#{cmd.is_enabled()} {
-                        font_color = light_dark(colors::BLACK, colors::WHITE);
-                    }
+                when *#{cmd.is_enabled()} {
+                    font_color = light_dark(colors::BLACK, colors::WHITE);
                 }
-            })
-            .collect::<UiVec>();
+            }
+        });
     }
 }
 
@@ -369,7 +366,7 @@ fn nested_focusables_group(g: char) -> UiNode {
         direction = StackDirection::left_to_right();
         align = Align::TOP;
         spacing = 10;
-        children = (0..5).map(|n| nested_focusable(g, n, 0)).collect::<UiVec>()
+        children = (0..5).map(|n| nested_focusable(g, n, 0))
     }
 }
 fn nested_focusable(g: char, column: u8, row: u8) -> UiNode {

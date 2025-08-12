@@ -351,16 +351,12 @@ fn exclusive_mode() -> UiNode {
                     child = Stack! {
                         toggle::selector = toggle::Selector::single(selected_opt);
                         direction = StackDirection::top_to_bottom();
-                        children = [default_opt]
-                            .into_iter()
-                            .chain(opts)
-                            .map(|o| {
-                                Toggle! {
-                                    child = Text!(formatx!("{o}"));
-                                    value = o;
-                                }
-                            })
-                            .collect::<UiVec>();
+                        children = [default_opt].into_iter().chain(opts).map(|o| {
+                            Toggle! {
+                                child = Text!(formatx!("{o}"));
+                                value = o;
+                            }
+                        });
                     }
                 };
             }

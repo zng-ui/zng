@@ -117,7 +117,7 @@ fn window_content() -> UiNode {
                 font_weight = FontWeight::SEMIBOLD;
             },
             Wrap! {
-                children = test_cmds.into_iter().map(|c| Button!(c)).collect::<UiVec>();
+                children = test_cmds.into_iter().map(|c| Button!(c));
                 spacing = 4;
                 zng::button::style_fn = Style! {
                     layout::padding = 2;
@@ -175,15 +175,13 @@ fn locale_menu() -> UiNode {
                     spacing = 5;
                     layout::margin = 10;
                     toggle::selector = toggle::Selector::single_opt(selected);
-                    children = options
-                        .map(|(l, actual)| {
-                            Toggle! {
-                                text::font_style = if actual { FontStyle::Normal } else { FontStyle::Italic };
-                                child = Text!("{l}");
-                                value::<zng::l10n::Lang> = l.clone();
-                            }
-                        })
-                        .collect::<UiVec>()
+                    children = options.map(|(l, actual)| {
+                        Toggle! {
+                            text::font_style = if actual { FontStyle::Normal } else { FontStyle::Italic };
+                            child = Text!("{l}");
+                            value::<zng::l10n::Lang> = l.clone();
+                        }
+                    })
                 }
             }))
     }

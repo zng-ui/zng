@@ -1,5 +1,7 @@
 # Unreleased
 
+* Implement `IntoUiNode` for `std::iter` iterators of `UiNode` items.
+    - You can now omit `.collect::<UiVec>()` in code that generates widget lists from iterators.
 
 # 0.16.0
 

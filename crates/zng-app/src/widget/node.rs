@@ -554,6 +554,187 @@ impl<U: IntoUiNode> IntoUiNode for Option<U> {
     }
 }
 
+impl<A, B> IntoUiNode for std::iter::Chain<A, B>
+where
+    A: Iterator<Item = UiNode>,
+    B: Iterator<Item = A::Item>,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl IntoUiNode for std::iter::Empty<UiNode> {
+    fn into_node(self) -> UiNode {
+        ui_vec![].into_node()
+    }
+}
+impl<I, P> IntoUiNode for std::iter::Filter<I, P>
+where
+    I: Iterator<Item = UiNode>,
+    P: FnMut(&<I as Iterator>::Item) -> bool,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<I, F> IntoUiNode for std::iter::FilterMap<I, F>
+where
+    I: Iterator,
+    F: FnMut(<I as Iterator>::Item) -> Option<UiNode>,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<I, U, F> IntoUiNode for std::iter::FlatMap<I, U, F>
+where
+    I: Iterator,
+    U: IntoIterator<Item = UiNode>,
+    F: FnMut(I::Item) -> U,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<I, U> IntoUiNode for std::iter::Flatten<I>
+where
+    I: Iterator,
+    <I as Iterator>::Item: IntoIterator<IntoIter = U, Item = <U as Iterator>::Item>,
+    U: Iterator<Item = UiNode>,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<F> IntoUiNode for std::iter::FromFn<F>
+where
+    F: FnMut() -> Option<UiNode>,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<I, F> IntoUiNode for std::iter::Inspect<I, F>
+where
+    I: Iterator<Item = UiNode>,
+    F: FnMut(&<I as Iterator>::Item),
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<I, F> IntoUiNode for std::iter::Map<I, F>
+where
+    I: Iterator,
+    F: FnMut(I::Item) -> UiNode,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<I, P> IntoUiNode for std::iter::MapWhile<I, P>
+where
+    I: Iterator,
+    P: FnMut(<I as Iterator>::Item) -> Option<UiNode>,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<I> IntoUiNode for std::iter::Peekable<I>
+where
+    I: Iterator<Item = UiNode>,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<I> IntoUiNode for std::iter::Rev<I>
+where
+    I: DoubleEndedIterator<Item = UiNode>,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<I, St, F> IntoUiNode for std::iter::Scan<I, St, F>
+where
+    I: Iterator,
+    F: FnMut(&mut St, <I as Iterator>::Item) -> Option<UiNode>,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<I> IntoUiNode for std::iter::Skip<I>
+where
+    I: Iterator<Item = UiNode>,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<I, P> IntoUiNode for std::iter::SkipWhile<I, P>
+where
+    I: Iterator<Item = UiNode>,
+    P: FnMut(&<I as Iterator>::Item) -> bool,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<I> IntoUiNode for std::iter::StepBy<I>
+where
+    I: Iterator<Item = UiNode>,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<F> IntoUiNode for std::iter::Successors<UiNode, F>
+where
+    F: FnMut(&UiNode) -> Option<UiNode>,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<I> IntoUiNode for std::iter::Take<I>
+where
+    I: Iterator<Item = UiNode>,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+impl<I, P> IntoUiNode for std::iter::TakeWhile<I, P>
+where
+    I: Iterator<Item = UiNode>,
+    P: FnMut(&<I as Iterator>::Item) -> bool,
+{
+    fn into_node(self) -> UiNode {
+        let vec: Vec<UiNode> = self.collect();
+        vec.into_node()
+    }
+}
+
 /// Represents an UI tree node instance.
 ///
 /// You can use the [`match_node`] helper to quickly declare a new node from a closure, most property nodes are implemented

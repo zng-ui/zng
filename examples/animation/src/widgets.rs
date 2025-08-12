@@ -109,22 +109,19 @@ fn plot(easing: EasingFn) -> ImageSource {
 pub(crate) fn ruler() -> UiNode {
     Stack! {
         children_align = Align::LEFT;
-        children = (0..=300)
-            .step_by(10)
-            .map(|x| {
-                zng::rule_line::RuleLine! {
-                    orientation = LineOrientation::Vertical;
-                    color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(40.pct()));
-                    layout::x = x.dip();
-                    layout::height = if x % 100 == 0 {
-                        52
-                    } else if x % 50 == 0 {
-                        22
-                    } else {
-                        12
-                    };
-                }
-            })
-            .collect::<UiVec>();
+        children = (0..=300).step_by(10).map(|x| {
+            zng::rule_line::RuleLine! {
+                orientation = LineOrientation::Vertical;
+                color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(40.pct()));
+                layout::x = x.dip();
+                layout::height = if x % 100 == 0 {
+                    52
+                } else if x % 50 == 0 {
+                    22
+                } else {
+                    12
+                };
+            }
+        });
     }
 }

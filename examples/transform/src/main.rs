@@ -292,29 +292,27 @@ fn cube_example() -> UiNode {
                     id = "cube";
                     transform_style = TransformStyle::Preserve3D;
 
-                    children = (1..=6u8)
-                        .map(|i| {
-                            Text! {
-                                txt = i.to_txt();
-                                // size = 200;
-                                font_size = 62;
-                                font_weight = FontWeight::BOLD;
-                                txt_align = Align::CENTER;
-                                background_color = hsla((360.0 * (7.0 / i as f32)).deg(), 0.5, 0.5, 0.7);
-                                border = 2, text::FONT_COLOR_VAR.map_into();
+                    children = (1..=6u8).map(|i| {
+                        Text! {
+                            txt = i.to_txt();
+                            // size = 200;
+                            font_size = 62;
+                            font_weight = FontWeight::BOLD;
+                            txt_align = Align::CENTER;
+                            background_color = hsla((360.0 * (7.0 / i as f32)).deg(), 0.5, 0.5, 0.7);
+                            border = 2, text::FONT_COLOR_VAR.map_into();
 
-                                transform = Transform::new_translate_z(100).then(match i {
-                                    1 => Transform::new_rotate_y(0.deg()),
-                                    2 => Transform::new_rotate_y(90.deg()),
-                                    3 => Transform::new_rotate_y(180.deg()),
-                                    4 => Transform::new_rotate_y((-90).deg()),
-                                    5 => Transform::new_rotate_x(90.deg()),
-                                    6 => Transform::new_rotate_x((-90).deg()),
-                                    _ => unreachable!()
-                                });
-                            }
-                        })
-                        .collect::<UiVec>();
+                            transform = Transform::new_translate_z(100).then(match i {
+                                1 => Transform::new_rotate_y(0.deg()),
+                                2 => Transform::new_rotate_y(90.deg()),
+                                3 => Transform::new_rotate_y(180.deg()),
+                                4 => Transform::new_rotate_y((-90).deg()),
+                                5 => Transform::new_rotate_x(90.deg()),
+                                6 => Transform::new_rotate_x((-90).deg()),
+                                _ => unreachable!()
+                            });
+                        }
+                    });
 
                     transform = show
                         .map(|&i| {
@@ -336,15 +334,13 @@ fn cube_example() -> UiNode {
                 align = Align::CENTER;
                 toggle::selector = toggle::Selector::single(show.clone());
                 spacing = 5;
-                children = (1..=6u8)
-                    .map(|i| {
-                        Toggle! {
-                            style_fn = toggle::RadioStyle!();
-                            value::<u8> = i;
-                            child = Text!(i.to_txt());
-                        }
-                    })
-                    .collect::<UiVec>();
+                children = (1..=6u8).map(|i| {
+                    Toggle! {
+                        style_fn = toggle::RadioStyle!();
+                        value::<u8> = i;
+                        child = Text!(i.to_txt());
+                    }
+                });
             }
         ];
     }
