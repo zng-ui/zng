@@ -645,9 +645,32 @@ impl Window {
 
     /// Returns `true` if the cursor was over the window.
     pub fn cursor_left(&mut self) -> bool {
+        #[cfg(windows)]
+        if Self::has_mouse_capture(&self.window) {
+            // winit sends a CursorLeft event while capture in Windows
+            return false;
+        }
+
         let changed = self.cursor_over;
         self.cursor_over = false;
         changed
+    }
+
+    #[cfg(windows)]
+    fn has_mouse_capture<W: raw_window_handle::HasWindowHandle>(window: &W) -> bool {
+        use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetCapture;
+
+        if let Ok(handle) = window.window_handle() {
+            if let raw_window_handle::RawWindowHandle::Win32(h) = handle.as_raw() {
+                let hwnd = h.hwnd.get();
+                // SAFETY: function can be called at any time
+                unsafe { GetCapture() == hwnd }
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
 
     pub fn set_visible(&mut self, visible: bool) {
