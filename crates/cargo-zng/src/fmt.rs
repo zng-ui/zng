@@ -32,9 +32,13 @@ pub struct FmtArgs {
     #[arg(short, long)]
     files: Option<String>,
 
-    /// Format the stdin to the stdout.
+    /// Format the stdin to the stdout
     #[arg(short, long, action)]
     stdin: bool,
+
+    /// Rustfmt style edition, enforced for all files
+    #[arg(long, default_value = "2024")]
+    edition: String,
 }
 
 pub fn run(mut args: FmtArgs) {
@@ -56,10 +60,10 @@ pub fn run(mut args: FmtArgs) {
             return;
         }
 
-        if let Some(code) = rustfmt_stdin(&code) {
+        if let Some(code) = rustfmt_stdin(&code, &args.edition) {
             let stream: TokenStream = code.parse().unwrap_or_else(|e| fatal!("cannot parse stdin, {e}"));
 
-            let formatted = fmt_code(&code, stream);
+            let formatted = fmt_code(&code, stream, &args.edition);
             if let Err(e) = std::io::stdout().write_all(formatted.as_bytes()) {
                 fatal!("stdout write error, {e}");
             }
@@ -71,9 +75,6 @@ pub fn run(mut args: FmtArgs) {
 
         for file in glob::glob(&glob).unwrap_or_else(|e| fatal!("{e}")) {
             let file = file.unwrap_or_else(|e| fatal!("{e}"));
-            if let Err(e) = util::cmd("rustfmt", &["--edition", "2021", check, &file.as_os_str().to_string_lossy()], &[]) {
-                fatal!("{e}");
-            }
             custom_fmt_files.push(file);
         }
     } else {
@@ -87,10 +88,6 @@ pub fn run(mut args: FmtArgs) {
             }
         }
         if let Some(path) = args.manifest_path {
-            if let Err(e) = util::cmd("cargo fmt --manifest-path", &[&path, check], &[]) {
-                fatal!("{e}");
-            }
-
             let files = Path::new(&path)
                 .parent()
                 .unwrap()
@@ -103,10 +100,6 @@ pub fn run(mut args: FmtArgs) {
                 custom_fmt_files.push(file);
             }
         } else {
-            if let Err(e) = util::cmd("cargo fmt", &[check], &[]) {
-                fatal!("{e}");
-            }
-
             for path in util::workspace_manifest_paths() {
                 let files = path.parent().unwrap().join("**/*.rs").display().to_string().replace('\\', "/");
                 for file in glob::glob(&files).unwrap_or_else(|e| fatal!("{e}")) {
@@ -117,14 +110,33 @@ pub fn run(mut args: FmtArgs) {
         }
     }
 
-    custom_fmt_files.par_iter().for_each(|file| {
-        if let Err(e) = custom_fmt(file, args.check) {
-            fatal!("error {action} `{}`, {e}", file.display());
+    // apply normal format first
+    custom_fmt_files.par_chunks(64).for_each(|c| {
+        let mut rustfmt = std::process::Command::new("rustfmt");
+        rustfmt.arg("--edition").arg(&args.edition);
+        if args.check {
+            rustfmt.arg(check);
+        }
+        rustfmt.args(c);
+
+        match rustfmt.output() {
+            Ok(s) => {
+                if !s.status.success() {
+                    fatal!("rustfmt error {}", s.status)
+                }
+            }
+            Err(e) => fatal!("{e}"),
         }
     });
+
+    // custom_fmt_files.par_iter().for_each(|file| {
+    //     if let Err(e) = custom_fmt(file, args.check, &args.edition) {
+    //         fatal!("error {action} `{}`, {e}", file.display());
+    //     }
+    // });
 }
 
-fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
+fn custom_fmt(rs_file: &Path, check: bool, edition: &str) -> io::Result<()> {
     let file = fs::read_to_string(rs_file)?;
 
     // skip UTF-8 BOM
@@ -143,7 +155,7 @@ fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
         .parse()
         .unwrap_or_else(|e| fatal!("cannot parse `{}`, {e}", rs_file.display()));
 
-    formatted_code.push_str(&fmt_code(file_code, file_stream));
+    formatted_code.push_str(&fmt_code(file_code, file_stream, edition));
 
     if formatted_code != file {
         if check {
@@ -155,7 +167,7 @@ fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
     Ok(())
 }
 
-fn fmt_code(code: &str, stream: TokenStream) -> String {
+fn fmt_code(code: &str, stream: TokenStream, edition: &str) -> String {
     let mut formatted_code = String::new();
     let mut last_already_fmt_start = 0;
 
@@ -197,11 +209,11 @@ fn fmt_code(code: &str, stream: TokenStream) -> String {
                     let group_bytes = g.span().byte_range();
                     let group_code = &code[group_bytes.clone()];
 
-                    if let Some(formatted) = try_fmt_macro(base_indent, group_code)
+                    if let Some(formatted) = try_fmt_macro(base_indent, group_code, edition)
                         && formatted != group_code
                     {
                         // changed by custom format
-                        if let Some(stable) = try_fmt_macro(base_indent, &formatted)
+                        if let Some(stable) = try_fmt_macro(base_indent, &formatted, edition)
                             && formatted == stable
                         {
                             // change is sable
@@ -253,13 +265,13 @@ fn fmt_code(code: &str, stream: TokenStream) -> String {
         // custom format can cause normal format to change
         // example: ui_vec![Wgt!{<many properties>}, Wgt!{<same>}]
         //   Wgt! gets custom formatted onto multiple lines, that causes ui_vec![\n by normal format.
-        formatted_code = rustfmt_stdin_frag(&formatted_code).unwrap_or(formatted_code);
+        formatted_code = rustfmt_stdin_frag(&formatted_code, edition).unwrap_or(formatted_code);
     }
 
     formatted_code
 }
 
-fn try_fmt_macro(base_indent: usize, group_code: &str) -> Option<String> {
+fn try_fmt_macro(base_indent: usize, group_code: &str, edition: &str) -> Option<String> {
     let mut replaced_code = replace_event_args(group_code, false);
     let is_event_args = matches!(&replaced_code, Cow::Owned(_));
 
@@ -281,7 +293,7 @@ fn try_fmt_macro(base_indent: usize, group_code: &str) -> Option<String> {
         is_expr_var = matches!(&replaced_code, Cow::Owned(_));
     }
 
-    let code = rustfmt_stdin_frag(&replaced_code)?;
+    let code = rustfmt_stdin_frag(&replaced_code, edition)?;
 
     let code = if is_event_args {
         replace_event_args(&code, true)
@@ -301,7 +313,7 @@ fn try_fmt_macro(base_indent: usize, group_code: &str) -> Option<String> {
         TokenTree::Group(g) => g.stream(),
         _ => unreachable!(),
     };
-    let code = fmt_code(&code, code_stream);
+    let code = fmt_code(&code, code_stream, edition);
 
     let mut out = String::new();
     let mut lb_indent = String::with_capacity(base_indent + 1);
@@ -464,10 +476,10 @@ fn replace_expr_var(code: &str, reverse: bool) -> Cow<'_, str> {
     }
 }
 
-fn rustfmt_stdin_frag(code: &str) -> Option<String> {
+fn rustfmt_stdin_frag(code: &str, edition: &str) -> Option<String> {
     let mut s = std::process::Command::new("rustfmt")
         .arg("--edition")
-        .arg("2021")
+        .arg(edition)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -485,10 +497,10 @@ fn rustfmt_stdin_frag(code: &str) -> Option<String> {
     }
 }
 
-fn rustfmt_stdin(code: &str) -> Option<String> {
+fn rustfmt_stdin(code: &str, edition: &str) -> Option<String> {
     let mut s = std::process::Command::new("rustfmt")
         .arg("--edition")
-        .arg("2021")
+        .arg(edition)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()

@@ -1,5 +1,10 @@
 # Unreleased
 
+* Fix `cargo zng fmt` inconsistency.
+    - Add `cargo zng fmt --edition [2015|2018|2021|2024]` option, 2024 is the default.
+    - Selected edition (including default) is enforced for all usage.
+    - Defaults from Cargo.toml and rustfmt.toml are still not implemented.
+
 * Fix missing mouse move events when cursor is captured and leaves the window in Windows.
 * Implement `IntoUiNode` for `std::iter` iterators of `UiNode` items.
     - You can now omit `.collect::<UiVec>()` in code that generates widget lists from iterators.
