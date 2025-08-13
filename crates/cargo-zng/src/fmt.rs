@@ -1,9 +1,10 @@
 use std::{
     borrow::Cow,
     fs,
-    io::{self, Read, Write},
-    path::Path,
+    io::{self, BufRead, Read, Write},
+    path::{Path, PathBuf},
     process::Stdio,
+    time::SystemTime,
 };
 
 use clap::*;
@@ -11,6 +12,7 @@ use once_cell::sync::Lazy;
 use proc_macro2::{Delimiter, TokenStream, TokenTree};
 use rayon::prelude::*;
 use regex::Regex;
+use sha2::Digest;
 
 use crate::util;
 
@@ -42,9 +44,7 @@ pub struct FmtArgs {
 }
 
 pub fn run(mut args: FmtArgs) {
-    let (check, action) = if args.check { ("--check", "checking") } else { ("", "formatting") };
-
-    let mut custom_fmt_files = vec![];
+    let action = if args.check { "checking" } else { "formatting" };
 
     if args.stdin {
         if args.manifest_path.is_some() || args.package.is_some() || args.files.is_some() {
@@ -68,26 +68,31 @@ pub fn run(mut args: FmtArgs) {
                 fatal!("stdout write error, {e}");
             }
         }
-    } else if let Some(glob) = args.files {
+
+        return;
+    }
+
+    let mut custom_fmt_files = vec![];
+    if let Some(glob) = &args.files {
         if args.manifest_path.is_some() || args.package.is_some() {
             fatal!("--files must not be set when crate is set");
         }
 
-        for file in glob::glob(&glob).unwrap_or_else(|e| fatal!("{e}")) {
+        for file in glob::glob(glob).unwrap_or_else(|e| fatal!("{e}")) {
             let file = file.unwrap_or_else(|e| fatal!("{e}"));
             custom_fmt_files.push(file);
         }
     } else {
-        if let Some(pkg) = args.package {
+        if let Some(pkg) = &args.package {
             if args.manifest_path.is_some() {
                 fatal!("expected only one of --package, --manifest-path");
             }
-            match util::manifest_path_from_package(&pkg) {
+            match util::manifest_path_from_package(pkg) {
                 Some(m) => args.manifest_path = Some(m),
                 None => fatal!("package `{pkg}` not found in workspace"),
             }
         }
-        if let Some(path) = args.manifest_path {
+        if let Some(path) = &args.manifest_path {
             let files = Path::new(&path)
                 .parent()
                 .unwrap()
@@ -110,30 +115,44 @@ pub fn run(mut args: FmtArgs) {
         }
     }
 
-    // apply normal format first
+    // if the args are on record only select files modified since then
+    let mut history = match FmtHistory::load() {
+        Ok(h) => h,
+        Err(e) => {
+            warn!("cannot load fmt history, {e}");
+            FmtHistory::default()
+        }
+    };
+    let cutout_time = history.insert(&args);
+    let mut custom_fmt_files: Vec<_> = custom_fmt_files
+        .into_par_iter()
+        .filter_map(|p| {
+            let modified = std::fs::metadata(&p)
+                .unwrap_or_else(|e| fatal!("{e}"))
+                .modified()
+                .unwrap_or_else(|e| fatal!("{e}"));
+            let modified = FmtHistory::time(modified);
+            if modified > cutout_time { Some((p, modified)) } else { None }
+        })
+        .collect();
+
+    // latest modified first
+    custom_fmt_files.sort_by(|a, b| b.1.cmp(&a.1));
+    let custom_fmt_files: Vec<_> = custom_fmt_files.into_iter().map(|(p, _)| p).collect();
+
     custom_fmt_files.par_chunks(64).for_each(|c| {
-        let mut rustfmt = std::process::Command::new("rustfmt");
-        rustfmt.arg("--edition").arg(&args.edition);
-        if args.check {
-            rustfmt.arg(check);
-        }
-        rustfmt.args(c);
+        // apply normal format first
+        rustfmt_files(c, &args.edition, args.check);
 
-        match rustfmt.output() {
-            Ok(s) => {
-                if !s.status.success() {
-                    fatal!("rustfmt error {}", s.status)
-                }
-            }
-            Err(e) => fatal!("{e}"),
-        }
+        // apply custom format
+        custom_fmt_files.par_iter().for_each(|file| {
+            custom_fmt(file, args.check, &args.edition).unwrap_or_else(|e| fatal!("error {action} `{}`, {e}", file.display()))
+        });
     });
 
-    custom_fmt_files.par_iter().for_each(|file| {
-        if let Err(e) = custom_fmt(file, args.check, &args.edition) {
-            fatal!("error {action} `{}`, {e}", file.display());
-        }
-    });
+    if let Err(e) = history.save() {
+        warn!("cannot save fmt history, {e}")
+    }
 }
 
 fn custom_fmt(rs_file: &Path, check: bool, edition: &str) -> io::Result<()> {
@@ -513,5 +532,132 @@ fn rustfmt_stdin(code: &str, edition: &str) -> Option<String> {
         Some(code)
     } else {
         None
+    }
+}
+
+fn rustfmt_files(files: &[PathBuf], edition: &str, check: bool) {
+    let mut rustfmt = std::process::Command::new("rustfmt");
+    rustfmt.arg("--edition").arg(edition);
+    if check {
+        rustfmt.arg("--check");
+    }
+    rustfmt.args(files);
+
+    match rustfmt.output() {
+        Ok(s) => {
+            if !s.status.success() {
+                fatal!("rustfmt error {}", s.status)
+            }
+        }
+        Err(e) => fatal!("{e}"),
+    }
+}
+
+#[derive(Default)]
+struct FmtHistory {
+    /// args hash and timestamp
+    entries: Vec<(String, u128)>,
+}
+impl FmtHistory {
+    /// insert is called before formatting, but we need to actually save the
+    /// timestamp after formatting, this value marks an inserted entry not saved yet.
+    const TIMESTAMP_ON_SAVE: u128 = u128::MAX;
+
+    const MAX_ENTRIES: usize = 30;
+
+    pub fn load() -> io::Result<Self> {
+        let now = Self::time(SystemTime::now());
+
+        match std::fs::File::open(Self::path()?) {
+            Ok(file) => {
+                let reader = std::io::BufReader::new(file);
+                let mut out = Self { entries: vec![] };
+                for line in reader.lines().take(Self::MAX_ENTRIES) {
+                    if let Some((key, ts)) = line?.split_once(' ') {
+                        let t: u128 = ts.parse().map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+                        if t > now {
+                            return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid timestamp"));
+                        }
+                        out.entries.push((key.to_owned(), t));
+                    }
+                }
+                Ok(out)
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self { entries: vec![] }),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Returns the previous timestamp for the same args or 0.
+    pub fn insert(&mut self, args: &FmtArgs) -> u128 {
+        let mut args_key = sha2::Sha256::new();
+        if let Some(f) = &args.files {
+            args_key.update(f.as_bytes());
+        }
+        if let Some(f) = &args.manifest_path {
+            args_key.update(f.as_bytes());
+        }
+        args_key.update(args.edition.as_bytes());
+        let rustfmt_version = std::process::Command::new("rustfmt")
+            .arg("--version")
+            .output()
+            .unwrap_or_else(|e| fatal!("{e}"));
+        if !rustfmt_version.status.success() {
+            fatal!("rustfmt error {}", rustfmt_version.status);
+        }
+        let rustfmt_version = String::from_utf8_lossy(&rustfmt_version.stdout);
+        args_key.update(rustfmt_version.as_bytes());
+        let args_key = format!("{:x}", args_key.finalize());
+
+        for (key, t) in self.entries.iter_mut() {
+            if key == &args_key {
+                let prev_t = *t;
+                assert_ne!(prev_t, Self::TIMESTAMP_ON_SAVE, "inserted called twice");
+                *t = Self::TIMESTAMP_ON_SAVE;
+                return prev_t;
+            }
+        }
+        self.entries.push((args_key, Self::TIMESTAMP_ON_SAVE));
+        if self.entries.len() > Self::MAX_ENTRIES {
+            self.entries.remove(0);
+        }
+        0
+    }
+
+    pub fn save(&mut self) -> io::Result<()> {
+        let now = Self::time(SystemTime::now());
+        for (_, t) in self.entries.iter_mut() {
+            if *t == Self::TIMESTAMP_ON_SAVE {
+                *t = now;
+            }
+        }
+
+        let mut file = std::fs::File::create(Self::path()?)?;
+        for (key, t) in self.entries.iter() {
+            writeln!(&mut file, "{key} {t}")?;
+        }
+
+        Ok(())
+    }
+
+    /// Convert to history time representation.
+    pub fn time(time: SystemTime) -> u128 {
+        time.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_micros()
+    }
+
+    fn path() -> io::Result<PathBuf> {
+        let output = std::process::Command::new("cargo")
+            .arg("locate-project")
+            .arg("--workspace")
+            .arg("--message-format=plain")
+            .stderr(Stdio::inherit())
+            .output()?;
+        if !output.status.success() {
+            return Err(io::Error::new(io::ErrorKind::NotFound, "workspace root not found"));
+        }
+        let root_dir = Path::new(std::str::from_utf8(&output.stdout).unwrap().trim()).parent().unwrap();
+        let target_dir = root_dir.join("target");
+        let _ = std::fs::create_dir(&target_dir);
+        Ok(target_dir.join(".cargo-zng-fmt-history-v1"))
     }
 }
