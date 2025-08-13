@@ -42,11 +42,7 @@ impl_from_and_into_var! {
     /// [`ZOOM`]: ScrollMode::ZOOM
     /// [`NONE`]: ScrollMode::NONE
     fn from(zoom: bool) -> ScrollMode {
-        if zoom {
-            ScrollMode::ZOOM
-        } else {
-            ScrollMode::NONE
-        }
+        if zoom { ScrollMode::ZOOM } else { ScrollMode::NONE }
     }
 }
 

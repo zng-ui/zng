@@ -118,13 +118,7 @@ fn screenshot() -> UiNode {
     fn of_window() -> UiNode {
         let enabled = var(true);
         Button! {
-            child = Text!(enabled.map(|&enabled| {
-                if enabled {
-                    "screenshot".to_txt()
-                } else {
-                    "saving..".to_txt()
-                }
-            }));
+            child = Text!(enabled.map(|&enabled| { if enabled { "screenshot" } else { "saving.." }.to_txt() }));
             on_click = async_hn!(enabled, |_| {
                 // disable button until screenshot is saved.
                 enabled.set(false);
@@ -156,13 +150,7 @@ fn screenshot() -> UiNode {
     fn of_headless_temp() -> UiNode {
         let enabled = var(true);
         Button! {
-            child = Text!(enabled.map(|&enabled| {
-                if enabled {
-                    "headless".to_txt()
-                } else {
-                    "saving..".to_txt()
-                }
-            }));
+            child = Text!(enabled.map(|&enabled| { if enabled { "headless" } else { "saving.." }.to_txt() }));
             enabled = enabled.clone();
             on_click = hn!(|_| {
                 enabled.set(false);

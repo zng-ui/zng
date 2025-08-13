@@ -803,11 +803,7 @@ bitflags! {
 }
 impl_from_and_into_var! {
     fn from(empty_or_all: bool) -> DialogKind {
-        if empty_or_all {
-            DialogKind::all()
-        } else {
-            DialogKind::empty()
-        }
+        if empty_or_all { DialogKind::all() } else { DialogKind::empty() }
     }
 }
 

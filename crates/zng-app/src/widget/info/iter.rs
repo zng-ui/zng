@@ -25,11 +25,7 @@ impl_from_and_into_var! {
     /// [`Include`]: TreeFilter::Include
     /// [`Skip`]: TreeFilter::Skip
     fn from(include: bool) -> TreeFilter {
-        if include {
-            TreeFilter::Include
-        } else {
-            TreeFilter::Skip
-        }
+        if include { TreeFilter::Include } else { TreeFilter::Skip }
     }
 }
 

@@ -1087,10 +1087,10 @@ impl_from_and_into_var! {
     fn from(metrics: Metrics) -> Progress {
         let mut status = Progress::indeterminate();
         if metrics.download_progress.1 > 0.bytes() {
-            status = Progress::from_n_of(metrics.download_progress.0 .0, metrics.download_progress.1 .0);
+            status = Progress::from_n_of(metrics.download_progress.0.0, metrics.download_progress.1.0);
         }
         if metrics.upload_progress.1 > 0.bytes() {
-            let u_status = Progress::from_n_of(metrics.upload_progress.0 .0, metrics.upload_progress.1 .0);
+            let u_status = Progress::from_n_of(metrics.upload_progress.0.0, metrics.upload_progress.1.0);
             if status.is_indeterminate() {
                 status = u_status;
             } else {

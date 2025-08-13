@@ -200,11 +200,7 @@ impl SaveState {
 impl_from_and_into_var! {
     /// Convert `true` to default config and `false` to `None`.
     fn from(persist: bool) -> SaveState {
-        if persist {
-            SaveState::default()
-        } else {
-            SaveState::Disabled
-        }
+        if persist { SaveState::default() } else { SaveState::Disabled }
     }
 }
 

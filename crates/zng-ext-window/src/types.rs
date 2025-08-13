@@ -146,11 +146,7 @@ impl_from_and_into_var! {
     /// Returns [`AutoSize::CONTENT`] if `content` is `true`, otherwise
     // returns [`AutoSize::DISABLED`].
     fn from(content: bool) -> AutoSize {
-        if content {
-            AutoSize::CONTENT
-        } else {
-            AutoSize::DISABLED
-        }
+        if content { AutoSize::CONTENT } else { AutoSize::DISABLED }
     }
 }
 

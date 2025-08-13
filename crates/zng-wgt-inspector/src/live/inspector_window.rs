@@ -443,11 +443,7 @@ fn selected_view(wgt: Option<InspectedWidget>) -> UiNode {
                         ]
                     },
                     wgt.inspector_info().present(wgt_fn!(|i| {
-                        if let Some(i) = i {
-                            inspector_info_view(i)
-                        } else {
-                            UiNode::nil()
-                        }
+                        if let Some(i) = i { inspector_info_view(i) } else { UiNode::nil() }
                     })),
                     Hr!(),
                     info_watchers(&wgt),

@@ -2268,11 +2268,7 @@ impl_from_and_into_var! {
     /// * `true` -> `ENABLED`
     /// * `false` -> `DISABLED`
     fn from(enabled: bool) -> Interactivity {
-        if enabled {
-            Interactivity::ENABLED
-        } else {
-            Interactivity::DISABLED
-        }
+        if enabled { Interactivity::ENABLED } else { Interactivity::DISABLED }
     }
 }
 impl fmt::Debug for Interactivity {
@@ -2373,11 +2369,7 @@ impl_from_and_into_var! {
     /// * `true` -> `Visible`
     /// * `false` -> `Collapsed`
     fn from(visible: bool) -> Visibility {
-        if visible {
-            Visibility::Visible
-        } else {
-            Visibility::Collapsed
-        }
+        if visible { Visibility::Visible } else { Visibility::Collapsed }
     }
 }
 

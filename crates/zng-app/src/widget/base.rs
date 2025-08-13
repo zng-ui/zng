@@ -1064,10 +1064,6 @@ context_var! {
 }
 impl_from_and_into_var! {
     fn from(all: bool) -> Parallel {
-        if all {
-            Parallel::all()
-        } else {
-            Parallel::empty()
-        }
+        if all { Parallel::all() } else { Parallel::empty() }
     }
 }
