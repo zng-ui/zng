@@ -129,11 +129,11 @@ pub fn run(mut args: FmtArgs) {
         }
     });
 
-    // custom_fmt_files.par_iter().for_each(|file| {
-    //     if let Err(e) = custom_fmt(file, args.check, &args.edition) {
-    //         fatal!("error {action} `{}`, {e}", file.display());
-    //     }
-    // });
+    custom_fmt_files.par_iter().for_each(|file| {
+        if let Err(e) = custom_fmt(file, args.check, &args.edition) {
+            fatal!("error {action} `{}`, {e}", file.display());
+        }
+    });
 }
 
 fn custom_fmt(rs_file: &Path, check: bool, edition: &str) -> io::Result<()> {
