@@ -1,4 +1,4 @@
-use zng::prelude_wgt::{property, IntoUiNode, IntoVar, UiNode};
+use zng::prelude_wgt::{IntoUiNode, IntoVar, UiNode, property};
 
 #[property(CONTEXT)]
 pub fn get_state(child: impl IntoUiNode, state: impl IntoVar<u32>) -> UiNode {

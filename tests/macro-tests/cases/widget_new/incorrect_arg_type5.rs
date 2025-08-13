@@ -1,7 +1,7 @@
 use zng::{
-    prelude_wgt::{property, IntoUiNode, IntoVar, UiNode},
-    widget::Wgt,
     APP,
+    prelude_wgt::{IntoUiNode, IntoVar, UiNode, property},
+    widget::Wgt,
 };
 
 #[property(CONTEXT)]

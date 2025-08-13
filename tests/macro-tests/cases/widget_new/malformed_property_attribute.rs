@@ -1,4 +1,4 @@
-use zng::{button::Button, layout::margin, APP};
+use zng::{APP, button::Button, layout::margin};
 
 fn main() {
     let _app = APP.minimal();

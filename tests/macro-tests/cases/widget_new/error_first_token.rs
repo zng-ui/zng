@@ -1,4 +1,4 @@
-use zng::{gesture::is_pressed, widget::Wgt, APP};
+use zng::{APP, gesture::is_pressed, widget::Wgt};
 
 fn test_1() {
     let _ = Wgt! {

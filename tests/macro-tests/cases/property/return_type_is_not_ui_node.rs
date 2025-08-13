@@ -1,4 +1,4 @@
-use zng::prelude_wgt::{property, IntoUiNode, IntoVar, UiNode};
+use zng::prelude_wgt::{IntoUiNode, IntoVar, UiNode, property};
 
 pub struct NotUiNode;
 

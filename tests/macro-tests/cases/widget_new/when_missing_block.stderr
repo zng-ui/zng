@@ -5,9 +5,9 @@ error: expected a when block expr and properties
   |                ^^^^^^^^^^
 
 warning: unused import: `gesture::is_pressed`
- --> cases/widget_new/when_missing_block.rs:1:11
+ --> cases/widget_new/when_missing_block.rs:1:16
   |
-1 | use zng::{gesture::is_pressed, widget::Wgt, APP};
-  |           ^^^^^^^^^^^^^^^^^^^
+1 | use zng::{APP, gesture::is_pressed, widget::Wgt};
+  |                ^^^^^^^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

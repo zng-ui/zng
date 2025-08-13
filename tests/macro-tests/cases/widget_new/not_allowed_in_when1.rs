@@ -1,8 +1,8 @@
 use zng::{
-    layout::margin,
-    prelude_wgt::{property, IntoUiNode, UiNode},
-    widget::Wgt,
     APP,
+    layout::margin,
+    prelude_wgt::{IntoUiNode, UiNode, property},
+    widget::Wgt,
 };
 
 #[property(CONTEXT)]

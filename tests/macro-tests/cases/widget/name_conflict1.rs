@@ -1,4 +1,4 @@
-use zng::prelude_wgt::{widget, WidgetBase};
+use zng::prelude_wgt::{WidgetBase, widget};
 
 #[allow(unused_macros)]
 macro_rules! TestWidget {

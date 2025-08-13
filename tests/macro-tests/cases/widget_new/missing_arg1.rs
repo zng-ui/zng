@@ -1,7 +1,7 @@
 use zng::{
-    layout::{margin, AngleUnits},
-    widget::{background_gradient, Wgt},
     APP,
+    layout::{AngleUnits, margin},
+    widget::{Wgt, background_gradient},
 };
 
 fn main() {

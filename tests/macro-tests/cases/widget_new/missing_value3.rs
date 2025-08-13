@@ -1,4 +1,4 @@
-use zng::{layout::margin, mouse::cursor, widget::Wgt, APP};
+use zng::{APP, layout::margin, mouse::cursor, widget::Wgt};
 
 fn main() {
     let _scope = APP.minimal();

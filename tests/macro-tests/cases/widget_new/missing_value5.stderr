@@ -19,10 +19,10 @@ error: expected `;`
   |         ^^^^^^
 
 warning: unused import: `mouse::cursor`
- --> cases/widget_new/missing_value5.rs:1:27
+ --> cases/widget_new/missing_value5.rs:1:32
   |
-1 | use zng::{layout::margin, mouse::cursor, widget::Wgt, APP};
-  |                           ^^^^^^^^^^^^^
+1 | use zng::{APP, layout::margin, mouse::cursor, widget::Wgt};
+  |                                ^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default
 

@@ -1,4 +1,4 @@
-use zng::prelude_wgt::{property, UiNode};
+use zng::prelude_wgt::{UiNode, property};
 
 #[property(CONTEXT)]
 pub fn no_args() -> UiNode {

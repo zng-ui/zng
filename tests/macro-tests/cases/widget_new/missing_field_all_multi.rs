@@ -1,6 +1,6 @@
 use zng::{
-    widget::{background_gradient, Wgt},
     APP,
+    widget::{Wgt, background_gradient},
 };
 
 fn main() {

@@ -1,4 +1,4 @@
-use zng::prelude_wgt::{property, IntoUiNode, IntoVar, UiNode};
+use zng::prelude_wgt::{IntoUiNode, IntoVar, UiNode, property};
 
 #[property(CONTEXT, default)]
 pub fn missing_default_parentheses(child: impl IntoUiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> UiNode {

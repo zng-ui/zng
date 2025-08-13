@@ -19,9 +19,9 @@ error: expected identifier, found `!`
   |      --------- while parsing argument for this `expr` macro fragment
 
 warning: unused import: `layout::margin`
- --> cases/widget_new/malformed_property_attribute.rs:1:27
+ --> cases/widget_new/malformed_property_attribute.rs:1:32
   |
-1 | use zng::{button::Button, layout::margin, APP};
-  |                           ^^^^^^^^^^^^^^
+1 | use zng::{APP, button::Button, layout::margin};
+  |                                ^^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

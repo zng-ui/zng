@@ -1,8 +1,8 @@
 warning: unused import: `UiNode`
- --> cases/property/return_type_is_not_ui_node.rs:1:55
+ --> cases/property/return_type_is_not_ui_node.rs:1:45
   |
-1 | use zng::prelude_wgt::{property, IntoUiNode, IntoVar, UiNode};
-  |                                                       ^^^^^^
+1 | use zng::prelude_wgt::{IntoUiNode, IntoVar, UiNode, property};
+  |                                             ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default
 

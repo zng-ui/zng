@@ -1,8 +1,8 @@
 use zng::{
-    layout::margin,
-    mouse::{cursor, CursorIcon},
-    widget::{enabled, Wgt},
     APP,
+    layout::margin,
+    mouse::{CursorIcon, cursor},
+    widget::{Wgt, enabled},
 };
 
 fn main() {

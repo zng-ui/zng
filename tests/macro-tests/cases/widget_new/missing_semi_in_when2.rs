@@ -1,9 +1,9 @@
 use zng::{
+    APP,
     gesture::is_pressed,
     layout::margin,
-    mouse::{cursor, CursorIcon},
+    mouse::{CursorIcon, cursor},
     widget::Wgt,
-    APP,
 };
 
 fn main() {

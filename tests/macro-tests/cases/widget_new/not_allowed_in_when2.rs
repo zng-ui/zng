@@ -1,9 +1,9 @@
 use zng::{
+    APP,
     gesture::is_pressed,
     layout::margin,
-    prelude_wgt::{property, IntoUiNode, IntoValue, UiNode},
+    prelude_wgt::{IntoUiNode, IntoValue, UiNode, property},
     widget::Wgt,
-    APP,
 };
 
 struct NotVarValue;

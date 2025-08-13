@@ -5,9 +5,9 @@ error: unknown special value, expected `unset!`
   |                  ^^^
 
 warning: unused import: `layout::margin`
- --> cases/widget_new/unknown_special_value.rs:1:11
+ --> cases/widget_new/unknown_special_value.rs:1:16
   |
-1 | use zng::{layout::margin, widget::Wgt, APP};
-  |           ^^^^^^^^^^^^^^
+1 | use zng::{APP, layout::margin, widget::Wgt};
+  |                ^^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default
