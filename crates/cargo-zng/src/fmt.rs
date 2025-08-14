@@ -12,7 +12,6 @@ use std::{
 use clap::*;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
-use proc_macro2::{Delimiter, TokenStream, TokenTree};
 use rayon::prelude::*;
 use regex::Regex;
 use sha2::Digest;
@@ -67,7 +66,7 @@ pub fn run(mut args: FmtArgs) {
         }
 
         if let Some(code) = rustfmt_stdin(&code, &args.edition) {
-            let stream = SendTokenStream(code.parse().unwrap_or_else(|e| fatal!("cannot parse stdin, {e}")));
+            let stream = code.parse().unwrap_or_else(|e| fatal!("cannot parse stdin, {e}"));
 
             let fmt_server = FmtFragServer::spawn(args.edition.clone());
             let mut formatted = Box::pin(fmt_code(&code, stream, &fmt_server));
@@ -163,41 +162,41 @@ pub fn run(mut args: FmtArgs) {
     custom_fmt_files.par_chunks(64).for_each(|c| {
         // apply normal format first
         rustfmt_files(c, &args.edition, args.check);
-
-        // apply custom format
-        let check = args.check;
-        let fmt_server = fmt_server.clone();
-        let mut futs: Vec<_> = custom_fmt_files
-            .par_iter()
-            .map(move |file| {
-                let fmt_server = fmt_server.clone();
-                Some(Box::pin(async move {
-                    custom_fmt(file.clone(), check, fmt_server)
-                        .await
-                        .unwrap_or_else(|e| fatal!("error {action} `{}`, {e}", file.display()))
-                }))
-            })
-            .collect();
-
-        loop {
-            std::thread::sleep(Duration::from_millis(25));
-            futs.iter_mut().for_each(|f| {
-                match f
-                    .as_mut()
-                    .unwrap()
-                    .as_mut()
-                    .poll(&mut std::task::Context::from_waker(std::task::Waker::noop()))
-                {
-                    Poll::Ready(()) => *f = None,
-                    Poll::Pending => {}
-                }
-            });
-            futs.retain(|t| t.is_some());
-            if futs.is_empty() {
-                break;
-            }
-        }
     });
+
+    // apply custom format
+    let check = args.check;
+    let fmt_server = fmt_server.clone();
+    let mut futs: Vec<_> = custom_fmt_files
+        .par_iter()
+        .map(move |file| {
+            let fmt_server = fmt_server.clone();
+            Some(Box::pin(async move {
+                custom_fmt(file.clone(), check, fmt_server)
+                    .await
+                    .unwrap_or_else(|e| fatal!("error {action} `{}`, {e}", file.display()))
+            }))
+        })
+        .collect();
+
+    loop {
+        std::thread::sleep(Duration::from_millis(25));
+        futs.par_iter_mut().for_each(|f| {
+            match f
+                .as_mut()
+                .unwrap()
+                .as_mut()
+                .poll(&mut std::task::Context::from_waker(std::task::Waker::noop()))
+            {
+                Poll::Ready(()) => *f = None,
+                Poll::Pending => {}
+            }
+        });
+        futs.retain(|t| t.is_some());
+        if futs.is_empty() {
+            break;
+        }
+    }
 
     if let Err(e) = history.save() {
         warn!("cannot save fmt history, {e}")
@@ -219,11 +218,9 @@ async fn custom_fmt(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io::Re
     let mut formatted_code = file[..file.len() - file_code.len()].to_owned();
     formatted_code.reserve(file.len());
 
-    let file_stream = SendTokenStream(
-        file_code
-            .parse()
-            .unwrap_or_else(|e| fatal!("cannot parse `{}`, {e}", rs_file.display())),
-    );
+    let file_stream = file_code
+        .parse()
+        .unwrap_or_else(|e| fatal!("cannot parse `{}`, {e}", rs_file.display()));
 
     formatted_code.push_str(&fmt_code(file_code, file_stream, &fmt).await);
 
@@ -237,39 +234,38 @@ async fn custom_fmt(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io::Re
     Ok(())
 }
 
-async fn fmt_code(code: &str, stream: SendTokenStream, fmt: &FmtFragServer) -> String {
+async fn fmt_code(code: &str, stream: pm2_send::TokenStream, fmt: &FmtFragServer) -> String {
     let mut formatted_code = String::new();
     let mut last_already_fmt_start = 0;
 
-    let mut stream_stack = vec![SendTtIntoIter(stream.0.into_iter())];
-    let next = |stack: &mut Vec<SendTtIntoIter>| {
+    let mut stream_stack = vec![stream.into_iter()];
+    let next = |stack: &mut Vec<std::vec::IntoIter<pm2_send::TokenTree>>| {
         while !stack.is_empty() {
-            let tt = stack.last_mut().unwrap().0.next();
+            let tt = stack.last_mut().unwrap().next();
             if let Some(tt) = tt {
-                return Some(SendTokenTree(tt));
+                return Some(tt);
             }
             stack.pop();
         }
         None
     };
-    let mut tail2: Vec<SendTokenTree> = Vec::with_capacity(2);
+    let mut tail2: Vec<pm2_send::TokenTree> = Vec::with_capacity(2);
 
     let mut skip_next_group = false;
     while let Some(tt) = next(&mut stream_stack) {
-        match tt.0 {
-            TokenTree::Group(g) => {
-                let g = SendGroup(g);
+        match tt {
+            pm2_send::TokenTree::Group(g) => {
                 if tail2.len() == 2
-                    && matches!(g.0.delimiter(), Delimiter::Brace)
-                    && matches!(&tail2[0].0, TokenTree::Punct(p) if p.as_char() == '!')
-                    && matches!(&tail2[1].0, TokenTree::Ident(_))
+                    && matches!(g.delimiter(), pm2_send::Delimiter::Brace)
+                    && matches!(&tail2[0], pm2_send::TokenTree::Punct(p) if p.as_char() == '!')
+                    && matches!(&tail2[1], pm2_send::TokenTree::Ident(_))
                 {
                     // macro! {}
                     if std::mem::take(&mut skip_next_group) {
                         continue;
                     }
 
-                    let bang = tail2[0].0.span().byte_range().start;
+                    let bang = tail2[0].span().byte_range().start;
                     let line_start = code[..bang].rfind('\n').unwrap_or(0);
                     let base_indent = code[line_start..bang]
                         .chars()
@@ -277,7 +273,7 @@ async fn fmt_code(code: &str, stream: SendTokenStream, fmt: &FmtFragServer) -> S
                         .take_while(|&c| c == ' ')
                         .count();
 
-                    let group_bytes = g.0.span().byte_range();
+                    let group_bytes = g.span().byte_range();
                     let group_code = &code[group_bytes.clone()];
 
                     if let Some(formatted) = try_fmt_macro(base_indent, group_code, fmt).await
@@ -295,17 +291,17 @@ async fn fmt_code(code: &str, stream: SendTokenStream, fmt: &FmtFragServer) -> S
                         }
                     }
                 } else if !tail2.is_empty()
-                    && matches!(g.0.delimiter(), Delimiter::Bracket)
-                    && matches!(&tail2[0].0, TokenTree::Punct(p) if p.as_char() == '#')
+                    && matches!(g.delimiter(), pm2_send::Delimiter::Bracket)
+                    && matches!(&tail2[0], pm2_send::TokenTree::Punct(p) if p.as_char() == '#')
                 {
                     // #[..]
-                    let mut attr = g.0.stream().into_iter();
+                    let mut attr = g.stream().into_iter();
                     let attr = [attr.next(), attr.next(), attr.next(), attr.next(), attr.next()];
                     if let [
-                        Some(TokenTree::Ident(i0)),
-                        Some(TokenTree::Punct(p0)),
-                        Some(TokenTree::Punct(p1)),
-                        Some(TokenTree::Ident(i1)),
+                        Some(pm2_send::TokenTree::Ident(i0)),
+                        Some(pm2_send::TokenTree::Punct(p0)),
+                        Some(pm2_send::TokenTree::Punct(p1)),
+                        Some(pm2_send::TokenTree::Ident(i1)),
                         None,
                     ] = attr
                         && i0 == "rustfmt"
@@ -317,7 +313,7 @@ async fn fmt_code(code: &str, stream: SendTokenStream, fmt: &FmtFragServer) -> S
                         skip_next_group = true;
                     }
                 } else if !std::mem::take(&mut skip_next_group) {
-                    stream_stack.push(SendTtIntoIter(g.0.stream().into_iter()));
+                    stream_stack.push(g.stream().into_iter());
                 }
                 tail2.clear();
             }
@@ -325,7 +321,7 @@ async fn fmt_code(code: &str, stream: SendTokenStream, fmt: &FmtFragServer) -> S
                 if tail2.len() == 2 {
                     tail2.pop();
                 }
-                tail2.insert(0, SendTokenTree(tt));
+                tail2.insert(0, tt);
             }
         }
     }
@@ -378,11 +374,11 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         Cow::Owned(code)
     };
 
-    let code_stream: TokenStream = code.parse().unwrap_or_else(|e| panic!("{e}\ncode:\n{code}"));
+    let code_stream: pm2_send::TokenStream = code.parse().unwrap_or_else(|e| panic!("{e}\ncode:\n{code}"));
     let code_stream = {
         let code_tt = code_stream.into_iter().next().unwrap();
         match code_tt {
-            TokenTree::Group(g) => SendTokenStream(g.stream()),
+            pm2_send::TokenTree::Group(g) => g.stream(),
             _ => unreachable!(),
         }
     };
@@ -456,7 +452,7 @@ fn replace_widget_prop(code: &str, reverse: bool) -> Cow<'_, str> {
             let cap = caps.get(1).unwrap();
             let cap_str = cap.as_str().trim();
             fn more_than_one_expr(code: &str) -> bool {
-                let stream: TokenStream = match code.parse() {
+                let stream: pm2_send::TokenStream = match code.parse() {
                     Ok(s) => s,
                     Err(_e) => {
                         #[cfg(debug_assertions)]
@@ -466,7 +462,7 @@ fn replace_widget_prop(code: &str, reverse: bool) -> Cow<'_, str> {
                     }
                 };
                 for tt in stream {
-                    if let TokenTree::Punct(p) = tt
+                    if let pm2_send::TokenTree::Punct(p) = tt
                         && p.as_char() == ','
                     {
                         return true;
@@ -613,7 +609,7 @@ impl FmtFragServer {
             return;
         }
 
-        println!("!!: TODO batch {:?}", requests.len());
+        // println!("!!: TODO batch {:?}", requests.len());
         let _ = fmt_frag("fn fun() { }", &self.edition); // simulate spawn
         for (request, response) in requests {
             *response.lock() = request;
@@ -768,15 +764,147 @@ impl FmtHistory {
     }
 }
 
-struct SendTokenStream(proc_macro2::TokenStream);
-// SAFETY: proc_macro2 not running in a proc-macro, so it will only use the fallback internals that are Send
-unsafe impl Send for SendTokenStream {}
-struct SendTtIntoIter(proc_macro2::token_stream::IntoIter);
-// SAFETY: proc_macro2 not running in a proc-macro, so it will only use the fallback internals that are Send
-unsafe impl Send for SendTtIntoIter {}
-struct SendTokenTree(proc_macro2::TokenTree);
-// SAFETY: proc_macro2 not running in a proc-macro, so it will only use the fallback internals that are Send
-unsafe impl Send for SendTokenTree {}
-struct SendGroup(proc_macro2::Group);
-// SAFETY: proc_macro2 not running in a proc-macro, so it will only use the fallback Group internal impl that is Send
-unsafe impl Send for SendGroup {}
+/// proc_macro2 types are not send, even when compiled outside of a proc-macro crate
+/// this mod converts the token tree to a minimal Send model that only retains the info needed
+/// to implement the custom formatting
+mod pm2_send {
+    use std::{ops, str::FromStr};
+
+    pub use proc_macro2::Delimiter;
+
+    #[derive(Clone)]
+    pub struct TokenStream(Vec<TokenTree>);
+    impl From<proc_macro2::TokenStream> for TokenStream {
+        fn from(value: proc_macro2::TokenStream) -> Self {
+            Self(value.into_iter().map(Into::into).collect())
+        }
+    }
+    impl FromStr for TokenStream {
+        type Err = <proc_macro2::TokenStream as FromStr>::Err;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            proc_macro2::TokenStream::from_str(s).map(Into::into)
+        }
+    }
+    impl IntoIterator for TokenStream {
+        type Item = TokenTree;
+
+        type IntoIter = std::vec::IntoIter<Self::Item>;
+
+        fn into_iter(self) -> Self::IntoIter {
+            self.0.into_iter()
+        }
+    }
+
+    #[derive(Clone)]
+    pub enum TokenTree {
+        Group(Group),
+        Ident(Ident),
+        Punct(Punct),
+        Other(Span),
+    }
+    impl From<proc_macro2::TokenTree> for TokenTree {
+        fn from(value: proc_macro2::TokenTree) -> Self {
+            match value {
+                proc_macro2::TokenTree::Group(group) => Self::Group(group.into()),
+                proc_macro2::TokenTree::Ident(ident) => Self::Ident(ident.into()),
+                proc_macro2::TokenTree::Punct(punct) => Self::Punct(punct.into()),
+                proc_macro2::TokenTree::Literal(literal) => Self::Other(literal.span().into()),
+            }
+        }
+    }
+    impl TokenTree {
+        pub fn span(&self) -> Span {
+            match self {
+                TokenTree::Group(group) => group.span.clone(),
+                TokenTree::Ident(ident) => ident.span.clone(),
+                TokenTree::Punct(punct) => punct.span.clone(),
+                TokenTree::Other(span) => span.clone(),
+            }
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct Group {
+        delimiter: Delimiter,
+        span: Span,
+        stream: TokenStream,
+    }
+    impl From<proc_macro2::Group> for Group {
+        fn from(value: proc_macro2::Group) -> Self {
+            Self {
+                delimiter: value.delimiter(),
+                span: value.span().into(),
+                stream: value.stream().into(),
+            }
+        }
+    }
+    impl Group {
+        pub fn delimiter(&self) -> Delimiter {
+            self.delimiter
+        }
+
+        pub fn span(&self) -> Span {
+            self.span.clone()
+        }
+
+        pub fn stream(&self) -> TokenStream {
+            self.stream.clone()
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct Ident {
+        span: Span,
+        s: String,
+    }
+    impl From<proc_macro2::Ident> for Ident {
+        fn from(value: proc_macro2::Ident) -> Self {
+            Self {
+                span: value.span().into(),
+                s: value.to_string(),
+            }
+        }
+    }
+    impl<'a> PartialEq<&'a str> for Ident {
+        fn eq(&self, other: &&'a str) -> bool {
+            self.s == *other
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct Punct {
+        span: Span,
+        c: char,
+    }
+    impl From<proc_macro2::Punct> for Punct {
+        fn from(value: proc_macro2::Punct) -> Self {
+            Self {
+                span: value.span().into(),
+                c: value.as_char(),
+            }
+        }
+    }
+    impl Punct {
+        pub fn as_char(&self) -> char {
+            self.c
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct Span {
+        byte_range: ops::Range<usize>,
+    }
+    impl From<proc_macro2::Span> for Span {
+        fn from(value: proc_macro2::Span) -> Self {
+            Self {
+                byte_range: value.byte_range(),
+            }
+        }
+    }
+    impl Span {
+        pub fn byte_range(&self) -> ops::Range<usize> {
+            self.byte_range.clone()
+        }
+    }
+}
