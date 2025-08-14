@@ -4,11 +4,14 @@ use std::{
     io::{self, BufRead, Read, Write},
     path::{Path, PathBuf},
     process::Stdio,
-    time::SystemTime,
+    sync::Arc,
+    task::Poll,
+    time::{Duration, SystemTime},
 };
 
 use clap::*;
 use once_cell::sync::Lazy;
+use parking_lot::Mutex;
 use proc_macro2::{Delimiter, TokenStream, TokenTree};
 use rayon::prelude::*;
 use regex::Regex;
@@ -64,9 +67,21 @@ pub fn run(mut args: FmtArgs) {
         }
 
         if let Some(code) = rustfmt_stdin(&code, &args.edition) {
-            let stream: TokenStream = code.parse().unwrap_or_else(|e| fatal!("cannot parse stdin, {e}"));
+            let stream = SendTokenStream(code.parse().unwrap_or_else(|e| fatal!("cannot parse stdin, {e}")));
 
-            let formatted = fmt_code(&code, stream, &args.edition);
+            let fmt_server = FmtFragServer::spawn(args.edition.clone());
+            let mut formatted = Box::pin(fmt_code(&code, stream, &fmt_server));
+            let formatted = loop {
+                std::thread::sleep(Duration::from_millis(50));
+                match formatted
+                    .as_mut()
+                    .poll(&mut std::task::Context::from_waker(std::task::Waker::noop()))
+                {
+                    Poll::Ready(r) => break r,
+                    Poll::Pending => {}
+                }
+            };
+
             if let Err(e) = std::io::stdout().write_all(formatted.as_bytes()) {
                 fatal!("stdout write error, {e}");
             }
@@ -143,14 +158,45 @@ pub fn run(mut args: FmtArgs) {
     custom_fmt_files.sort_by(|a, b| b.1.cmp(&a.1));
     let custom_fmt_files: Vec<_> = custom_fmt_files.into_iter().map(|(p, _)| p).collect();
 
+    let fmt_server = FmtFragServer::spawn(args.edition.clone());
+
     custom_fmt_files.par_chunks(64).for_each(|c| {
         // apply normal format first
         rustfmt_files(c, &args.edition, args.check);
 
         // apply custom format
-        custom_fmt_files.par_iter().for_each(|file| {
-            custom_fmt(file, args.check, &args.edition).unwrap_or_else(|e| fatal!("error {action} `{}`, {e}", file.display()))
-        });
+        let check = args.check;
+        let fmt_server = fmt_server.clone();
+        let mut futs: Vec<_> = custom_fmt_files
+            .par_iter()
+            .map(move |file| {
+                let fmt_server = fmt_server.clone();
+                Some(Box::pin(async move {
+                    custom_fmt(file.clone(), check, fmt_server)
+                        .await
+                        .unwrap_or_else(|e| fatal!("error {action} `{}`, {e}", file.display()))
+                }))
+            })
+            .collect();
+
+        loop {
+            std::thread::sleep(Duration::from_millis(25));
+            futs.iter_mut().for_each(|f| {
+                match f
+                    .as_mut()
+                    .unwrap()
+                    .as_mut()
+                    .poll(&mut std::task::Context::from_waker(std::task::Waker::noop()))
+                {
+                    Poll::Ready(()) => *f = None,
+                    Poll::Pending => {}
+                }
+            });
+            futs.retain(|t| t.is_some());
+            if futs.is_empty() {
+                break;
+            }
+        }
     });
 
     if let Err(e) = history.save() {
@@ -158,8 +204,8 @@ pub fn run(mut args: FmtArgs) {
     }
 }
 
-fn custom_fmt(rs_file: &Path, check: bool, edition: &str) -> io::Result<()> {
-    let file = fs::read_to_string(rs_file)?;
+async fn custom_fmt(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io::Result<()> {
+    let file = fs::read_to_string(&rs_file)?;
 
     // skip UTF-8 BOM
     let file_code = file.strip_prefix('\u{feff}').unwrap_or(file.as_str());
@@ -173,11 +219,13 @@ fn custom_fmt(rs_file: &Path, check: bool, edition: &str) -> io::Result<()> {
     let mut formatted_code = file[..file.len() - file_code.len()].to_owned();
     formatted_code.reserve(file.len());
 
-    let file_stream: TokenStream = file_code
-        .parse()
-        .unwrap_or_else(|e| fatal!("cannot parse `{}`, {e}", rs_file.display()));
+    let file_stream = SendTokenStream(
+        file_code
+            .parse()
+            .unwrap_or_else(|e| fatal!("cannot parse `{}`, {e}", rs_file.display())),
+    );
 
-    formatted_code.push_str(&fmt_code(file_code, file_stream, edition));
+    formatted_code.push_str(&fmt_code(file_code, file_stream, &fmt).await);
 
     if formatted_code != file {
         if check {
@@ -189,38 +237,39 @@ fn custom_fmt(rs_file: &Path, check: bool, edition: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn fmt_code(code: &str, stream: TokenStream, edition: &str) -> String {
+async fn fmt_code(code: &str, stream: SendTokenStream, fmt: &FmtFragServer) -> String {
     let mut formatted_code = String::new();
     let mut last_already_fmt_start = 0;
 
-    let mut stream_stack = vec![stream.into_iter()];
-    let next = |stack: &mut Vec<proc_macro2::token_stream::IntoIter>| {
+    let mut stream_stack = vec![SendTtIntoIter(stream.0.into_iter())];
+    let next = |stack: &mut Vec<SendTtIntoIter>| {
         while !stack.is_empty() {
-            let tt = stack.last_mut().unwrap().next();
-            if tt.is_some() {
-                return tt;
+            let tt = stack.last_mut().unwrap().0.next();
+            if let Some(tt) = tt {
+                return Some(SendTokenTree(tt));
             }
             stack.pop();
         }
         None
     };
-    let mut tail2 = Vec::with_capacity(2);
+    let mut tail2: Vec<SendTokenTree> = Vec::with_capacity(2);
 
     let mut skip_next_group = false;
     while let Some(tt) = next(&mut stream_stack) {
-        match tt {
+        match tt.0 {
             TokenTree::Group(g) => {
+                let g = SendGroup(g);
                 if tail2.len() == 2
-                    && matches!(g.delimiter(), Delimiter::Brace)
-                    && matches!(&tail2[0], TokenTree::Punct(p) if p.as_char() == '!')
-                    && matches!(&tail2[1], TokenTree::Ident(_))
+                    && matches!(g.0.delimiter(), Delimiter::Brace)
+                    && matches!(&tail2[0].0, TokenTree::Punct(p) if p.as_char() == '!')
+                    && matches!(&tail2[1].0, TokenTree::Ident(_))
                 {
                     // macro! {}
                     if std::mem::take(&mut skip_next_group) {
                         continue;
                     }
 
-                    let bang = tail2[0].span().byte_range().start;
+                    let bang = tail2[0].0.span().byte_range().start;
                     let line_start = code[..bang].rfind('\n').unwrap_or(0);
                     let base_indent = code[line_start..bang]
                         .chars()
@@ -228,14 +277,14 @@ fn fmt_code(code: &str, stream: TokenStream, edition: &str) -> String {
                         .take_while(|&c| c == ' ')
                         .count();
 
-                    let group_bytes = g.span().byte_range();
+                    let group_bytes = g.0.span().byte_range();
                     let group_code = &code[group_bytes.clone()];
 
-                    if let Some(formatted) = try_fmt_macro(base_indent, group_code, edition)
+                    if let Some(formatted) = try_fmt_macro(base_indent, group_code, fmt).await
                         && formatted != group_code
                     {
                         // changed by custom format
-                        if let Some(stable) = try_fmt_macro(base_indent, &formatted, edition)
+                        if let Some(stable) = try_fmt_macro(base_indent, &formatted, fmt).await
                             && formatted == stable
                         {
                             // change is sable
@@ -246,11 +295,11 @@ fn fmt_code(code: &str, stream: TokenStream, edition: &str) -> String {
                         }
                     }
                 } else if !tail2.is_empty()
-                    && matches!(g.delimiter(), Delimiter::Bracket)
-                    && matches!(&tail2[0], TokenTree::Punct(p) if p.as_char() == '#')
+                    && matches!(g.0.delimiter(), Delimiter::Bracket)
+                    && matches!(&tail2[0].0, TokenTree::Punct(p) if p.as_char() == '#')
                 {
                     // #[..]
-                    let mut attr = g.stream().into_iter();
+                    let mut attr = g.0.stream().into_iter();
                     let attr = [attr.next(), attr.next(), attr.next(), attr.next(), attr.next()];
                     if let [
                         Some(TokenTree::Ident(i0)),
@@ -268,7 +317,7 @@ fn fmt_code(code: &str, stream: TokenStream, edition: &str) -> String {
                         skip_next_group = true;
                     }
                 } else if !std::mem::take(&mut skip_next_group) {
-                    stream_stack.push(g.stream().into_iter());
+                    stream_stack.push(SendTtIntoIter(g.0.stream().into_iter()));
                 }
                 tail2.clear();
             }
@@ -276,7 +325,7 @@ fn fmt_code(code: &str, stream: TokenStream, edition: &str) -> String {
                 if tail2.len() == 2 {
                     tail2.pop();
                 }
-                tail2.insert(0, tt);
+                tail2.insert(0, SendTokenTree(tt));
             }
         }
     }
@@ -287,13 +336,13 @@ fn fmt_code(code: &str, stream: TokenStream, edition: &str) -> String {
         // custom format can cause normal format to change
         // example: ui_vec![Wgt!{<many properties>}, Wgt!{<same>}]
         //   Wgt! gets custom formatted onto multiple lines, that causes ui_vec![\n by normal format.
-        formatted_code = fmt_frag(&formatted_code, edition).unwrap_or(formatted_code);
+        formatted_code = fmt.format(formatted_code.clone()).await;
     }
 
     formatted_code
 }
 
-fn try_fmt_macro(base_indent: usize, group_code: &str, edition: &str) -> Option<String> {
+async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer) -> Option<String> {
     let mut replaced_code = replace_event_args(group_code, false);
     let is_event_args = matches!(&replaced_code, Cow::Owned(_));
 
@@ -315,7 +364,7 @@ fn try_fmt_macro(base_indent: usize, group_code: &str, edition: &str) -> Option<
         is_expr_var = matches!(&replaced_code, Cow::Owned(_));
     }
 
-    let code = fmt_frag(&replaced_code, edition)?;
+    let code = fmt.format(replaced_code.into_owned()).await;
 
     let code = if is_event_args {
         replace_event_args(&code, true)
@@ -330,12 +379,14 @@ fn try_fmt_macro(base_indent: usize, group_code: &str, edition: &str) -> Option<
     };
 
     let code_stream: TokenStream = code.parse().unwrap_or_else(|e| panic!("{e}\ncode:\n{code}"));
-    let code_tt = code_stream.into_iter().next().unwrap();
-    let code_stream = match code_tt {
-        TokenTree::Group(g) => g.stream(),
-        _ => unreachable!(),
+    let code_stream = {
+        let code_tt = code_stream.into_iter().next().unwrap();
+        match code_tt {
+            TokenTree::Group(g) => SendTokenStream(g.stream()),
+            _ => unreachable!(),
+        }
     };
-    let code = fmt_code(&code, code_stream, edition);
+    let code = Box::pin(fmt_code(&code, code_stream, fmt)).await;
 
     let mut out = String::new();
     let mut lb_indent = String::with_capacity(base_indent + 1);
@@ -509,6 +560,67 @@ fn fmt_frag(code: &str, edition: &str) -> Option<String> {
     }
 }
 
+/// rustfmt does not provide a crate and does not implement a server. It only operates in one-shot
+/// calls and it is slow.
+///
+/// This service is a quick workaround that, it abuses the async state machine generation to inject
+/// a batching feature in the middle of the recursive custom fmt logic. **It does not implement wakers**,
+/// just keep polling to execute.
+#[derive(Clone)]
+struct FmtFragServer {
+    data: Arc<Mutex<FmtFragServerData>>,
+    edition: String,
+}
+struct FmtFragServerData {
+    // [request, response]
+    requests: Vec<(String, Arc<Mutex<String>>)>,
+}
+impl FmtFragServer {
+    pub fn spawn(edition: String) -> Self {
+        let s = Self {
+            data: Arc::new(Mutex::new(FmtFragServerData { requests: vec![] })),
+            edition,
+        };
+        let s_read = s.clone();
+        std::thread::Builder::new()
+            .name("rustfmt-frag-server".to_owned())
+            .spawn(move || {
+                loop {
+                    s_read.poll();
+                }
+            })
+            .unwrap();
+        s
+    }
+
+    pub fn format(&self, code: String) -> impl Future<Output = String> {
+        let res = Arc::new(Mutex::new(String::new()));
+        self.data.lock().requests.push((code, res.clone()));
+        std::future::poll_fn(move |_cx| {
+            let mut res = res.lock();
+            if res.is_empty() {
+                Poll::Pending
+            } else {
+                Poll::Ready(std::mem::take(&mut *res))
+            }
+        })
+    }
+
+    fn poll(&self) {
+        let requests = std::mem::take(&mut self.data.lock().requests);
+        if requests.is_empty() {
+            std::thread::sleep(Duration::from_millis(100));
+            return;
+        }
+
+        println!("!!: TODO batch {:?}", requests.len());
+        let _ = fmt_frag("fn fun() { }", &self.edition); // simulate spawn
+        for (request, response) in requests {
+            *response.lock() = request;
+        }
+    }
+}
+
 fn rustfmt_stdin(code: &str, edition: &str) -> Option<String> {
     let mut s = std::process::Command::new("rustfmt")
         .arg("--edition")
@@ -655,3 +767,16 @@ impl FmtHistory {
         Ok(target_dir.join(".cargo-zng-fmt-history"))
     }
 }
+
+struct SendTokenStream(proc_macro2::TokenStream);
+// SAFETY: proc_macro2 not running in a proc-macro, so it will only use the fallback internals that are Send
+unsafe impl Send for SendTokenStream {}
+struct SendTtIntoIter(proc_macro2::token_stream::IntoIter);
+// SAFETY: proc_macro2 not running in a proc-macro, so it will only use the fallback internals that are Send
+unsafe impl Send for SendTtIntoIter {}
+struct SendTokenTree(proc_macro2::TokenTree);
+// SAFETY: proc_macro2 not running in a proc-macro, so it will only use the fallback internals that are Send
+unsafe impl Send for SendTokenTree {}
+struct SendGroup(proc_macro2::Group);
+// SAFETY: proc_macro2 not running in a proc-macro, so it will only use the fallback Group internal impl that is Send
+unsafe impl Send for SendGroup {}

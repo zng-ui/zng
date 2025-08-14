@@ -21,7 +21,7 @@ rayon = "1.10"
 glob = "0.3"
 fluent-pseudo = "0.3"
 fluent-syntax = "0.12"
-proc-macro2 = { version = "1.0", features = ["span-locations"] }
+proc-macro2 = { version = "1.0", features = ["span-locations"], default-features = false }
 litrs = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
