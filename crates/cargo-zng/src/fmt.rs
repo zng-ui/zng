@@ -16,6 +16,9 @@ use sha2::Digest;
 
 use crate::util;
 
+/// Bump this for every change that can affect format result.
+const FMT_VERSION: &str = "1";
+
 #[derive(Args, Debug, Default)]
 pub struct FmtArgs {
     /// Only check if files are formatted
@@ -284,7 +287,7 @@ fn fmt_code(code: &str, stream: TokenStream, edition: &str) -> String {
         // custom format can cause normal format to change
         // example: ui_vec![Wgt!{<many properties>}, Wgt!{<same>}]
         //   Wgt! gets custom formatted onto multiple lines, that causes ui_vec![\n by normal format.
-        formatted_code = rustfmt_stdin_frag(&formatted_code, edition).unwrap_or(formatted_code);
+        formatted_code = fmt_frag(&formatted_code, edition).unwrap_or(formatted_code);
     }
 
     formatted_code
@@ -312,7 +315,7 @@ fn try_fmt_macro(base_indent: usize, group_code: &str, edition: &str) -> Option<
         is_expr_var = matches!(&replaced_code, Cow::Owned(_));
     }
 
-    let code = rustfmt_stdin_frag(&replaced_code, edition)?;
+    let code = fmt_frag(&replaced_code, edition)?;
 
     let code = if is_event_args {
         replace_event_args(&code, true)
@@ -495,24 +498,14 @@ fn replace_expr_var(code: &str, reverse: bool) -> Cow<'_, str> {
     }
 }
 
-fn rustfmt_stdin_frag(code: &str, edition: &str) -> Option<String> {
-    let mut s = std::process::Command::new("rustfmt")
-        .arg("--edition")
-        .arg(edition)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .ok()?;
-    s.stdin.take().unwrap().write_all(format!("fn __try_fmt(){code}").as_bytes()).ok()?;
-    let s = s.wait_with_output().ok()?;
-
-    if s.status.success() {
-        let code = String::from_utf8(s.stdout).ok()?;
-        let code = code.strip_prefix("fn __try_fmt()")?.trim_start().to_owned();
+fn fmt_frag(code: &str, edition: &str) -> Option<String> {
+    if code.starts_with("{") {
+        const PREFIX: &str = "fn __frag__() ";
+        let code = rustfmt_stdin(&format!("{PREFIX}{code}"), edition)?;
+        let code = code[PREFIX.len()..].trim_end().to_owned();
         Some(code)
     } else {
-        None
+        rustfmt_stdin(code, edition)
     }
 }
 
@@ -537,6 +530,7 @@ fn rustfmt_stdin(code: &str, edition: &str) -> Option<String> {
 
 fn rustfmt_files(files: &[PathBuf], edition: &str, check: bool) {
     let mut rustfmt = std::process::Command::new("rustfmt");
+    rustfmt.args(["--config", "skip_children=true"]);
     rustfmt.arg("--edition").arg(edition);
     if check {
         rustfmt.arg("--check");
@@ -607,7 +601,7 @@ impl FmtHistory {
         }
         let rustfmt_version = String::from_utf8_lossy(&rustfmt_version.stdout);
         args_key.update(rustfmt_version.as_bytes());
-        let args_key = format!("{:x}", args_key.finalize());
+        let args_key = format!("{FMT_VERSION}:{:x}", args_key.finalize());
 
         for (key, t) in self.entries.iter_mut() {
             if key == &args_key {
@@ -658,6 +652,6 @@ impl FmtHistory {
         let root_dir = Path::new(std::str::from_utf8(&output.stdout).unwrap().trim()).parent().unwrap();
         let target_dir = root_dir.join("target");
         let _ = std::fs::create_dir(&target_dir);
-        Ok(target_dir.join(".cargo-zng-fmt-history-v1"))
+        Ok(target_dir.join(".cargo-zng-fmt-history"))
     }
 }
