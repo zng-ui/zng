@@ -33,7 +33,7 @@ sanitise-file-name = "1.0"
 
 # res
 sha2 = "0.10"
-parking_lot = "0.12"
+parking_lot = { version = "0.12" }
 walkdir = "2.5"
 is_executable = "1.0"
 anyhow = "1.0"
@@ -45,6 +45,7 @@ quick-xml = { version = "0.38", features = ["serialize"] }
 # fmt
 regex = "1.10"
 once_cell = "1.19"
+blocking = "1.5"
 
 [lints.clippy]
 exhaustive_structs = "warn"

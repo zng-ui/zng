@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    collections::HashMap,
     fs,
     io::{self, BufRead, Read, Write},
     path::{Path, PathBuf},
@@ -166,11 +167,11 @@ pub fn run(mut args: FmtArgs) {
 
     // apply custom format
     let check = args.check;
-    let fmt_server = fmt_server.clone();
+    let fmt_server2 = fmt_server.clone();
     let mut futs: Vec<_> = custom_fmt_files
         .par_iter()
         .map(move |file| {
-            let fmt_server = fmt_server.clone();
+            let fmt_server = fmt_server2.clone();
             Some(Box::pin(async move {
                 custom_fmt(file.clone(), check, fmt_server)
                     .await
@@ -197,6 +198,8 @@ pub fn run(mut args: FmtArgs) {
             break;
         }
     }
+
+    println!("!!: {:?} unique frags", fmt_server.data.lock().requests.len());
 
     if let Err(e) = history.save() {
         warn!("cannot save fmt history, {e}")
@@ -569,12 +572,25 @@ struct FmtFragServer {
 }
 struct FmtFragServerData {
     // [request, response]
-    requests: Vec<(String, Arc<Mutex<String>>)>,
+    requests: HashMap<String, FmtFragRequest>,
+}
+struct FmtFragRequest {
+    pending: bool,
+    response: Arc<Mutex<String>>,
+}
+
+impl FmtFragRequest {
+    fn new() -> Self {
+        Self {
+            pending: true,
+            response: Arc::new(Mutex::new(String::new())),
+        }
+    }
 }
 impl FmtFragServer {
     pub fn spawn(edition: String) -> Self {
         let s = Self {
-            data: Arc::new(Mutex::new(FmtFragServerData { requests: vec![] })),
+            data: Arc::new(Mutex::new(FmtFragServerData { requests: HashMap::new() })),
             edition,
         };
         let s_read = s.clone();
@@ -590,30 +606,48 @@ impl FmtFragServer {
     }
 
     pub fn format(&self, code: String) -> impl Future<Output = String> {
-        let res = Arc::new(Mutex::new(String::new()));
-        self.data.lock().requests.push((code, res.clone()));
+        let res = self
+            .data
+            .lock()
+            .requests
+            .entry(code)
+            .or_insert_with(FmtFragRequest::new)
+            .response
+            .clone();
         std::future::poll_fn(move |_cx| {
-            let mut res = res.lock();
-            if res.is_empty() {
-                Poll::Pending
-            } else {
-                Poll::Ready(std::mem::take(&mut *res))
-            }
+            let res = res.lock();
+            if res.is_empty() { Poll::Pending } else { Poll::Ready(res.clone()) }
         })
     }
 
     fn poll(&self) {
-        let requests = std::mem::take(&mut self.data.lock().requests);
+        let requests: Vec<_> = self
+            .data
+            .lock()
+            .requests
+            .iter_mut()
+            .filter_map(|(k, v)| {
+                if v.pending {
+                    v.pending = false;
+                    Some((k.clone(), v.response.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect();
         if requests.is_empty() {
             std::thread::sleep(Duration::from_millis(100));
             return;
         }
 
-        // println!("!!: TODO batch {:?}", requests.len());
-        let _ = fmt_frag("fn fun() { }", &self.edition); // simulate spawn
-        for (request, response) in requests {
-            *response.lock() = request;
-        }
+        let edition = self.edition.clone();
+        blocking::unblock(move || {
+            let _ = fmt_frag("fn fun() { }", &edition); // simulate spawn
+            for (request, response) in requests {
+                *response.lock() = request;
+            }
+        })
+        .detach();
     }
 }
 
