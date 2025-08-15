@@ -326,6 +326,21 @@ async fn fmt_code(code: &str, stream: pm2_send::TokenStream, fmt: &FmtFragServer
                 }
                 tail2.clear();
             }
+            ref tt1 @ pm2_send::TokenTree::Ident(ref i) if i == &"macro_rules" => {
+                if let Some(tt2) = next(&mut stream_stack) {
+                    if matches!(tt2, pm2_send::TokenTree::Punct(ref p) if p.as_char() == '!') {
+                        // macro_rules!
+                        next(&mut stream_stack); // skip ident
+                        next(&mut stream_stack); // skip body
+                    } else {
+                        tail2.clear();
+                        tail2.push(tt2);
+                        tail2.push(tt1.clone());
+                    }
+                } else {
+                    // end
+                }
+            }
             tt => {
                 if tail2.len() == 2 {
                     tail2.pop();
