@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add support for lazy static style macros in `cargo zng fmt`.
 * Optimize `cargo zng fmt` by only reformatting modified files.
 * Fix `cargo zng fmt` inconsistency.
     - Add `cargo zng fmt --edition [2015|2018|2021|2024]` option, 2024 is the default.

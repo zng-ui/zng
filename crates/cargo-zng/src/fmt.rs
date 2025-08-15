@@ -369,6 +369,12 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         is_expr_var = matches!(&replaced_code, Cow::Owned(_));
     }
 
+    let mut is_lazy_static = false;
+    if !is_event_args && !is_widget && !is_expr_var {
+        replaced_code = replace_static_ref(group_code, false);
+        is_lazy_static = matches!(&replaced_code, Cow::Owned(_));
+    }
+
     let code = fmt.format(replaced_code.into_owned()).await?;
 
     let code = if is_event_args {
@@ -379,6 +385,8 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         Cow::Owned(code)
     } else if is_expr_var {
         replace_expr_var(&code, true)
+    } else if is_lazy_static {
+        replace_static_ref(&code, true)
     } else {
         Cow::Owned(code)
     };
@@ -554,6 +562,19 @@ fn replace_expr_var(code: &str, reverse: bool) -> Cow<'_, str> {
     }
 }
 
+// replace `static ref ` with `static __zng_fmt_ref__`
+fn replace_static_ref(code: &str, reverse: bool) -> Cow<'_, str> {
+    if !reverse {
+        if code.contains("static ref ") {
+            Cow::Owned(code.replace("static ref ", "static __zng_fmt_ref__"))
+        } else {
+            Cow::Borrowed(code)
+        }
+    } else {
+        Cow::Owned(code.replace("static __zng_fmt_ref__", "static ref "))
+    }
+}
+
 /// rustfmt does not provide a crate and does not implement a server. It only operates in one-shot
 /// calls and it is slow.
 ///
@@ -651,12 +672,14 @@ impl FmtFragServer {
             } else {
                 match rustfmt_stdin(&Self::wrap_batch_for_fmt(requests.iter().map(|(k, _)| k.as_str())), &edition) {
                     Some(r) => {
+                        println!("!!: ok for {}", requests.len());
                         let r = Self::unwrap_batch_for_fmt(r, requests.len());
                         for ((_, response), r) in requests.into_iter().zip(r) {
                             *response.lock() = r;
                         }
                     }
                     None => {
+                        println!("!!: error retries {}", requests.len());
                         for (request, response) in requests {
                             let r = match rustfmt_stdin(&Self::wrap_code_for_fmt(request), &edition) {
                                 Some(f) => Self::unwrap_formatted_code(f),
