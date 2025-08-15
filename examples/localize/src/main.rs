@@ -194,9 +194,7 @@ fn locale_menu() -> UiNode {
 zng::event::command! {
     pub static NO_META_CMD;
 
-    pub static NOT_LOCALIZED_CMD = {
-        name: "Not Localized",
-    };
+    pub static NOT_LOCALIZED_CMD = { name: "Not Localized" };
 
     pub static LOCALIZED_CMD = {
         l10n!: true,
@@ -218,6 +216,6 @@ zng::event::command! {
     pub static LOCALIZED_FILE_CMD = {
         l10n!: "msg",
         name: "Localized File",
-        info: "Localized in a named file 'msg'"
+        info: "Localized in a named file 'msg'",
     };
 }

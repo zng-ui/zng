@@ -2046,9 +2046,7 @@ impl TestApp {
     pub fn open_window(&mut self, child: impl IntoUiNode) -> WindowId {
         let child = child.into_node();
         let id = self.app.open_window(async {
-            Window! {
-                child
-            }
+            Window! { child }
         });
         let _ = self.app.update(false);
         id
