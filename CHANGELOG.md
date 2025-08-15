@@ -1,11 +1,11 @@
 # Unreleased
 
-* Add support for lazy static style macros in `cargo zng fmt`.
-* Optimize `cargo zng fmt` by only reformatting modified files.
-* Fix `cargo zng fmt` inconsistency.
-    - Add `cargo zng fmt --edition [2015|2018|2021|2024]` option, 2024 is the default.
-    - Selected edition (including default) is enforced for all usage.
-    - Defaults from Cargo.toml and rustfmt.toml are still not implemented.
+* Multiple improvements for `cargo zng fmt`.
+    - Now only reformats modified files when running in crates/workspaces.
+    - Add `--edition` option, 2024 is the default. This fixes inconsistency between workspace run and single file run.
+    - Add support for lazy static style macro syntax.
+    - Add support for `command!` syntax.
+
 * Fix missing mouse move events when cursor is captured and leaves the window in Windows.
 * Implement `IntoUiNode` for `std::iter` iterators of `UiNode` items.
     - You can now omit `.collect::<UiVec>()` in code that generates widget lists from iterators.

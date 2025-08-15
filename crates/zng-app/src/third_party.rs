@@ -97,6 +97,6 @@ command! {
     /// [`on_pre_event`]: crate::event::Command::on_pre_event
     pub static OPEN_LICENSES_CMD = {
         l10n!: true,
-        name: "Third Party Licenses"
+        name: "Third Party Licenses",
     };
 }

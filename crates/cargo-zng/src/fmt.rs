@@ -348,11 +348,28 @@ async fn fmt_code(code: &str, stream: pm2_send::TokenStream, fmt: &FmtFragServer
 }
 
 async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer) -> Option<String> {
-    let mut replaced_code = replace_event_args(group_code, false);
-    let is_event_args = matches!(&replaced_code, Cow::Owned(_));
+    let mut replaced_code = Cow::Borrowed(group_code);
+
+    let mut is_lazy_static = false;
+    if matches!(&replaced_code, Cow::Borrowed(_)) {
+        replaced_code = replace_static_ref(group_code, false);
+        is_lazy_static = matches!(&replaced_code, Cow::Owned(_));
+    }
+
+    let mut is_event_args = false;
+    if matches!(&replaced_code, Cow::Borrowed(_)) {
+        replaced_code = replace_event_args(group_code, false);
+        is_event_args = matches!(&replaced_code, Cow::Owned(_));
+    }
+
+    let mut is_command = false;
+    if matches!(&replaced_code, Cow::Borrowed(_)) {
+        replaced_code = replace_command(group_code, false);
+        is_command = matches!(&replaced_code, Cow::Owned(_));
+    }
 
     let mut is_widget = false;
-    if !is_event_args {
+    if matches!(&replaced_code, Cow::Borrowed(_)) {
         replaced_code = replace_widget_when(group_code, false);
         is_widget = matches!(&replaced_code, Cow::Owned(_));
 
@@ -364,15 +381,9 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
     }
 
     let mut is_expr_var = false;
-    if !is_event_args && !is_widget {
+    if matches!(&replaced_code, Cow::Borrowed(_)) {
         replaced_code = replace_expr_var(group_code, false);
         is_expr_var = matches!(&replaced_code, Cow::Owned(_));
-    }
-
-    let mut is_lazy_static = false;
-    if !is_event_args && !is_widget && !is_expr_var {
-        replaced_code = replace_static_ref(group_code, false);
-        is_lazy_static = matches!(&replaced_code, Cow::Owned(_));
     }
 
     let code = fmt.format(replaced_code.into_owned()).await?;
@@ -387,6 +398,8 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         replace_expr_var(&code, true)
     } else if is_lazy_static {
         replace_static_ref(&code, true)
+    } else if is_command {
+        replace_command(&code, true)
     } else {
         Cow::Owned(code)
     };
@@ -446,6 +459,20 @@ fn replace_event_args(code: &str, reverse: bool) -> Cow<'_, str> {
         })
     } else {
         RGX_REV.replace_all(code, "\n$1..\n\n")
+    }
+}
+// replace `static IDENT = {` with `static IDENT: __zng_fmt__ = {`
+// AND replace `l10n!: ` with `l10n__zng_fmt:`
+fn replace_command(code: &str, reverse: bool) -> Cow<'_, str> {
+    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)(?m)static +(\w+) ?= ?\{").unwrap());
+    if !reverse {
+        let mut cmd = RGX.replace_all(code, "static $1: __zng_fmt__ = __A_ {");
+        if let Cow::Owned(cmd) = &mut cmd {
+            *cmd = cmd.replace("l10n!:", "l10n__zng_fmt:");
+        }
+        cmd
+    } else {
+        Cow::Owned(code.replace(": __zng_fmt__ = __A_ {", " = {").replace("l10n__zng_fmt:", "l10n!:"))
     }
 }
 // replace `prop = 1, 2;` with `prop = (1, 2);`
@@ -545,7 +572,6 @@ fn replace_widget_when(code: &str, reverse: bool) -> Cow<'_, str> {
 static POUND_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(#)[\w\{]").unwrap());
 static POUND_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"__P_!?\s?").unwrap());
 static POUND_VAR_MARKER: &str = "__P_!";
-
 // replace `#{` with `__P_!{`
 fn replace_expr_var(code: &str, reverse: bool) -> Cow<'_, str> {
     if !reverse {
@@ -561,7 +587,6 @@ fn replace_expr_var(code: &str, reverse: bool) -> Cow<'_, str> {
         POUND_REV_RGX.replace(code, "#")
     }
 }
-
 // replace `static ref ` with `static __zng_fmt_ref__`
 fn replace_static_ref(code: &str, reverse: bool) -> Cow<'_, str> {
     if !reverse {
