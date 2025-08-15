@@ -273,6 +273,13 @@ async fn fmt_code(code: &str, stream: pm2_send::TokenStream, fmt: &FmtFragServer
                     if std::mem::take(&mut skip_next_group) {
                         continue;
                     }
+                    if let pm2_send::TokenTree::Ident(i) = &tail2[1] {
+                        if i == &"quote" || i == &"quote_spanned" {
+                            continue;
+                        }
+                    } else {
+                        unreachable!()
+                    }
 
                     let bang = tail2[0].span().byte_range().start;
                     let line_start = code[..bang].rfind('\n').unwrap_or(0);
@@ -383,6 +390,12 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         is_command = matches!(&replaced_code, Cow::Owned(_));
     }
 
+    let mut is_event_property = false;
+    if matches!(&replaced_code, Cow::Borrowed(_)) {
+        replaced_code = replace_event_property(group_code, false);
+        is_event_property = matches!(&replaced_code, Cow::Owned(_));
+    }
+
     let mut is_widget = false;
     if matches!(&replaced_code, Cow::Borrowed(_)) {
         replaced_code = replace_widget_when(group_code, false);
@@ -415,6 +428,8 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         replace_static_ref(&code, true)
     } else if is_command {
         replace_command(&code, true)
+    } else if is_event_property {
+        replace_event_property(&code, true)
     } else {
         Cow::Owned(code)
     };
@@ -488,6 +503,45 @@ fn replace_command(code: &str, reverse: bool) -> Cow<'_, str> {
         cmd
     } else {
         Cow::Owned(code.replace(": __zng_fmt__ = __A_ {", " = {").replace("l10n__zng_fmt:", "l10n!:"))
+    }
+}
+// replace ` fn ident = { content }` with ` static __zng_fmt_fn__ident: () = __A_ { content };//zng-fmt`
+fn replace_event_property(code: &str, reverse: bool) -> Cow<'_, str> {
+    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m) fn +(\w+) +\{").unwrap());
+    if !reverse {
+        let mut r = RGX.replace_all(code, " static __zng_fmt_fn__$1: () = __A_ {");
+        if let Cow::Owned(r) = &mut r {
+            const OPEN: &str = ": () = __A_ {";
+            const CLOSE_MARKER: &str = "; // __zng-fmt";
+            let mut start = 0;
+            while let Some(i) = r[start..].find(OPEN) {
+                let i = start + i + OPEN.len();
+                let mut count = 1;
+                let mut close_i = i;
+                for (ci, c) in r[i..].char_indices() {
+                    match c {
+                        '{' => count += 1,
+                        '}' => {
+                            count -= 1;
+                            if count == 0 {
+                               close_i = i + ci + 1;
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                r.insert_str(close_i, CLOSE_MARKER);
+                start = close_i + CLOSE_MARKER.len();
+            }
+        }
+        r
+    } else {
+        Cow::Owned(
+            code.replace(" static __zng_fmt_fn__", " fn ")
+                .replace(": () = __A_ {", " {")
+                .replace("}; // __zng-fmt", "}"),
+        )
     }
 }
 // replace `prop = 1, 2;` with `prop = (1, 2);`
@@ -661,6 +715,7 @@ impl FmtFragServer {
         s
     }
 
+    #[track_caller]
     pub fn format(&self, code: String) -> impl Future<Output = Option<String>> {
         let res = self
             .data
