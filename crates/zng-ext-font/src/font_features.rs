@@ -290,6 +290,7 @@ macro_rules! font_features {
     };
 }
 
+#[rustfmt::skip]// zng fmt can't handle this syntax and is slightly slower because it causes rustfmt errors
 font_features! {
     /// Font capital glyph variants.
     ///

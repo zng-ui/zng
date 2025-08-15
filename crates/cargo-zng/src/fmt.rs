@@ -274,7 +274,7 @@ async fn fmt_code(code: &str, stream: pm2_send::TokenStream, fmt: &FmtFragServer
                         continue;
                     }
                     if let pm2_send::TokenTree::Ident(i) = &tail2[1] {
-                        if i == &"quote" || i == &"quote_spanned" {
+                        if i == &"quote" || i == &"quote_spanned" || i == &"parse_quote" || i == &"parse_quote_spanned" {
                             continue;
                         }
                     } else {
