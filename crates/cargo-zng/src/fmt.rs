@@ -402,6 +402,12 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         is_event_property = matches!(&replaced_code, Cow::Owned(_));
     }
 
+    let mut is_widget_impl = false;
+    if matches!(&replaced_code, Cow::Borrowed(_)) {
+        replaced_code = replace_widget_impl(group_code, false);
+        is_widget_impl = matches!(&replaced_code, Cow::Owned(_));
+    }
+
     let mut is_widget = false;
     if matches!(&replaced_code, Cow::Borrowed(_)) {
         replaced_code = replace_widget_when(group_code, false);
@@ -454,6 +460,8 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         replace_bitflags(&code, true)
     } else if is_simple_list {
         replace_simple_ident_list(&code, true)
+    } else if is_widget_impl {
+        replace_widget_impl(&code, true)
     } else {
         Cow::Owned(code)
     };
@@ -791,6 +799,16 @@ fn replace_simple_ident_list(code: &str, reverse: bool) -> Cow<'_, str> {
             code.replace("static __zng_fmt: T = [", "{ ").replace("];", " }")
         };
         Cow::Owned(code)
+    }
+}
+
+// replace `ident(args);` with `fn __zng_fmt__ident(args);
+fn replace_widget_impl(code: &str, reverse: bool) -> Cow<'_, str> {
+    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)(\w+\((?:\w+: .+)\));").unwrap());
+    if !reverse {
+        RGX.replace_all(code, "fn __zng_fmt__${1};")
+    } else {
+        Cow::Owned(code.replace("fn __zng_fmt__", ""))
     }
 }
 
