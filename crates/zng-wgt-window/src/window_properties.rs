@@ -99,6 +99,7 @@ macro_rules! map_properties {
         }
     })+}
 }
+#[rustfmt::skip]// zng fmt can't handle this syntax and is slightly slower because it causes rustfmt errors
 map_properties! {
     position.x = x: Length,
     position.y = y: Length,

@@ -696,38 +696,53 @@ fn replace_static_ref(code: &str, reverse: bool) -> Cow<'_, str> {
 }
 
 // replace `{ foo: <rest> }` with `static __zng_fmt__: () = __A_ { foo: <rest> } // __zng-fmt`, if the `{` is the first token of  the line
+// OR with `struct __ZngFmt__ {` if contains generics, signifying declaration
 fn replace_struct_like(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*\{\s+(\w+):([^:])").unwrap());
+    static RGX_GENERICS: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m):\s*\w+<\w").unwrap());
     if !reverse {
-        let mut r = RGX.replace_all(code, "static __zng_fmt__: () = __A_ {\n$1:$2");
-        if let Cow::Owned(r) = &mut r {
-            const OPEN: &str = ": () = __A_ {";
-            const CLOSE_MARKER: &str = "; // __zng-fmt";
-            let mut start = 0;
-            while let Some(i) = r[start..].find(OPEN) {
-                let i = start + i + OPEN.len();
-                let mut count = 1;
-                let mut close_i = i;
-                for (ci, c) in r[i..].char_indices() {
-                    match c {
-                        '{' => count += 1,
-                        '}' => {
-                            count -= 1;
-                            if count == 0 {
-                                close_i = i + ci + 1;
-                                break;
+        if RGX.is_match(code) {
+            if RGX_GENERICS.is_match(code) {
+                // probably struct declaration like
+                RGX.replace_all(code, "struct __ZngFmt__ {\n$1:$2")
+            } else {
+                // probably struct init like
+                let mut r = RGX.replace_all(code, "static __zng_fmt__: () = __A_ {\n$1:$2").into_owned();
+
+                const OPEN: &str = ": () = __A_ {";
+                const CLOSE_MARKER: &str = "; // __zng-fmt";
+                let mut start = 0;
+                while let Some(i) = r[start..].find(OPEN) {
+                    let i = start + i + OPEN.len();
+                    let mut count = 1;
+                    let mut close_i = i;
+                    for (ci, c) in r[i..].char_indices() {
+                        match c {
+                            '{' => count += 1,
+                            '}' => {
+                                count -= 1;
+                                if count == 0 {
+                                    close_i = i + ci + 1;
+                                    break;
+                                }
                             }
+                            _ => {}
                         }
-                        _ => {}
                     }
+                    r.insert_str(close_i, CLOSE_MARKER);
+                    start = close_i + CLOSE_MARKER.len();
                 }
-                r.insert_str(close_i, CLOSE_MARKER);
-                start = close_i + CLOSE_MARKER.len();
+                Cow::Owned(r)
             }
+        } else {
+            Cow::Borrowed(code)
         }
-        r
     } else {
-        Cow::Owned(code.replace("static __zng_fmt__: () = __A_ {", "{").replace("}; // __zng-fmt", "}"))
+        Cow::Owned(
+            code.replace("static __zng_fmt__: () = __A_ {", "{")
+                .replace("}; // __zng-fmt", "}")
+                .replace("struct __ZngFmt__ {", "{"),
+        )
     }
 }
 
