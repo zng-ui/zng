@@ -692,7 +692,7 @@ static POUND_VAR_MARKER: &str = "__P_!";
 // replace `#{` with `__P_!{`
 fn replace_expr_var(code: &str, reverse: bool) -> Cow<'_, str> {
     if !reverse {
-        POUND_RGX.replace(code, |caps: &regex::Captures| {
+        POUND_RGX.replace_all(code, |caps: &regex::Captures| {
             let c = &caps[0][caps.get(1).unwrap().end() - caps.get(0).unwrap().start()..];
             if c == "{" {
                 Cow::Borrowed("__P_!{")
@@ -701,7 +701,7 @@ fn replace_expr_var(code: &str, reverse: bool) -> Cow<'_, str> {
             }
         })
     } else {
-        POUND_REV_RGX.replace(code, "#")
+        POUND_REV_RGX.replace_all(code, "#")
     }
 }
 // replace `static ref ` with `static __zng_fmt_ref__`
@@ -810,11 +810,15 @@ fn replace_simple_ident_list(code: &str, reverse: bool) -> Cow<'_, str> {
 
 // replace `ident(args);` with `fn __zng_fmt__ident(args);
 fn replace_widget_impl(code: &str, reverse: bool) -> Cow<'_, str> {
-    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)(\w+\((?:\w+: .+)\));").unwrap());
+    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)([:\w]+\((?:\w+: .+)\));").unwrap());
     if !reverse {
-        RGX.replace_all(code, "fn __zng_fmt__${1};")
+        RGX.replace_all(code, |caps: &regex::Captures| {
+            // "fn __zng_fmt__${1};" with colon escape
+            let (a, b) = caps[1].split_once('(').unwrap();
+            format!("fn __zng_fmt__{}({b};", a.replace("::", "__C__"))
+        })
     } else {
-        Cow::Owned(code.replace("fn __zng_fmt__", ""))
+        Cow::Owned(code.replace("fn __zng_fmt__", "").replace("__C__", "::"))
     }
 }
 

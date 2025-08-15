@@ -348,6 +348,7 @@ macro_rules! define_api {
         }
     };
 }
+#[rustfmt::skip] // for cargo zng
 define_api! {
     fn init();
     fn deinit();
