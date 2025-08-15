@@ -199,8 +199,6 @@ pub fn run(mut args: FmtArgs) {
         }
     }
 
-    println!("!!: {:?} unique frags", fmt_server.data.lock().requests.len());
-
     if let Err(e) = history.save() {
         warn!("cannot save fmt history, {e}")
     }
@@ -335,7 +333,7 @@ async fn fmt_code(code: &str, stream: pm2_send::TokenStream, fmt: &FmtFragServer
         // custom format can cause normal format to change
         // example: ui_vec![Wgt!{<many properties>}, Wgt!{<same>}]
         //   Wgt! gets custom formatted onto multiple lines, that causes ui_vec![\n by normal format.
-        formatted_code = fmt.format(formatted_code.clone()).await;
+        formatted_code = fmt.format(formatted_code.clone()).await.unwrap_or(formatted_code);
     }
 
     formatted_code
@@ -363,7 +361,7 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         is_expr_var = matches!(&replaced_code, Cow::Owned(_));
     }
 
-    let code = fmt.format(replaced_code.into_owned()).await;
+    let code = fmt.format(replaced_code.into_owned()).await?;
 
     let code = if is_event_args {
         replace_event_args(&code, true)
@@ -548,17 +546,6 @@ fn replace_expr_var(code: &str, reverse: bool) -> Cow<'_, str> {
     }
 }
 
-fn fmt_frag(code: &str, edition: &str) -> Option<String> {
-    if code.starts_with("{") {
-        const PREFIX: &str = "fn __frag__() ";
-        let code = rustfmt_stdin(&format!("{PREFIX}{code}"), edition)?;
-        let code = code[PREFIX.len()..].trim_end().to_owned();
-        Some(code)
-    } else {
-        rustfmt_stdin(code, edition)
-    }
-}
-
 /// rustfmt does not provide a crate and does not implement a server. It only operates in one-shot
 /// calls and it is slow.
 ///
@@ -605,7 +592,7 @@ impl FmtFragServer {
         s
     }
 
-    pub fn format(&self, code: String) -> impl Future<Output = String> {
+    pub fn format(&self, code: String) -> impl Future<Output = Option<String>> {
         let res = self
             .data
             .lock()
@@ -616,7 +603,11 @@ impl FmtFragServer {
             .clone();
         std::future::poll_fn(move |_cx| {
             let res = res.lock();
-            if res.is_empty() { Poll::Pending } else { Poll::Ready(res.clone()) }
+            match res.as_str() {
+                "" => Poll::Pending,
+                "#rustfmt-error#" => Poll::Ready(None),
+                _ => Poll::Ready(Some(res.clone())),
+            }
         })
     }
 
@@ -642,12 +633,96 @@ impl FmtFragServer {
 
         let edition = self.edition.clone();
         blocking::unblock(move || {
-            let _ = fmt_frag("fn fun() { }", &edition); // simulate spawn
-            for (request, response) in requests {
-                *response.lock() = request;
+            if requests.len() == 1 {
+                let (request, response) = requests.into_iter().next().unwrap();
+                let r = match rustfmt_stdin(&Self::wrap_code_for_fmt(request), &edition) {
+                    Some(f) => Self::unwrap_formatted_code(f),
+                    None => "#rustfmt-error#".to_owned(),
+                };
+                *response.lock() = r;
+            } else {
+                match rustfmt_stdin(&Self::wrap_batch_for_fmt(requests.iter().map(|(k, _)| k.as_str())), &edition) {
+                    Some(r) => {
+                        let r = Self::unwrap_batch_for_fmt(r, requests.len());
+                        for ((_, response), r) in requests.into_iter().zip(r) {
+                            *response.lock() = r;
+                        }
+                    }
+                    None => {
+                        for (request, response) in requests {
+                            let r = match rustfmt_stdin(&Self::wrap_code_for_fmt(request), &edition) {
+                                Some(f) => Self::unwrap_formatted_code(f),
+                                None => "#rustfmt-error#".to_owned(),
+                            };
+                            *response.lock() = r;
+                        }
+                    }
+                }
             }
         })
         .detach();
+    }
+
+    const PREFIX: &str = "fn __frag__() ";
+    fn wrap_code_for_fmt(code: String) -> String {
+        if code.starts_with("{") {
+            format!("{}{code}", Self::PREFIX)
+        } else {
+            code
+        }
+    }
+    fn unwrap_formatted_code(fmt: String) -> String {
+        match fmt.strip_prefix(Self::PREFIX) {
+            Some(s) => s.to_owned(),
+            None => fmt,
+        }
+    }
+
+    fn wrap_batch_for_fmt<'a>(requests: impl Iterator<Item = &'a str>) -> String {
+        let mut s = String::new();
+        for code in requests {
+            s.push_str("mod __batch__ {\n use __batch_tabs;\n");
+            if code.starts_with("{") {
+                s.push_str(Self::PREFIX);
+            }
+            s.push_str(code);
+            s.push_str("\n}");
+        }
+        s
+    }
+    fn unwrap_batch_for_fmt(fmt: String, count: usize) -> Vec<String> {
+        let mut item = String::new();
+        let mut r = vec![];
+        let mut lines = fmt.lines();
+        let mut strip_tabs = String::new();
+        while let Some(line) = lines.next() {
+            if line.starts_with("mod __batch__") {
+                if !item.is_empty() {
+                    r.push(item.trim().to_owned());
+                    item.clear();
+                }
+
+                let tabs_line = lines.next().unwrap();
+                let count = tabs_line.len() - tabs_line.trim_start().len();
+                strip_tabs.clear();
+                for _ in 0..count {
+                    strip_tabs.push(' ');
+                }
+            } else if line.is_empty() {
+                item.push('\n');
+            } else if let Some(line) = line.strip_prefix(&strip_tabs) {
+                item.push_str(line);
+                item.push('\n');
+            } else if line != "}" {
+                item.push_str(line);
+                item.push('\n');
+            }
+        }
+        if !item.is_empty() {
+            r.push(item.trim().to_owned());
+        }
+        assert_eq!(r.len(), count);
+        r
     }
 }
 
