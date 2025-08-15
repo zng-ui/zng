@@ -5,7 +5,7 @@ use std::{
     io::{self, BufRead, Read, Write},
     path::{Path, PathBuf},
     process::Stdio,
-    sync::Arc,
+    sync::{Arc, atomic::AtomicBool},
     task::Poll,
     time::{Duration, SystemTime},
 };
@@ -47,10 +47,18 @@ pub struct FmtArgs {
     /// Rustfmt style edition, enforced for all files
     #[arg(long, default_value = "2024")]
     edition: String,
+
+    /// Output rustfmt stderr, for debugging
+    #[arg(long, action, hide = true)]
+    rustfmt_errors: bool,
 }
 
 pub fn run(mut args: FmtArgs) {
     let action = if args.check { "checking" } else { "formatting" };
+
+    if args.rustfmt_errors {
+        SHOW_RUSTFMT_ERRORS.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
 
     if args.stdin {
         if args.manifest_path.is_some() || args.package.is_some() || args.files.is_some() {
@@ -698,7 +706,12 @@ impl FmtFragServer {
         while let Some(line) = lines.next() {
             if line.starts_with("mod __batch__") {
                 if !item.is_empty() {
-                    r.push(item.trim().to_owned());
+                    let it = item.trim();
+                    if let Some(it) = it.strip_prefix(Self::PREFIX) {
+                        r.push(it.to_owned());
+                    } else {
+                        r.push(it.to_owned());
+                    }
                     item.clear();
                 }
 
@@ -719,15 +732,25 @@ impl FmtFragServer {
             }
         }
         if !item.is_empty() {
-            r.push(item.trim().to_owned());
+            let it = item.trim();
+            if let Some(it) = it.strip_prefix(Self::PREFIX) {
+                r.push(it.to_owned());
+            } else {
+                r.push(it.to_owned());
+            }
         }
         assert_eq!(r.len(), count);
         r
     }
 }
 
+static SHOW_RUSTFMT_ERRORS: AtomicBool = AtomicBool::new(false);
 fn rustfmt_stdin(code: &str, edition: &str) -> Option<String> {
-    let mut s = std::process::Command::new("rustfmt")
+    let mut fmt = std::process::Command::new("rustfmt");
+    if !SHOW_RUSTFMT_ERRORS.load(std::sync::atomic::Ordering::Relaxed) {
+        fmt.stderr(Stdio::null());
+    }
+    let mut s = fmt
         .arg("--edition")
         .arg(edition)
         .stdin(Stdio::piped())
@@ -881,7 +904,7 @@ mod pm2_send {
 
     pub use proc_macro2::Delimiter;
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct TokenStream(Vec<TokenTree>);
     impl From<proc_macro2::TokenStream> for TokenStream {
         fn from(value: proc_macro2::TokenStream) -> Self {
@@ -905,7 +928,7 @@ mod pm2_send {
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub enum TokenTree {
         Group(Group),
         Ident(Ident),
@@ -933,7 +956,7 @@ mod pm2_send {
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct Group {
         delimiter: Delimiter,
         span: Span,
@@ -962,7 +985,7 @@ mod pm2_send {
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct Ident {
         span: Span,
         s: String,
@@ -981,7 +1004,7 @@ mod pm2_send {
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct Punct {
         span: Span,
         c: char,
@@ -1000,7 +1023,7 @@ mod pm2_send {
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct Span {
         byte_range: ops::Range<usize>,
     }

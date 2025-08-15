@@ -320,7 +320,11 @@ fn large_image() -> UiNode {
                         mouse_pan = mouse_pan.clone();
                         child = Image! {
                             source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
-                            img_limits = Some(ImageLimits::none().with_max_encoded_len(300.megabytes()).with_max_decoded_len(3.gigabytes()));
+                            img_limits = Some(
+                                ImageLimits::none()
+                                    .with_max_encoded_len(300.megabytes())
+                                    .with_max_decoded_len(3.gigabytes()),
+                            );
                             img_downscale = ImageDownscale::from(layout::Px(8000));
 
                             on_error = hn!(|args: &ImgErrorArgs| {
