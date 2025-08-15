@@ -492,17 +492,27 @@ fn replace_event_args(code: &str, reverse: bool) -> Cow<'_, str> {
     }
 }
 // replace `static IDENT = {` with `static IDENT: __zng_fmt__ = {`
+// AND replace `static IDENT;` with `static IDENT: __zng_fmt__ = ();`
 // AND replace `l10n!: ` with `l10n__zng_fmt:`
 fn replace_command(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)(?m)static +(\w+) ?= ?\{").unwrap());
+    static RGX_DEFAULTS: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)(?m)static +(\w+) ?;").unwrap());
     if !reverse {
-        let mut cmd = RGX.replace_all(code, "static $1: __zng_fmt__ = __A_ {");
-        if let Cow::Owned(cmd) = &mut cmd {
+        let cmd = RGX_DEFAULTS.replace_all(code, "static $1: __zng_fmt__ = ();");
+        let mut cmd2 = RGX.replace_all(&cmd, "static $1: __zng_fmt__ = __A_ {");
+        if let Cow::Owned(cmd) = &mut cmd2 {
             *cmd = cmd.replace("l10n!:", "l10n__zng_fmt:");
         }
-        cmd
+        match cmd2 {
+            Cow::Borrowed(_) => cmd,
+            Cow::Owned(s) => Cow::Owned(s),
+        }
     } else {
-        Cow::Owned(code.replace(": __zng_fmt__ = __A_ {", " = {").replace("l10n__zng_fmt:", "l10n!:"))
+        Cow::Owned(
+            code.replace(": __zng_fmt__ = ();", ";")
+                .replace(": __zng_fmt__ = __A_ {", " = {")
+                .replace("l10n__zng_fmt:", "l10n!:"),
+        )
     }
 }
 // replace ` fn ident = { content }` with ` static __zng_fmt_fn__ident: () = __A_ { content };//zng-fmt`
@@ -524,7 +534,7 @@ fn replace_event_property(code: &str, reverse: bool) -> Cow<'_, str> {
                         '}' => {
                             count -= 1;
                             if count == 0 {
-                               close_i = i + ci + 1;
+                                close_i = i + ci + 1;
                                 break;
                             }
                         }

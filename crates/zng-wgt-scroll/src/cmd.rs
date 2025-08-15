@@ -72,7 +72,6 @@ command! {
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
-
     /// Represents the **page up** by one [`v_page_unit`] action.
     ///
     /// # Parameter
@@ -120,7 +119,7 @@ command! {
         l10n!: true,
         name: "Page Left",
         info: "Scroll Left by one page unit",
-        shortcut: shortcut!(SHIFT+PageUp),
+        shortcut: shortcut!(SHIFT + PageUp),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
@@ -136,7 +135,7 @@ command! {
         l10n!: true,
         name: "Page Right",
         info: "Scroll Right by one page unit",
-        shortcut: shortcut!(SHIFT+PageDown),
+        shortcut: shortcut!(SHIFT + PageDown),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
@@ -145,7 +144,7 @@ command! {
         l10n!: true,
         name: "Scroll to Top",
         info: "Scroll up to the content top",
-        shortcut: [shortcut!(Home), shortcut!(CTRL+Home)],
+        shortcut: [shortcut!(Home), shortcut!(CTRL + Home)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
         icon: wgt_fn!(|_| ICONS.get(["scroll-top", "vertical-align-top"])),
     };
@@ -155,7 +154,7 @@ command! {
         l10n!: true,
         name: "Scroll to Bottom",
         info: "Scroll down to the content bottom.",
-        shortcut: [shortcut!(End), shortcut!(CTRL+End)],
+        shortcut: [shortcut!(End), shortcut!(CTRL + End)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
         icon: wgt_fn!(|_| ICONS.get(["scroll-bottom", "vertical-align-bottom"])),
     };
@@ -165,7 +164,7 @@ command! {
         l10n!: true,
         name: "Scroll to Leftmost",
         info: "Scroll left to the content left edge",
-        shortcut: [shortcut!(SHIFT+Home), shortcut!(CTRL|SHIFT+Home)],
+        shortcut: [shortcut!(SHIFT + Home), shortcut!(CTRL | SHIFT + Home)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
@@ -174,7 +173,7 @@ command! {
         l10n!: true,
         name: "Scroll to Rightmost",
         info: "Scroll right to the content right edge",
-        shortcut: [shortcut!(SHIFT+End), shortcut!(CTRL|SHIFT+End)],
+        shortcut: [shortcut!(SHIFT + End), shortcut!(CTRL | SHIFT + End)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
@@ -208,7 +207,7 @@ command! {
     pub static ZOOM_IN_CMD = {
         l10n!: true,
         name: "Zoom In",
-        shortcut: shortcut!(CTRL+'+'),
+        shortcut: shortcut!(CTRL + '+'),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
         icon: wgt_fn!(|_| ICONS.get("zoom-in")),
     };
@@ -225,7 +224,7 @@ command! {
     pub static ZOOM_OUT_CMD = {
         l10n!: true,
         name: "Zoom Out",
-        shortcut: shortcut!(CTRL+'-'),
+        shortcut: shortcut!(CTRL + '-'),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
         icon: wgt_fn!(|_| ICONS.get("zoom-out")),
     };
@@ -236,7 +235,7 @@ command! {
     pub static ZOOM_TO_FIT_CMD = {
         l10n!: true,
         name: "Zoom to Fit",
-        shortcut: shortcut!(CTRL+'0'),
+        shortcut: shortcut!(CTRL + '0'),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
