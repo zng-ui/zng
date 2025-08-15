@@ -6,6 +6,7 @@
     - Add support for `static ref` style macro syntax, like `lazy_static!`.
     - Add support for `command!`, `event_property!` syntaxes.
     - Add support for struct init style macro syntax, like `cfg_aliases!`.
+    - Add support for `bitflags!` syntax.
 
 * Fix missing mouse move events when cursor is captured and leaves the window in Windows.
 * Implement `IntoUiNode` for `std::iter` iterators of `UiNode` items.

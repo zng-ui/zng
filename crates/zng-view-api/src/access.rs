@@ -467,7 +467,6 @@ bitflags! {
     /// [`AccessState::AutoComplete`]: crate::access::AccessState::AutoComplete
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub struct AutoComplete: u8 {
-
         /// Text suggesting one way to complete the provided input may be dynamically inserted after the caret.
         const INLINE = 0b01;
 
@@ -490,10 +489,10 @@ bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub struct Invalid: u8 {
         /// Indicates the entered value does not conform to the format expected by the application.
-        const ANY      = 0b001;
+        const ANY = 0b001;
         /// Indicates the entered value contains a grammatical error.
-        const GRAMMAR  = 0b011;
-         /// Indicates the entered value contains a spelling error.
+        const GRAMMAR = 0b011;
+        /// Indicates the entered value contains a spelling error.
         const SPELLING = 0b101;
     }
 }

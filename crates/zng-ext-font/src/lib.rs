@@ -876,10 +876,10 @@ struct LoadedFontFace {
 bitflags! {
     #[derive(Debug, Clone, Copy)]
     struct FontFaceFlags: u8 {
-        const IS_MONOSPACE =      0b0000_0001;
-        const HAS_LIGATURES =     0b0000_0010;
+        const IS_MONOSPACE = 0b0000_0001;
+        const HAS_LIGATURES = 0b0000_0010;
         const HAS_RASTER_IMAGES = 0b0000_0100;
-        const HAS_SVG_IMAGES =    0b0000_1000;
+        const HAS_SVG_IMAGES = 0b0000_1000;
     }
 }
 struct FontFaceMut {

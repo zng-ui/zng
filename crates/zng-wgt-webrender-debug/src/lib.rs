@@ -151,18 +151,18 @@ mod serde_debug_flags {
         #[derive(Default, Deserialize, Serialize)]
         #[serde(transparent)]
         struct DebugFlagsRef: u64 {
-            const PROFILER_DBG         = DebugFlags::PROFILER_DBG.bits();
-            const RENDER_TARGET_DBG    = DebugFlags::RENDER_TARGET_DBG.bits();
-            const TEXTURE_CACHE_DBG    = DebugFlags::TEXTURE_CACHE_DBG.bits();
-            const GPU_TIME_QUERIES     = DebugFlags::GPU_TIME_QUERIES.bits();
-            const GPU_SAMPLE_QUERIES   = DebugFlags::GPU_SAMPLE_QUERIES.bits();
-            const DISABLE_BATCHING     = DebugFlags::DISABLE_BATCHING.bits();
-            const EPOCHS               = DebugFlags::EPOCHS.bits();
+            const PROFILER_DBG = DebugFlags::PROFILER_DBG.bits();
+            const RENDER_TARGET_DBG = DebugFlags::RENDER_TARGET_DBG.bits();
+            const TEXTURE_CACHE_DBG = DebugFlags::TEXTURE_CACHE_DBG.bits();
+            const GPU_TIME_QUERIES = DebugFlags::GPU_TIME_QUERIES.bits();
+            const GPU_SAMPLE_QUERIES = DebugFlags::GPU_SAMPLE_QUERIES.bits();
+            const DISABLE_BATCHING = DebugFlags::DISABLE_BATCHING.bits();
+            const EPOCHS = DebugFlags::EPOCHS.bits();
             const ECHO_DRIVER_MESSAGES = DebugFlags::ECHO_DRIVER_MESSAGES.bits();
-            const SHOW_OVERDRAW        = DebugFlags::SHOW_OVERDRAW.bits();
-            const GPU_CACHE_DBG        = DebugFlags::GPU_CACHE_DBG.bits();
+            const SHOW_OVERDRAW = DebugFlags::SHOW_OVERDRAW.bits();
+            const GPU_CACHE_DBG = DebugFlags::GPU_CACHE_DBG.bits();
             const TEXTURE_CACHE_DBG_CLEAR_EVICTED = DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED.bits();
-            const PICTURE_CACHING_DBG   = DebugFlags::PICTURE_CACHING_DBG.bits();
+            const PICTURE_CACHING_DBG = DebugFlags::PICTURE_CACHING_DBG.bits();
             const PRIMITIVE_DBG = DebugFlags::PRIMITIVE_DBG.bits();
             const ZOOM_DBG = DebugFlags::ZOOM_DBG.bits();
             const SMALL_SCREEN = DebugFlags::SMALL_SCREEN.bits();
@@ -173,16 +173,16 @@ mod serde_debug_flags {
             const DISABLE_GRADIENT_PRIMS = DebugFlags::DISABLE_GRADIENT_PRIMS.bits();
             const OBSCURE_IMAGES = DebugFlags::OBSCURE_IMAGES.bits();
             const GLYPH_FLASHING = DebugFlags::GLYPH_FLASHING.bits();
-            const SMART_PROFILER        = DebugFlags::SMART_PROFILER.bits();
+            const SMART_PROFILER = DebugFlags::SMART_PROFILER.bits();
             const INVALIDATION_DBG = DebugFlags::INVALIDATION_DBG.bits();
             const PROFILER_CAPTURE = DebugFlags::PROFILER_CAPTURE.bits();
             const FORCE_PICTURE_INVALIDATION = DebugFlags::FORCE_PICTURE_INVALIDATION.bits();
-            const WINDOW_VISIBILITY_DBG     = DebugFlags::WINDOW_VISIBILITY_DBG.bits();
-            const RESTRICT_BLOB_SIZE        = DebugFlags::RESTRICT_BLOB_SIZE.bits();
+            const WINDOW_VISIBILITY_DBG = DebugFlags::WINDOW_VISIBILITY_DBG.bits();
+            const RESTRICT_BLOB_SIZE = DebugFlags::RESTRICT_BLOB_SIZE.bits();
             const SURFACE_PROMOTION_LOGGING = DebugFlags::SURFACE_PROMOTION_LOGGING.bits();
-            const PICTURE_BORDERS           = DebugFlags::PICTURE_BORDERS.bits();
-            const MISSING_SNAPSHOT_PANIC     = DebugFlags::MISSING_SNAPSHOT_PANIC.bits();
-            const MISSING_SNAPSHOT_PINK      = DebugFlags::MISSING_SNAPSHOT_PINK.bits();
+            const PICTURE_BORDERS = DebugFlags::PICTURE_BORDERS.bits();
+            const MISSING_SNAPSHOT_PANIC = DebugFlags::MISSING_SNAPSHOT_PANIC.bits();
+            const MISSING_SNAPSHOT_PINK = DebugFlags::MISSING_SNAPSHOT_PINK.bits();
             const HIGHLIGHT_BACKDROP_FILTERS = DebugFlags::HIGHLIGHT_BACKDROP_FILTERS.bits();
         }
     }

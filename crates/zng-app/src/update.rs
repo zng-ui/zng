@@ -1741,11 +1741,11 @@ bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, bytemuck::NoUninit)]
     #[repr(transparent)]
     pub(crate) struct UpdateFlags: u8 {
-        const REINIT =        0b1000_0000;
-        const INFO =          0b0001_0000;
-        const UPDATE =        0b0000_0001;
-        const LAYOUT =        0b0000_0010;
-        const RENDER =        0b0000_0100;
+        const REINIT = 0b1000_0000;
+        const INFO = 0b0001_0000;
+        const UPDATE = 0b0000_0001;
+        const LAYOUT = 0b0000_0010;
+        const RENDER = 0b0000_0100;
         const RENDER_UPDATE = 0b0000_1000;
     }
 }

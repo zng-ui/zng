@@ -378,6 +378,12 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         is_lazy_static = matches!(&replaced_code, Cow::Owned(_));
     }
 
+    let mut is_bitflags = false;
+    if matches!(&replaced_code, Cow::Borrowed(_)) {
+        replaced_code = replace_bitflags(group_code, false);
+        is_bitflags = matches!(&replaced_code, Cow::Owned(_));
+    }
+
     let mut is_event_args = false;
     if matches!(&replaced_code, Cow::Borrowed(_)) {
         replaced_code = replace_event_args(group_code, false);
@@ -438,6 +444,8 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         replace_event_property(&code, true)
     } else if is_struct_like {
         replace_struct_like(&code, true)
+    } else if is_bitflags {
+        replace_bitflags(&code, true)
     } else {
         Cow::Owned(code)
     };
@@ -720,6 +728,27 @@ fn replace_struct_like(code: &str, reverse: bool) -> Cow<'_, str> {
         r
     } else {
         Cow::Owned(code.replace("static __zng_fmt__: () = __A_ {", "{").replace("}; // __zng-fmt", "}"))
+    }
+}
+
+// replace `pub struct Ident: Ty {` with `pub static __zng_fmt_vis: () = ();\nimpl __zng_fmt_Ident_C_Ty {`
+// AND replace `const IDENT =` with `const IDENT: __A_ =`
+fn replace_bitflags(code: &str, reverse: bool) -> Cow<'_, str> {
+    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)struct +(\w+): +(\w+) +\{").unwrap());
+    static RGX_CONST: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*const +(\w+) +=").unwrap());
+    static RGX_REV: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"(?m)static __zng_fmt_vis__: \(\) = \(\);\s+impl __zng_fmt_(\w+)__C_(\w+) \{").unwrap());
+    if !reverse {
+        let mut r = RGX.replace_all(code, "static __zng_fmt_vis__: () = ();\nimpl __zng_fmt_${1}__C_$2 {");
+        if let Cow::Owned(r) = &mut r
+            && let Cow::Owned(rr) = RGX_CONST.replace_all(r, "const $1: __A_ =")
+        {
+            *r = rr;
+        }
+        r
+    } else {
+        let code = RGX_REV.replace_all(code, "struct ${1}: $2 {");
+        Cow::Owned(code.replace(": __A_ =", " ="))
     }
 }
 

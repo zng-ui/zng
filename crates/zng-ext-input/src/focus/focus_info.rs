@@ -420,29 +420,30 @@ bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct FocusNavAction: u16 {
         /// [`FocusTarget::Enter`]
-        const ENTER =      0b0000_0000_0001;
+        const ENTER = 0b0000_0000_0001;
         /// [`FocusTarget::Exit`]
-        const EXIT =       0b0000_0000_0010;
+        const EXIT = 0b0000_0000_0010;
 
         /// [`FocusTarget::Next`]
-        const NEXT =       0b0000_0000_0100;
+        const NEXT = 0b0000_0000_0100;
         /// [`FocusTarget::Prev`]
-        const PREV =       0b0000_0000_1000;
+        const PREV = 0b0000_0000_1000;
 
         /// [`FocusTarget::Up`]
-        const UP =         0b0000_0001_0000;
+        const UP = 0b0000_0001_0000;
         /// [`FocusTarget::Right`]
-        const RIGHT =      0b0000_0010_0000;
+        const RIGHT = 0b0000_0010_0000;
         /// [`FocusTarget::Down`]
-        const DOWN =       0b0000_0100_0000;
+        const DOWN = 0b0000_0100_0000;
         /// [`FocusTarget::Left`]
-        const LEFT =       0b0000_1000_0000;
+        const LEFT = 0b0000_1000_0000;
 
         /// [`FocusTarget::Alt`]
-        const ALT =        0b0001_0000_0000;
+        const ALT = 0b0001_0000_0000;
 
         /// Up, right, down, left.
-        const DIRECTIONAL = FocusNavAction::UP.bits() | FocusNavAction::RIGHT.bits() | FocusNavAction::DOWN.bits() | FocusNavAction::LEFT.bits();
+        const DIRECTIONAL =
+            FocusNavAction::UP.bits() | FocusNavAction::RIGHT.bits() | FocusNavAction::DOWN.bits() | FocusNavAction::LEFT.bits();
     }
 }
 

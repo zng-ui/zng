@@ -773,32 +773,36 @@ bitflags! {
     #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
     pub struct DialogKind: u32 {
         /// [`DIALOG.info`](DIALOG::info)
-        const INFO =    0b0000_0000_0000_0001;
+        const INFO = 0b0000_0000_0000_0001;
         /// [`DIALOG.warn`](DIALOG::warn)
-        const WARN =    0b0000_0000_0000_0010;
+        const WARN = 0b0000_0000_0000_0010;
         /// [`DIALOG.error`](DIALOG::error)
-        const ERROR =   0b0000_0000_0000_0100;
+        const ERROR = 0b0000_0000_0000_0100;
         /// [`DIALOG.ask`](DIALOG::ask)
-        const ASK =     0b0000_0000_0000_1000;
+        const ASK = 0b0000_0000_0000_1000;
         /// [`DIALOG.confirm`](DIALOG::confirm)
         const CONFIRM = 0b0000_0000_0001_0000;
 
         /// [`DIALOG.open_file`](DIALOG::open_file)
-        const OPEN_FILE =  0b1000_0000_0000_0000;
+        const OPEN_FILE = 0b1000_0000_0000_0000;
         /// [`DIALOG.open_files`](DIALOG::open_files)
         const OPEN_FILES = 0b0100_0000_0000_0000;
         /// [`DIALOG.save_file`](DIALOG::save_file)
-        const SAVE_FILE =  0b0010_0000_0000_0000;
+        const SAVE_FILE = 0b0010_0000_0000_0000;
 
         /// [`DIALOG.select_folder`](DIALOG::select_folder)
-        const SELECT_FOLDER =  0b0001_0000_0000_0000;
+        const SELECT_FOLDER = 0b0001_0000_0000_0000;
         /// [`DIALOG.select_folders`](DIALOG::select_folders)
         const SELECT_FOLDERS = 0b0000_1000_0000_0000;
 
         /// All message dialogs.
-        const MESSAGE = Self::INFO.bits() | Self::WARN.bits() | Self::ERROR.bits()  | Self::ASK.bits()  | Self::CONFIRM.bits();
+        const MESSAGE = Self::INFO.bits() | Self::WARN.bits() | Self::ERROR.bits() | Self::ASK.bits() | Self::CONFIRM.bits();
         /// All file system dialogs.
-        const FILE = Self::OPEN_FILE.bits() | Self::OPEN_FILES.bits() | Self::SAVE_FILE.bits()  | Self::SELECT_FOLDER.bits() | Self::SELECT_FOLDERS.bits();
+        const FILE = Self::OPEN_FILE.bits()
+            | Self::OPEN_FILES.bits()
+            | Self::SAVE_FILE.bits()
+            | Self::SELECT_FOLDER.bits()
+            | Self::SELECT_FOLDERS.bits();
     }
 }
 impl_from_and_into_var! {

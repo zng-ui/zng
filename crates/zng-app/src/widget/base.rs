@@ -1024,13 +1024,13 @@ bitflags::bitflags! {
     #[serde(transparent)]
     pub struct Parallel: u8 {
         /// Descendants [`UiNode::init`] can run in parallel.
-        const INIT   = 0b0000_0001;
+        const INIT = 0b0000_0001;
         /// Descendants [`UiNode::info`] can run in parallel.
-        const INFO   = 0b0001_0000;
+        const INFO = 0b0001_0000;
         /// Descendants [`UiNode::deinit`] can run in parallel.
         const DEINIT = 0b0000_0010;
         /// Descendants [`UiNode::event`] can run in parallel.
-        const EVENT  = 0b0000_0100;
+        const EVENT = 0b0000_0100;
         /// Descendants [`UiNode::update`] can run in parallel.
         const UPDATE = 0b0000_1000;
         /// Descendants [`UiNode::measure`] and [`UiNode::layout`] can run in parallel.

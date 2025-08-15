@@ -547,19 +547,19 @@ bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct PendingLayout: u8 {
         /// Underline size and position.
-        const UNDERLINE     = 0b0000_0001;
+        const UNDERLINE = 0b0000_0001;
         /// Strikethrough size and position.
         const STRIKETHROUGH = 0b0000_0010;
         /// Overline size and position.
-        const OVERLINE      = 0b0000_0100;
+        const OVERLINE = 0b0000_0100;
         /// Caret origin.
-        const CARET         = 0b0000_1000;
+        const CARET = 0b0000_1000;
         /// Overflow.
-        const OVERFLOW      = 0b0001_0000;
+        const OVERFLOW = 0b0001_0000;
         /// Text lines position, retains line glyphs but reposition for new align and outer box.
         const RESHAPE_LINES = 0b0111_1111;
         /// Full reshape, re-compute all glyphs.
-        const RESHAPE       = 0b1111_1111;
+        const RESHAPE = 0b1111_1111;
     }
 }
 
