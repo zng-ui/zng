@@ -527,7 +527,7 @@ fn replace_event_args(code: &str, reverse: bool) -> Cow<'_, str> {
 // AND replace `static IDENT;` with `static IDENT: __zng_fmt__ = ();`
 // AND replace `l10n!: ` with `l10n__zng_fmt:`
 fn replace_command(code: &str, reverse: bool) -> Cow<'_, str> {
-    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)(?m)static +(\w+) ?= ?\{").unwrap());
+    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)static +(\w+) ?= ?\{").unwrap());
     static RGX_DEFAULTS: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)(?m)static +(\w+) ?;").unwrap());
     if !reverse {
         let cmd = RGX_DEFAULTS.replace_all(code, "static $1: __zng_fmt__ = ();");
@@ -589,6 +589,7 @@ fn replace_event_property(code: &str, reverse: bool) -> Cow<'_, str> {
 // replace `prop = 1, 2;` with `prop = (1, 2);`
 // AND replace `prop = { a: 1, b: 2, };` with `prop = __A_ { a: 1, b: 2, }`
 fn replace_widget_prop(code: &str, reverse: bool) -> Cow<'_, str> {
+    static IGNORE_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m): +\w+\s+=\s+(\{)").unwrap());
     static NAMED_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)\w+\s+=\s+(\{)").unwrap());
     static NAMED_MARKER: &str = "__A_ ";
 
@@ -596,6 +597,11 @@ fn replace_widget_prop(code: &str, reverse: bool) -> Cow<'_, str> {
     static UNNAMED_RGX_REV: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?ms)__a_\((.+?)\)").unwrap());
 
     if !reverse {
+        if IGNORE_RGX.is_match(code) {
+            // ignore static IDENT: Ty = expr
+            return Cow::Borrowed(code);
+        }
+
         let named_rpl = NAMED_RGX.replace_all(code, |caps: &regex::Captures| {
             format!(
                 "{}{NAMED_MARKER} {{",

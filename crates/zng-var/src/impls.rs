@@ -34,9 +34,11 @@ macro_rules! impl_transitionable {
         }
     )+}
 }
+#[rustfmt::skip] // for zng fmt
 impl_transitionable! {
     f32 => i8, u8, i16, u16, i32, u32,
 }
+#[rustfmt::skip]
 impl_transitionable! {
     f64 => u64, i64, u128, i128, isize, usize,
 }
