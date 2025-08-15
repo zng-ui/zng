@@ -4,6 +4,6 @@ fn main() {
     cfg_aliases::cfg_aliases! {
         wasm: { target_arch = "wasm32" },
         android: { target_os = "android" },
-        ipc: { all(feature="ipc", not(any(android, wasm))) },
+        ipc: { all(feature = "ipc", not(any(android, wasm))) },
     }
 }

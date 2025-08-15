@@ -3,8 +3,9 @@
 * Multiple improvements for `cargo zng fmt`.
     - Now only reformats modified files when running in crates/workspaces.
     - Add `--edition` option, 2024 is the default. This fixes inconsistency between workspace run and single file run.
-    - Add support for lazy static style macro syntax.
+    - Add support for `static ref` style macro syntax, like `lazy_static!`.
     - Add support for `command!`, `event_property!` syntaxes.
+    - Add support for struct init style macro syntax, like `cfg_aliases!`.
 
 * Fix missing mouse move events when cursor is captured and leaves the window in Windows.
 * Implement `IntoUiNode` for `std::iter` iterators of `UiNode` items.

@@ -414,6 +414,12 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         is_expr_var = matches!(&replaced_code, Cow::Owned(_));
     }
 
+    let mut is_struct_like = false;
+    if matches!(&replaced_code, Cow::Borrowed(_)) {
+        replaced_code = replace_struct_like(group_code, false);
+        is_struct_like = matches!(&replaced_code, Cow::Owned(_));
+    }
+
     let code = fmt.format(replaced_code.into_owned()).await?;
 
     let code = if is_event_args {
@@ -430,6 +436,8 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         replace_command(&code, true)
     } else if is_event_property {
         replace_event_property(&code, true)
+    } else if is_struct_like {
+        replace_struct_like(&code, true)
     } else {
         Cow::Owned(code)
     };
@@ -676,6 +684,42 @@ fn replace_static_ref(code: &str, reverse: bool) -> Cow<'_, str> {
         }
     } else {
         Cow::Owned(code.replace("static __zng_fmt_ref__", "static ref "))
+    }
+}
+
+// replace `{ foo: <rest> }` with `static __zng_fmt__: () = __A_ { foo: <rest> } // __zng-fmt`, if the `{` is the first token of  the line
+fn replace_struct_like(code: &str, reverse: bool) -> Cow<'_, str> {
+    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*\{\s+(\w+):([^:])").unwrap());
+    if !reverse {
+        let mut r = RGX.replace_all(code, "static __zng_fmt__: () = __A_ {\n$1:$2");
+        if let Cow::Owned(r) = &mut r {
+            const OPEN: &str = ": () = __A_ {";
+            const CLOSE_MARKER: &str = "; // __zng-fmt";
+            let mut start = 0;
+            while let Some(i) = r[start..].find(OPEN) {
+                let i = start + i + OPEN.len();
+                let mut count = 1;
+                let mut close_i = i;
+                for (ci, c) in r[i..].char_indices() {
+                    match c {
+                        '{' => count += 1,
+                        '}' => {
+                            count -= 1;
+                            if count == 0 {
+                                close_i = i + ci + 1;
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                r.insert_str(close_i, CLOSE_MARKER);
+                start = close_i + CLOSE_MARKER.len();
+            }
+        }
+        r
+    } else {
+        Cow::Owned(code.replace("static __zng_fmt__: () = __A_ {", "{").replace("}; // __zng-fmt", "}"))
     }
 }
 
