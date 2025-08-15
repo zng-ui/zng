@@ -245,9 +245,7 @@ macro_rules! impl_from_and_into_var_number {
         }
     }
 }
-impl_from_and_into_var_number! {
-    u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize, f32, f64
-}
+impl_from_and_into_var_number! { u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize, f32, f64 }
 impl L10nArgument {
     /// Borrow argument as a fluent value.
     pub fn fluent_value(&self) -> fluent::FluentValue<'_> {

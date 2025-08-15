@@ -1152,7 +1152,7 @@ pub(crate) fn symlink_warn(path: &Path) {
 pub const ENV_TOOL: &str = "ZNG_RES_TOOL";
 
 macro_rules! built_in {
-    ($($tool:tt,)+) => {
+    ($($tool:tt),+ $(,)?) => {
         pub static BUILT_INS: &[&str] = &[
             $(stringify!($tool),)+
         ];
@@ -1161,16 +1161,7 @@ macro_rules! built_in {
         ];
     };
 }
-built_in! {
-    copy,
-    glob,
-    rp,
-    sh,
-    shf,
-    warn,
-    fail,
-    apk,
-}
+built_in! { copy, glob, rp, sh, shf, warn, fail, apk }
 
 pub fn run() {
     if let Ok(tool) = env::var(ENV_TOOL) {

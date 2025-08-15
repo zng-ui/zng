@@ -1100,9 +1100,7 @@ mod default_editors {
                 )+
             }
         }
-        parse! {
-            u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, f32, f64,
-        }
+        parse! { u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, f32, f64 }
 
         let _ = args;
         UiNode::nil()

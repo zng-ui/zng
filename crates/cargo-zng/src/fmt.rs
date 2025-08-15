@@ -426,6 +426,12 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         is_struct_like = matches!(&replaced_code, Cow::Owned(_));
     }
 
+    let mut is_simple_list = false;
+    if matches!(&replaced_code, Cow::Borrowed(_)) {
+        replaced_code = replace_simple_ident_list(group_code, false);
+        is_simple_list = matches!(&replaced_code, Cow::Owned(_));
+    }
+
     let code = fmt.format(replaced_code.into_owned()).await?;
 
     let code = if is_event_args {
@@ -446,6 +452,8 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         replace_struct_like(&code, true)
     } else if is_bitflags {
         replace_bitflags(&code, true)
+    } else if is_simple_list {
+        replace_simple_ident_list(&code, true)
     } else {
         Cow::Owned(code)
     };
@@ -764,6 +772,25 @@ fn replace_bitflags(code: &str, reverse: bool) -> Cow<'_, str> {
     } else {
         let code = RGX_REV.replace_all(code, "struct ${1}: $2 {");
         Cow::Owned(code.replace(": __A_ =", " ="))
+    }
+}
+
+/// wrap simple comma separated work list
+fn replace_simple_ident_list(code: &str, reverse: bool) -> Cow<'_, str> {
+    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s*\{\s*\w+(?:\s*,\s*\w+)*\s*,?\s*}\s*$$").unwrap());
+    if !reverse {
+        if RGX.is_match(code) {
+            Cow::Owned(code.replace('{', "static __zng_fmt: T = [").replace('}', "];"))
+        } else {
+            Cow::Borrowed(code)
+        }
+    } else {
+        let code = if code.trim_end().contains('\n') {
+            code.replace("static __zng_fmt: T = [", "{").replace("];", "}")
+        } else {
+            code.replace("static __zng_fmt: T = [", "{ ").replace("];", " }")
+        };
+        Cow::Owned(code)
     }
 }
 

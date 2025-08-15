@@ -7,6 +7,7 @@
     - Add support for `command!`, `event_property!` syntaxes.
     - Add support for struct declaration, init style macro syntax, like `cfg_aliases!`.
     - Add support for `bitflags!` syntax.
+    - Add support for simple ident list syntax.
 
 * Fix missing mouse move events when cursor is captured and leaves the window in Windows.
 * Implement `IntoUiNode` for `std::iter` iterators of `UiNode` items.

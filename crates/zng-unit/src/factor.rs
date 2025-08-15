@@ -543,7 +543,7 @@ impl From<bool> for Factor {
 }
 
 macro_rules! impl_for_integer {
-    ($($T:ty,)+) => {$(
+    ($($T:ty),+ $(,)?) => {$(
         impl ops::Mul<Factor> for $T {
             type Output = $T;
 
@@ -570,9 +570,7 @@ macro_rules! impl_for_integer {
         }
     )+}
 }
-impl_for_integer! {
-    u8, i8, u16, i16, u32, i32, u64, i64, usize, isize, u128, i128,
-}
+impl_for_integer! { u8, i8, u16, i16, u32, i32, u64, i64, usize, isize, u128, i128 }
 
 impl ops::Mul<Factor> for f32 {
     type Output = f32;

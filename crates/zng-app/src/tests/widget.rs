@@ -1111,9 +1111,7 @@ mod macro_rules_generated {
         }
     }
 
-    test! {
-        Bar
-    }
+    test! { Bar }
 }
 
 #[test]
