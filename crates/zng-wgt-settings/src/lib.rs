@@ -99,8 +99,10 @@ fn editor_state() -> Var<Option<SettingsEditorState>> {
     let r = expr_var! {
         if #{clean_search}.is_empty() {
             // no search, does not need to load settings of other categories
-            let (cat, settings) = SETTINGS.get(|_, cat| cat == #{sel_cat}, true)
-                            .pop().unwrap_or_else(|| (Category::unknown(#{sel_cat}.clone()), vec![]));
+            let (cat, settings) = SETTINGS
+                .get(|_, cat| cat == #{sel_cat}, true)
+                .pop()
+                .unwrap_or_else(|| (Category::unknown(#{sel_cat}.clone()), vec![]));
             Some(SettingsEditorState {
                 clean_search: #{clean_search}.clone(),
                 categories: SETTINGS.categories(|_| true, false, true),
@@ -115,37 +117,42 @@ fn editor_state() -> Var<Option<SettingsEditorState>> {
             // apply search filter, get best match key (top_match), actual selected_cat.
             let mut top_match = (usize::MAX, Txt::from(""));
             let mut actual_cat = None;
-            r.retain_mut(|(c, s)| if c.id() == #{sel_cat} {
-                // is selected cat
-                actual_cat = Some(c.clone());
-                // actually filter settings
-                s.retain(|s| match s.search_index(#{clean_search}) {
-                    Some(i) => {
-                        if i < top_match.0 {
-                            top_match = (i, s.key().clone());
+            r.retain_mut(|(c, s)| {
+                if c.id() == #{sel_cat} {
+                    // is selected cat
+                    actual_cat = Some(c.clone());
+                    // actually filter settings
+                    s.retain(|s| match s.search_index(#{clean_search}) {
+                        Some(i) => {
+                            if i < top_match.0 {
+                                top_match = (i, s.key().clone());
+                            }
+                            true
                         }
-                        true
-                    }
-                    None => false,
-                });
-                !s.is_empty()
-            } else {
-                // is not selected cat, just search, settings will be ignored
-                s.iter().any(|s| match s.search_index(#{clean_search}) {
-                    Some(i) => {
-                        if i < top_match.0 {
-                            top_match = (i, s.key().clone());
+                        None => false,
+                    });
+                    !s.is_empty()
+                } else {
+                    // is not selected cat, just search, settings will be ignored
+                    s.iter().any(|s| match s.search_index(#{clean_search}) {
+                        Some(i) => {
+                            if i < top_match.0 {
+                                top_match = (i, s.key().clone());
+                            }
+                            true
                         }
-                        true
-                    }
-                    None => false,
-                })
+                        None => false,
+                    })
+                }
             });
             let mut r = SettingsEditorState {
                 clean_search: #{clean_search}.clone(),
                 categories: r.iter().map(|(c, _)| c.clone()).collect(),
                 selected_cat: actual_cat.unwrap_or_else(|| Category::unknown(#{sel_cat}.clone())),
-                selected_settings: r.into_iter().find_map(|(c, s)| if c.id() == #{sel_cat} { Some(s) } else { None }).unwrap_or_default(),
+                selected_settings: r
+                    .into_iter()
+                    .find_map(|(c, s)| if c.id() == #{sel_cat} { Some(s) } else { None })
+                    .unwrap_or_default(),
                 top_match: top_match.1,
             };
             SETTINGS.sort_categories(&mut r.categories);

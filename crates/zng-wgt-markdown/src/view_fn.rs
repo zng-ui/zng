@@ -787,7 +787,7 @@ pub fn default_list_fn(args: ListFnArgs) -> UiNode {
             columns = ui_vec![
                 grid::Column!(),
                 grid::Column! {
-                    width = 1.lft()
+                    width = 1.lft();
                 },
             ];
         }
@@ -1028,7 +1028,7 @@ pub fn default_table_fn(args: TableFnArgs) -> UiNode {
                 }
             }
         });
-        columns = std::iter::repeat_with(|| grid::Column!{}).take(args.columns.len());
+        columns = std::iter::repeat_with(|| grid::Column! {}).take(args.columns.len());
         cells = args.cells;
     }
 }

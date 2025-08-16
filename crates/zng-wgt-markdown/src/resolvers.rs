@@ -312,7 +312,10 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
             offset = (0, 0);
         }
         when *#{status.clone()} == Status::Err {
-            background_color = light_dark(web_colors::PINK.with_alpha(90.pct()), web_colors::DARK_RED.with_alpha(90.pct()));
+            background_color = light_dark(
+                web_colors::PINK.with_alpha(90.pct()),
+                web_colors::DARK_RED.with_alpha(90.pct()),
+            );
         }
 
         on_focus_leave = async_hn_once!(status, |_| {
@@ -355,29 +358,27 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
 
                 let (uri, kind) = match link {
                     Link::Url(u) => (u.to_string(), "url"),
-                    Link::Path(p) => {
-                        match dunce::canonicalize(&p) {
-                            Ok(p) => {
-                                let p = p.display().to_string();
-                                #[cfg(windows)]
-                                let p = p.replace('/', "\\");
+                    Link::Path(p) => match dunce::canonicalize(&p) {
+                        Ok(p) => {
+                            let p = p.display().to_string();
+                            #[cfg(windows)]
+                            let p = p.replace('/', "\\");
 
-                                #[cfg(target_arch = "wasm32")]
-                                let p = format!("file:///{p}");
+                            #[cfg(target_arch = "wasm32")]
+                            let p = format!("file:///{p}");
 
-                                (p, "path")
-                            },
-                            Err(e) => {
-                                tracing::error!("error canonicalizing \"{}\", {e}", p.display());
-                                return;
-                            }
+                            (p, "path")
                         }
-                    }
+                        Err(e) => {
+                            tracing::error!("error canonicalizing \"{}\", {e}", p.display());
+                            return;
+                        }
+                    },
                 };
 
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    let r = task::wait( || open::that_detached(uri)).await;
+                    let r = task::wait(|| open::that_detached(uri)).await;
                     if let Err(e) = &r {
                         tracing::error!("error opening {kind}, {e}");
                     }
@@ -387,22 +388,20 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                 #[cfg(target_arch = "wasm32")]
                 {
                     match web_sys::window() {
-                        Some(w) => {
-                            match w.open_with_url_and_target(uri.as_str(), "_blank") {
-                                Ok(w) => match w {
-                                    Some(w) => {
-                                        let _ = w.focus();
-                                        status.set(Status::Ok);
-                                    },
-                                    None => {
-                                        tracing::error!("error opening {kind}, no new tab/window");
-                                    status.set(Status::Err);
-                                    }
-                                },
-                                Err(e) => {
-                                    tracing::error!("error opening {kind}, {e:?}");
+                        Some(w) => match w.open_with_url_and_target(uri.as_str(), "_blank") {
+                            Ok(w) => match w {
+                                Some(w) => {
+                                    let _ = w.focus();
+                                    status.set(Status::Ok);
+                                }
+                                None => {
+                                    tracing::error!("error opening {kind}, no new tab/window");
                                     status.set(Status::Err);
                                 }
+                            },
+                            Err(e) => {
+                                tracing::error!("error opening {kind}, {e:?}");
+                                status.set(Status::Err);
                             }
                         },
                         None => {
@@ -417,33 +416,36 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                 LAYERS.remove(popup_id);
             });
         };
-        child_end = Button! {
-            style_fn = zng_wgt_button::LightStyle!();
-            padding = 3;
-            child = COPY_CMD.icon().present_data(());
-            on_click = async_hn_once!(status, |args: ClickArgs| {
-                if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
-                    return;
-                }
+        child_end =
+            Button! {
+                style_fn = zng_wgt_button::LightStyle!();
+                padding = 3;
+                child = COPY_CMD.icon().present_data(());
+                on_click = async_hn_once!(status, |args: ClickArgs| {
+                    if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
+                        return;
+                    }
 
-                args.propagation().stop();
+                    args.propagation().stop();
 
-                let txt = match link {
-                    Link::Url(u) => u.to_txt(),
-                    Link::Path(p) => p.display().to_txt(),
-                };
+                    let txt = match link {
+                        Link::Url(u) => u.to_txt(),
+                        Link::Path(p) => p.display().to_txt(),
+                    };
 
-                let r = CLIPBOARD.set_text(txt.clone()).wait_rsp().await;
-                if let Err(e) = &r {
-                    tracing::error!("error copying uri, {e}");
-                }
+                    let r = CLIPBOARD.set_text(txt.clone()).wait_rsp().await;
+                    if let Err(e) = &r {
+                        tracing::error!("error copying uri, {e}");
+                    }
 
-                status.set(if r.is_ok() { Status::Ok } else { Status::Err });
-                task::deadline(200.ms()).await;
+                    status.set(if r.is_ok() { Status::Ok } else { Status::Err });
+                    task::deadline(200.ms()).await;
 
-                LAYERS.remove(popup_id);
-            });
-        }, 0;
+                    LAYERS.remove(popup_id);
+                });
+            },
+            0,
+        ;
     };
 
     LAYERS.insert_anchored(

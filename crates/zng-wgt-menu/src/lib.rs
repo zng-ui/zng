@@ -185,13 +185,15 @@ impl TouchButtonStyle {
         widget_set! {
             self;
             zng_wgt::corner_radius = 0;
-            zng_wgt::visibility = BUTTON
-                .cmd()
-                .flat_map(|c| match c {
-                    Some(c) => c.is_enabled(),
-                    None => const_var(true),
-                })
-                .map_into();
+            zng_wgt::visibility =
+                BUTTON
+                    .cmd()
+                    .flat_map(|c| match c {
+                        Some(c) => c.is_enabled(),
+                        None => const_var(true),
+                    })
+                    .map_into(),
+            ;
         }
     }
 }
@@ -227,7 +229,7 @@ impl ToggleStyle {
                 when #{zng_wgt_toggle::IS_CHECKED_VAR}.unwrap_or(true) {
                     font_color = zng_wgt_text::FONT_COLOR_VAR;
                 }
-            })
+            });
         }
     }
 }

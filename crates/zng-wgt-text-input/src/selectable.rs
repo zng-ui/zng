@@ -80,7 +80,7 @@ pub fn default_selection_toolbar(args: text::SelectionToolbarArgs) -> UiNode {
         let id = args.anchor_id;
         ContextMenu! {
             style_fn = menu::context::TouchStyle!();
-            children = ui_vec![Button!(COPY_CMD.scoped(id)), Button!(text::cmd::SELECT_ALL_CMD.scoped(id)),]
+            children = ui_vec![Button!(COPY_CMD.scoped(id)), Button!(text::cmd::SELECT_ALL_CMD.scoped(id))];
         }
     } else {
         UiNode::nil()

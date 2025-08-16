@@ -222,27 +222,33 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
                     child_top = {
                         node: Container! {
                             #[cfg(feature = "image")]
-                            child_start = Image! {
-                                layout::size = 24;
-                                source = icon.map(|i| match i {
-                                    WindowIcon::Image(s) => s.clone(),
-                                    WindowIcon::Default => ImageSource::flood(layout::PxSize::zero(), rgba(0, 0, 0, 0), None),
-                                });
-                            }, 4;
+                            child_start =
+                                Image! {
+                                    layout::size = 24;
+                                    source = icon.map(|i| match i {
+                                        WindowIcon::Image(s) => s.clone(),
+                                        WindowIcon::Default => ImageSource::flood(layout::PxSize::zero(), rgba(0, 0, 0, 0), None),
+                                    });
+                                },
+                                4,
+                            ;
                             child = Text! {
                                 txt = title.clone();
                                 txt_align = Align::CENTER;
                                 font_weight = FontWeight::BOLD;
                             };
                             #[cfg(feature = "button")]
-                            child_end = Button! {
-                                style_fn = zng::button::LightStyle!();
-                                child = ICONS.get_or("close", || Text!("x"));
-                                on_click = hn!(|args: &gesture::ClickArgs| {
-                                    args.propagation().stop();
-                                    let _ = WINDOWS.close(id);
-                                });
-                            }, 4;
+                            child_end =
+                                Button! {
+                                    style_fn = zng::button::LightStyle!();
+                                    child = ICONS.get_or("close", || Text!("x"));
+                                    on_click = hn!(|args: &gesture::ClickArgs| {
+                                        args.propagation().stop();
+                                        let _ = WINDOWS.close(id);
+                                    });
+                                },
+                                4,
+                            ;
                         },
                         spacing: 5,
                     };

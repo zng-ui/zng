@@ -228,7 +228,7 @@ pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> UiNode {
             spacing: 4,
         };
 
-        zng_wgt::visibility = expr_var!((*#{has_info} || *#{has_shortcut}).into())
+        zng_wgt::visibility = expr_var!((*#{has_info} || *#{has_shortcut}).into());
     }
 }
 

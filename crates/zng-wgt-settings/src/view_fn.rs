@@ -169,9 +169,11 @@ pub fn default_categories_list_mobile_fn(args: CategoriesListArgs) -> UiNode {
         zng_wgt::margin = 4;
         style_fn = zng_wgt_toggle::ComboStyle!();
         child = Text! {
-            txt = SETTINGS
-                .editor_state()
-                .flat_map(|e| e.as_ref().unwrap().selected_cat.name().clone());
+            txt =
+                SETTINGS
+                    .editor_state()
+                    .flat_map(|e| e.as_ref().unwrap().selected_cat.name().clone()),
+            ;
             font_weight = FontWeight::BOLD;
             zng_wgt_container::padding = 5;
         };
@@ -192,45 +194,54 @@ pub fn default_setting_fn(args: SettingArgs) -> UiNode {
         zng_wgt_input::focus::focus_scope = true;
         zng_wgt_input::focus::focus_scope_behavior = zng_ext_input::focus::FocusScopeOnFocus::FirstDescendant;
 
-        child_start = {
-            let s = args.setting;
-            Wgt! {
-                zng_wgt::align = Align::TOP;
-                zng_wgt::visibility = can_reset.map(|c| match c {
-                    true => Visibility::Visible,
-                    false => Visibility::Hidden,
-                });
-                zng_wgt_input::gesture::on_click = hn!(|_| {
-                    s.reset();
-                });
+        child_start =
+            {
+                let s = args.setting;
+                Wgt! {
+                    zng_wgt::align = Align::TOP;
+                    zng_wgt::visibility = can_reset.map(|c| match c {
+                        true => Visibility::Visible,
+                        false => Visibility::Hidden,
+                    });
+                    zng_wgt_input::gesture::on_click = hn!(|_| {
+                        s.reset();
+                    });
 
-                zng_wgt_fill::background = ICONS.req_or(["settings-reset", "settings-backup-restore"], || Text!("R"));
-                zng_wgt_size_offset::size = 18;
+                    zng_wgt_fill::background = ICONS.req_or(["settings-reset", "settings-backup-restore"], || Text!("R"));
+                    zng_wgt_size_offset::size = 18;
 
-                tooltip = Tip!(Text!("reset"));
-                disabled_tooltip = Tip!(Text!("is default"));
+                    tooltip = Tip!(Text!("reset"));
+                    disabled_tooltip = Tip!(Text!("is default"));
 
-                zng_wgt_input::focus::tab_index = zng_ext_input::focus::TabIndex::SKIP;
+                    zng_wgt_input::focus::tab_index = zng_ext_input::focus::TabIndex::SKIP;
 
-                opacity = 70.pct();
-                when *#zng_wgt_input::is_cap_hovered {
-                    opacity = 100.pct();
+                    opacity = 70.pct();
+                    when *#zng_wgt_input::is_cap_hovered {
+                        opacity = 100.pct();
+                    }
+                    when *#zng_wgt::is_disabled {
+                        opacity = 30.pct();
+                    }
                 }
-                when *#zng_wgt::is_disabled {
-                    opacity = 30.pct();
-                }
-            }
-        }, 4;
-        child_top = Container! {
-            child_top = Text! {
-                txt = name;
-                font_weight = FontWeight::BOLD;
-            }, 4;
-            child = Markdown! {
-                txt = description;
-                opacity = 70.pct();
-            };
-        }, 5;
+            },
+            4,
+        ;
+        child_top =
+            Container! {
+                child_top =
+                    Text! {
+                        txt = name;
+                        font_weight = FontWeight::BOLD;
+                    },
+                    4,
+                ;
+                child = Markdown! {
+                    txt = description;
+                    opacity = 70.pct();
+                };
+            },
+            5,
+        ;
         child = args.editor;
     }
 }
@@ -258,7 +269,7 @@ pub fn default_settings_search_fn(_: SettingsSearchArgs) -> UiNode {
         child = TextInput! {
             txt = SETTINGS.editor_search();
             style_fn = zng_wgt_text_input::SearchStyle!();
-            zng_wgt_input::focus::focus_shortcut = [shortcut![CTRL+'F'], shortcut![Find]];
+            zng_wgt_input::focus::focus_shortcut = [shortcut![CTRL + 'F'], shortcut![Find]];
             placeholder_txt = l10n!("search.placeholder", "search settings ({$shortcut})", shortcut = "Ctrl+F");
         };
         child_bottom = Hr!(zng_wgt::margin = (10, 10, 0, 10)), 0;

@@ -3,6 +3,7 @@ use std::{
     collections::HashMap,
     fs,
     io::{self, BufRead, Read, Write},
+    ops,
     path::{Path, PathBuf},
     process::Stdio,
     sync::{Arc, atomic::AtomicBool},
@@ -410,14 +411,8 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
 
     let mut is_widget = false;
     if matches!(&replaced_code, Cow::Borrowed(_)) {
-        replaced_code = replace_widget_when(group_code, false);
+        replaced_code = replace_widget(group_code, false);
         is_widget = matches!(&replaced_code, Cow::Owned(_));
-
-        let tmp = replace_widget_prop(&replaced_code, false);
-        if let Cow::Owned(tmp) = tmp {
-            is_widget = true;
-            replaced_code = Cow::Owned(tmp);
-        }
     }
 
     let mut is_expr_var = false;
@@ -443,9 +438,7 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
     let code = if is_event_args {
         replace_event_args(&code, true)
     } else if is_widget {
-        let code = replace_widget_when(&code, true);
-        let code = replace_widget_prop(&code, true).into_owned();
-        Cow::Owned(code)
+        replace_widget(&code, true)
     } else if is_expr_var {
         replace_expr_var(&code, true)
     } else if is_lazy_static {
@@ -523,17 +516,17 @@ fn replace_event_args(code: &str, reverse: bool) -> Cow<'_, str> {
         RGX_REV.replace_all(code, "\n$1..\n\n")
     }
 }
-// replace `static IDENT = {` with `static IDENT: __zng_fmt__ = {`
-// AND replace `static IDENT;` with `static IDENT: __zng_fmt__ = ();`
-// AND replace `l10n!: ` with `l10n__zng_fmt:`
+// replace `static IDENT = {` with `static IDENT: __fmt__ = {`
+// AND replace `static IDENT;` with `static IDENT: __fmt__ = ();`
+// AND replace `l10n!: ` with `l10n__fmt:`
 fn replace_command(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)static +(\w+) ?= ?\{").unwrap());
     static RGX_DEFAULTS: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)(?m)static +(\w+) ?;").unwrap());
     if !reverse {
-        let cmd = RGX_DEFAULTS.replace_all(code, "static $1: __zng_fmt__ = ();");
-        let mut cmd2 = RGX.replace_all(&cmd, "static $1: __zng_fmt__ = __A_ {");
+        let cmd = RGX_DEFAULTS.replace_all(code, "static $1: __fmt__ = ();");
+        let mut cmd2 = RGX.replace_all(&cmd, "static $1: __fmt__ = __A_ {");
         if let Cow::Owned(cmd) = &mut cmd2 {
-            *cmd = cmd.replace("l10n!:", "l10n__zng_fmt:");
+            *cmd = cmd.replace("l10n!:", "l10n__fmt:");
         }
         match cmd2 {
             Cow::Borrowed(_) => cmd,
@@ -541,20 +534,20 @@ fn replace_command(code: &str, reverse: bool) -> Cow<'_, str> {
         }
     } else {
         Cow::Owned(
-            code.replace(": __zng_fmt__ = ();", ";")
-                .replace(": __zng_fmt__ = __A_ {", " = {")
-                .replace("l10n__zng_fmt:", "l10n!:"),
+            code.replace(": __fmt__ = ();", ";")
+                .replace(": __fmt__ = __A_ {", " = {")
+                .replace("l10n__fmt:", "l10n!:"),
         )
     }
 }
-// replace ` fn ident = { content }` with ` static __zng_fmt_fn__ident: () = __A_ { content };//zng-fmt`
+// replace ` fn ident = { content }` with ` static __fmt_fn__ident: () = __A_ { content };// __fmt`
 fn replace_event_property(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m) fn +(\w+) +\{").unwrap());
     if !reverse {
-        let mut r = RGX.replace_all(code, " static __zng_fmt_fn__$1: () = __A_ {");
+        let mut r = RGX.replace_all(code, " static __fmt_fn__$1: () = __A_ {");
         if let Cow::Owned(r) = &mut r {
             const OPEN: &str = ": () = __A_ {";
-            const CLOSE_MARKER: &str = "; // __zng-fmt";
+            const CLOSE_MARKER: &str = "; // __fmt";
             let mut start = 0;
             while let Some(i) = r[start..].find(OPEN) {
                 let i = start + i + OPEN.len();
@@ -580,117 +573,241 @@ fn replace_event_property(code: &str, reverse: bool) -> Cow<'_, str> {
         r
     } else {
         Cow::Owned(
-            code.replace(" static __zng_fmt_fn__", " fn ")
+            code.replace(" static __fmt_fn__", " fn ")
                 .replace(": () = __A_ {", " {")
-                .replace("}; // __zng-fmt", "}"),
+                .replace("}; // __fmt", "}"),
         )
     }
 }
-// replace `prop = 1, 2;` with `prop = (1, 2);`
-// AND replace `prop = { a: 1, b: 2, };` with `prop = __A_ { a: 1, b: 2, }`
-fn replace_widget_prop(code: &str, reverse: bool) -> Cow<'_, str> {
-    static IGNORE_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m): +\w+\s+=\s+(\{)").unwrap());
-    static NAMED_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)\w+\s+=\s+(\{)").unwrap());
-    static NAMED_MARKER: &str = "__A_ ";
+/// Escape widget macro syntax
+fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
+    static IGNORE_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m): +\w+\s+=\s+\{").unwrap());
+    static PROPERTY_NAME_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*([\w:]+)\s+=\s+").unwrap());
 
-    static UNNAMED_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?ms)\w+\s+=\s+([^\(\{\n\)]+?)(?:;|}$)").unwrap());
-    static UNNAMED_RGX_REV: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?ms)__a_\((.+?)\)").unwrap());
+    #[derive(Debug)]
+    enum Item<'s> {
+        Property { name: &'s str, value: &'s str },
+        PropertyShorthand(&'s str),
+        When { expr: &'s str, items: Vec<Item<'s>> },
+        Text(&'s str),
+    }
+    #[allow(unused)]
+    struct Error<'s> {
+        partial: Vec<Item<'s>>,
+        error: &'static str,
+    }
+    impl<'s> Error<'s> {
+        fn new(partial: Vec<Item<'s>>, error: &'static str) -> Self {
+            Self { partial, error }
+        }
+    }
+    fn parse<'s>(code: &'s str, stream: proc_macro2::TokenStream, code_span: ops::Range<usize>) -> Result<Vec<Item<'s>>, Error<'s>> {
+        use proc_macro2::{Delimiter, TokenTree as Tt};
+
+        let mut items = vec![];
+        let mut stream = stream.into_iter().peekable();
+        if code_span.start == 1 {
+            if let Some(Tt::Group(g)) = stream.next()
+                && g.delimiter() == Delimiter::Brace
+            {
+                stream = g.stream().into_iter().peekable();
+            } else {
+                return Err(Error::new(items, "expected macro block at root"));
+            }
+        }
+        let mut text_start = code_span.start;
+        'outer: while let Some(tt_attr_or_name) = stream.next() {
+            // skip attributes
+            if let Tt::Punct(p) = &tt_attr_or_name
+                && p.as_char() == '#'
+            {
+                if let Some(Tt::Group(g)) = stream.next()
+                    && g.delimiter() == proc_macro2::Delimiter::Bracket
+                {
+                    continue 'outer;
+                } else {
+                    return Err(Error::new(items, "expected attribute"));
+                }
+            }
+
+            // match property name or when
+            if let Tt::Ident(ident) = &tt_attr_or_name {
+                if ident == "when" {
+                    items.push(Item::Text(&code[text_start..ident.span().byte_range().start]));
+
+                    // `when` is like an `if <expr> <block>`, the <expr> can be <ident><block> (Foo { }.expr())
+                    // easiest way to deal with this is to seek/peek the next when or property
+                    let expr_start = ident.span().byte_range().end;
+                    if stream.next().is_some()
+                        && let Some(mut tt_block) = stream.next()
+                    {
+                        // needs at least two
+                        loop {
+                            if let Tt::Group(g) = &tt_block
+                                && g.delimiter() == Delimiter::Brace
+                                && stream.peek().map(|tt| matches!(tt, Tt::Ident(_))).unwrap_or(true)
+                            {
+                                // peek next is when, property_name or eof
+                                let block_span = g.span().byte_range();
+                                let expr = &code[expr_start..block_span.start];
+                                items.push(Item::When {
+                                    expr,
+                                    items: parse(code, g.stream(), g.span_open().byte_range().end..g.span_close().byte_range().start)?,
+                                });
+                                text_start = block_span.end;
+                                continue 'outer;
+                            }
+                            // take expr
+                            if let Some(tt) = stream.next() {
+                                tt_block = tt;
+                            } else {
+                                break;
+                            }
+                        }
+                    } else {
+                        return Err(Error::new(items, "expected when expression and block"));
+                    }
+                } else {
+                    // take name
+                    let name_start = tt_attr_or_name.span().byte_range().start;
+                    let mut tt_name_end = tt_attr_or_name;
+                    while let Some(tt) = stream.next_if(|tt| matches!(tt, Tt::Ident(_)) || matches!(tt, Tt::Punct(p) if p.as_char() == ':'))
+                    {
+                        tt_name_end = tt;
+                    }
+
+                    items.push(Item::Text(&code[text_start..name_start]));
+
+                    let name_end = tt_name_end.span().byte_range().end;
+                    let name = &code[name_start..name_end];
+                    if name.is_empty() {
+                        return Err(Error::new(items, "expected property name"));
+                    }
+
+                    if let Some(tt_punct) = stream.next() {
+                        if let Tt::Punct(p) = tt_punct {
+                            if p.as_char() == ';' {
+                                items.push(Item::PropertyShorthand(name));
+                                text_start = p.span().byte_range().end;
+                                continue 'outer;
+                            } else if p.as_char() == '=' {
+                                // take value
+                                let value_start = p.span().byte_range().end;
+                                if let Some(mut tt_value_end) = stream.next() {
+                                    while let Some(tt) = stream.next_if(|tt| !matches!(tt, Tt::Punct(p) if p.as_char() == ';')) {
+                                        tt_value_end = tt;
+                                    }
+                                    text_start = tt_value_end.span().byte_range().end;
+                                    items.push(Item::Property {
+                                        name,
+                                        value: &code[value_start..text_start],
+                                    });
+                                    if let Some(tt_semi) = stream.next() {
+                                        debug_assert!(matches!(&tt_semi, Tt::Punct(p) if p.as_char() == ';'));
+                                        text_start = tt_semi.span().byte_range().end;
+                                    }
+                                    continue 'outer;
+                                } else {
+                                    return Err(Error::new(items, "expected value"));
+                                }
+                            }
+                        } else {
+                            return Err(Error::new(items, "expected = or ;"));
+                        }
+                    } else {
+                        // EOF shorthand
+                        items.push(Item::PropertyShorthand(name));
+                        text_start = name_end;
+                        continue 'outer;
+                    }
+                }
+            }
+
+            return Err(Error::new(items, "expected attribute or property name"));
+        }
+
+        items.push(Item::Text(&code[text_start..code_span.end]));
+
+        Ok(items)
+    }
 
     if !reverse {
-        if IGNORE_RGX.is_match(code) {
+        if !PROPERTY_NAME_RGX.is_match(code) || IGNORE_RGX.is_match(code) {
             // ignore static IDENT: Ty = expr
             return Cow::Borrowed(code);
         }
+        let items = match code.parse() {
+            Ok(t) => match parse(code, t, 1..code.len() - 1) {
+                Ok(its) => its,
+                Err(e) => {
+                    return Cow::Borrowed(code);
+                }
+            },
+            Err(_) => return Cow::Borrowed(code),
+        };
 
-        let named_rpl = NAMED_RGX.replace_all(code, |caps: &regex::Captures| {
-            format!(
-                "{}{NAMED_MARKER} {{",
-                &caps[0][..caps.get(1).unwrap().start() - caps.get(0).unwrap().start()],
-            )
-        });
-        let mut has_unnamed = false;
-        let unnamed_rpl = UNNAMED_RGX.replace_all(&named_rpl, |caps: &regex::Captures| {
-            let cap = caps.get(1).unwrap();
-            let cap_str = cap.as_str().trim();
-            fn more_than_one_expr(code: &str) -> bool {
-                let stream: pm2_send::TokenStream = match code.parse() {
-                    Ok(s) => s,
-                    Err(_e) => {
-                        #[cfg(debug_assertions)]
-                        panic!("{_e}\ncode:\n{code}");
-                        #[cfg(not(debug_assertions))]
-                        return false;
+        fn escape(items: &[Item], r: &mut String) {
+            for item in items {
+                match item {
+                    // path::ident = expr;
+                    // OR ident = expr0, expr1;
+                    // OR ident = { field: expr, };
+                    Item::Property { name, value } => {
+                        r.push_str(name);
+                        r.push_str(" =");
+
+                        static NAMED_FIELDS_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*\{\s*\w+:\s+").unwrap());
+                        if NAMED_FIELDS_RGX.is_match(value) {
+                            r.push_str(" __ZngFmt");
+                            r.push_str(value);
+                            r.push(';');
+                        } else {
+                            r.push_str(" __fmt(");
+                            r.push_str(value);
+                            r.push_str("); // __fmt");
+                        }
                     }
-                };
-                for tt in stream {
-                    if let pm2_send::TokenTree::Punct(p) = tt
-                        && p.as_char() == ','
-                    {
-                        return true;
+                    Item::PropertyShorthand(name) => {
+                        r.push_str(name);
+                        r.push(';');
+                    }
+                    Item::When { expr, items } => {
+                        r.push_str("if __fmt_w(");
+                        r.push_str(&replace_expr_var(expr, false));
+                        r.push_str(") { // __fmt");
+                        escape(items, r);
+                        r.push('}');
+                    }
+                    Item::Text(txt) => {
+                        r.push_str(txt);
                     }
                 }
-                false
             }
-            if cap_str.contains(",") && more_than_one_expr(cap_str) {
-                has_unnamed = true;
-
-                format!(
-                    "{}__a_({cap_str}){}",
-                    &caps[0][..cap.start() - caps.get(0).unwrap().start()],
-                    &caps[0][cap.end() - caps.get(0).unwrap().start()..],
-                )
-            } else {
-                caps.get(0).unwrap().as_str().to_owned()
-            }
-        });
-        if has_unnamed {
-            Cow::Owned(unnamed_rpl.into_owned())
-        } else {
-            named_rpl
         }
+        let mut escaped = "{".to_owned();
+        escape(&items, &mut escaped);
+        escaped.push('}');
+        Cow::Owned(escaped)
     } else {
-        let code = UNNAMED_RGX_REV.replace_all(code, |caps: &regex::Captures| {
-            format!(
-                "{}{}{}",
-                &caps[0][..caps.get(1).unwrap().start() - caps.get(0).unwrap().start() - "__a_(".len()],
-                caps.get(1).unwrap().as_str(),
-                &caps[0][caps.get(1).unwrap().end() + ")".len() - caps.get(0).unwrap().start()..]
-            )
-        });
-        Cow::Owned(code.replace(NAMED_MARKER, ""))
+        let code = code
+            .replace("= __ZngFmt {", "= {")
+            .replace("= __fmt(", "= ")
+            .replace("); // __fmt", ";")
+            .replace("if __fmt_w(", "when ");
+
+        static WHEN_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\) \{\s+// __fmt").unwrap());
+        let code = WHEN_REV_RGX.replace_all(&code, " {");
+        match replace_expr_var(&code, true) {
+            Cow::Borrowed(_) => Cow::Owned(code.into_owned()),
+            Cow::Owned(o) => Cow::Owned(o),
+        }
     }
 }
-// replace `when <expr> { <properties> }` with `for cargo_zng_fmt_when in <expr> { <properties> }`
-// AND replace `#expr` with `__P_expr` AND `#{var}` with `__P_!{`
-fn replace_widget_when(code: &str, reverse: bool) -> Cow<'_, str> {
-    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?s)\n\s*(when) .+?\{").unwrap());
-    static MARKER: &str = "for cargo_zng_fmt_when in";
-    static POUND_MARKER: &str = "__P_";
 
-    if !reverse {
-        RGX.replace_all(code, |caps: &regex::Captures| {
-            let prefix_spaces = &caps[0][..caps.get(1).unwrap().start() - caps.get(0).unwrap().start()];
-
-            let expr = &caps[0][caps.get(1).unwrap().end() - caps.get(0).unwrap().start()..];
-            let expr = POUND_RGX.replace_all(expr, |caps: &regex::Captures| {
-                let c = &caps[0][caps.get(1).unwrap().end() - caps.get(0).unwrap().start()..];
-                let marker = if c == "{" { POUND_VAR_MARKER } else { POUND_MARKER };
-                format!("{marker}{c}")
-            });
-
-            format!("{prefix_spaces}{MARKER}{expr}")
-        })
-    } else {
-        let code = code.replace(MARKER, "when");
-        let r = POUND_REV_RGX.replace_all(&code, "#").into_owned();
-        Cow::Owned(r)
-    }
-}
-static POUND_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(#)[\w\{]").unwrap());
-static POUND_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"__P_!?\s?").unwrap());
-static POUND_VAR_MARKER: &str = "__P_!";
 // replace `#{` with `__P_!{`
 fn replace_expr_var(code: &str, reverse: bool) -> Cow<'_, str> {
+    static POUND_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(#)[\w\{]").unwrap());
+    static POUND_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"__P_!?\s?").unwrap());
     if !reverse {
         POUND_RGX.replace_all(code, |caps: &regex::Captures| {
             let c = &caps[0][caps.get(1).unwrap().end() - caps.get(0).unwrap().start()..];
@@ -704,20 +821,20 @@ fn replace_expr_var(code: &str, reverse: bool) -> Cow<'_, str> {
         POUND_REV_RGX.replace_all(code, "#")
     }
 }
-// replace `static ref ` with `static __zng_fmt_ref__`
+// replace `static ref ` with `static __fmt_ref__`
 fn replace_static_ref(code: &str, reverse: bool) -> Cow<'_, str> {
     if !reverse {
         if code.contains("static ref ") {
-            Cow::Owned(code.replace("static ref ", "static __zng_fmt_ref__"))
+            Cow::Owned(code.replace("static ref ", "static __fmt_ref__"))
         } else {
             Cow::Borrowed(code)
         }
     } else {
-        Cow::Owned(code.replace("static __zng_fmt_ref__", "static ref "))
+        Cow::Owned(code.replace("static __fmt_ref__", "static ref "))
     }
 }
 
-// replace `{ foo: <rest> }` with `static __zng_fmt__: () = __A_ { foo: <rest> } // __zng-fmt`, if the `{` is the first token of  the line
+// replace `{ foo: <rest> }` with `static __fmt__: () = __A_ { foo: <rest> } // __zng-fmt`, if the `{` is the first token of  the line
 // OR with `struct __ZngFmt__ {` if contains generics, signifying declaration
 fn replace_struct_like(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*\{\s+(\w+):([^:])").unwrap());
@@ -729,7 +846,7 @@ fn replace_struct_like(code: &str, reverse: bool) -> Cow<'_, str> {
                 RGX.replace_all(code, "struct __ZngFmt__ {\n$1:$2")
             } else {
                 // probably struct init like
-                let mut r = RGX.replace_all(code, "static __zng_fmt__: () = __A_ {\n$1:$2").into_owned();
+                let mut r = RGX.replace_all(code, "static __fmt__: () = __A_ {\n$1:$2").into_owned();
 
                 const OPEN: &str = ": () = __A_ {";
                 const CLOSE_MARKER: &str = "; // __zng-fmt";
@@ -761,22 +878,21 @@ fn replace_struct_like(code: &str, reverse: bool) -> Cow<'_, str> {
         }
     } else {
         Cow::Owned(
-            code.replace("static __zng_fmt__: () = __A_ {", "{")
+            code.replace("static __fmt__: () = __A_ {", "{")
                 .replace("}; // __zng-fmt", "}")
                 .replace("struct __ZngFmt__ {", "{"),
         )
     }
 }
 
-// replace `pub struct Ident: Ty {` with `pub static __zng_fmt_vis: () = ();\nimpl __zng_fmt_Ident_C_Ty {`
+// replace `pub struct Ident: Ty {` with `pub static __fmt_vis: () = ();\nimpl __fmt_Ident_C_Ty {`
 // AND replace `const IDENT =` with `const IDENT: __A_ =`
 fn replace_bitflags(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)struct +(\w+): +(\w+) +\{").unwrap());
     static RGX_CONST: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*const +(\w+) +=").unwrap());
-    static RGX_REV: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r"(?m)static __zng_fmt_vis__: \(\) = \(\);\s+impl __zng_fmt_(\w+)__C_(\w+) \{").unwrap());
+    static RGX_REV: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)static __fmt_vis__: \(\) = \(\);\s+impl __fmt_(\w+)__C_(\w+) \{").unwrap());
     if !reverse {
-        let mut r = RGX.replace_all(code, "static __zng_fmt_vis__: () = ();\nimpl __zng_fmt_${1}__C_$2 {");
+        let mut r = RGX.replace_all(code, "static __fmt_vis__: () = ();\nimpl __fmt_${1}__C_$2 {");
         if let Cow::Owned(r) = &mut r
             && let Cow::Owned(rr) = RGX_CONST.replace_all(r, "const $1: __A_ =")
         {
@@ -794,31 +910,31 @@ fn replace_simple_ident_list(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s*\{\s*\w+(?:\s*,\s*\w+)*\s*,?\s*}\s*$$").unwrap());
     if !reverse {
         if RGX.is_match(code) {
-            Cow::Owned(code.replace('{', "static __zng_fmt: T = [").replace('}', "];"))
+            Cow::Owned(code.replace('{', "static __fmt: T = [").replace('}', "];"))
         } else {
             Cow::Borrowed(code)
         }
     } else {
         let code = if code.trim_end().contains('\n') {
-            code.replace("static __zng_fmt: T = [", "{").replace("];", "}")
+            code.replace("static __fmt: T = [", "{").replace("];", "}")
         } else {
-            code.replace("static __zng_fmt: T = [", "{ ").replace("];", " }")
+            code.replace("static __fmt: T = [", "{ ").replace("];", " }")
         };
         Cow::Owned(code)
     }
 }
 
-// replace `ident(args);` with `fn __zng_fmt__ident(args);
+// replace `ident(args);` with `fn __fmt__ident(args);
 fn replace_widget_impl(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)([:\w]+\((?:\w+: .+)\));").unwrap());
     if !reverse {
         RGX.replace_all(code, |caps: &regex::Captures| {
-            // "fn __zng_fmt__${1};" with colon escape
+            // "fn __fmt__${1};" with colon escape
             let (a, b) = caps[1].split_once('(').unwrap();
-            format!("fn __zng_fmt__{}({b};", a.replace("::", "__C__"))
+            format!("fn __fmt__{}({b};", a.replace("::", "__C__"))
         })
     } else {
-        Cow::Owned(code.replace("fn __zng_fmt__", "").replace("__C__", "::"))
+        Cow::Owned(code.replace("fn __fmt__", "").replace("__C__", "::"))
     }
 }
 

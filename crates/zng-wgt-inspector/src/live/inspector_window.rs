@@ -95,7 +95,7 @@ pub(super) fn new(
         set_inspected = inspected;
         color_scheme = ColorScheme::Dark;
         on_close = hn!(selected_wgt, |_| {
-             selected_wgt.set(None);
+            selected_wgt.set(None);
         });
         child = Container! {
             child_top = menu(hit_select, adorn_selected, select_focused, wgt_filter.clone()), 0;
@@ -106,13 +106,14 @@ pub(super) fn new(
                 padding = 5;
             };
         };
-        child_right = Container! {
-            width = 600;
-            child = selected_wgt.present(wgt_fn!(|w| {
-                selected_view(w)
-            }));
-            background_color = SELECTED_BKG_VAR;
-        }, 0;
+        child_right =
+            Container! {
+                width = 600;
+                child = selected_wgt.present(wgt_fn!(|w| { selected_view(w) }));
+                background_color = SELECTED_BKG_VAR;
+            },
+            0,
+        ;
 
         zng_wgt::on_deinit = hn!(|_| {
             let _keep_alive = (&hit_select_handle, &focus_selected);
@@ -158,107 +159,110 @@ context_var! {
 fn menu(hit_test_select: Var<HitSelect>, adorn_selected: Var<bool>, select_focused: Var<bool>, search: Var<Txt>) -> UiNode {
     Container! {
         background_color = MENU_BKG_VAR;
-        child_left = Stack! {
-            padding = 4;
-            spacing = 2;
-            direction = StackDirection::left_to_right();
-            toggle::style_fn = Style! {
-                padding = 2;
-                corner_radius = 2;
-            };
-            child_align = Align::CENTER;
-            children = ui_vec![
-                Toggle! {
-                    child = crosshair_16x16();
-                    tooltip = Tip!(Text!("select widget (Ctrl+Shift+C)"));
-                    click_shortcut = shortcut!(CTRL|SHIFT+'C');
-                    checked = hit_test_select.map_bidi(
-                        |c| matches!(c, HitSelect::Enabled),
-                        |b| if *b { HitSelect::Enabled } else { HitSelect::Disabled }
-                    );
-                },
-                Toggle! {
-                    child = Wgt! {
-                        size = 16;
-                        border = {
-                            widths: 3,
-                            sides: SELECTED_BORDER_VAR.map_into(),
-                        }
-                    };
-                    tooltip = Tip!(Text!("highlight selected widget"));
-                    checked = adorn_selected;
-                },
-                Toggle! {
-                    child = Wgt! {
-                        size = 14;
-                        corner_radius = 14;
-                        border = {
-                            widths: 1,
-                            sides: SELECTED_BORDER_VAR.map(|c| BorderSides::dashed(*c)),
-                        }
-                    };
-                    tooltip = Tip!(Text!("select focused widget"));
-                    checked = select_focused;
-                },
-                zng_wgt_rule_line::vr::Vr!(),
-                Toggle! {
-                    child = Stack! {
-                        size = (14, 10);
-                        direction = StackDirection::top_to_bottom();
-                        zng_wgt_rule_line::hr::margin = 0;
-                        zng_wgt_rule_line::hr::color = zng_wgt_text::FONT_COLOR_VAR;
-                        spacing = 3;
-                        children = ui_vec![
-                            zng_wgt_rule_line::hr::Hr!(),
-                            zng_wgt_rule_line::hr::Hr!(),
-                            zng_wgt_rule_line::hr::Hr!(),
-                        ]
-                    };
-                    checked = var(false);
-                    checked_popup = {
-                        let screenshot_idle = var(true);
-                        wgt_fn!(screenshot_idle, |_| {
-                            zng_wgt_menu::context::ContextMenu!(ui_vec![
-                                Button! {
-                                    child = Text!("Save Screenshot");
-                                    zng_wgt_menu::icon = zng_wgt::ICONS.get("save");
-                                    zng_wgt::enabled = screenshot_idle.clone();
-                                    on_click = hn!(screenshot_idle, |_| {
-                                        // not async_hn here because menu is dropped on click
-                                        task::spawn(async_clmv!(screenshot_idle, {
-                                            screenshot_idle.set(false);
-                                            save_screenshot(inspected().unwrap()).await;
-                                            screenshot_idle.set(true);
-                                        }));
-                                    });
-                                },
-                                Button! {
-                                    child = Text!("Copy Screenshot");
-                                    zng_wgt_menu::icon = zng_wgt::ICONS.get("copy");
-                                    zng_wgt::enabled = screenshot_idle.clone();
-                                    on_click = hn!(screenshot_idle, |_| {
-                                        task::spawn(async_clmv!(screenshot_idle, {
-                                            screenshot_idle.set(false);
-                                            copy_screenshot(inspected().unwrap()).await;
-                                            screenshot_idle.set(true);
-                                        }));
-                                    });
-                                },
-                            ])
-                        })
-                    };
-                }
-            ]
-        }, 0;
+        child_left =
+            Stack! {
+                padding = 4;
+                spacing = 2;
+                direction = StackDirection::left_to_right();
+                toggle::style_fn = Style! {
+                    padding = 2;
+                    corner_radius = 2;
+                };
+                child_align = Align::CENTER;
+                children = ui_vec![
+                    Toggle! {
+                        child = crosshair_16x16();
+                        tooltip = Tip!(Text!("select widget (Ctrl+Shift+C)"));
+                        click_shortcut = shortcut!(CTRL | SHIFT + 'C');
+                        checked = hit_test_select.map_bidi(
+                            |c| matches!(c, HitSelect::Enabled),
+                            |b| if *b { HitSelect::Enabled } else { HitSelect::Disabled },
+                        );
+                    },
+                    Toggle! {
+                        child = Wgt! {
+                            size = 16;
+                            border = {
+                                widths: 3,
+                                sides: SELECTED_BORDER_VAR.map_into(),
+                            };
+                        };
+                        tooltip = Tip!(Text!("highlight selected widget"));
+                        checked = adorn_selected;
+                    },
+                    Toggle! {
+                        child = Wgt! {
+                            size = 14;
+                            corner_radius = 14;
+                            border = {
+                                widths: 1,
+                                sides: SELECTED_BORDER_VAR.map(|c| BorderSides::dashed(*c)),
+                            };
+                        };
+                        tooltip = Tip!(Text!("select focused widget"));
+                        checked = select_focused;
+                    },
+                    zng_wgt_rule_line::vr::Vr!(),
+                    Toggle! {
+                        child = Stack! {
+                            size = (14, 10);
+                            direction = StackDirection::top_to_bottom();
+                            zng_wgt_rule_line::hr::margin = 0;
+                            zng_wgt_rule_line::hr::color = zng_wgt_text::FONT_COLOR_VAR;
+                            spacing = 3;
+                            children = ui_vec![
+                                zng_wgt_rule_line::hr::Hr!(),
+                                zng_wgt_rule_line::hr::Hr!(),
+                                zng_wgt_rule_line::hr::Hr!(),
+                            ];
+                        };
+                        checked = var(false);
+                        checked_popup = {
+                            let screenshot_idle = var(true);
+                            wgt_fn!(screenshot_idle, |_| {
+                                zng_wgt_menu::context::ContextMenu!(ui_vec![
+                                    Button! {
+                                        child = Text!("Save Screenshot");
+                                        zng_wgt_menu::icon = zng_wgt::ICONS.get("save");
+                                        zng_wgt::enabled = screenshot_idle.clone();
+                                        on_click = hn!(screenshot_idle, |_| {
+                                            // not async_hn here because menu is dropped on click
+                                            task::spawn(async_clmv!(screenshot_idle, {
+                                                screenshot_idle.set(false);
+                                                save_screenshot(inspected().unwrap()).await;
+                                                screenshot_idle.set(true);
+                                            }));
+                                        });
+                                    },
+                                    Button! {
+                                        child = Text!("Copy Screenshot");
+                                        zng_wgt_menu::icon = zng_wgt::ICONS.get("copy");
+                                        zng_wgt::enabled = screenshot_idle.clone();
+                                        on_click = hn!(screenshot_idle, |_| {
+                                            task::spawn(async_clmv!(screenshot_idle, {
+                                                screenshot_idle.set(false);
+                                                copy_screenshot(inspected().unwrap()).await;
+                                                screenshot_idle.set(true);
+                                            }));
+                                        });
+                                    },
+                                ])
+                            })
+                        };
+                    }
+                ];
+            },
+            0,
+        ;
         child = TextInput! {
             style_fn = zng_wgt_text_input::SearchStyle!();
             margin = (0, 0, 0, 50);
             padding = (3, 5);
             txt_align = Align::START;
-            focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F'], shortcut![Find]];
+            focus_shortcut = [shortcut!['S'], shortcut![CTRL + 'F'], shortcut![Find]];
             placeholder_txt = "search widgets (S)";
             txt = search;
-        }
+        };
     }
 }
 
@@ -371,30 +375,33 @@ fn tree_item_view(wgt: InspectedWidget, filter: Var<Txt>, parent_desc_filter: Va
             }
         };
 
-        child_bottom = wgt.children().present(wgt_fn!(descendants_pass_filter, |children: Vec<InspectedWidget>| {
-            let children: UiVec = children.into_iter().map(|c| {
-                tree_item_view(c, filter.clone(), descendants_pass_filter.clone())
-            }).collect();
-            if children.is_empty() {
-                UiNode::nil()
-            } else {
-                Container! {
-                    child = Stack! {
-                        padding = (0, 0, 0, 2.em());
-                        direction = StackDirection::top_to_bottom();
-                        children;
+        child_bottom =
+            wgt.children()
+                .present(wgt_fn!(descendants_pass_filter, |children: Vec<InspectedWidget>| {
+                    let children: UiVec = children
+                        .into_iter()
+                        .map(|c| tree_item_view(c, filter.clone(), descendants_pass_filter.clone()))
+                        .collect();
+                    if children.is_empty() {
+                        UiNode::nil()
+                    } else {
+                        Container! {
+                            child = Stack! {
+                                padding = (0, 0, 0, 2.em());
+                                direction = StackDirection::top_to_bottom();
+                                children;
 
-                        border = {
-                            widths: (0, 0, 0, 1),
-                            sides: TREE_ITEM_LINE_VAR.map(|&c| BorderSides::new_left(BorderSide::dashed(c))),
-                        };
-                    };
-                    child_bottom = Text!("}}"), 0;
-                }
-
-            }
-
-        })), 2;
+                                border = {
+                                    widths: (0, 0, 0, 1),
+                                    sides: TREE_ITEM_LINE_VAR.map(|&c| BorderSides::new_left(BorderSide::dashed(c))),
+                                };
+                            };
+                            child_bottom = Text!("}}"), 0;
+                        }
+                    }
+                })),
+            2,
+        ;
     }
 }
 
@@ -437,18 +444,18 @@ fn selected_view(wgt: Option<InspectedWidget>) -> UiNode {
                                             font_color = PROPERTY_COLOR_VAR;
                                         },
                                         Text!(")"),
-                                    ]
+                                    ];
                                 }
                             },
-                        ]
+                        ];
                     },
                     wgt.inspector_info().present(wgt_fn!(|i| {
                         if let Some(i) = i { inspector_info_view(i) } else { UiNode::nil() }
                     })),
                     Hr!(),
                     info_watchers(&wgt),
-                ]
-            }
+                ];
+            };
         }
     } else {
         Text! {
@@ -559,7 +566,7 @@ fn property_view(
             txt = value;
             font_color = PROPERTY_VALUE_COLOR_VAR;
             background_color = flash;
-            tooltip = Tip!(Text!(if user_assigned { "instance value" } else { "intrinsic value" }))
+            tooltip = Tip!(Text!(if user_assigned { "instance value" } else { "intrinsic value" }));
         });
         children.push(Text!(";"));
     } else {
