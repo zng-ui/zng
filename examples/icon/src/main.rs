@@ -235,28 +235,23 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
                                 direction = StackDirection::left_to_right();
                                 spacing = 5;
                                 children_align = Align::TOP_LEFT;
-                                children =
-                                    [64, 48, 32, 24, 16]
-                                        .into_iter()
-                                        .map(clmv!(ico, |size| {
-                                            Stack! {
-                                                direction = StackDirection::top_to_bottom();
-                                                spacing = 3;
-                                                children = ui_vec![
-                                                    size_label(formatx!("{size}")),
-                                                    Icon! {
-                                                        ico = ico.clone();
-                                                        ico_size = size;
+                                children = [64, 48, 32, 24, 16].into_iter().map(clmv!(ico, |size| {
+                                    Stack! {
+                                        direction = StackDirection::top_to_bottom();
+                                        spacing = 3;
+                                        children = ui_vec![
+                                            size_label(formatx!("{size}")),
+                                            Icon! {
+                                                ico = ico.clone();
+                                                ico_size = size;
 
-                                                        background_color = light_dark(colors::WHITE.with_alpha(85.pct()), colors::BLACK.with_alpha(85.pct()));
-                                                        corner_radius = 4;
-                                                        padding = 2;
-                                                    }
-                                                ];
+                                                background_color = light_dark(colors::WHITE.with_alpha(85.pct()), colors::BLACK.with_alpha(85.pct()));
+                                                corner_radius = 4;
+                                                padding = 2;
                                             }
-                                        }))
-                                        .collect::<Vec<_>>(),
-                                ;
+                                        ];
+                                    }
+                                }));
                             },
                             code_copy("ICONS.req".into(), formatx!("ICONS.req(\"material/{font_mod}/{name}\")")),
                             code_copy(formatx!("{font_mod}::req"), formatx!("icon::{font_mod}::req(\"{name}\")")),
