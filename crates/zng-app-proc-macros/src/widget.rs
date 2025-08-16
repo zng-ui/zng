@@ -642,18 +642,14 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
             widget_util::PropertyValue::Special(special, _) => {
                 if prop.is_unset() {
                     let unset_ident = ident_spanned!(ident.span()=> "unset_{}", ident);
-                    prop_init = quote_call! {
-                        #unset_ident()
-                    };
+                    prop_init = quote_call!(#unset_ident());
                 } else {
                     errors.push("unknown value, expected `unset!`", special.span());
                     return quote!();
                 }
             }
             widget_util::PropertyValue::Unnamed(val) => {
-                prop_init = quote_call! {
-                    #ident(#val)
-                };
+                prop_init = quote_call!( #ident(#val));
             }
             widget_util::PropertyValue::Named(_, fields) => {
                 let mut idents_sorted: Vec<_> = fields.iter().map(|f| &f.ident).collect();
@@ -662,9 +658,7 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
                 let values = fields.iter().map(|f| &f.expr);
                 let ident_sorted = ident_spanned!(ident.span()=> "{}__", ident);
 
-                let call = quote_call! {
-                    #ident_sorted(#(#idents_sorted),*)
-                };
+                let call = quote_call!(#ident_sorted(#(#idents_sorted),*));
                 let meta = if path.get_ident().is_some() {
                     quote! {
                         wgt__.#ident_meta()
@@ -687,9 +681,7 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
         },
         None => {
             let ident = &prop.path.segments.last().unwrap().ident;
-            prop_init = quote_call! {
-                #ident(#ident)
-            };
+            prop_init = quote_call!(#ident(#ident));
         }
     }
 

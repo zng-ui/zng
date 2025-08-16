@@ -146,14 +146,14 @@ impl ButtonStyle {
             shortcut_txt = Text! {
                 txt = BUTTON.cmd().flat_map(|c| match c {
                     Some(c) => c.shortcut_txt(),
-                    None => const_var(Txt::from(""))
+                    None => const_var(Txt::from("")),
                 });
                 align = Align::CENTER;
             };
 
             icon_fn = BUTTON.cmd().flat_map(|c| match c {
                 Some(c) => c.icon(),
-                None => const_var(WidgetFn::nil())
+                None => const_var(WidgetFn::nil()),
             });
 
             when *#is_focused {

@@ -2352,6 +2352,7 @@ macro_rules! impl_fallback_accessors {
     })+};
 }
 impl GenericFonts {
+    #[rustfmt::skip] // for zng fmt
     impl_fallback_accessors! {
         serif="serif", sans_serif="sans-serif", monospace="monospace", cursive="cursive", fantasy="fantasy"
     }

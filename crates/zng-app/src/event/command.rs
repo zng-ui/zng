@@ -975,6 +975,7 @@ zng_var::impl_from_and_into_var! {
     fn from(param: CommandParam) -> Option<CommandParam>;
 }
 
+#[rustfmt::skip] // for zng fmt
 unique_id_64! {
     /// Unique identifier of a command metadata state variable.
     ///

@@ -514,7 +514,7 @@ impl SubMenuStyle {
                 when *#is_rtl {
                     txt = "⏴";
                 }
-            })
+            });
         }
     }
 }

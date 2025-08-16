@@ -649,9 +649,12 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
                         loop {
                             if let Tt::Group(g) = &tt_block
                                 && g.delimiter() == Delimiter::Brace
-                                && stream.peek().map(|tt| matches!(tt, Tt::Ident(_))).unwrap_or(true)
+                                && stream
+                                    .peek()
+                                    .map(|tt| matches!(tt, Tt::Ident(_)) || matches!(tt, Tt::Punct(p) if p.as_char() == '#'))
+                                    .unwrap_or(true)
                             {
-                                // peek next is when, property_name or eof
+                                // peek next is property_name, attribute, when or eof
                                 let block_span = g.span().byte_range();
                                 let expr = &code[expr_start..block_span.start];
                                 items.push(Item::When {
@@ -1091,6 +1094,7 @@ impl FmtFragServer {
                 };
                 *response.lock() = r;
             } else {
+                // !!: TODO zng/window.rs keeps changing using wraps, is it because of this adding depths?
                 match rustfmt_stdin(&Self::wrap_batch_for_fmt(requests.iter().map(|(k, _)| k.as_str())), &edition) {
                     Some(r) => {
                         println!("!!: ok for {}", requests.len());

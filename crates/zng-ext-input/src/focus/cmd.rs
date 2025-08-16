@@ -157,6 +157,7 @@ impl FocusCommands {
                 }
             )+};
         }
+        #[rustfmt::skip] // for zng fmt
         handle! {
             FOCUS_NEXT_CMD(next_handle) => focus_next,
             FOCUS_PREV_CMD(prev_handle) => focus_prev,
