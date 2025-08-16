@@ -42,7 +42,7 @@ fn main() {
                     toggle_buttons(),
                     dyn_buttons(),
                     dyn_buttons_from_data(),
-                ]
+                ];
             };
         }
     })
@@ -117,7 +117,7 @@ fn light_button() -> UiNode {
                     child = ICONS.req("material/filled/lightbulb");
                 }
             },
-        ]
+        ];
     }
 }
 fn repeat_button() -> UiNode {
@@ -227,7 +227,7 @@ fn toggle_buttons() -> UiNode {
                     },
                 ];
             }
-        ]
+        ];
     }
 }
 
@@ -254,7 +254,7 @@ fn combo_box() -> UiNode {
                     }
                 });
             };
-        })
+        });
     }
 }
 
@@ -285,9 +285,9 @@ fn dyn_buttons() -> UiNode {
                     } else {
                         btn = std::char::from_u32(btn as u32 + 1).unwrap();
                     }
-                })
+                });
             }
-        ])
+        ]);
     }
 }
 
@@ -327,9 +327,9 @@ fn dyn_buttons_from_data() -> UiNode {
                     } else {
                         btn = std::char::from_u32(btn as u32 + 1).unwrap();
                     }
-                })
+                });
             }
-        ])
+        ]);
     }
 }
 

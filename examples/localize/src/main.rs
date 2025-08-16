@@ -137,53 +137,54 @@ fn locale_menu() -> UiNode {
     Container! {
         alt_focus_scope = true;
         focus_click_behavior = FocusClickBehavior::Exit;
-        child = L10N
-            .available_langs()
-            .present(wgt_fn!(|langs: Arc<LangMap<HashMap<LangFilePath, PathBuf>>>| {
-                let mut actual = vec![];
-                let mut pseudo = vec![];
-                let mut template = vec![];
+        child =
+            L10N.available_langs()
+                .present(wgt_fn!(|langs: Arc<LangMap<HashMap<LangFilePath, PathBuf>>>| {
+                    let mut actual = vec![];
+                    let mut pseudo = vec![];
+                    let mut template = vec![];
 
-                for key in langs.keys() {
-                    if key.language.as_str() == "template" {
-                        template.push(key);
-                    } else if key.language.as_str() == "pseudo" {
-                        pseudo.push(key);
-                    } else {
-                        actual.push(key);
-                    }
-                }
-
-                tracing::info!(
-                    "{} langs, {} pseudo and {} template available",
-                    actual.len(),
-                    pseudo.len(),
-                    template.len()
-                );
-
-                actual.sort();
-                pseudo.sort();
-                template.sort();
-
-                let others = pseudo.into_iter().chain(template).map(|l| (l, false));
-                let options = actual.into_iter().map(|l| (l, true)).chain(others);
-
-                let selected = L10N.app_lang().map_bidi(|l| l.first().cloned(), |l| l.clone().into());
-                Stack! {
-                    align = Align::TOP_START;
-                    direction = StackDirection::start_to_end();
-                    spacing = 5;
-                    layout::margin = 10;
-                    toggle::selector = toggle::Selector::single_opt(selected);
-                    children = options.map(|(l, actual)| {
-                        Toggle! {
-                            text::font_style = if actual { FontStyle::Normal } else { FontStyle::Italic };
-                            child = Text!("{l}");
-                            value::<zng::l10n::Lang> = l.clone();
+                    for key in langs.keys() {
+                        if key.language.as_str() == "template" {
+                            template.push(key);
+                        } else if key.language.as_str() == "pseudo" {
+                            pseudo.push(key);
+                        } else {
+                            actual.push(key);
                         }
-                    })
-                }
-            }))
+                    }
+
+                    tracing::info!(
+                        "{} langs, {} pseudo and {} template available",
+                        actual.len(),
+                        pseudo.len(),
+                        template.len()
+                    );
+
+                    actual.sort();
+                    pseudo.sort();
+                    template.sort();
+
+                    let others = pseudo.into_iter().chain(template).map(|l| (l, false));
+                    let options = actual.into_iter().map(|l| (l, true)).chain(others);
+
+                    let selected = L10N.app_lang().map_bidi(|l| l.first().cloned(), |l| l.clone().into());
+                    Stack! {
+                        align = Align::TOP_START;
+                        direction = StackDirection::start_to_end();
+                        spacing = 5;
+                        layout::margin = 10;
+                        toggle::selector = toggle::Selector::single_opt(selected);
+                        children = options.map(|(l, actual)| {
+                            Toggle! {
+                                text::font_style = if actual { FontStyle::Normal } else { FontStyle::Italic };
+                                child = Text!("{l}");
+                                value::<zng::l10n::Lang> = l.clone();
+                            }
+                        });
+                    }
+                })),
+        ;
     }
 }
 

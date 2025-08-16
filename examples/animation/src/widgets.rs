@@ -40,7 +40,7 @@ pub(crate) fn ease_btn(l: &Var<Length>, color: &Var<Rgba>, name: &'static str, e
                     });
                     source = easing.map(move |(name, f)| plot_cache.entry(name.clone()).or_insert_with(|| plot(f.clone())).clone());
                 },
-            ]
+            ];
         };
         on_click = hn!(l, color, |_| {
             // ANIMATION

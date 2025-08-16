@@ -185,7 +185,10 @@ fn sample_line(children: impl IntoUiNode) -> UiNode {
 fn icon() -> UiNode {
     Text! {
         size = 36;
-        widget::background_gradient = Line::to_bottom_right(), stops![web_colors::MIDNIGHT_BLUE, 70.pct(), web_colors::CRIMSON];
+        widget::background_gradient =
+            Line::to_bottom_right(),
+            stops![web_colors::MIDNIGHT_BLUE, 70.pct(), web_colors::CRIMSON],
+        ;
         widget::corner_radius = 6;
         font_size = 28;
         font_weight = FontWeight::BOLD;

@@ -14,7 +14,9 @@ pub fn form_editor() -> UiNode {
     let is_open = var(false);
 
     Button! {
-        child = Text!(is_open.map(|&i| if i { "show form editor" } else { "open form editor" }.into()));
+        child = Text!(
+            is_open.map(|&i| if i { "show form editor" } else { "open form editor" }.into())
+        );
         style_fn = button::LinkStyle!();
         on_click = hn!(|_| {
             let editor_id = WindowId::named("form-editor");
@@ -123,7 +125,7 @@ fn form_editor_window(is_open: Var<bool>) -> WindowRoot {
                             zng::text::cmd::PARSE_CMD.notify_descendants(&WINDOW.info().get("form").unwrap());
                         });
                     }
-                ]
+                ];
             },
             spacing: 10,
         };

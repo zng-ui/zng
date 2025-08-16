@@ -21,7 +21,9 @@ pub fn text_editor() -> UiNode {
     let is_open = var(false);
 
     Button! {
-        child = Text!(is_open.map(|&i| if i { "show text editor" } else { "open text editor" }.into()));
+        child = Text!(
+            is_open.map(|&i| if i { "show text editor" } else { "open text editor" }.into())
+        );
         style_fn = button::LinkStyle!();
         on_click = hn!(|_| {
             let editor_id = WindowId::named("text-editor");
@@ -60,32 +62,35 @@ fn text_editor_window(is_open: Var<bool>) -> WindowRoot {
             enabled = editor.enabled();
 
             // line numbers
-            child_start = Text! {
-                padding = (7, 4);
-                txt_align = Align::TOP_RIGHT;
-                opacity = 80.pct();
-                layout::min_width = 24;
-                txt = editor.lines.map(|s| {
-                    use std::fmt::Write;
-                    let mut txt = String::new();
-                    match s {
-                        text::LinesWrapCount::NoWrap(len) => {
-                            for i in 1..=(*len).max(1) {
-                                let _ = writeln!(&mut txt, "{i}");
+            child_start =
+                Text! {
+                    padding = (7, 4);
+                    txt_align = Align::TOP_RIGHT;
+                    opacity = 80.pct();
+                    layout::min_width = 24;
+                    txt = editor.lines.map(|s| {
+                        use std::fmt::Write;
+                        let mut txt = String::new();
+                        match s {
+                            text::LinesWrapCount::NoWrap(len) => {
+                                for i in 1..=(*len).max(1) {
+                                    let _ = writeln!(&mut txt, "{i}");
+                                }
                             }
-                        },
-                        text::LinesWrapCount::Wrap(counts) => {
-                            for (i, &c) in counts.iter().enumerate() {
-                                let _ = write!(&mut txt, "{}", i + 1);
-                                for _ in 0..c {
-                                    txt.push('\n');
+                            text::LinesWrapCount::Wrap(counts) => {
+                                for (i, &c) in counts.iter().enumerate() {
+                                    let _ = write!(&mut txt, "{}", i + 1);
+                                    for _ in 0..c {
+                                        txt.push('\n');
+                                    }
                                 }
                             }
                         }
-                    }
-                    Txt::from_str(&txt)
-                });
-            }, 0;
+                        Txt::from_str(&txt)
+                    });
+                },
+                0,
+            ;
 
             // editor
             child = TextInput! {
@@ -99,11 +104,14 @@ fn text_editor_window(is_open: Var<bool>) -> WindowRoot {
             };
         };
 
-        child_bottom = Text! {
-            margin = (0, 4);
-            align = Align::RIGHT;
-            txt = editor.caret_status.map_to_txt();
-        }, 0;
+        child_bottom =
+            Text! {
+                margin = (0, 4);
+                align = Align::RIGHT;
+                txt = editor.caret_status.map_to_txt();
+            },
+            0,
+        ;
     }
 }
 
@@ -116,9 +124,9 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
     let clipboard_btn = clmv!(gt_600, |cmd: zng::event::Command| {
         let cmd = cmd.focus_scoped();
         Button! {
-            child =  cmd.flat_map(|c| c.icon()).present_data(());
+            child = cmd.flat_map(|c| c.icon()).present_data(());
             child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
-            tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+            tooltip = Tip!(Text!(cmd.flat_map(|c| c.name_with_shortcut())));
             visibility = true;
             cmd;
         }
@@ -135,7 +143,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
             child = Button! {
                 child = cmd.flat_map(|c| c.icon()).present_data(());
                 child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
-                tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+                tooltip = Tip!(Text!(cmd.flat_map(|c| c.name_with_shortcut())));
                 on_click = hn!(|a: &gesture::ClickArgs| {
                     a.propagation().stop();
                     cmd.get().notify();
@@ -216,7 +224,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
             rule_line::vr::Vr!(),
             undo_combo(zng::undo::UndoOp::Undo),
             undo_combo(zng::undo::UndoOp::Redo),
-        ]
+        ];
     }
 }
 struct TextEditor {
@@ -412,7 +420,7 @@ impl TextEditor {
                     dialog::Response::cancel(),
                     dialog::Response::new("Discard", "Discard"),
                     dialog::Response::new("Save", "Save"),
-                ]
+                ];
             })
             .wait_rsp()
             .await;

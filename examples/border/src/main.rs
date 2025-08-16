@@ -59,9 +59,9 @@ fn app_main() {
                                     widths: 5,
                                     source: zng::env::res("border.png"),
                                     slices: (100.0 / 3.0).pct(),
-                                }
+                                };
                             }
-                        ]
+                        ];
                     },
                     Stack! {
                         direction = StackDirection::top_to_bottom();
@@ -82,13 +82,13 @@ fn app_main() {
                                     child = widgets::MrBorders! {
                                         border_align = 100.pct();
                                         child = Text!("Nested");
-                                    },
-                                },
+                                    };
+                                };
                             },
                             clip_to_bounds_demo(),
-                        ]
+                        ];
                     },
-                ]
+                ];
             };
         }
     })
@@ -113,36 +113,43 @@ fn on_border_img() {
 
                 layout::margin = 20;
                 padding = 20;
-                child = Stack!(top_to_bottom, ui_vec![
-                    Toggle! {
-                        checked = fill;
-                        style_fn = toggle::CheckStyle!();
-                        child = Text!("border_img_fill = true;");
-                    },
-                    Text!(txt = "border_img_repeat = "; layout::margin = (25, 0, 0, 0)),
-                    Stack! {
-                        direction = StackDirection::top_to_bottom();
-                        spacing = 5;
-                        toggle::selector = toggle::Selector::single(repeat);
-                        layout::margin = (0, 0, 0, 50);
-                        children = {
-                            use zng::widget::RepeatMode::*;
-                            [
-                                (Stretch, Stretch),
-                                (Repeat, Repeat),
-                                (Round, Round),
-                                (Space, Space),
-                                (Stretch, Space),
-                                (Space, Stretch),
-                            ].into_iter().map(|m| Toggle! {
-                                value::<zng::widget::BorderRepeats> = m;
-                                child = if m.0 == m.1 { Text!("{:?};", m.0) } else { Text!("{m:?};") };
-                                style_fn = toggle::RadioStyle!();
-                            })
+                child = Stack!(
+                    top_to_bottom,
+                    ui_vec![
+                        Toggle! {
+                            checked = fill;
+                            style_fn = toggle::CheckStyle!();
+                            child = Text!("border_img_fill = true;");
+                        },
+                        Text!(txt = "border_img_repeat = "; layout::margin = (25, 0, 0, 0)),
+                        Stack! {
+                            direction = StackDirection::top_to_bottom();
+                            spacing = 5;
+                            toggle::selector = toggle::Selector::single(repeat);
+                            layout::margin = (0, 0, 0, 50);
+                            children = {
+                                use zng::widget::RepeatMode::*;
+                                [
+                                    (Stretch, Stretch),
+                                    (Repeat, Repeat),
+                                    (Round, Round),
+                                    (Space, Space),
+                                    (Stretch, Space),
+                                    (Space, Stretch),
+                                ]
+                                .into_iter()
+                                .map(|m| {
+                                    Toggle! {
+                                        value::<zng::widget::BorderRepeats> = m;
+                                        child = if m.0 == m.1 { Text!("{:?};", m.0) } else { Text!("{m:?};") };
+                                        style_fn = toggle::RadioStyle!();
+                                    }
+                                })
+                            };
                         }
-                    }
-                ])
-            }
+                    ]
+                );
+            };
         }
     });
 }
@@ -154,9 +161,7 @@ fn clip_to_bounds_demo() -> UiNode {
         corner_radius = 10;
         widget::border = 0.5, web_colors::RED.darken(20.pct());
         clip_to_bounds = clip.clone();
-        gesture::on_click = hn!(clip, |_| {
-            clip.modify(|c| **c = !**c)
-        });
+        gesture::on_click = hn!(clip, |_| { clip.modify(|c| **c = !**c) });
         child = Text! {
             corner_radius = 0;
             background_color = web_colors::GREEN.darken(40.pct());

@@ -22,9 +22,11 @@ fn main() {
                     txt_selectable = true;
 
                     // allow limited image download and read.
-                    image::img_limits = ImageLimits::default()
-                        .with_allow_uri(UriFilter::allow_host("httpbin.org"))
-                        .with_allow_path(PathFilter::allow_dir("examples"));
+                    image::img_limits =
+                        ImageLimits::default()
+                            .with_allow_uri(UriFilter::allow_host("httpbin.org"))
+                            .with_allow_path(PathFilter::allow_dir("examples")),
+                    ;
 
                     /// fix path to local images.
                     image_resolver = markdown::ImageResolver::new(|img| {

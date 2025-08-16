@@ -32,7 +32,7 @@ fn main() {
                     cursor = CursorIcon::Grabbing;
                 }
 
-                child = Stack!{
+                child = Stack! {
                     direction = StackDirection::top_to_bottom();
                     children_align = Align::LEFT;
                     children = ui_vec![
@@ -49,7 +49,7 @@ fn main() {
                         },
                         Text!(ipsum())
                     ];
-                }
+                };
             };
         }
     })

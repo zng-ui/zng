@@ -35,10 +35,7 @@ fn main() {
                     },
                     Wrap! {
                         spacing = 5;
-                        children = ui_vec![
-                            view_respawn(),
-                            view_crash(),
-                        ],
+                        children = ui_vec![view_respawn(), view_crash(),];
                     },
                     Markdown! {
                         layout::margin = (20, 0, 0, 0);
@@ -53,7 +50,7 @@ fn main() {
                             app_crash("access violation"),
                             app_crash("stack overflow"),
                             app_crash("custom exit"),
-                        ],
+                        ];
                     },
                     Markdown! {
                         layout::margin = (20, 0, 0, 0);
@@ -62,11 +59,7 @@ fn main() {
                     },
                     Wrap! {
                         spacing = 5;
-                        children = ui_vec![
-                            click_counter(),
-                            image(),
-                            click_counter(),
-                        ],
+                        children = ui_vec![click_counter(), image(), click_counter(),];
                     },
                 ];
             };
@@ -94,36 +87,36 @@ fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) {
             });
 
             padding = 5;
-            child = Markdown!(
-                "The Respawn Example app has crashed.\n\n{}\n\n",
-                 args.latest().message(),
-            );
-            child_bottom = Stack! {
-                spacing = 5;
-                direction = StackDirection::start_to_end();
-                layout::align = Align::END;
-                children = ui_vec![
-                    Button! {
-                        child = Text!("Crash Dialog");
-                        on_click = hn_once!(|_| {
-                            panic!("Test dialog-process crash!");
-                        });
-                    },
-                    zng::rule_line::vr::Vr!(),
-                    Button! {
-                        child = Text!("Restart App");
-                        on_click = hn_once!(args, |_| {
-                            args.restart();
-                        });
-                    },
-                    Button! {
-                        child = Text!("Exit App");
-                        on_click = hn_once!(args, |_| {
-                            args.exit(0);
-                        });
-                    }
-                ];
-            }, 5;
+            child = Markdown!("The Respawn Example app has crashed.\n\n{}\n\n", args.latest().message(),);
+            child_bottom =
+                Stack! {
+                    spacing = 5;
+                    direction = StackDirection::start_to_end();
+                    layout::align = Align::END;
+                    children = ui_vec![
+                        Button! {
+                            child = Text!("Crash Dialog");
+                            on_click = hn_once!(|_| {
+                                panic!("Test dialog-process crash!");
+                            });
+                        },
+                        zng::rule_line::vr::Vr!(),
+                        Button! {
+                            child = Text!("Restart App");
+                            on_click = hn_once!(args, |_| {
+                                args.restart();
+                            });
+                        },
+                        Button! {
+                            child = Text!("Exit App");
+                            on_click = hn_once!(args, |_| {
+                                args.exit(0);
+                            });
+                        }
+                    ];
+                },
+                5,
+            ;
         }
     });
 }
@@ -226,14 +219,17 @@ fn window_status() -> UiNode {
             status!(actual_size),
             status!(restore_state),
             status!(restore_rect),
-        ]
+        ];
     }
 }
 
 fn icon() -> UiNode {
     Container! {
         size = (36, 36);
-        widget::background_gradient = layout::Line::to_bottom_right(), stops![web_colors::ORANGE_RED, 70.pct(), web_colors::DARK_RED];
+        widget::background_gradient =
+            layout::Line::to_bottom_right(),
+            stops![web_colors::ORANGE_RED, 70.pct(), web_colors::DARK_RED],
+        ;
         widget::corner_radius = 6;
         text::font_size = 28;
         text::font_weight = FontWeight::BOLD;

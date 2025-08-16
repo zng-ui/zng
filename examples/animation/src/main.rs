@@ -88,7 +88,7 @@ fn example() -> UiNode {
                         mode(Txt::from("reverse")),
                         mode(Txt::from("reverse_out")),
                     ]
-                }
+                };
             },
             Grid! {
                 id = "easing-menu";
@@ -96,7 +96,7 @@ fn example() -> UiNode {
                 columns = ui_vec![grid::Column!(1.lft()); 7];
                 auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
                 button::style_fn = Style! {
-                    layout::padding = 3
+                    layout::padding = 3;
                 };
                 cells = ui_vec![
                     ease_btn(&x, &color, "", EasingFn::Linear, &easing_mod),
@@ -125,7 +125,7 @@ fn example() -> UiNode {
                         &easing_mod
                     ),
                     ease_btn(&x, &color, "", EasingFn::None, &easing_mod),
-                ]
+                ];
             },
             Button! {
                 child = Text!("reset");
@@ -140,6 +140,6 @@ fn example() -> UiNode {
                     color.set(FROM_COLOR);
                 });
             },
-        ]
+        ];
     }
 }
