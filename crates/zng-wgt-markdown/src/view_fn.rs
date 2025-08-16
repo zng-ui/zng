@@ -1015,11 +1015,7 @@ pub fn default_table_fn(args: TableFnArgs) -> UiNode {
             grid::Row! {
                 border = (0, 0, 1, 0), FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()).into());
                 background_color = {
-                    let alpha = if args.index % 2 == 0 {
-                        5.pct()
-                    } else {
-                        0.pct()
-                    };
+                    let alpha = if args.index % 2 == 0 { 5.pct() } else { 0.pct() };
                     FONT_COLOR_VAR.map(move |c| c.with_alpha(alpha))
                 };
 

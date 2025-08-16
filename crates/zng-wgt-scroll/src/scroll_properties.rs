@@ -144,7 +144,7 @@ fn default_scrollbar() -> WidgetFn<ScrollBarArgs> {
                 offset = args.offset();
             };
             orientation = args.orientation;
-            visibility = args.content_overflows().map_into()
+            visibility = args.content_overflows().map_into();
         }
     })
 }

@@ -370,9 +370,12 @@ fn tree_item_view(wgt: InspectedWidget, filter: Var<Txt>, parent_desc_filter: Va
                         txt = formatx!("{:#}", wgt.id());
                         font_color = WIDGET_ID_COLOR_VAR;
                     },
-                    Text!(wgt.descendants_len().map(|&l| if l == 0 { Txt::from_static(" }") } else { Txt::from_static("") })),
+                    Text!(
+                        wgt.descendants_len()
+                            .map(|&l| if l == 0 { Txt::from_static(" }") } else { Txt::from_static("") })
+                    ),
                 ];
-            }
+            };
         };
 
         child_bottom =

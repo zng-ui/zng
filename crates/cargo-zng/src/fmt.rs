@@ -234,6 +234,10 @@ async fn custom_fmt(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io::Re
 
     formatted_code.push_str(&fmt_code(file_code, file_stream, &fmt).await);
 
+    if !formatted_code.ends_with('\n') {
+        formatted_code.push('\n');
+    }
+
     if formatted_code != file {
         if check {
             fatal!("extended format does not match in file `{}`", rs_file.display());
@@ -520,11 +524,11 @@ fn replace_event_args(code: &str, reverse: bool) -> Cow<'_, str> {
 // AND replace `static IDENT;` with `static IDENT: __fmt__ = ();`
 // AND replace `l10n!: ` with `l10n__fmt:`
 fn replace_command(code: &str, reverse: bool) -> Cow<'_, str> {
-    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)static +(\w+) ?= ?\{").unwrap());
-    static RGX_DEFAULTS: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)(?m)static +(\w+) ?;").unwrap());
+    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)([^'])static +(\w+) ?= ?\{").unwrap());
+    static RGX_DEFAULTS: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)([^'])static +(\w+) ?;").unwrap());
     if !reverse {
-        let cmd = RGX_DEFAULTS.replace_all(code, "static $1: __fmt__ = ();");
-        let mut cmd2 = RGX.replace_all(&cmd, "static $1: __fmt__ = __A_ {");
+        let cmd = RGX_DEFAULTS.replace_all(code, "${1}static $2: __fmt__ = ();");
+        let mut cmd2 = RGX.replace_all(&cmd, "${1}static $2: __fmt__ = __A_ {");
         if let Cow::Owned(cmd) = &mut cmd2 {
             *cmd = cmd.replace("l10n!:", "l10n__fmt:");
         }
@@ -739,7 +743,7 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
         let items = match code.parse() {
             Ok(t) => match parse(code, t, 1..code.len() - 1) {
                 Ok(its) => its,
-                Err(e) => {
+                Err(_e) => {
                     return Cow::Borrowed(code);
                 }
             },
@@ -761,6 +765,8 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
                             r.push_str(" __ZngFmt");
                             r.push_str(value);
                             r.push(';');
+                        } else if value.trim() == "unset!" {
+                            r.push_str("__unset!();");
                         } else {
                             r.push_str(" __fmt(");
                             r.push_str(value);
@@ -773,7 +779,11 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
                     }
                     Item::When { expr, items } => {
                         r.push_str("if __fmt_w(");
-                        r.push_str(&replace_expr_var(expr, false));
+                        // replace #{}
+                        let expr = replace_expr_var(expr, false);
+                        // replace #path
+                        static PROPERTY_REF_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)#([\w:]+)").unwrap());
+                        r.push_str(&PROPERTY_REF_RGX.replace_all(&expr, "__P_($1)"));
                         r.push_str(") { // __fmt");
                         escape(items, r);
                         r.push('}');
@@ -793,11 +803,18 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
             .replace("= __ZngFmt {", "= {")
             .replace("= __fmt(", "= ")
             .replace("); // __fmt", ";")
-            .replace("if __fmt_w(", "when ");
+            .replace("if __fmt_w(", "when ")
+            .replace("__unset!()", "unset!");
 
         static WHEN_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\) \{\s+// __fmt").unwrap());
         let code = WHEN_REV_RGX.replace_all(&code, " {");
-        match replace_expr_var(&code, true) {
+        let code = match replace_expr_var(&code, true) {
+            Cow::Borrowed(_) => Cow::Owned(code.into_owned()),
+            Cow::Owned(o) => Cow::Owned(o),
+        };
+
+        static PROPERTY_REF_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)__P_\(([\w:]+)\)").unwrap());
+        match PROPERTY_REF_REV_RGX.replace_all(&code, "#$1") {
             Cow::Borrowed(_) => Cow::Owned(code.into_owned()),
             Cow::Owned(o) => Cow::Owned(o),
         }
@@ -807,7 +824,7 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
 // replace `#{` with `__P_!{`
 fn replace_expr_var(code: &str, reverse: bool) -> Cow<'_, str> {
     static POUND_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(#)[\w\{]").unwrap());
-    static POUND_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"__P_!?\s?").unwrap());
+    static POUND_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"__P_!\s?").unwrap());
     if !reverse {
         POUND_RGX.replace_all(code, |caps: &regex::Captures| {
             let c = &caps[0][caps.get(1).unwrap().end() - caps.get(0).unwrap().start()..];
@@ -1076,7 +1093,7 @@ impl FmtFragServer {
     fn wrap_batch_for_fmt<'a>(requests: impl Iterator<Item = &'a str>) -> String {
         let mut s = String::new();
         for code in requests {
-            s.push_str("mod __batch__ {\n use __batch_tabs;\n");
+            s.push_str("mod __batch__ {\n#![__zng_fmt_batch_tabs]\n");
             if code.starts_with("{") {
                 s.push_str(Self::PREFIX);
             }
@@ -1103,6 +1120,7 @@ impl FmtFragServer {
                 }
 
                 let tabs_line = lines.next().unwrap();
+                assert!(tabs_line.contains("#![__zng_fmt_batch_tabs]"));
                 let count = tabs_line.len() - tabs_line.trim_start().len();
                 strip_tabs.clear();
                 for _ in 0..count {
