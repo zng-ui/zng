@@ -1009,6 +1009,7 @@ mod de {
             }
         }
 
+        #[rustfmt::skip]
         forward_to_deserialize_any! {
             bool u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 f32 f64 char str string unit
             seq bytes byte_buf map unit_struct
@@ -1051,6 +1052,7 @@ mod de {
             ValueDeserializer::new(self).deserialize_newtype_struct(name, visitor)
         }
 
+        #[rustfmt::skip]
         forward_to_deserialize_any! {
             bool u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 f32 f64 char str string unit
             seq bytes byte_buf map unit_struct

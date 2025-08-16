@@ -106,9 +106,9 @@ pub use zng_ext_window::{
     AppRunWindowExt, AutoSize, CloseWindowResult, FRAME_IMAGE_READY_EVENT, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs,
     HeadlessAppWindowExt, HeadlessMonitor, IME_EVENT, ImeArgs, MONITORS, MONITORS_CHANGED_EVENT, MonitorInfo, MonitorQuery,
     MonitorsChangedArgs, ParallelWin, RenderMode, StartPosition, VideoMode, WINDOW_CHANGED_EVENT, WINDOW_CLOSE_EVENT,
-    WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_Ext, WINDOW_LOAD_EVENT, WINDOW_OPEN_EVENT, WINDOWS, WidgetInfoBuilderImeArea,
-    WidgetInfoImeArea, WindowButton, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs, WindowIcon, WindowLoadingHandle,
-    WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowState, WindowStateAllowed, WindowVars,
+    WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_Ext, WINDOW_LOAD_EVENT, WINDOW_OPEN_EVENT, WINDOWS, WidgetInfoBuilderImeArea, WidgetInfoImeArea,
+    WindowButton, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs, WindowIcon, WindowLoadingHandle, WindowOpenArgs,
+    WindowRoot, WindowRootExtenderArgs, WindowState, WindowStateAllowed, WindowVars,
 };
 
 /// Window commands.
@@ -168,9 +168,7 @@ pub use zng_wgt_window::events::{
 /// [`INSPECTOR`]: crate::window::inspector::INSPECTOR
 #[cfg(feature = "inspector")]
 pub mod inspector {
-    pub use zng_wgt_inspector::debug::{
-        InspectMode, show_bounds, show_center_points, show_directional_query, show_hit_test, show_rows,
-    };
+    pub use zng_wgt_inspector::debug::{InspectMode, show_bounds, show_center_points, show_directional_query, show_hit_test, show_rows};
 
     pub use zng_wgt_inspector::{INSPECTOR, InspectedInfo, InspectedTree, InspectedWidget, InspectorWatcherBuilder};
 }

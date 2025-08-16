@@ -922,20 +922,60 @@ fn replace_bitflags(code: &str, reverse: bool) -> Cow<'_, str> {
     }
 }
 
-/// wrap simple comma separated work list
+/// wrap simple list of idents
 fn replace_simple_ident_list(code: &str, reverse: bool) -> Cow<'_, str> {
-    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s*\{\s*\w+(?:\s*,\s*\w+)*\s*,?\s*}\s*$$").unwrap());
+    static WORD_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\w+$").unwrap());
     if !reverse {
-        if RGX.is_match(code) {
-            Cow::Owned(code.replace('{', "static __fmt: T = [").replace('}', "];"))
+        assert!(code.starts_with('{') && code.ends_with('}'));
+        let inner = &code[1..code.len() - 1];
+        if inner.contains(',') {
+            let mut output = "static __fmt: T = [".to_owned();
+            for ident in inner.split(',') {
+                let ident = ident.trim();
+                if WORD_RGX.is_match(ident) {
+                    output.push_str(ident);
+                    output.push_str(", ");
+                } else {
+                    return Cow::Borrowed(code);
+                }
+            }
+            output.push_str("];");
+            Cow::Owned(output)
         } else {
-            Cow::Borrowed(code)
+            let mut output = "static __fmt_s: T = [".to_owned();
+            let mut any = false;
+            for ident in inner.split(' ') {
+                let ident = ident.trim();
+                if WORD_RGX.is_match(ident) {
+                    any = true;
+                    output.push_str(ident);
+                    output.push_str(", ");
+                } else if ident.is_empty() {
+                    continue;
+                } else {
+                    return Cow::Borrowed(code);
+                }
+            }
+            if any {
+                output.push_str("];");
+                Cow::Owned(output)
+            } else {
+                Cow::Borrowed(code)
+            }
         }
     } else {
         let code = if code.trim_end().contains('\n') {
-            code.replace("static __fmt: T = [", "{").replace("];", "}")
-        } else {
+            if code.contains("static __fmt: T = [") {
+                code.replace("static __fmt: T = [", "{").replace("];", "}")
+            } else {
+                assert!(code.contains("static __fmt_s: T = ["));
+                code.replace("static __fmt_s: T = [", "{").replace("];", "}").replace(',', "")
+            }
+        } else if code.contains("static __fmt: T = [") {
             code.replace("static __fmt: T = [", "{ ").replace("];", " }")
+        } else {
+            assert!(code.contains("static __fmt_s: T = ["));
+            code.replace("static __fmt_s: T = [", "{ ").replace("];", " }").replace(',', "")
         };
         Cow::Owned(code)
     }
