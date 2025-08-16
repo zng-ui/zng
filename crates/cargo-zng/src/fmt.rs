@@ -79,7 +79,7 @@ pub fn run(mut args: FmtArgs) {
             let stream = code.parse().unwrap_or_else(|e| fatal!("cannot parse stdin, {e}"));
 
             let fmt_server = FmtFragServer::spawn(args.edition.clone());
-            let mut formatted = Box::pin(fmt_code(&code, stream, &fmt_server));
+            let mut formatted = Box::pin(try_fmt_child_macros(&code, stream, &fmt_server));
             let formatted = loop {
                 std::thread::sleep(Duration::from_millis(50));
                 match formatted
@@ -189,6 +189,7 @@ pub fn run(mut args: FmtArgs) {
         })
         .collect();
 
+    let reformat = Mutex::new(vec![]);
     loop {
         std::thread::sleep(Duration::from_millis(25));
         futs.par_iter_mut().for_each(|f| {
@@ -198,7 +199,12 @@ pub fn run(mut args: FmtArgs) {
                 .as_mut()
                 .poll(&mut std::task::Context::from_waker(std::task::Waker::noop()))
             {
-                Poll::Ready(()) => *f = None,
+                Poll::Ready(changed) => {
+                    if let Some(p) = changed {
+                        reformat.lock().push(p);
+                    }
+                    *f = None
+                }
                 Poll::Pending => {}
             }
         });
@@ -208,12 +214,25 @@ pub fn run(mut args: FmtArgs) {
         }
     }
 
+    let reformat = reformat.into_inner();
+    if !reformat.is_empty() {
+        reformat.par_chunks(64).for_each(|c| {
+            // apply normal format again, see `custom_fmt` docs
+            rustfmt_files(c, &args.edition, args.check);
+        });
+    }
+
     if let Err(e) = history.save() {
         warn!("cannot save fmt history, {e}")
     }
 }
 
-async fn custom_fmt(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io::Result<()> {
+/// Applies custom format for all macro bodies in file, if changed writes the file and returns
+/// the file path for reformat.
+///
+/// Changed files need reformat in cases like `[Macro!{..}, Macro!{..}]` where the custom macro format
+/// introduces line break, this causes rustfmt to also make the `[]` multiline.
+async fn custom_fmt(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io::Result<Option<PathBuf>> {
     let file = fs::read_to_string(&rs_file)?;
 
     // skip UTF-8 BOM
@@ -232,7 +251,7 @@ async fn custom_fmt(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io::Re
         .parse()
         .unwrap_or_else(|e| fatal!("cannot parse `{}`, {e}", rs_file.display()));
 
-    formatted_code.push_str(&fmt_code(file_code, file_stream, &fmt).await);
+    formatted_code.push_str(&try_fmt_child_macros(file_code, file_stream, &fmt).await);
 
     if !formatted_code.ends_with('\n') {
         formatted_code.push('\n');
@@ -242,13 +261,15 @@ async fn custom_fmt(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io::Re
         if check {
             fatal!("extended format does not match in file `{}`", rs_file.display());
         }
-        fs::write(rs_file, formatted_code)?;
+        fs::write(&rs_file, formatted_code)?;
+        Ok(Some(rs_file))
+    } else {
+        Ok(None)
     }
-
-    Ok(())
 }
 
-async fn fmt_code(code: &str, stream: pm2_send::TokenStream, fmt: &FmtFragServer) -> String {
+/// Find "macro_ident! {}" and `try_fmt_macro` the macro body if it is not marked skip
+async fn try_fmt_child_macros(code: &str, stream: pm2_send::TokenStream, fmt: &FmtFragServer) -> String {
     let mut formatted_code = String::new();
     let mut last_already_fmt_start = 0;
 
@@ -279,7 +300,7 @@ async fn fmt_code(code: &str, stream: pm2_send::TokenStream, fmt: &FmtFragServer
                         continue;
                     }
                     if let pm2_send::TokenTree::Ident(i) = &tail2[1] {
-                        if i == &"quote" || i == &"quote_spanned" || i == &"parse_quote" || i == &"parse_quote_spanned" {
+                        if i == &"__P_" || i == &"quote" || i == &"quote_spanned" || i == &"parse_quote" || i == &"parse_quote_spanned" {
                             continue;
                         }
                     } else {
@@ -363,18 +384,11 @@ async fn fmt_code(code: &str, stream: pm2_send::TokenStream, fmt: &FmtFragServer
     }
 
     formatted_code.push_str(&code[last_already_fmt_start..]);
-
-    if formatted_code != code {
-        // custom format can cause normal format to change
-        // example: ui_vec![Wgt!{<many properties>}, Wgt!{<same>}]
-        //   Wgt! gets custom formatted onto multiple lines, that causes ui_vec![\n by normal format.
-        formatted_code = fmt.format(formatted_code.clone()).await.unwrap_or(formatted_code);
-    }
-
     formatted_code
 }
 
 async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer) -> Option<String> {
+    // replace supported macro syntax to equivalent valid Rust for rustfmt
     let mut replaced_code = Cow::Borrowed(group_code);
 
     let mut is_lazy_static = false;
@@ -436,9 +450,27 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         replaced_code = replace_simple_ident_list(group_code, false);
         is_simple_list = matches!(&replaced_code, Cow::Owned(_));
     }
+    let replaced_code = replaced_code.into_owned();
 
-    let code = fmt.format(replaced_code.into_owned()).await?;
+    // fmt inner macros first, their final format can affect this macros format
+    let code_stream: pm2_send::TokenStream = replaced_code.parse().unwrap_or_else(|e| panic!("{e}\ncode:\n{replaced_code}"));
+    let mut inner_group = None;
+    for tt in code_stream {
+        if let pm2_send::TokenTree::Group(g) = tt {
+            // find the inner block, some replacements add prefixes or swap the delimiters
+            inner_group = Some(g);
+            break;
+        }
+    }
+    let code_stream = inner_group
+        .unwrap_or_else(|| panic!("invalid replacement:\n{replaced_code}"))
+        .stream();
+    let code = Box::pin(try_fmt_child_macros(&replaced_code, code_stream, fmt)).await;
 
+    // apply rustfmt
+    let code = fmt.format(code).await?;
+
+    // restore supported macro syntax
     let code = if is_event_args {
         replace_event_args(&code, true)
     } else if is_widget {
@@ -463,16 +495,7 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         Cow::Owned(code)
     };
 
-    let code_stream: pm2_send::TokenStream = code.parse().unwrap_or_else(|e| panic!("{e}\ncode:\n{code}"));
-    let code_stream = {
-        let code_tt = code_stream.into_iter().next().unwrap();
-        match code_tt {
-            pm2_send::TokenTree::Group(g) => g.stream(),
-            _ => unreachable!(),
-        }
-    };
-    let code = Box::pin(fmt_code(&code, code_stream, fmt)).await;
-
+    // restore indent
     let mut out = String::new();
     let mut lb_indent = String::with_capacity(base_indent + 1);
     for line in code.lines() {
@@ -521,13 +544,13 @@ fn replace_event_args(code: &str, reverse: bool) -> Cow<'_, str> {
     }
 }
 // replace `static IDENT = {` with `static IDENT: __fmt__ = {`
-// AND replace `static IDENT;` with `static IDENT: __fmt__ = ();`
+// AND replace `static IDENT;` with `static IDENT: __fmt__ = T;`
 // AND replace `l10n!: ` with `l10n__fmt:`
 fn replace_command(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)([^'])static +(\w+) ?= ?\{").unwrap());
     static RGX_DEFAULTS: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)([^'])static +(\w+) ?;").unwrap());
     if !reverse {
-        let cmd = RGX_DEFAULTS.replace_all(code, "${1}static $2: __fmt__ = ();");
+        let cmd = RGX_DEFAULTS.replace_all(code, "${1}static $2: __fmt__ = T;");
         let mut cmd2 = RGX.replace_all(&cmd, "${1}static $2: __fmt__ = __A_ {");
         if let Cow::Owned(cmd) = &mut cmd2 {
             *cmd = cmd.replace("l10n!:", "l10n__fmt:");
@@ -538,19 +561,19 @@ fn replace_command(code: &str, reverse: bool) -> Cow<'_, str> {
         }
     } else {
         Cow::Owned(
-            code.replace(": __fmt__ = ();", ";")
+            code.replace(": __fmt__ = T;", ";")
                 .replace(": __fmt__ = __A_ {", " = {")
                 .replace("l10n__fmt:", "l10n!:"),
         )
     }
 }
-// replace ` fn ident = { content }` with ` static __fmt_fn__ident: () = __A_ { content };// __fmt`
+// replace ` fn ident = { content }` with ` static __fmt_fn__ident: T = __A_ { content };// __fmt`
 fn replace_event_property(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m) fn +(\w+) +\{").unwrap());
     if !reverse {
-        let mut r = RGX.replace_all(code, " static __fmt_fn__$1: () = __A_ {");
+        let mut r = RGX.replace_all(code, " static __fmt_fn__$1: T = __A_ {");
         if let Cow::Owned(r) = &mut r {
-            const OPEN: &str = ": () = __A_ {";
+            const OPEN: &str = ": T = __A_ {";
             const CLOSE_MARKER: &str = "; // __fmt";
             let mut start = 0;
             while let Some(i) = r[start..].find(OPEN) {
@@ -578,7 +601,7 @@ fn replace_event_property(code: &str, reverse: bool) -> Cow<'_, str> {
     } else {
         Cow::Owned(
             code.replace(" static __fmt_fn__", " fn ")
-                .replace(": () = __A_ {", " {")
+                .replace(": T = __A_ {", " {")
                 .replace("}; // __fmt", "}"),
         )
     }
@@ -854,7 +877,7 @@ fn replace_static_ref(code: &str, reverse: bool) -> Cow<'_, str> {
     }
 }
 
-// replace `{ foo: <rest> }` with `static __fmt__: () = __A_ { foo: <rest> } // __zng-fmt`, if the `{` is the first token of  the line
+// replace `{ foo: <rest> }` with `static __fmt__: T = __A_ { foo: <rest> } // __zng-fmt`, if the `{` is the first token of  the line
 // OR with `struct __ZngFmt__ {` if contains generics, signifying declaration
 fn replace_struct_like(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*\{\s+(\w+):([^:])").unwrap());
@@ -866,9 +889,9 @@ fn replace_struct_like(code: &str, reverse: bool) -> Cow<'_, str> {
                 RGX.replace_all(code, "struct __ZngFmt__ {\n$1:$2")
             } else {
                 // probably struct init like
-                let mut r = RGX.replace_all(code, "static __fmt__: () = __A_ {\n$1:$2").into_owned();
+                let mut r = RGX.replace_all(code, "static __fmt__: T = __A_ {\n$1:$2").into_owned();
 
-                const OPEN: &str = ": () = __A_ {";
+                const OPEN: &str = ": T = __A_ {";
                 const CLOSE_MARKER: &str = "; // __zng-fmt";
                 let mut start = 0;
                 while let Some(i) = r[start..].find(OPEN) {
@@ -898,21 +921,21 @@ fn replace_struct_like(code: &str, reverse: bool) -> Cow<'_, str> {
         }
     } else {
         Cow::Owned(
-            code.replace("static __fmt__: () = __A_ {", "{")
+            code.replace("static __fmt__: T = __A_ {", "{")
                 .replace("}; // __zng-fmt", "}")
                 .replace("struct __ZngFmt__ {", "{"),
         )
     }
 }
 
-// replace `pub struct Ident: Ty {` with `pub static __fmt_vis: () = ();\nimpl __fmt_Ident_C_Ty {`
+// replace `pub struct Ident: Ty {` with `pub static __fmt_vis: T = T;\nimpl __fmt_Ident_C_Ty {`
 // AND replace `const IDENT =` with `const IDENT: __A_ =`
 fn replace_bitflags(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)struct +(\w+): +(\w+) +\{").unwrap());
     static RGX_CONST: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*const +(\w+) +=").unwrap());
-    static RGX_REV: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)static __fmt_vis__: \(\) = \(\);\s+impl __fmt_(\w+)__C_(\w+) \{").unwrap());
+    static RGX_REV: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)static __fmt_vis__: T = T;\s+impl __fmt_(\w+)__C_(\w+) \{").unwrap());
     if !reverse {
-        let mut r = RGX.replace_all(code, "static __fmt_vis__: () = ();\nimpl __fmt_${1}__C_$2 {");
+        let mut r = RGX.replace_all(code, "static __fmt_vis__: T = T;\nimpl __fmt_${1}__C_$2 {");
         if let Cow::Owned(r) = &mut r
             && let Cow::Owned(rr) = RGX_CONST.replace_all(r, "const $1: __A_ =")
         {
@@ -1088,9 +1111,9 @@ impl FmtFragServer {
         blocking::unblock(move || {
             if requests.len() == 1 {
                 let (request, response) = requests.into_iter().next().unwrap();
-                let r = match rustfmt_stdin(&Self::wrap_code_for_fmt(request), &edition) {
+                let r = match rustfmt_stdin(&Self::wrap_code_for_fmt(request.clone()), &edition) {
                     Some(f) => Self::unwrap_formatted_code(f),
-                    None => "#rustfmt-error#".to_owned(),
+                    None => "#rustfmt-error#".to_owned()
                 };
                 *response.lock() = r;
             } else {
