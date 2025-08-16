@@ -9,6 +9,7 @@
     - Add support for `bitflags!` syntax.
     - Add support for simple ident list syntax.
     - Add support for `widget_impl!` syntax.
+    - Reimplemented support for widget macros, now covers full syntax.
 
 * Fix missing mouse move events when cursor is captured and leaves the window in Windows.
 * Implement `IntoUiNode` for `std::iter` iterators of `UiNode` items.

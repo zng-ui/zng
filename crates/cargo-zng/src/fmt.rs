@@ -617,6 +617,7 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
         PropertyShorthand(&'s str),
         When { expr: &'s str, items: Vec<Item<'s>> },
         Text(&'s str),
+        WidgetSetSelfExpr(&'s str),
     }
     #[allow(unused)]
     struct Error<'s> {
@@ -633,6 +634,8 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
 
         let mut items = vec![];
         let mut stream = stream.into_iter().peekable();
+        let mut text_start = code_span.start;
+
         if code_span.start == 1 {
             if let Some(Tt::Group(g)) = stream.next()
                 && g.delimiter() == Delimiter::Brace
@@ -641,8 +644,33 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
             } else {
                 return Err(Error::new(items, "expected macro block at root"));
             }
+
+            if let Some(Tt::Punct(p)) = stream.peek()
+                && p.as_char() == '&'
+            {
+                // widget_set! first line can be "&mut self_ident;"
+                let amp = stream.next().unwrap();
+                if let Some(Tt::Ident(m)) = stream.next()
+                    && m == "mut"
+                {
+                    let start = amp.span().byte_range().start;
+                    for tt in stream.by_ref() {
+                        if let Tt::Punct(p) = tt
+                            && p.as_char() == ';'
+                        {
+                            let end = p.span().byte_range().end;
+                            items.push(Item::Text(&code[text_start..start]));
+                            items.push(Item::WidgetSetSelfExpr(&code[start..end]));
+                            text_start = end;
+                            break;
+                        }
+                    }
+                }
+                if text_start == code_span.start {
+                    return Err(Error::new(items, "expected &mut <self>"));
+                }
+            }
         }
-        let mut text_start = code_span.start;
         'outer: while let Some(tt_attr_or_name) = stream.next() {
             // skip attributes
             if let Tt::Punct(p) = &tt_attr_or_name
@@ -698,10 +726,11 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
                         return Err(Error::new(items, "expected when expression and block"));
                     }
                 } else {
-                    // take name
+                    // take name, can be ident, path::to::ident, or ident::<Ty>
                     let name_start = tt_attr_or_name.span().byte_range().start;
                     let mut tt_name_end = tt_attr_or_name;
-                    while let Some(tt) = stream.next_if(|tt| matches!(tt, Tt::Ident(_)) || matches!(tt, Tt::Punct(p) if p.as_char() == ':'))
+                    while let Some(tt) = stream
+                        .next_if(|tt| matches!(tt, Tt::Ident(_)) || matches!(tt, Tt::Punct(p) if [':', '<', '>'].contains(&p.as_char())))
                     {
                         tt_name_end = tt;
                     }
@@ -783,7 +812,7 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
                     // OR ident = expr0, expr1;
                     // OR ident = { field: expr, };
                     Item::Property { name, value } => {
-                        r.push_str(name);
+                        r.push_str(name); // even `path::ident::<Ty>` just works here
                         r.push_str(" =");
 
                         static NAMED_FIELDS_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*\{\s*\w+:\s+").unwrap());
@@ -817,6 +846,11 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
                     Item::Text(txt) => {
                         r.push_str(txt);
                     }
+                    Item::WidgetSetSelfExpr(expr) => {
+                        r.push_str("let __fmt_self = ");
+                        r.push_str(expr);
+                        r.push_str("; // zng-fmt");
+                    }
                 }
             }
         }
@@ -827,14 +861,31 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
     } else {
         let code = code
             .replace("= __ZngFmt {", "= {")
-            .replace("= __fmt(", "= ")
             .replace("); // __fmt", ";")
             .replace("if __fmt_w(", "when ")
-            .replace("__unset!()", "unset!");
+            .replace("__unset!()", "unset!")
+            .replace("let __fmt_self = ", "")
+            .replace("; // zng-fmt", ";");
 
         static WHEN_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\) \{\s+// __fmt").unwrap());
         let code = WHEN_REV_RGX.replace_all(&code, " {");
         let code = match replace_expr_var(&code, true) {
+            Cow::Borrowed(_) => Cow::Owned(code.into_owned()),
+            Cow::Owned(o) => Cow::Owned(o),
+        };
+
+        // like `.replace("= __fmt(", "= ")`, but only adds the space after = if did not wrap
+        // this is important to avoid inserting a trailing space and causing a reformat for every file
+        static UNNAMED_VALUE_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)= __fmt\(([^\r\n]?)").unwrap());
+        let replaced = UNNAMED_VALUE_REV_RGX.replace_all(&code, |caps: &regex::Captures| {
+            let next_char = &caps[1];
+            if next_char.is_empty() {
+                "=".to_owned()
+            } else {
+                format!("= {next_char}")
+            }
+        });
+        let code = match replaced {
             Cow::Borrowed(_) => Cow::Owned(code.into_owned()),
             Cow::Owned(o) => Cow::Owned(o),
         };
@@ -961,6 +1012,8 @@ fn replace_simple_ident_list(code: &str, reverse: bool) -> Cow<'_, str> {
                 if WORD_RGX.is_match(ident) {
                     output.push_str(ident);
                     output.push_str(", ");
+                } else if ident.is_empty() {
+                    continue;
                 } else {
                     return Cow::Borrowed(code);
                 }
@@ -1113,21 +1166,18 @@ impl FmtFragServer {
                 let (request, response) = requests.into_iter().next().unwrap();
                 let r = match rustfmt_stdin(&Self::wrap_code_for_fmt(request.clone()), &edition) {
                     Some(f) => Self::unwrap_formatted_code(f),
-                    None => "#rustfmt-error#".to_owned()
+                    None => "#rustfmt-error#".to_owned(),
                 };
                 *response.lock() = r;
             } else {
-                // !!: TODO zng/window.rs keeps changing using wraps, is it because of this adding depths?
                 match rustfmt_stdin(&Self::wrap_batch_for_fmt(requests.iter().map(|(k, _)| k.as_str())), &edition) {
                     Some(r) => {
-                        println!("!!: ok for {}", requests.len());
                         let r = Self::unwrap_batch_for_fmt(r, requests.len());
                         for ((_, response), r) in requests.into_iter().zip(r) {
                             *response.lock() = r;
                         }
                     }
                     None => {
-                        println!("!!: error retries {}", requests.len());
                         for (request, response) in requests {
                             let r = match rustfmt_stdin(&Self::wrap_code_for_fmt(request), &edition) {
                                 Some(f) => Self::unwrap_formatted_code(f),

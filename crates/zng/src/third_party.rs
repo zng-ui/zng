@@ -219,20 +219,23 @@ pub(crate) fn setup_default_view() {
                 mode = zng::scroll::ScrollMode::VERTICAL;
                 child_align = Align::FILL;
                 child = DataView! {
-                    view::<Txt> = search, hn!(selected, |a: &DataViewArgs<Txt>| {
-                        let search = a.data().get();
-                        let licenses = if search.is_empty() {
-                            licenses.clone()
-                        } else {
-                            licenses.iter().filter(|t| t.user.name.contains(search.as_str())).cloned().collect()
-                        };
+                    view::<Txt> =
+                        search,
+                        hn!(selected, |a: &DataViewArgs<Txt>| {
+                            let search = a.data().get();
+                            let licenses = if search.is_empty() {
+                                licenses.clone()
+                            } else {
+                                licenses.iter().filter(|t| t.user.name.contains(search.as_str())).cloned().collect()
+                            };
 
-                        a.set_view(Stack! {
-                            toggle::selector = toggle::Selector::single(selected.clone());
-                            direction = StackDirection::top_to_bottom();
-                            children = licenses.into_iter().map(default_item_view);
-                        })
-                    });
+                            a.set_view(Stack! {
+                                toggle::selector = toggle::Selector::single(selected.clone());
+                                direction = StackDirection::top_to_bottom();
+                                children = licenses.into_iter().map(default_item_view);
+                            })
+                        }),
+                    ;
                 };
                 when *#{alternate_layout.clone()} {
                     layout::max_height = 100; // placed on top in small width screens
