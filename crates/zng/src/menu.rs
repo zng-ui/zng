@@ -18,9 +18,12 @@
 //!                     checked = var(true);
 //!                 },
 //!                 Hr!(),
-//!                 SubMenu!("Recent", (0..10).map(|i| Button! {
-//!                     child = Text!(formatx!("recent file {i}"));
-//!                 })),
+//!                 SubMenu!(
+//!                     "Recent",
+//!                     (0..10).map(|i| Button! {
+//!                         child = Text!(formatx!("recent file {i}"));
+//!                     })
+//!                 ),
 //!                 Hr!(),
 //!                 Button!(zng::app::EXIT_CMD),
 //!             ]
