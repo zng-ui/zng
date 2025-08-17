@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs,
     io::{self, BufRead, Read, Write},
     ops,
@@ -58,8 +58,6 @@ pub struct FmtArgs {
 }
 
 pub fn run(mut args: FmtArgs) {
-    let action = if args.check { "checking" } else { "formatting" };
-
     if args.rustfmt_errors {
         SHOW_RUSTFMT_ERRORS.store(true, Relaxed);
     }
@@ -102,46 +100,49 @@ pub fn run(mut args: FmtArgs) {
         return;
     }
 
-    let mut custom_fmt_files = vec![];
+    let mut file_patterns = vec![];
     if let Some(glob) = &args.files {
-        if args.manifest_path.is_some() || args.package.is_some() {
-            fatal!("--files must not be set when crate is set");
+        file_patterns.push(PathBuf::from(glob));
+    }
+    if let Some(pkg) = &args.package {
+        if args.manifest_path.is_some() {
+            fatal!("expected only one of --package, --manifest-path");
         }
-
-        for file in glob::glob(glob).unwrap_or_else(|e| fatal!("{e}")) {
-            let file = file.unwrap_or_else(|e| fatal!("{e}"));
-            custom_fmt_files.push(file);
+        match util::manifest_path_from_package(pkg) {
+            Some(m) => args.manifest_path = Some(m),
+            None => fatal!("package `{pkg}` not found in workspace"),
         }
+    }
+    let manifest_paths = if let Some(path) = &args.manifest_path {
+        vec![PathBuf::from(path)]
+    } else if args.files.is_none() {
+        let workspace_root = workspace_root().unwrap_or_else(|e| fatal!("cannot find workspace root, {e}"));
+        file_patterns.push(workspace_root.join("README.md"));
+        file_patterns.push(workspace_root.join("docs/**/*.md"));
+        util::workspace_manifest_paths()
     } else {
-        if let Some(pkg) = &args.package {
-            if args.manifest_path.is_some() {
-                fatal!("expected only one of --package, --manifest-path");
-            }
-            match util::manifest_path_from_package(pkg) {
-                Some(m) => args.manifest_path = Some(m),
-                None => fatal!("package `{pkg}` not found in workspace"),
-            }
-        }
-        if let Some(path) = &args.manifest_path {
-            let files = Path::new(&path)
-                .parent()
-                .unwrap()
-                .join("**/*.rs")
-                .display()
-                .to_string()
-                .replace('\\', "/");
-            for file in glob::glob(&files).unwrap_or_else(|e| fatal!("{e}")) {
-                let file = file.unwrap_or_else(|e| fatal!("{e}"));
-                custom_fmt_files.push(file);
-            }
-        } else {
-            for path in util::workspace_manifest_paths() {
-                let files = path.parent().unwrap().join("**/*.rs").display().to_string().replace('\\', "/");
-                for file in glob::glob(&files).unwrap_or_else(|e| fatal!("{e}")) {
-                    let file = file.unwrap_or_else(|e| fatal!("{e}"));
-                    custom_fmt_files.push(file);
+        vec![]
+    };
+    for path in manifest_paths {
+        let r = (|path: &Path| -> Result<(), Box<dyn std::error::Error>> {
+            let path = path.parent().ok_or("root dir")?;
+            for entry in fs::read_dir(path)? {
+                let entry = entry?;
+                let ft = entry.file_type()?;
+                if ft.is_dir() {
+                    if entry.file_name() != "target" {
+                        file_patterns.push(entry.path().join("**/*.rs"));
+                        file_patterns.push(entry.path().join("**/*.md"));
+                    }
+                } else if ft.is_file() {
+                    file_patterns.push(entry.path());
                 }
             }
+
+            Ok(())
+        })(&path);
+        if let Err(e) = r {
+            error!("failed to select files for {}, {e}", path.display())
         }
     }
 
@@ -154,25 +155,42 @@ pub fn run(mut args: FmtArgs) {
         }
     };
     let cutout_time = history.insert(&args);
-    let mut custom_fmt_files: Vec<_> = custom_fmt_files
+    let files: HashSet<PathBuf> = file_patterns
+        .into_par_iter()
+        .flat_map(|pattern| {
+            let files = match glob::glob(&pattern.display().to_string().replace('\\', "/")) {
+                Ok(f) => f.flat_map(|e| e.ok()).collect(),
+                Err(_) => vec![],
+            };
+            files
+                .into_par_iter()
+                .filter(|f| matches!(f.extension(), Some(ext) if ext == "rs" || ext == "md"))
+        })
+        .collect();
+
+    let mut files: Vec<_> = files
         .into_par_iter()
         .filter_map(|p| {
-            let modified = std::fs::metadata(&p)
-                .unwrap_or_else(|e| fatal!("{e}"))
-                .modified()
-                .unwrap_or_else(|e| fatal!("{e}"));
-            let modified = FmtHistory::time(modified);
-            if modified > cutout_time { Some((p, modified)) } else { None }
+            if let Ok(meta) = std::fs::metadata(&p)
+                && let Ok(modified) = meta.modified()
+            {
+                let modified = FmtHistory::time(modified);
+                if modified > cutout_time {
+                    return Some((p, modified));
+                };
+            }
+            None
         })
         .collect();
 
     // latest modified first
-    custom_fmt_files.sort_by(|a, b| b.1.cmp(&a.1));
-    let custom_fmt_files: Vec<_> = custom_fmt_files.into_iter().map(|(p, _)| p).collect();
+    files.sort_by(|a, b| b.1.cmp(&a.1));
+
+    let files: Vec<_> = files.into_iter().map(|(p, _)| p).collect();
 
     let fmt_server = FmtFragServer::spawn(args.edition.clone());
 
-    custom_fmt_files.par_chunks(64).for_each(|c| {
+    files.par_chunks(64).for_each(|c| {
         // apply normal format first
         rustfmt_files(c, &args.edition, args.check);
     });
@@ -180,14 +198,25 @@ pub fn run(mut args: FmtArgs) {
     // apply custom format
     let check = args.check;
     let fmt_server2 = fmt_server.clone();
-    let mut futs: Vec<_> = custom_fmt_files
+    let mut futs: Vec<_> = files
         .par_iter()
         .map(move |file| {
             let fmt_server = fmt_server2.clone();
             Some(Box::pin(async move {
-                custom_fmt(file.clone(), check, fmt_server)
-                    .await
-                    .unwrap_or_else(|e| fatal!("error {action} `{}`, {e}", file.display()))
+                let is_rs = file.extension().unwrap() == "rs";
+                let r = if is_rs {
+                    custom_fmt_rs(file.clone(), check, fmt_server).await
+                } else {
+                    debug_assert!(file.extension().unwrap() == "md");
+                    custom_fmt_md(file.clone(), check, fmt_server).await.map(|_| None)
+                };
+                match r {
+                    Ok(r) => r,
+                    Err(e) => {
+                        error!("{e}");
+                        None
+                    }
+                }
             }))
         })
         .collect();
@@ -235,7 +264,7 @@ pub fn run(mut args: FmtArgs) {
 ///
 /// Changed files need reformat in cases like `[Macro!{..}, Macro!{..}]` where the custom macro format
 /// introduces line break, this causes rustfmt to also make the `[]` multiline.
-async fn custom_fmt(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io::Result<Option<PathBuf>> {
+async fn custom_fmt_rs(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io::Result<Option<PathBuf>> {
     let file = fs::read_to_string(&rs_file)?;
 
     // skip UTF-8 BOM
@@ -250,10 +279,15 @@ async fn custom_fmt(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io::Re
     let mut formatted_code = file[..file.len() - file_code.len()].to_owned();
     formatted_code.reserve(file.len());
 
-    let file_stream = file_code
-        .parse()
-        .unwrap_or_else(|e| fatal!("cannot parse `{}`, {e}", rs_file.display()));
-
+    let file_stream = match file_code.parse() {
+        Ok(s) => s,
+        Err(e) => {
+            if SHOW_RUSTFMT_ERRORS.load(Relaxed) {
+                error!("cannot parse `{}`, {e}", rs_file.display());
+            }
+            return Ok(None);
+        }
+    };
     formatted_code.push_str(&try_fmt_child_macros(file_code, file_stream, &fmt).await);
 
     if !formatted_code.ends_with('\n') {
@@ -262,13 +296,96 @@ async fn custom_fmt(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io::Re
 
     if formatted_code != file {
         if check {
-            fatal!("extended format does not match in file `{}`", rs_file.display());
+            fatal!("format does not match in file `{}`", rs_file.display());
         }
         fs::write(&rs_file, formatted_code)?;
         Ok(Some(rs_file))
     } else {
         Ok(None)
     }
+}
+/// Applies rustfmt and custom format for all Rust code blocks in the Markdown file
+async fn custom_fmt_md(md_file: PathBuf, check: bool, fmt: FmtFragServer) -> io::Result<()> {
+    let file = fs::read_to_string(&md_file)?;
+
+    let mut formatted = String::new();
+
+    let mut lines = file.lines();
+    while let Some(line) = lines.next() {
+        if line.trim_start().starts_with("```rust") {
+            formatted.push_str(line);
+            formatted.push('\n');
+
+            let mut code = String::new();
+            let mut close_line = "";
+            for line in lines.by_ref() {
+                if line.trim_start().starts_with("```") {
+                    close_line = line;
+                    break;
+                } else {
+                    code.push_str(line);
+                    code.push('\n');
+                }
+            }
+
+            if close_line.is_empty() {
+                formatted.push_str(&code);
+                continue;
+            }
+
+            // format code block
+            if !code.trim().is_empty()
+                && let Some(code) = fmt.format(format!("fn __zng_fmt() {{\n{code}\n}}")).await
+            {
+                // rustfmt ok
+
+                let code_stream: proc_macro2::TokenStream = match code.parse() {
+                    Ok(s) => s,
+                    Err(e) => {
+                        if SHOW_RUSTFMT_ERRORS.load(Relaxed) {
+                            error!("cannot parse code block in `{}`, {e}", md_file.display());
+                        }
+                        return Ok(());
+                    }
+                };
+                let code = try_fmt_child_macros(&code, code_stream.into(), &fmt).await;
+                let code = code.strip_prefix("fn __zng_fmt() {").unwrap().trim_end().strip_suffix('}').unwrap();
+                let mut fmt_code = String::new();
+                let mut wrapper_tabs = String::new();
+                for line in code.lines() {
+                    if line.trim().is_empty() {
+                        fmt_code.push('\n');
+                    } else {
+                        if wrapper_tabs.is_empty() {
+                            for _ in 0..(line.len() - line.trim_start().len()) {
+                                wrapper_tabs.push(' ');
+                            }
+                        }
+                        fmt_code.push_str(line.strip_prefix(&wrapper_tabs).unwrap_or(line));
+                        fmt_code.push('\n');
+                    }
+                }
+                formatted.push_str(fmt_code.trim());
+                formatted.push('\n');
+            } else {
+                formatted.push_str(&code);
+            }
+            formatted.push_str(close_line);
+            formatted.push('\n');
+        } else {
+            formatted.push_str(line);
+            formatted.push('\n')
+        }
+    }
+
+    if formatted != file {
+        if check {
+            fatal!("format does not match in file `{}`", md_file.display());
+        }
+        fs::write(&md_file, formatted)?;
+    }
+
+    Ok(())
 }
 
 /// Find "macro_ident! {}" and `try_fmt_macro` the macro body if it is not marked skip
@@ -1365,7 +1482,18 @@ fn rustfmt_files(files: &[PathBuf], edition: &str, check: bool) {
     if check {
         rustfmt.arg("--check");
     }
-    rustfmt.args(files);
+    let mut any = false;
+    for file in files {
+        if let Some(ext) = file.extension()
+            && ext == "rs"
+        {
+            rustfmt.arg(file);
+            any = true;
+        }
+    }
+    if !any {
+        return;
+    }
 
     match rustfmt.status() {
         Ok(s) => {
@@ -1470,20 +1598,24 @@ impl FmtHistory {
     }
 
     fn path() -> io::Result<PathBuf> {
-        let output = std::process::Command::new("cargo")
-            .arg("locate-project")
-            .arg("--workspace")
-            .arg("--message-format=plain")
-            .stderr(Stdio::inherit())
-            .output()?;
-        if !output.status.success() {
-            return Err(io::Error::new(io::ErrorKind::NotFound, "workspace root not found"));
-        }
-        let root_dir = Path::new(std::str::from_utf8(&output.stdout).unwrap().trim()).parent().unwrap();
+        let root_dir = workspace_root()?;
         let target_dir = root_dir.join("target");
         let _ = std::fs::create_dir(&target_dir);
         Ok(target_dir.join(".cargo-zng-fmt-history"))
     }
+}
+fn workspace_root() -> io::Result<PathBuf> {
+    let output = std::process::Command::new("cargo")
+        .arg("locate-project")
+        .arg("--workspace")
+        .arg("--message-format=plain")
+        .stderr(Stdio::inherit())
+        .output()?;
+    if !output.status.success() {
+        return Err(io::Error::new(io::ErrorKind::NotFound, "workspace root not found"));
+    }
+    let root_dir = Path::new(std::str::from_utf8(&output.stdout).unwrap().trim()).parent().unwrap();
+    Ok(root_dir.to_owned())
 }
 
 /// proc_macro2 types are not send, even when compiled outside of a proc-macro crate

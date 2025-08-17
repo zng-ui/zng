@@ -11,6 +11,8 @@
     - Add support for `widget_impl!` syntax.
     - Reimplemented support for widget macros, now covers full syntax.
     - Add support for `when_var!` syntax.
+    - Add support for Rust code blocks in Markdown files. !!: TODO
+    - Add support for doctest code blocks.
 
 * Fix missing mouse move events when cursor is captured and leaves the window in Windows.
 * Implement `IntoUiNode` for `std::iter` iterators of `UiNode` items.

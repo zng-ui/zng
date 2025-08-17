@@ -37,7 +37,7 @@ Options:
 
 ## `fmt`
 
-Formats the code with `cargo fmt` and formats Zng macros and some other braced macros.
+Formats the code with `rustfmt` and formats Zng macros and some other braced macros.
 
 <!--do doc --readme do zng fmt --help -->
 ```console
@@ -60,7 +60,7 @@ Options:
           Format the workspace crate identified by package name
 
   -f, --files <FILES>
-          Format all files matched by glob
+          Format all .rs and .md files matched by glob
 
   -s, --stdin
           Format the stdin to the stdout
@@ -75,6 +75,14 @@ Options:
 The formatter supports Zng macros and also attempts to format all braced macro contents 
 like `foo! { <contents> }` by copying it into a temporary item `fn _fmt_item() { <contents> }` 
 and trying `rustfmt`, if the contents cannot be formatted like this they are not touched.
+
+The formatter also attempts to format Rust markdown code blocks and doctest code blocks.
+
+When called for the workspace or with a `--manifest-path` the formatter will format any `**/*.rs` and `**/*.md` file
+in each crate folder, except for those in the target directory. For workspaces it will also format the `./README.md` file
+and `./docs/**/*.md` files.
+
+The formatter will **not consider crate edition**, it always uses the `--edition` value.
 
 ### IDE Integration
 
