@@ -16,6 +16,6 @@ fn main() {
         simple_type = {
             simple_a: 42,
             simple_b: true,
-        }
+        };
     };
 }

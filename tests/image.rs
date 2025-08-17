@@ -25,7 +25,7 @@ fn error_view_recursion() {
                         source = img.clone();
                     }
                 });
-            }
+            };
         }
     }));
 

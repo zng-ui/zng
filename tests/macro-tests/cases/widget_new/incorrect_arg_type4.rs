@@ -11,6 +11,6 @@ fn main() {
         background_gradient = {
             axis: 0.deg(),
             stops: true,
-        }
+        };
     };
 }

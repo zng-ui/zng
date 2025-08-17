@@ -5,6 +5,6 @@ fn main() {
     let _ = Wgt! {
         // margin has one field
         // this is interpreted as an unnamed assign `{ }` is the value
-        margin = {}
+        margin = {};
     };
 }

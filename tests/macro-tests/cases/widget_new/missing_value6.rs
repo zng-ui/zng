@@ -6,6 +6,7 @@ use zng::{
 
 fn main() {
     let _scope = APP.minimal();
+    #[rustfmt::skip]
     let _ = Wgt! {
         background_gradient = 0.deg(),
         margin = 0;

@@ -6,6 +6,6 @@ fn main() {
         margin = {
             let _ = unknown::path();
             0
-        }
+        };
     };
 }
