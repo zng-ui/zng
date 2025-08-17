@@ -290,9 +290,7 @@ async fn custom_fmt_rs(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io:
     };
     formatted_code.push_str(&try_fmt_child_macros(file_code, file_stream, &fmt).await);
 
-    if !formatted_code.ends_with('\n') {
-        formatted_code.push('\n');
-    }
+    let formatted_code = custom_fmt_docs(&formatted_code, &fmt, &rs_file).await;
 
     if formatted_code != file {
         if check {
@@ -303,6 +301,127 @@ async fn custom_fmt_rs(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io:
     } else {
         Ok(None)
     }
+}
+async fn custom_fmt_docs(code: &str, fmt: &FmtFragServer, rs_file: &Path) -> String {
+    let mut formatted_code = String::new();
+    let mut lines = code.lines().peekable();
+    while let Some(mut line) = lines.next() {
+        let maybe = line.trim_start();
+        if maybe.starts_with("//!") || maybe.starts_with("///") {
+            // enter docs sequence
+            let prefix = &line[..line.find("//").unwrap() + 3];
+            loop {
+                // push markdown lines, or doctest header line
+                formatted_code.push_str(line);
+                formatted_code.push('\n');
+
+                let doc_line = line.strip_prefix(prefix).unwrap();
+
+                match doc_line.trim().strip_prefix("```") {
+                    Some("" | "rust" | "should_panic" | "no_run" | "edition2015" | "edition2018" | "edition2021" | "edition2024") => {
+                        // is doctest header line
+
+                        let mut code = String::new();
+                        let mut close_line = "";
+                        while let Some(l) = lines.next_if(|l| l.starts_with(prefix)) {
+                            let doc_line = l.strip_prefix(prefix).unwrap();
+                            if doc_line.trim_start().starts_with("```") {
+                                close_line = l;
+                                break;
+                            }
+                            code.push_str(doc_line);
+                            code.push('\n');
+                        }
+
+                        static HIDDEN_LINES_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^ *# +(.*)$").unwrap());
+                        if !close_line.is_empty() // is properly closed
+                        && !code.trim().is_empty() // is not empty
+                        && let Some(mut code) = {
+                            let escaped = format!("fn __zng_fmt() {{\n{}\n}}", HIDDEN_LINES_RGX.replace_all(&code, "// __# $1"));
+                            fmt.format(escaped).await
+                        } {
+                            // rustfmt ok
+
+                            let stream = code
+                                .parse::<proc_macro2::TokenStream>()
+                                .map(pm2_send::TokenStream::from)
+                                .map_err(|e| e.to_string());
+                            match stream {
+                                Ok(s) => code = try_fmt_child_macros(&code, s, fmt).await,
+                                Err(e) => {
+                                    if SHOW_RUSTFMT_ERRORS.load(Relaxed) {
+                                        error!("cannot parse doctest block in `{}`, {e}", rs_file.display());
+                                    }
+                                }
+                            };
+
+                            let code = code
+                                .strip_prefix("fn __zng_fmt() {")
+                                .unwrap()
+                                .trim_end()
+                                .strip_suffix('}')
+                                .unwrap()
+                                .replace("// __# ", "# ");
+                            let mut fmt_code = String::new();
+                            let mut wrapper_tabs = String::new();
+                            for line in code.lines() {
+                                if line.trim().is_empty() {
+                                    fmt_code.push('\n');
+                                } else {
+                                    if wrapper_tabs.is_empty() {
+                                        for _ in 0..(line.len() - line.trim_start().len()) {
+                                            wrapper_tabs.push(' ');
+                                        }
+                                    }
+                                    fmt_code.push_str(line.strip_prefix(&wrapper_tabs).unwrap_or(line));
+                                    fmt_code.push('\n');
+                                }
+                            }
+                            for line in fmt_code.trim().lines() {
+                                formatted_code.push_str(prefix);
+                                formatted_code.push(' ');
+                                formatted_code.push_str(line);
+                                formatted_code.push('\n');
+                            }
+                        } else {
+                            // failed format
+                            for line in code.lines() {
+                                formatted_code.push_str(prefix);
+                                formatted_code.push_str(line);
+                                formatted_code.push('\n');
+                            }
+                        }
+                        if !close_line.is_empty() {
+                            formatted_code.push_str(close_line);
+                            formatted_code.push('\n');
+                        }
+                    }
+                    Some(_) => {
+                        // is Markdown code block for `ignore`, `compile_fail` or another language
+                        while let Some(l) = lines.next_if(|l| l.starts_with(prefix)) {
+                            formatted_code.push_str(l);
+                            formatted_code.push('\n');
+                            let doc_line = l.strip_prefix(prefix).unwrap();
+                            if doc_line.trim_start().starts_with("```") {
+                                break;
+                            }
+                        }
+                    }
+                    None => {}
+                }
+
+                match lines.next_if(|l| l.starts_with(prefix)) {
+                    Some(l) => line = l, // advance to next line in the same doc sequence
+                    None => break,       // continue to seek next doc sequence
+                }
+            }
+        } else {
+            // normal code lines, already formatted
+            formatted_code.push_str(line);
+            formatted_code.push('\n');
+        }
+    }
+    formatted_code
 }
 /// Applies rustfmt and custom format for all Rust code blocks in the Markdown file
 async fn custom_fmt_md(md_file: PathBuf, check: bool, fmt: FmtFragServer) -> io::Result<()> {
@@ -335,20 +454,22 @@ async fn custom_fmt_md(md_file: PathBuf, check: bool, fmt: FmtFragServer) -> io:
 
             // format code block
             if !code.trim().is_empty()
-                && let Some(code) = fmt.format(format!("fn __zng_fmt() {{\n{code}\n}}")).await
+                && let Some(mut code) = fmt.format(format!("fn __zng_fmt() {{\n{code}\n}}")).await
             {
                 // rustfmt ok
 
-                let code_stream: proc_macro2::TokenStream = match code.parse() {
-                    Ok(s) => s,
+                let stream = code
+                    .parse::<proc_macro2::TokenStream>()
+                    .map(pm2_send::TokenStream::from)
+                    .map_err(|e| e.to_string());
+                match stream {
+                    Ok(s) => code = try_fmt_child_macros(&code, s, &fmt).await,
                     Err(e) => {
                         if SHOW_RUSTFMT_ERRORS.load(Relaxed) {
                             error!("cannot parse code block in `{}`, {e}", md_file.display());
                         }
-                        return Ok(());
                     }
                 };
-                let code = try_fmt_child_macros(&code, code_stream.into(), &fmt).await;
                 let code = code.strip_prefix("fn __zng_fmt() {").unwrap().trim_end().strip_suffix('}').unwrap();
                 let mut fmt_code = String::new();
                 let mut wrapper_tabs = String::new();
