@@ -48,7 +48,7 @@ lazy_static! {
 ///
 ///     // directories are available after `init!`.
 ///     let _res = zng::env::res("");
-///     
+///
 ///     // APP.defaults().run(...);
 ///
 ///     // on_exit handlers are called here

@@ -135,14 +135,13 @@ impl ImageSource {
     /// # fn main() { }
     /// # fn demo() {
     /// # let _ =
-    /// ImageSource::render_node(
-    ///     RenderMode::Software,
-    ///     |_args| Container! {
+    /// ImageSource::render_node(RenderMode::Software, |_args| {
+    ///     Container! {
     ///         size = (500, 400);
     ///         background_color = colors::GREEN;
     ///         child = Text!("Rendered!");
     ///     }
-    /// )
+    /// })
     /// # ; }
     /// ```
     ///

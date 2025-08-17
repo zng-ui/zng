@@ -274,7 +274,7 @@ impl<'de> serde::Deserialize<'de> for FontName {
 ///
 /// ```
 /// # use zng_ext_font::*;
-/// fn foo(font_names: impl Into<FontNames>) { }
+/// fn foo(font_names: impl Into<FontNames>) {}
 ///
 /// foo(["Arial", "sans-serif", "monospace"]);
 /// ```

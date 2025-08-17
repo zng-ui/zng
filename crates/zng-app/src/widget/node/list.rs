@@ -39,10 +39,7 @@ use super::*;
 /// # use zng_app::widget::node::*;
 /// # use zng_app::widget::base::*;
 /// # macro_rules! Text { ($($tt:tt)*) => { UiNode::nil() } }
-/// let widgets = ui_vec![
-///     Text!("Hello"),
-///     Text!("World!")
-/// ];
+/// let widgets = ui_vec![Text!("Hello"), Text!("World!")];
 /// ```
 ///
 /// Create a vec containing the node repeated **n** times:

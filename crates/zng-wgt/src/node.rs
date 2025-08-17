@@ -908,7 +908,7 @@ macro_rules! __command_property {
 /// # use zng_app::var::*;
 /// # use zng_wgt::node::*;
 /// # command! {
-/// #   pub static PASTE_CMD;
+/// # pub static PASTE_CMD;
 /// # }
 /// command_property! {
 ///     /// Paste command property docs.
@@ -947,7 +947,7 @@ macro_rules! __command_property {
 /// # use zng_app::var::*;
 /// # use zng_wgt::node::*;
 /// # command! {
-/// #   pub static PASTE_CMD;
+/// # pub static PASTE_CMD;
 /// # }
 /// command_property! {
 ///     /// Paste command property docs.
@@ -972,7 +972,7 @@ macro_rules! __command_property {
 /// # use zng_app::var::*;
 /// # use zng_wgt::node::*;
 /// # command! {
-/// #   pub static PASTE_CMD;
+/// # pub static PASTE_CMD;
 /// # }
 /// /// Clipboard handler.
 /// #[widget_mixin]

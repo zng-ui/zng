@@ -8,7 +8,6 @@
 //! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
-//!
 //! let mut popup = None;
 //! let is_closed = var(true);
 //! # let _ =
@@ -25,7 +24,7 @@
 //!         } else if let Some(p) = popup.take() {
 //!             POPUP.close(&p);
 //!         }
-//!     })
+//!     });
 //! }
 //! # ;
 //! ```

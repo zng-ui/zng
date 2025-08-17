@@ -11,48 +11,48 @@
 //! [`on_focus_changed`](fn@on_focus_changed) and other properties on this module.
 //!
 //! ```
-//! use zng::{prelude::*, focus};
+//! use zng::{focus, prelude::*};
 //!
 //! # let _scope = APP.defaults();
 //!
 //! focus::FOCUS_CHANGED_EVENT
-//! .on_pre_event(app_hn!(|args: &focus::FocusChangedArgs, _| {
-//!     println!("new_focus: {:?}", args.new_focus);
-//! }))
-//! .perm();
+//!     .on_pre_event(app_hn!(|args: &focus::FocusChangedArgs, _| {
+//!         println!("new_focus: {:?}", args.new_focus);
+//!     }))
+//!     .perm();
 //!
 //! # let _ =
 //! Stack!(
-//! top_to_bottom,
-//! 5,
-//! ui_vec![
-//!     Wgt! {
-//!         id = "subject";
-//!         focus::focusable = true;
+//!     top_to_bottom,
+//!     5,
+//!     ui_vec![
+//!         Wgt! {
+//!             id = "subject";
+//!             focus::focusable = true;
 //!
-//!         layout::size = (100, 30);
-//!         widget::background_color = colors::RED;
-//!         when *#focus::is_focused {
-//!             widget::background_color = colors::GREEN;
+//!             layout::size = (100, 30);
+//!             widget::background_color = colors::RED;
+//!             when *#focus::is_focused {
+//!                 widget::background_color = colors::GREEN;
+//!             }
+//!
+//!             focus::on_focus = hn!(|_| {
+//!                 println!("subject on_focus");
+//!             });
+//!             focus::on_blur = hn!(|_| {
+//!                 println!("subject on_blur");
+//!             });
+//!         },
+//!         Button! {
+//!             child = Text!("Focus subject");
+//!             on_click = hn!(|_| {
+//!                 FOCUS.focus_widget("subject", /*highlight: */ false);
+//!             });
+//!         },
+//!         Text! {
+//!             txt = FOCUS.focused().map(|f| formatx!("focused {f:?}"));
 //!         }
-//!
-//!         focus::on_focus = hn!(|_| {
-//!             println!("subject on_focus");
-//!         });
-//!         focus::on_blur = hn!(|_| {
-//!             println!("subject on_blur");
-//!         });
-//!     },
-//!     Button! {
-//!         child = Text!("Focus subject");
-//!         on_click = hn!(|_| {
-//!             FOCUS.focus_widget("subject", /*highlight: */ false);
-//!         })
-//!     },
-//!     Text! {
-//!         txt = FOCUS.focused().map(|f| formatx!("focused {f:?}"));
-//!     }
-//! ]
+//!     ]
 //! )
 //! # ;
 //! ```

@@ -58,12 +58,16 @@
 //!     toggle::selector = toggle::Selector::single(selected_item.clone());
 //!
 //!     spacing = 5;
-//!     children = (1..=10_i32).map(|i| {
-//!         Toggle! {
-//!             child = Text!("Item {i}");
-//!             value::<i32> = i;
-//!         }
-//!     }).collect::<Vec<_>>();
+//!     children =
+//!         (1..=10_i32)
+//!             .map(|i| {
+//!                 Toggle! {
+//!                     child = Text!("Item {i}");
+//!                     value::<i32> = i;
+//!                 }
+//!             })
+//!             .collect::<Vec<_>>(),
+//!     ;
 //! }
 //! # ;
 //! ```
@@ -165,12 +169,14 @@
 //!         child = Stack! {
 //!             toggle::selector = toggle::Selector::single(txt.clone());
 //!             direction = StackDirection::top_to_bottom();
-//!             children = options.into_iter().map(|o| Toggle! {
-//!                 child = Text!(o);
-//!                 value::<Txt> = o;
+//!             children = options.into_iter().map(|o| {
+//!                 Toggle! {
+//!                     child = Text!(o);
+//!                     value::<Txt> = o;
+//!                 }
 //!             });
 //!         };
-//!     })
+//!     });
 //! }
 //! # ;
 //! ```

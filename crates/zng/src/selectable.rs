@@ -13,24 +13,30 @@
 //! ```
 //! use zng::prelude::*;
 //! fn show_error(msg: impl Into<Txt>) {
-//!     LAYERS.insert(LayerIndex::TOP_MOST, Container! {
-//!         id = "error-dlg";
-//!         widget::modal = true;
-//!         child_align = layout::Align::CENTER;
-//!         child = Container! {
-//!             padding = 10;
-//!             widget::background_color = colors::RED.desaturate(80.pct());
-//!             child_top = text::Strong!("Error"), 5;
-//!             child = SelectableText!(msg.into());
-//!             child_bottom = Button! {
-//!                 child = Text!("Ok");
-//!                 layout::align = layout::Align::END;
-//!                 on_click = hn!(|_| {
-//!                     LAYERS.remove("error-dlg");
-//!                 });
-//!             }, 10;
-//!         }
-//!     });
+//!     LAYERS.insert(
+//!         LayerIndex::TOP_MOST,
+//!         Container! {
+//!             id = "error-dlg";
+//!             widget::modal = true;
+//!             child_align = layout::Align::CENTER;
+//!             child = Container! {
+//!                 padding = 10;
+//!                 widget::background_color = colors::RED.desaturate(80.pct());
+//!                 child_top = text::Strong!("Error"), 5;
+//!                 child = SelectableText!(msg.into());
+//!                 child_bottom =
+//!                     Button! {
+//!                         child = Text!("Ok");
+//!                         layout::align = layout::Align::END;
+//!                         on_click = hn!(|_| {
+//!                             LAYERS.remove("error-dlg");
+//!                         });
+//!                     },
+//!                     10,
+//!                 ;
+//!             };
+//!         },
+//!     );
 //! }
 //! ```
 //!

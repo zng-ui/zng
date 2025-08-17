@@ -20,7 +20,9 @@ use parking_lot::Mutex;
 ///
 /// ```
 /// zng_env::on_process_start!(|args| {
-///     if args.yield_count == 0 { return args.yield_once(); }
+///     if args.yield_count == 0 {
+///         return args.yield_once();
+///     }
 ///
 ///     if std::env::var("FOO_MARKER").is_ok() {
 ///         println!("Spawned as foo!");

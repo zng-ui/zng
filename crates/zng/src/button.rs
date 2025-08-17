@@ -50,15 +50,19 @@
 //!
 //! # let _scope = APP.defaults();
 //! # let _ =
-//! Stack!(left_to_right, 5, ui_vec![
-//!     // shorthand
-//!     Button!(zng::clipboard::COPY_CMD),
-//!     // cmd with custom child
-//!     Button! {
-//!         cmd = zng::clipboard::PASTE_CMD;
-//!         child = Text!("Custom Label");
-//!     },
-//! ])
+//! Stack!(
+//!     left_to_right,
+//!     5,
+//!     ui_vec![
+//!         // shorthand
+//!         Button!(zng::clipboard::COPY_CMD),
+//!         // cmd with custom child
+//!         Button! {
+//!             cmd = zng::clipboard::PASTE_CMD;
+//!             child = Text!("Custom Label");
+//!         },
+//!     ]
+//! )
 //! # ;
 //! ```
 //!
@@ -74,7 +78,9 @@
 //! # fn cmd_btn_example() -> UiNode { widget::node::UiNode::nil() }
 //! # let _ =
 //! zng::clipboard::COPY_CMD.on_event(true, app_hn!(|_, _| { println!("copy") })).perm();
-//! zng::clipboard::PASTE_CMD.on_event(true, app_hn!(|_, _| { println!("paste") })).perm();
+//! zng::clipboard::PASTE_CMD
+//!     .on_event(true, app_hn!(|_, _| { println!("paste") }))
+//!     .perm();
 //! Window! {
 //!     child = cmd_btn_example();
 //! }

@@ -29,7 +29,7 @@
 //!         child = Toggle! {
 //!             child = Text!(allow_close.map(|a| formatx!("allow close = {a:?}")));
 //!             checked = allow_close;
-//!         }
+//!         };
 //!     }
 //! }
 //! ```
@@ -64,19 +64,14 @@
 //!                         }
 //!                     } else {
 //!                         let parent = WINDOW.id();
-//!                         WINDOWS.open_id(
-//!                             "child-id",
-//!                             async move { child_window(parent) }
-//!                         )
-//!                         .wait_done()
-//!                         .await;
+//!                         WINDOWS.open_id("child-id", async move { child_window(parent) }).wait_done().await;
 //!                     }
 //!
 //!                     enabled.set(true);
 //!                 });
 //!                 widget::enabled;
 //!             }
-//!         }
+//!         };
 //!     }
 //! }
 //!

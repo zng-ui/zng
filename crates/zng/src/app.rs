@@ -112,7 +112,10 @@
 //! that is not a requirement.
 //!
 //! ```
-//! use zng::{app::{AppExtended, AppExtension}, APP};
+//! use zng::{
+//!     APP,
+//!     app::{AppExtended, AppExtension},
+//! };
 //!
 //! #[derive(Default)]
 //! pub struct HelloManager {}
@@ -150,7 +153,7 @@
 //! pub struct SCREAMING_CASE;
 //! impl SCREAMING_CASE {
 //!     pub fn state(&self) -> Var<bool> {
-//! #       var(true)
+//!         # var(true)
 //!     }
 //! }
 //! ```
@@ -198,7 +201,7 @@
 //! The example below demonstrates an app extension implementation that provides a service.
 //!
 //! ```
-//! use zng::{prelude_wgt::*, app::AppExtension};
+//! use zng::{app::AppExtension, prelude_wgt::*};
 //!
 //! /// Foo service.
 //! pub struct FOO;
@@ -226,7 +229,10 @@
 //! }
 //!
 //! app_local! {
-//!     static FOO_SV: FooService = FooService { config: var(false), requests: vec![] };
+//!     static FOO_SV: FooService = FooService {
+//!         config: var(false),
+//!         requests: vec![],
+//!     };
 //! }
 //!
 //! /// Foo app extension.
@@ -237,7 +243,8 @@
 //! ///
 //! /// * [`FOO`]
 //! #[derive(Default)]
-//! pub struct FooManager { }
+//! #[non_exhaustive]
+//! pub struct FooManager {}
 //!
 //! impl AppExtension for FooManager {
 //!     fn update(&mut self) {
@@ -485,7 +492,7 @@ pub use zng_ext_single_instance::{APP_INSTANCE_EVENT, AppInstanceArgs};
 ///                             }
 ///                         });
 ///                     }
-///                 ]
+///                 ];
 ///             };
 ///         }
 ///     });
@@ -505,30 +512,32 @@ pub use zng_ext_single_instance::{APP_INSTANCE_EVENT, AppInstanceArgs};
 ///                 on_load = hn_once!(|_| WINDOW.bring_to_top());
 ///                 padding = 10;
 ///                 child = Text!(args.latest().message());
-///                 child_bottom = Stack! {
-///                     direction = StackDirection::start_to_end();
-///                     layout::align = Align::BOTTOM_END;
-///                     spacing = 5;
-///                     children = ui_vec![
-///                         Button! {
-///                             child = Text!("Restart App");
-///                             on_click = hn_once!(args, |_| {
-///                                 args.restart();
-///                             });
-///                         },
-///                         Button! {
-///                             child = Text!("Exit App");
-///                             on_click = hn_once!(|_| {
-///                                 args.exit(0);
-///                             });
-///                         },
-///                     ]
-///                 }, 10;
+///                 child_bottom =
+///                     Stack! {
+///                         direction = StackDirection::start_to_end();
+///                         layout::align = Align::BOTTOM_END;
+///                         spacing = 5;
+///                         children = ui_vec![
+///                             Button! {
+///                                 child = Text!("Restart App");
+///                                 on_click = hn_once!(args, |_| {
+///                                     args.restart();
+///                                 });
+///                             },
+///                             Button! {
+///                                 child = Text!("Exit App");
+///                                 on_click = hn_once!(|_| {
+///                                     args.exit(0);
+///                                 });
+///                             },
+///                         ];
+///                     },
+///                     10,
+///                 ;
 ///             }
 ///         });
 ///     });
 /// });
-///
 /// ```
 ///
 /// # Debugger
@@ -595,8 +604,12 @@ pub mod crash_handler {
 /// use zng::prelude::*;
 ///
 /// fn main() {
-///     unsafe { std::env::set_var("ZNG_RECORD_TRACE", ""); }
-///     unsafe { std::env::set_var("ZNG_RECORD_TRACE_FILTER", "debug"); }
+///     unsafe {
+///         std::env::set_var("ZNG_RECORD_TRACE", "");
+///     }
+///     unsafe {
+///         std::env::set_var("ZNG_RECORD_TRACE_FILTER", "debug");
+///     }
 ///
 ///     // recording start here for all app processes when ZNG_RECORD_TRACE is set.
 ///     zng::env::init!();

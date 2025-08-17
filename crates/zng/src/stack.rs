@@ -18,22 +18,29 @@
 //!     children_align = layout::Align::CENTER;
 //!
 //!     toggle::selector = toggle::Selector::single(direction);
-//!     children = [
-//!         ("top_to_bottom", StackDirection::top_to_bottom()),
-//!         ("left_to_right", StackDirection::left_to_right()),
-//!         ("bottom_to_top", StackDirection::bottom_to_top()),
-//!         ("right_to_left", StackDirection::right_to_left()),
-//!         ("diagonal", StackDirection {
-//!             place: layout::Point::bottom_right(),
-//!             origin: layout::Point::top_left(),
-//!             is_rtl_aware: false,
+//!     children =
+//!         [
+//!             ("top_to_bottom", StackDirection::top_to_bottom()),
+//!             ("left_to_right", StackDirection::left_to_right()),
+//!             ("bottom_to_top", StackDirection::bottom_to_top()),
+//!             ("right_to_left", StackDirection::right_to_left()),
+//!             (
+//!                 "diagonal",
+//!                 StackDirection {
+//!                     place: layout::Point::bottom_right(),
+//!                     origin: layout::Point::top_left(),
+//!                     is_rtl_aware: false,
+//!                 },
+//!             ),
+//!         ]
+//!         .into_iter()
+//!         .map(|(label, direction)| {
+//!             Toggle! {
+//!                 child = Text!(label);
+//!                 value::<StackDirection> = direction;
+//!             }
 //!         }),
-//!     ]
-//!     .into_iter()
-//!     .map(|(label, direction)| Toggle! {
-//!         child = Text!(label);
-//!         value::<StackDirection> = direction;
-//!     });
+//!     ;
 //! }
 //! # ;
 //! ```

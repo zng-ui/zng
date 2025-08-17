@@ -114,33 +114,33 @@
 //!             direction = StackDirection::top_to_bottom();
 //!             spacing = 2;
 //!             children = ui_vec![
-//!                 width!(100), // 100 device independent pixels
-//!                 width!(100.dip()), // 100 device independent pixels
-//!                 width!(100.px()), // 100 device pixels
-//!                 width!(100.pct()), // 100% of the available width
-//!                 width!(100.pct_l()), // 100% of the available width
-//!                 width!(50.pct()), // 50% of the available width
-//!                 width!(1.fct()), // 1 times the available width
-//!                 width!(1.fct_l()), // 1 times the available width
-//!                 width!(0.5.fct()), // 0.5 times the available width
-//!                 width!(100.pt()), // 100 font points
-//!                 width!(8.em()), // 8 times the font size
-//!                 width!(800.em_pct()), // 800% of the font size
-//!                 width!(8.rem()), // 8 times the root font size
-//!                 width!(800.rem_pct()), // 800% of the root font size
-//!                 width!(1.vw()), // 1 times the viewport width
-//!                 width!(100.vw_pct()), // 100% of the viewport width
-//!                 width!(0.5.vw()), // 0.5 times the viewport width
-//!                 width!(1.vh()), // 1 times the viewport height
-//!                 width!(100.vh_pct()), // 100% of the viewport height
-//!                 width!(0.5.vh()), // 0.5 times the viewport height
-//!                 width!(0.5.vmin()), // 0.5 times the viewport min(width, height)
-//!                 width!(50.vmin_pct()), // 50% of the viewport min(width, height)
-//!                 width!(0.5.vmax()), // 0.5 times the viewport max(width, height)
-//!                 width!(50.vmax_pct()), // 50% of the viewport max(width, height)
+//!                 width!(100),                  // 100 device independent pixels
+//!                 width!(100.dip()),            // 100 device independent pixels
+//!                 width!(100.px()),             // 100 device pixels
+//!                 width!(100.pct()),            // 100% of the available width
+//!                 width!(100.pct_l()),          // 100% of the available width
+//!                 width!(50.pct()),             // 50% of the available width
+//!                 width!(1.fct()),              // 1 times the available width
+//!                 width!(1.fct_l()),            // 1 times the available width
+//!                 width!(0.5.fct()),            // 0.5 times the available width
+//!                 width!(100.pt()),             // 100 font points
+//!                 width!(8.em()),               // 8 times the font size
+//!                 width!(800.em_pct()),         // 800% of the font size
+//!                 width!(8.rem()),              // 8 times the root font size
+//!                 width!(800.rem_pct()),        // 800% of the root font size
+//!                 width!(1.vw()),               // 1 times the viewport width
+//!                 width!(100.vw_pct()),         // 100% of the viewport width
+//!                 width!(0.5.vw()),             // 0.5 times the viewport width
+//!                 width!(1.vh()),               // 1 times the viewport height
+//!                 width!(100.vh_pct()),         // 100% of the viewport height
+//!                 width!(0.5.vh()),             // 0.5 times the viewport height
+//!                 width!(0.5.vmin()),           // 0.5 times the viewport min(width, height)
+//!                 width!(50.vmin_pct()),        // 50% of the viewport min(width, height)
+//!                 width!(0.5.vmax()),           // 0.5 times the viewport max(width, height)
+//!                 width!(50.vmax_pct()),        // 50% of the viewport max(width, height)
 //!                 width!(100.dip() + 50.pct()), // expression, 100dip + 50%.
-//!                 width!(1.lft()), //1 parcel of the leftover space.
-//!                 width!(Length::Default), // default value
+//!                 width!(1.lft()),              //1 parcel of the leftover space.
+//!                 width!(Length::Default),      // default value
 //!             ];
 //!             widget::border = 1, colors::RED.desaturate(50.pct());
 //!         };
@@ -192,11 +192,7 @@
 //! # let _ =
 //! Window! {
 //!     child = Grid! {
-//!         columns = ui_vec![
-//!             grid::Column!(1.lft()),
-//!             grid::Column!(100.dip()),
-//!             grid::Column!(2.lft()),
-//!         ];
+//!         columns = ui_vec![grid::Column!(1.lft()), grid::Column!(100.dip()), grid::Column!(2.lft()),];
 //!         rows = ui_vec![grid::Row!(100.pct())];
 //!         cells = ui_vec![
 //!             Wgt! {
@@ -212,7 +208,7 @@
 //!                 widget::background_color = colors::BLUE;
 //!             },
 //!         ];
-//!     }
+//!     };
 //! }
 //! # ;
 //! ```
@@ -313,7 +309,7 @@
 //!             widget::background_color = colors::BLUE.with_alpha(40.pct());
 //!             txt = "BLUE";
 //!         },
-//!     ]
+//!     ];
 //! }
 //! # ;
 //! ```

@@ -26,7 +26,7 @@
 //!         child = Button! {
 //!             child = cmd.flat_map(|c| c.icon()).present_data(());
 //!             child_right = Text!(cmd.flat_map(|c| c.name())), 4;
-//!             tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+//!             tooltip = Tip!(Text!(cmd.flat_map(|c| c.name_with_shortcut())));
 //!             on_click = hn!(|a: &gesture::ClickArgs| {
 //!                 a.propagation().stop();
 //!                 cmd.get().notify();
@@ -44,10 +44,7 @@
 //! Wrap! {
 //!     spacing = 5;
 //!     zng::focus::alt_focus_scope = true;
-//!     children = ui_vec![
-//!         undo_combo(zng::undo::UndoOp::Undo),
-//!         undo_combo(zng::undo::UndoOp::Redo),
-//!     ];
+//!     children = ui_vec![undo_combo(zng::undo::UndoOp::Undo), undo_combo(zng::undo::UndoOp::Redo),];
 //! }
 //! # ;
 //! ```

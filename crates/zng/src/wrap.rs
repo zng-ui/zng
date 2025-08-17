@@ -20,7 +20,7 @@
 //!             Text!(" Nested Wrap panels can be used to set "),
 //!             text::Em!("contextual"),
 //!             Text!(" properties for a sequence of widgets.")
-//!         ]
+//!         ];
 //!     },
 //!     Text!(" The nested Wrap panel content items "),
 //!     text::Strong!("wrap"),

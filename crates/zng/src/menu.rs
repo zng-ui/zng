@@ -18,11 +18,9 @@
 //!                     checked = var(true);
 //!                 },
 //!                 Hr!(),
-//!                 SubMenu!(
-//!                     "Recent",
-//!                     (0..10)
-//!                         .map(|i| Button! { child = Text!(formatx!("recent file {i}")) })
-//!                 ),
+//!                 SubMenu!("Recent", (0..10).map(|i| Button! {
+//!                     child = Text!(formatx!("recent file {i}"));
+//!                 })),
 //!                 Hr!(),
 //!                 Button!(zng::app::EXIT_CMD),
 //!             ]
@@ -31,7 +29,7 @@
 //!             "Help",
 //!             ui_vec![Button! {
 //!                 child = Text!("About");
-//!                 on_click = hn!(|_| { });
+//!                 on_click = hn!(|_| {});
 //!             }]
 //!         ),
 //!     ])
@@ -39,8 +37,8 @@
 //!
 //! Window! {
 //!     child_top = main_menu(), 0;
-//!     zng::app::on_new = hn!(|_| { });
-//!     zng::app::on_open = hn!(|_| { });
+//!     zng::app::on_new = hn!(|_| {});
+//!     zng::app::on_open = hn!(|_| {});
 //!     // ..
 //! }
 //! # });
@@ -70,10 +68,13 @@
 //!             checked = var(true);
 //!         },
 //!         Hr!(),
-//!         SubMenu!("Help", ui_vec![Button! {
-//!             child = Text!("About");
-//!             on_click = hn!(|_| { });
-//!         }]),
+//!         SubMenu!(
+//!             "Help",
+//!             ui_vec![Button! {
+//!                 child = Text!("About");
+//!                 on_click = hn!(|_| {});
+//!             }]
+//!         ),
 //!         Hr!(),
 //!         Button!(zng::app::EXIT_CMD),
 //!     ]);

@@ -52,10 +52,10 @@ pub mod icon;
 /// # use zng_wgt_text::*;
 /// # fn main() {
 /// let txt = Text!("Hello!");
-///
+/// 
 /// let name = "World";
 /// let fmt = Text!("Hello {}!", name);
-///
+/// 
 /// let expr = Text!({
 ///     let mut s = String::new();
 ///     s.push('a');
@@ -74,12 +74,12 @@ pub mod icon;
 /// let txt = Text! {
 ///     txt = formatx!("Hello!");
 /// };
-///
+/// 
 /// let name = "World";
 /// let fmt = Text! {
 ///     txt = formatx!("Hello {}!", name);
 /// };
-///
+/// 
 /// let expr = Text! {
 ///     txt = {
 ///         let mut s = String::new();

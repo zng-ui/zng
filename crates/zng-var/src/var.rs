@@ -242,12 +242,8 @@ impl<T: VarValue> Var<T> {
     /// # use zng_var::*;
     /// # use zng_txt::*;
     /// let n_var = var(0u32);
-    /// let n_10_var = n_var.map(|n| *n  * 10);
-    /// let txt_var = n_10_var.map(|n| if *n < 100 {
-    ///     formatx!("{n}!")
-    /// } else {
-    ///     formatx!("Done!")
-    /// });
+    /// let n_10_var = n_var.map(|n| *n * 10);
+    /// let txt_var = n_10_var.map(|n| if *n < 100 { formatx!("{n}!") } else { formatx!("Done!") });
     /// ```
     ///
     /// In the example above the `txt_var` will update every time the `n_var` updates.
@@ -325,10 +321,7 @@ impl<T: VarValue> Var<T> {
     /// # use zng_var::*;
     /// # use zng_txt::*;
     /// let n_var = var(100u32);
-    /// let txt_var = n_var.filter_map(
-    ///     |n| if *n < 100 { Some(formatx!("{n}!")) } else { None },
-    ///     || "starting...".into(),
-    /// );
+    /// let txt_var = n_var.filter_map(|n| if *n < 100 { Some(formatx!("{n}!")) } else { None }, || "starting...".into());
     /// ```
     ///
     /// In the example above the `txt_var` will update every time the `n_var` updates with value `n < 100`. Because
@@ -435,8 +428,8 @@ impl<T: VarValue> Var<T> {
     /// let first_var = list_var.map_bidi_modify(
     ///     // map:
     ///     |l| l.first().copied().unwrap_or('_'),
-    ///     // modify_back:    
-    ///     |c, l| if l.is_empty() { l.push(*c) } else { l[0] = *c }
+    ///     // modify_back:
+    ///     |c, l| if l.is_empty() { l.push(*c) } else { l[0] = *c },
     /// );
     /// ```
     ///
@@ -810,15 +803,17 @@ impl<T: VarValue> Var<T> {
     /// # use zng_unit::*;
     /// let status = var(Txt::from("not animating"));
     ///
-    /// status.animate(|animation, value| {
-    ///     let elapsed = animation.elapsed_dur();
-    ///     if elapsed < 5.secs() {
-    ///         value.set(formatx!("animating: elapsed {}ms", elapsed.as_millis()));
-    ///     } else {
-    ///         animation.stop();
-    ///         value.set("not animating");
-    ///     }
-    /// }).perm();
+    /// status
+    ///     .animate(|animation, value| {
+    ///         let elapsed = animation.elapsed_dur();
+    ///         if elapsed < 5.secs() {
+    ///             value.set(formatx!("animating: elapsed {}ms", elapsed.as_millis()));
+    ///         } else {
+    ///             animation.stop();
+    ///             value.set("not animating");
+    ///         }
+    ///     })
+    ///     .perm();
     /// # }
     /// ```
     ///
@@ -852,18 +847,20 @@ impl<T: VarValue> Var<T> {
     /// let status = var(Txt::from("not animating"));
     ///
     /// let mut stage = 0;
-    /// status.sequence(move |status| {
-    ///     stage += 1;
-    ///     if stage < 5 {
-    ///         status.animate(move |animation, value| {
-    ///             let elapsed = animation.elapsed_stop(5.secs());
-    ///             value.set(formatx!("animation {stage}: {}", elapsed.pct()));
-    ///         })
-    ///     } else {
-    ///         status.set("not animating");
-    ///         AnimationHandle::dummy()
-    ///     }
-    /// }).perm();
+    /// status
+    ///     .sequence(move |status| {
+    ///         stage += 1;
+    ///         if stage < 5 {
+    ///             status.animate(move |animation, value| {
+    ///                 let elapsed = animation.elapsed_stop(5.secs());
+    ///                 value.set(formatx!("animation {stage}: {}", elapsed.pct()));
+    ///             })
+    ///         } else {
+    ///             status.set("not animating");
+    ///             AnimationHandle::dummy()
+    ///         }
+    ///     })
+    ///     .perm();
     /// # }
     /// ```
     ///

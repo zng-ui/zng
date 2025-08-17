@@ -76,17 +76,17 @@ impl WidgetExt for WgtInfo {
 /// # use zng_app::{*, widget::{node::*, builder::*, property, widget}};
 /// # use zng_var::*;
 /// # pub mod path {
-/// #   use super::*;
-/// #   #[property(CONTEXT)]
-/// #   pub fn foo(child: impl IntoUiNode, bar: impl IntoValue<bool>) -> UiNode {
-/// #     child.into_node()
-/// #   }
+/// # use super::*;
+/// # #[property(CONTEXT)]
+/// # pub fn foo(child: impl IntoUiNode, bar: impl IntoValue<bool>) -> UiNode {
+/// # child.into_node()
+/// # }
 /// # }
 /// # #[widget($crate::FooWgt)]
 /// # pub struct FooWgt(zng_app::widget::base::WidgetBase);
 /// # #[property(CONTEXT, widget_impl(FooWgt))]
 /// # pub fn bar(child: impl IntoUiNode, bar: impl IntoValue<bool>) -> UiNode {
-/// #   child.into_node()
+/// # child.into_node()
 /// # }
 /// # fn main() {
 /// let foo_id = property_id!(path::foo);
@@ -2843,7 +2843,7 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// # use std::any::Any;
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl IntoUiNode, bar: impl IntoVar<bool>) -> UiNode {
-/// #    child.into_node()
+///     # child.into_node()
 /// }
 ///
 /// # fn main() {
@@ -2862,7 +2862,7 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// # use zng_var::*;
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl IntoUiNode, bar: impl IntoVar<bool>) -> UiNode {
-/// #    child.into_node()
+///     # child.into_node()
 /// }
 ///
 /// trait SingleBoolVar {

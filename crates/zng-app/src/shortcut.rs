@@ -877,15 +877,15 @@ macro_rules! __shortcut {
 /// }
 ///
 /// fn modified_key() -> Shortcut {
-///     shortcut!(CTRL+'C')
+///     shortcut!(CTRL + 'C')
 /// }
 ///
 /// fn multi_modified_key() -> Shortcut {
-///     shortcut!(CTRL|SHIFT+'C')
+///     shortcut!(CTRL | SHIFT + 'C')
 /// }
 ///
 /// fn chord() -> Shortcut {
-///     shortcut!(CTRL+'E', 'A')
+///     shortcut!(CTRL + 'E', 'A')
 /// }
 ///
 /// fn modifier_release() -> Shortcut {

@@ -108,10 +108,10 @@
 //! App extensions don't need to subscribe to events, they all receive all events.
 //!
 //! ```
-//! use zng::{app::AppExtension, update::EventUpdate, gesture::CLICK_EVENT};
+//! use zng::{app::AppExtension, gesture::CLICK_EVENT, update::EventUpdate};
 //!
 //! #[derive(Default)]
-//! struct PrintClickManager { }
+//! struct PrintClickManager {}
 //!
 //! impl AppExtension for PrintClickManager {
 //!     fn event_preview(&mut self, update: &mut EventUpdate) {
@@ -138,14 +138,17 @@
 //! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
-//! gesture::CLICK_EVENT.on_pre_event(app_hn!(|_, _| {
-//!     println!("click, before all UI handlers");
-//! })).perm();
+//! gesture::CLICK_EVENT
+//!     .on_pre_event(app_hn!(|_, _| {
+//!         println!("click, before all UI handlers");
+//!     }))
+//!     .perm();
 //!
-//!
-//! gesture::CLICK_EVENT.on_event(app_hn!(|_, _| {
-//!     println!("click, after all UI handlers");
-//! })).perm();
+//! gesture::CLICK_EVENT
+//!     .on_event(app_hn!(|_, _| {
+//!         println!("click, after all UI handlers");
+//!     }))
+//!     .perm();
 //! ```
 //!
 //! [`gesture::on_pre_single_click`]: fn@crate::gesture::on_pre_single_click
@@ -164,10 +167,12 @@
 //! event_args! {
 //!     pub struct FooArgs {
 //!         pub target: WidgetPath,
+//!
 //!         ..
+//!
 //!         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
 //!             list.insert_wgt(&self.target);
-//!         }         
+//!         }
 //!     }
 //! }
 //!
@@ -222,7 +227,7 @@
 //!         l10n!: true,
 //!         name: "Foo",
 //!         info: "foo bar",
-//!         shortcut: shortcut![CTRL+'F'],
+//!         shortcut: shortcut![CTRL + 'F'],
 //!     };
 //! }
 //!

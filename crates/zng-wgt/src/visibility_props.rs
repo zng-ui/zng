@@ -137,7 +137,8 @@ pub fn is_collapsed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode
 /// # use zng_app::widget::node::*;
 /// fn center_viewport(msg: impl IntoUiNode) -> UiNode {
 ///     Container! {
-///         layout::x = merge_var!(SCROLL.horizontal_offset(), SCROLL.zoom_scale(), |&h, &s| h.0.fct_l() - 1.vw() / s * h);
+///         layout::x = merge_var!(SCROLL.horizontal_offset(), SCROLL.zoom_scale(), |&h, &s| h.0.fct_l()
+///             - 1.vw() / s * h);
 ///         layout::y = merge_var!(SCROLL.vertical_offset(), SCROLL.zoom_scale(), |&v, &s| v.0.fct_l() - 1.vh() / s * v);
 ///         layout::scale = SCROLL.zoom_scale().map(|&fct| 1.fct() / fct);
 ///         layout::transform_origin = 0;

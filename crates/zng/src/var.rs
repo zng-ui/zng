@@ -47,7 +47,8 @@
 //! # let _ =
 //! Button! {
 //!     child = Text!("Taller!");
-//!     on_click = hn!(height, |_| { // clone `height` reference for the handler.
+//!     on_click = hn!(height, |_| {
+//!         // clone `height` reference for the handler.
 //!         height.set(height.get() + 10); // request an update to a new value.
 //!     });
 //!     layout::align = layout::Align::CENTER;
@@ -186,13 +187,13 @@
 //!     widget::background_color = color.easing(500.ms(), easing::linear);
 //!     child = Button! {
 //!         layout::align = layout::Align::TOP;
-//!         on_click = hn!(|_|{
+//!         on_click = hn!(|_| {
 //!             let mut c = color::Hsla::from(color.get());
 //!             c.hue += 60.0;
 //!             color.set(c);
 //!         });
 //!         child = Text!("Change background color");
-//!     }
+//!     };
 //! }
 //! # ;
 //! ```
@@ -253,9 +254,7 @@
 //! //     let b = *#{b.clone()};
 //! //     formatx!("{a} + {b} = {}", a + b)
 //! // });
-//! let merge = merge_var!(a, b.clone(), |&a, &b| {
-//!     formatx!("{a} + {b} = {}", a + b)
-//! });
+//! let merge = merge_var!(a, b.clone(), |&a, &b| { formatx!("{a} + {b} = {}", a + b) });
 //! # let _ =
 //! Button! {
 //!     child = Text!(merge);
@@ -296,7 +295,7 @@
 //!                 foo = "Text!";
 //!             },
 //!             Text!(FOO_VAR),
-//!         ]
+//!         ];
 //!     }
 //! }
 //! ```

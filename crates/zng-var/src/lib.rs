@@ -64,23 +64,19 @@ pub(crate) mod future;
 /// pub enum FooValue {
 ///     On,
 ///     Off,
-///     NotSet
+///     NotSet,
 /// }
 ///
 /// impl_from_and_into_var! {
 ///     fn from(b: bool) -> FooValue {
-///         if b {
-///             FooValue::On
-///         } else {
-///             FooValue::Off
-///         }
+///         if b { FooValue::On } else { FooValue::Off }
 ///     }
 ///
 ///     fn from(s: &str) -> FooValue {
 ///         match s {
 ///             "on" => FooValue::On,
 ///             "off" => FooValue::Off,
-///             _ => FooValue::NotSet
+///             _ => FooValue::NotSet,
 ///         }
 ///     }
 ///
