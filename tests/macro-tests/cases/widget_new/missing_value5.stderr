@@ -1,21 +1,21 @@
 error: expected expression, found `)`
-  --> cases/widget_new/missing_value5.rs:5:13
+  --> cases/widget_new/missing_value5.rs:6:13
    |
-5  |       let _ = Wgt! {
+6  |       let _ = Wgt! {
    |  _____________^
-6  | |         cursor = #[allow(unused_imports)]
-7  | |         margin = {
-8  | |             use zng::layout::PxPoint;
+7  | |         cursor =
+8  | |         #[allow(unused_imports)]
+9  | |         margin = {
 ...  |
-11 | |     };
+13 | |     };
    | |_____^ expected expression
    |
    = note: this error originates in the macro `zng::__proc_macro_util::widget::widget_new` which comes from the expansion of the macro `Wgt` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: expected `;`
- --> cases/widget_new/missing_value5.rs:7:9
+ --> cases/widget_new/missing_value5.rs:9:9
   |
-7 |         margin = {
+9 |         margin = {
   |         ^^^^^^
 
 warning: unused import: `mouse::cursor`
@@ -27,7 +27,7 @@ warning: unused import: `mouse::cursor`
   = note: `#[warn(unused_imports)]` on by default
 
 warning: unused import: `zng::layout::PxPoint`
- --> cases/widget_new/missing_value5.rs:8:17
-  |
-8 |             use zng::layout::PxPoint;
-  |                 ^^^^^^^^^^^^^^^^^^^^
+  --> cases/widget_new/missing_value5.rs:10:17
+   |
+10 |             use zng::layout::PxPoint;
+   |                 ^^^^^^^^^^^^^^^^^^^^

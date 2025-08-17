@@ -1,16 +1,16 @@
 error[E0599]: no method named `allowed_in_when_expr` found for struct `foo_` in the current scope
-  --> cases/widget_new/not_allowed_in_when1.rs:16:13
+  --> cases/widget_new/not_allowed_in_when1.rs:17:13
    |
 8  |   #[property(CONTEXT)]
    |   -------------------- method `allowed_in_when_expr` not found for this struct
 ...
-16 |       let _ = Wgt! {
+17 |       let _ = Wgt! {
    |  _____________^
-17 | |         margin = 0;
-18 | |         when {
-19 | |             let node = #foo;
+18 | |         margin = 0;
+19 | |         when {
+20 | |             let node = #foo;
 ...  |
-24 | |     };
+25 | |     };
    | |_____^
    |
    = note: this error originates in the macro `zng::__proc_macro_util::widget::widget_new` which comes from the expansion of the macro `Wgt` (in Nightly builds, run with -Z macro-backtrace for more info)

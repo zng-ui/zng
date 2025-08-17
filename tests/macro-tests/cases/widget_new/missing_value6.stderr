@@ -1,29 +1,29 @@
 error: expected `;`
-  --> cases/widget_new/missing_value6.rs:11:9
+  --> cases/widget_new/missing_value6.rs:12:9
    |
-11 |         margin = 0;
+12 |         margin = 0;
    |         ^^^^^^
 
 error[E0689]: can't call method `deg` on ambiguous numeric type `{integer}`
-  --> cases/widget_new/missing_value6.rs:10:33
+  --> cases/widget_new/missing_value6.rs:11:33
    |
-10 |         background_gradient = 0.deg(),
+11 |         background_gradient = 0.deg(),
    |                                 ^^^
    |
 help: you must specify a concrete type for this numeric value, like `i32`
    |
-10 |         background_gradient = 0_i32.deg(),
+11 |         background_gradient = 0_i32.deg(),
    |                                ++++
 
 error[E0061]: this method takes 2 arguments but 1 argument was supplied
-  --> cases/widget_new/missing_value6.rs:10:9
+  --> cases/widget_new/missing_value6.rs:11:9
    |
-9  |       let _ = Wgt! {
+10 |       let _ = Wgt! {
    |  _____________-
-10 | |         background_gradient = 0.deg(),
+11 | |         background_gradient = 0.deg(),
    | |         ^^^^^^^^^^^^^^^^^^^
-11 | |         margin = 0;
-12 | |     };
+12 | |         margin = 0;
+13 | |     };
    | |_____- argument #2 is missing
    |
 note: method defined here

@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `(): IntoVar<SideOffsets>` is not satisfied
  --> cases/widget_new/missing_field_all_single.rs:8:18
   |
-8 |         margin = {}
+8 |         margin = {};
   |         ------   ^^ the trait `IntoVar<SideOffsets>` is not implemented for `()`
   |         |
   |         required by a bound introduced by this call

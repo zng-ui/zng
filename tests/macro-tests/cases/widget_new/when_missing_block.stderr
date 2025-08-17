@@ -1,7 +1,7 @@
 error: expected a when block expr and properties
- --> cases/widget_new/when_missing_block.rs:6:16
+ --> cases/widget_new/when_missing_block.rs:7:16
   |
-6 |         when *#is_pressed
+7 |         when *#is_pressed
   |                ^^^^^^^^^^
 
 warning: unused import: `gesture::is_pressed`

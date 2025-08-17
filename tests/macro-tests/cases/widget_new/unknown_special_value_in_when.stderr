@@ -1,7 +1,7 @@
 error: unexpected token, expected `}`
- --> cases/widget_new/unknown_special_value_in_when.rs:8:25
+ --> cases/widget_new/unknown_special_value_in_when.rs:9:25
   |
-8 |             margin = foo!;
+9 |             margin = foo!;
   |                         ^
 
 warning: unused imports: `gesture::is_pressed` and `layout::margin`

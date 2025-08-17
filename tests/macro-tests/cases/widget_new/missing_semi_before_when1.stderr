@@ -1,5 +1,5 @@
 error: expected `;`
- --> cases/widget_new/missing_semi_before_when1.rs:7:9
+ --> cases/widget_new/missing_semi_before_when1.rs:8:9
   |
-7 |         when *#is_pressed {
+8 |         when *#is_pressed {
   |         ^^^^

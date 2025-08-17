@@ -1,7 +1,7 @@
 error: unknown special value, expected `unset!`
- --> cases/widget_new/unknown_special_value.rs:6:18
+ --> cases/widget_new/unknown_special_value.rs:7:18
   |
-6 |         margin = foo!;
+7 |         margin = foo!;
   |                  ^^^
 
 warning: unused import: `layout::margin`

@@ -1,11 +1,11 @@
 error[E0061]: this method takes 1 argument but 0 arguments were supplied
- --> cases/widget_new/missing_value2.rs:6:9
+ --> cases/widget_new/missing_value2.rs:7:9
   |
-5 |       let _ = Wgt! {
+6 |       let _ = Wgt! {
   |  _____________-
-6 | |         margin =
+7 | |         margin =
   | |         ^^^^^^
-7 | |     };
+8 | |     };
   | |_____- argument #1 is missing
   |
 note: method defined here

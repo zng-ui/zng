@@ -13,7 +13,7 @@ error[E0308]: mismatched types
 error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
   --> cases/widget_new/incorrect_arg_type2.rs:16:23
    |
-16 |         simple_type = true
+16 |         simple_type = true;
    |         -----------   ^^^^ the trait `IntoVar<u32>` is not implemented for `bool`
    |         |
    |         required by a bound introduced by this call

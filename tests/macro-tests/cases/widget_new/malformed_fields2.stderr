@@ -1,23 +1,23 @@
 error[E0061]: this method takes 1 argument but 0 arguments were supplied
- --> cases/widget_new/malformed_fields2.rs:7:13
-  |
-5 |       let _ = Wgt! {
-  |  _____________-
-6 | |         margin = {
-7 | |             margin:
-  | |             ^^^^^^
-8 | |         };
-9 | |     };
-  | |_____- argument #1 is missing
-  |
+  --> cases/widget_new/malformed_fields2.rs:8:13
+   |
+6  |       let _ = Wgt! {
+   |  _____________-
+7  | |         margin = {
+8  | |             margin:
+   | |             ^^^^^^
+9  | |         };
+10 | |     };
+   | |_____- argument #1 is missing
+   |
 note: method defined here
- --> $WORKSPACE/crates/zng-wgt/src/layout_props.rs
-  |
-  | pub fn margin(child: impl IntoUiNode, margin: impl IntoVar<SideOffsets>) -> UiNode {
-  |                                       ^^^^^^
+  --> $WORKSPACE/crates/zng-wgt/src/layout_props.rs
+   |
+   | pub fn margin(child: impl IntoUiNode, margin: impl IntoVar<SideOffsets>) -> UiNode {
+   |                                       ^^^^^^
 help: provide the argument
- --> $WORKSPACE/crates/zng-wgt/src/wgt.rs
-  |
+  --> $WORKSPACE/crates/zng-wgt/src/wgt.rs
+   |
    - #[widget($crate::Wgt)]
    + (/* margin */)
    |

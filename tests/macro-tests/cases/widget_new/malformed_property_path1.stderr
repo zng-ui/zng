@@ -1,5 +1,5 @@
 error: expected identifier, found keyword `_`
- --> cases/widget_new/malformed_property_path1.rs:6:9
+ --> cases/widget_new/malformed_property_path1.rs:7:9
   |
-6 |         _ = 0;
+7 |         _ = 0;
   |         ^
