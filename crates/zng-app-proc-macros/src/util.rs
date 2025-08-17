@@ -468,17 +468,21 @@ impl From<OuterAttr> for Attribute {
 pub fn format_rust_expr(value: String) -> String {
     const PREFIX: &str = "const x:() = ";
     const SUFFIX: &str = ";\n";
-    let value_stream: TokenStream = format!("{PREFIX}{value}{SUFFIX}")
-        .parse()
-        .unwrap_or_else(|e| non_user_error!("value {} causes {}", value, e));
-    let syntax_tree = syn::parse(value_stream.into()).unwrap_or_else(|e| non_user_error!("value {} causes {}", value, e));
-    let fmt = prettyplease::unparse(&syntax_tree);
-
-    // slice between after the prefix and before the suffix
-    // (currently 14 from the start and 2 before the end, respectively)
-    let start = PREFIX.len() + 1;
-    let end = fmt.len() - SUFFIX.len();
-    fmt[start..end].to_owned()
+    fn try_fmt(value: String) -> syn::Result<String> {
+        let value_stream: TokenStream = value.parse()?;
+        let syntax_tree = syn::parse(value_stream.into())?;
+        Ok(prettyplease::unparse(&syntax_tree))
+    }
+    match try_fmt(format!("{PREFIX}{value}{SUFFIX}")) {
+        Ok(fmt) => {
+            // slice between after the prefix and before the suffix
+            // (currently 14 from the start and 2 before the end, respectively)
+            let start = PREFIX.len() + 1;
+            let end = fmt.len() - SUFFIX.len();
+            fmt[start..end].to_owned()
+        }
+        Err(_) => value,
+    }
 }
 
 pub fn undo_line_wrap(input: &str) -> String {

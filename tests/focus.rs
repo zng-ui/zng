@@ -1362,15 +1362,22 @@ pub fn focused_removed_by_deleting() {
     let button1_id = WidgetId::new_unique();
 
     let buttons = ui_vec![
-        Button! { child = Text!("Button 0") },
+        Button! {
+            child = Text!("Button 0");
+        },
         DataView!(::<bool>, exist.clone(), hn!(|a: &DataViewArgs<bool>| {
             if a.data().get() {
-                a.set_view(Button! { id = button1_id; child = Text!("Button 1") });
+                a.set_view(Button! {
+                    id = button1_id;
+                    child = Text!("Button 1");
+                });
             } else {
                 a.unset_view();
             }
         })),
-        Button! { child = Text!("Button 2") }
+        Button! {
+            child = Text!("Button 2");
+        }
     ];
 
     let mut app = app.run(Stack!(top_to_bottom, buttons));

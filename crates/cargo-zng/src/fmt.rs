@@ -468,10 +468,10 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
     let code_stream: pm2_send::TokenStream = match replaced_code.parse() {
         Ok(t) => t,
         Err(e) => {
-            error!("internal error: {e}");
-            // if SHOW_RUSTFMT_ERRORS.load(Relaxed) {
-            //     eprintln!("CODE:\n{replaced_code}");
-            // }
+            if SHOW_RUSTFMT_ERRORS.load(Relaxed) {
+                error!("internal error: {e}");
+                eprintln!("CODE:\n{replaced_code}");
+            }
             return None;
         }
     };
@@ -486,10 +486,10 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
     let code_stream = match inner_group {
         Some(g) => g.stream(),
         None => {
-            error!("internal error, invalid replacement");
-            // if SHOW_RUSTFMT_ERRORS.load(Relaxed) {
-            //     eprintln!("CODE:\n{replaced_code}");
-            // }
+            if SHOW_RUSTFMT_ERRORS.load(Relaxed) {
+                error!("internal error, invalid replacement");
+                eprintln!("CODE:\n{replaced_code}");
+            }
             return None;
         }
     };
@@ -597,14 +597,14 @@ fn replace_command(code: &str, reverse: bool) -> Cow<'_, str> {
         )
     }
 }
-// replace ` fn ident = { content }` with ` static __fmt_fn__ident: T = __A_ { content };// __fmt`
+// replace ` fn ident = { content }` with ` static __fmt_fn__ident: T = __A_ { content };/*__fmt*/`
 fn replace_event_property(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m) fn +(\w+) +\{").unwrap());
     if !reverse {
         let mut r = RGX.replace_all(code, " static __fmt_fn__$1: T = __A_ {");
         if let Cow::Owned(r) = &mut r {
             const OPEN: &str = ": T = __A_ {";
-            const CLOSE_MARKER: &str = "; // __fmt";
+            const CLOSE_MARKER: &str = "; /*__fmt*/";
             let mut start = 0;
             while let Some(i) = r[start..].find(OPEN) {
                 let i = start + i + OPEN.len();
@@ -632,7 +632,7 @@ fn replace_event_property(code: &str, reverse: bool) -> Cow<'_, str> {
         Cow::Owned(
             code.replace(" static __fmt_fn__", " fn ")
                 .replace(": T = __A_ {", " {")
-                .replace("}; // __fmt", "}"),
+                .replace("}; /*__fmt*/", "}"),
         )
     }
 }
@@ -830,7 +830,8 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
                 Ok(its) => its,
                 Err(e) => {
                     if SHOW_RUSTFMT_ERRORS.load(Relaxed) {
-                        error!("cannot parse widget, {}", e.error);
+                        // the regex is a best shot to avoid paring
+                        warn!("cannot parse widget, {}", e.error);
                     }
                     return Cow::Borrowed(code);
                 }
@@ -858,7 +859,7 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
                         } else {
                             r.push_str(" __fmt(");
                             r.push_str(value);
-                            r.push_str("); // __fmt");
+                            r.push_str("); /*__fmt*/");
                         }
                     }
                     Item::PropertyShorthand(name) => {
@@ -872,7 +873,7 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
                         // replace #path
                         static PROPERTY_REF_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)#([\w:]+)").unwrap());
                         r.push_str(&PROPERTY_REF_RGX.replace_all(&expr, "__P_($1)"));
-                        r.push_str(") { // __fmt");
+                        r.push_str(") { /*__fmt*/");
                         escape(items, r);
                         r.push('}');
                     }
@@ -882,7 +883,7 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
                     Item::WidgetSetSelfExpr(expr) => {
                         r.push_str("let __fmt_self = ");
                         r.push_str(expr);
-                        r.push_str("; // zng-fmt");
+                        r.push_str("; /*__zng-fmt*/");
                     }
                 }
             }
@@ -894,13 +895,13 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
     } else {
         let code = code
             .replace("= __ZngFmt {", "= {")
-            .replace("); // __fmt", ";")
+            .replace("); /*__fmt*/", ";")
             .replace("if __fmt_w(", "when ")
             .replace("__unset!()", "unset!")
             .replace("let __fmt_self = ", "")
-            .replace("; // zng-fmt", ";");
+            .replace("; /*__zng-fmt*/", ";");
 
-        static WHEN_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\) \{\s+// __fmt").unwrap());
+        static WHEN_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\) \{\s+/\*__fmt\*/").unwrap());
         let code = WHEN_REV_RGX.replace_all(&code, " {");
         let code = match replace_expr_var(&code, true) {
             Cow::Borrowed(_) => Cow::Owned(code.into_owned()),
@@ -948,7 +949,7 @@ fn replace_expr_var(code: &str, reverse: bool) -> Cow<'_, str> {
         POUND_REV_RGX.replace_all(code, "#")
     }
 }
-// replace `{ pattern => expr }` with `static __zng_fmt__: T = match 0 { pattern => expr }; // __zng-fmt`
+// replace `{ pattern => expr }` with `static __zng_fmt__: T = match 0 { pattern => expr }; /*__zng-fmt*/`
 fn replace_when_var(code: &str, reverse: bool) -> Cow<'_, str> {
     if !reverse {
         let stream: proc_macro2::TokenStream = match code[1..code.len() - 1].parse() {
@@ -968,14 +969,14 @@ fn replace_when_var(code: &str, reverse: bool) -> Cow<'_, str> {
             }
         }
         if arrow_at_root {
-            Cow::Owned(format!("static __zng_fmt__: T = match 0 {code}; // __zng-fmt"))
+            Cow::Owned(format!("static __zng_fmt__: T = match 0 {code}; /*__zng-fmt*/"))
         } else {
             Cow::Borrowed(code)
         }
     } else {
         Cow::Owned(
             code.replace("static __zng_fmt__: T = match 0 {", "{")
-                .replace("}; // __zng-fmt", "}"),
+                .replace("}; /*__zng-fmt*/", "}"),
         )
     }
 }
@@ -992,7 +993,7 @@ fn replace_static_ref(code: &str, reverse: bool) -> Cow<'_, str> {
     }
 }
 
-// replace `{ foo: <rest> }` with `static __fmt__: T = __A_ { foo: <rest> } // __zng-fmt`, if the `{` is the first token of  the line
+// replace `{ foo: <rest> }` with `static __fmt__: T = __A_ { foo: <rest> } /*__zng-fmt*/`, if the `{` is the first token of  the line
 // OR with `struct __ZngFmt__ {` if contains generics, signifying declaration
 fn replace_struct_like(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*\{\s+(\w+):([^:])").unwrap());
@@ -1007,7 +1008,7 @@ fn replace_struct_like(code: &str, reverse: bool) -> Cow<'_, str> {
                 let mut r = RGX.replace_all(code, "static __fmt__: T = __A_ {\n$1:$2").into_owned();
 
                 const OPEN: &str = ": T = __A_ {";
-                const CLOSE_MARKER: &str = "; // __zng-fmt";
+                const CLOSE_MARKER: &str = "; /*__zng-fmt*/";
                 let mut start = 0;
                 while let Some(i) = r[start..].find(OPEN) {
                     let i = start + i + OPEN.len();
@@ -1037,7 +1038,7 @@ fn replace_struct_like(code: &str, reverse: bool) -> Cow<'_, str> {
     } else {
         Cow::Owned(
             code.replace("static __fmt__: T = __A_ {", "{")
-                .replace("}; // __zng-fmt", "}")
+                .replace("}; /*__zng-fmt*/", "}")
                 .replace("struct __ZngFmt__ {", "{"),
         )
     }
