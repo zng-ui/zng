@@ -379,8 +379,10 @@ async fn custom_fmt_docs(code: &str, fmt: &FmtFragServer, rs_file: &Path) -> Str
                             }
                             for line in fmt_code.trim().lines() {
                                 formatted_code.push_str(prefix);
-                                formatted_code.push(' ');
-                                formatted_code.push_str(line);
+                                if !line.trim().is_empty() {
+                                    formatted_code.push(' ');
+                                    formatted_code.push_str(line);
+                                }
                                 formatted_code.push('\n');
                             }
                         } else {
