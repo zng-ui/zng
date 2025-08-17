@@ -8,6 +8,7 @@ use zng::{
 
 fn main() {
     let _scope = APP.minimal();
+    #[rustfmt::skip]
     let _ = Wgt! {
         margin = 0;
         cursor = CursorIcon::Default;

@@ -6,7 +6,10 @@ use std::{
     ops,
     path::{Path, PathBuf},
     process::Stdio,
-    sync::{Arc, atomic::AtomicBool},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering::Relaxed},
+    },
     task::Poll,
     time::{Duration, SystemTime},
 };
@@ -58,7 +61,7 @@ pub fn run(mut args: FmtArgs) {
     let action = if args.check { "checking" } else { "formatting" };
 
     if args.rustfmt_errors {
-        SHOW_RUSTFMT_ERRORS.store(true, std::sync::atomic::Ordering::Relaxed);
+        SHOW_RUSTFMT_ERRORS.store(true, Relaxed);
     }
 
     if args.stdin {
@@ -322,14 +325,17 @@ async fn try_fmt_child_macros(code: &str, stream: pm2_send::TokenStream, fmt: &F
                         && formatted != group_code
                     {
                         // changed by custom format
-                        if let Some(stable) = try_fmt_macro(base_indent, &formatted, fmt).await
-                            && formatted == stable
-                        {
-                            // change is sable
-                            let already_fmt = &code[last_already_fmt_start..group_bytes.start];
-                            formatted_code.push_str(already_fmt);
-                            formatted_code.push_str(&formatted);
-                            last_already_fmt_start = group_bytes.end;
+                        if let Some(stable) = try_fmt_macro(base_indent, &formatted, fmt).await {
+                            if formatted == stable {
+                                // change is sable
+                                let already_fmt = &code[last_already_fmt_start..group_bytes.start];
+                                formatted_code.push_str(already_fmt);
+                                formatted_code.push_str(&formatted);
+                                last_already_fmt_start = group_bytes.end;
+                            } else if SHOW_RUSTFMT_ERRORS.load(Relaxed) {
+                                error!("unstable format skipped");
+                                // println!("FMT1:\n{formatted}\nFMT2:\n{stable}");
+                            }
                         }
                     }
                 } else if !tail2.is_empty()
@@ -453,7 +459,16 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
     let replaced_code = replaced_code.into_owned();
 
     // fmt inner macros first, their final format can affect this macros format
-    let code_stream: pm2_send::TokenStream = replaced_code.parse().unwrap_or_else(|e| panic!("{e}\ncode:\n{replaced_code}"));
+    let code_stream: pm2_send::TokenStream = match replaced_code.parse() {
+        Ok(t) => t,
+        Err(e) => {
+            error!("internal error: {e}");
+            // if SHOW_RUSTFMT_ERRORS.load(Relaxed) {
+            //     eprintln!("CODE:\n{replaced_code}");
+            // }
+            return None;
+        }
+    };
     let mut inner_group = None;
     for tt in code_stream {
         if let pm2_send::TokenTree::Group(g) = tt {
@@ -462,9 +477,16 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
             break;
         }
     }
-    let code_stream = inner_group
-        .unwrap_or_else(|| panic!("invalid replacement:\n{replaced_code}"))
-        .stream();
+    let code_stream = match inner_group {
+        Some(g) => g.stream(),
+        None => {
+            error!("internal error, invalid replacement");
+            // if SHOW_RUSTFMT_ERRORS.load(Relaxed) {
+            //     eprintln!("CODE:\n{replaced_code}");
+            // }
+            return None;
+        }
+    };
     let code = Box::pin(try_fmt_child_macros(&replaced_code, code_stream, fmt)).await;
 
     // apply rustfmt
@@ -791,14 +813,17 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
     }
 
     if !reverse {
-        if !PROPERTY_NAME_RGX.is_match(code) || IGNORE_RGX.is_match(code) {
+        if !PROPERTY_NAME_RGX.is_match(&code[1..code.len() - 1]) || IGNORE_RGX.is_match(code) {
             // ignore static IDENT: Ty = expr
             return Cow::Borrowed(code);
         }
         let items = match code.parse() {
             Ok(t) => match parse(code, t, 1..code.len() - 1) {
                 Ok(its) => its,
-                Err(_e) => {
+                Err(e) => {
+                    if SHOW_RUSTFMT_ERRORS.load(Relaxed) {
+                        error!("cannot parse widget, {}", e.error);
+                    }
                     return Cow::Borrowed(code);
                 }
             },
@@ -876,7 +901,7 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
 
         // like `.replace("= __fmt(", "= ")`, but only adds the space after = if did not wrap
         // this is important to avoid inserting a trailing space and causing a reformat for every file
-        static UNNAMED_VALUE_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)= __fmt\(([^\r\n]?)").unwrap());
+        static UNNAMED_VALUE_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)=\s+__fmt\(([^\r\n]?)").unwrap());
         let replaced = UNNAMED_VALUE_REV_RGX.replace_all(&code, |caps: &regex::Captures| {
             let next_char = &caps[1];
             if next_char.is_empty() {
@@ -1268,11 +1293,11 @@ impl FmtFragServer {
 
 static SHOW_RUSTFMT_ERRORS: AtomicBool = AtomicBool::new(false);
 fn rustfmt_stdin(code: &str, edition: &str) -> Option<String> {
-    let mut fmt = std::process::Command::new("rustfmt");
-    if !SHOW_RUSTFMT_ERRORS.load(std::sync::atomic::Ordering::Relaxed) {
-        fmt.stderr(Stdio::null());
+    let mut rustfmt = std::process::Command::new("rustfmt");
+    if !SHOW_RUSTFMT_ERRORS.load(Relaxed) {
+        rustfmt.stderr(Stdio::null());
     }
-    let mut s = fmt
+    let mut s = rustfmt
         .arg("--edition")
         .arg(edition)
         .stdin(Stdio::piped())
@@ -1292,6 +1317,9 @@ fn rustfmt_stdin(code: &str, edition: &str) -> Option<String> {
 
 fn rustfmt_files(files: &[PathBuf], edition: &str, check: bool) {
     let mut rustfmt = std::process::Command::new("rustfmt");
+    if !SHOW_RUSTFMT_ERRORS.load(Relaxed) {
+        rustfmt.stderr(Stdio::null());
+    }
     rustfmt.args(["--config", "skip_children=true"]);
     rustfmt.arg("--edition").arg(edition);
     if check {
@@ -1299,13 +1327,13 @@ fn rustfmt_files(files: &[PathBuf], edition: &str, check: bool) {
     }
     rustfmt.args(files);
 
-    match rustfmt.output() {
+    match rustfmt.status() {
         Ok(s) => {
-            if !s.status.success() {
-                fatal!("rustfmt error {}", s.status)
+            if !s.success() && SHOW_RUSTFMT_ERRORS.load(Relaxed) {
+                error!("rustfmt error {s}");
             }
         }
-        Err(e) => fatal!("{e}"),
+        Err(e) => error!("{e}"),
     }
 }
 

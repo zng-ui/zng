@@ -13,6 +13,7 @@ pub fn foo(child: impl IntoUiNode, value: impl IntoUiNode) -> UiNode {
 
 fn main() {
     let _scope = APP.minimal();
+    #[rustfmt::skip]
     let _ = Wgt! {
         margin = 0;
         when {

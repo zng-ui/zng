@@ -74,7 +74,9 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> UiNode {
                 colors::WHITE.with_alpha(80.pct()).mix_normal(colors::GREEN),
                 colors::GREEN.darken(80.pct()),
             );
-            button::style_fn = Style! { widget::corner_radius = unset! };
+            button::style_fn = Style! {
+                widget::corner_radius = unset!;
+            };
             padding = 2;
             child = Stack! {
                 direction = StackDirection::top_to_bottom();

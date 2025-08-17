@@ -107,7 +107,7 @@ fn commands(mouse_pan: Var<bool>, smooth_scrolling: Var<bool>) -> UiNode {
                     scroll_to_zoom_btn(WidgetId::named("Lorem 2"), 50.pct()),
                 ]
             ),
-            SubMenu! {
+            SubMenu!(
                 "Options",
                 ui_vec![
                     Toggle! {
@@ -119,7 +119,7 @@ fn commands(mouse_pan: Var<bool>, smooth_scrolling: Var<bool>) -> UiNode {
                         child = Text!("Smooth Scrolling");
                     },
                 ]
-            }
+            )
         ];
     }
 }

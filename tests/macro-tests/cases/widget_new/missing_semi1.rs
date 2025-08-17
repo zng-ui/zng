@@ -7,6 +7,7 @@ use zng::{
 
 fn main() {
     let _scope = APP.minimal();
+    #[rustfmt::skip]
     let _ = Wgt! {
         margin = 0
         // we expect this properties to be used.

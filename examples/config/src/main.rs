@@ -54,6 +54,7 @@ fn load_config() {
                 )+
             };
         }
+        #[rustfmt::skip]
         examples! {
             ["u8", "integers", 0u8],
             ["u16", "integers", 0u16],

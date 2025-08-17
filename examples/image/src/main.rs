@@ -306,22 +306,23 @@ fn sprite() -> UiNode {
 }
 
 fn large_image() -> UiNode {
+    let title = "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB, downscale to fit 8,000 × 8,000";
+    let source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
+    let thumbnail_source = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/757px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
     Button! {
         child = Text!("Large Image (205MB download)");
         on_click = hn!(|_| {
-            WINDOWS.open(async {
+            WINDOWS.open(async move {
                 let mouse_pan = var(false);
                 let mode = var(ScrollMode::NONE);
                 ImgWindow! {
-                    title =
-                        "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB, downscale to fit 8,000 × 8,000",
-                    ;
+                    title;
                     child_align = Align::FILL;
                     child = Scroll! {
                         mode = mode.clone();
                         mouse_pan = mouse_pan.clone();
                         child = Image! {
-                            source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
+                            source;
                             img_limits = Some(
                                 ImageLimits::none()
                                     .with_max_encoded_len(300.megabytes())
@@ -342,9 +343,7 @@ fn large_image() -> UiNode {
                                 Stack! {
                                     children = ui_vec![
                                         Image! {
-                                            source =
-                                                "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/757px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg",
-                                            ;
+                                            source = thumbnail_source;
                                         },
                                         loading(),
                                     ];
@@ -359,20 +358,21 @@ fn large_image() -> UiNode {
 }
 
 fn panorama_image() -> UiNode {
+    let title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
+    let source =
+        "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
     Button! {
         child = Text!("Panorama Image (100MB download)");
         on_click = hn!(|_| {
-            WINDOWS.open(async {
+            WINDOWS.open(async move {
                 ImgWindow!(
-                    "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB",
+                    title,
                     Scroll! {
                         mode = ScrollMode::HORIZONTAL;
                         mouse_pan = true;
                         child = Image! {
                             img_fit = ImageFit::Fill;
-                            source =
-                                "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg",
-                            ;
+                            source;
                             img_limits = Some(
                                 ImageLimits::none()
                                     .with_max_encoded_len(130.megabytes())
@@ -390,6 +390,9 @@ fn panorama_image() -> UiNode {
 }
 
 fn block_window_load_image() -> UiNode {
+    let title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
+    let source =
+        "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
     let enabled = var(true);
     Button! {
         child = Text!(enabled.map(|e| {
@@ -405,7 +408,7 @@ fn block_window_load_image() -> UiNode {
             enabled.set(false);
             WINDOWS.open(async_clmv!(enabled, {
                 ImgWindow! {
-                    title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
+                    title;
                     state = WindowState::Normal;
 
                     child = Scroll! {
@@ -416,9 +419,7 @@ fn block_window_load_image() -> UiNode {
                             img_block_window_load = 5.minutes();
 
                             img_fit = ImageFit::Fill;
-                            source =
-                                "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg",
-                            ;
+                            source;
                             img_limits = Some(
                                 ImageLimits::none()
                                     .with_max_encoded_len(130.megabytes())
@@ -441,18 +442,20 @@ fn block_window_load_image() -> UiNode {
 }
 
 fn repeat_image() -> UiNode {
+    let title = "Wikimedia - Turtle seamless pattern - 1,000 × 1,000 pixels, file size: 1.49 MB";
+    let source = "https://upload.wikimedia.org/wikipedia/commons/9/91/Turtle_seamless_pattern.jpg";
     Button! {
         child = Text!("Repeat Image (2 MB download)");
         on_click = hn!(|_| {
-            WINDOWS.open(async {
+            WINDOWS.open(async move {
                 let show_pattern = var(false);
                 ImgWindow!(
-                    "Wikimedia - Turtle seamless pattern - 1,000 × 1,000 pixels, file size: 1.49 MB",
+                    title,
                     Scroll! {
                         mode = ScrollMode::HORIZONTAL;
                         // demo `background_img`
                         child = Wgt! {
-                            widget::background_img = "https://upload.wikimedia.org/wikipedia/commons/9/91/Turtle_seamless_pattern.jpg";
+                            widget::background_img = source;
                             widget::background_img_fit = ImageFit::None;
                             widget::background_img_repeat = true;
                             widget::background_img_repeat_spacing =
@@ -470,7 +473,7 @@ fn repeat_image() -> UiNode {
                         };
                         // demo `Image!`
                         // child = Image! {
-                        //     source = "https://upload.wikimedia.org/wikipedia/commons/9/91/Turtle_seamless_pattern.jpg";
+                        //     source;
                         //     img_fit = ImageFit::None;
                         //     img_repeat = true;
                         //     img_repeat_spacing = show_pattern

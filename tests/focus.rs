@@ -1361,7 +1361,7 @@ pub fn focused_removed_by_deleting() {
     let exist = var(true);
     let button1_id = WidgetId::new_unique();
 
-    let buttons = ui_vec! {
+    let buttons = ui_vec![
         Button! { child = Text!("Button 0") },
         DataView!(::<bool>, exist.clone(), hn!(|a: &DataViewArgs<bool>| {
             if a.data().get() {
@@ -1371,7 +1371,7 @@ pub fn focused_removed_by_deleting() {
             }
         })),
         Button! { child = Text!("Button 2") }
-    };
+    ];
 
     let mut app = app.run(Stack!(top_to_bottom, buttons));
 
