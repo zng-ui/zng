@@ -456,8 +456,14 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         replaced_code = replace_simple_ident_list(group_code, false);
         is_simple_list = matches!(&replaced_code, Cow::Owned(_));
     }
-    let replaced_code = replaced_code.into_owned();
 
+    let mut is_when_var = false;
+    if matches!(&replaced_code, Cow::Borrowed(_)) {
+        replaced_code = replace_when_var(group_code, false);
+        is_when_var = matches!(&replaced_code, Cow::Owned(_));
+    }
+
+    let replaced_code = replaced_code.into_owned();
     // fmt inner macros first, their final format can affect this macros format
     let code_stream: pm2_send::TokenStream = match replaced_code.parse() {
         Ok(t) => t,
@@ -513,6 +519,8 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         replace_simple_ident_list(&code, true)
     } else if is_widget_impl {
         replace_widget_impl(&code, true)
+    } else if is_when_var {
+        replace_when_var(&code, true)
     } else {
         Cow::Owned(code)
     };
@@ -938,6 +946,37 @@ fn replace_expr_var(code: &str, reverse: bool) -> Cow<'_, str> {
         })
     } else {
         POUND_REV_RGX.replace_all(code, "#")
+    }
+}
+// replace `{ pattern => expr }` with `static __zng_fmt__: T = match 0 { pattern => expr }; // __zng-fmt`
+fn replace_when_var(code: &str, reverse: bool) -> Cow<'_, str> {
+    if !reverse {
+        let stream: proc_macro2::TokenStream = match code[1..code.len() - 1].parse() {
+            Ok(s) => s,
+            Err(_) => return Cow::Borrowed(code),
+        };
+        let mut arrow_at_root = false;
+        let mut stream = stream.into_iter();
+        while let Some(tt) = stream.next() {
+            if let proc_macro2::TokenTree::Punct(p) = tt
+                && p.as_char() == '='
+                && let Some(proc_macro2::TokenTree::Punct(p2)) = stream.next()
+                && p2.as_char() == '>'
+            {
+                arrow_at_root = true;
+                break;
+            }
+        }
+        if arrow_at_root {
+            Cow::Owned(format!("static __zng_fmt__: T = match 0 {code}; // __zng-fmt"))
+        } else {
+            Cow::Borrowed(code)
+        }
+    } else {
+        Cow::Owned(
+            code.replace("static __zng_fmt__: T = match 0 {", "{")
+                .replace("}; // __zng-fmt", "}"),
+        )
     }
 }
 // replace `static ref ` with `static __fmt_ref__`
