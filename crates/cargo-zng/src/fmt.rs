@@ -879,7 +879,7 @@ fn replace_event_property(code: &str, reverse: bool) -> Cow<'_, str> {
 /// Escape widget macro syntax
 fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
     static IGNORE_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m): +\w+\s+=\s+\{").unwrap());
-    static PROPERTY_NAME_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*([\w:]+)\s+=\s+").unwrap());
+    static PROPERTY_NAME_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*([\w:<>]+)\s+=\s+").unwrap());
 
     #[derive(Debug)]
     enum Item<'s> {
