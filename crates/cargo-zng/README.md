@@ -60,10 +60,15 @@ Options:
           Format the workspace crate identified by package name
 
   -f, --files <FILES>
-          Format all .rs and .md files matched by glob
+          Format all files matched by glob
 
   -s, --stdin
           Format the stdin to the stdout
+
+      --edition <EDITION>
+          Rustfmt style edition, enforced for all files
+
+          [default: 2024]
 
   -h, --help
           Print help (see a summary with '-h')
