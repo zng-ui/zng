@@ -1028,15 +1028,18 @@ where
 /// # fn assert_type() {
 /// let status = var("pending..".to_txt());
 ///
-/// CLICK_EVENT.on_event(async_app_hn!(status, |args: ClickArgs, _| {
-///     status.set(formatx!("processing {}..", args.target));
+/// CLICK_EVENT
+///     .on_event(async_app_hn!(status, |args: ClickArgs, _| {
+///         status.set(formatx!("processing {}..", args.target));
 ///
-///     task::run(async move {
-///         println!("do something slow");
-///     }).await;
+///         task::run(async move {
+///             println!("do something slow");
+///         })
+///         .await;
 ///
-///     status.set(formatx!("finished {}", args.target));
-/// })).perm();
+///         status.set(formatx!("finished {}", args.target));
+///     }))
+///     .perm();
 ///
 /// // can still use after:
 /// let text = status;

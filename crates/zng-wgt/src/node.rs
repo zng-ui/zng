@@ -95,21 +95,29 @@ pub mod __macro_util {
 /// /// Sets the *foo* config.
 /// #[property(CONTEXT, default(false))]
 /// pub fn foo(child: impl IntoUiNode, value: impl IntoVar<bool>) -> UiNode {
-///     with_context_var(child, CONFIG_VAR, merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
-///         let mut c = c.clone();
-///         c.foo = v;
-///         c
-///     }))
+///     with_context_var(
+///         child,
+///         CONFIG_VAR,
+///         merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
+///             let mut c = c.clone();
+///             c.foo = v;
+///             c
+///         }),
+///     )
 /// }
 ///
 /// /// Sets the *bar* config.
 /// #[property(CONTEXT, default(false))]
 /// pub fn bar(child: impl IntoUiNode, value: impl IntoVar<bool>) -> UiNode {
-///     with_context_var(child, CONFIG_VAR, merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
-///         let mut c = c.clone();
-///         c.bar = v;
-///         c
-///     }))
+///     with_context_var(
+///         child,
+///         CONFIG_VAR,
+///         merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
+///             let mut c = c.clone();
+///             c.bar = v;
+///             c
+///         }),
+///     )
 /// }
 /// ```
 ///
@@ -1938,7 +1946,8 @@ pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl IntoUiN
 /// /// Get the value from outside the widget.
 /// fn get_foo_outer(widget: &mut UiNode) -> u32 {
 ///     if let Some(mut wgt) = widget.as_widget() {
-///         wgt.with_context(WidgetUpdateMode::Ignore, || WIDGET.get_state(*FOO_ID)).unwrap_or(0)
+///         wgt.with_context(WidgetUpdateMode::Ignore, || WIDGET.get_state(*FOO_ID))
+///             .unwrap_or(0)
 ///     } else {
 ///         0
 ///     }

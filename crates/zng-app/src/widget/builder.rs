@@ -117,11 +117,11 @@ pub use crate::property_id;
 /// # use zng_app::{*, widget::{node::*, builder::*, property}};
 /// # use zng_var::*;
 /// # pub mod path {
-/// #   use super::*;
+/// # use super::*;
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl IntoUiNode, bar: impl IntoValue<bool>) -> UiNode {
 ///     // ..
-/// #     child.into_node()
+///     # child.into_node()
 /// }
 /// # }
 /// # fn main() {

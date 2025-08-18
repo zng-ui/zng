@@ -129,11 +129,7 @@ pub fn border_over(child: impl IntoUiNode, over: impl IntoVar<bool>) -> UiNode {
 /// #
 /// /// Another border property.
 /// #[property(BORDER, default(0, BorderStyle::Hidden))]
-/// pub fn my_border(
-///     child: impl IntoUiNode,
-///     widths: impl IntoVar<SideOffsets>,
-///     sides: impl IntoVar<BorderSides>
-/// ) -> UiNode {
+/// pub fn my_border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> UiNode {
 ///     zng_wgt::border(child, widths, sides)
 /// }
 /// #
@@ -151,7 +147,7 @@ pub fn border_over(child: impl IntoUiNode, over: impl IntoVar<bool>) -> UiNode {
 /// #
 /// # #[property(BORDER, default(0, BorderStyle::Hidden))]
 /// # pub fn my_border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> UiNode {
-/// #    zng_wgt::border(child, widths, sides)
+/// # zng_wgt::border(child, widths, sides)
 /// # }
 /// #
 /// # fn main() {
@@ -178,7 +174,7 @@ pub fn border_over(child: impl IntoUiNode, over: impl IntoVar<bool>) -> UiNode {
 /// #
 /// # #[property(BORDER, default(0, BorderStyle::Hidden))]
 /// # pub fn my_border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> UiNode {
-/// #    zng_wgt::border(child, widths, sides)
+/// # zng_wgt::border(child, widths, sides)
 /// # }
 /// #
 /// # fn main() {
@@ -203,7 +199,7 @@ pub fn border_over(child: impl IntoUiNode, over: impl IntoVar<bool>) -> UiNode {
 /// pub fn outside_border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> UiNode {
 ///     zng_wgt::border(child, widths, sides)
 /// }
-///  
+///
 /// /// Border that is always inside the other borders.
 /// #[property(BORDER+1, default(0, BorderStyle::Hidden))]
 /// pub fn inside_border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> UiNode {

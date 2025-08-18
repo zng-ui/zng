@@ -699,7 +699,8 @@ impl<T: VarValue> Var<T> {
     ///     } else {
     ///         b[0] = a;
     ///     }
-    /// }).perm();
+    /// })
+    /// .perm();
     /// ```
     ///
     /// In the example above the variable `b` first element is set to the updated value of `a`.
