@@ -470,11 +470,7 @@ pub mod column {
     ///
     /// The `Column!` macro provides a shorthand init that sets the width, `grid::Column!(1.lft())` instantiates
     /// a column with width of *1 leftover*.
-    #[widget($crate::Column {
-        ($width:expr) => {
-            width = $width;
-        };
-    })]
+    #[widget($crate::Column { ($width:expr) => { width = $width; }; })]
     pub struct Column(WidgetBase);
     impl Column {
         widget_impl! {
@@ -613,11 +609,7 @@ pub mod row {
     ///
     /// The `Row!` macro provides a shorthand init that sets the height, `grid::Row!(1.lft())` instantiates
     /// a row with height of *1 leftover*.
-    #[widget($crate::Row {
-        ($height:expr) => {
-            height = $height;
-        };
-    })]
+    #[widget($crate::Row { ($height:expr) => { height = $height; }; })]
     pub struct Row(WidgetBase);
     impl Row {
         widget_impl! {

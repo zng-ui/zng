@@ -21,11 +21,7 @@ use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 pub use zng_task::Progress;
 
 /// Progress indicator widget.
-#[widget($crate::ProgressView {
-    ($progress:expr) => {
-        progress = $progress;
-    };
-})]
+#[widget($crate::ProgressView { ($progress:expr) => { progress = $progress; }; })]
 pub struct ProgressView(StyleMix<WidgetBase>);
 impl ProgressView {
     fn widget_intrinsic(&mut self) {

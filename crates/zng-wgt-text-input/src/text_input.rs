@@ -50,11 +50,7 @@ use zng_wgt_undo::{UndoMix, undo_scope};
 /// let editable_text = TextInput!(var_from(""));
 /// # }
 /// ```
-#[widget($crate::TextInput {
-    ($txt:expr) => {
-        txt = $txt;
-    };
-})]
+#[widget($crate::TextInput { ($txt:expr) => { txt = $txt; }; })]
 pub struct TextInput(StyleMix<UndoMix<Text>>);
 impl TextInput {
     fn widget_intrinsic(&mut self) {

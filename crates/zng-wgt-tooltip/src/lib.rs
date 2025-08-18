@@ -533,11 +533,7 @@ context_var! {
 /// Can be set on the [`tooltip`] property.
 ///
 /// [`tooltip`]: fn@tooltip
-#[widget($crate::Tip {
-    ($child:expr) => {
-        child = $child;
-    };
-})]
+#[widget($crate::Tip { ($child:expr) => { child = $child; }; })]
 pub struct Tip(Popup);
 impl Tip {
     fn widget_intrinsic(&mut self) {

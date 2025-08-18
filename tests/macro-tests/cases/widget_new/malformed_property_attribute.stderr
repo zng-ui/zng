@@ -15,8 +15,8 @@ error: expected identifier, found `!`
   |
  ::: $WORKSPACE/crates/zng-wgt-button/src/lib.rs
   |
-  |     ($cmd:expr) => {
-  |      --------- while parsing argument for this `expr` macro fragment
+  | #[widget($crate::Button { ($cmd:expr) => { cmd = $cmd; }; })]
+  |                            --------- while parsing argument for this `expr` macro fragment
 
 warning: unused import: `layout::margin`
  --> cases/widget_new/malformed_property_attribute.rs:1:32

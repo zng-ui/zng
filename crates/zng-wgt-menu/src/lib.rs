@@ -32,11 +32,7 @@ pub mod popup;
 pub mod sub;
 
 /// Menu root panel.
-#[widget($crate::Menu {
-    ($children:expr) => {
-        children = $children;
-    }
-})]
+#[widget($crate::Menu { ($children:expr) => { children = $children; } })]
 pub struct Menu(StyleMix<zng_wgt_panel::Panel>);
 impl Menu {
     fn widget_intrinsic(&mut self) {

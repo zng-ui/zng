@@ -33,11 +33,7 @@ use std::sync::Arc;
 ///
 /// This widget shows a snapshot of the undo/redo stacks of the focused undo scope when the history widget is open.
 /// Note that the stack is not live, this widget is designed to work as a menu popup content.
-#[widget($crate::UndoHistory {
-    ($op:expr) => {
-        op = $op;
-    }
-})]
+#[widget($crate::UndoHistory { ($op:expr) => { op = $op; } })]
 pub struct UndoHistory(WidgetBase);
 impl UndoHistory {
     fn widget_intrinsic(&mut self) {

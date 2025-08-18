@@ -582,52 +582,23 @@ async fn try_fmt_child_macros(code: &str, stream: pm2_send::TokenStream, fmt: &F
                     && matches!(g.delimiter(), pm2_send::Delimiter::Bracket)
                     && matches!(&tail2[0], pm2_send::TokenTree::Punct(p) if p.as_char() == '#')
                 {
-                    // #[attribute ..]
-
-                    struct Path(Vec<pm2_send::Ident>);
-                    fn take_path(iter: &mut impl Iterator<Item = pm2_send::TokenTree>) -> Path {
-                        use pm2_send::TokenTree::*;
-                        let mut r = Path(vec![]);
-                        let mut iter = iter.peekable();
-                        'outer: while let Some(Ident(i)) = iter.next_if(|tt| matches!(tt, Ident(_))) {
-                            r.0.push(i);
-                            for _ in 0..2 {
-                                if !matches!(iter.peek(), Some(Punct(p)) if p.as_char() == ':') {
-                                    break 'outer;
-                                }
-                            }
-                        }
-                        r
-                    }
-
-                    // #[rustfmt::skip]
-                    fn is_skip(stream: pm2_send::TokenStream) -> bool {
-                        let mut attr = stream.into_iter();
-                        let path = take_path(&mut attr);
-                        path.0.len() == 2 && path.0[0] == "rustfmt" && path.0[1] == "skip"
-                    }
-
-                    // #[path::widget($crate::Foo { <macro_rules> })]
-                    fn is_widget_custom(stream: pm2_send::TokenStream) -> Option<pm2_send::Group> {
-                        use pm2_send::{TokenTree::*, Delimiter};
-                        let mut attr = stream.into_iter();
-                        let path = take_path(&mut attr);
-                        if let Some(ident) = path.0.last() && ident == &"widget" && let Some(Group(g)) = attr.next() && g.delimiter() == Delimiter::Parenthesis {
-                            let mut attr = g.stream().into_iter();
-                            if let Some(Punct(p)) = attr.next() && p.as_char() == '$' && !take_path(&mut attr).0.is_empty()
-                                && let Some(Group(g)) = attr.next() && g.delimiter() == Delimiter::Brace
-                             {
-                                return Some(g)
-                            }
-                        } 
-                        None
-                    }
-
-                    if is_skip(g.stream()) {
+                    // #[..]
+                    let mut attr = g.stream().into_iter();
+                    let attr = [attr.next(), attr.next(), attr.next(), attr.next(), attr.next()];
+                    if let [
+                        Some(pm2_send::TokenTree::Ident(i0)),
+                        Some(pm2_send::TokenTree::Punct(p0)),
+                        Some(pm2_send::TokenTree::Punct(p1)),
+                        Some(pm2_send::TokenTree::Ident(i1)),
+                        None,
+                    ] = attr
+                        && i0 == "rustfmt"
+                        && p0.as_char() == ':'
+                        && p1.as_char() == ':'
+                        && i1 == "skip"
+                    {
+                        // #[rustfmt::skip]
                         skip_next_group = true;
-                    } else if let Some(macro_rules_block) = is_widget_custom(g.stream()) {
-                        // !!: IMPORTANT to fix unstable formatting, adjust spaces to match opening #[]
-                        todo!("!!: replace with macro_rules for formatting")
                     }
                 } else if !std::mem::take(&mut skip_next_group) {
                     stream_stack.push(g.stream().into_iter());
