@@ -1,5 +1,5 @@
 error: expected `;`
-  --> cases/widget_new/missing_semi1.rs:13:9
+  --> cases/widget_new/missing_semi1.rs:14:9
    |
-13 |         enabled = true;
+14 |         enabled = true;
    |         ^^^^^^^

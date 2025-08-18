@@ -168,7 +168,7 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 ///
 /// Properties can have multiple parameters, multiple parameters can be set using the struct init syntax:
 ///
-/// ```
+/// ```rust,no_fmt
 /// # use zng_app::{*, widget::{node::*, property}};
 /// # use zng_color::*;
 /// # use zng_var::*;
@@ -185,7 +185,7 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 ///
 /// Note that just like in struct init the parameters don't need to be in order:
 ///
-/// ```
+/// ```rust,no_fmt
 /// # use zng_app::{*, widget::{node::*, property}};
 /// # use zng_color::*;
 /// # use zng_var::*;
@@ -203,7 +203,7 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 /// Internally each property method has auxiliary methods that validate the member names and construct the property using sorted params, therefore
 /// accepting any parameter order. Note each parameter is evaluated in the order they appear, even if they are assigned in a different order after.
 ///
-/// ```
+/// ```rust,no_fmt
 /// # use zng_app::{*, widget::{node::*, property}};
 /// # use zng_color::*;
 /// # use zng_var::*;
@@ -233,7 +233,7 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 ///
 /// Properties with multiple parameters don't need to be set using the named syntax:
 ///
-/// ```
+/// ```rust,no_fmt
 /// # use zng_app::{*, widget::{node::*, property}};
 /// # use zng_color::*;
 /// # use zng_var::*;
@@ -318,7 +318,7 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 /// All properties can be assigned to an special value `unset!`, that *removes* a property, when the widget is build the
 /// unset property will not be instantiated:
 ///
-/// ```
+/// ```rust,no_fmt
 /// # use zng_app::{*, widget::{node::*, property}};
 /// # use zng_color::*;
 /// # use zng_var::*;
@@ -352,7 +352,7 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 ///
 /// Generic properties need a *turbofish* annotation on assign:
 ///
-/// ```
+/// ```rust,no_fmt
 /// # use zng_app::{*, widget::{node::*, property}};
 /// # use zng_color::*;
 /// # use zng_var::*;
@@ -370,7 +370,7 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 /// Conditional property assigns can be setup using `when` blocks. A `when` block has a `bool` expression and property assigns,
 /// when the expression is `true` each property has the assigned value, unless it is overridden by a later `when` block.
 ///
-/// ```
+/// ```rust,no_fmt
 /// # use zng_app::{*, widget::{node::*, property}};
 /// # use zng_color::*;
 /// # use zng_var::*;
@@ -414,7 +414,7 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 /// Other variable can also be referenced, context variables or any locally declared variable can be referenced. Like with properties
 /// the variable value is inserted in the expression as a reference so you may need to deref in case the var is a simple [`Copy`] value.
 ///
-/// ```
+/// ```rust,no_fmt
 /// # use zng_app::{*, widget::{node::*, property, self}};
 /// # use zng_color::*;
 /// # use zng_var::*;

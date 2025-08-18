@@ -1,27 +1,27 @@
 error: an inner attribute is not permitted in this context
- --> cases/widget_new/malformed_property_attribute.rs:6:9
+ --> cases/widget_new/malformed_property_attribute.rs:7:9
   |
-6 |         #![allow(inner_attribute)]
+7 |         #![allow(inner_attribute)]
   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: inner attributes, like `#![no_std]`, annotate the item enclosing them, and are usually found at the beginning of source files
   = note: outer attributes, like `#[test]`, annotate the item following them
 
 error: expected identifier, found `!`
- --> cases/widget_new/malformed_property_attribute.rs:7:11
+ --> cases/widget_new/malformed_property_attribute.rs:8:11
   |
-7 |         #[!foo]
+8 |         #[!foo]
   |           ^ expected identifier
   |
  ::: $WORKSPACE/crates/zng-wgt-button/src/lib.rs
   |
-  |     ($cmd:expr) => {
-  |      --------- while parsing argument for this `expr` macro fragment
+  | #[widget($crate::Button { ($cmd:expr) => { cmd = $cmd; }; })]
+  |                            --------- while parsing argument for this `expr` macro fragment
 
 warning: unused import: `layout::margin`
- --> cases/widget_new/malformed_property_attribute.rs:1:27
+ --> cases/widget_new/malformed_property_attribute.rs:1:32
   |
-1 | use zng::{button::Button, layout::margin, APP};
-  |                           ^^^^^^^^^^^^^^
+1 | use zng::{APP, button::Button, layout::margin};
+  |                                ^^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

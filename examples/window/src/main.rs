@@ -54,7 +54,7 @@ async fn main_window() -> window::WindowRoot {
                 Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_vec![state_commands(), focus_control()]
+                    children = ui_vec![state_commands(), focus_control()];
                 },
                 Stack! {
                     direction = StackDirection::top_to_bottom();
@@ -118,13 +118,9 @@ fn screenshot() -> UiNode {
     fn of_window() -> UiNode {
         let enabled = var(true);
         Button! {
-            child = Text!(enabled.map(|&enabled| {
-                if enabled {
-                    "screenshot".to_txt()
-                } else {
-                    "saving..".to_txt()
-                }
-            }));
+            child = Text!(
+                enabled.map(|&enabled| { if enabled { "screenshot" } else { "saving.." }.to_txt() })
+            );
             on_click = async_hn!(enabled, |_| {
                 // disable button until screenshot is saved.
                 enabled.set(false);
@@ -156,13 +152,9 @@ fn screenshot() -> UiNode {
     fn of_headless_temp() -> UiNode {
         let enabled = var(true);
         Button! {
-            child = Text!(enabled.map(|&enabled| {
-                if enabled {
-                    "headless".to_txt()
-                } else {
-                    "saving..".to_txt()
-                }
-            }));
+            child = Text!(
+                enabled.map(|&enabled| { if enabled { "headless" } else { "saving.." }.to_txt() })
+            );
             enabled = enabled.clone();
             on_click = hn!(|_| {
                 enabled.set(false);
@@ -321,7 +313,7 @@ fn state() -> UiNode {
                         corner_radius = (4, 4, 0, 0);
                     },
                     exclusive_mode(),
-                ]
+                ];
             }
         ],
     )
@@ -357,7 +349,7 @@ fn exclusive_mode() -> UiNode {
                                 value = o;
                             }
                         });
-                    }
+                    };
                 };
             }
         });
@@ -478,9 +470,10 @@ fn custom_chrome(title: Var<Txt>) -> UiNode {
             });
             mouse::on_mouse_down = hn!(|args: &mouse::MouseInputArgs| {
                 if args.is_primary()
-                    && let Some(d) = args.position_wgt().and_then(resize_direction) {
-                        window::cmd::DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify_param(d);
-                    }
+                    && let Some(d) = args.position_wgt().and_then(resize_direction)
+                {
+                    window::cmd::DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify_param(d);
+                }
             });
         }
     }
@@ -527,7 +520,7 @@ fn misc() -> UiNode {
                                 };
                             }
                         });
-                    })
+                    });
                 }
             },
             {
@@ -549,7 +542,7 @@ fn misc() -> UiNode {
                                 };
                             }
                         });
-                    })
+                    });
                 }
             }
         ],
@@ -674,14 +667,14 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                         style_fn = dialog::AskStyle!();
                         title = Text!("Close?");
                         content = SelectableText!("Close the window?");
-                        responses = vec![dialog::Response::cancel(), dialog::Response::close()]
+                        responses = vec![dialog::Response::cancel(), dialog::Response::close()];
                     }
                 } else {
                     dialog::Dialog! {
                         style_fn = dialog::AskStyle!();
                         title = Text!("Close all?");
                         content = SelectableText!("Close {} windows?", args.windows.len());
-                        responses = vec![dialog::Response::cancel(), dialog::Response::new("close", "Close All")]
+                        responses = vec![dialog::Response::cancel(), dialog::Response::new("close", "Close All")];
                     }
                 };
                 let r = DIALOG.custom(dlg).wait_rsp().await;
@@ -711,12 +704,14 @@ fn section(header: &'static str, items: impl IntoUiNode) -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        children = Text! {
-            txt = header;
-            font_weight = FontWeight::BOLD;
-            margin = (0, 4);
-        }
-        .chain(items);
+        children =
+            Text! {
+                txt = header;
+                font_weight = FontWeight::BOLD;
+                margin = (0, 4);
+            }
+            .chain(items),
+        ;
     }
 }
 
@@ -725,12 +720,14 @@ fn select<T: VarValue + PartialEq>(header: &'static str, selection: Var<T>, item
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         toggle::selector = toggle::Selector::single(selection);
-        children = Text! {
-            txt = header;
-            font_weight = FontWeight::BOLD;
-            margin = (0, 4);
-        }
-        .chain(items);
+        children =
+            Text! {
+                txt = header;
+                font_weight = FontWeight::BOLD;
+                margin = (0, 4);
+            }
+            .chain(items),
+        ;
     }
 }
 
@@ -778,7 +775,7 @@ fn logo_icon() -> UiNode {
                     widget::border = (0, 4, 4, 0), colors::WHITE;
                 },
             ];
-        }
+        };
     };
 
     Container! {

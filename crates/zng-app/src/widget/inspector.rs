@@ -174,7 +174,7 @@ pub trait WidgetInfoInspectorExt {
     /// # fn main() { }
     /// mod widgets {
     ///     use zng_app::widget::*;
-    ///     
+    ///
     ///     #[widget($crate::widgets::Button)]
     ///     pub struct Button(base::WidgetBase);
     /// }

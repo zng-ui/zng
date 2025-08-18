@@ -26,7 +26,9 @@
 ///
 /// let bar = "Cool!".to_owned();
 /// foo(clmv!(bar, |p| {
-///     if p { println!("cloned: {bar}") }
+///     if p {
+///         println!("cloned: {bar}")
+///     }
 /// }));
 ///
 /// println!("original: {bar}");
@@ -37,13 +39,15 @@
 /// ```
 /// # use zng_clone_move::clmv;
 /// # fn foo(mut f: impl FnMut(bool) + 'static) {
-/// #     f(true);
+/// # f(true);
 /// # }
 /// # let bar = "Cool!".to_owned();
 /// foo({
 ///     let bar = bar.clone();
 ///     move |p| {
-///         if p { println!("cloned: {bar}") }
+///         if p {
+///             println!("cloned: {bar}")
+///         }
 ///     }
 /// });
 /// # println!("original: {bar}");
@@ -76,14 +80,16 @@
 /// # use zng_clone_move::clmv;
 /// # use std::sync::Arc;
 /// # fn foo(mut f: impl FnMut(bool) + 'static) {
-/// #     f(true);
+/// # f(true);
 /// # }
 /// # let bar = Arc::new("Cool!".to_string());
 /// foo({
 ///     let mut bar = (*bar).clone();
 ///     move |p| {
 ///         bar.push_str("!");
-///         if p { println!("cloned String not Arc: {bar}") }
+///         if p {
+///             println!("cloned String not Arc: {bar}")
+///         }
 ///     }
 /// });
 /// # println!("original: {bar}");
@@ -167,7 +173,7 @@ macro_rules! __clmv {
 /// # trait TimeUnits { fn ms(self) -> Duration; }
 /// # impl TimeUnits for u64 { fn ms(self) -> Duration { Duration::from_millis(self) } }
 /// # async fn deadline(_d: Duration) { }
-/// async fn foo(mut f: impl Future<Output=()> + 'static) {
+/// async fn foo(mut f: impl Future<Output = ()> + 'static) {
 ///     f.await;
 /// }
 ///
@@ -186,7 +192,7 @@ macro_rules! __clmv {
 /// # use std::{time::Duration};
 /// # use zng_clone_move::*;
 /// # async fn foo(mut f: impl Future<Output=()> + 'static) {
-/// #     f.await;
+/// # f.await;
 /// # }
 /// # let bar = "Cool!".to_owned();
 /// # trait TimeUnits { fn ms(self) -> Duration; }
@@ -210,7 +216,7 @@ macro_rules! __clmv {
 /// ```
 /// # use std::{sync::Arc};
 /// # use zng_clone_move::*;
-/// async fn foo(mut f: impl Future<Output=()> + 'static) {
+/// async fn foo(mut f: impl Future<Output = ()> + 'static) {
 ///     f.await;
 /// }
 ///
@@ -229,7 +235,7 @@ macro_rules! __clmv {
 /// # use std::{sync::Arc};
 /// # use zng_clone_move::*;
 /// # async fn foo(mut f: impl Future<Output=()> + 'static) {
-/// #     f.await;
+/// # f.await;
 /// # }
 /// # let bar = Arc::new("Cool!".to_string());
 /// foo({
@@ -304,14 +310,16 @@ macro_rules! __async_clmv {
 ///
 /// ```
 /// # use zng_clone_move::async_clmv_fn;
-/// async fn foo<F: Future<Output=()>, H: FnMut(bool) -> F + 'static>(mut f: H) {
+/// async fn foo<F: Future<Output = ()>, H: FnMut(bool) -> F + 'static>(mut f: H) {
 ///     f(true).await;
 /// }
 ///
 /// let bar = "Cool!".to_owned();
 /// foo(async_clmv_fn!(bar, |p| {
 ///     std::future::ready(()).await;
-///     if p { println!("cloned: {bar}") }
+///     if p {
+///         println!("cloned: {bar}")
+///     }
 /// }));
 ///
 /// println!("original: {bar}");
@@ -322,7 +330,7 @@ macro_rules! __async_clmv {
 /// ```
 /// # use zng_clone_move::async_clmv_fn;
 /// # async fn foo<F: Future<Output=()>, H: FnMut(bool) -> F + 'static>(mut f: H) {
-/// #     f(true).await;
+/// # f(true).await;
 /// # }
 /// # let bar = "Cool!".to_owned();
 /// foo({
@@ -331,7 +339,9 @@ macro_rules! __async_clmv {
 ///         let bar = bar.clone();
 ///         async move {
 ///             std::future::ready(()).await;
-///             if p { println!("cloned: {bar}") }
+///             if p {
+///                 println!("cloned: {bar}")
+///             }
 ///         }
 ///     }
 /// });
@@ -485,14 +495,16 @@ macro_rules! __async_clmv_fn {
 ///
 /// ```
 /// # use zng_clone_move::async_clmv_fn;
-/// async fn foo<F: Future<Output=()>, H: FnOnce(bool) -> F + 'static>(mut f: H) {
+/// async fn foo<F: Future<Output = ()>, H: FnOnce(bool) -> F + 'static>(mut f: H) {
 ///     f(true).await;
 /// }
 ///
 /// let bar = "Cool!".to_owned();
 /// foo(async_clmv_fn!(bar, |p| {
 ///     std::future::ready(()).await;
-///     if p { println!("cloned: {bar}") }
+///     if p {
+///         println!("cloned: {bar}")
+///     }
 /// }));
 ///
 /// println!("original: {bar}");
@@ -503,14 +515,16 @@ macro_rules! __async_clmv_fn {
 /// ```
 /// # use zng_clone_move::async_clmv_fn;
 /// # async fn foo<F: Future<Output=()>, H: FnOnce(bool) -> F + 'static>(mut f: H) {
-/// #     f(true).await;
+/// # f(true).await;
 /// # }
 /// # let bar = "Cool!".to_owned();
 /// foo({
 ///     let bar = bar.clone();
 ///     move |p| async move {
 ///         std::future::ready(()).await;
-///         if p { println!("cloned: {bar}") }
+///         if p {
+///             println!("cloned: {bar}")
+///         }
 ///     }
 /// });
 /// # println!("original: {bar}");

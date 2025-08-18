@@ -442,11 +442,7 @@ impl TextOverflow {
 impl_from_and_into_var! {
     /// Truncate (no suffix), or ignore.
     fn from(truncate: bool) -> TextOverflow {
-        if truncate {
-            TextOverflow::truncate()
-        } else {
-            TextOverflow::Ignore
-        }
+        if truncate { TextOverflow::truncate() } else { TextOverflow::Ignore }
     }
 
     fn from(truncate: Txt) -> TextOverflow {
@@ -1601,11 +1597,7 @@ bitflags! {
 }
 impl_from_and_into_var! {
     fn from(enabled: bool) -> AutoSelection {
-        if enabled {
-            AutoSelection::ENABLED
-        } else {
-            AutoSelection::DISABLED
-        }
+        if enabled { AutoSelection::ENABLED } else { AutoSelection::DISABLED }
     }
 }
 impl Default for AutoSelection {

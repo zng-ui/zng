@@ -458,8 +458,14 @@ impl DefaultStyle {
             foreground_highlight = unset!;
 
             zng_wgt_layer::popup::anchor_mode = DIRECTION_VAR.map(|d| match d {
-                LayoutDirection::LTR => AnchorMode::popup(AnchorOffset { place: Point::bottom_left(), origin: Point::top_left() }),
-                LayoutDirection::RTL => AnchorMode::popup(AnchorOffset { place: Point::bottom_right(), origin: Point::top_right() }),
+                LayoutDirection::LTR => AnchorMode::popup(AnchorOffset {
+                    place: Point::bottom_left(),
+                    origin: Point::top_left(),
+                }),
+                LayoutDirection::RTL => AnchorMode::popup(AnchorOffset {
+                    place: Point::bottom_right(),
+                    origin: Point::top_right(),
+                }),
             });
 
             when *#is_hovered || *#is_focused || *#is_open {
@@ -514,7 +520,7 @@ impl SubMenuStyle {
                 when *#is_rtl {
                     txt = "⏴";
                 }
-            })
+            });
         }
     }
 }

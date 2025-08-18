@@ -129,7 +129,7 @@ impl std::hash::Hash for EventPropagationHandle {
 ///         pub target: WidgetPath,
 ///
 ///         ..
-///         
+///
 ///         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
 ///             list.insert_wgt(&self.target);
 ///         }

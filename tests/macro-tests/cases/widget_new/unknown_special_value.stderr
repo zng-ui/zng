@@ -1,13 +1,13 @@
 error: unknown special value, expected `unset!`
- --> cases/widget_new/unknown_special_value.rs:6:18
+ --> cases/widget_new/unknown_special_value.rs:7:18
   |
-6 |         margin = foo!;
+7 |         margin = foo!;
   |                  ^^^
 
 warning: unused import: `layout::margin`
- --> cases/widget_new/unknown_special_value.rs:1:11
+ --> cases/widget_new/unknown_special_value.rs:1:16
   |
-1 | use zng::{layout::margin, widget::Wgt, APP};
-  |           ^^^^^^^^^^^^^^
+1 | use zng::{APP, layout::margin, widget::Wgt};
+  |                ^^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

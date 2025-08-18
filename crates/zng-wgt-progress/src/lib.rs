@@ -21,11 +21,7 @@ use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 pub use zng_task::Progress;
 
 /// Progress indicator widget.
-#[widget($crate::ProgressView {
-    ($progress:expr) => {
-        progress = $progress;
-    };
-})]
+#[widget($crate::ProgressView { ($progress:expr) => { progress = $progress; }; })]
 pub struct ProgressView(StyleMix<WidgetBase>);
 impl ProgressView {
     fn widget_intrinsic(&mut self) {
@@ -170,12 +166,7 @@ impl DefaultStyle {
                             if indeterminate_animation.is_none() {
                                 let h = indeterminate_x.sequence(move |i| {
                                     use zng_var::animation::easing;
-                                    i.set_ease(
-                                        -indeterminate_width,
-                                        100.pct(),
-                                        1.5.secs(),
-                                        |t| easing::ease_out(easing::quad, t),
-                                    )
+                                    i.set_ease(-indeterminate_width, 100.pct(), 1.5.secs(), |t| easing::ease_out(easing::quad, t))
                                 });
                                 indeterminate_animation = Some(h);
                             }
@@ -190,11 +181,14 @@ impl DefaultStyle {
                 };
             };
 
-            child_out_bottom = zng_wgt_text::Text! {
-                txt = PROGRESS_VAR.map(|p| p.msg());
-                zng_wgt::visibility = PROGRESS_VAR.map(|p| Visibility::from(!p.msg().is_empty()));
-                zng_wgt::align = Align::CENTER;
-            }, 6;
+            child_out_bottom =
+                zng_wgt_text::Text! {
+                    txt = PROGRESS_VAR.map(|p| p.msg());
+                    zng_wgt::visibility = PROGRESS_VAR.map(|p| Visibility::from(!p.msg().is_empty()));
+                    zng_wgt::align = Align::CENTER;
+                },
+                6,
+            ;
         }
     }
 }

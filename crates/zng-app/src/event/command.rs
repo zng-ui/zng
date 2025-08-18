@@ -50,14 +50,17 @@ use super::*;
 /// You can also initialize metadata:
 ///
 /// ```
-/// use zng_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
+/// use zng_app::{
+///     event::{CommandInfoExt, CommandNameExt, command},
+///     shortcut::{CommandShortcutExt, shortcut},
+/// };
 ///
 /// command! {
 ///     /// Represents the **foo** action.
 ///     pub static FOO_CMD = {
 ///         name: "Foo!",
 ///         info: "Does the foo thing",
-///         shortcut: shortcut![CTRL+'F'],
+///         shortcut: shortcut![CTRL + 'F'],
 ///     };
 /// }
 /// ```
@@ -67,7 +70,10 @@ use super::*;
 /// Or you can use a custom closure to initialize the command:
 ///
 /// ```
-/// use zng_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
+/// use zng_app::{
+///     event::{CommandInfoExt, CommandNameExt, command},
+///     shortcut::{CommandShortcutExt, shortcut},
+/// };
 ///
 /// command! {
 ///     /// Represents the **foo** action.
@@ -290,10 +296,7 @@ pub fn init_meta_l10n(
 /// # impl CommandFooBarExt for Command { }
 /// command! {
 ///     /// Foo-bar command.
-///     pub static FOO_BAR_CMD = {
-///         foo: true,
-///         bar: false,
-///     };
+///     pub static FOO_BAR_CMD = { foo: true, bar: false };
 /// }
 /// ```
 ///
@@ -975,6 +978,7 @@ zng_var::impl_from_and_into_var! {
     fn from(param: CommandParam) -> Option<CommandParam>;
 }
 
+#[rustfmt::skip] // for zng fmt
 unique_id_64! {
     /// Unique identifier of a command metadata state variable.
     ///
@@ -1027,7 +1031,7 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 /// must have a `foo` and `init_foo` methods.
 ///
 /// ```
-/// use zng_app::{event::*, var::*, static_id};
+/// use zng_app::{event::*, static_id, var::*};
 ///
 /// static_id! {
 ///     static ref COMMAND_FOO_ID: CommandMetaVarId<bool>;
@@ -1058,7 +1062,7 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 ///     }
 ///
 ///     fn bar(self) -> ReadOnlyCommandMetaVar<bool> {
-///         self.with_meta(|m| m.get_var_or_insert(*COMMAND_BAR_ID, ||true)).read_only()
+///         self.with_meta(|m| m.get_var_or_insert(*COMMAND_BAR_ID, || true)).read_only()
 ///     }
 ///
 ///     fn foo_and_bar(self) -> Var<bool> {

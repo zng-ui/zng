@@ -17,7 +17,10 @@
 //!         node: Text!("secondary (top)"),
 //!         spacing: 5,
 //!     };
-//!     child = Text! { txt = "primary"; widget::background_color = colors::BLUE };
+//!     child = Text! {
+//!         txt = "primary";
+//!         widget::background_color = colors::BLUE;
+//!     };
 //!     child_bottom = {
 //!         node: Text!("secondary (bottom)"),
 //!         spacing: 0,
@@ -69,14 +72,11 @@
 //!             UiNodeOp::Layout { final_size, .. } => {
 //!                 render_size = Size::splat(40).layout();
 //!                 *final_size = render_size;
-//!             },
-//!             UiNodeOp::Render { frame } => frame.push_color(
-//!                 PxRect::from_size(render_size),
-//!                 FrameValue::Value(colors::GREEN.into())
-//!             ),
+//!             }
+//!             UiNodeOp::Render { frame } => frame.push_color(PxRect::from_size(render_size), FrameValue::Value(colors::GREEN.into())),
 //!             _ => {}
 //!         })
-//!     }
+//!     };
 //! }
 //! # ;
 //! ```

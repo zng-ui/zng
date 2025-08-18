@@ -48,7 +48,7 @@ lazy_static! {
 ///
 ///     // directories are available after `init!`.
 ///     let _res = zng::env::res("");
-///     
+///
 ///     // APP.defaults().run(...);
 ///
 ///     // on_exit handlers are called here
@@ -448,7 +448,7 @@ pub fn init_built_res(path: impl Into<PathBuf>) {
 lazy_static! {
     static ref RES: PathBuf = find_res();
 
-    #[cfg(any(debug_assertions, feature="built_res"))]
+    #[cfg(any(debug_assertions, feature = "built_res"))]
     static ref BUILT_RES: PathBuf = PathBuf::from("target/res");
 }
 #[cfg(target_os = "android")]

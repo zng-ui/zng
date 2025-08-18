@@ -25,9 +25,7 @@
 //! fn main() {
 //!     zng::env::init!();
 //!
-//!     APP.defaults().run_window(|ctx| {
-//!         unimplemented!()
-//!     })
+//!     APP.defaults().run_window(|ctx| unimplemented!())
 //! }
 //! # }}
 //! ```

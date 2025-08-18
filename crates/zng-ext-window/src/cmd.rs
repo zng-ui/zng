@@ -20,7 +20,7 @@ command! {
         l10n!: true,
         name: "Close",
         info: "Close the window",
-        shortcut: [shortcut!(ALT+F4), shortcut!(CTRL+'W')],
+        shortcut: [shortcut!(ALT + F4), shortcut!(CTRL + 'W')],
         icon: wgt_fn!(|_| ICONS.get(["window-close", "close"])),
     };
 
@@ -52,7 +52,7 @@ command! {
         info: "Toggle fullscreen mode on the window",
         shortcut: {
             let a = if cfg!(target_os = "macos") {
-                shortcut!(CTRL|SHIFT+'F')
+                shortcut!(CTRL | SHIFT + 'F')
             } else {
                 shortcut!(F11)
             };

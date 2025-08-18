@@ -8,14 +8,14 @@
 //! icons having a fixed appearance.
 //!
 //! ```
-//! use zng::{prelude::*, icon};
+//! use zng::{icon, prelude::*};
 //! # let _scope = APP.defaults();
 //!
 //! icon::ICONS.register(wgt_fn!(|a: icon::IconRequestArgs| {
 //!     match a.name() {
 //!         "accessibility" => Text!("A"),
 //!         "settings" => Text!("S"),
-//!         _ => UiNode::nil()
+//!         _ => UiNode::nil(),
 //!     }
 //! }));
 //! ```
@@ -28,7 +28,7 @@
 //! and can auto size the font size, this makes it a better alternative to just using the `Text!` widget.
 //!
 //! ```
-//! use zng::{prelude::*, icon};
+//! use zng::{icon, prelude::*};
 //! # let _scope = APP.defaults();
 //!
 //! # let _ =
@@ -44,15 +44,11 @@
 //!
 //! ```
 //! # fn main() { }
-//! use zng::{prelude::*, icon, font};
+//! use zng::{font, icon, prelude::*};
 //! # async fn demo() {
 //! # let _scope = APP.defaults();
 //!
-//! let font = font::CustomFont::from_file(
-//!     "Font Awesome 6 Free-Regular",
-//!     r#"Font Awesome 6 Free-Regular-400.otf"#,
-//!     0,
-//! );
+//! let font = font::CustomFont::from_file("Font Awesome 6 Free-Regular", r#"Font Awesome 6 Free-Regular-400.otf"#, 0);
 //! font::FONTS.register(font).wait_rsp().await.unwrap();
 //!
 //! # let _ =

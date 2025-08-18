@@ -9,19 +9,19 @@
 //!
 //! ```no_run
 //! fn main() {
-//!    println!("print in all processes");
-//!    zng::env::init!();
-//!    println!("print only in the app-process");
+//!     println!("print in all processes");
+//!     zng::env::init!();
+//!     println!("print only in the app-process");
 //!
-//!    // get a path in the app config dir, the config dir is created if needed.    
-//!    let my_config = zng::env::config("my-config.txt");
+//!     // get a path in the app config dir, the config dir is created if needed.
+//!     let my_config = zng::env::config("my-config.txt");
 //!
-//!    // read a config file, or create it
-//!    if let Ok(c) = std::fs::read_to_string(&my_config) {
-//!       println!("{c}");
-//!    } else {
-//!       std::fs::write(zng::env::config("my-config.txt"), b"Hello!").unwrap();
-//!    }
+//!     // read a config file, or create it
+//!     if let Ok(c) = std::fs::read_to_string(&my_config) {
+//!         println!("{c}");
+//!     } else {
+//!         std::fs::write(zng::env::config("my-config.txt"), b"Hello!").unwrap();
+//!     }
 //! }
 //! ```
 //!

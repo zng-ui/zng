@@ -22,60 +22,68 @@ pub fn fallback_chrome() -> UiNode {
         zng_wgt_size_offset::height = 28;
         txt_align = Align::CENTER;
 
-        child_right = Stack! {
-            direction = StackDirection::left_to_right();
-            zng_wgt_button::style_fn = zng_wgt_button::LightStyle! {
-                corner_radius = 0;
-                zng_wgt_button::cmd_child_fn = wgt_fn!(|cmd: Command| {
-                    presenter((), cmd.icon().map(move |ico| wgt_fn!(ico, |_| {
-                        let ico = ico(());
-                        if ico.is_nil() {
-                            // fallback to Unicode symbol
-                            let cmd = cmd.scoped(zng_app::event::CommandScope::App);
-                            let (symbol, size, padding_top) = if cmd == RESTORE_CMD {
-                                ("🗗", 9, 0)
-                            } else if cmd == MINIMIZE_CMD {
-                                ("🗕", 9, 0)
-                            } else if cmd == MAXIMIZE_CMD {
-                                ("🗖", 9, 0)
-                            } else if cmd == CLOSE_CMD {
-                                ("🗙", 12, -5)
-                            } else {
-                                unreachable!("{cmd:?} what")
-                            };
-                            Text! {
-                                font_family = "Noto Sans Symbols 2";
-                                font_size = size.pt();
-                                padding = (padding_top, 0, 0, 0);
-                                txt = symbol;
-                            }
-                        } else {
-                            ico
+        child_right =
+            Stack! {
+                direction = StackDirection::left_to_right();
+                zng_wgt_button::style_fn = zng_wgt_button::LightStyle! {
+                    corner_radius = 0;
+                    zng_wgt_button::cmd_child_fn = wgt_fn!(|cmd: Command| {
+                        presenter(
+                            (),
+                            cmd.icon().map(move |ico| {
+                                wgt_fn!(ico, |_| {
+                                    let ico = ico(());
+                                    if ico.is_nil() {
+                                        // fallback to Unicode symbol
+                                        let cmd = cmd.scoped(zng_app::event::CommandScope::App);
+                                        let (symbol, size, padding_top) = if cmd == RESTORE_CMD {
+                                            ("🗗", 9, 0)
+                                        } else if cmd == MINIMIZE_CMD {
+                                            ("🗕", 9, 0)
+                                        } else if cmd == MAXIMIZE_CMD {
+                                            ("🗖", 9, 0)
+                                        } else if cmd == CLOSE_CMD {
+                                            ("🗙", 12, -5)
+                                        } else {
+                                            unreachable!("{cmd:?} what")
+                                        };
+                                        Text! {
+                                            font_family = "Noto Sans Symbols 2";
+                                            font_size = size.pt();
+                                            padding = (padding_top, 0, 0, 0);
+                                            txt = symbol;
+                                        }
+                                    } else {
+                                        ico
+                                    }
+                                })
+                            }),
+                        )
+                    });
+                };
+                children = ui_vec![
+                    Button! {
+                        cmd = MINIMIZE_CMD.scoped(win_id);
+                    },
+                    Button! {
+                        cmd = MAXIMIZE_CMD.scoped(win_id);
+                        when #is_disabled {
+                            visibility = false;
                         }
-                    })))
-                });
-            };
-            children = ui_vec![
-                Button! {
-                    cmd = MINIMIZE_CMD.scoped(win_id);
-                },
-                Button! {
-                    cmd = MAXIMIZE_CMD.scoped(win_id);
-                    when #is_disabled {
-                        visibility = false;
-                    }
-                },
-                Button! {
-                    cmd = RESTORE_CMD.scoped(win_id);
-                    when #is_disabled {
-                        visibility = false;
-                    }
-                },
-                Button! {
-                    cmd = CLOSE_CMD.scoped(win_id);
-                },
-            ];
-        }, 0;
+                    },
+                    Button! {
+                        cmd = RESTORE_CMD.scoped(win_id);
+                        when #is_disabled {
+                            visibility = false;
+                        }
+                    },
+                    Button! {
+                        cmd = CLOSE_CMD.scoped(win_id);
+                    },
+                ];
+            },
+            0,
+        ;
 
         when *#{can_move.clone()} {
             cursor = CursorIcon::Move;
@@ -87,10 +95,12 @@ pub fn fallback_chrome() -> UiNode {
         });
 
         gesture::on_context_click = hn!(|args: &gesture::ClickArgs| {
-            if matches!(WINDOW.vars().state().get(), WindowState::Normal | WindowState::Maximized) && args.target.widget_id() == WIDGET.id()
-                && let Some(p) = args.position() {
-                    OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(WINDOW.id()).notify_param(p);
-                }
+            if matches!(WINDOW.vars().state().get(), WindowState::Normal | WindowState::Maximized)
+                && args.target.widget_id() == WIDGET.id()
+                && let Some(p) = args.position()
+            {
+                OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(WINDOW.id()).notify_param(p);
+            }
         });
     };
 
@@ -159,9 +169,10 @@ pub fn fallback_chrome() -> UiNode {
             });
             on_mouse_down = hn!(|args: &MouseInputArgs| {
                 if args.is_primary()
-                    && let Some(d) = args.position_wgt().and_then(resize_direction) {
-                        DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify_param(d);
-                    }
+                    && let Some(d) = args.position_wgt().and_then(resize_direction)
+                {
+                    DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify_param(d);
+                }
             });
         }
     }

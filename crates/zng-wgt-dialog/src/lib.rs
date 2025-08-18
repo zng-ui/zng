@@ -187,39 +187,50 @@ impl DefaultStyle {
 
             align = Align::CENTER;
 
-            zng_wgt_container::child_out_top = Container! {
-                corner_radius = 0;
-                background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
-                child = TITLE_VAR.present_data(());
-                child_align = Align::START;
-                padding = (4, 8);
-                zng_wgt_text::font_weight = zng_ext_font::FontWeight::BOLD;
-            }, 0;
-
-            zng_wgt_container::child_out_bottom = RESPONSES_VAR.present(wgt_fn!(|responses: Responses| {
-                Wrap! {
+            zng_wgt_container::child_out_top =
+                Container! {
                     corner_radius = 0;
                     background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
-                    children_align = Align::END;
-                    zng_wgt_container::padding = 3;
-                    spacing = 3;
-                    children = {
-                        let last = responses.len().saturating_sub(1);
-                        responses.0
-                            .into_iter()
-                            .enumerate()
-                            .map(move |(i, r)| presenter(
-                                DialogButtonArgs { response: r, is_last: i == last },
-                                BUTTON_FN_VAR
-                            ))
-                    };
-                }
-            })), 0;
+                    child = TITLE_VAR.present_data(());
+                    child_align = Align::START;
+                    padding = (4, 8);
+                    zng_wgt_text::font_weight = zng_ext_font::FontWeight::BOLD;
+                },
+                0,
+            ;
 
-            zng_wgt_container::child_out_left = Container! {
-                child = ICON_VAR.present_data(());
-                child_align = Align::TOP;
-            }, 0;
+            zng_wgt_container::child_out_bottom =
+                RESPONSES_VAR.present(wgt_fn!(|responses: Responses| {
+                    Wrap! {
+                        corner_radius = 0;
+                        background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
+                        children_align = Align::END;
+                        zng_wgt_container::padding = 3;
+                        spacing = 3;
+                        children = {
+                            let last = responses.len().saturating_sub(1);
+                            responses.0.into_iter().enumerate().map(move |(i, r)| {
+                                presenter(
+                                    DialogButtonArgs {
+                                        response: r,
+                                        is_last: i == last,
+                                    },
+                                    BUTTON_FN_VAR,
+                                )
+                            })
+                        };
+                    }
+                })),
+                0,
+            ;
+
+            zng_wgt_container::child_out_left =
+                Container! {
+                    child = ICON_VAR.present_data(());
+                    child_align = Align::TOP;
+                },
+                0,
+            ;
 
             zng_wgt_container::child = CONTENT_VAR.present_data(());
 
@@ -240,14 +251,16 @@ impl DefaultStyle {
             on_dialog_close_canceled = hn!(highlight_color, |_| {
                 let c = colors::ACCENT_COLOR_VAR.rgba().get();
                 let mut repeats = 0;
-                highlight_color.sequence(move |cv| {
-                    repeats += 1;
-                    if repeats <= 2 {
-                        cv.set_ease(c, c.with_alpha(0.pct()), 120.ms(), easing::linear)
-                    } else {
-                        zng_var::animation::AnimationHandle::dummy()
-                    }
-                }).perm();
+                highlight_color
+                    .sequence(move |cv| {
+                        repeats += 1;
+                        if repeats <= 2 {
+                            cv.set_ease(c, c.with_alpha(0.pct()), 120.ms(), easing::linear)
+                        } else {
+                            zng_var::animation::AnimationHandle::dummy()
+                        }
+                    })
+                    .perm();
             });
         }
     }
@@ -773,41 +786,41 @@ bitflags! {
     #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
     pub struct DialogKind: u32 {
         /// [`DIALOG.info`](DIALOG::info)
-        const INFO =    0b0000_0000_0000_0001;
+        const INFO = 0b0000_0000_0000_0001;
         /// [`DIALOG.warn`](DIALOG::warn)
-        const WARN =    0b0000_0000_0000_0010;
+        const WARN = 0b0000_0000_0000_0010;
         /// [`DIALOG.error`](DIALOG::error)
-        const ERROR =   0b0000_0000_0000_0100;
+        const ERROR = 0b0000_0000_0000_0100;
         /// [`DIALOG.ask`](DIALOG::ask)
-        const ASK =     0b0000_0000_0000_1000;
+        const ASK = 0b0000_0000_0000_1000;
         /// [`DIALOG.confirm`](DIALOG::confirm)
         const CONFIRM = 0b0000_0000_0001_0000;
 
         /// [`DIALOG.open_file`](DIALOG::open_file)
-        const OPEN_FILE =  0b1000_0000_0000_0000;
+        const OPEN_FILE = 0b1000_0000_0000_0000;
         /// [`DIALOG.open_files`](DIALOG::open_files)
         const OPEN_FILES = 0b0100_0000_0000_0000;
         /// [`DIALOG.save_file`](DIALOG::save_file)
-        const SAVE_FILE =  0b0010_0000_0000_0000;
+        const SAVE_FILE = 0b0010_0000_0000_0000;
 
         /// [`DIALOG.select_folder`](DIALOG::select_folder)
-        const SELECT_FOLDER =  0b0001_0000_0000_0000;
+        const SELECT_FOLDER = 0b0001_0000_0000_0000;
         /// [`DIALOG.select_folders`](DIALOG::select_folders)
         const SELECT_FOLDERS = 0b0000_1000_0000_0000;
 
         /// All message dialogs.
-        const MESSAGE = Self::INFO.bits() | Self::WARN.bits() | Self::ERROR.bits()  | Self::ASK.bits()  | Self::CONFIRM.bits();
+        const MESSAGE = Self::INFO.bits() | Self::WARN.bits() | Self::ERROR.bits() | Self::ASK.bits() | Self::CONFIRM.bits();
         /// All file system dialogs.
-        const FILE = Self::OPEN_FILE.bits() | Self::OPEN_FILES.bits() | Self::SAVE_FILE.bits()  | Self::SELECT_FOLDER.bits() | Self::SELECT_FOLDERS.bits();
+        const FILE = Self::OPEN_FILE.bits()
+            | Self::OPEN_FILES.bits()
+            | Self::SAVE_FILE.bits()
+            | Self::SELECT_FOLDER.bits()
+            | Self::SELECT_FOLDERS.bits();
     }
 }
 impl_from_and_into_var! {
     fn from(empty_or_all: bool) -> DialogKind {
-        if empty_or_all {
-            DialogKind::all()
-        } else {
-            DialogKind::empty()
-        }
+        if empty_or_all { DialogKind::all() } else { DialogKind::empty() }
     }
 }
 

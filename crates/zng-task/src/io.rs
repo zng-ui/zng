@@ -204,10 +204,10 @@ impl_from_and_into_var! {
     fn from(metrics: Metrics) -> Progress {
         let mut status = Progress::indeterminate();
         if metrics.read_progress.1 > 0.bytes() {
-            status = Progress::from_n_of(metrics.read_progress.0 .0, metrics.read_progress.1 .0);
+            status = Progress::from_n_of(metrics.read_progress.0.0, metrics.read_progress.1.0);
         }
         if metrics.write_progress.1 > 0.bytes() {
-            let w_status = Progress::from_n_of(metrics.write_progress.0 .0, metrics.write_progress.1 .0);
+            let w_status = Progress::from_n_of(metrics.write_progress.0.0, metrics.write_progress.1.0);
             if status.is_indeterminate() {
                 status = w_status;
             } else {

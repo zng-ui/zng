@@ -1,4 +1,4 @@
-use zng::prelude_wgt::{property, IntoUiNode, UiNode};
+use zng::prelude_wgt::{IntoUiNode, UiNode, property};
 
 #[property(CONTEXT)]
 pub fn invalid_destruct(child: impl IntoUiNode, (a, b): (bool, u8)) -> UiNode {

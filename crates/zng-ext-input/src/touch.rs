@@ -2044,7 +2044,7 @@ bitflags! {
         const ROTATE = 0b0010_0000;
 
         /// Can translate, scale-square and rotate.
-        const ALL = Self::TRANSLATE.bits()| Self::SCALE.bits() | Self::ROTATE.bits();
+        const ALL = Self::TRANSLATE.bits() | Self::SCALE.bits() | Self::ROTATE.bits();
     }
 }
 impl_from_and_into_var! {

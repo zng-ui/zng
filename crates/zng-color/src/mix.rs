@@ -323,6 +323,7 @@ macro_rules! impl_mix {
     };
 }
 
+#[rustfmt::skip]// zng fmt can't handle this syntax and is slightly slower because it causes rustfmt errors
 impl_mix! {
     separable {
         /// Normal alpha blend of the foreground color over the background.

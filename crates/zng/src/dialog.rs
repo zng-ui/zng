@@ -34,12 +34,15 @@
 //!     .custom(dialog::Dialog! {
 //!         style_fn = dialog::WarnStyle!();
 //!         title = Text!(l10n!("save-dlg.title", "Save File?"));
-//!         content = SelectableText!(l10n!("save-dlg.msg", "Save file? All unsaved changes will be lost."));
+//!         content = SelectableText!(l10n!(
+//!             "save-dlg.msg",
+//!             "Save file? All unsaved changes will be lost."
+//!         ));
 //!         responses = vec![
 //!             dialog::Response::cancel(),
 //!             dialog::Response::new("discard", l10n!("save-dlg.discard", "Discard")),
 //!             dialog::Response::new("save", l10n!("save-dlg.save", "Save")),
-//!         ]
+//!         ];
 //!     })
 //!     .wait_rsp()
 //!     .await;

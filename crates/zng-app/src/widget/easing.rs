@@ -56,9 +56,9 @@ impl<T: VarValue + Transitionable> easing_property_input_Transitionable for Var<
 }
 
 macro_rules! impl_easing_property_inputs {
-    ($T0:ident, $($T:ident,)*) => {
+    ($T0:ident $(, $T:ident)*  $(,)?) => {
         impl_easing_property_inputs! {
-            $($T,)*
+            $($T),*
         }
 
         impl<
@@ -101,6 +101,4 @@ macro_rules! impl_easing_property_inputs {
     };
     () => { };
 }
-impl_easing_property_inputs! {
-    I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15,
-}
+impl_easing_property_inputs! { I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15 }

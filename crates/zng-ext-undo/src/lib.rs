@@ -782,7 +782,7 @@ command! {
     pub static UNDO_CMD = {
         l10n!: true,
         name: "Undo",
-        shortcut: [shortcut!(CTRL+'Z')],
+        shortcut: [shortcut!(CTRL + 'Z')],
         icon: wgt_fn!(|_| ICONS.get("undo")),
     };
 
@@ -798,7 +798,7 @@ command! {
     pub static REDO_CMD = {
         l10n!: true,
         name: "Redo",
-        shortcut: [shortcut!(CTRL+'Y')],
+        shortcut: [shortcut!(CTRL + 'Y')],
         icon: wgt_fn!(|_| ICONS.get("redo")),
     };
 

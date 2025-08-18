@@ -466,36 +466,33 @@ impl From<OuterAttr> for Attribute {
 
 /// Runs `rustfmt` in the `expr`.
 pub fn format_rust_expr(value: String) -> String {
-    // credits: https://github.com/rust-lang/rustfmt/issues/3257#issuecomment-523573838
-    use std::io::Write;
-    use std::process::{Command, Stdio};
     const PREFIX: &str = "const x:() = ";
     const SUFFIX: &str = ";\n";
-    if let Ok(mut proc) = Command::new("rustfmt")
-        .arg("--emit=stdout")
-        .arg("--edition=2018")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-    {
-        {
-            let stdin = proc.stdin.as_mut().unwrap();
-            stdin.write_all(PREFIX.as_bytes()).unwrap();
-            stdin.write_all(value.as_bytes()).unwrap();
-            stdin.write_all(SUFFIX.as_bytes()).unwrap();
-        }
-        if let Ok(output) = proc.wait_with_output()
-            && output.status.success()
-        {
+    fn try_fmt(value: String) -> syn::Result<String> {
+        let value_stream: TokenStream = value.parse()?;
+        let syntax_tree = syn::parse(value_stream.into())?;
+        Ok(prettyplease::unparse(&syntax_tree))
+    }
+    match try_fmt(format!("{PREFIX}{value}{SUFFIX}")) {
+        Ok(fmt) => {
             // slice between after the prefix and before the suffix
             // (currently 14 from the start and 2 before the end, respectively)
             let start = PREFIX.len() + 1;
-            let end = output.stdout.len() - SUFFIX.len();
-            return std::str::from_utf8(&output.stdout[start..end]).unwrap().to_owned();
+            let end = fmt.len() - SUFFIX.len();
+            fmt[start..end].to_owned()
         }
+        Err(_) => value,
     }
-    value
+}
+
+pub fn undo_line_wrap(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+
+    for line in input.lines() {
+        result.push_str(line.trim_start());
+    }
+
+    result
 }
 
 /// Gets the span of the last item or the span_close if the last item is a group.

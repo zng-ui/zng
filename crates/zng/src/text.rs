@@ -68,9 +68,18 @@
 //!     text::rich_text = true;
 //!     text::txt_selectable = true;
 //!     children = ui_vec![
-//!         Text! { txt = "red text"; font_color = colors::RED; },
-//!         Text! { txt = " green text"; font_color = colors::GREEN; },
-//!         Text! { txt = " blue text"; font_color = colors::BLUE; },
+//!         Text! {
+//!             txt = "red text";
+//!             font_color = colors::RED;
+//!         },
+//!         Text! {
+//!             txt = " green text";
+//!             font_color = colors::GREEN;
+//!         },
+//!         Text! {
+//!             txt = " blue text";
+//!             font_color = colors::BLUE;
+//!         },
 //!     ];
 //! }
 //! # ;

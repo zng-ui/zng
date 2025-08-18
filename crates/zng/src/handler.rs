@@ -16,34 +16,38 @@
 //!
 //! let last_clicked = var(Txt::from(""));
 //! # let _ =
-//! Stack!(top_to_bottom, 5, ui_vec![
-//!     Button! {
-//!         child = Text!("hn!");
-//!         on_click = hn!(last_clicked, |_| {
-//!             last_clicked.set("hn!");
-//!         });
-//!     },
-//!     Button! {
-//!         child = Text!("hn_once!");
-//!         on_click = hn_once!(last_clicked, |_| {
-//!             last_clicked.set("hn_once!");
-//!         });
-//!     },
-//!     {
-//!         let enabled = var(true);
+//! Stack!(
+//!     top_to_bottom,
+//!     5,
+//!     ui_vec![
 //!         Button! {
-//!             child = Text!("async_hn!");
-//!             on_click = async_hn!(last_clicked, enabled, |_| {
-//!                 last_clicked.set("async_hn!");
-//!                 enabled.set(false);
-//!                 task::deadline(1.secs()).await;
-//!                 enabled.set(true);
+//!             child = Text!("hn!");
+//!             on_click = hn!(last_clicked, |_| {
+//!                 last_clicked.set("hn!");
 //!             });
-//!             widget::enabled;
-//!         }
-//!     },
-//!     Text!(last_clicked),
-//! ])
+//!         },
+//!         Button! {
+//!             child = Text!("hn_once!");
+//!             on_click = hn_once!(last_clicked, |_| {
+//!                 last_clicked.set("hn_once!");
+//!             });
+//!         },
+//!         {
+//!             let enabled = var(true);
+//!             Button! {
+//!                 child = Text!("async_hn!");
+//!                 on_click = async_hn!(last_clicked, enabled, |_| {
+//!                     last_clicked.set("async_hn!");
+//!                     enabled.set(false);
+//!                     task::deadline(1.secs()).await;
+//!                     enabled.set(true);
+//!                 });
+//!                 widget::enabled;
+//!             }
+//!         },
+//!         Text!(last_clicked),
+//!     ]
+//! )
 //! # ;
 //! ```
 //!

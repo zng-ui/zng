@@ -1,5 +1,5 @@
 error: expected a when block expr and properties
- --> cases/widget_new/error_in_when_expr2.rs:9:9
-  |
-9 |         }
-  |         ^
+  --> cases/widget_new/error_in_when_expr2.rs:10:9
+   |
+10 |         }
+   |         ^

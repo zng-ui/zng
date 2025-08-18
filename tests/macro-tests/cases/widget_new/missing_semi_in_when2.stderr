@@ -1,21 +1,21 @@
 error: expected `,`
-  --> cases/widget_new/missing_semi_in_when2.rs:15:22
+  --> cases/widget_new/missing_semi_in_when2.rs:16:22
    |
-15 |             margin = cursor = CursorIcon::Pointer;
+16 |             margin = cursor = CursorIcon::Pointer;
    |                      ^^^^^^
 
 error[E0061]: this method takes 1 argument but 0 arguments were supplied
-  --> cases/widget_new/missing_semi_in_when2.rs:15:13
+  --> cases/widget_new/missing_semi_in_when2.rs:16:13
    |
-11 |       let _ = Wgt! {
+12 |       let _ = Wgt! {
    |  _____________-
-12 | |         margin = 0;
-13 | |         cursor = CursorIcon::Default;
-14 | |         when *#is_pressed {
-15 | |             margin = cursor = CursorIcon::Pointer;
+13 | |         margin = 0;
+14 | |         cursor = CursorIcon::Default;
+15 | |         when *#is_pressed {
+16 | |             margin = cursor = CursorIcon::Pointer;
    | |             ^^^^^^
-16 | |         }
-17 | |     };
+17 | |         }
+18 | |     };
    | |_____- argument #1 is missing
    |
 note: method defined here

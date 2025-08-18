@@ -32,11 +32,7 @@ pub mod popup;
 pub mod sub;
 
 /// Menu root panel.
-#[widget($crate::Menu {
-    ($children:expr) => {
-        children = $children;
-    }
-})]
+#[widget($crate::Menu { ($children:expr) => { children = $children; } })]
 pub struct Menu(StyleMix<zng_wgt_panel::Panel>);
 impl Menu {
     fn widget_intrinsic(&mut self) {
@@ -146,14 +142,14 @@ impl ButtonStyle {
             shortcut_txt = Text! {
                 txt = BUTTON.cmd().flat_map(|c| match c {
                     Some(c) => c.shortcut_txt(),
-                    None => const_var(Txt::from(""))
+                    None => const_var(Txt::from("")),
                 });
                 align = Align::CENTER;
             };
 
             icon_fn = BUTTON.cmd().flat_map(|c| match c {
                 Some(c) => c.icon(),
-                None => const_var(WidgetFn::nil())
+                None => const_var(WidgetFn::nil()),
             });
 
             when *#is_focused {
@@ -185,13 +181,15 @@ impl TouchButtonStyle {
         widget_set! {
             self;
             zng_wgt::corner_radius = 0;
-            zng_wgt::visibility = BUTTON
-                .cmd()
-                .flat_map(|c| match c {
-                    Some(c) => c.is_enabled(),
-                    None => const_var(true),
-                })
-                .map_into();
+            zng_wgt::visibility =
+                BUTTON
+                    .cmd()
+                    .flat_map(|c| match c {
+                        Some(c) => c.is_enabled(),
+                        None => const_var(true),
+                    })
+                    .map_into(),
+            ;
         }
     }
 }
@@ -227,7 +225,7 @@ impl ToggleStyle {
                 when #{zng_wgt_toggle::IS_CHECKED_VAR}.unwrap_or(true) {
                     font_color = zng_wgt_text::FONT_COLOR_VAR;
                 }
-            })
+            });
         }
     }
 }

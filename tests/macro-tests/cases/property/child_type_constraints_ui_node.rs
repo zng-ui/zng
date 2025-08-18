@@ -1,4 +1,4 @@
-use zng::prelude_wgt::{property, FillUiNode, IntoVar, UiNode};
+use zng::prelude_wgt::{FillUiNode, IntoVar, UiNode, property};
 
 #[property(CONTEXT)]
 pub fn invalid_child(child: FillUiNode, input: impl IntoVar<bool>) -> UiNode {

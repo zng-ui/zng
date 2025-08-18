@@ -39,11 +39,7 @@ use zng_wgt_tooltip::{Tip, TooltipArgs, tooltip, tooltip_fn};
 /// # Shorthand
 ///
 /// The `Button!` macro provides a shorthand init that sets the command, `Button!(SOME_CMD)`.
-#[widget($crate::Button {
-    ($cmd:expr) => {
-        cmd = $cmd;
-    };
-})]
+#[widget($crate::Button { ($cmd:expr) => { cmd = $cmd; }; })]
 pub struct Button(FocusableMix<StyleMix<Container>>);
 impl Button {
     fn widget_intrinsic(&mut self) {
@@ -228,7 +224,7 @@ pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> UiNode {
             spacing: 4,
         };
 
-        zng_wgt::visibility = expr_var!((*#{has_info} || *#{has_shortcut}).into())
+        zng_wgt::visibility = expr_var!((*#{has_info} || *#{has_shortcut}).into());
     }
 }
 

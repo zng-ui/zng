@@ -49,10 +49,10 @@ impl DefaultStyle {
             zng_wgt_fill::background_color = colors::ACCENT_COLOR_VAR.rgba();
 
             when #{crate::SLIDER_DIRECTION_VAR}.is_horizontal() {
-                zng_wgt_size_offset::offset = (-3 -10/2, -3 -5/2); // track is 5 height
+                zng_wgt_size_offset::offset = (-3 - 10 / 2, -3 - 5 / 2); // track is 5 height
             }
             when #{crate::SLIDER_DIRECTION_VAR}.is_vertical() {
-                zng_wgt_size_offset::offset = (-3 -5/2, -3 -10/2);
+                zng_wgt_size_offset::offset = (-3 - 5 / 2, -3 - 10 / 2);
             }
 
             #[easing(150.ms())]

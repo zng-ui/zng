@@ -274,7 +274,7 @@ impl<'de> serde::Deserialize<'de> for FontName {
 ///
 /// ```
 /// # use zng_ext_font::*;
-/// fn foo(font_names: impl Into<FontNames>) { }
+/// fn foo(font_names: impl Into<FontNames>) {}
 ///
 /// foo(["Arial", "sans-serif", "monospace"]);
 /// ```
@@ -876,10 +876,10 @@ struct LoadedFontFace {
 bitflags! {
     #[derive(Debug, Clone, Copy)]
     struct FontFaceFlags: u8 {
-        const IS_MONOSPACE =      0b0000_0001;
-        const HAS_LIGATURES =     0b0000_0010;
+        const IS_MONOSPACE = 0b0000_0001;
+        const HAS_LIGATURES = 0b0000_0010;
         const HAS_RASTER_IMAGES = 0b0000_0100;
-        const HAS_SVG_IMAGES =    0b0000_1000;
+        const HAS_SVG_IMAGES = 0b0000_1000;
     }
 }
 struct FontFaceMut {
@@ -2352,6 +2352,7 @@ macro_rules! impl_fallback_accessors {
     })+};
 }
 impl GenericFonts {
+    #[rustfmt::skip] // for zng fmt
     impl_fallback_accessors! {
         serif="serif", sans_serif="sans-serif", monospace="monospace", cursive="cursive", fantasy="fantasy"
     }

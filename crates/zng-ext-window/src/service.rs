@@ -250,11 +250,7 @@ impl Default for ParallelWin {
 }
 impl_from_and_into_var! {
     fn from(all: bool) -> ParallelWin {
-        if all {
-            ParallelWin::all()
-        } else {
-            ParallelWin::empty()
-        }
+        if all { ParallelWin::all() } else { ParallelWin::empty() }
     }
 }
 

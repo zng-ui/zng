@@ -86,7 +86,10 @@ impl<D: VarValue> DataViewArgs<D> {
 /// # fn main() { }
 /// # fn shorthand_demo<T: VarValue>(data: impl IntoVar<T>, update: impl WidgetHandler<DataViewArgs<T>>) -> UiNode {
 /// DataView! {
-///     view::<T> = { data: data, update: update };
+///     view::<T> = {
+///         data: data,
+///         update: update,
+///     };
 /// }
 /// # }
 /// ```

@@ -99,6 +99,7 @@ macro_rules! map_properties {
         }
     })+}
 }
+#[rustfmt::skip]// zng fmt can't handle this syntax and is slightly slower because it causes rustfmt errors
 map_properties! {
     position.x = x: Length,
     position.y = y: Length,
@@ -200,11 +201,7 @@ impl SaveState {
 impl_from_and_into_var! {
     /// Convert `true` to default config and `false` to `None`.
     fn from(persist: bool) -> SaveState {
-        if persist {
-            SaveState::default()
-        } else {
-            SaveState::Disabled
-        }
+        if persist { SaveState::default() } else { SaveState::Disabled }
     }
 }
 

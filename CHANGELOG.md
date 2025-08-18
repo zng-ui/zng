@@ -1,5 +1,19 @@
 # Unreleased
 
+* Multiple improvements for `cargo zng fmt`.
+    - Now only reformats modified files when running in crates/workspaces.
+    - Add `--edition` option, 2024 is the default. This fixes inconsistency between workspace run and single file run.
+    - Add support for `static ref` style macro syntax, like `lazy_static!`.
+    - Add support for `command!`, `event_property!` syntaxes.
+    - Add support for struct declaration, init style macro syntax, like `cfg_aliases!`.
+    - Add support for `bitflags!` syntax.
+    - Add support for simple ident list syntax.
+    - Add support for `widget_impl!` syntax.
+    - Reimplemented support for widget macros, now covers full syntax.
+    - Add support for `when_var!` syntax.
+    - Add support for Rust code blocks in Markdown files. !!: TODO
+    - Add support for doctest code blocks.
+
 * Fix missing mouse move events when cursor is captured and leaves the window in Windows.
 * Implement `IntoUiNode` for `std::iter` iterators of `UiNode` items.
     - You can now omit `.collect::<UiVec>()` in code that generates widget lists from iterators.

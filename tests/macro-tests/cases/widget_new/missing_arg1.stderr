@@ -1,12 +1,12 @@
 error[E0061]: this method takes 2 arguments but 1 argument was supplied
-  --> cases/widget_new/missing_arg1.rs:10:9
+  --> cases/widget_new/missing_arg1.rs:11:9
    |
-9  |       let _ = Wgt! {
+10 |       let _ = Wgt! {
    |  _____________-
-10 | |         background_gradient = 0.deg(), ;
+11 | |         background_gradient = 0.deg(), ;
    | |         ^^^^^^^^^^^^^^^^^^^
-11 | |         margin = 0;
-12 | |     };
+12 | |         margin = 0;
+13 | |     };
    | |_____- argument #2 is missing
    |
 note: method defined here

@@ -1,13 +1,14 @@
 use zng::{
+    APP,
     gesture::is_pressed,
     layout::margin,
-    mouse::{cursor, CursorIcon},
+    mouse::{CursorIcon, cursor},
     widget::Wgt,
-    APP,
 };
 
 fn main() {
     let _scope = APP.minimal();
+    #[rustfmt::skip]
     let _ = Wgt! {
         margin = 0;
         cursor = CursorIcon::Default;

@@ -340,8 +340,19 @@ impl WgtWhen {
             return None;
         };
 
-        let expr_str = condition_expr.to_string().replace(" # ", "__pound__");
-        let expr_str = util::format_rust_expr(expr_str).replace("__pound__", "#");
+        let expr_str = condition_expr.to_string();
+        // normalize #
+        let expr_str = expr_str.replace(" # ", "#").replace(" #", "#").replace("# ", "#");
+        // convert to valid Rust code
+        let expr_str = expr_str.replace("#{", "__pound__!{").replace("#", "__pound__");
+        // format
+        let expr_str = util::format_rust_expr(expr_str);
+        // convert back to special syntax
+        let expr_str = expr_str.replace("__pound__! {", "#{").replace("__pound__", "#");
+        // collapse to single line
+        let expr_str = util::undo_line_wrap(&expr_str);
+        // prettyplease error
+        let expr_str = expr_str.replace("crate ::", "crate::");
 
         Some(WgtWhen {
             attrs: Attributes::new(vec![]), // must be parsed before.

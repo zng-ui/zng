@@ -27,11 +27,7 @@ use zng_wgt_text::*;
 mod crate_util;
 
 /// Wrapping inline layout.
-#[widget($crate::Wrap {
-    ($children:expr) => {
-        children = $children;
-    };
-})]
+#[widget($crate::Wrap { ($children:expr) => { children = $children; }; })]
 pub struct Wrap(WidgetBase);
 impl Wrap {
     fn widget_intrinsic(&mut self) {

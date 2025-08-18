@@ -35,7 +35,7 @@ command! {
     pub static SELECT_ALL_CMD = {
         l10n!: true,
         name: "Select All",
-        shortcut: shortcut!(CTRL+'A'),
+        shortcut: shortcut!(CTRL + 'A'),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 

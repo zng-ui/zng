@@ -71,7 +71,7 @@ fn logo() -> UiNode {
                     widget::border = (0, 12, 12, 0), colors::WHITE;
                 },
             ];
-        }
+        };
     };
 
     Container! {

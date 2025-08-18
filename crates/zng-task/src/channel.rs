@@ -22,7 +22,7 @@
 //! task::spawn(async move {
 //!     match receiver.recv().await {
 //!         Ok(msg) => println!("{msg}"),
-//!         Err(_) => eprintln!("no message in channel and no sender connected")
+//!         Err(_) => eprintln!("no message in channel and no sender connected"),
 //!     }
 //! });
 //! ```
@@ -274,7 +274,7 @@ impl<T> Receiver<T> {
 /// });
 /// task::spawn(async move {
 ///     task::deadline(5.secs()).await;
-///     
+///
 ///     loop {
 ///         match receiver.recv().await {
 ///             Ok(msg) => println!("{msg}"),
@@ -324,7 +324,7 @@ pub fn unbounded<T>() -> (UnboundSender<T>, Receiver<T>) {
 /// });
 /// task::spawn(async move {
 ///     task::deadline(5.secs()).await;
-///     
+///
 ///     loop {
 ///         match receiver.recv().await {
 ///             Ok(msg) => println!("{msg}"),

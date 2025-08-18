@@ -9,7 +9,7 @@
 //! Any external change made to the text file updates the UI text.
 //!
 //! ```
-//! use zng::{prelude::*, fs_watcher::WATCHER};
+//! use zng::{fs_watcher::WATCHER, prelude::*};
 //!
 //! # fn main() { }
 //! # fn demo() {
@@ -23,7 +23,7 @@
 //! `TextInput!` and any change made using the `TextInput!` updates the file contents.
 //!
 //! ```
-//! use zng::{prelude::*, fs_watcher::WATCHER};
+//! use zng::{fs_watcher::WATCHER, prelude::*};
 //!
 //! # fn main() { }
 //! # fn demo() {

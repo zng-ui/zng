@@ -99,10 +99,10 @@
 //! Wgt! {
 //!     layout::align = layout::Align::CENTER;
 //!     layout::size = 50;
-//!     
+//!
 //!     #[easing(200.ms())]
 //!     widget::background_color = colors::RED;
-//!     
+//!
 //!     when *#gesture::is_hovered {
 //!         widget::background_color = colors::GREEN;
 //!     }
@@ -152,19 +152,15 @@
 //!     spacing = 10;
 //!     children = ui_vec![
 //!         Button! {
-//!             child = Text! { txt = "Press Me!"; };
-//!             gesture::is_pressed = btn_pressed.clone();   
+//!             child = Text! {
+//!                 txt = "Press Me!";
+//!             };
+//!             gesture::is_pressed = btn_pressed.clone();
 //!         },
 //!         Text! {
-//!             txt = btn_pressed.map(|&b| {
-//!                 if b {
-//!                     "Button is pressed!"
-//!                 } else {
-//!                     "Button is not pressed."
-//!                 }.into()
-//!             });
+//!             txt = btn_pressed.map(|&b| if b { "Button is pressed!" } else { "Button is not pressed." }.into());
 //!         }
-//!     ]
+//!     ];
 //! }
 //! # ;
 //! ```
@@ -229,12 +225,16 @@
 //! Stack! {
 //!     direction = StackDirection::top_to_bottom();
 //!     spacing = 10;
-//!     
+//!
 //!     text::font_color = colors::RED;
 //!
 //!     children = ui_vec![
-//!         Button! { child = Text!("Text 1"); },
-//!         Button! { child = Text!("Text 2"); },
+//!         Button! {
+//!             child = Text!("Text 1");
+//!         },
+//!         Button! {
+//!             child = Text!("Text 2");
+//!         },
 //!         Button! {
 //!             child = Text!("Text 3");
 //!             text::font_color = colors::GREEN;
@@ -274,8 +274,8 @@
 //! App or contextual value and function providers.
 //!
 //! ```
-//! use zng::prelude::*;
 //! use zng::clipboard::CLIPBOARD;
+//! use zng::prelude::*;
 //!
 //! # let _app = APP.minimal();
 //! # let _ =
@@ -291,10 +291,12 @@
 //!                 child = Text!("Paste");
 //!                 on_click = hn!(txt, txt_is_err, |_| {
 //!                     match CLIPBOARD.text() {
-//!                         Ok(p) => if let Some(t) = p {
-//!                             txt.set(t);
-//!                             txt_is_err.set(false);
-//!                         },
+//!                         Ok(p) => {
+//!                             if let Some(t) = p {
+//!                                 txt.set(t);
+//!                                 txt_is_err.set(false);
+//!                             }
+//!                         }
 //!                         Err(e) => {
 //!                             let t = WIDGET.trace_path();
 //!                             txt.set(formatx!("error in {t}: {e}"));
@@ -342,7 +344,10 @@
 //! Targeted messages send from the system to widgets or from one widget to another.
 //!
 //! ```no_run
-//! use zng::{prelude::*, clipboard::{on_paste, CLIPBOARD, PASTE_CMD}};
+//! use zng::{
+//!     clipboard::{CLIPBOARD, PASTE_CMD, on_paste},
+//!     prelude::*,
+//! };
 //!
 //! APP.defaults().run_window(async {
 //!     let cmd = PASTE_CMD.scoped(WINDOW.id());
@@ -365,11 +370,11 @@
 //!                 pasted_txt.set(t);
 //!             }
 //!         });
-//!         
+//!
 //!         child = Stack! {
 //!             children_align = Align::CENTER;
 //!             direction = StackDirection::top_to_bottom();
-//!             spacing = 20;             
+//!             spacing = 20;
 //!             children = ui_vec![paste_btn, Text!(pasted_txt)];
 //!         };
 //!     }
@@ -417,11 +422,11 @@
 //! # let _ =
 //! Container! {
 //!     layout::size = (400, 350);
-//!     widget::background_color = colors::BLUE.darken(70.pct());    
+//!     widget::background_color = colors::BLUE.darken(70.pct());
 //!
 //!     child = Button! {
 //!         child = Text!("Text");
-//!     
+//!
 //!         layout::align = layout::Align::CENTER;
 //!         layout::size = (60.pct(), 70.pct());
 //!     };
@@ -736,14 +741,14 @@ mod __prelude {
 ///
 /// /// Button text.
 /// #[property(CHILD, capture, widget_impl(TextButton))]
-/// pub fn txt(txt: impl IntoVar<Txt>) { }
+/// pub fn txt(txt: impl IntoVar<Txt>) {}
 ///
 /// impl TextButton {
 ///     fn widget_intrinsic(&mut self) {
 ///         self.widget_builder().push_build_action(|b| {
 ///             let txt = b
-///                     .capture_var::<Txt>(property_id!(Self::txt))
-///                     .unwrap_or_else(|| const_var(Txt::from("")));
+///                 .capture_var::<Txt>(property_id!(Self::txt))
+///                 .unwrap_or_else(|| const_var(Txt::from("")));
 ///             b.set_child(Text!(txt));
 ///         });
 ///     }
@@ -1100,9 +1105,7 @@ mod default_editors {
                 )+
             }
         }
-        parse! {
-            u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, f32, f64,
-        }
+        parse! { u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, f32, f64 }
 
         let _ = args;
         UiNode::nil()

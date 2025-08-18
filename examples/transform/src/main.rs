@@ -32,12 +32,12 @@ fn main() {
                                 direction = StackDirection::top_to_bottom();
                                 children_align = Align::TOP_LEFT;
                                 spacing = 40;
-                                children = ui_vec![transform_stack(), transform_order(), cube_example()]
+                                children = ui_vec![transform_stack(), transform_order(), cube_example()];
                             }
-                        ]
+                        ];
                     },
                     open_touch_example()
-                ]
+                ];
             };
         }
     })
@@ -80,7 +80,10 @@ fn transform3d_examples() -> UiNode {
                     padding = 10;
                 };
 
-                background_color = light_dark(hex!(#EF6950).with_alpha(80.pct()), web_colors::BROWN.with_alpha(80.pct()));
+                background_color = light_dark(
+                    hex!(#EF6950).with_alpha(80.pct()),
+                    web_colors::BROWN.with_alpha(80.pct()),
+                );
                 transform_style = TransformStyle::Preserve3D;
                 border = 2, (colors::GRAY, BorderStyle::Dashed);
 
@@ -123,7 +126,7 @@ fn transform3d_examples() -> UiNode {
                             txt = "BACK";
                         };
                     }
-                }
+                };
             }
         ];
     }
@@ -136,7 +139,10 @@ fn transformed(label: impl Into<Txt>, transform: Transform) -> UiNode {
             #[easing(300.ms())]
             transform;
             child = Text!(label.into());
-            background_color = light_dark(hex!(#EF6950).with_alpha(80.pct()), web_colors::BROWN.with_alpha(80.pct()));
+            background_color = light_dark(
+                hex!(#EF6950).with_alpha(80.pct()),
+                web_colors::BROWN.with_alpha(80.pct()),
+            );
             padding = 10;
 
             when *#is_hovered || *#{parent_is_hovered.clone()} {
@@ -154,7 +160,10 @@ fn transformed_3d(label: impl Into<Txt>, transform: Transform, origin: Point) ->
             #[easing(300.ms())]
             transform;
             child = Text!(label.into());
-            background_color = light_dark(hex!(#EF6950).with_alpha(80.pct()), web_colors::BROWN.with_alpha(80.pct()));
+            background_color = light_dark(
+                hex!(#EF6950).with_alpha(80.pct()),
+                web_colors::BROWN.with_alpha(80.pct()),
+            );
             padding = 10;
 
             when *#is_hovered || *#{parent_is_hovered.clone()} {
@@ -178,7 +187,10 @@ fn transformed_at(label: impl Into<Txt>, transform: Transform, origin: impl Into
             layout::transform_origin = origin.into();
 
             child = Text!(label.into());
-            background_color = light_dark(hex!(#EF6950).with_alpha(80.pct()), web_colors::BROWN.with_alpha(80.pct()));
+            background_color = light_dark(
+                hex!(#EF6950).with_alpha(80.pct()),
+                web_colors::BROWN.with_alpha(80.pct()),
+            );
             padding = 10;
 
             when *#is_hovered || *#{parent_is_hovered.clone()} {
@@ -198,12 +210,17 @@ fn transformed_sampler(
         child = {
             let is_hovered = var(false);
             Container! {
-                rotate = merge_var!(is_hovered.clone(), parent_is_hovered.clone(), |h, ph| *h || *ph)
-                    .map(|&hovered| if !hovered { 20.deg() } else { (360 - 20).deg() }.into())
-                    .easing_with(300.ms(), easing::linear, sampler);
+                rotate =
+                    merge_var!(is_hovered.clone(), parent_is_hovered.clone(), |h, ph| *h || *ph)
+                        .map(|&hovered| if !hovered { 20.deg() } else { (360 - 20).deg() }.into())
+                        .easing_with(300.ms(), easing::linear, sampler),
+                ;
 
                 child = Text!(label.into());
-                background_color = light_dark(hex!(#EF6950).with_alpha(80.pct()), web_colors::BROWN.with_alpha(80.pct()));
+                background_color = light_dark(
+                    hex!(#EF6950).with_alpha(80.pct()),
+                    web_colors::BROWN.with_alpha(80.pct()),
+                );
                 padding = 10;
 
                 is_hovered;
@@ -230,7 +247,10 @@ fn transform_stack() -> UiNode {
                 id = "in-stack";
                 transform = Transform::new_rotate(45.deg());
                 child = Text!("Rotated 45º");
-                background_color = light_dark(hex!(#EF6950).with_alpha(80.pct()), web_colors::BROWN.with_alpha(80.pct()));
+                background_color = light_dark(
+                    hex!(#EF6950).with_alpha(80.pct()),
+                    web_colors::BROWN.with_alpha(80.pct()),
+                );
                 padding = 10;
 
                 when *#is_hovered {
@@ -309,13 +329,13 @@ fn cube_example() -> UiNode {
                                 4 => Transform::new_rotate_y((-90).deg()),
                                 5 => Transform::new_rotate_x(90.deg()),
                                 6 => Transform::new_rotate_x((-90).deg()),
-                                _ => unreachable!()
+                                _ => unreachable!(),
                             });
                         }
                     });
 
-                    transform = show
-                        .map(|&i| {
+                    transform =
+                        show.map(|&i| {
                             match i {
                                 1 => Transform::new_rotate_y(0.deg()),
                                 2 => Transform::new_rotate_y((-90).deg()),
@@ -327,8 +347,9 @@ fn cube_example() -> UiNode {
                             }
                             .translate_z(-100)
                         })
-                        .easing_with(1.secs(), easing::linear, slerp_sampler)
-                }
+                        .easing_with(1.secs(), easing::linear, slerp_sampler),
+                    ;
+                };
             },
             Wrap! {
                 align = Align::CENTER;
@@ -376,7 +397,7 @@ fn open_touch_example() -> UiNode {
                     }),
                 );
             }
-        })
+        });
     }
 }
 
@@ -422,8 +443,8 @@ fn touch_example() -> UiNode {
                     ModeToggle!(SCALE),
                     ModeToggle!(ROTATE),
                     ModeToggle!(ALL),
-                ]
+                ];
             }
-        ]
+        ];
     }
 }

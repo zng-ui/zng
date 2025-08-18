@@ -923,9 +923,10 @@ fn fmt(mut args: Vec<&str>) {
         cmd(&exe, &["zng", "fmt"], &args);
         println("done");
 
-        print("    fmt tests/macro-tests/cases/**/*.rs ... ");
-        cmd(&exe, &["zng", "fmt", "--files", "tests/macro-tests/cases/**/*.rs"], &args);
-        println("done");
+        // cargo zng fmt is now searching for all .rs inside workspace members already
+        // print("    fmt tests/macro-tests/cases/**/*.rs ... ");
+        // cmd(&exe, &["zng", "fmt", "--files", "tests/macro-tests/cases/**/*.rs"], &args);
+        // println("done");
 
         print("    fmt tools ... ");
         for tool_crate in top_cargo_toml("tools") {

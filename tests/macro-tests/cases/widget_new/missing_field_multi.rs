@@ -1,7 +1,7 @@
 use zng::{
-    layout::AngleUnits,
-    widget::{background_gradient, Wgt},
     APP,
+    layout::AngleUnits,
+    widget::{Wgt, background_gradient},
 };
 
 fn main() {
@@ -10,6 +10,6 @@ fn main() {
         // background_gradient has two fields
         // the error highlights the property
         // in a struct initializer the struct name is highlighted
-        background_gradient = { axis: 0.deg() }
+        background_gradient = { axis: 0.deg() };
     };
 }

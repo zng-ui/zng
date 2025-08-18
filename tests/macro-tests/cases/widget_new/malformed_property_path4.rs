@@ -1,7 +1,8 @@
-use zng::{widget::Wgt, APP};
+use zng::{APP, widget::Wgt};
 
 fn main() {
     let _scope = APP.minimal();
+    #[rustfmt::skip]
     let _ = Wgt! {
         zng::layout:: = 0;
     };

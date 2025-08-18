@@ -1,13 +1,13 @@
 error: unexpected token, expected `}`
- --> cases/widget_new/unknown_special_value_in_when.rs:8:25
+ --> cases/widget_new/unknown_special_value_in_when.rs:9:25
   |
-8 |             margin = foo!;
+9 |             margin = foo!;
   |                         ^
 
 warning: unused imports: `gesture::is_pressed` and `layout::margin`
- --> cases/widget_new/unknown_special_value_in_when.rs:1:11
+ --> cases/widget_new/unknown_special_value_in_when.rs:1:16
   |
-1 | use zng::{gesture::is_pressed, layout::margin, widget::Wgt, APP};
-  |           ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+1 | use zng::{APP, gesture::is_pressed, layout::margin, widget::Wgt};
+  |                ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

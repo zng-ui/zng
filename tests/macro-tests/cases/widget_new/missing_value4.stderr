@@ -1,20 +1,20 @@
 error: expected `;`
-  --> cases/widget_new/missing_value4.rs:13:21
+  --> cases/widget_new/missing_value4.rs:14:9
    |
-13 |                     margin = 0;
-   |                     ^^^^^^
+14 |         margin = 0;
+   |         ^^^^^^
 
 error[E0061]: this method takes 1 argument but 0 arguments were supplied
-  --> cases/widget_new/missing_value4.rs:11:9
+  --> cases/widget_new/missing_value4.rs:12:9
    |
-10 |       let _ = Wgt! {
+11 |       let _ = Wgt! {
    |  _____________-
-11 | |         cursor =
+12 | |         cursor =
    | |         ^^^^^^
-12 | |                     // we expect these properties to be used.
-13 | |                     margin = 0;
-14 | |         enabled = true;
-15 | |     };
+13 | |         // we expect these properties to be used.
+14 | |         margin = 0;
+15 | |         enabled = true;
+16 | |     };
    | |_____- argument #1 is missing
    |
 note: method defined here

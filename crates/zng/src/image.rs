@@ -19,7 +19,7 @@
 //!         source = include_bytes!("../res/image/pattern.png");
 //!         img_fit = zng::image::ImageFit::None;
 //!         img_repeat = true;
-//!     }
+//!     };
 //! }
 //! # ;
 //! ```
@@ -31,7 +31,7 @@
 //! default the mask uses the alpha channel, see [`mask`] for more details.
 //!
 //! ```
-//! use zng::{prelude::*, image::mask};
+//! use zng::{image::mask, prelude::*};
 //! # let _scope = APP.defaults();
 //! # macro_rules! include_bytes { ($tt:tt) => { &[0u8] } }
 //!
@@ -53,7 +53,7 @@
 //! variable to configure these limits. See [`ImageLimits::default`] for the defaults.
 //!
 //! ```
-//! use zng::{prelude::*, image};
+//! use zng::{image, prelude::*};
 //! # let _scope = APP.defaults();
 //!
 //! image::IMAGES.limits().modify(|l| {

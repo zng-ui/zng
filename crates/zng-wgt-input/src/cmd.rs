@@ -12,7 +12,7 @@ command! {
     pub static NEW_CMD = {
         l10n!: true,
         name: "New",
-        shortcut: [shortcut!(CTRL+'N'), shortcut!(New)],
+        shortcut: [shortcut!(CTRL + 'N'), shortcut!(New)],
     };
 
     /// Represents the **open** action.
@@ -22,7 +22,7 @@ command! {
     pub static OPEN_CMD = {
         l10n!: true,
         name: "Open…",
-        shortcut: [shortcut!(CTRL+'O'), shortcut!(Open)],
+        shortcut: [shortcut!(CTRL + 'O'), shortcut!(Open)],
         icon: wgt_fn!(|_| ICONS.get("file-open")),
     };
 
@@ -33,7 +33,7 @@ command! {
     pub static SAVE_CMD = {
         l10n!: true,
         name: "Save",
-        shortcut: [shortcut!(CTRL+'S'), shortcut!(Save)],
+        shortcut: [shortcut!(CTRL + 'S'), shortcut!(Save)],
         icon: wgt_fn!(|_| ICONS.get("save")),
     };
 
@@ -43,12 +43,12 @@ command! {
     pub static SAVE_AS_CMD = {
         l10n!: true,
         name: "Save As…",
-        shortcut: [shortcut!(CTRL|SHIFT+'S')],
+        shortcut: [shortcut!(CTRL | SHIFT + 'S')],
     };
 
     /// Represents the **context menu open** action.
     pub static CONTEXT_MENU_CMD = {
-        shortcut: [shortcut!(SHIFT+F10), shortcut!(ContextMenu)],
+        shortcut: [shortcut!(SHIFT + F10), shortcut!(ContextMenu)],
         icon: wgt_fn!(|_| ICONS.get(["context-menu", "menu-open"])),
     };
 
@@ -63,7 +63,7 @@ command! {
     pub static SETTINGS_CMD = {
         l10n!: true,
         name: "Settings",
-        shortcut: [shortcut!(CTRL+',')],
+        shortcut: [shortcut!(CTRL + ',')],
         icon: wgt_fn!(|_| ICONS.get("settings")),
     };
 }

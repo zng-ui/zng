@@ -1,8 +1,7 @@
-use zng::{widget::Wgt, APP};
+use zng::{APP, widget::Wgt};
 
 fn main() {
     let _scope = APP.minimal();
-    let _ = Wgt! {
-        when
-    };
+    #[rustfmt::skip]
+    let _ = Wgt! { when };
 }

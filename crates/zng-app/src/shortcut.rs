@@ -531,21 +531,21 @@ bitflags! {
         /// The right "shift" key.
         const R_SHIFT = 0b0000_0010;
         /// Any "shift" key.
-        const SHIFT   = 0b0000_0011;
+        const SHIFT = 0b0000_0011;
 
         /// The left "control" key.
         const L_CTRL = 0b0000_0100;
         /// The right "control" key.
         const R_CTRL = 0b0000_1000;
         /// Any "control" key.
-        const CTRL   = 0b0000_1100;
+        const CTRL = 0b0000_1100;
 
         /// The left "alt" key.
         const L_ALT = 0b0001_0000;
         /// The right "alt" key.
         const R_ALT = 0b0010_0000;
         /// Any "alt" key.
-        const ALT   = 0b0011_0000;
+        const ALT = 0b0011_0000;
 
         /// The left "logo" key.
         const L_LOGO = 0b0100_0000;
@@ -554,7 +554,7 @@ bitflags! {
         /// Any "logo" key.
         ///
         /// This is the "windows" key on PC and "command" key on Mac.
-        const LOGO   = 0b1100_0000;
+        const LOGO = 0b1100_0000;
     }
 }
 impl ModifiersState {
@@ -877,15 +877,15 @@ macro_rules! __shortcut {
 /// }
 ///
 /// fn modified_key() -> Shortcut {
-///     shortcut!(CTRL+'C')
+///     shortcut!(CTRL + 'C')
 /// }
 ///
 /// fn multi_modified_key() -> Shortcut {
-///     shortcut!(CTRL|SHIFT+'C')
+///     shortcut!(CTRL | SHIFT + 'C')
 /// }
 ///
 /// fn chord() -> Shortcut {
-///     shortcut!(CTRL+'E', 'A')
+///     shortcut!(CTRL + 'E', 'A')
 /// }
 ///
 /// fn modifier_release() -> Shortcut {

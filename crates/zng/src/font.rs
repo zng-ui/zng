@@ -3,7 +3,7 @@
 //! The most common types in this module are used through the [`Text!`] widget properties related to font configuration.
 //!
 //! ```
-//! use zng::{prelude::*, font::FontName};
+//! use zng::{font::FontName, prelude::*};
 //!
 //! # let _scope = APP.defaults();
 //! # let _ =
@@ -120,7 +120,7 @@
 //!     args.lang = lang.clone();
 //!     args.direction = segmented_txt.base_direction();
 //!     args.line_height = font.best().metrics().line_height();
-//!     let shaped_txt = font.shape_text(&segmented_txt,&args);
+//!     let shaped_txt = font.shape_text(&segmented_txt, &args);
 //!
 //!     write!(&mut report, "### Glyphs\n\n|text|glyphs|\n|--|--|\n").unwrap();
 //!     for line in shaped_txt.lines() {

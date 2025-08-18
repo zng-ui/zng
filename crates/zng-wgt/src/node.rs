@@ -95,21 +95,29 @@ pub mod __macro_util {
 /// /// Sets the *foo* config.
 /// #[property(CONTEXT, default(false))]
 /// pub fn foo(child: impl IntoUiNode, value: impl IntoVar<bool>) -> UiNode {
-///     with_context_var(child, CONFIG_VAR, merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
-///         let mut c = c.clone();
-///         c.foo = v;
-///         c
-///     }))
+///     with_context_var(
+///         child,
+///         CONFIG_VAR,
+///         merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
+///             let mut c = c.clone();
+///             c.foo = v;
+///             c
+///         }),
+///     )
 /// }
 ///
 /// /// Sets the *bar* config.
 /// #[property(CONTEXT, default(false))]
 /// pub fn bar(child: impl IntoUiNode, value: impl IntoVar<bool>) -> UiNode {
-///     with_context_var(child, CONFIG_VAR, merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
-///         let mut c = c.clone();
-///         c.bar = v;
-///         c
-///     }))
+///     with_context_var(
+///         child,
+///         CONFIG_VAR,
+///         merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
+///             let mut c = c.clone();
+///             c.bar = v;
+///             c
+///         }),
+///     )
 /// }
 /// ```
 ///
@@ -908,7 +916,7 @@ macro_rules! __command_property {
 /// # use zng_app::var::*;
 /// # use zng_wgt::node::*;
 /// # command! {
-/// #   pub static PASTE_CMD;
+/// # pub static PASTE_CMD;
 /// # }
 /// command_property! {
 ///     /// Paste command property docs.
@@ -947,7 +955,7 @@ macro_rules! __command_property {
 /// # use zng_app::var::*;
 /// # use zng_wgt::node::*;
 /// # command! {
-/// #   pub static PASTE_CMD;
+/// # pub static PASTE_CMD;
 /// # }
 /// command_property! {
 ///     /// Paste command property docs.
@@ -972,7 +980,7 @@ macro_rules! __command_property {
 /// # use zng_app::var::*;
 /// # use zng_wgt::node::*;
 /// # command! {
-/// #   pub static PASTE_CMD;
+/// # pub static PASTE_CMD;
 /// # }
 /// /// Clipboard handler.
 /// #[widget_mixin]
@@ -1938,7 +1946,8 @@ pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl IntoUiN
 /// /// Get the value from outside the widget.
 /// fn get_foo_outer(widget: &mut UiNode) -> u32 {
 ///     if let Some(mut wgt) = widget.as_widget() {
-///         wgt.with_context(WidgetUpdateMode::Ignore, || WIDGET.get_state(*FOO_ID)).unwrap_or(0)
+///         wgt.with_context(WidgetUpdateMode::Ignore, || WIDGET.get_state(*FOO_ID))
+///             .unwrap_or(0)
 ///     } else {
 ///         0
 ///     }

@@ -27,11 +27,7 @@ pub mod node;
 ///
 /// This widget loads a still image from a variety of sources and presents it.
 ///
-#[widget($crate::Image {
-    ($source:expr) => {
-        source = $source;
-    };
-})]
+#[widget($crate::Image { ($source:expr) => { source = $source; }; })]
 pub struct Image(WidgetBase);
 impl Image {
     fn widget_intrinsic(&mut self) {

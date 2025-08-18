@@ -56,7 +56,7 @@ event_property! {
     pub fn drag_hovered {
         event: DRAG_HOVERED_EVENT,
         args: DragHoveredArgs,
-        filter: |args| args.is_drag_enter_enabled()
+        filter: |args| args.is_drag_enter_enabled(),
     }
     /// Dragging cursor entered the widget area and the widget is enabled.
     pub fn drag_enter {

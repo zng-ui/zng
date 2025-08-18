@@ -622,7 +622,7 @@ mod context {
 
                 child = TestWgt! {
                     probe = TEST_VAR;
-                }
+                };
             },
         );
 
@@ -638,7 +638,7 @@ mod context {
 
                 child = TestWgt! {
                     probe = TEST_VAR.map(|t| formatx!("map {t}"));
-                }
+                };
             },
         );
 
@@ -664,8 +664,8 @@ mod context {
 
                     child = TestWgt! {
                         probe = mapped;
-                    }
-                }
+                    };
+                };
             },
         );
 
@@ -694,9 +694,9 @@ mod context {
                         child = TestWgt! {
                             probe = mapped;
                             test_prop = "D!";
-                        }
-                    }
-                }
+                        };
+                    };
+                };
             },
         );
 
@@ -720,8 +720,8 @@ mod context {
 
                     child = TestWgt! {
                         probe = TEST_VAR.map(|t| formatx!("map {t}"));
-                    }
-                }
+                    };
+                };
             },
         );
 

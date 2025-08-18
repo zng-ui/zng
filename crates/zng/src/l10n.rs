@@ -36,7 +36,7 @@
 //!     L10N.app_lang().set(lang!("en-US"));
 //!     // preload the localization resources for a language
 //!     L10N.wait_first(lang!("en-US")).await;
-//!     
+//!
 //!     Window! {
 //!         // ..
 //!     }

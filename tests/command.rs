@@ -170,7 +170,7 @@ async fn listener_window(focused_wgt: bool) -> window::WindowRoot {
                     child = foo_handler();
                 }
             ];
-        }
+        };
     }
 }
 

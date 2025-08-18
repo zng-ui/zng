@@ -26,7 +26,7 @@ command! {
         l10n!: true,
         name: "Focus Previous",
         info: "Focus previous focusable",
-        shortcut: shortcut!(SHIFT+Tab),
+        shortcut: shortcut!(SHIFT + Tab),
     };
 
     /// Represents the **focus/escape alt** action.
@@ -42,7 +42,7 @@ command! {
         l10n!: true,
         name: "Focus Enter",
         info: "Focus child focusable",
-        shortcut: [shortcut!(Enter), shortcut!(ALT+Enter)],
+        shortcut: [shortcut!(Enter), shortcut!(ALT + Enter)],
     };
 
     /// Represents the **focus exit** action.
@@ -50,7 +50,7 @@ command! {
         l10n!: true,
         name: "Focus Exit",
         info: "Focus parent focusable, or return focus",
-        shortcut: [shortcut!(Escape), shortcut!(ALT+Escape)],
+        shortcut: [shortcut!(Escape), shortcut!(ALT + Escape)],
     };
 
     /// Represents the **focus up** action.
@@ -58,7 +58,7 @@ command! {
         l10n!: true,
         name: "Focus Up",
         info: "Focus closest focusable up",
-        shortcut: [shortcut!(ArrowUp), shortcut!(ALT+ArrowUp)],
+        shortcut: [shortcut!(ArrowUp), shortcut!(ALT + ArrowUp)],
     };
 
     /// Represents the **focus down** action.
@@ -66,7 +66,7 @@ command! {
         l10n!: true,
         name: "Focus Down",
         info: "Focus closest focusable down",
-        shortcut: [shortcut!(ArrowDown), shortcut!(ALT+ArrowDown)],
+        shortcut: [shortcut!(ArrowDown), shortcut!(ALT + ArrowDown)],
     };
 
     /// Represents the **focus left** action.
@@ -74,7 +74,7 @@ command! {
         l10n!: true,
         name: "Focus Left",
         info: "Focus closest focusable left",
-        shortcut: [shortcut!(ArrowLeft), shortcut!(ALT+ArrowLeft)],
+        shortcut: [shortcut!(ArrowLeft), shortcut!(ALT + ArrowLeft)],
     };
 
     /// Represents the **focus right** action.
@@ -82,7 +82,7 @@ command! {
         l10n!: true,
         name: "Focus Right",
         info: "Focus closest focusable right",
-        shortcut: [shortcut!(ArrowRight), shortcut!(ALT+ArrowRight)],
+        shortcut: [shortcut!(ArrowRight), shortcut!(ALT + ArrowRight)],
     };
 
     /// Represents a [`FocusRequest`] action.
@@ -157,6 +157,7 @@ impl FocusCommands {
                 }
             )+};
         }
+        #[rustfmt::skip] // for zng fmt
         handle! {
             FOCUS_NEXT_CMD(next_handle) => focus_next,
             FOCUS_PREV_CMD(prev_handle) => focus_prev,

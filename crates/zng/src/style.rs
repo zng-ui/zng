@@ -26,64 +26,77 @@
 //!
 //!     children = ui_vec![
 //!         // these buttons have the default style with blue background.
-//!         Button! { child = Text!("Default+BLUE") },
-//!         Button! { child = Text!("Default+BLUE") },
-//!
+//!         Button! {
+//!             child = Text!("Default+BLUE");
+//!         },
+//!         Button! {
+//!             child = Text!("Default+BLUE");
+//!         },
 //!         Stack! {
 //!             direction = StackDirection::top_to_bottom();
 //!             spacing = 5;
-//!     
+//!
 //!             zng::button::style_fn = Style! {
 //!                 // override the default border for all buttons in the Stack.
 //!                 widget::border = 2, colors::GREEN;
 //!             };
-//!     
+//!
 //!             children = ui_vec![
 //!                 // these buttons have the default style, with blue background and green border.
-//!                 Button! { child = Text!("Default+BLUE+GREEN") },
-//!                 Button! { child = Text!("Default+BLUE+GREEN") },
-//!
+//!                 Button! {
+//!                     child = Text!("Default+BLUE+GREEN");
+//!                 },
+//!                 Button! {
+//!                     child = Text!("Default+BLUE+GREEN");
+//!                 },
 //!                 Stack! {
 //!                     direction = StackDirection::top_to_bottom();
 //!                     spacing = 5;
-//!             
 //!
 //!                     zng::button::style_fn = Style! {
 //!                         // override the context style background_color in the Stack.
 //!                         widget::background_color = colors::RED;
 //!                     };
-//!             
+//!
 //!                     children = ui_vec![
 //!                         // these buttons have the default style, with green border and red background.
-//!                         Button! { child = Text!("Default+GREEN+RED") },
-//!                         Button! { child = Text!("Default+GREEN+RED") },
+//!                         Button! {
+//!                             child = Text!("Default+GREEN+RED");
+//!                         },
+//!                         Button! {
+//!                             child = Text!("Default+GREEN+RED");
+//!                         },
 //!                         // this button ignores the contextual style by setting the `style_fn` to a style
 //!                         // that is `replace=true`.
 //!                         Button! {
 //!                             child = Text!("Default");
 //!                             style_fn = zng::button::DefaultStyle!();
 //!                         },
-//!                     ]
+//!                     ];
 //!                 },
-//!             ]
+//!             ];
 //!         },
 //!         Stack! {
 //!             direction = StackDirection::top_to_bottom();
 //!             spacing = 5;
-//!             
+//!
 //!             zng::button::style_fn = Style! {
 //!                 // replace the default style with this one.
 //!                 replace = true;
 //!                 widget::background_color = colors::RED;
 //!             };
-//!     
+//!
 //!             // these buttons only have the red background.
 //!             children = ui_vec![
-//!                 Button! { child = Text!("RED") },
-//!                 Button! { child = Text!("RED") },
-//!             ]
+//!                 Button! {
+//!                     child = Text!("RED");
+//!                 },
+//!                 Button! {
+//!                     child = Text!("RED");
+//!                 },
+//!             ];
 //!         }
-//!     ]
+//!     ];
 //! }
 //! # ;
 //! ```
@@ -131,9 +144,13 @@
 //!             });
 //!             children = ui_vec![
 //!                 // each button gets its own background node.
-//!                 Button! { child = Text!("Default+AZURE") },
-//!                 Button! { child = Text!("Default+AZURE") },
-//!             ]
+//!                 Button! {
+//!                     child = Text!("Default+AZURE");
+//!                 },
+//!                 Button! {
+//!                     child = Text!("Default+AZURE");
+//!                 },
+//!             ];
 //!         }
 //!     ]
 //! )

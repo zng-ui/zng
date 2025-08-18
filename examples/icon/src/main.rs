@@ -62,41 +62,45 @@ fn icons() -> UiNode {
             children = {
                 let mut r = vec![];
                 icons
-                .par_chunks(100)
-                .map(|c| Wrap! { // segment into multiple inlined lazy inited `Wrap!` for better performance.
-                    spacing = 5;
-                    children_align = Align::CENTER;
-                    lazy = {
-                        let len = c.len();
-                        LazyMode::lazy(wgt_fn!(|_| {
-                            wrap::lazy_size(len, 5, (80, 80))
-                        }))
-                    };
-                    children = {
-                        let mut r = vec![];
-                        c.par_iter()
-                                .map(|(name, ico)| icon_btn(name, ico.clone(), font_mod))
-                                .collect_into_vec(&mut r);
-                        r
-                    };
-                })
-                .collect_into_vec(&mut r);
+                    .par_chunks(100)
+                    .map(|c| {
+                        Wrap! {
+                            // segment into multiple inlined lazy inited `Wrap!` for better performance.
+                            spacing = 5;
+                            children_align = Align::CENTER;
+                            lazy = {
+                                let len = c.len();
+                                LazyMode::lazy(wgt_fn!(|_| { wrap::lazy_size(len, 5, (80, 80)) }))
+                            };
+                            children = {
+                                let mut r = vec![];
+                                c.par_iter()
+                                    .map(|(name, ico)| icon_btn(name, ico.clone(), font_mod))
+                                    .collect_into_vec(&mut r);
+                                r
+                            };
+                        }
+                    })
+                    .collect_into_vec(&mut r);
                 r
             };
-            zng::container::child_bottom = Wrap! {
-                layout::margin = 30;
-                layout::align = Align::CENTER;
-                children = ui_vec![
-                    Text!("{icons_len} results, "),
-                    Button! {
-                        style_fn = style_fn!(|_| zng::button::LinkStyle!());
-                        child = Text!("back to search");
-                        on_click = hn!(|_| {
-                            FOCUS.focus_widget("search", false);
-                        });
-                    },
-                ];
-            }, 0;
+            zng::container::child_bottom =
+                Wrap! {
+                    layout::margin = 30;
+                    layout::align = Align::CENTER;
+                    children = ui_vec![
+                        Text!("{icons_len} results, "),
+                        Button! {
+                            style_fn = style_fn!(|_| zng::button::LinkStyle!());
+                            child = Text!("back to search");
+                            on_click = hn!(|_| {
+                                FOCUS.focus_widget("search", false);
+                            });
+                        },
+                    ];
+                },
+                0,
+            ;
         }
     }
     Stack! {
@@ -123,7 +127,7 @@ fn icons() -> UiNode {
                     select_font("outlined"),
                     select_font("rounded"),
                     select_font("sharp"),
-                ]
+                ];
             },
             DataView!(
                 ::<(&'static str, Txt)>,
@@ -160,7 +164,7 @@ fn icons() -> UiNode {
                     }
                 }),
             ),
-        ]
+        ];
     }
 }
 
@@ -183,11 +187,11 @@ fn icon_btn(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static str) ->
                     layout::height = 2.em();
                     line_height = 1.em();
                 },
-            ]
+            ];
         };
         on_click = hn!(|_| {
             LAYERS.insert(LayerIndex::TOP_MOST, expanded_icon(name, ico.clone(), font_mod));
-        })
+        });
     }
 }
 
@@ -216,63 +220,62 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             drop_shadow = (0, 0), 4, colors::BLACK;
-            child = Stack!(children = ui_vec![
-                Stack! {
-                    direction = StackDirection::top_to_bottom();
-                    spacing = 5;
-                    padding = 10;
-                    children_align = Align::TOP_LEFT;
-                    children = ui_vec![
-                        title(name.into()),
-                        Stack! {
-                            align = Align::CENTER;
-                            margin = 10;
-                            direction = StackDirection::left_to_right();
-                            spacing = 5;
-                            children_align = Align::TOP_LEFT;
-                            children = [64, 48, 32, 24, 16].into_iter().map(clmv!(ico, |size| {
-                                Stack! {
-                                    direction = StackDirection::top_to_bottom();
-                                    spacing = 3;
-                                    children = ui_vec![
-                                        size_label(formatx!("{size}")),
-                                        Icon! {
-                                            ico = ico.clone();
-                                            ico_size = size;
+            child = Stack!(
+                children = ui_vec![
+                    Stack! {
+                        direction = StackDirection::top_to_bottom();
+                        spacing = 5;
+                        padding = 10;
+                        children_align = Align::TOP_LEFT;
+                        children = ui_vec![
+                            title(name.into()),
+                            Stack! {
+                                align = Align::CENTER;
+                                margin = 10;
+                                direction = StackDirection::left_to_right();
+                                spacing = 5;
+                                children_align = Align::TOP_LEFT;
+                                children = [64, 48, 32, 24, 16].into_iter().map(clmv!(ico, |size| {
+                                    Stack! {
+                                        direction = StackDirection::top_to_bottom();
+                                        spacing = 3;
+                                        children = ui_vec![
+                                            size_label(formatx!("{size}")),
+                                            Icon! {
+                                                ico = ico.clone();
+                                                ico_size = size;
 
-                                            background_color = light_dark(
-                                                colors::WHITE.with_alpha(85.pct()),
-                                                colors::BLACK.with_alpha(85.pct()),
-                                            );
-                                            corner_radius = 4;
-                                            padding = 2;
-                                        }
-                                    ]
+                                                background_color = light_dark(colors::WHITE.with_alpha(85.pct()), colors::BLACK.with_alpha(85.pct()));
+                                                corner_radius = 4;
+                                                padding = 2;
+                                            }
+                                        ];
                                     }
-                            })).collect::<Vec<_>>()
-                        },
-                        code_copy("ICONS.req".into(), formatx!("ICONS.req(\"material/{font_mod}/{name}\")")),
-                        code_copy(formatx!("{font_mod}::req"), formatx!("icon::{font_mod}::req(\"{name}\")")),
-                    ]
-                },
-                Button! {
-                    id = "close-btn";
-                    icon::ico_size = 14;
-                    child = Icon!(icon::material::filled::req("close"));
-                    align = Align::TOP_RIGHT;
-                    padding = 2;
-                    margin = 4;
-                    on_click = async_hn!(opacity, |args: ClickArgs| {
-                        args.propagation().stop();
+                                }));
+                            },
+                            code_copy("ICONS.req".into(), formatx!("ICONS.req(\"material/{font_mod}/{name}\")")),
+                            code_copy(formatx!("{font_mod}::req"), formatx!("icon::{font_mod}::req(\"{name}\")")),
+                        ];
+                    },
+                    Button! {
+                        id = "close-btn";
+                        icon::ico_size = 14;
+                        child = Icon!(icon::material::filled::req("close"));
+                        align = Align::TOP_RIGHT;
+                        padding = 2;
+                        margin = 4;
+                        on_click = async_hn!(opacity, |args: ClickArgs| {
+                            args.propagation().stop();
 
-                        opacity.ease(0.fct(), 150.ms(), easing::linear).perm();
-                        opacity.wait_animation().await;
+                            opacity.ease(0.fct(), 150.ms(), easing::linear).perm();
+                            opacity.wait_animation().await;
 
-                        LAYERS.remove("expanded-icon");
-                    });
-                }
-            ])
-        }
+                            LAYERS.remove("expanded-icon");
+                        });
+                    }
+                ]
+            );
+        };
     }
 }
 
@@ -318,7 +321,7 @@ fn code_copy(label: Txt, code: Txt) -> UiNode {
                 Ok(copied) => {
                     debug_assert!(copied); // no other clipboard request
                     copy_status.set("copied!");
-                },
+                }
                 Err(e) => copy_status.set(formatx!("error: {e}")),
             }
 

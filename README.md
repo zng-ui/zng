@@ -39,7 +39,7 @@ fn main() {
                 });
                 text::font_size = 28;
                 child = Text!("Click Me!");
-            }
+            };
         }
     })
 }

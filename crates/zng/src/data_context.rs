@@ -39,11 +39,14 @@
 //!                 style_fn = style_fn!(|_| zng::text_input::FieldStyle!());
 //!                 data_context::data_error = vm.map(|vm| vm.new_item_error());
 //!             };
-//!             child_bottom = Button! {
-//!                 child = Text!("Submit");
-//!                 widget::enabled = vm.map(|vm| !vm.new_item().is_empty());
-//!                 on_click = hn!(|_| vm.modify(|vm| vm.submit()));
-//!             }, 5;
+//!             child_bottom =
+//!                 Button! {
+//!                     child = Text!("Submit");
+//!                     widget::enabled = vm.map(|vm| !vm.new_item().is_empty());
+//!                     on_click = hn!(|_| vm.modify(|vm| vm.submit()));
+//!                 },
+//!                 5,
+//!             ;
 //!             padding = 5;
 //!         }
 //!     }

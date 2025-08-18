@@ -74,11 +74,7 @@ impl fmt::Debug for ImageRepeat {
 }
 impl_from_and_into_var! {
     fn from(repeat: bool) -> ImageRepeat {
-        if repeat {
-            ImageRepeat::Repeat
-        } else {
-            ImageRepeat::None
-        }
+        if repeat { ImageRepeat::Repeat } else { ImageRepeat::None }
     }
 }
 

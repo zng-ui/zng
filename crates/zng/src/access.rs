@@ -39,16 +39,19 @@
 //! WINDOW.enable_access();
 //!
 //! Window! {
-//!     child = Button! { id = "btn-1"; child = Text!("Button 1") };
+//!     child = Button! {
+//!         id = "btn-1";
+//!         child = Text!("Button 1");
+//!     };
 //!
 //!     widget::on_info_init = hn!(|_| {
 //!         let btn_info = WINDOW.info().get("btn-1").unwrap().access().unwrap();
 //!         let txt_info = btn_info.info().children().next().unwrap().access().unwrap();
-//!     
+//!
 //!         assert_eq!(None, btn_info.label());
 //!         assert!(btn_info.labelled_by_child());
 //!         assert_eq!(Some(Txt::from("Button 1")), txt_info.label());
-//! # WINDOW.close();
+//!         # WINDOW.close();
 //!     });
 //! }
 //! # });
@@ -72,8 +75,8 @@
 //! so it can be changed, in this case it is up to the app developer to actually implement the search.
 //!
 //! ```
+//! use zng::access::{AccessRole, access_role};
 //! use zng::prelude::*;
-//! use zng::access::{access_role, AccessRole};
 //!
 //! # let _scope = APP.defaults();
 //! let search_txt = var(Txt::from(""));
@@ -101,26 +104,30 @@
 //! # let _scope = APP.defaults(); let _ =
 //! Window! {
 //!     child_align = Align::CENTER;
-//!     child = Stack!(top_to_bottom, 50, ui_vec![
-//!         Button! {
-//!             on_click = hn!(|_| {
-//!                 use zng::access::ACCESS;
+//!     child = Stack!(
+//!         top_to_bottom,
+//!         50,
+//!         ui_vec![
+//!             Button! {
+//!                 on_click = hn!(|_| {
+//!                     use zng::access::ACCESS;
 //!
-//!                 show_tooltip = !show_tooltip;
-//!                 if show_tooltip {
-//!                     ACCESS.show_tooltip(WINDOW.id(), "tooltip-anchor");
-//!                 } else {
-//!                     ACCESS.hide_tooltip(WINDOW.id(), "tooltip-anchor");
-//!                 }
-//!             });
-//!             child = Text!("Toggle Tooltip");
-//!         },
-//!         Text! {
-//!             id = "tooltip-anchor";
-//!             txt = "tooltip anchor";
-//!             tooltip = Tip!(Text!("Tooltip"));
-//!         }
-//!     ])
+//!                     show_tooltip = !show_tooltip;
+//!                     if show_tooltip {
+//!                         ACCESS.show_tooltip(WINDOW.id(), "tooltip-anchor");
+//!                     } else {
+//!                         ACCESS.hide_tooltip(WINDOW.id(), "tooltip-anchor");
+//!                     }
+//!                 });
+//!                 child = Text!("Toggle Tooltip");
+//!             },
+//!             Text! {
+//!                 id = "tooltip-anchor";
+//!                 txt = "tooltip anchor";
+//!                 tooltip = Tip!(Text!("Tooltip"));
+//!             }
+//!         ]
+//!     );
 //! }
 //! # ;
 //! ```

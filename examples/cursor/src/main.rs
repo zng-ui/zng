@@ -32,7 +32,7 @@ fn main() {
                     },
                     cursor_demo(None),
                 ]
-            )
+            );
         }
     })
 }
@@ -83,7 +83,7 @@ fn cursor_img_demo(label: &'static str, img: &'static [u8], hotspot: (i32, i32),
         child = Text! {
             txt = label;
             font_style = FontStyle::Italic;
-        }
+        };
     }
 }
 

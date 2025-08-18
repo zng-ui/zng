@@ -360,7 +360,8 @@ where
 ///
 ///     task::run(async {
 ///         println!("In other thread!");
-///     }).await;
+///     })
+///     .await;
 ///
 ///     println!("Back in UI thread, in a widget update.");
 /// });
@@ -379,7 +380,6 @@ where
 /// # let
 /// on_click = async_hn!(|args: ClickArgs| {
 ///     println!("Clicked {} {} times!", WIDGET.id(), args.click_count);
-///     
 /// });
 /// # on_click }
 /// ```
@@ -404,7 +404,8 @@ where
 ///
 ///     task::run(async move {
 ///         println!("do something {}", args.click_count);
-///     }).await;
+///     })
+///     .await;
 ///
 ///     enabled.set(true);
 /// });
@@ -537,10 +538,11 @@ where
 /// # let
 /// on_open = async_hn_once!(|_| {
 ///     task::run(async move {
-///          for i in data {
-///              print!("{i}, ");
-///          }    
-///     }).await;
+///         for i in data {
+///             print!("{i}, ");
+///         }
+///     })
+///     .await;
 ///
 ///     println!("Done!");
 /// });
@@ -560,10 +562,11 @@ where
 /// # let
 /// on_open = async_hn_once!(data, |_| {
 ///     task::run(async move {
-///          for i in data {
-///              print!("{i}, ");
-///          }    
-///     }).await;
+///         for i in data {
+///             print!("{i}, ");
+///         }
+///     })
+///     .await;
 ///
 ///     println!("Done!");
 /// });
@@ -722,9 +725,11 @@ where
 /// # use zng_app::handler::app_hn;
 /// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
-/// CLICK_EVENT.on_event(app_hn!(|_, _| {
-///     println!("Clicked Somewhere!");
-/// })).perm();
+/// CLICK_EVENT
+///     .on_event(app_hn!(|_, _| {
+///         println!("Clicked Somewhere!");
+///     }))
+///     .perm();
 /// # }
 /// ```
 ///
@@ -740,10 +745,12 @@ where
 /// # use zng_app::handler::app_hn;
 /// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
-/// CLICK_EVENT.on_event(app_hn!(|args: &ClickArgs, handle| {
-///     println!("Clicked {}!", args.target);
-///     handle.unsubscribe();
-/// })).perm();
+/// CLICK_EVENT
+///     .on_event(app_hn!(|args: &ClickArgs, handle| {
+///         println!("Clicked {}!", args.target);
+///         handle.unsubscribe();
+///     }))
+///     .perm();
 /// # }
 /// ```
 ///
@@ -759,9 +766,11 @@ where
 /// # fn assert_type() {
 /// let foo = var("".to_txt());
 ///
-/// CLICK_EVENT.on_event(app_hn!(foo, |args: &ClickArgs, _| {
-///     foo.set(args.target.to_txt());
-/// })).perm();
+/// CLICK_EVENT
+///     .on_event(app_hn!(foo, |args: &ClickArgs, _| {
+///         foo.set(args.target.to_txt());
+///     }))
+///     .perm();
 ///
 /// // can still use after:
 /// let bar = foo.map(|c| formatx!("last click: {c}"));
@@ -840,11 +849,13 @@ where
 /// # fn assert_type() {
 /// let data = vec![1, 2, 3];
 ///
-/// CLICK_EVENT.on_event(app_hn_once!(|_| {
-///     for i in data {
-///         print!("{i}, ");
-///     }
-/// })).perm();
+/// CLICK_EVENT
+///     .on_event(app_hn_once!(|_| {
+///         for i in data {
+///             print!("{i}, ");
+///         }
+///     }))
+///     .perm();
 /// # }
 /// ```
 ///
@@ -859,9 +870,11 @@ where
 /// # fn assert_type() {
 /// let data = vec![1, 2, 3];
 ///
-/// CLICK_EVENT.on_event(app_hn_once!(data, |args: &ClickArgs| {
-///     drop(data);
-/// })).perm();
+/// CLICK_EVENT
+///     .on_event(app_hn_once!(data, |args: &ClickArgs| {
+///         drop(data);
+///     }))
+///     .perm();
 ///
 /// println!("{data:?}");
 /// # }
@@ -961,15 +974,18 @@ where
 /// # use zng_task as task;
 /// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
-/// CLICK_EVENT.on_event(async_app_hn!(|_, _| {
-///     println!("Clicked Somewhere!");
+/// CLICK_EVENT
+///     .on_event(async_app_hn!(|_, _| {
+///         println!("Clicked Somewhere!");
 ///
-///     task::run(async {
-///         println!("In other thread!");
-///     }).await;
+///         task::run(async {
+///             println!("In other thread!");
+///         })
+///         .await;
 ///
-///     println!("Back in UI thread, in an app update.");
-/// })).perm();
+///         println!("Back in UI thread, in an app update.");
+///     }))
+///     .perm();
 /// # }
 /// ```
 ///
@@ -987,12 +1003,14 @@ where
 /// # use zng_task as task;
 /// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
-/// CLICK_EVENT.on_event(async_app_hn!(|args: ClickArgs, handle| {
-///     println!("Clicked {}!", args.target);
-///     task::run(async move {
-///         handle.unsubscribe();
-///     });
-/// })).perm();
+/// CLICK_EVENT
+///     .on_event(async_app_hn!(|args: ClickArgs, handle| {
+///         println!("Clicked {}!", args.target);
+///         task::run(async move {
+///             handle.unsubscribe();
+///         });
+///     }))
+///     .perm();
 /// # }
 /// ```
 ///
@@ -1010,15 +1028,18 @@ where
 /// # fn assert_type() {
 /// let status = var("pending..".to_txt());
 ///
-/// CLICK_EVENT.on_event(async_app_hn!(status, |args: ClickArgs, _| {
-///     status.set(formatx!("processing {}..", args.target));
+/// CLICK_EVENT
+///     .on_event(async_app_hn!(status, |args: ClickArgs, _| {
+///         status.set(formatx!("processing {}..", args.target));
 ///
-///     task::run(async move {
-///         println!("do something slow");
-///     }).await;
+///         task::run(async move {
+///             println!("do something slow");
+///         })
+///         .await;
 ///
-///     status.set(formatx!("finished {}", args.target));
-/// })).perm();
+///         status.set(formatx!("finished {}", args.target));
+///     }))
+///     .perm();
 ///
 /// // can still use after:
 /// let text = status;
@@ -1134,10 +1155,11 @@ where
 /// # let
 /// on_open = async_hn_once!(|_| {
 ///     task::run(async move {
-///          for i in data {
-///              print!("{i}, ");
-///          }    
-///     }).await;
+///         for i in data {
+///             print!("{i}, ");
+///         }
+///     })
+///     .await;
 ///
 ///     println!("Done!");
 /// });
@@ -1157,10 +1179,11 @@ where
 /// # let
 /// on_open = async_hn_once!(data, |_| {
 ///     task::run(async move {
-///          for i in data {
-///              print!("{i}, ");
-///          }    
-///     }).await;
+///         for i in data {
+///             print!("{i}, ");
+///         }
+///     })
+///     .await;
 ///
 ///     println!("Done!");
 /// });

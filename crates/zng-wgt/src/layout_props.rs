@@ -133,11 +133,7 @@ impl fmt::Debug for InlineMode {
 }
 impl_from_and_into_var! {
     fn from(inline: bool) -> InlineMode {
-        if inline {
-            InlineMode::Inline
-        } else {
-            InlineMode::Block
-        }
+        if inline { InlineMode::Inline } else { InlineMode::Block }
     }
 }
 

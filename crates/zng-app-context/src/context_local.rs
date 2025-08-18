@@ -233,7 +233,9 @@ impl<T: Send + Sync + 'static> ContextLocal<RwLock<T>> {
 /// ```
 /// # use zng_app_context::*;
 /// # use std::sync::Arc;
-/// context_local! { static FOO: String = "default"; }
+/// context_local! {
+///     static FOO: String = "default";
+/// }
 ///
 /// fn print_value() {
 ///     println!("value is {}!", FOO.get());

@@ -416,7 +416,7 @@ impl TIMERS {
     /// text = timer.map(|t| match t.count() {
     ///     0 => formatx!(""),
     ///     1 => formatx!("1 second elapsed"),
-    ///     c => formatx!("{c} seconds elapsed")
+    ///     c => formatx!("{c} seconds elapsed"),
     /// });
     /// # }
     /// ```
@@ -439,9 +439,12 @@ impl TIMERS {
     /// # use zng_layout::unit::*;
     /// # use std::time::Instant;
     /// # fn foo() {
-    /// let handle = TIMERS.on_deadline(20.secs(), app_hn_once!(|_| {
-    ///     println!("20 seconds have passed");
-    /// }));
+    /// let handle = TIMERS.on_deadline(
+    ///     20.secs(),
+    ///     app_hn_once!(|_| {
+    ///         println!("20 seconds have passed");
+    ///     }),
+    /// );
     /// # }
     /// ```
     ///
@@ -838,9 +841,9 @@ impl WeakTimerHandle {
 ///     0 => {
 ///         d.stop();
 ///         formatx!("Done!")
-///     },
+///     }
 ///     1 => formatx!("1 second left"),
-///     s => formatx!("{s} seconds left")
+///     s => formatx!("{s} seconds left"),
 /// });
 /// # }
 /// ```

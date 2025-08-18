@@ -64,7 +64,7 @@ fn app_main() {
                                 hue_rotate = 180.deg();
                                 child = using_display_items::app_side::custom_render_node();
                             },
-                        ]
+                        ];
                     },
                     Stack! {
                         direction = StackDirection::top_to_bottom();
@@ -81,7 +81,7 @@ fn app_main() {
                                 hue_rotate = 180.deg();
                                 child = using_blob::app_side::custom_render_node();
                             },
-                        ]
+                        ];
                     },
                     Stack! {
                         direction = StackDirection::top_to_bottom();
@@ -98,7 +98,7 @@ fn app_main() {
                                 hue_rotate = 180.deg(); // no effect
                                 child = using_gl_overlay::app_side::custom_render_node();
                             },
-                        ]
+                        ];
                     },
                     Stack! {
                         direction = StackDirection::top_to_bottom();
@@ -115,10 +115,10 @@ fn app_main() {
                                 hue_rotate = 180.deg();
                                 child = using_gl_texture::app_side::custom_render_node();
                             },
-                        ]
+                        ];
                     },
-                ]
-            }
+                ];
+            };
         }
     })
 }

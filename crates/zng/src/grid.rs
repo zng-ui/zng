@@ -19,27 +19,35 @@
 //!
 //! # let _ =
 //! Grid! {
-//!     columns = length_color.iter().map(|(length, color)| grid::Column! {
-//!         width = length.clone();
-//!         widget::background_color = color.with_alpha(10.pct());
-//!     });
-//!
-//!     rows = length_color.iter().map(|(length, color)| grid::Row! {
-//!         height = length.clone();
-//!         widget::background_color = color.with_alpha(10.pct());
-//!     });
-//!
-//!     cells = (0..3).flat_map(|col| (0..3usize).map(move |row| Text! {
-//!         grid::cell::at = (col, row);
-//!         txt = formatx!("({col}, {row})");
-//!
-//!         txt_align = Align::CENTER;
-//!         layout::padding = 10;
-//!         widget::border = 1, colors::AZURE.transparent();
-//!         when *#gesture::is_hovered {
-//!             widget::border = 1, colors::AZURE;
+//!     columns = length_color.iter().map(|(length, color)| {
+//!         grid::Column! {
+//!             width = length.clone();
+//!             widget::background_color = color.with_alpha(10.pct());
 //!         }
-//!     }));
+//!     });
+//!
+//!     rows = length_color.iter().map(|(length, color)| {
+//!         grid::Row! {
+//!             height = length.clone();
+//!             widget::background_color = color.with_alpha(10.pct());
+//!         }
+//!     });
+//!
+//!     cells = (0..3).flat_map(|col| {
+//!         (0..3usize).map(move |row| {
+//!             Text! {
+//!                 grid::cell::at = (col, row);
+//!                 txt = formatx!("({col}, {row})");
+//!
+//!                 txt_align = Align::CENTER;
+//!                 layout::padding = 10;
+//!                 widget::border = 1, colors::AZURE.transparent();
+//!                 when *#gesture::is_hovered {
+//!                     widget::border = 1, colors::AZURE;
+//!                 }
+//!             }
+//!         })
+//!     });
 //! };
 //! # ;
 //! ```
@@ -61,17 +69,21 @@
 //!         }
 //!     });
 //!
-//!      cells = (0..6).flat_map(|row| (0..3usize).map(move |col| Text! {
-//!         grid::cell::at = grid::cell::AT_AUTO;
-//!         txt = formatx!("({col}, {row})");
+//!     cells = (0..6).flat_map(|row| {
+//!         (0..3usize).map(move |col| {
+//!             Text! {
+//!                 grid::cell::at = grid::cell::AT_AUTO;
+//!                 txt = formatx!("({col}, {row})");
 //!
-//!         txt_align = Align::CENTER;
-//!         layout::padding = 10;
-//!         widget::border = 1, colors::AZURE.transparent();
-//!         when *#gesture::is_hovered {
-//!             widget::border = 1, colors::AZURE;
-//!         }
-//!     }));
+//!                 txt_align = Align::CENTER;
+//!                 layout::padding = 10;
+//!                 widget::border = 1, colors::AZURE.transparent();
+//!                 when *#gesture::is_hovered {
+//!                     widget::border = 1, colors::AZURE;
+//!                 }
+//!             }
+//!         })
+//!     });
 //! }
 //! # ;
 //! ```

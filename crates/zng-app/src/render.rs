@@ -3184,10 +3184,6 @@ impl Default for FontSynthesis {
 impl_from_and_into_var! {
     /// Convert to full [`ENABLED`](FontSynthesis::ENABLED) or [`DISABLED`](FontSynthesis::DISABLED).
     fn from(enabled: bool) -> FontSynthesis {
-        if enabled {
-            FontSynthesis::ENABLED
-        } else {
-            FontSynthesis::DISABLED
-        }
+        if enabled { FontSynthesis::ENABLED } else { FontSynthesis::DISABLED }
     }
 }

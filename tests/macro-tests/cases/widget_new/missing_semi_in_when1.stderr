@@ -1,5 +1,5 @@
 error: expected `,`
-  --> cases/widget_new/missing_semi_in_when1.rs:16:13
+  --> cases/widget_new/missing_semi_in_when1.rs:17:13
    |
-16 |             cursor = CursorIcon::Pointer;
+17 |             cursor = CursorIcon::Pointer;
    |             ^^^^^^

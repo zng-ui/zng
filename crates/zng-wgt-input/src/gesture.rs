@@ -37,7 +37,7 @@ event_property! {
     ///
     /// This raises for all possible sources of [`CLICK_EVENT`], but only when the click count is one. Use
     /// [`on_single_click`](fn@on_single_click) to handle only primary button clicks.
-        ///
+    ///
     /// [`CLICK_EVENT`]: zng_ext_input::gesture::CLICK_EVENT
     pub fn any_single_click {
         event: CLICK_EVENT,
@@ -50,7 +50,7 @@ event_property! {
     ///
     /// This raises for all possible sources of [`CLICK_EVENT`], but only when the click count is two. Use
     /// [`on_double_click`](fn@on_double_click) to handle only primary button clicks.
-        ///
+    ///
     /// [`CLICK_EVENT`]: zng_ext_input::gesture::CLICK_EVENT
     pub fn any_double_click {
         event: CLICK_EVENT,
@@ -62,7 +62,7 @@ event_property! {
     ///
     /// This raises for all possible sources of [`CLICK_EVENT`], but only when the click count is three. Use
     /// [`on_triple_click`](fn@on_triple_click) to handle only primary button clicks.
-        ///
+    ///
     /// [`CLICK_EVENT`]: zng_ext_input::gesture::CLICK_EVENT
     pub fn any_triple_click {
         event: CLICK_EVENT,

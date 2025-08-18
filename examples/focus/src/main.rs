@@ -33,7 +33,7 @@ fn main() {
                 direction = StackDirection::left_to_right();
                 align = Align::TOP;
                 spacing = 10;
-                children = ui_vec![tab_index_example(), functions(window_enabled), delayed_focus()]
+                children = ui_vec![tab_index_example(), functions(window_enabled), delayed_focus()];
             };
             widget::background = commands();
             // zng::window::inspector::show_center_points = true;
@@ -100,7 +100,7 @@ fn functions(window_enabled: Var<bool>) -> UiNode {
                                     button("Button B3", 2),
                                     button("Button B1", 0),
                                     button("Button B2", 0),
-                                ]
+                                ];
                             };
                         }
                     });
@@ -137,12 +137,14 @@ fn functions(window_enabled: Var<bool>) -> UiNode {
                 });
             },
             nested_focusables(),
-        ]
+        ];
     }
 }
 fn disable_window(window_enabled: Var<bool>) -> UiNode {
     Button! {
-        child = Text!(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
+        child = Text!(
+            window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into())
+        );
         layout::min_width = 140;
         on_click = async_hn!(window_enabled, |_| {
             window_enabled.set(false);
@@ -176,18 +178,18 @@ fn overlay(window_enabled: Var<bool>) -> UiNode {
                         direction = StackDirection::left_to_right();
                         spacing = 2;
                         children = ui_vec![
-                        disable_window(window_enabled),
-                        Button! {
+                            disable_window(window_enabled),
+                            Button! {
                                 child = Text!("Close");
                                 on_click = hn!(|_| {
                                     LAYERS.remove("overlay");
-                                })
+                                });
                             }
-                        ]
+                        ];
                     }
-                ]
-            }
-        }
+                ];
+            };
+        };
     }
 }
 
@@ -243,7 +245,7 @@ fn delayed_focus() -> UiNode {
                     background_color = light_dark(web_colors::LIGHT_GREEN, web_colors::DARK_GREEN);
                 }
             },
-        ]
+        ];
     }
 }
 fn delayed_btn(content: impl Into<Txt>, on_timeout: impl FnMut() + Send + 'static) -> UiNode {
@@ -355,10 +357,10 @@ fn nested_focusables() -> UiNode {
                         direction = StackDirection::top_to_bottom();
                         spacing = 10;
                         children = ui_vec![nested_focusables_group('a'), nested_focusables_group('b')];
-                    }
+                    };
                 }
             });
-        })
+        });
     }
 }
 fn nested_focusables_group(g: char) -> UiNode {
@@ -366,7 +368,7 @@ fn nested_focusables_group(g: char) -> UiNode {
         direction = StackDirection::left_to_right();
         align = Align::TOP;
         spacing = 10;
-        children = (0..5).map(|n| nested_focusable(g, n, 0))
+        children = (0..5).map(|n| nested_focusable(g, n, 0));
     }
 }
 fn nested_focusable(g: char, column: u8, row: u8) -> UiNode {
@@ -381,10 +383,7 @@ fn nested_focusable(g: char, column: u8, row: u8) -> UiNode {
         children = if row == 5 {
             ui_vec![nested]
         } else {
-            ui_vec![
-                nested,
-                nested_focusable(g, column, row + 1),
-            ]
+            ui_vec![nested, nested_focusable(g, column, row + 1),]
         };
 
         focusable = true;

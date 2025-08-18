@@ -1,7 +1,8 @@
-use zng::{layout::margin, widget::Wgt, APP};
+use zng::{APP, layout::margin, widget::Wgt};
 
 fn main() {
     let _scope = APP.minimal();
+    #[rustfmt::skip]
     let _ = Wgt! {
         margin = ;
     };

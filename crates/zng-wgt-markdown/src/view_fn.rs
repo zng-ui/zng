@@ -433,7 +433,8 @@ context_var! {
     pub static DEF_LIST_ITEM_TITLE_FN_VAR: WidgetFn<DefListItemTitleArgs> = WidgetFn::new(default_def_list_item_title_fn);
 
     /// Widget function for a markdown definition list item description.
-    pub static DEF_LIST_ITEM_DEFINITION_FN_VAR: WidgetFn<DefListItemDefinitionArgs> = WidgetFn::new(default_def_list_item_definition_fn);
+    pub static DEF_LIST_ITEM_DEFINITION_FN_VAR: WidgetFn<DefListItemDefinitionArgs> =
+        WidgetFn::new(default_def_list_item_definition_fn);
 
     /// Widget function for a markdown image.
     pub static IMAGE_FN_VAR: WidgetFn<ImageFnArgs> = WidgetFn::new(default_image_fn);
@@ -787,7 +788,7 @@ pub fn default_list_fn(args: ListFnArgs) -> UiNode {
             columns = ui_vec![
                 grid::Column!(),
                 grid::Column! {
-                    width = 1.lft()
+                    width = 1.lft();
                 },
             ];
         }
@@ -1015,11 +1016,7 @@ pub fn default_table_fn(args: TableFnArgs) -> UiNode {
             grid::Row! {
                 border = (0, 0, 1, 0), FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()).into());
                 background_color = {
-                    let alpha = if args.index % 2 == 0 {
-                        5.pct()
-                    } else {
-                        0.pct()
-                    };
+                    let alpha = if args.index % 2 == 0 { 5.pct() } else { 0.pct() };
                     FONT_COLOR_VAR.map(move |c| c.with_alpha(alpha))
                 };
 
@@ -1028,7 +1025,7 @@ pub fn default_table_fn(args: TableFnArgs) -> UiNode {
                 }
             }
         });
-        columns = std::iter::repeat_with(|| grid::Column!{}).take(args.columns.len());
+        columns = std::iter::repeat_with(|| grid::Column! {}).take(args.columns.len());
         cells = args.cells;
     }
 }

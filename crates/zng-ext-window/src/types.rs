@@ -146,11 +146,7 @@ impl_from_and_into_var! {
     /// Returns [`AutoSize::CONTENT`] if `content` is `true`, otherwise
     // returns [`AutoSize::DISABLED`].
     fn from(content: bool) -> AutoSize {
-        if content {
-            AutoSize::CONTENT
-        } else {
-            AutoSize::DISABLED
-        }
+        if content { AutoSize::CONTENT } else { AutoSize::DISABLED }
     }
 }
 
@@ -253,8 +249,8 @@ impl WindowIcon {
     /// # use zng_ext_window::WindowIcon;
     /// # macro_rules! Container { ($($tt:tt)*) => { zng_app::widget::node::UiNode::nil() } }
     /// # let _ =
-    /// WindowIcon::render(
-    ///     || Container! {
+    /// WindowIcon::render(|| {
+    ///     Container! {
     ///         // image::render_retain = true;
     ///         size = (36, 36);
     ///         background_gradient = Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 70.pct(), colors::CRIMSON];
@@ -263,7 +259,7 @@ impl WindowIcon {
     ///         font_weight = FontWeight::BOLD;
     ///         child = Text!("A");
     ///     }
-    /// )
+    /// })
     /// # ;
     /// ```
     ///

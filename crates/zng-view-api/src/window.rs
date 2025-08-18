@@ -1253,10 +1253,10 @@ bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub struct WindowButton: u32 {
         /// Close button.
-        const CLOSE  = 1 << 0;
+        const CLOSE = 1 << 0;
         /// Minimize button.
-        const MINIMIZE  = 1 << 1;
+        const MINIMIZE = 1 << 1;
         /// Maximize/restore button.
-        const MAXIMIZE  = 1 << 2;
+        const MAXIMIZE = 1 << 2;
     }
 }

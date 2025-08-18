@@ -14,11 +14,7 @@ use std::fmt;
 use zng_wgt::{align, clip_to_bounds, margin, prelude::*};
 
 /// Base container.
-#[widget($crate::Container {
-    ($child:expr) => {
-        child = $child;
-    }
-})]
+#[widget($crate::Container { ($child:expr) => { child = $child; } })]
 pub struct Container(WidgetBase);
 impl Container {
     fn widget_intrinsic(&mut self) {

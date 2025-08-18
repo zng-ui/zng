@@ -167,7 +167,10 @@ impl Request {
     /// use zng_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let request = http::Request::builder().method(http::Method::PUT)?.uri("https://httpbin.org/put")?.build();
+    /// let request = http::Request::builder()
+    ///     .method(http::Method::PUT)?
+    ///     .uri("https://httpbin.org/put")?
+    ///     .build();
     /// # Ok(()) }
     /// ```
     ///
@@ -203,7 +206,9 @@ impl Request {
     /// use zng_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let put = http::Request::put("https://httpbin.org/put")?.header("accept", "application/json")?.build();
+    /// let put = http::Request::put("https://httpbin.org/put")?
+    ///     .header("accept", "application/json")?
+    ///     .build();
     /// # Ok(()) }
     /// ```
     pub fn put(uri: impl TryUri) -> Result<RequestBuilder, Error> {
@@ -218,7 +223,9 @@ impl Request {
     /// use zng_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let post = http::Request::post("https://httpbin.org/post")?.header("accept", "application/json")?.build();
+    /// let post = http::Request::post("https://httpbin.org/post")?
+    ///     .header("accept", "application/json")?
+    ///     .build();
     /// # Ok(()) }
     /// ```
     pub fn post(uri: impl TryUri) -> Result<RequestBuilder, Error> {
@@ -233,7 +240,9 @@ impl Request {
     /// use zng_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let delete = http::Request::delete("https://httpbin.org/delete")?.header("accept", "application/json")?.build();
+    /// let delete = http::Request::delete("https://httpbin.org/delete")?
+    ///     .header("accept", "application/json")?
+    ///     .build();
     /// # Ok(()) }
     /// ```
     pub fn delete(uri: impl TryUri) -> Result<RequestBuilder, Error> {
@@ -248,7 +257,9 @@ impl Request {
     /// use zng_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let patch = http::Request::patch("https://httpbin.org/patch")?.header("accept", "application/json")?.build();
+    /// let patch = http::Request::patch("https://httpbin.org/patch")?
+    ///     .header("accept", "application/json")?
+    ///     .build();
     /// # Ok(()) }
     /// ```
     pub fn patch(uri: impl TryUri) -> Result<RequestBuilder, Error> {
@@ -1087,10 +1098,10 @@ impl_from_and_into_var! {
     fn from(metrics: Metrics) -> Progress {
         let mut status = Progress::indeterminate();
         if metrics.download_progress.1 > 0.bytes() {
-            status = Progress::from_n_of(metrics.download_progress.0 .0, metrics.download_progress.1 .0);
+            status = Progress::from_n_of(metrics.download_progress.0.0, metrics.download_progress.1.0);
         }
         if metrics.upload_progress.1 > 0.bytes() {
-            let u_status = Progress::from_n_of(metrics.upload_progress.0 .0, metrics.upload_progress.1 .0);
+            let u_status = Progress::from_n_of(metrics.upload_progress.0.0, metrics.upload_progress.1.0);
             if status.is_indeterminate() {
                 status = u_status;
             } else {

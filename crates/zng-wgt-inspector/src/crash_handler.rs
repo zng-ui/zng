@@ -38,7 +38,11 @@ use zng_wgt_wrap::Wrap;
 pub fn debug_dialog(args: CrashArgs) -> WindowRoot {
     let error = args.latest();
     Window! {
-        title = l10n!("crash-handler/window.title", "{$app} - App Crashed", app=zng_env::about().app.clone());
+        title = l10n!(
+            "crash-handler/window.title",
+            "{$app} - App Crashed",
+            app = zng_env::about().app.clone()
+        );
         start_position = StartPosition::CenterMonitor;
         color_scheme = ColorScheme::Dark;
 
@@ -93,18 +97,23 @@ fn panels(error: &CrashError) -> UiNode {
     let active = var(active);
 
     Container! {
-        child_top = Wrap! {
-            toggle::selector = toggle::Selector::single(active.clone());
-            children = options.iter().map(|p| Toggle! {
-                child = Text!(p.title());
-                value = *p;
-            });
-            toggle::style_fn = Style! {
-                padding = (2, 4);
-                corner_radius = 2;
-            };
-            spacing = 5;
-        }, 5;
+        child_top =
+            Wrap! {
+                toggle::selector = toggle::Selector::single(active.clone());
+                children = options.iter().map(|p| {
+                    Toggle! {
+                        child = Text!(p.title());
+                        value = *p;
+                    }
+                });
+                toggle::style_fn = Style! {
+                    padding = (2, 4);
+                    corner_radius = 2;
+                };
+                spacing = 5;
+            },
+            5,
+        ;
         child = active.present(wgt_fn!(error, |p: ErrorPanel| p.panel(&error)));
     }
 }
@@ -195,7 +204,7 @@ fn std_panel(std: Txt, config_key: &'static str) -> UiNode {
             txt = std;
             txt_selectable = true;
             font_size = 0.9.em();
-        }
+        };
     }
 }
 fn panic_panel(panic: CrashPanic) -> UiNode {
@@ -267,10 +276,10 @@ fn minidump_panel(path: PathBuf) -> UiNode {
                                 });
                             }
                         },
-                    ]
+                    ];
                 }
-            ]
-        }
+            ];
+        };
     }
 }
 async fn open_path(enabled: Var<bool>, path: PathBuf) {
@@ -388,7 +397,7 @@ fn plain_panel(txt: Txt, config_key: &'static str) -> UiNode {
             font_size = 0.9.em();
             // same as AnsiText
             font_family = ["JetBrains Mono", "Consolas", "monospace"];
-        }
+        };
     }
 }
 

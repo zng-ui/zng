@@ -103,7 +103,7 @@ pub use progress::*;
 ///
 /// fn on_update(&mut self) {
 ///     if let Some(result) = self.sum_response.rsp_new() {
-///         println!("sum of squares 0..1000: {result}");   
+///         println!("sum of squares 0..1000: {result}");
 ///     }
 /// }
 /// # }
@@ -363,9 +363,7 @@ impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
 /// # async fn read_numbers() -> Vec<usize> { vec![] }
 /// # impl SomeStruct {
 /// async fn on_event(&mut self) {
-///     self.sum = task::run(async {
-///         read_numbers().await.par_iter().map(|i| i * i).sum()
-///     }).await;
+///     self.sum = task::run(async { read_numbers().await.par_iter().map(|i| i * i).sum() }).await;
 /// }
 /// # }
 /// ```
@@ -493,14 +491,12 @@ where
 /// # async fn read_numbers() -> Vec<usize> { vec![] }
 /// # impl SomeStruct {
 /// fn on_event(&mut self) {
-///     self.sum_response = task::respond(async {
-///         read_numbers().await.par_iter().map(|i| i * i).sum()
-///     });
+///     self.sum_response = task::respond(async { read_numbers().await.par_iter().map(|i| i * i).sum() });
 /// }
 ///
 /// fn on_update(&mut self) {
 ///     if let Some(result) = self.sum_response.rsp_new() {
-///         println!("sum of squares: {result}");   
+///         println!("sum of squares: {result}");
 ///     }
 /// }
 /// # }
@@ -755,13 +751,11 @@ where
 /// #[test]
 /// # fn __() { }
 /// pub fn run_ok() {
-///     let r = task::block_on(task::run(async {
-///         foo(32).await
-///     }));
-///     
-/// #   let value =
+///     let r = task::block_on(task::run(async { foo(32).await }));
+///
+///     # let value =
 ///     r.expect("foo(32) was not Ok");
-/// #   assert_eq!(32, value);
+///     # assert_eq!(32, value);
 /// }
 /// # run_ok();
 /// ```
@@ -916,16 +910,15 @@ impl DEADLINE_APP {
 /// A future that is ready with a closure returns `Some(R)`.
 ///
 /// ```
-/// use zng_task as task;
 /// use std::task::Poll;
+/// use zng_task as task;
 ///
 /// async fn ready_some<R>(mut closure: impl FnMut() -> Option<R>) -> R {
-///     task::future_fn(|cx| {
-///         match closure() {
-///             Some(r) => Poll::Ready(r),
-///             None => Poll::Pending
-///         }
-///     }).await
+///     task::future_fn(|cx| match closure() {
+///         Some(r) => Poll::Ready(r),
+///         None => Poll::Pending,
+///     })
+///     .await
 /// }
 /// ```
 pub async fn future_fn<T, F>(fn_: F) -> T
@@ -990,11 +983,7 @@ pub async fn with_deadline<O, F: Future<Output = O>>(
 /// use zng_task as task;
 ///
 /// # task::doc_test(false, async {
-/// let (a, b, c) = task::all!(
-///     task::run(async { 'a' }),
-///     task::wait(|| "b"),
-///     async { b"c" }
-/// ).await;
+/// let (a, b, c) = task::all!(task::run(async { 'a' }), task::wait(|| "b"), async { b"c" }).await;
 /// # });
 /// ```
 #[macro_export]
@@ -1170,10 +1159,17 @@ pub async fn all<F: IntoFuture>(futures: impl IntoIterator<Item = F>) -> Vec<F::
 ///
 /// # task::doc_test(false, async {
 /// let r = task::any!(
-///     task::run(async { task::deadline(300.ms()).await; 'a' }),
+///     task::run(async {
+///         task::deadline(300.ms()).await;
+///         'a'
+///     }),
 ///     task::wait(|| 'b'),
-///     async { task::deadline(300.ms()).await; 'c' }
-/// ).await;
+///     async {
+///         task::deadline(300.ms()).await;
+///         'c'
+///     }
+/// )
+/// .await;
 ///
 /// assert_eq!('b', r);
 /// # });
@@ -1321,7 +1317,8 @@ pub async fn any<F: IntoFuture>(futures: impl IntoIterator<Item = F>) -> F::Outp
 ///     task::run(async { Err::<char, _>("error") }),
 ///     task::wait(|| Ok::<_, FooError>('b')),
 ///     async { Err::<char, _>(FooError) }
-/// ).await;
+/// )
+/// .await;
 ///
 /// assert_eq!(Ok('b'), r);
 /// # });
@@ -1499,11 +1496,7 @@ pub async fn any_ok<Ok, Err, F: IntoFuture<Output = Result<Ok, Err>>>(futures: i
 /// ```
 /// use zng_task as task;
 /// # task::doc_test(false, async {
-/// let r = task::any_some!(
-///     task::run(async { None::<char> }),
-///     task::wait(|| Some('b')),
-///     async { None::<char> }
-/// ).await;
+/// let r = task::any_some!(task::run(async { None::<char> }), task::wait(|| Some('b')), async { None::<char> }).await;
 ///
 /// assert_eq!(Some('b'), r);
 /// # });
@@ -1673,7 +1666,8 @@ pub async fn any_some<Some, F: IntoFuture<Output = Option<Some>>>(futures: impl 
 ///     task::run(async { Ok::<_, FooError>('a') }),
 ///     task::wait(|| Ok::<_, FooError>('b')),
 ///     async { Ok::<_, FooError>('c') }
-/// ).await;
+/// )
+/// .await;
 ///
 /// assert_eq!(Ok(('a', 'b', 'c')), r);
 /// # });
@@ -1686,11 +1680,10 @@ pub async fn any_some<Some, F: IntoFuture<Output = Option<Some>>>(futures: impl 
 /// # #[derive(Debug, PartialEq)]
 /// # struct FooError;
 /// # task::doc_test(false, async {
-/// let r = task::all_ok!(
-///     task::run(async { Ok('a') }),
-///     task::wait(|| Err::<char, _>(FooError)),
-///     async { Ok('c') }
-/// ).await;
+/// let r = task::all_ok!(task::run(async { Ok('a') }), task::wait(|| Err::<char, _>(FooError)), async {
+///     Ok('c')
+/// })
+/// .await;
 ///
 /// assert_eq!(Err(FooError), r);
 /// # });
@@ -1864,11 +1857,7 @@ pub async fn all_ok<Ok, Err, F: IntoFuture<Output = Result<Ok, Err>>>(futures: i
 /// ```
 /// use zng_task as task;
 /// # task::doc_test(false, async {
-/// let r = task::all_some!(
-///     task::run(async { Some('a') }),
-///     task::wait(|| Some('b')),
-///     async { Some('c') }
-/// ).await;
+/// let r = task::all_some!(task::run(async { Some('a') }), task::wait(|| Some('b')), async { Some('c') }).await;
 ///
 /// assert_eq!(Some(('a', 'b', 'c')), r);
 /// # });
@@ -1879,11 +1868,7 @@ pub async fn all_ok<Ok, Err, F: IntoFuture<Output = Result<Ok, Err>>>(futures: i
 /// ```
 /// # use zng_task as task;
 /// # task::doc_test(false, async {
-/// let r = task::all_some!(
-///     task::run(async { Some('a') }),
-///     task::wait(|| None::<char>),
-///     async { Some('b') }
-/// ).await;
+/// let r = task::all_some!(task::run(async { Some('a') }), task::wait(|| None::<char>), async { Some('b') }).await;
 ///
 /// assert_eq!(None, r);
 /// # });
@@ -2036,8 +2021,8 @@ pub async fn all_some<Some, F: IntoFuture<Output = Option<Some>>>(futures: impl 
 /// Spawns a parallel task that only writes to stdout after the main thread sets the signal:
 ///
 /// ```
-/// use zng_task::{self as task, *};
 /// use zng_clone_move::async_clmv;
+/// use zng_task::{self as task, *};
 ///
 /// let signal = SignalOnce::default();
 ///

@@ -17,12 +17,17 @@
 //! Button! {
 //!     on_click = hn!(inserted, |_| {
 //!         if !inserted.get() {
-//!             LAYERS.insert_anchored(LayerIndex::ADORNER, WIDGET.id(), layer::AnchorOffset::out_top(), Text! {
-//!                 id = anchored;
-//!                 txt = "Example";
-//!                 widget::background_color = colors::BLUE;
-//!                 layout::y = 5;
-//!             });
+//!             LAYERS.insert_anchored(
+//!                 LayerIndex::ADORNER,
+//!                 WIDGET.id(),
+//!                 layer::AnchorOffset::out_top(),
+//!                 Text! {
+//!                     id = anchored;
+//!                     txt = "Example";
+//!                     widget::background_color = colors::BLUE;
+//!                     layout::y = 5;
+//!                 },
+//!             );
 //!         } else {
 //!             LAYERS.remove(anchored);
 //!         }

@@ -290,6 +290,7 @@ macro_rules! font_features {
     };
 }
 
+#[rustfmt::skip]// zng fmt can't handle this syntax and is slightly slower because it causes rustfmt errors
 font_features! {
     /// Font capital glyph variants.
     ///
@@ -1843,7 +1844,7 @@ impl fmt::Debug for FontVariations {
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust,no_fmt
 /// # use zng_ext_font::font_features::*;
 /// # fn assert_type(_: FontVariations) { }
 /// let variations = font_variations! {
@@ -1856,7 +1857,7 @@ impl fmt::Debug for FontVariations {
 macro_rules! font_variations {
     [$(
         $name:tt : $value: expr
-    ),* $(,)?] => {
+    ),* $(,)?] => { // TODO(breaking) change syntax to name => value for better support by zng fmt
         $crate::font_features::FontVariations::from_pairs(&[
             $(
                 ($name.into(), $value),

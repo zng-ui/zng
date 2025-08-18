@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `(): IntoVar<LinearGradientAxis>` is not satisfied
   --> cases/widget_new/missing_field_all_multi.rs:12:31
    |
-12 |         background_gradient = {}
+12 |         background_gradient = {};
    |         -------------------   ^^ the trait `IntoVar<LinearGradientAxis>` is not implemented for `()`
    |         |
    |         required by a bound introduced by this call
@@ -22,7 +22,7 @@ error[E0061]: this method takes 2 arguments but 1 argument was supplied
 8  |       let _ = Wgt! {
    |  _____________-
 ...  |
-12 | |         background_gradient = {}
+12 | |         background_gradient = {};
    | |         ^^^^^^^^^^^^^^^^^^^
 13 | |     };
    | |_____- argument #2 is missing

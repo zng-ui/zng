@@ -1,8 +1,8 @@
 use zng::{
+    APP,
     color::colors,
     layout::margin,
-    widget::{background_color, Wgt},
-    APP,
+    widget::{Wgt, background_color},
 };
 
 fn main() {

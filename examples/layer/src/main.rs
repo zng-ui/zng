@@ -74,7 +74,9 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> UiNode {
                 colors::WHITE.with_alpha(80.pct()).mix_normal(colors::GREEN),
                 colors::GREEN.darken(80.pct()),
             );
-            button::style_fn = Style! { widget::corner_radius = unset! };
+            button::style_fn = Style! {
+                widget::corner_radius = unset!;
+            };
             padding = 2;
             child = Stack! {
                 direction = StackDirection::top_to_bottom();
@@ -93,19 +95,19 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> UiNode {
                                 child = Text!("Open Another");
                                 on_click = hn!(|_| {
                                     LAYERS.insert(LayerIndex::TOP_MOST, overlay(WidgetId::new_unique(), offset + 10));
-                                })
+                                });
                             },
                             Button! {
                                 child = Text!("Remove");
                                 on_click = hn!(|_| {
                                     LAYERS.remove(id);
-                                })
+                                });
                             },
-                        ]
+                        ];
                     }
-                ]
-            }
-        }
+                ];
+            };
+        };
     }
 }
 
@@ -118,7 +120,7 @@ fn layer_index_example() -> UiNode {
             layer_n_btn(7, web_colors::DARK_GREEN),
             layer_n_btn(8, web_colors::DARK_BLUE),
             layer_n_btn(9, web_colors::DARK_RED),
-        ]
+        ];
     }
 }
 fn layer_n_btn(n: u32, color: color::Rgba) -> UiNode {
@@ -242,13 +244,13 @@ fn transform_anchor_example() -> UiNode {
                             layout::y = -(2.dip() + 100.pct());
                             txt = "example";
                             font_weight = FontWeight::BOLD;
-                        }
+                        };
                     },
                 )
             } else {
                 LAYERS.remove("t-anchored");
             }
             insert = !insert;
-        })
+        });
     }
 }

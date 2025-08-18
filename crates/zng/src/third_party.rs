@@ -168,7 +168,11 @@ pub(crate) fn setup_default_view() {
                     }
 
                     Window! {
-                        title = l10n!("window.title", "{$app} - Third Party Licenses", app = zng::env::about().app.clone());
+                        title = l10n!(
+                            "window.title",
+                            "{$app} - Third Party Licenses",
+                            app = zng::env::about().app.clone()
+                        );
                         child = default_view();
                         parent;
                     }
@@ -199,12 +203,15 @@ pub(crate) fn setup_default_view() {
             widget::background_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
 
             // search
-            child_top = TextInput! {
-                txt = search.clone();
-                style_fn = zng_wgt_text_input::SearchStyle!();
-                zng_wgt_input::focus::focus_shortcut = [shortcut![CTRL+'F'], shortcut![Find]];
-                placeholder_txt = l10n!("search.placeholder", "search licenses ({$shortcut})", shortcut="Ctrl+F");
-            }, 0;
+            child_top =
+                TextInput! {
+                    txt = search.clone();
+                    style_fn = zng_wgt_text_input::SearchStyle!();
+                    zng_wgt_input::focus::focus_shortcut = [shortcut![CTRL + 'F'], shortcut![Find]];
+                    placeholder_txt = l10n!("search.placeholder", "search licenses ({$shortcut})", shortcut = "Ctrl+F");
+                },
+                0,
+            ;
             // list
             child = Scroll! {
                 layout::min_width = 100;
@@ -212,20 +219,23 @@ pub(crate) fn setup_default_view() {
                 mode = zng::scroll::ScrollMode::VERTICAL;
                 child_align = Align::FILL;
                 child = DataView! {
-                    view::<Txt> = search, hn!(selected, |a: &DataViewArgs<Txt>| {
-                        let search = a.data().get();
-                        let licenses = if search.is_empty() {
-                            licenses.clone()
-                        } else {
-                            licenses.iter().filter(|t| t.user.name.contains(search.as_str())).cloned().collect()
-                        };
+                    view::<Txt> =
+                        search,
+                        hn!(selected, |a: &DataViewArgs<Txt>| {
+                            let search = a.data().get();
+                            let licenses = if search.is_empty() {
+                                licenses.clone()
+                            } else {
+                                licenses.iter().filter(|t| t.user.name.contains(search.as_str())).cloned().collect()
+                            };
 
-                        a.set_view(Stack! {
-                            toggle::selector = toggle::Selector::single(selected.clone());
-                            direction = StackDirection::top_to_bottom();
-                            children = licenses.into_iter().map(default_item_view);
-                        })
-                    });
+                            a.set_view(Stack! {
+                                toggle::selector = toggle::Selector::single(selected.clone());
+                                direction = StackDirection::top_to_bottom();
+                                children = licenses.into_iter().map(default_item_view);
+                            })
+                        }),
+                    ;
                 };
                 when *#{alternate_layout.clone()} {
                     layout::max_height = 100; // placed on top in small width screens

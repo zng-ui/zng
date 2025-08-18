@@ -362,11 +362,7 @@ impl Default for CaptureMode {
 impl_from_and_into_var! {
     /// Convert `true` to [`CaptureMode::Widget`] and `false` to [`CaptureMode::Window`].
     fn from(widget: bool) -> CaptureMode {
-        if widget {
-            CaptureMode::Widget
-        } else {
-            CaptureMode::Window
-        }
+        if widget { CaptureMode::Widget } else { CaptureMode::Window }
     }
 }
 

@@ -16,16 +16,16 @@
 //!     mode = zng::scroll::ScrollMode::ZOOM;
 //!     // mouse press and drag scrolls
 //!     mouse_pan = true;
-//!     
+//!
 //!     child = Image! {
 //!         // center_viewport uses the SCROLL service
 //!         img_loading_fn = wgt_fn!(|_| center_viewport(Text!("loading..")));
-//!         
+//!
 //!         // content is a large image
 //!         source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
 //!         img_limits = zng::image::ImageLimits::none();
 //!         img_downscale = zng::image::ImageDownscale::from(layout::Px(8000));
-//!     }
+//!     };
 //! }
 //! # ; }
 //!
@@ -37,13 +37,14 @@
 //!         // the large images can take a moment to decode in debug builds, but the size
 //!         // is already known after read, so the "loading.." message ends-up off-screen
 //!         // because it is centered on the image.
-//!         layout::x = merge_var!(SCROLL.horizontal_offset(), SCROLL.zoom_scale(), |&h, &s| h.0.fct_l() - 1.vw() / s * h);
+//!         layout::x = merge_var!(SCROLL.horizontal_offset(), SCROLL.zoom_scale(), |&h, &s| h.0.fct_l()
+//!             - 1.vw() / s * h);
 //!         layout::y = merge_var!(SCROLL.vertical_offset(), SCROLL.zoom_scale(), |&v, &s| v.0.fct_l() - 1.vh() / s * v);
 //!         layout::scale = SCROLL.zoom_scale().map(|&fct| 1.fct() / fct);
 //!         layout::transform_origin = 0;
 //!         widget::auto_hide = false;
 //!         layout::max_size = (1.vw(), 1.vh());
-//!         
+//!
 //!         child_align = Align::CENTER;
 //!         child = msg;
 //!     }

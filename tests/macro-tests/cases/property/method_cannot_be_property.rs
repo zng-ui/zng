@@ -1,4 +1,4 @@
-use zng::prelude_wgt::{property, IntoVar, UiNode};
+use zng::prelude_wgt::{IntoVar, UiNode, property};
 
 struct Foo;
 impl Foo {

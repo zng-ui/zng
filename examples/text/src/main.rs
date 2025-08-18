@@ -41,7 +41,7 @@ fn main() {
                         Stack! {
                             direction = StackDirection::top_to_bottom();
                             spacing = 20;
-                            children = ui_vec![decoration_lines()]
+                            children = ui_vec![decoration_lines()];
                         }
                     ];
                 },
@@ -58,7 +58,7 @@ fn main() {
                     children_align = Align::RIGHT;
                     children = ui_vec![editor::text_editor(), form::form_editor()];
                 },
-            ])
+            ]);
         }
     })
 }
@@ -71,7 +71,7 @@ fn font_size_example(font_size: Var<Length>) -> UiNode {
     }
     Stack! {
         button::style_fn = Style! {
-            padding = (0, 5)
+            padding = (0, 5);
         };
         direction = StackDirection::left_to_right();
         spacing = 5;
@@ -96,7 +96,7 @@ fn font_size_example(font_size: Var<Length>) -> UiNode {
                 click_shortcut = [shortcut!('+')];
                 on_click = hn!(font_size, |_| change_size(&font_size, 1.0));
             },
-        ]
+        ];
     }
 }
 
@@ -304,11 +304,13 @@ fn section(header: &'static str, items: impl IntoUiNode) -> UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        children = ui_vec![Text! {
-            txt = header;
-            font_weight = FontWeight::BOLD;
-            margin = (0, 4);
-        }]
-        .chain(items);
+        children =
+            ui_vec![Text! {
+                txt = header;
+                font_weight = FontWeight::BOLD;
+                margin = (0, 4);
+            }]
+            .chain(items),
+        ;
     }
 }

@@ -1,12 +1,14 @@
-use zng::{gesture::is_pressed, widget::Wgt, APP};
+use zng::{APP, gesture::is_pressed, widget::Wgt};
 
 fn test_1() {
+    #[rustfmt::skip]
     let _ = Wgt! {
         =
     };
 }
 
 fn test_2() {
+    #[rustfmt::skip]
     let _ = Wgt! {
         when *#is_pressed {
             =

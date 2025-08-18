@@ -115,7 +115,7 @@ pub use zng_wgt_fill::{
 ///                 for p in builder.properties() {
 ///                     writeln!(&mut t, "• {}", p.args.property().name).unwrap();
 ///                 }
-///                 txt.set(t.clone());            
+///                 txt.set(t.clone());
 ///             });
 ///         }
 ///     }
@@ -412,11 +412,7 @@ pub mod node {
 /// ```
 /// use zng::prelude_wgt::*;
 ///
-/// #[widget($crate::Foo {
-///     ($id:expr) => {
-///         id = $id;
-///     };
-/// })]
+/// #[widget($crate::Foo { ($id:expr) => { id = $id; }; })]
 /// pub struct Foo(WidgetBase);
 ///
 /// # fn main() {
@@ -508,7 +504,7 @@ pub use zng_app::widget::widget;
 ///             focusable = true;
 ///         }
 ///     }
-///     
+///
 ///     widget_impl! {
 ///         /// If the widget can receive focus, enabled by default.
 ///         pub zng::focus::focusable(enabled: impl IntoVar<bool>);
@@ -577,11 +573,11 @@ pub use zng_app::widget::widget_mixin;
 /// # #[widget($crate::Foo)] pub struct Foo(WidgetBase);
 /// # #[property(FILL, default(colors::BLACK))]
 /// # pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
-/// #    child.into_node()
+/// # child.into_node()
 /// # }
 /// # #[property(LAYOUT, default(0))]
 /// # pub fn margin(child: impl IntoUiNode, color: impl IntoVar<SideOffsets>) -> UiNode {
-/// #    child.into_node()
+/// # child.into_node()
 /// # }
 /// # fn main() {
 /// Foo! {
@@ -641,7 +637,7 @@ pub use zng_app::widget::easing;
 /// #[property(LAYOUT)]
 /// pub fn align(child: impl IntoUiNode, align: impl IntoVar<Align>) -> UiNode {
 ///     // ..
-/// #   child.into_node()
+///     # child.into_node()
 /// }
 /// ```
 ///
@@ -655,13 +651,13 @@ pub use zng_app::widget::easing;
 /// #[property(SIZE+1)]
 /// pub fn size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
 ///     // ..
-/// #   child.into_node()
+///     # child.into_node()
 /// }
 ///
 /// #[property(SIZE)]
 /// pub fn max_size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
 ///     // ..
-/// #   child.into_node()
+///     # child.into_node()
 /// }
 /// ```
 ///
@@ -678,7 +674,7 @@ pub use zng_app::widget::easing;
 /// #[property(FILL, default(rgba(0, 0, 0, 0)))]
 /// pub fn background_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
 ///     // ..
-/// #   child.into_node()
+///     # child.into_node()
 /// }
 /// ```
 ///
@@ -715,7 +711,7 @@ pub use zng_app::widget::easing;
 ///
 /// /// Children property, must be captured by panel widgets.
 /// #[property(CONTEXT, capture)]
-/// pub fn children(children: impl IntoUiNode) { }
+/// pub fn children(children: impl IntoUiNode) {}
 /// ```
 ///
 /// # Args

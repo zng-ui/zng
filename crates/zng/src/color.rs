@@ -17,21 +17,25 @@
 //! # let _scope = APP.defaults();
 //! # let _ =
 //! Window! {
-//!     child = Stack!(top_to_bottom, 5, ui_vec![
-//!         sample(hex!(#00F)),
-//!         sample(rgb(0, 0, 255)),
-//!         sample(rgb(0.0, 0.0, 1.0)),
-//!         sample(colors::BLUE),
-//!         sample(hsv(240.deg(), 100.pct(), 100.pct())),
-//!         sample(hsl(240.deg(), 100.pct(), 50.pct())),
-//!     ]);
+//!     child = Stack!(
+//!         top_to_bottom,
+//!         5,
+//!         ui_vec![
+//!             sample(hex!(#00F)),
+//!             sample(rgb(0, 0, 255)),
+//!             sample(rgb(0.0, 0.0, 1.0)),
+//!             sample(colors::BLUE),
+//!             sample(hsv(240.deg(), 100.pct(), 100.pct())),
+//!             sample(hsl(240.deg(), 100.pct(), 50.pct())),
+//!         ]
+//!     );
 //! }
 //! # ;
 //! ```
 //!
 //! The [`Rgba`] type also provides methods for basic color manipulation and mixing.
 //!
-//! ```
+//! ```rust,no_fmt
 //! # use zng::prelude::*;
 //! # fn sample(_: impl IntoVar<color::Rgba>) -> UiNode {
 //! # widget::node::UiNode::nil()
@@ -83,16 +87,16 @@
 //! # let _scope = APP.defaults();
 //! # let _ =
 //! Window! {
-//!     widget::background = color::gradient::conic_gradient(50.pct(), 45.deg(), color::gradient::stops![
-//!         colors::GREEN, (colors::RED, 30.pct()), colors::BLUE
-//!     ]);
+//!     widget::background = color::gradient::conic_gradient(
+//!         50.pct(),
+//!         45.deg(),
+//!         color::gradient::stops![colors::GREEN, (colors::RED, 30.pct()), colors::BLUE],
+//!     );
 //!     // OR
 //!     widget::background_conic = {
 //!         center: 50.pct(),
 //!         angle: 45.deg(),
-//!         stops: color::gradient::stops![
-//!             colors::GREEN, (colors::RED, 30.pct()), colors::BLUE
-//!         ],
+//!         stops: color::gradient::stops![colors::GREEN, (colors::RED, 30.pct()), colors::BLUE],
 //!     };
 //! }
 //! # ;

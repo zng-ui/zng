@@ -1,5 +1,5 @@
 // FunctionQualifiers: https://doc.rust-lang.org/reference/items/functions.html
-use zng::prelude_wgt::{hot_node, IntoUiNode, IntoVar, UiNode};
+use zng::prelude_wgt::{IntoUiNode, IntoVar, UiNode, hot_node};
 
 zng::hot_reload::zng_hot_entry!();
 

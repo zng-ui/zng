@@ -1,12 +1,13 @@
 use zng::{
-    layout::margin,
-    mouse::{cursor, CursorIcon},
-    widget::{enabled, Wgt},
     APP,
+    layout::margin,
+    mouse::{CursorIcon, cursor},
+    widget::{Wgt, enabled},
 };
 
 fn main() {
     let _scope = APP.minimal();
+    #[rustfmt::skip]
     let _ = Wgt! {
         margin = 0
         // we expect this properties to be used.

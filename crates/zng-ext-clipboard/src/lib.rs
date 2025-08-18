@@ -432,7 +432,7 @@ command! {
         l10n!: true,
         name: "Cut",
         info: "Remove the selection and place it in the clipboard",
-        shortcut: [shortcut!(CTRL+'X'), shortcut!(SHIFT+Delete), shortcut!(Cut)],
+        shortcut: [shortcut!(CTRL + 'X'), shortcut!(SHIFT + Delete), shortcut!(Cut)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
         icon: wgt_fn!(|_| ICONS.get("cut")),
     };
@@ -442,7 +442,7 @@ command! {
         l10n!: true,
         name: "Copy",
         info: "Place a copy of the selection in the clipboard",
-        shortcut: [shortcut!(CTRL+'C'), shortcut!(CTRL+Insert), shortcut!(Copy)],
+        shortcut: [shortcut!(CTRL + 'C'), shortcut!(CTRL + Insert), shortcut!(Copy)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
         icon: wgt_fn!(|_| ICONS.get("copy")),
     };
@@ -452,7 +452,7 @@ command! {
         l10n!: true,
         name: "Paste",
         info: "Insert content from the clipboard",
-        shortcut: [shortcut!(CTRL+'V'), shortcut!(SHIFT+Insert), shortcut!(Paste)],
+        shortcut: [shortcut!(CTRL + 'V'), shortcut!(SHIFT + Insert), shortcut!(Paste)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
         icon: wgt_fn!(|_| ICONS.get("paste")),
     };

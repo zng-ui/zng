@@ -1,5 +1,5 @@
 error: expected one of `)`, `,`, `.`, `?`, or an operator, found `;`
- --> cases/widget_new/malformed_fields1.rs:7:22
+ --> cases/widget_new/malformed_fields1.rs:8:22
   |
-7 |             margin: 0;
+8 |             margin: 0;
   |                      ^ expected one of `)`, `,`, `.`, `?`, or an operator

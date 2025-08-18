@@ -1,5 +1,5 @@
 error: expected `=`
- --> cases/widget_new/malformed_property_path2.rs:6:15
+ --> cases/widget_new/malformed_property_path2.rs:7:15
   |
-6 |         margin! = 0;
+7 |         margin! = 0;
   |               ^

@@ -1,7 +1,8 @@
-use zng::{layout::margin, mouse::cursor, widget::Wgt, APP};
+use zng::{APP, layout::margin, mouse::cursor, widget::Wgt};
 
 fn main() {
     let _scope = APP.minimal();
+    #[rustfmt::skip]
     let _ = Wgt! {
         // we expected an error here.
         cursor = ;
