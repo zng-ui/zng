@@ -43,7 +43,7 @@
 //! DataView! {
 //!     view::<usize> = {
 //!         data: n,
-//!         update: hn!(|a: &DataViewArgs<usize>| { }),
+//!         update: hn!(|a: &DataViewArgs<usize>| {}),
 //!     };
 //! }
 //! # ;
