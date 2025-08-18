@@ -333,7 +333,7 @@ async fn custom_fmt_docs(code: &str, fmt: &FmtFragServer, rs_file: &Path) -> Str
                             code.push('\n');
                         }
 
-                        static HIDDEN_LINES_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^ *# +(.*)$").unwrap());
+                        static HIDDEN_LINES_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^ *#(?: +(.*)$|$)").unwrap());
                         if !close_line.is_empty() // is properly closed
                         && !code.trim().is_empty() // is not empty
                         && let Some(mut code) = {
@@ -361,7 +361,8 @@ async fn custom_fmt_docs(code: &str, fmt: &FmtFragServer, rs_file: &Path) -> Str
                                 .trim_end()
                                 .strip_suffix('}')
                                 .unwrap()
-                                .replace("// __# ", "# ");
+                                .replace("// __# ", "# ")
+                                .replace("// __#", "#");
                             let mut fmt_code = String::new();
                             let mut wrapper_tabs = String::new();
                             for line in code.lines() {
