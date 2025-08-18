@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-grid"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,10 +12,10 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.9.0" }
-zng-wgt-access = { path = "../zng-wgt-access", version = "0.6.0" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.6.0" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.8.0" }
-zng-layout = { path = "../zng-layout", version = "0.5.0" }
+zng-wgt = { path = "../zng-wgt", version = "0.9.1" }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.6.1" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.6.1" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.8.1" }
+zng-layout = { path = "../zng-layout", version = "0.5.1" }
 
 tracing = "0.1"
