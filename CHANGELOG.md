@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.16.1
+
 * Multiple improvements for `cargo zng fmt`.
     - Now only reformats modified files when running in crates/workspaces.
     - Add `--edition` option, 2024 is the default. This fixes inconsistency between workspace run and single file run.
