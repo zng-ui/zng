@@ -316,7 +316,6 @@ async fn custom_fmt_docs(code: &str, fmt: &FmtFragServer, rs_file: &Path) -> Str
                 formatted_code.push('\n');
 
                 let doc_line = line.strip_prefix(prefix).unwrap();
-
                 match doc_line.trim().strip_prefix("```") {
                     Some("" | "rust" | "should_panic" | "no_run" | "edition2015" | "edition2018" | "edition2021" | "edition2024") => {
                         // is doctest header line

@@ -76,7 +76,9 @@ The formatter supports Zng macros and also attempts to format all braced macro c
 like `foo! { <contents> }` by copying it into a temporary item `fn _fmt_item() { <contents> }` 
 and trying `rustfmt`, if the contents cannot be formatted like this they are not touched.
 
-The formatter also attempts to format Rust markdown code blocks and doctest code blocks.
+The formatter also attempts to format Rust markdown code blocks and doctest code blocks. To skip formatting
+a Rust code block or doctest use the attributes `rust,no_fmt`, for doctests the attributes `ignore` and `compile_fail`
+also skip formatting.
 
 When called for the workspace or with a `--manifest-path` the formatter will format any `**/*.rs` and `**/*.md` file
 in each crate folder, except for those in the target directory. For workspaces it will also format the `./README.md` file

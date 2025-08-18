@@ -35,7 +35,7 @@
 //!
 //! The [`Rgba`] type also provides methods for basic color manipulation and mixing.
 //!
-//! ```
+//! ```rust,no_fmt
 //! # use zng::prelude::*;
 //! # fn sample(_: impl IntoVar<color::Rgba>) -> UiNode {
 //! # widget::node::UiNode::nil()
