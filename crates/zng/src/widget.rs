@@ -413,10 +413,10 @@ pub mod node {
 /// use zng::prelude_wgt::*;
 ///
 /// #[widget($crate::Foo {
-///  ($id:expr) => {
-///  id = $id;
-///  };
-///  })]
+///    ($id:expr) => {
+///    id = $id;
+///    };
+///    })]
 /// pub struct Foo(WidgetBase);
 ///
 /// # fn main() {
