@@ -18,5 +18,5 @@ zng-app-context = { path = "../zng-app-context", version = "0.8.1" }
 zng-var = { path = "../zng-var", version = "0.8.1" }
 zng-view-api = { path = "../zng-view-api", version = "0.14.1" }
 
-pastey = "=0.1.0"
+pastey = "0.1"
 serde = "1.0"
