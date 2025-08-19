@@ -22,7 +22,7 @@ zng-env-proc-macros = { path = "../zng-env-proc-macros", version = "0.3.0" }
 directories = "6.0"
 parking_lot = "0.12"
 tracing = "0.1"
-toml = "0.8"
+toml = "0.8" # TODO(breaking) upgrade
 serde = { version = "1.0", features = ["derive"] }
 semver = { version = "1.0", features = ["serde"] }
 

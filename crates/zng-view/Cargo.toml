@@ -130,7 +130,7 @@ glutin = "0.32"
 raw-window-handle = "0.6" # matches glutin
 flume = "0.11"
 image = { version = "0.25", default-features = false, features = ["rayon"] } # on upgrade review audit.toml
-img-parts = "0.3"
+img-parts = "0.4"
 byteorder = "1.5"
 rustc-hash = "2.0"
 rayon = "1.10"
