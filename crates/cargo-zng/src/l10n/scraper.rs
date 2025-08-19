@@ -303,9 +303,9 @@ impl TryFrom<TokenStream> for L10nMacroArgs {
             [TokenTree::Literal(l0), TokenTree::Punct(p), TokenTree::Literal(l1)] if p.as_char() == ',' => {
                 match (StringLit::try_from(l0), StringLit::try_from(l1)) {
                     (Ok(s0), Ok(s1)) => Ok(Self {
-                        id: s0.into_value().into_owned(),
+                        id: s0.into_value(),
                         id_span: l0.span(),
-                        msg: s1.into_value().into_owned(),
+                        msg: s1.into_value(),
                     }),
                     _ => Err(String::new()),
                 }
@@ -389,7 +389,7 @@ impl TryFrom<TokenStream> for CommandMacroEntry {
             ] if i == "l10n" && p0.as_char() == '!' && p1.as_char() == ':' && p2.as_char() == ',' => {
                 match litrs::Literal::try_from(value) {
                     Ok(litrs::Literal::String(str)) => {
-                        r.id = str.into_value().into_owned();
+                        r.id = str.into_value();
                         r.file_span = value.span();
                     }
                     Ok(litrs::Literal::Bool(b)) => {
@@ -422,7 +422,7 @@ impl TryFrom<TokenStream> for CommandMacroEntry {
                         if let Ok(s) = StringLit::try_from(l) {
                             r.metadata.push(CommandMetaEntry {
                                 name: i.clone(),
-                                value: s.into_value().into_owned(),
+                                value: s.into_value(),
                                 value_span: l.span(),
                             })
                         }

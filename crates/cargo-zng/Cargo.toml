@@ -22,7 +22,7 @@ glob = "0.3"
 fluent-pseudo = "0.3"
 fluent-syntax = "0.12"
 proc-macro2 = { version = "1.0", features = ["span-locations"], default-features = false }
-litrs = "0.4"
+litrs = { version = "0.5", features = ["proc-macro2"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 semver = "1.0"
