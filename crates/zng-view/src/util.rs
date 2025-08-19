@@ -1199,17 +1199,7 @@ pub(crate) fn accesskit_to_event(
             Action::ScrollLeft => AccessCmd::Scroll(ScrollCmd::PageLeft),
             Action::ScrollRight => AccessCmd::Scroll(ScrollCmd::PageRight),
             Action::ScrollUp => AccessCmd::Scroll(ScrollCmd::PageUp),
-            Action::ScrollIntoView => {
-                if let Some(accesskit::ActionData::ScrollTargetRect(r)) = request.data {
-                    let r = PxRect::new(
-                        accesskit_point_to_px(r.origin()),
-                        PxSize::new(accesskit_to_px(r.width()), accesskit_to_px(r.height())),
-                    );
-                    AccessCmd::Scroll(ScrollCmd::ScrollToRect(r))
-                } else {
-                    AccessCmd::Scroll(ScrollCmd::ScrollTo)
-                }
-            }
+            Action::ScrollIntoView => AccessCmd::Scroll(ScrollCmd::ScrollTo),
             Action::ScrollToPoint => {
                 if let Some(accesskit::ActionData::ScrollToPoint(p)) = request.data {
                     AccessCmd::Scroll(ScrollCmd::ScrollToRect(PxRect::new(accesskit_point_to_px(p), PxSize::splat(Px(1)))))

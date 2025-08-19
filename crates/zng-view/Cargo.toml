@@ -135,8 +135,8 @@ byteorder = "1.5"
 rustc-hash = "2.0"
 rayon = "1.10"
 serde = "1.0"
-accesskit = "0.20"
-accesskit_winit = "0.28"
+accesskit = "0.21"
+accesskit_winit = "0.29"
 # rfd
 ## cfg(not(linux, android, ios))
 [target.'cfg(not(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd", target_os = "android", target_os = "ios")))'.dependencies.rfd]
