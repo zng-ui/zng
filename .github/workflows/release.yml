@@ -274,15 +274,7 @@ jobs:
           path: crates/zng-view-prebuilt/lib/zng_view.${{ matrix.target }}.dll
           if-no-files-found: error
   prebuild-macos:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macOS-13
-            target: x86_64-apple-darwin
-          - os: macOS-latest
-            target: aarch64-apple-darwin
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     needs: [check-macos]
     env:
       ZNG_TP_LICENSES: true
@@ -332,8 +324,39 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: libzng_view.${{ matrix.target }}.dylib
-          path: crates/zng-view-prebuilt/lib/libzng_view.${{ matrix.target }}.dylib
+          name: libzng_view.aarch64-apple-darwin.dylib
+          path: crates/zng-view-prebuilt/lib/libzng_view.aarch64-apple-darwin.dylib
+          if-no-files-found: error
+  prebuild-macos-x86:
+    runs-on: macos-latest
+    needs: [check-macos]
+    env:
+      ZNG_TP_LICENSES: true
+    steps:
+      - uses: actions/checkout@v4
+        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+        with:
+          targets: x86_64-apple-darwin
+      - name: install cargo-about
+        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
+      - name: cargo do prebuild --target x86_64-apple-darwin
+        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+        env:
+          SYSTEM_DEPS_LINK: static
+        run: cargo do prebuild --target x86_64-apple-darwin
+      - run: cargo clean
+        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+      - name: upload prebuilt
+        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: libzng_view.x86_64-apple-darwin.dylib
+          path: crates/zng-view-prebuilt/lib/libzng_view.x86_64-apple-darwin.dylib
           if-no-files-found: error
 
   doc-ubuntu:
@@ -462,15 +485,7 @@ jobs:
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
   test-macos:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macOS-13
-            target: x86_64-apple-darwin
-          - os: macOS-latest
-            target: aarch64-apple-darwin
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     needs: [prebuild-macos]
     steps:
       - uses: dtolnay/rust-toolchain@stable
@@ -488,7 +503,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: libzng_view.${{ matrix.target }}.dylib
+          name: libzng_view.aarch64-apple-darwin.dylib
           path: crates/zng-view-prebuilt/lib
       - run: cargo do test --nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
