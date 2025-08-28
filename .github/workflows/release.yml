@@ -278,11 +278,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macOS-13
-            target: x86_64-apple-darwin
-          - os: macOS-latest
-            target: aarch64-apple-darwin
-    runs-on: ${{ matrix.os }}
+            - target: x86_64-apple-darwin
+            - target: aarch64-apple-darwin
+    runs-on: macos-latest
     needs: [check-macos]
     env:
       ZNG_TP_LICENSES: true
@@ -314,6 +312,8 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+        with:
+          targets: ${{ matrix.target }}
       - name: install cargo-about
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: baptiste0928/cargo-install@v3
@@ -325,7 +325,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         env:
           SYSTEM_DEPS_LINK: static
-        run: cargo do prebuild --features image_avif
+        run: cargo do prebuild --features image_avif --target ${{ matrix.target }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
       - name: upload prebuilt
@@ -462,15 +462,7 @@ jobs:
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
   test-macos:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macOS-13
-            target: x86_64-apple-darwin
-          - os: macOS-latest
-            target: aarch64-apple-darwin
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     needs: [prebuild-macos]
     steps:
       - uses: dtolnay/rust-toolchain@stable
@@ -488,7 +480,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: libzng_view.${{ matrix.target }}.dylib
+          name: libzng_view.aarch64-apple-darwin.dylib
           path: crates/zng-view-prebuilt/lib
       - run: cargo do test --nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
