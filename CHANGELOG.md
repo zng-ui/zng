@@ -1,5 +1,8 @@
 # Unreleased
 
+* x86_64-apple-darwin prebuilt view-process is now cross-compiled from the Github ARM runner.
+    - Removed support for AVIF images in the prebuilt for this target.
+    - Follow the `docs/avif-setup.md` guide to build view-process with AVIF support.
 
 # 0.16.1
 
