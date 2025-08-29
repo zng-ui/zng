@@ -1,8 +1,11 @@
 # Unreleased
 
+
+# 0.16.2
+
 * Fix image request made before view-process init never loading.
 * Improve view-process crash detection for respawn.
-* x86_64-apple-darwin prebuilt view-process is now cross-compiled from the Github ARM runner.
+* x86_64-apple-darwin prebuilt view-process is now cross-compiled in the GitHub ARM runner.
     - Removed support for AVIF images in the prebuilt for this target.
     - Follow the `docs/avif-setup.md` guide to build view-process with AVIF support.
 
