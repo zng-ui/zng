@@ -248,7 +248,7 @@ impl AppExtension for ImageManager {
                                         });
                                     }
                                     Err(_) => {
-                                        // will recover in ViewProcessInitedEvent
+                                        // will recover in VIEW_PROCESS_INITED_EVENT
                                     }
                                 }
                                 IMAGES_SV.write().decoding.push(ImageDecodingTask {
