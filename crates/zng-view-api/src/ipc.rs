@@ -466,12 +466,24 @@ impl EventReceiver {
         self.0.get_mut().recv().map_err(handle_recv_error)
     }
 
-    pub fn try_recv_timeout(&mut self, duration: Duration) -> IpcResult<Option<Event>> {
+    #[cfg(ipc)]
+    pub fn recv_timeout(&mut self, duration: Duration) -> IpcResult<Option<Event>> {
         match self.0.get_mut().try_recv_timeout(duration) {
             Ok(ev) => Ok(Some(ev)),
             Err(e) => match e {
                 ipc_channel::ipc::TryRecvError::IpcError(ipc_error) => Err(handle_recv_error(ipc_error)),
                 ipc_channel::ipc::TryRecvError::Empty => Ok(None),
+            },
+        }
+    }
+
+    #[cfg(not(ipc))]
+    pub fn recv_timeout(&mut self, duration: Duration) -> IpcResult<Option<Event>> {
+        match self.0.get_mut().recv_timeout(duration) {
+            Ok(ev) => Ok(Some(ev)),
+            Err(e) => match e {
+                flume::RecvTimeoutError::Timeout => Ok(None),
+                flume::RecvTimeoutError::Disconnected => Err(ViewChannelError::Disconnected),
             },
         }
     }

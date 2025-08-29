@@ -7,7 +7,6 @@ use std::{
     time::Instant,
 };
 
-#[cfg(ipc)]
 use std::time::Duration;
 
 use parking_lot::Mutex;
@@ -150,7 +149,7 @@ impl Controller {
         // ipc-channel sometimes does not signal disconnect when the view-process dies
         thread::spawn(move || {
             let ping_time = Duration::from_secs(1);
-            while let Ok(maybe) = event_receiver.try_recv_timeout(ping_time) {
+            while let Ok(maybe) = event_receiver.recv_timeout(ping_time) {
                 match maybe {
                     Some(ev) => on_event(ev),
                     None => {
