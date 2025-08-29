@@ -112,16 +112,12 @@ impl AppExtension for ImageManager {
                 });
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            if !args.is_respawn {
-                return;
-            }
-
             let mut images = IMAGES_SV.write();
             let images = &mut *images;
             images.cleanup_not_cached(true);
             images.download_accept.clear();
 
-            let decoding_interrupted = mem::take(&mut images.decoding);
+            let mut decoding_interrupted = mem::take(&mut images.decoding);
             for (img_var, max_decoded_len, downscale, mask) in images
                 .cache
                 .values()
@@ -142,9 +138,12 @@ impl AppExtension for ImageManager {
                     if let Some(e) = view.error() {
                         // respawned, but image was an error.
                         img_var.set(Img::dummy(Some(e.to_owned())));
-                    } else if let Some(task) = decoding_interrupted.iter().find(|e| e.image.with(|img| img.view() == Some(view))) {
+                    } else if let Some(task_i) = decoding_interrupted
+                        .iter()
+                        .position(|e| e.image.with(|img| img.view() == Some(view)))
+                    {
+                        let task = decoding_interrupted.swap_remove(task_i);
                         // respawned, but image was decoding, need to restart decode.
-
                         match VIEW_PROCESS.add_image(ImageRequest::new(
                             task.format.clone(),
                             task.data.clone(),
@@ -194,7 +193,28 @@ impl AppExtension for ImageManager {
                             image: img_var,
                         });
                     }
-                } // else { *is loading, will continue normally in self.update_preview()* }
+                } else if let Some(task_i) = decoding_interrupted.iter().position(|e| e.image.var_eq(&img_var)) {
+                    // respawned, but image had not started decoding, start it now.
+                    let task = decoding_interrupted.swap_remove(task_i);
+                    match VIEW_PROCESS.add_image(ImageRequest::new(
+                        task.format.clone(),
+                        task.data.clone(),
+                        max_decoded_len.0 as u64,
+                        downscale,
+                        mask,
+                    )) {
+                        Ok(img) => {
+                            img_var.set(Img::new(img));
+                        }
+                        Err(_) => { /*will receive another event.*/ }
+                    }
+                    images.decoding.push(ImageDecodingTask {
+                        format: task.format.clone(),
+                        data: task.data.clone(),
+                        image: img_var,
+                    });
+                }
+                // else { *is loading, will continue normally in self.update_preview()* }
             }
         } else if LOW_MEMORY_EVENT.on(update).is_some() {
             IMAGES.clean_all();
