@@ -320,7 +320,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
         })
     }
 
-    /// Crash error.
+    /// Reference the crash error.
     ///
     /// The worker cannot be used if this is set, run requests will immediately disconnect.
     pub fn crash_error(&mut self) -> Option<&WorkerCrashError> {

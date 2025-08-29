@@ -81,7 +81,7 @@ Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug bui
 *Enabled by default.*
 
 #### `"svg"`
-Enable SVG image rendering, SBG emoji support.
+Enable SVG image rendering, SVG emoji support.
 
 #### `"dyn_node"`
 Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.

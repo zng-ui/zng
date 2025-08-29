@@ -2,16 +2,20 @@ use std::{
     collections::HashMap,
     panic,
     path::{Path, PathBuf},
+    sync::Arc,
     thread::{self, JoinHandle},
     time::Instant,
 };
 
-#[cfg(ipc)]
 use std::time::Duration;
 
+use parking_lot::Mutex;
 use zng_txt::Txt;
 
-use crate::{AnyResult, Event, Request, Response, ViewConfig, ViewProcessGen, VpResult, ipc};
+use crate::{
+    AnyResult, Event, Request, Response, ViewConfig, ViewProcessGen, VpResult,
+    ipc::{self, EventReceiver},
+};
 
 /// The listener returns the closure on join for reuse in respawn.
 type EventListenerJoin = JoinHandle<Box<dyn FnMut(Event) + Send>>;
@@ -38,7 +42,7 @@ enum ViewState {
 /// [exits]: std::process::exit
 #[cfg_attr(not(ipc), allow(unused))]
 pub struct Controller {
-    process: Option<std::process::Child>,
+    process: Arc<Mutex<Option<std::process::Child>>>,
     view_state: ViewState,
     generation: ViewProcessGen,
     is_respawn: bool,
@@ -85,27 +89,24 @@ impl Controller {
         view_process_exe: PathBuf,
         view_process_env: HashMap<Txt, Txt>,
         headless: bool,
-        mut on_event: Box<dyn FnMut(Event) + Send>,
+        on_event: Box<dyn FnMut(Event) + Send>,
     ) -> Self {
         if ViewConfig::from_env().is_some() {
             panic!("cannot start Controller in process configured to be view-process");
         }
 
-        let (process, request_sender, response_receiver, mut event_receiver) =
+        let (process, request_sender, response_receiver, event_receiver) =
             Self::spawn_view_process(&view_process_exe, &view_process_env, headless).expect("failed to spawn or connect to view-process");
-
-        let ev = thread::spawn(move || {
-            while let Ok(ev) = event_receiver.recv() {
-                on_event(ev);
-            }
-            on_event(Event::Disconnected(ViewProcessGen::first()));
-
-            // return to reuse in respawn.
-            on_event
-        });
+        let same_process = process.is_none();
+        let process = Arc::new(Mutex::new(process));
+        let ev = if same_process {
+            Self::spawn_same_process_listener(on_event, event_receiver)
+        } else {
+            Self::spawn_other_process_listener(on_event, event_receiver, process.clone())
+        };
 
         let mut c = Controller {
-            same_process: process.is_none(),
+            same_process,
             view_state: ViewState::NotRunning,
             process,
             view_process_exe,
@@ -125,6 +126,60 @@ impl Controller {
         }
 
         c
+    }
+    fn spawn_same_process_listener(
+        mut on_event: Box<dyn FnMut(Event) + Send>,
+        mut event_receiver: EventReceiver,
+    ) -> std::thread::JoinHandle<Box<dyn FnMut(Event) + Send>> {
+        thread::spawn(move || {
+            while let Ok(ev) = event_receiver.recv() {
+                on_event(ev);
+            }
+            on_event(Event::Disconnected(ViewProcessGen::first()));
+
+            // return to reuse in respawn.
+            on_event
+        })
+    }
+    fn spawn_other_process_listener(
+        mut on_event: Box<dyn FnMut(Event) + Send>,
+        mut event_receiver: EventReceiver,
+        process: Arc<Mutex<Option<std::process::Child>>>,
+    ) -> std::thread::JoinHandle<Box<dyn FnMut(Event) + Send>> {
+        // ipc-channel sometimes does not signal disconnect when the view-process dies
+        thread::spawn(move || {
+            let ping_time = Duration::from_secs(1);
+            while let Ok(maybe) = event_receiver.recv_timeout(ping_time) {
+                match maybe {
+                    Some(ev) => on_event(ev),
+                    None => {
+                        if let Some(p) = &mut *process.lock() {
+                            match p.try_wait() {
+                                Ok(c) => {
+                                    if c.is_some() {
+                                        // view-process died
+                                        break;
+                                    }
+                                }
+                                Err(e) => {
+                                    if e.kind() != std::io::ErrorKind::Interrupted {
+                                        // signal disconnected to trigger a respawn
+                                        break;
+                                    }
+                                }
+                            }
+                        } else {
+                            // respawning already
+                            break;
+                        }
+                    }
+                }
+            }
+            on_event(Event::Disconnected(ViewProcessGen::first()));
+
+            // return to reuse in respawn.
+            on_event
+        })
     }
 
     fn try_init(&mut self) -> VpResult<()> {
@@ -361,7 +416,7 @@ impl Controller {
         self.view_state = ViewState::NotRunning;
         self.is_respawn = true;
 
-        let mut process = if let Some(p) = self.process.take() {
+        let mut process = if let Some(p) = self.process.lock().take() {
             p
         } else {
             if self.same_process {
@@ -464,14 +519,14 @@ impl Controller {
         }
 
         // recover event listener closure (in a box).
-        let mut on_event = match self.event_listener.take().unwrap().join() {
+        let on_event = match self.event_listener.take().unwrap().join() {
             Ok(fn_) => fn_,
             Err(p) => panic::resume_unwind(p),
         };
 
         // respawn
         let mut retries = 3;
-        let (new_process, request, response, mut event) = loop {
+        let (new_process, request, response, event_listener) = loop {
             match Self::spawn_view_process(&self.view_process_exe, &self.view_process_env, self.headless) {
                 Ok(r) => break r,
                 Err(e) => {
@@ -484,9 +539,10 @@ impl Controller {
                 }
             }
         };
+        debug_assert!(new_process.is_some());
 
         // update connections
-        self.process = new_process;
+        self.process = Arc::new(Mutex::new(new_process));
         self.request_sender = request;
         self.response_receiver = response;
 
@@ -497,14 +553,7 @@ impl Controller {
             panic!("respawn on respawn startup");
         }
 
-        let ev = thread::spawn(move || {
-            while let Ok(ev) = event.recv() {
-                on_event(ev);
-            }
-            on_event(Event::Disconnected(next_id));
-
-            on_event
-        });
+        let ev = Self::spawn_other_process_listener(on_event, event_listener, self.process.clone());
         self.event_listener = Some(ev);
     }
 }
@@ -513,7 +562,7 @@ impl Drop for Controller {
     fn drop(&mut self) {
         let _ = self.exit();
         #[cfg(ipc)]
-        if let Some(mut process) = self.process.take()
+        if let Some(mut process) = self.process.lock().take()
             && process.try_wait().is_err()
         {
             std::thread::sleep(Duration::from_secs(1));
