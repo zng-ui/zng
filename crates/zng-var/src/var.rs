@@ -581,6 +581,14 @@ impl<T: VarValue> Var<T> {
         self.any.flat_map(move |v| map(v.downcast_ref::<T>().unwrap()))
     }
 }
+impl<T: VarValue> Var<crate::VarEq<T>> {
+    /// Create a [`flat_map`] to the inner variable.
+    ///
+    /// [`flat_map`]: Self::flat_map
+    pub fn flatten(&self) -> Var<T> {
+        self.flat_map(|v| v.0.clone())
+    }
+}
 /// Binding
 impl<T: VarValue> Var<T> {
     /// Bind `other` to receive the new values from this variable.

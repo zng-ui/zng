@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `Var<VarEq<T>>::flatten` method.
 
 # 0.16.2
 
