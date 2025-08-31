@@ -12,9 +12,7 @@ Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug bui
 *Enabled by default.*
 
 #### `"dyn_node"`
-Use dynamic dispatch at the node level by placing each property node in a `BoxedUiNode` and enabling `UiNode::cfg_boxed`.
-
-This speeds-up compilation time at the cost of runtime.
+**deprecated** no longer needed
 
 #### `"inspector"`
 Instrument each widget instance to retain build information.

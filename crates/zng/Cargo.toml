@@ -48,7 +48,6 @@ default = [
     "image_all",
     "button",
     "ansi_text",
-    "dyn_node",
 ]
 
 # Include the default view-process implementation.
@@ -79,10 +78,8 @@ debug_default = [
 # Enable SVG image rendering, SVG emoji support.
 svg = ["dep:zng-ext-svg", "zng-ext-font/svg"]
 
-# Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.
-#
-# This speeds-up compilation time at the cost of runtime.
-dyn_node = ["zng-app/dyn_node"]
+# **deprecated** no longer needed
+dyn_node = []
 
 # Instrument each property and widget instance with "Inspector" nodes and
 # extend windows to be inspected on Ctrl+Shift+I.

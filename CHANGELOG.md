@@ -1,5 +1,6 @@
 # Unreleased
 
+* Deprecated feature `"dyn_node"`, no longer needed.
 * Add `Var<VarEq<T>>::flatten` method.
 
 # 0.16.2

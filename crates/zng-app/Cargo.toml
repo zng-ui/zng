@@ -17,9 +17,7 @@ default = ["ipc", "debug_default", "trace_recorder"]
 # Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug builds.
 debug_default = ["zng-var/debug_default", "zng-app-context/dyn_closure"]
 
-# Use dynamic dispatch at the node level by placing each property node in a `BoxedUiNode` and enabling `UiNode::cfg_boxed`.
-#
-# This speeds-up compilation time at the cost of runtime.
+# **deprecated** no longer needed
 dyn_node = []
 
 # Instrument each widget instance to retain build information.

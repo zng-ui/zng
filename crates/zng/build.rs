@@ -1,6 +1,10 @@
 #![recursion_limit = "512"]
 
 fn main() {
+    if cfg!(feature = "dyn_node") {
+        println!(r#"cargo:warning=feature "dyn_node" is deprecated, no longer needed"#);
+    }
+
     cfg_aliases::cfg_aliases! {
         wasm: { target_arch = "wasm32" },
         android: { target_os = "android" },
@@ -23,13 +27,10 @@ fn main() {
 
     if cfg!(debug_assertions) && cfg!(feature = "debug_default") {
         enable!("dyn_app_extension");
-        enable!("dyn_node");
         enable!("dyn_closure");
         enable!("inspector");
         enable!("trace_widget");
         enable!("trace_recorder");
         enable!("var_type_names");
-    } else if cfg!(feature = "inspector") {
-        enable!("dyn_node");
     }
 }

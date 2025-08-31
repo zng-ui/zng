@@ -1,4 +1,8 @@
 fn main() {
+    if cfg!(feature = "dyn_node") {
+        println!(r#"cargo:warning=feature "dyn_node" is deprecated, no longer needed"#);
+    }
+
     macro_rules! enable {
         ($feature:tt) => {
             if !cfg!(feature = $feature) {
@@ -9,12 +13,9 @@ fn main() {
 
     if cfg!(debug_assertions) && cfg!(feature = "debug_default") {
         enable!("dyn_app_extension");
-        enable!("dyn_node");
         enable!("dyn_closure");
         enable!("inspector");
         enable!("trace_recorder");
         enable!("trace_widget");
-    } else if cfg!(feature = "inspector") {
-        enable!("dyn_node");
     }
 }
