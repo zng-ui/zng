@@ -337,9 +337,6 @@ impl fmt::Display for UiNodeOpMethod {
 ///
 /// [`match_widget`]: fn@match_widget
 pub fn match_node(child: impl IntoUiNode, closure: impl FnMut(&mut MatchNodeChild, UiNodeOp) + Send + 'static) -> UiNode {
-    #[cfg(feature = "dyn_closure")]
-    let closure: Box<dyn FnMut(&mut MatchNodeChild, UiNodeOp) + Send> = Box::new(closure);
-
     match_node_impl(child.into_node(), closure)
 }
 

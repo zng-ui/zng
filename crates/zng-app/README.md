@@ -23,9 +23,7 @@ Use dynamic dispatch at the app-extension level.
 This speeds-up compilation time at the cost of runtime.
 
 #### `"dyn_closure"`
-Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-
-This speeds-up compilation time at the cost of runtime.
+**deprecated** no longer needed
 
 #### `"test_util"`
 Like `cfg(test)` but also visible in docs and integration tests.

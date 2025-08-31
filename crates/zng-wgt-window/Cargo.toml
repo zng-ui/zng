@@ -15,7 +15,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 default = ["debug_default"]
 # Enable the `zng-wgt` crate debug defaults.
 debug_default = ["zng-wgt/debug_default"]
-# Enable the `zng-wgt` crate dynamic closures.
+# **deprecated** no longer needed
 dyn_closure = ["zng-wgt/dyn_closure"]
 
 [dependencies]

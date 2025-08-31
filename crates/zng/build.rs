@@ -4,6 +4,9 @@ fn main() {
     if cfg!(feature = "dyn_node") {
         println!(r#"cargo:warning=feature "dyn_node" is deprecated, no longer needed"#);
     }
+    if cfg!(feature = "dyn_closure") {
+        println!(r#"cargo:warning=feature "dyn_closure" is deprecated, no longer needed"#);
+    }
 
     cfg_aliases::cfg_aliases! {
         wasm: { target_arch = "wasm32" },
@@ -27,7 +30,6 @@ fn main() {
 
     if cfg!(debug_assertions) && cfg!(feature = "debug_default") {
         enable!("dyn_app_extension");
-        enable!("dyn_closure");
         enable!("inspector");
         enable!("trace_widget");
         enable!("trace_recorder");

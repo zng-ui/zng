@@ -13,9 +13,7 @@ Signal the build script to enable the `"dyn_*"`, `"inspector"` and `"trace_widge
 *Enabled by default.*
 
 #### `"dyn_closure"`
-Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-
-This speeds-up compilation time at the cost of runtime.
+**deprecated** no longer needed
 
 #### `"http"`
 Enable web tasks.

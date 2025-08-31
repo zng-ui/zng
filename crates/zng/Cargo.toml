@@ -97,14 +97,8 @@ hot_reload = ["dep:zng-ext-hot-reload"]
 # This speeds-up compilation time at the cost of runtime.
 dyn_app_extension = ["zng-app/dyn_app_extension"]
 
-# Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-#
-# This speeds-up compilation time at the cost of runtime.
-dyn_closure = [
-    "zng-wgt/dyn_closure",
-    "zng-wgt-scroll/dyn_closure",
-    "zng-wgt-window/dyn_closure",
-]
+# **deprecated** no longer needed
+dyn_closure = []
 
 # Test utilities.
 test_util = [

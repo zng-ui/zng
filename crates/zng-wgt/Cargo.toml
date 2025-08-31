@@ -17,10 +17,8 @@ default = ["debug_default"]
 # Signal the build script to enable the `"dyn_*"`, `"inspector"` and `"trace_widget"` features in debug builds.
 debug_default = ["zng-var/debug_default"]
 
-# Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-#
-# This speeds-up compilation time at the cost of runtime.
-dyn_closure = ["zng-var/dyn_closure"]
+# **deprecated** no longer needed
+dyn_closure = []
 
 # Enable web tasks.
 http = ["zng-task/http"]

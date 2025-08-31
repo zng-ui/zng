@@ -13,9 +13,7 @@ Enables the `"dyn_closure"` in debug builds.
 *Enabled by default.*
 
 #### `"dyn_closure"`
-Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-
-This speeds-up compilation time at the cost of runtime.
+**deprecated** no longer needed
 
 <!--do doc --readme #SECTION-END-->
 

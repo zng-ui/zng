@@ -15,9 +15,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 default = ["debug_default"]
 # Enables the `"dyn_closure"` in debug builds.
 debug_default = []
-# Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-#
-# This speeds-up compilation time at the cost of runtime.
+# **deprecated**
 dyn_closure = []
 
 [dependencies]

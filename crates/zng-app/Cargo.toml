@@ -15,7 +15,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 default = ["ipc", "debug_default", "trace_recorder"]
 
 # Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug builds.
-debug_default = ["zng-var/debug_default", "zng-app-context/dyn_closure"]
+debug_default = ["zng-var/debug_default"]
 
 # **deprecated** no longer needed
 dyn_node = []
@@ -28,10 +28,8 @@ inspector = []
 # This speeds-up compilation time at the cost of runtime.
 dyn_app_extension = []
 
-# Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-#
-# This speeds-up compilation time at the cost of runtime.
-dyn_closure = ["zng-var/dyn_closure", "zng-app-context/dyn_closure"]
+# **deprecated** no longer needed
+dyn_closure = []
 
 # Like `cfg(test)` but also visible in docs and integration tests.
 test_util = ["multi_app", "deadlock_detection"]

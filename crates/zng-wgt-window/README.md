@@ -13,7 +13,7 @@ Enable the `zng-wgt` crate debug defaults.
 *Enabled by default.*
 
 #### `"dyn_closure"`
-Enable the `zng-wgt` crate dynamic closures.
+**deprecated** no longer needed
 
 <!--do doc --readme #SECTION-END-->
 
