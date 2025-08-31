@@ -12,10 +12,18 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["ipc", "debug_default", "trace_recorder"]
+default = ["debug_default"]
 
-# Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug builds.
-debug_default = ["zng-var/debug_default"]
+# **deprecated** use features directly
+debug_default = [
+    "zng-var/debug_default",
+    "ipc",
+    "trace_recorder",
+    "dyn_app_extension",
+    "inspector",
+    "trace_recorder",
+    "trace_widget",
+]
 
 # **deprecated** no longer needed
 dyn_node = []

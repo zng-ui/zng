@@ -12,10 +12,10 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["debug_default"]
-# Enables the `"dyn_closure"` in debug builds.
+default = []
+# **deprecated** no longer needed
 debug_default = []
-# **deprecated**
+# **deprecated** no longer needed
 dyn_closure = []
 
 [dependencies]

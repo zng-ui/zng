@@ -4,10 +4,10 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 13 feature flags, 3 enabled by default.
+This crate provides 13 feature flags, 1 enabled by default.
 
 #### `"debug_default"`
-Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug builds.
+**deprecated** use features directly
 
 *Enabled by default.*
 
@@ -55,12 +55,8 @@ Enable trace recording.
 
 Note that this does not auto start recording, to do that run with the `ZNG_RECORD_TRACE` env var set.
 
-*Enabled by default.*
-
 #### `"ipc"`
 Enables IPC tasks and pre-build views and connecting to views running in another process.
-
-*Enabled by default.*
 
 #### `"deadlock_detection"`
 Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.

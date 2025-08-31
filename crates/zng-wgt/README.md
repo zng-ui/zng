@@ -8,7 +8,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 This crate provides 3 feature flags, 1 enabled by default.
 
 #### `"debug_default"`
-Signal the build script to enable the `"dyn_*"`, `"inspector"` and `"trace_widget"` features in debug builds.
+**deprecated** enable needed features directly.
 
 *Enabled by default.*
 

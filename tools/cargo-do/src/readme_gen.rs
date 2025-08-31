@@ -154,7 +154,10 @@ fn read_features(cargo: &str) -> (Vec<Feature>, HashSet<String>) {
             }
 
             if line.starts_with('#') {
-                let docs = line.trim_start_matches(&['#', ' ']);
+                let mut docs = &line[1..];
+                if docs.starts_with(' ') {
+                    docs = &docs[1..];
+                }
                 writeln!(&mut next_docs, "{docs}").unwrap();
             } else {
                 if let Some(caps) = rgx.captures(&line) {

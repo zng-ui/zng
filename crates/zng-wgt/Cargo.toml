@@ -14,7 +14,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [features]
 default = ["debug_default"]
 
-# Signal the build script to enable the `"dyn_*"`, `"inspector"` and `"trace_widget"` features in debug builds.
+# **deprecated** enable needed features directly.
 debug_default = ["zng-var/debug_default"]
 
 # **deprecated** no longer needed

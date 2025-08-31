@@ -13,8 +13,8 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
 default = ["debug_default"]
-# Enables the `"live"` feature in debug builds.
-debug_default = []
+# **deprecated** enable needed features directly
+debug_default = ["live"]
 # Compiles the interactive inspector.
 live = []
 # Compiles the debug crash handler.

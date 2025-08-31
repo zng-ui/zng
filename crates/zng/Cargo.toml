@@ -12,9 +12,37 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = [
+default = ["dev"]
+
+# Defaults recommended for the dev profile (debug builds).
+#
+# Recommended `Cargo.toml` setup:
+#
+# ```toml
+# [dependencies]
+# zng = { default-features = false }
+#
+# [features]
+# default = ["dev"]
+#
+# # development features:
+# dev = [
+#   "zng/dev",
+#   "zng/view_prebuilt",
+# ]
+#
+# # release features:
+# # use `cargo build --release --no-default-features --features release` to build
+# release = [
+#   "zng/window",
+#   "zng/view",
+#   "zng/ipc",
+#   "zng/crash_handler",
+#   "zng/...",
+# ]
+# ```
+dev = [
     "ipc", 
-    "debug_default", 
     "view_software", 
     "crash_handler",
     "crash_handler_debug",
@@ -48,6 +76,20 @@ default = [
     "image_all",
     "button",
     "ansi_text",
+    "dyn_app_extension",
+    "inspector",
+    "trace_widget",
+    "trace_recorder",
+    "var_type_names",
+]
+
+# **deprecated** use "dev"
+debug_default = [
+    "dev",
+    "zng-app/debug_default",
+    "zng-wgt-inspector?/debug_default",
+    "zng-wgt-scroll/debug_default",
+    "zng-wgt-window/debug_default",
 ]
 
 # Include the default view-process implementation.
@@ -65,14 +107,6 @@ http = [
     "zng-wgt/http",
     "zng-ext-image?/http",
     "zng-ext-window?/http",
-]
-
-# Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug builds.
-debug_default = [
-    "zng-app/debug_default",
-    "zng-wgt-inspector?/debug_default",
-    "zng-wgt-scroll/debug_default",
-    "zng-wgt-window/debug_default",
 ]
 
 # Enable SVG image rendering, SVG emoji support.

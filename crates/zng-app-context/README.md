@@ -15,7 +15,7 @@ what app is currently running in each thread and `app_local!` statics switch to 
 depending on the current thread.
 
 #### `"debug_default"`
-Enable `"multi_app"` in debug builds.
+**deprecated** enable needed features directly
 
 *Enabled by default.*
 

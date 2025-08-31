@@ -21,8 +21,8 @@ default = ["debug_default"]
 # depending on the current thread.
 multi_app = []
 
-# Enable `"multi_app"` in debug builds.
-debug_default = []
+# **deprecated** enable needed features directly
+debug_default = ["multi_app"]
 
 # **deprecated** no longer needed
 dyn_closure = []

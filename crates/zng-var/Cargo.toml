@@ -14,8 +14,8 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [features]
 default = ["debug_default"]
 
-# Signal the build script to enable the more features in debug builds.
-debug_default = []
+# **deprecated** enable needed features directly
+debug_default = ["type_names"]
 
 # Add `value_type_name` method to get the diagnostics type name from variable values.
 type_names = []
