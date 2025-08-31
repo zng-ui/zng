@@ -22,32 +22,32 @@ toml = ["dep:toml"]
 ron = ["dep:ron"]
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context", version = "0.8.2" }
-zng-app = { path = "../zng-app", version = "0.17.2" }
-zng-clone-move = { path = "../zng-clone-move", version = "0.3.1" }
-zng-var = { path = "../zng-var", version = "0.8.2" }
-zng-txt = { path = "../zng-txt", version = "0.4.0" }
-zng-unit = { path = "../zng-unit", version = "0.4.1" }
-zng-handle = { path = "../zng-handle", version = "0.3.1" }
-zng-task = { path = "../zng-task", version = "0.7.2" }
+zng-app-context = { path = "../zng-app-context", version = "0.8.2", default-features = false }
+zng-app = { path = "../zng-app", version = "0.17.2", default-features = false }
+zng-clone-move = { path = "../zng-clone-move", version = "0.3.1", default-features = false }
+zng-var = { path = "../zng-var", version = "0.8.2", default-features = false }
+zng-txt = { path = "../zng-txt", version = "0.4.0", default-features = false }
+zng-unit = { path = "../zng-unit", version = "0.4.1", default-features = false }
+zng-handle = { path = "../zng-handle", version = "0.3.1", default-features = false }
+zng-task = { path = "../zng-task", version = "0.7.2", default-features = false }
 
-walkdir = "2.5"
-serde = "1.0"
-tracing = "0.1"
-glob = "0.3"
-notify = "8.0"
-path-absolutize = "3.1"
-atomic = "0.6"
-parking_lot = "0.12"
-flume = "0.11"
+walkdir = { version = "2.5", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["std"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+glob = { version = "0.3", default-features = false  }
+notify = { version = "8.0", default-features = false, features = ["macos_fsevent"] }
+path-absolutize = { version = "3.1", default-features = false }
+atomic = { version = "0.6", default-features = false, features = ["fallback"] }
+parking_lot = { version = "0.12", default-features = false }
+flume = { version = "0.11", default-features = false }
 
-serde_json = { version = "1.0", optional = true }
-toml = { version = "0.8", optional = true, features = ["preserve_order"] }
-ron = { version = "0.10", optional = true, features = ["indexmap"] }
-serde_yaml = { version = "0.9", optional = true }
+serde_json = { version = "1.0", optional = true, default-features = false, features = ["std"] }
+toml = { version = "0.8", optional = true, default-features = false, features = ["preserve_order", "display"] }
+ron = { version = "0.10", optional = true, default-features = false, features = ["indexmap"] }
+serde_yaml = { version = "0.9", default-features = false, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fs4 = "0.13"
+fs4 = { version = "0.13", default-features = false, features = ["sync"] }
 
 [package.metadata.docs.rs]
 all-features = true

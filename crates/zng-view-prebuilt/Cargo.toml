@@ -19,16 +19,16 @@ embedded = []
 
 [dependencies]
 zng-view-api = { path = "../zng-view-api", version = "0.14.2", default-features = false }
-zng-env = { path = "../zng-env", version = "0.6.2" }
-libloading = "0.8"
-dunce = "1.0"
-parking_lot = "0.12"
+zng-env = { path = "../zng-env", version = "0.6.2", default-features = false }
+libloading = { version = "0.8", default-features = false }
+dunce = { version = "1.0", default-features = false }
+parking_lot = { version = "0.12", default-features = false }
 
 [build-dependencies]
-hashers = "1.0"
-base64 = "0.22"
-home = "0.5"
-dunce = "1.0"
+hashers = { version = "1.0", default-features = false }
+base64 = { version = "0.22", default-features = false, features = ["std"] }
+home = { version = "0.5", default-features = false }
+dunce = { version = "1.0", default-features = false }
 
 [package.metadata.docs.rs]
 all-features = true

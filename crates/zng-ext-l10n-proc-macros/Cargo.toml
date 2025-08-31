@@ -15,9 +15,9 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "1.0"
-syn = { version = "2.0", features = ["full", "visit", "extra-traits", "derive"] }
-quote = "1.0"
+proc-macro2 = { version = "1.0", default-features = false }
+syn = { version = "2.0", default-features = false, features = ["full", "visit", "extra-traits", "derive"] }
+quote = { version = "1.0", default-features = false }
 
-fluent-syntax = "0.12"
-unic-langid = "0.9"
+fluent-syntax = { version = "0.12", default-features = false }
+unic-langid = { version = "0.9", default-features = false }

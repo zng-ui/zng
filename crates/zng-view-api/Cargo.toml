@@ -28,40 +28,40 @@ euclid = { version = "0.22.6", features = [
     "bytemuck",
 ] } # same version as webrender, but with bytemuck
 
-zng-unit = { path = "../zng-unit", version = "0.4.1" }
-zng-env = { path = "../zng-env", version = "0.6.2" }
-zng-txt = { path = "../zng-txt", version = "0.4.0" }
-zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.5.0" }
-zng-var = { path = "../zng-var", version = "0.8.2", optional = true }
+zng-unit = { path = "../zng-unit", version = "0.4.1", default-features = false }
+zng-env = { path = "../zng-env", version = "0.6.2", default-features = false }
+zng-txt = { path = "../zng-txt", version = "0.4.0", default-features = false }
+zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.5.0", default-features = false }
+zng-var = { path = "../zng-var", version = "0.8.2", optional = true, default-features = false }
 
-serde = { version = "1.0", features = ["derive"] }
-serde_bytes = "0.11"
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_bytes = { version = "0.11", features = ["std"], default-features = false }
 
-tracing = "0.1"
+tracing = { version = "0.1", default-features = false }
 flume = { version = "0.11", default-features = false }
-num-traits = "0.2"
-rustc-hash = "2.0"
+num-traits = { version = "0.2", default-features = false }
+rustc-hash = { version = "2.0", default-features = false }
 
-bitflags = { version = "2.5", features = ["serde", "bytemuck"] }
-bytemuck = { version = "1.15", features = ["derive"] }
+bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
+bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
 
-bincode = { version = "2.0", features = ["serde"] }
-parking_lot = "0.12"
-serde_variant = "0.1"
+bincode = { version = "2.0", default-features = false, features = ["serde", "std"] }
+parking_lot = { version = "0.12", default-features = false }
+serde_variant = { version = "0.1", default-features = false }
 
 unic-langid = { version = "0.9", features = ["serde"] }
 
-dunce = "1.0"
+dunce = { version = "1.0", default-features = false }
 tracing-shared = { version = "0.1.5", default-features = false, features = ["log"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-web-time = "1.0"
+web-time = { version = "1.0", default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ipc-channel = { version = "0.20", optional = true }
+ipc-channel = { version = "0.20", default-features = false, optional = true }
 
 [build-dependencies]
-cfg_aliases = "0.2"
+cfg_aliases = { version = "0.2", default-features = false }
 
 [package.metadata.docs.rs]
 all-features = true
