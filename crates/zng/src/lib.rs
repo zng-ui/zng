@@ -1057,27 +1057,24 @@ mod defaults {
 pub mod read_me_test {}
 
 mod default_editors {
-    use zng::{
-        prelude::*,
-        widget::{EditorRequestArgs, node::UiNode},
-    };
+    use zng::widget::{EditorRequestArgs, node::UiNode};
 
     pub fn handler(args: EditorRequestArgs) -> UiNode {
         #[cfg(feature = "text_input")]
-        if let Some(txt) = args.value::<Txt>() {
-            return TextInput! {
+        if let Some(txt) = args.value::<zng::text::Txt>() {
+            return zng::text_input::TextInput! {
                 txt;
             };
         }
         #[cfg(feature = "text_input")]
         if let Some(s) = args.value::<String>() {
-            return TextInput! {
-                txt = s.map_bidi(|s| Txt::from_str(s), |t: &Txt| t.to_string());
+            return zng::text_input::TextInput! {
+                txt = s.map_bidi(|s| zng::text::Txt::from_str(s), |t: &zng::text::Txt| t.to_string());
             };
         }
         #[cfg(feature = "text_input")]
         if let Some(c) = args.value::<char>() {
-            return TextInput! {
+            return zng::text_input::TextInput! {
                 txt_parse::<char> = c;
                 style_fn = crate::text_input::FieldStyle!();
             };
@@ -1085,8 +1082,8 @@ mod default_editors {
 
         #[cfg(feature = "toggle")]
         if let Some(checked) = args.value::<bool>() {
-            return Toggle! {
-                style_fn = toggle::CheckStyle!();
+            return zng::toggle::Toggle! {
+                style_fn = zng::toggle::CheckStyle!();
                 checked;
             };
         }
@@ -1096,7 +1093,7 @@ mod default_editors {
                 $(
                     #[cfg(feature = "text_input")]
                     if let Some(n) = args.value::<$ty>() {
-                        return TextInput! {
+                        return zng::text_input::TextInput! {
                             txt_parse::<$ty> = n;
                             style_fn = crate::text_input::FieldStyle!();
                         };
