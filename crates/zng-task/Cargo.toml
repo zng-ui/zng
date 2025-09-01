@@ -19,12 +19,7 @@ deadlock_detection = ["parking_lot/deadlock_detection"]
 # Enables ipc tasks.
 #
 # Only enables in `cfg(not(any(target_os = "android", target_arch = "wasm32", target_os = "ios")))` builds.
-ipc = [
-    "dep:duct",
-    "dep:serde",
-    "dep:ipc-channel",
-    "dep:zng-unique-id",
-]
+ipc = ["dep:duct", "dep:serde", "dep:ipc-channel", "dep:zng-unique-id"]
 
 # Enables http tasks.
 http = [
@@ -66,24 +61,38 @@ blocking = { version = "1.5", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
 futures-timer = { version = "3.0", default-features = false }
 
-isahc = { version = "1.7", default-features = false, features = [ "http2", "static-curl", "text-decoding", "cookies", "json"], optional = true }
+isahc = { version = "1.7", default-features = false, features = [
+    "http2",
+    "static-curl",
+    "text-decoding",
+    "cookies",
+    "json",
+], optional = true }
 futures-lite = { version = "2.3", default-features = false }
 async-fs = { version = "2.1", default-features = false }
 serde = { version = "1.0", default-features = false, optional = true }
-serde_json = { version = "1.0", default-features = false, features = ["std"], optional = true }
-http-cache-semantics = { version = "1.0", default-features = false, features = ["with_serde"], optional = true }                  # isahc needs this version
+serde_json = { version = "1.0", default-features = false, features = [
+    "std",
+], optional = true }
+http-cache-semantics = { version = "1.0", default-features = false, features = [
+    "with_serde",
+], optional = true } # isahc needs this version
 http-serde = { version = "1.1", default-features = false, optional = true }
-once_cell = { version = "1.19", default-features = false, features = ["parking_lot"], optional = true }
+once_cell = { version = "1.19", default-features = false, features = [
+    "parking_lot",
+], optional = true }
 async-recursion = { version = "1.1", default-features = false, optional = true }
 async-trait = { version = "0.1", default-features = false, optional = true }
 sha2 = { version = "0.10", default-features = false, optional = true }
-base64 = { version = "0.22", default-features = false, optional = true }
+base64 = { version = "0.22", default-features = false, features = ["std"], optional = true }
 remove_dir_all = { version = "1", default-features = false, optional = true }
 dunce = { version = "1.0", default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 duct = { version = "1.0", default-features = false, optional = true }
-fs4 = { version = "0.13", default-features = false, optional = true }
+fs4 = { version = "0.13", default-features = false, features = [
+    "sync",
+], optional = true }
 ipc-channel = { version = "0.20", default-features = false, optional = true }
 
 [build-dependencies]
