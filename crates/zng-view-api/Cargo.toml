@@ -39,7 +39,7 @@ serde_bytes = { version = "0.11", features = ["std"], default-features = false }
 
 tracing = { version = "0.1", default-features = false }
 flume = { version = "0.11", default-features = false }
-num-traits = { version = "0.2", default-features = false }
+num-traits = { version = "0.2", default-features = false, features = ["std"] }
 rustc-hash = { version = "2.0", default-features = false }
 
 bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
