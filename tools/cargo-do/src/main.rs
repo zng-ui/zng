@@ -343,6 +343,7 @@ fn doc(mut args: Vec<&str>) {
 //                       [-p, --package <CRATE>]
 //                       [--chunk <n/max>]
 //                       [--release]
+//                       [--full-build]
 //
 //    Check feature combinations of all publish crates.
 // USAGE:
@@ -350,6 +351,8 @@ fn doc(mut args: Vec<&str>) {
 //       Check all with max combination 3 and cleans every 5 checks
 //    check-all-features --chunk 2/3
 //       Split check list in 3 parts, run only part 2
+//    check-all-features --full-build
+//       Fully builds each crate in isolation
 fn check_all_features(mut args: Vec<&str>) {
     use itertools::Itertools;
     use std::collections::HashSet;
@@ -376,6 +379,7 @@ fn check_all_features(mut args: Vec<&str>) {
         .unwrap_or("");
     let release = take_flag(&mut args, &["--release"]);
     let release = if release { "--release" } else { "" };
+    let full_build = take_flag(&mut args, &["--full-build"]);
 
     let max_k: usize = max_k.parse().expect("expected --max <n>");
     let max_clean: usize = max_clean.parse().expect("expected --clean <n>");
@@ -391,21 +395,15 @@ fn check_all_features(mut args: Vec<&str>) {
         fatal("expected at least one chunk, 1/1");
     }
 
-    let mut clean = 0;
-
     let members = util::publish_members();
 
     let mut tasks = vec![];
     for member in &members {
-        if !package.is_empty() && package != &member.name {
+        if !package.is_empty() && package != &member.name || member.name == "cargo-zng" {
             continue;
         }
 
         let mut done = HashSet::new();
-
-        if member.features.is_empty() {
-            continue;
-        }
 
         for k in 0..=member.features.len().min(max_k) {
             let mut empty = vec![];
@@ -425,30 +423,104 @@ fn check_all_features(mut args: Vec<&str>) {
     if tasks.len() % chunk_max != 0 {
         chunk_size += 1;
     }
+    let mut clean = 0;
+    let mut current_full_build_dir = std::path::PathBuf::new();
+    let full_path_crates = dunce::canonicalize(std::env::current_dir().unwrap().join("crates")).unwrap();
     for (name, set) in tasks.chunks(chunk_size).nth(chunk_n - 1).expect("invalid chunk") {
-        print(f!("CHECK {name} WITH ["));
-        let mut features = vec![];
-        let mut sep = "";
-        for feat in set {
-            print(f!("{sep}{}", feat));
-            sep = ", ";
-            features.push("--features");
-            features.push(feat.as_str());
-        }
-        print("]\n");
+        if full_build {
+            let mut features = String::new();
+            let mut sep = "";
+            for feat in set {
+                features.push_str(sep);
+                features.push('"');
+                features.push_str(&feat);
+                features.push('"');
+                sep = ", ";
+            }
 
-        clean += 1;
-        if clean == max_clean {
-            clean = 0;
-            print("CLEAN\n");
-            cmd("cargo", &["clean"], &[]);
-        }
+            print(f!("BUILD {name} WITH [{features}]\n"));
 
-        cmd(
-            "cargo",
-            &["check", "--quiet", "--package", name, "--no-default-features", release],
-            &features,
-        );
+            use std::fmt::Write as _;
+            use std::io::Write as _;
+
+            let dir = std::env::temp_dir().join(&format!("zng-do-caf-{name}"));
+            if current_full_build_dir != dir {
+                clean = 0;
+                let prev_dir = current_full_build_dir;
+                if prev_dir != std::path::PathBuf::new() {
+                    cmd("cargo", &["clean"], &[]);
+                }
+                let _ = remove_dir_all::remove_dir_all(&dir);
+                std::fs::create_dir_all(&dir).unwrap();
+                current_full_build_dir = dir;
+                std::env::set_current_dir(&current_full_build_dir).unwrap();
+                if prev_dir != std::path::PathBuf::new() {                    
+                    if let Err(e) = remove_dir_all::remove_dir_all(&prev_dir) {
+                        error(f!("failed to cleanup `{}`, {e}", prev_dir.display()));
+                    }
+                }
+                cmd("cargo", &["new", "--quiet", "--lib", "check-all-features"], &[]);
+                std::env::set_current_dir("check-all-features").unwrap();
+
+                let mut lib_rs = std::fs::OpenOptions::new().write(true).append(true).open("src/lib.rs").unwrap();
+                writeln!(&mut lib_rs, "pub use {}::*;", name.replace('-', "_")).unwrap();
+            }
+            clean += 1;
+            if clean == max_clean {
+                clean = 0;
+                print("CLEAN\n");
+                cmd("cargo", &["clean"], &[]);
+            }
+
+            // replace features
+            let local_path = full_path_crates.join(&name).display().to_string().replace('\\', "/");
+            let mut cargo_toml = std::fs::read_to_string("Cargo.toml")
+                .unwrap()
+                .split_once("[dependencies]")
+                .unwrap()
+                .0
+                .to_owned();
+            writeln!(
+                &mut cargo_toml,
+                r#"[dependencies]
+                {name} = {{ path = "{local_path}", default-features = false, features = [{features}] }}
+                "#
+            )
+            .unwrap();
+            std::fs::write("Cargo.toml", cargo_toml.as_bytes()).unwrap();
+
+            cmd("cargo", &["build", "--quiet"], &[])
+        } else {
+            print(f!("CHECK {name} WITH ["));
+            let mut features = vec![];
+            let mut sep = "";
+            for feat in set {
+                print(f!("{sep}{}", feat));
+                sep = ", ";
+                features.push("--features");
+                features.push(feat.as_str());
+            }
+            print("]\n");
+
+            clean += 1;
+            if clean == max_clean {
+                clean = 0;
+                print("CLEAN\n");
+                cmd("cargo", &["clean"], &[]);
+            }
+
+            cmd(
+                "cargo",
+                &["check", "--quiet", "--package", name, "--no-default-features", release],
+                &features,
+            );
+        }
+    }
+    if full_build && current_full_build_dir != std::path::PathBuf::new() {
+        cmd("cargo", &["clean"], &[]);
+        if let Err(e) = remove_dir_all::remove_dir_all(&current_full_build_dir) {
+            error(f!("failed to cleanup `{}`, {e}", current_full_build_dir.display()));
+        }
     }
 }
 
@@ -481,7 +553,7 @@ fn l10n(mut args: Vec<&str>) {
         let output = std::path::Path::new(&manifest_path).with_file_name("l10n");
 
         if !check {
-            if let Err(e) = std::fs::remove_dir_all(&output.join("template")) {
+            if let Err(e) = remove_dir_all::remove_dir_all(&output.join("template")) {
                 if !matches!(e.kind(), std::io::ErrorKind::NotFound) {
                     error(f!("cannot clear `{}`, {e}", output.display()));
                     continue;
@@ -769,7 +841,7 @@ fn run_wasm(mut args: Vec<&str>) {
     }
 
     let out_dir = format!("{}/target/run-wasm/{example}", std::env::current_dir().unwrap().display());
-    let _ = std::fs::remove_dir_all(&out_dir);
+    let _ = remove_dir_all::remove_dir_all(&out_dir);
     let _ = std::fs::create_dir_all(&out_dir);
 
     cmd_req(
@@ -1063,7 +1135,7 @@ fn build_apk(mut args: Vec<&str>) {
     // cargo zng res (.zr-apk)
     let apk_dir = std::path::PathBuf::from(format!("target/build-apk/{example}/source.apk"));
     let _ = std::fs::remove_file(&apk_dir);
-    let _ = std::fs::remove_dir_all(&apk_dir);
+    let _ = remove_dir_all::remove_dir_all(&apk_dir);
     let _ = std::fs::create_dir_all(&apk_dir);
     let apk_dir = dunce::canonicalize(apk_dir).unwrap();
     let mut build_args = vec!["build", "-p", &example];
@@ -1118,7 +1190,7 @@ fn build_apk(mut args: Vec<&str>) {
 
     let target_dir = format!("target/build-apk/{example}.apk");
     let _ = std::fs::remove_file(&target_dir);
-    let _ = std::fs::remove_dir_all(&target_dir);
+    let _ = remove_dir_all::remove_dir_all(&target_dir);
 
     cmd_req(
         &cargo_zng,
@@ -1135,7 +1207,7 @@ fn build_apk(mut args: Vec<&str>) {
     );
 
     // cleanup
-    let _ = std::fs::remove_dir_all(apk_dir.parent().unwrap());
+    let _ = remove_dir_all::remove_dir_all(apk_dir.parent().unwrap());
 }
 
 // do build-ios <EXAMPLE>
@@ -1232,7 +1304,7 @@ fn clean(mut args: Vec<&str>) {
 
         cmd("cargo", &["clean"], &args);
     } else if temp {
-        match std::fs::remove_dir_all("target/tmp") {
+        match remove_dir_all::remove_dir_all("target/tmp") {
             Ok(_) => match std::fs::create_dir("target/tmp") {
                 Ok(_) => println("removed `target/tmp` contents"),
                 Err(_) => println("removed `target/tmp`"),
@@ -1665,7 +1737,7 @@ fn semver_check(args: Vec<&str>) {
             println(member.name.as_str());
             cmd("cargo", &["semver-checks", "--package", member.name.as_str()], &args);
             for t in util::glob("target/semver-checks/*/target") {
-                let _ = std::fs::remove_dir_all(t);
+                let _ = remove_dir_all::remove_dir_all(t);
             }
         }
     }

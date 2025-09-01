@@ -13,5 +13,6 @@ regex = "1.10"
 topological-sort = "0.2"
 dunce = "1.0"
 itertools = "0.14.0"
+remove_dir_all = "1.0"
 
 [workspace]

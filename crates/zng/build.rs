@@ -20,6 +20,6 @@ fn main() {
         hot_reload: { all(feature = "hot_reload", not(any(android, wasm))) },
         single_instance: { all(feature = "single_instance", not(any(android, wasm))) },
         crash_handler: { all(feature = "crash_handler", not(any(android, wasm))) },
-        trace_recorder: { all(feature = "crash_handler", not(any(android, wasm))) },
+        trace_recorder: { all(feature = "trace_recorder", not(any(android, wasm))) },
     }
 }

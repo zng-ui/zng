@@ -179,6 +179,7 @@ features = [
     "Win32_UI_Input",
     "Win32_Devices_DeviceAndDriverInstallation",
     "Win32_Devices_HumanInterfaceDevice",
+    "Win32_System",
 ]
 
 [target.'cfg(windows)'.dependencies]
