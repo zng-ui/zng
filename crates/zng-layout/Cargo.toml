@@ -21,7 +21,7 @@ bitflags = { version = "2.5", default-features = false, features = ["serde", "by
 bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
 tracing = { version = "0.1", default-features = false }
 atomic = { version = "0.6", default-features = false, features = ["fallback"] }
-unicode-bidi = { version = "0.3", default-features = false }
+unicode-bidi = { version = "0.3", default-features = false, features = ["hardcoded-data"] }
 
 [dev-dependencies]
 serde_json = {version = "1.0", default-features = false, features = ["std"] }

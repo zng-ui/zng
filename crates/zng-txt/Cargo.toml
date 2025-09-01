@@ -13,4 +13,4 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 
 
 [dependencies]
-serde = { version = "1.0", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["std"] }
