@@ -1,6 +1,6 @@
 //! Widget nodes types, [`UiNode`], [`UiVec`] and others.
 
-use std::any::Any;
+use std::{any::Any, ops::ControlFlow};
 
 mod adopt;
 pub use adopt::*;
@@ -30,9 +30,20 @@ use crate::{
 
 use super::{
     WIDGET, WidgetId, WidgetUpdateMode,
-    base::{PARALLEL_VAR, Parallel},
     info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
 };
+
+macro_rules! debug_warn_list {
+    ($self:ident, $op:tt) => {
+        #[cfg(debug_assertions)]
+        {
+            if $self.is_list() {
+                let op = $op;
+                tracing::warn!("UiNodeImpl is_list without implementing `{op}`");
+            }
+        }
+    };
+}
 
 /// Represents an [`UiNode`] implementation.
 ///
@@ -46,6 +57,9 @@ pub trait UiNodeImpl: Any + Send {
     ///
     /// If `true` the node provides only minimal layout implementations and expects the caller
     /// to use [`measure_list`], [`layout_list`] or direct access to child nodes for layout.
+    ///
+    /// If `true` the node must implement all methods that iterate over children, for better performance and if possible, parallelization.
+    /// A warning is logged in debug builds if a list node did not implement one of these methods.
     ///
     /// [`measure_list`]: UiNodeImpl::measure_list
     /// [`layout_list`]: UiNodeImpl::layout_list
@@ -65,24 +79,35 @@ pub trait UiNodeImpl: Any + Send {
     ///
     /// The closure parameters are the child index and the child.
     fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
-        #[cfg(debug_assertions)]
-        if self.is_list() {
-            tracing::warn!("UiNodeImpl is_list without implementing `for_each_child`");
-        }
+        debug_warn_list!(self, "for_each_child");
 
         for i in 0..self.children_len() {
             self.with_child(i, &mut |n| visitor(i, n));
         }
     }
 
+    /// Call `visitor` for each child node of `self`, one at a time, with control flow.
+    ///
+    /// The closure parameters are the child index and the child.
+    fn try_for_each_child(
+        &mut self,
+        visitor: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>,
+    ) -> ControlFlow<BoxAnyVarValue> {
+        debug_warn_list!(self, "try_for_each_child");
+
+        for i in 0..self.children_len() {
+            let mut flow = ControlFlow::Continue(());
+            self.with_child(i, &mut |n| flow = visitor(i, n));
+            flow?;
+        }
+        ControlFlow::Continue(())
+    }
+
     /// Calls `visitor` for each child node in parallel.
     ///
     /// The closure parameters are the child index and the child.
     fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
-        #[cfg(debug_assertions)]
-        if self.is_list() {
-            tracing::warn!("UiNodeImpl is_list without implementing `par_each_child`");
-        }
+        debug_warn_list!(self, "par_each_child");
 
         for i in 0..self.children_len() {
             self.with_child(i, &mut |n| visitor(i, n));
@@ -101,10 +126,7 @@ pub trait UiNodeImpl: Any + Send {
         fold: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
         reduce: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
     ) -> BoxAnyVarValue {
-        #[cfg(debug_assertions)]
-        if self.is_list() {
-            tracing::warn!("UiNodeImpl is_list without implementing `par_fold_reduce`");
-        }
+        debug_warn_list!(self, "par_fold_reduce");
 
         let _ = reduce;
         let mut accumulator = identity;
@@ -131,10 +153,10 @@ pub trait UiNodeImpl: Any + Send {
         match self.children_len() {
             0 => {}
             1 => self.with_child(0, &mut |c| c.0.init()),
-            _ if PARALLEL_VAR.get().contains(Parallel::INIT) => {
-                self.par_each_child(&|_, n| n.0.init());
+            _ => {
+                debug_warn_list!(self, "init");
+                self.for_each_child(&mut |_, n| n.0.init())
             }
-            _ => self.for_each_child(&mut |_, n| n.0.init()),
         }
     }
 
@@ -152,10 +174,10 @@ pub trait UiNodeImpl: Any + Send {
         match self.children_len() {
             0 => {}
             1 => self.with_child(0, &mut |c| c.0.deinit()),
-            _ if PARALLEL_VAR.get().contains(Parallel::DEINIT) => {
-                self.par_each_child(&|_, n| n.0.deinit());
+            _ => {
+                debug_warn_list!(self, "deinit");
+                self.for_each_child(&mut |_, n| n.0.deinit())
             }
-            _ => self.for_each_child(&mut |_, n| n.0.deinit()),
         }
     }
 
@@ -178,12 +200,7 @@ pub trait UiNodeImpl: Any + Send {
             0 => {}
             1 => self.with_child(0, &mut |c| c.0.info(info)),
             _ => {
-                #[cfg(debug_assertions)]
-                if self.is_list() && PARALLEL_VAR.get().contains(Parallel::INFO) {
-                    // info.parallel_split() is too large to fit in BoxAnyVarValue stack space,
-                    // so default parallel here would alloc
-                    tracing::info!("UiNodeImpl is_list without implementing `info`");
-                }
+                debug_warn_list!(self, "info");
                 self.for_each_child(&mut |_, n| n.0.info(info))
             }
         }
@@ -203,10 +220,10 @@ pub trait UiNodeImpl: Any + Send {
         match self.children_len() {
             0 => {}
             1 => self.with_child(0, &mut |c| c.0.event(update)),
-            _ if PARALLEL_VAR.get().contains(Parallel::DEINIT) => {
-                self.par_each_child(&|_, n| n.0.event(update));
+            _ => {
+                debug_warn_list!(self, "event");
+                self.for_each_child(&mut |_, n| n.0.event(update))
             }
-            _ => self.for_each_child(&mut |_, n| n.0.event(update)),
         }
     }
 
@@ -227,10 +244,10 @@ pub trait UiNodeImpl: Any + Send {
         match self.children_len() {
             0 => {}
             1 => self.with_child(0, &mut |c| c.0.update(updates)),
-            _ if PARALLEL_VAR.get().contains(Parallel::DEINIT) => {
-                self.par_each_child(&|_, n| n.0.update(updates));
+            _ => {
+                debug_warn_list!(self, "update");
+                self.for_each_child(&mut |_, n| n.0.update(updates))
             }
-            _ => self.for_each_child(&mut |_, n| n.0.update(updates)),
         }
     }
 
@@ -239,9 +256,7 @@ pub trait UiNodeImpl: Any + Send {
     /// [`update`]: UiNodeImpl::update
     fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         if self.is_list() {
-            #[cfg(debug_assertions)]
-            tracing::info!("UiNodeImpl is_list without implementing `update_list`");
-
+            debug_warn_list!(self, "update_list");
             let len = self.children_len();
             self.update(updates);
             if len != self.children_len() {
@@ -276,12 +291,7 @@ pub trait UiNodeImpl: Any + Send {
                 r
             }
             _ => {
-                #[cfg(debug_assertions)]
-                if self.is_list() && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-                    // wm.parallel_split() is too large to fit in BoxAnyVarValue stack space,
-                    // so default parallel here would alloc
-                    tracing::info!("UiNodeImpl is_list without implementing `measure`");
-                }
+                debug_warn_list!(self, "measure");
                 let mut accumulator = PxSize::zero();
                 self.for_each_child(&mut |_, n| accumulator = accumulator.max(n.0.measure(wm)));
                 accumulator
@@ -310,12 +320,7 @@ pub trait UiNodeImpl: Any + Send {
                     r
                 }
                 _ => {
-                    #[cfg(debug_assertions)]
-                    if PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-                        // wm.parallel_split() is too large to fit in BoxAnyVarValue stack space,
-                        // so default parallel here would alloc
-                        tracing::info!("UiNodeImpl is_list without implementing `measure_list`");
-                    }
+                    debug_warn_list!(self, "measure_list");
 
                     let mut accumulator = PxSize::zero();
                     self.for_each_child(&mut |i, n| {
@@ -359,12 +364,8 @@ pub trait UiNodeImpl: Any + Send {
                 r
             }
             _ => {
-                #[cfg(debug_assertions)]
-                if self.is_list() && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-                    // wl.parallel_split() is too large to fit in BoxAnyVarValue stack space,
-                    // so default parallel here would alloc
-                    tracing::info!("UiNodeImpl is_list without implementing `layout`");
-                }
+                debug_warn_list!(self, "layout");
+
                 let mut accumulator = PxSize::zero();
                 self.for_each_child(&mut |_, n| accumulator = accumulator.max(n.0.layout(wl)));
                 accumulator
@@ -393,12 +394,7 @@ pub trait UiNodeImpl: Any + Send {
                     r
                 }
                 _ => {
-                    #[cfg(debug_assertions)]
-                    if PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-                        // wm.parallel_split() is too large to fit in BoxAnyVarValue stack space,
-                        // so default parallel here would alloc
-                        tracing::info!("UiNodeImpl is_list without implementing `layout_list`");
-                    }
+                    debug_warn_list!(self, "layout_list");
 
                     let mut accumulator = PxSize::zero();
                     self.for_each_child(&mut |i, n| {
@@ -425,12 +421,8 @@ pub trait UiNodeImpl: Any + Send {
             0 => {}
             1 => self.with_child(0, &mut |c| c.render(frame)),
             _ => {
-                #[cfg(debug_assertions)]
-                if self.is_list() && PARALLEL_VAR.get().contains(Parallel::RENDER) {
-                    // frame.parallel_split() is too large to fit in BoxAnyVarValue stack space,
-                    // so default parallel here would alloc
-                    tracing::info!("UiNodeImpl is_list without implementing `render`");
-                }
+                debug_warn_list!(self, "render");
+
                 self.for_each_child(&mut |_, n| n.0.render(frame));
             }
         }
@@ -447,12 +439,8 @@ pub trait UiNodeImpl: Any + Send {
                 0 => {}
                 1 => self.with_child(0, &mut |n| render(0, n, frame)),
                 _ => {
-                    #[cfg(debug_assertions)]
-                    if PARALLEL_VAR.get().contains(Parallel::RENDER) {
-                        // wm.parallel_split() is too large to fit in BoxAnyVarValue stack space,
-                        // so default parallel here would alloc
-                        tracing::info!("UiNodeImpl is_list without implementing `render_list`");
-                    }
+                    debug_warn_list!(self, "render_list");
+
                     self.for_each_child(&mut |i, n| render(i, n, frame));
                 }
             }
@@ -475,12 +463,8 @@ pub trait UiNodeImpl: Any + Send {
             0 => {}
             1 => self.with_child(0, &mut |c| c.render_update(update)),
             _ => {
-                #[cfg(debug_assertions)]
-                if self.is_list() && PARALLEL_VAR.get().contains(Parallel::RENDER) {
-                    // update.parallel_split() is too large to fit in BoxAnyVarValue stack space,
-                    // so default parallel here would alloc
-                    tracing::info!("UiNodeImpl is_list without implementing `update`");
-                }
+                debug_warn_list!(self, "render_update");
+
                 self.for_each_child(&mut |_, n| n.0.render_update(update));
             }
         }
@@ -497,12 +481,8 @@ pub trait UiNodeImpl: Any + Send {
                 0 => {}
                 1 => self.with_child(0, &mut |n| render_update(0, n, update)),
                 _ => {
-                    #[cfg(debug_assertions)]
-                    if PARALLEL_VAR.get().contains(Parallel::RENDER) {
-                        // wm.parallel_split() is too large to fit in BoxAnyVarValue stack space,
-                        // so default parallel here would alloc
-                        tracing::info!("UiNodeImpl is_list without implementing `render_list`");
-                    }
+                    debug_warn_list!(self, "render_update_list");
+
                     self.for_each_child(&mut |i, n| render_update(i, n, update));
                 }
             }
@@ -516,6 +496,32 @@ pub trait UiNodeImpl: Any + Send {
         None
     }
 }
+impl dyn UiNodeImpl {
+    /// Gets if this node is a good candidate for parallelization when visiting children.
+    ///
+    /// List implementers should check this and [`PARALLEL_VAR`] to enable parallelization of node methods.
+    ///
+    /// [`PARALLEL_VAR`]: crate::widget::base::PARALLEL_VAR
+    pub fn parallelize_hint(&mut self) -> bool {
+        self.children_len() > 1 && self.non_parallel_count() >= MIN_PARALLEL
+    }
+    fn non_parallel_count(&mut self) -> usize {
+        let mut count = 0;
+        let _ = self.try_for_each_child(&mut |_, child| {
+            let cc = child.0.non_parallel_count();
+            if cc < MIN_PARALLEL {
+                count += 1 + cc;
+            }
+            if count >= MIN_PARALLEL {
+                ControlFlow::Break(BoxAnyVarValue::new(()))
+            } else {
+                ControlFlow::Continue(())
+            }
+        });
+        count
+    }
+}
+const MIN_PARALLEL: usize = 24;
 
 /// Represents an [`UiNodeImpl`] that defines a widget instance scope.
 ///
@@ -956,6 +962,18 @@ impl UiNode {
         self.0.for_each_child(&mut visitor);
     }
 
+    /// Call `visitor` for each child node of `self`, one at a time, with control flow.
+    ///
+    /// The closure parameters are the child index and the child.
+    pub fn try_for_each_child<B>(&mut self, mut visitor: impl FnMut(usize, &mut UiNode) -> ControlFlow<B>) -> ControlFlow<B>
+    where
+        B: zng_var::VarValue,
+    {
+        self.0
+            .try_for_each_child(&mut move |i, n| visitor(i, n).map_break(BoxAnyVarValue::new))
+            .map_break(|b| b.downcast::<B>().unwrap())
+    }
+
     /// Calls `visitor` for each child node in parallel.
     ///
     /// The closure parameters are the child index and the child.
@@ -1203,6 +1221,10 @@ impl UiNodeImpl for NilUiNode {
 
     fn for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode)) {}
 
+    fn try_for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>) -> ControlFlow<BoxAnyVarValue> {
+        ControlFlow::Continue(())
+    }
+
     fn par_each_child(&mut self, _: &(dyn Fn(usize, &mut UiNode) + Sync)) {}
 
     fn par_fold_reduce(
@@ -1277,6 +1299,10 @@ impl UiNodeImpl for FillUiNode {
     }
 
     fn for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode)) {}
+
+    fn try_for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>) -> ControlFlow<BoxAnyVarValue> {
+        ControlFlow::Continue(())
+    }
 
     fn par_each_child(&mut self, _: &(dyn Fn(usize, &mut UiNode) + Sync)) {}
 

@@ -472,6 +472,14 @@ mod impls {
             self.delegate_owned_mut(|n| n.0.for_each_child(visitor));
         }
 
+        fn try_for_each_child(
+            &mut self,
+            visitor: &mut dyn FnMut(usize, &mut UiNode) -> std::ops::ControlFlow<zng_var::BoxAnyVarValue>,
+        ) -> std::ops::ControlFlow<zng_var::BoxAnyVarValue> {
+            self.delegate_owned_mut(|n| n.0.try_for_each_child(visitor))
+                .unwrap_or(std::ops::ControlFlow::Continue(()))
+        }
+
         fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
             self.delegate_owned_mut(|n| n.0.par_each_child(visitor));
         }

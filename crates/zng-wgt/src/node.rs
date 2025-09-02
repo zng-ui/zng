@@ -2342,6 +2342,13 @@ where
         self.view.for_each_child(visitor);
     }
 
+    fn try_for_each_child(
+        &mut self,
+        visitor: &mut dyn FnMut(usize, &mut UiNode) -> std::ops::ControlFlow<BoxAnyVarValue>,
+    ) -> std::ops::ControlFlow<BoxAnyVarValue> {
+        self.view.try_for_each_child(visitor)
+    }
+
     fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
         self.view.par_each_child(visitor);
     }
@@ -2537,6 +2544,13 @@ where
 
     fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
         self.view.for_each_child(visitor)
+    }
+
+    fn try_for_each_child(
+        &mut self,
+        visitor: &mut dyn FnMut(usize, &mut UiNode) -> std::ops::ControlFlow<BoxAnyVarValue>,
+    ) -> std::ops::ControlFlow<BoxAnyVarValue> {
+        self.view.try_for_each_child(visitor)
     }
 
     fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {

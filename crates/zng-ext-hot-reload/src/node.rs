@@ -11,7 +11,7 @@ use zng_app::{
 };
 use zng_app_context::LocalContext;
 use zng_unit::PxSize;
-use zng_var::{IntoValue, IntoVar, Var, VarValue};
+use zng_var::{BoxAnyVarValue, IntoValue, IntoVar, Var, VarValue};
 
 use crate::{HOT_RELOAD, HOT_RELOAD_EVENT};
 
@@ -253,6 +253,13 @@ impl UiNodeImpl for HotNodeHost {
         self.instance.for_each_child(visitor);
     }
 
+    fn try_for_each_child(
+        &mut self,
+        visitor: &mut dyn FnMut(usize, &mut UiNode) -> std::ops::ControlFlow<zng_var::BoxAnyVarValue>,
+    ) -> std::ops::ControlFlow<zng_var::BoxAnyVarValue> {
+        self.instance.try_for_each_child(visitor)
+    }
+
     fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
         self.instance.par_each_child(visitor);
     }
@@ -375,6 +382,7 @@ define_api! {
 
     fn with_child(index: usize, visitor: &mut dyn FnMut(&mut UiNode));
     fn for_each_child(visitor: &mut dyn FnMut(usize, &mut UiNode));
+    fn try_for_each_child(visitor: &mut dyn FnMut(usize, &mut UiNode) -> std::ops::ControlFlow<BoxAnyVarValue>) -> std::ops::ControlFlow<BoxAnyVarValue>;
     fn par_each_child(visitor: &(dyn Fn(usize, &mut UiNode) + Sync));
     fn par_fold_reduce(
         identity: zng_var::BoxAnyVarValue,

@@ -454,7 +454,7 @@ fn check_all_features(mut args: Vec<&str>) {
                 std::fs::create_dir_all(&dir).unwrap();
                 current_full_build_dir = dir;
                 std::env::set_current_dir(&current_full_build_dir).unwrap();
-                if prev_dir != std::path::PathBuf::new() {                    
+                if prev_dir != std::path::PathBuf::new() {
                     if let Err(e) = remove_dir_all::remove_dir_all(&prev_dir) {
                         error(f!("failed to cleanup `{}`, {e}", prev_dir.display()));
                     }

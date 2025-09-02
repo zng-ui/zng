@@ -1,5 +1,11 @@
 # Unreleased
 
+* Improve UI parallelization, now can also parallelize smaller lists if the child nodes are *heavy*.
+    - Custom list nodes now should use `dyn UiNodeImpl::parallelize_hint` together with `PARALLEL_VAR` to enable parallelization.
+
+* Add `UiNode::try_for_each_child`.
+    - Custom list nodes must implement `UiNodeImpl::try_for_each_child`.
+
 * In main crate add `"dev"` feature, replaces `"debug_default"`.
     - Feature is enabled by default, recommended setup of dev/release feature pair, see [docs](https://github.com/zng-ui/zng/tree/main/crates/zng#dev).
     - `"debug_default"` is now deprecated, it was an attempt to auto enable debug features in debug builds that causes issues in downstream release builds.

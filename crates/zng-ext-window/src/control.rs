@@ -2763,6 +2763,13 @@ impl UiNodeImpl for NestedWindowNode {
         visitor(0, &mut self.c.lock().content.root)
     }
 
+    fn try_for_each_child(
+        &mut self,
+        visitor: &mut dyn FnMut(usize, &mut UiNode) -> std::ops::ControlFlow<zng_var::BoxAnyVarValue>,
+    ) -> std::ops::ControlFlow<zng_var::BoxAnyVarValue> {
+        visitor(0, &mut self.c.lock().content.root)
+    }
+
     fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
         visitor(0, &mut self.c.lock().content.root)
     }
