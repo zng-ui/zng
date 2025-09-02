@@ -500,6 +500,8 @@ impl dyn UiNodeImpl {
     /// Gets if this node is a good candidate for parallelization when visiting children.
     ///
     /// List implementers should check this and [`PARALLEL_VAR`] to enable parallelization of node methods.
+    ///
+    /// [`PARALLEL_VAR`]: crate::widget::base::PARALLEL_VAR
     pub fn parallelize_hint(&mut self) -> bool {
         self.children_len() > 1 && self.non_parallel_count() >= MIN_PARALLEL
     }
