@@ -12,14 +12,14 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-app = { path = "../zng-app", version = "0.17.2" }
-zng-ext-image = { path = "../zng-ext-image", version = "0.6.2" }
-zng-txt = { path = "../zng-txt", version = "0.4.0" }
-zng-unit = { path = "../zng-unit", version = "0.4.1" }
-zng-task = { path = "../zng-task", version = "0.7.2" }
+zng-app = { path = "../zng-app", version = "0.17.2", default-features = false }
+zng-ext-image = { path = "../zng-ext-image", version = "0.6.2", default-features = false }
+zng-txt = { path = "../zng-txt", version = "0.4.0", default-features = false }
+zng-unit = { path = "../zng-unit", version = "0.4.1", default-features = false }
+zng-task = { path = "../zng-task", version = "0.7.2", default-features = false }
 
-resvg = "0.45"
-tracing = "0.1"
+resvg = { version = "0.45", default-features = false }
+tracing = { version = "0.1", default-features = false }
 
 [package.metadata.docs.rs]
 all-features = true

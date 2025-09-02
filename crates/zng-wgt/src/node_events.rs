@@ -57,7 +57,7 @@ impl OnNodeOpArgs {
 /// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
 pub fn on_node_op(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    on_node_op_impl(child.into_node(), handler.cfg_boxed(), |_| true)
+    on_node_op_impl(child.into_node(), handler, |_| true)
 }
 fn on_node_op_impl(
     child: UiNode,
@@ -105,7 +105,7 @@ fn on_node_op_impl(
 /// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
 pub fn on_pre_node_op(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    on_pre_node_op_impl(child.into_node(), handler.cfg_boxed(), |_| true)
+    on_pre_node_op_impl(child.into_node(), handler, |_| true)
 }
 fn on_pre_node_op_impl(
     child: UiNode,
@@ -155,7 +155,7 @@ fn on_pre_node_op_impl(
 /// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
 pub fn on_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    on_node_op_impl(child.into_node(), handler.cfg_boxed(), |op| matches!(op, UiNodeOpMethod::Init))
+    on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeOpMethod::Init))
 }
 
 /// Preview [`on_init`] event.
@@ -163,7 +163,7 @@ pub fn on_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>
 /// [`on_init`]: fn@on_init
 #[property(EVENT)]
 pub fn on_pre_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    on_pre_node_op_impl(child.into_node(), handler.cfg_boxed(), |op| matches!(op, UiNodeOpMethod::Init))
+    on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeOpMethod::Init))
 }
 
 /// Widget info is now available.
@@ -192,7 +192,7 @@ pub fn on_pre_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpA
 /// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
 pub fn on_info_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    let mut handler = handler.cfg_boxed();
+    let mut handler = handler;
     let mut count = 1;
     enum State {
         WaitInfo,
@@ -239,7 +239,7 @@ pub fn on_info_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOp
 /// [`hn_once!`]: zng_app::handler::hn_once!
 #[property(EVENT)]
 pub fn on_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    on_node_op_impl(child.into_node(), handler.cfg_boxed(), |op| matches!(op, UiNodeOpMethod::Update))
+    on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeOpMethod::Update))
 }
 
 /// Preview [`on_update`] event.
@@ -258,7 +258,7 @@ pub fn on_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArg
 /// [`hn_once!`]: zng_app::handler::hn_once!
 #[property(EVENT)]
 pub fn on_pre_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    on_pre_node_op_impl(child.into_node(), handler.cfg_boxed(), |op| matches!(op, UiNodeOpMethod::Update))
+    on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeOpMethod::Update))
 }
 
 /// Widget deinited.
@@ -289,7 +289,7 @@ pub fn on_pre_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeO
 /// [`task::spawn`]: zng_task::spawn
 #[property(EVENT)]
 pub fn on_deinit(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    on_node_op_impl(child.into_node(), handler.cfg_boxed(), |op| matches!(op, UiNodeOpMethod::Deinit))
+    on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeOpMethod::Deinit))
 }
 
 /// Preview [`on_deinit`] event.
@@ -297,7 +297,7 @@ pub fn on_deinit(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArg
 /// [`on_deinit`]: fn@on_deinit
 #[property(EVENT)]
 pub fn on_pre_deinit(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    on_pre_node_op_impl(child.into_node(), handler.cfg_boxed(), |op| matches!(op, UiNodeOpMethod::Deinit))
+    on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeOpMethod::Deinit))
 }
 
 /// If the widget has been initialized.

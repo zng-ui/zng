@@ -7,5 +7,5 @@ edition = "2024"
 [dependencies]
 zng = { path = "../../crates/zng", features = ["view"] }
 zng-view = { path = "../../crates/zng-view" }
-zng-app = { path = "../../crates/zng-app" }
+zng-app = { path = "../../crates/zng-app", default-features = false }
 tracing = "0.1"

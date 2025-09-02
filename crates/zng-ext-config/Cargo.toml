@@ -22,26 +22,26 @@ toml = ["dep:toml", "zng-ext-fs-watcher/toml"]
 ron = ["dep:ron", "zng-ext-fs-watcher/ron"]
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context", version = "0.8.2" }
-zng-app = { path = "../zng-app", version = "0.17.2" }
-zng-var = { path = "../zng-var", version = "0.8.2" }
-zng-txt = { path = "../zng-txt", version = "0.4.0" }
-zng-task = { path = "../zng-task", version = "0.7.2" }
-zng-clone-move = { path = "../zng-clone-move", version = "0.3.1" }
-zng-unique-id = { path = "../zng-unique-id", version = "0.7.2" }
-zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.6.2" }
-zng-state-map = { path = "../zng-state-map", version = "0.6.2" }
-zng-unit = { path = "../zng-unit", version = "0.4.1" }
+zng-app-context = { path = "../zng-app-context", version = "0.8.2", default-features = false }
+zng-app = { path = "../zng-app", version = "0.17.2", default-features = false }
+zng-var = { path = "../zng-var", version = "0.8.2", default-features = false }
+zng-txt = { path = "../zng-txt", version = "0.4.0", default-features = false }
+zng-task = { path = "../zng-task", version = "0.7.2", default-features = false }
+zng-clone-move = { path = "../zng-clone-move", version = "0.3.1", default-features = false }
+zng-unique-id = { path = "../zng-unique-id", version = "0.7.2", default-features = false }
+zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.6.2", default-features = false }
+zng-state-map = { path = "../zng-state-map", version = "0.6.2", default-features = false }
+zng-unit = { path = "../zng-unit", version = "0.4.1", default-features = false }
 
-tracing = "0.1"
-bytemuck = { version = "1.15", features = ["derive"] }
-indexmap = { version = "2.2", features = ["serde"] }
-atomic = "0.6"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0", optional = true, features = ["preserve_order"] }
-toml = { version = "0.8", optional = true, features = ["preserve_order"] }
-ron = { version = "0.10", optional = true, features = ["indexmap"] }
-serde_yaml = { version = "0.9", optional = true }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
+indexmap = { version = "2.2", default-features = false, features = ["serde"] }
+atomic = { version = "0.6", default-features = false, features = ["fallback"] }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0", optional = true, default-features = false, features = ["std", "preserve_order"] }
+toml = { version = "0.8", optional = true, default-features = false, features = ["preserve_order"] }
+ron = { version = "0.10", optional = true, default-features = false, features = ["indexmap"] }
+serde_yaml = { version = "0.9", optional = true, default-features = false }
 
 [package.metadata.docs.rs]
 all-features = true

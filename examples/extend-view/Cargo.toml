@@ -8,7 +8,7 @@ edition = "2024"
 zng = { path = "../../crates/zng", features = ["view"] }
 zng-view = { path = "../../crates/zng-view" }
 zng-view-api = { path = "../../crates/zng-view-api" }
-zng-app = { path = "../../crates/zng-app" }
+zng-app = { path = "../../crates/zng-app", default-features = false }
 tracing = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 raw-window-handle = "0.6"

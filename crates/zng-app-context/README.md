@@ -15,14 +15,12 @@ what app is currently running in each thread and `app_local!` statics switch to 
 depending on the current thread.
 
 #### `"debug_default"`
-Enable `"multi_app"` in debug builds.
+**deprecated** enable needed features directly
 
 *Enabled by default.*
 
 #### `"dyn_closure"`
-Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-
-This speeds-up compilation time at the cost of runtime.
+**deprecated** no longer needed
 
 <!--do doc --readme #SECTION-END-->
 

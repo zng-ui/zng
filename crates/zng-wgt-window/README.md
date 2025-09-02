@@ -8,12 +8,12 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 This crate provides 2 feature flags, 1 enabled by default.
 
 #### `"debug_default"`
-Enable the `zng-wgt` crate debug defaults.
+**deprecated** enable needed features directly
 
 *Enabled by default.*
 
 #### `"dyn_closure"`
-Enable the `zng-wgt` crate dynamic closures.
+**deprecated** no longer needed
 
 <!--do doc --readme #SECTION-END-->
 

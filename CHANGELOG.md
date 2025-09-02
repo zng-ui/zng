@@ -1,5 +1,14 @@
 # Unreleased
 
+* In main crate add `"dev"` feature, replaces `"debug_default"`.
+    - Feature is enabled by default, recommended setup of dev/release feature pair, see [docs](https://github.com/zng-ui/zng/tree/main/crates/zng#dev).
+    - `"debug_default"` is now deprecated, it was an attempt to auto enable debug features in debug builds that causes issues in downstream release builds.
+* In all component crates the `"debug_default"` now has all the default features and is deprecated.
+    - Advanced users targeting component crates directly must select each feature actually needed.
+    - Next breaking release will remove all deprecated features, making component crates have no features by default.
+
+* Deprecated feature `"dyn_closure"`, no longer needed.
+* Deprecated feature `"dyn_node"`, no longer needed.
 * Add `Var<VarEq<T>>::flatten` method.
 
 # 0.16.2

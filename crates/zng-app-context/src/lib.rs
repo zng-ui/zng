@@ -443,9 +443,6 @@ impl LocalKeyDyn for LocalKey<RefCell<LocalData>> {
         let mut r = None;
         let f = |l: &LocalData| r = Some(f(l));
 
-        #[cfg(feature = "dyn_closure")]
-        let f: Box<dyn FnOnce(&LocalData)> = Box::new(f);
-
         self.with_borrow(f);
 
         r.unwrap()
@@ -454,9 +451,6 @@ impl LocalKeyDyn for LocalKey<RefCell<LocalData>> {
     fn with_borrow_mut_dyn<R>(&'static self, f: impl FnOnce(&mut LocalData) -> R) -> R {
         let mut r = None;
         let f = |l: &mut LocalData| r = Some(f(l));
-
-        #[cfg(feature = "dyn_closure")]
-        let f: Box<dyn FnOnce(&mut LocalData)> = Box::new(f);
 
         self.with_borrow_mut(f);
 

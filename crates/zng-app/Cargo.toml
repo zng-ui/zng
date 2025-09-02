@@ -12,14 +12,20 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["ipc", "debug_default", "trace_recorder"]
+default = ["debug_default"]
 
-# Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug builds.
-debug_default = ["zng-var/debug_default", "zng-app-context/dyn_closure"]
+# **deprecated** use features directly
+debug_default = [
+    "zng-var/debug_default",
+    "ipc",
+    "trace_recorder",
+    "dyn_app_extension",
+    "inspector",
+    "trace_recorder",
+    "trace_widget",
+]
 
-# Use dynamic dispatch at the node level by placing each property node in a `BoxedUiNode` and enabling `UiNode::cfg_boxed`.
-#
-# This speeds-up compilation time at the cost of runtime.
+# **deprecated** no longer needed
 dyn_node = []
 
 # Instrument each widget instance to retain build information.
@@ -30,10 +36,8 @@ inspector = []
 # This speeds-up compilation time at the cost of runtime.
 dyn_app_extension = []
 
-# Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-#
-# This speeds-up compilation time at the cost of runtime.
-dyn_closure = ["zng-var/dyn_closure", "zng-app-context/dyn_closure"]
+# **deprecated** no longer needed
+dyn_closure = []
 
 # Like `cfg(test)` but also visible in docs and integration tests.
 test_util = ["multi_app", "deadlock_detection"]
@@ -81,57 +85,57 @@ ipc = ["zng-view-api/ipc", "zng-task/ipc"]
 deadlock_detection = ["zng-task/deadlock_detection"]
 
 [dependencies]
-zng-app-proc-macros = { path = "../zng-app-proc-macros", version = "0.6.1" }
+zng-app-proc-macros = { path = "../zng-app-proc-macros", version = "0.6.1", default-features = false }
 
-zng-unique-id = { path = "../zng-unique-id", version = "0.7.2" }
-zng-env = { path = "../zng-env", version = "0.6.2" }
-zng-handle = { path = "../zng-handle", version = "0.3.1" }
-zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.5.0" }
-zng-clone-move = { path = "../zng-clone-move", version = "0.3.1" }
-zng-app-context = { path = "../zng-app-context", version = "0.8.2" }
-zng-time = { path = "../zng-time", version = "0.5.2" }
-zng-var = { path = "../zng-var", version = "0.8.2" }
-zng-txt = { path = "../zng-txt", version = "0.4.0" }
-zng-task = { path = "../zng-task", version = "0.7.2" }
+zng-unique-id = { path = "../zng-unique-id", version = "0.7.2", default-features = false }
+zng-env = { path = "../zng-env", version = "0.6.2", default-features = false }
+zng-handle = { path = "../zng-handle", version = "0.3.1", default-features = false }
+zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.5.0", default-features = false }
+zng-clone-move = { path = "../zng-clone-move", version = "0.3.1", default-features = false }
+zng-app-context = { path = "../zng-app-context", version = "0.8.2", default-features = false }
+zng-time = { path = "../zng-time", version = "0.5.2", default-features = false }
+zng-var = { path = "../zng-var", version = "0.8.2", default-features = false }
+zng-txt = { path = "../zng-txt", version = "0.4.0", default-features = false }
+zng-task = { path = "../zng-task", version = "0.7.2", default-features = false }
 zng-view-api = { path = "../zng-view-api", version = "0.14.2", features = [
     "var",
-] }
-zng-state-map = { path = "../zng-state-map", version = "0.6.2" }
-zng-layout = { path = "../zng-layout", version = "0.5.2" }
-zng-color = { path = "../zng-color", version = "0.7.2" }
+], default-features = false }
+zng-state-map = { path = "../zng-state-map", version = "0.6.2", default-features = false }
+zng-layout = { path = "../zng-layout", version = "0.5.2", default-features = false }
+zng-color = { path = "../zng-color", version = "0.7.2", default-features = false }
 
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-pretty-type-name = "1.0"
-parking_lot = "0.12"
-serde = { version = "1.0", features = ["derive"] }
-bytemuck = { version = "1.15", features = ["derive"] }
-flume = "0.11"
-atomic = "0.6"
-bitflags = { version = "2.5", features = ["serde", "bytemuck"] }
-pastey = "0.1"
-once_cell = "1.19"
-unic-langid = { version = "0.9", features = ["serde"] }
-unicase = "2.7"
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "ansi", "smallvec", "tracing-log", "env-filter"] }
+pretty-type-name = { version = "1.0", default-features = false }
+parking_lot = { version = "0.12", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
+bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
+flume = { version = "0.11", default-features = false }
+atomic = { version = "0.6", default-features = false, features = ["fallback"] }
+bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
+pastey = { version = "0.1", default-features = false }
+once_cell = { version = "1.19", features = ["std", "parking_lot"], default-features = false }
+unic-langid = { version = "0.9", default-features = false, features = ["serde"] }
+unicase = { version = "2.7", default-features = false }
 
-rustc-hash = "2.0"
+rustc-hash = { version = "2.0", default-features = false, features = ["std"] }
 
-dunce = "1.0"
+dunce = { version = "1.0", default-features = false }
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android", target_os = "ios")))'.dependencies]
-serde_json = { version = "1.0", optional = true }
-minidumper = { version = "0.8", optional = true }
-crash-handler = { version = "0.6", optional = true }
-minidump = { version = "0.26", optional = true }
-linkme = { version = "=0.3.33", optional = true }
-uuid = { version = "1.3", features = ["v4"], optional = true }
-tracing-chrome = { version = "0.7", optional = true }
+serde_json = { version = "1.0", optional = true, default-features = false, features = ["std"] }
+minidumper = { version = "0.8", optional = true, default-features = false }
+crash-handler = { version = "0.6", optional = true, default-features = false }
+minidump = { version = "0.26", optional = true, default-features = false }
+linkme = { version = "=0.3.33", optional = true, default-features = false }
+uuid = { version = "1.3", default-features = false, features = ["std", "v4"], optional = true }
+tracing-chrome = { version = "0.7", optional = true, default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-tracing-web = "0.1"
+tracing-web = { version = "0.1", default-features = false }
 
 [target.'cfg(target_os = "android")'.dependencies]
-tracing-android = "0.2"
+tracing-android = { version = "0.2", default-features = false }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(never)'] }

@@ -480,8 +480,6 @@ pub fn stack_nodes(
     index: impl IntoVar<usize>,
     constraints: impl Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send + 'static,
 ) -> UiNode {
-    #[cfg(feature = "dyn_closure")]
-    let constraints: Box<dyn Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send> = Box::new(constraints);
     stack_nodes_impl(nodes.into_node(), index, constraints)
 }
 

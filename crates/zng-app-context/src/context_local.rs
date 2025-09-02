@@ -57,8 +57,6 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     pub fn with_context<R>(&'static self, value: &mut Option<Arc<T>>, f: impl FnOnce() -> R) -> R {
         let mut r = None;
         let f = || r = Some(f());
-        #[cfg(feature = "dyn_closure")]
-        let f: Box<dyn FnOnce()> = Box::new(f);
 
         LocalContext::with_value_ctx(self, LocalValueKind::Local, value, f);
 
@@ -75,9 +73,6 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
         let mut r = None;
         let f = || r = Some(f());
 
-        #[cfg(feature = "dyn_closure")]
-        let f: Box<dyn FnOnce()> = Box::new(f);
-
         LocalContext::with_value_ctx(self, LocalValueKind::Var, value, f);
 
         r.unwrap()
@@ -88,8 +83,6 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
         let mut r = None;
         let f = || r = Some(f());
 
-        #[cfg(feature = "dyn_closure")]
-        let f: Box<dyn FnOnce()> = Box::new(f);
         LocalContext::with_default_ctx(self, f);
 
         r.unwrap()

@@ -60,7 +60,41 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 81 feature flags, 37 enabled by default.
+This crate provides 82 feature flags, 1 enabled by default.
+
+#### `"dev"`
+Defaults recommended for the dev profile (debug builds).
+
+Recommended `Cargo.toml` setup:
+
+```toml
+[dependencies]
+zng = { default-features = false }
+
+[features]
+default = ["dev"]
+
+# development features:
+dev = [
+  "zng/dev",
+  "zng/view_prebuilt",
+]
+
+# release features:
+# use `cargo build --release --no-default-features --features release` to build
+release = [
+  "zng/window",
+  "zng/view",
+  "zng/ipc",
+  "zng/crash_handler",
+  "zng/...",
+]
+```
+
+*Enabled by default.*
+
+#### `"debug_default"`
+**deprecated** use "dev"
 
 #### `"view"`
 Include the default view-process implementation.
@@ -75,20 +109,11 @@ Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_o
 #### `"http"`
 Enables HTTP tasks and web features of widgets and services.
 
-#### `"debug_default"`
-Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug builds.
-
-*Enabled by default.*
-
 #### `"svg"`
 Enable SVG image rendering, SVG emoji support.
 
 #### `"dyn_node"`
-Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.
-
-This speeds-up compilation time at the cost of runtime.
-
-*Enabled by default.*
+**deprecated** no longer needed
 
 #### `"inspector"`
 Instrument each property and widget instance with "Inspector" nodes and
@@ -107,9 +132,7 @@ Use dynamic dispatch at the app-extension level.
 This speeds-up compilation time at the cost of runtime.
 
 #### `"dyn_closure"`
-Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-
-This speeds-up compilation time at the cost of runtime.
+**deprecated** no longer needed
 
 #### `"test_util"`
 Test utilities.
@@ -138,12 +161,8 @@ Builds with this feature spawn a crash monitor-process for each app-process.
 
 Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
 
-*Enabled by default.*
-
 #### `"crash_handler_debug"`
 Enable debug crash handler view.
-
-*Enabled by default.*
 
 #### `"trace_widget"`
 Instrument every widget outer-most node to trace UI methods.
@@ -207,8 +226,6 @@ Enables software renderer fallback in the default view-process.
 
 If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
 
-*Enabled by default.*
-
 #### `"view_bundle_licenses"`
 Collects and bundles third-party licenses used by the `zng-view` crate.
 
@@ -220,8 +237,6 @@ Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
 Enables IPC tasks, pre-build views and connecting to views running in another process.
 
 Only enables in `not(any(target_os = "android", target_arch = "wasm32", target_os = "ios"))` builds.
-
-*Enabled by default.*
 
 #### `"built_res"`
 Check if `zng::env::res` path is available in `init_built_res` first.
@@ -241,149 +256,91 @@ See `https://docs.rs/winit/latest/winit/platform/android/` for more details.
 #### `"window"`
 Enable window, monitor services, widgets and properties.
 
-*Enabled by default.*
-
 #### `"third_party"`
 Enable third-party license service and types.
 
-*Enabled by default.*
-
 #### `"third_party_default"`
 Enable default third-party licenses default view.
-
-*Enabled by default.*
 
 #### `"ansi_text"`
 Enable ANSI text widget.
 
 Not enabled by default.
 
-*Enabled by default.*
-
 #### `"checkerboard"`
 Enable checkerboard widget.
-
-*Enabled by default.*
 
 #### `"clipboard"`
 Enable clipboard service.
 
-*Enabled by default.*
-
 #### `"color_filter"`
 Enable color filter properties.
-
-*Enabled by default.*
 
 #### `"fs_watcher"`
 Enable file system watcher service.
 
-*Enabled by default.*
-
 #### `"config"`
 Enable the configuration service.
-
-*Enabled by default.*
 
 #### `"settings_editor"`
 Enable settings widgets.
 
-*Enabled by default.*
-
 #### `"data_context"`
 Enable data context service and properties.
-
-*Enabled by default.*
 
 #### `"data_view"`
 Enable data view widget.
 
-*Enabled by default.*
-
 #### `"dialog"`
 Enable modal dialog overlay widget and service.
-
-*Enabled by default.*
 
 #### `"drag_drop"`
 Enable drag&drop.
 
-*Enabled by default.*
-
 #### `"grid"`
 Enable grid widget.
-
-*Enabled by default.*
 
 #### `"image"`
 Enable image service and widget.
 
-*Enabled by default.*
-
 #### `"markdown"`
 Enable markdown widget.
-
-*Enabled by default.*
 
 #### `"menu"`
 Enable menu widgets.
 
-*Enabled by default.*
-
 #### `"progress"`
 Enable progress indicator widgets.
-
-*Enabled by default.*
 
 #### `"rule_line"`
 Enable rule line widgets.
 
-*Enabled by default.*
-
 #### `"scroll"`
 Enable scroll widget.
-
-*Enabled by default.*
 
 #### `"button"`
 Enable button widget.
 
-*Enabled by default.*
-
 #### `"toggle"`
 Enable toggle widgets.
-
-*Enabled by default.*
 
 #### `"slider"`
 Enable slider widget.
 
-*Enabled by default.*
-
 #### `"stack"`
 Enable stack widget.
-
-*Enabled by default.*
 
 #### `"text_input"`
 Enable text input widgets.
 
-*Enabled by default.*
-
 #### `"tooltip"`
 Enable tooltip widget.
-
-*Enabled by default.*
 
 #### `"undo"`
 Enable undo/redo service.
 
-*Enabled by default.*
-
 #### `"wrap"`
 Enable wrap widget.
-
-*Enabled by default.*
 
 #### `"image_bmp"`
 Enable BMP image decoder and encoder with "view" feature.
@@ -429,8 +386,6 @@ Enable WEBP image decoder with "view" feature.
 
 #### `"image_all"`
 Enable all encoders and decoders.
-
-*Enabled by default.*
 
 <!--do doc --readme #SECTION-END-->
 

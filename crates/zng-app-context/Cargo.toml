@@ -21,23 +21,21 @@ default = ["debug_default"]
 # depending on the current thread.
 multi_app = []
 
-# Enable `"multi_app"` in debug builds.
-debug_default = []
+# **deprecated** enable needed features directly
+debug_default = ["multi_app"]
 
-# Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-#
-# This speeds-up compilation time at the cost of runtime.
+# **deprecated** no longer needed
 dyn_closure = []
 
 [dependencies]
-zng-unique-id = { path = "../zng-unique-id", version = "0.7.2" }
-zng-env = { path = "../zng-env", version = "0.6.2" }
-zng-txt = { path = "../zng-txt", version = "0.4.0" }
-parking_lot = "0.12"
-rustc-hash = "2.0"
-tracing = "0.1"
-serde = { version = "1.0", features = ["derive"] }
-bytemuck = { version = "1.15", features = ["derive"] }
+zng-unique-id = { path = "../zng-unique-id", version = "0.7.2", default-features = false, features = ["named"] }
+zng-env = { path = "../zng-env", version = "0.6.2", default-features = false }
+zng-txt = { path = "../zng-txt", version = "0.4.0", default-features = false }
+parking_lot = { version = "0.12", default-features = false }
+rustc-hash = { version = "2.0", default-features = false, features = ["std"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
+bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
 
 [package.metadata.docs.rs]
 all-features = true

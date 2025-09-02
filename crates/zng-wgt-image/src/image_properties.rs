@@ -447,7 +447,7 @@ impl ImgErrorArgs {
 /// [`async_hn_once!`]: zng_wgt::prelude::async_hn_once!
 #[property(EVENT, widget_impl(Image))]
 pub fn on_error(child: impl IntoUiNode, handler: impl WidgetHandler<ImgErrorArgs>) -> UiNode {
-    let mut handler = handler.cfg_boxed();
+    let mut handler = handler;
     let mut error = Txt::from_str("");
     let mut first_update = false;
 
@@ -507,7 +507,7 @@ pub fn on_error(child: impl IntoUiNode, handler: impl WidgetHandler<ImgErrorArgs
 /// [`async_hn_once!`]: zng_wgt::prelude::async_hn_once!
 #[property(EVENT, widget_impl(Image))]
 pub fn on_load(child: impl IntoUiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> UiNode {
-    let mut handler = handler.cfg_boxed();
+    let mut handler = handler;
     let mut first_update = false;
 
     match_node(child, move |_, op| match op {

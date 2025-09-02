@@ -126,7 +126,7 @@ impl DataView {
 #[property(CHILD, widget_impl(DataView))]
 pub fn view<D: VarValue>(child: impl IntoUiNode, data: impl IntoVar<D>, update: impl WidgetHandler<DataViewArgs<D>>) -> UiNode {
     let data = data.into_var();
-    let mut update = update.cfg_boxed();
+    let mut update = update;
     let replace = Arc::new(Mutex::new((false, UiNode::nil())));
 
     match_node(child, move |c, op| match op {

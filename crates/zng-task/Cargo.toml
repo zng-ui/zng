@@ -19,12 +19,7 @@ deadlock_detection = ["parking_lot/deadlock_detection"]
 # Enables ipc tasks.
 #
 # Only enables in `cfg(not(any(target_os = "android", target_arch = "wasm32", target_os = "ios")))` builds.
-ipc = [
-    "dep:duct",
-    "dep:serde",
-    "dep:ipc-channel",
-    "dep:zng-unique-id",
-]
+ipc = ["dep:duct", "dep:serde", "dep:ipc-channel", "dep:zng-unique-id"]
 
 # Enables http tasks.
 http = [
@@ -46,48 +41,62 @@ http = [
 test_util = []
 
 [dependencies]
-zng-task-proc-macros = { path = "../zng-task-proc-macros", version = "0.3.0" }
-zng-clone-move = { path = "../zng-clone-move", version = "0.3.1" }
-zng-unit = { path = "../zng-unit", version = "0.4.1" }
-zng-app-context = { path = "../zng-app-context", version = "0.8.2" }
-zng-time = { path = "../zng-time", version = "0.5.2" }
-zng-var = { path = "../zng-var", version = "0.8.2" }
-zng-env = { path = "../zng-env", version = "0.6.2" }
-zng-txt = { path = "../zng-txt", version = "0.4.0" }
-zng-state-map = { path = "../zng-state-map", version = "0.6.2" }
+zng-task-proc-macros = { path = "../zng-task-proc-macros", version = "0.3.0", default-features = false }
+zng-clone-move = { path = "../zng-clone-move", version = "0.3.1", default-features = false }
+zng-unit = { path = "../zng-unit", version = "0.4.1", default-features = false }
+zng-app-context = { path = "../zng-app-context", version = "0.8.2", default-features = false }
+zng-time = { path = "../zng-time", version = "0.5.2", default-features = false }
+zng-var = { path = "../zng-var", version = "0.8.2", default-features = false }
+zng-env = { path = "../zng-env", version = "0.6.2", default-features = false }
+zng-txt = { path = "../zng-txt", version = "0.4.0", default-features = false }
+zng-state-map = { path = "../zng-state-map", version = "0.6.2", default-features = false }
 
 zng-unique-id = { path = "../zng-unique-id", version = "0.7.2", default-features = false, optional = true }
 
-tracing = "0.1"
-pretty-type-name = "1.0"
+tracing = { version = "0.1", default-features = false }
+pretty-type-name = { version = "1.0", default-features = false }
 flume = { version = "0.11", default-features = false, features = ["async"] }
-rayon = "1.10"
-blocking = "1.5"
-parking_lot = "0.12"
-futures-timer = "3.0"
+rayon = { version = "1.10", default-features = false }
+blocking = { version = "1.5", default-features = false }
+parking_lot = { version = "0.12", default-features = false }
+futures-timer = { version = "3.0", default-features = false }
 
-isahc = { version = "1.7", features = ["cookies", "json"], optional = true }
-futures-lite = "2.3"
-async-fs = "2.1"
-serde = { version = "1.0", optional = true }
-serde_json = { version = "1.0", optional = true }
-http-cache-semantics = { version = "1.0", optional = true }                  # isahc needs this version
-http-serde = { version = "1.1", optional = true }
-once_cell = { version = "1.19", optional = true }
-async-recursion = { version = "1.1", optional = true }
-async-trait = { version = "0.1", optional = true }
-sha2 = { version = "0.10", optional = true }
-base64 = { version = "0.22", optional = true }
-remove_dir_all = { version = "1", optional = true }
-dunce = "1.0"
+isahc = { version = "1.7", default-features = false, features = [
+    "http2",
+    "static-curl",
+    "text-decoding",
+    "cookies",
+    "json",
+], optional = true }
+futures-lite = { version = "2.3", default-features = false }
+async-fs = { version = "2.1", default-features = false }
+serde = { version = "1.0", default-features = false, optional = true }
+serde_json = { version = "1.0", default-features = false, features = [
+    "std",
+], optional = true }
+http-cache-semantics = { version = "1.0", default-features = false, features = [
+    "with_serde",
+], optional = true } # isahc needs this version
+http-serde = { version = "1.1", default-features = false, optional = true }
+once_cell = { version = "1.19", default-features = false, features = [
+    "parking_lot",
+], optional = true }
+async-recursion = { version = "1.1", default-features = false, optional = true }
+async-trait = { version = "0.1", default-features = false, optional = true }
+sha2 = { version = "0.10", default-features = false, optional = true }
+base64 = { version = "0.22", default-features = false, features = ["std"], optional = true }
+remove_dir_all = { version = "1", default-features = false, optional = true }
+dunce = { version = "1.0", default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-duct = { version = "1.0", optional = true }
-fs4 = { version = "0.13", optional = true }
-ipc-channel = { version = "0.20", optional = true }
+duct = { version = "1.0", default-features = false, optional = true }
+fs4 = { version = "0.13", default-features = false, features = [
+    "sync",
+], optional = true }
+ipc-channel = { version = "0.20", default-features = false, optional = true }
 
 [build-dependencies]
-cfg_aliases = "0.2"
+cfg_aliases = { version = "0.2", default-features = false }
 
 [package.metadata.docs.rs]
 all-features = true

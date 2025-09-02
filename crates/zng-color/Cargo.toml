@@ -12,11 +12,11 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-color-proc-macros = { path = "../zng-color-proc-macros", version = "0.3.0" }
-zng-layout = { path = "../zng-layout", version = "0.5.2" }
-zng-app-context = { path = "../zng-app-context", version = "0.8.2" }
-zng-var = { path = "../zng-var", version = "0.8.2" }
-zng-view-api = { path = "../zng-view-api", version = "0.14.2" }
+zng-color-proc-macros = { path = "../zng-color-proc-macros", version = "0.3.0", default-features = false }
+zng-layout = { path = "../zng-layout", version = "0.5.2", default-features = false }
+zng-app-context = { path = "../zng-app-context", version = "0.8.2", default-features = false }
+zng-var = { path = "../zng-var", version = "0.8.2", default-features = false }
+zng-view-api = { path = "../zng-view-api", version = "0.14.2", default-features = false }
 
-pastey = "0.1"
-serde = "1.0"
+pastey = { version = "0.1", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["std", "derive"] }

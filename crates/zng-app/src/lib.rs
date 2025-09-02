@@ -1331,8 +1331,6 @@ impl<E: AppExtension> AppExtended<E> {
     /// by opening a window, the app will keep running after `start` is finished.
     pub fn run<F: Future<Output = ()> + Send + 'static>(self, start: impl IntoFuture<IntoFuture = F>) {
         let start = start.into_future();
-        #[cfg(feature = "dyn_closure")]
-        let start = Box::pin(start);
         self.run_impl(start)
     }
 

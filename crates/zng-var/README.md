@@ -8,7 +8,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 This crate provides 3 feature flags, 1 enabled by default.
 
 #### `"debug_default"`
-Signal the build script to enable the more features in debug builds.
+**deprecated** enable needed features directly
 
 *Enabled by default.*
 
@@ -16,9 +16,7 @@ Signal the build script to enable the more features in debug builds.
 Add `value_type_name` method to get the diagnostics type name from variable values.
 
 #### `"dyn_closure"`
-Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-
-This speeds-up compilation time at the cost of runtime.
+**deprecated** no longer needed
 
 <!--do doc --readme #SECTION-END-->
 

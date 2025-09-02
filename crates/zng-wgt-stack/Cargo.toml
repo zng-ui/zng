@@ -12,24 +12,22 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["debug_default"]
-# Enables the `"dyn_closure"` in debug builds.
+default = []
+# **deprecated** no longer needed
 debug_default = []
-# Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-#
-# This speeds-up compilation time at the cost of runtime.
+# **deprecated** no longer needed
 dyn_closure = []
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.9.2" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.6.2" }
-zng-app = { path = "../zng-app", version = "0.17.2" }
-zng-layout = { path = "../zng-layout", version = "0.5.2" }
-zng-var = { path = "../zng-var", version = "0.8.2" }
+zng-wgt = { path = "../zng-wgt", version = "0.9.2", default-features = false }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.6.2", default-features = false }
+zng-app = { path = "../zng-app", version = "0.17.2", default-features = false }
+zng-layout = { path = "../zng-layout", version = "0.5.2", default-features = false }
+zng-var = { path = "../zng-var", version = "0.8.2", default-features = false }
 
-euclid = "0.22"
-serde = { version = "1.0", features = ["derive"] }
-tracing = "0.1"
+euclid = { version = "0.22", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+tracing = { version = "0.1", default-features = false }
 
 [package.metadata.docs.rs]
 all-features = true

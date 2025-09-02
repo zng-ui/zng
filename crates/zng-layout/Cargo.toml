@@ -12,16 +12,16 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-unit = { path = "../zng-unit", version = "0.4.1" }
-zng-var = { path = "../zng-var", version = "0.8.2" }
-zng-app-context = { path = "../zng-app-context", version = "0.8.2" }
+zng-unit = { path = "../zng-unit", version = "0.4.1", default-features = false }
+zng-var = { path = "../zng-var", version = "0.8.2", default-features = false }
+zng-app-context = { path = "../zng-app-context", version = "0.8.2", default-features = false }
 
-serde = { version = "1.0", features = ["derive", "rc"] }
-bitflags = { version = "2.5", features = ["serde", "bytemuck"] }
-bytemuck = { version = "1.15", features = ["derive"] }
-tracing = "0.1"
-atomic = "0.6"
-unicode-bidi = "0.3"
+serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
+bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
+bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
+tracing = { version = "0.1", default-features = false }
+atomic = { version = "0.6", default-features = false, features = ["fallback"] }
+unicode-bidi = { version = "0.3", default-features = false, features = ["hardcoded-data"] }
 
 [dev-dependencies]
-serde_json = "1.0"
+serde_json = {version = "1.0", default-features = false, features = ["std"] }

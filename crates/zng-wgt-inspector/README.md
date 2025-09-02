@@ -8,7 +8,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 This crate provides 3 feature flags, 1 enabled by default.
 
 #### `"debug_default"`
-Enables the `"live"` feature in debug builds.
+**deprecated** enable needed features directly
 
 *Enabled by default.*
 

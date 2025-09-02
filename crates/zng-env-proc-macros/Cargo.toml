@@ -15,11 +15,11 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "1.0"
-quote = "1.0"
+proc-macro2 = { version = "1.0", default-features = false }
+quote = { version = "1.0", default-features = false }
 
-toml = "0.8"
-serde = { version = "1.0", features = ["derive"] }
-semver = { version = "1.0", features = ["serde"] }
+toml = { version = "0.8", default-features = false, features = ["parse"] }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+semver = { version = "1.0", default-features = false, features = ["serde"] }
 
-sha2 = "0.10"
+sha2 = { version = "0.10", default-features = false }

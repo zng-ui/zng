@@ -12,35 +12,33 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["debug_default"]
-# Enables the `"dyn_closure"` in debug builds.
+default = []
+# **deprecated** no longer needed
 debug_default = []
-# Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-#
-# This speeds-up compilation time at the cost of runtime.
+# **deprecated** no longer needed
 dyn_closure = []
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.9.2" }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.6.2" }
-zng-wgt-access = { path = "../zng-wgt-access", version = "0.6.2" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.6.2" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.8.2" }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.6.2" }
-zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.7.2" }
-zng-app = { path = "../zng-app", version = "0.17.2" }
-zng-ext-window = { path = "../zng-ext-window", version = "0.7.2" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.9.2" }
-zng-var = { path = "../zng-var", version = "0.8.2" }
-zng-color = { path = "../zng-color", version = "0.7.2" }
+zng-wgt = { path = "../zng-wgt", version = "0.9.2", default-features = false }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.6.2", default-features = false }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.6.2", default-features = false }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.6.2", default-features = false }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.8.2", default-features = false }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.6.2", default-features = false }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.7.2", default-features = false }
+zng-app = { path = "../zng-app", version = "0.17.2", default-features = false }
+zng-ext-window = { path = "../zng-ext-window", version = "0.7.2", default-features = false }
+zng-ext-input = { path = "../zng-ext-input", version = "0.9.2", default-features = false }
+zng-var = { path = "../zng-var", version = "0.8.2", default-features = false }
+zng-color = { path = "../zng-color", version = "0.7.2", default-features = false }
 
-serde = { version = "1.0", features = ["derive"] }
-atomic = "0.6"
-bitflags = { version = "2.5", features = ["serde", "bytemuck"] }
-bytemuck = { version = "1.15", features = ["derive"] }
-euclid = "0.22"
-parking_lot = "0.12"
-tracing = "0.1"
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+atomic = { version = "0.6", default-features = false, features = ["fallback"] }
+bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
+bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
+euclid = { version = "0.22", default-features = false }
+parking_lot = { version = "0.12", default-features = false }
+tracing = { version = "0.1", default-features = false }
 
 [package.metadata.docs.rs]
 all-features = true

@@ -65,7 +65,7 @@ The `Cargo.toml` fragment below show changes you can add to the previous example
 ```toml
 [features]
 release = [
-    "zng/dyn_closure", # avoids many monomorphised copies of generic functions
+    "zng/dyn_app_extension",
 ]
 
 [profile.release]
