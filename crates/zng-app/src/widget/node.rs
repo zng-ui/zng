@@ -1,6 +1,6 @@
 //! Widget nodes types, [`UiNode`], [`UiVec`] and others.
 
-use std::any::Any;
+use std::{any::Any, ops::ControlFlow};
 
 mod adopt;
 pub use adopt::*;
@@ -75,6 +75,26 @@ pub trait UiNodeImpl: Any + Send {
         }
     }
 
+    /// Call `visitor` for each child node of `self`, one at a time, with control flow.
+    ///
+    /// The closure parameters are the child index and the child.
+    fn try_for_each_child(
+        &mut self,
+        visitor: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>,
+    ) -> ControlFlow<BoxAnyVarValue> {
+        #[cfg(debug_assertions)]
+        if self.is_list() {
+            tracing::warn!("UiNodeImpl is_list without implementing `try_for_each_child`");
+        }
+
+        for i in 0..self.children_len() {
+            let mut flow = ControlFlow::Continue(());
+            self.with_child(i, &mut |n| flow = visitor(i, n));
+            flow?;
+        }
+        ControlFlow::Continue(())
+    }
+
     /// Calls `visitor` for each child node in parallel.
     ///
     /// The closure parameters are the child index and the child.
@@ -132,6 +152,7 @@ pub trait UiNodeImpl: Any + Send {
             0 => {}
             1 => self.with_child(0, &mut |c| c.0.init()),
             _ if PARALLEL_VAR.get().contains(Parallel::INIT) => {
+                // !!: TODO
                 self.par_each_child(&|_, n| n.0.init());
             }
             _ => self.for_each_child(&mut |_, n| n.0.init()),
@@ -516,6 +537,30 @@ pub trait UiNodeImpl: Any + Send {
         None
     }
 }
+impl dyn UiNodeImpl {
+    /// Gets if this node is a good candidate for parallelization when visiting children.
+    ///
+    /// List implementers should check this and [`PARALLEL_VAR`] to enable parallelization of node methods.
+    pub fn parallelize_hint(&mut self) -> bool {
+        self.children_len() > 1 && self.non_parallel_count() >= MIN_PARALLEL
+    }
+    fn non_parallel_count(&mut self) -> usize {
+        let mut count = 0;
+        let _ = self.try_for_each_child(&mut |_, child| {
+            let cc = child.0.non_parallel_count();
+            if cc < MIN_PARALLEL {
+                count += 1 + cc;
+            }
+            if count >= MIN_PARALLEL {
+                ControlFlow::Break(BoxAnyVarValue::new(()))
+            } else {
+                ControlFlow::Continue(())
+            }
+        });
+        count
+    }
+}
+const MIN_PARALLEL: usize = 24;
 
 /// Represents an [`UiNodeImpl`] that defines a widget instance scope.
 ///
@@ -956,6 +1001,18 @@ impl UiNode {
         self.0.for_each_child(&mut visitor);
     }
 
+    /// Call `visitor` for each child node of `self`, one at a time, with control flow.
+    ///
+    /// The closure parameters are the child index and the child.
+    pub fn try_for_each_child<B>(&mut self, mut visitor: impl FnMut(usize, &mut UiNode) -> ControlFlow<B>) -> ControlFlow<B>
+    where
+        B: zng_var::VarValue,
+    {
+        self.0
+            .try_for_each_child(&mut move |i, n| visitor(i, n).map_break(BoxAnyVarValue::new))
+            .map_break(|b| b.downcast::<B>().unwrap())
+    }
+
     /// Calls `visitor` for each child node in parallel.
     ///
     /// The closure parameters are the child index and the child.
@@ -1203,6 +1260,10 @@ impl UiNodeImpl for NilUiNode {
 
     fn for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode)) {}
 
+    fn try_for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>) -> ControlFlow<BoxAnyVarValue> {
+        ControlFlow::Continue(())
+    }
+
     fn par_each_child(&mut self, _: &(dyn Fn(usize, &mut UiNode) + Sync)) {}
 
     fn par_fold_reduce(
@@ -1277,6 +1338,10 @@ impl UiNodeImpl for FillUiNode {
     }
 
     fn for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode)) {}
+
+    fn try_for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>) -> ControlFlow<BoxAnyVarValue> {
+        ControlFlow::Continue(())
+    }
 
     fn par_each_child(&mut self, _: &(dyn Fn(usize, &mut UiNode) + Sync)) {}
 

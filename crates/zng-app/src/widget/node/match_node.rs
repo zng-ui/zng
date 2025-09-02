@@ -480,6 +480,13 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
             visitor(0, &mut self.child.node)
         }
 
+        fn try_for_each_child(
+            &mut self,
+            visitor: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>,
+        ) -> ControlFlow<BoxAnyVarValue> {
+            visitor(0, &mut self.child.node)
+        }
+
         fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
             visitor(0, &mut self.child.node)
         }
@@ -762,6 +769,13 @@ pub fn match_node_leaf(closure: impl FnMut(UiNodeOp) + Send + 'static) -> UiNode
 
         fn for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode)) {}
 
+        fn try_for_each_child(
+            &mut self,
+            _: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>,
+        ) -> ControlFlow<BoxAnyVarValue> {
+            ControlFlow::Continue(())
+        }
+
         fn par_each_child(&mut self, _: &(dyn Fn(usize, &mut UiNode) + Sync)) {}
 
         fn par_fold_reduce(
@@ -1019,6 +1033,13 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
         }
 
         fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+            visitor(0, &mut self.child.node)
+        }
+
+        fn try_for_each_child(
+            &mut self,
+            visitor: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>,
+        ) -> ControlFlow<BoxAnyVarValue> {
             visitor(0, &mut self.child.node)
         }
 

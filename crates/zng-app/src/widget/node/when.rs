@@ -195,6 +195,13 @@ impl UiNodeImpl for WhenUiNode {
         self.child_mut_with_handles().0.0.for_each_child(visitor);
     }
 
+    fn try_for_each_child(
+        &mut self,
+        visitor: &mut dyn FnMut(usize, &mut UiNode) -> std::ops::ControlFlow<zng_var::BoxAnyVarValue>,
+    ) -> std::ops::ControlFlow<zng_var::BoxAnyVarValue> {
+        self.child_mut_with_handles().0.0.try_for_each_child(visitor)
+    }
+
     fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
         self.child_mut_with_handles().0.0.par_each_child(visitor);
     }

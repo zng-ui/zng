@@ -1,6 +1,7 @@
 use std::{
     cmp::Ordering,
-    fmt, mem, ops,
+    fmt, mem,
+    ops::{self, ControlFlow},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering::Relaxed},
@@ -122,11 +123,6 @@ macro_rules! ui_vec_items {
     };
 }
 
-/// Parallel iterator need to capture the context (clone of a HashMap), methods with mut inputs also need to
-/// clone the builder  for folding. Now a list can have just two children and they could be heavy, but there is no way
-/// cheap to know this on call site, so this number should assume small children.
-const MIN_LEN_PARALLEL: usize = 16;
-
 /// Vec of boxed UI nodes.
 ///
 /// This is a thin wrapper around `Vec<UiNode>` that adds helper methods for pushing widgets without needing to box.
@@ -233,8 +229,18 @@ impl UiNodeImpl for UiVec {
         }
     }
 
+    fn try_for_each_child(
+        &mut self,
+        visitor: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>,
+    ) -> ControlFlow<BoxAnyVarValue> {
+        for (i, n) in self.0.iter_mut().enumerate() {
+            visitor(i, n)?;
+        }
+        ControlFlow::Continue(())
+    }
+
     fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
-        if self.len() >= MIN_LEN_PARALLEL {
+        if self.len() >= MIN_PARALLEL {
             self.par_iter_mut().enumerate().with_ctx().for_each(|(i, n)| visitor(i, n))
         } else {
             self.iter_mut().enumerate().for_each(|(i, n)| visitor(i, n))
@@ -255,7 +261,7 @@ impl UiNodeImpl for UiVec {
     }
 
     fn init(&mut self) {
-        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::INIT) {
+        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::INIT) {
             self.par_iter_mut().with_ctx().for_each(|n| n.init());
         } else {
             self.iter_mut().for_each(|n| n.init());
@@ -263,7 +269,7 @@ impl UiNodeImpl for UiVec {
     }
 
     fn deinit(&mut self) {
-        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::DEINIT) {
+        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::DEINIT) {
             self.par_iter_mut().with_ctx().for_each(|n| n.deinit());
         } else {
             self.iter_mut().for_each(|n| n.deinit());
@@ -271,7 +277,7 @@ impl UiNodeImpl for UiVec {
     }
 
     fn info(&mut self, info: &mut WidgetInfoBuilder) {
-        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::INFO) {
+        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::INFO) {
             let b = self
                 .par_iter_mut()
                 .with_ctx()
@@ -296,7 +302,7 @@ impl UiNodeImpl for UiVec {
     }
 
     fn event(&mut self, update: &EventUpdate) {
-        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::EVENT) {
+        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::EVENT) {
             self.par_iter_mut().with_ctx().for_each(|n| n.event(update));
         } else {
             self.iter_mut().for_each(|n| n.event(update));
@@ -304,7 +310,7 @@ impl UiNodeImpl for UiVec {
     }
 
     fn update(&mut self, updates: &WidgetUpdates) {
-        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::UPDATE) {
+        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::UPDATE) {
             self.par_iter_mut().with_ctx().for_each(|n| n.update(updates));
         } else {
             self.iter_mut().for_each(|n| n.update(updates));
@@ -315,7 +321,7 @@ impl UiNodeImpl for UiVec {
     }
 
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
             let (b, desired_size) = self
                 .par_iter_mut()
                 .with_ctx()
@@ -348,7 +354,7 @@ impl UiNodeImpl for UiVec {
         measure: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
         fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
     ) -> PxSize {
-        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
             let (b, desired_size) = self
                 .par_iter_mut()
                 .enumerate()
@@ -379,7 +385,7 @@ impl UiNodeImpl for UiVec {
     }
 
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
             let (b, final_size) = self
                 .par_iter_mut()
                 .with_ctx()
@@ -412,7 +418,7 @@ impl UiNodeImpl for UiVec {
         layout: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
         fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
     ) -> PxSize {
-        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
             let (b, desired_size) = self
                 .par_iter_mut()
                 .enumerate()
@@ -443,7 +449,7 @@ impl UiNodeImpl for UiVec {
     }
 
     fn render(&mut self, frame: &mut FrameBuilder) {
-        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::RENDER) {
             let mut par_start = 0;
             while frame.is_outer() && par_start < self.len() {
                 // complete current widget first
@@ -474,7 +480,7 @@ impl UiNodeImpl for UiVec {
     }
 
     fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
-        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::RENDER) {
             let mut par_start = 0;
             while frame.is_outer() && par_start < self.len() {
                 // complete current widget first
@@ -506,7 +512,7 @@ impl UiNodeImpl for UiVec {
     }
 
     fn render_update(&mut self, update: &mut FrameUpdate) {
-        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::RENDER) {
             let mut par_start = 0;
             while update.is_outer() && par_start < self.len() {
                 // complete current widget first
@@ -537,7 +543,7 @@ impl UiNodeImpl for UiVec {
     }
 
     fn render_update_list(&mut self, update: &mut FrameUpdate, render_update: &(dyn Fn(usize, &mut UiNode, &mut FrameUpdate) + Sync)) {
-        if self.len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::RENDER) {
             let mut par_start = 0;
             while update.is_outer() && par_start < self.len() {
                 // complete current widget first
@@ -672,6 +678,25 @@ impl UiNodeImpl for ChainList {
         }
     }
 
+    fn try_for_each_child(
+        &mut self,
+        visitor: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>,
+    ) -> ControlFlow<BoxAnyVarValue> {
+        let mut offset = 0;
+        for c in self.0.iter_mut() {
+            if c.is_list() {
+                let mut cf = ControlFlow::Continue(());
+                c.for_each_child(|i, n| cf = visitor(offset + i, n));
+                cf?;
+                offset += c.children_len();
+            } else {
+                visitor(offset, c)?;
+                offset += 1;
+            }
+        }
+        ControlFlow::Continue(())
+    }
+
     fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
         let mut offset = 0;
         for c in self.0.iter_mut() {
@@ -727,7 +752,7 @@ impl UiNodeImpl for ChainList {
 
     fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         if observer.is_reset_only() {
-            if self.children_len() >= MIN_LEN_PARALLEL && PARALLEL_VAR.get().contains(Parallel::UPDATE) {
+            if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::UPDATE) {
                 let changed = self
                     .0
                     .par_iter_mut()
@@ -983,6 +1008,20 @@ impl UiNodeImpl for SortingList {
             for (i, &actual_i) in map.iter().enumerate() {
                 list.with_child(actual_i, |n| visitor(i, n));
             }
+        })
+    }
+
+    fn try_for_each_child(
+        &mut self,
+        visitor: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>,
+    ) -> ControlFlow<BoxAnyVarValue> {
+        self.with_map(|map, list| {
+            for (i, &actual_i) in map.iter().enumerate() {
+                let mut cf = ControlFlow::Continue(());
+                list.with_child(actual_i, |n| cf = visitor(i, n));
+                cf?;
+            }
+            ControlFlow::Continue(())
         })
     }
 
@@ -1415,6 +1454,13 @@ impl UiNodeImpl for EditableUiVec {
 
     fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
         self.vec.for_each_child(visitor);
+    }
+
+    fn try_for_each_child(
+        &mut self,
+        visitor: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>,
+    ) -> ControlFlow<BoxAnyVarValue> {
+        self.vec.try_for_each_child(visitor)
     }
 
     fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
@@ -2109,6 +2155,17 @@ where
         self.list.for_each_child(|i, u| visitor(i, u, data[i].get_mut()));
     }
 
+    /// Call `visitor` for each child node of `self`, one at a time, with control flow.
+    ///
+    /// The closure parameters are the child index, the child and the associated data.
+    pub fn try_for_each_child<B: zng_var::VarValue>(
+        &mut self,
+        visitor: &mut dyn FnMut(usize, &mut UiNode, &mut D) -> ControlFlow<B>,
+    ) -> ControlFlow<B> {
+        let data = &mut self.data;
+        self.list.try_for_each_child(|i, u| visitor(i, u, data[i].get_mut()))
+    }
+
     /// Calls `visitor` for each child node in parallel.
     ///
     /// The closure parameters are the child index, the child and the associated data.
@@ -2396,6 +2453,13 @@ where
 
     fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
         self.list.0.for_each_child(visitor);
+    }
+
+    fn try_for_each_child(
+        &mut self,
+        visitor: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>,
+    ) -> ControlFlow<BoxAnyVarValue> {
+        self.list.0.try_for_each_child(visitor)
     }
 
     fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
