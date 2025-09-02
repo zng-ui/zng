@@ -180,6 +180,7 @@ features = [
     "Win32_Devices_DeviceAndDriverInstallation",
     "Win32_Devices_HumanInterfaceDevice",
     "Win32_System",
+    "Win32_System_Memory",
 ]
 
 [target.'cfg(windows)'.dependencies]
