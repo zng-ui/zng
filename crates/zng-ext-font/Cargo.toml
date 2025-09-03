@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-font"
-version = "0.8.2"
+version = "0.8.3"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -25,16 +25,16 @@ svg = []
 
 [dependencies]
 zng-clone-move = { path = "../zng-clone-move", version = "0.3.1", default-features = false }
-zng-app-context = { path = "../zng-app-context", version = "0.8.2", default-features = false }
-zng-app = { path = "../zng-app", version = "0.17.2", default-features = false }
-zng-txt = { path = "../zng-txt", version = "0.4.0", default-features = false }
-zng-view-api = { path = "../zng-view-api", version = "0.14.2", default-features = false }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.9.2", default-features = false }
-zng-var = { path = "../zng-var", version = "0.8.2", default-features = false }
-zng-task = { path = "../zng-task", version = "0.7.2", default-features = false }
-zng-layout = { path = "../zng-layout", version = "0.5.2", default-features = false }
-zng-color = { path = "../zng-color", version = "0.7.2", default-features = false }
-zng-ext-image = { path = "../zng-ext-image", version = "0.6.2", default-features = false }
+zng-app-context = { path = "../zng-app-context", version = "0.8.3", default-features = false }
+zng-app = { path = "../zng-app", version = "0.17.3", default-features = false }
+zng-txt = { path = "../zng-txt", version = "0.4.1", default-features = false }
+zng-view-api = { path = "../zng-view-api", version = "0.14.3", default-features = false }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.9.3", default-features = false }
+zng-var = { path = "../zng-var", version = "0.8.3", default-features = false }
+zng-task = { path = "../zng-task", version = "0.7.3", default-features = false }
+zng-layout = { path = "../zng-layout", version = "0.5.3", default-features = false }
+zng-color = { path = "../zng-color", version = "0.7.3", default-features = false }
+zng-ext-image = { path = "../zng-ext-image", version = "0.6.3", default-features = false }
 
 serde = { version = "1.0", default-features = false }
 unicase = { version = "2.7", default-features = false }

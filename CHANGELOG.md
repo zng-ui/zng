@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.16.3
+
 * Improve UI parallelization, now can also parallelize smaller lists if the child nodes are *heavy*.
     - Custom list nodes now should use `dyn UiNodeImpl::parallelize_hint` together with `PARALLEL_VAR` to enable parallelization.
 
