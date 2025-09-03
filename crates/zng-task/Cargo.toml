@@ -1,6 +1,6 @@
 [package]
 name = "zng-task"
-version = "0.7.2"
+version = "0.7.3"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -41,17 +41,17 @@ http = [
 test_util = []
 
 [dependencies]
-zng-task-proc-macros = { path = "../zng-task-proc-macros", version = "0.3.0", default-features = false }
+zng-task-proc-macros = { path = "../zng-task-proc-macros", version = "0.3.1", default-features = false }
 zng-clone-move = { path = "../zng-clone-move", version = "0.3.1", default-features = false }
-zng-unit = { path = "../zng-unit", version = "0.4.1", default-features = false }
-zng-app-context = { path = "../zng-app-context", version = "0.8.2", default-features = false }
-zng-time = { path = "../zng-time", version = "0.5.2", default-features = false }
-zng-var = { path = "../zng-var", version = "0.8.2", default-features = false }
-zng-env = { path = "../zng-env", version = "0.6.2", default-features = false }
-zng-txt = { path = "../zng-txt", version = "0.4.0", default-features = false }
-zng-state-map = { path = "../zng-state-map", version = "0.6.2", default-features = false }
+zng-unit = { path = "../zng-unit", version = "0.4.2", default-features = false }
+zng-app-context = { path = "../zng-app-context", version = "0.8.3", default-features = false }
+zng-time = { path = "../zng-time", version = "0.5.3", default-features = false }
+zng-var = { path = "../zng-var", version = "0.8.3", default-features = false }
+zng-env = { path = "../zng-env", version = "0.6.3", default-features = false }
+zng-txt = { path = "../zng-txt", version = "0.4.1", default-features = false }
+zng-state-map = { path = "../zng-state-map", version = "0.6.3", default-features = false }
 
-zng-unique-id = { path = "../zng-unique-id", version = "0.7.2", default-features = false, optional = true }
+zng-unique-id = { path = "../zng-unique-id", version = "0.7.3", default-features = false, optional = true }
 
 tracing = { version = "0.1", default-features = false }
 pretty-type-name = { version = "1.0", default-features = false }
