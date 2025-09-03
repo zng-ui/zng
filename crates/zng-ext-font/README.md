@@ -10,7 +10,7 @@ This crate provides 2 feature flags, 0 enabled by default.
 #### `"hyphenation_embed_all"`
 Embed hyphenation dictionaries.
 
-See the `hyphenation` for more details.
+See the `hyphenation` crate for more details.
 
 #### `"svg"`
 Enable support for SVG image glyphs.
