@@ -1214,65 +1214,6 @@ impl UiNodeImpl for NilUiNode {
     }
 
     fn with_child(&mut self, _: usize, _: &mut dyn FnMut(&mut UiNode)) {}
-
-    fn is_list(&self) -> bool {
-        false
-    }
-
-    fn for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode)) {}
-
-    fn try_for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>) -> ControlFlow<BoxAnyVarValue> {
-        ControlFlow::Continue(())
-    }
-
-    fn par_each_child(&mut self, _: &(dyn Fn(usize, &mut UiNode) + Sync)) {}
-
-    fn par_fold_reduce(
-        &mut self,
-        identity: BoxAnyVarValue,
-        _: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
-        _: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
-    ) -> BoxAnyVarValue {
-        identity
-    }
-
-    fn init(&mut self) {}
-
-    fn deinit(&mut self) {}
-
-    fn info(&mut self, _: &mut WidgetInfoBuilder) {}
-
-    fn event(&mut self, _: &EventUpdate) {}
-
-    fn update(&mut self, _: &WidgetUpdates) {}
-
-    fn update_list(&mut self, _: &WidgetUpdates, _: &mut dyn UiNodeListObserver) {}
-
-    fn measure_list(
-        &mut self,
-        wm: &mut WidgetMeasure,
-        _: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
-        _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
-    ) -> PxSize {
-        self.measure(wm)
-    }
-
-    fn layout_list(
-        &mut self,
-        wl: &mut WidgetLayout,
-        _: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
-        _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
-    ) -> PxSize {
-        self.layout(wl)
-    }
-
-    fn render(&mut self, _: &mut FrameBuilder) {}
-
-    fn render_update(&mut self, _: &mut FrameUpdate) {}
-
-    fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
-        None
-    }
 }
 
 /// A UI node that fills the available layout space.
@@ -1286,72 +1227,7 @@ impl UiNodeImpl for FillUiNode {
 
     fn with_child(&mut self, _: usize, _: &mut dyn FnMut(&mut UiNode)) {}
 
-    fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
-        LAYOUT.constraints().fill_size()
-    }
-
-    fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-        LAYOUT.constraints().fill_size()
-    }
-
-    fn is_list(&self) -> bool {
-        false
-    }
-
-    fn for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode)) {}
-
-    fn try_for_each_child(&mut self, _: &mut dyn FnMut(usize, &mut UiNode) -> ControlFlow<BoxAnyVarValue>) -> ControlFlow<BoxAnyVarValue> {
-        ControlFlow::Continue(())
-    }
-
-    fn par_each_child(&mut self, _: &(dyn Fn(usize, &mut UiNode) + Sync)) {}
-
-    fn par_fold_reduce(
-        &mut self,
-        identity: BoxAnyVarValue,
-        _: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
-        _: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
-    ) -> BoxAnyVarValue {
-        identity
-    }
-
-    fn init(&mut self) {}
-
-    fn deinit(&mut self) {}
-
-    fn info(&mut self, _: &mut WidgetInfoBuilder) {}
-
-    fn event(&mut self, _: &EventUpdate) {}
-
-    fn update(&mut self, _: &WidgetUpdates) {}
-
-    fn update_list(&mut self, _: &WidgetUpdates, _: &mut dyn UiNodeListObserver) {}
-
-    fn measure_list(
-        &mut self,
-        wm: &mut WidgetMeasure,
-        _: &(dyn Fn(usize, &mut UiNode, &mut WidgetMeasure) -> PxSize + Sync),
-        _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
-    ) -> PxSize {
-        self.measure(wm)
-    }
-
-    fn layout_list(
-        &mut self,
-        wl: &mut WidgetLayout,
-        _: &(dyn Fn(usize, &mut UiNode, &mut WidgetLayout) -> PxSize + Sync),
-        _: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
-    ) -> PxSize {
-        self.layout(wl)
-    }
-
-    fn render(&mut self, _: &mut FrameBuilder) {}
-
-    fn render_update(&mut self, _: &mut FrameUpdate) {}
-
-    fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
-        None
-    }
+    // default impl is fill
 }
 
 /// Wraps `child` in a node that provides a unique [`ContextInitHandle`], refreshed every (re)init.
