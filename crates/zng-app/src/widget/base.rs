@@ -897,7 +897,7 @@ pub mod node {
                 if self.ctx.is_pending_reinit() {
                     WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || WIDGET.update());
                 }
-            }            
+            }
         }
 
         WidgetNode {

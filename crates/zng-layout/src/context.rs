@@ -52,6 +52,7 @@ impl LAYOUT {
     /// the returned mask.
     ///
     /// [`register_metrics_use`]: Self::register_metrics_use
+    #[inline(always)]
     pub fn capture_metrics_use<R>(&self, f: impl FnOnce() -> R) -> (LayoutMask, R) {
         METRICS_USED_CTX.with_context(&mut Some(Arc::new(Atomic::new(LayoutMask::empty()))), || {
             let r = f();

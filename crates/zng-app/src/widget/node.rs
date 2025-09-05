@@ -768,6 +768,7 @@ impl UiNode {
 /// UI operations.
 impl UiNode {
     /// Calls the [`UiNodeOp`].
+    #[inline(always)]
     pub fn op(&mut self, op: UiNodeOp) {
         match op {
             UiNodeOp::Init => self.init(),
@@ -1169,6 +1170,7 @@ impl<'u> WidgetUiNode<'u> {
     ///
     /// If `update_mode` is [`WidgetUpdateMode::Bubble`] the update flags requested for the widget in `visitor` will be copied to the
     /// caller widget context, otherwise they are ignored.
+    #[inline(always)]
     pub fn with_context<R>(&mut self, update_mode: WidgetUpdateMode, visitor: impl FnOnce() -> R) -> R {
         let mut once = Some(visitor);
         let mut r = None;
@@ -1180,8 +1182,6 @@ impl<'u> WidgetUiNode<'u> {
     pub fn id(&mut self) -> WidgetId {
         self.with_context(WidgetUpdateMode::Ignore, || WIDGET.id())
     }
-
-    // TODO other helpers, with_state, state_get?
 }
 
 /// See [`UiNode::into_widget`]

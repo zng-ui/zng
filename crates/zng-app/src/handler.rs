@@ -61,14 +61,17 @@ pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
     }
 }
 impl<A: Clone + 'static> WidgetHandler<A> for Box<dyn WidgetHandler<A>> {
+    #[inline(always)]
     fn event(&mut self, args: &A) -> bool {
         self.as_mut().event(args)
     }
 
+    #[inline(always)]
     fn update(&mut self) -> bool {
         self.as_mut().update()
     }
 
+    #[inline(always)]
     fn boxed(self) -> Box<dyn WidgetHandler<A>>
     where
         Self: Sized,
@@ -86,6 +89,7 @@ where
     A: Clone + 'static,
     H: FnMut(&A) + Send + 'static,
 {
+    #[inline(always)]
     fn event(&mut self, args: &A) -> bool {
         (self.handler)(args);
         false
@@ -184,6 +188,7 @@ where
     A: Clone + 'static,
     H: FnOnce(&A) + Send + 'static,
 {
+    #[inline(always)]
     fn event(&mut self, args: &A) -> bool {
         if let Some(handler) = self.handler.take() {
             handler(args);
@@ -588,10 +593,12 @@ pub trait AppHandler<A: Clone + 'static>: Any + Send {
     }
 }
 impl<A: Clone + 'static> AppHandler<A> for Box<dyn AppHandler<A>> {
+    #[inline(always)]
     fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
         self.as_mut().event(args, handler_args)
     }
 
+    #[inline(always)]
     fn boxed(self) -> Box<dyn AppHandler<A>> {
         self
     }
@@ -606,6 +613,7 @@ where
     A: Clone + 'static,
     H: FnMut(&A, &dyn AppWeakHandle) + Send + 'static,
 {
+    #[inline(always)]
     fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
         (self.handler)(args, handler_args.handle);
     }
@@ -1093,10 +1101,12 @@ where
     H: WidgetHandler<A>,
     F: FnMut(&A) -> bool + Send + 'static,
 {
+    #[inline(always)]
     fn event(&mut self, args: &A) -> bool {
         if (self.filter)(args) { self.handler.event(args) } else { false }
     }
 
+    #[inline(always)]
     fn update(&mut self) -> bool {
         self.handler.update()
     }
@@ -1129,6 +1139,7 @@ where
     H: AppHandler<A>,
     F: FnMut(&A) -> bool + Send + 'static,
 {
+    #[inline(always)]
     fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
         if (self.filter)(args) {
             self.handler.event(args, handler_args);

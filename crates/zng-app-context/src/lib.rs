@@ -397,35 +397,60 @@ impl LocalContext {
         LOCAL.with_borrow_mut_dyn(|c| c.remove(&key))
     }
 
+    #[inline(always)]
     fn with_value_ctx<T: Send + Sync + 'static>(
         key: &'static ContextLocal<T>,
         kind: LocalValueKind,
         value: &mut Option<Arc<T>>,
         f: impl FnOnce(),
     ) {
-        let key = key.id();
-        let prev = Self::set(key, (value.take().expect("no `value` to set"), kind));
-        let _restore = RunOnDrop::new(move || {
-            let back = if let Some(prev) = prev {
-                Self::set(key, prev)
-            } else {
-                Self::remove(key)
+        struct Restore<'a, T: Send + Sync + 'static> {
+            key: AppLocalId,
+            prev: Option<LocalValue>,
+            value: &'a mut Option<Arc<T>>,
+        }
+        impl<'a, T: Send + Sync + 'static> Restore<'a, T> {
+            fn new(key: &'static ContextLocal<T>, kind: LocalValueKind, value: &'a mut Option<Arc<T>>) -> Self {
+                Self {
+                    key: key.id(),
+                    prev: LocalContext::set(key.id(), (value.take().expect("no `value` to set"), kind)),
+                    value,
+                }
             }
-            .unwrap();
-            *value = Some(Arc::downcast(back.0).unwrap());
-        });
+        }
+        impl<'a, T: Send + Sync + 'static> Drop for Restore<'a, T> {
+            fn drop(&mut self) {
+                let back = if let Some(prev) = self.prev.take() {
+                    LocalContext::set(self.key, prev)
+                } else {
+                    LocalContext::remove(self.key)
+                }
+                .unwrap();
+                *self.value = Some(Arc::downcast(back.0).unwrap());
+            }
+        }
+        let _restore = Restore::new(key, kind, value);
 
-        f();
+        f()
     }
 
+    #[inline(always)]
     fn with_default_ctx<T: Send + Sync + 'static>(key: &'static ContextLocal<T>, f: impl FnOnce()) {
-        let key = key.id();
-        let prev = Self::remove(key);
-        let _restore = RunOnDrop::new(move || {
-            if let Some(prev) = prev {
-                Self::set(key, prev);
+        struct Restore {
+            key: AppLocalId,
+            prev: Option<LocalValue>,
+        }
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                if let Some(prev) = self.prev.take() {
+                    LocalContext::set(self.key, prev);
+                }
             }
-        });
+        }
+        let _restore = Restore {
+            key: key.id(),
+            prev: Self::remove(key.id()),
+        };
 
         f()
     }

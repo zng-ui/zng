@@ -54,6 +54,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     /// # Panics
     ///
     /// Panics if `value` is `None`.
+    #[inline(always)]
     pub fn with_context<R>(&'static self, value: &mut Option<Arc<T>>, f: impl FnOnce() -> R) -> R {
         let mut r = None;
         let f = || r = Some(f());
@@ -69,6 +70,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     ///
     /// [`with_context`]: Self::with_context
     /// [`CaptureFilter::ContextVars`]: crate::CaptureFilter::ContextVars
+    #[inline(always)]
     pub fn with_context_var<R>(&'static self, value: &mut Option<Arc<T>>, f: impl FnOnce() -> R) -> R {
         let mut r = None;
         let f = || r = Some(f());
@@ -79,6 +81,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     }
 
     /// Calls `f` with no value loaded in context.
+    #[inline(always)]
     pub fn with_default<R>(&'static self, f: impl FnOnce() -> R) -> R {
         let mut r = None;
         let f = || r = Some(f());

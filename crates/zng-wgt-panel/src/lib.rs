@@ -80,31 +80,30 @@ impl PanelArgs {
 
 /// Panel widget child node.
 pub fn node(children: ArcNode, panel_fn: impl IntoVar<WidgetFn<PanelArgs>>) -> UiNode {
-    let mut child = UiNode::nil();
     let panel_fn = panel_fn.into_var();
-    match_node_leaf(move |op| match op {
+    match_node(UiNode::nil(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&panel_fn);
-            child = panel_fn.get().call(PanelArgs {
+            *c.node() = panel_fn.get().call(PanelArgs {
                 children: children.take_on_init(),
             });
-            child.init();
+            c.init();
         }
         UiNodeOp::Deinit => {
-            child.deinit();
-            child = UiNode::nil();
+            c.deinit();
+            *c.node() = UiNode::nil();
         }
         UiNodeOp::Update { updates } => {
             if let Some(f) = panel_fn.get_new() {
-                child.deinit();
-                child = f(PanelArgs {
+                c.deinit();
+                *c.node() = f(PanelArgs {
                     children: children.take_on_init(),
                 });
-                child.init();
+                c.init();
             } else {
-                child.update(updates);
+                c.update(updates);
             }
         }
-        op => child.op(op),
+        _ => {}
     })
 }
