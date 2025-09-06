@@ -1244,7 +1244,7 @@ impl GridLayout {
                     has_leftover_cols = true;
                 }
                 WidgetLength::Exact => {
-                    col_info.width = col.measure(wm).width;
+                    col_info.width = LAYOUT.with_constraints(Align::TOP_LEFT.child_constraints(constraints), || col.measure(wm).width);
                     col_info.meta = ColRowMeta::exact();
                 }
             }
@@ -1268,7 +1268,7 @@ impl GridLayout {
                     has_leftover_rows = true;
                 }
                 WidgetLength::Exact => {
-                    row_info.height = row.measure(wm).height;
+                    row_info.height = LAYOUT.with_constraints(Align::TOP_LEFT.child_constraints(constraints), || row.measure(wm).height);
                     row_info.meta = ColRowMeta::exact();
                 }
             }

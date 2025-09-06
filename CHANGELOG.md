@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `Grid!` layout when using exact size for columns/rows.
 
 # 0.16.3
 
