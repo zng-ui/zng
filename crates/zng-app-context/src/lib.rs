@@ -328,13 +328,30 @@ impl LocalContext {
     /// for a blending alternative.
     ///
     /// [`with_context_blend`]: Self::with_context_blend
+    #[inline(always)]
     pub fn with_context<R>(&mut self, f: impl FnOnce() -> R) -> R {
-        let data = mem::take(&mut self.data);
-        let prev = LOCAL.with_borrow_mut_dyn(|c| mem::replace(c, data));
-        let _tracing_restore = self.tracing.as_ref().map(tracing::dispatcher::set_default);
-        let _restore = RunOnDrop::new(|| {
-            self.data = LOCAL.with_borrow_mut_dyn(|c| mem::replace(c, prev));
-        });
+        struct Restore<'a> {
+            prev_data: LocalData,
+            _tracing_restore: Option<tracing::dispatcher::DefaultGuard>,
+            ctx: &'a mut LocalContext,
+        }
+        impl<'a> Restore<'a> {
+            fn new(ctx: &'a mut LocalContext) -> Self {
+                let data = mem::take(&mut ctx.data);
+                Self {
+                    prev_data: LOCAL.with_borrow_mut_dyn(|c| mem::replace(c, data)),
+                    _tracing_restore: ctx.tracing.as_ref().map(tracing::dispatcher::set_default),
+                    ctx,
+                }
+            }
+        }
+        impl<'a> Drop for Restore<'a> {
+            fn drop(&mut self) {
+                self.ctx.data = LOCAL.with_borrow_mut_dyn(|c| mem::replace(c, mem::take(&mut self.prev_data)));
+            }
+        }
+        let _restore = Restore::new(self);
+
         f()
     }
 
@@ -347,31 +364,53 @@ impl LocalContext {
     /// the values not already set in the parent are set.
     ///
     /// [`with_context`]: Self::with_context
+    #[inline(always)]
     pub fn with_context_blend<R>(&mut self, over: bool, f: impl FnOnce() -> R) -> R {
         if self.data.is_empty() {
             f()
         } else {
-            let prev = LOCAL.with_borrow_mut_dyn(|c| {
-                let (mut base, over) = if over { (c.clone(), &self.data) } else { (self.data.clone(), &*c) };
-                for (k, v) in over {
-                    base.insert(*k, v.clone());
-                }
-
-                mem::replace(c, base)
-            });
-
-            let mut _tracing_restore = None;
-            if let Some(d) = &self.tracing
-                && over
-            {
-                _tracing_restore = Some(tracing::dispatcher::set_default(d));
+            struct Restore {
+                prev_data: LocalData,
+                _tracing_restore: Option<tracing::dispatcher::DefaultGuard>,
             }
+            impl Restore {
+                fn new(ctx: &mut LocalContext, over: bool) -> Self {
+                    let prev_data = LOCAL.with_borrow_mut_dyn(|c| {
+                        let mut new_data = c.clone();
+                        if over {
+                            for (k, v) in &ctx.data {
+                                new_data.insert(*k, v.clone());
+                            }
+                        } else {
+                            for (k, v) in &ctx.data {
+                                new_data.entry(*k).or_insert_with(|| v.clone());
+                            }
+                        }
 
-            let _restore = RunOnDrop::new(|| {
-                LOCAL.with_borrow_mut_dyn(|c| {
-                    *c = prev;
-                });
-            });
+                        mem::replace(c, new_data)
+                    });
+
+                    let mut _tracing_restore = None;
+                    if let Some(d) = &ctx.tracing
+                        && over
+                    {
+                        _tracing_restore = Some(tracing::dispatcher::set_default(d));
+                    }
+
+                    Self {
+                        prev_data,
+                        _tracing_restore,
+                    }
+                }
+            }
+            impl Drop for Restore {
+                fn drop(&mut self) {
+                    LOCAL.with_borrow_mut_dyn(|c| {
+                        *c = mem::take(&mut self.prev_data);
+                    });
+                }
+            }
+            let _restore = Restore::new(self, over);
 
             f()
         }

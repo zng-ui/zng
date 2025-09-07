@@ -1710,8 +1710,7 @@ impl GridLayout {
             }
         }
 
-        
-        x  = (x - spacing.column).max(Px(0));
+        x = (x - spacing.column).max(Px(0));
         let max_width = constraints.x.fill();
         if max_width > Px(0) && x > max_width {
             println!("!!: OVERFLOW, wrap autos {:?}", (x, max_width))
