@@ -5,7 +5,6 @@ use zng::{
     layout::size,
     prelude::*,
     prelude_wgt::*,
-    widget::parallel,
 };
 
 #[test]

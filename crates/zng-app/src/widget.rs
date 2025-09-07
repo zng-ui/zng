@@ -1077,6 +1077,7 @@ impl WIDGET {
     ///
     /// This method can be used to manually define a widget context, note that widgets already define their own context.
     pub fn with_context<R>(&self, ctx: &mut WidgetCtx, update_mode: WidgetUpdateMode, f: impl FnOnce() -> R) -> R {
+        // !!: TODO refactor to reduce bloat
         let parent_id = WIDGET.try_id();
 
         if let Some(ctx) = ctx.0.as_mut() {

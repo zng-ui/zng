@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use zng_app::{
-    widget::{WidgetId, info::access::AccessEnabled},
+    widget::{WidgetId, base::Parallel, info::access::AccessEnabled},
     window::{MonitorId, WINDOW, WindowId},
 };
 use zng_color::LightDark;
@@ -82,6 +82,8 @@ pub(super) struct WindowVarsData {
 
     pub(super) access_enabled: Var<AccessEnabled>,
     system_shutdown_warn: Var<Txt>,
+
+    parallel: Var<Parallel>,
 }
 
 /// Variables that configure the opening or open window.
@@ -162,6 +164,8 @@ impl WindowVars {
 
             access_enabled: var(AccessEnabled::empty()),
             system_shutdown_warn: var(Txt::from("")),
+
+            parallel: var(Parallel::default()),
         });
         Self(vars)
     }
@@ -748,6 +752,19 @@ impl WindowVars {
     /// * Must be built with `#![windows_subsystem = "windows"]` and must be running from the Windows Explorer (desktop).
     pub fn system_shutdown_warn(&self) -> Var<Txt> {
         self.0.system_shutdown_warn.clone()
+    }
+
+    /// Defines what node list methods can run in parallel in the window widgets.
+    ///
+    /// The window binds [`PARALLEL_VAR`] to this value at the root node ensuring all window nodes are
+    /// configured.
+    ///
+    /// See also [`WINDOWS.parallel`] to define parallelization between windows.
+    ///
+    /// [`PARALLEL_VAR`]: zng_app::widget::base::PARALLEL_VAR
+    /// [`WINDOWS.parallel`]: zng_ext_window::WINDOWS::parallel
+    pub fn parallel(&self) -> Var<Parallel> {
+        self.0.parallel.clone()
     }
 }
 impl PartialEq for WindowVars {

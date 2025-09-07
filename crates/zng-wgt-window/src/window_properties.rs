@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use zng_app::widget::base::Parallel;
 use zng_ext_config::{AnyConfig as _, CONFIG, ConfigKey, ConfigStatus, ConfigValue};
 use zng_ext_window::{
     AutoSize, FrameCaptureMode, MONITORS, MonitorQuery, WINDOW_Ext as _, WINDOW_LOAD_EVENT, WINDOWS, WindowButton, WindowIcon,
@@ -84,6 +85,8 @@ set_properties! {
     frame_capture_mode: FrameCaptureMode,
 
     enabled_buttons: WindowButton,
+
+    parallel: Parallel,
 }
 
 macro_rules! map_properties {

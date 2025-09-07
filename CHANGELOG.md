@@ -1,5 +1,10 @@
 # Unreleased
 
+* Add `Window::parallel` and `WINDOW.vars().parallel` that has the same effect as the standalone property plus it also applies
+  to window *root extensions*.
+  - Fixes window with disabled parallel still running in another thread when built with the inspector extension.
+* Changed `zng::widget::parallel` property to apply for all nodes in an widget, not just context nodes and inner.
+
 * Add *fill inner* in the layout constraints API.
     - **deprecated** `PxConstraints::fill` field and `fill_pref` method.
     - Added `PxConstraints::is_fill`, `is_fill_inner` and `with_fill_inner` methods.

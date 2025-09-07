@@ -2,23 +2,13 @@ use std::{any::Any, mem, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
-    APP, AppEventSender, Deadline, EXIT_REQUESTED_EVENT, app_hn_once,
-    event::AnyEventArgs,
-    timer::{DeadlineHandle, TIMERS},
-    update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, WidgetUpdates},
-    view_process::{
-        self, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewImage, ViewRenderer, ViewWindowOrHeadless,
-        raw_events::{
-            RAW_CHROME_CONFIG_CHANGED_EVENT, RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_LOADED_EVENT,
-            RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_CLOSE_REQUESTED_EVENT, RAW_WINDOW_FOCUS_EVENT,
-        },
-    },
-    widget::{
-        UiTaskWidget, WidgetId,
-        info::{InteractionPath, WidgetInfo, WidgetInfoTree},
-        node::UiNode,
-    },
-    window::{WINDOW, WindowCtx, WindowId, WindowMode},
+    app_hn_once, event::AnyEventArgs, timer::{DeadlineHandle, TIMERS}, update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates, UPDATES}, view_process::{
+        self, raw_events::{
+            RAW_CHROME_CONFIG_CHANGED_EVENT, RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_CLOSE_REQUESTED_EVENT, RAW_WINDOW_FOCUS_EVENT
+        }, ViewImage, ViewRenderer, ViewWindowOrHeadless, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT
+    }, widget::{
+        base::PARALLEL_VAR, info::{InteractionPath, WidgetInfo, WidgetInfoTree}, node::UiNode, UiTaskWidget, WidgetId
+    }, window::{WindowCtx, WindowId, WindowMode, WINDOW}, AppEventSender, Deadline, APP, EXIT_REQUESTED_EVENT
 };
 use zng_app_context::app_local;
 
@@ -1589,6 +1579,7 @@ impl AppWindowTask {
             let vars = WINDOW.vars();
             let child = with_context_var(child, ACCENT_COLOR_VAR, vars.actual_accent_color());
             let child = with_context_var(child, COLOR_SCHEME_VAR, vars.actual_color_scheme());
+            let child = with_context_var(child, PARALLEL_VAR, vars.parallel());
             window.child = child;
         });
 

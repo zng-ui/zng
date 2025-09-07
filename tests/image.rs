@@ -3,7 +3,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-use zng::{image::Img, prelude::*, widget::parallel};
+use zng::{image::Img, prelude::*};
 
 #[test]
 fn error_view_recursion() {
