@@ -4,6 +4,7 @@
   to window *root extensions*.
   - Fixes window with disabled parallel still running in another thread when built with the inspector extension.
 * Changed `zng::widget::parallel` property to apply for all nodes in an widget, not just context nodes and inner.
+* Fix `UiVec::render_update` applying twice to some children when parallel is enabled.
 
 * Add *fill inner* in the layout constraints API.
     - **deprecated** `PxConstraints::fill` field and `fill_pref` method.
