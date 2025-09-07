@@ -1,6 +1,14 @@
 # Unreleased
 
-* Fix `Grid!` layout when using exact size for columns/rows.
+* Add *fill inner* in the layout constraints API.
+    - **deprecated** `PxConstraints::fill` field and `fill_pref` method.
+    - Added `PxConstraints::is_fill`, `is_fill_inner` and `with_fill_inner` methods.
+    - This is an advanced API for custom panel layout implementers only. The normal align/fill API remains the same.
+
+* Fix `Grid!` layout.
+    - Exact size columns/rows now are sized correctly.
+    - Columns `min/max_width` and rows `min/max_height` are now respected in auto sized or leftover sized columns/rows.
+    - Auto sized columns are now proportionally downsized in case of overflow. !!: TODO
 
 # 0.16.3
 

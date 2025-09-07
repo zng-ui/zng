@@ -75,7 +75,7 @@ pub fn cells(cells: impl IntoUiNode) {}
 /// So given the columns `200 | 1.lft() | 1.lft()` and grid width of `1000` with spacing `5` the final widths are `200 | 395 | 395`,
 /// for `200 + 5 + 395 + 5 + 395 = 1000`.
 ///
-/// Note that the column widget is not the parent of the cells that match it, the column widget is rendered under cell and row widgets.
+/// Note that the column widget is not the parent of the cells that match it, the column widget is rendered behind cell and row widgets.
 /// Properties like `padding` and `align` only affect the column visual, not the cells, similarly contextual properties like `text_color`
 /// don't affect the cells.
 ///
@@ -1020,6 +1020,8 @@ struct ColumnLayout {
     was_leftover: bool,
     x: Px,
     width: Px,
+    min_width: Px,
+    max_width: Px,
 }
 impl Default for ColumnLayout {
     fn default() -> Self {
@@ -1028,6 +1030,8 @@ impl Default for ColumnLayout {
             was_leftover: false,
             x: Px::MIN,
             width: Px::MIN,
+            min_width: Px::MIN,
+            max_width: Px::MAX,
         }
     }
 }
@@ -1037,6 +1041,8 @@ struct RowLayout {
     was_leftover: bool,
     y: Px,
     height: Px,
+    min_height: Px,
+    max_height: Px,
 }
 impl Default for RowLayout {
     fn default() -> Self {
@@ -1045,6 +1051,8 @@ impl Default for RowLayout {
             was_leftover: false,
             y: Px::MIN,
             height: Px::MIN,
+            min_height: Px::MIN,
+            max_height: Px::MAX,
         }
     }
 }
@@ -1224,6 +1232,7 @@ impl GridLayout {
         let mut has_default = false;
         let mut has_leftover_cols = false;
         let mut has_leftover_rows = false;
+        const MAX_PROBE: i32 = Px::MAX.0 - 1000;
 
         columns.for_each_child(|ci, col| {
             let col_kind = WIDGET_SIZE.get_wgt(col).width;
@@ -1232,6 +1241,8 @@ impl GridLayout {
 
             col_info.x = Px::MIN;
             col_info.width = Px::MIN;
+            col_info.min_width = Px::MIN;
+            col_info.max_width = Px::MAX;
 
             match col_kind {
                 WidgetLength::Default => {
@@ -1246,6 +1257,18 @@ impl GridLayout {
                 WidgetLength::Exact => {
                     col_info.width = LAYOUT.with_constraints(Align::TOP_LEFT.child_constraints(constraints), || col.measure(wm).width);
                     col_info.meta = ColRowMeta::exact();
+                }
+            }
+            if matches!(col_kind, WidgetLength::Default | WidgetLength::Leftover(_)) {
+                col_info.min_width = LAYOUT.with_constraints(PxConstraints2d::new_unbounded(), || col.measure(wm)).width;
+                col_info.max_width = LAYOUT
+                    .with_constraints(
+                        PxConstraints2d::new_fill(Px(MAX_PROBE), Px(MAX_PROBE)).with_fill_inner(true, true),
+                        || col.measure(wm),
+                    )
+                    .width;
+                if col_info.max_width == MAX_PROBE {
+                    col_info.max_width = Px::MAX;
                 }
             }
         });
@@ -1272,6 +1295,18 @@ impl GridLayout {
                     row_info.meta = ColRowMeta::exact();
                 }
             }
+            if matches!(row_kind, WidgetLength::Default | WidgetLength::Leftover(_)) {
+                row_info.min_height = LAYOUT.with_constraints(PxConstraints2d::new_unbounded(), || row.measure(wm)).height;
+                row_info.max_height = LAYOUT
+                    .with_constraints(
+                        PxConstraints2d::new_fill(Px(MAX_PROBE), Px(MAX_PROBE)).with_fill_inner(true, true),
+                        || row.measure(wm),
+                    )
+                    .width;
+                if row_info.max_height == MAX_PROBE {
+                    row_info.max_height = Px::MAX;
+                }
+            }
         });
 
         // reset imaginary
@@ -1279,12 +1314,16 @@ impl GridLayout {
             col.meta = ColRowMeta::default();
             col.x = Px::MIN;
             col.width = Px::MIN;
+            col.min_width = Px::MIN;
+            col.max_width = Px::MAX;
             has_default = true;
         }
         for row in &mut self.rows[rows.children_len()..] {
             row.meta = ColRowMeta::default();
             row.y = Px::MIN;
             row.height = Px::MIN;
+            row.min_height = Px::MIN;
+            row.max_height = Px::MAX;
             has_default = true;
         }
 
@@ -1295,8 +1334,6 @@ impl GridLayout {
         let mut has_leftover_x_default = false;
         let columns_len = self.columns.len();
         if has_default || (fill_x.is_none() && has_leftover_cols) || (fill_y.is_none() && has_leftover_rows) {
-            let c = LAYOUT.constraints();
-
             cells.for_each_child(|i, cell| {
                 let cell_info = cell::CellInfo::get_wgt(cell);
                 if cell_info.column_span > 1 || cell_info.row_span > 1 {
@@ -1318,37 +1355,52 @@ impl GridLayout {
                 if col_is_default {
                     if row_is_default {
                         // (default, default)
-                        let size = LAYOUT.with_constraints(c.with_fill(false, false), || cell.measure(wm));
+                        let size = LAYOUT.with_constraints(
+                            PxConstraints2d::new_range(col.min_width, col.max_width, row.min_height, row.max_height),
+                            || cell.measure(wm),
+                        );
 
-                        col.width = col.width.max(size.width);
+                        col.width = col.width.max(size.width.clamp(col.min_width, col.max_width));
                         row.height = row.height.max(size.height);
                     } else if row_is_exact {
                         // (default, exact)
-                        let size = LAYOUT.with_constraints(c.with_exact_y(row.height).with_fill(false, false), || cell.measure(wm));
+                        let size = LAYOUT.with_constraints(
+                            PxConstraints2d::new_range(col.min_width, col.max_width, row.height, row.height),
+                            || cell.measure(wm),
+                        );
 
-                        col.width = col.width.max(size.width);
+                        col.width = col.width.max(size.width.clamp(col.min_width, col.max_width));
                     } else {
                         debug_assert!(row_is_leftover);
                         // (default, leftover)
-                        let size = LAYOUT.with_constraints(c.with_fill(false, false), || cell.measure(wm));
+                        let size = LAYOUT.with_constraints(
+                            PxConstraints2d::new_range(col.min_width, col.max_width, row.min_height, row.max_height),
+                            || cell.measure(wm),
+                        );
 
-                        col.width = col.width.max(size.width);
+                        col.width = col.width.max(size.width.clamp(col.min_width, col.max_width));
 
                         has_leftover_x_default = true;
                     }
                 } else if col_is_exact {
                     if row_is_default {
                         // (exact, default)
-                        let size = LAYOUT.with_constraints(c.with_exact_x(col.width).with_fill(false, false), || cell.measure(wm));
+                        let size = LAYOUT.with_constraints(
+                            PxConstraints2d::new_range(col.width, col.width, row.min_height, row.max_height),
+                            || cell.measure(wm),
+                        );
 
-                        row.height = row.height.max(size.height);
+                        row.height = row.height.max(size.height.clamp(row.min_height, row.max_height));
                     }
                 } else if row_is_default {
                     debug_assert!(col_is_leftover);
                     // (leftover, default)
-                    let size = LAYOUT.with_constraints(c.with_fill(false, false), || cell.measure(wm));
+                    let size = LAYOUT.with_constraints(
+                        PxConstraints2d::new_range(col.min_width, col.max_width, row.min_height, row.max_height),
+                        || cell.measure(wm),
+                    );
 
-                    row.height = row.height.max(size.height);
+                    row.height = row.height.max(size.height.clamp(row.min_height, row.max_height));
 
                     has_leftover_x_default = true;
                 }
@@ -1434,7 +1486,7 @@ impl GridLayout {
             while !settled_all && leftover_width > Px(0) {
                 settled_all = true;
 
-                for (i, col) in self.columns.iter_mut().enumerate() {
+                for col in self.columns[..view_columns_len].iter_mut() {
                     let lft = if let Some(lft) = col.meta.is_leftover() {
                         lft
                     } else {
@@ -1442,27 +1494,21 @@ impl GridLayout {
                     };
 
                     let width = lft.0 * leftover_width.0 as f32 / total_factor.0;
-                    col.width = Px(width as i32);
+                    let width = Px(width as i32);
+                    col.width = width.clamp(col.min_width, col.max_width);
 
-                    if i < view_columns_len {
-                        let size = LAYOUT.with_constraints(LAYOUT.constraints().with_fill_x(true).with_max_x(col.width), || {
-                            columns.with_child(i, |col| col.measure(wm))
-                        });
+                    if col.width != width {
+                        // reached a max/min, convert this column to "exact" and remove it from
+                        // the leftover pool.
+                        settled_all = false;
 
-                        if col.width != size.width {
-                            // reached a max/min, convert this column to "exact" and remove it from
-                            // the leftover pool.
-                            settled_all = false;
+                        col.meta = ColRowMeta::exact();
 
-                            col.width = size.width;
-                            col.meta = ColRowMeta::exact();
-
-                            if size.width != Px(0) {
-                                leftover_width -= size.width + spacing.column;
-                                total_factor -= lft;
-                                if total_factor < Factor(1.0) {
-                                    total_factor = Factor(1.0);
-                                }
+                        if col.width != Px(0) {
+                            leftover_width -= col.width + spacing.column;
+                            total_factor -= lft;
+                            if total_factor < Factor(1.0) {
+                                total_factor = Factor(1.0);
                             }
                         }
                     }
@@ -1480,7 +1526,7 @@ impl GridLayout {
                 };
 
                 let width = lft.0 * leftover_width.0 as f32 / total_factor.0;
-                col.width = Px(width as i32);
+                col.width = Px(width as i32).clamp(col.min_width, col.max_width);
                 col.meta = ColRowMeta::exact();
             }
         }
@@ -1563,7 +1609,7 @@ impl GridLayout {
             while !settled_all && leftover_height > Px(0) {
                 settled_all = true;
 
-                for (i, row) in self.rows.iter_mut().enumerate() {
+                for row in self.rows[..view_rows_len].iter_mut() {
                     let lft = if let Some(lft) = row.meta.is_leftover() {
                         lft
                     } else {
@@ -1571,27 +1617,21 @@ impl GridLayout {
                     };
 
                     let height = lft.0 * leftover_height.0 as f32 / total_factor.0;
-                    row.height = Px(height as i32);
+                    let height = Px(height as i32);
+                    row.height = height.clamp(row.min_height, row.max_height);
 
-                    if i < view_rows_len {
-                        let size = LAYOUT.with_constraints(LAYOUT.constraints().with_fill_y(true).with_max_y(row.height), || {
-                            rows.with_child(i, |row| row.measure(wm))
-                        });
+                    if row.height != height {
+                        // reached a max/min, convert this row to "exact" and remove it from
+                        // the leftover pool.
+                        settled_all = false;
 
-                        if row.height != size.height {
-                            // reached a max/min, convert this row to "exact" and remove it from
-                            // the leftover pool.
-                            settled_all = false;
+                        row.meta = ColRowMeta::exact();
 
-                            row.height = size.height;
-                            row.meta = ColRowMeta::exact();
-
-                            if size.height != Px(0) {
-                                leftover_height -= size.height + spacing.row;
-                                total_factor -= lft;
-                                if total_factor < Factor(1.0) {
-                                    total_factor = Factor(1.0);
-                                }
+                        if row.height != Px(0) {
+                            leftover_height -= row.height + spacing.row;
+                            total_factor -= lft;
+                            if total_factor < Factor(1.0) {
+                                total_factor = Factor(1.0);
                             }
                         }
                     }
@@ -1609,7 +1649,7 @@ impl GridLayout {
                 };
 
                 let height = lft.0 * leftover_height.0 as f32 / total_factor.0;
-                row.height = Px(height as i32);
+                row.height = Px(height as i32).clamp(row.min_height, row.max_height);
                 row.meta = ColRowMeta::exact();
             }
         }
@@ -1668,6 +1708,13 @@ impl GridLayout {
             if row.height > Px(0) {
                 y += row.height + spacing.row;
             }
+        }
+
+        
+        x  = (x - spacing.column).max(Px(0));
+        let max_width = constraints.x.fill();
+        if max_width > Px(0) && x > max_width {
+            println!("!!: OVERFLOW, wrap autos {:?}", (x, max_width))
         }
 
         (spacing, PxSize::new((x - spacing.column).max(Px(0)), (y - spacing.row).max(Px(0))))

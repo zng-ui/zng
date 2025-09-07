@@ -177,7 +177,21 @@ impl Align {
     /// [`layout`]: Self::layout
     /// [`child_constraints`]: Self::child_constraints
     pub fn measure(self, child_size: PxSize, parent_constraints: PxConstraints2d) -> PxSize {
-        let size = parent_constraints.fill_size().max(child_size);
+        let is_fill_inner = parent_constraints.is_fill_inner();
+        let fill_size = PxSize::new(
+            if is_fill_inner.x {
+                parent_constraints.x.min()
+            } else {
+                parent_constraints.x.fill()
+            },
+            if is_fill_inner.y {
+                parent_constraints.y.min()
+            } else {
+                parent_constraints.y.fill()
+            },
+        );
+
+        let size = fill_size.max(child_size);
         parent_constraints.clamp_size(size)
     }
 
@@ -187,7 +201,12 @@ impl Align {
     ///
     /// [`measure`]: Self::measure
     pub fn measure_x(self, child_width: Px, parent_constraints_x: PxConstraints) -> Px {
-        let width = parent_constraints_x.fill().max(child_width);
+        let fill_width = if parent_constraints_x.is_fill_inner() {
+            parent_constraints_x.min()
+        } else {
+            parent_constraints_x.fill()
+        };
+        let width = fill_width.max(child_width);
         parent_constraints_x.clamp(width)
     }
 
@@ -197,23 +216,27 @@ impl Align {
     ///
     /// [`measure`]: Self::measure
     pub fn measure_y(self, child_height: Px, parent_constraints_y: PxConstraints) -> Px {
-        let height = parent_constraints_y.fill().max(child_height);
+        let fill_height = if parent_constraints_y.is_fill_inner() {
+            parent_constraints_y.min()
+        } else {
+            parent_constraints_y.fill()
+        };
+        let height = fill_height.max(child_height);
         parent_constraints_y.clamp(height)
     }
 
-    /// Applies the alignment transform to `wl` and returns the size of the parent align node, the translate offset and if
-    /// baseline must be translated.
+    /// Compute the outer size and inner offset.
     ///
     /// Note that the child must be layout using the [`child_constraints`], the `child_size` is the size the child
     /// will be rendered at, this method computes the child outer bounds.
     ///
+    /// Returns the outer size, inner offset and [`is_baseline`]
+    ///
     /// [`child_constraints`]: Self::child_constraints
+    /// [`is_baseline`]: Self::is_baseline
     pub fn layout(self, child_size: PxSize, parent_constraints: PxConstraints2d, direction: LayoutDirection) -> (PxSize, PxVector, bool) {
-        let size = parent_constraints.fill_size().max(child_size);
-        let size = parent_constraints.clamp_size(size);
-
+        let size = self.measure(child_size, parent_constraints);
         let offset = self.child_offset(child_size, size, direction);
-
         (size, offset, self.is_baseline())
     }
 }
