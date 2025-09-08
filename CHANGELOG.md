@@ -14,7 +14,7 @@
 * Fix `Grid!` layout.
     - Exact size columns/rows now are sized correctly.
     - Columns `min/max_width` and rows `min/max_height` are now respected in auto sized or leftover sized columns/rows.
-    - Auto sized columns are now proportionally downsized in case of overflow. !!: TODO
+    - Default sized columns are now proportionally downsized in case of overflow.
 
 # 0.16.3
 
