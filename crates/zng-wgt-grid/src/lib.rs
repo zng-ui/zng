@@ -226,11 +226,14 @@ pub fn node(
         UiNodeOp::Measure { wm, desired_size } => {
             c.delegated();
 
-            *desired_size = if let Some(size) = LAYOUT.constraints().fill_or_exact() {
+            let constraints = LAYOUT.constraints().inner();
+
+            *desired_size = if let Some(size) = constraints.fill_or_exact() {
                 size
             } else {
                 is_measured = true;
-                grid.grid_layout(wm, c.node(), &spacing).1
+                let s = grid.grid_layout(wm, c.node(), &spacing).1;
+                constraints.clamp_size(s)
             };
         }
         UiNodeOp::Layout { wl, final_size } => {
@@ -320,7 +323,7 @@ pub fn node(
             );
             cells.commit_data().request_render();
 
-            *final_size = constraints.fill_size_or(grid_size);
+            *final_size = constraints.inner().fill_size_or(grid_size);
         }
         UiNodeOp::Render { frame } => {
             c.delegated();
