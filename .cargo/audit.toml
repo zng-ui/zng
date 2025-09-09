@@ -1,5 +1,10 @@
 [advisories]
 ignore = [
+    # `fxhash` is unmaintained
+    #
+    # need to patch 'zng-wr-glyph-rasterizer' and `zng-webrender` first
+    "RUSTSEC-2025-0057",
+
     # `paste` is unmaintained
     #
     # already replaced in project crates, `image` dependency still use it:
