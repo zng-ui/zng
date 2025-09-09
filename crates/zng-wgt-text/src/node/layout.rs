@@ -805,10 +805,7 @@ impl LayoutTextFinal {
         }
         self.txt_is_measured = is_measure;
 
-        let s = ctx.shaped_text.size();
-        let fs = metrics.constraints().fill_size_or(s);
-        dbg!((s, fs));
-        fs
+        metrics.constraints().inner().fill_size_or(ctx.shaped_text.size())
     }
 
     /// See `layout` docs.

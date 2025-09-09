@@ -292,6 +292,17 @@ impl PxConstraints {
     pub fn max_or(self, length: Px) -> Px {
         if self.is_unbounded() { self.clamp(length) } else { self.max }
     }
+
+    /// Gets unbounded if [`is_inner`] or `self` if is not inner.
+    ///
+    /// Widgets that clamp/pad a child desired size to fulfill constraints must avoid doing this in
+    /// [`is_inner`] contexts. This helper simply returns unbounded constraints if is inner so that
+    /// the last clamp/pad step becomes a no-op.
+    ///
+    /// [`is_inner`]: Self::is_inner
+    pub fn inner(self) -> Self {
+        if self.is_inner() { PxConstraints::new_unbounded() } else { self }
+    }
 }
 impl_from_and_into_var! {
     /// New exact.
@@ -864,6 +875,20 @@ impl PxConstraints2d {
             let scale = (container.width / content.width).max(container.height / content.height).fct();
 
             (size * scale).min(PxSize::new(self.x.max, self.y.max))
+        }
+    }
+
+    /// Gets unbounded if dimension [`is_inner`] or `self` if is not inner.
+    ///
+    /// Widgets that clamp/pad a child desired size to fulfill constraints must avoid doing this in
+    /// [`is_inner`] contexts. This helper simply returns unbounded constraints if is inner so that
+    /// the last clamp/pad step becomes a no-op.
+    ///
+    /// [`is_inner`]: Self::is_inner
+    pub fn inner(self) -> Self {
+        Self {
+            x: self.x.inner(),
+            y: self.y.inner(),
         }
     }
 }

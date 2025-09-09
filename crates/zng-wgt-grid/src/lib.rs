@@ -1796,7 +1796,8 @@ impl GridLayout {
 
                         // get cell minimum width (0 max constraint means collapse so we give it at least one pixel)
                         let min_w_size = LAYOUT.with_constraints(
-                            PxConstraints2d::new_range(col.min_width, col.min_width.max(Px(1)), row.min_height, row.max_height),
+                            PxConstraints2d::new_range(col.min_width, col.min_width.max(Px(1)), row.min_height, row.max_height)
+                                .with_inner(true, true),
                             || cell.measure(wm),
                         );
 

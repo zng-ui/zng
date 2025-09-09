@@ -9,9 +9,7 @@
 * Add `is_inner` in the layout constraints API.
     - **deprecated** `PxConstraints::fill` field and `fill_pref` method.
     - Added `PxConstraints::is_fill`, `is_inner` and `with_inner` methods.
-    - This is an advanced API for custom panel layout implementers only. The normal align/fill API remains the same.
-    - `PxConstraints` helper methods already implement *inner mode*, custom layout property implementers only need to support this directly if
-      operating using the constraint values directly. 
+    - This is an advanced API for custom layout implementers only. The normal align/fill API remains the same.
 
 * Fix `Grid!` layout.
     - Exact size columns/rows now are sized correctly.
