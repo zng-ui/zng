@@ -35,7 +35,7 @@ pub struct PxConstraints {
     min: Px,
 
     #[doc(hidden)]
-    #[deprecated = "use the `is_fill_pref` method"]
+    #[deprecated = "use the `is_fill` method"]
     pub fill: bool,
     flags: PxConstraintsFlags,
 }
@@ -222,11 +222,9 @@ impl PxConstraints {
         self.fill
     }
 
-    /// Gets if the context prefers the maximum length and there is a maximum length and is not [`is_inner`].
-    ///
-    /// [`is_inner`]: Self::is_inner
+    /// Gets if the context prefers the maximum length and there is a maximum length.
     pub fn is_fill_max(self) -> bool {
-        self.is_fill() && !self.is_unbounded() && !self.is_inner()
+        self.is_fill() && !self.is_unbounded()
     }
 
     /// Gets if the context wants the best *inner bounds* layout the target can provide, without
@@ -265,27 +263,18 @@ impl PxConstraints {
     }
 
     /// Clamp the `px` by min and max.
-    ///
-    /// Does nothing if [`is_inner`].
-    ///
-    /// [`is_inner`]: Self::is_inner
     pub fn clamp(self, px: Px) -> Px {
-        if self.is_inner() { px } else { self.min.max(px).min(self.max) }
+        self.min.max(px).min(self.max)
     }
 
-    /// Gets the fill length, if [`is_fill`] and not [`is_inner`] this is the maximum length, otherwise it is the minimum length.
+    /// Gets the fill length, if [`is_fill`] this is the maximum length, otherwise it is the minimum length.
     ///
     /// [`is_fill`]: Self::is_fill
-    /// [`is_inner`]: Self::is_inner
     pub fn fill(self) -> Px {
         if self.is_fill_max() { self.max } else { self.min }
     }
 
     /// Gets the maximum if fill is preferred and max is bounded, or `length` clamped by the constraints.
-    ///
-    /// If [`is_inner`] just returns the `length`.
-    ///
-    /// [`is_inner`]: Self::is_inner
     pub fn fill_or(self, length: Px) -> Px {
         if self.is_fill_max() { self.max } else { self.clamp(length) }
     }
@@ -749,8 +738,8 @@ impl PxConstraints2d {
     #[deprecated = "use the `is_fill` method"]
     pub fn is_fill_pref(self) -> BoolVector2D {
         BoolVector2D {
-            x: self.x.is_fill_pref(),
-            y: self.y.is_fill_pref(),
+            x: self.x.is_fill(),
+            y: self.y.is_fill(),
         }
     }
 
@@ -806,27 +795,18 @@ impl PxConstraints2d {
     }
 
     /// Clamp the `size` by min and max.
-    ///
-    /// Does nothing in dimensions that are [`is_inner`].
-    ///
-    /// [`is_inner`]: Self::is_inner
     pub fn clamp_size(self, size: PxSize) -> PxSize {
         PxSize::new(self.x.clamp(size.width), self.y.clamp(size.height))
     }
 
-    /// Gets the fill size, if [`is_fill`] and not [`is_inner`] this is the maximum length, otherwise it is the minimum length.
+    /// Gets the fill size, if [`is_fill`] this is the maximum length, otherwise it is the minimum length.
     ///
     /// [`is_fill`]: Self::is_fill
-    /// [`is_inner`]: Self::is_inner
     pub fn fill_size(self) -> PxSize {
         PxSize::new(self.x.fill(), self.y.fill())
     }
 
     /// Gets the maximum if fill is preferred and max is bounded, or `size` clamped by the constraints.
-    ///
-    /// If [`is_inner`] just returns the `size`, per dimension.
-    ///
-    /// [`is_inner`]: Self::is_inner
     pub fn fill_size_or(self, size: PxSize) -> PxSize {
         PxSize::new(self.x.fill_or(size.width), self.y.fill_or(size.height))
     }
@@ -870,7 +850,7 @@ impl PxConstraints2d {
             let width = self.x.fill_or(size.width.max(self.x.min));
             let scale = (width.0 as f32 / size.width.0 as f32).fct();
             PxSize::new(width, size.height * scale)
-        } else if self.x.is_fill_pref() || self.y.is_fill_pref() {
+        } else if self.x.is_fill() || self.y.is_fill() {
             // contain max & clamp min
             let container = self.fill_size_or(size).to_f32();
             let content = size.to_f32();

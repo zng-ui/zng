@@ -177,8 +177,10 @@ impl Align {
     /// [`layout`]: Self::layout
     /// [`child_constraints`]: Self::child_constraints
     pub fn measure(self, child_size: PxSize, parent_constraints: PxConstraints2d) -> PxSize {
-        let size = parent_constraints.fill_size().max(child_size);
-        parent_constraints.clamp_size(size)
+        PxSize::new(
+            self.measure_x(child_size.width, parent_constraints.x),
+            self.measure_y(child_size.height, parent_constraints.y),
+        )
     }
 
     /// Computes the width returned by layout for the given child width and ***x*** constraints.
@@ -187,8 +189,12 @@ impl Align {
     ///
     /// [`measure`]: Self::measure
     pub fn measure_x(self, child_width: Px, parent_constraints_x: PxConstraints) -> Px {
-        let width = parent_constraints_x.fill().max(child_width);
-        parent_constraints_x.clamp(width)
+        if parent_constraints_x.is_inner() {
+            child_width
+        } else {
+            let width = parent_constraints_x.fill().max(child_width);
+            parent_constraints_x.clamp(width)
+        }
     }
 
     /// Computes the height returned by layout for the given child height and ***y*** constraints.
@@ -197,8 +203,12 @@ impl Align {
     ///
     /// [`measure`]: Self::measure
     pub fn measure_y(self, child_height: Px, parent_constraints_y: PxConstraints) -> Px {
-        let height = parent_constraints_y.fill().max(child_height);
-        parent_constraints_y.clamp(height)
+        if parent_constraints_y.is_inner() {
+            child_height
+        } else {
+            let height = parent_constraints_y.fill().max(child_height);
+            parent_constraints_y.clamp(height)
+        }
     }
 
     /// Compute the outer size and inner offset.
