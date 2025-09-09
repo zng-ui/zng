@@ -1313,7 +1313,7 @@ impl GridLayout {
                 col_info.min_width = LAYOUT.with_constraints(PxConstraints2d::new_unbounded(), || col.measure(wm)).width;
                 col_info.max_width = LAYOUT
                     .with_constraints(
-                        PxConstraints2d::new_fill(Px(MAX_PROBE), Px(MAX_PROBE)).with_fill_inner(true, true),
+                        PxConstraints2d::new_fill(Px(MAX_PROBE), Px(MAX_PROBE)).with_inner(true, true),
                         || col.measure(wm),
                     )
                     .width;
@@ -1349,7 +1349,7 @@ impl GridLayout {
                 row_info.min_height = LAYOUT.with_constraints(PxConstraints2d::new_unbounded(), || row.measure(wm)).height;
                 row_info.max_height = LAYOUT
                     .with_constraints(
-                        PxConstraints2d::new_fill(Px(MAX_PROBE), Px(MAX_PROBE)).with_fill_inner(true, true),
+                        PxConstraints2d::new_fill(Px(MAX_PROBE), Px(MAX_PROBE)).with_inner(true, true),
                         || row.measure(wm),
                     )
                     .width;

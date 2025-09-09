@@ -12,11 +12,8 @@ pub use euclid::BoolVector2D;
 bitflags! {
     #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Debug)]
     struct PxConstraintsFlags: u8 {
-        /// When this is set and the constraints have a maximum bound the fill length is the maximum bounds,
-        /// otherwise the fill length is the minimum bounds.
         const FILL = 0b0000_0001;
-        /// Does `FILL` and if the layout target has a concept of inner_size vs outer_size always returns the inner_size.
-        const FILL_TIGHT = 0b0000_0011;
+        const INNER = 0b0000_0010;
     }
 }
 impl Transitionable for PxConstraintsFlags {
@@ -145,23 +142,18 @@ impl PxConstraints {
 
     /// Returns a copy of the current constraints that sets the [`is_fill`] preference.
     ///
-    /// This also disables *fill inner*, that is, even if enabled it is enabling the default behavior, *fill outer*.
-    ///
     /// [`is_fill`]: Self::is_fill
     pub fn with_fill(mut self, fill: bool) -> Self {
         self.fill = fill;
-        self.flags.remove(PxConstraintsFlags::FILL_TIGHT);
         self.flags.set(PxConstraintsFlags::FILL, fill);
         self
     }
 
-    /// Returns a copy of the current constraints that sets the [`is_fill`] and [`is_fill_inner`] preference.
+    /// Returns a copy of the current constraints that sets the [`is_inner`] preference.
     ///
-    /// [`is_fill`]: Self::is_fill
-    /// [`is_fill_inner`]: Self::is_fill_inner
-    pub fn with_fill_inner(mut self, fill_inner: bool) -> Self {
-        self.fill |= fill_inner;
-        self.flags.set(PxConstraintsFlags::FILL_TIGHT, fill_inner);
+    /// [`is_inner`]: Self::is_inner
+    pub fn with_inner(mut self, inner: bool) -> Self {
+        self.flags.set(PxConstraintsFlags::INNER, inner);
         self
     }
 
@@ -235,22 +227,15 @@ impl PxConstraints {
         self.is_fill() && !self.is_unbounded()
     }
 
-    /// Gets whether [`is_fill`] is set and the caller prefers to handle the insertion of empty space.
+    /// Gets if the context wants the best *inner bounds* layout the target can provide, without
+    /// fill padding or overflow clamping.
     ///
-    /// Layout targets (widgets) can have a concept of *inner* vs. *outer* bounds. When a target is asked to
-    /// fill a maximum constraint but has its own internal maximum, it sets its *inner* length to that internal
-    /// maximum and its *outer* length to the constraint maximum. It then returns the *outer* length, inserting
-    /// empty space between the *inner* and *outer*. This behavior is the default.
-    ///
-    /// If the caller prefers to handle the gap itself, it can set this flag using [`with_fill_inner`]. In this
-    /// case, the layout target must set its *outer* length equal to its *inner* length, and the caller becomes
-    /// responsible for handling the layout gap. This behavior is primarily useful for panel measure queries for the max
-    /// size a child can reach.
-    ///
-    /// [`is_fill`]: Self::is_fill
-    /// [`with_fill_inner`]: Self::with_fill_inner
-    pub fn is_fill_inner(self) -> bool {
-        self.fill && self.flags.contains(PxConstraintsFlags::FILL_TIGHT)
+    /// Widgets have an *inner* and *outer* bounds, during normal measure/layout the widget *outer* is suppose
+    /// to always fulfill the constraints, and the *inner* is the actual best approximation to the given constraints.
+    /// This flag indicates that the panel the child widget to skip this final pad/clamp and just return its best size for
+    /// the given constraints.
+    pub fn is_inner(self) -> bool {
+        self.flags.contains(PxConstraintsFlags::INNER)
     }
 
     /// Gets the fixed length if the constraints only allow one length.
@@ -314,7 +299,7 @@ impl_from_and_into_var! {
 }
 impl fmt::Debug for PxConstraints {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if !f.alternate() && !self.is_fill_inner() {
+        if !f.alternate() && !self.is_inner() {
             return if self.is_exact() {
                 write!(f, "exact({})", self.min)
             } else if self.is_unbounded() {
@@ -605,13 +590,12 @@ impl PxConstraints2d {
         self
     }
 
-    /// Returns a copy of the current constraints that sets the [`is_fill`] and [`is_fill_inner`] preference.
+    /// Returns a copy of the current constraints that sets the [`is_inner`] preference.
     ///
-    /// [`is_fill`]: Self::is_fill
-    /// [`is_fill_inner`]: Self::is_fill_inner
-    pub fn with_fill_inner(mut self, fill_inner_x: bool, fill_inner_y: bool) -> Self {
-        self.x = self.x.with_fill_inner(fill_inner_x);
-        self.y = self.y.with_fill_inner(fill_inner_y);
+    /// [`is_inner`]: Self::is_inner
+    pub fn with_inner(mut self, inner_x: bool, inner_y: bool) -> Self {
+        self.x = self.x.with_inner(inner_x);
+        self.y = self.y.with_inner(inner_y);
         self
     }
 
@@ -775,15 +759,17 @@ impl PxConstraints2d {
         }
     }
 
-    /// Gets whether [`is_fill`] is set and the caller prefers to handle the insertion of empty space.
+    /// Gets if the context wants the best *inner bounds* layout the target can provide, without
+    /// fill padding or overflow clamping.
     ///
-    /// See [`PxConstraints::is_fill_inner`] for more details.
-    ///
-    /// [`is_fill`]: Self::is_fill
-    pub fn is_fill_inner(self) -> BoolVector2D {
+    /// Widgets have an *inner* and *outer* bounds, during normal measure/layout the widget *outer* is suppose
+    /// to always fulfill the constraints, and the *inner* is the actual best approximation to the given constraints.
+    /// This flag indicates that the panel the child widget to skip this final pad/clamp and just return its best size for
+    /// the given constraints.
+    pub fn is_inner(self) -> BoolVector2D {
         BoolVector2D {
-            x: self.x.is_fill_inner(),
-            y: self.y.is_fill_inner(),
+            x: self.x.is_inner(),
+            y: self.y.is_inner(),
         }
     }
 
