@@ -1748,9 +1748,11 @@ impl GridLayout {
         let mut x = Px(0);
         let mut s = Px(0);
         for col in &mut self.columns {
-            if col.width > Px(0) {
-                x += s;
+            if col.width <= Px(0) {
+                // collapsed or never measured (no cells)
+                continue;
             }
+            x += s;
             col.x = x;
             s = spacing.column;
             x += col.width;
@@ -1758,9 +1760,11 @@ impl GridLayout {
         let mut y = Px(0);
         let mut s = Px(0);
         for row in &mut self.rows {
-            if row.height > Px(0) {
-                y += s;
+            if row.height <= Px(0) {
+                // collapsed or never measured (no cells)
+                continue;
             }
+            y += s;
             row.y = y;
             s = spacing.row;
             y += row.height;
@@ -1807,9 +1811,10 @@ impl GridLayout {
                 let mut min_width = Px(0);
                 let mut s = Px(0);
                 for col in &self.columns {
-                    if col.width > Px(0) {
-                        min_width += s;
+                    if col.width <= Px(0) {
+                        continue;
                     }
+                    min_width += s;
                     s = spacing.column;
                     min_width += if col.meta.is_default() { col.min_width } else { col.width };
                 }
@@ -1878,9 +1883,10 @@ impl GridLayout {
                 x = Px(0);
                 let mut s = Px(0);
                 for col in &mut self.columns {
-                    if col.width > Px(0) {
-                        x += s;
+                    if col.width <= Px(0) {
+                        continue;
                     }
+                    x += s;
                     col.x = x;
                     s = spacing.column;
                     x += col.width;
@@ -1888,9 +1894,10 @@ impl GridLayout {
                 y = Px(0);
                 let mut s = Px(0);
                 for row in &mut self.rows {
-                    if row.height > Px(0) {
-                        y += s;
+                    if row.height <= Px(0) {
+                        continue;
                     }
+                    y += s;
                     row.y = y;
                     s = spacing.row;
                     y += row.height;
