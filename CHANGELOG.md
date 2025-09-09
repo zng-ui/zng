@@ -6,10 +6,12 @@
 * Changed `zng::widget::parallel` property to apply for all nodes in an widget, not just context nodes and inner.
 * Fix `UiVec::render_update` applying twice to some children when parallel is enabled.
 
-* Add *fill inner* in the layout constraints API.
+* Add `is_inner` in the layout constraints API.
     - **deprecated** `PxConstraints::fill` field and `fill_pref` method.
-    - Added `PxConstraints::is_fill`, `is_fill_inner` and `with_fill_inner` methods.
+    - Added `PxConstraints::is_fill`, `is_inner` and `with_inner` methods.
     - This is an advanced API for custom panel layout implementers only. The normal align/fill API remains the same.
+    - `PxConstraints` helper methods already implement *inner mode*, custom layout property implementers only need to support this directly if
+      operating using the constraint values directly. 
 
 * Fix `Grid!` layout.
     - Exact size columns/rows now are sized correctly.

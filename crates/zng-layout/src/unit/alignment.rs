@@ -177,21 +177,7 @@ impl Align {
     /// [`layout`]: Self::layout
     /// [`child_constraints`]: Self::child_constraints
     pub fn measure(self, child_size: PxSize, parent_constraints: PxConstraints2d) -> PxSize {
-        let is_inner = parent_constraints.is_inner();
-        let fill_size = PxSize::new(
-            if is_inner.x {
-                parent_constraints.x.min()
-            } else {
-                parent_constraints.x.fill()
-            },
-            if is_inner.y {
-                parent_constraints.y.min()
-            } else {
-                parent_constraints.y.fill()
-            },
-        );
-
-        let size = fill_size.max(child_size);
+        let size = parent_constraints.fill_size().max(child_size);
         parent_constraints.clamp_size(size)
     }
 
@@ -201,12 +187,7 @@ impl Align {
     ///
     /// [`measure`]: Self::measure
     pub fn measure_x(self, child_width: Px, parent_constraints_x: PxConstraints) -> Px {
-        let fill_width = if parent_constraints_x.is_inner() {
-            parent_constraints_x.min()
-        } else {
-            parent_constraints_x.fill()
-        };
-        let width = fill_width.max(child_width);
+        let width = parent_constraints_x.fill().max(child_width);
         parent_constraints_x.clamp(width)
     }
 
@@ -216,12 +197,7 @@ impl Align {
     ///
     /// [`measure`]: Self::measure
     pub fn measure_y(self, child_height: Px, parent_constraints_y: PxConstraints) -> Px {
-        let fill_height = if parent_constraints_y.is_inner() {
-            parent_constraints_y.min()
-        } else {
-            parent_constraints_y.fill()
-        };
-        let height = fill_height.max(child_height);
+        let height = parent_constraints_y.fill().max(child_height);
         parent_constraints_y.clamp(height)
     }
 

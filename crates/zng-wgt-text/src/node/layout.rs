@@ -253,7 +253,6 @@ fn layout_text_layout(child: impl IntoUiNode) -> UiNode {
 
             let metrics = LAYOUT.metrics();
 
-            // !!: TODO ignore max size when overflows?
             *desired_size = if let Some(size) = txt.measure(&metrics) {
                 size
             } else {
@@ -376,7 +375,7 @@ struct LayoutTextFinal {
 }
 impl LayoutTextFinal {
     /// Fast measure.
-    /// 
+    ///
     /// If the metrics fully define the size the text does not need to be shaped.
     fn measure(&mut self, metrics: &LayoutMetrics) -> Option<PxSize> {
         if metrics.inline_constraints().is_some() {
@@ -387,11 +386,11 @@ impl LayoutTextFinal {
     }
 
     /// Slow measure/layout.
-    /// 
+    ///
     /// If `is_measure` the text will be reshaped just like layout, it only skips render only state update.
     /// Text shaping is state heavy and there is significant perf gains for caching and "reshaping", reusing
     /// the same layout state for measure is the least bad option as it does not cause allocation and full shaping.
-    /// 
+    ///
     /// Because measure affects the state the `ensure_layout_for_render` method must be called because the measure API
     /// is not supposed to change state a parent panel can measure and discard the results and go directly to render, expecting
     /// the widget to still have the last layout state.
@@ -806,7 +805,10 @@ impl LayoutTextFinal {
         }
         self.txt_is_measured = is_measure;
 
-        metrics.constraints().fill_size_or(ctx.shaped_text.size())
+        let s = ctx.shaped_text.size();
+        let fs = metrics.constraints().fill_size_or(s);
+        dbg!((s, fs));
+        fs
     }
 
     /// See `layout` docs.
