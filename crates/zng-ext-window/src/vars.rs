@@ -762,7 +762,7 @@ impl WindowVars {
     /// See also [`WINDOWS.parallel`] to define parallelization between windows.
     ///
     /// [`PARALLEL_VAR`]: zng_app::widget::base::PARALLEL_VAR
-    /// [`WINDOWS.parallel`]: zng_ext_window::WINDOWS::parallel
+    /// [`WINDOWS.parallel`]: crate::WINDOWS::parallel
     pub fn parallel(&self) -> Var<Parallel> {
         self.0.parallel.clone()
     }
