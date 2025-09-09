@@ -5,6 +5,8 @@ on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *" # daily
 jobs:
   security_audit:
     runs-on: ubuntu-latest
