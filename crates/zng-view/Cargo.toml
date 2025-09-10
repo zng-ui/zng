@@ -1,6 +1,6 @@
 [package]
 name = "zng-view"
-version = "0.11.3"
+version = "0.11.4"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -109,7 +109,7 @@ webrender = { package = "zng-webrender", version = "0.65.0" }
 # path = "../../../zng-webrender/swgl" 
 swgl = { package = "zng-swgl", version = "0.4.0", optional = true }
 
-zng-view-api = { path = "../zng-view-api", version = "0.14.3", default-features = false }
+zng-view-api = { path = "../zng-view-api", version = "0.14.4", default-features = false }
 zng-unit = { path = "../zng-unit", version = "0.4.2", default-features = false }
 zng-txt = { path = "../zng-txt", version = "0.4.1", default-features = false }
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.5.1", default-features = false }
