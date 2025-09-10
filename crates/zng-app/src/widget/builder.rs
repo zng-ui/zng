@@ -601,10 +601,12 @@ impl<A: Clone + 'static> ArcWidgetHandler<A> {
     }
 }
 impl<A: Clone + 'static> WidgetHandler<A> for ArcWidgetHandler<A> {
+    #[inline(always)]
     fn event(&mut self, args: &A) -> bool {
         self.0.lock().event(args)
     }
 
+    #[inline(always)]
     fn update(&mut self) -> bool {
         self.0.lock().update()
     }

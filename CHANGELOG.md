@@ -1,5 +1,21 @@
 # Unreleased
 
+* Fix bitflags serialization error in RON configs.
+* Add `Window::parallel` and `WINDOW.vars().parallel` that has the same effect as the standalone property plus it also applies
+  to window *root extensions*.
+  - Fixes window with disabled parallel still running in another thread when built with the inspector extension.
+* Changed `zng::widget::parallel` property to apply for all nodes in an widget, not just context nodes and inner.
+* Fix `UiVec::render_update` applying twice to some children when parallel is enabled.
+
+* Add `is_inner` in the layout constraints API.
+    - **deprecated** `PxConstraints::fill` field and `fill_pref` method.
+    - Added `PxConstraints::is_fill`, `is_inner` and `with_inner` methods.
+    - This is an advanced API for custom layout implementers only. The normal align/fill API remains the same.
+
+* Fix `Grid!` layout.
+    - Exact size columns/rows now are sized correctly.
+    - Columns `min/max_width` and rows `min/max_height` are now respected in auto sized or leftover sized columns/rows.
+    - Default sized columns are now proportionally downsized in case of overflow.
 
 # 0.16.3
 

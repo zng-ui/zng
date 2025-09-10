@@ -404,42 +404,47 @@ impl Command {
     /// [`has_handlers`]: Self::has_handlers
     /// [`is_enabled`]: Self::is_enabled
     pub fn with_meta<R>(&self, visit: impl FnOnce(&mut CommandMeta) -> R) -> R {
-        {
-            let mut write = self.local.write();
-            match write.meta_init.clone() {
-                MetaInit::Init(init) => {
-                    let lock = Arc::new((std::thread::current().id(), Mutex::new(())));
-                    write.meta_init = MetaInit::Initing(lock.clone());
-                    let _init_guard = lock.1.lock();
-                    drop(write);
-                    init(*self);
-                    self.local.write().meta_init = MetaInit::Inited;
-                }
-                MetaInit::Initing(l) => {
-                    drop(write);
-                    if l.0 != std::thread::current().id() {
-                        let _wait = l.1.lock();
+        // code that runs before  calling `visit`, removed from the generics function
+        fn init_meta(self_: &Command) -> parking_lot::MappedRwLockReadGuard<'static, CommandData> {
+            {
+                let mut write = self_.local.write();
+                match write.meta_init.clone() {
+                    MetaInit::Init(init) => {
+                        let lock = Arc::new((std::thread::current().id(), Mutex::new(())));
+                        write.meta_init = MetaInit::Initing(lock.clone());
+                        let _init_guard = lock.1.lock();
+                        drop(write);
+                        init(*self_);
+                        self_.local.write().meta_init = MetaInit::Inited;
                     }
+                    MetaInit::Initing(l) => {
+                        drop(write);
+                        if l.0 != std::thread::current().id() {
+                            let _wait = l.1.lock();
+                        }
+                    }
+                    MetaInit::Inited => {}
                 }
-                MetaInit::Inited => {}
             }
+
+            if !matches!(self_.scope, CommandScope::App) {
+                let mut write = self_.local.write();
+                write.scopes.entry(self_.scope).or_default();
+            }
+            self_.local.read()
         }
+        let local_read = init_meta(self);
+        let mut meta_lock = local_read.meta.lock();
 
         match self.scope {
             CommandScope::App => visit(&mut CommandMeta {
-                meta: self.local.read().meta.lock().borrow_mut(),
+                meta: meta_lock.borrow_mut(),
                 scope: None,
             }),
             scope => {
-                {
-                    let mut write = self.local.write();
-                    write.scopes.entry(scope).or_default();
-                }
-
-                let read = self.local.read();
-                let scope = read.scopes.get(&scope).unwrap();
+                let scope = local_read.scopes.get(&scope).unwrap();
                 visit(&mut CommandMeta {
-                    meta: read.meta.lock().borrow_mut(),
+                    meta: meta_lock.borrow_mut(),
                     scope: Some(scope.meta.lock().borrow_mut()),
                 })
             }

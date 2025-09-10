@@ -1076,65 +1076,88 @@ impl WIDGET {
     /// caller widget context, otherwise they are ignored.
     ///
     /// This method can be used to manually define a widget context, note that widgets already define their own context.
+    #[inline(always)]
     pub fn with_context<R>(&self, ctx: &mut WidgetCtx, update_mode: WidgetUpdateMode, f: impl FnOnce() -> R) -> R {
-        let parent_id = WIDGET.try_id();
-
-        if let Some(ctx) = ctx.0.as_mut() {
-            ctx.parent_id.store(parent_id, Relaxed);
-        } else {
-            unreachable!()
+        struct Restore<'a> {
+            update_mode: WidgetUpdateMode,
+            parent_id: Option<WidgetId>,
+            prev_flags: UpdateFlags,
+            ctx: &'a mut WidgetCtx,
         }
+        impl<'a> Restore<'a> {
+            fn new(ctx: &'a mut WidgetCtx, update_mode: WidgetUpdateMode) -> Self {
+                let parent_id = WIDGET.try_id();
 
-        let prev_flags = match update_mode {
-            WidgetUpdateMode::Ignore => ctx.0.as_mut().unwrap().flags.load(Relaxed),
-            WidgetUpdateMode::Bubble => UpdateFlags::empty(),
-        };
-
-        // call `f` in context.
-        let r = WIDGET_CTX.with_context(&mut ctx.0, f);
-
-        let ctx = ctx.0.as_mut().unwrap();
-
-        match update_mode {
-            WidgetUpdateMode::Ignore => {
-                ctx.flags.store(prev_flags, Relaxed);
-            }
-            WidgetUpdateMode::Bubble => {
-                let wgt_flags = ctx.flags.load(Relaxed);
-
-                if let Some(parent) = parent_id.map(|_| WIDGET_CTX.get()) {
-                    let propagate = wgt_flags
-                        & (UpdateFlags::UPDATE
-                            | UpdateFlags::INFO
-                            | UpdateFlags::LAYOUT
-                            | UpdateFlags::RENDER
-                            | UpdateFlags::RENDER_UPDATE);
-
-                    let _ = parent.flags.fetch_update(Relaxed, Relaxed, |mut u| {
-                        if !u.contains(propagate) {
-                            u.insert(propagate);
-                            Some(u)
-                        } else {
-                            None
-                        }
-                    });
-                    ctx.parent_id.store(None, Relaxed);
-                } else if let Some(window_id) = WINDOW.try_id() {
-                    // is at root, register `UPDATES`
-                    UPDATES.update_flags_root(wgt_flags, window_id, ctx.id);
-                    // some builders don't clear the root widget flags like they do for other widgets.
-                    ctx.flags.store(wgt_flags & UpdateFlags::REINIT, Relaxed);
+                if let Some(ctx) = ctx.0.as_mut() {
+                    ctx.parent_id.store(parent_id, Relaxed);
                 } else {
-                    // used outside window
-                    UPDATES.update_flags(wgt_flags, ctx.id);
-                    ctx.flags.store(UpdateFlags::empty(), Relaxed);
+                    unreachable!()
+                }
+
+                let prev_flags = match update_mode {
+                    WidgetUpdateMode::Ignore => ctx.0.as_mut().unwrap().flags.load(Relaxed),
+                    WidgetUpdateMode::Bubble => UpdateFlags::empty(),
+                };
+
+                Self {
+                    update_mode,
+                    parent_id,
+                    prev_flags,
+                    ctx,
+                }
+            }
+        }
+        impl<'a> Drop for Restore<'a> {
+            fn drop(&mut self) {
+                let ctx = match self.ctx.0.as_mut() {
+                    Some(c) => c,
+                    None => return, // can happen in case of panic
+                };
+
+                match self.update_mode {
+                    WidgetUpdateMode::Ignore => {
+                        ctx.flags.store(self.prev_flags, Relaxed);
+                    }
+                    WidgetUpdateMode::Bubble => {
+                        let wgt_flags = ctx.flags.load(Relaxed);
+
+                        if let Some(parent) = self.parent_id.map(|_| WIDGET_CTX.get()) {
+                            let propagate = wgt_flags
+                                & (UpdateFlags::UPDATE
+                                    | UpdateFlags::INFO
+                                    | UpdateFlags::LAYOUT
+                                    | UpdateFlags::RENDER
+                                    | UpdateFlags::RENDER_UPDATE);
+
+                            let _ = parent.flags.fetch_update(Relaxed, Relaxed, |mut u| {
+                                if !u.contains(propagate) {
+                                    u.insert(propagate);
+                                    Some(u)
+                                } else {
+                                    None
+                                }
+                            });
+                            ctx.parent_id.store(None, Relaxed);
+                        } else if let Some(window_id) = WINDOW.try_id() {
+                            // is at root, register `UPDATES`
+                            UPDATES.update_flags_root(wgt_flags, window_id, ctx.id);
+                            // some builders don't clear the root widget flags like they do for other widgets.
+                            ctx.flags.store(wgt_flags & UpdateFlags::REINIT, Relaxed);
+                        } else {
+                            // used outside window
+                            UPDATES.update_flags(wgt_flags, ctx.id);
+                            ctx.flags.store(UpdateFlags::empty(), Relaxed);
+                        }
+                    }
                 }
             }
         }
 
-        r
+        let mut _restore = Restore::new(ctx, update_mode);
+        WIDGET_CTX.with_context(&mut _restore.ctx.0, f)
     }
     /// Calls `f` while no widget is available in the context.
+    #[inline(always)]
     pub fn with_no_context<R>(&self, f: impl FnOnce() -> R) -> R {
         WIDGET_CTX.with_default(f)
     }

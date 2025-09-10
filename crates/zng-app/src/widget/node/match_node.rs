@@ -703,6 +703,7 @@ impl MatchNodeChild {
     }
 
     /// Delegate [`UiNode::op`].
+    #[inline(always)]
     pub fn op(&mut self, op: UiNodeOp) {
         self.node.op(op);
         self.delegated = true;

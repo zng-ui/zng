@@ -195,7 +195,7 @@ pub fn lazy_sample(
         }
         op @ UiNodeOp::Measure { .. } | op @ UiNodeOp::Layout { .. } => {
             let mut measure = |wm| {
-                let constraints = LAYOUT.constraints();
+                let constraints = LAYOUT.constraints().inner();
                 if let Some(known) = constraints.fill_or_exact() {
                     child.delegated();
                     return known;
@@ -258,7 +258,7 @@ pub fn lazy_sample(
 fn measure(wm: &mut WidgetMeasure, children: &mut PanelList, direction: StackDirection, spacing: Length, children_align: Align) -> PxSize {
     let metrics = LAYOUT.metrics();
     let constraints = metrics.constraints();
-    if let Some(known) = constraints.fill_or_exact() {
+    if let Some(known) = constraints.inner().fill_or_exact() {
         return known;
     }
 
@@ -309,7 +309,7 @@ fn measure(wm: &mut WidgetMeasure, children: &mut PanelList, direction: StackDir
         },
     );
 
-    constraints.fill_size_or(item_bounds.size())
+    constraints.inner().fill_size_or(item_bounds.size())
 }
 fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirection, spacing: Length, children_align: Align) -> PxSize {
     let metrics = LAYOUT.metrics();
@@ -377,7 +377,7 @@ fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirec
 
     // final position, align child inside item_bounds and item_bounds in the panel area.
     let items_size = item_bounds.size();
-    let panel_size = constraints.fill_size_or(items_size);
+    let panel_size = constraints.inner().fill_size_or(items_size);
     let children_offset = -item_bounds.min.to_vector() + (panel_size - items_size).to_vector() * children_align.xy(LAYOUT.direction());
     let align_baseline = children_align.is_baseline();
     let child_align = child_align.xy(LAYOUT.direction());

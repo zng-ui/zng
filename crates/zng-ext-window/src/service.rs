@@ -15,6 +15,7 @@ use zng_app::{
     },
     widget::{
         UiTaskWidget, WidgetId,
+        base::PARALLEL_VAR,
         info::{InteractionPath, WidgetInfo, WidgetInfoTree},
         node::UiNode,
     },
@@ -1589,6 +1590,7 @@ impl AppWindowTask {
             let vars = WINDOW.vars();
             let child = with_context_var(child, ACCENT_COLOR_VAR, vars.actual_accent_color());
             let child = with_context_var(child, COLOR_SCHEME_VAR, vars.actual_color_scheme());
+            let child = with_context_var(child, PARALLEL_VAR, vars.parallel());
             window.child = child;
         });
 

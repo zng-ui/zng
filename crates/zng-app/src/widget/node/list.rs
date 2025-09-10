@@ -519,7 +519,7 @@ impl UiNodeImpl for UiVec {
                 self[par_start].render_update(update);
                 par_start += 1;
             }
-            let b = self
+            let b = self[par_start..]
                 .par_iter_mut()
                 .with_ctx()
                 .fold(
@@ -550,7 +550,7 @@ impl UiNodeImpl for UiVec {
                 self[par_start].render_update(update);
                 par_start += 1;
             }
-            let b = self
+            let b = self[par_start..]
                 .par_iter_mut()
                 .enumerate()
                 .with_ctx()

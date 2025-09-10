@@ -258,13 +258,13 @@ pub fn render_text() -> UiNode {
         }
         UiNodeOp::Measure { desired_size, .. } => {
             let txt = TEXT.laidout();
-            *desired_size = LAYOUT.constraints().fill_size_or(txt.shaped_text.size())
+            *desired_size = LAYOUT.constraints().inner().fill_size_or(txt.shaped_text.size())
         }
         UiNodeOp::Layout { final_size, .. } => {
             // layout implemented in `layout_text`, it sets the size as an exact size constraint, we return
             // the size here for foreign nodes in the CHILD_LAYOUT+100 ..= CHILD range.
             let txt = TEXT.laidout();
-            *final_size = LAYOUT.constraints().fill_size_or(txt.shaped_text.size())
+            *final_size = LAYOUT.constraints().inner().fill_size_or(txt.shaped_text.size())
         }
         UiNodeOp::Render { frame } => {
             let r = TEXT.resolved();

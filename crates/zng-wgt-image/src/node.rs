@@ -254,7 +254,7 @@ pub fn image_presenter() -> UiNode {
             let min_size = metrics.constraints().clamp_size(render_clip.size);
             let wgt_ratio = metrics.constraints().with_min_size(min_size).fill_ratio(render_clip.size);
 
-            *desired_size = metrics.constraints().fill_size_or(wgt_ratio);
+            *desired_size = metrics.constraints().inner().fill_size_or(wgt_ratio);
         }
         UiNodeOp::Layout { final_size, .. } => {
             // Part 1 - Scale & Crop
@@ -290,9 +290,10 @@ pub fn image_presenter() -> UiNode {
 
             let mut align = IMAGE_ALIGN_VAR.get();
 
-            let min_size = metrics.constraints().clamp_size(r_clip.size);
-            let wgt_ratio = metrics.constraints().with_min_size(min_size).fill_ratio(r_clip.size);
-            let wgt_size = metrics.constraints().fill_size_or(wgt_ratio);
+            let constraints = metrics.constraints();
+            let min_size = constraints.clamp_size(r_clip.size);
+            let wgt_ratio = constraints.with_min_size(min_size).fill_ratio(r_clip.size);
+            let wgt_size = constraints.inner().fill_size_or(wgt_ratio);
 
             let mut fit = IMAGE_FIT_VAR.get();
             if let ImageFit::ScaleDown = fit {

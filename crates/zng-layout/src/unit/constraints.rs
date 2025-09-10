@@ -1,10 +1,26 @@
+#![allow(deprecated)] // TODO(breaking) remove this after PxConstraints::fill is removed
+
 use std::fmt;
 
+use bitflags::bitflags;
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
 use super::{FactorUnits, Px, PxSize, euclid};
 
 pub use euclid::BoolVector2D;
+
+bitflags! {
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Debug)]
+    struct PxConstraintsFlags: u8 {
+        const FILL = 0b0000_0001;
+        const INNER = 0b0000_0010;
+    }
+}
+impl Transitionable for PxConstraintsFlags {
+    fn lerp(self, to: &Self, step: zng_var::animation::easing::EasingStep) -> Self {
+        if step >= 1.fct() { *to } else { self }
+    }
+}
 
 /// Pixel length constraints.
 ///
@@ -18,9 +34,10 @@ pub struct PxConstraints {
     max: Px,
     min: Px,
 
-    /// Fill preference, when this is `true` and the constraints have a maximum bound the fill length is the maximum bounds,
-    /// otherwise the fill length is the minimum bounds.
+    #[doc(hidden)]
+    #[deprecated = "use the `is_fill` method"]
     pub fill: bool,
+    flags: PxConstraintsFlags,
 }
 impl PxConstraints {
     /// New unbounded constrain.
@@ -29,6 +46,7 @@ impl PxConstraints {
             max: Px::MAX,
             min: Px(0),
             fill: false,
+            flags: PxConstraintsFlags::empty(),
         }
     }
 
@@ -38,6 +56,7 @@ impl PxConstraints {
             max,
             min: Px(0),
             fill: false,
+            flags: PxConstraintsFlags::empty(),
         }
     }
 
@@ -47,6 +66,7 @@ impl PxConstraints {
             max: length,
             min: length,
             fill: true,
+            flags: PxConstraintsFlags::FILL,
         }
     }
 
@@ -56,6 +76,7 @@ impl PxConstraints {
             max: length,
             min: Px(0),
             fill: true,
+            flags: PxConstraintsFlags::FILL,
         }
     }
 
@@ -67,7 +88,12 @@ impl PxConstraints {
     pub fn new_range(min: Px, max: Px) -> Self {
         assert!(min <= max);
 
-        PxConstraints { max, min, fill: false }
+        PxConstraints {
+            max,
+            min,
+            fill: false,
+            flags: PxConstraintsFlags::empty(),
+        }
     }
 
     /// Returns a copy of the current constraints that has `min` as the lower bound and max adjusted to be >= `min`.
@@ -103,6 +129,7 @@ impl PxConstraints {
         self.max = len;
         self.min = len;
         self.fill = true;
+        self.flags = PxConstraintsFlags::FILL;
         self
     }
 
@@ -113,15 +140,27 @@ impl PxConstraints {
         self.with_new_exact(self.clamp(len))
     }
 
-    /// Returns a copy of the current constraints that sets the `fill` preference.
+    /// Returns a copy of the current constraints that sets the [`is_fill`] preference.
+    ///
+    /// [`is_fill`]: Self::is_fill
     pub fn with_fill(mut self, fill: bool) -> Self {
         self.fill = fill;
+        self.flags.set(PxConstraintsFlags::FILL, fill);
         self
     }
 
-    /// Returns a copy of the current constraints that sets the fill preference to `self.fill && fill`.
+    /// Returns a copy of the current constraints that sets the [`is_inner`] preference.
+    ///
+    /// [`is_inner`]: Self::is_inner
+    pub fn with_inner(mut self, inner: bool) -> Self {
+        self.flags.set(PxConstraintsFlags::INNER, inner);
+        self
+    }
+
+    /// Returns a copy of the current constraints that sets the fill preference to "current & `fill`".
     pub fn with_fill_and(mut self, fill: bool) -> Self {
         self.fill &= fill;
+        self.flags.set(PxConstraintsFlags::FILL, self.fill);
         self
     }
 
@@ -170,13 +209,33 @@ impl PxConstraints {
     /// Gets if the context prefers the maximum length over the minimum.
     ///
     /// Note that if the constraints are unbounded there is not maximum length, in this case the fill length is the minimum.
+    #[deprecated = "use the `is_fill` method"]
     pub fn is_fill_pref(self) -> bool {
+        self.fill
+    }
+
+    /// Gets if the context prefers the maximum length over the minimum.
+    ///
+    /// Note that if the constraints are unbounded there is not maximum length, in this case the fill length is the minimum.
+    pub fn is_fill(self) -> bool {
+        // self.flags.contains(PxConstraintsFlags::FILL)
         self.fill
     }
 
     /// Gets if the context prefers the maximum length and there is a maximum length.
     pub fn is_fill_max(self) -> bool {
-        self.fill && !self.is_unbounded()
+        self.is_fill() && !self.is_unbounded()
+    }
+
+    /// Gets if the context wants the best *inner bounds* layout the target can provide, without
+    /// fill padding or overflow clamping.
+    ///
+    /// Widgets have an *inner* and *outer* bounds, during normal measure/layout the widget *outer* is suppose
+    /// to always fulfill the constraints, and the *inner* is the actual best approximation to the given constraints.
+    /// This flag indicates that the panel the child widget to skip this final pad/clamp and just return its best size for
+    /// the given constraints.
+    pub fn is_inner(self) -> bool {
+        self.flags.contains(PxConstraintsFlags::INNER)
     }
 
     /// Gets the fixed length if the constraints only allow one length.
@@ -208,18 +267,16 @@ impl PxConstraints {
         self.min.max(px).min(self.max)
     }
 
-    /// Gets the fill length, if fill is `true` this is the maximum length, otherwise it is the minimum length.
+    /// Gets the fill length, if [`is_fill`] this is the maximum length, otherwise it is the minimum length.
+    ///
+    /// [`is_fill`]: Self::is_fill
     pub fn fill(self) -> Px {
-        if self.fill && !self.is_unbounded() { self.max } else { self.min }
+        if self.is_fill_max() { self.max } else { self.min }
     }
 
     /// Gets the maximum if fill is preferred and max is bounded, or `length` clamped by the constraints.
     pub fn fill_or(self, length: Px) -> Px {
-        if self.fill && !self.is_unbounded() {
-            self.max
-        } else {
-            self.clamp(length)
-        }
+        if self.is_fill_max() { self.max } else { self.clamp(length) }
     }
 
     /// Gets the max size if is fill and has max bounds, or gets the exact size if min equals max.
@@ -235,6 +292,17 @@ impl PxConstraints {
     pub fn max_or(self, length: Px) -> Px {
         if self.is_unbounded() { self.clamp(length) } else { self.max }
     }
+
+    /// Gets unbounded if [`is_inner`] or `self` if is not inner.
+    ///
+    /// Widgets that clamp/pad a child desired size to fulfill constraints must avoid doing this in
+    /// [`is_inner`] contexts. This helper simply returns unbounded constraints if is inner so that
+    /// the last clamp/pad step becomes a no-op.
+    ///
+    /// [`is_inner`]: Self::is_inner
+    pub fn inner(self) -> Self {
+        if self.is_inner() { PxConstraints::new_unbounded() } else { self }
+    }
 }
 impl_from_and_into_var! {
     /// New exact.
@@ -244,21 +312,22 @@ impl_from_and_into_var! {
 }
 impl fmt::Debug for PxConstraints {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            f.debug_struct("PxConstraints")
-                .field("max", &self.max())
-                .field("min", &self.min)
-                .field("fill", &self.fill)
-                .finish()
-        } else if self.is_exact() {
-            write!(f, "exact({})", self.min)
-        } else if self.is_unbounded() {
-            write!(f, "min({})", self.min)
-        } else if self.fill {
-            write!(f, "fill({}, {})", self.min, self.max)
-        } else {
-            write!(f, "range({}, {})", self.min, self.max)
+        if !f.alternate() && !self.is_inner() {
+            return if self.is_exact() {
+                write!(f, "exact({})", self.min)
+            } else if self.is_unbounded() {
+                write!(f, "min({})", self.min)
+            } else if self.is_fill() {
+                write!(f, "fill({}, {})", self.min, self.max)
+            } else {
+                write!(f, "range({}, {})", self.min, self.max)
+            };
         }
+        f.debug_struct("PxConstraints")
+            .field("max", &self.max())
+            .field("min", &self.min)
+            .field("flags", &self.flags)
+            .finish()
     }
 }
 impl Default for PxConstraints {
@@ -534,6 +603,15 @@ impl PxConstraints2d {
         self
     }
 
+    /// Returns a copy of the current constraints that sets the [`is_inner`] preference.
+    ///
+    /// [`is_inner`]: Self::is_inner
+    pub fn with_inner(mut self, inner_x: bool, inner_y: bool) -> Self {
+        self.x = self.x.with_inner(inner_x);
+        self.y = self.y.with_inner(inner_y);
+        self
+    }
+
     /// Returns a copy of the current constraints that sets the fill preference to *current && fill*.
     pub fn with_fill_and(mut self, fill_x: bool, fill_y: bool) -> Self {
         self.x = self.x.with_fill_and(fill_x);
@@ -668,10 +746,21 @@ impl PxConstraints2d {
     /// Gets if the context prefers the maximum length over the minimum.
     ///
     /// Note that if the constraints are unbounded there is not maximum length, in this case the fill length is the minimum.
+    #[deprecated = "use the `is_fill` method"]
     pub fn is_fill_pref(self) -> BoolVector2D {
         BoolVector2D {
-            x: self.x.is_fill_pref(),
-            y: self.y.is_fill_pref(),
+            x: self.x.is_fill(),
+            y: self.y.is_fill(),
+        }
+    }
+
+    /// Gets if the context prefers the maximum length over the minimum.
+    ///
+    /// Note that if the constraints are unbounded there is not maximum length, in this case the fill length is the minimum.
+    pub fn is_fill(self) -> BoolVector2D {
+        BoolVector2D {
+            x: self.x.is_fill(),
+            y: self.y.is_fill(),
         }
     }
 
@@ -680,6 +769,20 @@ impl PxConstraints2d {
         BoolVector2D {
             x: self.x.is_fill_max(),
             y: self.y.is_fill_max(),
+        }
+    }
+
+    /// Gets if the context wants the best *inner bounds* layout the target can provide, without
+    /// fill padding or overflow clamping.
+    ///
+    /// Widgets have an *inner* and *outer* bounds, during normal measure/layout the widget *outer* is suppose
+    /// to always fulfill the constraints, and the *inner* is the actual best approximation to the given constraints.
+    /// This flag indicates that the panel the child widget to skip this final pad/clamp and just return its best size for
+    /// the given constraints.
+    pub fn is_inner(self) -> BoolVector2D {
+        BoolVector2D {
+            x: self.x.is_inner(),
+            y: self.y.is_inner(),
         }
     }
 
@@ -707,7 +810,9 @@ impl PxConstraints2d {
         PxSize::new(self.x.clamp(size.width), self.y.clamp(size.height))
     }
 
-    /// Gets the fill size, if fill is `true` this is the maximum length, otherwise it is the minimum length.
+    /// Gets the fill size, if [`is_fill`] this is the maximum length, otherwise it is the minimum length.
+    ///
+    /// [`is_fill`]: Self::is_fill
     pub fn fill_size(self) -> PxSize {
         PxSize::new(self.x.fill(), self.y.fill())
     }
@@ -756,7 +861,7 @@ impl PxConstraints2d {
             let width = self.x.fill_or(size.width.max(self.x.min));
             let scale = (width.0 as f32 / size.width.0 as f32).fct();
             PxSize::new(width, size.height * scale)
-        } else if self.x.is_fill_pref() || self.y.is_fill_pref() {
+        } else if self.x.is_fill() || self.y.is_fill() {
             // contain max & clamp min
             let container = self.fill_size_or(size).to_f32();
             let content = size.to_f32();
@@ -770,6 +875,20 @@ impl PxConstraints2d {
             let scale = (container.width / content.width).max(container.height / content.height).fct();
 
             (size * scale).min(PxSize::new(self.x.max, self.y.max))
+        }
+    }
+
+    /// Gets unbounded if dimension [`is_inner`] or `self` if is not inner.
+    ///
+    /// Widgets that clamp/pad a child desired size to fulfill constraints must avoid doing this in
+    /// [`is_inner`] contexts. This helper simply returns unbounded constraints if is inner so that
+    /// the last clamp/pad step becomes a no-op.
+    ///
+    /// [`is_inner`]: Self::is_inner
+    pub fn inner(self) -> Self {
+        Self {
+            x: self.x.inner(),
+            y: self.y.inner(),
         }
     }
 }

@@ -201,15 +201,20 @@ impl WINDOW {
     }
 
     /// Calls `f` while the window is set to `ctx`.
+    #[inline(always)]
     pub fn with_context<R>(&self, ctx: &mut WindowCtx, f: impl FnOnce() -> R) -> R {
-        let _span = match ctx.0.as_mut() {
-            Some(c) => UpdatesTrace::window_span(c.id),
-            None => panic!("window is required"),
-        };
+        fn pre(ctx: &mut WindowCtx) -> tracing::span::EnteredSpan {
+            match ctx.0.as_mut() {
+                Some(c) => UpdatesTrace::window_span(c.id),
+                None => panic!("window is required"),
+            }
+        }
+        let _span = pre(ctx);
         WINDOW_CTX.with_context(&mut ctx.0, f)
     }
 
     /// Calls `f` while no window is available in the context.
+    #[inline(always)]
     pub fn with_no_context<R>(&self, f: impl FnOnce() -> R) -> R {
         WINDOW_CTX.with_default(f)
     }
