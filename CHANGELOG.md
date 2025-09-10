@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.16.4
+
 * Fix bitflags serialization error in RON configs.
 * Add `Window::parallel` and `WINDOW.vars().parallel` that has the same effect as the standalone property plus it also applies
   to window *root extensions*.

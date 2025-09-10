@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-data-view"
-version = "0.7.3"
+version = "0.7.4"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,9 +12,9 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.9.3", default-features = false }
-zng-var = { path = "../zng-var", version = "0.8.3", default-features = false }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.8.3", default-features = false }
+zng-wgt = { path = "../zng-wgt", version = "0.9.4", default-features = false }
+zng-var = { path = "../zng-var", version = "0.8.4", default-features = false }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.8.4", default-features = false }
 
 parking_lot = { version = "0.12", default-features = false }
 tracing = { version = "0.1", default-features = false }
