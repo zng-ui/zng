@@ -13,6 +13,7 @@ use std::hash::{Hash, Hasher};
 pub use de::*;
 pub use ser::*;
 
+// TODO(breaking) represent every detail of serde API? Had some issues with RON serializing bitflags because some data details changed (like struct name)
 #[derive(Clone, Debug)]
 pub enum Value {
     Bool(bool),
@@ -254,7 +255,7 @@ mod ser {
                 Value::Unit => s.serialize_unit(),
                 Value::Option(None) => s.serialize_none(),
                 Value::Option(Some(ref v)) => s.serialize_some(v),
-                Value::Newtype(ref v) => s.serialize_newtype_struct("", v),
+                Value::Newtype(ref v) => v.serialize(s),
                 Value::Seq(ref v) => v.serialize(s),
                 Value::Map(ref v) => v.serialize(s),
                 Value::Bytes(ref v) => s.serialize_bytes(v),
@@ -336,6 +337,13 @@ mod ser {
         }
 
         fn serialize_str(self, v: &str) -> Result<Self::Ok, Self::Error> {
+            Ok(Value::String(v.to_owned()))
+        }
+
+        fn collect_str<T>(self, v: &T) -> Result<Self::Ok, Self::Error>
+        where
+            T: ?Sized + fmt::Display,
+        {
             Ok(Value::String(v.to_string()))
         }
 
@@ -390,16 +398,16 @@ mod ser {
             })
         }
 
-        fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
-            Ok(SerializeSeq(vec![]))
+        fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
+            Ok(SerializeSeq(Vec::with_capacity(len.unwrap_or(0))))
         }
 
-        fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple, Self::Error> {
-            Ok(SerializeTuple(vec![]))
+        fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple, Self::Error> {
+            Ok(SerializeTuple(Vec::with_capacity(len)))
         }
 
-        fn serialize_tuple_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeTupleStruct, Self::Error> {
-            Ok(SerializeTupleStruct(vec![]))
+        fn serialize_tuple_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeTupleStruct, Self::Error> {
+            Ok(SerializeTupleStruct(Vec::with_capacity(len)))
         }
 
         fn serialize_tuple_variant(
@@ -431,6 +439,10 @@ mod ser {
             _len: usize,
         ) -> Result<Self::SerializeStructVariant, Self::Error> {
             Ok(SerializeStructVariant(Value::String(variant.to_string()), BTreeMap::new()))
+        }
+
+        fn is_human_readable(&self) -> bool {
+            true
         }
     }
 
