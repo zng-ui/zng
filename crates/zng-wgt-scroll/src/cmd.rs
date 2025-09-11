@@ -232,6 +232,10 @@ command! {
     /// Represents the **zoom to fit** action.
     ///
     /// The content is scaled to fit the viewport, the equivalent to `ImageFit::Contain`.
+    /// 
+    /// # Parameter
+    /// 
+    /// This command accepts an optional [`ZoomToFitRequest`] parameter with configuration.
     pub static ZOOM_TO_FIT_CMD = {
         l10n!: true,
         name: "Zoom to Fit",
@@ -259,8 +263,48 @@ command! {
     pub static AUTO_SCROLL_CMD;
 }
 
+/// Parameters for the [`ZOOM_TO_FIT_CMD`].
+#[derive(Default, Debug, Clone, PartialEq)]
+#[non_exhaustive]
+pub struct ZoomToFitRequest {
+    /// If behaves like `ImageFit::ScaleDown` when the content is smaller them the viewport.
+    /// 
+    /// By default behaves like `ImageFit::Contain` and scales up smaller contents, if this is enabled it will
+    /// only scale down larger content, smaller content scale is set to 100%.
+    pub scale_down: bool,
+    /// Apply the change immediately, no easing/smooth animation.
+    pub skip_animation: bool,
+}
+impl ZoomToFitRequest {
+        /// Pack the request into a command parameter.
+    pub fn to_param(self) -> CommandParam {
+        CommandParam::new(self)
+    }
+
+    /// Extract a clone of the request from the command parameter if it is of a compatible type.
+    pub fn from_param(p: &CommandParam) -> Option<Self> {
+        p.downcast_ref::<Self>().cloned()
+    }
+
+    /// Extract a clone of the request from [`CommandArgs::param`] if it is set to a compatible type and
+    /// stop-propagation was not requested for the event.
+    ///
+    /// [`CommandArgs::param`]: zng_app::event::CommandArgs
+    pub fn from_args(args: &CommandArgs) -> Option<Self> {
+        if let Some(p) = &args.param {
+            if args.propagation().is_stopped() {
+                None
+            } else {
+                Self::from_param(p)
+            }
+        } else {
+            None
+        }
+    }
+}
+
 /// Parameters for the scroll and page commands.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)] // TODO(breaking) non_exhaustive, add skip_animation
 pub struct ScrollRequest {
     /// If the [alt factor] should be applied to the base scroll unit when scrolling.
     ///
@@ -361,6 +405,8 @@ pub struct ScrollToRequest {
     /// Note that the viewport size can change due to a scrollbar visibility changing, this size
     /// change is not accounted for when calculating minimal.
     pub zoom: Option<Factor>,
+
+    // TODO(breaking) non_exhaustive + skip_animation
 }
 impl ScrollToRequest {
     /// Pack the request into a command parameter.
