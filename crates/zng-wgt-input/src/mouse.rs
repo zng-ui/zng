@@ -6,8 +6,8 @@
 //! [`on_click`](fn@super::gesture::on_click) event.
 
 use zng_ext_input::mouse::{
-    MOUSE_CLICK_EVENT, MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT, MOUSE_WHEEL_EVENT, MouseClickArgs, MouseHoverArgs,
-    MouseInputArgs, MouseMoveArgs, MouseWheelArgs,
+    CTRL_SCROLL_VAR, MOUSE_CLICK_EVENT, MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT, MOUSE_WHEEL_EVENT, MouseClickArgs,
+    MouseHoverArgs, MouseInputArgs, MouseMoveArgs, MouseWheelArgs,
 };
 use zng_wgt::prelude::*;
 
@@ -181,4 +181,15 @@ event_property! {
         args: MouseWheelArgs,
         filter: |args| args.is_zoom() && args.target.contains_enabled(WIDGET.id()),
     }
+}
+
+/// Defines if [`MouseWheelArgs`] gesture [`is_scroll`] when `CTRL` is pressed and [`is_zoom`] when no modifier is pressed.
+///
+/// This property sets the [`CTRL_SCROLL_VAR`].
+///
+/// [`is_scroll`]: MouseWheelArgs::is_scroll
+/// [`is_zoom`]: MouseWheelArgs::is_zoom
+#[property(CONTEXT, default(CTRL_SCROLL_VAR))]
+pub fn ctrl_scroll(child: impl IntoUiNode, ctrl_scroll: impl IntoVar<bool>) -> UiNode {
+    with_context_var(child, CTRL_SCROLL_VAR, ctrl_scroll)
 }

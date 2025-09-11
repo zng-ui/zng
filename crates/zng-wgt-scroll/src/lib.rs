@@ -100,6 +100,10 @@ impl Scroll {
 
         /// Enables keyboard controls.
         pub zng_wgt_input::focus::focusable(focusable: impl IntoVar<bool>);
+
+        /// Inverts priority for mouse wheel gesture so that it zooms when no modifier is pressed and
+        /// scrolls when `CTRL` is pressed.
+        pub zng_wgt_input::mouse::ctrl_scroll(enabled: impl IntoVar<bool>);
     }
 }
 

@@ -51,7 +51,7 @@ pub use zng_wgt_input::mouse::{
     on_pre_mouse_any_click, on_pre_mouse_any_double_click, on_pre_mouse_any_single_click, on_pre_mouse_any_triple_click,
     on_pre_mouse_click, on_pre_mouse_double_click, on_pre_mouse_down, on_pre_mouse_enter, on_pre_mouse_hovered, on_pre_mouse_input,
     on_pre_mouse_leave, on_pre_mouse_move, on_pre_mouse_scroll, on_pre_mouse_single_click, on_pre_mouse_triple_click, on_pre_mouse_up,
-    on_pre_mouse_wheel, on_pre_mouse_zoom,
+    on_pre_mouse_wheel, on_pre_mouse_zoom, ctrl_scroll,
 };
 
 pub use zng_wgt_input::{CursorIcon, CursorImg, CursorSource, click_mode, cursor, is_cap_mouse_pressed, is_mouse_pressed};
