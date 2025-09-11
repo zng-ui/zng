@@ -187,8 +187,6 @@ pub fn img_scale_factor(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> 
 
 /// Sets if the image desired size is scaled considering the image and monitor PPI.
 ///
-/// If the image desired size is scaled by PPI.
-///
 /// The image desired size is its original size, after [`img_crop`], and it can be in pixels or scaled considering
 /// the image PPI, monitor PPI and scale factor.
 ///
