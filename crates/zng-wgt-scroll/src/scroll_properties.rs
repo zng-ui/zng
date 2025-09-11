@@ -596,7 +596,7 @@ impl ScrollBarArgs {
 
 /// Scroll by grabbing and dragging the content with the mouse primary button.
 ///
-/// This is not enabled by default. Note that couch pan is always enabled, this property implements
+/// This is not enabled by default. Note that touch pan is always enabled, this property implements
 /// a similar behavior for the mouse pointer.
 #[property(LAYOUT, default(false), widget_impl(Scroll))]
 pub fn mouse_pan(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {

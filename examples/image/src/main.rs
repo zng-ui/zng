@@ -321,6 +321,7 @@ fn large_image() -> UiNode {
                     child = Scroll! {
                         mode = mode.clone();
                         mouse_pan = mouse_pan.clone();
+                        ctrl_scroll = true;
                         child = Image! {
                             source;
                             img_limits = Some(
@@ -370,6 +371,7 @@ fn panorama_image() -> UiNode {
                     Scroll! {
                         mode = ScrollMode::HORIZONTAL;
                         mouse_pan = true;
+                        ctrl_scroll = true;
                         child = Image! {
                             img_fit = ImageFit::Fill;
                             source;
@@ -413,6 +415,7 @@ fn block_window_load_image() -> UiNode {
 
                     child = Scroll! {
                         mouse_pan = true;
+                        ctrl_scroll = true;
                         child = Image! {
                             // block window load until the image is ready to present or 5 minutes have elapsed.
                             // usually you want to set a shorter deadline, `true` converts to 1 second.

@@ -28,7 +28,7 @@ use zng_app_context::app_local;
 use zng_ext_window::{NestedWindowWidgetInfoExt, WINDOWS};
 use zng_layout::unit::{Dip, DipPoint, DipToPx, Factor, PxPoint, PxToDip};
 use zng_state_map::{StateId, state_map, static_id};
-use zng_var::{IntoVar, Var, impl_from_and_into_var, var};
+use zng_var::{IntoVar, Var, context_var, impl_from_and_into_var, var};
 use zng_view_api::touch::TouchPhase;
 pub use zng_view_api::{
     config::MultiClickConfig,
@@ -547,19 +547,30 @@ impl MouseWheelArgs {
     /// Is `true` if only `SHIFT`, `ALT` or none modifiers are pressed. If `true` the
     /// [`scroll_delta`] method returns a value.
     ///
+    /// If contextual [`CTRL_SCROLL_VAR`] is `true` the `CTRL` modifier must be pressed for this to be `true`.
+    ///
     /// [`scroll_delta`]: Self::scroll_delta
     pub fn is_scroll(&self) -> bool {
-        self.modifiers.is_empty() || self.modifiers.is_only(ModifiersState::SHIFT | ModifiersState::ALT)
+        if CTRL_SCROLL_VAR.get() {
+            self.modifiers
+                .is_only(ModifiersState::CTRL | ModifiersState::SHIFT | ModifiersState::ALT)
+        } else {
+            self.modifiers.is_empty() || self.modifiers.is_only(ModifiersState::SHIFT | ModifiersState::ALT)
+        }
     }
 
     /// Returns the delta for a scrolling operation, depending on the [`modifiers`].
     ///
-    /// If `ALT` is pressed scales the delta by `alt_factor`, then, if no more modifiers are pressed returns
+    /// If [`is_scroll`] scales the delta by `alt_factor`, then, if no more modifiers are pressed returns
     /// the scaled delta, if only `SHIFT` is pressed returns the swapped delta, otherwise returns `None`.
     ///
+    /// [`is_scroll`]: Self::is_scroll
     /// [`modifiers`]: Self::modifiers
     pub fn scroll_delta(&self, alt_factor: impl Into<Factor>) -> Option<MouseScrollDelta> {
         let mut modifiers = self.modifiers;
+        if CTRL_SCROLL_VAR.get() && !modifiers.take_ctrl() {
+            return None;
+        }
         let mut delta = self.delta;
         if modifiers.take_alt() {
             let alt_factor = alt_factor.into();
@@ -587,15 +598,22 @@ impl MouseWheelArgs {
     ///
     /// Is `true` if only `CTRL` is pressed. If `true` the [`zoom_delta`] method returns a value.
     ///
+    /// If contextual [`CTRL_SCROLL_VAR`] is `true` no modifiers must be pressed for this to be `true`.
+    ///
     /// [`zoom_delta`]: Self::zoom_delta
     pub fn is_zoom(&self) -> bool {
-        self.modifiers.is_only_ctrl()
+        if CTRL_SCROLL_VAR.get() {
+            self.modifiers.is_empty()
+        } else {
+            self.modifiers.is_only_ctrl()
+        }
     }
 
     /// Returns the delta for a zoom-in/out operation, depending on the [`modifiers`].
     ///
-    /// If only `CTRL` is pressed returns the delta, otherwise returns `None`.
+    /// If [`is_zoom`] returns the scroll delta, otherwise returns `None`.
     ///
+    /// [`is_zoom`]: Self::is_zoom
     /// [`modifiers`]: Self::modifiers
     pub fn zoom_delta(&self) -> Option<MouseScrollDelta> {
         if self.is_zoom() { Some(self.delta) } else { None }
@@ -605,6 +623,16 @@ impl MouseWheelArgs {
     pub fn position_wgt(&self) -> Option<PxPoint> {
         WIDGET.win_point_to_wgt(self.position)
     }
+}
+
+context_var! {
+    /// Defines if [`MouseWheelArgs`] gesture is [`is_scroll`] when `CTRL` is pressed and [`is_zoom`] when no modifier is pressed.
+    ///
+    /// Is `false` by default.
+    ///
+    /// [`is_scroll`]: MouseWheelArgs::is_scroll
+    /// [`is_zoom`]: MouseWheelArgs::is_zoom
+    pub static CTRL_SCROLL_VAR: bool = false;
 }
 
 event! {

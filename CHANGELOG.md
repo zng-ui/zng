@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add `zng::mouse::ctrl_scroll` contextual property.
+    - Also strongly associated with `Scroll!` widget as `Scroll::ctrl_scroll`.
+    - When enabled inverts priority of mouse wheel gesture so that it zooms when no modifier is pressed and scrolls when `CTRL` is pressed.
 
 # 0.16.4
 
