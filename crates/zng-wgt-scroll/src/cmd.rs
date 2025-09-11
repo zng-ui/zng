@@ -232,9 +232,9 @@ command! {
     /// Represents the **zoom to fit** action.
     ///
     /// The content is scaled to fit the viewport, the equivalent to `ImageFit::Contain`.
-    /// 
+    ///
     /// # Parameter
-    /// 
+    ///
     /// This command accepts an optional [`ZoomToFitRequest`] parameter with configuration.
     pub static ZOOM_TO_FIT_CMD = {
         l10n!: true,
@@ -268,7 +268,7 @@ command! {
 #[non_exhaustive]
 pub struct ZoomToFitRequest {
     /// If behaves like `ImageFit::ScaleDown` when the content is smaller them the viewport.
-    /// 
+    ///
     /// By default behaves like `ImageFit::Contain` and scales up smaller contents, if this is enabled it will
     /// only scale down larger content, smaller content scale is set to 100%.
     pub scale_down: bool,
@@ -276,7 +276,7 @@ pub struct ZoomToFitRequest {
     pub skip_animation: bool,
 }
 impl ZoomToFitRequest {
-        /// Pack the request into a command parameter.
+    /// Pack the request into a command parameter.
     pub fn to_param(self) -> CommandParam {
         CommandParam::new(self)
     }
@@ -405,7 +405,6 @@ pub struct ScrollToRequest {
     /// Note that the viewport size can change due to a scrollbar visibility changing, this size
     /// change is not accounted for when calculating minimal.
     pub zoom: Option<Factor>,
-
     // TODO(breaking) non_exhaustive + skip_animation
 }
 impl ScrollToRequest {
