@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `zng::scroll::cmd::ZoomToFitRequest` for configuring the `ZOOM_TO_FIT_CMD`.
+
 * Add `zng::mouse::ctrl_scroll` contextual property.
     - Also strongly associated with `Scroll!` widget as `Scroll::ctrl_scroll`.
     - When enabled inverts priority of mouse wheel gesture so that it zooms when no modifier is pressed and scrolls when `CTRL` is pressed.
