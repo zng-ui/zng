@@ -614,6 +614,7 @@ impl MouseWheelArgs {
     /// If [`is_zoom`] returns the scroll delta, otherwise returns `None`.
     ///
     /// [`is_zoom`]: Self::is_zoom
+    /// [`modifiers`]: Self::modifiers
     pub fn zoom_delta(&self) -> Option<MouseScrollDelta> {
         if self.is_zoom() { Some(self.delta) } else { None }
     }
