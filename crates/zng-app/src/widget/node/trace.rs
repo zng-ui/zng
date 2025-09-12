@@ -34,7 +34,13 @@ impl TraceNode {
                 } else {
                     enter_mtd(op)
                 };
-                call(node)
+
+                call(node);
+
+                if let Some(w) = node.as_widget() {
+                    let mut _span = Some(_span);
+                    w.with_context(WidgetUpdateMode::Bubble, &mut || drop(_span.take()));
+                }
             }),
         }
     }
