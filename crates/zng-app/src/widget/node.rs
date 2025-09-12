@@ -1150,10 +1150,12 @@ impl UiNode {
     /// the [`UiNodeOpMethod`], the closure can return a *span* that is dropped after the method delegation.
     ///
     /// The tracing node delegates all methods to self, but currently only traces the [`UiNodeOpMethod`] methods. If
-    /// this node is an widget the `enter_mtd` closure will be called in the context of the widget, the returned span
-    /// is always dropped on the parent widget context.
+    /// this node is an widget the `enter_mtd` closure will be called (and span dropped) in the context of the widget.
     ///
-    /// You can use the [`tracing`](https://docs.rs/tracing) crate to create the span.
+    /// You can use the [`tracing`](https://docs.rs/tracing) crate to create the span. You can also use the [`RunOnDrop`]
+    /// struct to run a closure after the method executes.
+    ///
+    /// [`RunOnDrop`]: zng_app_context::RunOnDrop
     pub fn trace<E, S>(self, enter_mtd: E) -> UiNode
     where
         Self: Sized,
