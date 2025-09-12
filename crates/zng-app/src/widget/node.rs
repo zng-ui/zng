@@ -17,6 +17,8 @@ pub use match_node::*;
 mod when;
 pub use when::*;
 
+mod trace;
+
 mod list;
 pub use list::*;
 use zng_app_proc_macros::widget;
@@ -1144,19 +1146,20 @@ impl UiNode {
         }
     }
 
-    /// Wraps the node in a node that, before delegating each method, calls a closure with
+    /// Wraps this in a node that, before delegating each method, calls a closure with
     /// the [`UiNodeOpMethod`], the closure can return a *span* that is dropped after the method delegation.
     ///
+    /// The tracing node delegates all methods to self, but currently only traces the [`UiNodeOpMethod`] methods. If
+    /// this node is an widget the `enter_mtd` closure will be called in the context of the widget, the returned span
+    /// is always dropped on the parent widget context.
+    ///
     /// You can use the [`tracing`](https://docs.rs/tracing) crate to create the span.
-    pub fn trace<E, S>(self, mut enter_mtd: E) -> UiNode
+    pub fn trace<E, S>(self, enter_mtd: E) -> UiNode
     where
         Self: Sized,
         E: FnMut(UiNodeOpMethod) -> S + Send + 'static,
     {
-        match_node(self, move |node, op| {
-            let _span = enter_mtd(op.mtd());
-            node.op(op);
-        })
+        UiNode::new(trace::TraceNode::new(self, enter_mtd))
     }
 }
 
