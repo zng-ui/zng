@@ -1,5 +1,9 @@
 # Unreleased
 
+* Refactor `actual_size` and related `actual_*` properties to get the size on layout.
+    - Before the size was sampled on render, now it is sampled before.
+    - This change means any state hooked to the actual size will now update before the new size is visible on the next frame.
+
 * Add `zng::scroll::cmd::ZoomToFitRequest` for configuring the `ZOOM_TO_FIT_CMD`.
 
 * Add `zng::mouse::ctrl_scroll` contextual property.
