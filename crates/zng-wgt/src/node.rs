@@ -6,7 +6,7 @@ use std::{any::Any, sync::Arc};
 
 use crate::WidgetFn;
 use zng_app::{
-    event::{Command, CommandArgs, CommandHandle, CommandScope, Event, EventArgs},
+    event::{AnyEventArgs, Command, CommandArgs, CommandHandle, CommandScope, Event, EventArgs, EventPropagationHandle},
     handler::WidgetHandler,
     render::{FrameBuilder, FrameValueKey},
     update::WidgetUpdates,
@@ -1069,6 +1069,7 @@ where
     let mut handle = CommandHandle::dummy();
     let mut win_handle = CommandHandle::dummy();
     let mut command = NIL_CMD;
+    let mut last_propagation = EventPropagationHandle::new();
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -1100,12 +1101,19 @@ where
         UiNodeOp::Event { update } => {
             child.event(update);
 
-            if let Some(args) = command.on_unhandled(update) {
-                handler.event(args);
-            } else if !win_handle.is_dummy()
-                && let Some(args) = command.scoped(WINDOW.id()).on_unhandled(update)
-            {
-                handler.event(args);
+            if command.event().has(update) {
+                if win_handle.is_dummy() {
+                    if let Some(args) = command.on_unhandled(update) {
+                        handler.event(args);
+                    }
+                } else if let Some(args) = command
+                    .on_unhandled(update)
+                    .or_else(|| command.scoped(WINDOW.id()).on_unhandled(update))
+                    && &last_propagation != args.propagation()
+                {
+                    handler.event(args);
+                    last_propagation = args.propagation().clone();
+                }
             }
         }
         UiNodeOp::Update { updates } => {
@@ -1154,6 +1162,7 @@ where
     let mut handle = CommandHandle::dummy();
     let mut win_handle = CommandHandle::dummy();
     let mut command = NIL_CMD;
+    let mut last_propagation = EventPropagationHandle::new();
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -1183,12 +1192,19 @@ where
         }
 
         UiNodeOp::Event { update } => {
-            if let Some(args) = command.on_unhandled(update) {
-                handler.event(args);
-            } else if !win_handle.is_dummy()
-                && let Some(args) = command.scoped(WINDOW.id()).on_unhandled(update)
-            {
-                handler.event(args);
+            if command.event().has(update) {
+                if win_handle.is_dummy() {
+                    if let Some(args) = command.on_unhandled(update) {
+                        handler.event(args);
+                    }
+                } else if let Some(args) = command
+                    .on_unhandled(update)
+                    .or_else(|| command.scoped(WINDOW.id()).on_unhandled(update))
+                    && &last_propagation != args.propagation()
+                {
+                    handler.event(args);
+                    last_propagation = args.propagation().clone();
+                }
             }
         }
         UiNodeOp::Update { .. } => {

@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix command event properties notifying twice when set on the `Window!` widget and raised by shortcut press.
+
 * Refactor `UiNode::trace` to work with widget and list nodes too.
 
 * Refactor `actual_size` and related `actual_*` properties to get the size on layout.
