@@ -560,7 +560,7 @@ pub fn zoom_commands_node(child: impl IntoUiNode) -> UiNode {
     fn fit_scale() -> Factor {
         let scroll = WIDGET.info().scroll_info().unwrap();
         let viewport = (scroll.viewport_size() + scroll.joiner_size()).to_f32(); // viewport without scrollbars
-        let content = scroll.content().size.to_f32() / scroll.zoom_scale();
+        let content = scroll.content().size.max(PxSize::splat(Px(1))).to_f32() / scroll.zoom_scale();
         (viewport.width / content.width).min(viewport.height / content.height).fct()
     }
 
