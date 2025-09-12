@@ -294,7 +294,7 @@
 //!        * Animations have a fixed frame-rate defined in [`VARS.frame_duration`], it is 60 frames-per-second by default.
 //! 2. Calls elapsed timer handlers.
 //! 3. Calls elapsed animation handlers.
-//!     * These handlers mostly just request var updates are applied in the updates loop.
+//!     * These handlers mostly just request var updates that are applied in the updates loop.
 //! 4. Does a [view events loop](#view-events-loop).
 //! 4. Does an [updates loop](#updates-loop).
 //! 5. Does an [update events loop](#update-events-loop).
@@ -305,9 +305,9 @@
 //!
 //! #### View Events Loop
 //!
-//! All pending events send by the view-process are coalesced and notify sequentially.
+//! All pending events received from the view-process are coalesced and notify sequentially.
 //!
-//! 1. For each event in the received order (FIFO) that converts to a RAW event.
+//! 1. For each event in the received order (FIFO) that converts to a `RAW_*_EVENT`.
 //!     1. Calls [`AppExtension::event_preview`].
 //!     2. Calls [`Event::on_pre_event`] handlers.
 //!     3. Calls [`AppExtension::event_ui`].
@@ -340,7 +340,7 @@
 //!     7. Calls [`UPDATES.on_update`] handlers if needed.
 //! 3. The loop repeats immediately if any info rebuild or update was requested by update callbacks.
 //!     * The loops breaks if it repeats over 1000 times.
-//!     * An error is logged with a trace the most frequent sources of update requests.
+//!     * An error is logged with a trace of the most frequent sources of update requests.
 //!
 //! #### Var Updates Loop
 //!
@@ -370,7 +370,7 @@
 //! #### Layout Loop and Render
 //!
 //! Layout and render requests are coalesced, multiple layout requests for the same widget update it once, multiple
-//! render requests become one frame, and if both render and render_update are requested for a window it will fully render.
+//! render requests become one frame, and if both `render` and `render_update` are requested for a window it will just fully `render`.
 //!
 //! 1. Take layout and render requests.
 //! 2. Layout loop.
@@ -381,7 +381,7 @@
 //!         * The loop breaks if it repeats over 1000 times.
 //!         * An error is logged with a trace the most frequent sources of update requests.
 //! 3. If render was requested, calls [`AppExtension::render`].
-//!     * Windows and widgets that requested render (or render_update) do know in parallel by default.
+//!     * Windows and widgets that requested render (or render_update) are rendered in parallel by default.
 //!     * The render pass updates widget transforms and hit-test, generates a display list and sends it to the view-process.
 //!
 //! [`APP.defaults()`]: crate::APP::defaults
