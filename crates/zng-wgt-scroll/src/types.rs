@@ -1098,3 +1098,18 @@ impl_from_and_into_var! {
 #[derive(Debug, Default, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct AutoScrollArgs {}
+
+/// Defines how the scale is changed by the [`ZOOM_TO_FIT_CMD`].
+///
+/// See the [`zoom_to_fit_mode`] property for more details.
+///
+/// [`ZOOM_TO_FIT_CMD`]: crate::cmd::ZOOM_TO_FIT_CMD
+/// [`zoom_to_fit_mode`]: fn@crate::zoom_to_fit_mode
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ZoomToFitMode {
+    /// The content is scaled down or up to fit the viewport.
+    #[default]
+    Contain,
+    /// The content is only scaled down to fit the viewport. If the content is smaller them the viewport the scale is set to 100%.
+    ScaleDown,
+}
