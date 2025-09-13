@@ -608,7 +608,7 @@ pub fn zoom_commands_node(child: impl IntoUiNode) -> UiNode {
                 args.handle_enabled(&zoom_to_fit, |args| {
                     let scale = fit_scale();
                     if let Some(p) = ZoomToFitRequest::from_args(args) {
-                        if dbg!(p.skip_animation) {
+                        if p.skip_animation {
                             SMOOTH_SCROLLING_VAR.with_context_var(zng_var::ContextInitHandle::current(), false, || {
                                 SCROLL.chase_zoom(|_| scale);
                             });

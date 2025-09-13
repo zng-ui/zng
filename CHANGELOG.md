@@ -1,5 +1,6 @@
 # Unreleased
 
+* Remove debug print.
 
 # 0.16.5
 
