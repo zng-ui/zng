@@ -83,6 +83,9 @@ context_var! {
         margin: SideOffsets::new_all(0.dip()),
     };
 
+    /// Defines how the content is scaled to fit.
+    pub static ZOOM_TO_FIT_MODE_VAR: ZoomToFitMode = ZoomToFitMode::default();
+
     /// Extra space added to the viewport auto-hide rectangle.
     ///
     /// The scroll sets the viewport plus these offsets as the [`FrameBuilder::auto_hide_rect`], this value is used
@@ -351,6 +354,20 @@ pub fn smooth_scrolling(child: impl IntoUiNode, config: impl IntoVar<SmoothScrol
 #[property(CONTEXT, default(SCROLL_TO_FOCUSED_MODE_VAR), widget_impl(Scroll))]
 pub fn scroll_to_focused_mode(child: impl IntoUiNode, mode: impl IntoVar<Option<ScrollToMode>>) -> UiNode {
     with_context_var(child, SCROLL_TO_FOCUSED_MODE_VAR, mode)
+}
+
+/// Defines how the scale is changed to fit the content to the viewport.
+///
+/// The [`ZOOM_TO_FIT_CMD`] implementation uses this value to define the zoom scale needed to fit the content.
+/// By default it scales down and up to fit, setting this to `ScaleDown` will only scale down larger content and only
+/// scale up smaller content to 100%.
+///
+/// This property sets the [`ZOOM_TO_FIT_MODE_VAR`].
+///
+/// [`ZOOM_TO_FIT_CMD`]: crate::cmd::ZOOM_TO_FIT_CMD
+#[property(CONTEXT, default(ZOOM_TO_FIT_MODE_VAR), widget_impl(Scroll))]
+pub fn zoom_to_fit_mode(child: impl IntoUiNode, mode: impl IntoVar<ZoomToFitMode>) -> UiNode {
+    with_context_var(child, ZOOM_TO_FIT_MODE_VAR, mode)
 }
 
 /// Extra space added to the viewport auto-hide rectangle.

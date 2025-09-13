@@ -264,14 +264,11 @@ command! {
 }
 
 /// Parameters for the [`ZOOM_TO_FIT_CMD`].
+///
+/// Also see the property [`zoom_to_fit_mode`].
 #[derive(Default, Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct ZoomToFitRequest {
-    /// If behaves like `ImageFit::ScaleDown` when the content is smaller them the viewport.
-    ///
-    /// By default behaves like `ImageFit::Contain` and scales up smaller contents, if this is enabled it will
-    /// only scale down larger content, smaller content scale is set to 100%.
-    pub scale_down: bool,
     /// Apply the change immediately, no easing/smooth animation.
     pub skip_animation: bool,
 }

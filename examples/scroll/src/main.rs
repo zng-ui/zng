@@ -100,14 +100,7 @@ fn commands(mouse_pan: Var<bool>, smooth_scrolling: Var<bool>) -> UiNode {
                 ui_vec![
                     Button!(ZOOM_IN_CMD.scoped(scope)),
                     Button!(ZOOM_OUT_CMD.scoped(scope)),
-                    Button! {
-                        cmd = ZOOM_TO_FIT_CMD.scoped(scope);
-                        cmd_param = {
-                            let mut p = zng::scroll::cmd::ZoomToFitRequest::default();
-                            p.skip_animation = true;
-                            p
-                        };
-                    },
+                    Button!(ZOOM_TO_FIT_CMD.scoped(scope)),
                     Button!(ZOOM_RESET_CMD.scoped(scope)),
                     Hr!(),
                     scroll_to_zoom_btn(WidgetId::named("Lorem 2"), 200.pct()),

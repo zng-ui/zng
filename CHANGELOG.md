@@ -12,7 +12,9 @@
     - Before the size was sampled on render, now it is sampled before.
     - This change means any state hooked to the actual size will now update before the new size is visible on the next frame.
 
-* Add `zng::scroll::cmd::ZoomToFitRequest` for configuring the `ZOOM_TO_FIT_CMD`.
+* Improve scroll widget's `ZOOM_TO_FIT_CMD`.
+    - Add `zng::scroll::cmd::ZoomToFitRequest` for configuring if the scale change is animated.
+    - Add `Scroll::zoom_to_fit_mode` property for configuring if smaller content scales up to fit.
 
 * Add `zng::mouse::ctrl_scroll` contextual property.
     - Also strongly associated with `Scroll!` widget as `Scroll::ctrl_scroll`.
