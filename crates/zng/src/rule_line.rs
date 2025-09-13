@@ -32,10 +32,10 @@ pub use zng_wgt_rule_line::RuleLine;
 
 /// Horizontal rule line widget and properties.
 pub mod hr {
-    pub use zng_wgt_rule_line::hr::{Hr, color, line_style, margin, stroke_thickness};
+    pub use zng_wgt_rule_line::hr::{Hr, color, line_style, margin, stroke_thickness, width};
 }
 
 /// Vertical rule line widget and properties.
 pub mod vr {
-    pub use zng_wgt_rule_line::vr::{Vr, color, line_style, margin, stroke_thickness};
+    pub use zng_wgt_rule_line::vr::{Vr, color, height, line_style, margin, stroke_thickness};
 }

@@ -45,7 +45,7 @@ pub fn stroke_thickness(thickness: impl IntoVar<Length>) {}
 
 /// Line length.
 ///
-/// Set to [`Default`] to fill available length without requesting any length.
+/// Set to [`Default`] to fill available length.
 ///
 /// [`Default`]: Length::Default
 #[property(CONTEXT, capture, default(Length::Default), widget_impl(RuleLine))]
@@ -147,6 +147,7 @@ pub mod hr {
                 stroke_thickness = STROKE_THICKNESS_VAR;
                 line_style = LINE_STYLE_VAR;
                 margin = MARGIN_VAR;
+                length = WIDTH_VAR;
             }
         }
     }
@@ -167,30 +168,61 @@ pub mod hr {
         ///
         /// Is `(4, 0)` by default, 4 top-bottom, 0 left-right.
         pub static MARGIN_VAR: SideOffsets = (4, 0);
+
+        /// Horizontal line length.
+        ///
+        /// Is `Default` by default, that fills width.
+        pub static WIDTH_VAR: Length = Length::Default;
     }
 
-    /// Sets the [`COLOR_VAR`] that affects all horizontal rules inside the widget.
+    /// Sets the line color of all descendant `Hr!()`.
+    ///
+    /// The default is the `FONT_COLOR_VAR` with 30% alpha.
+    ///
+    /// This property sets the [`COLOR_VAR`].
     #[property(CONTEXT, default(COLOR_VAR))]
     pub fn color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
         with_context_var(child, COLOR_VAR, color)
     }
 
-    /// Sets the [`STROKE_THICKNESS_VAR`] that affects all horizontal rules inside the widget.
+    /// Sets the line stroke thickness of all descendant `Hr!()`.
+    ///
+    /// The default is `1.dip()`.
+    ///
+    /// This property sets the [`STROKE_THICKNESS_VAR`].
     #[property(CONTEXT, default(STROKE_THICKNESS_VAR))]
     pub fn stroke_thickness(child: impl IntoUiNode, thickness: impl IntoVar<Length>) -> UiNode {
         with_context_var(child, STROKE_THICKNESS_VAR, thickness)
     }
 
-    /// Sets the [`LINE_STYLE_VAR`] that affects all horizontal rules inside the widget.
+    /// Sets the line style of all descendant `Hr!()`.
+    ///
+    /// The default is `Solid`.
+    ///
+    /// This property sets the [`LINE_STYLE_VAR`].
     #[property(CONTEXT, default(LINE_STYLE_VAR))]
     pub fn line_style(child: impl IntoUiNode, style: impl IntoVar<LineStyle>) -> UiNode {
         with_context_var(child, LINE_STYLE_VAR, style)
     }
 
-    /// Sets the [`MARGIN_VAR`] that affects all horizontal rules inside the widget.
+    /// Sets the margin around line of all descendant `Hr!()`.
+    ///
+    /// Is `(4, 0)` by default, 4 top-bottom, 0 left-right.
+    ///
+    /// This property sets the [`HEIGHT_VAR`].
     #[property(CONTEXT, default(MARGIN_VAR))]
     pub fn margin(child: impl IntoUiNode, margin: impl IntoVar<SideOffsets>) -> UiNode {
         with_context_var(child, MARGIN_VAR, margin)
+    }
+
+    /// Sets the horizontal line length of all descendant `Hr!()`.
+    ///
+    /// Is `Default` by default, that fills the width or collapses if not aligned to fill.
+    ///
+    /// This property sets the [`WIDTH_VAR`].
+    #[property(CONTEXT, default(WIDTH_VAR))]
+    pub fn width(child: impl IntoUiNode, width: impl IntoVar<Length>) -> UiNode {
+        with_context_var(child, WIDTH_VAR, width)
     }
 }
 
@@ -210,6 +242,7 @@ pub mod vr {
                 stroke_thickness = STROKE_THICKNESS_VAR;
                 line_style = LINE_STYLE_VAR;
                 margin = MARGIN_VAR;
+                length = HEIGHT_VAR;
             }
         }
     }
@@ -230,29 +263,60 @@ pub mod vr {
         ///
         /// Is `(0, 4)` by default, 0 top-bottom, 4 left-right.
         pub static MARGIN_VAR: SideOffsets = (0, 4);
+
+        /// Vertical line length.
+        ///
+        /// Is `Default` by default, that fills height.
+        pub static HEIGHT_VAR: Length = Length::Default;
     }
 
-    /// Sets the [`COLOR_VAR`] that affects all vertical rules inside the widget.
+    /// Sets the line color of all descendant `Vr!()`.
+    ///
+    /// The default is the `FONT_COLOR_VAR` with 30% alpha.
+    ///
+    /// This property sets the [`COLOR_VAR`].
     #[property(CONTEXT, default(COLOR_VAR))]
     pub fn color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
         with_context_var(child, COLOR_VAR, color)
     }
 
-    /// Sets the [`STROKE_THICKNESS_VAR`] that affects all vertical rules inside the widget.
+    /// Sets the line stroke thickness of all descendant `Vr!()`.
+    ///
+    /// The default is `1.dip()`.
+    ///
+    /// This property sets the [`STROKE_THICKNESS_VAR`].
     #[property(CONTEXT, default(STROKE_THICKNESS_VAR))]
     pub fn stroke_thickness(child: impl IntoUiNode, thickness: impl IntoVar<Length>) -> UiNode {
         with_context_var(child, STROKE_THICKNESS_VAR, thickness)
     }
 
-    /// Sets the [`LINE_STYLE_VAR`] that affects all vertical rules inside the widget.
+    /// Sets the line style of all descendant `Vr!()`.
+    ///
+    /// The default is `Solid`.
+    ///
+    /// This property sets the [`LINE_STYLE_VAR`].
     #[property(CONTEXT, default(LINE_STYLE_VAR))]
     pub fn line_style(child: impl IntoUiNode, style: impl IntoVar<LineStyle>) -> UiNode {
         with_context_var(child, LINE_STYLE_VAR, style)
     }
 
-    /// Sets the [`MARGIN_VAR`] that affects all vertical rules inside the widget.
+    /// Sets the margin around line of all descendant `Vr!()`.
+    ///
+    /// Is `(0, 4)` by default, 0 top-bottom, 4 left-right.
+    ///
+    /// This property sets the [`HEIGHT_VAR`].
     #[property(CONTEXT, default(MARGIN_VAR))]
     pub fn margin(child: impl IntoUiNode, margin: impl IntoVar<SideOffsets>) -> UiNode {
         with_context_var(child, MARGIN_VAR, margin)
+    }
+
+    /// Sets the vertical line length of all descendant `Vr!()`.
+    ///
+    /// Is `Default` by default, that fills the height or collapses if not aligned to fill.
+    ///
+    /// This property sets the [`HEIGHT_VAR`].
+    #[property(CONTEXT, default(HEIGHT_VAR))]
+    pub fn height(child: impl IntoUiNode, height: impl IntoVar<Length>) -> UiNode {
+        with_context_var(child, HEIGHT_VAR, height)
     }
 }

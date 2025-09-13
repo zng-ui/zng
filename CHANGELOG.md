@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `zng::rule_line::{hr::width, vr::height}` for contextually configuring the separator line length.
+
 # 0.16.5
 
 * Fix race condition in `zng::task::SignalOnce`.
