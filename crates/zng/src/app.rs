@@ -377,6 +377,7 @@
 //!     1. Calls [`AppExtension::layout`].
 //!         * Windows and widgets that requested layout update in parallel by default.
 //!     2. Does an [updates loop](#updates-loop).
+//!     3. Does [update events loop](#update-events-loop).
 //!     3. Take layout and render requests, the loop repeats immediately if layout was requested again.
 //!         * The loop breaks if it repeats over 1000 times.
 //!         * An error is logged with a trace the most frequent sources of update requests.

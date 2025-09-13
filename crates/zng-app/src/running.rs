@@ -903,6 +903,7 @@ impl<E: AppExtension> RunningApp<E> {
             });
 
             self.apply_updates(observer);
+            self.apply_update_events(observer);
             self.pending |= UPDATES.apply_layout_render();
         }
 

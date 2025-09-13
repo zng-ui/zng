@@ -1,5 +1,9 @@
 # Unreleased
 
+* Event/command notify requested during a layout pass now all run before the next render pass.
+    - After a layout pass the app does an updates pass (unchanged) and then does an app events pass (new).
+    - See the `zng::app` module docs for more details.
+
 * Fix command event properties notifying twice when set on the `Window!` widget and raised by shortcut press.
 
 * Refactor `UiNode::trace` to work with widget and list nodes too.
