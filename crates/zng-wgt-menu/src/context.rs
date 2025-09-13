@@ -185,9 +185,11 @@ impl DefaultStyle {
         widget_set! {
             self;
             replace = true;
-            zng_wgt_button::style_fn = style_fn!(|_| super::ButtonStyle!());
-            zng_wgt_toggle::style_fn = style_fn!(|_| super::ToggleStyle!());
+            zng_wgt_button::style_fn = style_fn!(|_| super::sub::ButtonStyle!());
+            zng_wgt_toggle::style_fn = style_fn!(|_| super::sub::ToggleStyle!());
             zng_wgt_rule_line::hr::color = BASE_COLOR_VAR.shade(1);
+            zng_wgt_rule_line::vr::color = BASE_COLOR_VAR.shade(1);
+            zng_wgt_rule_line::vr::height = 1.em();
             zng_wgt_text::icon::ico_size = 18;
         }
     }
@@ -205,8 +207,7 @@ impl TouchStyle {
                 direction = StackDirection::left_to_right();
                 children = args.children;
             });
-            zng_wgt_button::style_fn = style_fn!(|_| super::TouchButtonStyle!());
-            zng_wgt_rule_line::vr::color = BASE_COLOR_VAR.shade(1);
+            zng_wgt_button::style_fn = style_fn!(|_| super::sub::TouchButtonStyle!());
         }
     }
 }

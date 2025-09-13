@@ -90,16 +90,20 @@
 //! See [`zng_wgt_menu`] for the full widget API.
 
 pub use zng_wgt_menu::{
-    ButtonStyle, DefaultStyle, Menu, ToggleStyle, TouchButtonStyle, icon, icon_fn, panel_fn, shortcut_spacing, shortcut_txt, style_fn,
+    ButtonStyle, DefaultStyle, IconButtonStyle, Menu, ToggleStyle, icon, icon_fn, panel_fn, shortcut_spacing, shortcut_txt, style_fn,
 };
+
+#[allow(deprecated)]
+pub use zng_wgt_menu::TouchButtonStyle;
 
 /// Submenu widget and properties.
 ///
 /// See [`zng_wgt_menu::sub`] for the full widget API.
 pub mod sub {
     pub use zng_wgt_menu::sub::{
-        DefaultStyle, SubMenu, SubMenuAncestors, SubMenuStyle, SubMenuWidgetInfoExt, column_width_padding, end_column, end_column_fn,
-        end_column_width, hover_open_delay, is_open, start_column, start_column_fn, start_column_width,
+        ButtonStyle, DefaultStyle, SubMenu, SubMenuAncestors, SubMenuStyle, SubMenuWidgetInfoExt, ToggleStyle, TouchButtonStyle,
+        column_width_padding, end_column, end_column_fn, end_column_width, hover_open_delay, is_open, start_column, start_column_fn,
+        start_column_width,
     };
 }
 
