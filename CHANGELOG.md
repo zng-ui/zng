@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix race condition in `zng::task::SignalOnce`.
+
 * Event/command notify requested during a layout pass now all run before the next render pass.
     - After a layout pass the app does an updates pass (unchanged) and then does an app events pass (new).
     - See the `zng::app` module docs for more details.

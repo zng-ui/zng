@@ -2085,16 +2085,21 @@ impl Future for SignalOnce {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<()> {
-        if self.as_ref().is_set() {
-            Poll::Ready(())
-        } else {
-            let mut listeners = self.0.listeners.lock();
-            let waker = cx.waker();
-            if !listeners.iter().any(|w| w.will_wake(waker)) {
-                listeners.push(waker.clone());
-            }
-            Poll::Pending
+        if self.0.signaled.load(Ordering::Relaxed) {
+            return Poll::Ready(());
         }
+
+        let mut listeners = self.0.listeners.lock();
+        if self.0.signaled.load(Ordering::Relaxed) {
+            return Poll::Ready(());
+        }
+
+        let waker = cx.waker();
+        if !listeners.iter().any(|w| w.will_wake(waker)) {
+            listeners.push(waker.clone());
+        }
+
+        Poll::Pending
     }
 }
 
