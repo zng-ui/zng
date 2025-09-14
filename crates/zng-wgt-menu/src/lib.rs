@@ -159,11 +159,7 @@ impl IconButtonStyle {
                             let name = #{c.name()};
                             wgt_fn!(icon, name, |args| {
                                 let icon = icon(args);
-                                if icon.is_nil() {
-                                    zng_wgt_text::Text!(name.clone())
-                                } else {
-                                    icon
-                                }
+                                if icon.is_nil() { zng_wgt_text::Text!(name.clone()) } else { icon }
                             })
                         },
                         None => const_var(WidgetFn::nil()),
