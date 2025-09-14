@@ -15,3 +15,5 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 zng-wgt = { path = "../zng-wgt", version = "0.9.5", default-features = false }
 zng-wgt-access = { path = "../zng-wgt-access", version = "0.6.5", default-features = false }
 zng-wgt-text = { path = "../zng-wgt-text", version = "0.8.5", default-features = false }
+bitflags = { version = "2.5", default-features = false, features = ["serde"] }
+serde = "1"

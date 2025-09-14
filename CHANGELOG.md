@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `zng::rule_line::collapse_scope` for auto *collapsing* multiple separators that are adjacent due to collapsed siblings.
+
 * Improve `Menu!` default contextual styles.
     - `Vr!()` height is now `1.em()`, making it visible in the menu `Wrap!` panel.
     - Add `zng::menu::sub::{ButtonStyle, ToggleStyle}`, these are the same *menu item* styles, they are now applied in the `SubMenu!` widget.

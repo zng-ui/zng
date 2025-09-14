@@ -15,6 +15,9 @@ use zng_wgt_access::{AccessRole, access_role};
 pub mod hr;
 pub mod vr;
 
+mod collapse;
+pub use collapse::*;
+
 /// Draws a horizontal or vertical rule line.
 #[widget($crate::RuleLine)]
 pub struct RuleLine(WidgetBase);
@@ -86,7 +89,15 @@ fn on_build(wgt: &mut WidgetBuilding) {
                 .sub_var_render(&color)
                 .sub_var_render(&style);
         }
+        UiNodeOp::Info { info } => {
+            info.flag_meta(*COLLAPSABLE_LINE_ID);
+        }
         UiNodeOp::Measure { desired_size, .. } => {
+            if COLLAPSE_SCOPE.collapse(WIDGET.id()) {
+                *desired_size = PxSize::zero();
+                return;
+            }
+
             let metrics = LAYOUT.metrics();
             let default_stroke = Dip::new(1).to_px(metrics.scale_factor());
 
@@ -101,7 +112,13 @@ fn on_build(wgt: &mut WidgetBuilding) {
                 ),
             };
         }
-        UiNodeOp::Layout { final_size, .. } => {
+        UiNodeOp::Layout { final_size, wl } => {
+            if COLLAPSE_SCOPE.collapse(WIDGET.id()) {
+                wl.collapse();
+                *final_size = PxSize::zero();
+                return;
+            }
+
             let metrics = LAYOUT.metrics();
             let default_stroke = Dip::new(1).to_px(metrics.scale_factor());
 
