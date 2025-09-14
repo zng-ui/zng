@@ -33,6 +33,7 @@
 //!
 //! ```
 //! # use zng::prelude::*;
+//! # fn demo() {
 //! # let _ =
 //! Wrap! {
 //!     id = "toolbar";
@@ -45,7 +46,7 @@
 //!         Button!(zng::clipboard::PASTE_CMD.scoped("content")),
 //!     ];
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above defines a `"toolbar"` panel with a vertical separator, command buttons are not visible when the command has no handle,

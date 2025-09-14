@@ -76,7 +76,7 @@ pub fn line_style(child: impl IntoUiNode, style: impl IntoVar<LineStyle>) -> UiN
 ///
 /// Is `(0, 4)` by default, 0 top-bottom, 4 left-right.
 ///
-/// This property sets the [`HEIGHT_VAR`].
+/// This property sets the [`MARGIN_VAR`].
 #[property(CONTEXT, default(MARGIN_VAR))]
 pub fn margin(child: impl IntoUiNode, margin: impl IntoVar<SideOffsets>) -> UiNode {
     with_context_var(child, MARGIN_VAR, margin)
