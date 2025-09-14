@@ -16,4 +16,5 @@ zng-wgt = { path = "../zng-wgt", version = "0.9.5", default-features = false }
 zng-wgt-access = { path = "../zng-wgt-access", version = "0.6.5", default-features = false }
 zng-wgt-text = { path = "../zng-wgt-text", version = "0.8.5", default-features = false }
 bitflags = { version = "2.5", default-features = false, features = ["serde"] }
-serde = "1"
+serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }

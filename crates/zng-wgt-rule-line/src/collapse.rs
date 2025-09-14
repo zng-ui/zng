@@ -5,17 +5,14 @@ use zng_wgt::prelude::*;
 /// Collapse adjacent descendant rule lines.
 ///
 /// Set this in a panel widget to automatically collapse rule lines that would appear repeated on screen.
-#[property(CONTEXT)]
+#[property(LAYOUT - 100)]
 pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) -> UiNode {
     let mode = mode.into_var();
     let mut scope: Option<Arc<CollapseScope>> = None;
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&mode);
-            scope = Some(Arc::new(CollapseScope {
-                collapse: IdSet::new(),
-                is_default: false,
-            }));
+            scope = Some(Arc::new(CollapseScope::default()));
         }
         UiNodeOp::Deinit => {
             scope = None;
@@ -26,12 +23,7 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
                     s.collapse.clear();
                     scope = Some(Arc::new(s));
                 }
-                None => {
-                    scope = Some(Arc::new(CollapseScope {
-                        collapse: IdSet::new(),
-                        is_default: false,
-                    }))
-                }
+                None => scope = Some(Arc::new(CollapseScope::default())),
             }
             WIDGET.layout();
         }
@@ -42,12 +34,7 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
                         s.collapse.clear();
                         scope = Some(Arc::new(s));
                     }
-                    None => {
-                        scope = Some(Arc::new(CollapseScope {
-                            collapse: IdSet::new(),
-                            is_default: false,
-                        }))
-                    }
+                    None => scope = Some(Arc::new(CollapseScope::default())),
                 }
                 WIDGET.layout();
             }
@@ -65,10 +52,7 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
             let maybe_exclusive = Arc::get_mut(scope.as_mut().unwrap());
             // if not possible alloc new (this can happen if a child captured context and is keeping it)
             let is_new = maybe_exclusive.is_none();
-            let mut new = CollapseScope {
-                collapse: IdSet::new(),
-                is_default: false,
-            };
+            let mut new = CollapseScope::default();
             let s = maybe_exclusive.unwrap_or(&mut new);
 
             // tracks changes in reused set, ignore this if is_new
@@ -160,10 +144,6 @@ impl_from_and_into_var! {
 /// Custom line widgets not derived from [`RuleLine!`] can participate in [`collapse_scope`] by setting [`COLLAPSABLE_LINE_ID`]
 /// during info build and using this service during measure and layout.
 ///
-/// # Panics
-///
-/// This service is only available during measure and layout, panics if used in other UI methods.
-///
 /// [`collapse_scope`]: fn@collapse_scope
 /// [`RuleLine!`]: struct@crate::RuleLine
 #[allow(non_camel_case_types)]
@@ -172,7 +152,6 @@ impl COLLAPSE_SCOPE {
     ///Gets if the line widget needs to collapse
     pub fn collapse(&self, line_id: WidgetId) -> bool {
         let scope = SCOPE.get();
-        assert!(!scope.is_default, "COLLAPSE_SCOPE only available in measure and layout");
         scope.collapse.contains(&line_id)
     }
 }
@@ -185,13 +164,10 @@ static_id! {
 }
 
 context_local! {
-    static SCOPE: CollapseScope = CollapseScope {
-        collapse: IdSet::new(),
-        is_default: true,
-    };
+    static SCOPE: CollapseScope = CollapseScope::default();
 }
 
+#[derive(Default)]
 struct CollapseScope {
     collapse: IdSet<WidgetId>,
-    is_default: bool,
 }
