@@ -34,6 +34,7 @@ impl SubMenuPopup {
             //
             // So the user can press to open the menu, then drag over an item and release to click it.
             capture_pointer_on_init = CaptureMode::Subtree;
+            zng_wgt_rule_line::collapse_scope = true;
         }
 
         self.widget_builder().push_build_action(|wgt| {
