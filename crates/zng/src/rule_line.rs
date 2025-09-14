@@ -55,7 +55,8 @@
 //! so the vertical line will collapse as well, until the `"content"` widget is loaded.
 //!
 //! Note that [`collapse_scope`] also works in nested panels, a more complex *toolbars* setup can enable it at the *toolbar tray* root widget and
-//! all *toolbar* widgets can be dynamically moved and the separator lines will collapse as needed.
+//! all *toolbar* widgets can be dynamically moved and the separator lines will collapse as needed. The algorithm only considers leaf descendants so
+//! the scope UI tree can have any number of nested children widgets too.
 //!
 //! [`collapse_scope`]: fn@collapse_scope
 //!

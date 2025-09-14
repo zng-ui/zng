@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use zng_app::update::LayoutUpdates;
 use zng_wgt::prelude::*;
 
 /// Collapse adjacent descendant rule lines.
@@ -12,7 +13,7 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&mode);
-            scope = Some(Arc::new(CollapseScope::default()));
+            scope = Some(Arc::new(CollapseScope::new(WIDGET.id())));
         }
         UiNodeOp::Deinit => {
             scope = None;
@@ -23,7 +24,7 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
                     s.collapse.clear();
                     scope = Some(Arc::new(s));
                 }
-                None => scope = Some(Arc::new(CollapseScope::default())),
+                None => scope = Some(Arc::new(CollapseScope::new(WIDGET.id()))),
             }
             WIDGET.layout();
         }
@@ -34,7 +35,7 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
                         s.collapse.clear();
                         scope = Some(Arc::new(s));
                     }
-                    None => scope = Some(Arc::new(CollapseScope::default())),
+                    None => scope = Some(Arc::new(CollapseScope::new(WIDGET.id()))),
                 }
                 WIDGET.layout();
             }
@@ -52,14 +53,21 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
             let maybe_exclusive = Arc::get_mut(scope.as_mut().unwrap());
             // if not possible alloc new (this can happen if a child captured context and is keeping it)
             let is_new = maybe_exclusive.is_none();
-            let mut new = CollapseScope::default();
+            let mut new = CollapseScope::new(WIDGET.id());
             let s = maybe_exclusive.unwrap_or(&mut new);
 
             // tracks changes in reused set, ignore this if is_new
-            let mut changed = false;
+            let mut changes = UpdateDeliveryList::new_any();
             if mode.is_empty() {
-                changed = !s.collapse.is_empty();
-                s.collapse.clear();
+                if !s.collapse.is_empty() {
+                    let info = WIDGET.info();
+                    let info = info.tree();
+                    for id in s.collapse.drain() {
+                        if let Some(wgt) = info.get(id) {
+                            changes.insert_wgt(&wgt);
+                        }
+                    }
+                }
             } else {
                 // does one pass of the info tree descendants collecting collapsable lines,
                 // it is a bit complex to avoid allocating the `IdMap` for most widgets,
@@ -68,32 +76,38 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
                 let info = WIDGET.info();
 
                 let mut trim_start = mode.contains(CollapseMode::TRIM_START);
-                let mut trim_end_i = usize::MAX;
+                let mut trim_end_id = None;
                 if mode.contains(CollapseMode::TRIM_END) {
                     // find trim_end start *i* first, so that we can update `s.collapse` in a single pass
-                    for (i, wgt) in info.descendants().tree_rev().enumerate() {
-                        if !wgt.meta().flagged(*COLLAPSABLE_LINE_ID) && !wgt.bounds_info().inner_size().is_empty() {
-                            trim_end_i = info.descendants_len() - i - 1;
+                    for wgt in info.descendants().tree_rev() {
+                        if wgt.meta().flagged(*COLLAPSABLE_LINE_ID) {
+                            trim_end_id = Some(wgt.id());
+                        } else if wgt.descendants_len() == 0 && !wgt.bounds_info().inner_size().is_empty() {
+                            // only consider leafs that are not collapsed
                             break;
                         }
                     }
-                    if trim_end_i == usize::MAX {
-                        trim_end_i = 0;
-                    }
                 }
+                let mut trim_end = false;
                 let mut merge = false;
-
-                for (i, wgt) in info.descendants().enumerate() {
+                for wgt in info.descendants() {
                     if wgt.meta().flagged(*COLLAPSABLE_LINE_ID) {
-                        // collapsable line child
-                        if trim_start || merge || i >= trim_end_i {
-                            changed |= s.collapse.insert(wgt.id());
-                        } else {
-                            changed |= s.collapse.remove(&wgt.id());
+                        if let Some(id) = trim_end_id
+                            && id == wgt.id()
+                        {
+                            trim_end_id = None;
+                            trim_end = true;
                         }
-                        merge = mode.contains(CollapseMode::MERGE);
-                    } else if !wgt.bounds_info().inner_size().is_empty() {
-                        // other non-collapsed child
+                        let changed = if trim_start || merge || trim_end {
+                            s.collapse.insert(wgt.id())
+                        } else {
+                            s.collapse.remove(&wgt.id())
+                        };
+                        if changed && !is_new {
+                            changes.insert_wgt(&wgt);
+                        }
+                    } else if wgt.descendants_len() == 0 && !wgt.bounds_info().inner_size().is_empty() {
+                        // only consider leafs that are not collapsed
                         trim_start = false;
                         merge = false;
                     }
@@ -102,14 +116,22 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
             if is_new {
                 let s = scope.as_mut().unwrap();
                 // previous changed state set assuming it was reusing set, override it
-                changed = s.collapse != new.collapse;
-                if changed {
+                let info = WIDGET.info();
+                let info = info.tree();
+                for id in s.collapse.symmetric_difference(&new.collapse) {
+                    if let Some(wgt) = info.get(*id) {
+                        changes.insert_wgt(&wgt);
+                    }
+                }
+                if !changes.widgets().is_empty() {
                     scope = Some(Arc::new(new));
                 }
             }
 
-            if changed {
-                *final_size = SCOPE.with_context(&mut scope, || c.layout(wl));
+            if !changes.widgets().is_empty() {
+                *final_size = wl.with_layout_updates(Arc::new(LayoutUpdates::new(changes)), |wl| {
+                    SCOPE.with_context(&mut scope, || c.layout(wl))
+                });
             }
         }
         _ => {}
@@ -149,6 +171,11 @@ impl_from_and_into_var! {
 #[allow(non_camel_case_types)]
 pub struct COLLAPSE_SCOPE;
 impl COLLAPSE_SCOPE {
+    /// Get the parent scope ID.
+    pub fn scope_id(&self) -> Option<WidgetId> {
+        SCOPE.get().scope_id
+    }
+
     ///Gets if the line widget needs to collapse
     pub fn collapse(&self, line_id: WidgetId) -> bool {
         let scope = SCOPE.get();
@@ -164,10 +191,22 @@ static_id! {
 }
 
 context_local! {
-    static SCOPE: CollapseScope = CollapseScope::default();
+    static SCOPE: CollapseScope = CollapseScope {
+        collapse: IdSet::new(),
+        scope_id: None,
+    };
 }
 
-#[derive(Default)]
 struct CollapseScope {
     collapse: IdSet<WidgetId>,
+    scope_id: Option<WidgetId>,
+}
+
+impl CollapseScope {
+    fn new(scope_id: WidgetId) -> Self {
+        Self {
+            collapse: IdSet::new(),
+            scope_id: Some(scope_id),
+        }
+    }
 }
