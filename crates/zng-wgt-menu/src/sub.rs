@@ -58,6 +58,7 @@ impl SubMenu {
             click_mode = ClickMode::press();
             focus_click_behavior = FocusClickBehavior::Ignore; // we handle clicks.
             capture_pointer = true; // part of press-and-drag to click (see SubMenuPopup)
+            zng_wgt_rule_line::collapse_scope = true;
         }
 
         self.widget_builder().push_build_action(|wgt| {

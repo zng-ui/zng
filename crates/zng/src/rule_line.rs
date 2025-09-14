@@ -29,7 +29,7 @@
 //! Sometimes two or more separator lines can end-up appearing adjacent to one another, not actually *separating* anything. A
 //! parent panel widget can set [`collapse_scope`] to automatically *trim* or *merge* separator lines in its descendants.
 //!
-//! The `ContextMenu!` and `SubMenu!` widgets enable this feature by default, the standalone property can also be set in any other widget.
+//! The `ContextMenu!`, `Menu!` and `SubMenu!` widgets enable this feature by default, the standalone property can also be set in any other widget.
 //!
 //! ```
 //! # use zng::prelude::*;

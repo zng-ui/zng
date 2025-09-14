@@ -126,6 +126,7 @@ impl ContextMenu {
         widget_set! {
             self;
             alt_focus_scope = true;
+            zng_wgt_rule_line::collapse_scope = true;
             style_base_fn = style_fn!(|_| DefaultStyle!());
         }
     }

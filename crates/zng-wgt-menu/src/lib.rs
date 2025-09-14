@@ -35,6 +35,7 @@ impl Menu {
             zng_wgt_panel::panel_fn = PANEL_FN_VAR;
             style_base_fn = style_fn!(|_| DefaultStyle!());
             access_role = AccessRole::Menu;
+            zng_wgt_rule_line::collapse_scope = true;
         }
     }
 }
