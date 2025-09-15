@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix `Markdown!` whitespace merging.
+
 * Add `zng::rule_line::collapse_scope` for auto *collapsing* multiple separators that are adjacent due to collapsed siblings.
 
 * Improve `Menu!` default contextual styles.

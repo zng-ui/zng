@@ -23,6 +23,7 @@ use super::*;
 /// Markdown text run style.
 #[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct MarkdownStyle {
+    // TODO(breaking) non_exhaustive and add sub/superscript
     /// Bold.
     pub strong: bool,
     /// Italic.

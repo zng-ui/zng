@@ -15,7 +15,6 @@ use std::mem;
 
 pub use pulldown_cmark::HeadingLevel;
 
-use zng_ext_font::WhiteSpace;
 use zng_wgt::prelude::*;
 use zng_wgt_input::{CursorIcon, cursor};
 
@@ -151,21 +150,150 @@ pub fn markdown_node(md: impl IntoVar<Txt>) -> UiNode {
     })
 }
 
-fn markdown_view_fn<'a>(md: &'a str) -> UiNode {
+/// Parse markdown, with pre-processing, merge texts, collapse white spaces across inline items
+fn markdown_parser<'a>(md: &'a str, mut next_event: impl FnMut(pulldown_cmark::Event<'a>)) {
     use pulldown_cmark::*;
-    use resolvers::*;
-    use view_fn::*;
 
     let parse_options = Options::ENABLE_TABLES
         | Options::ENABLE_FOOTNOTES
         | Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_TASKLISTS
         | Options::ENABLE_SMART_PUNCTUATION
-        | Options::ENABLE_DEFINITION_LIST;
+        | Options::ENABLE_DEFINITION_LIST
+        | Options::ENABLE_SUBSCRIPT
+        | Options::ENABLE_SUPERSCRIPT;
 
-    let mut strong = 0;
-    let mut emphasis = 0;
-    let mut strikethrough = 0;
+    let mut broken_link_handler = |b: BrokenLink<'a>| Some((b.reference, "".into()));
+    let parser = Parser::new_with_broken_link_callback(md, parse_options, Some(&mut broken_link_handler));
+
+    enum Str<'a> {
+        Md(CowStr<'a>),
+        Buf(String),
+    }
+    impl<'a> Str<'a> {
+        fn buf(&mut self) -> &mut String {
+            if let Str::Md(s) = self {
+                *self = Str::Buf(mem::replace(s, CowStr::Borrowed("")).into_string());
+            }
+            match self {
+                Str::Buf(b) => b,
+                _ => unreachable!(),
+            }
+        }
+
+        fn md(self) -> CowStr<'a> {
+            match self {
+                Str::Md(cow_str) => cow_str,
+                Str::Buf(b) => b.into(),
+            }
+        }
+    }
+    let mut pending_txt: Option<Str<'a>> = None;
+    let mut trim_start = false;
+
+    for event in parser {
+        // resolve breaks
+        let event = match event {
+            Event::SoftBreak => Event::Text(CowStr::Borrowed(" ")),
+            Event::HardBreak => Event::Text(CowStr::Borrowed("\n")),
+            ev => ev,
+        };
+        match event {
+            // merge texts
+            Event::Text(txt) => {
+                if let Some(p) = &mut pending_txt {
+                    p.buf().push_str(&txt);
+                } else if mem::take(&mut trim_start) && txt.starts_with(' ') {
+                    // merge spaces across inline items
+                    pending_txt = Some(match txt {
+                        CowStr::Borrowed(s) => Str::Md(CowStr::Borrowed(s.trim_start())),
+                        CowStr::Boxed(s) => Str::Buf(s.trim_start().to_owned()),
+                        CowStr::Inlined(s) => Str::Buf(s.trim_start().to_owned()),
+                    });
+                } else {
+                    pending_txt = Some(Str::Md(txt));
+                }
+            }
+            // items that don't merge spaces with siblings
+            e @ Event::End(_)
+            | e @ Event::Start(
+                Tag::Paragraph
+                | Tag::Heading { .. }
+                | Tag::Image { .. }
+                | Tag::Item
+                | Tag::List(_)
+                | Tag::CodeBlock(_)
+                | Tag::Table(_)
+                | Tag::TableHead
+                | Tag::TableRow
+                | Tag::TableCell
+                | Tag::BlockQuote(_)
+                | Tag::FootnoteDefinition(_)
+                | Tag::DefinitionList
+                | Tag::DefinitionListTitle
+                | Tag::DefinitionListDefinition
+                | Tag::HtmlBlock
+                | Tag::MetadataBlock(_),
+            )
+            | e @ Event::Code(_)
+            | e @ Event::Rule
+            | e @ Event::TaskListMarker(_)
+            | e @ Event::InlineMath(_)
+            | e @ Event::DisplayMath(_)
+            | e @ Event::Html(_)
+            | e @ Event::InlineHtml(_) => {
+                if let Some(txt) = pending_txt.take() {
+                    next_event(Event::Text(txt.md()));
+                }
+                next_event(e)
+            }
+            // inline items that merge spaces with siblings
+            Event::FootnoteReference(s) => {
+                if let Some(txt) = pending_txt.take() {
+                    let txt = txt.md();
+                    trim_start = txt.ends_with(' ');
+                    next_event(Event::Text(txt));
+                }
+                if mem::take(&mut trim_start) && s.starts_with(' ') {
+                    let s = match s {
+                        CowStr::Borrowed(s) => CowStr::Borrowed(s.trim_start()),
+                        CowStr::Boxed(s) => CowStr::Boxed(s.trim_start().to_owned().into()),
+                        CowStr::Inlined(s) => CowStr::Boxed(s.trim_start().to_owned().into()),
+                    };
+                    next_event(Event::FootnoteReference(s))
+                } else {
+                    next_event(Event::FootnoteReference(s))
+                }
+            }
+            Event::Start(tag) => match tag {
+                t @ Tag::Emphasis
+                | t @ Tag::Strong
+                | t @ Tag::Strikethrough
+                | t @ Tag::Superscript
+                | t @ Tag::Subscript
+                | t @ Tag::Link { .. } => {
+                    if let Some(txt) = pending_txt.take() {
+                        let txt = txt.md();
+                        trim_start = txt.ends_with(' ');
+                        next_event(Event::Text(txt));
+                    }
+                    next_event(Event::Start(t))
+                }
+                t => tracing::error!("unexpected start tag {t:?}"),
+            },
+            // handled early
+            Event::HardBreak | Event::SoftBreak => unreachable!(),
+        }
+        if let Some(txt) = pending_txt.take() {
+            next_event(Event::Text(txt.md()));
+        }
+    }
+}
+
+fn markdown_view_fn(md: &str) -> UiNode {
+    use pulldown_cmark::*;
+    use resolvers::*;
+    use view_fn::*;
 
     let text_view = TEXT_FN_VAR.get();
     let link_view = LINK_FN_VAR.get();
@@ -190,6 +318,23 @@ fn markdown_view_fn<'a>(md: &'a str) -> UiNode {
     let image_resolver = IMAGE_RESOLVER_VAR.get();
     let link_resolver = LINK_RESOLVER_VAR.get();
 
+    #[derive(Default)]
+    struct StyleBuilder {
+        strong: usize,
+        emphasis: usize,
+        strikethrough: usize,
+        superscript: usize,
+        subscript: usize,
+    }
+    impl StyleBuilder {
+        fn build(&self) -> MarkdownStyle {
+            MarkdownStyle {
+                strong: self.strong > 0,
+                emphasis: self.emphasis > 0,
+                strikethrough: self.strikethrough > 0,
+            }
+        }
+    }
     struct ListInfo {
         block_start: usize,
         inline_start: usize,
@@ -199,430 +344,377 @@ fn markdown_view_fn<'a>(md: &'a str) -> UiNode {
     }
     let mut blocks = vec![];
     let mut inlines = vec![];
-
+    let mut txt_style = StyleBuilder::default();
     let mut link = None;
     let mut list_info = vec![];
     let mut list_items = vec![];
     let mut block_quote_start = vec![];
     let mut code_block = None;
+    let mut html_block = None;
     let mut image = None;
-    let mut heading_text = None;
+    let mut heading_anchor_txt = None;
     let mut footnote_def = None;
     let mut table_cells = vec![];
     let mut table_cols = vec![];
     let mut table_col = 0;
     let mut table_head = false;
 
-    let mut last_txt_end = '\0';
-
-    for item in Parser::new_with_broken_link_callback(md, parse_options, Some(&mut |b: BrokenLink<'a>| Some((b.reference, "".into())))) {
-        let item = match item {
-            Event::SoftBreak => Event::Text(pulldown_cmark::CowStr::Borrowed(" ")),
-            Event::HardBreak => Event::Text(pulldown_cmark::CowStr::Borrowed("\n")),
-            item => item,
-        };
-        match item {
-            Event::Start(tag) => match tag {
-                Tag::Paragraph => {
-                    // close unbalanced HTML tags
-                    (strong, emphasis, strikethrough) = (0, 0, 0);
-                    last_txt_end = '\0';
+    markdown_parser(md, |event| match event {
+        Event::Start(tag) => match tag {
+            Tag::Paragraph => txt_style = StyleBuilder::default(),
+            Tag::Heading { .. } => {
+                txt_style = StyleBuilder::default();
+                heading_anchor_txt = Some(String::new());
+            }
+            Tag::BlockQuote(_) => {
+                txt_style = StyleBuilder::default();
+                block_quote_start.push(blocks.len());
+            }
+            Tag::CodeBlock(kind) => {
+                txt_style = StyleBuilder::default();
+                code_block = Some((String::new(), kind));
+            }
+            Tag::HtmlBlock => {
+                txt_style = StyleBuilder::default();
+                html_block = Some(String::new());
+            }
+            Tag::List(n) => {
+                txt_style = StyleBuilder::default();
+                list_info.push(ListInfo {
+                    block_start: blocks.len(),
+                    inline_start: inlines.len(),
+                    first_num: n,
+                    item_num: n,
+                    item_checked: None,
+                });
+            }
+            Tag::DefinitionList => {
+                txt_style = StyleBuilder::default();
+                list_info.push(ListInfo {
+                    block_start: blocks.len(),
+                    inline_start: inlines.len(),
+                    first_num: None,
+                    item_num: None,
+                    item_checked: None,
+                });
+            }
+            Tag::Item | Tag::DefinitionListTitle | Tag::DefinitionListDefinition => {
+                txt_style = StyleBuilder::default();
+                if let Some(list) = list_info.last_mut() {
+                    list.block_start = blocks.len();
                 }
-                Tag::Heading { .. } => {
-                    (strong, emphasis, strikethrough) = (0, 0, 0);
-                    last_txt_end = '\0';
-                    heading_text = Some(String::new());
-                }
-                Tag::BlockQuote(_) => {
-                    (strong, emphasis, strikethrough) = (0, 0, 0);
-                    last_txt_end = '\0';
-                    block_quote_start.push(blocks.len());
-                }
-                Tag::CodeBlock(kind) => {
-                    (strong, emphasis, strikethrough) = (0, 0, 0);
-                    last_txt_end = '\0';
-                    code_block = Some((String::new(), kind));
-                }
-                Tag::List(n) => {
-                    (strong, emphasis, strikethrough) = (0, 0, 0);
-                    last_txt_end = '\0';
-                    list_info.push(ListInfo {
-                        block_start: blocks.len(),
-                        inline_start: inlines.len(),
-                        first_num: n,
-                        item_num: n,
-                        item_checked: None,
-                    });
-                }
-                Tag::DefinitionList => {
-                    (strong, emphasis, strikethrough) = (0, 0, 0);
-                    last_txt_end = '\0';
-                    list_info.push(ListInfo {
-                        block_start: blocks.len(),
-                        inline_start: inlines.len(),
-                        first_num: None,
-                        item_num: None,
-                        item_checked: None,
-                    });
-                }
-                Tag::Item | Tag::DefinitionListTitle | Tag::DefinitionListDefinition => {
-                    (strong, emphasis, strikethrough) = (0, 0, 0);
-                    last_txt_end = '\0';
-                    if let Some(list) = list_info.last_mut() {
-                        list.block_start = blocks.len();
-                    }
-                }
-                Tag::FootnoteDefinition(label) => {
-                    (strong, emphasis, strikethrough) = (0, 0, 0);
-                    last_txt_end = '\0';
-                    footnote_def = Some((blocks.len(), label));
-                }
-                Tag::Table(columns) => {
-                    (strong, emphasis, strikethrough) = (0, 0, 0);
-                    last_txt_end = '\0';
-                    table_cols = columns
-                        .into_iter()
-                        .map(|c| match c {
-                            Alignment::None => Align::START,
-                            Alignment::Left => Align::LEFT,
-                            Alignment::Center => Align::CENTER,
-                            Alignment::Right => Align::RIGHT,
-                        })
-                        .collect()
-                }
-                Tag::TableHead => {
-                    (strong, emphasis, strikethrough) = (0, 0, 0);
-                    last_txt_end = '\0';
-                    table_head = true;
-                    table_col = 0;
-                }
-                Tag::TableRow => {
-                    (strong, emphasis, strikethrough) = (0, 0, 0);
-                    last_txt_end = '\0';
-                    table_col = 0;
-                }
-                Tag::TableCell => {
-                    (strong, emphasis, strikethrough) = (0, 0, 0);
-                    last_txt_end = '\0';
-                }
-                Tag::Emphasis => {
-                    emphasis += 1;
-                }
-                Tag::Strong => {
-                    strong += 1;
-                }
-                Tag::Strikethrough => {
-                    strong += 1;
-                }
-                Tag::Link {
-                    link_type,
-                    dest_url,
-                    title,
-                    id,
-                } => {
-                    link = Some((inlines.len(), link_type, dest_url, title, id));
-                }
-                Tag::Image { dest_url, title, .. } => {
-                    last_txt_end = '\0';
-                    image = Some((String::new(), dest_url, title));
-                }
-                Tag::Superscript => {}
-                Tag::Subscript => {}
-                Tag::HtmlBlock => {}
-                Tag::MetadataBlock(_) => {}
-            },
-            Event::End(tag) => match tag {
-                TagEnd::Paragraph => {
-                    if !inlines.is_empty() {
-                        blocks.push(paragraph_view(ParagraphFnArgs {
-                            index: blocks.len() as u32,
-                            items: mem::take(&mut inlines).into(),
-                        }));
-                    }
-                }
-                TagEnd::Heading(level) => {
-                    if !inlines.is_empty() {
-                        blocks.push(heading_view(HeadingFnArgs {
-                            level,
-                            anchor: heading_anchor(heading_text.take().unwrap_or_default().as_str()),
-                            items: mem::take(&mut inlines).into(),
-                        }));
-                    }
-                }
-                TagEnd::BlockQuote(_) => {
-                    if let Some(start) = block_quote_start.pop() {
-                        let items: UiVec = blocks.drain(start..).collect();
-                        if !items.is_empty() {
-                            blocks.push(block_quote_view(BlockQuoteFnArgs {
-                                level: block_quote_start.len() as u32,
-                                items,
-                            }));
-                        }
-                    }
-                }
-                TagEnd::CodeBlock => {
-                    let (mut txt, kind) = code_block.take().unwrap();
-                    if txt.ends_with('\n') {
-                        txt.pop();
-                    }
-                    blocks.push(code_block_view(CodeBlockFnArgs {
-                        lang: match kind {
-                            CodeBlockKind::Indented => Txt::from_str(""),
-                            CodeBlockKind::Fenced(l) => l.to_txt(),
-                        },
-                        txt: txt.into(),
-                    }))
-                }
-                TagEnd::List(_) => {
-                    if let Some(list) = list_info.pop() {
-                        blocks.push(list_view(ListFnArgs {
-                            depth: list_info.len() as u32,
-                            first_num: list.first_num,
-                            items: mem::take(&mut list_items).into(),
-                        }));
-                    }
-                }
-                TagEnd::DefinitionList => {
-                    if list_info.pop().is_some() {
-                        blocks.push(definition_list_view(DefListArgs {
-                            items: mem::take(&mut list_items).into(),
-                        }));
-                    }
-                }
-                TagEnd::Item => {
-                    let depth = list_info.len().saturating_sub(1);
-                    if let Some(list) = list_info.last_mut() {
-                        let num = match &mut list.item_num {
-                            Some(n) => {
-                                let r = *n;
-                                *n += 1;
-                                Some(r)
-                            }
-                            None => None,
-                        };
-
-                        let bullet_args = ListItemBulletFnArgs {
-                            depth: depth as u32,
-                            num,
-                            checked: list.item_checked.take(),
-                        };
-                        list_items.push(list_item_bullet_view(bullet_args));
-                        list_items.push(list_item_view(ListItemFnArgs {
-                            bullet: bullet_args,
-                            items: inlines.drain(list.inline_start..).collect(),
-                            blocks: blocks.drain(list.block_start..).collect(),
-                        }));
-                    }
-                }
-                TagEnd::DefinitionListTitle => {
-                    if let Some(list) = list_info.last_mut() {
-                        list_items.push(def_list_item_title_view(DefListItemTitleArgs {
-                            items: inlines.drain(list.inline_start..).collect(),
-                        }));
-                    }
-                }
-                TagEnd::DefinitionListDefinition => {
-                    if let Some(list) = list_info.last_mut() {
-                        list_items.push(def_list_item_definition_view(DefListItemDefinitionArgs {
-                            items: inlines.drain(list.inline_start..).collect(),
-                        }));
-                    }
-                }
-                TagEnd::FootnoteDefinition => {
-                    if let Some((i, label)) = footnote_def.take() {
-                        let label = html_escape::decode_html_entities(label.as_ref());
-                        let items = blocks.drain(i..).collect();
-                        blocks.push(footnote_def_view(FootnoteDefFnArgs {
-                            label: label.to_txt(),
-                            items,
-                        }));
-                    }
-                }
-                TagEnd::Table => {
-                    if !table_cells.is_empty() {
-                        blocks.push(table_view(TableFnArgs {
-                            columns: mem::take(&mut table_cols),
-                            cells: mem::take(&mut table_cells).into(),
-                        }));
-                    }
-                }
-                TagEnd::TableHead => {
-                    table_head = false;
-                }
-                TagEnd::TableRow => {}
-                TagEnd::TableCell => {
-                    table_cells.push(table_cell_view(TableCellFnArgs {
-                        is_heading: table_head,
-                        col_align: table_cols[table_col],
+            }
+            Tag::FootnoteDefinition(label) => {
+                txt_style = StyleBuilder::default();
+                footnote_def = Some((blocks.len(), label));
+            }
+            Tag::Table(columns) => {
+                txt_style = StyleBuilder::default();
+                table_cols = columns
+                    .into_iter()
+                    .map(|c| match c {
+                        Alignment::None => Align::START,
+                        Alignment::Left => Align::LEFT,
+                        Alignment::Center => Align::CENTER,
+                        Alignment::Right => Align::RIGHT,
+                    })
+                    .collect()
+            }
+            Tag::TableHead => {
+                txt_style = StyleBuilder::default();
+                table_head = true;
+                table_col = 0;
+            }
+            Tag::TableRow => {
+                txt_style = StyleBuilder::default();
+                table_col = 0;
+            }
+            Tag::TableCell => {
+                txt_style = StyleBuilder::default();
+            }
+            Tag::Emphasis => {
+                txt_style.emphasis += 1;
+            }
+            Tag::Strong => {
+                txt_style.strong += 1;
+            }
+            Tag::Strikethrough => {
+                txt_style.strong += 1;
+            }
+            Tag::Superscript => {
+                txt_style.superscript += 1;
+            }
+            Tag::Subscript => {
+                txt_style.subscript += 1;
+            }
+            Tag::Link {
+                link_type,
+                dest_url,
+                title,
+                id,
+            } => {
+                link = Some((inlines.len(), link_type, dest_url, title, id));
+            }
+            Tag::Image { dest_url, title, .. } => {
+                image = Some((String::new(), dest_url, title));
+            }
+            Tag::MetadataBlock(_) => unreachable!(), // not enabled
+        },
+        Event::End(tag_end) => match tag_end {
+            TagEnd::Paragraph => {
+                if !inlines.is_empty() {
+                    blocks.push(paragraph_view(ParagraphFnArgs {
+                        index: blocks.len() as u32,
                         items: mem::take(&mut inlines).into(),
                     }));
-                    table_col += 1;
                 }
-                TagEnd::Emphasis => {
-                    emphasis -= 1;
-                }
-                TagEnd::Strong => {
-                    strong -= 1;
-                }
-                TagEnd::Strikethrough => {
-                    strikethrough -= 1;
-                }
-                TagEnd::Link => {
-                    let (inlines_start, kind, url, title, _id) = link.take().unwrap();
-                    let title = html_escape::decode_html_entities(title.as_ref());
-                    let url = link_resolver.resolve(url.as_ref());
-                    match kind {
-                        LinkType::Autolink | LinkType::Email => {
-                            let url = html_escape::decode_html_entities(&url);
-                            if let Some(txt) = text_view.call_checked(TextFnArgs {
-                                txt: url.to_txt(),
-                                style: MarkdownStyle {
-                                    strong: strong > 0,
-                                    emphasis: emphasis > 0,
-                                    strikethrough: strikethrough > 0,
-                                },
-                            }) {
-                                inlines.push(txt);
-                            }
-                        }
-                        LinkType::Inline => {}
-                        LinkType::Reference => {}
-                        LinkType::ReferenceUnknown => {}
-                        LinkType::Collapsed => {}
-                        LinkType::CollapsedUnknown => {}
-                        LinkType::Shortcut => {}
-                        LinkType::ShortcutUnknown => {}
-                        LinkType::WikiLink { .. } => {}
-                    }
-                    if !inlines.is_empty() {
-                        let items = inlines.drain(inlines_start..).collect();
-                        if let Some(lnk) = link_view.call_checked(LinkFnArgs {
-                            url,
-                            title: title.to_txt(),
-                            items,
-                        }) {
-                            inlines.push(lnk);
-                        }
-                    }
-                }
-                TagEnd::Image => {
-                    let (alt_txt, url, title) = image.take().unwrap();
-                    let title = html_escape::decode_html_entities(title.as_ref());
-                    blocks.push(image_view(ImageFnArgs {
-                        source: image_resolver.resolve(&url),
-                        title: title.to_txt(),
-                        alt_items: mem::take(&mut inlines).into(),
-                        alt_txt: alt_txt.into(),
+            }
+            TagEnd::Heading(level) => {
+                if !inlines.is_empty() {
+                    blocks.push(heading_view(HeadingFnArgs {
+                        level,
+                        anchor: heading_anchor(heading_anchor_txt.take().unwrap_or_default().as_str()),
+                        items: mem::take(&mut inlines).into(),
                     }));
                 }
-                TagEnd::Superscript => {}
-                TagEnd::Subscript => {}
-                TagEnd::HtmlBlock => {}
-                TagEnd::MetadataBlock(_) => {}
-            },
-            Event::Text(txt) => {
-                let txt = html_escape::decode_html_entities(txt.as_ref());
-                if let Some((t, _)) = &mut code_block {
-                    t.push_str(&txt);
-                } else if !txt.is_empty() {
-                    let mut txt = Txt::from_string(txt.into_owned());
+            }
+            TagEnd::BlockQuote(_) => {
+                if let Some(start) = block_quote_start.pop() {
+                    let items: UiVec = blocks.drain(start..).collect();
+                    if !items.is_empty() {
+                        blocks.push(block_quote_view(BlockQuoteFnArgs {
+                            level: block_quote_start.len() as u32,
+                            items,
+                        }));
+                    }
+                }
+            }
+            TagEnd::CodeBlock => {
+                let (mut txt, kind) = code_block.take().unwrap();
+                if txt.ends_with('\n') {
+                    txt.pop();
+                }
+                blocks.push(code_block_view(CodeBlockFnArgs {
+                    lang: match kind {
+                        CodeBlockKind::Indented => Txt::from_str(""),
+                        CodeBlockKind::Fenced(l) => l.to_txt(),
+                    },
+                    txt: txt.into(),
+                }))
+            }
+            TagEnd::HtmlBlock => {
+                // TODO
+                let _html = html_block.take().unwrap();
+            }
+            TagEnd::List(_) => {
+                if let Some(list) = list_info.pop() {
+                    blocks.push(list_view(ListFnArgs {
+                        depth: list_info.len() as u32,
+                        first_num: list.first_num,
+                        items: mem::take(&mut list_items).into(),
+                    }));
+                }
+            }
+            TagEnd::DefinitionList => {
+                if list_info.pop().is_some() {
+                    blocks.push(definition_list_view(DefListArgs {
+                        items: mem::take(&mut list_items).into(),
+                    }));
+                }
+            }
+            TagEnd::Item => {
+                let depth = list_info.len().saturating_sub(1);
+                if let Some(list) = list_info.last_mut() {
+                    let num = match &mut list.item_num {
+                        Some(n) => {
+                            let r = *n;
+                            *n += 1;
+                            Some(r)
+                        }
+                        None => None,
+                    };
 
-                    // apply `WhiteSpace::MergeAll` across texts.
-                    let txt_end = txt.chars().next_back().unwrap();
-
-                    if txt != " " && txt != "\n" {
-                        // not Soft/HardBreak
-                        let starts_with_space = txt.chars().next().unwrap().is_whitespace();
-                        match WhiteSpace::MergeAll.transform(&txt) {
-                            std::borrow::Cow::Borrowed(_) => {
-                                if starts_with_space && last_txt_end != '\0' || !txt.is_empty() && last_txt_end.is_whitespace() {
-                                    txt.to_mut().insert(0, ' ');
-                                }
-                                txt.end_mut();
-                                last_txt_end = txt_end;
-                            }
-                            std::borrow::Cow::Owned(t) => {
-                                txt = t;
-                                if !txt.is_empty() {
-                                    if starts_with_space && last_txt_end != '\0' || !txt.is_empty() && last_txt_end.is_whitespace() {
-                                        txt.to_mut().insert(0, ' ');
-                                        txt.end_mut();
-                                    }
-                                    last_txt_end = txt_end;
-                                }
-                            }
+                    let bullet_args = ListItemBulletFnArgs {
+                        depth: depth as u32,
+                        num,
+                        checked: list.item_checked.take(),
+                    };
+                    list_items.push(list_item_bullet_view(bullet_args));
+                    list_items.push(list_item_view(ListItemFnArgs {
+                        bullet: bullet_args,
+                        items: inlines.drain(list.inline_start..).collect(),
+                        blocks: blocks.drain(list.block_start..).collect(),
+                    }));
+                }
+            }
+            TagEnd::DefinitionListTitle => {
+                if let Some(list) = list_info.last_mut() {
+                    list_items.push(def_list_item_title_view(DefListItemTitleArgs {
+                        items: inlines.drain(list.inline_start..).collect(),
+                    }));
+                }
+            }
+            TagEnd::DefinitionListDefinition => {
+                if let Some(list) = list_info.last_mut() {
+                    list_items.push(def_list_item_definition_view(DefListItemDefinitionArgs {
+                        items: inlines.drain(list.inline_start..).collect(),
+                    }));
+                }
+            }
+            TagEnd::FootnoteDefinition => {
+                if let Some((i, label)) = footnote_def.take() {
+                    let label = html_escape::decode_html_entities(label.as_ref());
+                    let items = blocks.drain(i..).collect();
+                    blocks.push(footnote_def_view(FootnoteDefFnArgs {
+                        label: label.to_txt(),
+                        items,
+                    }));
+                }
+            }
+            TagEnd::Table => {
+                if !table_cells.is_empty() {
+                    blocks.push(table_view(TableFnArgs {
+                        columns: mem::take(&mut table_cols),
+                        cells: mem::take(&mut table_cells).into(),
+                    }));
+                }
+            }
+            TagEnd::TableHead => {
+                table_head = false;
+            }
+            TagEnd::TableRow => {}
+            TagEnd::TableCell => {
+                table_cells.push(table_cell_view(TableCellFnArgs {
+                    is_heading: table_head,
+                    col_align: table_cols[table_col],
+                    items: mem::take(&mut inlines).into(),
+                }));
+                table_col += 1;
+            }
+            TagEnd::Emphasis => {
+                txt_style.emphasis -= 1;
+            }
+            TagEnd::Strong => {
+                txt_style.strong -= 1;
+            }
+            TagEnd::Strikethrough => {
+                txt_style.strikethrough -= 1;
+            }
+            TagEnd::Superscript => {
+                txt_style.superscript -= 1;
+            }
+            TagEnd::Subscript => txt_style.subscript -= 1,
+            TagEnd::Link => {
+                let (inlines_start, kind, url, title, _id) = link.take().unwrap();
+                let title = html_escape::decode_html_entities(title.as_ref());
+                let url = link_resolver.resolve(url.as_ref());
+                match kind {
+                    LinkType::Autolink | LinkType::Email => {
+                        let url = html_escape::decode_html_entities(&url);
+                        if let Some(txt) = text_view.call_checked(TextFnArgs {
+                            txt: url.to_txt(),
+                            style: txt_style.build(),
+                        }) {
+                            inlines.push(txt);
                         }
                     }
-
-                    if let Some(t) = &mut heading_text {
-                        t.push_str(&txt);
+                    LinkType::Inline => {}
+                    LinkType::Reference => {}
+                    LinkType::ReferenceUnknown => {}
+                    LinkType::Collapsed => {}
+                    LinkType::CollapsedUnknown => {}
+                    LinkType::Shortcut => {}
+                    LinkType::ShortcutUnknown => {}
+                    LinkType::WikiLink { .. } => {}
+                }
+                if !inlines.is_empty() {
+                    let items = inlines.drain(inlines_start..).collect();
+                    if let Some(lnk) = link_view.call_checked(LinkFnArgs {
+                        url,
+                        title: title.to_txt(),
+                        items,
+                    }) {
+                        inlines.push(lnk);
                     }
-                    if let Some((t, _, _)) = &mut image {
-                        t.push_str(&txt);
+                }
+            }
+            TagEnd::Image => {
+                let (alt_txt, url, title) = image.take().unwrap();
+                let title = html_escape::decode_html_entities(title.as_ref());
+                blocks.push(image_view(ImageFnArgs {
+                    source: image_resolver.resolve(&url),
+                    title: title.to_txt(),
+                    alt_items: mem::take(&mut inlines).into(),
+                    alt_txt: alt_txt.into(),
+                }));
+            }
+            TagEnd::MetadataBlock(_) => unreachable!(),
+        },
+        Event::Text(txt) => {
+            if let Some(html) = &mut html_block {
+                html.push_str(&txt);
+            } else {
+                let txt = html_escape::decode_html_entities(txt.as_ref());
+                if let Some((code, _)) = &mut code_block {
+                    code.push_str(&txt);
+                } else if !txt.is_empty() {
+                    if let Some(anchor_txt) = &mut heading_anchor_txt {
+                        anchor_txt.push_str(&txt);
+                    }
+                    if let Some((alt_txt, _, _)) = &mut image {
+                        alt_txt.push_str(&txt);
                     }
                     if let Some(txt) = text_view.call_checked(TextFnArgs {
-                        txt,
-                        style: MarkdownStyle {
-                            strong: strong > 0,
-                            emphasis: emphasis > 0,
-                            strikethrough: strikethrough > 0,
-                        },
+                        txt: Txt::from_str(&txt),
+                        style: txt_style.build(),
                     }) {
                         inlines.push(txt);
                     }
                 }
             }
-            Event::Code(txt) => {
-                let txt = html_escape::decode_html_entities(txt.as_ref());
-
-                let style = MarkdownStyle {
-                    strong: strong > 0,
-                    emphasis: emphasis > 0,
-                    strikethrough: strikethrough > 0,
-                };
-
-                if last_txt_end.is_whitespace()
-                    && let Some(txt) = text_view.call_checked(TextFnArgs {
-                        txt: ' '.into(),
-                        style: style.clone(),
-                    })
-                {
-                    inlines.push(txt);
-                }
-
-                if let Some(txt) = code_inline_view.call_checked(CodeInlineFnArgs { txt: txt.to_txt(), style }) {
-                    inlines.push(txt);
-                }
-            }
-            Event::Html(tag) | Event::InlineHtml(tag) => match tag.as_ref() {
-                "<b>" => strong += 1,
-                "</b>" => strong -= 1,
-                "<em>" => emphasis += 1,
-                "</em>" => emphasis -= 1,
-                "<s>" => strikethrough += 1,
-                "</s>" => strikethrough -= 1,
-                _ => {}
-            },
-            Event::FootnoteReference(label) => {
-                let label = html_escape::decode_html_entities(label.as_ref());
-                if let Some(txt) = footnote_ref_view.call_checked(FootnoteRefFnArgs { label: label.to_txt() }) {
-                    inlines.push(txt);
-                }
-            }
-            Event::Rule => {
-                blocks.push(rule_view(RuleFnArgs {}));
-            }
-            Event::TaskListMarker(c) => {
-                if let Some(l) = &mut list_info.last_mut() {
-                    l.item_checked = Some(c);
-                }
-            }
-            Event::InlineMath(_) => {}
-            Event::DisplayMath(_) => {}
-            // handled early
-            Event::SoftBreak | Event::HardBreak => unreachable!(),
         }
-    }
+        Event::Code(txt) => {
+            let txt = html_escape::decode_html_entities(txt.as_ref());
+            if let Some(txt) = code_inline_view.call_checked(CodeInlineFnArgs {
+                txt: txt.to_txt(),
+                style: txt_style.build(),
+            }) {
+                inlines.push(txt);
+            }
+        }
+        Event::Html(h) => {
+            if let Some(html) = &mut html_block {
+                html.push_str(&h);
+            }
+        }
+        Event::InlineHtml(tag) => match tag.as_ref() {
+            "<b>" => txt_style.strong += 1,
+            "</b>" => txt_style.strong -= 1,
+            "<em>" => txt_style.emphasis += 1,
+            "</em>" => txt_style.emphasis -= 1,
+            "<s>" => txt_style.strikethrough += 1,
+            "</s>" => txt_style.strikethrough -= 1,
+            _ => {}
+        },
+        Event::FootnoteReference(label) => {
+            let label = html_escape::decode_html_entities(label.as_ref());
+            if let Some(txt) = footnote_ref_view.call_checked(FootnoteRefFnArgs { label: label.to_txt() }) {
+                inlines.push(txt);
+            }
+        }
+        Event::Rule => {
+            blocks.push(rule_view(RuleFnArgs {}));
+        }
+        Event::TaskListMarker(c) => {
+            if let Some(l) = &mut list_info.last_mut() {
+                l.item_checked = Some(c);
+            }
+        }
+
+        Event::InlineMath(_) => {} // TODO
+        Event::DisplayMath(_) => {}
+        Event::SoftBreak | Event::HardBreak => unreachable!(),
+    });
 
     PANEL_FN_VAR.get()(PanelFnArgs { items: blocks.into() })
 }
