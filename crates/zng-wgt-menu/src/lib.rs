@@ -12,20 +12,12 @@
 zng_wgt::enable_widget_macros!();
 
 use colors::BASE_COLOR_VAR;
-use zng_ext_font::FontNames;
-use zng_ext_input::{focus::FOCUS, mouse::ClickMode};
-use zng_ext_l10n::lang;
-use zng_wgt::{align, base_color, is_disabled, is_mobile, margin, prelude::*};
+use zng_wgt::{base_color, margin, prelude::*};
 use zng_wgt_access::{AccessRole, access_role};
 use zng_wgt_button::BUTTON;
-use zng_wgt_container::{child_align, child_end, padding};
-use zng_wgt_fill::{background_color, foreground_highlight};
-use zng_wgt_filter::{opacity, saturate};
-use zng_wgt_input::{CursorIcon, cursor, focus::alt_focus_scope};
-use zng_wgt_input::{click_mode, focus::is_focused, mouse::on_pre_mouse_enter};
-use zng_wgt_size_offset::size;
+use zng_wgt_container::{child_end, padding};
+use zng_wgt_input::focus::alt_focus_scope;
 use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
-use zng_wgt_text::Text;
 
 pub mod context;
 pub mod popup;
@@ -43,6 +35,7 @@ impl Menu {
             zng_wgt_panel::panel_fn = PANEL_FN_VAR;
             style_base_fn = style_fn!(|_| DefaultStyle!());
             access_role = AccessRole::Menu;
+            zng_wgt_rule_line::collapse_scope = true;
         }
     }
 }
@@ -102,80 +95,91 @@ impl DefaultStyle {
             zng_wgt_button::style_fn = style_fn!(|_| ButtonStyle!());
             zng_wgt_toggle::style_fn = style_fn!(|_| ToggleStyle!());
             zng_wgt_rule_line::hr::color = BASE_COLOR_VAR.shade(1);
+            zng_wgt_rule_line::vr::color = BASE_COLOR_VAR.shade(1);
+            zng_wgt_rule_line::vr::height = 1.em();
             zng_wgt_text::icon::ico_size = 18;
         }
     }
 }
 
-/// Style applied to all [`Button!`] widgets inside [`Menu!`].
+/// Style applied to all [`Button!`] widgets inside [`Menu!`] root.
 ///
-/// Gives the button a *menu-item* look.
+/// Gives the button a *toolbar-item* look.
+///
+/// See also [`sub::ButtonStyle!`] for the style of buttons inside the sub-menus.
 ///
 /// [`Button!`]: struct@zng_wgt_button::Button
 /// [`Menu!`]: struct@Menu
+/// [`sub::ButtonStyle!`]: struct@sub::ButtonStyle
 #[widget($crate::ButtonStyle)]
-pub struct ButtonStyle(Style);
+pub struct ButtonStyle(zng_wgt_button::LightStyle);
 impl ButtonStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-            replace = true;
 
-            sub::column_width_padding = true;
-            padding = (4, 0);
-            child_align = Align::START;
-
-            base_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
-            background_color = BASE_COLOR_VAR.rgba();
-            opacity = 90.pct();
-            foreground_highlight = unset!;
-            zng_wgt_tooltip::tooltip_fn = WidgetFn::nil(); // cmd sets tooltip
-
-            click_mode = ClickMode::release();// part of press-and-drag to click (see SubMenuPopup)
+            padding = 4;
 
             access_role = AccessRole::MenuItem;
 
-            on_pre_mouse_enter = hn!(|_| {
-                FOCUS.focus_widget(WIDGET.id(), false);
-            });
-
-            shortcut_txt = Text! {
-                txt = BUTTON.cmd().flat_map(|c| match c {
-                    Some(c) => c.shortcut_txt(),
-                    None => const_var(Txt::from("")),
-                });
-                align = Align::CENTER;
-            };
-
-            icon_fn = BUTTON.cmd().flat_map(|c| match c {
-                Some(c) => c.icon(),
-                None => const_var(WidgetFn::nil()),
-            });
-
-            when *#is_focused {
-                background_color = BASE_COLOR_VAR.shade(1);
-                opacity = 100.pct();
-            }
-
-            when *#is_disabled {
-                saturate = false;
-                opacity = 50.pct();
-                cursor = CursorIcon::NotAllowed;
-            }
-
-            when *#is_mobile {
-                shortcut_txt = UiNode::nil();
-            }
+            zng_wgt_container::child_start =
+                BUTTON
+                    .cmd()
+                    .flat_map(|c| c.as_ref().map(|c| c.icon()).unwrap_or_else(|| const_var(WidgetFn::nil())))
+                    .present_data(()),
+                0,
+            ;
         }
     }
 }
 
-/// Command button for touch.
+/// Alternate style for buttons inside a menu.
 ///
-/// This a menu button style that has a `cmd` property, it changes the visibility to collapse when the command
-/// is disabled.
+/// If the button has a command, show the icon as child, if the command has no icon shows the name.
+///
+/// [`Button!`]: struct@zng_wgt_button::Button
+/// [`Menu!`]: struct@Menu
+/// [`sub::ButtonStyle!`]: struct@sub::ButtonStyle
+#[widget($crate::IconButtonStyle)]
+pub struct IconButtonStyle(zng_wgt_button::LightStyle);
+impl IconButtonStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+
+            padding = 4;
+
+            access_role = AccessRole::MenuItem;
+
+            zng_wgt_container::child =
+                BUTTON
+                    .cmd()
+                    .flat_map(|c| match c {
+                        Some(c) => expr_var! {
+                            let icon = #{c.icon()};
+                            let name = #{c.name()};
+                            wgt_fn!(icon, name, |args| {
+                                let icon = icon(args);
+                                if icon.is_nil() { zng_wgt_text::Text!(name.clone()) } else { icon }
+                            })
+                        },
+                        None => const_var(WidgetFn::nil()),
+                    })
+                    .present_data(()),
+            ;
+
+            zng_wgt_button::cmd_tooltip_fn = wgt_fn!(|args: zng_wgt_button::CmdTooltipArgs| {
+                zng_wgt_tooltip::Tip!(zng_wgt_text::Text!(args.cmd.name_with_shortcut()))
+            });
+        }
+    }
+}
+
+/// Deprecated
+#[deprecated = "use `sub::TouchButtonStyle`"]
 #[widget($crate::TouchButtonStyle)]
 pub struct TouchButtonStyle(Style);
+#[allow(deprecated)]
 impl TouchButtonStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
@@ -194,38 +198,20 @@ impl TouchButtonStyle {
     }
 }
 
-/// Style applied to all [`Button!`] widgets inside [`Menu!`].
+/// Style applied to all [`Toggle!`] widgets inside [`Menu!`] root.
 ///
-/// Gives the toggle a *menu-item* look, the check mark is placed in the icon position.
+/// Gives the toggle a *toolbar-item* look.
 ///
-/// [`Button!`]: struct@zng_wgt_button::Button
+/// [`Toggle!`]: struct@zng_wgt_toggle::Toggle
 /// [`Menu!`]: struct@Menu
 #[widget($crate::ToggleStyle)]
-pub struct ToggleStyle(ButtonStyle);
+pub struct ToggleStyle(zng_wgt_toggle::LightStyle);
 impl ToggleStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-            replace = true;
-
-            click_mode = ClickMode::release();
-            access_role = AccessRole::MenuItemCheckBox;
-
-            sub::start_column_fn = wgt_fn!(|_| Text! {
-                size = 1.2.em();
-                font_family = FontNames::system_ui(&lang!(und));
-                align = Align::CENTER;
-
-                txt = "✓";
-                when #{zng_wgt_toggle::IS_CHECKED_VAR}.is_none() {
-                    txt = "━";
-                }
-
-                font_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.transparent());
-                when #{zng_wgt_toggle::IS_CHECKED_VAR}.unwrap_or(true) {
-                    font_color = zng_wgt_text::FONT_COLOR_VAR;
-                }
-            });
+            padding = 4;
+            access_role = AccessRole::MenuItem;
         }
     }
 }

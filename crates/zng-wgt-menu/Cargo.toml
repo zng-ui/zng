@@ -19,7 +19,7 @@ zng-wgt-style = { path = "../zng-wgt-style", version = "0.7.5", default-features
 zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.7.5", default-features = false }
 zng-wgt-panel = { path = "../zng-wgt-panel", version = "0.7.5", default-features = false }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.8.5", default-features = false }
-zng-wgt-button = { path = "../zng-wgt-button", version = "0.8.5", default-features = false }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.8.5", default-features = false, features = ["tooltip"] }
 zng-ext-input = { path = "../zng-ext-input", version = "0.9.5", default-features = false }
 zng-wgt-input = { path = "../zng-wgt-input", version = "0.6.5", default-features = false }
 zng-wgt-text = { path = "../zng-wgt-text", version = "0.8.5", default-features = false }

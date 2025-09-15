@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use super::ButtonStyle;
+use super::{icon_fn, shortcut_txt};
 use colors::BASE_COLOR_VAR;
 use zng_ext_font::FontNames;
 use zng_ext_input::{
@@ -12,14 +12,17 @@ use zng_ext_input::{
     mouse::{ClickMode, MOUSE_HOVERED_EVENT},
 };
 use zng_ext_l10n::lang;
-use zng_wgt::{align, is_disabled, is_rtl, prelude::*};
-use zng_wgt_container::padding;
+use zng_wgt::{align, base_color, is_disabled, is_mobile, is_rtl, prelude::*};
+use zng_wgt_access::{AccessRole, access_role};
+use zng_wgt_button::BUTTON;
+use zng_wgt_container::{child_align, padding};
 use zng_wgt_fill::{background, background_color, foreground_highlight};
 use zng_wgt_filter::{opacity, saturate};
 use zng_wgt_input::{
     CursorIcon, click_mode, cursor,
     focus::{FocusClickBehavior, focus_click_behavior, focusable, is_focused},
     is_hovered,
+    mouse::on_pre_mouse_enter,
     pointer_capture::capture_pointer,
 };
 use zng_wgt_layer::{
@@ -28,6 +31,7 @@ use zng_wgt_layer::{
 };
 use zng_wgt_size_offset::{size, width};
 use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
+
 #[doc(hidden)]
 pub use zng_wgt_text::Text;
 
@@ -468,6 +472,13 @@ impl DefaultStyle {
                 }),
             });
 
+            zng_wgt_button::style_fn = style_fn!(|_| ButtonStyle!());
+            zng_wgt_toggle::style_fn = style_fn!(|_| ToggleStyle!());
+            zng_wgt_rule_line::hr::color = BASE_COLOR_VAR.shade(1);
+            zng_wgt_rule_line::vr::color = BASE_COLOR_VAR.shade(1);
+            zng_wgt_rule_line::vr::height = 1.em();
+            zng_wgt_text::icon::ico_size = 18;
+
             when *#is_hovered || *#is_focused || *#is_open {
                 background_color = BASE_COLOR_VAR.shade(1);
                 opacity = 100.pct();
@@ -661,4 +672,132 @@ context_local! {
 static_id! {
     pub(super) static ref SUB_MENU_INFO_ID: StateId<SubMenuInfo>;
     pub(super) static ref SUB_MENU_POPUP_ID: StateId<SubMenuPopupInfo>;
+}
+
+/// Style applied to all [`Button!`] widgets inside [`SubMenu!`] and [`ContextMenu!`].
+///
+/// Gives the button a *menu-item* look.
+///
+/// [`Button!`]: struct@zng_wgt_button::Button
+/// [`SubMenu!`]: struct@SubMenu
+/// [`ContextMenu!`]: struct@crate::context::ContextMenu
+#[widget($crate::sub::ButtonStyle)]
+pub struct ButtonStyle(Style);
+impl ButtonStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            replace = true;
+
+            column_width_padding = true;
+            padding = (4, 0);
+            child_align = Align::START;
+
+            base_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
+            background_color = BASE_COLOR_VAR.rgba();
+            opacity = 90.pct();
+            foreground_highlight = unset!;
+            zng_wgt_tooltip::tooltip_fn = WidgetFn::nil(); // cmd sets tooltip
+
+            click_mode = ClickMode::release();// part of press-and-drag to click (see SubMenuPopup)
+
+            access_role = AccessRole::MenuItem;
+
+            on_pre_mouse_enter = hn!(|_| {
+                FOCUS.focus_widget(WIDGET.id(), false);
+            });
+
+            shortcut_txt = Text! {
+                txt = BUTTON.cmd().flat_map(|c| match c {
+                    Some(c) => c.shortcut_txt(),
+                    None => const_var(Txt::from("")),
+                });
+                align = Align::CENTER;
+            };
+
+            icon_fn = BUTTON.cmd().flat_map(|c| match c {
+                Some(c) => c.icon(),
+                None => const_var(WidgetFn::nil()),
+            });
+
+            when *#is_focused {
+                background_color = BASE_COLOR_VAR.shade(1);
+                opacity = 100.pct();
+            }
+
+            when *#is_disabled {
+                saturate = false;
+                opacity = 50.pct();
+                cursor = CursorIcon::NotAllowed;
+            }
+
+            when *#is_mobile {
+                shortcut_txt = UiNode::nil();
+            }
+        }
+    }
+}
+
+/// Style applied to all [`Button!`] widgets inside [`SubMenu!`] and [`ContextMenu!`] in touch contexts.
+///
+/// Gives the button a *menu-item* look.
+///
+/// [`Button!`]: struct@zng_wgt_button::Button
+/// [`SubMenu!`]: struct@SubMenu
+/// [`ContextMenu!`]: struct@crate::context::ContextMenu
+#[widget($crate::sub::TouchButtonStyle)]
+pub struct TouchButtonStyle(Style);
+impl TouchButtonStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            zng_wgt::corner_radius = 0;
+            zng_wgt::visibility =
+                BUTTON
+                    .cmd()
+                    .flat_map(|c| match c {
+                        Some(c) => c.is_enabled(),
+                        None => const_var(true),
+                    })
+                    .map_into(),
+            ;
+        }
+    }
+}
+
+/// Style applied to all [`Toggle!`] widgets inside [`SubMenu!`] and [`ContextMenu!`].
+///
+/// Gives the toggle a *menu-item* look, the check mark is placed in the icon position.
+///
+/// [`Toggle!`]: struct@zng_wgt_toggle::Toggle
+/// [`SubMenu!`]: struct@SubMenu
+/// [`ContextMenu!`]: struct@crate::context::ContextMenu
+#[widget($crate::sub::ToggleStyle)]
+pub struct ToggleStyle(ButtonStyle);
+impl ToggleStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            replace = true;
+
+            click_mode = ClickMode::release();
+            access_role = AccessRole::MenuItemCheckBox;
+
+            start_column_fn = wgt_fn!(|_| Text! {
+                size = 1.2.em();
+                font_family = FontNames::system_ui(&lang!(und));
+                align = Align::CENTER;
+
+                txt = "✓";
+                when #{zng_wgt_toggle::IS_CHECKED_VAR}.is_none() {
+                    txt = "━";
+                }
+
+                font_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.transparent());
+                when #{zng_wgt_toggle::IS_CHECKED_VAR}.unwrap_or(true) {
+                    font_color = zng_wgt_text::FONT_COLOR_VAR;
+                }
+            });
+        }
+    }
 }

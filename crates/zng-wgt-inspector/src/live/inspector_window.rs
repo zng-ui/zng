@@ -204,18 +204,8 @@ fn menu(hit_test_select: Var<HitSelect>, adorn_selected: Var<bool>, select_focus
                     },
                     zng_wgt_rule_line::vr::Vr!(),
                     Toggle! {
-                        child = Stack! {
-                            size = (14, 10);
-                            direction = StackDirection::top_to_bottom();
-                            zng_wgt_rule_line::hr::margin = 0;
-                            zng_wgt_rule_line::hr::color = zng_wgt_text::FONT_COLOR_VAR;
-                            spacing = 3;
-                            children = ui_vec![
-                                zng_wgt_rule_line::hr::Hr!(),
-                                zng_wgt_rule_line::hr::Hr!(),
-                                zng_wgt_rule_line::hr::Hr!(),
-                            ];
-                        };
+                        child = zng_wgt::ICONS.get("menu");
+                        padding = 2;
                         checked = var(false);
                         checked_popup = {
                             let screenshot_idle = var(true);
