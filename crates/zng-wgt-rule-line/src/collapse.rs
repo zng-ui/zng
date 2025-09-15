@@ -12,33 +12,11 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
     let mut scope: Option<Arc<CollapseScope>> = None;
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&mode);
+            WIDGET.sub_var_layout(&mode);
             scope = Some(Arc::new(CollapseScope::new(WIDGET.id())));
         }
         UiNodeOp::Deinit => {
             scope = None;
-        }
-        UiNodeOp::Info { .. } => {
-            match Arc::into_inner(scope.take().unwrap()) {
-                Some(mut s) => {
-                    s.collapse.clear();
-                    scope = Some(Arc::new(s));
-                }
-                None => scope = Some(Arc::new(CollapseScope::new(WIDGET.id()))),
-            }
-            WIDGET.layout();
-        }
-        UiNodeOp::Update { .. } => {
-            if mode.is_new() {
-                match Arc::into_inner(scope.take().unwrap()) {
-                    Some(mut s) => {
-                        s.collapse.clear();
-                        scope = Some(Arc::new(s));
-                    }
-                    None => scope = Some(Arc::new(CollapseScope::new(WIDGET.id()))),
-                }
-                WIDGET.layout();
-            }
         }
         UiNodeOp::Measure { wm, desired_size } => {
             *desired_size = SCOPE.with_context(&mut scope, || c.measure(wm));
