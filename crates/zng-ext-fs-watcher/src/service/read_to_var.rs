@@ -48,7 +48,7 @@ impl ReadToVar {
 
             let spawn = match ev {
                 ReadEvent::Update => false,
-                ReadEvent::Event(args) => !pending.load(Ordering::Relaxed) && args.events_for_path(&path).next().is_some(),
+                ReadEvent::Event(args) => args.rescan() || args.events_for_path(&path).next().is_some(),
                 ReadEvent::Init => true,
             };
 
@@ -56,14 +56,20 @@ impl ReadToVar {
                 return;
             }
 
-            pending.store(true, Ordering::Relaxed);
+            pending.store(true, Ordering::Release);
             if read.try_lock().is_none() {
                 // another task already running.
                 return;
             }
+            // spawn task that reads sequentially, if other requests are made while reading
+            // it will immediately begin reading again
             task::spawn_wait(clmv!(read, wk_var, path, handle, pending, on_modify, || {
-                let mut read = read.lock();
-                while pending.swap(false, Ordering::Relaxed) {
+                let mut read = match read.try_lock() {
+                    Some(r) => r,
+                    // another task raced across the external check and is already running.
+                    None => return,
+                };
+                while pending.swap(false, Ordering::Acquire) {
                     if let Some(update) = read(load(path.as_path())) {
                         if let Some(var) = wk_var.upgrade() {
                             var.modify(clmv!(on_modify, |vm| {
