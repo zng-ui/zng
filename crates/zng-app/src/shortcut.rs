@@ -82,6 +82,10 @@ impl fmt::Display for GestureKey {
             GestureKey::Key(k) => match k {
                 Key::Char(c) => write!(f, "{c}"),
                 Key::Str(s) => write!(f, "{s}"),
+                Key::ArrowLeft => write!(f, "←"),
+                Key::ArrowRight => write!(f, "→"),
+                Key::ArrowUp => write!(f, "↑"),
+                Key::ArrowDown => write!(f, "↑"),
                 k => write!(f, "{k:?}"),
             },
             GestureKey::Code(c) => write!(f, "{c:?}"),
