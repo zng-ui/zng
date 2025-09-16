@@ -14,6 +14,7 @@ use parking_lot::Mutex;
 use path_absolutize::Absolutize as _;
 use zng_clone_move::clmv;
 use zng_task as task;
+use zng_unit::TimeUnits as _;
 use zng_var::{AnyVarHookArgs, Var, VarUpdateId, VarValue, WeakVar, var};
 
 #[cfg(target_has_atomic = "64")]
@@ -95,12 +96,12 @@ impl SyncWithVar {
             };
 
             let mut debounce = None;
-
             let mut pending = 0;
 
             match ev {
                 SyncEvent::Update(sync_debounce) => {
-                    if var.is_new() && !latest_from_read.load(Ordering::Relaxed) {
+                    if var.is_new() && !latest_from_read.load(Ordering::Acquire) {
+                        // var updated, not from read
                         debounce = Some(sync_debounce);
                         pending |= WRITE;
                     } else {
@@ -109,6 +110,7 @@ impl SyncWithVar {
                 }
                 SyncEvent::Event(args) => {
                     if args.rescan() {
+                        // file may have updated
                         pending |= READ;
                     } else {
                         'ev: for ev in args.changes_for_path(&path) {
@@ -119,6 +121,7 @@ impl SyncWithVar {
                                 }
                             }
 
+                            // file updated, not from write
                             pending |= READ;
                             break;
                         }
@@ -135,6 +138,7 @@ impl SyncWithVar {
                     }
                 }
                 SyncEvent::FlushShutdown => {
+                    // task is always "flushing", just await the timeout
                     let timeout = WATCHER_SV.read().shutdown_timeout.get();
                     if task_data.read_write.try_lock_for(timeout).is_none() {
                         tracing::error!("not all io operations finished on shutdown, timeout after {timeout:?}");
@@ -144,18 +148,24 @@ impl SyncWithVar {
             };
             drop(var);
 
-            task_data.pending.fetch_or(pending, Ordering::Relaxed);
-
+            task_data.pending.fetch_or(pending, Ordering::AcqRel);
             if task_data.read_write.try_lock().is_none() {
                 // another spawn is already applying
                 return;
             }
             task::spawn_wait(clmv!(task_data, path, var_hook_and_modify, handle, || {
-                let mut read_write = task_data.read_write.lock();
+                let mut read_write = match task_data.read_write.try_lock() {
+                    Some(rw) => rw,
+                    None => {
+                        // another spawn raced over the external lock
+                        return;
+                    }
+                };
                 let (read, write) = &mut *read_write;
+                let mut var_update_id_before_read = None;
 
                 loop {
-                    let pending = task_data.pending.swap(0, Ordering::Relaxed);
+                    let pending = task_data.pending.swap(0, Ordering::AcqRel);
 
                     if pending == WRITE {
                         if let Some(d) = debounce {
@@ -164,7 +174,7 @@ impl SyncWithVar {
                                 .unwrap_or_default()
                                 .as_millis() as u64;
                             let prev_ms = task_data.last_write.load(Ordering::Relaxed);
-                            let elapsed = Duration::from_millis(now_ms - prev_ms);
+                            let elapsed = (now_ms - prev_ms).ms();
                             if elapsed < d {
                                 std::thread::sleep(d - elapsed);
                             }
@@ -172,12 +182,19 @@ impl SyncWithVar {
                         }
 
                         let (id, value) = if let Some(var) = task_data.wk_var.upgrade() {
+                            // spin until read has applied
+                            while var_update_id_before_read == Some(var.last_update()) {
+                                std::thread::sleep(10.ms());
+                            }
+                            var_update_id_before_read = None;
                             (var.last_update(), var.get())
                         } else {
                             handle.force_drop();
                             return;
                         };
 
+                        // write, annotate all changes observed during write with the `path`
+                        // that is used to avoid READ caused by our own write
                         {
                             let _note = WATCHER.annotate(path.clone());
                             write(value, id, WriteFile::open(path.to_path_buf()));
@@ -193,8 +210,10 @@ impl SyncWithVar {
                             return;
                         }
 
+                        // read, tags the var update with `path`
                         if let Some(update) = read(WatchFile::open(path.as_path())) {
                             if let Some(var) = task_data.wk_var.upgrade() {
+                                var_update_id_before_read = Some(var.last_update());
                                 var.modify(clmv!(path, var_hook_and_modify, |vm| {
                                     vm.set(update);
                                     vm.push_tag(path);
