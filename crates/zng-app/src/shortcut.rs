@@ -80,7 +80,7 @@ impl fmt::Display for GestureKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             GestureKey::Key(k) => match k {
-                Key::Char(c) => write!(f, "{c}"),
+                Key::Char(c) => write!(f, "{}", c.to_uppercase()),
                 Key::Str(s) => write!(f, "{s}"),
                 Key::ArrowLeft => write!(f, "←"),
                 Key::ArrowRight => write!(f, "→"),
@@ -552,7 +552,7 @@ bitflags! {
         const ALT = 0b0011_0000;
 
         /// The left "logo" key.
-        const L_LOGO = 0b0100_0000;
+        const L_LOGO = 0b0100_0000; // TODO(breaking) rename to SUPER
         /// The right "logo" key.
         const R_LOGO = 0b1000_0000;
         /// Any "logo" key.

@@ -1,0 +1,24 @@
+[package]
+name = "zng-wgt-shortcut"
+version = "0.1.0"
+authors = ["The Zng Project Developers"]
+edition = "2024"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+description = "Part of the zng project."
+documentation = "https://zng-ui.github.io/doc/zng_wgt_panel"
+repository = "https://github.com/zng-ui/zng"
+categories = ["gui"]
+keywords = ["gui", "ui", "user-interface", "zng"]
+
+[dependencies]
+zng-wgt = { path = "../zng-wgt", version = "0.9.5", default-features = false }
+zng-wgt-wrap = { path = "../zng-wgt-wrap", version = "0.7.5", default-features = false }
+zng-app = { path = "../zng-app", version = "0.17.5", default-features = false }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.8.5", default-features = false }
+zng-view-api = { path = "../zng-view-api", version = "0.14.4", default-features = false }
+zng-txt = { path = "../zng-txt", version = "0.4.1", default-features = false }
+zng-ext-font = { path = "../zng-ext-font", version = "0.8.5", default-features = false }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.6.5", default-features = false }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.8.5", default-features = false }
+zng-color = { path = "../zng-color", version = "0.7.4", default-features = false }

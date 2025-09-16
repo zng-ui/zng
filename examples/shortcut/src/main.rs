@@ -2,7 +2,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use zng::{font::FontName, layout::align, prelude::*};
+use zng::{font::FontName, gesture::Shortcuts, layout::align, prelude::*};
 
 fn main() {
     zng::env::init!();
@@ -10,47 +10,35 @@ fn main() {
 }
 fn app_main() {
     APP.defaults().run_window(async {
-        let shortcut_text = var(Txt::from_str(""));
+        let shortcut = var(Shortcuts::default());
         let keypress_text = var(Txt::from_str(""));
-        let shortcut_error = var(false);
 
         // examples_util::trace_var!(ctx, ?shortcut_text);
         // examples_util::trace_var!(ctx, ?keypress_text);
         // examples_util::trace_var!(ctx, %shortcut_color);
 
         gesture::SHORTCUT_EVENT
-            .on_pre_event(app_hn!(shortcut_text, shortcut_error, |args: &gesture::ShortcutArgs, _| {
+            .on_pre_event(app_hn!(shortcut, |args: &gesture::ShortcutArgs, _| {
                 if args.repeat_count > 0 {
                     return;
                 }
-                shortcut_text.set(args.shortcut.to_txt());
-                shortcut_error.set(false);
+                shortcut.set([args.shortcut.clone()]);
             }))
             .perm();
         keyboard::KEY_INPUT_EVENT
-            .on_pre_event(app_hn!(
-                shortcut_text,
-                keypress_text,
-                shortcut_error,
-                |args: &keyboard::KeyInputArgs, _| {
-                    if args.repeat_count > 0 || args.state != keyboard::KeyState::Pressed {
-                        return;
-                    }
-                    let mut new_shortcut_text = "not supported";
-                    let key = args.shortcut_key();
-                    if !matches!(&key, keyboard::Key::Unidentified) {
-                        if key.is_modifier() {
-                            new_shortcut_text = "";
-                        }
-                        keypress_text.set(formatx!("{:?}", key))
-                    } else {
-                        keypress_text.set(formatx!("Key Code: {:?}", args.key_code))
-                    }
-
-                    shortcut_text.set(new_shortcut_text);
-                    shortcut_error.set(true);
+            .on_pre_event(app_hn!(shortcut, keypress_text, |args: &keyboard::KeyInputArgs, _| {
+                if args.repeat_count > 0 || args.state != keyboard::KeyState::Pressed {
+                    return;
                 }
-            ))
+                let key = args.shortcut_key();
+                if !matches!(&key, keyboard::Key::Unidentified) {
+                    keypress_text.set(formatx!("{:?}", key))
+                } else {
+                    keypress_text.set(formatx!("Key Code: {:?}", args.key_code))
+                }
+
+                shortcut.set([]);
+            }))
             .perm();
 
         Window! {
@@ -71,15 +59,13 @@ fn app_main() {
                         font_size = 18.pt();
                         txt = "Press a shortcut:";
                     },
-                    Text! {
+                    zng::shortcut_text::ShortcutText! {
+                        shortcut;
+
+                        layout::height = 2.em();
                         align = Align::CENTER;
                         layout::margin = (10, 0);
                         font_size = 28.pt();
-                        txt = shortcut_text;
-
-                        when *#{shortcut_error} {
-                            font_color = web_colors::SALMON;
-                        }
                     },
                     Text! {
                         align = Align::CENTER;
