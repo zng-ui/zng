@@ -43,7 +43,7 @@ macro_rules! impl_mix {
 
         /// Color mix and adjustment methods.
         pub trait MixAdjust {
-            /// MixAdjust `background` over `self` using the `mode`.
+            /// MixAdjust `self` over `background` using the `mode`.
             fn mix(self, mode: MixBlendMode, background: Self) -> Self where Self:Sized {
                 match mode {
                     $(MixBlendMode::$Mode => paste!(self.[<mix_ $Mode:lower>](background)),)+
@@ -53,7 +53,7 @@ macro_rules! impl_mix {
 
             $(
                 paste! {
-                    #[doc = "MixAdjust `background` over `self` using the [`MixBlendMode::" $Mode "`]."]
+                    #[doc = "MixAdjust `self` over `background` using the [`MixBlendMode::" $Mode "`]."]
                     ///
                     $(#[$meta])*
                     fn [<mix_ $Mode:lower>](self, background: Self) -> Self;

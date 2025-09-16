@@ -329,10 +329,10 @@ pub fn default_key_fn(args: KeyArgs) -> UiNode {
 fn key_text(txt: Txt, border_style: BorderStyle) -> UiNode {
     fn dark_or_light(pct: FactorPercent) -> Var<Rgba> {
         expr_var! {
-            let base = #{zng_wgt_text::FONT_COLOR_VAR};
+            let base = *#{zng_wgt_text::FONT_COLOR_VAR};
             match #{zng_color::COLOR_SCHEME_VAR} {
-                ColorScheme::Dark => base.darken(pct),
-                ColorScheme::Light => base.lighten(pct),
+                ColorScheme::Dark => colors::BLACK.with_alpha(pct).mix_normal(base),
+                ColorScheme::Light => colors::WHITE.with_alpha(pct).mix_normal(base),
                 _ => zng_color::colors::BLACK.with_alpha(100.pct()),
             }
         }
