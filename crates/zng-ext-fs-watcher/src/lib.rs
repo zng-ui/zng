@@ -116,7 +116,7 @@ impl WATCHER {
         WATCHER_SV.read().poll_interval.clone()
     }
 
-    /// Maximum time the service keeps the process alive to process pending IO operations when the app shuts down.
+    /// Maximum time the service keeps the process alive to finish pending IO operations when the app shuts down.
     ///
     /// Is 1 minute by default.
     pub fn shutdown_timeout(&self) -> Var<Duration> {
@@ -235,11 +235,12 @@ impl WATCHER {
     ///
     /// # Sync
     ///
-    /// The file synchronization ensures that the file is only actually modified when writing is finished by writing
+    /// The file synchronization ensures that the file is only actually modified when write is finished by writing
     /// to a temporary file and committing a replace only if the write succeeded. The file is write-locked for the duration
     /// of `write` call, but the contents are not touched until commit. See [`WriteFile`] for more details.
     ///
-    /// The [`FsWatcherManager`] blocks on app exit until all writes commit or cancel.
+    /// The [`FsWatcherManager`] blocks on app exit until all writes commit or cancel. See [`WATCHER::shutdown_timeout`] for
+    /// more details.
     ///
     /// ## Read Errors
     ///
@@ -265,7 +266,7 @@ impl WATCHER {
     /// ## Error Handling
     ///
     /// You can call services or set other variables from inside the `read` and `write` closures, this can be
-    /// used to get a signal out that perhaps drops the sync var (to stop watching), alert the user that the
+    /// used to get a signal out to handle the error, perhaps drop the sync var (to stop watching), alert the user that the
     /// file is out of sync and initiate some sort of recovery routine.
     ///
     /// If the file synchronization is not important you can just ignore it, the watcher will try again
@@ -274,7 +275,7 @@ impl WATCHER {
     /// ## Status
     ///
     /// Note that `read` and `write` run in background task threads, so if you are tracking the operation
-    /// status in a separate variable you may end-up with synchronization bugs between th status variable
+    /// status in a separate variable you may end-up with synchronization bugs between the status variable
     /// and the actual result variable, you can use [`sync_status`] to implement racing-free status tracking.
     ///
     /// [`sync_status`]: Self::sync_status
@@ -346,7 +347,7 @@ impl WATCHER {
         }))
     }
 
-    /// Push a `note` that will be cloned on all subsequent change events until it the returned handle is dropped.
+    /// Push a `note` that will be cloned on all subsequent change events until the returned handle is dropped.
     ///
     /// This can be used to tag all events that happened over a period of time, something you can't do just
     /// by receiving the events due to async delays caused by debounce.
@@ -489,7 +490,7 @@ const TRANSACTION_LOCK_EXT: &str = "6eIw3bYMS0uKaQMkTIQacQ-lock.tmp";
 
 /// Represents an open write file provided by [`WATCHER.sync`].
 ///
-/// This type actually writes to a temporary file and rename it over the actual file on commit only.
+/// This struct writes to a temporary file and renames it over the actual file on commit only.
 /// The dereferenced [`fs::File`] is the temporary file, not the actual one.
 ///
 /// # Transaction
@@ -693,7 +694,7 @@ impl WriteFile {
                 Err(e) => match e.kind() {
                     io::ErrorKind::PermissionDenied => {
                         if retries == 5 {
-                            // Give-up, we manage to write lock both temp and actual just
+                            // Give-up, we managed to write lock both temp and actual just
                             // before this, but now we can't replace actual and remove temp.
                             // Hardware issue? Or another process holding a lock for 1s+50ms*5.
                             return Err(e);
@@ -799,7 +800,7 @@ impl<E: std::error::Error + 'static> std::error::Error for WatchFileParseError<E
 
 /// Represents a [`FsChange`] note.
 ///
-/// This trait is already implemented for types it applies.
+/// This trait is already implemented for all types it applies.
 #[diagnostic::on_unimplemented(note = "`FsChangeNote` is implemented for all `T: Debug + Any + Send + Sync`")]
 pub trait FsChangeNote: fmt::Debug + std::any::Any + Send + Sync {
     /// Access any.

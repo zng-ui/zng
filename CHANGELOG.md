@@ -1,5 +1,7 @@
 # Unreleased
 
+* Improve `zng::fs_watcher`, resolve config desync issues.
+
 * Fix `Markdown!` whitespace merging.
 
 * Add `zng::rule_line::collapse_scope` for auto *collapsing* multiple separators that are adjacent due to collapsed siblings.
