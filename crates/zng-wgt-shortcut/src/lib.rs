@@ -333,7 +333,7 @@ fn l10n_query(file: &'static str, name: &'static str) -> Var<Txt> {
 /// Gets the localized modifier name.
 pub fn modifier_txt(modifier: ModifierGesture) -> Var<Txt> {
     l10n_query(
-        "modifier",
+        "modifiers",
         match modifier {
             ModifierGesture::Super => "Super",
             ModifierGesture::Ctrl => "Ctrl",

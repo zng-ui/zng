@@ -123,6 +123,23 @@ fn window_content() -> UiNode {
                     layout::padding = 2;
                 };
                 layout::width = 200;
+            },
+            text::Text! {
+                layout::margin = (20, 0, 0, 0);
+                txt = l10n!("example-shortcuts", "Example Shortcuts:");
+                font_weight = FontWeight::SEMIBOLD;
+            },
+            {
+                let shortcut = var(gesture::Shortcuts::new());
+                Button! {
+                    child = zng::shortcut_text::ShortcutText! {
+                        shortcut = shortcut.clone();
+                        none_fn = wgt_fn!(|_| Text!(l10n!("no-shortcut", "no shortcut")));
+                    };
+                    on_click = hn!(|_| {
+                        DIALOG.custom(shortcut_input_dialog(shortcut.clone()));
+                    });
+                }
             }
         ];
     }
@@ -219,4 +236,73 @@ zng::event::command! {
         name: "Localized File",
         info: "Localized in a named file 'msg'",
     };
+}
+
+fn shortcut_input_dialog(output: Var<gesture::Shortcuts>) -> UiNode {
+    use gesture::Shortcuts;
+    use zng::shortcut_text::ShortcutText;
+    use keyboard::*;
+    use layout::*;
+    use zng::focus::*;
+    let pressed = var(Shortcuts::new());
+    let is_valid = var(true);
+    Container! {
+        // l10n-# the [<ENTER>] text must not be translated, it is replaced by a localized shortcut text widget
+        child_top = l10n!("press-shortcut-msg", "Press the new shortcut and then press [<ENTER>]").present(wgt_fn!(|txt: Txt| {
+            let mut items = ui_vec![];
+            match txt.split_once("[<ENTER>]") {
+                Some((before, after)) => {
+                    items.push(Text!(before.to_txt()));
+                    items.push(ShortcutText!(shortcut!(Enter)));
+                    items.push(Text!(after.to_txt()));
+                }
+                None => {
+                    items.push(Text!(txt));
+                    items.push(ShortcutText!(shortcut!(Enter)));
+                }
+            }
+            Wrap!(items)
+        })), 20;
+        child = ShortcutText! {
+            shortcut = pressed.clone();
+            font_size = 3.em();
+            align = Align::TOP;
+            when !#{is_valid.clone()} {
+                font_color = colors::RED;
+            }
+        };
+
+        on_pre_key_down = hn!(|args: &KeyInputArgs| {
+            args.propagation().stop();
+
+            match &args.key {
+                Key::Enter => {
+                    let shortcut = pressed.get();
+                    if shortcut.is_empty() || shortcut[0].is_valid() {
+                        is_valid.set(true);
+                        output.set(shortcut);
+                        DIALOG.respond(dialog::Response::ok());
+                    } else {
+                        is_valid.set(false);
+                    }
+                }
+                Key::Escape => {
+                    DIALOG.respond(dialog::Response::cancel());
+                }
+                _ => {
+                    is_valid.set(true); // clear
+                    pressed.set(args.editing_shortcut().unwrap());
+                }
+            }
+        });
+        align = Align::CENTER;
+        height = 150;
+        focusable = true;
+        focus_on_init = true;
+        widget::background_color = color::COLOR_SCHEME_VAR.map(|c| match c {
+            color::ColorScheme::Dark => colors::BLACK.with_alpha(90.pct()),
+            _ => colors::WHITE.with_alpha(90.pct()),
+        });
+        padding = 20;
+    }
 }

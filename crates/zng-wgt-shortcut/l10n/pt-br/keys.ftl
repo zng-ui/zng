@@ -144,6 +144,6 @@ BrowserFavorites = Favoritos
 # Navigate to next content or page in current history. (`APPCOMMAND_BROWSER_FORWARD`)
 BrowserForward = →Avançar
 # Go to the user’s preferred home page. (`APPCOMMAND_BROWSER_HOME`)
-BrowserHome = ⌂Página Inicial
+BrowserHome = ⌂Início
 # Refresh the current page or content. (`APPCOMMAND_BROWSER_REFRESH`)
 BrowserRefresh = ⟳Atualizar
