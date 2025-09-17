@@ -3,7 +3,7 @@
 * Add `ShortcutText!` widget for displaying keyboard shortcuts.
     - Add `zng-wgt-shortcut` crate and `zng::shortcut_text` module.
     - Also provides localization for key names. !!: TODO
-    - Widget used in menu command shortcut styles. !!: TODO
+    - Widget used in menu command shortcut styles and command button tooltip.
 
 * Improve `zng::fs_watcher`, resolve config desync issues.
 

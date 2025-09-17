@@ -204,26 +204,24 @@ pub fn default_cmd_child_fn(cmd: Command) -> UiNode {
 /// Default [`CMD_TOOLTIP_FN_VAR`].
 pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> UiNode {
     let info = args.cmd.info();
+    let shortcut = args.cmd.shortcut();
     let has_info = info.map(|s| !s.is_empty());
-    let shortcut = args.cmd.shortcut().map(|s| match s.first() {
-        Some(s) => s.to_txt(),
-        None => Txt::from(""),
-    });
     let has_shortcut = shortcut.map(|s| !s.is_empty());
     Tip! {
-        child = Text! {
-            zng_wgt::visibility = has_info.map_into();
-            txt = info;
+        child = zng_wgt_stack::Stack! {
+            direction = zng_wgt_stack::StackDirection::top_to_bottom();
+            spacing = 5;
+            children = ui_vec![
+                Text! {
+                    zng_wgt::visibility = has_info.map_into();
+                    txt = info;
+                },
+                zng_wgt_shortcut::ShortcutText! {
+                    zng_wgt::visibility = has_shortcut.map_into();
+                    shortcut;
+                },
+            ];
         };
-        child_bottom = {
-            node: Text! {
-                font_weight = zng_ext_font::FontWeight::BOLD;
-                zng_wgt::visibility = has_shortcut.map_into();
-                txt = shortcut;
-            },
-            spacing: 4,
-        };
-
         zng_wgt::visibility = expr_var!((*#{has_info} || *#{has_shortcut}).into());
     }
 }

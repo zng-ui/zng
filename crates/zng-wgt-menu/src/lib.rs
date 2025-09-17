@@ -169,7 +169,21 @@ impl IconButtonStyle {
             ;
 
             zng_wgt_button::cmd_tooltip_fn = wgt_fn!(|args: zng_wgt_button::CmdTooltipArgs| {
-                zng_wgt_tooltip::Tip!(zng_wgt_text::Text!(args.cmd.name_with_shortcut()))
+                let name = args.cmd.name();
+                let info = args.cmd.info();
+                let shortcut = args.cmd.shortcut();
+                zng_wgt_tooltip::Tip!(zng_wgt_stack::Stack! {
+                    direction = zng_wgt_stack::StackDirection::top_to_bottom();
+                    spacing = 5;
+                    children = ui_vec![
+                        zng_wgt_text::Text!(name),
+                        zng_wgt_text::Text! {
+                            zng_wgt::visibility = info.map(|s| (!s.is_empty()).into());
+                            txt = info;
+                        },
+                        zng_wgt_shortcut::ShortcutText!(shortcut)
+                    ];
+                })
             });
         }
     }
@@ -246,11 +260,13 @@ pub fn icon_fn(child: impl IntoUiNode, icon: impl IntoVar<WidgetFn<()>>) -> UiNo
 
 /// Menu item shortcut text.
 ///
-/// Set on a [`Button!`] inside a sub-menu to define the shortcut text.
+/// Set this on a [`Button!`] inside a sub-menu to define the shortcut text.
 ///
-/// Note that this does not define the click shortcut, just the display of it.
+/// Note that this does not define the click shortcut, just the display of it. The [`ShortcutText!`]
+/// widget is recommended.
 ///
 /// [`Button!`]: struct@zng_wgt_button::Button
+/// [`ShortcutText!`]: struct@zng_wgt_shortcut::ShortcutText
 #[property(CHILD_CONTEXT)]
 pub fn shortcut_txt(child: impl IntoUiNode, shortcut: impl IntoUiNode) -> UiNode {
     let shortcut = margin(shortcut, sub::END_COLUMN_WIDTH_VAR.map(|w| SideOffsets::new(0, w.clone(), 0, 0)));

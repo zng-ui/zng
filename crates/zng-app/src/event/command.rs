@@ -1254,8 +1254,11 @@ pub trait CommandNameExt {
     /// Sets the initial name if it is not set.
     fn init_name(self, name: impl Into<Txt>) -> Self;
 
-    /// Gets a read-only variable that formats the name and first shortcut in the following format: name (first_shortcut)
-    /// Note: If no shortcuts are available this method returns the same as [`name`](Self::name)
+    /// Gets a read-only variable that formats the name and first shortcut formatted as `"name (first_shortcut)"`
+    ///
+    /// Note that if no shortcut is set for the command this method returns the same as [`name`](Self::name).
+    ///
+    /// Note that the shortcut keys are not localized, consider using `ShortcutText!` instead.
     fn name_with_shortcut(self) -> Var<Txt>
     where
         Self: crate::shortcut::CommandShortcutExt;

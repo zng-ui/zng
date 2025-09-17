@@ -29,6 +29,7 @@ use zng_wgt_layer::{
     AnchorMode, AnchorOffset, AnchorSize,
     popup::{POPUP, POPUP_CLOSE_CMD, PopupState},
 };
+use zng_wgt_shortcut::ShortcutText;
 use zng_wgt_size_offset::{size, width};
 use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 
@@ -707,10 +708,10 @@ impl ButtonStyle {
                 FOCUS.focus_widget(WIDGET.id(), false);
             });
 
-            shortcut_txt = Text! {
-                txt = BUTTON.cmd().flat_map(|c| match c {
-                    Some(c) => c.shortcut_txt(),
-                    None => const_var(Txt::from("")),
+            shortcut_txt = ShortcutText! {
+                shortcut = BUTTON.cmd().flat_map(|c| match c {
+                    Some(c) => c.shortcut(),
+                    None => const_var(Shortcuts::default()),
                 });
                 align = Align::CENTER;
             };
