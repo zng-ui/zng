@@ -134,6 +134,8 @@ pub fn shortcut_fn(child: impl IntoUiNode, panel_fn: impl IntoVar<WidgetFn<Short
 /// This is the separator between the starter and complement in a [`KeyChord`].
 ///
 /// This property sets the [`CHORD_SEPARATOR_FN_VAR`].
+///
+/// [`KeyChord`]: zng_app::shortcut::KeyChord
 #[property(CONTEXT, default(CHORD_SEPARATOR_FN_VAR), widget_impl(ShortcutText))]
 pub fn chord_separator_fn(child: impl IntoUiNode, separator_fn: impl IntoVar<WidgetFn<ChordSeparatorFnArgs>>) -> UiNode {
     with_context_var(child, CHORD_SEPARATOR_FN_VAR, separator_fn)
@@ -293,14 +295,14 @@ pub fn default_panel_fn(mut args: PanelFnArgs) -> UiNode {
     }
 }
 
-/// Default value for [`SHORTCUTS_SEPARATOR_VAR`].
+/// Default value for [`SHORTCUTS_SEPARATOR_FN_VAR`].
 ///
 /// Returns `Text!(" or ")`.
 pub fn default_shortcuts_separator_fn(_: ShortcutsSeparatorFnArgs) -> UiNode {
     zng_wgt_text::Text!(" or ")
 }
 
-/// Default value for [`CHORD_SEPARATOR_VAR`].
+/// Default value for [`CHORD_SEPARATOR_FN_VAR`].
 ///
 /// Returns `Text!(", ")`.
 pub fn default_chord_separator_fn(_: ChordSeparatorFnArgs) -> UiNode {
@@ -360,14 +362,14 @@ pub fn key_txt(key: GestureKey) -> Var<Txt> {
 
 /// Default value for [`MODIFIER_FN_VAR`].
 ///
-/// Returns a [`default_keycap`] with the [`modifier_txt`].
+/// Returns a [`keycap`] with the [`modifier_txt`].
 pub fn default_modifier_fn(args: ModifierFnArgs) -> UiNode {
     keycap(modifier_txt(args.modifier), args.is_standalone)
 }
 
 /// Default value for [`KEY_FN_VAR`].
 ///
-/// Returns a [`default_keycap`] with the [`key_txt`].
+/// Returns a [`keycap`] with the [`key_txt`].
 pub fn default_key_fn(args: KeyFnArgs) -> UiNode {
     if args.is_editing_blank() {
         zng_wgt_text::Text!(" ")

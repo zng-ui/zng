@@ -240,29 +240,32 @@ zng::event::command! {
 
 fn shortcut_input_dialog(output: Var<gesture::Shortcuts>) -> UiNode {
     use gesture::Shortcuts;
-    use zng::shortcut_text::ShortcutText;
     use keyboard::*;
     use layout::*;
     use zng::focus::*;
+    use zng::shortcut_text::ShortcutText;
     let pressed = var(Shortcuts::new());
     let is_valid = var(true);
     Container! {
         // l10n-# the [<ENTER>] text must not be translated, it is replaced by a localized shortcut text widget
-        child_top = l10n!("press-shortcut-msg", "Press the new shortcut and then press [<ENTER>]").present(wgt_fn!(|txt: Txt| {
-            let mut items = ui_vec![];
-            match txt.split_once("[<ENTER>]") {
-                Some((before, after)) => {
-                    items.push(Text!(before.to_txt()));
-                    items.push(ShortcutText!(shortcut!(Enter)));
-                    items.push(Text!(after.to_txt()));
+        child_top =
+            l10n!("press-shortcut-msg", "Press the new shortcut and then press [<ENTER>]").present(wgt_fn!(|txt: Txt| {
+                let mut items = ui_vec![];
+                match txt.split_once("[<ENTER>]") {
+                    Some((before, after)) => {
+                        items.push(Text!(before.to_txt()));
+                        items.push(ShortcutText!(shortcut!(Enter)));
+                        items.push(Text!(after.to_txt()));
+                    }
+                    None => {
+                        items.push(Text!(txt));
+                        items.push(ShortcutText!(shortcut!(Enter)));
+                    }
                 }
-                None => {
-                    items.push(Text!(txt));
-                    items.push(ShortcutText!(shortcut!(Enter)));
-                }
-            }
-            Wrap!(items)
-        })), 20;
+                Wrap!(items)
+            })),
+            20,
+        ;
         child = ShortcutText! {
             shortcut = pressed.clone();
             font_size = 3.em();

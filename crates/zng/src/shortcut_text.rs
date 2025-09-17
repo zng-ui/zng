@@ -30,6 +30,7 @@
 //! }
 //! fn shortcut_input_dialog(output: Var<gesture::Shortcuts>) -> UiNode {
 //!     let pressed = var(Shortcuts::new());
+//!     let is_valid = var(true);
 //!     Container! {
 //!         child_top =
 //!             Wrap!(ui_vec![
@@ -43,6 +44,9 @@
 //!             shortcut = pressed.clone();
 //!             font_size = 3.em();
 //!             align = Align::TOP;
+//!             when !#{is_valid.clone()} {
+//!                 font_color = colors::RED;
+//!             }
 //!         };
 //!
 //!         on_pre_key_down = hn!(|args: &KeyInputArgs| {
