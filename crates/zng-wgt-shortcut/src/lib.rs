@@ -35,6 +35,8 @@ impl ShortcutText {
     widget_impl! {
         /// Font size of the shortcut text.
         pub zng_wgt_text::font_size(size: impl IntoVar<zng_ext_font::FontSize>);
+        /// Font color of the shortcut text.
+        pub zng_wgt_text::font_color(color: impl IntoVar<Rgba>);
     }
 }
 
@@ -260,6 +262,14 @@ pub struct KeyFnArgs {
     /// The key.
     pub key: GestureKey,
 }
+impl KeyFnArgs {
+    /// If the `key` is an invalid value that indicates a editing shortcut.
+    /// 
+    /// Widget function should return an invisible, but not collapsed blank space, recommended `Text!(" ")` without any style.
+    pub fn is_editing_blank(&self) -> bool {
+        matches!(&self.key, GestureKey::Key(Key::Unidentified))
+    }
+}
 
 /// Arguments for [`key_gesture_separator_fn`].
 ///
@@ -327,6 +337,9 @@ pub fn modifier_txt(modifier: ModifierGesture) -> Var<Txt> {
 
 /// Gets the localized key name.
 pub fn key_txt(key: GestureKey) -> Var<Txt> {
+    if !key.is_valid() {
+        return const_var(Txt::from_static(""));
+    }
     match key {
         GestureKey::Key(key) => match key {
             Key::Char(c) => c.to_uppercase().to_txt(),
@@ -354,7 +367,11 @@ pub fn default_modifier_fn(args: ModifierFnArgs) -> UiNode {
 ///
 /// Returns a [`default_keycap`] with the [`key_txt`].
 pub fn default_key_fn(args: KeyFnArgs) -> UiNode {
-    keycap(key_txt(args.key), false)
+    if args.is_editing_blank() {
+        zng_wgt_text::Text!(" ")
+    } else {
+        keycap(key_txt(args.key), false)
+    }
 }
 
 /// Widget used b the [`default_modifier_fn`] and [`default_key_fn`] to render a `Text!` styled to look like a keycap.

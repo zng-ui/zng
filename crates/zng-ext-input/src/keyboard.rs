@@ -5,7 +5,7 @@ use std::{collections::HashSet, time::Duration};
 use zng_app::{
     AppExtension, DInstant, HeadlessApp,
     event::{event, event_args},
-    shortcut::ModifiersState,
+    shortcut::{GestureKey, KeyGesture, ModifierGesture, ModifiersState, Shortcut},
     update::EventUpdate,
     view_process::{
         VIEW_PROCESS_INITED_EVENT,
@@ -103,6 +103,7 @@ event_args! {
         }
     }
 }
+/// Shortcut methods.
 impl KeyInputArgs {
     /// Gets the modified key for Numpad keys and the unmodified key for the rest.
     pub fn shortcut_key(&self) -> &Key {
@@ -111,6 +112,37 @@ impl KeyInputArgs {
         } else {
             &self.key
         }
+    }
+
+    /// Gets the best shortcut approximation of the current pressed state.
+    ///
+    /// Note that the returned shortcut may be [invalid], don't use this to match shortcut presses, use
+    /// the [`GESTURES`] service for that. This method is for key binding editors.
+    /// This helper also does not support chords, only single key and modifier gestures.
+    /// 
+    /// Returns `None` if this event if for a key release.
+    ///
+    /// [`GESTURES`]: crate::gesture::GESTURES
+    /// [invalid]: Shortcut::is_valid
+    pub fn editing_shortcut(&self) -> Option<Shortcut> {
+        if matches!(self.state, KeyState::Released) {
+            return None;
+        }
+
+        let source_key = self.shortcut_key();
+        if let Ok(modifier) = ModifierGesture::try_from(source_key)
+            && (self.modifiers.is_empty() || self.modifiers == modifier.modifiers_state())
+        {
+            return Some(Shortcut::Modifier(modifier));
+        }
+        let key = match source_key {
+            Key::Unidentified => GestureKey::try_from(self.key_code).unwrap_or(GestureKey::Key(Key::Unidentified)),
+            key => GestureKey::try_from(key.clone()).unwrap_or(GestureKey::Key(Key::Unidentified)),
+        };
+        Some(Shortcut::Gesture(KeyGesture {
+            modifiers: self.modifiers,
+            key,
+        }))
     }
 }
 

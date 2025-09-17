@@ -92,6 +92,22 @@ impl fmt::Display for GestureKey {
         }
     }
 }
+impl GestureKey {
+    /// If is not any:
+    ///
+    /// * [`Key::is_modifier`]
+    /// * [`Key::is_composition`]
+    /// * [`Key::Unidentified`]
+    /// * [`KeyCode::is_modifier`]
+    /// * [`KeyCode::is_composition`]
+    pub fn is_valid(&self) -> bool {
+        match self {
+            GestureKey::Key(k) => !k.is_modifier() && !k.is_composition() && *k != Key::Unidentified,
+            GestureKey::Code(k) => k.is_modifier() && !k.is_composition(),
+        }
+    }
+}
+
 /// Accepts only keys that are not [`is_modifier`] and not [`is_composition`].
 ///
 /// [`is_modifier`]: Key::is_modifier
@@ -185,6 +201,11 @@ impl KeyGesture {
             modifiers: ModifiersState::empty(),
             key,
         }
+    }
+
+    /// Gets if  [`GestureKey::is_valid`].
+    pub fn is_valid(&self) -> bool {
+        self.key.is_valid()
     }
 }
 impl fmt::Debug for KeyGesture {
@@ -361,6 +382,15 @@ impl Shortcut {
             Shortcut::Gesture(g) => g.modifiers,
             Shortcut::Chord(c) => c.complement.modifiers,
             Shortcut::Modifier(m) => m.modifiers_state(),
+        }
+    }
+
+    /// Gets if all [`KeyGesture::is_valid`].
+    pub fn is_valid(&self) -> bool {
+        match self {
+            Shortcut::Gesture(k) => k.is_valid(),
+            Shortcut::Chord(c) => c.starter.is_valid() && c.complement.is_valid(),
+            Shortcut::Modifier(_) => true,
         }
     }
 }
