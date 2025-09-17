@@ -22,3 +22,4 @@ zng-ext-font = { path = "../zng-ext-font", version = "0.8.5", default-features =
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.6.5", default-features = false }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.8.5", default-features = false }
 zng-color = { path = "../zng-color", version = "0.7.4", default-features = false }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.9.5", default-features = false }

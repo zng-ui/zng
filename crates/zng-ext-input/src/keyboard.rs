@@ -119,7 +119,7 @@ impl KeyInputArgs {
     /// Note that the returned shortcut may be [invalid], don't use this to match shortcut presses, use
     /// the [`GESTURES`] service for that. This method is for key binding editors.
     /// This helper also does not support chords, only single key and modifier gestures.
-    /// 
+    ///
     /// Returns `None` if this event if for a key release.
     ///
     /// [`GESTURES`]: crate::gesture::GESTURES

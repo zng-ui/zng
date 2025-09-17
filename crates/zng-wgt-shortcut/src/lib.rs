@@ -264,7 +264,7 @@ pub struct KeyFnArgs {
 }
 impl KeyFnArgs {
     /// If the `key` is an invalid value that indicates a editing shortcut.
-    /// 
+    ///
     /// Widget function should return an invisible, but not collapsed blank space, recommended `Text!(" ")` without any style.
     pub fn is_editing_blank(&self) -> bool {
         matches!(&self.key, GestureKey::Key(Key::Unidentified))
@@ -314,25 +314,33 @@ pub fn default_key_gesture_separator_fn(_: KeyGestureSeparatorFnArgs) -> UiNode 
     zng_wgt_text::Text!("+")
 }
 
+fn l10n_query(file: &'static str, name: &'static str) -> Var<Txt> {
+    use zng_ext_l10n::*;
+
+    let path = LangFilePath::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION").parse().unwrap(), file);
+    let os_msg = L10N.message(path.clone(), name, std::env::consts::OS, "!FALLBACK").build();
+    let generic_msg = L10N.message(path, name, "", name).build();
+    expr_var! {
+        let os_msg = #{os_msg};
+        if os_msg == "!FALLBACK" {
+            #{generic_msg}.clone()
+        } else {
+            os_msg.clone()
+        }
+    }
+}
+
 /// Gets the localized modifier name.
 pub fn modifier_txt(modifier: ModifierGesture) -> Var<Txt> {
-    match modifier {
-        // !!: TODO localize
-        ModifierGesture::Super => {
-            if cfg!(windows) {
-                "⊞Win"
-            } else if cfg!(target_os = "macos") {
-                "⌘Command"
-            } else {
-                "Super"
-            }
-        }
-        ModifierGesture::Ctrl => "Ctrl",
-        ModifierGesture::Shift => "⇧Shift",
-        ModifierGesture::Alt => "Alt",
-    }
-    .to_txt()
-    .into_var()
+    l10n_query(
+        "modifier",
+        match modifier {
+            ModifierGesture::Super => "Super",
+            ModifierGesture::Ctrl => "Ctrl",
+            ModifierGesture::Shift => "Shift",
+            ModifierGesture::Alt => "Alt",
+        },
+    )
 }
 
 /// Gets the localized key name.
@@ -342,18 +350,12 @@ pub fn key_txt(key: GestureKey) -> Var<Txt> {
     }
     match key {
         GestureKey::Key(key) => match key {
-            Key::Char(c) => c.to_uppercase().to_txt(),
-            Key::Str(s) => s,
-            Key::Dead(_) => todo!(),
-            Key::ArrowLeft => "←".to_txt(),
-            Key::ArrowRight => "→".to_txt(),
-            Key::ArrowUp => "↑".to_txt(),
-            Key::ArrowDown => "↑".to_txt(),
-            key => key.name().to_txt(), // !!: TODO localize name
+            Key::Char(c) => c.to_uppercase().to_txt().into_var(),
+            Key::Str(s) => s.into_var(),
+            key => l10n_query("keys", key.name()),
         },
-        GestureKey::Code(key_code) => formatx!("{key_code:?}"),
+        GestureKey::Code(key_code) => formatx!("{key_code:?}").into_var(),
     }
-    .into_var()
 }
 
 /// Default value for [`MODIFIER_FN_VAR`].
