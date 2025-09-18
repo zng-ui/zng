@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.16.6
+
 * Fix focus scope `Popup!` widgets not focusing first descendant in some cases. 
 
 * Add `ShortcutText!` widget for displaying keyboard shortcuts.

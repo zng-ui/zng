@@ -188,7 +188,7 @@ Source: [localize/src](./localize/src)
 cargo do run localize
 ```
 
-Demonstrates localization.
+Demonstrates localization service and integration.
 
 ### `markdown`
 
@@ -249,18 +249,6 @@ cargo do run scroll
 ```
 
 Demonstrates the `Scroll!` widget and scroll commands.
-
-### `shortcut`
-
-<img alt='shortcut screenshot' src='./shortcut/res/screenshot.png' width='300'>
-
-Source: [shortcut/src](./shortcut/src)
-
-```console
-cargo do run shortcut
-```
-
-Small utility that displays the pressed key gestures.
 
 ### `text`
 

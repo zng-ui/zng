@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-button"
-version = "0.8.5"
+version = "0.8.6"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -17,18 +17,18 @@ default = ["tooltip"]
 tooltip = ["dep:zng-wgt-tooltip", "dep:zng-wgt-shortcut", "dep:zng-wgt-stack"]
 
 [dependencies]
-zng-var = { path = "../zng-var", version = "0.8.4", default-features = false }
-zng-app = { path = "../zng-app", version = "0.17.5", default-features = false }
-zng-ext-font = { path = "../zng-ext-font", version = "0.8.5", default-features = false }
-zng-wgt = { path = "../zng-wgt", version = "0.9.5", default-features = false }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.8.5", default-features = false }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.7.5", default-features = false }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.6.5", default-features = false }
-zng-wgt-access = { path = "../zng-wgt-access", version = "0.6.5", default-features = false }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.6.5", default-features = false }
-zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.6.5", default-features = false }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.8.5", default-features = false }
+zng-var = { path = "../zng-var", version = "0.8.5", default-features = false }
+zng-app = { path = "../zng-app", version = "0.17.6", default-features = false }
+zng-ext-font = { path = "../zng-ext-font", version = "0.8.6", default-features = false }
+zng-wgt = { path = "../zng-wgt", version = "0.9.6", default-features = false }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.8.6", default-features = false }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.7.6", default-features = false }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.6.6", default-features = false }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.6.6", default-features = false }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.6.6", default-features = false }
+zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.6.6", default-features = false }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.8.6", default-features = false }
 
-zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.8.5", default-features = false, optional = true }
-zng-wgt-shortcut = { path = "../zng-wgt-shortcut", version = "0.1.0", default-features = false, optional = true }
-zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.7.5", optional = true, default-features = false }
+zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.8.6", default-features = false, optional = true }
+zng-wgt-shortcut = { path = "../zng-wgt-shortcut", version = "0.1.1", default-features = false, optional = true }
+zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.7.6", optional = true, default-features = false }
