@@ -188,7 +188,7 @@ Source: [localize/src](./localize/src)
 cargo do run localize
 ```
 
-Demonstrates localization.
+Demonstrates localization service and integration.
 
 ### `markdown`
 
