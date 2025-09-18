@@ -13,8 +13,8 @@ note: required by a bound in `HotNodeArgs::pop_clone`
   |                         ^^^^^ required by this bound in `HotNodeArgs::pop_clone`
 help: consider annotating `Foo` with `#[derive(Clone)]`
   |
-5   + #[derive(Clone)]
-6   | pub struct Foo {}
+  5 + #[derive(Clone)]
+  6 | pub struct Foo {}
     |
 
 error[E0277]: the trait bound `Foo: Clone` is not satisfied
@@ -32,6 +32,6 @@ note: required by a bound in `HotNodeArgs::push_clone`
   |                          ^^^^^ required by this bound in `HotNodeArgs::push_clone`
 help: consider annotating `Foo` with `#[derive(Clone)]`
   |
-5  + #[derive(Clone)]
-6  | pub struct Foo {}
+ 5 + #[derive(Clone)]
+ 6 | pub struct Foo {}
    |

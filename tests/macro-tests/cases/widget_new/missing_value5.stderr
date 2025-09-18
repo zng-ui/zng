@@ -1,11 +1,11 @@
 error: expected expression, found `)`
   --> cases/widget_new/missing_value5.rs:6:13
    |
-6  |       let _ = Wgt! {
+ 6 |       let _ = Wgt! {
    |  _____________^
-7  | |         cursor =
-8  | |         #[allow(unused_imports)]
-9  | |         margin = {
+ 7 | |         cursor =
+ 8 | |         #[allow(unused_imports)]
+ 9 | |         margin = {
 ...  |
 13 | |     };
    | |_____^ expected expression

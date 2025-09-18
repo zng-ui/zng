@@ -1,7 +1,7 @@
 error[E0599]: no method named `allowed_in_when_expr` found for struct `foo_` in the current scope
   --> cases/widget_new/not_allowed_in_when1.rs:17:13
    |
-8  |   #[property(CONTEXT)]
+ 8 |   #[property(CONTEXT)]
    |   -------------------- method `allowed_in_when_expr` not found for this struct
 ...
 17 |       let _ = Wgt! {
@@ -14,9 +14,3 @@ error[E0599]: no method named `allowed_in_when_expr` found for struct `foo_` in 
    | |_____^
    |
    = note: this error originates in the macro `zng::__proc_macro_util::widget::widget_new` which comes from the expansion of the macro `Wgt` (in Nightly builds, run with -Z macro-backtrace for more info)
-help: there is a method `allowed_in_when_assign` with a similar name
-  --> $WORKSPACE/crates/zng-wgt/src/wgt.rs
-   |
-   - #[widget($crate::Wgt)]
-   + allowed_in_when_assign
-   |

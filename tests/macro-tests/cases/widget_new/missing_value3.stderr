@@ -1,10 +1,10 @@
 error[E0061]: this method takes 1 argument but 0 arguments were supplied
   --> cases/widget_new/missing_value3.rs:8:9
    |
-6  |       let _ = Wgt! {
+ 6 |       let _ = Wgt! {
    |  _____________-
-7  | |         // we expected an error here.
-8  | |         cursor = ;
+ 7 | |         // we expected an error here.
+ 8 | |         cursor = ;
    | |         ^^^^^^
 ...  |
 11 | |     };

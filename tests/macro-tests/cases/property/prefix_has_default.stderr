@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `zng::var::Var<bool>: IntoVar<u32>` is not satisfied
   --> cases/property/prefix_has_default.rs:10:57
    |
-9  | #[property(CONTEXT)]
+ 9 | #[property(CONTEXT)]
    | -------------------- required by a bound introduced by this call
 10 | pub fn has_state_invalid(child: impl IntoUiNode, state: impl IntoVar<u32>) -> UiNode {
    |                                                         ^^^^ the trait `IntoVar<u32>` is not implemented for `zng::var::Var<bool>`

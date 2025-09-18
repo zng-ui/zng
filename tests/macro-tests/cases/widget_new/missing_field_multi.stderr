@@ -1,7 +1,7 @@
 error[E0061]: this method takes 2 arguments but 1 argument was supplied
   --> cases/widget_new/missing_field_multi.rs:13:9
    |
-9  |       let _ = Wgt! {
+ 9 |       let _ = Wgt! {
    |  _____________-
 ...  |
 13 | |         background_gradient = { axis: 0.deg() };

@@ -27,20 +27,20 @@ error: expected `,`
 error[E0061]: this method takes 2 arguments but 0 arguments were supplied
   --> cases/property/defaults.rs:9:21
    |
-9  | #[property(CONTEXT, default())]
+ 9 | #[property(CONTEXT, default())]
    |                     ^^^^^^^ two arguments are missing
    |
 note: method defined here
   --> cases/property/defaults.rs:9:1
    |
-9  | #[property(CONTEXT, default())]
+ 9 | #[property(CONTEXT, default())]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 10 | pub fn missing_default_values(child: impl IntoUiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> UiNode {
    |                                                       ---------------------  --------------------
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the arguments
    |
-9  | #[property(CONTEXT, default(/* a */, /* b */)())]
+ 9 | #[property(CONTEXT, default(/* a */, /* b */)())]
    |                            ++++++++++++++++++
 
 error[E0061]: this method takes 2 arguments but 1 argument was supplied

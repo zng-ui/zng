@@ -1,9 +1,9 @@
 error[E0255]: the name `TestWidget` is defined multiple times
   --> cases/widget/name_conflict1.rs:10:1
    |
-8  | pub use crate::TestWidget;
+ 8 | pub use crate::TestWidget;
    |         ----------------- previous import of the type `TestWidget` here
-9  |
+ 9 |
 10 | #[widget($crate::TestWidget)]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `TestWidget` redefined here
    |
@@ -11,5 +11,5 @@ error[E0255]: the name `TestWidget` is defined multiple times
    = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: you can use `as` to change the binding name of the import
    |
-8  | pub use crate::TestWidget as OtherTestWidget;
+ 8 | pub use crate::TestWidget as OtherTestWidget;
    |                           ++++++++++++++++++

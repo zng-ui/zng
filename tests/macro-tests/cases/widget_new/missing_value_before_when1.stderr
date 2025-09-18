@@ -7,12 +7,12 @@ error: expected `;`
 error[E0061]: this method takes 1 argument but 0 arguments were supplied
   --> cases/widget_new/missing_value_before_when1.rs:7:9
    |
-6  |       let _ = Wgt! {
+ 6 |       let _ = Wgt! {
    |  _____________-
-7  | |         margin = // missing 0; here
+ 7 | |         margin = // missing 0; here
    | |         ^^^^^^
-8  | |         when *#is_pressed {
-9  | |             margin = 20;
+ 8 | |         when *#is_pressed {
+ 9 | |             margin = 20;
 10 | |         }
 11 | |     };
    | |_____- argument #1 is missing
