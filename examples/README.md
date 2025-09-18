@@ -250,18 +250,6 @@ cargo do run scroll
 
 Demonstrates the `Scroll!` widget and scroll commands.
 
-### `shortcut`
-
-<img alt='shortcut screenshot' src='./shortcut/res/screenshot.png' width='300'>
-
-Source: [shortcut/src](./shortcut/src)
-
-```console
-cargo do run shortcut
-```
-
-Small utility that displays the pressed key gestures.
-
 ### `text`
 
 <img alt='text screenshot' src='./text/res/screenshot.png' width='300'>
