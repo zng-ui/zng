@@ -73,6 +73,7 @@ dev = [
     "tooltip",
     "undo",
     "wrap",
+    "shortcut_text",
     "image_all",
     "button",
     "ansi_text",
@@ -362,6 +363,9 @@ undo = ["dep:zng-ext-undo", "dep:zng-wgt-undo-history", "dep:zng-wgt-undo"]
 # Enable wrap widget.
 wrap = ["dep:zng-wgt-wrap"]
 
+# Enable the shortcut text widget.
+shortcut_text = ["dep:zng-wgt-shortcut"]
+
 # Enable BMP image decoder and encoder with "view" feature.
 image_bmp = ["zng-view?/image_bmp"]
 # Enable DDS image decoder with "view" feature.
@@ -446,6 +450,7 @@ zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.7.5", optional = true,
 zng-wgt-panel = { path = "../zng-wgt-panel", version = "0.7.5", default-features = false }
 zng-wgt-grid = { path = "../zng-wgt-grid", version = "0.7.5", optional = true, default-features = false }
 zng-wgt-wrap = { path = "../zng-wgt-wrap", version = "0.7.5", optional = true, default-features = false }
+zng-wgt-shortcut = { path = "../zng-wgt-shortcut", version = "0.1.0", optional = true, default-features = false }
 zng-wgt-rule-line = { path = "../zng-wgt-rule-line", version = "0.7.5", optional = true, default-features = false }
 zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.7.5", optional = true, default-features = false }
 zng-wgt-menu = { path = "../zng-wgt-menu", version = "0.7.5", optional = true, default-features = false }

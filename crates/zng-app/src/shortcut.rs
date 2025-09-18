@@ -80,14 +80,34 @@ impl fmt::Display for GestureKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             GestureKey::Key(k) => match k {
-                Key::Char(c) => write!(f, "{c}"),
+                Key::Char(c) => write!(f, "{}", c.to_uppercase()),
                 Key::Str(s) => write!(f, "{s}"),
+                Key::ArrowLeft => write!(f, "←"),
+                Key::ArrowRight => write!(f, "→"),
+                Key::ArrowUp => write!(f, "↑"),
+                Key::ArrowDown => write!(f, "↑"),
                 k => write!(f, "{k:?}"),
             },
             GestureKey::Code(c) => write!(f, "{c:?}"),
         }
     }
 }
+impl GestureKey {
+    /// If is not any:
+    ///
+    /// * [`Key::is_modifier`]
+    /// * [`Key::is_composition`]
+    /// * [`Key::Unidentified`]
+    /// * [`KeyCode::is_modifier`]
+    /// * [`KeyCode::is_composition`]
+    pub fn is_valid(&self) -> bool {
+        match self {
+            GestureKey::Key(k) => !k.is_modifier() && !k.is_composition() && *k != Key::Unidentified,
+            GestureKey::Code(k) => k.is_modifier() && !k.is_composition(),
+        }
+    }
+}
+
 /// Accepts only keys that are not [`is_modifier`] and not [`is_composition`].
 ///
 /// [`is_modifier`]: Key::is_modifier
@@ -181,6 +201,11 @@ impl KeyGesture {
             modifiers: ModifiersState::empty(),
             key,
         }
+    }
+
+    /// Gets if  [`GestureKey::is_valid`].
+    pub fn is_valid(&self) -> bool {
+        self.key.is_valid()
     }
 }
 impl fmt::Debug for KeyGesture {
@@ -357,6 +382,15 @@ impl Shortcut {
             Shortcut::Gesture(g) => g.modifiers,
             Shortcut::Chord(c) => c.complement.modifiers,
             Shortcut::Modifier(m) => m.modifiers_state(),
+        }
+    }
+
+    /// Gets if all [`KeyGesture::is_valid`].
+    pub fn is_valid(&self) -> bool {
+        match self {
+            Shortcut::Gesture(k) => k.is_valid(),
+            Shortcut::Chord(c) => c.starter.is_valid() && c.complement.is_valid(),
+            Shortcut::Modifier(_) => true,
         }
     }
 }
@@ -548,7 +582,7 @@ bitflags! {
         const ALT = 0b0011_0000;
 
         /// The left "logo" key.
-        const L_LOGO = 0b0100_0000;
+        const L_LOGO = 0b0100_0000; // TODO(breaking) rename to SUPER
         /// The right "logo" key.
         const R_LOGO = 0b1000_0000;
         /// Any "logo" key.

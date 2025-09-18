@@ -241,6 +241,7 @@ command! {
         name: "Zoom to Fit",
         shortcut: shortcut!(CTRL + '0'),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
+        icon: wgt_fn!(|_| ICONS.get(["zoom-to-fit", "fit-screen"])),
     };
 
     /// Represents the **reset zoom** action.

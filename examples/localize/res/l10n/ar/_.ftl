@@ -14,3 +14,9 @@ LOCALIZED_CMD =
 PRIVATE_LOCALIZED_CMD =
     .info = أمر خاص، نص الترجمة العامة
     .name = خاص
+
+press-shortcut-msg = اضغط على الاختصار الجديد ثم اضغط [<ENTER>]
+
+example-shortcuts = اختصارات مثال:
+
+no-shortcut = لا يوجد اختصار
