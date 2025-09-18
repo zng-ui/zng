@@ -316,50 +316,6 @@ pub fn default_key_gesture_separator_fn(_: KeyGestureSeparatorFnArgs) -> UiNode 
     zng_wgt_text::Text!("+")
 }
 
-fn l10n_query(file: &'static str, name: &'static str) -> Var<Txt> {
-    use zng_ext_l10n::*;
-
-    let path = LangFilePath::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION").parse().unwrap(), file);
-    let os_msg = L10N.message(path.clone(), name, std::env::consts::OS, "!FALLBACK").build();
-    let generic_msg = L10N.message(path, name, "", name).build();
-    expr_var! {
-        let os_msg = #{os_msg};
-        if os_msg == "!FALLBACK" {
-            #{generic_msg}.clone()
-        } else {
-            os_msg.clone()
-        }
-    }
-}
-
-/// Gets the localized modifier name.
-pub fn modifier_txt(modifier: ModifierGesture) -> Var<Txt> {
-    l10n_query(
-        "modifiers",
-        match modifier {
-            ModifierGesture::Super => "Super",
-            ModifierGesture::Ctrl => "Ctrl",
-            ModifierGesture::Shift => "Shift",
-            ModifierGesture::Alt => "Alt",
-        },
-    )
-}
-
-/// Gets the localized key name.
-pub fn key_txt(key: GestureKey) -> Var<Txt> {
-    if !key.is_valid() {
-        return const_var(Txt::from_static(""));
-    }
-    match key {
-        GestureKey::Key(key) => match key {
-            Key::Char(c) => c.to_uppercase().to_txt().into_var(),
-            Key::Str(s) => s.into_var(),
-            key => l10n_query("keys", key.name()),
-        },
-        GestureKey::Code(key_code) => formatx!("{key_code:?}").into_var(),
-    }
-}
-
 /// Default value for [`MODIFIER_FN_VAR`].
 ///
 /// Returns a [`keycap`] with the [`modifier_txt`].
@@ -600,4 +556,131 @@ fn generate(mut shortcut: Shortcuts) -> UiNode {
         is_none,
         shortcuts: shortcut,
     })
+}
+
+mod l10n_helper {
+    use super::*;
+    use zng_ext_l10n::*;
+
+    fn path(file: &'static str) -> LangFilePath {
+        LangFilePath::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION").parse().unwrap(), file)
+    }
+
+    pub fn l10n(file: &'static str, name: &'static str) -> Var<Txt> {
+        let path = path(file);
+        let os_msg = L10N.message(path.clone(), name, std::env::consts::OS, "!FALLBACK").build();
+        let generic_msg = L10N.message(path, name, "", name).build();
+        l10n_expr(os_msg, generic_msg)
+    }
+
+    pub fn os_or(file: &'static str, name: &'static str, generic: Var<Txt>) -> Var<Txt> {
+        let path = path(file);
+        let os_msg = L10N.message(path.clone(), name, std::env::consts::OS, "!FALLBACK").build();
+        l10n_expr(os_msg, generic)
+    }
+
+    fn l10n_expr(os_msg: Var<Txt>, generic_msg: Var<Txt>) -> Var<Txt> {
+        expr_var! {
+            let os_msg = #{os_msg};
+            if os_msg == "!FALLBACK" {
+                #{generic_msg}.clone()
+            } else {
+                os_msg.clone()
+            }
+        }
+    }
+}
+
+/// Gets the localized modifier name.
+pub fn modifier_txt(modifier: ModifierGesture) -> Var<Txt> {
+    // l10n-modifiers-### Modifier key names
+    // l10n-modifiers-###
+    // l10n-modifiers-### * The ID is the `ModifierGesture` variant name. [1]
+    // l10n-modifiers-### * An OS generic text must be provided, optional OS specific text can be set as attributes.
+    // l10n-modifiers-### * OS attribute is a `std::env::consts::OS` value. [2]
+    // l10n-modifiers-###
+    // l10n-modifiers-### [1]: https://zng-ui.github.io/doc/zng/gesture/enum.ModifierGesture.html
+    // l10n-modifiers-### [2]: https://doc.rust-lang.org/std/env/consts/constant.OS.html
+    use zng_ext_l10n::*;
+    match modifier {
+        ModifierGesture::Super => match std::env::consts::OS {
+            "windows" => l10n!("modifiers/Super.windows", "⊞Win"),
+            "macos" => l10n!("modifiers/Super.macos", "⌘Command"),
+            _ => l10n_helper::os_or("modifiers", "Super", l10n!("modifiers/Super", "Super")),
+        },
+        ModifierGesture::Ctrl => match std::env::consts::OS {
+            "macos" => l10n!("modifiers/Ctrl.macos", "^Control"),
+            _ => l10n_helper::os_or("modifiers", "Ctrl", l10n!("modifiers/Ctrl", "Ctrl")),
+        },
+        ModifierGesture::Shift => l10n_helper::os_or("modifiers", "Shift", l10n!("modifiers/Shift", "⇧Shift")),
+        ModifierGesture::Alt => match std::env::consts::OS {
+            "macos" => l10n!("modifiers/Alt.macos", "⌥Option"),
+            _ => l10n_helper::os_or("modifiers", "Alt", l10n!("modifiers/Alt", "Alt")),
+        },
+    }
+}
+
+/// Gets the localized key name.
+pub fn key_txt(key: GestureKey) -> Var<Txt> {
+    // l10n-keys-### Valid gesture key names
+    // l10n-keys-###
+    // l10n-keys-### * The ID is the `Key` variant name. [1]
+    // l10n-keys-### * An OS generic text must be provided, optional OS specific text can be set as attributes.
+    // l10n-keys-### * OS attribute is a `std::env::consts::OS` value. [2]
+    // l10n-keys-### * L10n not include Char, Str, modifiers and composite keys.
+    // l10n-keys-###
+    // l10n-keys-### Note: This file does not include all valid keys, see [1] for a full list.
+    // l10n-keys-###
+    // l10n-keys-### [1]: https://zng-ui.github.io/doc/zng/keyboard/enum.Key.html
+    // l10n-keys-### [2]: https://doc.rust-lang.org/std/env/consts/constant.OS.html
+
+    use zng_ext_l10n::*;
+    if !key.is_valid() {
+        return const_var(Txt::from_static(""));
+    }
+    match key {
+        GestureKey::Key(key) => match key {
+            Key::Char(c) => c.to_uppercase().to_txt().into_var(),
+            Key::Str(s) => s.into_var(),
+            Key::Enter => match std::env::consts::OS {
+                "macos" => l10n!("keys/Enter.macos", "↵Return"),
+                _ => l10n_helper::os_or("keys", "Enter", l10n!("keys/Enter", "↵Enter")),
+            },
+            Key::Backspace => match std::env::consts::OS {
+                "macos" => l10n!("keys/Backspace.macos", "Delete"),
+                _ => l10n_helper::os_or("keys", "Backspace", l10n!("keys/Backspace", "←Backspace")),
+            },
+            Key::Delete => match std::env::consts::OS {
+                "macos" => l10n!("keys/Delete.macos", "Forward Delete"),
+                _ => l10n_helper::os_or("keys", "Delete", l10n!("keys/Delete", "Delete")),
+            },
+            Key::Tab => l10n_helper::os_or("keys", "Tab", l10n!("keys/Tab", "⭾Tab")),
+            Key::ArrowDown => l10n_helper::os_or("keys", "ArrowDown", l10n!("keys/ArrowDown", "↓")),
+            Key::ArrowLeft => l10n_helper::os_or("keys", "ArrowLeft", l10n!("keys/ArrowLeft", "←")),
+            Key::ArrowRight => l10n_helper::os_or("keys", "ArrowRight", l10n!("keys/ArrowRight", "→")),
+            Key::ArrowUp => l10n_helper::os_or("keys", "ArrowUp", l10n!("keys/ArrowUp", "↑")),
+            Key::PageDown => l10n_helper::os_or("keys", "PageDown", l10n!("keys/PageDown", "PgDn")),
+            Key::PageUp => l10n_helper::os_or("keys", "PageUp", l10n!("keys/PageUp", "PgUp")),
+            Key::Cut => l10n_helper::os_or("keys", "Cut", l10n!("keys/Cut", "Cut")),
+            Key::Copy => l10n_helper::os_or("keys", "Copy", l10n!("keys/Copy", "Copy")),
+            Key::Paste => l10n_helper::os_or("keys", "Paste", l10n!("keys/Paste", "Paste")),
+            Key::Undo => l10n_helper::os_or("keys", "Undo", l10n!("keys/Undo", "Undo")),
+            Key::Redo => l10n_helper::os_or("keys", "Redo", l10n!("keys/Redo", "Redo")),
+            Key::ContextMenu => l10n_helper::os_or("keys", "ContextMenu", l10n!("keys/ContextMenu", "≣Context Menu")),
+            Key::Escape => l10n_helper::os_or("keys", "Escape", l10n!("keys/Escape", "Esc")),
+            Key::Find => l10n_helper::os_or("keys", "Find", l10n!("keys/Find", "Find")),
+            Key::Help => l10n_helper::os_or("keys", "Help", l10n!("keys/Help", "?Help")),
+            Key::ZoomIn => l10n_helper::os_or("keys", "ZoomIn", l10n!("keys/ZoomIn", "+Zoom In")),
+            Key::ZoomOut => l10n_helper::os_or("keys", "ZoomOut", l10n!("keys/ZoomOut", "-Zoom Out")),
+            Key::Eject => l10n_helper::os_or("keys", "Eject", l10n!("keys/Eject", "⏏Eject")),
+            Key::PrintScreen => l10n_helper::os_or("keys", "PrintScreen", l10n!("keys/PrintScreen", "PrtSc")),
+            Key::Close => l10n_helper::os_or("keys", "Close", l10n!("keys/Close", "Close")),
+            Key::New => l10n_helper::os_or("keys", "New", l10n!("keys/New", "New")),
+            Key::Open => l10n_helper::os_or("keys", "Open", l10n!("keys/Open", "Open")),
+            Key::Print => l10n_helper::os_or("keys", "Print", l10n!("keys/Open", "Print")),
+            Key::Save => l10n_helper::os_or("keys", "Save", l10n!("keys/Save", "Save")),
+            key => l10n_helper::l10n("keys", key.name()),
+        },
+        GestureKey::Code(key_code) => formatx!("{key_code:?}").into_var(),
+    }
 }

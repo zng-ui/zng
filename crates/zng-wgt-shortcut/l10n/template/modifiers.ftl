@@ -1,19 +1,20 @@
-# Modifier key names
-#
-# * The ID is the `ModifierGesture` variant name.
-# * A OS generic text must be provided, optional OS specific text can be set as attributes.
-# * OS attribute is a `std::env::consts::OS` value.
-#
-# Note: macOS does not localize modifier names
+### Modifier key names
+### 
+### * The ID is the `ModifierGesture` variant name. [1]
+### * An OS generic text must be provided, optional OS specific text can be set as attributes.
+### * OS attribute is a `std::env::consts::OS` value. [2]
+### 
+### [1]: https://zng-ui.github.io/doc/zng/gesture/enum.ModifierGesture.html
+### [2]: https://doc.rust-lang.org/std/env/consts/constant.OS.html
 
-Super = Super
-    .macos = ⌘Command
-    .windows = ⊞Win
+Alt = Alt
+    .macos = ⌥Option
 
 Ctrl = Ctrl
     .macos = ^Control
 
 Shift = ⇧Shift
 
-Alt = Alt
-    .macos = ⌥Option
+Super = Super
+    .macos = ⌘Command
+    .windows = ⊞Win
