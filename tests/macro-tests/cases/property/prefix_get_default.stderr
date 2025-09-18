@@ -39,7 +39,7 @@ help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
 error[E0277]: can't compare `NotDefault` with `NotDefault`
   --> cases/property/prefix_get_default.rs:10:57
    |
-9  | #[property(CONTEXT)]
+ 9 | #[property(CONTEXT)]
    | -------------------- required by a bound introduced by this call
 10 | pub fn get_state_invalid(child: impl IntoUiNode, state: impl IntoVar<NotDefault>) -> UiNode {
    |                                                         ^^^^ no implementation for `NotDefault == NotDefault`
@@ -51,7 +51,7 @@ error[E0277]: can't compare `NotDefault` with `NotDefault`
 note: required by a bound in `get_state_invalid_::args`
   --> cases/property/prefix_get_default.rs:10:62
    |
-9  | #[property(CONTEXT)]
+ 9 | #[property(CONTEXT)]
    | -------------------- required by a bound in this associated function
 10 | pub fn get_state_invalid(child: impl IntoUiNode, state: impl IntoVar<NotDefault>) -> UiNode {
    |                                                              ^^^^^^^^^^^^^^^^^^^ required by this bound in `get_state_invalid_::args`
@@ -160,8 +160,8 @@ note: required by a bound in `var_to_args`
   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
   |
-16  + #[derive(PartialEq)]
-17  | pub struct NotDefault {}
+ 16 + #[derive(PartialEq)]
+ 17 | pub struct NotDefault {}
     |
 
 error[E0277]: the trait bound `NotDefault: VarValue` is not satisfied
@@ -178,6 +178,6 @@ note: required by a bound in `WhenInputVar::new`
    |                   ^^^^^^^^ required by this bound in `WhenInputVar::new`
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
    |
-16   + #[derive(PartialEq)]
-17   | pub struct NotDefault {}
+  16 + #[derive(PartialEq)]
+  17 | pub struct NotDefault {}
      |
