@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix focus scope `Popup!` widgets not focusing first descendant in some cases. 
+
 * Add `ShortcutText!` widget for displaying keyboard shortcuts.
     - Add `zng-wgt-shortcut` crate and `zng::shortcut_text` module.
     - Also provides localization for key names.

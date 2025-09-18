@@ -2,12 +2,14 @@
 
 use std::time::Duration;
 
-use zng_ext_input::focus::{DirectionalNav, FOCUS_CHANGED_EVENT, TabNav};
+use zng_ext_input::focus::{DirectionalNav, FOCUS_CHANGED_EVENT, FocusScopeOnFocus, TabNav};
 use zng_wgt::{modal_included, prelude::*};
 use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
 use zng_wgt_filter::drop_shadow;
-use zng_wgt_input::focus::{FocusClickBehavior, FocusableMix, alt_focus_scope, directional_nav, focus_click_behavior, tab_nav};
+use zng_wgt_input::focus::{
+    FocusClickBehavior, FocusableMix, alt_focus_scope, directional_nav, focus_click_behavior, focus_scope_behavior, tab_nav,
+};
 use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 
 use crate::{AnchorMode, AnchorOffset, LAYERS, LayerIndex};
@@ -45,6 +47,7 @@ impl Popup {
             alt_focus_scope = true;
             directional_nav = DirectionalNav::Cycle;
             tab_nav = TabNav::Cycle;
+            focus_scope_behavior = FocusScopeOnFocus::FirstDescendantIgnoreBounds;
             focus_click_behavior = FocusClickBehavior::ExitEnabled;
             focus_on_init = true;
             modal_included = POPUP.anchor_id();
