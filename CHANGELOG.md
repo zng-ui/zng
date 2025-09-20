@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `read` associated function for `zng::config::{JsonConfig, RonConfig, TomlConfig, YamlConfig}`.
+    - This is a more efficient alternative to wrapping `sync` with `ReadOnlyConfig`.
 
 # 0.16.6
 
