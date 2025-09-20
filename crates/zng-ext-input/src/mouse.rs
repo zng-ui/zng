@@ -5,7 +5,7 @@
 use std::{collections::HashMap, mem, num::NonZeroU32, time::*};
 
 use zng_app::{
-    AppExtension, DInstant, INSTANT,
+    APP, AppExtension, DInstant, INSTANT,
     event::{EventPropagationHandle, event, event_args},
     shortcut::ModifiersState,
     timer::{DeadlineVar, TIMERS},
@@ -1438,7 +1438,7 @@ impl Default for ButtonRepeatConfig {
 ///
 /// # Provider
 ///
-/// This service is provided by the [`MouseManager`] extension.
+/// This service is provided by the [`MouseManager`] extension, it will panic if used in an app not extended.
 ///
 /// [`POINTER_CAPTURE`]: crate::pointer_capture::POINTER_CAPTURE
 pub struct MOUSE;
@@ -1511,6 +1511,7 @@ pub struct MousePosition {
 
 app_local! {
     static MOUSE_SV: MouseService = {
+        APP.extensions().require::<MouseManager>();
         let sys_multi_click_config = var(MultiClickConfig::default());
         MouseService {
             multi_click_config: sys_multi_click_config.cow(),

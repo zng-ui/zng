@@ -25,9 +25,8 @@ use std::{
 use atomic::Atomic;
 use parking_lot::Mutex;
 use zng_app::{
-    AppExtension, DInstant, INSTANT,
-    event::CommandScope,
-    event::{AnyEventArgs, Command, CommandNameExt, command},
+    APP, AppExtension, DInstant, INSTANT,
+    event::{AnyEventArgs, Command, CommandNameExt, CommandScope, command},
     shortcut::{CommandShortcutExt, shortcut},
     update::EventUpdate,
     widget::{
@@ -104,6 +103,10 @@ context_var! {
 }
 
 /// Undo-redo service.
+///
+/// # Provider
+///
+/// This service is provided by the [`UndoManager`] extension, it will panic if used in an app not extended.
 pub struct UNDO;
 impl UNDO {
     /// Gets or sets the maximum length of each undo stack of each scope.
@@ -1180,7 +1183,10 @@ context_local! {
     static UNDO_SCOPE_CTX: UndoScope = UndoScope::default();
 }
 app_local! {
-    static UNDO_SV: UndoService = UndoService::default();
+    static UNDO_SV: UndoService = {
+        APP.extensions().require::<UndoManager>();
+        UndoService::default()
+    };
 }
 
 /// Undo extension methods for widget info.

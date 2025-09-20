@@ -58,7 +58,10 @@ impl AppExtension for ClipboardManager {
 }
 
 app_local! {
-    static CLIPBOARD_SV: ClipboardService = ClipboardService::default();
+    static CLIPBOARD_SV: ClipboardService = {
+        APP.extensions().require::<ClipboardManager>();
+        ClipboardService::default()
+    };
     static HEADLESS_CLIPBOARD: Option<Box<dyn Any + Send + Sync>> = const { None };
 }
 
@@ -69,6 +72,7 @@ struct ClipboardService {
     file_list: ClipboardData<Vec<PathBuf>, Vec<PathBuf>>,
     ext: ClipboardData<IpcBytes, (Txt, IpcBytes)>,
 }
+
 struct ClipboardData<O: 'static, I: 'static> {
     latest: Option<Result<Option<O>, ClipboardError>>,
     request: Option<(I, ResponderVar<Result<bool, ClipboardError>>)>,
@@ -199,6 +203,10 @@ impl fmt::Display for ClipboardError {
 ///
 /// This service needs a running view-process to actually interact with the system clipboard, in a headless app
 /// without renderer (no view-process) the service will always return [`ClipboardError::Disconnected`].
+///
+/// # Provider
+///
+/// This service is provided by the [`ClipboardManager`] extension, it will panic if used in an app not extended.
 pub struct CLIPBOARD;
 impl CLIPBOARD {
     /// Gets a text string from the clipboard.

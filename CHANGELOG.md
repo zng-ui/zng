@@ -1,5 +1,7 @@
 # Unreleased
 
+* Services that require an app extension to function now assert this on first use.
+
 * Fix feature `zng/config` not enabling required `zng/fs_watcher`.
 
 * Add `read` associated function for `zng::config::{JsonConfig, RonConfig, TomlConfig, YamlConfig}`.

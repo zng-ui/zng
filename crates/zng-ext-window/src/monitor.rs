@@ -1,6 +1,7 @@
 use core::fmt;
 use std::sync::Arc;
 
+use zng_app::APP;
 use zng_app::event::{AnyEventArgs, event, event_args};
 use zng_app::update::EventUpdate;
 use zng_app::view_process::raw_events::{RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT, RawMonitorsChangedArgs};
@@ -12,11 +13,14 @@ use zng_unique_id::IdMap;
 use zng_var::{Var, VarValue, impl_from_and_into_var, var};
 use zng_view_api::window::VideoMode;
 
-use crate::WINDOWS;
+use crate::{WINDOWS, WindowManager};
 
 app_local! {
-    pub(super) static MONITORS_SV: MonitorsService = MonitorsService {
-        monitors: var(IdMap::new()),
+    pub(super) static MONITORS_SV: MonitorsService = {
+        APP.extensions().require::<WindowManager>();
+        MonitorsService {
+            monitors: var(IdMap::new()),
+        }
     };
 }
 
@@ -50,7 +54,7 @@ app_local! {
 ///
 /// # Provider
 ///
-/// This service is provided by the [`WindowManager`].
+/// This service is provided by the [`WindowManager`] extension, it will panic if used in an app not extended.
 ///
 /// [`ppi`]: MonitorInfo::ppi
 /// [`scale_factor`]: MonitorInfo::scale_factor

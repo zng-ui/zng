@@ -21,7 +21,7 @@ use std::{
 use parking_lot::Mutex;
 use task::io::AsyncReadExt;
 use zng_app::{
-    AppExtension,
+    APP, AppExtension,
     update::EventUpdate,
     view_process::{
         VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewImage,
@@ -328,7 +328,10 @@ impl AppExtension for ImageManager {
 }
 
 app_local! {
-    static IMAGES_SV: ImagesService = ImagesService::new();
+    static IMAGES_SV: ImagesService = {
+        APP.extensions().require::<ImageManager>();
+        ImagesService::new()
+    };
 }
 
 struct ImageLoadingTask {
@@ -838,6 +841,10 @@ impl ImagesService {
 ///
 /// If the app is running without a [`VIEW_PROCESS`] all images are dummy, see [`load_in_headless`] for
 /// details.
+///
+/// # Provider
+///
+/// This service is provided by the [`ImageManager`] extension, it will panic if used in an app not extended.
 ///
 /// [`load_in_headless`]: IMAGES::load_in_headless
 /// [`VIEW_PROCESS`]: zng_app::view_process::VIEW_PROCESS

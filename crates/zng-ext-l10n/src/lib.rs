@@ -43,6 +43,10 @@ mod sources;
 pub use sources::*;
 
 /// Localization service.
+///
+/// # Provider
+///
+/// This service is provided by the [`L10nManager`] extension, it will panic if used in an app not extended.
 pub struct L10N;
 
 /// Application extension that provides localization.

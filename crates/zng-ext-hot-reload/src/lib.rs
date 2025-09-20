@@ -24,7 +24,7 @@ pub use cargo::BuildError;
 use node::*;
 
 use zng_app::{
-    AppExtension, DInstant, INSTANT,
+    APP, AppExtension, DInstant, INSTANT,
     event::{event, event_args},
     handler::async_clmv,
     update::UPDATES,
@@ -441,6 +441,10 @@ impl BuildArgs {
 }
 
 /// Hot reload service.
+///
+/// # Provider
+///
+/// This service is provided by the [`HotReloadManager`] extension, it will panic if used in an app not extended.
 #[expect(non_camel_case_types)]
 pub struct HOT_RELOAD;
 impl HOT_RELOAD {
@@ -495,6 +499,7 @@ impl HOT_RELOAD {
 }
 app_local! {
     static HOT_RELOAD_SV: HotReloadService = {
+        APP.extensions().require::<HotReloadManager>();
         HotReloadService {
             libs: vec![],
             rebuilders: Mutex::new(vec![]),
