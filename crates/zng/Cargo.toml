@@ -301,7 +301,7 @@ color_filter = ["dep:zng-wgt-filter"]
 fs_watcher = ["dep:zng-ext-fs-watcher"]
 
 # Enable the configuration service.
-config = ["dep:zng-ext-config"]
+config = ["dep:zng-ext-config", "fs_watcher"]
 
 # Enable settings widgets.
 settings_editor = ["dep:zng-wgt-settings"]
