@@ -32,9 +32,11 @@ pub struct SyncConfig<B: SyncConfigBackend> {
     status: Var<ConfigStatus>,
 }
 impl<B: SyncConfigBackend> SyncConfig<B> {
-    /// Open write the `file`
+    /// Open the `file` for read/write.
     pub fn sync(file: impl Into<PathBuf>) -> Self {
-        let file = file.into();
+        Self::sync_impl(file.into())
+    }
+    fn sync_impl(file: PathBuf) -> Self {
         let (sync_var, status) = WATCHER.sync_status::<_, _, ConfigStatusError, ConfigStatusError>(
             file,
             RawConfigMap::default(),
@@ -63,6 +65,27 @@ impl<B: SyncConfigBackend> SyncConfig<B> {
 
         Self {
             sync_var,
+            backend: PhantomData,
+            status,
+        }
+    }
+
+    /// Open the `file` read-only.
+    pub fn read(file: impl Into<PathBuf>) -> Self {
+        Self::read_impl(file.into())
+    }
+    fn read_impl(file: PathBuf) -> Self {
+        let (read_var, status) =
+            WATCHER.read_status::<_, _, ConfigStatusError>(file, RawConfigMap::default(), |r| match (|| B::read(r?))() {
+                Ok(ok) => Ok(Some(ok)),
+                Err(e) => {
+                    tracing::error!("read config error, {e:?}");
+                    Err(vec![Arc::new(e)])
+                }
+            });
+
+        Self {
+            sync_var: read_var,
             backend: PhantomData,
             status,
         }

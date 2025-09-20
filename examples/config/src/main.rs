@@ -14,7 +14,7 @@ fn load_config() {
     // settings file for the app, keys with prefix "settings." are saved here.
     let user_settings = JsonConfig::sync(zng::env::config("example-config/settings.json"));
     // entries not found in `user_settings` bind to this file first before going to embedded fallback.
-    let default_settings = ReadOnlyConfig::new(JsonConfig::sync(zng::env::res("default-settings.json")));
+    let default_settings = JsonConfig::read(zng::env::res("default-settings.json"));
 
     let settings = FallbackConfig::new(user_settings, default_settings);
     // Clone a ref that can be used to reset specific entries.

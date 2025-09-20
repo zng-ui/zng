@@ -260,6 +260,9 @@ fn get_impl<T: ConfigValue, C: AnyConfig>(source: &mut C, insert: bool, key: Con
 }
 
 /// Config wrapper that only provides read-only variables from the inner config.
+///
+/// Note that you can use [`SyncConfig::read`] to open a file read-only, that is more efficient than
+/// wrapping a [`SyncConfig::sync`] with this adapter.
 pub struct ReadOnlyConfig<C: Config> {
     cfg: C,
 }
