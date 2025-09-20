@@ -1,5 +1,7 @@
 # Unreleased
 
+* Services that require an app extension to function now assert this on first use.
+
 * Add `read` associated function for `zng::config::{JsonConfig, RonConfig, TomlConfig, YamlConfig}`.
     - This is a more efficient alternative to wrapping `sync` with `ReadOnlyConfig`.
 

@@ -9,7 +9,7 @@ use std::{
     time::Duration,
 };
 use zng_app::{
-    AppExtension, DInstant, HeadlessApp,
+    APP, AppExtension, DInstant, HeadlessApp,
     access::{ACCESS_CLICK_EVENT, AccessClickArgs},
     event::{AnyEventArgs, Command, CommandScope, EVENTS, EventPropagationHandle, event, event_args},
     shortcut::{
@@ -378,7 +378,10 @@ impl AppExtension for GestureManager {
 }
 
 app_local! {
-    static GESTURES_SV: GesturesService = GesturesService::new();
+    static GESTURES_SV: GesturesService = {
+        APP.extensions().require::<GestureManager>();
+        GesturesService::new()
+    };
 }
 
 struct GesturesService {
@@ -594,6 +597,10 @@ impl GesturesService {
 ///
 /// The event propagation flag of shortcut, click and command events are linked, so stopping [`propagation`] in one signal
 /// all others.
+///
+/// # Provider
+///
+/// This service is provided by the [`GestureManager`] extension, it will panic if used in an app not extended.
 ///
 /// [`click_focused`]: Self::click_focused
 /// [`context_click_focused`]: Self::context_click_focused

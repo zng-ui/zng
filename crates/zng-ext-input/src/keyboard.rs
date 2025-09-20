@@ -3,7 +3,7 @@
 use std::{collections::HashSet, time::Duration};
 
 use zng_app::{
-    AppExtension, DInstant, HeadlessApp,
+    APP, AppExtension, DInstant, HeadlessApp,
     event::{event, event_args},
     shortcut::{GestureKey, KeyGesture, ModifierGesture, ModifiersState, Shortcut},
     update::EventUpdate,
@@ -279,7 +279,7 @@ impl AppExtension for KeyboardManager {
 ///
 /// # Provider
 ///
-/// This service is provided by the [`KeyboardManager`] extension.
+/// This service is provided by the [`KeyboardManager`] extension, it will panic if used in an app not extended.
 pub struct KEYBOARD;
 impl KEYBOARD {
     /// Returns a read-only variable that tracks the currently pressed modifier keys.
@@ -352,6 +352,7 @@ impl KEYBOARD {
 
 app_local! {
     static KEYBOARD_SV: KeyboardService = {
+        APP.extensions().require::<KeyboardManager>();
         let sys_repeat_config = var_default();
         let cfg = AnimationsConfig::default();
         let sys_caret_animation_config = var((cfg.caret_blink_interval, cfg.caret_blink_timeout));

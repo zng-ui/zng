@@ -7,7 +7,7 @@ use std::{
 
 use atomic::{Atomic, Ordering};
 use zng_app::{
-    DInstant, INSTANT, app_hn_once,
+    APP, DInstant, INSTANT, app_hn_once,
     timer::{DeadlineHandle, TIMERS},
 };
 use zng_app_context::{LocalContext, app_local};
@@ -16,8 +16,8 @@ use zng_unit::TimeUnits;
 use zng_var::{VARS, Var, VarUpdateId, VarValue, var};
 
 use crate::{
-    FS_CHANGES_EVENT, FsChange, FsChangeNote, FsChangeNoteHandle, FsChangesArgs, WatchFile, WatcherHandle, WatcherReadStatus,
-    WatcherSyncStatus, WriteFile, fs_event,
+    FS_CHANGES_EVENT, FsChange, FsChangeNote, FsChangeNoteHandle, FsChangesArgs, FsWatcherManager, WatchFile, WatcherHandle,
+    WatcherReadStatus, WatcherSyncStatus, WriteFile, fs_event,
 };
 
 mod watchers;
@@ -30,7 +30,10 @@ mod sync_with_var;
 use sync_with_var::*;
 
 app_local! {
-    pub(crate) static WATCHER_SV: WatcherService = WatcherService::new();
+    pub(crate) static WATCHER_SV: WatcherService = {
+        APP.extensions().require::<FsWatcherManager>();
+        WatcherService::new()
+    };
 }
 
 pub(crate) struct WatcherService {
