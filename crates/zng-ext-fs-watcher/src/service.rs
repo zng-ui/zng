@@ -101,10 +101,14 @@ impl WatcherService {
     }
 
     pub fn watch(&mut self, file: PathBuf) -> WatcherHandle {
+        APP.extensions().require::<FsWatcherManager>();
+
         self.watcher.watch(file)
     }
 
     pub fn watch_dir(&mut self, dir: PathBuf, recursive: bool) -> WatcherHandle {
+        APP.extensions().require::<FsWatcherManager>();
+
         self.watcher.watch_dir(dir, recursive)
     }
 
@@ -114,6 +118,8 @@ impl WatcherService {
         init: O,
         read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
     ) -> Var<O> {
+        APP.extensions().require::<FsWatcherManager>();
+
         let handle = self.watch(file.clone());
         fn open(p: &Path) -> io::Result<WatchFile> {
             WatchFile::open(p)
@@ -133,6 +139,8 @@ impl WatcherService {
         O: VarValue,
         S: WatcherReadStatus<E>,
     {
+        APP.extensions().require::<FsWatcherManager>();
+
         let handle = self.watch(file.clone());
         fn open(p: &Path) -> io::Result<WatchFile> {
             WatchFile::open(p)
@@ -177,6 +185,8 @@ impl WatcherService {
         init: O,
         read: impl FnMut(walkdir::WalkDir) -> Option<O> + Send + 'static,
     ) -> Var<O> {
+        APP.extensions().require::<FsWatcherManager>();
+
         let handle = self.watch_dir(dir.clone(), recursive);
         fn open(p: &Path) -> walkdir::WalkDir {
             walkdir::WalkDir::new(p).min_depth(1).max_depth(1)
@@ -199,6 +209,8 @@ impl WatcherService {
         O: VarValue,
         S: WatcherReadStatus<E>,
     {
+        APP.extensions().require::<FsWatcherManager>();
+
         let status = var(S::reading());
 
         let handle = self.watch_dir(dir.clone(), recursive);
@@ -247,6 +259,8 @@ impl WatcherService {
         read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
         mut write: impl FnMut(O, io::Result<WriteFile>) + Send + 'static,
     ) -> Var<O> {
+        APP.extensions().require::<FsWatcherManager>();
+
         let handle = self.watch(file.clone());
 
         let (sync, var) = SyncWithVar::new(handle, file, init, read, move |o, _, f| write(o, f), |_| {});
@@ -265,6 +279,8 @@ impl WatcherService {
         O: VarValue,
         S: WatcherSyncStatus<ER, EW>,
     {
+        APP.extensions().require::<FsWatcherManager>();
+
         let handle = self.watch(file.clone());
         let latest_write = Arc::new(Atomic::new(VarUpdateId::never()));
 
