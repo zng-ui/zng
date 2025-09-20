@@ -292,7 +292,15 @@ context_var! {
     /// Is [`L10N.app_lang`] by default.
     ///
     /// [`L10N.app_lang`]: L10N::app_lang
-    pub static LANG_VAR: Langs = L10N.app_lang();
+    pub static LANG_VAR: Langs = {
+        // TODO(breaking) crate feature that removes LANG_VAR usage in widget crates, this
+        // is a hack to avoid new assert panics.
+        if zng_app::APP.extensions().contains::<crate::L10nManager>() {
+            L10N.app_lang()
+        } else {
+            Langs::default().into_var()
+        }
+    };
 }
 
 /// Identifies the language, region and script of text.

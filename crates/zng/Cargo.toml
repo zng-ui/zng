@@ -443,7 +443,7 @@ zng-wgt-window = { path = "../zng-wgt-window", version = "0.10.6", optional = tr
 zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.7.6", default-features = false }
 zng-wgt-undo-history = { path = "../zng-wgt-undo-history", version = "0.7.6", optional = true, default-features = false }
 zng-wgt-image = { path = "../zng-wgt-image", version = "0.7.6", optional = true, default-features = false }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.8.6", default-features = false }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.8.6", default-features = false } # TODO(breaking) integrate features like l10n with this crate
 zng-wgt-text-input = { path = "../zng-wgt-text-input", version = "0.8.6", optional = true, default-features = false }
 zng-wgt-button = { path = "../zng-wgt-button", version = "0.8.6", default-features = false, optional = true }
 zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.7.6", optional = true, default-features = false }
