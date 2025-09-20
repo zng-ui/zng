@@ -83,6 +83,10 @@ impl AppExtension for FsWatcherManager {
 /// File system watcher service.
 ///
 /// This is mostly a wrapper around the [`notify`](https://docs.rs/notify) crate, integrating it with events and variables.
+///
+/// # Panics
+///
+/// This service requires the [`FsWatcherManager`] extension to work, methods of this service panics if the extension is not part of the app.
 pub struct WATCHER;
 impl WATCHER {
     /// Gets a read-write variable that defines interval awaited between each [`FS_CHANGES_EVENT`]. If
