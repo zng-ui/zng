@@ -111,6 +111,7 @@ or for custom properties that deeply integrate with a widget.
 - `zng-wgt-menu`
 - `zng-wgt-scroll`
 - `zng-wgt-settings`
+- `zng-wgt-shortcut`
 - `zng-wgt-ansi-text`
 - `zng-wgt-tooltip`
 - `zng-wgt-markdown`
