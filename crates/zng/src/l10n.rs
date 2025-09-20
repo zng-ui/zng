@@ -5,7 +5,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let click_count = var(0u32);
 //! # let _ =
@@ -16,7 +16,7 @@
 //!         child = Text!(l10n!("click-count", "Clicked {$n} times", n = click_count.clone()));
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! In the example above declares two localization messages, "window.title" and "btn.click_count", if
@@ -74,7 +74,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! // l10n-### This standalone comment is added to the scraped template file.
 //!
@@ -88,7 +88,7 @@
 //!         child = Text!(l10n!("click-count", "Clicked {$n} times", n = click_count.clone()));
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! When the example above is scrapped it generates:

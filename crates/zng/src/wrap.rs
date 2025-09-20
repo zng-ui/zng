@@ -7,7 +7,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Wrap!(ui_vec![
@@ -26,7 +26,7 @@
 //!     text::Strong!("wrap"),
 //!     Text!(" with the parent items."),
 //! ])
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Note that only some widgets and properties support inline layout, see the [`layout`](crate::layout#inline)

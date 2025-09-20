@@ -9,7 +9,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Window! {
 //!     gesture::on_click = hn!(|args: &gesture::ClickArgs| {
@@ -22,7 +22,7 @@
 //!         }
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above handles the click gesture on a window and prints what underlying event was interpreted as a click.

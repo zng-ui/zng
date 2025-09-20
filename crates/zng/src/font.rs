@@ -5,13 +5,13 @@
 //! ```
 //! use zng::{font::FontName, prelude::*};
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Text! {
 //!     txt = "hello";
 //!     font_family = FontName::monospace();
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Internally the [`Text!`] widget implements text segmenting and shaping using the types provided by this module,

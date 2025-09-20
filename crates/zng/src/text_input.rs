@@ -8,7 +8,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Stack! {
@@ -31,7 +31,7 @@
 //!     direction = StackDirection::top_to_bottom();
 //!     spacing = 5;
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The first input binds directly to a `Txt` read-write variable. The second field binds to an `u32` read-write variable using the

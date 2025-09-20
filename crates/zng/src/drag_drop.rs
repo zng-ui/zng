@@ -6,7 +6,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! use zng::drag_drop::*;
 //!
 //! let data = var::<Vec<DragDropData>>(vec![]);
@@ -33,7 +33,7 @@
 //!         }));
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //!

@@ -36,7 +36,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Button! {
 //!     child = Text!("Button");
@@ -51,7 +51,7 @@
 //!         println!("click {:?}", args.click_count.get());
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! In the example above the [`gesture::on_pre_single_click`] and [`gesture::on_click`] are handled, both properties
@@ -136,7 +136,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! gesture::CLICK_EVENT
 //!     .on_pre_event(app_hn!(|_, _| {
@@ -149,6 +149,7 @@
 //!         println!("click, after all UI handlers");
 //!     }))
 //!     .perm();
+//! # }
 //! ```
 //!
 //! [`gesture::on_pre_single_click`]: fn@crate::gesture::on_pre_single_click
@@ -281,7 +282,7 @@
 //! use zng::prelude::*;
 //! use zng::{clipboard, event::CommandArgs};
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Stack!(
 //!     top_to_bottom,
@@ -313,7 +314,7 @@
 //!         },
 //!     ]
 //! )
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above overrides the metadata and implementation of the copy command for the "print-copy" widget, buttons

@@ -14,7 +14,7 @@
 //!     }
 //! }
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Window! {
 //!     child = Stack!(
@@ -30,7 +30,7 @@
 //!         ]
 //!     );
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The [`Rgba`] type also provides methods for basic color manipulation and mixing.
@@ -59,14 +59,14 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Window! {
 //!     clear_color = colors::BLACK.transparent();
 //!     color::filter::opacity = 50.pct();
 //!     child = Text!("translucent window");
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above applies [`filter::opacity`] on the window, making it translucent in view-process
@@ -84,7 +84,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Window! {
 //!     widget::background = color::gradient::conic_gradient(
@@ -99,7 +99,7 @@
 //!         stops: color::gradient::stops![colors::GREEN, (colors::RED, 30.pct()), colors::BLUE],
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! See [`gradient::stops!`] for the macro syntax.

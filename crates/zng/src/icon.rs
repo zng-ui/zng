@@ -9,7 +9,7 @@
 //!
 //! ```
 //! use zng::{icon, prelude::*};
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! icon::ICONS.register(wgt_fn!(|a: icon::IconRequestArgs| {
 //!     match a.name() {
@@ -17,7 +17,7 @@
 //!         "settings" => Text!("S"),
 //!         _ => UiNode::nil(),
 //!     }
-//! }));
+//! })); }
 //! ```
 //!
 //! The example above registers a handler that provides two "icons" that are rendered by a `Text!` widgets.
@@ -29,14 +29,14 @@
 //!
 //! ```
 //! use zng::{icon, prelude::*};
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! icon::Icon! {
 //!     ico = icon::material::rounded::req("accessibility");
 //!     ico_size = 80;
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! You can implement your own icon sets by providing [`GlyphIcon`] instances or a type that converts to `GlyphIcon`.
@@ -46,7 +46,6 @@
 //! # fn main() { }
 //! use zng::{font, icon, prelude::*};
 //! # async fn demo() {
-//! # let _scope = APP.defaults();
 //!
 //! let font = font::CustomFont::from_file("Font Awesome 6 Free-Regular", r#"Font Awesome 6 Free-Regular-400.otf"#, 0);
 //! font::FONTS.register(font).wait_rsp().await.unwrap();

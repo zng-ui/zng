@@ -39,14 +39,14 @@
 //!
 //! ```
 //! # use zng::prelude::*;
-//! # let _scope = APP.defaults(); let n = var(0usize); let _ =
+//! # fn example() { let n = var(0usize); let _ =
 //! DataView! {
 //!     view::<usize> = {
 //!         data: n,
 //!         update: hn!(|a: &DataViewArgs<usize>| {}),
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Full API

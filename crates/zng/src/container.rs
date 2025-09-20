@@ -10,7 +10,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Container! {
 //!     child_top = {
@@ -26,14 +26,14 @@
 //!         spacing: 0,
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Note that `Window!` inherits from `Container!` to the example above could become the skeleton of a classic app window:
 //!
 //! ```
 //! # use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # fn tools() -> UiNode { widget::node::UiNode::nil() }
 //! # fn content() -> UiNode { widget::node::UiNode::nil() }
 //! # fn status() -> UiNode { widget::node::UiNode::nil() }
@@ -43,7 +43,7 @@
 //!     child = content();
 //!     child_bottom = status(), 0;
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Note that a similar layout could be achieved using widgets like [`Grid!`], but the child insert properties are a convenient
@@ -59,7 +59,7 @@
 //! ```
 //! use zng::{prelude::*, prelude_wgt::*};
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Container! {
 //!     widget::background_color = colors::BLACK;
@@ -78,7 +78,7 @@
 //!         })
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! [`IntoUiNode`]: crate::widget::node::IntoUiNode

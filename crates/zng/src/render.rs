@@ -74,7 +74,7 @@
 //!
 //! ```
 //! # use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # fn color_circle(_color: impl IntoVar<zng::color::Rgba>) -> UiNode { UiNode::nil() }
 //! let color = var(colors::RED);
 //! let mut i = 0u8;
@@ -94,7 +94,7 @@
 //!         }
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! [`UiNode::render`]: crate::widget::node::UiNode::render

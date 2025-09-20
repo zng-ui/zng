@@ -13,7 +13,6 @@
 //!
 //! # fn main() { }
 //! # fn demo() {
-//! # let _scope = APP.defaults();
 //! # let _ =
 //! Text!(WATCHER.read("dump.log", Txt::from(""), |f| f.ok()?.text().ok()))
 //! # ; }
@@ -27,7 +26,6 @@
 //!
 //! # fn main() { }
 //! # fn demo() {
-//! # let _scope = APP.defaults();
 //! # let _ =
 //! TextInput!(zng::fs_watcher::WATCHER.sync(
 //!     "dump.log",

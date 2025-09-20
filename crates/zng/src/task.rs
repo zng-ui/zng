@@ -14,8 +14,8 @@
 //! ```
 //! use zng::prelude::*;
 //!
+//! # fn example() {
 //! let enabled = var(false);
-//! # let _scope = APP.defaults();
 //! # let _ =
 //! Button! {
 //!     on_click = async_hn!(enabled, |_| {
@@ -32,7 +32,7 @@
 //!     });
 //!     widget::enabled = enabled;
 //! }
-//! # ;
+//! # ; }
 //!
 //! async fn read_numbers() -> Vec<usize> {
 //!     let raw = task::wait(|| std::fs::read_to_string("numbers.txt").unwrap()).await;
@@ -87,9 +87,9 @@
 //! ```
 //! use zng::prelude::*;
 //!
+//! # fn example() {
 //! let enabled = var(false);
 //! let msg = var("loading..".to_txt());
-//! # let _scope = APP.defaults();
 //! # let _ =
 //! Button! {
 //!     on_click = async_hn!(enabled, msg, |_| {
@@ -103,7 +103,7 @@
 //!         enabled.set(true);
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! For other protocols or alternative HTTP clients you can use [external crates](#async-crates-integration).

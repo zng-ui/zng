@@ -7,7 +7,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Container! {
@@ -17,7 +17,7 @@
 //!         txt = var_from("");
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Full API

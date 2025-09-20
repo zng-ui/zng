@@ -8,7 +8,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! zng::image::IMAGES.limits().modify(|l| {
 //!     l.allow_uri = zng::image::UriFilter::AllowAll;
 //! });
@@ -18,7 +18,7 @@
 //!     widget::background = zng::checkerboard::Checkerboard!();
 //!     source = "https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png";
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Full API

@@ -4,7 +4,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let layouts = [
 //!     (
@@ -53,7 +53,7 @@
 //!
 //!     panel_fn = selected_layout.map(move |&i| layouts[i].1.clone());
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Full API
