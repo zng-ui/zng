@@ -63,14 +63,14 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Button! {
 //!     child = Text!("Green?");
 //!     widget::background_color = colors::GREEN;
 //!     on_click = hn!(|_| println!("SUPER GREEN!"));
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! In the example above [`Button!`] and [`Text!`] are widgets and `child`, [`background_color`] and [`on_click`] are properties.

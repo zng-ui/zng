@@ -15,7 +15,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! let txt = var(Txt::from(""));
 //! let copied = var(false);
 //! # let _ =
@@ -33,7 +33,7 @@
 //!         4,
 //!     ;
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The `TextInput` widget also implements the clipboard commands, the example below requests clipboard paste to the
@@ -42,7 +42,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Container! {
 //!     child = TextInput! {
@@ -51,7 +51,7 @@
 //!     };
 //!     child_end = Button!(zng::clipboard::PASTE_CMD.scoped(WidgetId::named("input-1"))), 4;
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # File List
@@ -62,7 +62,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let txt = var(Txt::from(""));
 //! # let _ =
 //! Button! {
@@ -80,7 +80,7 @@
 //!         }
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Image

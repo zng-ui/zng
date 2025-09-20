@@ -6,7 +6,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let mut popup = None;
 //! let is_closed = var(true);
@@ -26,7 +26,7 @@
 //!         }
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above declares a button that opens and closes a popup

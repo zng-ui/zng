@@ -4,7 +4,7 @@
 
 use std::{collections::HashMap, mem, num::NonZeroU32, ops, time::Duration};
 use zng_app::{
-    AppExtension, DInstant,
+    APP, AppExtension, DInstant,
     event::{AnyEventArgs, EventPropagationHandle, event, event_args},
     shortcut::ModifiersState,
     timer::{DeadlineVar, TIMERS},
@@ -134,7 +134,7 @@ impl PressedInfo {
 ///
 /// # Provider
 ///
-/// This service is provided by the [`TouchManager`] extension.
+/// This service is provided by the [`TouchManager`] extension, it will panic if used in an app not extended.
 ///
 /// [`POINTER_CAPTURE`]: crate::pointer_capture::POINTER_CAPTURE
 pub struct TOUCH;
@@ -199,6 +199,7 @@ pub struct TouchPosition {
 
 app_local! {
     static TOUCH_SV: TouchService = {
+        APP.extensions().require::<TouchManager>();
         let sys_touch_config = var(TouchConfig::default());
         TouchService {
             touch_config: sys_touch_config.cow(),

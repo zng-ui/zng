@@ -78,7 +78,7 @@
 //! use zng::access::{AccessRole, access_role};
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! let search_txt = var(Txt::from(""));
 //! # let _ =
 //! TextInput! {
@@ -86,7 +86,7 @@
 //!     placeholder_txt = "search";
 //!     txt = search_txt;
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Service & Events
@@ -100,8 +100,8 @@
 //! ```
 //! use zng::prelude::*;
 //!
+//! # fn example() {
 //! let mut show_tooltip = false;
-//! # let _scope = APP.defaults(); let _ =
 //! Window! {
 //!     child_align = Align::CENTER;
 //!     child = Stack!(
@@ -129,7 +129,7 @@
 //!         ]
 //!     );
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! [`ACCESS.show_tooltip`]: ACCESS::show_tooltip

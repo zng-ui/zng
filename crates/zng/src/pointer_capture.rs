@@ -6,7 +6,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Wgt! {
@@ -25,7 +25,7 @@
 //!     widget::background_color = colors::RED;
 //!     layout::size = 80;
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above declares a widget is green when hovered or is holding the pointer capture, the widget also logs

@@ -41,7 +41,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let height = var(2.em());
 //! # let _ =
@@ -54,7 +54,7 @@
 //!     layout::align = layout::Align::CENTER;
 //!     layout::height; // set the height (shorthand, variable is same name as property)
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Note that variable updates don't happen immediately, in the handler above the variable is still the previous value after the [`set`](Var::set) call,
@@ -62,7 +62,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let number = var(0u8);
 //! # let _ =
@@ -77,7 +77,7 @@
 //!         assert_eq!(number.get(), 1);
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above demonstrates the delayed update of a variable.
@@ -91,7 +91,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let foo = var(0u8);
 //! # let _ =
@@ -111,7 +111,7 @@
 //!         println!("test ok");
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Mapping
@@ -123,7 +123,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let count = var(0u32);
 //! # let _ =
@@ -137,7 +137,7 @@
 //!         count.set(count.get() + 1);
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Binding
@@ -147,7 +147,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let count = var(0u32);
 //! let label = var(Txt::from("Click Me!"));
@@ -164,7 +164,7 @@
 //!         count.set(count.get() + 1);
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Note that unlike a map the initial value of the output variable is not updated, only subsequent ones. You can use
@@ -179,7 +179,7 @@
 //! The example below uses [`Var::easing`] to animate the window background:
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let color = var(colors::AZURE.darken(30.pct()));
 //! # let _ =
@@ -195,7 +195,7 @@
 //!         child = Text!("Change background color");
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Variables can only be operated by a single animation, when a newer animation or modify affects a variable older animations can no longer
@@ -209,7 +209,7 @@
 //!
 //! ```no_run
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let rsp = task::respond(async {
 //!     let url = "https://raw.githubusercontent.com/git/git-scm.com/main/MIT-LICENSE.txt";
@@ -226,7 +226,7 @@
 //!         Done(t) => t.clone(),
 //!     }
 //! }))
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above creates a response var from a download future and maps the response to a widget.
@@ -244,7 +244,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let a = var(10u32);
 //! let b = var(1u32);
@@ -260,7 +260,7 @@
 //!     child = Text!(merge);
 //!     on_click = hn!(|_| b.set(b.get() + 1));
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Contextual

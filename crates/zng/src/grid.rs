@@ -10,7 +10,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! let length_color = [
 //!     (Length::Default, colors::RED), // default (auto)
 //!     (200.dip(), colors::GREEN),     // exact
@@ -49,7 +49,7 @@
 //!         })
 //!     });
 //! };
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The grid can also auto-grow rows or columns and auto-position cells, the following example
@@ -58,7 +58,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Grid! {
@@ -85,7 +85,7 @@
 //!         })
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Full API

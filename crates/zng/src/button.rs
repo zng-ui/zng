@@ -17,7 +17,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! let count = var(0u8);
 //! # let _ =
 //! Button! {
@@ -36,7 +36,7 @@
 //!         }
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Command
@@ -48,7 +48,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Stack!(
 //!     left_to_right,
@@ -63,7 +63,7 @@
 //!         },
 //!     ]
 //! )
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The properties a command button sets are documented in the [`cmd`](struct@Button#method.cmd) property docs.
@@ -74,7 +74,7 @@
 //!
 //! ```
 //! # use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # fn cmd_btn_example() -> UiNode { widget::node::UiNode::nil() }
 //! # let _ =
 //! zng::clipboard::COPY_CMD.on_event(true, app_hn!(|_, _| { println!("copy") })).perm();
@@ -84,7 +84,7 @@
 //! Window! {
 //!     child = cmd_btn_example();
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! [`widget::visibility`]: fn@crate::widget::visibility
@@ -106,7 +106,7 @@
 //! use zng::prelude::*;
 //! use zng::{button, color::base_color};
 //!
-//! # let _scope = APP.defaults(); let _ =
+//! # fn example() { let _ =
 //! Window! {
 //!     button::style_fn = Style! {
 //!         when *#{button::BUTTON.cmd()} == Some(window::cmd::CLOSE_CMD) {
@@ -119,7 +119,7 @@
 //!         }
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Full API

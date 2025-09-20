@@ -6,7 +6,7 @@ mod focus_info;
 pub use focus_info::*;
 
 use zng_app::{
-    AppExtension, DInstant, INSTANT,
+    APP, AppExtension, DInstant, INSTANT,
     access::{ACCESS_CLICK_EVENT, ACCESS_FOCUS_EVENT, ACCESS_FOCUS_NAV_ORIGIN_EVENT},
     event::{event, event_args},
     update::{EventUpdate, InfoUpdates, RenderUpdates, UPDATES},
@@ -551,14 +551,17 @@ impl FocusManager {
 }
 
 app_local! {
-    static FOCUS_SV: FocusService = FocusService::new();
+    static FOCUS_SV: FocusService = {
+        APP.extensions().require::<FocusManager>();
+        FocusService::new()
+    };
 }
 
 /// Keyboard focus service.
 ///
 /// # Provider
 ///
-/// This service is provided by the [`FocusManager`] extension.
+/// This service is provided by the [`FocusManager`] extension, it will panic if the app is not extended.
 pub struct FOCUS;
 impl FOCUS {
     /// If set to a duration, starts highlighting focus when a focus change happen within the duration of

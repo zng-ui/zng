@@ -4,7 +4,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Window! {
@@ -13,7 +13,7 @@
 //!         println!("key {:?} {:?}", args.key, args.state);
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Keyboard events are send to the focused widget, if there is no focused widget no event is send. You can

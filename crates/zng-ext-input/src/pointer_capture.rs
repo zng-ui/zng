@@ -6,7 +6,7 @@ use std::{
 };
 
 use zng_app::{
-    AppExtension,
+    APP, AppExtension,
     event::{event, event_args},
     update::{EventUpdate, UPDATES},
     view_process::{
@@ -281,7 +281,7 @@ impl PointerCaptureManager {
 ///
 /// # Provider
 ///
-/// This service is provided by the [`PointerCaptureManager`] extension.
+/// This service is provided by the [`PointerCaptureManager`] extension, it will panic if used in an app not extended.
 #[expect(non_camel_case_types)]
 pub struct POINTER_CAPTURE;
 impl POINTER_CAPTURE {
@@ -411,11 +411,14 @@ impl CaptureInfo {
 }
 
 app_local! {
-    static POINTER_CAPTURE_SV: PointerCaptureService = PointerCaptureService {
-        capture_value: None,
-        capture: var(None),
-        capture_request: None,
-        release_requested: false,
+    static POINTER_CAPTURE_SV: PointerCaptureService = {
+        APP.extensions().require::<PointerCaptureManager>();
+        PointerCaptureService {
+            capture_value: None,
+            capture: var(None),
+            capture_request: None,
+            release_requested: false,
+        }
     };
 }
 

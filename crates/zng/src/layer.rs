@@ -9,7 +9,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let inserted = var(false);
 //! let anchored = WidgetId::new_unique();
@@ -36,7 +36,7 @@
 //!     layout::align = layout::Align::CENTER;
 //!     child = Text!(inserted.map(|&o| if o { "Remove Layer" } else { "Insert Layer" }.into()));
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Node operations always apply to the window content first then the layers, even with parallelism enabled,

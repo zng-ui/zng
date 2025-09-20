@@ -25,7 +25,6 @@
 //!
 //! # fn main() { }
 //! # fn demo() {
-//! # let _scope = APP.defaults();
 //! # let _ =
 //! Container! {
 //!     child = txt_input();
@@ -44,7 +43,6 @@
 //! # use zng::prelude::*;
 //! # fn main() { }
 //! # fn demo() {
-//! # let _scope = APP.defaults();
 //! let cfg = zng::config::JsonConfig::sync("target/tmp/example.config.json");
 //! CONFIG.load(cfg);
 //! # }

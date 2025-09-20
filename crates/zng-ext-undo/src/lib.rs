@@ -25,9 +25,8 @@ use std::{
 use atomic::Atomic;
 use parking_lot::Mutex;
 use zng_app::{
-    AppExtension, DInstant, INSTANT,
-    event::CommandScope,
-    event::{AnyEventArgs, Command, CommandNameExt, command},
+    APP, AppExtension, DInstant, INSTANT,
+    event::{AnyEventArgs, Command, CommandNameExt, CommandScope, command},
     shortcut::{CommandShortcutExt, shortcut},
     update::EventUpdate,
     widget::{
@@ -104,6 +103,10 @@ context_var! {
 }
 
 /// Undo-redo service.
+///
+/// # Provider
+///
+/// This service is provided by the [`UndoManager`] extension, it will panic if used in an app not extended.
 pub struct UNDO;
 impl UNDO {
     /// Gets or sets the maximum length of each undo stack of each scope.
@@ -1180,7 +1183,10 @@ context_local! {
     static UNDO_SCOPE_CTX: UndoScope = UndoScope::default();
 }
 app_local! {
-    static UNDO_SV: UndoService = UndoService::default();
+    static UNDO_SV: UndoService = {
+        APP.extensions().require::<UndoManager>();
+        UndoService::default()
+    };
 }
 
 /// Undo extension methods for widget info.
@@ -1378,12 +1384,17 @@ impl UndoSelect for UndoSelectLtEq {
 #[cfg(test)]
 mod tests {
     use zng_app::APP;
+    use zng_ext_input::keyboard::KeyboardManager;
 
     use super::*;
 
     #[test]
     fn register() {
-        let _a = APP.minimal();
+        let _a = APP
+            .minimal()
+            .extend(UndoManager::default())
+            .extend(KeyboardManager::default())
+            .run_headless(false);
         let data = Arc::new(Mutex::new(vec![1, 2]));
 
         UNDO.register(PushAction {
@@ -1426,7 +1437,11 @@ mod tests {
 
     #[test]
     fn run_op() {
-        let _a = APP.minimal();
+        let _a = APP
+            .minimal()
+            .extend(UndoManager::default())
+            .extend(KeyboardManager::default())
+            .run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         push_1_2(&data);
@@ -1445,7 +1460,11 @@ mod tests {
 
     #[test]
     fn transaction_undo() {
-        let _a = APP.minimal();
+        let _a = APP
+            .minimal()
+            .extend(UndoManager::default())
+            .extend(KeyboardManager::default())
+            .run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         let t = UNDO.transaction(|| {
@@ -1462,7 +1481,11 @@ mod tests {
 
     #[test]
     fn transaction_commit() {
-        let _a = APP.minimal();
+        let _a = APP
+            .minimal()
+            .extend(UndoManager::default())
+            .extend(KeyboardManager::default())
+            .run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         let t = UNDO.transaction(|| {
@@ -1488,7 +1511,11 @@ mod tests {
 
     #[test]
     fn transaction_group() {
-        let _a = APP.minimal();
+        let _a = APP
+            .minimal()
+            .extend(UndoManager::default())
+            .extend(KeyboardManager::default())
+            .run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         let t = UNDO.transaction(|| {
@@ -1528,7 +1555,11 @@ mod tests {
 
     #[test]
     fn undo_redo_t_zero() {
-        let _a = APP.minimal();
+        let _a = APP
+            .minimal()
+            .extend(UndoManager::default())
+            .extend(KeyboardManager::default())
+            .run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         push_1_sleep_2(&data);
@@ -1556,7 +1587,11 @@ mod tests {
     }
 
     fn undo_redo_t_large(t: Duration) {
-        let _a = APP.minimal();
+        let _a = APP
+            .minimal()
+            .extend(UndoManager::default())
+            .extend(KeyboardManager::default())
+            .run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         push_1_sleep_2(&data);
@@ -1571,7 +1606,11 @@ mod tests {
 
     #[test]
     fn watch_var() {
-        let mut app = APP.minimal().run_headless(false);
+        let mut app = APP
+            .minimal()
+            .extend(UndoManager::default())
+            .extend(KeyboardManager::default())
+            .run_headless(false);
 
         let test_var = var(0);
         UNDO.watch_var("set test var", test_var.clone()).perm();

@@ -5,7 +5,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Window! {
@@ -21,7 +21,7 @@
 //!         println!("button {:?} {:?}", args.button, args.state);
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Mouse events are send to the top widget under the cursor. This module also provides mouse exclusive gestures like mouse clicks

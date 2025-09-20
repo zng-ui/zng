@@ -6,7 +6,7 @@ use std::{mem, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
-    AppExtension,
+    APP, AppExtension,
     event::{AnyEventArgs, event, event_args},
     static_id,
     update::{EventUpdate, UPDATES},
@@ -308,6 +308,10 @@ impl AppExtension for DragDropManager {
 }
 
 /// Drag & drop service.
+///
+/// # Provider
+///
+/// This service is provided by the [`DragDropManager`] extension, it will panic if used in an app not extended.
 #[allow(non_camel_case_types)]
 pub struct DRAG_DROP;
 impl DRAG_DROP {
@@ -360,12 +364,15 @@ impl DRAG_DROP {
 }
 
 app_local! {
-    static DRAG_DROP_SV: DragDropService = DragDropService {
-        data: var(vec![]),
-        system_dragging: vec![],
-        app_drag: None,
-        app_dragging: vec![],
-        pending_drop: None,
+    static DRAG_DROP_SV: DragDropService = {
+        APP.extensions().require::<DragDropManager>();
+        DragDropService {
+            data: var(vec![]),
+            system_dragging: vec![],
+            app_drag: None,
+            app_dragging: vec![],
+            pending_drop: None,
+        }
     };
 }
 struct DragDropService {

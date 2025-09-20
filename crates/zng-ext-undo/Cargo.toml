@@ -23,3 +23,6 @@ zng-ext-input = { path = "../zng-ext-input", version = "0.9.6", default-features
 
 atomic = { version =  "0.6", default-features = false, features = ["fallback"] }
 parking_lot = { version = "0.12", default-features = false }
+
+[dev-dependencies]
+zng-app = { path = "../zng-app", version = "0.17.6", default-features = false, features = ["test_util"] }

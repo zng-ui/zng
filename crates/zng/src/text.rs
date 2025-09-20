@@ -15,7 +15,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let txt = "text テキスト 📋";
 //! let font_use = var(vec![]);
@@ -44,7 +44,7 @@
 //!     direction = StackDirection::top_to_bottom();
 //!     spacing = 15;
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Note that the [`font_family`](fn@font_family) is set on the parent widget, both texts have the same
@@ -62,7 +62,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Wrap! {
 //!     text::rich_text = true;
@@ -82,7 +82,7 @@
 //!         },
 //!     ];
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above declares a rich text with three different *text runs*, by enabling [`rich_text`] the wrap panel becomes

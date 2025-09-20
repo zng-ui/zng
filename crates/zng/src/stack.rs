@@ -9,7 +9,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! let direction = var(StackDirection::top_to_bottom());
 //! # let _ =
 //! Stack! {
@@ -42,7 +42,7 @@
 //!         }),
 //!     ;
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Note that the [`StackDirection`] is defined by two points, the stack widget resolves the `place` point in the previous

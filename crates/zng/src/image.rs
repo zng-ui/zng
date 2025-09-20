@@ -10,7 +10,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # macro_rules! include_bytes { ($tt:tt) => { &[0u8] } }
 //!
 //! # let _ =
@@ -21,7 +21,7 @@
 //!         img_repeat = true;
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Mask
@@ -32,14 +32,14 @@
 //!
 //! ```
 //! use zng::{image::mask, prelude::*};
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # macro_rules! include_bytes { ($tt:tt) => { &[0u8] } }
 //!
 //! # let _ =
 //! Button! {
 //!     mask::mask_image = include_bytes!("../res/image/star.png");
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Service
@@ -54,13 +54,13 @@
 //!
 //! ```
 //! use zng::{image, prelude::*};
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! image::IMAGES.limits().modify(|l| {
 //!     l.allow_uri = image::UriFilter::allow_host("httpbin.org");
 //!     l.max_encoded_len = 1.megabytes();
 //!     l.max_decoded_len = 10.megabytes();
-//! });
+//! }); }
 //! ```
 //!
 //! The example above changes the global limits to allow image downloads only from an specific host and

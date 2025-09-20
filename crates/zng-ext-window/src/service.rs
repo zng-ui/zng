@@ -50,12 +50,15 @@ use zng_wgt::node::with_context_var;
 use crate::{
     CloseWindowResult, FRAME_IMAGE_READY_EVENT, FrameCaptureMode, HeadlessMonitor, MONITORS, StartPosition, ViewExtensionError,
     WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT, WINDOW_LOAD_EVENT, WINDOW_VARS_ID, WindowCloseArgs,
-    WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowLoadingHandle, WindowNotFoundError, WindowOpenArgs, WindowRoot, WindowVars,
-    cmd::WindowCommands, control::WindowCtrl,
+    WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowLoadingHandle, WindowManager, WindowNotFoundError, WindowOpenArgs, WindowRoot,
+    WindowVars, cmd::WindowCommands, control::WindowCtrl,
 };
 
 app_local! {
-    pub(super) static WINDOWS_SV: WindowsService = WindowsService::new();
+    pub(super) static WINDOWS_SV: WindowsService = {
+        APP.extensions().require::<WindowManager>();
+        WindowsService::new()
+    };
     static FOCUS_SV: Var<Option<InteractionPath>> = const_var(None);
 }
 pub(super) struct WindowsService {
@@ -259,9 +262,7 @@ impl_from_and_into_var! {
 ///
 /// # Provider
 ///
-/// This service is provided by the [`WindowManager`].
-///
-/// [`WindowManager`]: crate::WindowManager
+/// This service is provided by the [`WindowManager`] extension, it will panic if used in an app not extended.
 pub struct WINDOWS;
 impl WINDOWS {
     /// Defines if app process exit should be requested when the last window closes. This is `true` by default.

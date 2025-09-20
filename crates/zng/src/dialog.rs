@@ -7,7 +7,7 @@
 //! ```
 //! use zng::prelude::*;
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Button! {
 //!     child = Text!("Info, Warn, Error");
@@ -18,7 +18,7 @@
 //!     });
 //!     // dialog::native_dialogs = true;
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above shows 3 custom dialogs in sequence, info, warn and error. If `dialog::native_dialogs = true` is uncommented
@@ -99,7 +99,7 @@ pub use zng_wgt_dialog::{
 /// ```
 /// use zng::prelude::*;
 ///
-/// # let _scope = APP.defaults();
+/// # fn example() {
 /// # let _ =
 /// Window! {
 ///     dialog::backdrop::style_fn = Style! {
@@ -107,7 +107,7 @@ pub use zng_wgt_dialog::{
 ///         color::filter::backdrop_blur = 2;
 ///     };
 /// }
-/// # ;
+/// # ; }
 /// ```
 ///
 /// The example above configures the backdrop to blur the window content when any dialog is open.

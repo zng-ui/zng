@@ -5,7 +5,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Window! {
@@ -31,7 +31,7 @@
 //!         println!("touch {:?} {:?}", args.touch, args.phase);
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Touch events are send to the top widget under the touch point. This module also provides touch exclusive gestures like

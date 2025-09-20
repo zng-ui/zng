@@ -8,7 +8,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let countdown = timer::TIMERS.interval(1.secs(), false).map(move |t| {
 //!     let count = 10 - t.count();
@@ -16,7 +16,7 @@
 //!         t.stop();
 //!     }
 //!     count
-//! });
+//! }); }
 //! ```
 //!
 //! Note that you can also use the [`task::deadline`] function to `.await` a deadline, in app threads this function

@@ -10,7 +10,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let checked = var(false);
 //! # let _ =
@@ -18,7 +18,7 @@
 //!     child = Text!(checked.map(|b| formatx!("checked = {b}")));
 //!     checked;
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The [`checked_opt`](struct@Toggle#method.checked_opt) and [`tristate`](struct@Toggle#method.tristate) properties can be used to toggle
@@ -28,7 +28,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let checked = var(Some(false));
 //! # let _ =
@@ -37,7 +37,7 @@
 //!     tristate = true;
 //!     checked_opt = checked;
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The [`selector`](fn@selector) and [`value`](struct@Toggle#method.value) properties can be used to have the toggle insert and
@@ -50,7 +50,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let selected_item = var(1_i32);
 //! # let _ =
@@ -69,7 +69,7 @@
 //!             .collect::<Vec<_>>(),
 //!     ;
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Regardless of how the checked state of a toggle is defined the [`IS_CHECKED_VAR`] variable and [`is_checked`](fn@is_checked) property
@@ -78,7 +78,7 @@
 //!
 //! ```
 //! # use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Toggle! {
 //!     checked = var(false);
@@ -90,7 +90,7 @@
 //!         widget::background_color = colors::GREEN;
 //!     }
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Styles
@@ -104,7 +104,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Toggle! {
@@ -116,7 +116,7 @@
 //!     checked = var(false);
 //!     style_fn = toggle::SwitchStyle!();
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above declares a toggle switch that changes the text depending on the state.
@@ -128,7 +128,7 @@
 //!
 //! ```
 //! # use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! let selected_item = var(1_i32);
 //! # let _ =
 //! Stack! {
@@ -136,7 +136,7 @@
 //!     toggle::selector = toggle::Selector::single(selected_item.clone());
 //!     // ..
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! ## Combo
@@ -152,7 +152,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let txt = var(Txt::from_static("Combo"));
 //! let options = ["Combo", "Congo", "Pombo"];
@@ -178,7 +178,7 @@
 //!         };
 //!     });
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Full API

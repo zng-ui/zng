@@ -12,7 +12,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! let last_clicked = var(Txt::from(""));
 //! # let _ =
@@ -48,7 +48,7 @@
 //!         Text!(last_clicked),
 //!     ]
 //! )
-//! # ;
+//! # ; }
 //! ```
 //!
 //! [`WIDGET`]: crate::widget::WIDGET

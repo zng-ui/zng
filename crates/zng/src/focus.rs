@@ -13,7 +13,7 @@
 //! ```
 //! use zng::{focus, prelude::*};
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! focus::FOCUS_CHANGED_EVENT
 //!     .on_pre_event(app_hn!(|args: &focus::FocusChangedArgs, _| {
@@ -54,7 +54,7 @@
 //!         }
 //!     ]
 //! )
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Navigation

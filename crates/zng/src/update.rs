@@ -8,13 +8,14 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! zng::update::UPDATES
 //!     .on_pre_update(app_hn!(|args: &zng::update::UpdateArgs, _| {
 //!         println!("pre_update #{}", args.count);
 //!     }))
 //!     .perm();
+//! # }
 //! ```
 //!
 //! Updates are coalesced, multiple requests for the same widget will cause it to only update once, and multiple widgets

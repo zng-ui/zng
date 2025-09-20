@@ -29,7 +29,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Window! {
@@ -39,7 +39,7 @@
 //!         widget::background_color = colors::AZURE;
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! ## Transform Properties
@@ -52,7 +52,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Stack! {
@@ -75,7 +75,7 @@
 //!         },
 //!     ];
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above declares a horizontal stack with 3 rectangles, the green rectangle is rendered
@@ -93,7 +93,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! macro_rules! width {
 //!     ($width:expr) => {
@@ -146,7 +146,7 @@
 //!         };
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! ## Length & Factor Units
@@ -187,7 +187,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Window! {
@@ -210,7 +210,7 @@
 //!         ];
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above declares a grid with 3 columns, on layout the grid computes the width of the middle column first (`100.dip()`),
@@ -261,7 +261,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Window! {
@@ -272,7 +272,7 @@
 //!         window::inspector::show_bounds = true;
 //!     };
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above uses the [`window::inspector::show_bounds`] property to inspect the bounds of a widget, it shows the
@@ -292,7 +292,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Wrap! {
@@ -311,7 +311,7 @@
 //!         },
 //!     ];
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! Inline layout is modeled to support complex text layout interactions, like bidirectional text reordering, inlined widgets don't need

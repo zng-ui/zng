@@ -111,7 +111,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Stack!(
@@ -154,7 +154,7 @@
 //!         }
 //!     ]
 //! )
-//! # ;
+//! # ; }
 //! ```
 
 pub use zng_wgt_style::{Style, StyleArgs, StyleBuilder, StyleFn, StyleMix, impl_style_fn, style_fn};

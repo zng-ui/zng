@@ -39,14 +39,14 @@
 //!     }
 //! }
 //!
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //! # let _ =
 //! Wrap! {
 //!     spacing = 5;
 //!     zng::focus::alt_focus_scope = true;
 //!     children = ui_vec![undo_combo(zng::undo::UndoOp::Undo), undo_combo(zng::undo::UndoOp::Redo),];
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! # Full API

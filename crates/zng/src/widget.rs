@@ -4,7 +4,7 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! # let _scope = APP.defaults();
+//! # fn example() {
 //!
 //! # let _ =
 //! Wgt! {
@@ -24,7 +24,7 @@
 //!         layout::y = -30;
 //!     }
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! To learn more about the widget macros syntax see [`widget_set!`].
@@ -183,9 +183,8 @@ pub mod builder {
 ///     }
 /// }
 ///
-/// # fn main() {
+/// # fn example() {
 /// # use zng::prelude::*;
-/// # let _scope = APP.defaults();
 /// # let _ =
 /// Wgt! {
 ///     custom::flag_state = true;
