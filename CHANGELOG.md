@@ -1,5 +1,8 @@
 # Unreleased
 
+* Change `APP.is_running` to only be `true` when the app is actually running.
+    - Add `APP.is_started` to track app lifetime start, during the app extensions setup.
+
 * Services that require an app extension to function now assert this on first use.
 
 * Fix feature `zng/config` not enabling required `zng/fs_watcher`.

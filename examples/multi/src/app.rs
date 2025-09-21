@@ -2,16 +2,15 @@ use zng::prelude::*;
 
 #[allow(unused)]
 pub fn run() {
-    let app = APP.defaults();
-    CONFIG.load(zng::config::JsonConfig::sync(zng::env::config("config.json")));
+    APP.defaults().run_window(async {
+        CONFIG.load(zng::config::JsonConfig::sync(zng::env::config("config.json")));
 
-    let res = zng::env::res("my-res.txt");
-    match std::fs::read_to_string(&res) {
-        Ok(res) => tracing::info!("resource read ok: {res}"),
-        Err(e) => tracing::error!("resource read error, cannot read '{}', {e}", res.display()),
-    }
+        let res = zng::env::res("my-res.txt");
+        match std::fs::read_to_string(&res) {
+            Ok(res) => tracing::info!("resource read ok: {res}"),
+            Err(e) => tracing::error!("resource read error, cannot read '{}', {e}", res.display()),
+        }
 
-    app.run_window(async {
         let count = CONFIG.get("count", 0u32);
         Window! {
             child = Button! {
