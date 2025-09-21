@@ -1395,6 +1395,10 @@ impl AppProcessService {
     pub(super) fn set_extensions(&mut self, info: AppExtensionsInfo) {
         self.extensions = Some(Arc::new(info));
     }
+
+    pub(super) fn is_running(&self) -> bool {
+        self.extensions.is_some()
+    }
 }
 
 /// App events.

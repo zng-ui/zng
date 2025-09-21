@@ -567,7 +567,17 @@ impl AppExtensionsInfo {
     #[track_caller]
     pub fn require<E: AppExtension>(&self) {
         let info = AppExtensionInfo::new::<E>();
-        assert!(self.contains_info(info), "app-extension `{info:?}` is required");
+        if !self.contains_info(info) {
+            let mut note = "";
+            if !APP.is_running() {
+                if APP.is_started() {
+                    note = "\nnote: the app is not running yet";
+                } else {
+                    note = "\nnote: no app is started in the current thread";
+                }
+            }
+            panic!("app-extension `{info:?}` is required{note}")
+        }
     }
 }
 impl ops::Deref for AppExtensionsInfo {
@@ -1075,16 +1085,27 @@ impl APP {
         cfg!(feature = "multi_app")
     }
 
-    /// If an app is already running in the current thread.
+    /// If an app started building or is running in the current thread.
     ///
-    /// Apps are *running* as soon as they start building, and stop running after
-    /// [`AppExtended::run`] returns or the [`HeadlessApp`] is dropped.
+    /// This is `true` as soon as `APP.minimal()` or `APP.defaults()` is called.
     ///
-    /// You can use [`app_local!`] to create *static* resources that live for the app lifetime.
+    /// You can use [`app_local!`] to create *static* resources that live for the app lifetime, these statics can be used
+    /// as soon as this is `true`.
     ///
     /// [`app_local!`]: zng_app_context::app_local
-    pub fn is_running(&self) -> bool {
+    pub fn is_started(&self) -> bool {
         LocalContext::current_app().is_some()
+    }
+
+    /// If an app is running in the current thread.
+    ///
+    /// Apps are *running* as soon as [`run`], [`run_headless`] or `run_window` are called.
+    /// This will remain `true` until run returns or the [`HeadlessApp`] is dropped.
+    ///
+    /// [`run`]: AppExtended::run
+    /// [`run_headless`]: AppExtended::run_headless
+    pub fn is_running(&self) -> bool {
+        self.is_started() && APP_PROCESS_SV.read().is_running()
     }
 
     /// Gets the unique ID of the current app.
