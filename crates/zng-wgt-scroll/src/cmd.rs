@@ -315,7 +315,7 @@ pub struct ScrollRequest {
     /// the range for the request only.
     pub clamp: (f32, f32),
 
-    /// !!: TODO
+    /// Apply the change immediately, no easing/smooth animation.
     pub skip_animation: bool,
 }
 impl Default for ScrollRequest {
@@ -562,7 +562,7 @@ fn scroll_to_impl(target: Option<WidgetInfo>, mode: ScrollToMode, zoom: Option<F
                     target: ScrollToTarget::Descendant(t),
                     mode: mode.clone(),
                     zoom,
-                    skip_animation: false, // !!: TODO
+                    skip_animation: false,
                 });
                 t = a.id();
             }

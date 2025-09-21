@@ -293,6 +293,16 @@ pub fn scrollbar_joiner_presenter() -> UiNode {
     SCROLLBAR_JOINER_FN_VAR.present_data(())
 }
 
+macro_rules! skip_animation {
+    ($skip:expr, $op:expr) => {
+        if $skip {
+            SMOOTH_SCROLLING_VAR.with_context_var(zng_var::ContextInitHandle::current(), false, || $op)
+        } else {
+            $op
+        }
+    };
+}
+
 /// Create a node that implements [`SCROLL_UP_CMD`], [`SCROLL_DOWN_CMD`],
 /// [`SCROLL_LEFT_CMD`] and [`SCROLL_RIGHT_CMD`] scoped on the widget.
 pub fn scroll_commands_node(child: impl IntoUiNode) -> UiNode {
@@ -343,7 +353,10 @@ pub fn scroll_commands_node(child: impl IntoUiNode) -> UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_vertical_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
+                    skip_animation! {
+                        args.skip_animation,
+                        SCROLL.scroll_vertical_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1)
+                    }
                 });
             } else if let Some(args) = SCROLL_DOWN_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&down, |_| {
@@ -352,7 +365,10 @@ pub fn scroll_commands_node(child: impl IntoUiNode) -> UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_vertical_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
+                    skip_animation! {
+                        args.skip_animation,
+                        SCROLL.scroll_vertical_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1)
+                    }
                 });
             } else if let Some(args) = SCROLL_LEFT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&left, |_| {
@@ -361,7 +377,10 @@ pub fn scroll_commands_node(child: impl IntoUiNode) -> UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_horizontal_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
+                    skip_animation! {
+                        args.skip_animation,
+                        SCROLL.scroll_horizontal_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1)
+                    }
                 });
             } else if let Some(args) = SCROLL_RIGHT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&right, |_| {
@@ -370,7 +389,10 @@ pub fn scroll_commands_node(child: impl IntoUiNode) -> UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_horizontal_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
+                    skip_animation! {
+                        args.skip_animation,
+                        SCROLL.scroll_horizontal_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1)
+                    }
                 });
             }
         }
@@ -437,7 +459,10 @@ pub fn page_commands_node(child: impl IntoUiNode) -> UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_vertical_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
+                    skip_animation! {
+                        args.skip_animation,
+                        SCROLL.scroll_vertical_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1)
+                    }
                 });
             } else if let Some(args) = PAGE_DOWN_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&down, |_| {
@@ -446,7 +471,10 @@ pub fn page_commands_node(child: impl IntoUiNode) -> UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_vertical_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
+                    skip_animation! {
+                        args.skip_animation,
+                        SCROLL.scroll_vertical_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1)
+                    }
                 });
             } else if let Some(args) = PAGE_LEFT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&left, |_| {
@@ -455,7 +483,10 @@ pub fn page_commands_node(child: impl IntoUiNode) -> UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_horizontal_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
+                    skip_animation! {
+                        args.skip_animation,
+                        SCROLL.scroll_horizontal_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1)
+                    }
                 });
             } else if let Some(args) = PAGE_RIGHT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&right, |_| {
@@ -464,7 +495,10 @@ pub fn page_commands_node(child: impl IntoUiNode) -> UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_horizontal_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
+                    skip_animation! {
+                        args.skip_animation,
+                        SCROLL.scroll_horizontal_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1)
+                    }
                 });
             }
         }
@@ -608,12 +642,9 @@ pub fn zoom_commands_node(child: impl IntoUiNode) -> UiNode {
                 args.handle_enabled(&zoom_to_fit, |args| {
                     let scale = fit_scale();
                     if let Some(p) = ZoomToFitRequest::from_args(args) {
-                        if p.skip_animation {
-                            SMOOTH_SCROLLING_VAR.with_context_var(zng_var::ContextInitHandle::current(), false, || {
-                                SCROLL.chase_zoom(|_| scale);
-                            });
-                        } else {
-                            SCROLL.chase_zoom(|_| scale);
+                        skip_animation! {
+                            p.skip_animation,
+                            SCROLL.chase_zoom(|_| scale)
                         }
                     } else {
                         SCROLL.chase_zoom(|_| scale);
@@ -743,7 +774,7 @@ pub fn scroll_to_node(child: impl IntoUiNode) -> UiNode {
                                         scroll = !is_large_visible_v && !is_large_visible_h;
                                     }
                                     if scroll {
-                                        scroll_to = Some((Rect::from(target_bounds), mode, None, false));
+                                        scroll_to = Some((Rect::from(target_bounds), mode, None, false, false));
                                         WIDGET.layout();
                                     }
                                 }
@@ -763,7 +794,13 @@ pub fn scroll_to_node(child: impl IntoUiNode) -> UiNode {
                                 if let Some(us) = target.ancestors().find(|w| w.id() == self_id) {
                                     // target is descendant
                                     if us.is_scroll() {
-                                        scroll_to = Some((Rect::from(target.inner_bounds()), request.mode, request.zoom, false));
+                                        scroll_to = Some((
+                                            Rect::from(target.inner_bounds()),
+                                            request.mode,
+                                            request.zoom,
+                                            false,
+                                            request.skip_animation,
+                                        ));
                                         scroll_to_from_cmd = true;
                                         WIDGET.layout();
 
@@ -773,7 +810,7 @@ pub fn scroll_to_node(child: impl IntoUiNode) -> UiNode {
                             }
                         }
                         ScrollToTarget::Rect(rect) => {
-                            scroll_to = Some((rect, request.mode, request.zoom, true));
+                            scroll_to = Some((rect, request.mode, request.zoom, true, request.skip_animation));
                             scroll_to_from_cmd = true;
                             WIDGET.layout();
 
@@ -786,7 +823,7 @@ pub fn scroll_to_node(child: impl IntoUiNode) -> UiNode {
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = child.layout(wl);
 
-            if let Some((bounds, mode, mut zoom, in_content)) = scroll_to.take() {
+            if let Some((bounds, mode, mut zoom, in_content, skip_animation)) = scroll_to.take() {
                 scroll_to_from_cmd = false;
                 let tree = WINDOW.info();
                 let us = tree.get(WIDGET.id()).unwrap();
@@ -928,7 +965,10 @@ pub fn scroll_to_node(child: impl IntoUiNode) -> UiNode {
                     let max_scroll = content_size - viewport_size;
 
                     // apply
-                    if let Some(scale) = zoom {
+                    skip_animation! {
+                        skip_animation,
+                        {
+                            if let Some(scale) = zoom {
                         SCROLL.chase_zoom(|_| scale);
                     }
                     if offset.y != Px::MAX && max_scroll.height > Px(0) {
@@ -938,6 +978,8 @@ pub fn scroll_to_node(child: impl IntoUiNode) -> UiNode {
                     if offset.x != Px::MAX && max_scroll.width > Px(0) {
                         let offset_x = offset.x.0 as f32 / max_scroll.width.0 as f32;
                         SCROLL.chase_horizontal(|_| offset_x.fct());
+                    }
+                        }
                     }
                 }
             }
