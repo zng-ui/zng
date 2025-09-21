@@ -12,9 +12,6 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["debug_default"]
-# **deprecated** enable needed features directly
-debug_default = ["live"]
 # Compiles the interactive inspector.
 live = []
 # Compiles the debug crash handler.

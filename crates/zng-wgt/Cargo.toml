@@ -12,14 +12,6 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["debug_default"]
-
-# **deprecated** enable needed features directly.
-debug_default = ["zng-var/debug_default"]
-
-# **deprecated** no longer needed
-dyn_closure = []
-
 # Enable web tasks.
 http = ["zng-task/http"]
 

@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 83 feature flags, 1 enabled by default.
+This crate provides 80 feature flags, 1 enabled by default.
 
 #### `"dev"`
 Defaults recommended for the dev profile (debug builds).
@@ -93,9 +93,6 @@ release = [
 
 *Enabled by default.*
 
-#### `"debug_default"`
-**deprecated** use "dev"
-
 #### `"view"`
 Include the default view-process implementation.
 
@@ -112,9 +109,6 @@ Enables HTTP tasks and web features of widgets and services.
 #### `"svg"`
 Enable SVG image rendering, SVG emoji support.
 
-#### `"dyn_node"`
-**deprecated** no longer needed
-
 #### `"inspector"`
 Instrument each property and widget instance with "Inspector" nodes and
 extend windows to be inspected on Ctrl+Shift+I.
@@ -130,9 +124,6 @@ Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_o
 Use dynamic dispatch at the app-extension level.
 
 This speeds-up compilation time at the cost of runtime.
-
-#### `"dyn_closure"`
-**deprecated** no longer needed
 
 #### `"test_util"`
 Test utilities.
@@ -301,7 +292,7 @@ Enable drag&drop.
 Enable grid widget.
 
 #### `"image"`
-Enable image service and widget.
+Enable image service, widgets, window icons, image cursors, frame capturing.
 
 #### `"markdown"`
 Enable markdown widget.

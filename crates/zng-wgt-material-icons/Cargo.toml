@@ -12,8 +12,6 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["embedded", "outlined", "filled", "rounded", "sharp"]
-
 # Embedded font files.
 embedded = []
 

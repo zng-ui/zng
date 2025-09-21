@@ -84,15 +84,6 @@ dev = [
     "var_type_names",
 ]
 
-# **deprecated** use "dev"
-debug_default = [
-    "dev",
-    "zng-app/debug_default",
-    "zng-wgt-inspector?/debug_default",
-    "zng-wgt-scroll/debug_default",
-    "zng-wgt-window/debug_default",
-]
-
 # Include the default view-process implementation.
 #
 # Only enables in `not(target_arch = "wasm32")` builds.
@@ -113,9 +104,6 @@ http = [
 # Enable SVG image rendering, SVG emoji support.
 svg = ["dep:zng-ext-svg", "zng-ext-font/svg"]
 
-# **deprecated** no longer needed
-dyn_node = []
-
 # Instrument each property and widget instance with "Inspector" nodes and
 # extend windows to be inspected on Ctrl+Shift+I.
 inspector = ["dep:zng-wgt-inspector", "zng-app/inspector", "zng-wgt-inspector/live"]
@@ -131,9 +119,6 @@ hot_reload = ["dep:zng-ext-hot-reload"]
 #
 # This speeds-up compilation time at the cost of runtime.
 dyn_app_extension = ["zng-app/dyn_app_extension"]
-
-# **deprecated** no longer needed
-dyn_closure = []
 
 # Test utilities.
 test_util = [

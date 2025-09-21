@@ -725,17 +725,6 @@ impl PxConstraints2d {
     /// Gets if the context prefers the maximum length over the minimum.
     ///
     /// Note that if the constraints are unbounded there is not maximum length, in this case the fill length is the minimum.
-    #[deprecated = "use the `is_fill` method"]
-    pub fn is_fill_pref(self) -> BoolVector2D {
-        BoolVector2D {
-            x: self.x.is_fill(),
-            y: self.y.is_fill(),
-        }
-    }
-
-    /// Gets if the context prefers the maximum length over the minimum.
-    ///
-    /// Note that if the constraints are unbounded there is not maximum length, in this case the fill length is the minimum.
     pub fn is_fill(self) -> BoolVector2D {
         BoolVector2D {
             x: self.x.is_fill(),

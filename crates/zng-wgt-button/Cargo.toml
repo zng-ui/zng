@@ -12,7 +12,6 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["tooltip"]
 # Enable tooltip in cmd buttons.
 tooltip = ["dep:zng-wgt-tooltip", "dep:zng-wgt-shortcut", "dep:zng-wgt-stack"]
 

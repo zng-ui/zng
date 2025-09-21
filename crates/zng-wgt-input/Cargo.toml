@@ -12,8 +12,6 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = []
-
 # Enable drag&drop.
 drag_drop = ["zng-ext-input/drag_drop"]
 # Enable image cursor.

@@ -11,13 +11,6 @@ repository = "https://github.com/zng-ui/zng"
 categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
-[features]
-default = []
-# **deprecated** no longer needed
-debug_default = []
-# **deprecated** no longer needed
-dyn_closure = []
-
 [dependencies]
 zng-wgt = { path = "../zng-wgt", version = "0.9.6", default-features = false }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.6.6", default-features = false }

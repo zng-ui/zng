@@ -12,7 +12,6 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["named"]
 # Enable associated names for ID types.
 named = ["dep:zng-txt", "dep:parking_lot"]
 # Enable `static` patching for ID types.
