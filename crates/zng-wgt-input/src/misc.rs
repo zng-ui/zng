@@ -9,7 +9,10 @@ use zng_wgt::prelude::*;
 
 pub use zng_view_api::window::CursorIcon;
 
-pub use zng_ext_window::{CursorImg, CursorSource};
+pub use zng_ext_window::CursorSource;
+
+#[cfg(feature = "image")]
+pub use zng_ext_window::CursorImg;
 
 context_local! {
     static CHILD_SETS_CURSOR: AtomicBool = AtomicBool::new(false);
@@ -19,6 +22,8 @@ context_local! {
 ///
 /// You can set this property to a [`CursorIcon`] for a named platform dependent icon, [`CursorImg`] for a custom image,
 /// or to `false` that converts to [`CursorSource::Hidden`].
+///
+/// [`CursorImg`]: zng_ext_window::CursorImg
 #[property(CONTEXT, default(CursorIcon::Default))]
 pub fn cursor(child: impl IntoUiNode, cursor: impl IntoVar<CursorSource>) -> UiNode {
     let cursor = cursor.into_var();

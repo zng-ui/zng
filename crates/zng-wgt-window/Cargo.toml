@@ -18,6 +18,9 @@ debug_default = ["zng-wgt/debug_default"]
 # **deprecated** no longer needed
 dyn_closure = ["zng-wgt/dyn_closure"]
 
+# Enable image related properties, frame image.
+image = ["zng-ext-window/image"]
+
 [dependencies]
 zng-wgt = { path = "../zng-wgt", version = "0.9.6", default-features = false }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.8.6", default-features = false }

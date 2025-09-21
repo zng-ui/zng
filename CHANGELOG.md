@@ -17,6 +17,7 @@ This release contains breaking changes that affect the build and app startup.
 
 * **Breaking** Renamed `ModifiersState` LOGO -> SUPER that was missed from a previous rename.
 * **Breaking** Syntax of the advanced `font_variations!` macro changed to better integrate with `cargo zng fmt`.
+* **Breaking** Advanced Window API crate `zng-ext-window` now has feature `"image"` for optionally compiling image API.
 
 * Fix feature `zng/config` not enabling required `zng/fs_watcher`.
 

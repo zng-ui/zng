@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
+use crate::{AutoSize, CursorSource, MonitorQuery, WindowIcon};
 use zng_app::{
     widget::{WidgetId, base::Parallel, info::access::AccessEnabled},
     window::{MonitorId, WINDOW, WindowId},
 };
 use zng_color::LightDark;
-use zng_ext_image::Img;
 use zng_layout::unit::{
     Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, Size,
 };
@@ -18,13 +18,18 @@ use zng_view_api::{
     window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState},
 };
 
-use crate::{AutoSize, CursorSource, FrameCaptureMode, MonitorQuery, WindowIcon};
+#[cfg(feature = "image")]
+use crate::FrameCaptureMode;
+#[cfg(feature = "image")]
+use zng_ext_image::Img;
 
 pub(super) struct WindowVarsData {
     chrome: Var<bool>,
     icon: Var<WindowIcon>,
+    #[cfg(feature = "image")]
     pub(super) actual_icon: Var<Option<Img>>,
     cursor: Var<CursorSource>,
+    #[cfg(feature = "image")]
     pub(super) actual_cursor_img: Var<Option<(Img, PxPoint)>>,
     title: Var<Txt>,
 
@@ -77,6 +82,7 @@ pub(super) struct WindowVarsData {
     pub(super) is_open: Var<bool>,
     pub(super) is_loaded: Var<bool>,
 
+    #[cfg(feature = "image")]
     frame_capture_mode: Var<FrameCaptureMode>,
     pub(super) render_mode: Var<RenderMode>,
 
@@ -101,8 +107,10 @@ impl WindowVars {
         let vars = Arc::new(WindowVarsData {
             chrome: var(true),
             icon: var(WindowIcon::Default),
+            #[cfg(feature = "image")]
             actual_icon: var(None),
             cursor: var_from(CursorIcon::Default),
+            #[cfg(feature = "image")]
             actual_cursor_img: var(None),
             title: var(zng_env::about().app.clone()),
 
@@ -159,6 +167,7 @@ impl WindowVars {
             is_open: var(true),
             is_loaded: var(false),
 
+            #[cfg(feature = "image")]
             frame_capture_mode: var(FrameCaptureMode::Sporadic),
             render_mode: var(default_render_mode),
 
@@ -214,6 +223,7 @@ impl WindowVars {
     ///
     /// [`icon`]: Self::icon
     /// [`Img`]: zng_ext_image::Img
+    #[cfg(feature = "image")]
     pub fn actual_icon(&self) -> Var<Option<Img>> {
         self.0.actual_icon.read_only()
     }
@@ -238,6 +248,7 @@ impl WindowVars {
     /// [`cursor`]: Self::cursor
     /// [`Img`]: zng_ext_image::Img
     /// [`PxPoint`]: zng_layout::unit::PxPoint
+    #[cfg(feature = "image")]
     pub fn actual_cursor_img(&self) -> Var<Option<(Img, PxPoint)>> {
         self.0.actual_cursor_img.read_only()
     }
@@ -701,6 +712,7 @@ impl WindowVars {
     /// [`Next`]: FrameCaptureMode::Next
     /// [`Sporadic`]: FrameCaptureMode::Sporadic
     /// [`WIDGET.render_update`]: zng_app::widget::WIDGET::render_update
+    #[cfg(feature = "image")]
     pub fn frame_capture_mode(&self) -> Var<FrameCaptureMode> {
         self.0.frame_capture_mode.clone()
     }

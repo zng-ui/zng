@@ -315,7 +315,7 @@ pub struct ScrollRequest {
     /// the range for the request only.
     pub clamp: (f32, f32),
 
-    // !!: TODO
+    /// !!: TODO
     pub skip_animation: bool,
 }
 impl Default for ScrollRequest {
@@ -410,10 +410,20 @@ pub struct ScrollToRequest {
     /// change is not accounted for when calculating minimal.
     pub zoom: Option<Factor>,
 
-    /// !!: TODO
+    /// If should scroll immediately to the target, no smooth animation.
     pub skip_animation: bool,
 }
 impl ScrollToRequest {
+    /// New with target and mode.
+    pub fn new(target: impl Into<ScrollToTarget>, mode: impl Into<ScrollToMode>) -> Self {
+        Self {
+            target: target.into(),
+            mode: mode.into(),
+            zoom: None,
+            skip_animation: false,
+        }
+    }
+
     /// Pack the request into a command parameter.
     pub fn to_param(self) -> CommandParam {
         CommandParam::new(self)

@@ -138,11 +138,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> UiNode {
                 "(center)"
             }
         );
-        cmd_param = cmd::ScrollToRequest {
-            target: target.into(),
-            mode: mode.clone(),
-            zoom: None,
-        };
+        cmd_param = cmd::ScrollToRequest::new(target, mode.clone());
         cmd;
     }
 }
@@ -153,10 +149,10 @@ fn scroll_to_zoom_btn(target: WidgetId, zoom: layout::FactorPercent) -> UiNode {
     let cmd = cmd::SCROLL_TO_CMD.scoped(scroll);
     Button! {
         child = Text!("Scroll To {} (minimal) at {}", target, zoom);
-        cmd_param = cmd::ScrollToRequest {
-            target: target.into(),
-            mode: ScrollToMode::minimal(10),
-            zoom: Some(zoom.into()),
+        cmd_param = {
+            let mut req = cmd::ScrollToRequest::new(target, ScrollToMode::minimal(10));
+            req.zoom = Some(zoom.into());
+            req
         };
         cmd;
     }
@@ -177,11 +173,7 @@ fn scroll_to_rect(target: layout::Rect, mode: ScrollToMode) -> UiNode {
                 "(center)"
             }
         );
-        cmd_param = cmd::ScrollToRequest {
-            target: target.clone().into(),
-            mode: mode.clone(),
-            zoom: None,
-        };
+        cmd_param = cmd::ScrollToRequest::new(target.clone(), mode.clone());
         cmd;
     }
 }

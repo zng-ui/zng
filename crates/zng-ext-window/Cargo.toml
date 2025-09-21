@@ -14,7 +14,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [features]
 # Enable test util methods, `doc_test_window`.
 test_util = []
-# !!: TODO Integrate with the IMAGES rendering service. 
+# Enable images, icon, frame capture, integrate with the IMAGES rendering service. 
 image = ["zng-ext-image"]
 # Implement conversions from http types.
 http = ["zng-task/http", "zng-ext-image?/http"]

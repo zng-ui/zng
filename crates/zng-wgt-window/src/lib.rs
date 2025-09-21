@@ -14,8 +14,8 @@ zng_wgt::enable_widget_macros!();
 
 use zng_ext_input::focus::{DirectionalNav, FocusScopeOnFocus, TabNav};
 use zng_ext_window::{
-    FrameImageReadyArgs, HeadlessMonitor, RenderMode, StartPosition, WINDOW_Ext as _, WindowChangedArgs, WindowCloseArgs,
-    WindowCloseRequestedArgs, WindowOpenArgs, WindowRoot,
+    HeadlessMonitor, RenderMode, StartPosition, WINDOW_Ext as _, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs,
+    WindowOpenArgs, WindowRoot,
 };
 use zng_var::contextual_var;
 use zng_wgt::{is_mobile, prelude::*};
@@ -24,6 +24,9 @@ use zng_wgt_input::focus::{
     FOCUS_HIGHLIGHT_OFFSETS_VAR, FOCUS_HIGHLIGHT_WIDTHS_VAR, directional_nav, focus_highlight, focus_scope, focus_scope_behavior, tab_nav,
 };
 use zng_wgt_text::{FONT_SIZE_VAR, font_color, lang};
+
+#[cfg(feature = "image")]
+use zng_ext_window::FrameImageReadyArgs;
 
 pub mod events;
 mod window_properties;
@@ -351,6 +354,7 @@ pub fn on_exited_fullscreen(child: impl IntoUiNode, handler: impl WidgetHandler<
 /// On window frame rendered.
 ///
 /// If [`frame_capture_mode`](fn@frame_capture_mode) is set the image will be available in the event args.
+#[cfg(feature = "image")]
 #[property(EVENT, widget_impl(Window))]
 pub fn on_frame_image_ready(child: impl IntoUiNode, handler: impl WidgetHandler<FrameImageReadyArgs>) -> UiNode {
     events::on_pre_frame_image_ready(child, handler)

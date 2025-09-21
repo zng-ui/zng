@@ -3,14 +3,17 @@ use std::time::Duration;
 use zng_app::widget::base::Parallel;
 use zng_ext_config::{AnyConfig as _, CONFIG, ConfigKey, ConfigStatus, ConfigValue};
 use zng_ext_window::{
-    AutoSize, FrameCaptureMode, MONITORS, MonitorQuery, WINDOW_Ext as _, WINDOW_LOAD_EVENT, WINDOWS, WindowButton, WindowIcon,
-    WindowLoadingHandle, WindowState, WindowVars,
+    AutoSize, MONITORS, MonitorQuery, WINDOW_Ext as _, WINDOW_LOAD_EVENT, WINDOWS, WindowButton, WindowIcon, WindowLoadingHandle,
+    WindowState, WindowVars,
 };
 use zng_var::AnyVar;
 use zng_wgt::prelude::*;
 
 use serde::{Deserialize, Serialize};
 use zng_wgt_layer::adorner_fn;
+
+#[cfg(feature = "image")]
+use zng_ext_window::FrameCaptureMode;
 
 use super::Window;
 
@@ -82,11 +85,13 @@ set_properties! {
     color_scheme: Option<ColorScheme>,
     accent_color: Option<LightDark>,
 
-    frame_capture_mode: FrameCaptureMode,
-
     enabled_buttons: WindowButton,
 
     parallel: Parallel,
+}
+#[cfg(feature = "image")]
+set_properties! {
+    frame_capture_mode: FrameCaptureMode,
 }
 
 macro_rules! map_properties {

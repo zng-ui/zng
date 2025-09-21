@@ -22,6 +22,9 @@ live = []
 # Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_os = "ios"))` builds.
 crash_handler = ["zng-app/crash_handler", "dep:open"]
 
+# Enable screenshot capture.
+image = ["zng-ext-window/image"]
+
 [dependencies]
 zng-wgt = { path = "../zng-wgt", version = "0.9.6", default-features = false }
 zng-app = { path = "../zng-app", version = "0.17.6", default-features = false }
