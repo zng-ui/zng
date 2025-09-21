@@ -685,7 +685,7 @@ mod __prelude {
     };
 
     #[cfg(feature = "rule_line")]
-    pub use zng_wgt_rule_line::hr::Hr;
+    pub use zng_wgt_rule_line::{hr::Hr, vr::Vr};
 
     #[cfg(feature = "scroll")]
     pub use zng_wgt_scroll::{SCROLL, Scroll};

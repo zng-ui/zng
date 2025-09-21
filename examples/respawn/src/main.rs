@@ -100,7 +100,7 @@ fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) {
                                 panic!("Test dialog-process crash!");
                             });
                         },
-                        zng::rule_line::vr::Vr!(),
+                        Vr!(),
                         Button! {
                             child = Text!("Restart App");
                             on_click = hn_once!(args, |_| {

@@ -41,7 +41,7 @@
 //!     zng::rule_line::collapse_scope = true;
 //!     children = ui_vec![
 //!         Button!(zng::app::OPEN_CMD.scoped(WINDOW.id())),
-//!         zng::rule_line::vr::Vr!(),
+//!         Vr!(),
 //!         Button!(zng::clipboard::COPY_CMD.scoped("content")),
 //!         Button!(zng::clipboard::PASTE_CMD.scoped("content")),
 //!     ];
