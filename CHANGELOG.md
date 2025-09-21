@@ -2,7 +2,7 @@
 
 This release contains breaking changes that affect the build and app startup.
 
-* **Breaking** Removed deprecated crate features.
+* **Breaking** Removed deprecated crate features and deprecated items.
 
     To migrate, first update to latest `0.16` version and build, since `0.16.3` building with deprecated features print
     a warning message with fix suggestions. The `0.16.3` release notes also contains details about the changes.
@@ -16,6 +16,7 @@ This release contains breaking changes that affect the build and app startup.
     with the default `zng-template`.
 
 * **Breaking** Renamed `ModifiersState` LOGO -> SUPER that was missed from a previous rename.
+* **Breaking** Syntax of the advanced `font_variations!` macro changed to better integrate with `cargo zng fmt`.
 
 * Fix feature `zng/config` not enabling required `zng/fs_watcher`.
 

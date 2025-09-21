@@ -61,7 +61,7 @@ blocking = { version = "1.5", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
 futures-timer = { version = "3.0", default-features = false }
 
-isahc = { version = "1.7", default-features = false, features = [ # TODO(breaking) replace this, it is holding back multiple other upgrades and development looks stale
+isahc = { version = "1.7", default-features = false, features = [
     "http2",
     "static-curl",
     "text-decoding",

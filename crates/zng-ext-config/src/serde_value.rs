@@ -13,7 +13,6 @@ use std::hash::{Hash, Hasher};
 pub use de::*;
 pub use ser::*;
 
-// TODO(breaking) represent every detail of serde API? Had some issues with RON serializing bitflags because some data details changed (like struct name)
 #[derive(Clone, Debug)]
 pub enum Value {
     Bool(bool),

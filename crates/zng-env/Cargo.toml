@@ -22,7 +22,7 @@ zng-env-proc-macros = { path = "../zng-env-proc-macros", version = "0.3.1", defa
 directories = { version = "6.0", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
-toml = { version = "0.9", default-features = false, features = ["parse"] }
+toml = { version = "0.9", default-features = false, features = ["parse", "std", "serde"] }
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 semver = { version = "1.0", default-features = false, features = ["std", "serde"] }
 

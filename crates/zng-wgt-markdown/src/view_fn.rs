@@ -22,14 +22,19 @@ use super::*;
 
 /// Markdown text run style.
 #[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct MarkdownStyle {
-    // TODO(breaking) non_exhaustive and add sub/superscript
     /// Bold.
     pub strong: bool,
     /// Italic.
     pub emphasis: bool,
     /// Strikethrough.
     pub strikethrough: bool,
+
+    /// !!: TODO
+    pub subscript: bool,
+    /// !!: TODO
+    pub superscript: bool,
 }
 
 /// Arguments for a markdown text view.

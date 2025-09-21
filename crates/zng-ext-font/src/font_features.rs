@@ -1848,16 +1848,16 @@ impl fmt::Debug for FontVariations {
 /// # use zng_ext_font::font_features::*;
 /// # fn assert_type(_: FontVariations) { }
 /// let variations = font_variations! {
-///     b"SKLA": 1000.0,
-///     b"TRMG": 750.0
+///     b"SKLA" => 1000.0,
+///     b"TRMG" => 750.0
 /// };
 /// # assert_type(variations);
 /// ```
 #[macro_export]
 macro_rules! font_variations {
     [$(
-        $name:tt : $value: expr
-    ),* $(,)?] => { // TODO(breaking) change syntax to name => value for better support by zng fmt
+        $name:tt => $value: expr
+    ),* $(,)?] => {
         $crate::font_features::FontVariations::from_pairs(&[
             $(
                 ($name.into(), $value),

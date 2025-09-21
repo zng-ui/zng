@@ -302,7 +302,8 @@ impl ZoomToFitRequest {
 }
 
 /// Parameters for the scroll and page commands.
-#[derive(Debug, Clone, PartialEq)] // TODO(breaking) non_exhaustive, add skip_animation
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct ScrollRequest {
     /// If the [alt factor] should be applied to the base scroll unit when scrolling.
     ///
@@ -313,12 +314,16 @@ pub struct ScrollRequest {
     /// Note that the commands are enabled and disabled for the full range, this parameter controls
     /// the range for the request only.
     pub clamp: (f32, f32),
+
+    // !!: TODO
+    pub skip_animation: bool,
 }
 impl Default for ScrollRequest {
     fn default() -> Self {
         Self {
             alternate: Default::default(),
             clamp: (f32::MIN, f32::MAX),
+            skip_animation: false,
         }
     }
 }
@@ -387,6 +392,7 @@ impl_from_and_into_var! {
 
 /// Parameters for the [`SCROLL_TO_CMD`].
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct ScrollToRequest {
     /// Area that will be scrolled into view.
     pub target: ScrollToTarget,
@@ -403,7 +409,9 @@ pub struct ScrollToRequest {
     /// Note that the viewport size can change due to a scrollbar visibility changing, this size
     /// change is not accounted for when calculating minimal.
     pub zoom: Option<Factor>,
-    // TODO(breaking) non_exhaustive + skip_animation
+
+    /// !!: TODO
+    pub skip_animation: bool,
 }
 impl ScrollToRequest {
     /// Pack the request into a command parameter.
@@ -428,6 +436,7 @@ impl ScrollToRequest {
                 },
                 mode: ScrollToMode::default(),
                 zoom: None,
+                skip_animation: false,
             })
         }
     }
@@ -543,6 +552,7 @@ fn scroll_to_impl(target: Option<WidgetInfo>, mode: ScrollToMode, zoom: Option<F
                     target: ScrollToTarget::Descendant(t),
                     mode: mode.clone(),
                     zoom,
+                    skip_animation: false, // !!: TODO
                 });
                 t = a.id();
             }

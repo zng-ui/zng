@@ -293,8 +293,8 @@ context_var! {
     ///
     /// [`L10N.app_lang`]: L10N::app_lang
     pub static LANG_VAR: Langs = {
-        // TODO(breaking) crate feature that removes LANG_VAR usage in widget crates, this
-        // is a hack to avoid new assert panics.
+        // !!: TODO crate feature that removes LANG_VAR usage in widget crates, this
+        // is a hack to avoid new assert panics. Actually maybe move the Lang type somewhere else
         if zng_app::APP.extensions().contains::<crate::L10nManager>() {
             L10N.app_lang()
         } else {

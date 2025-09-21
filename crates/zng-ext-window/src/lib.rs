@@ -38,7 +38,6 @@ use zng_app::{
     view_process::raw_events::{RAW_WINDOW_FOCUS_EVENT, RawWindowFocusArgs},
     window::WindowId,
 };
-use zng_ext_image::{IMAGES_WINDOW, ImageManager, ImageVar};
 use zng_view_api::image::ImageMaskMode;
 
 pub mod cmd;
@@ -71,10 +70,8 @@ pub mod cmd;
 pub struct WindowManager {}
 impl AppExtension for WindowManager {
     fn init(&mut self) {
-        if APP.extensions().contains::<ImageManager>() {
-            // TODO(breaking) feature?
-            IMAGES_WINDOW.hook_render_windows_service(Box::new(WINDOWS));
-        }
+        #[cfg(feature = "image")]
+        zng_ext_image::IMAGES_WINDOW.hook_render_windows_service(Box::new(WINDOWS));
     }
 
     fn event_preview(&mut self, update: &mut EventUpdate) {
