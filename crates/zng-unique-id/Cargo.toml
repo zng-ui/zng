@@ -22,7 +22,7 @@ hot_reload = ["dep:linkme"]
 
 [dependencies]
 rayon = { version = "1.10", default-features = false }
-hashbrown = { version = "0.16", default-features = false, features = ["rayon"] } # !!: TODO remove from public API by replacing type alias with new types
+hashbrown = { version = "0.16", default-features = false, features = ["rayon"] }
 tracing = { version = "0.1", default-features = false }
 pastey = { version = "0.1", default-features = false }
 once_cell = { version = "1.19", default-features = false, features = ["parking_lot", "std"] }
