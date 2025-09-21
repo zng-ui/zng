@@ -13,7 +13,7 @@ zng = { path = "../../crates/zng", features = [
 ] }
 # use ZNG_VIEW_NO_INIT_START to manually select witch.
 zng-view-prebuilt = { path = "../../crates/zng-view-prebuilt" }
-zng-view = { path = "../../crates/zng-view" }
+zng-view = { path = "../../crates/zng-view", features = ["ipc", "software"] }
 
 color-print = "0.3"
 tracing = "0.1"
