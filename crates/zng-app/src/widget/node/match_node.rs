@@ -174,17 +174,17 @@ pub enum UiNodeOp<'a> {
 }
 impl<'a> UiNodeOp<'a> {
     /// Gets the operation without the associated data.
-    pub fn mtd(&self) -> UiNodeOpMethod {
+    pub fn mtd(&self) -> UiNodeMethod {
         match self {
-            UiNodeOp::Init => UiNodeOpMethod::Init,
-            UiNodeOp::Deinit => UiNodeOpMethod::Deinit,
-            UiNodeOp::Info { .. } => UiNodeOpMethod::Info,
-            UiNodeOp::Event { .. } => UiNodeOpMethod::Event,
-            UiNodeOp::Update { .. } => UiNodeOpMethod::Update,
-            UiNodeOp::Measure { .. } => UiNodeOpMethod::Measure,
-            UiNodeOp::Layout { .. } => UiNodeOpMethod::Layout,
-            UiNodeOp::Render { .. } => UiNodeOpMethod::Render,
-            UiNodeOp::RenderUpdate { .. } => UiNodeOpMethod::RenderUpdate,
+            UiNodeOp::Init => UiNodeMethod::Init,
+            UiNodeOp::Deinit => UiNodeMethod::Deinit,
+            UiNodeOp::Info { .. } => UiNodeMethod::Info,
+            UiNodeOp::Event { .. } => UiNodeMethod::Event,
+            UiNodeOp::Update { .. } => UiNodeMethod::Update,
+            UiNodeOp::Measure { .. } => UiNodeMethod::Measure,
+            UiNodeOp::Layout { .. } => UiNodeMethod::Layout,
+            UiNodeOp::Render { .. } => UiNodeMethod::Render,
+            UiNodeOp::RenderUpdate { .. } => UiNodeMethod::RenderUpdate,
         }
     }
 
@@ -213,66 +213,86 @@ impl fmt::Debug for UiNodeOp<'_> {
     }
 }
 
-/// Identifies an [`UiNodeOp`] method without the associated data.
+/// Identifies the [`UiNode`] UI methods.
 #[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
-pub enum UiNodeOpMethod {
-    /// The [`UiNodeOp::Init`].
+pub enum UiNodeMethod {
+    /// The [`UiNode::init`].
     Init,
-    /// The [`UiNodeOp::Deinit`].
+    /// The [`UiNode::deinit`].
     Deinit,
-    /// The [`UiNodeOp::Info`].
+    /// The [`UiNode::info`].
     Info,
-    /// The [`UiNodeOp::Event`].
+    /// The [`UiNode::event`].
     Event,
-    /// The [`UiNodeOp::Update`].
+    /// The [`UiNode::update`].
     Update,
-    /// The [`UiNodeOp::Measure`].
+    /// The [`UiNode::update_list`]
+    UpdateList,
+    /// The [`UiNode::measure`].
     Measure,
-    /// The [`UiNodeOp::Layout`].
+    /// The [`UiNode::measure_list`].
+    MeasureList,
+    /// The [`UiNode::layout`].
     Layout,
-    /// The [`UiNodeOp::Render`].
+    /// The [`UiNode::layout_list`].
+    LayoutList,
+    /// The [`UiNode::render`].
     Render,
-    /// The [`UiNodeOp::RenderUpdate`].
+    /// The [`UiNode::render_list`].
+    RenderList,
+    /// The [`UiNode::render_update`].
     RenderUpdate,
+    /// The [`UiNode::render_update_list`].
+    RenderUpdateList,
 }
-impl UiNodeOpMethod {
+impl UiNodeMethod {
     /// Gets an static string representing the enum variant (CamelCase).
     pub fn enum_name(self) -> &'static str {
         match self {
-            UiNodeOpMethod::Init => "Init",
-            UiNodeOpMethod::Deinit => "Deinit",
-            UiNodeOpMethod::Info => "Info",
-            UiNodeOpMethod::Event => "Event",
-            UiNodeOpMethod::Update => "Update",
-            UiNodeOpMethod::Measure => "Measure",
-            UiNodeOpMethod::Layout => "Layout",
-            UiNodeOpMethod::Render => "Render",
-            UiNodeOpMethod::RenderUpdate => "RenderUpdate",
+            UiNodeMethod::Init => "Init",
+            UiNodeMethod::Deinit => "Deinit",
+            UiNodeMethod::Info => "Info",
+            UiNodeMethod::Event => "Event",
+            UiNodeMethod::Update => "Update",
+            UiNodeMethod::UpdateList => "UpdateList",
+            UiNodeMethod::Measure => "Measure",
+            UiNodeMethod::MeasureList => "MeasureList",
+            UiNodeMethod::Layout => "Layout",
+            UiNodeMethod::LayoutList => "LayoutList",
+            UiNodeMethod::Render => "Render",
+            UiNodeMethod::RenderList => "RenderList",
+            UiNodeMethod::RenderUpdate => "RenderUpdate",
+            UiNodeMethod::RenderUpdateList => "RenderUpdateList",
         }
     }
 
     /// Gets an static string representing the method name (snake_case).
     pub fn mtd_name(self) -> &'static str {
         match self {
-            UiNodeOpMethod::Init => "init",
-            UiNodeOpMethod::Deinit => "deinit",
-            UiNodeOpMethod::Info => "info",
-            UiNodeOpMethod::Event => "event",
-            UiNodeOpMethod::Update => "update",
-            UiNodeOpMethod::Measure => "measure",
-            UiNodeOpMethod::Layout => "layout",
-            UiNodeOpMethod::Render => "render",
-            UiNodeOpMethod::RenderUpdate => "render_update",
+            UiNodeMethod::Init => "init",
+            UiNodeMethod::Deinit => "deinit",
+            UiNodeMethod::Info => "info",
+            UiNodeMethod::Event => "event",
+            UiNodeMethod::Update => "update",
+            UiNodeMethod::UpdateList => "update_list",
+            UiNodeMethod::Measure => "measure",
+            UiNodeMethod::MeasureList => "measure_list",
+            UiNodeMethod::Layout => "layout",
+            UiNodeMethod::LayoutList => "layout_list",
+            UiNodeMethod::Render => "render",
+            UiNodeMethod::RenderList => "render_list",
+            UiNodeMethod::RenderUpdate => "render_update",
+            UiNodeMethod::RenderUpdateList => "render_update_list",
         }
     }
 }
-impl fmt::Debug for UiNodeOpMethod {
+impl fmt::Debug for UiNodeMethod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self, f)
     }
 }
-impl fmt::Display for UiNodeOpMethod {
+impl fmt::Display for UiNodeMethod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             write!(f, "{}", self.enum_name())
