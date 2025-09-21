@@ -15,6 +15,8 @@ This release contains breaking changes that affect the build and app startup.
     To migrate move all init code that is not app extension setup to inside `APP.run*`. This change affects users of `cargo zng new`
     with the default `zng-template`.
 
+* **Breaking** Renamed `ModifiersState` LOGO -> SUPER that was missed from a previous rename.
+
 * Fix feature `zng/config` not enabling required `zng/fs_watcher`.
 
 * Add `read` associated function for `zng::config::{JsonConfig, RonConfig, TomlConfig, YamlConfig}`.
