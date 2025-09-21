@@ -35,6 +35,7 @@ This release contains breaking changes that affect the build and app startup.
 
 * Improve `zng::fs_watcher`, resolve config desync issues.
 
+* Implement superscript/subscript styling in default `Markdown!`.
 * Fix `Markdown!` whitespace merging.
 
 * Add `zng::rule_line::collapse_scope` for auto *collapsing* multiple separators that are adjacent due to collapsed siblings.

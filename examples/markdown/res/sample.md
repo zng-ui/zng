@@ -1,6 +1,6 @@
 # Markdown
 
-A paragraph, with **bold** text , *italic* text, and ***both***.
+A paragraph, with **bold** text , *italic* text, and ***both***. Also ^superscript^ and ~subscript~.
 
 Lorem ipsum dolor sit amet, ei nam copiosae invidunt accusamus. Vidit dicat cu pri, sit magna vocibus ut. Cum eu assum primis voluptatum. Est dolorum urbanitas elaboraret no, nisl definitiones cu sit.
 
