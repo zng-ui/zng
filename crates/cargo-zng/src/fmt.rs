@@ -294,7 +294,8 @@ async fn custom_fmt_rs(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io:
 
     if formatted_code != file {
         if check {
-            fatal!("format does not match in file `{}`", rs_file.display());
+            let diff = pretty_assertions::StrComparison::new(&file, &formatted_code);
+            fatal!("Diff in {}:\n{diff}", rs_file.display());
         }
         fs::write(&rs_file, formatted_code)?;
         Ok(Some(rs_file))
@@ -503,7 +504,8 @@ async fn custom_fmt_md(md_file: PathBuf, check: bool, fmt: FmtFragServer) -> io:
 
     if formatted != file {
         if check {
-            fatal!("format does not match in file `{}`", md_file.display());
+            let diff = pretty_assertions::StrComparison::new(&file, &formatted);
+            fatal!("Diff in {}:\n{diff}", md_file.display());
         }
         fs::write(&md_file, formatted)?;
     }
