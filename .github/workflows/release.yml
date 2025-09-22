@@ -369,7 +369,7 @@ jobs:
         if: ${{ github.event.inputs.skip_doc != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_doc != 'true' }}
-      - run: cargo do latest_release_changes release-changes.md
+      - run: cargo do latest_release_changes release-changes.md ${{ github.run_id }}
         if: ${{ github.event.inputs.skip_doc != 'true' }}
       - uses: actions/upload-artifact@v4
         if: ${{ github.event.inputs.skip_doc != 'true' }}
