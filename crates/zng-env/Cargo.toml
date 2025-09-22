@@ -1,6 +1,6 @@
 [package]
 name = "zng-env"
-version = "0.6.4"
+version = "0.7.0"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -18,7 +18,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 built_res = []
 
 [dependencies]
-zng-env-proc-macros = { path = "../zng-env-proc-macros", version = "0.3.1", default-features = false }
+zng-env-proc-macros = { path = "../zng-env-proc-macros", version = "0.4.0", default-features = false }
 directories = { version = "6.0", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
@@ -26,7 +26,7 @@ toml = { version = "0.9", default-features = false, features = ["parse", "std", 
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 semver = { version = "1.0", default-features = false, features = ["std", "serde"] }
 
-zng-unique-id = { path = "../zng-unique-id", version = "0.7.4", default-features = false }
+zng-unique-id = { path = "../zng-unique-id", version = "0.8.0", default-features = false }
 zng-txt = { path = "../zng-txt", version = "0.4.1", default-features = false }
 
 [target.'cfg(target_os = "android")'.dependencies]

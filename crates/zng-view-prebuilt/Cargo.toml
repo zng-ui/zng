@@ -1,6 +1,6 @@
 [package]
 name = "zng-view-prebuilt"
-version = "0.16.6"
+version = "0.17.0"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -18,8 +18,8 @@ default = ["embedded"]
 embedded = []
 
 [dependencies]
-zng-view-api = { path = "../zng-view-api", version = "0.14.5", default-features = false }
-zng-env = { path = "../zng-env", version = "0.6.4", default-features = false }
+zng-view-api = { path = "../zng-view-api", version = "0.15.0", default-features = false }
+zng-env = { path = "../zng-env", version = "0.7.0", default-features = false }
 libloading = { version = "0.8", default-features = false }
 dunce = { version = "1.0", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
