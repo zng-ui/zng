@@ -52,6 +52,10 @@ pub struct FmtArgs {
     #[arg(long, default_value = "2024")]
     edition: String,
 
+    /// Format or check every file, not just changed files
+    #[arg(long, action)]
+    full: bool,
+
     /// Output rustfmt stderr, for debugging
     #[arg(long, action, hide = true)]
     rustfmt_errors: bool,
@@ -1691,7 +1695,7 @@ impl FmtHistory {
                 let prev_t = *t;
                 assert_ne!(prev_t, Self::TIMESTAMP_ON_SAVE, "inserted called twice");
                 *t = Self::TIMESTAMP_ON_SAVE;
-                return prev_t;
+                return if args.full { 0 } else { prev_t };
             }
         }
         self.entries.push((args_key, Self::TIMESTAMP_ON_SAVE));

@@ -48,7 +48,7 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do version --verbose
         if: ${{ github.event.inputs.skip_checks != 'true' }}
-      - run: cargo do fmt --check
+      - run: cargo do fmt --check --full
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do check
         if: ${{ github.event.inputs.skip_checks != 'true' }}
@@ -72,7 +72,7 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do version --verbose
         if: ${{ github.event.inputs.skip_checks != 'true' }}
-      - run: cargo do fmt --check
+      - run: cargo do fmt --check --full
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do check
         if: ${{ github.event.inputs.skip_checks != 'true' }}
@@ -91,7 +91,7 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do version --verbose
         if: ${{ github.event.inputs.skip_checks != 'true' }}
-      - run: cargo do fmt --check
+      - run: cargo do fmt --check --full
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do check
         if: ${{ github.event.inputs.skip_checks != 'true' }}
