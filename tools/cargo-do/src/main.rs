@@ -1817,6 +1817,9 @@ fn comment_feature(mut args: Vec<&str>) {
 
 // used by `workflows/release.yml`
 fn latest_release_changes(args: Vec<&str>) {
+    let output = args[0];
+    let github_action_id = args[1];
+
     let changelog = match std::fs::read_to_string("CHANGELOG.md") {
         Ok(c) => c,
         Err(e) => fatal(f!("failed to read CHANGELOG.md, {e}")),
@@ -1835,14 +1838,13 @@ fn latest_release_changes(args: Vec<&str>) {
             changes.push('\n');
         }
     }
-    let changes = changes.trim();
+    let _ = write!(
+        &mut changes,
+        "*Crates will be available on [crates.io](https://crates.io/crates/zng) once [Publish](https://github.com/zng-ui/zng/actions/runs/{github_action_id}) completes.*"
+    );
 
-    if let Some(out) = args.first() {
-        if let Err(e) = std::fs::write(out, changes.as_bytes()) {
-            fatal(f!("failed to write changes, {e}"));
-        }
-    } else {
-        println(changes)
+    if let Err(e) = std::fs::write(output, changes.as_bytes()) {
+        fatal(f!("failed to write changes, {e}"));
     }
 }
 
