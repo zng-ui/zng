@@ -298,8 +298,8 @@ async fn custom_fmt_rs(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io:
 
     if formatted_code != file {
         if check {
-            let diff = pretty_assertions::StrComparison::new(&file, &formatted_code);
-            fatal!("Diff in {}:\n{diff}", rs_file.display());
+            let diff = similar::TextDiff::from_lines(&file, &formatted_code);
+            fatal!("Diff in {}:\n{}", rs_file.display(), diff.unified_diff().context_radius(2));
         }
         fs::write(&rs_file, formatted_code)?;
         Ok(Some(rs_file))
@@ -508,8 +508,8 @@ async fn custom_fmt_md(md_file: PathBuf, check: bool, fmt: FmtFragServer) -> io:
 
     if formatted != file {
         if check {
-            let diff = pretty_assertions::StrComparison::new(&file, &formatted);
-            fatal!("Diff in {}:\n{diff}", md_file.display());
+            let diff = similar::TextDiff::from_lines(&file, &formatted);
+            fatal!("Diff in {}:\n{}", md_file.display(), diff.unified_diff().context_radius(2));
         }
         fs::write(&md_file, formatted)?;
     }
