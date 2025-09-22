@@ -293,11 +293,10 @@ context_var! {
     ///
     /// [`L10N.app_lang`]: L10N::app_lang
     pub static LANG_VAR: Langs = {
-        // TODO(breaking) crate feature that removes LANG_VAR usage in widget crates, this
-        // is a hack to avoid new assert panics.
         if zng_app::APP.extensions().contains::<crate::L10nManager>() {
             L10N.app_lang()
         } else {
+            tracing::warn!("LANG_VAR default not connected to L10N.app_lang, L10nManager extension is missing");
             Langs::default().into_var()
         }
     };

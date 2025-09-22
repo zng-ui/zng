@@ -12,8 +12,6 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["embedded", "outlined", "filled", "rounded", "sharp"]
-
 # Embedded font files.
 embedded = []
 
@@ -36,12 +34,12 @@ zng-var = { path = "../zng-var", version = "0.8.5", default-features = false }
 zng-ext-font = { path = "../zng-ext-font", version = "0.8.6", default-features = false }
 zng-wgt-text = { path = "../zng-wgt-text", version = "0.8.6", default-features = false }
 
-phf = { version = "0.12", default-features = false }
+phf = { version = "0.13", default-features = false }
 tracing = { version = "0.1", default-features = false }
 
 [build-dependencies]
 dunce = { version = "1.0", default-features = false }
-phf_codegen = { version = "0.12", default-features = false }
+phf_codegen = { version = "0.13", default-features = false }
 
 [package.metadata.docs.rs]
 all-features = true

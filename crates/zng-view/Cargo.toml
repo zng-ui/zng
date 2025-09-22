@@ -12,8 +12,6 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["ipc", "software", "image_all"]
-
 # Enables pre-build and init as view-process.
 #
 # If this is enabled all communication with the view is serialized/deserialized, 

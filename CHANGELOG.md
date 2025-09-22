@@ -1,9 +1,24 @@
 # Unreleased
 
-* Change `APP.is_running` to only be `true` when the app is actually running.
-    - Add `APP.is_started` to track app lifetime start, during the app extensions setup.
+This release contains breaking changes that affect the build and app startup.
 
-* Services that require an app extension to function now assert this on first use.
+* **Breaking** Removed deprecated crate features and deprecated items.
+
+    To migrate, first update to latest `0.16` version and build, since `0.16.3` building with deprecated features print
+    a warning message with fix suggestions. The `0.16.3` release notes also contains details about the changes.
+
+* **Breaking** Change `APP.is_running` to only be `true` when the app is actually running.
+    - Add `APP.is_started` to track app lifetime start, during the app extensions setup.
+    - Services that require an app extension to function now assert this on first use.
+
+    These changes are **runtime breaking**, trying to use app services after build starts and before run now panics.
+    To migrate move all init code that is not app extension setup to inside `APP.run*`. This change affects users of `cargo zng new`
+    with the default `zng-template`.
+
+* **Breaking** Renamed `ModifiersState` LOGO -> SUPER that was missed from a previous rename.
+* **Breaking** Syntax of the advanced `font_variations!` macro changed to better integrate with `cargo zng fmt`.
+* **Breaking** Advanced Window API crate `zng-ext-window` now has feature `"image"` for optionally compiling image API.
+* **Breaking** Renamed `UiNodeOpMethod` to `UiNodeMethod` and added list methods, to support tracing list nodes.
 
 * Fix feature `zng/config` not enabling required `zng/fs_watcher`.
 
@@ -21,6 +36,7 @@
 
 * Improve `zng::fs_watcher`, resolve config desync issues.
 
+* Implement superscript/subscript styling in default `Markdown!`.
 * Fix `Markdown!` whitespace merging.
 
 * Add `zng::rule_line::collapse_scope` for auto *collapsing* multiple separators that are adjacent due to collapsed siblings.

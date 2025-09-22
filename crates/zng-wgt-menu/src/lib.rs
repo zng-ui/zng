@@ -189,29 +189,6 @@ impl IconButtonStyle {
     }
 }
 
-/// Deprecated
-#[deprecated = "use `sub::TouchButtonStyle`"]
-#[widget($crate::TouchButtonStyle)]
-pub struct TouchButtonStyle(Style);
-#[allow(deprecated)]
-impl TouchButtonStyle {
-    fn widget_intrinsic(&mut self) {
-        widget_set! {
-            self;
-            zng_wgt::corner_radius = 0;
-            zng_wgt::visibility =
-                BUTTON
-                    .cmd()
-                    .flat_map(|c| match c {
-                        Some(c) => c.is_enabled(),
-                        None => const_var(true),
-                    })
-                    .map_into(),
-            ;
-        }
-    }
-}
-
 /// Style applied to all [`Toggle!`] widgets inside [`Menu!`] root.
 ///
 /// Gives the toggle a *toolbar-item* look.

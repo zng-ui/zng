@@ -35,12 +35,12 @@ zng-unit = { path = "../zng-unit", version = "0.4.2", default-features = false }
 
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
-indexmap = { version = "2.2", default-features = false, features = ["serde"] }
+indexmap = { version = "2.2", default-features = false, features = ["serde", "std"] }
 atomic = { version = "0.6", default-features = false, features = ["fallback"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0", optional = true, default-features = false, features = ["std", "preserve_order"] }
-toml = { version = "0.8", optional = true, default-features = false, features = ["preserve_order"] }
-ron = { version = "0.10", optional = true, default-features = false, features = ["indexmap"] } # TODO(breaking) upgrade
+toml = { version = "0.9", optional = true, default-features = false, features = ["preserve_order", "std", "serde"] }
+ron = { version = "0.11", optional = true, default-features = false, features = ["indexmap"] }
 serde_yaml = { version = "0.9", optional = true, default-features = false }
 
 [package.metadata.docs.rs]

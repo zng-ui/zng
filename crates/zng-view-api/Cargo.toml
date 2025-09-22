@@ -12,8 +12,6 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["ipc"]
-
 # Enables creation of separate or pre-build view.
 #
 # Only enables in `cfg(not(any(target_os = "android", target_arch = "wasm32", target_os = "ios")))` builds.

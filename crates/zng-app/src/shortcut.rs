@@ -582,9 +582,9 @@ bitflags! {
         const ALT = 0b0011_0000;
 
         /// The left "logo" key.
-        const L_LOGO = 0b0100_0000; // TODO(breaking) rename to SUPER
+        const L_SUPER = 0b0100_0000;
         /// The right "logo" key.
-        const R_LOGO = 0b1000_0000;
+        const R_SUPER = 0b1000_0000;
         /// Any "logo" key.
         ///
         /// This is the "windows" key on PC and "command" key on Mac.
@@ -707,8 +707,8 @@ impl ModifiersState {
             KeyCode::CtrlRight => Self::R_CTRL,
             KeyCode::ShiftLeft => Self::L_SHIFT,
             KeyCode::ShiftRight => Self::R_SHIFT,
-            KeyCode::SuperLeft => Self::L_LOGO,
-            KeyCode::SuperRight => Self::R_LOGO,
+            KeyCode::SuperLeft => Self::L_SUPER,
+            KeyCode::SuperRight => Self::R_SUPER,
             _ => Self::empty(),
         }
     }
@@ -733,9 +733,9 @@ impl ModifiersState {
     pub fn codes(self) -> Vec<KeyCode> {
         let mut r = vec![];
 
-        if self.contains(Self::L_LOGO) {
+        if self.contains(Self::L_SUPER) {
             r.push(KeyCode::SuperLeft);
-        } else if self.contains(Self::R_LOGO) {
+        } else if self.contains(Self::R_SUPER) {
             r.push(KeyCode::SuperRight);
         }
 

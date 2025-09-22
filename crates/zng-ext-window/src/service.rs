@@ -1,4 +1,4 @@
-use std::{any::Any, mem, sync::Arc};
+use std::{mem, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
@@ -7,10 +7,10 @@ use zng_app::{
     timer::{DeadlineHandle, TIMERS},
     update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, WidgetUpdates},
     view_process::{
-        self, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewImage, ViewRenderer, ViewWindowOrHeadless,
+        self, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewWindowOrHeadless,
         raw_events::{
-            RAW_CHROME_CONFIG_CHANGED_EVENT, RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_LOADED_EVENT,
-            RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_CLOSE_REQUESTED_EVENT, RAW_WINDOW_FOCUS_EVENT,
+            RAW_CHROME_CONFIG_CHANGED_EVENT, RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_CLOSE_REQUESTED_EVENT,
+            RAW_WINDOW_FOCUS_EVENT,
         },
     },
     widget::{
@@ -24,35 +24,53 @@ use zng_app::{
 use zng_app_context::app_local;
 
 use zng_color::{COLOR_SCHEME_VAR, colors::ACCENT_COLOR_VAR};
-use zng_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, Img};
+use zng_layout::unit::FactorUnits;
 use zng_layout::unit::TimeUnits as _;
-use zng_layout::unit::{Factor, FactorUnits, LengthUnits, PxRect};
 use zng_task::{
     ParallelIteratorExt, UiTask,
     rayon::iter::{IntoParallelRefMutIterator, ParallelIterator},
 };
 use zng_txt::{ToTxt as _, Txt, formatx};
 use zng_unique_id::{IdMap, IdSet};
-use zng_var::{
-    ResponderVar, ResponseVar, Var, WeakVar, const_var, impl_from_and_into_var, response_done_var, response_var, var, var_default,
-};
+use zng_var::{ResponderVar, ResponseVar, Var, const_var, impl_from_and_into_var, response_done_var, response_var, var, var_default};
 use zng_view_api::{
     DragDropId,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::{ChromeConfig, ColorsConfig},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
-    image::ImageMaskMode,
-    ipc::ViewChannelError,
     window::{RenderMode, WindowState},
 };
 use zng_wgt::node::with_context_var;
 
 use crate::{
-    CloseWindowResult, FRAME_IMAGE_READY_EVENT, FrameCaptureMode, HeadlessMonitor, MONITORS, StartPosition, ViewExtensionError,
-    WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT, WINDOW_LOAD_EVENT, WINDOW_VARS_ID, WindowCloseArgs,
-    WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowLoadingHandle, WindowManager, WindowNotFoundError, WindowOpenArgs, WindowRoot,
-    WindowVars, cmd::WindowCommands, control::WindowCtrl,
+    CloseWindowResult, MONITORS, ViewExtensionError, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT,
+    WINDOW_LOAD_EVENT, WINDOW_VARS_ID, WindowCloseArgs, WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowLoadingHandle,
+    WindowManager, WindowNotFoundError, WindowOpenArgs, WindowRoot, WindowVars, cmd::WindowCommands, control::WindowCtrl,
 };
+
+#[cfg(feature = "image")]
+use std::any::Any;
+
+#[cfg(feature = "image")]
+use zng_app::view_process::{
+    ViewImage, ViewRenderer,
+    raw_events::{RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_LOADED_EVENT},
+};
+
+#[cfg(feature = "image")]
+use zng_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, Img};
+
+#[cfg(feature = "image")]
+use crate::{FRAME_IMAGE_READY_EVENT, FrameCaptureMode, HeadlessMonitor, StartPosition};
+
+#[cfg(feature = "image")]
+use zng_view_api::{image::ImageMaskMode, ipc::ViewChannelError};
+
+#[cfg(feature = "image")]
+use zng_var::WeakVar;
+
+#[cfg(feature = "image")]
+use zng_layout::unit::{Factor, LengthUnits, PxRect};
 
 app_local! {
     pub(super) static WINDOWS_SV: WindowsService = {
@@ -83,6 +101,7 @@ pub(super) struct WindowsService {
     focus_request: Option<WindowId>,
     bring_to_top_requests: Vec<WindowId>,
 
+    #[cfg(feature = "image")]
     frame_images: Vec<WeakVar<Img>>,
 
     loading_deadline: Option<DeadlineHandle>,
@@ -109,6 +128,7 @@ impl WindowsService {
             close_requests: vec![],
             focus_request: None,
             bring_to_top_requests: vec![],
+            #[cfg(feature = "image")]
             frame_images: vec![],
             loading_deadline: None,
             latest_colors_cfg: ColorsConfig::default(),
@@ -174,6 +194,7 @@ impl WindowsService {
         Ok(response)
     }
 
+    #[cfg(feature = "image")]
     fn frame_image_impl(
         &mut self,
         window_id: WindowId,
@@ -484,6 +505,7 @@ impl WINDOWS {
     /// If the window is not found the error is reported in the [image error].
     ///
     /// [image error]: zng_ext_image::Img::error
+    #[cfg(feature = "image")]
     pub fn frame_image(&self, window_id: impl Into<WindowId>, mask: Option<ImageMaskMode>) -> ImageVar {
         let window_id = window_id.into();
         if let Some((win, wgt)) = self.nest_parent(window_id) {
@@ -506,6 +528,7 @@ impl WINDOWS {
     /// If the window is not found the error is reported in the image error.
     ///
     /// [image error]: zng_ext_image::Img::error
+    #[cfg(feature = "image")]
     pub fn frame_image_rect(&self, window_id: impl Into<WindowId>, mut rect: PxRect, mask: Option<ImageMaskMode>) -> ImageVar {
         let mut window_id = window_id.into();
         if let Some((win, wgt)) = self.nest_parent(window_id) {
@@ -997,21 +1020,24 @@ impl WINDOWS {
         } else if VIEW_PROCESS_INITED_EVENT.has(update) {
             // we skipped request fulfillment until this event.
             UPDATES.update(None);
-        } else if let Some(args) = RAW_IMAGE_LOADED_EVENT.on(update).or_else(|| RAW_IMAGE_LOAD_ERROR_EVENT.on(update)) {
-            // update ready frame images.
-            let mut sv = WINDOWS_SV.write();
-            sv.frame_images.retain(|i| {
-                if let Some(i) = i.upgrade() {
-                    if Some(&args.image) == i.get().view() {
-                        i.update();
-                        false
+        } else {
+            #[cfg(feature = "image")]
+            if let Some(args) = RAW_IMAGE_LOADED_EVENT.on(update).or_else(|| RAW_IMAGE_LOAD_ERROR_EVENT.on(update)) {
+                // update ready frame images.
+                let mut sv = WINDOWS_SV.write();
+                sv.frame_images.retain(|i| {
+                    if let Some(i) = i.upgrade() {
+                        if Some(&args.image) == i.get().view() {
+                            i.update();
+                            false
+                        } else {
+                            true
+                        }
                     } else {
-                        true
+                        false
                     }
-                } else {
-                    false
-                }
-            });
+                });
+            }
         }
 
         Self::with_detached_windows(|windows, parallel| {
@@ -1809,6 +1835,7 @@ pub trait WINDOW_Ext {
     /// Generate an image from the current rendered frame of the window.
     ///
     /// The image is not loaded at the moment of return, it will update when it is loaded.
+    #[cfg(feature = "image")]
     fn frame_image(&self, mask: Option<ImageMaskMode>) -> ImageVar {
         WINDOWS.frame_image(WINDOW.id(), mask)
     }
@@ -1818,6 +1845,7 @@ pub trait WINDOW_Ext {
     /// The image is not loaded at the moment of return, it will update when it is loaded.
     ///
     /// If the window is not found the error is reported in the image error.
+    #[cfg(feature = "image")]
     fn frame_image_rect(&self, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageVar {
         WINDOWS.frame_image_rect(WINDOW.id(), rect, mask)
     }
@@ -1854,7 +1882,7 @@ pub struct WindowRootExtenderArgs {
     /// it for no-op.
     pub root: UiNode,
 }
-
+#[cfg(feature = "image")]
 impl ImageRenderWindowRoot for WindowRoot {
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
         self
@@ -1862,6 +1890,7 @@ impl ImageRenderWindowRoot for WindowRoot {
 }
 
 #[doc(hidden)]
+#[cfg(feature = "image")]
 impl ImageRenderWindowsService for WINDOWS {
     fn new_window_root(&self, node: UiNode, render_mode: RenderMode, scale_factor: Option<Factor>) -> Box<dyn ImageRenderWindowRoot> {
         Box::new(WindowRoot::new_container(

@@ -12,22 +12,6 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["debug_default"]
-
-# **deprecated** use features directly
-debug_default = [
-    "zng-var/debug_default",
-    "ipc",
-    "trace_recorder",
-    "dyn_app_extension",
-    "inspector",
-    "trace_recorder",
-    "trace_widget",
-]
-
-# **deprecated** no longer needed
-dyn_node = []
-
 # Instrument each widget instance to retain build information.
 inspector = []
 
@@ -35,9 +19,6 @@ inspector = []
 #
 # This speeds-up compilation time at the cost of runtime.
 dyn_app_extension = []
-
-# **deprecated** no longer needed
-dyn_closure = []
 
 # Like `cfg(test)` but also visible in docs and integration tests.
 test_util = ["multi_app", "deadlock_detection"]

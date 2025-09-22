@@ -432,9 +432,15 @@ impl LAYERS {
 
                                     let (cursor_size, cursor_spot) = {
                                         let vars = WINDOW.vars();
+                                        #[cfg(feature = "image")]
                                         if let Some((img, spot)) = vars.actual_cursor_img().get() {
                                             (img.size(), spot)
                                         } else {
+                                            vars.cursor().with(|s| s.icon()).map(|i| i.size_and_spot(fct)).unwrap_or_default()
+                                        }
+
+                                        #[cfg(not(feature = "image"))]
+                                        {
                                             vars.cursor().with(|s| s.icon()).map(|i| i.size_and_spot(fct)).unwrap_or_default()
                                         }
                                     };

@@ -12,7 +12,6 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["named"]
 # Enable associated names for ID types.
 named = ["dep:zng-txt", "dep:parking_lot"]
 # Enable `static` patching for ID types.
@@ -23,7 +22,7 @@ hot_reload = ["dep:linkme"]
 
 [dependencies]
 rayon = { version = "1.10", default-features = false }
-hashbrown = { version = "0.15", default-features = false, features = ["rayon"] } # TODO(breaking) upgrade and remove from public API by replacing type alias with new types
+hashbrown = { version = "0.16", default-features = false, features = ["rayon"] }
 tracing = { version = "0.1", default-features = false }
 pastey = { version = "0.1", default-features = false }
 once_cell = { version = "1.19", default-features = false, features = ["parking_lot", "std"] }

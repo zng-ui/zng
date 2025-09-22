@@ -14,7 +14,6 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [features]
 # Support for loading localization resources from TAR and Tarball.
 tar = ["dep:flate2", "dep:tar"]
-default = ["tar"]
 
 [dependencies]
 zng-ext-l10n-proc-macros = { path = "../zng-ext-l10n-proc-macros", version = "0.3.2", default-features = false }

@@ -152,17 +152,20 @@ event_property! {
         filter: |args| args.window_id == WINDOW.id() && args.exited_fullscreen(),
     }
 
-    /// On window frame rendered.
-    pub fn frame_image_ready {
-        event: FRAME_IMAGE_READY_EVENT,
-        args: FrameImageReadyArgs,
-        filter: |args| args.window_id == WINDOW.id(),
-    }
-
     /// On Input Method Editor event.
     pub fn ime {
         event: IME_EVENT,
         args: ImeArgs,
         filter: |args| args.target.widget_id() == WIDGET.id(),
+    }
+}
+
+#[cfg(feature = "image")]
+event_property! {
+    /// On window frame rendered.
+    pub fn frame_image_ready {
+        event: FRAME_IMAGE_READY_EVENT,
+        args: FrameImageReadyArgs,
+        filter: |args| args.window_id == WINDOW.id(),
     }
 }

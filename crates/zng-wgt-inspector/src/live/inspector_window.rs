@@ -13,9 +13,8 @@ use zng_ext_l10n::{l10n, lang};
 use zng_ext_window::{WINDOWS, WindowRoot};
 use zng_var::animation::easing;
 use zng_wgt::{Wgt, border, corner_radius, margin, node::VarPresent as _, prelude::*, visibility};
-use zng_wgt_button::Button;
 use zng_wgt_container::{Container, child_align, padding};
-use zng_wgt_dialog::{DIALOG, FileDialogFilters};
+
 use zng_wgt_fill::background_color;
 use zng_wgt_filter::opacity;
 use zng_wgt_input::{focus::focus_shortcut, gesture::click_shortcut, is_hovered};
@@ -30,6 +29,11 @@ use zng_wgt_toggle::{self as toggle, Toggle};
 use zng_wgt_tooltip::{Tip, tooltip};
 use zng_wgt_window as window;
 use zng_wgt_wrap::Wrap;
+
+#[cfg(feature = "image")]
+use zng_wgt_button::Button;
+#[cfg(feature = "image")]
+use zng_wgt_dialog::{DIALOG, FileDialogFilters};
 
 use super::data_model::*;
 
@@ -202,7 +206,9 @@ fn menu(hit_test_select: Var<HitSelect>, adorn_selected: Var<bool>, select_focus
                         tooltip = Tip!(Text!("select focused widget"));
                         checked = select_focused;
                     },
+                    #[cfg(feature = "image")]
                     zng_wgt_rule_line::vr::Vr!(),
+                    #[cfg(feature = "image")]
                     Toggle! {
                         child = zng_wgt::ICONS.get("menu");
                         padding = 2;
@@ -659,6 +665,7 @@ fn wgt_filter(filter: &str, wgt_ty: Option<WidgetType>, wgt_id: WidgetId) -> boo
     false
 }
 
+#[cfg(feature = "image")]
 async fn save_screenshot(inspected: WindowId) {
     let frame = WINDOWS.frame_image(inspected, None);
 
@@ -709,6 +716,7 @@ async fn save_screenshot(inspected: WindowId) {
     }
 }
 
+#[cfg(feature = "image")]
 async fn copy_screenshot(inspected: WindowId) {
     let frame = WINDOWS.frame_image(inspected, None);
 
@@ -733,6 +741,7 @@ async fn copy_screenshot(inspected: WindowId) {
     }
 }
 
+#[cfg(feature = "image")]
 async fn screenshot_error(e: Txt) {
     DIALOG
         .error(l10n!("inspector/screenshot.error-dlg-title", "Screenshot Error"), e)

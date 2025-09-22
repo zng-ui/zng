@@ -33,14 +33,11 @@ mod service;
 pub use service::*;
 
 use zng_app::{
-    APP, AppControlFlow, AppExtended, AppExtension, HeadlessApp,
+    AppControlFlow, AppExtended, AppExtension, HeadlessApp,
     update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates},
     view_process::raw_events::{RAW_WINDOW_FOCUS_EVENT, RawWindowFocusArgs},
     window::WindowId,
 };
-use zng_ext_image::{IMAGES_WINDOW, ImageManager, ImageVar};
-use zng_view_api::image::ImageMaskMode;
-
 pub mod cmd;
 
 /// Application extension that manages windows.
@@ -71,10 +68,8 @@ pub mod cmd;
 pub struct WindowManager {}
 impl AppExtension for WindowManager {
     fn init(&mut self) {
-        if APP.extensions().contains::<ImageManager>() {
-            // TODO(breaking) feature?
-            IMAGES_WINDOW.hook_render_windows_service(Box::new(WINDOWS));
-        }
+        #[cfg(feature = "image")]
+        zng_ext_image::IMAGES_WINDOW.hook_render_windows_service(Box::new(WINDOWS));
     }
 
     fn event_preview(&mut self, update: &mut EventUpdate) {
@@ -204,7 +199,8 @@ pub trait HeadlessAppWindowExt {
     /// Copy the current frame pixels of the window.
     ///
     /// The var will update until the image is loaded or error.
-    fn window_frame_image(&mut self, window_id: WindowId, mask: Option<ImageMaskMode>) -> ImageVar;
+    #[cfg(feature = "image")]
+    fn window_frame_image(&mut self, window_id: WindowId, mask: Option<zng_view_api::image::ImageMaskMode>) -> zng_ext_image::ImageVar;
 
     /// Sends a close request.
     ///
@@ -234,6 +230,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
             let window_id = response.wait_rsp().await;
             if !WINDOWS.is_loaded(window_id) {
                 let close_rcv = WINDOW_CLOSE_EVENT.receiver();
+                #[cfg(feature = "image")]
                 let frame_rcv = FRAME_IMAGE_READY_EVENT.receiver();
                 zng_task::any!(
                     async {
@@ -244,6 +241,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
                         }
                     },
                     async {
+                        #[cfg(feature = "image")]
                         while let Ok(args) = frame_rcv.recv_async().await {
                             if args.window_id == window_id {
                                 break;
@@ -270,7 +268,8 @@ impl HeadlessAppWindowExt for HeadlessApp {
         let _ = self.update(false);
     }
 
-    fn window_frame_image(&mut self, window_id: WindowId, mask: Option<ImageMaskMode>) -> ImageVar {
+    #[cfg(feature = "image")]
+    fn window_frame_image(&mut self, window_id: WindowId, mask: Option<zng_view_api::image::ImageMaskMode>) -> zng_ext_image::ImageVar {
         WINDOWS.frame_image(window_id, mask)
     }
 

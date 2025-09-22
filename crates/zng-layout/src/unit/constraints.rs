@@ -1,5 +1,3 @@
-#![allow(deprecated)] // TODO(breaking) remove this after PxConstraints::fill is removed
-
 use std::fmt;
 
 use bitflags::bitflags;
@@ -34,9 +32,6 @@ pub struct PxConstraints {
     max: Px,
     min: Px,
 
-    #[doc(hidden)]
-    #[deprecated = "use the `is_fill` method"]
-    pub fill: bool,
     flags: PxConstraintsFlags,
 }
 impl PxConstraints {
@@ -45,7 +40,6 @@ impl PxConstraints {
         PxConstraints {
             max: Px::MAX,
             min: Px(0),
-            fill: false,
             flags: PxConstraintsFlags::empty(),
         }
     }
@@ -55,7 +49,6 @@ impl PxConstraints {
         PxConstraints {
             max,
             min: Px(0),
-            fill: false,
             flags: PxConstraintsFlags::empty(),
         }
     }
@@ -65,7 +58,6 @@ impl PxConstraints {
         PxConstraints {
             max: length,
             min: length,
-            fill: true,
             flags: PxConstraintsFlags::FILL,
         }
     }
@@ -75,7 +67,6 @@ impl PxConstraints {
         PxConstraints {
             max: length,
             min: Px(0),
-            fill: true,
             flags: PxConstraintsFlags::FILL,
         }
     }
@@ -91,7 +82,6 @@ impl PxConstraints {
         PxConstraints {
             max,
             min,
-            fill: false,
             flags: PxConstraintsFlags::empty(),
         }
     }
@@ -128,7 +118,6 @@ impl PxConstraints {
     pub fn with_new_exact(mut self, len: Px) -> Self {
         self.max = len;
         self.min = len;
-        self.fill = true;
         self.flags = PxConstraintsFlags::FILL;
         self
     }
@@ -144,7 +133,6 @@ impl PxConstraints {
     ///
     /// [`is_fill`]: Self::is_fill
     pub fn with_fill(mut self, fill: bool) -> Self {
-        self.fill = fill;
         self.flags.set(PxConstraintsFlags::FILL, fill);
         self
     }
@@ -159,8 +147,8 @@ impl PxConstraints {
 
     /// Returns a copy of the current constraints that sets the fill preference to "current & `fill`".
     pub fn with_fill_and(mut self, fill: bool) -> Self {
-        self.fill &= fill;
-        self.flags.set(PxConstraintsFlags::FILL, self.fill);
+        let fill = self.is_fill() && fill;
+        self.flags.set(PxConstraintsFlags::FILL, fill);
         self
     }
 
@@ -209,17 +197,8 @@ impl PxConstraints {
     /// Gets if the context prefers the maximum length over the minimum.
     ///
     /// Note that if the constraints are unbounded there is not maximum length, in this case the fill length is the minimum.
-    #[deprecated = "use the `is_fill` method"]
-    pub fn is_fill_pref(self) -> bool {
-        self.fill
-    }
-
-    /// Gets if the context prefers the maximum length over the minimum.
-    ///
-    /// Note that if the constraints are unbounded there is not maximum length, in this case the fill length is the minimum.
     pub fn is_fill(self) -> bool {
-        // self.flags.contains(PxConstraintsFlags::FILL)
-        self.fill
+        self.flags.contains(PxConstraintsFlags::FILL)
     }
 
     /// Gets if the context prefers the maximum length and there is a maximum length.
@@ -740,17 +719,6 @@ impl PxConstraints2d {
         BoolVector2D {
             x: self.x.is_exact(),
             y: self.y.is_exact(),
-        }
-    }
-
-    /// Gets if the context prefers the maximum length over the minimum.
-    ///
-    /// Note that if the constraints are unbounded there is not maximum length, in this case the fill length is the minimum.
-    #[deprecated = "use the `is_fill` method"]
-    pub fn is_fill_pref(self) -> BoolVector2D {
-        BoolVector2D {
-            x: self.x.is_fill(),
-            y: self.y.is_fill(),
         }
     }
 

@@ -98,13 +98,15 @@
 pub use zng_app::window::{MonitorId, WINDOW, WindowId, WindowMode};
 
 pub use zng_ext_window::{
-    AppRunWindowExt, AutoSize, CloseWindowResult, FRAME_IMAGE_READY_EVENT, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs,
-    HeadlessAppWindowExt, HeadlessMonitor, IME_EVENT, ImeArgs, MONITORS, MONITORS_CHANGED_EVENT, MonitorInfo, MonitorQuery,
-    MonitorsChangedArgs, ParallelWin, RenderMode, StartPosition, VideoMode, WINDOW_CHANGED_EVENT, WINDOW_CLOSE_EVENT,
-    WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_Ext, WINDOW_LOAD_EVENT, WINDOW_OPEN_EVENT, WINDOWS, WidgetInfoBuilderImeArea, WidgetInfoImeArea,
-    WindowButton, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs, WindowIcon, WindowLoadingHandle, WindowOpenArgs,
-    WindowRoot, WindowRootExtenderArgs, WindowState, WindowStateAllowed, WindowVars,
+    AppRunWindowExt, AutoSize, CloseWindowResult, FocusIndicator, HeadlessAppWindowExt, HeadlessMonitor, IME_EVENT, ImeArgs, MONITORS,
+    MONITORS_CHANGED_EVENT, MonitorInfo, MonitorQuery, MonitorsChangedArgs, ParallelWin, RenderMode, StartPosition, VideoMode,
+    WINDOW_CHANGED_EVENT, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_Ext, WINDOW_LOAD_EVENT, WINDOW_OPEN_EVENT, WINDOWS,
+    WidgetInfoBuilderImeArea, WidgetInfoImeArea, WindowButton, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs, WindowIcon,
+    WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowState, WindowStateAllowed, WindowVars,
 };
+
+#[cfg(feature = "image")]
+pub use zng_ext_window::{FRAME_IMAGE_READY_EVENT, FrameCaptureMode, FrameImageReadyArgs};
 
 /// Window commands.
 pub mod cmd {
@@ -117,13 +119,16 @@ pub mod cmd {
 pub use zng_wgt_window::{BlockWindowLoad, Window};
 
 pub use zng_wgt_window::events::{
-    on_frame_image_ready, on_ime, on_pre_frame_image_ready, on_pre_ime, on_pre_window_changed, on_pre_window_close_requested,
-    on_pre_window_exited_fullscreen, on_pre_window_fullscreen, on_pre_window_load, on_pre_window_maximized, on_pre_window_minimized,
-    on_pre_window_moved, on_pre_window_open, on_pre_window_resized, on_pre_window_restored, on_pre_window_state_changed,
-    on_pre_window_unmaximized, on_pre_window_unminimized, on_window_changed, on_window_close_requested, on_window_exited_fullscreen,
-    on_window_fullscreen, on_window_load, on_window_maximized, on_window_minimized, on_window_moved, on_window_open, on_window_resized,
-    on_window_restored, on_window_state_changed, on_window_unmaximized, on_window_unminimized,
+    on_ime, on_pre_ime, on_pre_window_changed, on_pre_window_close_requested, on_pre_window_exited_fullscreen, on_pre_window_fullscreen,
+    on_pre_window_load, on_pre_window_maximized, on_pre_window_minimized, on_pre_window_moved, on_pre_window_open, on_pre_window_resized,
+    on_pre_window_restored, on_pre_window_state_changed, on_pre_window_unmaximized, on_pre_window_unminimized, on_window_changed,
+    on_window_close_requested, on_window_exited_fullscreen, on_window_fullscreen, on_window_load, on_window_maximized, on_window_minimized,
+    on_window_moved, on_window_open, on_window_resized, on_window_restored, on_window_state_changed, on_window_unmaximized,
+    on_window_unminimized,
 };
+
+#[cfg(feature = "image")]
+pub use zng_wgt_window::events::{on_frame_image_ready, on_pre_frame_image_ready};
 
 /// Debug inspection helpers.
 ///
@@ -223,6 +228,7 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
                                     source = icon.map(|i| match i {
                                         WindowIcon::Image(s) => s.clone(),
                                         WindowIcon::Default => ImageSource::flood(layout::PxSize::zero(), rgba(0, 0, 0, 0), None),
+                                        _ => unreachable!(),
                                     });
                                 },
                                 4,

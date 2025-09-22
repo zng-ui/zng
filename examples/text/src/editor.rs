@@ -217,11 +217,11 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
                     editor.save_as().await;
                 });
             },
-            rule_line::vr::Vr!(),
+            Vr!(),
             clipboard_btn(CUT_CMD),
             clipboard_btn(COPY_CMD),
             clipboard_btn(PASTE_CMD),
-            rule_line::vr::Vr!(),
+            Vr!(),
             undo_combo(zng::undo::UndoOp::Undo),
             undo_combo(zng::undo::UndoOp::Redo),
         ];

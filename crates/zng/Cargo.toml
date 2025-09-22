@@ -84,15 +84,6 @@ dev = [
     "var_type_names",
 ]
 
-# **deprecated** use "dev"
-debug_default = [
-    "dev",
-    "zng-app/debug_default",
-    "zng-wgt-inspector?/debug_default",
-    "zng-wgt-scroll/debug_default",
-    "zng-wgt-window/debug_default",
-]
-
 # Include the default view-process implementation.
 #
 # Only enables in `not(target_arch = "wasm32")` builds.
@@ -113,9 +104,6 @@ http = [
 # Enable SVG image rendering, SVG emoji support.
 svg = ["dep:zng-ext-svg", "zng-ext-font/svg"]
 
-# **deprecated** no longer needed
-dyn_node = []
-
 # Instrument each property and widget instance with "Inspector" nodes and
 # extend windows to be inspected on Ctrl+Shift+I.
 inspector = ["dep:zng-wgt-inspector", "zng-app/inspector", "zng-wgt-inspector/live"]
@@ -131,9 +119,6 @@ hot_reload = ["dep:zng-ext-hot-reload"]
 #
 # This speeds-up compilation time at the cost of runtime.
 dyn_app_extension = ["zng-app/dyn_app_extension"]
-
-# **deprecated** no longer needed
-dyn_closure = []
 
 # Test utilities.
 test_util = [
@@ -321,8 +306,8 @@ drag_drop = ["zng-ext-input/drag_drop", "zng-wgt-input/drag_drop"]
 # Enable grid widget.
 grid = ["dep:zng-wgt-grid"]
 
-# Enable image service and widget.
-image = ["dep:zng-ext-image", "dep:zng-wgt-image"]
+# Enable image service, widgets, window icons, image cursors, frame capturing.
+image = ["dep:zng-ext-image", "dep:zng-wgt-image", "zng-ext-window?/image", "zng-wgt-window?/image", "zng-wgt-input/image"]
 
 # Enable markdown widget.
 markdown = ["dep:zng-wgt-markdown"]
@@ -443,7 +428,7 @@ zng-wgt-window = { path = "../zng-wgt-window", version = "0.10.6", optional = tr
 zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.7.6", default-features = false }
 zng-wgt-undo-history = { path = "../zng-wgt-undo-history", version = "0.7.6", optional = true, default-features = false }
 zng-wgt-image = { path = "../zng-wgt-image", version = "0.7.6", optional = true, default-features = false }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.8.6", default-features = false } # TODO(breaking) integrate features like l10n with this crate
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.8.6", default-features = false }
 zng-wgt-text-input = { path = "../zng-wgt-text-input", version = "0.8.6", optional = true, default-features = false }
 zng-wgt-button = { path = "../zng-wgt-button", version = "0.8.6", default-features = false, optional = true }
 zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.7.6", optional = true, default-features = false }

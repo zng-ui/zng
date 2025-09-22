@@ -50,15 +50,6 @@ pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
     {
         Box::new(self)
     }
-
-    /// Deprecated, no longer needed
-    #[deprecated = "no longer needed"]
-    fn cfg_boxed(self) -> Self
-    where
-        Self: Sized,
-    {
-        self
-    }
 }
 impl<A: Clone + 'static> WidgetHandler<A> for Box<dyn WidgetHandler<A>> {
     #[inline(always)]
@@ -581,15 +572,6 @@ pub trait AppHandler<A: Clone + 'static>: Any + Send {
         Self: Sized,
     {
         Box::new(self)
-    }
-
-    /// Deprecated.
-    #[deprecated = "no longer needed"]
-    fn cfg_boxed(self) -> Self
-    where
-        Self: Sized,
-    {
-        self
     }
 }
 impl<A: Clone + 'static> AppHandler<A> for Box<dyn AppHandler<A>> {

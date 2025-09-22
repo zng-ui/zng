@@ -1147,9 +1147,9 @@ impl UiNode {
     }
 
     /// Wraps this in a node that, before delegating each method, calls a closure with
-    /// the [`UiNodeOpMethod`], the closure can return a *span* that is dropped after the method delegation.
+    /// the [`UiNodeMethod`], the closure can return a *span* that is dropped after the method delegation.
     ///
-    /// The tracing node delegates all methods to self, but currently only traces the [`UiNodeOpMethod`] methods. If
+    /// The tracing node delegates all methods to self, but only traces the [`UiNodeMethod`] methods. If
     /// this node is an widget the `enter_mtd` closure will be called (and span dropped) in the context of the widget.
     ///
     /// You can use the [`tracing`](https://docs.rs/tracing) crate to create the span. You can also use the [`RunOnDrop`]
@@ -1159,7 +1159,7 @@ impl UiNode {
     pub fn trace<E, S>(self, enter_mtd: E) -> UiNode
     where
         Self: Sized,
-        E: FnMut(UiNodeOpMethod) -> S + Send + 'static,
+        E: FnMut(UiNodeMethod) -> S + Send + 'static,
     {
         UiNode::new(trace::TraceNode::new(self, enter_mtd))
     }

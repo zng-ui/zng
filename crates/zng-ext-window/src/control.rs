@@ -4,7 +4,6 @@ use std::{mem, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
-    Deadline,
     access::{ACCESS_DEINITED_EVENT, ACCESS_INITED_EVENT},
     app_hn_once,
     event::{AnyEventArgs, CommandHandle},
@@ -15,8 +14,8 @@ use zng_app::{
     view_process::{
         VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewHeadless, ViewRenderer, ViewWindow,
         raw_events::{
-            RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_FRAME_RENDERED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_IME_EVENT, RAW_WINDOW_CHANGED_EVENT,
-            RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OPEN_EVENT, RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT, RawWindowFocusArgs,
+            RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_IME_EVENT, RAW_WINDOW_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT,
+            RAW_WINDOW_OPEN_EVENT, RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT, RawWindowFocusArgs,
         },
     },
     widget::{
@@ -29,7 +28,6 @@ use zng_app::{
 use zng_app_context::LocalContext;
 use zng_clone_move::clmv;
 use zng_color::{LightDark, Rgba, colors};
-use zng_ext_image::{IMAGES, ImageRenderArgs, ImageSource, ImageVar, Img};
 use zng_layout::{
     context::{DIRECTION_VAR, LAYOUT, LayoutMetrics, LayoutPassId},
     unit::{
@@ -38,7 +36,7 @@ use zng_layout::{
     },
 };
 use zng_state_map::StateId;
-use zng_var::{Var, VarHandle, VarHandles};
+use zng_var::{Var, VarHandles};
 use zng_view_api::{
     DragDropId, FocusResult, Ime,
     config::{ColorScheme, FontAntiAliasing},
@@ -52,12 +50,27 @@ use zng_view_api::{
 use zng_wgt::prelude::WidgetInfo;
 
 use crate::{
-    AutoSize, FRAME_IMAGE_READY_EVENT, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MONITORS, MONITORS_CHANGED_EVENT,
-    MonitorInfo, StartPosition, WINDOW_CHANGED_EVENT, WINDOW_Ext, WINDOW_FOCUS, WINDOWS, WINDOWS_DRAG_DROP, WidgetInfoImeArea,
-    WindowChangedArgs, WindowIcon, WindowRoot, WindowVars,
+    AutoSize, HeadlessMonitor, MONITORS, MONITORS_CHANGED_EVENT, MonitorInfo, StartPosition, WINDOW_CHANGED_EVENT, WINDOW_Ext,
+    WINDOW_FOCUS, WINDOWS, WINDOWS_DRAG_DROP, WidgetInfoImeArea, WindowChangedArgs, WindowRoot, WindowVars,
     cmd::{MINIMIZE_CMD, RESTORE_CMD, WindowCommands},
 };
 
+#[cfg(feature = "image")]
+use zng_app::{Deadline, view_process::raw_events::RAW_FRAME_RENDERED_EVENT};
+
+#[cfg(feature = "image")]
+use zng_ext_image::{IMAGES, ImageRenderArgs, ImageSource, ImageVar, Img};
+
+#[cfg(feature = "image")]
+use crate::{FRAME_IMAGE_READY_EVENT, FrameCaptureMode, FrameImageReadyArgs};
+
+#[cfg(feature = "image")]
+use zng_var::VarHandle;
+
+#[cfg(feature = "image")]
+use crate::WindowIcon;
+
+#[cfg(feature = "image")]
 struct ImageResources {
     icon_var: Option<ImageVar>,
     cursor_var: Option<ImageVar>,
@@ -65,6 +78,7 @@ struct ImageResources {
     cursor_binding: VarHandle,
     deadline: Deadline,
 }
+#[cfg(feature = "image")]
 impl Default for ImageResources {
     fn default() -> Self {
         Self {
@@ -104,6 +118,7 @@ struct HeadedCtrl {
     state: Option<WindowStateAll>, // None if not inited.
     monitor: Option<MonitorInfo>,
     resize_wait_id: Option<FrameWaitId>,
+    #[cfg(feature = "image")]
     img_res: ImageResources,
     actual_state: Option<WindowState>, // for WindowChangedEvent
     parent_color_scheme: Option<Var<ColorScheme>>,
@@ -136,6 +151,7 @@ impl HeadedCtrl {
             state: None,
             monitor: None,
             resize_wait_id: None,
+            #[cfg(feature = "image")]
             img_res: ImageResources::default(),
             parent_color_scheme: None,
             parent_accent_color: None,
@@ -351,10 +367,13 @@ impl HeadedCtrl {
             }
         }
 
+        #[cfg(feature = "image")]
         let mut img_res_loading = vec![];
 
         // icon:
+        #[cfg(feature = "image")]
         let mut send_icon = false;
+        #[cfg(feature = "image")]
         if let Some(ico) = self.vars.icon().get_new() {
             self.img_res.icon_var = match ico {
                 WindowIcon::Default => None,
@@ -379,6 +398,7 @@ impl HeadedCtrl {
         } else if self.img_res.icon_var.as_ref().map(|ico| ico.is_new()).unwrap_or(false) {
             send_icon = true;
         }
+        #[cfg(feature = "image")]
         if send_icon {
             let icon = self.img_res.icon_var.as_ref().and_then(|ico| ico.get().view().cloned());
             self.update_gen(move |view| {
@@ -390,12 +410,17 @@ impl HeadedCtrl {
         if let Some(cursor) = self.vars.cursor().get_new() {
             match cursor {
                 crate::CursorSource::Icon(ico) => {
-                    self.img_res.cursor_var = None;
+                    #[cfg(feature = "image")]
+                    {
+                        self.img_res.cursor_var = None;
+                    }
                     self.update_gen(move |view| {
                         let _: Ignore = view.set_cursor(Some(ico));
+                        #[cfg(feature = "image")]
                         let _: Ignore = view.set_cursor_image(None, PxPoint::zero());
                     });
                 }
+                #[cfg(feature = "image")]
                 crate::CursorSource::Img(img) => {
                     self.img_res.cursor_var = Some(match img.source {
                         ImageSource::Render(cur, _) => {
@@ -410,14 +435,19 @@ impl HeadedCtrl {
                     });
                 }
                 crate::CursorSource::Hidden => {
-                    self.img_res.cursor_var = None;
+                    #[cfg(feature = "image")]
+                    {
+                        self.img_res.cursor_var = None;
+                    }
                     self.update_gen(move |view| {
                         let _: Ignore = view.set_cursor(None);
+                        #[cfg(feature = "image")]
                         let _: Ignore = view.set_cursor_image(None, PxPoint::zero());
                     });
                 }
             }
 
+            #[cfg(feature = "image")]
             if let Some(cur) = &self.img_res.cursor_var {
                 let hotspot = self.vars.cursor().with(|i| i.hotspot().cloned().unwrap_or_default());
 
@@ -446,6 +476,7 @@ impl HeadedCtrl {
                 self.img_res.cursor_binding = VarHandle::dummy();
             }
         }
+        #[cfg(feature = "image")]
         if let Some(img_hotspot) = self.vars.0.actual_cursor_img.get_new() {
             self.update_gen(move |view| match img_hotspot {
                 Some((img, hotspot)) => {
@@ -458,6 +489,7 @@ impl HeadedCtrl {
         }
 
         // setup init wait for images
+        #[cfg(feature = "image")]
         if !img_res_loading.is_empty() {
             if self.img_res.deadline.has_elapsed() {
                 UPDATES.layout_window(WINDOW.id());
@@ -501,6 +533,7 @@ impl HeadedCtrl {
             });
         }
 
+        #[cfg(feature = "image")]
         if let Some(mode) = self.vars.frame_capture_mode().get_new() {
             self.update_gen(move |view| {
                 let _: Ignore = view.set_capture_mode(matches!(mode, FrameCaptureMode::All));
@@ -1014,6 +1047,7 @@ impl HeadedCtrl {
     /// First layout, opens the window.
     fn layout_init(&mut self) {
         // await images load up to 1s.
+        #[cfg(feature = "image")]
         if self.img_res.deadline.has_elapsed() {
             if let Some(icon) = &self.img_res.icon_var
                 && icon.get().is_loading()
@@ -1143,18 +1177,40 @@ impl HeadedCtrl {
             self.vars.always_on_top().get(),
             self.vars.movable().get(),
             self.vars.resizable().get(),
-            self.img_res
-                .icon_var
-                .as_ref()
-                .and_then(|ico| ico.get().view().map(|ico| ico.id()))
-                .flatten(),
+            {
+                #[cfg(feature = "image")]
+                {
+                    self.img_res
+                        .icon_var
+                        .as_ref()
+                        .and_then(|ico| ico.get().view().map(|ico| ico.id()))
+                        .flatten()
+                }
+                #[cfg(not(feature = "image"))]
+                None
+            },
             self.vars.cursor().with(|c| c.icon()),
-            self.vars
-                .actual_cursor_img()
-                .get()
-                .and_then(|(i, h)| i.view().and_then(|i| i.id()).map(|i| (i, h))),
+            {
+                #[cfg(feature = "image")]
+                {
+                    self.vars
+                        .actual_cursor_img()
+                        .get()
+                        .and_then(|(i, h)| i.view().and_then(|i| i.id()).map(|i| (i, h)))
+                }
+                #[cfg(not(feature = "image"))]
+                None
+            },
             self.transparent,
-            matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
+            {
+                #[cfg(feature = "image")]
+                {
+                    matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All)
+                }
+
+                #[cfg(not(feature = "image"))]
+                false
+            },
             self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
             self.vars.focus_indicator().get(),
             self.start_focused,
@@ -1262,18 +1318,39 @@ impl HeadedCtrl {
             self.vars.always_on_top().get(),
             self.vars.movable().get(),
             self.vars.resizable().get(),
-            self.img_res
-                .icon_var
-                .as_ref()
-                .and_then(|ico| ico.get().view().map(|ico| ico.id()))
-                .flatten(),
+            {
+                #[cfg(feature = "image")]
+                {
+                    self.img_res
+                        .icon_var
+                        .as_ref()
+                        .and_then(|ico| ico.get().view().map(|ico| ico.id()))
+                        .flatten()
+                }
+                #[cfg(not(feature = "image"))]
+                None
+            },
             self.vars.cursor().with(|c| c.icon()),
-            self.vars
-                .actual_cursor_img()
-                .get()
-                .and_then(|(i, h)| i.view().and_then(|i| i.id()).map(|i| (i, h))),
+            {
+                #[cfg(feature = "image")]
+                {
+                    self.vars
+                        .actual_cursor_img()
+                        .get()
+                        .and_then(|(i, h)| i.view().and_then(|i| i.id()).map(|i| (i, h)))
+                }
+                #[cfg(not(feature = "image"))]
+                None
+            },
             self.transparent,
-            matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
+            {
+                #[cfg(feature = "image")]
+                {
+                    matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All)
+                }
+                #[cfg(not(feature = "image"))]
+                false
+            },
             self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
             self.vars.focus_indicator().get(),
             WINDOWS.is_focused(WINDOW.id()).unwrap_or(false),
@@ -2046,6 +2123,7 @@ impl ContentCtrl {
     }
 
     pub fn pre_event(&mut self, update: &EventUpdate) {
+        #[cfg(feature = "image")]
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             if args.window_id == WINDOW.id() {
                 let image = args.frame_image.as_ref().cloned().map(Img::new);
@@ -2053,9 +2131,10 @@ impl ContentCtrl {
                 let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), args.window_id, args.frame_id, image);
                 FRAME_IMAGE_READY_EVENT.notify(args);
             }
-        } else {
-            self.commands.event(&self.vars, update);
+            return;
         }
+
+        self.commands.event(&self.vars, update);
     }
 
     pub fn ui_event(&mut self, update: &EventUpdate) {
@@ -2209,7 +2288,10 @@ impl ContentCtrl {
 
             self.clear_color = frame.clear_color;
 
+            #[cfg(feature = "image")]
             let capture = self.take_frame_capture();
+            #[cfg(not(feature = "image"))]
+            let capture = FrameCapture::None;
 
             if let Some(renderer) = renderer {
                 let _: Ignore = renderer.render(FrameRequest::new(
@@ -2221,6 +2303,7 @@ impl ContentCtrl {
                 ));
             } else {
                 // simulate frame in headless
+                #[cfg(feature = "image")]
                 FRAME_IMAGE_READY_EVENT.notify(FrameImageReadyArgs::now(WINDOW.id(), self.frame_id, None));
             }
         } else if render_update_widgets.delivery_list().enter_window(w_id) {
@@ -2250,7 +2333,10 @@ impl ContentCtrl {
                 WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || WIDGET.update());
             }
 
+            #[cfg(feature = "image")]
             let capture = self.take_frame_capture();
+            #[cfg(not(feature = "image"))]
+            let capture = FrameCapture::None;
 
             if let Some(renderer) = renderer {
                 let _: Ignore = renderer.render_update(FrameUpdateRequest::new(
@@ -2265,10 +2351,12 @@ impl ContentCtrl {
                 ));
             } else {
                 // simulate frame in headless
+                #[cfg(feature = "image")]
                 FRAME_IMAGE_READY_EVENT.notify(FrameImageReadyArgs::now(WINDOW.id(), self.frame_id, None));
             }
         }
     }
+    #[cfg(feature = "image")]
     fn take_frame_capture(&self) -> FrameCapture {
         match self.vars.frame_capture_mode().get() {
             FrameCaptureMode::Sporadic => FrameCapture::None,
@@ -2437,6 +2525,7 @@ pub(crate) struct NestedContentCtrl {
     pending_render: Option<[Arc<RenderUpdates>; 2]>,
     ctx: WindowCtx,
     host: Option<(WindowId, WidgetId)>,
+    #[cfg(feature = "image")]
     pending_frame_capture: FrameCapture,
 }
 
@@ -2480,6 +2569,7 @@ impl NestedCtrl {
     }
 
     fn pre_event(&mut self, update: &EventUpdate) {
+        #[cfg(feature = "image")]
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             let mut c = self.c.lock();
             let c = &mut *c;
@@ -2495,9 +2585,9 @@ impl NestedCtrl {
                 let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), win, args.frame_id, image);
                 FRAME_IMAGE_READY_EVENT.notify(args);
             }
-        } else {
-            self.c.lock().content.pre_event(update)
+            return;
         }
+        self.c.lock().content.pre_event(update)
     }
 
     fn ui_event(&mut self, update: &EventUpdate) {
@@ -2729,7 +2819,10 @@ impl UiNodeImpl for NestedWindowNode {
                         },
                     );
                 });
-                c.pending_frame_capture = c.content.take_frame_capture();
+                #[cfg(feature = "image")]
+                {
+                    c.pending_frame_capture = c.content.take_frame_capture();
+                }
             })
         })
     }
@@ -2862,6 +2955,7 @@ impl OpenNestedHandlerArgs {
                         content: ContentCtrl::new(vars, commands, window),
                         pending_layout: None,
                         pending_render: None,
+                        #[cfg(feature = "image")]
                         pending_frame_capture: FrameCapture::None,
                         ctx: ctx.share(),
                         host: None,

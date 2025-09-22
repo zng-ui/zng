@@ -93,9 +93,6 @@ pub use zng_wgt_menu::{
     ButtonStyle, DefaultStyle, IconButtonStyle, Menu, ToggleStyle, icon, icon_fn, panel_fn, shortcut_spacing, shortcut_txt, style_fn,
 };
 
-#[allow(deprecated)]
-pub use zng_wgt_menu::TouchButtonStyle;
-
 /// Submenu widget and properties.
 ///
 /// See [`zng_wgt_menu::sub`] for the full widget API.

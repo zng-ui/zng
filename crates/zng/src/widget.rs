@@ -229,8 +229,8 @@ pub mod node {
     pub use zng_app::widget::node::{
         AdoptiveChildNode, AdoptiveNode, ArcNode, ChainList, DefaultPanelListData, EditableUiVec, EditableUiVecRef, FillUiNode, IntoUiNode,
         MatchNodeChild, MatchWidgetChild, OffsetUiListObserver, PanelList, PanelListData, PanelListRange, SORTING_LIST, SortingList,
-        UiNode, UiNodeImpl, UiNodeListObserver, UiNodeOp, UiNodeOpMethod, UiVec, WeakNode, WhenUiNodeBuilder, WidgetUiNode,
-        WidgetUiNodeImpl, Z_INDEX, extend_widget, match_node, match_node_leaf, match_widget, ui_vec,
+        UiNode, UiNodeImpl, UiNodeListObserver, UiNodeMethod, UiNodeOp, UiVec, WeakNode, WhenUiNodeBuilder, WidgetUiNode, WidgetUiNodeImpl,
+        Z_INDEX, extend_widget, match_node, match_node_leaf, match_widget, ui_vec,
     };
 
     pub use zng_wgt::node::{

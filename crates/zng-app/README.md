@@ -4,15 +4,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 13 feature flags, 1 enabled by default.
-
-#### `"debug_default"`
-**deprecated** use features directly
-
-*Enabled by default.*
-
-#### `"dyn_node"`
-**deprecated** no longer needed
+This crate provides 10 feature flags, 0 enabled by default.
 
 #### `"inspector"`
 Instrument each widget instance to retain build information.
@@ -21,9 +13,6 @@ Instrument each widget instance to retain build information.
 Use dynamic dispatch at the app-extension level.
 
 This speeds-up compilation time at the cost of runtime.
-
-#### `"dyn_closure"`
-**deprecated** no longer needed
 
 #### `"test_util"`
 Like `cfg(test)` but also visible in docs and integration tests.

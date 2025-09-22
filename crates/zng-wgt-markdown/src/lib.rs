@@ -332,6 +332,8 @@ fn markdown_view_fn(md: &str) -> UiNode {
                 strong: self.strong > 0,
                 emphasis: self.emphasis > 0,
                 strikethrough: self.strikethrough > 0,
+                subscript: self.subscript > self.superscript,
+                superscript: self.superscript > self.subscript,
             }
         }
     }

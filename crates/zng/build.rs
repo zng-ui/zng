@@ -1,16 +1,6 @@
 #![recursion_limit = "512"]
 
 fn main() {
-    if cfg!(feature = "dyn_node") {
-        println!(r#"cargo:warning=feature "dyn_node" is deprecated, no longer needed"#);
-    }
-    if cfg!(feature = "dyn_closure") {
-        println!(r#"cargo:warning=feature "dyn_closure" is deprecated, no longer needed"#);
-    }
-    if cfg!(feature = "debug_default") {
-        println!(r#"cargo:warning=feature "debug_default" is deprecated, enable needed features directly"#);
-    }
-
     cfg_aliases::cfg_aliases! {
         wasm: { target_arch = "wasm32" },
         android: { target_os = "android" },

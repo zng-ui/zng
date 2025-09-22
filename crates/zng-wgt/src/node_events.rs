@@ -1,4 +1,4 @@
-use zng_app::widget::node::UiNodeOpMethod;
+use zng_app::widget::node::UiNodeMethod;
 
 use crate::prelude::*;
 
@@ -13,7 +13,7 @@ pub struct OnNodeOpArgs {
     ///
     /// [`UiNodeOp`]: zng_app::widget::node::UiNodeOp
     /// [`match_node`]: zng_app::widget::node::match_node
-    pub op: UiNodeOpMethod,
+    pub op: UiNodeMethod,
     /// Number of times the handler was called.
     ///
     /// The number is `1` for the first call and is not reset if the widget is re-inited.
@@ -23,11 +23,11 @@ pub struct OnNodeOpArgs {
 }
 impl OnNodeOpArgs {
     /// New args.
-    pub fn new(op: UiNodeOpMethod, count: usize, timestamp: DInstant) -> Self {
+    pub fn new(op: UiNodeMethod, count: usize, timestamp: DInstant) -> Self {
         Self { op, count, timestamp }
     }
     /// New args with timestamp now.
-    pub fn now(op: UiNodeOpMethod, count: usize) -> Self {
+    pub fn now(op: UiNodeMethod, count: usize) -> Self {
         Self::new(op, count, INSTANT.now())
     }
 }
@@ -62,7 +62,7 @@ pub fn on_node_op(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpAr
 fn on_node_op_impl(
     child: UiNode,
     mut handler: impl WidgetHandler<OnNodeOpArgs>,
-    filter: impl Fn(UiNodeOpMethod) -> bool + Send + 'static,
+    filter: impl Fn(UiNodeMethod) -> bool + Send + 'static,
 ) -> UiNode {
     let mut count = 1;
     match_node(child, move |child, op| {
@@ -74,7 +74,7 @@ fn on_node_op_impl(
             count = count.wrapping_add(1);
         }
 
-        if let UiNodeOpMethod::Update = mtd {
+        if let UiNodeMethod::Update = mtd {
             handler.update();
         }
     })
@@ -110,7 +110,7 @@ pub fn on_pre_node_op(child: impl IntoUiNode, handler: impl WidgetHandler<OnNode
 fn on_pre_node_op_impl(
     child: UiNode,
     mut handler: impl WidgetHandler<OnNodeOpArgs>,
-    filter: impl Fn(UiNodeOpMethod) -> bool + Send + 'static,
+    filter: impl Fn(UiNodeMethod) -> bool + Send + 'static,
 ) -> UiNode {
     let mut count = 1;
     match_node(child, move |_, op| {
@@ -155,7 +155,7 @@ fn on_pre_node_op_impl(
 /// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
 pub fn on_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeOpMethod::Init))
+    on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Init))
 }
 
 /// Preview [`on_init`] event.
@@ -163,7 +163,7 @@ pub fn on_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>
 /// [`on_init`]: fn@on_init
 #[property(EVENT)]
 pub fn on_pre_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeOpMethod::Init))
+    on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Init))
 }
 
 /// Widget info is now available.
@@ -215,7 +215,7 @@ pub fn on_info_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOp
 
             if let State::InfoInited = &state {
                 state = State::Done;
-                handler.event(&OnNodeOpArgs::now(UiNodeOpMethod::Update, count));
+                handler.event(&OnNodeOpArgs::now(UiNodeMethod::Update, count));
                 count = count.wrapping_add(1);
             }
 
@@ -239,7 +239,7 @@ pub fn on_info_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOp
 /// [`hn_once!`]: zng_app::handler::hn_once!
 #[property(EVENT)]
 pub fn on_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeOpMethod::Update))
+    on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Update))
 }
 
 /// Preview [`on_update`] event.
@@ -258,7 +258,7 @@ pub fn on_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArg
 /// [`hn_once!`]: zng_app::handler::hn_once!
 #[property(EVENT)]
 pub fn on_pre_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeOpMethod::Update))
+    on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Update))
 }
 
 /// Widget deinited.
@@ -289,7 +289,7 @@ pub fn on_pre_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeO
 /// [`task::spawn`]: zng_task::spawn
 #[property(EVENT)]
 pub fn on_deinit(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeOpMethod::Deinit))
+    on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Deinit))
 }
 
 /// Preview [`on_deinit`] event.
@@ -297,7 +297,7 @@ pub fn on_deinit(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArg
 /// [`on_deinit`]: fn@on_deinit
 #[property(EVENT)]
 pub fn on_pre_deinit(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeOpMethod::Deinit))
+    on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Deinit))
 }
 
 /// If the widget has been initialized.

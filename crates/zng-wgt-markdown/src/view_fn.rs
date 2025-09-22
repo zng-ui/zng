@@ -15,21 +15,26 @@ use zng_wgt_size_offset::{offset, size};
 use zng_wgt_stack::{Stack, StackDirection};
 use zng_wgt_text::{FONT_COLOR_VAR, PARAGRAPH_SPACING_VAR, Text, font_size, font_weight};
 use zng_wgt_tooltip::*;
-use zng_wgt_transform::scale;
+use zng_wgt_transform::{scale, translate_y};
 use zng_wgt_wrap::Wrap;
 
 use super::*;
 
 /// Markdown text run style.
 #[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct MarkdownStyle {
-    // TODO(breaking) non_exhaustive and add sub/superscript
     /// Bold.
     pub strong: bool,
     /// Italic.
     pub emphasis: bool,
     /// Strikethrough.
     pub strikethrough: bool,
+
+    /// Smaller text offset towards the bottom.
+    pub subscript: bool,
+    /// Smaller text offset towards the top.
+    pub superscript: bool,
 }
 
 /// Arguments for a markdown text view.
@@ -643,6 +648,19 @@ fn text_view_builder(txt: Txt, style: MarkdownStyle) -> Text {
         widget_set! {
             &mut builder;
             strikethrough = 1, LineStyle::Solid;
+        }
+    }
+    if style.subscript {
+        widget_set! {
+            &mut builder;
+            font_size = 0.75.em();
+            translate_y = 0.25.em();
+        }
+    } else if style.superscript {
+        widget_set! {
+            &mut builder;
+            font_size = 0.75.em();
+            translate_y = -0.25.em();
         }
     }
 

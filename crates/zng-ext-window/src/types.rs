@@ -1,31 +1,42 @@
-use std::{
-    fmt,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{fmt, sync::Arc};
 
 use zng_app::{
     AppEventSender, Deadline,
     event::{event, event_args},
     update::UpdateOp,
     widget::{WidgetId, node::UiNode},
-    window::{WINDOW, WindowId},
+    window::WindowId,
 };
-use zng_ext_image::{ImageSource, ImageVar, Img};
-use zng_layout::unit::{DipPoint, DipSize, Point, PxPoint};
-use zng_txt::Txt;
+use zng_layout::unit::{DipPoint, DipSize, PxPoint};
 use zng_unique_id::IdSet;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::{
-    image::{ImageDataFormat, ImageMaskMode},
     ipc::ViewChannelError,
-    window::{CursorIcon, EventCause, FrameId},
+    window::{CursorIcon, EventCause},
 };
 
 pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState};
 use zng_wgt::prelude::IntoUiNode;
 
-use crate::{HeadlessMonitor, WINDOW_Ext as _, WINDOWS};
+use crate::{HeadlessMonitor, WINDOWS};
+
+#[cfg(feature = "image")]
+use crate::WINDOW_Ext as _;
+#[cfg(feature = "image")]
+use std::path::{Path, PathBuf};
+#[cfg(feature = "image")]
+use zng_app::window::WINDOW;
+#[cfg(feature = "image")]
+use zng_ext_image::{ImageSource, ImageVar, Img};
+#[cfg(feature = "image")]
+use zng_layout::unit::Point;
+#[cfg(feature = "image")]
+use zng_txt::Txt;
+#[cfg(feature = "image")]
+use zng_view_api::{
+    image::{ImageDataFormat, ImageMaskMode},
+    window::FrameId,
+};
 
 /// Window root node and values.
 ///
@@ -207,12 +218,14 @@ bitflags! {
 
 /// Window icon.
 #[derive(Clone, PartialEq)]
+#[non_exhaustive]
 pub enum WindowIcon {
     /// The operating system's default icon.
     Default,
     /// Image is requested from [`IMAGES`].
     ///
     /// [`IMAGES`]: zng_ext_image::IMAGES
+    #[cfg(feature = "image")]
     Image(ImageSource),
 }
 impl fmt::Debug for WindowIcon {
@@ -222,6 +235,7 @@ impl fmt::Debug for WindowIcon {
         }
         match self {
             WindowIcon::Default => write!(f, "Default"),
+            #[cfg(feature = "image")]
             WindowIcon::Image(r) => write!(f, "Image({r:?})"),
         }
     }
@@ -232,6 +246,7 @@ impl Default for WindowIcon {
         Self::Default
     }
 }
+#[cfg(feature = "image")]
 impl WindowIcon {
     /// New window icon from a closure that generates a new icon [`UiNode`] for the window.
     ///
@@ -272,12 +287,13 @@ impl WindowIcon {
         }))
     }
 }
-#[cfg(feature = "http")]
+#[cfg(all(feature = "http", feature = "image"))]
 impl_from_and_into_var! {
     fn from(uri: zng_task::http::Uri) -> WindowIcon {
         ImageSource::from(uri).into()
     }
 }
+#[cfg(feature = "image")]
 impl_from_and_into_var! {
     fn from(source: ImageSource) -> WindowIcon {
         WindowIcon::Image(source)
@@ -347,6 +363,7 @@ impl_from_and_into_var! {
 
 /// Window custom cursor.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg(feature = "image")]
 pub struct CursorImg {
     /// Cursor image source.
     ///
@@ -360,6 +377,7 @@ pub struct CursorImg {
     /// Icon to use if the image cannot be displayed.
     pub fallback: CursorIcon,
 }
+#[cfg(feature = "image")]
 impl_from_and_into_var! {
     fn from(img: CursorImg) -> Option<CursorImg>;
 }
@@ -370,6 +388,7 @@ pub enum CursorSource {
     /// Platform dependent named cursor icon.
     Icon(CursorIcon),
     /// Custom cursor image, with fallback.
+    #[cfg(feature = "image")]
     Img(CursorImg),
     /// Don't show cursor.
     Hidden,
@@ -379,12 +398,14 @@ impl CursorSource {
     pub fn icon(&self) -> Option<CursorIcon> {
         match self {
             CursorSource::Icon(ico) => Some(*ico),
+            #[cfg(feature = "image")]
             CursorSource::Img(img) => Some(img.fallback),
             CursorSource::Hidden => None,
         }
     }
 
     /// Custom icon image source.
+    #[cfg(feature = "image")]
     pub fn img(&self) -> Option<&ImageSource> {
         match self {
             CursorSource::Img(img) => Some(&img.source),
@@ -393,6 +414,7 @@ impl CursorSource {
     }
 
     /// Custom icon image click point, when the image data does not contain a hotspot.
+    #[cfg(feature = "image")]
     pub fn hotspot(&self) -> Option<&Point> {
         match self {
             CursorSource::Img(img) => Some(&img.hotspot),
@@ -400,13 +422,17 @@ impl CursorSource {
         }
     }
 }
+#[cfg(feature = "image")]
+impl_from_and_into_var! {
+    fn from(img: CursorImg) -> CursorSource {
+        CursorSource::Img(img)
+    }
+}
 impl_from_and_into_var! {
     fn from(icon: CursorIcon) -> CursorSource {
         CursorSource::Icon(icon)
     }
-    fn from(img: CursorImg) -> CursorSource {
-        CursorSource::Img(img)
-    }
+
     /// Converts `true` to `CursorIcon::Default` and `false` to `CursorSource::Hidden`.
     fn from(default_icon_or_hidden: bool) -> CursorSource {
         if default_icon_or_hidden {
@@ -423,6 +449,7 @@ impl_from_and_into_var! {
 ///
 /// [`WindowVars::frame_capture_mode`]: crate::WindowVars::frame_capture_mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg(feature = "image")]
 pub enum FrameCaptureMode {
     /// Frames are not automatically captured, but you can
     /// use [`WINDOWS.frame_image`] to capture frames.
@@ -446,6 +473,7 @@ pub enum FrameCaptureMode {
     /// as A8 mask images.
     AllMask(ImageMaskMode),
 }
+#[cfg(feature = "image")]
 impl Default for FrameCaptureMode {
     /// [`Sporadic`]: FrameCaptureMode::Sporadic
     fn default() -> Self {
@@ -529,6 +557,26 @@ event_args! {
         }
     }
 
+    /// [`WINDOW_CLOSE_REQUESTED_EVENT`] args.
+    ///
+    /// Requesting `propagation().stop()` on this event cancels the window close.
+    pub struct WindowCloseRequestedArgs {
+        /// Windows closing, headed and headless.
+        ///
+        /// This is at least one window, is multiple if the close operation was requested as group, cancelling the request
+        /// cancels close for all windows.
+        pub windows: IdSet<WindowId>,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+}
+#[cfg(feature = "image")]
+event_args! {
     /// [`FRAME_IMAGE_READY_EVENT`] args.
     pub struct FrameImageReadyArgs {
         /// Window ID.
@@ -545,24 +593,6 @@ event_args! {
         ///
         /// [`WindowVars::frame_capture_mode`]: crate::WindowVars::frame_capture_mode
         pub frame_image: Option<Img>,
-
-        ..
-
-        /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
-        }
-    }
-
-    /// [`WINDOW_CLOSE_REQUESTED_EVENT`] args.
-    ///
-    /// Requesting `propagation().stop()` on this event cancels the window close.
-    pub struct WindowCloseRequestedArgs {
-        /// Windows closing, headed and headless.
-        ///
-        /// This is at least one window, is multiple if the close operation was requested as group, cancelling the request
-        /// cancels close for all windows.
-        pub windows: IdSet<WindowId>,
 
         ..
 
@@ -711,7 +741,9 @@ event! {
     ///
     /// The closed windows deinit after this event notifies, so the window content can subscribe to it.
     pub static WINDOW_CLOSE_EVENT: WindowCloseArgs;
-
+}
+#[cfg(feature = "image")]
+event! {
     /// A window frame has finished rendering.
     ///
     /// You can request a copy of the pixels using [`WINDOWS.frame_image`] or by setting the [`WindowVars::frame_capture_mode`].

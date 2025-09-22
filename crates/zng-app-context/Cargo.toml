@@ -12,20 +12,12 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["debug_default"]
-
 # Allows multiple app instances per-process.
 #
 # This feature allows multiple apps, one app per thread at a time. The `LocalContext` tracks
 # what app is currently running in each thread and `app_local!` statics switch to the value of each app
 # depending on the current thread.
 multi_app = []
-
-# **deprecated** enable needed features directly
-debug_default = ["multi_app"]
-
-# **deprecated** no longer needed
-dyn_closure = []
 
 [dependencies]
 zng-unique-id = { path = "../zng-unique-id", version = "0.7.4", default-features = false, features = ["named"] }
