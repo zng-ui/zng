@@ -66,3 +66,7 @@ zng-webrender
 * Manually publish each crate.
 
 * If publishing new crates also set the crate owner `cargo owner --add github:zng-ui:owners [CRATE]`.
+
+## Status
+
+[![publish status](https://github.com/zng-ui/zng/actions/workflows/release.yml/badge.svg?branch=release)](https://github.com/zng-ui/zng/actions/workflows/release.yml)

@@ -1235,7 +1235,15 @@ fn prebuild(mut args: Vec<&str>) {
 
     cmd(
         "cargo",
-        &["build", "-p", "zng-view", "--profile", profile, "--features", "ipc,software,bundle_licenses,image_all"],
+        &[
+            "build",
+            "-p",
+            "zng-view",
+            "--profile",
+            profile,
+            "--features",
+            "ipc,software,bundle_licenses,image_all",
+        ],
         &args,
     );
 
