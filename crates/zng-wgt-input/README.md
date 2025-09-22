@@ -5,7 +5,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 2 feature flags, 1 enabled by default.
+This crate provides 2 feature flags, 0 enabled by default.
 
 #### `"drag_drop"`
 Enable drag&drop.
