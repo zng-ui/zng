@@ -1478,22 +1478,18 @@ impl FmtFragServer {
 
         let edition = self.edition.clone();
         blocking::unblock(move || {
-            if requests.len() == 1 {
-                let (request, response) = requests.into_iter().next().unwrap();
-                let r = match rustfmt_stdin(&Self::wrap_code_for_fmt(request.clone()), &edition) {
-                    Some(f) => Self::unwrap_formatted_code(f),
-                    None => "#rustfmt-error#".to_owned(),
-                };
-                *response.lock() = r;
-            } else {
-                match rustfmt_stdin(&Self::wrap_batch_for_fmt(requests.iter().map(|(k, _)| k.as_str())), &edition) {
-                    Some(r) => {
-                        let r = Self::unwrap_batch_for_fmt(r, requests.len());
-                        for ((_, response), r) in requests.into_iter().zip(r) {
-                            *response.lock() = r;
-                        }
+            // always use batch wrap because it adds tabs and that can cause different wrapping
+            match rustfmt_stdin(&Self::wrap_batch_for_fmt(requests.iter().map(|(k, _)| k.as_str())), &edition) {
+                Some(r) => {
+                    let r = Self::unwrap_batch_for_fmt(r, requests.len());
+                    for ((_, response), r) in requests.into_iter().zip(r) {
+                        *response.lock() = r;
                     }
-                    None => {
+                }
+                None => {
+                    if requests.len() == 1 {
+                        *requests[0].1.lock() = "#rustfmt-error#".to_owned();
+                    } else {
                         for (request, response) in requests {
                             let r = match rustfmt_stdin(&Self::wrap_code_for_fmt(request), &edition) {
                                 Some(f) => Self::unwrap_formatted_code(f),

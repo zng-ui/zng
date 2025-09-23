@@ -439,7 +439,8 @@ context_var! {
     pub static DEF_LIST_ITEM_TITLE_FN_VAR: WidgetFn<DefListItemTitleArgs> = WidgetFn::new(default_def_list_item_title_fn);
 
     /// Widget function for a markdown definition list item description.
-    pub static DEF_LIST_ITEM_DEFINITION_FN_VAR: WidgetFn<DefListItemDefinitionArgs> = WidgetFn::new(default_def_list_item_definition_fn);
+    pub static DEF_LIST_ITEM_DEFINITION_FN_VAR: WidgetFn<DefListItemDefinitionArgs> =
+        WidgetFn::new(default_def_list_item_definition_fn);
 
     /// Widget function for a markdown image.
     pub static IMAGE_FN_VAR: WidgetFn<ImageFnArgs> = WidgetFn::new(default_image_fn);
