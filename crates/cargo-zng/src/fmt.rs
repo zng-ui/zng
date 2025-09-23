@@ -52,6 +52,10 @@ pub struct FmtArgs {
     #[arg(long, default_value = "2024")]
     edition: String,
 
+    /// Format or check every file, not just changed files
+    #[arg(long, action)]
+    full: bool,
+
     /// Output rustfmt stderr, for debugging
     #[arg(long, action, hide = true)]
     rustfmt_errors: bool,
@@ -294,7 +298,13 @@ async fn custom_fmt_rs(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io:
 
     if formatted_code != file {
         if check {
-            fatal!("format does not match in file `{}`", rs_file.display());
+            // reformat early for check
+            let formatted_code = rustfmt_stdin(&formatted_code, &fmt.edition).unwrap_or(formatted_code);
+            if formatted_code != file {
+                let diff = similar::TextDiff::from_lines(&file, &formatted_code);
+                fatal!("Diff in {}:\n{}", rs_file.display(), diff.unified_diff().context_radius(2));
+            }
+            return Ok(None);
         }
         fs::write(&rs_file, formatted_code)?;
         Ok(Some(rs_file))
@@ -503,7 +513,8 @@ async fn custom_fmt_md(md_file: PathBuf, check: bool, fmt: FmtFragServer) -> io:
 
     if formatted != file {
         if check {
-            fatal!("format does not match in file `{}`", md_file.display());
+            let diff = similar::TextDiff::from_lines(&file, &formatted);
+            fatal!("Diff in {}:\n{}", md_file.display(), diff.unified_diff().context_radius(2));
         }
         fs::write(&md_file, formatted)?;
     }
@@ -1467,22 +1478,18 @@ impl FmtFragServer {
 
         let edition = self.edition.clone();
         blocking::unblock(move || {
-            if requests.len() == 1 {
-                let (request, response) = requests.into_iter().next().unwrap();
-                let r = match rustfmt_stdin(&Self::wrap_code_for_fmt(request.clone()), &edition) {
-                    Some(f) => Self::unwrap_formatted_code(f),
-                    None => "#rustfmt-error#".to_owned(),
-                };
-                *response.lock() = r;
-            } else {
-                match rustfmt_stdin(&Self::wrap_batch_for_fmt(requests.iter().map(|(k, _)| k.as_str())), &edition) {
-                    Some(r) => {
-                        let r = Self::unwrap_batch_for_fmt(r, requests.len());
-                        for ((_, response), r) in requests.into_iter().zip(r) {
-                            *response.lock() = r;
-                        }
+            // always use batch wrap because it adds tabs and that can cause different wrapping
+            match rustfmt_stdin(&Self::wrap_batch_for_fmt(requests.iter().map(|(k, _)| k.as_str())), &edition) {
+                Some(r) => {
+                    let r = Self::unwrap_batch_for_fmt(r, requests.len());
+                    for ((_, response), r) in requests.into_iter().zip(r) {
+                        *response.lock() = r;
                     }
-                    None => {
+                }
+                None => {
+                    if requests.len() == 1 {
+                        *requests[0].1.lock() = "#rustfmt-error#".to_owned();
+                    } else {
                         for (request, response) in requests {
                             let r = match rustfmt_stdin(&Self::wrap_code_for_fmt(request), &edition) {
                                 Some(f) => Self::unwrap_formatted_code(f),
@@ -1689,7 +1696,7 @@ impl FmtHistory {
                 let prev_t = *t;
                 assert_ne!(prev_t, Self::TIMESTAMP_ON_SAVE, "inserted called twice");
                 *t = Self::TIMESTAMP_ON_SAVE;
-                return prev_t;
+                return if args.full { 0 } else { prev_t };
             }
         }
         self.entries.push((args_key, Self::TIMESTAMP_ON_SAVE));

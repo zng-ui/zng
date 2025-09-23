@@ -28,7 +28,7 @@ jobs:
       - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5
       - uses: Swatinem/rust-cache@v2
       - run: cargo do version --verbose
-      - run: cargo do fmt --check
+      - run: cargo do fmt --check --full
       - run: cargo do check
       - run: cargo do l10n --all --check
   check-macos:
@@ -38,7 +38,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo do version --verbose
-      - run: cargo do fmt --check
+      - run: cargo do fmt --check --full
       - run: cargo do check
   check-windows:
     runs-on: windows-latest
@@ -50,7 +50,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo do version --verbose
-      - run: cargo do fmt --check
+      - run: cargo do fmt --check --full
       - run: cargo do check
   check-release:
     runs-on: ubuntu-latest
