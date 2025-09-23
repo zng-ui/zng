@@ -298,8 +298,13 @@ async fn custom_fmt_rs(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io:
 
     if formatted_code != file {
         if check {
-            let diff = similar::TextDiff::from_lines(&file, &formatted_code);
-            fatal!("Diff in {}:\n{}", rs_file.display(), diff.unified_diff().context_radius(2));
+            // reformat early for check
+            let formatted_code = rustfmt_stdin(&formatted_code, &fmt.edition).unwrap_or(formatted_code);
+            if formatted_code != file {
+                let diff = similar::TextDiff::from_lines(&file, &formatted_code);
+                fatal!("Diff in {}:\n{}", rs_file.display(), diff.unified_diff().context_radius(2));
+            }
+            return Ok(None);
         }
         fs::write(&rs_file, formatted_code)?;
         Ok(Some(rs_file))
