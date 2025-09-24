@@ -105,6 +105,11 @@ impl Rect {
         self.origin.is_default() && self.size.is_default()
     }
 
+    /// Returns ´true` if any value is [`Length::Default`].
+    pub fn has_default(&self) -> bool {
+        self.origin.has_default() || self.size.has_default()
+    }
+
     /// Replaces [`Length::Default`] values with `overwrite` values.
     pub fn replace_default(&mut self, overwrite: &Rect) {
         self.origin.replace_default(&overwrite.origin);

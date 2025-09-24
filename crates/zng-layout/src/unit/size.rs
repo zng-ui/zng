@@ -78,6 +78,11 @@ impl Size {
         self.width.is_default() && self.height.is_default()
     }
 
+    /// Returns `true` if any value is [`Length::Default`].
+    pub fn has_default(&self) -> bool {
+        self.width.has_default() || self.height.has_default()
+    }
+
     /// Replaces [`Length::Default`] values with `overwrite` values.
     pub fn replace_default(&mut self, overwrite: &Size) {
         self.width.replace_default(&overwrite.width);
