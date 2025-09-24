@@ -1,6 +1,7 @@
+use euclid::BoolVector2D;
 use zng_wgt::prelude::*;
 
-use crate::{WIDGET_SIZE, with_fill_metrics};
+use crate::WIDGET_SIZE;
 
 /// Exact size of the widget.
 ///
@@ -40,25 +41,84 @@ pub fn size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
-            wm.measure_block(&mut UiNode::nil()); // no need to actually measure child
-
-            let parent_constraints = LAYOUT.constraints();
-
-            *desired_size = with_fill_metrics(parent_constraints.with_new_min(Px(0), Px(0)), |d| size.layout_dft(d));
-            *desired_size = Align::TOP_LEFT.measure(*desired_size, parent_constraints);
+            *desired_size = SizeLayout::new(&size).measure(child.node(), wm);
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let parent_constraints = LAYOUT.constraints();
-            let constraints = parent_constraints.with_new_min(Px(0), Px(0));
-
-            let size = with_fill_metrics(constraints, |d| size.layout_dft(d));
-            let size = constraints.clamp_size(size);
-            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || child.layout(wl));
-
-            *final_size = Align::TOP_LEFT.measure(size, parent_constraints);
+            child.delegated();
+            *final_size = SizeLayout::new(&size).layout(child.node(), wl);
         }
         _ => {}
     })
+}
+struct SizeLayout {
+    parent_constraints: PxConstraints2d,
+    constraints: PxConstraints2d,
+    size: PxSize,
+    is_default: BoolVector2D,
+}
+impl SizeLayout {
+    pub fn new(size: &Var<Size>) -> Self {
+        let parent_constraints = LAYOUT.constraints();
+        let mut constraints = parent_constraints;
+        let mut is_default = BoolVector2D { x: true, y: true };
+        let mut size_px = PxSize::zero();
+        size.with(|s| {
+            let unit_constraints = parent_constraints.with_new_min(Px(0), Px(0));
+            if !s.width.is_default() {
+                is_default.x = false;
+                size_px.width = LAYOUT.with_constraints(unit_constraints, || s.width.layout_x());
+                size_px.width = unit_constraints.x.clamp(size_px.width);
+                constraints.x = PxConstraints::new_exact(size_px.width);
+            }
+            if !s.height.is_default() {
+                is_default.y = false;
+                size_px.height = LAYOUT.with_constraints(unit_constraints, || s.width.layout_y());
+                size_px.height = unit_constraints.y.clamp(size_px.height);
+                constraints.y = PxConstraints::new_exact(size_px.height);
+            }
+        });
+        Self {
+            parent_constraints,
+            constraints,
+            size: size_px,
+            is_default,
+        }
+    }
+
+    pub fn measure(&self, child: &mut UiNode, wm: &mut WidgetMeasure) -> PxSize {
+        if self.is_default.all() {
+            return child.measure(wm);
+        }
+
+        let size = if self.is_default.any() {
+            LAYOUT.with_constraints(self.constraints, || wm.measure_block(child))
+        } else {
+            wm.measure_block(&mut UiNode::nil());
+            self.size
+        };
+
+        self.clamp_outer_bounds(size)
+    }
+
+    pub fn layout(&self, child: &mut UiNode, wl: &mut WidgetLayout) -> PxSize {
+        if self.is_default.all() {
+            return child.layout(wl);
+        }
+
+        let size = LAYOUT.with_constraints(self.constraints, || child.layout(wl));
+
+        self.clamp_outer_bounds(size)
+    }
+
+    fn clamp_outer_bounds(&self, mut size: PxSize) -> PxSize {
+        if !self.is_default.x {
+            size.width = Align::TOP_LEFT.measure_x(self.size.width, self.parent_constraints.x);
+        }
+        if !self.is_default.y {
+            size.height = Align::TOP_LEFT.measure_y(self.size.height, self.parent_constraints.y);
+        }
+        size
+    }
 }
 
 /// Exact width of the widget.
@@ -96,25 +156,70 @@ pub fn width(child: impl IntoUiNode, width: impl IntoVar<Length>) -> UiNode {
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
-            let parent_constraints = LAYOUT.constraints();
-            let constraints = parent_constraints.with_new_min_x(Px(0));
-
-            let width = with_fill_metrics(constraints, |d| width.layout_dft_x(d.width));
-            let width = constraints.x.clamp(width);
-            *desired_size = LAYOUT.with_constraints(constraints.with_exact_x(width), || wm.measure_block(child.node()));
-            desired_size.width = Align::TOP_LEFT.measure_x(width, parent_constraints.x);
+            *desired_size = WidthLayout::new(&width).measure(child.node(), wm);
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let parent_constraints = LAYOUT.constraints();
-            let constraints = parent_constraints.with_new_min_x(Px(0));
-
-            let width = with_fill_metrics(constraints, |d| width.layout_dft_x(d.width));
-            let width = constraints.x.clamp(width);
-            *final_size = LAYOUT.with_constraints(constraints.with_exact_x(width), || child.layout(wl));
-            final_size.width = Align::TOP_LEFT.measure_x(width, parent_constraints.x);
+            child.delegated();
+            *final_size = WidthLayout::new(&width).layout(child.node(), wl);
         }
         _ => {}
     })
+}
+struct WidthLayout {
+    parent_constraints: PxConstraints2d,
+    constraints: PxConstraints2d,
+    width: Px,
+    is_default: bool,
+}
+impl WidthLayout {
+    pub fn new(width: &Var<Length>) -> Self {
+        let parent_constraints = LAYOUT.constraints();
+        let mut constraints = parent_constraints;
+        let mut is_default = true;
+        let mut width_px = Px(0);
+        width.with(|w| {
+            if !w.is_default() {
+                let unit_constraints = parent_constraints.with_new_min_x(Px(0));
+                is_default = false;
+                width_px = LAYOUT.with_constraints(unit_constraints, || w.layout_x());
+                width_px = unit_constraints.x.clamp(width_px);
+                constraints.x = PxConstraints::new_exact(width_px);
+            }
+        });
+        Self {
+            parent_constraints,
+            constraints,
+            width: width_px,
+            is_default,
+        }
+    }
+
+    pub fn measure(&self, child: &mut UiNode, wm: &mut WidgetMeasure) -> PxSize {
+        if self.is_default {
+            return child.measure(wm);
+        }
+
+        let size = LAYOUT.with_constraints(self.constraints, || wm.measure_block(child));
+
+        self.clamp_outer_bounds(size)
+    }
+
+    pub fn layout(&self, child: &mut UiNode, wl: &mut WidgetLayout) -> PxSize {
+        if self.is_default {
+            return child.layout(wl);
+        }
+
+        let size = LAYOUT.with_constraints(self.constraints, || child.layout(wl));
+
+        self.clamp_outer_bounds(size)
+    }
+
+    fn clamp_outer_bounds(&self, mut size: PxSize) -> PxSize {
+        if !self.is_default {
+            size.width = Align::TOP_LEFT.measure_x(self.width, self.parent_constraints.x);
+        }
+        size
+    }
 }
 
 /// Exact height of the widget.
@@ -153,23 +258,68 @@ pub fn height(child: impl IntoUiNode, height: impl IntoVar<Length>) -> UiNode {
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
-            let parent_constraints = LAYOUT.constraints();
-            let constraints = parent_constraints.with_new_min_y(Px(0));
-
-            let height = with_fill_metrics(constraints, |d| height.layout_dft_x(d.height));
-            let height = constraints.x.clamp(height);
-            *desired_size = LAYOUT.with_constraints(constraints.with_exact_y(height), || wm.measure_block(child.node()));
-            desired_size.height = Align::TOP_LEFT.measure_y(height, parent_constraints.y);
+            *desired_size = HeightLayout::new(&height).measure(child.node(), wm);
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let parent_constraints = LAYOUT.constraints();
-            let constraints = parent_constraints.with_new_min_y(Px(0));
-
-            let height = with_fill_metrics(constraints, |d| height.layout_dft_y(d.height));
-            let height = constraints.y.clamp(height);
-            *final_size = LAYOUT.with_constraints(constraints.with_exact_y(height), || child.layout(wl));
-            final_size.height = Align::TOP_LEFT.measure_y(height, parent_constraints.y);
+            child.delegated();
+            *final_size = HeightLayout::new(&height).layout(child.node(), wl);
         }
         _ => {}
     })
+}
+struct HeightLayout {
+    parent_constraints: PxConstraints2d,
+    constraints: PxConstraints2d,
+    height: Px,
+    is_default: bool,
+}
+impl HeightLayout {
+    pub fn new(height: &Var<Length>) -> Self {
+        let parent_constraints = LAYOUT.constraints();
+        let mut constraints = parent_constraints;
+        let mut is_default = true;
+        let mut height_px = Px(0);
+        height.with(|h| {
+            if !h.is_default() {
+                let unit_constraints = parent_constraints.with_new_min_x(Px(0));
+                is_default = false;
+                height_px = LAYOUT.with_constraints(unit_constraints, || h.layout_y());
+                height_px = unit_constraints.x.clamp(height_px);
+                constraints.y = PxConstraints::new_exact(height_px);
+            }
+        });
+        Self {
+            parent_constraints,
+            constraints,
+            height: height_px,
+            is_default,
+        }
+    }
+
+    pub fn measure(&self, child: &mut UiNode, wm: &mut WidgetMeasure) -> PxSize {
+        if self.is_default {
+            return child.measure(wm);
+        }
+
+        let size = LAYOUT.with_constraints(self.constraints, || wm.measure_block(child));
+
+        self.clamp_outer_bounds(size)
+    }
+
+    pub fn layout(&self, child: &mut UiNode, wl: &mut WidgetLayout) -> PxSize {
+        if self.is_default {
+            return child.layout(wl);
+        }
+
+        let size = LAYOUT.with_constraints(self.constraints, || child.layout(wl));
+
+        self.clamp_outer_bounds(size)
+    }
+
+    fn clamp_outer_bounds(&self, mut size: PxSize) -> PxSize {
+        if !self.is_default {
+            size.height = Align::TOP_LEFT.measure_y(self.height, self.parent_constraints.y);
+        }
+        size
+    }
 }

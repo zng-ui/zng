@@ -26,11 +26,6 @@ pub use sticky::*;
 
 use zng_wgt::prelude::*;
 
-fn with_fill_metrics<R>(c: PxConstraints2d, f: impl FnOnce(PxSize) -> R) -> R {
-    let dft = c.fill_size();
-    LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || f(dft))
-}
-
 /// Set or overwrite the baseline of the widget.
 ///
 /// The `baseline` is a vertical offset from the bottom edge of the widget's inner bounds up, it defines the

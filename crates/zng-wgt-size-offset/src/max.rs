@@ -114,7 +114,7 @@ impl MaxSizeLayout {
 /// # `max_size`
 ///
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
-#[property(SIZE-1, default(Px::MAX))]
+#[property(SIZE-1, default(Length::Default))]
 pub fn max_width(child: impl IntoUiNode, max_width: impl IntoVar<Length>) -> UiNode {
     let max_width = max_width.into_var();
     match_node(child, move |child, op| match op {
@@ -123,36 +123,25 @@ pub fn max_width(child: impl IntoUiNode, max_width: impl IntoVar<Length>) -> UiN
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
-            let parent_constraints = LAYOUT.constraints();
-            let max = with_fill_metrics(parent_constraints, |d| max_width.layout_dft_x(d.width));
-
-            let mut size = LAYOUT.with_constraints(parent_constraints.with_max_x(max), || wm.measure_block(child.node()));
-            size.width = size.width.min(max);
-            *desired_size = size;
-            desired_size.width = Align::TOP_LEFT.measure_x(desired_size.width, parent_constraints.x);
+            *desired_size = MaxWidthLayout::new(&max_width).measure(child.node(), wm);
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let parent_constraints = LAYOUT.constraints();
-            let max = with_fill_metrics(parent_constraints, |d| max_width.layout_dft_x(d.width));
-
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_x(max), || child.layout(wl));
-            size.width = size.width.min(max);
-            *final_size = size;
-            final_size.width = Align::TOP_LEFT.measure_x(final_size.width, parent_constraints.x);
+            child.delegated();
+            *final_size = MaxWidthLayout::new(&max_width).layout(child.node(), wl);
         }
         _ => {}
     })
 }
 struct MaxWidthLayout {
     parent_constraints: PxConstraints2d,
-    constraints: PxConstraints,
+    constraints: PxConstraints2d,
     max: Px,
     is_default: bool,
 }
 impl MaxWidthLayout {
     pub fn new(max_width: &Var<Length>) -> Self {
         let parent_constraints = LAYOUT.constraints();
-        let mut constraints = parent_constraints.x;
+        let mut constraints = parent_constraints;
         let mut max = Px::MAX;
         let mut is_default = true;
 
@@ -161,7 +150,7 @@ impl MaxWidthLayout {
                 is_default = false;
 
                 max = LAYOUT.with_constraints(parent_constraints.with_fill_x(parent_constraints.x.is_bounded()), || w.layout_x());
-                constraints = constraints.with_max(max.width);
+                constraints.x = constraints.x.with_max(max);
             }
         });
 
@@ -173,34 +162,27 @@ impl MaxWidthLayout {
         }
     }
 
-    pub fn measure(&self, max_size: &Var<Size>, child: &mut UiNode, wm: &mut WidgetMeasure) -> PxSize {
+    pub fn measure(&self, child: &mut UiNode, wm: &mut WidgetMeasure) -> PxSize {
         if self.is_default {
             // default is noop (widget API requirement)
             return child.measure(wm);
         }
         let size = LAYOUT.with_constraints(self.constraints, || wm.measure_block(child));
-        self.clamp_outer_bounds(max_size, size)
+        self.clamp_outer_bounds(size)
     }
 
-    pub fn layout(&self, max_size: &Var<Size>, child: &mut UiNode, wl: &mut WidgetLayout) -> PxSize {
+    pub fn layout(&self, child: &mut UiNode, wl: &mut WidgetLayout) -> PxSize {
         if self.is_default {
             return child.layout(wl);
         }
         let size = LAYOUT.with_constraints(self.constraints, || child.layout(wl));
-        self.clamp_outer_bounds(max_size, size)
+        self.clamp_outer_bounds(size)
     }
 
     // clamp/expand outer-bounds to fulfill parent constraints
-    fn clamp_outer_bounds(&self, max_size: &Var<Size>, mut size: PxSize) -> PxSize {
-        size = size.min(self.max);
-        max_size.with(|s| {
-            if !s.width.is_default() {
-                size.width = Align::TOP_LEFT.measure_x(size.width, self.parent_constraints.x);
-            }
-            if !s.height.is_default() {
-                size.height = Align::TOP_LEFT.measure_y(size.height, self.parent_constraints.y);
-            }
-        });
+    fn clamp_outer_bounds(&self, mut size: PxSize) -> PxSize {
+        size.width = size.width.min(self.max);
+        size.width = Align::TOP_LEFT.measure_x(size.width, self.parent_constraints.x);
         size
     }
 }
@@ -218,7 +200,7 @@ impl MaxWidthLayout {
 /// # `max_size`
 ///
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
-#[property(SIZE-1, default(Px::MAX))]
+#[property(SIZE-1, default(Length::Default))]
 pub fn max_height(child: impl IntoUiNode, max_height: impl IntoVar<Length>) -> UiNode {
     let max_height = max_height.into_var();
     match_node(child, move |child, op| match op {
@@ -227,23 +209,66 @@ pub fn max_height(child: impl IntoUiNode, max_height: impl IntoVar<Length>) -> U
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
-            let parent_constraints = LAYOUT.constraints();
-            let max = with_fill_metrics(parent_constraints, |d| max_height.layout_dft_y(d.height));
-
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_y(max), || wm.measure_block(child.node()));
-            size.height = size.height.min(max);
-            *desired_size = size;
-            desired_size.height = Align::TOP_LEFT.measure_y(desired_size.height, parent_constraints.y);
+            *desired_size = MaxHeightLayout::new(&max_height).measure(child.node(), wm);
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let parent_constraints = LAYOUT.constraints();
-            let max = with_fill_metrics(parent_constraints, |d| max_height.layout_dft_y(d.height));
-
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_y(max), || child.layout(wl));
-            size.height = size.height.min(max);
-            *final_size = size;
-            final_size.height = Align::TOP_LEFT.measure_y(final_size.height, parent_constraints.y);
+            child.delegated();
+            *final_size = MaxHeightLayout::new(&max_height).layout(child.node(), wl);
         }
         _ => {}
     })
+}
+struct MaxHeightLayout {
+    parent_constraints: PxConstraints2d,
+    constraints: PxConstraints2d,
+    max: Px,
+    is_default: bool,
+}
+impl MaxHeightLayout {
+    pub fn new(max_height: &Var<Length>) -> Self {
+        let parent_constraints = LAYOUT.constraints();
+        let mut constraints = parent_constraints;
+        let mut max = Px::MAX;
+        let mut is_default = true;
+
+        max_height.with(|h| {
+            if !h.is_default() {
+                is_default = false;
+
+                max = LAYOUT.with_constraints(parent_constraints.with_fill_y(parent_constraints.y.is_bounded()), || h.layout_y());
+                constraints.y = constraints.y.with_max(max);
+            }
+        });
+
+        Self {
+            parent_constraints,
+            constraints,
+            max,
+            is_default,
+        }
+    }
+
+    pub fn measure(&self, child: &mut UiNode, wm: &mut WidgetMeasure) -> PxSize {
+        if self.is_default {
+            // default is noop (widget API requirement)
+            return child.measure(wm);
+        }
+        let size = LAYOUT.with_constraints(self.constraints, || wm.measure_block(child));
+        self.clamp_outer_bounds(size)
+    }
+
+    pub fn layout(&self, child: &mut UiNode, wl: &mut WidgetLayout) -> PxSize {
+        if self.is_default {
+            return child.layout(wl);
+        }
+        let size = LAYOUT.with_constraints(self.constraints, || child.layout(wl));
+        self.clamp_outer_bounds(size)
+    }
+
+    // clamp/expand outer-bounds to fulfill parent constraints
+    fn clamp_outer_bounds(&self, mut size: PxSize) -> PxSize {
+        size.height = size.height.min(self.max);
+        size.height = Align::TOP_LEFT.measure_y(size.height, self.parent_constraints.y);
+        size
+    }
 }
