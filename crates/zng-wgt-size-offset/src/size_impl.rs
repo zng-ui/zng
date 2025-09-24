@@ -72,7 +72,7 @@ impl SizeLayout {
             }
             if !s.height.is_default() {
                 is_default.y = false;
-                size_px.height = LAYOUT.with_constraints(unit_constraints, || s.width.layout_y());
+                size_px.height = LAYOUT.with_constraints(unit_constraints, || s.height.layout_y());
                 size_px.height = unit_constraints.y.clamp(size_px.height);
                 constraints.y = PxConstraints::new_exact(size_px.height);
             }
@@ -281,10 +281,10 @@ impl HeightLayout {
         let mut height_px = Px(0);
         height.with(|h| {
             if !h.is_default() {
-                let unit_constraints = parent_constraints.with_new_min_x(Px(0));
+                let unit_constraints = parent_constraints.with_new_min_y(Px(0));
                 is_default = false;
                 height_px = LAYOUT.with_constraints(unit_constraints, || h.layout_y());
-                height_px = unit_constraints.x.clamp(height_px);
+                height_px = unit_constraints.y.clamp(height_px);
                 constraints.y = PxConstraints::new_exact(height_px);
             }
         });

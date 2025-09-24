@@ -9,7 +9,7 @@ use crate::WIDGET_SIZE;
 /// Relative values are computed from the constraints maximum bounded size.
 ///
 /// Note that this property deliberately breaks layout and causes out-of-bounds rendering. You
-/// can use [`size`](fn@size) instead to set an exact size that is coerced by the contextual max.
+/// can use [`size`](fn@crate::size) instead to set an exact size that is coerced by the contextual max.
 ///
 /// # `force_width` and `force_height`
 ///
