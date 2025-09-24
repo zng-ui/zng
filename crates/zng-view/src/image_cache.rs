@@ -198,7 +198,7 @@ impl ImageCache {
     pub fn add_pro(
         &mut self,
         ImageRequest {
-            format,
+            format: request_fmt,
             data,
             max_decoded_len,
             downscale,
@@ -216,16 +216,16 @@ impl ImageCache {
             let mut is_encoded = true;
             let mut orientation = image::metadata::Orientation::NoTransforms;
 
-            let mut format = match format {
+            let mut format = match &request_fmt {
                 ImageDataFormat::Bgra8 { size: s, ppi: p } => {
                     is_encoded = false;
-                    size = Some(s);
-                    ppi = p;
+                    size = Some(*s);
+                    ppi = *p;
                     None
                 }
                 ImageDataFormat::A8 { size: s } => {
                     is_encoded = false;
-                    size = Some(s);
+                    size = Some(*s);
                     None
                 }
                 ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext.as_str()),
@@ -244,6 +244,11 @@ impl ImageCache {
 
                         if let Some(fmt) = format {
                             if size.is_none() {
+                                if let Ok((f, s, o)) = Self::get_format_and_size(&request_fmt, &full) {
+                                    size = Some(s);
+                                    orientation = o;
+                                    format = Some(f);
+                                }
                                 if let Ok(mut d) = image::ImageReader::with_format(std::io::Cursor::new(&full), fmt).into_decoder() {
                                     use image::metadata::Orientation::*;
 
@@ -349,7 +354,7 @@ impl ImageCache {
     }
 
     fn get_format_and_size(fmt: &ImageDataFormat, data: &[u8]) -> Result<(image::ImageFormat, PxSize, image::metadata::Orientation), Txt> {
-        let fmt = match fmt {
+        let maybe_fmt = match fmt {
             ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext.as_str()),
             ImageDataFormat::MimeType(t) => t.strip_prefix("image/").and_then(image::ImageFormat::from_extension),
             ImageDataFormat::Unknown => None,
@@ -358,7 +363,7 @@ impl ImageCache {
             _ => None,
         };
 
-        let reader = match fmt {
+        let reader = match maybe_fmt {
             Some(fmt) => image::ImageReader::with_format(std::io::Cursor::new(data), fmt),
             None => image::ImageReader::new(std::io::Cursor::new(data))
                 .with_guessed_format()
@@ -369,7 +374,19 @@ impl ImageCache {
             Some(fmt) => {
                 use image::metadata::Orientation::*;
 
-                let mut decoder = reader.into_decoder().map_err(|e| e.to_string())?;
+                let mut decoder = match reader.into_decoder() {
+                    Ok(d) => d,
+                    Err(e) => {
+                        // decoder error, try fallback to Unknown
+                        if let image::ImageError::Decoding(_) = &e
+                            && maybe_fmt.is_some()
+                            && let Ok(r) = Self::get_format_and_size(&ImageDataFormat::Unknown, data)
+                        {
+                            return Ok(r);
+                        }
+                        return Err(e.to_txt());
+                    }
+                };
                 let (mut w, mut h) = decoder.dimensions();
                 let orientation = decoder.orientation().unwrap_or(NoTransforms);
 
