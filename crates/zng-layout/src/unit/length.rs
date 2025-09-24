@@ -777,10 +777,10 @@ impl LengthExpr {
 
     /// Convert [`PxF32`] to [`Px`] and [`DipF32`] to [`Dip`].
     ///
-    /// [`PxF32`]: Self::PxF32
-    /// [`Px`]: Self::Px
-    /// [`DipF32`]: Self::DipF32
-    /// [`Dip`]: Self::Dip
+    /// [`PxF32`]: Length::PxF32
+    /// [`Px`]: Length::Px
+    /// [`DipF32`]: Length::DipF32
+    /// [`Dip`]: Length::Dip
     pub fn round_exact(&mut self) {
         match self {
             LengthExpr::Add(a, b) | LengthExpr::Sub(a, b) | LengthExpr::Max(a, b) | LengthExpr::Min(a, b) | LengthExpr::Lerp(a, b, _) => {
