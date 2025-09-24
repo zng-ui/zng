@@ -12,7 +12,7 @@ use zng_wgt::prelude::*;
 ///
 /// # `max_width` and `max_height`
 ///
-/// You can use the [`max_width`](fn@max_width) and [`max_height`](fn@max_height) properties to only
+/// You can use the [`max_width`](fn@crate::max_width) and [`max_height`](fn@crate::max_height) properties to only
 /// set the maximum size of one dimension.
 #[property(SIZE-1,  default(PxSize::default()))]
 pub fn max_size(child: impl IntoUiNode, max_size: impl IntoVar<Size>) -> UiNode {
@@ -113,7 +113,7 @@ impl MaxSizeLayout {
 ///
 /// # `max_size`
 ///
-/// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
+/// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@crate::max_size) property.
 #[property(SIZE-1, default(Length::Default))]
 pub fn max_width(child: impl IntoUiNode, max_width: impl IntoVar<Length>) -> UiNode {
     let max_width = max_width.into_var();
@@ -199,7 +199,7 @@ impl MaxWidthLayout {
 ///
 /// # `max_size`
 ///
-/// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
+/// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@crate::max_size) property.
 #[property(SIZE-1, default(Length::Default))]
 pub fn max_height(child: impl IntoUiNode, max_height: impl IntoVar<Length>) -> UiNode {
     let max_height = max_height.into_var();

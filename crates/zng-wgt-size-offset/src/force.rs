@@ -15,8 +15,8 @@ use crate::WIDGET_SIZE;
 ///
 /// You can use the [`force_width`] and [`force_height`] properties to only set the size of one dimension.
 ///
-/// [`force_width`]: fn@force_width
-/// [`force_height`]: fn@force_height
+/// [`force_width`]: fn@crate::force_width
+/// [`force_height`]: fn@crate::force_height
 #[property(SIZE, default(Size::default()))]
 pub fn force_size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
     let size = size.into_var();
@@ -121,11 +121,11 @@ impl ForceSizeLayout {
 /// Relative values are computed from the constraints maximum bounded width.
 ///
 /// Note that this property deliberately breaks layout and causes out-of-bounds rendering. You
-/// can use [`width`](fn@width) instead to set an exact width that is coerced by the contextual max.
+/// can use [`width`](fn@crate::width) instead to set an exact width that is coerced by the contextual max.
 ///
 /// # `force_size`
 ///
-/// You can set both `force_width` and `force_height` at the same time using the [`force_size`](fn@force_size) property.
+/// You can set both `force_width` and `force_height` at the same time using the [`force_size`](fn@crate::force_size) property.
 #[property(SIZE, default(Length::Default))]
 pub fn force_width(child: impl IntoUiNode, width: impl IntoVar<Length>) -> UiNode {
     let width = width.into_var();
@@ -214,11 +214,11 @@ impl ForceWidthLayout {
 /// Relative values are computed from the constraints maximum bounded height.
 ///
 /// Note that this property deliberately breaks layout and causes out-of-bounds rendering. You
-/// can use [`height`](fn@height) instead to set an exact height that is coerced by the contextual max.
+/// can use [`height`](fn@crate::height) instead to set an exact height that is coerced by the contextual max.
 ///
 /// # `force_size`
 ///
-/// You can set both `force_width` and `force_height` at the same time using the [`force_size`](fn@force_size) property.
+/// You can set both `force_width` and `force_height` at the same time using the [`force_size`](fn@crate::force_size) property.
 #[property(SIZE, default(Length::Default))]
 pub fn force_height(child: impl IntoUiNode, height: impl IntoVar<Length>) -> UiNode {
     let height = height.into_var();

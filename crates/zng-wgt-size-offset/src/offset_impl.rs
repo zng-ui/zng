@@ -6,7 +6,7 @@ use zng_wgt::prelude::*;
 ///
 /// # `x` and `y`
 ///
-/// You can use the [`x`](fn@x) and [`y`](fn@y) properties to only set the position in one dimension.
+/// You can use the [`x`](fn@crate::x) and [`y`](fn@crate::y) properties to only set the position in one dimension.
 #[property(LAYOUT, default((0, 0)))]
 pub fn offset(child: impl IntoUiNode, offset: impl IntoVar<Vector>) -> UiNode {
     let offset = offset.into_var();
@@ -32,7 +32,7 @@ pub fn offset(child: impl IntoUiNode, offset: impl IntoVar<Vector>) -> UiNode {
 ///
 /// # `offset`
 ///
-/// You can set both `x` and `y` at the same time using the [`offset`](fn@offset) property.
+/// You can set both `x` and `y` at the same time using the [`offset`](fn@crate::offset) property.
 #[property(LAYOUT, default(0))]
 pub fn x(child: impl IntoUiNode, x: impl IntoVar<Length>) -> UiNode {
     let x = x.into_var();
@@ -59,7 +59,7 @@ pub fn x(child: impl IntoUiNode, x: impl IntoVar<Length>) -> UiNode {
 ///
 /// # `offset`
 ///
-/// You can set both `x` and `y` at the same time using the [`offset`](fn@offset) property.
+/// You can set both `x` and `y` at the same time using the [`offset`](fn@crate::offset) property.
 #[property(LAYOUT, default(0))]
 pub fn y(child: impl IntoUiNode, y: impl IntoVar<Length>) -> UiNode {
     let y = y.into_var();

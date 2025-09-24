@@ -12,7 +12,7 @@ use zng_wgt::prelude::*;
 ///
 /// # `min_width` and `min_height`
 ///
-/// You can use the [`min_width`](fn@min_width) and [`min_height`](fn@min_height) properties to only
+/// You can use the [`min_width`](fn@min_width) and [`min_height`](fn@crate::min_height) properties to only
 /// set the minimum size of one dimension.
 #[property(SIZE-2, default((0, 0)))]
 pub fn min_size(child: impl IntoUiNode, min_size: impl IntoVar<Size>) -> UiNode {
@@ -50,7 +50,7 @@ pub fn min_size(child: impl IntoUiNode, min_size: impl IntoVar<Size>) -> UiNode 
 ///
 /// # `min_size`
 ///
-/// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
+/// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@crate::min_size) property.
 #[property(SIZE-2, default(0))]
 pub fn min_width(child: impl IntoUiNode, min_width: impl IntoVar<Length>) -> UiNode {
     let min_width = min_width.into_var();
@@ -89,7 +89,7 @@ pub fn min_width(child: impl IntoUiNode, min_width: impl IntoVar<Length>) -> UiN
 ///
 /// # `min_size`
 ///
-/// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
+/// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@crate::min_size) property.
 #[property(SIZE-2, default(0))]
 pub fn min_height(child: impl IntoUiNode, min_height: impl IntoVar<Length>) -> UiNode {
     let min_height = min_height.into_var();

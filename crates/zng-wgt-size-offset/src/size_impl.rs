@@ -17,11 +17,11 @@ use crate::WIDGET_SIZE;
 ///
 /// You can use the [`width`] and [`height`] properties to only set the size of one dimension.
 ///
-/// [`min_size`]: fn@min_size
-/// [`max_size`]: fn@max_size
-/// [`width`]: fn@width
-/// [`height`]: fn@height
-/// [`force_size`]: fn@force_size
+/// [`min_size`]: fn@crate::min_size
+/// [`max_size`]: fn@crate::max_size
+/// [`width`]: fn@crate::width
+/// [`height`]: fn@crate::height
+/// [`force_size`]: fn@crate::force_size
 /// [`align`]: fn@zng_wgt::align
 #[property(SIZE, default(Size::default()))]
 pub fn size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
@@ -135,9 +135,9 @@ impl SizeLayout {
 ///
 /// You can set both `width` and `height` at the same time using the [`size`](fn@size) property.
 ///
-/// [`min_width`]: fn@min_width
-/// [`max_width`]: fn@max_width
-/// [`force_width`]: fn@force_width
+/// [`min_width`]: fn@crate::min_width
+/// [`max_width`]: fn@crate::max_width
+/// [`force_width`]: fn@crate::force_width
 #[property(SIZE, default(Length::Default))]
 pub fn width(child: impl IntoUiNode, width: impl IntoVar<Length>) -> UiNode {
     let width = width.into_var();
@@ -236,9 +236,9 @@ impl WidthLayout {
 ///
 /// You can set both `width` and `height` at the same time using the [`size`](fn@size) property.
 ///
-/// [`min_height`]: fn@min_height
-/// [`max_height`]: fn@max_height
-/// [`force_height`]: fn@force_height
+/// [`min_height`]: fn@crate::min_height
+/// [`max_height`]: fn@crate::max_height
+/// [`force_height`]: fn@crate::force_height
 #[property(SIZE, default(Length::Default))]
 pub fn height(child: impl IntoUiNode, height: impl IntoVar<Length>) -> UiNode {
     let height = height.into_var();
