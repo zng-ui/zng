@@ -299,7 +299,7 @@ async fn custom_fmt_rs(rs_file: PathBuf, check: bool, fmt: FmtFragServer) -> io:
     if formatted_code != file {
         if check {
             // reformat early for check
-            let formatted_code = rustfmt_stdin(&formatted_code, &fmt.edition).unwrap_or(formatted_code);
+            let formatted_code = fmt.format(formatted_code.clone()).await.unwrap_or(formatted_code);
             if formatted_code != file {
                 let diff = similar::TextDiff::from_lines(&file, &formatted_code);
                 fatal!("Diff in {}:\n{}", rs_file.display(), diff.unified_diff().context_radius(2));
@@ -1491,8 +1491,8 @@ impl FmtFragServer {
                         *requests[0].1.lock() = "#rustfmt-error#".to_owned();
                     } else {
                         for (request, response) in requests {
-                            let r = match rustfmt_stdin(&Self::wrap_code_for_fmt(request), &edition) {
-                                Some(f) => Self::unwrap_formatted_code(f),
+                            let r = match rustfmt_stdin(&Self::wrap_batch_for_fmt([request].iter().map(|r| r.as_str())), &edition) {
+                                Some(f) => Self::unwrap_batch_for_fmt(f, 1).remove(0),
                                 None => "#rustfmt-error#".to_owned(),
                             };
                             *response.lock() = r;
@@ -1505,19 +1505,6 @@ impl FmtFragServer {
     }
 
     const PREFIX: &str = "fn __frag__() ";
-    fn wrap_code_for_fmt(code: String) -> String {
-        if code.starts_with("{") {
-            format!("{}{code}", Self::PREFIX)
-        } else {
-            code
-        }
-    }
-    fn unwrap_formatted_code(fmt: String) -> String {
-        match fmt.strip_prefix(Self::PREFIX) {
-            Some(s) => s.to_owned(),
-            None => fmt,
-        }
-    }
 
     fn wrap_batch_for_fmt<'a>(requests: impl Iterator<Item = &'a str>) -> String {
         let mut s = String::new();
