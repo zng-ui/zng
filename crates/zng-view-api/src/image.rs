@@ -192,15 +192,21 @@ pub enum ImageDataFormat {
         size: PxSize,
     },
 
-    /// The image is encoded, a file extension that maybe identifies
-    /// the format is known.
+    /// The image is encoded.
+    ///
+    /// This file extension maybe identifies the format. Fallback to `Unknown` handling if the file extension
+    /// is unknown or the file header does not match.
     FileExtension(Txt),
 
-    /// The image is encoded, MIME type that maybe identifies the format is known.
+    /// The image is encoded.
+    ///
+    /// This MIME type maybe identifies the format. Fallback to `Unknown` handling if the file extension
+    /// is unknown or the file header does not match.
     MimeType(Txt),
 
-    /// The image is encoded, a decoder will be selected using the "magic number"
-    /// on the beginning of the bytes buffer.
+    /// The image is encoded.
+    ///
+    /// A decoder will be selected using the "magic number" at the start of the bytes buffer.
     Unknown,
 }
 impl From<Txt> for ImageDataFormat {

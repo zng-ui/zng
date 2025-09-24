@@ -1,5 +1,6 @@
 # Unreleased
 
+* View-process now tries to guess image format in case of header decode error for an extension or mime defined format.
 
 # 0.17.0
 
