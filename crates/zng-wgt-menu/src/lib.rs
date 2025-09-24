@@ -16,7 +16,7 @@ use zng_wgt::{base_color, margin, prelude::*};
 use zng_wgt_access::{AccessRole, access_role};
 use zng_wgt_button::BUTTON;
 use zng_wgt_container::{child_end, padding};
-use zng_wgt_input::focus::alt_focus_scope;
+use zng_wgt_input::focus::{FocusClickBehavior, alt_focus_scope, focus_click_behavior};
 use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 
 pub mod context;
@@ -121,6 +121,7 @@ impl ButtonStyle {
             padding = 4;
 
             access_role = AccessRole::MenuItem;
+            focus_click_behavior = FocusClickBehavior::ExitEnabled;
 
             zng_wgt_container::child_start =
                 BUTTON
@@ -150,6 +151,7 @@ impl IconButtonStyle {
             padding = 4;
 
             access_role = AccessRole::MenuItem;
+            focus_click_behavior = FocusClickBehavior::ExitEnabled;
 
             zng_wgt_container::child =
                 BUTTON
@@ -203,6 +205,7 @@ impl ToggleStyle {
             self;
             padding = 4;
             access_role = AccessRole::MenuItem;
+            focus_click_behavior = FocusClickBehavior::ExitEnabled;
         }
     }
 }
