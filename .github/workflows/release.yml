@@ -44,6 +44,8 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_checks != 'true' }}
+        with:
+          components: clippy, rustfmt
       - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do version --verbose
@@ -91,6 +93,8 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_checks != 'true' }}
+        with:
+          components: clippy, rustfmt
       - run: cargo do version --verbose
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do fmt --check --full
@@ -119,6 +123,7 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
         with:  
           targets: aarch64-linux-android, armv7-linux-androideabi
+          components: clippy, rustfmt
       - name: install cargo-ndk
         if: ${{ github.event.inputs.skip_checks != 'true' }}
         uses: baptiste0928/cargo-install@v3
@@ -174,6 +179,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         with:
           target: ${{ matrix.target }}
+          components: clippy, rustfmt
       - name: install cargo-about
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: baptiste0928/cargo-install@v3
@@ -309,6 +315,8 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+        with:
+          components: clippy, rustfmt
       - name: install cargo-about
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: baptiste0928/cargo-install@v3
@@ -342,6 +350,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         with:
           targets: x86_64-apple-darwin
+          components: clippy, rustfmt
       - name: install cargo-about
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: baptiste0928/cargo-install@v3
@@ -372,6 +381,8 @@ jobs:
         if: ${{ github.event.inputs.skip_doc != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_doc != 'true' }}
+        with:
+          components: clippy, rustfmt
       - run: cargo do latest_release_changes release-changes.md ${{ github.run_id }}
         if: ${{ github.event.inputs.skip_doc != 'true' }}
       - uses: actions/upload-artifact@v4
@@ -402,7 +413,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         with:
-          components: rust-src
+          components: rust-src, rustfmt, clippy
       - name: install cargo-nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: taiki-e/install-action@v2
@@ -494,7 +505,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         with:
-          components: rust-src
+          components: rust-src, clippy, rustfmt
       - name: install cargo-nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: taiki-e/install-action@v2
@@ -538,6 +549,8 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' }}
+        with:
+          components: clippy, rustfmt
       - run: cargo do publish --test
         if: ${{ github.event.inputs.skip_tests != 'true' }}
 
@@ -556,6 +569,8 @@ jobs:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tag != 'true' }}
+        with:
+          components: clippy, rustfmt
       - id: publish_version_tag
         if: ${{ github.event.inputs.skip_tag != 'true' }}
         run: cargo do publish_version_tag --execute | tail -n 1 >> "$GITHUB_OUTPUT"
@@ -662,6 +677,8 @@ jobs:
     steps:
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_crates != 'true' }}
+        with:
+          components: clippy, rustfmt
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_crates != 'true' }}
       - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5
@@ -674,6 +691,8 @@ jobs:
     steps:
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_crates != 'true' }}
+        with:
+          components: clippy, rustfmt
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_crates != 'true' }}
       - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5
