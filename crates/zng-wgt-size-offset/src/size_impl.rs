@@ -280,6 +280,7 @@ impl HeightLayout {
         let mut is_default = true;
         let mut height_px = Px(0);
         height.with(|h| {
+            dbg!(&h);
             if !h.is_default() {
                 let unit_constraints = parent_constraints.with_new_min_y(Px(0));
                 is_default = false;

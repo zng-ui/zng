@@ -522,9 +522,7 @@ impl Length {
 
     /// If this length is zero in any finite layout context.
     ///
-    /// Returns `None` if the value depends on the default value.
-    ///
-    /// [`Expr`]: Length::Expr
+    /// Returns `None` if the value depends on the default value or is an expression.
     pub fn is_zero(&self) -> Option<bool> {
         use Length::*;
         match self {
@@ -560,17 +558,34 @@ impl Length {
         dip / Self::PT_TO_DIP
     }
 
-    /// If is [`Length::Default`].
+    /// If is [`Default`].
+    ///
+    /// [`Default`]: Length::Default
     pub fn is_default(&self) -> bool {
         matches!(self, Length::Default)
     }
 
-    /// Replaces `self` with `overwrite` if `self` is [`Default`].
+    /// If is [`Default`] or is [`Expr`] that contains defaults.
     ///
     /// [`Default`]: Length::Default
+    /// [`Expr`]: Length::Expr
+    pub fn has_default(&self) -> bool {
+        match self {
+            Length::Default => true,
+            Length::Expr(e) => e.has_default(),
+            _ => false,
+        }
+    }
+
+    /// Replaces `self` with `overwrite` if `self` is [`Default`] or replace all defaults in [`Expr`].
+    ///
+    /// [`Default`]: Length::Default
+    /// [`Expr`]: Length::Expr
     pub fn replace_default(&mut self, overwrite: &Length) {
-        if self.is_default() {
-            *self = overwrite.clone();
+        match self {
+            Length::Default => *self = overwrite.clone(),
+            Length::Expr(e) => e.replace_default(overwrite),
+            _ => {}
         }
     }
 
@@ -584,6 +599,7 @@ impl Length {
         match self {
             Length::PxF32(l) => *self = Length::Px(Px(l.round() as i32)),
             Length::DipF32(l) => *self = Length::Dip(Dip::new_f32(*l)),
+            Length::Expr(e) => e.round_exact(),
             _ => {}
         }
     }
@@ -736,6 +752,43 @@ impl LengthExpr {
             return Length::zero();
         }
         Length::Expr(Box::new(self))
+    }
+
+    /// If contains a [`Length::Default`] value.
+    pub fn has_default(&self) -> bool {
+        match self {
+            LengthExpr::Add(a, b) | LengthExpr::Sub(a, b) | LengthExpr::Max(a, b) | LengthExpr::Min(a, b) | LengthExpr::Lerp(a, b, _) => {
+                a.has_default() || b.has_default()
+            }
+            LengthExpr::Mul(a, _) | LengthExpr::Div(a, _) | LengthExpr::Abs(a) | LengthExpr::Neg(a) => a.has_default(),
+        }
+    }
+
+    /// Replace all [`Length::Default`] values with `overwrite`.
+    pub fn replace_default(&mut self, overwrite: &Length) {
+        match self {
+            LengthExpr::Add(a, b) | LengthExpr::Sub(a, b) | LengthExpr::Max(a, b) | LengthExpr::Min(a, b) | LengthExpr::Lerp(a, b, _) => {
+                a.replace_default(overwrite);
+                b.replace_default(overwrite);
+            }
+            LengthExpr::Mul(a, _) | LengthExpr::Div(a, _) | LengthExpr::Abs(a) | LengthExpr::Neg(a) => a.replace_default(overwrite),
+        }
+    }
+
+    /// Convert [`PxF32`] to [`Px`] and [`DipF32`] to [`Dip`].
+    ///
+    /// [`PxF32`]: Length::PxF32
+    /// [`Px`]: Length::Px
+    /// [`DipF32`]: Length::DipF32
+    /// [`Dip`]: Length::Dip
+    pub fn round_exact(&mut self) {
+        match self {
+            LengthExpr::Add(a, b) | LengthExpr::Sub(a, b) | LengthExpr::Max(a, b) | LengthExpr::Min(a, b) | LengthExpr::Lerp(a, b, _) => {
+                a.round_exact();
+                b.round_exact();
+            }
+            LengthExpr::Mul(a, _) | LengthExpr::Div(a, _) | LengthExpr::Abs(a) | LengthExpr::Neg(a) => a.round_exact(),
+        }
     }
 }
 impl super::Layout1d for LengthExpr {

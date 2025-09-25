@@ -130,6 +130,11 @@ impl Point {
         self.x.is_default() && self.y.is_default()
     }
 
+    /// Returns `true` if any value is [`Length::Default`].
+    pub fn has_default(&self) -> bool {
+        self.x.has_default() || self.y.has_default()
+    }
+
     /// Replaces [`Length::Default`] values with `overwrite` values.
     pub fn replace_default(&mut self, overwrite: &Point) {
         self.x.replace_default(&overwrite.x);

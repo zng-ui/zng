@@ -56,5 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
       - run: cargo do check-all-features ${{ matrix.profile }} --max ${{ github.event.inputs.max }} --clean ${{ github.event.inputs.clean }} --chunk "${{ matrix.chunk }}/12"
       - run: cargo clean

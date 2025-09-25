@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add `Length::has_default` that inspects `Expr` values.
+    - Method also added to all `Length` based composite units.
+* Fix `length::replace_default` not considering `Expr` values.
 * Fix `Length::Default` having a layout effect in exact size properties.
     - This default value now *disables* the properties, the required behavior for integration with `when` blocks in widgets.
     - Changed properties: `layout::{size, max_size, force_size}` and related properties.
