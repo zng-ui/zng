@@ -48,6 +48,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
       - run: cargo do version --verbose
       - run: cargo do fmt --check --full
@@ -97,6 +99,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:  
           targets: aarch64-linux-android, armv7-linux-androideabi
+          components: clippy, rustfmt
       - name: install cargo-ndk
         uses: baptiste0928/cargo-install@v3
         with:
@@ -170,6 +173,8 @@ jobs:
       CXX: 'clang-cl'
     steps:
     - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy, rustfmt
     - name: install cargo-about
       uses: baptiste0928/cargo-install@v3
       with:
@@ -244,6 +249,8 @@ jobs:
       CXX: 'clang-cl'
     steps:
     - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy, rustfmt
     - uses: actions/checkout@v4
     - uses: Swatinem/rust-cache@v2
     - run: cargo do test --render --no-prebuilt

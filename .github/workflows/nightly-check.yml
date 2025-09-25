@@ -42,6 +42,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy, rustfmt
       - name: install cargo-about
         uses: baptiste0928/cargo-install@v3
         with:
