@@ -48,15 +48,17 @@ impl MaxSizeLayout {
         max_size.with(|s| {
             if !s.width.is_default() {
                 is_default = false;
+                let dft = parent_constraints.x.max_bounded();
                 max.width = LAYOUT.with_constraints(parent_constraints.with_fill_x(parent_constraints.x.is_bounded()), || {
-                    s.width.layout_x()
+                    s.width.layout_dft_x(dft)
                 });
                 constraints.x = constraints.x.with_max(max.width);
             }
             if !s.height.is_default() {
                 is_default = false;
+                let dft = parent_constraints.y.max_bounded();
                 max.height = LAYOUT.with_constraints(parent_constraints.with_fill_y(parent_constraints.y.is_bounded()), || {
-                    s.height.layout_y()
+                    s.height.layout_dft_y(dft)
                 });
                 constraints.y = constraints.y.with_max(max.height);
             }
@@ -148,8 +150,10 @@ impl MaxWidthLayout {
         max_width.with(|w| {
             if !w.is_default() {
                 is_default = false;
-
-                max = LAYOUT.with_constraints(parent_constraints.with_fill_x(parent_constraints.x.is_bounded()), || w.layout_x());
+                let dft = parent_constraints.x.max_bounded();
+                max = LAYOUT.with_constraints(parent_constraints.with_fill_x(parent_constraints.x.is_bounded()), || {
+                    w.layout_dft_x(dft)
+                });
                 constraints.x = constraints.x.with_max(max);
             }
         });
@@ -234,8 +238,10 @@ impl MaxHeightLayout {
         max_height.with(|h| {
             if !h.is_default() {
                 is_default = false;
-
-                max = LAYOUT.with_constraints(parent_constraints.with_fill_y(parent_constraints.y.is_bounded()), || h.layout_y());
+                let dft = parent_constraints.y.max_bounded();
+                max = LAYOUT.with_constraints(parent_constraints.with_fill_y(parent_constraints.y.is_bounded()), || {
+                    h.layout_dft_y(dft)
+                });
                 constraints.y = constraints.y.with_max(max);
             }
         });

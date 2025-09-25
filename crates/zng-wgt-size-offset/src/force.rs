@@ -35,10 +35,10 @@ pub fn force_size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
-            *desired_size = ForceSizeLayout::new(&size).measure(child.node(), wm);
+            *desired_size = ForceSizeLayout::new(&size, || child.node().measure(wm)).measure(child.node(), wm);
         }
         UiNodeOp::Layout { wl, final_size } => {
-            *final_size = ForceSizeLayout::new(&size).layout(child.node(), wl);
+            *final_size = ForceSizeLayout::new(&size, || child.node().measure(&mut wl.to_measure(None))).layout(child.node(), wl);
         }
         _ => {}
     })
@@ -50,23 +50,30 @@ struct ForceSizeLayout {
     is_default: BoolVector2D,
 }
 impl ForceSizeLayout {
-    pub fn new(size: &Var<Size>) -> Self {
+    pub fn new(size: &Var<Size>, measure: impl FnOnce() -> PxSize) -> Self {
         let parent_constraints = LAYOUT.constraints();
         let mut constraints = parent_constraints;
         let mut is_default = BoolVector2D { x: true, y: true };
         let mut size_px = PxSize::zero();
         size.with(|s| {
+            let mut dft = PxSize::zero();
+            if !s.width.is_default() || s.height.is_default() && s.width.has_default() || s.height.has_default() {
+                // has Length::Expr with Default components, needs measure
+                // this is usually an animation from Default size to a fixed size
+                dft = measure();
+            }
+
             if !s.width.is_default() {
                 is_default.x = false;
                 size_px.width = LAYOUT.with_constraints(parent_constraints.with_fill_x(parent_constraints.x.is_bounded()), || {
-                    s.width.layout_x()
+                    s.width.layout_dft_x(dft.width)
                 });
                 constraints.x = PxConstraints::new_exact(size_px.width);
             }
             if !s.height.is_default() {
                 is_default.y = false;
                 size_px.height = LAYOUT.with_constraints(parent_constraints.with_fill_y(parent_constraints.y.is_bounded()), || {
-                    s.width.layout_y()
+                    s.width.layout_dft_y(dft.height)
                 });
                 constraints.y = PxConstraints::new_exact(size_px.height);
             }
@@ -144,11 +151,11 @@ pub fn force_width(child: impl IntoUiNode, width: impl IntoVar<Length>) -> UiNod
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
-            *desired_size = ForceWidthLayout::new(&width).measure(child.node(), wm);
+            *desired_size = ForceWidthLayout::new(&width, || child.node().measure(wm)).measure(child.node(), wm);
         }
         UiNodeOp::Layout { wl, final_size } => {
             child.delegated();
-            *final_size = ForceWidthLayout::new(&width).layout(child.node(), wl);
+            *final_size = ForceWidthLayout::new(&width, || child.node().measure(&mut wl.to_measure(None))).layout(child.node(), wl);
         }
         _ => {}
     })
@@ -160,7 +167,7 @@ struct ForceWidthLayout {
     is_default: bool,
 }
 impl ForceWidthLayout {
-    pub fn new(width: &Var<Length>) -> Self {
+    pub fn new(width: &Var<Length>, measure: impl FnOnce() -> PxSize) -> Self {
         let parent_constraints = LAYOUT.constraints();
         let mut constraints = parent_constraints;
         let mut is_default = true;
@@ -168,7 +175,14 @@ impl ForceWidthLayout {
         width.with(|w| {
             if !w.is_default() {
                 is_default = false;
-                width_px = LAYOUT.with_constraints(parent_constraints.with_fill_x(parent_constraints.x.is_bounded()), || w.layout_x());
+                let mut dft = Px(0);
+                if w.has_default() {
+                    // Length::Expr with default components, needs measure
+                    dft = measure().width;
+                }
+                width_px = LAYOUT.with_constraints(parent_constraints.with_fill_x(parent_constraints.x.is_bounded()), || {
+                    w.layout_dft_x(dft)
+                });
                 constraints.x = PxConstraints::new_exact(width_px);
             }
         });
@@ -238,11 +252,11 @@ pub fn force_height(child: impl IntoUiNode, height: impl IntoVar<Length>) -> UiN
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
-            *desired_size = ForceHeightLayout::new(&height).measure(child.node(), wm);
+            *desired_size = ForceHeightLayout::new(&height, || child.node().measure(wm)).measure(child.node(), wm);
         }
         UiNodeOp::Layout { wl, final_size } => {
             child.delegated();
-            *final_size = ForceHeightLayout::new(&height).layout(child.node(), wl);
+            *final_size = ForceHeightLayout::new(&height, || child.node().measure(&mut wl.to_measure(None))).layout(child.node(), wl);
         }
         _ => {}
     })
@@ -254,7 +268,7 @@ struct ForceHeightLayout {
     is_default: bool,
 }
 impl ForceHeightLayout {
-    pub fn new(height: &Var<Length>) -> Self {
+    pub fn new(height: &Var<Length>, measure: impl FnOnce() -> PxSize) -> Self {
         let parent_constraints = LAYOUT.constraints();
         let mut constraints = parent_constraints;
         let mut is_default = true;
@@ -262,7 +276,14 @@ impl ForceHeightLayout {
         height.with(|h| {
             if !h.is_default() {
                 is_default = false;
-                height_px = LAYOUT.with_constraints(parent_constraints.with_fill_y(parent_constraints.y.is_bounded()), || h.layout_y());
+                let mut dft = Px(0);
+                if h.has_default() {
+                    // Length::Expr with default components, needs measure
+                    dft = measure().height;
+                }
+                height_px = LAYOUT.with_constraints(parent_constraints.with_fill_y(parent_constraints.y.is_bounded()), || {
+                    h.layout_dft_y(dft)
+                });
                 constraints.y = PxConstraints::new_exact(height_px);
             }
         });
