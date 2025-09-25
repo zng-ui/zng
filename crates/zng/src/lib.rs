@@ -724,6 +724,9 @@ mod __prelude {
     pub use crate::dialog;
     #[cfg(feature = "dialog")]
     pub use zng_wgt_dialog::DIALOG;
+
+    #[cfg(all(feature = "fs_watcher", feature = "image"))]
+    pub use crate::fs_watcher::IMAGES_Ext as _;
 }
 
 /// Prelude for declaring new properties and widgets.
@@ -838,6 +841,9 @@ mod __prelude_wgt {
 
     #[cfg(hot_reload)]
     pub use crate::hot_reload::hot_node;
+
+    #[cfg(all(feature = "fs_watcher", feature = "image"))]
+    pub use crate::fs_watcher::IMAGES_Ext as _;
 }
 
 mod defaults {

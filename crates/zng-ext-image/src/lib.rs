@@ -264,7 +264,7 @@ impl AppExtension for ImageManager {
                                         // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
                                         // when done.
                                         t.image.modify(move |v| {
-                                            v.value_mut().view.set(img).unwrap();
+                                            v.inner_set_or_replace(img, false);
                                         });
                                     }
                                     Err(_) => {
@@ -280,9 +280,7 @@ impl AppExtension for ImageManager {
                                 // success, but we are only doing `load_in_headless` validation.
                                 let img = ViewImage::dummy(None);
                                 t.image.modify(move |v| {
-                                    let v = v.value_mut();
-                                    v.view.set(img).unwrap();
-                                    v.done_signal.set();
+                                    v.inner_set_or_replace(img, true);
                                 });
                             }
                         }
@@ -291,9 +289,7 @@ impl AppExtension for ImageManager {
                             // load error.
                             let img = ViewImage::dummy(Some(e));
                             t.image.modify(move |v| {
-                                let v = v.value_mut();
-                                v.view.set(img).unwrap();
-                                v.done_signal.set();
+                                v.inner_set_or_replace(img, true);
                             });
 
                             // flag error for user retry

@@ -152,6 +152,7 @@ pub type ImageVar = Var<Img>;
 /// Each instance of this struct represent a single state,
 #[derive(Debug, Clone)]
 pub struct Img {
+    // use inner_set_or_replace to set
     pub(super) view: OnceCell<ViewImage>,
     render_ids: Arc<Mutex<Vec<RenderImage>>>,
     pub(super) done_signal: SignalOnce,
@@ -367,6 +368,26 @@ impl Img {
             .await
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         task::wait(move || fs::write(path, &data[..])).await
+    }
+
+    pub(crate) fn inner_set_or_replace(&mut self, img: ViewImage, done: bool) {
+        match self.view.set(img) {
+            Ok(()) => {
+                if done {
+                    self.done_signal.set();
+                }
+            }
+            Err(img) => {
+                // this can happen on reload
+                let cache_key = self.cache_key;
+                *self = Self {
+                    view: OnceCell::with_value(img),
+                    render_ids: Arc::default(),
+                    done_signal: if done { SignalOnce::new_set() } else { SignalOnce::new() },
+                    cache_key,
+                };
+            }
+        }
     }
 }
 impl zng_app::render::Img for Img {
