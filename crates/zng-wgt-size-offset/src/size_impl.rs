@@ -41,11 +41,11 @@ pub fn size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
-            *desired_size = SizeLayout::new(&size).measure(child.node(), wm);
+            *desired_size = SizeLayout::new(&size, || child.node().measure(wm)).measure(child.node(), wm);
         }
         UiNodeOp::Layout { wl, final_size } => {
             child.delegated();
-            *final_size = SizeLayout::new(&size).layout(child.node(), wl);
+            *final_size = SizeLayout::new(&size, || child.node().measure(&mut wl.to_measure(None))).layout(child.node(), wl);
         }
         _ => {}
     })
@@ -57,22 +57,29 @@ struct SizeLayout {
     is_default: BoolVector2D,
 }
 impl SizeLayout {
-    pub fn new(size: &Var<Size>) -> Self {
+    // compute constraints for measure & layout
+    pub fn new(size: &Var<Size>, measure: impl FnOnce() -> PxSize) -> Self {
         let parent_constraints = LAYOUT.constraints();
         let mut constraints = parent_constraints;
         let mut is_default = BoolVector2D { x: true, y: true };
         let mut size_px = PxSize::zero();
         size.with(|s| {
             let unit_constraints = parent_constraints.with_new_min(Px(0), Px(0));
+            let mut dft = PxSize::zero();
+            if !s.width.is_default() || s.height.is_default() && s.width.has_default() || s.height.has_default() {
+                // has Length::Expr with Default components, needs measure
+                // this is usually an animation from Default size to a fixed size
+                dft = measure();
+            }
             if !s.width.is_default() {
                 is_default.x = false;
-                size_px.width = LAYOUT.with_constraints(unit_constraints, || s.width.layout_x());
+                size_px.width = LAYOUT.with_constraints(unit_constraints, || s.width.layout_dft_x(dft.width));
                 size_px.width = unit_constraints.x.clamp(size_px.width);
                 constraints.x = PxConstraints::new_exact(size_px.width);
             }
             if !s.height.is_default() {
                 is_default.y = false;
-                size_px.height = LAYOUT.with_constraints(unit_constraints, || s.height.layout_y());
+                size_px.height = LAYOUT.with_constraints(unit_constraints, || s.height.layout_dft_y(dft.height));
                 size_px.height = unit_constraints.y.clamp(size_px.height);
                 constraints.y = PxConstraints::new_exact(size_px.height);
             }
@@ -87,6 +94,7 @@ impl SizeLayout {
 
     pub fn measure(&self, child: &mut UiNode, wm: &mut WidgetMeasure) -> PxSize {
         if self.is_default.all() {
+            // default is noop (widget API requirement)
             return child.measure(wm);
         }
 
@@ -110,6 +118,7 @@ impl SizeLayout {
         self.clamp_outer_bounds(size)
     }
 
+    // clamp/expand outer-bounds to fulfill parent constraints
     fn clamp_outer_bounds(&self, mut size: PxSize) -> PxSize {
         if !self.is_default.x {
             size.width = Align::TOP_LEFT.measure_x(self.size.width, self.parent_constraints.x);
@@ -156,11 +165,11 @@ pub fn width(child: impl IntoUiNode, width: impl IntoVar<Length>) -> UiNode {
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
-            *desired_size = WidthLayout::new(&width).measure(child.node(), wm);
+            *desired_size = WidthLayout::new(&width, || child.node().measure(wm)).measure(child.node(), wm);
         }
         UiNodeOp::Layout { wl, final_size } => {
             child.delegated();
-            *final_size = WidthLayout::new(&width).layout(child.node(), wl);
+            *final_size = WidthLayout::new(&width, || child.node().measure(&mut wl.to_measure(None))).layout(child.node(), wl);
         }
         _ => {}
     })
@@ -172,16 +181,23 @@ struct WidthLayout {
     is_default: bool,
 }
 impl WidthLayout {
-    pub fn new(width: &Var<Length>) -> Self {
+    pub fn new(width: &Var<Length>, measure: impl FnOnce() -> PxSize) -> Self {
         let parent_constraints = LAYOUT.constraints();
         let mut constraints = parent_constraints;
         let mut is_default = true;
         let mut width_px = Px(0);
         width.with(|w| {
             if !w.is_default() {
+                let mut dft = Px(0);
+                if w.has_default() {
+                    // Length::Expr with default components, needs measure
+                    dft = measure().width;
+                }
+
                 let unit_constraints = parent_constraints.with_new_min_x(Px(0));
                 is_default = false;
-                width_px = LAYOUT.with_constraints(unit_constraints, || w.layout_x());
+
+                width_px = LAYOUT.with_constraints(unit_constraints, || w.layout_dft_x(dft));
                 width_px = unit_constraints.x.clamp(width_px);
                 constraints.x = PxConstraints::new_exact(width_px);
             }
@@ -258,11 +274,11 @@ pub fn height(child: impl IntoUiNode, height: impl IntoVar<Length>) -> UiNode {
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
-            *desired_size = HeightLayout::new(&height).measure(child.node(), wm);
+            *desired_size = HeightLayout::new(&height, || child.node().measure(wm)).measure(child.node(), wm);
         }
         UiNodeOp::Layout { wl, final_size } => {
             child.delegated();
-            *final_size = HeightLayout::new(&height).layout(child.node(), wl);
+            *final_size = HeightLayout::new(&height, || child.node().measure(&mut wl.to_measure(None))).layout(child.node(), wl);
         }
         _ => {}
     })
@@ -274,17 +290,21 @@ struct HeightLayout {
     is_default: bool,
 }
 impl HeightLayout {
-    pub fn new(height: &Var<Length>) -> Self {
+    pub fn new(height: &Var<Length>, measure: impl FnOnce() -> PxSize) -> Self {
         let parent_constraints = LAYOUT.constraints();
         let mut constraints = parent_constraints;
         let mut is_default = true;
         let mut height_px = Px(0);
         height.with(|h| {
-            dbg!(&h);
             if !h.is_default() {
+                let mut dft = Px(0);
+                if h.has_default() {
+                    // Length::Expr with default components, needs measure
+                    dft = measure().height;
+                }
                 let unit_constraints = parent_constraints.with_new_min_y(Px(0));
                 is_default = false;
-                height_px = LAYOUT.with_constraints(unit_constraints, || h.layout_y());
+                height_px = LAYOUT.with_constraints(unit_constraints, || h.layout_dft_y(dft));
                 height_px = unit_constraints.y.clamp(height_px);
                 constraints.y = PxConstraints::new_exact(height_px);
             }
