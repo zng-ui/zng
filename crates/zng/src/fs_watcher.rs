@@ -62,3 +62,40 @@ pub use zng_ext_fs_watcher::{
     FS_CHANGES_EVENT, FsChange, FsChangeNote, FsChangeNoteHandle, FsChangesArgs, WATCHER, WatchFile, WatcherHandle, WatcherReadStatus,
     WatcherSyncStatus, WriteFile, fs_event,
 };
+
+#[cfg(feature = "image")]
+mod images_ext {
+    use std::path::PathBuf;
+
+    use zng_app::app_hn;
+    use zng_ext_fs_watcher::WATCHER;
+    use zng_ext_image::{IMAGES, ImageVar};
+
+    /// File watcher extensions for [`IMAGES`] service.
+    #[expect(non_camel_case_types)]
+    pub trait IMAGES_Ext {
+        /// Like [`IMAGES.read`] with automatic reload when the file at `path` is modified.
+        ///
+        /// [`IMAGES.read`]: IMAGES::read
+        fn watch(&self, path: impl Into<PathBuf>) -> ImageVar;
+    }
+    impl IMAGES_Ext for IMAGES {
+        fn watch(&self, path: impl Into<PathBuf>) -> ImageVar {
+            watch(path.into())
+        }
+    }
+
+    fn watch(path: PathBuf) -> ImageVar {
+        let img = IMAGES.read(path.clone());
+        let handle = WATCHER.on_file_changed(
+            path.clone(),
+            app_hn!(|_, _| {
+                let _ = IMAGES.reload(path.clone());
+            }),
+        );
+        img.hold(handle).perm();
+        img
+    }
+}
+#[cfg(feature = "image")]
+pub use images_ext::*;

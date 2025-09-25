@@ -1,5 +1,8 @@
 # Unreleased
 
+* Fix `IMAGES.reload` panic on error.
+* Add `IMAGES.watch` for auto reloading image that is modified.
+    - Implemented in `zng::fs_watcher::IMAGES_Ext` and imported in the prelude.
 * Add `Length::has_default` that inspects `Expr` values.
     - Method also added to all `Length` based composite units.
 * Fix `length::replace_default` not considering `Expr` values.
