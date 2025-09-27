@@ -70,6 +70,9 @@ Options:
 
           [default: 2024]
 
+      --full
+          Format or check every file, not just changed files
+
   -h, --help
           Print help (see a summary with '-h')
 
