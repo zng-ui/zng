@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `Menu::has_open` state property.
 * Fix `zng::rule_line::CollapseMode::MERGE` not applying.
 
 # 0.17.1

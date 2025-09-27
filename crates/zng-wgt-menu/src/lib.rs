@@ -63,6 +63,8 @@ context_var! {
     ///
     /// [`shortcut_txt`]: fn@shortcut_txt
     pub static SHORTCUT_SPACING_VAR: Length = 20;
+
+    static OPEN_SUBMENU_VAR: u32 = 0;
 }
 
 /// Widget function that generates the menu layout.
@@ -75,6 +77,19 @@ context_var! {
 #[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(Menu))]
 pub fn panel_fn(child: impl IntoUiNode, panel: impl IntoVar<WidgetFn<zng_wgt_panel::PanelArgs>>) -> UiNode {
     with_context_var(child, PANEL_FN_VAR, panel)
+}
+
+/// Gets if any descendant sub-menu is open.
+#[property(EVENT + 1, widget_impl(Menu))]
+pub fn has_open(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
+    // EVENT+1 to clear the `sub_menu_node` in case this is set in a sub-menu that
+    // sub-menu will see the parent OPEN_SUBMENU_VAR for setting its own state
+
+    let raw_state = var(0u32);
+    let state = state.into_var();
+    raw_state.bind_map(&state, |&v| v > 0).perm();
+    raw_state.hold(state).perm();
+    with_context_var(child, OPEN_SUBMENU_VAR, raw_state)
 }
 
 /// Default [`Menu!`] style.

@@ -312,7 +312,7 @@ event_property! {
 /// [`is_focus_within`]: fn@is_focus_within
 /// [`is_focused_hgl`]: fn@is_focused_hgl
 /// [`is_return_focus`]: fn@is_return_focus
-#[property(CONTEXT, widget_impl(FocusableMix<P>))]
+#[property(CONTEXT, widget_impl(FocusableMix<P>))] // TODO(breaking) move this to EVENT?
 pub fn is_focused(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
         let id = WIDGET.id();
