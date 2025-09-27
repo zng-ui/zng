@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `zng::rule_line::collapse_skip` property.
 * Add `Menu::has_open` state property.
 * Fix `zng::rule_line::CollapseMode::MERGE` not applying.
 

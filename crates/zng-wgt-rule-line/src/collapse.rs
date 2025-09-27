@@ -1,11 +1,14 @@
 use std::sync::Arc;
 
-use zng_app::update::LayoutUpdates;
+use zng_app::{
+    update::LayoutUpdates,
+    widget::info::{TreeFilter, iter::TreeIterator},
+};
 use zng_wgt::prelude::*;
 
 /// Collapse adjacent descendant rule lines.
 ///
-/// Set this in a panel widget to automatically collapse rule lines that would appear repeated on screen.
+/// Set this in a panel widget to automatically collapse rule lines that would appear repeated or dangling on screen.
 #[property(LAYOUT - 100)]
 pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) -> UiNode {
     let mode = mode.into_var();
@@ -52,12 +55,23 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
                 // flags `changed` if a second layout pass is needed
 
                 let info = WIDGET.info();
+                macro_rules! filter {
+                    ($iter:expr) => {
+                        $iter.tree_filter(|w| {
+                            if w.meta().flagged(*COLLAPSE_SKIP_ID) {
+                                TreeFilter::SkipAll
+                            } else {
+                                TreeFilter::Include
+                            }
+                        })
+                    };
+                }
 
                 let mut trim_start = mode.contains(CollapseMode::TRIM_START);
                 let mut trim_end_id = None;
                 if mode.contains(CollapseMode::TRIM_END) {
                     // find trim_end start *i* first, so that we can update `s.collapse` in a single pass
-                    for wgt in info.descendants().tree_rev() {
+                    for wgt in filter!(info.descendants().tree_rev()) {
                         if wgt.meta().flagged(*COLLAPSABLE_LINE_ID) {
                             trim_end_id = Some(wgt.id());
                         } else if wgt.descendants_len() == 0 && !wgt.bounds_info().inner_size().is_empty() {
@@ -68,7 +82,7 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
                 }
                 let mut trim_end = false;
                 let mut merge = false;
-                for wgt in info.descendants() {
+                for wgt in filter!(info.descendants()) {
                     if wgt.meta().flagged(*COLLAPSABLE_LINE_ID) {
                         if let Some(id) = trim_end_id
                             && id == wgt.id()
@@ -111,6 +125,27 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
                 *final_size = wl.with_layout_updates(Arc::new(LayoutUpdates::new(changes)), |wl| {
                     SCOPE.with_context(&mut scope, || c.layout(wl))
                 });
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Defines if this widget and descendants are ignored by [`collapse_scope`].
+///
+/// If `true` the widget subtree is skipped, as if not present.
+///
+/// [`collapse_scope`]: fn@collapse_scope
+#[property(CONTEXT, default(false))]
+pub fn collapse_skip(child: impl IntoUiNode, skip: impl IntoVar<bool>) -> UiNode {
+    let skip = skip.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_info(&skip);
+        }
+        UiNodeOp::Info { info } => {
+            if skip.get() {
+                info.flag_meta(*COLLAPSE_SKIP_ID);
             }
         }
         _ => {}
@@ -167,6 +202,11 @@ static_id! {
     ///
     /// [`collapse_scope`]: fn@collapse_scope
     pub static ref COLLAPSABLE_LINE_ID: StateId<()>;
+
+    /// Identifies a widget (and descendants) to be ignored by the [`collapse_scope`].
+    ///
+    /// [`collapse_scope`]: fn@collapse_scope
+    pub static ref COLLAPSE_SKIP_ID: StateId<()>;
 }
 
 context_local! {

@@ -64,7 +64,7 @@
 //!
 //! See [`zng_wgt_rule_line`] for the full widget API.
 
-pub use zng_wgt_rule_line::{CollapseMode, RuleLine, collapse_scope};
+pub use zng_wgt_rule_line::{CollapseMode, RuleLine, collapse_scope, collapse_skip};
 
 /// Horizontal rule line widget and properties.
 pub mod hr {
