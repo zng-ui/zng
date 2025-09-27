@@ -1,6 +1,9 @@
 # Unreleased
 
-* Optimized read-only variables, now all var kinds are zero-cost.
+
+# 0.17.1
+
+* Optimize read-only variables, now all var kinds are zero-cost.
 * Fix `VarCapability::is_const` for contextual read-only variables.
 * Fix `IMAGES.reload` panic on error.
 * Add `IMAGES.watch` for auto reloading image that is modified.
