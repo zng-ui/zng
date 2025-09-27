@@ -79,6 +79,7 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
                         let changed = if trim_start || merge || trim_end {
                             s.collapse.insert(wgt.id())
                         } else {
+                            merge = mode.contains(CollapseMode::MERGE);
                             s.collapse.remove(&wgt.id())
                         };
                         if changed && !is_new {
