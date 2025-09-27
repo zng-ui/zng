@@ -100,6 +100,19 @@ pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
                     .sub_event(&MOUSE_HOVERED_EVENT);
 
                 close_cmd = POPUP_CLOSE_CMD.scoped(WIDGET.id()).subscribe(false);
+
+                let has_open = super::OPEN_SUBMENU_VAR.current_context();
+                if !has_open.capabilities().is_const() {
+                    let handle = is_open.hook(move |v| {
+                        if *v.value() {
+                            has_open.modify(|v| **v += 1);
+                        } else {
+                            has_open.modify(|v| **v -= 1);
+                        }
+                        true
+                    });
+                    WIDGET.push_var_handle(handle);
+                }
             }
             UiNodeOp::Deinit => {
                 if let Some(v) = open.take() {
@@ -424,7 +437,7 @@ context_var! {
     /// Delay a sub-menu must be hovered to open the popup.
     ///
     /// Is `300.ms()` by default.
-    pub static HOVER_OPEN_DELAY_VAR: Duration = 300.ms();
+    pub static HOVER_OPEN_DELAY_VAR: Duration = 150.ms();
 
     static IS_OPEN_VAR: bool = false;
 }
