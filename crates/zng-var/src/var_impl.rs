@@ -233,7 +233,7 @@ bitflags! {
 impl VarCapability {
     /// If cannot `NEW` and is not `MODIFY_CHANGES`.
     pub fn is_const(self) -> bool {
-        !self.contains(Self::NEW) && !self.contains(Self::MODIFY_CHANGES)
+        self.is_empty()
     }
 
     /// If does not have `MODIFY` capability and is not `MODIFY_CHANGES`.
