@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `VarCapability::is_const` for contextual read-only variables.
 * Fix `IMAGES.reload` panic on error.
 * Add `IMAGES.watch` for auto reloading image that is modified.
     - Implemented in `zng::fs_watcher::IMAGES_Ext` and imported in the prelude.

@@ -132,6 +132,9 @@ impl ContextualVar {
             let mut ctx = self.0.ctx.write();
             if ctx.1 != id {
                 ctx.0 = self.0.init.lock().init();
+                if ctx.0.capabilities().is_contextual() {
+                    ctx.0 = ctx.0.current_context();
+                }
                 ctx.1 = id;
             }
             let ctx = parking_lot::RwLockWriteGuard::downgrade(ctx);

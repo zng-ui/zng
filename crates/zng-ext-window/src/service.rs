@@ -725,7 +725,8 @@ impl WINDOWS {
     /// Register the closure `extender` to be called with the root of every new window starting on the next update.
     ///
     /// The closure returns the new root node that will be passed to any other root extender until
-    /// the actual final root node is created.
+    /// the actual final root node is created. The closure is called in the [`WINDOW`] context of the new window,
+    /// so it can be used to modify the window context too.
     ///
     /// This is an advanced API that enables app wide features, like themes, to inject context in every new window. The
     /// extender is called in the context of the window, after the window creation future has completed.
