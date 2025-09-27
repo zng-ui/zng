@@ -1368,14 +1368,7 @@ impl AnyVar {
     ///
     /// [`MODIFY`]: VarCapability::MODIFY
     pub fn read_only(&self) -> AnyVar {
-        let cap = self.capabilities();
-        if cap.is_always_read_only() {
-            return self.clone();
-        }
-
-        AnyVar(crate::DynAnyVar::ReadOnly(crate::read_only_var::ReadOnlyVar(Box::new(
-            self.clone(),
-        ))))
+        AnyVar(self.0.clone_dyn().into_read_only())
     }
 
     /// Create a var that redirects to this variable until the first value update, then it disconnects as a separate variable.

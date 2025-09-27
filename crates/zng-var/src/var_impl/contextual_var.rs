@@ -114,6 +114,15 @@ impl fmt::Debug for ContextualVar {
         b.finish()
     }
 }
+impl PartialEq for ContextualVar {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0.init, &other.0.init) && {
+            let a = self.0.ctx.read_recursive();
+            let b = other.0.ctx.read_recursive();
+            a.1 == b.1 && a.0.var_eq(&b.0)
+        }
+    }
+}
 impl ContextualVar {
     pub fn new(init: ContextInitFn, value_type: TypeId) -> Self {
         Self(Box::new(ContextualVarData {
@@ -172,13 +181,7 @@ impl VarImpl for ContextualVar {
 
     fn var_eq(&self, other: &DynAnyVar) -> bool {
         match other {
-            DynAnyVar::Contextual(o) => {
-                Arc::ptr_eq(&self.0.init, &o.0.init) && {
-                    let a = self.0.ctx.read_recursive();
-                    let b = o.0.ctx.read_recursive();
-                    a.1 == b.1 && a.0.var_eq(&b.0)
-                }
-            }
+            DynAnyVar::Contextual(o) => self == o,
             _ => false,
         }
     }

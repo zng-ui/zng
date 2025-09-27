@@ -50,6 +50,11 @@ impl CowVar {
         Self(me)
     }
 }
+impl PartialEq for CowVar {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0.0, &other.0.0)
+    }
+}
 impl VarImpl for CowVar {
     fn clone_dyn(&self) -> DynAnyVar {
         DynAnyVar::Cow(Self(self.0.clone()))
@@ -90,7 +95,7 @@ impl VarImpl for CowVar {
 
     fn var_eq(&self, other: &DynAnyVar) -> bool {
         match other {
-            DynAnyVar::Cow(v) => Arc::ptr_eq(&self.0.0, &v.0.0),
+            DynAnyVar::Cow(v) => self == v,
             _ => false,
         }
     }
