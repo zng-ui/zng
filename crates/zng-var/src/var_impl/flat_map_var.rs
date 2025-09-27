@@ -104,7 +104,11 @@ fn hook_inner_var(data: &Arc<FlatMapData>, mut current: parking_lot::RwLockWrite
     });
     current.1 = init_handle;
 }
-
+impl PartialEq for FlatMapVar {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
 impl VarImpl for FlatMapVar {
     fn clone_dyn(&self) -> DynAnyVar {
         DynAnyVar::FlatMap(self.clone())
@@ -129,7 +133,7 @@ impl VarImpl for FlatMapVar {
 
     fn var_eq(&self, other: &DynAnyVar) -> bool {
         match other {
-            DynAnyVar::FlatMap(o) => Arc::ptr_eq(&self.0, &o.0),
+            DynAnyVar::FlatMap(o) => self == o,
             _ => false,
         }
     }

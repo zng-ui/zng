@@ -9,6 +9,7 @@ use std::{
 use crate::{
     AnyVarHookArgs, AnyVarValue, BoxAnyVarValue, VarInstanceTag, VarUpdateId, VarValue,
     animation::{AnimationStopFn, ModifyInfo},
+    read_only_var::ReadOnlyImpl,
 };
 use bitflags::bitflags;
 use smallbox::{SmallBox, smallbox};
@@ -44,27 +45,39 @@ pub use expr_var::{__expr_var, expr_var_as, expr_var_into, expr_var_map};
 
 pub(crate) enum DynAnyVar {
     Const(const_var::ConstVar),
-    Shared(shared_var::SharedVar),
-    Context(context_var::ContextVarImpl),
-    Cow(cow_var::CowVar),
-    Contextual(contextual_var::ContextualVar),
-    FlatMap(flat_map_var::FlatMapVar),
     Merge(merge_var::MergeVar),
     When(when_var::WhenVar),
-    ReadOnly(read_only_var::ReadOnlyVar),
+
+    Shared(shared_var::SharedVar),
+    Context(context_var::ContextVarImpl),
+    FlatMap(flat_map_var::FlatMapVar),
+    Cow(cow_var::CowVar),
+    Contextual(contextual_var::ContextualVar),
+
+    ReadOnlyShared(ReadOnlyImpl<shared_var::SharedVar>),
+    ReadOnlyFlatMap(ReadOnlyImpl<flat_map_var::FlatMapVar>),
+    ReadOnlyContext(ReadOnlyImpl<context_var::ContextVarImpl>),
+    ReadOnlyCow(ReadOnlyImpl<cow_var::CowVar>),
+    ReadOnlyContextual(ReadOnlyImpl<contextual_var::ContextualVar>),
 }
 macro_rules! dispatch {
     ($self:ident, $var:ident => $($tt:tt)+) => {
         match $self {
             DynAnyVar::Const($var) => $($tt)+,
+            DynAnyVar::Merge($var) => $($tt)+,
+            DynAnyVar::FlatMap($var) => $($tt)+,
+            DynAnyVar::When($var) => $($tt)+,
+
             DynAnyVar::Shared($var) => $($tt)+,
             DynAnyVar::Context($var) => $($tt)+,
             DynAnyVar::Cow($var) => $($tt)+,
             DynAnyVar::Contextual($var) => $($tt)+,
-            DynAnyVar::FlatMap($var) => $($tt)+,
-            DynAnyVar::Merge($var) => $($tt)+,
-            DynAnyVar::When($var) => $($tt)+,
-            DynAnyVar::ReadOnly($var) => $($tt)+,
+
+            DynAnyVar::ReadOnlyShared($var) => $($tt)+,
+            DynAnyVar::ReadOnlyFlatMap($var) => $($tt)+,
+            DynAnyVar::ReadOnlyContext($var) => $($tt)+,
+            DynAnyVar::ReadOnlyCow($var) => $($tt)+,
+            DynAnyVar::ReadOnlyContextual($var) => $($tt)+,
         }
     };
 }
@@ -76,14 +89,20 @@ impl fmt::Debug for DynAnyVar {
 
 pub(crate) enum DynWeakAnyVar {
     Const(const_var::WeakConstVar),
-    Shared(shared_var::WeakSharedVar),
-    Context(context_var::ContextVarImpl),
-    Cow(cow_var::WeakCowVar),
-    Contextual(contextual_var::WeakContextualVar),
-    FlatMap(flat_map_var::WeakFlatMapVar),
     Merge(merge_var::WeakMergeVar),
     When(when_var::WeakWhenVar),
-    ReadOnly(read_only_var::WeakReadOnlyVar),
+
+    Shared(shared_var::WeakSharedVar),
+    Context(context_var::ContextVarImpl),
+    FlatMap(flat_map_var::WeakFlatMapVar),
+    Cow(cow_var::WeakCowVar),
+    Contextual(contextual_var::WeakContextualVar),
+
+    ReadOnlyShared(ReadOnlyImpl<shared_var::WeakSharedVar>),
+    ReadOnlyContext(ReadOnlyImpl<context_var::ContextVarImpl>),
+    ReadOnlyCow(ReadOnlyImpl<cow_var::WeakCowVar>),
+    ReadOnlyContextual(ReadOnlyImpl<contextual_var::WeakContextualVar>),
+    ReadOnlyFlatMap(ReadOnlyImpl<flat_map_var::WeakFlatMapVar>),
 }
 macro_rules! dispatch_weak {
     ($self:ident, $var:ident => $($tt:tt)+) => {
@@ -96,7 +115,12 @@ macro_rules! dispatch_weak {
             DynWeakAnyVar::FlatMap($var) => $($tt)+,
             DynWeakAnyVar::Merge($var) => $($tt)+,
             DynWeakAnyVar::When($var) => $($tt)+,
-            DynWeakAnyVar::ReadOnly($var) => $($tt)+,
+            DynWeakAnyVar::ReadOnlyShared($var) => $($tt)+,
+            DynWeakAnyVar::ReadOnlyContext($var) => $($tt)+,
+            DynWeakAnyVar::ReadOnlyCow($var) => $($tt)+,
+            DynWeakAnyVar::ReadOnlyContextual($var) => $($tt)+,
+            DynWeakAnyVar::ReadOnlyFlatMap($var) => $($tt)+,
+
         }
     };
 }

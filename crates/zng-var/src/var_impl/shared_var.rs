@@ -101,6 +101,11 @@ impl SharedVar {
         WeakSharedVar(Arc::downgrade(&self.0))
     }
 }
+impl PartialEq for SharedVar {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
 impl VarImpl for SharedVar {
     fn clone_dyn(&self) -> DynAnyVar {
         DynAnyVar::Shared(self.clone())
@@ -126,7 +131,7 @@ impl VarImpl for SharedVar {
 
     fn var_eq(&self, other: &DynAnyVar) -> bool {
         match other {
-            DynAnyVar::Shared(v) => Arc::ptr_eq(&self.0, &v.0),
+            DynAnyVar::Shared(v) => self == v,
             _ => false,
         }
     }

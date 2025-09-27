@@ -188,6 +188,11 @@ impl fmt::Debug for ContextVarImpl {
         f.debug_tuple("ContextVar").finish_non_exhaustive() // TODO add context var name
     }
 }
+impl PartialEq for ContextVarImpl {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0, other.0)
+    }
+}
 impl VarImpl for ContextVarImpl {
     fn clone_dyn(&self) -> DynAnyVar {
         DynAnyVar::Context(Self(self.0))
@@ -208,7 +213,7 @@ impl VarImpl for ContextVarImpl {
 
     fn var_eq(&self, other: &DynAnyVar) -> bool {
         match other {
-            DynAnyVar::Context(b) => std::ptr::eq(self.0, b.0),
+            DynAnyVar::Context(b) => self == b,
             _ => false,
         }
     }
