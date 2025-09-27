@@ -1118,13 +1118,13 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
                         r.push(';');
                     }
                     Item::When { expr, items } => {
-                        r.push_str("if __fmt_w(");
+                        r.push_str("/*__fmt_w*/ if ");
                         // replace #{}
                         let expr = replace_expr_var(expr, false);
                         // replace #path
                         static PROPERTY_REF_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)#([\w:]+)").unwrap());
                         r.push_str(&PROPERTY_REF_RGX.replace_all(&expr, "__P_($1)"));
-                        r.push_str(") { /*__fmt*/");
+                        r.push_str(" { /*__fmt*/");
                         escape(items, r);
                         r.push('}');
                     }
@@ -1147,13 +1147,14 @@ fn replace_widget(code: &str, reverse: bool) -> Cow<'_, str> {
         let code = code
             .replace("= __ZngFmt {", "= {")
             .replace("); /*__fmt*/", ";")
-            .replace("if __fmt_w(", "when ")
             .replace("__unset!()", "unset!")
             .replace("let __fmt_self = ", "")
             .replace("; /*__zng-fmt*/", ";");
 
-        static WHEN_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\) \{\s+/\*__fmt\*/").unwrap());
-        let code = WHEN_REV_RGX.replace_all(&code, " {");
+        static WHEN_PREFIX_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"/\*__fmt_w\*/\s+if").unwrap());
+        static WHEN_SUFFIX_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r" \{\s+/\*__fmt\*/").unwrap());
+        let code = WHEN_PREFIX_REV_RGX.replace_all(&code, "when");
+        let code = WHEN_SUFFIX_REV_RGX.replace_all(&code, " {");
         let code = match replace_expr_var(&code, true) {
             Cow::Borrowed(_) => Cow::Owned(code.into_owned()),
             Cow::Owned(o) => Cow::Owned(o),
