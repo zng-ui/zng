@@ -54,7 +54,9 @@ pub use zng_wgt_input::mouse::{
     on_pre_mouse_triple_click, on_pre_mouse_up, on_pre_mouse_wheel, on_pre_mouse_zoom,
 };
 
-pub use zng_wgt_input::{CursorIcon, CursorSource, click_mode, cursor, is_cap_mouse_pressed, is_mouse_pressed};
+pub use zng_wgt_input::{
+    CursorIcon, CursorSource, click_mode, cursor, is_cap_mouse_pressed, is_mouse_active, is_mouse_pressed, mouse_active_config,
+};
 
 #[cfg(feature = "image")]
 pub use zng_wgt_input::CursorImg;

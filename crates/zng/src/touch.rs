@@ -62,4 +62,4 @@ pub use zng_wgt_input::touch::{
     on_touch_long_press, on_touch_move, on_touch_start, on_touch_tap, on_touch_transform, on_touched,
 };
 
-pub use zng_wgt_input::{is_cap_touched, is_touched, is_touched_from_start, touch_transform};
+pub use zng_wgt_input::{is_cap_touched, is_touch_active, is_touched, is_touched_from_start, touch_active_config, touch_transform};

@@ -26,3 +26,4 @@ zng-ext-window = { path = "../zng-ext-window", version = "0.8.1", default-featur
 zng-app = { path = "../zng-app", version = "0.18.1", default-features = false }
 zng-view-api = { path = "../zng-view-api", version = "0.15.1", default-features = false }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.7.1", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
