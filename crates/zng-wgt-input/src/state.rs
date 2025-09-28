@@ -3,9 +3,9 @@ use std::{collections::HashSet, time::Duration};
 use zng_app::timer::TIMERS;
 use zng_ext_input::{
     gesture::{CLICK_EVENT, GESTURES},
-    mouse::{ClickMode, MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT, WidgetInfoMouseExt as _},
+    mouse::{ClickMode, MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT, MOUSE_WHEEL_EVENT, WidgetInfoMouseExt as _},
     pointer_capture::POINTER_CAPTURE_EVENT,
-    touch::TOUCHED_EVENT,
+    touch::{TOUCH_TAP_EVENT, TOUCHED_EVENT},
 };
 use zng_view_api::{mouse::ButtonState, touch::TouchPhase};
 use zng_wgt::{node::validate_getter_var, prelude::*};
@@ -484,9 +484,9 @@ pub fn is_cap_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNo
     )
 }
 
-/// If the mouse pointer moved over the widget within a time duration defined by contextual [`mouse_active_config`].
+/// If the mouse pointer moved over or interacted with the widget within a time duration defined by contextual [`mouse_active_config`].
 ///
-/// This property can be useful for implementing things like a media player widget, where the mouse cursor and controls vanish
+/// This property is useful for implementing things like a media player widget, where the mouse cursor and controls vanish
 /// after the mouse stops moving for a time.
 ///
 /// See also [`is_pointer_active`] for an aggregate gesture that covers mouse and touch.
@@ -506,20 +506,20 @@ pub fn is_mouse_active(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiN
         UiNodeOp::Init => {
             validate_getter_var(&state);
             WIDGET.sub_event(&MOUSE_MOVE_EVENT).sub_var(&MOUSE_ACTIVE_CONFIG_VAR);
-            state.set(false);
+            state.set(true);
         }
         UiNodeOp::Deinit => {
             state.set(false);
             raw_state = State::False;
         }
         UiNodeOp::Event { update } => {
+            let mut start = None;
             if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
-                let mut start = None;
                 match &mut raw_state {
                     State::False => {
                         let cfg = MOUSE_ACTIVE_CONFIG_VAR.get();
-                        if cfg.area.width <= Dip::new(1) || cfg.area.width <= Dip::new(1) {
-                            start = Some(cfg.duration);
+                        if cfg.area.width <= Dip::new(1) || cfg.area.height <= Dip::new(1) {
+                            start = Some((cfg.duration, args.position));
                         } else {
                             raw_state = State::Maybe(args.position);
                         }
@@ -527,23 +527,40 @@ pub fn is_mouse_active(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiN
                     State::Maybe(s) => {
                         let cfg = MOUSE_ACTIVE_CONFIG_VAR.get();
                         if (args.position.x - s.x).abs() >= cfg.area.width || (args.position.y - s.y).abs() >= cfg.area.height {
-                            start = Some(cfg.duration);
+                            start = Some((cfg.duration, args.position));
                         }
                     }
                     State::True(p, timer) => {
                         if (args.position.x - p.x).abs() >= Dip::new(1) || (args.position.y - p.y).abs() >= Dip::new(1) {
                             // reset
-                            timer.modify(|t| t.value().play(true));
+                            timer.get().play(true);
                             *p = args.position;
                         }
                     }
                 }
-                if let Some(t) = start {
-                    let timer = TIMERS.interval(t, false);
-                    timer.subscribe(UpdateOp::Update, WIDGET.id()).perm();
-                    state.set(true);
-                    raw_state = State::True(args.position, timer);
+            } else {
+                let pos = if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
+                    Some(args.position)
+                } else {
+                    MOUSE_WHEEL_EVENT.on(update).map(|args| args.position)
+                };
+                if let Some(pos) = pos {
+                    match &raw_state {
+                        State::True(_, timer) => {
+                            // reset
+                            timer.get().play(true);
+                        }
+                        _ => {
+                            start = Some((MOUSE_ACTIVE_CONFIG_VAR.get().duration, pos));
+                        }
+                    }
                 }
+            }
+            if let Some((t, pos)) = start {
+                let timer = TIMERS.interval(t, false);
+                timer.subscribe(UpdateOp::Update, WIDGET.id()).perm();
+                state.set(true);
+                raw_state = State::True(pos, timer);
             }
         }
         UiNodeOp::Update { .. } => {
@@ -553,7 +570,7 @@ pub fn is_mouse_active(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiN
                     state.set(false);
                     raw_state = State::False;
                 } else if let Some(cfg) = MOUSE_ACTIVE_CONFIG_VAR.get_new() {
-                    timer.modify(move |t| t.value().set_interval(cfg.duration));
+                    timer.get().set_interval(cfg.duration);
                 }
             }
         }
@@ -573,7 +590,7 @@ pub fn mouse_active_config(child: impl IntoUiNode, config: impl IntoVar<MouseAct
     with_context_var(child, MOUSE_ACTIVE_CONFIG_VAR, config)
 }
 
-/// If an unhandled touch interaction has happened with the widget within a time duration defined by contextual [`touch_active_config`].
+/// If an unhandled touch tap has happened on the widget within a time duration defined by contextual [`touch_active_config`].
 ///
 /// This property is the touch equivalent to [`is_mouse_active`].
 ///
@@ -581,7 +598,58 @@ pub fn mouse_active_config(child: impl IntoUiNode, config: impl IntoVar<MouseAct
 /// [`is_mouse_active`]: fn@is_mouse_active
 #[property(EVENT)]
 pub fn is_touch_active(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    todo!()
+    let state = state.into_var();
+    enum State {
+        False,
+        True(TimerVar),
+    }
+    let mut raw_state = State::False;
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            WIDGET.sub_event(&TOUCH_TAP_EVENT).sub_var(&TOUCH_ACTIVE_CONFIG_VAR);
+            state.set(false);
+        }
+        UiNodeOp::Deinit => {
+            state.set(false);
+            raw_state = State::False;
+        }
+        UiNodeOp::Event { update } => {
+            c.event(update);
+            if TOUCH_TAP_EVENT.on_unhandled(update).is_some() {
+                match &raw_state {
+                    State::False => {
+                        let t = TOUCH_ACTIVE_CONFIG_VAR.get().duration;
+                        let timer = TIMERS.interval(t, false);
+                        timer.subscribe(UpdateOp::Update, WIDGET.id()).perm();
+                        state.set(true);
+                        raw_state = State::True(timer);
+                    }
+                    State::True(timer) => {
+                        let cfg = TOUCH_ACTIVE_CONFIG_VAR.get();
+                        if cfg.toggle {
+                            state.set(false);
+                            timer.get().stop();
+                        } else {
+                            timer.get().play(true);
+                        }
+                    }
+                }
+            }
+        }
+        UiNodeOp::Update { .. } => {
+            if let State::True(timer) = &raw_state {
+                if let Some(timer) = timer.get_new() {
+                    timer.stop();
+                    state.set(false);
+                    raw_state = State::False;
+                } else if let Some(cfg) = TOUCH_ACTIVE_CONFIG_VAR.get_new() {
+                    timer.get().set_interval(cfg.duration);
+                }
+            }
+        }
+        _ => {}
+    })
 }
 
 /// Contextual configuration for [`is_touch_active`].
@@ -642,10 +710,10 @@ pub struct MouseActiveConfig {
     pub area: DipSize,
 }
 impl Default for MouseActiveConfig {
-    /// `(5s, 1)`
+    /// `(3s, 1)`
     fn default() -> Self {
         Self {
-            duration: 5.secs(),
+            duration: 3.secs(),
             area: DipSize::splat(Dip::new(1)),
         }
     }
@@ -682,10 +750,10 @@ pub struct TouchActiveConfig {
     pub toggle: bool,
 }
 impl Default for TouchActiveConfig {
-    /// `(5s, false)`
+    /// `(3s, false)`
     fn default() -> Self {
         Self {
-            duration: 5.secs(),
+            duration: 3.secs(),
             toggle: false,
         }
     }
