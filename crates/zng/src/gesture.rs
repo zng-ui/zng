@@ -50,4 +50,6 @@ pub use zng_wgt_input::gesture::{
     on_pre_triple_click, on_single_click, on_triple_click,
 };
 
-pub use zng_wgt_input::{is_cap_hovered, is_cap_pointer_pressed, is_cap_pressed, is_hovered, is_hovered_disabled, is_pressed};
+pub use zng_wgt_input::{
+    is_cap_hovered, is_cap_pointer_pressed, is_cap_pressed, is_hovered, is_hovered_disabled, is_pointer_active, is_pressed,
+};
