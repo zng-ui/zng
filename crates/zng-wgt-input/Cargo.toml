@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-input"
-version = "0.7.1"
+version = "0.7.2"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"

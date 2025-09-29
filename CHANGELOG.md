@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.17.2
+
 * Add `zng::gesture::is_pointer_active` and related properties.
     - Allows implementing media player like controls, that vanish after a while without cursor movement.
 * Fix `cargo zng fmt` for very long `when` expressions.

@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-scroll"
-version = "0.9.1"
+version = "0.9.2"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -17,8 +17,8 @@ zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.7.1", default-features =
 zng-wgt-access = { path = "../zng-wgt-access", version = "0.7.1", default-features = false }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.7.1", default-features = false }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.9.1", default-features = false }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.7.1", default-features = false }
-zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.8.1", default-features = false }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.7.2", default-features = false }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.8.2", default-features = false }
 zng-app = { path = "../zng-app", version = "0.18.1", default-features = false }
 zng-ext-window = { path = "../zng-ext-window", version = "0.8.1", default-features = false }
 zng-ext-input = { path = "../zng-ext-input", version = "0.10.1", default-features = false }
