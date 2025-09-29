@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-text"
-version = "0.9.1"
+version = "0.9.2"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -20,8 +20,8 @@ zng-layout = { path = "../zng-layout", version = "0.6.1", default-features = fal
 zng-wgt-data = { path = "../zng-wgt-data", version = "0.7.1", default-features = false }
 zng-wgt-access = { path = "../zng-wgt-access", version = "0.7.1", default-features = false }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.7.1", default-features = false }
-zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.8.1", default-features = false }
-zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.9.1", default-features = false }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.8.2", default-features = false }
+zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.9.2", default-features = false }
 zng-ext-undo = { path = "../zng-ext-undo", version = "0.7.1", default-features = false }
 zng-ext-font = { path = "../zng-ext-font", version = "0.9.1", default-features = false }
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.10.1", default-features = false }
