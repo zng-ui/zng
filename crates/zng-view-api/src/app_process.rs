@@ -548,13 +548,13 @@ impl Controller {
 
         let next_id = self.generation.next();
         self.generation = next_id;
+        
+        let ev = Self::spawn_other_process_listener(on_event, event_listener, self.process.clone());
+        self.event_listener = Some(ev);
 
         if let Err(ipc::ViewChannelError::Disconnected) = self.try_init() {
             panic!("respawn on respawn startup");
         }
-
-        let ev = Self::spawn_other_process_listener(on_event, event_listener, self.process.clone());
-        self.event_listener = Some(ev);
     }
 }
 impl Drop for Controller {
