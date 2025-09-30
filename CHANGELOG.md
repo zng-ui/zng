@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix respawn when a view-process panic happens during window creation.
 
 # 0.17.2
 

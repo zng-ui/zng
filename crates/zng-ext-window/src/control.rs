@@ -851,8 +851,11 @@ impl HeadedCtrl {
                 });
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update)
-            && let Some(view) = &self.window
-            && view.renderer().generation() != Ok(args.generation)
+            && self
+                .window
+                .as_ref()
+                .map(|w| w.renderer().generation() != Ok(args.generation))
+                .unwrap_or(args.is_respawn)
         {
             debug_assert!(args.is_respawn);
 
