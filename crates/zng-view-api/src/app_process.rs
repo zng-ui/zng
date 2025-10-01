@@ -556,9 +556,6 @@ impl Controller {
         let ev = Self::spawn_other_process_listener(on_event, event_listener, self.process.clone(), self.generation);
         self.event_listener = Some(ev);
 
-        let ev = Self::spawn_other_process_listener(on_event, event_listener, self.process.clone(), self.generation);
-        self.event_listener = Some(ev);
-
         if let Err(ipc::ViewChannelError::Disconnected) = self.try_init() {
             panic!("respawn on respawn startup");
         }
