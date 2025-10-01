@@ -100,9 +100,9 @@ impl Controller {
         let same_process = process.is_none();
         let process = Arc::new(Mutex::new(process));
         let ev = if same_process {
-            Self::spawn_same_process_listener(on_event, event_receiver)
+            Self::spawn_same_process_listener(on_event, event_receiver, ViewProcessGen::first())
         } else {
-            Self::spawn_other_process_listener(on_event, event_receiver, process.clone())
+            Self::spawn_other_process_listener(on_event, event_receiver, process.clone(), ViewProcessGen::first())
         };
 
         let mut c = Controller {
@@ -130,12 +130,13 @@ impl Controller {
     fn spawn_same_process_listener(
         mut on_event: Box<dyn FnMut(Event) + Send>,
         mut event_receiver: EventReceiver,
+        generation: ViewProcessGen,
     ) -> std::thread::JoinHandle<Box<dyn FnMut(Event) + Send>> {
         thread::spawn(move || {
             while let Ok(ev) = event_receiver.recv() {
                 on_event(ev);
             }
-            on_event(Event::Disconnected(ViewProcessGen::first()));
+            on_event(Event::Disconnected(generation));
 
             // return to reuse in respawn.
             on_event
@@ -145,6 +146,7 @@ impl Controller {
         mut on_event: Box<dyn FnMut(Event) + Send>,
         mut event_receiver: EventReceiver,
         process: Arc<Mutex<Option<std::process::Child>>>,
+        generation: ViewProcessGen,
     ) -> std::thread::JoinHandle<Box<dyn FnMut(Event) + Send>> {
         // ipc-channel sometimes does not signal disconnect when the view-process dies
         thread::spawn(move || {
@@ -175,7 +177,7 @@ impl Controller {
                     }
                 }
             }
-            on_event(Event::Disconnected(ViewProcessGen::first()));
+            on_event(Event::Disconnected(generation));
 
             // return to reuse in respawn.
             on_event
@@ -391,6 +393,8 @@ impl Controller {
             {
                 self.respawn_impl(true)
             }
+        } else {
+            tracing::warn!("disconnected event from previous generation ignored")
         }
     }
 
@@ -550,6 +554,9 @@ impl Controller {
         self.generation = next_id;
         
         let ev = Self::spawn_other_process_listener(on_event, event_listener, self.process.clone());
+        self.event_listener = Some(ev);
+
+        let ev = Self::spawn_other_process_listener(on_event, event_listener, self.process.clone(), self.generation);
         self.event_listener = Some(ev);
 
         if let Err(ipc::ViewChannelError::Disconnected) = self.try_init() {
