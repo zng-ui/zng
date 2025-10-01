@@ -1,5 +1,3 @@
-use std::fmt;
-
 use bitflags::bitflags;
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
@@ -25,7 +23,7 @@ impl Transitionable for PxConstraintsFlags {
 /// These constraints can express lower and upper bounds, unbounded upper and preference of *fill* length.
 ///
 /// See also the [`PxConstraints2d`].
-#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct PxConstraints {
     #[serde(with = "serde_constraints_max")]
     #[serde(default = "serde_constraints_max_default")]
@@ -287,26 +285,6 @@ impl_from_and_into_var! {
     /// New exact.
     fn from(length: Px) -> PxConstraints {
         PxConstraints::new_exact(length)
-    }
-}
-impl fmt::Debug for PxConstraints {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if !f.alternate() && !self.is_inner() {
-            return if self.is_exact() {
-                write!(f, "exact({})", self.min)
-            } else if self.is_unbounded() {
-                write!(f, "min({})", self.min)
-            } else if self.is_fill() {
-                write!(f, "fill({}, {})", self.min, self.max)
-            } else {
-                write!(f, "range({}, {})", self.min, self.max)
-            };
-        }
-        f.debug_struct("PxConstraints")
-            .field("max", &self.max())
-            .field("min", &self.min)
-            .field("flags", &self.flags)
-            .finish()
     }
 }
 impl Default for PxConstraints {

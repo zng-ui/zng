@@ -81,6 +81,43 @@ impl ByteUnits for usize {
         ByteLength::from_tera(self)
     }
 }
+impl ByteUnits for f64 {
+    fn bytes(self) -> ByteLength {
+        ByteLength::from_byte_f64(self)
+    }
+
+    fn kibibytes(self) -> ByteLength {
+        ByteLength::from_kibi_f64(self)
+    }
+
+    fn kilobytes(self) -> ByteLength {
+        ByteLength::from_kilo_f64(self)
+    }
+
+    fn mebibytes(self) -> ByteLength {
+        ByteLength::from_mebi_f64(self)
+    }
+
+    fn megabytes(self) -> ByteLength {
+        ByteLength::from_mega_f64(self)
+    }
+
+    fn gibibytes(self) -> ByteLength {
+        ByteLength::from_gibi_f64(self)
+    }
+
+    fn gigabytes(self) -> ByteLength {
+        ByteLength::from_giga_f64(self)
+    }
+
+    fn tebibytes(self) -> ByteLength {
+        ByteLength::from_tebi_f64(self)
+    }
+
+    fn terabytes(self) -> ByteLength {
+        ByteLength::from_tera_f64(self)
+    }
+}
 
 /// A length in bytes.
 ///
@@ -229,7 +266,7 @@ impl ByteLength {
         self.0.checked_mul(rhs.0).map(ByteLength)
     }
 
-    /// Divides the two lengths, returns `None` if the subtraction overflows.
+    /// Divides the two lengths, returns `None` if the division overflows.
     pub fn checked_div(self, rhs: ByteLength) -> Option<ByteLength> {
         self.0.checked_div(rhs.0).map(ByteLength)
     }
@@ -244,8 +281,19 @@ impl ByteLength {
         ByteLength(bytes)
     }
 
+    /// From fractional bytes.
+    ///
+    /// Just rounds the value.
+    pub const fn from_byte_f64(bytes: f64) -> Self {
+        ByteLength(bytes.round() as _)
+    }
+
     const fn new(value: usize, scale: usize) -> Self {
         ByteLength(value.saturating_mul(scale))
+    }
+
+    const fn new_f64(value: f64, scale: f64) -> Self {
+        ByteLength::from_byte_f64(value * scale)
     }
 
     /// From kibi-bytes.
@@ -254,12 +302,24 @@ impl ByteLength {
     pub const fn from_kibi(kibi_bytes: usize) -> Self {
         Self::new(kibi_bytes, 1024)
     }
+    /// From kibi-bytes.
+    ///
+    /// 1 kibi-byte equals 1024 bytes.
+    pub const fn from_kibi_f64(kibi_bytes: f64) -> Self {
+        Self::new_f64(kibi_bytes, 1024.0)
+    }
 
     /// From kilo-bytes.
     ///
     /// 1 kilo-byte equals 1000 bytes.
-    pub const fn from_kilo(kibi_bytes: usize) -> Self {
-        Self::new(kibi_bytes, 1000)
+    pub const fn from_kilo(kilo_bytes: usize) -> Self {
+        Self::new(kilo_bytes, 1000)
+    }
+    /// From kilo-bytes.
+    ///
+    /// 1 kilo-byte equals 1000 bytes.
+    pub const fn from_kilo_f64(kilo_bytes: f64) -> Self {
+        Self::new_f64(kilo_bytes, 1000.0)
     }
 
     /// From mebi-bytes.
@@ -268,12 +328,24 @@ impl ByteLength {
     pub const fn from_mebi(mebi_bytes: usize) -> Self {
         Self::new(mebi_bytes, 1024usize.pow(2))
     }
+    /// From mebi-bytes.
+    ///
+    /// 1 mebi-byte equals 1024² bytes.
+    pub const fn from_mebi_f64(mebi_bytes: f64) -> Self {
+        Self::new_f64(mebi_bytes, 1024.0 * 1024.0)
+    }
 
     /// From mega-bytes.
     ///
     /// 1 mega-byte equals 1000² bytes.
-    pub const fn from_mega(mebi_bytes: usize) -> Self {
-        Self::new(mebi_bytes, 1000usize.pow(2))
+    pub const fn from_mega(mega_bytes: usize) -> Self {
+        Self::new(mega_bytes, 1000usize.pow(2))
+    }
+    /// From mega-bytes.
+    ///
+    /// 1 mega-byte equals 1000² bytes.
+    pub const fn from_mega_f64(mebi_bytes: f64) -> Self {
+        Self::new_f64(mebi_bytes, 1000.0 * 1000.0)
     }
 
     /// From gibi-bytes.
@@ -282,6 +354,12 @@ impl ByteLength {
     pub const fn from_gibi(gibi_bytes: usize) -> Self {
         Self::new(gibi_bytes, 1024usize.pow(3))
     }
+    /// From gibi-bytes.
+    ///
+    /// 1 gibi-byte equals 1024³ bytes.
+    pub const fn from_gibi_f64(gibi_bytes: f64) -> Self {
+        Self::new_f64(gibi_bytes, 1024.0 * 1024.0 * 1024.0)
+    }
 
     /// From giga-bytes.
     ///
@@ -289,12 +367,24 @@ impl ByteLength {
     pub const fn from_giga(giga_bytes: usize) -> Self {
         Self::new(giga_bytes, 1000usize.pow(3))
     }
+    /// From giga-bytes.
+    ///
+    /// 1 giga-byte equals 1000³ bytes.
+    pub const fn from_giga_f64(giga_bytes: f64) -> Self {
+        Self::new_f64(giga_bytes, 1000.0 * 1000.0 * 1000.0)
+    }
 
     /// From tebi-bytes.
     ///
     /// 1 tebi-byte equals 1024^4 bytes.
-    pub const fn from_tebi(gibi_bytes: usize) -> Self {
-        Self::new(gibi_bytes, 1024usize.pow(4))
+    pub const fn from_tebi(tebi_bytes: usize) -> Self {
+        Self::new(tebi_bytes, 1024usize.pow(4))
+    }
+    /// From tebi-bytes.
+    ///
+    /// 1 tebi-byte equals 1024^4 bytes.
+    pub const fn from_tebi_f64(tebi_bytes: f64) -> Self {
+        Self::new_f64(tebi_bytes, 1024.0 * 1024.0 * 1024.0 * 1024.0)
     }
 
     /// From tera-bytes.
@@ -302,6 +392,12 @@ impl ByteLength {
     /// 1 tera-byte equals 1000^4 bytes.
     pub const fn from_tera(tera_bytes: usize) -> Self {
         Self::new(tera_bytes, 1000usize.pow(4))
+    }
+    /// From tera-bytes.
+    ///
+    /// 1 tera-byte equals 1000^4 bytes.
+    pub const fn from_tera_f64(tera_bytes: f64) -> Self {
+        Self::new_f64(tera_bytes, 1000.0 * 1000.0 * 1000.0 * 1000.0)
     }
 }
 
@@ -330,8 +426,6 @@ impl fmt::Debug for ByteLength {
 /// Alternative mode prints in binary units (kibi, mebi, gibi, tebi)
 impl fmt::Display for ByteLength {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // alternate uses 0..=1000 units, normal used 0..=1024 units.
-
         if f.alternate() {
             if self.0 >= 1024usize.pow(4) {
                 write!(f, "{:.2}TiB", self.tebis())
@@ -357,7 +451,34 @@ impl fmt::Display for ByteLength {
         }
     }
 }
+/// Parses `"##"`, `"##TiB"`, `"##GiB"`, `"##MiB"`, `"##KiB"`, `"##B"`, `"##TB"`, `"##GB"`, `"##MB"`, `"##kB"` and `"##B"` where `##` is an `usize`.
+impl std::str::FromStr for ByteLength {
+    type Err = std::num::ParseFloatError;
 
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some(n) = s.strip_suffix("TiB") {
+            n.parse().map(ByteLength::from_tebi_f64)
+        } else if let Some(n) = s.strip_suffix("GiB") {
+            n.parse().map(ByteLength::from_gibi_f64)
+        } else if let Some(n) = s.strip_suffix("MiB") {
+            n.parse().map(ByteLength::from_mebi_f64)
+        } else if let Some(n) = s.strip_suffix("KiB") {
+            n.parse().map(ByteLength::from_kibi_f64)
+        } else if let Some(n) = s.strip_suffix("TB") {
+            n.parse().map(ByteLength::from_tera_f64)
+        } else if let Some(n) = s.strip_suffix("GB") {
+            n.parse().map(ByteLength::from_giga_f64)
+        } else if let Some(n) = s.strip_suffix("MB") {
+            n.parse().map(ByteLength::from_mega_f64)
+        } else if let Some(n) = s.strip_suffix("kB") {
+            n.parse().map(ByteLength::from_kilo_f64)
+        } else if let Some(n) = s.strip_suffix("B") {
+            n.parse().map(ByteLength::from_byte_f64)
+        } else {
+            s.parse().map(ByteLength::from_byte_f64)
+        }
+    }
+}
 impl<S: Into<Factor>> ops::Mul<S> for ByteLength {
     type Output = Self;
 

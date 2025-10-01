@@ -1,5 +1,7 @@
 # Unreleased
 
+* Implement `ByteUnits` for `f64` and add associated functions `ByteLength::from_*_f64`.
+* Implement `FromStr` for unit types, parses the primary `Debug` and `Display` formats.
 * Fix unrecoverable crash in respawned view-process not reaching the crash-handler-process.
 * Fix respawn when a view-process panic happens during window creation.
 

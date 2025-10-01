@@ -1,5 +1,7 @@
 //! Angle, factor, length, time, byte and resolution units.
 
+use std::fmt;
+
 pub use zng_unit::*;
 
 mod alignment;
@@ -230,6 +232,170 @@ pub trait Layout1d {
     fn affect_mask(&self) -> LayoutMask;
 }
 
+/// An error which can be returned when parsing an type composed of integers.
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ParseFloatCompositeError {
+    /// Float component parse error.
+    Component(std::num::ParseFloatError),
+    /// Missing color component.
+    MissingComponent,
+    /// Extra color component.
+    ExtraComponent,
+    /// Unexpected char.
+    UnknownFormat,
+}
+impl fmt::Display for ParseFloatCompositeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParseFloatCompositeError::Component(e) => write!(f, "error parsing component, {e}"),
+            ParseFloatCompositeError::MissingComponent => write!(f, "missing component"),
+            ParseFloatCompositeError::ExtraComponent => write!(f, "extra component"),
+            ParseFloatCompositeError::UnknownFormat => write!(f, "unknown format"),
+        }
+    }
+}
+impl std::error::Error for ParseFloatCompositeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        if let ParseFloatCompositeError::Component(e) = self {
+            Some(e)
+        } else {
+            None
+        }
+    }
+}
+impl From<std::num::ParseFloatError> for ParseFloatCompositeError {
+    fn from(value: std::num::ParseFloatError) -> Self {
+        ParseFloatCompositeError::Component(value)
+    }
+}
+
+/// An error which can be returned when parsing an type composed of integers.
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ParseCompositeError {
+    /// Float component parse error.
+    FloatComponent(std::num::ParseFloatError),
+    /// Integer component parse error.
+    IntComponent(std::num::ParseIntError),
+    /// Missing color component.
+    MissingComponent,
+    /// Extra color component.
+    ExtraComponent,
+    /// Unexpected char.
+    UnknownFormat,
+}
+impl fmt::Display for ParseCompositeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParseCompositeError::FloatComponent(e) => write!(f, "error parsing component, {e}"),
+            ParseCompositeError::IntComponent(e) => write!(f, "error parsing component, {e}"),
+            ParseCompositeError::MissingComponent => write!(f, "missing component"),
+            ParseCompositeError::ExtraComponent => write!(f, "extra component"),
+            ParseCompositeError::UnknownFormat => write!(f, "unknown format"),
+        }
+    }
+}
+impl std::error::Error for ParseCompositeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        if let ParseCompositeError::FloatComponent(e) = self {
+            Some(e)
+        } else if let ParseCompositeError::IntComponent(e) = self {
+            Some(e)
+        } else {
+            None
+        }
+    }
+}
+impl From<std::num::ParseFloatError> for ParseCompositeError {
+    fn from(value: std::num::ParseFloatError) -> Self {
+        ParseCompositeError::FloatComponent(value)
+    }
+}
+impl From<std::num::ParseIntError> for ParseCompositeError {
+    fn from(value: std::num::ParseIntError) -> Self {
+        ParseCompositeError::IntComponent(value)
+    }
+}
+impl From<ParseFloatCompositeError> for ParseCompositeError {
+    fn from(value: ParseFloatCompositeError) -> Self {
+        match value {
+            ParseFloatCompositeError::Component(e) => ParseCompositeError::FloatComponent(e),
+            ParseFloatCompositeError::MissingComponent => ParseCompositeError::MissingComponent,
+            ParseFloatCompositeError::ExtraComponent => ParseCompositeError::ExtraComponent,
+            ParseFloatCompositeError::UnknownFormat => ParseCompositeError::UnknownFormat,
+        }
+    }
+}
+impl From<ParseIntCompositeError> for ParseCompositeError {
+    fn from(value: ParseIntCompositeError) -> Self {
+        match value {
+            ParseIntCompositeError::Component(e) => ParseCompositeError::IntComponent(e),
+            ParseIntCompositeError::MissingComponent => ParseCompositeError::MissingComponent,
+            ParseIntCompositeError::ExtraComponent => ParseCompositeError::ExtraComponent,
+            ParseIntCompositeError::UnknownFormat => ParseCompositeError::UnknownFormat,
+            _ => unreachable!(),
+        }
+    }
+}
+
+pub(crate) struct LengthCompositeParser<'a> {
+    sep: &'a [char],
+    s: &'a str,
+}
+impl<'a> LengthCompositeParser<'a> {
+    pub(crate) fn new(s: &'a str) -> Result<LengthCompositeParser<'a>, ParseCompositeError> {
+        Self::new_sep(s, &[','])
+    }
+    pub(crate) fn new_sep(s: &'a str, sep: &'a [char]) -> Result<LengthCompositeParser<'a>, ParseCompositeError> {
+        if let Some(s) = s.strip_prefix('(') {
+            if let Some(s) = s.strip_suffix(')') {
+                return Ok(Self { s, sep });
+            } else {
+                return Err(ParseCompositeError::MissingComponent);
+            }
+        }
+        Ok(Self { s, sep })
+    }
+
+    pub(crate) fn next(&mut self) -> Result<Length, ParseCompositeError> {
+        let mut depth = 0;
+        for (ci, c) in self.s.char_indices() {
+            if depth == 0
+                && let Some(sep) = self.sep.iter().find(|s| **s == c)
+            {
+                let l = &self.s[..ci];
+                self.s = &self.s[ci + sep.len_utf8()..];
+                return l.trim().parse();
+            } else if c == '(' {
+                depth += 1;
+            } else if c == ')' {
+                depth -= 1;
+            }
+        }
+        if self.s.is_empty() {
+            Err(ParseCompositeError::MissingComponent)
+        } else {
+            let l = self.s;
+            self.s = "";
+            l.trim().parse()
+        }
+    }
+
+    pub fn has_ended(&self) -> bool {
+        self.s.is_empty()
+    }
+
+    pub(crate) fn expect_last(mut self) -> Result<Length, ParseCompositeError> {
+        let c = self.next()?;
+        if !self.has_ended() {
+            Err(ParseCompositeError::ExtraComponent)
+        } else {
+            Ok(c)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::f32::consts::{PI, TAU};
@@ -409,5 +575,18 @@ mod tests {
         assert!(!Orientation2D::Below.box_is(a, b));
         assert!(!Orientation2D::Left.box_is(a, b));
         assert!(Orientation2D::Right.box_is(a, b));
+    }
+
+    #[test]
+    fn length_composite_parser_2() {
+        let mut parser = LengthCompositeParser::new("(10%, 20%)").unwrap();
+        assert_eq!(parser.next().unwrap(), Length::from(10.pct()));
+        assert_eq!(parser.expect_last().unwrap(), Length::from(20.pct()));
+    }
+
+    #[test]
+    fn length_composite_parser_1() {
+        let parser = LengthCompositeParser::new("10px").unwrap();
+        assert_eq!(parser.expect_last().unwrap(), 10.px());
     }
 }

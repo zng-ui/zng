@@ -3,6 +3,8 @@ use std::{fmt, ops};
 use zng_unit::DipSideOffsets;
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
+use crate::unit::{LengthCompositeParser, ParseCompositeError};
+
 use super::{Factor, FactorPercent, FactorSideOffsets, Layout1d, LayoutMask, Length, PxSideOffsets, impl_length_comp_conversions};
 
 /// 2D size offsets in [`Length`] units.
@@ -35,6 +37,24 @@ impl fmt::Debug for SideOffsets {
         } else {
             write!(f, "({:?}, {:?}, {:?}, {:?})", self.top, self.right, self.bottom, self.left)
         }
+    }
+}
+impl std::str::FromStr for SideOffsets {
+    type Err = ParseCompositeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parser = LengthCompositeParser::new(s)?;
+        let a = parser.next()?;
+        if parser.has_ended() {
+            return Ok(Self::new_all(a));
+        }
+        let b = parser.next()?;
+        if parser.has_ended() {
+            return Ok(Self::new_vh(a, b));
+        }
+        let c = parser.next()?;
+        let d = parser.expect_last()?;
+        Ok(Self::new(a, b, c, d))
     }
 }
 impl SideOffsets {

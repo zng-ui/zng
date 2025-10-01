@@ -2,6 +2,8 @@ use std::{fmt, ops};
 
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
+use crate::unit::ParseCompositeError;
+
 use super::{DipRect, Factor2d, LayoutMask, Length, Point, PxRect, Size, Vector, impl_length_comp_conversions};
 
 /// 2D rect in [`Length`] units.
@@ -29,7 +31,20 @@ impl fmt::Display for Rect {
         if let Some(p) = f.precision() {
             write!(f, "{:.p$} {:.p$}", self.origin, self.size, p = p)
         } else {
-            write!(f, "{} {}", self.origin, self.size)
+            write!(f, "{} at {}", self.origin, self.size)
+        }
+    }
+}
+impl std::str::FromStr for Rect {
+    type Err = ParseCompositeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((size, origin)) = s.split_once(".at") {
+            Ok(Self::new(Point::from_str(origin)?, Size::from_str(size)?))
+        } else if let Some((size, origin)) = s.split_once(" at ") {
+            Ok(Self::new(Point::from_str(origin.trim())?, Size::from_str(size.trim())?))
+        } else {
+            Err(ParseCompositeError::UnknownFormat)
         }
     }
 }

@@ -51,6 +51,14 @@ impl fmt::Display for Px {
         write!(f, "{}px", self.0)
     }
 }
+/// Parses `"##"` and `"##px"` where `##` is an `i32`.
+impl std::str::FromStr for Px {
+    type Err = std::num::ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        crate::parse_suffix(s, &["px"]).map(Px)
+    }
+}
 impl num_traits::ToPrimitive for Px {
     fn to_i32(&self) -> Option<i32> {
         Some(self.0)
@@ -325,6 +333,14 @@ impl fmt::Display for Dip {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.to_f32(), f)?;
         write!(f, "dip")
+    }
+}
+/// Parses `"##"` and `"##dip"` where `##` is an `f32`.
+impl std::str::FromStr for Dip {
+    type Err = std::num::ParseFloatError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        crate::parse_suffix(s, &["dip"]).map(Dip::new_f32)
     }
 }
 impl From<i32> for Dip {
