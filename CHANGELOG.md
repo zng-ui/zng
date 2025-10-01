@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix unrecoverable crash in respawned view-process not reaching the crash-handler-process.
+* Fix respawn when a view-process panic happens during window creation.
 
 # 0.17.2
 
