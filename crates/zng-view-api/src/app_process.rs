@@ -552,8 +552,8 @@ impl Controller {
 
         let next_id = self.generation.next();
         self.generation = next_id;
-        
-        let ev = Self::spawn_other_process_listener(on_event, event_listener, self.process.clone());
+
+        let ev = Self::spawn_other_process_listener(on_event, event_listener, self.process.clone(), self.generation);
         self.event_listener = Some(ev);
 
         let ev = Self::spawn_other_process_listener(on_event, event_listener, self.process.clone(), self.generation);
