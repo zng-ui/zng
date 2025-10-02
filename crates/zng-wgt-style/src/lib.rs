@@ -62,7 +62,7 @@ pub fn replace(replace: impl IntoValue<bool>) {}
 /// properties that affects these are instantiated with the widget, all the other properties and intrinsic nodes are instantiated
 /// on init, after the style is generated.
 ///
-/// Widgets that inherit this mix-in must call [`style_intrinsic`] in their own `widget_intrinsic`, the call is missing
+/// Widgets that inherit this mix-in must call [`style_intrinsic`] in their own `widget_intrinsic`, if the call is missing
 /// the widget will log an error on instantiation and only the `style_base_fn` will be used. You can use the [`impl_style_fn!`]
 /// macro to generate the style var and property.
 ///
