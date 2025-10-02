@@ -125,7 +125,7 @@ map_properties! {
 /// It is visible if window content does not completely fill the content area, this
 /// can happen if you do not set a background or the background is semi-transparent, also
 /// can happen during very fast resizes.
-#[property(CONTEXT, default(colors::WHITE), widget_impl(Window))]
+#[property(LAYOUT-1, default(colors::WHITE), widget_impl(Window))]
 pub fn clear_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
     let clear_color = color.into_var();
     match_node(child, move |_, op| match op {

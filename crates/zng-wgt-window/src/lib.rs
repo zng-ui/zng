@@ -12,13 +12,14 @@
 // used by fallback_chrome
 zng_wgt::enable_widget_macros!();
 
+use zng_color::colors::BASE_COLOR_VAR;
 use zng_ext_input::focus::{DirectionalNav, FocusScopeOnFocus, TabNav};
 use zng_ext_window::{
     HeadlessMonitor, RenderMode, StartPosition, WINDOW_Ext as _, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs,
     WindowOpenArgs, WindowRoot,
 };
 use zng_var::contextual_var;
-use zng_wgt::{is_mobile, prelude::*};
+use zng_wgt::{base_color, is_mobile, prelude::*};
 use zng_wgt_fill::background_color;
 use zng_wgt_input::focus::{
     FOCUS_HIGHLIGHT_OFFSETS_VAR, FOCUS_HIGHLIGHT_WIDTHS_VAR, directional_nav, focus_highlight, focus_scope, focus_scope_behavior, tab_nav,
@@ -62,13 +63,14 @@ impl Window {
             lang = zng_ext_l10n::LANG_VAR;
 
             font_color = light_dark(rgb(0.08, 0.08, 0.08), rgb(0.92, 0.92, 0.92));
-            background_color = light_dark(rgb(0.9, 0.9, 0.9), rgb(0.1, 0.1, 0.1)); // !!: TODO use BASE_COLOR_VAR
+            base_color = light_dark(rgb(0.9, 0.9, 0.9), rgb(0.1, 0.1, 0.1));
+            background_color = BASE_COLOR_VAR.rgba();
+            clear_color = BASE_COLOR_VAR.rgba();
             focus_highlight = {
                 offsets: FOCUS_HIGHLIGHT_OFFSETS_VAR,
                 widths: FOCUS_HIGHLIGHT_WIDTHS_VAR,
                 sides: light_dark(colors::BLACK, rgb(200, 200, 200)).rgba_map(BorderSides::dashed),
             };
-            clear_color = light_dark(rgb(0.9, 0.9, 0.9), rgb(0.1, 0.1, 0.1));
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;

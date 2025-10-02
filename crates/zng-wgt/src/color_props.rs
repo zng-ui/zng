@@ -26,7 +26,7 @@ pub fn accent_color(child: impl IntoUiNode, color: impl IntoVar<LightDark>) -> U
 /// Defines the seed color used by widgets to derive background, non active border.
 ///
 /// Usually the color is used directly for background fill and highlighted for others.
-/// 
+///
 /// Sets the [`BASE_COLOR_VAR`].
 #[property(CONTEXT, default(BASE_COLOR_VAR))]
 pub fn base_color(child: impl IntoUiNode, color: impl IntoVar<LightDark>) -> UiNode {
