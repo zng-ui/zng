@@ -71,7 +71,11 @@ pub fn colors_config() -> ColorsConfig {
     // the color value is not in any config, need to parse theme name
     let theme = gsettings("org.gnome.desktop.interface", "gtk-theme");
     let theme = match theme.as_ref() {
-        Some(n) => n.strip_prefix("Yaru-").unwrap_or("").split('-').next().unwrap_or(""),
+        Some(n) => n
+            .trim_matches('\'')
+            .split('-')
+            .find(|p| !["Yaru", "dark"].contains(p))
+            .unwrap_or(""),
         None => "?",
     };
     // see https://github.com/ubuntu/yaru/blob/6e28865e0ce55c0f95d17a25871618b1660e97b5/common/accent-colors.scss.in
@@ -168,12 +172,12 @@ fn gsettings(schema: &str, key: &str) -> Option<String> {
                 Some(String::from_utf8_lossy(&s.stdout).trim().to_owned())
             } else {
                 let e = String::from_utf8_lossy(&s.stderr);
-                tracing::error!("dconf read {key} error, {}", e.lines().next().unwrap_or_default());
+                tracing::error!("gsettings read {key} error, {}", e.lines().next().unwrap_or_default());
                 None
             }
         }
         Err(e) => {
-            tracing::error!("cannot run dconf, {e}");
+            tracing::error!("cannot run gsettings, {e}");
             None
         }
     }
