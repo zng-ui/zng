@@ -1,5 +1,6 @@
 # Unreleased
 
+* Use `BASE_COLOR_VAR` to derive the `Window!` background too.
 * Implement `ByteUnits` for `f64` and add associated functions `ByteLength::from_*_f64`.
 * Implement `FromStr` for unit types, parses the primary `Debug` and `Display` formats.
 * Fix unrecoverable crash in respawned view-process not reaching the crash-handler-process.

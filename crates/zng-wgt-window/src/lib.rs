@@ -62,7 +62,7 @@ impl Window {
             lang = zng_ext_l10n::LANG_VAR;
 
             font_color = light_dark(rgb(0.08, 0.08, 0.08), rgb(0.92, 0.92, 0.92));
-            background_color = light_dark(rgb(0.9, 0.9, 0.9), rgb(0.1, 0.1, 0.1));
+            background_color = light_dark(rgb(0.9, 0.9, 0.9), rgb(0.1, 0.1, 0.1)); // !!: TODO use BASE_COLOR_VAR
             focus_highlight = {
                 offsets: FOCUS_HIGHLIGHT_OFFSETS_VAR,
                 widths: FOCUS_HIGHLIGHT_WIDTHS_VAR,

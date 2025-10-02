@@ -15,9 +15,9 @@ pub fn color_scheme(child: impl IntoUiNode, pref: impl IntoVar<ColorScheme>) -> 
 
 /// Defines the preferred accent color in the widget and descendants.
 ///
-/// The is a distinct background/fill color that contrasts with the foreground text color.
+/// This is a a high saturation color used to highlight important UI elements, like the focused text input.
 ///
-/// Sets the [`COLOR_SCHEME_VAR`].
+/// Sets the [`ACCENT_COLOR_VAR`].
 #[property(CONTEXT, default(ACCENT_COLOR_VAR))]
 pub fn accent_color(child: impl IntoUiNode, color: impl IntoVar<LightDark>) -> UiNode {
     with_context_var(child, ACCENT_COLOR_VAR, color)
@@ -26,6 +26,8 @@ pub fn accent_color(child: impl IntoUiNode, color: impl IntoVar<LightDark>) -> U
 /// Defines the seed color used by widgets to derive background, non active border.
 ///
 /// Usually the color is used directly for background fill and highlighted for others.
+/// 
+/// Sets the [`BASE_COLOR_VAR`].
 #[property(CONTEXT, default(BASE_COLOR_VAR))]
 pub fn base_color(child: impl IntoUiNode, color: impl IntoVar<LightDark>) -> UiNode {
     with_context_var(child, BASE_COLOR_VAR, color)
