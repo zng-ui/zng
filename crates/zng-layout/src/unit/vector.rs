@@ -2,6 +2,8 @@ use std::{fmt, ops};
 
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
+use crate::unit::{LengthCompositeParser, ParseCompositeError};
+
 use super::{
     Dip, DipVector, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, LengthUnits, Point, Px, PxVector, Size, Transform,
     impl_length_comp_conversions,
@@ -31,6 +33,19 @@ impl fmt::Display for Vector {
         } else {
             write!(f, "({}, {})", self.x, self.y)
         }
+    }
+}
+impl std::str::FromStr for Vector {
+    type Err = ParseCompositeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parser = LengthCompositeParser::new(s)?;
+        let a = parser.next()?;
+        if parser.has_ended() {
+            return Ok(Self::splat(a));
+        }
+        let b = parser.expect_last()?;
+        Ok(Self::new(a, b))
     }
 }
 impl Vector {

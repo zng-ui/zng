@@ -2,6 +2,8 @@ use std::{fmt, mem, ops};
 
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
+use crate::unit::{LengthCompositeParser, ParseCompositeError};
+
 use super::{Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, Px, PxVector, impl_length_comp_conversions};
 
 /// Spacing in-between grid cells in [`Length`] units.
@@ -90,6 +92,28 @@ impl fmt::Debug for GridSpacing {
         } else {
             write!(f, "({:?}, {:?})", self.column, self.row)
         }
+    }
+}
+impl fmt::Display for GridSpacing {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.column == self.row {
+            write!(f, "{}", self.column)
+        } else {
+            write!(f, "({}, {})", self.column, self.row)
+        }
+    }
+}
+impl std::str::FromStr for GridSpacing {
+    type Err = ParseCompositeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parser = LengthCompositeParser::new(s)?;
+        let a = parser.next()?;
+        if parser.has_ended() {
+            return Ok(Self::new_all(a));
+        }
+        let b = parser.expect_last()?;
+        Ok(Self::new(a, b))
     }
 }
 impl<S: Into<Factor2d>> ops::Mul<S> for GridSpacing {

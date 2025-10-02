@@ -1,5 +1,7 @@
 use zng_unit::FactorUnits;
 
+use crate::unit::ParseFloatCompositeError;
+
 use super::{
     DipPoint, DipRect, DipSideOffsets, DipSize, DipVector, Factor, FactorPercent, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size,
 };
@@ -100,6 +102,42 @@ impl fmt::Display for Factor2d {
             write!(f, "{}", FactorPercent::from(self.x))
         } else {
             write!(f, "({}, {})", FactorPercent::from(self.x), FactorPercent::from(self.y))
+        }
+    }
+}
+/// Parse `"Factor"` or `"(Factor, Factor)"`
+impl std::str::FromStr for Factor2d {
+    type Err = ParseFloatCompositeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some(s) = s.strip_prefix('(')
+            && let Some(s) = s.strip_suffix(')')
+        {
+            let mut parser = ComponentParser { iter: s.split(',') };
+            let r = Factor2d {
+                x: parser.next()?,
+                y: parser.next()?,
+            };
+            parser.end()?;
+            Ok(r)
+        } else {
+            Ok(Factor2d::uniform(s.parse::<Factor>()?))
+        }
+    }
+}
+struct ComponentParser<'a> {
+    iter: std::str::Split<'a, char>,
+}
+impl<'a> ComponentParser<'a> {
+    fn next(&mut self) -> Result<Factor, ParseFloatCompositeError> {
+        let fct = self.iter.next().ok_or(ParseFloatCompositeError::MissingComponent)?.trim().parse()?;
+        Ok(fct)
+    }
+    fn end(mut self) -> Result<(), ParseFloatCompositeError> {
+        if self.iter.next().is_some() {
+            Err(ParseFloatCompositeError::ExtraComponent)
+        } else {
+            Ok(())
         }
     }
 }

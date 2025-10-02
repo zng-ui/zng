@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use crate::{EQ_GRANULARITY, Factor, FactorPercent, about_eq, about_eq_hash, about_eq_ord};
+use crate::{EQ_GRANULARITY, Factor, FactorPercent, ParseIntCompositeError, about_eq, about_eq_hash, about_eq_ord};
 
 /// RGB + alpha.
 ///
@@ -254,5 +254,85 @@ impl From<FactorPercent> for RgbaComponent {
 impl From<Factor> for RgbaComponent {
     fn from(f: Factor) -> Self {
         RgbaComponent(f.0)
+    }
+}
+
+/// Parses `"#RRGGBBAA"`, `#RRGGBB`, `"rgba(u8, u8, u8, u8)"` and `"rgb(u8, u8, u8)"`.
+impl std::str::FromStr for Rgba {
+    type Err = ParseIntCompositeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some(hex) = s.strip_prefix('#') {
+            let mut parser = HexComponentParser::new(hex);
+            let rgba = Rgba::new(parser.next()?, parser.next()?, parser.next()?, parser.next_or(255)?);
+            parser.end()?;
+            Ok(rgba)
+        } else if let Some(rgba) = s.strip_prefix("rgba(")
+            && let Some(rgba) = rgba.strip_suffix(')')
+        {
+            let mut parser = ComponentParser::new(rgba);
+            let rgba = Rgba::new(parser.next()?, parser.next()?, parser.next()?, parser.next()?);
+            parser.end()?;
+            Ok(rgba)
+        } else if let Some(rgb) = s.strip_prefix("rgb(")
+            && let Some(rgb) = rgb.strip_suffix(')')
+        {
+            let mut parser = ComponentParser::new(rgb);
+            let rgba = Rgba::new(parser.next()?, parser.next()?, parser.next()?, 255);
+            parser.end()?;
+            Ok(rgba)
+        } else {
+            Err(ParseIntCompositeError::UnknownFormat)
+        }
+    }
+}
+struct ComponentParser<'s> {
+    s: std::str::Split<'s, char>,
+}
+impl<'s> ComponentParser<'s> {
+    fn new(s: &'s str) -> Self {
+        Self { s: s.split(',') }
+    }
+
+    fn next(&mut self) -> Result<u8, ParseIntCompositeError> {
+        Ok(self.s.next().ok_or(ParseIntCompositeError::MissingComponent)?.trim().parse()?)
+    }
+
+    fn end(mut self) -> Result<(), ParseIntCompositeError> {
+        if self.s.next().is_some() {
+            Err(ParseIntCompositeError::ExtraComponent)
+        } else {
+            Ok(())
+        }
+    }
+}
+struct HexComponentParser<'s> {
+    s: &'s str,
+}
+impl<'s> HexComponentParser<'s> {
+    fn new(s: &'s str) -> Self {
+        Self { s }
+    }
+
+    fn next(&mut self) -> Result<u8, ParseIntCompositeError> {
+        if self.s.len() < 2 {
+            Err(ParseIntCompositeError::MissingComponent)
+        } else {
+            let c = &self.s[..2];
+            self.s = &self.s[2..];
+            Ok(u8::from_str_radix(c, 16)?)
+        }
+    }
+
+    fn next_or(&mut self, c: u8) -> Result<u8, ParseIntCompositeError> {
+        if self.s.is_empty() { Ok(c) } else { self.next() }
+    }
+
+    fn end(self) -> Result<(), ParseIntCompositeError> {
+        if self.s.is_empty() {
+            Ok(())
+        } else {
+            Err(ParseIntCompositeError::ExtraComponent)
+        }
     }
 }

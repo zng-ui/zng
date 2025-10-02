@@ -4,7 +4,7 @@ use std::{
     ops,
 };
 
-use crate::context::LayoutDirection;
+use crate::{context::LayoutDirection, unit::ParseFloatCompositeError};
 use zng_var::{
     animation::{Transitionable, easing::EasingStep},
     impl_from_and_into_var,
@@ -315,19 +315,62 @@ impl fmt::Display for Align {
         } else {
             f.write_char('(')?;
             if self.is_fill_x() {
-                f.write_str("<fill>")?;
+                f.write_str("FILL")?;
             } else {
                 write!(f, "{}", FactorPercent::from(self.x))?;
             }
             f.write_str(", ")?;
             if self.is_fill_y() {
-                f.write_str("<fill>")?;
+                f.write_str("FILL")?;
             } else if self.is_baseline() {
-                f.write_str("<baseline>")?;
+                f.write_str("BASELINE")?;
             } else {
                 write!(f, "{}", FactorPercent::from(self.y))?;
             }
             f.write_char(')')
+        }
+    }
+}
+/// Parse a named align or `"(x, y)"` were x `Factor` or `"FILL"` and y is `factor`, `"FILL"` or `"BASELINE"`.
+impl std::str::FromStr for Align {
+    type Err = ParseFloatCompositeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some(named) = Align::from_name(s) {
+            Ok(named)
+        } else if let Some(s) = s.strip_prefix('(')
+            && let Some(s) = s.strip_prefix(')')
+        {
+            let mut parser = ComponentParser { iter: s.split(',') };
+            let r = Self {
+                x: parser.next(false)?,
+                x_rtl_aware: false,
+                y: parser.next(true)?,
+            };
+            parser.end()?;
+            Ok(r)
+        } else {
+            Err(ParseFloatCompositeError::UnknownFormat)
+        }
+    }
+}
+struct ComponentParser<'a> {
+    iter: std::str::Split<'a, char>,
+}
+impl<'a> ComponentParser<'a> {
+    fn next(&mut self, y: bool) -> Result<Factor, ParseFloatCompositeError> {
+        let fct = match self.iter.next().ok_or(ParseFloatCompositeError::MissingComponent)?.trim() {
+            "FILL" => f32::INFINITY.fct(),
+            "BASELINE" if y => f32::NEG_INFINITY.fct(),
+            s => s.parse()?,
+        };
+        Ok(fct)
+    }
+    fn end(mut self) -> Result<(), ParseFloatCompositeError> {
+        if self.iter.next().is_some() {
+            Err(ParseFloatCompositeError::ExtraComponent)
+        } else {
+            Ok(())
         }
     }
 }

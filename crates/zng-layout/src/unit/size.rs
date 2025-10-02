@@ -2,6 +2,8 @@ use std::{fmt, ops};
 
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
+use crate::unit::{LengthCompositeParser, ParseCompositeError};
+
 use super::{DipSize, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, PxSize, Rect, Vector, impl_length_comp_conversions};
 
 /// 2D size in [`Length`] units.
@@ -31,6 +33,19 @@ impl fmt::Display for Size {
         } else {
             write!(f, "{} × {}", self.width, self.height)
         }
+    }
+}
+impl std::str::FromStr for Size {
+    type Err = ParseCompositeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parser = LengthCompositeParser::new_sep(s, &[',', '×'])?;
+        let a = parser.next()?;
+        if parser.has_ended() {
+            return Ok(Self::splat(a));
+        }
+        let b = parser.expect_last()?;
+        Ok(Self::new(a, b))
     }
 }
 impl Size {

@@ -2,6 +2,8 @@ use std::{fmt, ops};
 
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
+use crate::unit::ParseCompositeError;
+
 use super::{Factor2d, LayoutMask, Length, Point, Px, PxPoint, PxRect};
 
 /// 2D line in [`Length`] units.
@@ -27,6 +29,19 @@ impl fmt::Display for Line {
             write!(f, "{:.p$} to {:.p$}", self.start, self.end, p = p)
         } else {
             write!(f, "{} to {}", self.start, self.end)
+        }
+    }
+}
+impl std::str::FromStr for Line {
+    type Err = ParseCompositeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((a, b)) = s.split_once(".to") {
+            Ok(Self::new(Point::from_str(a)?, Point::from_str(b)?))
+        } else if let Some((a, b)) = s.split_once(" to ") {
+            Ok(Self::new(Point::from_str(a.trim())?, Point::from_str(b.trim())?))
+        } else {
+            Err(ParseCompositeError::UnknownFormat)
         }
     }
 }

@@ -131,6 +131,15 @@ impl fmt::Display for AngleRadian {
     }
 }
 
+/// Parses `"##"`, `"## rad"` and `"##.rad()"` where `##` is a `f32`.
+impl std::str::FromStr for AngleRadian {
+    type Err = std::num::ParseFloatError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        crate::parse_suffix(s, &[" rad", ".rad()"]).map(AngleRadian)
+    }
+}
+
 /// Angle in gradians.
 ///
 /// See [`AngleUnits`] for more details.
@@ -245,6 +254,14 @@ impl fmt::Debug for AngleGradian {
 impl fmt::Display for AngleGradian {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} gon", self.0)
+    }
+}
+/// Parses `"##"`, `"## gon"` and `"##.grad()"` where `##` is a `f32`.
+impl std::str::FromStr for AngleGradian {
+    type Err = std::num::ParseFloatError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        crate::parse_suffix(s, &[" gon", ".grad()"]).map(AngleGradian)
     }
 }
 
@@ -364,6 +381,14 @@ impl fmt::Display for AngleDegree {
         write!(f, "{}º", self.0)
     }
 }
+/// Parses `"##"`, `"##º"` and `"##.deg()"` where `##` is a `f32`.
+impl std::str::FromStr for AngleDegree {
+    type Err = std::num::ParseFloatError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        crate::parse_suffix(s, &["º", ".deg()"]).map(AngleDegree)
+    }
+}
 
 /// Angle in turns (complete rotations).
 ///
@@ -447,6 +472,14 @@ impl fmt::Display for AngleTurn {
         } else {
             write!(f, "{} turns", self.0)
         }
+    }
+}
+/// Parses `"##"`, `"## turn"`, `"## turns"` and `"##.turn()"` where `##` is a `f32`.
+impl std::str::FromStr for AngleTurn {
+    type Err = std::num::ParseFloatError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        crate::parse_suffix(s, &[" turn", " turns", ".turn()"]).map(AngleTurn)
     }
 }
 impl PartialEq for AngleTurn {

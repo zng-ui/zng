@@ -169,6 +169,14 @@ impl ops::DivAssign for Factor {
         *self = *self / rhs;
     }
 }
+/// Parses `"##"` and `"##.fct()"` where `##` is a `f32`.
+impl std::str::FromStr for Factor {
+    type Err = std::num::ParseFloatError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        crate::parse_suffix(s, &[".fct()"]).map(Factor)
+    }
+}
 
 impl ops::Mul<Factor> for Px {
     type Output = Px;
@@ -778,5 +786,14 @@ impl ops::MulAssign<Factor> for FactorPercent {
 impl ops::DivAssign<Factor> for FactorPercent {
     fn div_assign(&mut self, rhs: Factor) {
         *self = *self / rhs;
+    }
+}
+
+/// Parses `"##"`, `"##%"` and `"##.fct()"` where `##` is a `f32`.
+impl std::str::FromStr for FactorPercent {
+    type Err = std::num::ParseFloatError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        crate::parse_suffix(s, &["%", ".pct()"]).map(FactorPercent)
     }
 }
