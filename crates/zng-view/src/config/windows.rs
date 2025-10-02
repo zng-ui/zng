@@ -84,8 +84,6 @@ fn config_listener(event_loop: crate::AppEventSender) {
         RegisterPowerSettingNotification(window, &GUID_SESSION_DISPLAY_STATUS, 0)
     };
 
-    let mut colors_cfg = colors_config();
-
     let r = util::set_raw_windows_event_handler(window, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, lparam| {
         let notify = |ev| {
             let _ = event_loop.send(AppEvent::Notify(ev));
@@ -101,27 +99,20 @@ fn config_listener(event_loop: crate::AppEventSender) {
                 SPI_SETCLIENTAREAANIMATION => notify(Event::AnimationsConfigChanged(animations_config())),
                 SPI_SETKEYBOARDDELAY | SPI_SETKEYBOARDSPEED => notify(Event::KeyRepeatConfigChanged(key_repeat_config())),
                 0 if lparam != 0 => {
-                    let p_str = lparam as windows_sys::core::PSTR;
-                    let b_str = unsafe {
-                        let len = windows_sys::Win32::Globalization::lstrlenA(p_str);
-                        std::slice::from_raw_parts(p_str, len as _)
-                    };
-                    match b_str {
-                        b"i" | b"intl" => notify(Event::LocaleChanged(locale_config())),
-                        _ => None,
+                    let p_str = lparam as PCWSTR;
+                    let len = unsafe { windows_sys::Win32::Globalization::lstrlenW(p_str) };
+                    let slice = unsafe { std::slice::from_raw_parts(p_str, len as usize) };
+                    let setting = String::from_utf16_lossy(slice);
+                    match setting.as_str() {
+                        "ImmersiveColorSet" | "ImmersiveColorSetFallback" => notify(Event::ColorsConfigChanged(colors_config())),
+                        "intl" | "i" => notify(Event::LocaleChanged(locale_config())),
+                        _other => {
+                            // println!("lparam={_other}");
+                            None
+                        }
                     }
                 }
-                _ => {
-                    // winit does this too for color scheme
-                    let cfg = colors_config();
-                    if cfg != colors_cfg {
-                        colors_cfg = cfg;
-                        notify(Event::ColorsConfigChanged(cfg));
-                        Some(0)
-                    } else {
-                        None
-                    }
-                }
+                _ => None,
             },
             WM_DISPLAYCHANGE => {
                 let _ = event_loop.send(AppEvent::RefreshMonitors);

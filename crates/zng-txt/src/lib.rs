@@ -717,7 +717,7 @@ impl Extend<Txt> for Txt {
 
 /// A trait for converting a value to a [`Txt`].
 ///
-/// This trait is automatically implemented for any type which implements the [`ToString`] trait.
+/// This trait is automatically implemented for any type that implements the [`ToString`] trait.
 ///
 /// You can use [`formatx!`](macro.formatx.html) to `format!` a text.
 pub trait ToTxt {
