@@ -1001,6 +1001,9 @@ mod defaults {
                     #[cfg(feature = "inspector")]
                     let child = zng_wgt_inspector::inspector(child, zng_wgt_inspector::live_inspector(true));
 
+                    #[cfg(feature = "menu")]
+                    let child = zng_wgt_menu::style_fn(child, crate::style::style_fn!(|_| crate::menu::DefaultStyle!()));
+
                     child
                 });
                 tracing::debug!("defaults init, root_extender set");

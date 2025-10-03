@@ -94,8 +94,6 @@ pub fn has_open(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
 
 /// Default [`Menu!`] style.
 ///
-/// Gives the button a *menu-item* look.
-///
 /// [`Menu!`]: struct@Menu
 #[widget($crate::DefaultStyle)]
 pub struct DefaultStyle(Style);
