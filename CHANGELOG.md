@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.17.3
+
 * Fix default accent color and color scheme not using system values in Ubuntu.
 * Fix default accent color and color scheme not updating on Windows settings change.
 * Default `Window!` now uses `base_color` to define the background color.
