@@ -588,7 +588,7 @@ bitflags! {
         /// Any "logo" key.
         ///
         /// This is the "windows" key on PC and "command" key on Mac.
-        const LOGO = 0b1100_0000;
+        const LOGO = 0b1100_0000; // TODO(breaking) rename to SUPER
     }
 }
 impl ModifiersState {

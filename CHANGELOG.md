@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `"deadlock_detection"` to default `"dev"` feature.
+* Style more widgets inside `Menu!` root.
 
 # 0.17.3
 
