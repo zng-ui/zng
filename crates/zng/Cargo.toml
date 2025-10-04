@@ -82,6 +82,7 @@ dev = [
     "trace_widget",
     "trace_recorder",
     "var_type_names",
+    "deadlock_detection",
 ]
 
 # Include the default view-process implementation.

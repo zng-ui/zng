@@ -32,7 +32,7 @@ use zng_wgt_filter::opacity;
 use zng_wgt_input::{click_mode, is_hovered, pointer_capture::capture_pointer_on_init};
 use zng_wgt_layer::popup::{POPUP, PopupState};
 use zng_wgt_size_offset::{size, x, y};
-use zng_wgt_style::{Style, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleFn, impl_style_fn, style_fn};
 
 pub mod cmd;
 
@@ -1013,14 +1013,46 @@ fn checkmark_visual(parent_hovered: Var<bool>) -> UiNode {
     }
 }
 
-/// Popup toggle style.
+context_var! {
+    /// Combo-box toggle style.
+    ///
+    /// Set the [`style_fn`] of a [`Toggle!`] to this variable to make it look like a *combo-box*.
+    ///
+    /// Is [`DefaultComboStyle!`] by default. Set [`combo_style_fn`] in a context to replace the style for all *combo-boxes*.
+    ///
+    /// [`Toggle!`]: struct@Toggle
+    /// [`DefaultComboStyle!`]: struct@DefaultComboStyle
+    /// [`style_fn`]: fn@style_fn
+    /// [`combo_style_fn`]: fn@combo_style_fn
+    pub static COMBO_STYLE_FN_VAR: StyleFn = style_fn!(|_| DefaultComboStyle!());
+}
+
+/// Combo-box toggle style.
 ///
-/// Style a [`Toggle!`] widget to look like the popup toggle button in a *combo-box*.
+/// Set this in a context to restyle all *combo-box* toggle widget that use the [`COMBO_STYLE_FN_VAR`].
+#[property(CONTEXT, default(COMBO_STYLE_FN_VAR))]
+pub fn combo_style_fn(child: impl IntoUiNode, style: impl IntoVar<StyleFn>) -> UiNode {
+    with_context_var(child, COMBO_STYLE_FN_VAR, style)
+}
+
+#[doc(hidden)]
+#[deprecated = "style with COMBO_STYLE_FN_VAR"]
+#[macro_export]
+macro_rules! ComboStyle {
+    ($($tt:tt)*) => {
+        $crate::DefaultComboStyle! { $($tt)* }
+    };
+}
+#[doc(hidden)]
+#[deprecated = "inherit from DefaultComboStyle"]
+pub type ComboStyle = DefaultComboStyle;
+
+/// Default style for [`combo_style_fn`].
 ///
-/// [`Toggle!`]: struct@Toggle
-#[widget($crate::ComboStyle)]
-pub struct ComboStyle(DefaultStyle);
-impl ComboStyle {
+/// [`combo_style_fn!`]: struct@combo_style_fn
+#[widget($crate::DefaultComboStyle)]
+pub struct DefaultComboStyle(DefaultStyle);
+impl DefaultComboStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
@@ -1063,8 +1095,8 @@ impl ComboStyle {
                 // supports gesture of press-and-drag to select.
                 //
                 // - `Toggle!` inherits `capture_pointer = true` from `Button!`.
-                // - `ComboStyle!` sets `click_mode = press`.
-                // - `ComboStyle!` sets popup descendant `Button!` to `click_mode = release`.
+                // - `DefaultComboStyle!` sets `click_mode = press`.
+                // - `DefaultComboStyle!` sets popup descendant `Button!` to `click_mode = release`.
                 //
                 // So the user can press to open the drop-down, then drag over an option and release to select it.
                 capture_pointer_on_init = CaptureMode::Subtree;
@@ -1094,21 +1126,20 @@ context_var! {
 }
 
 /// Spacing between the arrow symbol and the content.
-#[property(CONTEXT, default(COMBO_SPACING_VAR), widget_impl(ComboStyle))]
+#[property(CONTEXT, default(COMBO_SPACING_VAR), widget_impl(DefaultComboStyle))]
 pub fn combo_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, COMBO_SPACING_VAR, spacing)
 }
 
 /// Popup open when the toggle button is checked.
 ///
-/// This property can be used together with the [`ComboStyle!`] to implement a *combo-box* flyout widget.
+/// This property can be used together with the [`COMBO_STYLE_FN_VAR`] to implement a *combo-box* flyout widget.
 ///
 /// The `popup` can be any widget, that will be open using [`POPUP`], a [`Popup!`] or derived widget is recommended.
 ///
 /// Note that if the checked property is not set the toggle will never be checked, to implement a drop-down menu
 /// set `checked = var(false);`.
 ///
-/// [`ComboStyle!`]: struct@ComboStyle
 /// [`Popup!`]: struct@zng_wgt_layer::popup::Popup
 #[property(CHILD, widget_impl(Toggle))]
 pub fn checked_popup(child: impl IntoUiNode, popup: impl IntoVar<WidgetFn<()>>) -> UiNode {

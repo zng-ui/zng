@@ -90,8 +90,50 @@
 //! See [`zng_wgt_menu`] for the full widget API.
 
 pub use zng_wgt_menu::{
-    ButtonStyle, DefaultStyle, IconButtonStyle, Menu, ToggleStyle, icon, icon_fn, panel_fn, shortcut_spacing, shortcut_txt, style_fn,
+    ButtonStyle, IconButtonStyle, Menu, ToggleStyle, icon, icon_fn, panel_fn, shortcut_spacing, shortcut_txt, style_fn,
 };
+
+use crate::{
+    style::style_fn,
+    widget::{widget, widget_set},
+};
+
+/// Default [`Menu!`] style.
+///
+/// Extends [`zng_wgt_menu::DefaultStyle!`] to cover more widgets. This is set as default in the `APP.default` using a window root extender.
+///
+/// [`Menu!`]: struct@Menu
+/// [`zng_wgt_menu::DefaultStyle!`]: struct@zng_wgt_menu::DefaultStyle
+#[widget($crate::menu::DefaultStyle)]
+pub struct DefaultStyle(zng_wgt_menu::DefaultStyle);
+impl DefaultStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            #[cfg(feature = "text_input")]
+            crate::text_input::style_fn = style_fn!(|_| TextInputStyle!());
+        }
+    }
+}
+
+/// Style applied to all [`TextInput!`] widgets inside [`Menu!`] root.
+///
+/// Gives the input a *toolbar-item* look.
+///
+/// [`TextInput!`]: struct@crate::text_input::TextInput
+/// [`Menu!`]: struct@Menu
+#[cfg(feature = "text_input")]
+#[widget($crate::menu::TextInputStyle)]
+pub struct TextInputStyle(crate::text_input::DefaultStyle);
+impl TextInputStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            zng::layout::padding = 2;
+            // !!: TODO return focus on enter
+        }
+    }
+}
 
 /// Submenu widget and properties.
 ///
