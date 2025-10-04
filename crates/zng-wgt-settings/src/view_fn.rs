@@ -167,7 +167,7 @@ pub fn default_categories_list_mobile_fn(args: CategoriesListArgs) -> UiNode {
     let items = ArcNode::new(args.items);
     Toggle! {
         zng_wgt::margin = 4;
-        style_fn = zng_wgt_toggle::ComboStyle!();
+        style_fn = zng_wgt_toggle::COMBO_STYLE_FN_VAR;
         child = Text! {
             txt =
                 SETTINGS

@@ -1,5 +1,10 @@
 # Unreleased
 
+* **Experiment** Refactor named styles to be contextual like the default style.
+    - **Deprecated** `toggle::ComboStyle`. Now style with `toggle::COMBO_STYLE_FN_VAR`.
+    - Added `toggle::{combo_style_fn, DefaultComboStyle}` for theming combo-boxes.
+    - !!: Experiment, will be removed or completed before next release.
+
 * Add `"deadlock_detection"` to default `"dev"` feature.
 * Style more widgets inside `Menu!` root.
 

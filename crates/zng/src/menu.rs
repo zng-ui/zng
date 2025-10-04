@@ -93,7 +93,10 @@ pub use zng_wgt_menu::{
     ButtonStyle, IconButtonStyle, Menu, ToggleStyle, icon, icon_fn, panel_fn, shortcut_spacing, shortcut_txt, style_fn,
 };
 
-use crate::{widget::{widget, widget_set}, style::style_fn};
+use crate::{
+    style::style_fn,
+    widget::{widget, widget_set},
+};
 
 /// Default [`Menu!`] style.
 ///
@@ -114,7 +117,7 @@ impl DefaultStyle {
 }
 
 /// Style applied to all [`TextInput!`] widgets inside [`Menu!`] root.
-/// 
+///
 /// Gives the input a *toolbar-item* look.
 ///
 /// [`TextInput!`]: struct@crate::text_input::TextInput
