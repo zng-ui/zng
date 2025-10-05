@@ -424,22 +424,23 @@ fn filter_layout(child: impl IntoUiNode, filter: impl IntoVar<Filter>, target_ch
         }
         UiNodeOp::Layout { .. } => {
             filter.with(|f| {
-                if f.needs_layout() {
-                    let f = Some(f.layout());
-                    if render_filter != f {
-                        render_filter = f;
-                        WIDGET.render();
-                    }
+                debug_assert!(f.needs_layout());
+                let f = Some(f.layout());
+                if render_filter != f {
+                    render_filter = f;
+                    WIDGET.render();
                 }
             });
         }
         UiNodeOp::Render { frame } => {
-            if target_child {
-                frame.push_filter(MixBlendMode::Normal.into(), render_filter.as_ref().unwrap(), |frame| {
-                    child.render(frame)
-                });
+            if let Some(filter) = &render_filter {
+                if target_child {
+                    frame.push_filter(MixBlendMode::Normal.into(), filter, |frame| child.render(frame));
+                } else {
+                    frame.push_inner_filter(filter.clone(), |frame| child.render(frame));
+                }
             } else {
-                frame.push_inner_filter(render_filter.clone().unwrap(), |frame| child.render(frame));
+                tracing::error!("filter_layout render called before any layout");
             }
         }
         _ => {}
@@ -457,17 +458,21 @@ fn backdrop_filter_layout(child: impl IntoUiNode, filter: impl IntoVar<Filter>) 
         }
         UiNodeOp::Layout { .. } => {
             filter.with(|f| {
-                if f.needs_layout() {
-                    let f = Some(f.layout());
-                    if render_filter != f {
-                        render_filter = f;
-                        WIDGET.render();
-                    }
+                debug_assert!(f.needs_layout());
+
+                let f = Some(f.layout());
+                if render_filter != f {
+                    render_filter = f;
+                    WIDGET.render();
                 }
             });
         }
         UiNodeOp::Render { frame } => {
-            frame.push_inner_backdrop_filter(render_filter.clone().unwrap(), |frame| child.render(frame));
+            if let Some(filter) = render_filter.clone() {
+                frame.push_inner_backdrop_filter(filter, |frame| child.render(frame));
+            } else {
+                tracing::error!("filter_layout render called before any layout");
+            }
         }
         _ => {}
     })
