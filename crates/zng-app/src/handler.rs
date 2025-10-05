@@ -21,7 +21,8 @@ use crate::INSTANT;
     note = "use `hn!(|args: &{A}| {{ }})` to declare a widget handler from a `FnMut` closure",
     note = "use `hn_once!`, `async_hn!` or `async_hn_once!` for other closure types"
 )]
-pub trait WidgetHandler<A: Clone + 'static>: Any + Send { // TODO(breaking) replace with `struct`, like the `UiNode` refactor. Having it as an struct enables type inference
+pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
+    // TODO(breaking) replace with `struct`, like the `UiNode` refactor. Having it as an struct enables type inference
     /// Called every time the handler's event happens in the widget context.
     ///
     /// Returns `true` when the event handler is async and it has not finished handling the event.

@@ -30,8 +30,17 @@ use std::{fmt, ops};
 ///
 /// Style instances extend the contextual style by default, meaning all properties set on the style are inserted over
 /// the parent style, so properties set on the contextual style that are not reset in the new style are retained. You
-/// can set [`replace`](#replace) on a style to `true` to fully remove all contextual properties and only use the
+/// can set [`replace`](fn@replace) on a style to `true` to fully remove all contextual properties and only use the
 /// new style properties.
+///
+/// ## Context Name
+///
+/// Styleable widgets have one contextual style by default, usually defined by [`impl_style_fn!`] the `style_fn` property
+/// implements the extend/replace mixing of the style, tracked by a `STYLE_FN_VAR`.
+///
+/// This same pattern can be used to define alternate named styles, these styles set [`named_style_var`](fn@named_style_var) to another
+/// context variable that defines the style context, on widget instantiation this other context will be used instead of the default one.
+/// You can use [`impl_named_style_fn!`] to declare most of the boilerplate.
 ///
 /// # Inherit Style
 ///
@@ -52,6 +61,48 @@ impl Style {
 /// This is not enabled by default, if set to `true` the contextual style properties are removed.
 #[property(WIDGET, capture, default(false), widget_impl(Style))]
 pub fn replace(replace: impl IntoValue<bool>) {}
+
+/// Set to a `ContextVar<StyleFn>` that is to be used as the *base* style.
+///
+/// If this is set, on instantiation the context var will be used to retrieve a *base* style instance to be mixed using [`StyleBuilder::extend`],
+/// similar to what [`with_style_fn`] does.
+///
+/// This property is part of the *named styles* pattern, see [`impl_named_style!`] for more details.
+#[property(WIDGET, capture, widget_impl(Style))]
+pub fn named_style_var(name: impl IntoValue<NamedStyleVar>) {}
+
+/// Represents a `ContextVar<StyleFn>` that defines a named style.
+///
+/// See [`named_style_var`](fn@named_style_var) for more details.
+#[derive(Clone, Copy)]
+pub struct NamedStyleVar(ContextVar<StyleFn>);
+impl fmt::Debug for NamedStyleVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("NamedStyleContext").finish_non_exhaustive()
+    }
+}
+impl PartialEq for NamedStyleVar {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.var_eq(&other.0)
+    }
+}
+impl_from_and_into_var! {
+    fn from(var: ContextVar<StyleFn>) -> NamedStyleVar {
+        NamedStyleVar(var)
+    }
+}
+impl IntoVar<StyleFn> for NamedStyleVar {
+    fn into_var(self) -> Var<StyleFn> {
+        self.0.into_var()
+    }
+}
+impl ops::Deref for NamedStyleVar {
+    type Target = ContextVar<StyleFn>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 /// Styleable widget mixin.
 ///
@@ -128,6 +179,7 @@ impl<P> StyleMix<P> {
 
 #[doc(hidden)]
 pub mod __impl_style_context_util {
+    pub use pastey::paste;
     pub use zng_wgt::prelude::{IntoUiNode, IntoVar, UiNode, context_var, property};
 }
 
@@ -159,11 +211,67 @@ macro_rules! impl_style_fn {
     };
 }
 
+/// Implements a `NAMED_STYLE_FN_VAR`, `named_style_fn` and `NamedStyle!` items.
+///
+/// This is a helper for declaring *named styles* that can be modified contextually, just like the default style.
+///
+/// # Examples
+///
+/// The example bellow declares a `FooStyle` manually, this is a normal definition for a named style. This macro generates
+/// a `foo_style_fn` property and a `FOO_STYLE_FN_VAR` context var. Note that the manual style implementation must set the
+/// [`named_style_var`](fn@named_style_var), otherwise the style will not inherit from the correct *name*.
+///
+/// ```
+/// # use crate::*;
+/// # use zng_wgt::prelude::*;
+/// #
+/// /// Foo style.
+/// #[widget($crate::example::FooStyle)]
+/// pub struct FooStyle(Style);
+/// impl FooStyle {
+///     fn widget_intrinsic(&mut self) {
+///         widget_set! {
+///             self;
+///             named_style_var = FOO_STYLE_FN_VAR;
+///
+///             // .. style properties here
+///         }
+///     }
+/// }
+/// impl_named_style_fn!(foo, FooStyle);
+/// ```
+#[macro_export]
+macro_rules! impl_named_style_fn {
+    ($name:ident, $NamedStyle:ty) => {
+        $crate::__impl_style_context_util::paste! {
+            $crate::__impl_style_context_util::context_var! {
+                /// Contextual style variable.
+                ///
+                #[doc = "Use [`" $name "_style_fn`] to set."]
+                pub static [<$name:upper _STYLE_FN_VAR>]: $crate::StyleFn = $crate::style_fn!(|_| $NamedStyle!());
+            }
+
+            #[doc = "Extends or replaces the " $name " style."]
+            ///
+            /// Properties and `when` conditions in the style are applied to widgets using
+            #[doc = "[`" $NamedStyle "!`](struct@" $NamedStyle ")"]
+            /// . Style instances extend the contextual style by default, you can set `replace` on a style to `true` to fully replace.
+            #[$crate::__impl_style_context_util::property(WIDGET, default($crate::StyleFn::nil()))]
+            pub fn [<$name _style_fn>](
+                child: impl $crate::__impl_style_context_util::IntoUiNode,
+                style_fn: impl $crate::__impl_style_context_util::IntoVar<$crate::StyleFn>,
+            ) -> $crate::__impl_style_context_util::UiNode {
+                $crate::with_style_fn(child, [<$name:upper _STYLE_FN_VAR>], style_fn)
+            }
+        }
+    };
+}
+
 /// Widget's base style. All other styles set using `style_fn` are applied over this style.
 ///
 /// Is `nil` by default.
 #[property(WIDGET, capture, default(StyleFn::nil()), widget_impl(StyleMix<P>))]
-pub fn style_base_fn(style: impl IntoVar<StyleFn>) {}
+pub fn style_base_fn(style: impl IntoVar<StyleFn>) {} // TODO(breaking) remove this and set the default style directly on the STYLE_FN_VAR
 
 /// Helper for declaring the `style_fn` property.
 ///
@@ -186,13 +294,24 @@ fn style_node(
     captured_style: Var<StyleFn>,
 ) -> UiNode {
     let style_vars = [captured_style_base, style_var.into_var(), captured_style];
+    let mut named_style_var_styles = vec![];
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             let mut style_builder = StyleBuilder::default();
             for var in &style_vars {
                 WIDGET.sub_var(var);
 
-                if let Some(style) = var.get().call(&StyleArgs {}) {
+                if let Some(mut style) = var.get().call(&StyleArgs {}) {
+                    if let Some(ns) = style.builder.capture_value::<NamedStyleVar>(property_id!(named_style_var)) {
+                        let var = ns.0.current_context();
+                        
+                        if let Some(from) = var.get().call(&StyleArgs {  }) {
+                            style_builder.extend(from);
+                        }
+                        
+                        let handle = var.subscribe(UpdateOp::Update, WIDGET.id());
+                        named_style_var_styles.push((var, handle));
+                    }
                     style_builder.extend(style);
                 }
             }
@@ -210,7 +329,7 @@ fn style_node(
             *c.node() = UiNode::nil();
         }
         UiNodeOp::Update { .. } => {
-            if style_vars.iter().any(|v| v.is_new()) {
+            if style_vars.iter().any(|v| v.is_new()) || named_style_var_styles.iter().any(|(n, _)| n.is_new()) {
                 WIDGET.reinit();
                 WIDGET.update_info().layout().render();
                 c.delegated();
