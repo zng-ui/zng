@@ -199,4 +199,4 @@
 //! # }
 //! # ; }
 
-pub use zng_wgt_style::{Style, StyleArgs, StyleBuilder, StyleFn, StyleMix, impl_style_fn, style_fn};
+pub use zng_wgt_style::{Style, StyleArgs, StyleBuilder, StyleFn, StyleMix, impl_named_style_fn, impl_style_fn, style_fn};

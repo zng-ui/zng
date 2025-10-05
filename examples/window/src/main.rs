@@ -321,7 +321,7 @@ fn state() -> UiNode {
 
 fn exclusive_mode() -> UiNode {
     Toggle! {
-        style_fn = toggle::COMBO_STYLE_FN_VAR;
+        style_fn = toggle::ComboStyle!();
         corner_radius = (0, 0, 4, 4);
 
         tooltip = Tip!(Text!("Exclusive video mode"));

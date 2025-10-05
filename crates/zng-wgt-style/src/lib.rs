@@ -38,7 +38,7 @@ use std::{fmt, ops};
 /// Styleable widgets have one contextual style by default, usually defined by [`impl_style_fn!`] the `style_fn` property
 /// implements the extend/replace mixing of the style, tracked by a `STYLE_FN_VAR`.
 ///
-/// This same pattern can be used to define alternate named styles, these styles set [`named_style_var`](fn@named_style_var) to another
+/// This same pattern can be used to define alternate named styles, these styles set [`style_fn_var`](fn@style_fn_var) to another
 /// context variable that defines the style context, on widget instantiation this other context will be used instead of the default one.
 /// You can use [`impl_named_style_fn!`] to declare most of the boilerplate.
 ///
@@ -69,11 +69,11 @@ pub fn replace(replace: impl IntoValue<bool>) {}
 ///
 /// This property is part of the *named styles* pattern, see [`impl_named_style!`] for more details.
 #[property(WIDGET, capture, widget_impl(Style))]
-pub fn named_style_var(name: impl IntoValue<NamedStyleVar>) {}
+pub fn style_fn_var(name: impl IntoValue<NamedStyleVar>) {}
 
 /// Represents a `ContextVar<StyleFn>` that defines a named style.
 ///
-/// See [`named_style_var`](fn@named_style_var) for more details.
+/// See [`style_fn_var`](fn@style_fn_var) for more details.
 #[derive(Clone, Copy)]
 pub struct NamedStyleVar(ContextVar<StyleFn>);
 impl fmt::Debug for NamedStyleVar {
@@ -219,7 +219,7 @@ macro_rules! impl_style_fn {
 ///
 /// The example bellow declares a `FooStyle` manually, this is a normal definition for a named style. This macro generates
 /// a `foo_style_fn` property and a `FOO_STYLE_FN_VAR` context var. Note that the manual style implementation must set the
-/// [`named_style_var`](fn@named_style_var), otherwise the style will not inherit from the correct *name*.
+/// [`style_fn_var`](fn@style_fn_var), otherwise the style will not inherit from the correct *name*.
 ///
 /// ```
 /// # use crate::*;
@@ -232,7 +232,7 @@ macro_rules! impl_style_fn {
 ///     fn widget_intrinsic(&mut self) {
 ///         widget_set! {
 ///             self;
-///             named_style_var = FOO_STYLE_FN_VAR;
+///             style_fn_var = FOO_STYLE_FN_VAR;
 ///
 ///             // .. style properties here
 ///         }
@@ -294,7 +294,7 @@ fn style_node(
     captured_style: Var<StyleFn>,
 ) -> UiNode {
     let style_vars = [captured_style_base, style_var.into_var(), captured_style];
-    let mut named_style_var_styles = vec![];
+    let mut style_fn_var_styles = vec![];
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             let mut style_builder = StyleBuilder::default();
@@ -302,15 +302,16 @@ fn style_node(
                 WIDGET.sub_var(var);
 
                 if let Some(mut style) = var.get().call(&StyleArgs {}) {
-                    if let Some(ns) = style.builder.capture_value::<NamedStyleVar>(property_id!(named_style_var)) {
+                    if let Some(ns) = style.builder.capture_value::<NamedStyleVar>(property_id!(style_fn_var)) {
                         let var = ns.0.current_context();
-                        
-                        if let Some(from) = var.get().call(&StyleArgs {  }) {
+
+                        if let Some(from) = var.get().call(&StyleArgs {}) {
+                            // !!: TODO skip replace? What if the user really wants to replace?
                             style_builder.extend(from);
                         }
-                        
+
                         let handle = var.subscribe(UpdateOp::Update, WIDGET.id());
-                        named_style_var_styles.push((var, handle));
+                        style_fn_var_styles.push((var, handle));
                     }
                     style_builder.extend(style);
                 }
@@ -329,7 +330,7 @@ fn style_node(
             *c.node() = UiNode::nil();
         }
         UiNodeOp::Update { .. } => {
-            if style_vars.iter().any(|v| v.is_new()) || named_style_var_styles.iter().any(|(n, _)| n.is_new()) {
+            if style_vars.iter().any(|v| v.is_new()) || style_fn_var_styles.iter().any(|(n, _)| n.is_new()) {
                 WIDGET.reinit();
                 WIDGET.update_info().layout().render();
                 c.delegated();

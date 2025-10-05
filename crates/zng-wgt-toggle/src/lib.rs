@@ -32,7 +32,7 @@ use zng_wgt_filter::opacity;
 use zng_wgt_input::{click_mode, is_hovered, pointer_capture::capture_pointer_on_init};
 use zng_wgt_layer::popup::{POPUP, PopupState};
 use zng_wgt_size_offset::{size, x, y};
-use zng_wgt_style::{Style, StyleFn, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, impl_named_style_fn, impl_style_fn, style_fn};
 
 pub mod cmd;
 
@@ -1013,50 +1013,21 @@ fn checkmark_visual(parent_hovered: Var<bool>) -> UiNode {
     }
 }
 
-context_var! {
-    /// Combo-box toggle style.
-    ///
-    /// Set the [`style_fn`] of a [`Toggle!`] to this variable to make it look like a *combo-box*.
-    ///
-    /// Is [`DefaultComboStyle!`] by default. Set [`combo_style_fn`] in a context to replace the style for all *combo-boxes*.
-    ///
-    /// [`Toggle!`]: struct@Toggle
-    /// [`DefaultComboStyle!`]: struct@DefaultComboStyle
-    /// [`style_fn`]: fn@style_fn
-    /// [`combo_style_fn`]: fn@combo_style_fn
-    pub static COMBO_STYLE_FN_VAR: StyleFn = style_fn!(|_| DefaultComboStyle!());
-}
-
 /// Combo-box toggle style.
 ///
-/// Set this in a context to restyle all *combo-box* toggle widget that use the [`COMBO_STYLE_FN_VAR`].
-#[property(CONTEXT, default(COMBO_STYLE_FN_VAR))]
-pub fn combo_style_fn(child: impl IntoUiNode, style: impl IntoVar<StyleFn>) -> UiNode {
-    with_context_var(child, COMBO_STYLE_FN_VAR, style)
-}
-
-#[doc(hidden)]
-#[deprecated = "style with COMBO_STYLE_FN_VAR"]
-#[macro_export]
-macro_rules! ComboStyle {
-    ($($tt:tt)*) => {
-        $crate::DefaultComboStyle! { $($tt)* }
-    };
-}
-#[doc(hidden)]
-#[deprecated = "inherit from DefaultComboStyle"]
-pub type ComboStyle = DefaultComboStyle;
-
-/// Default style for [`combo_style_fn`].
+/// Style a [`Toggle!`] widget to give it a *combo-box* appearance.
 ///
-/// [`combo_style_fn!`]: struct@combo_style_fn
-#[widget($crate::DefaultComboStyle)]
-pub struct DefaultComboStyle(DefaultStyle);
-impl DefaultComboStyle {
+/// [`Toggle!`]: struct@Toggle
+#[widget($crate::ComboStyle)]
+pub struct ComboStyle(DefaultStyle);
+impl_named_style_fn!(combo, ComboStyle);
+impl ComboStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             replace = true;
+            style_fn_var = COMBO_STYLE_FN_VAR;
+
             access_role = AccessRole::ComboBox;
             child_align = Align::FILL;
             border_over = false;
@@ -1126,7 +1097,7 @@ context_var! {
 }
 
 /// Spacing between the arrow symbol and the content.
-#[property(CONTEXT, default(COMBO_SPACING_VAR), widget_impl(DefaultComboStyle))]
+#[property(CONTEXT, default(COMBO_SPACING_VAR), widget_impl(ComboStyle))]
 pub fn combo_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, COMBO_SPACING_VAR, spacing)
 }

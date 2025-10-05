@@ -136,7 +136,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
         let cmd = op.cmd().undo_scoped();
 
         Toggle! {
-            style_fn = toggle::COMBO_STYLE_FN_VAR;
+            style_fn = toggle::ComboStyle!();
 
             widget::enabled = cmd.flat_map(|c| c.is_enabled());
 
