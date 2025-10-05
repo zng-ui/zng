@@ -136,6 +136,7 @@
 //!         },
 //!     ];
 //! }
+//! # ;
 //! ```
 //!
 //! Named styles accumulate context the same way the widget default style does. When applied the widget properties are

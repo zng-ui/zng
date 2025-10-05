@@ -1026,7 +1026,7 @@ impl ComboStyle {
         widget_set! {
             self;
             replace = true;
-            style_fn_var = COMBO_STYLE_FN_VAR;
+            named_style_fn = COMBO_STYLE_FN_VAR;
 
             access_role = AccessRole::ComboBox;
             child_align = Align::FILL;
