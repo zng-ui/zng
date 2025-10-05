@@ -67,7 +67,7 @@ pub fn replace(replace: impl IntoValue<bool>) {}
 /// If this is set, on instantiation the context var will be used to retrieve a *base* style instance to be mixed using [`StyleBuilder::extend`],
 /// similar to what [`with_style_fn`] does.
 ///
-/// This property is part of the *named styles* pattern, see [`impl_named_style!`] for more details.
+/// This property is part of the *named styles* pattern, see [`impl_named_style_fn!`] for more details.
 #[property(WIDGET, capture, widget_impl(Style))]
 pub fn style_fn_var(name: impl IntoValue<NamedStyleVar>) {}
 
@@ -226,7 +226,7 @@ macro_rules! impl_style_fn {
 /// # use zng_wgt::prelude::*;
 /// #
 /// /// Foo style.
-/// #[widget($crate::example::FooStyle)]
+/// #[widget($crate::FooStyle)]
 /// pub struct FooStyle(Style);
 /// impl FooStyle {
 ///     fn widget_intrinsic(&mut self) {

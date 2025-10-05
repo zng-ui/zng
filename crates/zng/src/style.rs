@@ -130,7 +130,7 @@
 //!             child = Text!("BLUE+GREEN");
 //!             style_fn = zng::button::LightStyle!();
 //!         },
-//!         This button is only affected by the contextual default style.
+//!         // This button is only affected by the contextual default style.
 //!         Button! {
 //!             child = Text!("Normal+GREEN");
 //!         },
