@@ -17,7 +17,7 @@ use zng_wgt_access::{AccessRole, access_role};
 use zng_wgt_button::BUTTON;
 use zng_wgt_container::{child_end, padding};
 use zng_wgt_input::focus::{FocusClickBehavior, alt_focus_scope, focus_click_behavior};
-use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn, style_fn};
 
 pub mod context;
 pub mod popup;
@@ -156,10 +156,12 @@ impl ButtonStyle {
 /// [`sub::ButtonStyle!`]: struct@sub::ButtonStyle
 #[widget($crate::IconButtonStyle)]
 pub struct IconButtonStyle(zng_wgt_button::LightStyle);
+impl_named_style_fn!(icon_button, IconButtonStyle);
 impl IconButtonStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            named_style_fn = ICON_BUTTON_STYLE_FN_VAR;
 
             padding = 4;
 

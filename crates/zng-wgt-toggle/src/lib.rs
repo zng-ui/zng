@@ -926,10 +926,12 @@ impl DefaultStyle {
 /// Toggle light style.
 #[widget($crate::LightStyle)]
 pub struct LightStyle(zng_wgt_button::LightStyle);
+impl_named_style_fn!(light, LightStyle);
 impl LightStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            named_style_fn = LIGHT_STYLE_FN_VAR;
             when *#is_checked {
                 #[easing(0.ms())]
                 background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
@@ -945,11 +947,13 @@ impl LightStyle {
 /// [`Toggle!`]: struct@Toggle
 #[widget($crate::CheckStyle)]
 pub struct CheckStyle(Style);
+impl_named_style_fn!(check, CheckStyle);
 impl CheckStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             replace = true;
+            named_style_fn = CHECK_STYLE_FN_VAR;
             child_start = {
                 node: {
                     let parent_hovered = var(false);
@@ -1104,7 +1108,7 @@ pub fn combo_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Length>) -> U
 
 /// Popup open when the toggle button is checked.
 ///
-/// This property can be used together with the [`COMBO_STYLE_FN_VAR`] to implement a *combo-box* flyout widget.
+/// This property can be used together with the [`ComboStyle!`] to implement a *combo-box* flyout widget.
 ///
 /// The `popup` can be any widget, that will be open using [`POPUP`], a [`Popup!`] or derived widget is recommended.
 ///
@@ -1112,6 +1116,7 @@ pub fn combo_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Length>) -> U
 /// set `checked = var(false);`.
 ///
 /// [`Popup!`]: struct@zng_wgt_layer::popup::Popup
+/// [`ComboStyle!`]: struct@ComboStyle
 #[property(CHILD, widget_impl(Toggle))]
 pub fn checked_popup(child: impl IntoUiNode, popup: impl IntoVar<WidgetFn<()>>) -> UiNode {
     let popup = popup.into_var();
@@ -1239,11 +1244,13 @@ fn combomark_visual_fallback() -> UiNode {
 /// [`Toggle!`]: struct@crate::Toggle
 #[widget($crate::SwitchStyle)]
 pub struct SwitchStyle(Style);
+impl_named_style_fn!(switch, SwitchStyle);
 impl SwitchStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             replace = true;
+            named_style_fn = SWITCH_STYLE_FN_VAR;
 
             child_start = {
                 node: {
@@ -1304,11 +1311,13 @@ fn switch_visual(parent_hovered: Var<bool>) -> UiNode {
 /// [`Toggle!`]: struct@Toggle
 #[widget($crate::RadioStyle)]
 pub struct RadioStyle(Style);
+impl_named_style_fn!(radio, RadioStyle);
 impl RadioStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             replace = true;
+            named_style_fn = RADIO_STYLE_FN_VAR;
 
             access_role = AccessRole::Radio;
             child_start = {

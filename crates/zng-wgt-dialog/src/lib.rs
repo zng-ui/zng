@@ -28,7 +28,7 @@ use zng_wgt_layer::{
     AnchorMode,
     popup::{ContextCapture, POPUP, POPUP_CLOSE_REQUESTED_EVENT},
 };
-use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn, style_fn};
 use zng_wgt_text::Text;
 use zng_wgt_text_input::selectable::SelectableText;
 use zng_wgt_wrap::Wrap;
@@ -371,10 +371,12 @@ pub fn native_dialogs(child: impl IntoUiNode, dialogs: impl IntoVar<DialogKind>)
 /// Sets the info icon and a single "Ok" response.
 #[widget($crate::InfoStyle)]
 pub struct InfoStyle(DefaultStyle);
+impl_named_style_fn!(info, InfoStyle);
 impl InfoStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            named_style_fn = INFO_STYLE_FN_VAR;
             icon = Container! {
                 child = ICONS.req(["dialog-info", "info"]);
                 zng_wgt_size_offset::size = 48;
@@ -391,10 +393,12 @@ impl InfoStyle {
 /// Sets the warn icon and a single "Ok" response.
 #[widget($crate::WarnStyle)]
 pub struct WarnStyle(DefaultStyle);
+impl_named_style_fn!(warn, WarnStyle);
 impl WarnStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            named_style_fn = WARN_STYLE_FN_VAR;
             icon = Container! {
                 child = ICONS.req(["dialog-warn", "warning"]);
                 zng_wgt_size_offset::size = 48;
@@ -410,10 +414,12 @@ impl WarnStyle {
 /// Sets the error icon and a single "Ok" response.
 #[widget($crate::ErrorStyle)]
 pub struct ErrorStyle(DefaultStyle);
+impl_named_style_fn!(error, ErrorStyle);
 impl ErrorStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            named_style_fn = ERROR_STYLE_FN_VAR;
             icon = Container! {
                 child = ICONS.req(["dialog-error", "error"]);
                 zng_wgt_size_offset::size = 48;
@@ -429,10 +435,12 @@ impl ErrorStyle {
 /// Sets the question icon and two "No" and "Yes" responses.
 #[widget($crate::AskStyle)]
 pub struct AskStyle(DefaultStyle);
+impl_named_style_fn!(ask, AskStyle);
 impl AskStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            named_style_fn = ASK_STYLE_FN_VAR;
             icon = Container! {
                 child = ICONS.req(["dialog-question", "question-mark"]);
                 zng_wgt_size_offset::size = 48;
@@ -449,10 +457,12 @@ impl AskStyle {
 /// Sets the question icon and two "Cancel" and "Ok" responses.
 #[widget($crate::ConfirmStyle)]
 pub struct ConfirmStyle(DefaultStyle);
+impl_named_style_fn!(confirm, ConfirmStyle);
 impl ConfirmStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            named_style_fn = CONFIRM_STYLE_FN_VAR;
             icon = Container! {
                 child = ICONS.req(["dialog-confirm", "question-mark"]);
                 zng_wgt_size_offset::size = 48;

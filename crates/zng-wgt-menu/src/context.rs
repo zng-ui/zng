@@ -9,7 +9,7 @@ use zng_wgt_layer::{
     popup::{CONTEXT_CAPTURE_VAR, POPUP, PopupState},
 };
 use zng_wgt_stack::{Stack, StackDirection};
-use zng_wgt_style::{impl_style_fn, style_fn};
+use zng_wgt_style::{impl_named_style_fn, impl_style_fn, style_fn};
 
 /// Defines the context menu shown when the widget is enabled and receives a context click.
 ///
@@ -199,10 +199,12 @@ impl DefaultStyle {
 /// Touch context menu popup default style.
 #[widget($crate::context::TouchStyle)]
 pub struct TouchStyle(crate::popup::DefaultStyle);
+impl_named_style_fn!(touch, TouchStyle);
 impl TouchStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            named_style_fn = TOUCH_STYLE_FN_VAR;
 
             panel_fn = wgt_fn!(|args: zng_wgt_panel::PanelArgs| Stack! {
                 direction = StackDirection::left_to_right();

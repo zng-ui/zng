@@ -2,8 +2,12 @@
 
 * Named styles now can also be modified in context.
     - Add `style::impl_named_style` macro and associated items.
-    - Add `button::light_style_fn`.
-    - Add `toggle::{check_style_fn, combo_style_fn}`.
+    - Add `button::{light_style_fn, primary_style_fn, link_style_fn}`.
+    - Add `dialog::{ask_style_fn, confirm_style_fn, error_style_fn, info_style_fn, warn_style_fn}`.
+    - Add `menu::{context::touch_style_fn, icon_button_style_fn}`. 
+    - Add `progress::simple_bar_style_fn`.
+    - Add `text_input::{search_style_fn, field_style_fn}`.
+    - Add `toggle::{combo_style_fn, check_style_fn, radio_style_fn, light_style_fn, switch_style_fn}`.
 
 * Add `"deadlock_detection"` to default `"dev"` feature.
 * Style more widgets inside `Menu!` root.

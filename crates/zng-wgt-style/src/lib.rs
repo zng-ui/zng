@@ -222,12 +222,10 @@ macro_rules! impl_style_fn {
 ///
 /// The example bellow declares a `FooStyle` manually, this is a normal definition for a named style. This macro generates
 /// a `foo_style_fn` property and a `FOO_STYLE_FN_VAR` context var. Note that the manual style implementation must set the
-/// [`style_fn_var`](fn@style_fn_var), otherwise the style will not inherit from the correct *name*.
+/// [`named_style_fn`](fn@named_style_fn), otherwise the style will not inherit from the correct *name*.
 ///
 /// ```
-/// # use crate::*;
-/// # use zng_wgt::prelude::*;
-/// #
+/// # macro_rules! example { () => {
 /// /// Foo style.
 /// #[widget($crate::FooStyle)]
 /// pub struct FooStyle(Style);
@@ -242,6 +240,7 @@ macro_rules! impl_style_fn {
 ///     }
 /// }
 /// impl_named_style_fn!(foo, FooStyle);
+/// # };}
 /// ```
 #[macro_export]
 macro_rules! impl_named_style_fn {
@@ -250,11 +249,11 @@ macro_rules! impl_named_style_fn {
             $crate::__impl_style_context_util::context_var! {
                 /// Contextual style variable.
                 ///
-                #[doc = "Use [`" $name "_style_fn`] to set."]
+                #[doc = "Use [`" $name "_style_fn`](fn@" $name "_style_fn) to set."]
                 pub static [<$name:upper _STYLE_FN_VAR>]: $crate::StyleFn = $crate::style_fn!(|_| $NamedStyle!());
             }
 
-            #[doc = "Extends or replaces the [`" $NamedStyle "!`](struct@" $NamedStyle ") style."]
+            #[doc = "Extends or replaces the [`" $NamedStyle "!`](struct@" $NamedStyle ")."]
             ///
             /// Properties and `when` conditions set here are applied to widgets using the style.
             ///
@@ -292,7 +291,7 @@ pub fn with_style_fn(child: impl IntoUiNode, style_context: ContextVar<StyleFn>,
 
 fn style_node(
     child: UiNode,
-    builder: WidgetBuilder,
+    widget_builder: WidgetBuilder,
     captured_style_base: Var<StyleFn>,
     style_var: ContextVar<StyleFn>,
     captured_style: Var<StyleFn>,
@@ -301,48 +300,63 @@ fn style_node(
     let mut style_fn_var_styles = vec![];
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
+            // the final style builder
             let mut style_builder = StyleBuilder::default();
             for var in &style_vars {
+                // each style var is subscribed and extend/replaces the previous
                 WIDGET.sub_var(var);
 
                 if let Some(mut style) = var.get().call(&StyleArgs {}) {
-                    let named_style_fn = property_id!(named_style_fn);
+                    // style var was set
 
+                    let named_style_fn = property_id!(named_style_fn);
                     if let Some(p) = style.builder.property(named_style_fn) {
                         if p.importance != StyleBuilder::WIDGET_IMPORTANCE {
                             tracing::warn!("ignoring `named_style_fn` not set as default")
                         } else {
-                            let var = style
+                            // style is *named*, the contextual named style is used, only the items explicitly set
+                            // on the style override the contextual named style.
+
+                            let named_style = style
                                 .builder
-                                .capture_value::<NamedStyleVar>(property_id!(named_style_fn))
+                                .capture_value::<NamedStyleVar>(named_style_fn)
                                 .unwrap()
                                 .current_context();
 
-                            if let Some(mut from) = var.get().call(&StyleArgs {}) {
+                            if let Some(mut from) = named_style.get().call(&StyleArgs {}) {
+                                // contextual named style is set
+                                let _ = from.builder.capture_value::<NamedStyleVar>(named_style_fn); // cleanup capture-only property
+
+                                // only override instance set properties/whens
                                 from.extend_named(style);
                                 style = from;
                             }
 
-                            let handle = var.subscribe(UpdateOp::Update, WIDGET.id());
-                            style_fn_var_styles.push((var, handle));
+                            // subscribe to the contextual named style
+                            let handle = named_style.subscribe(UpdateOp::Update, WIDGET.id());
+                            style_fn_var_styles.push((named_style, handle));
                         }
                     }
 
+                    // extend/replace
                     style_builder.extend(style);
                 }
             }
 
             if !style_builder.is_empty() {
-                let mut builder = builder.clone();
+                // apply style items and build actual widget
+                let mut builder = widget_builder.clone();
                 builder.extend(style_builder.into_builder());
                 *c.node() = builder.default_build();
             } else {
-                *c.node() = builder.clone().default_build();
+                // no styles set, just build widget directly
+                *c.node() = widget_builder.clone().default_build();
             }
         }
         UiNodeOp::Deinit => {
             c.deinit();
             *c.node() = UiNode::nil();
+            style_fn_var_styles.clear();
         }
         UiNodeOp::Update { .. } => {
             if style_vars.iter().any(|v| v.is_new()) || style_fn_var_styles.iter().any(|(n, _)| n.is_new()) {
