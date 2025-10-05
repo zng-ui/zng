@@ -1768,12 +1768,22 @@ impl WidgetBuilder {
     /// same position in `self`, this means that fill properties of `other` will render *over* fill properties
     /// of `self`.
     pub fn extend(&mut self, other: WidgetBuilder) {
+        self.extend_important(other, Importance(0));
+    }
+    /// Like [`extend`], but only uses items from `other` that have importance `>=min_importance`.
+    ///
+    /// [`extend`]: Self::extend
+    pub fn extend_important(&mut self, other: WidgetBuilder, min_importance: Importance) {
         for (id, imp) in other.unset {
-            self.push_unset(imp, id);
+            if imp >= min_importance {
+                self.push_unset(imp, id);
+            }
         }
 
         for ((id, name), imp) in other.p_build_actions_unset {
-            self.push_unset_property_build_action(id, name, imp);
+            if imp >= min_importance {
+                self.push_unset_property_build_action(id, name, imp);
+            }
         }
 
         for WidgetItemPositioned { position, item, .. } in other.p.items {
@@ -1783,18 +1793,24 @@ impl WidgetBuilder {
                     args,
                     captured,
                 } => {
-                    self.push_property_positioned_impl(importance, position, args, captured);
+                    if importance >= min_importance {
+                        self.push_property_positioned_impl(importance, position, args, captured);
+                    }
                 }
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             }
         }
 
         for w in other.whens {
-            self.push_when(w.importance, w.when);
+            if w.importance >= min_importance {
+                self.push_when(w.importance, w.when);
+            }
         }
 
         for ((id, name), (imp, action)) in other.p_build_actions {
-            self.push_property_build_action(id, name, imp, action);
+            if imp >= min_importance {
+                self.push_property_build_action(id, name, imp, action);
+            }
         }
 
         for act in other.build_actions {

@@ -28,7 +28,7 @@ use zng_wgt_input::{
     is_cap_hovered, is_pressed,
     pointer_capture::{CaptureMode, capture_pointer},
 };
-use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn, style_fn};
 use zng_wgt_text::{FONT_COLOR_VAR, Text, font_color, txt_selectable_alt_only, underline};
 
 #[cfg(feature = "tooltip")]
@@ -343,10 +343,12 @@ impl DefaultStyle {
 /// Primary button style.
 #[widget($crate::PrimaryStyle)]
 pub struct PrimaryStyle(DefaultStyle);
+impl_named_style_fn!(primary, PrimaryStyle);
 impl PrimaryStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            named_style_fn = PRIMARY_STYLE_FN_VAR;
 
             base_color = ACCENT_COLOR_VAR.map(|c| c.shade(-2));
             zng_wgt_text::font_weight = zng_ext_font::FontWeight::BOLD;
@@ -357,10 +359,13 @@ impl PrimaryStyle {
 /// Button light style.
 #[widget($crate::LightStyle)]
 pub struct LightStyle(DefaultStyle);
+impl_named_style_fn!(light, LightStyle);
 impl LightStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            named_style_fn = LIGHT_STYLE_FN_VAR;
+
             border = unset!;
             padding = 7;
 
@@ -391,11 +396,13 @@ impl LightStyle {
 /// Looks like a web hyperlink.
 #[widget($crate::LinkStyle)]
 pub struct LinkStyle(Style);
+impl_named_style_fn!(link, LinkStyle);
 impl LinkStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             replace = true;
+            named_style_fn = LINK_STYLE_FN_VAR;
 
             font_color = light_dark(colors::BLUE, web_colors::LIGHT_BLUE);
             cursor = CursorIcon::Pointer;

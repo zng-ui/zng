@@ -23,7 +23,7 @@ use zng_wgt_input::{is_cap_hovered, is_pressed};
 use zng_wgt_scroll::{Scroll, ScrollMode};
 use zng_wgt_size_offset::max_height;
 use zng_wgt_stack::{Stack, StackDirection};
-use zng_wgt_style::{Style, StyleFn, style_fn};
+use zng_wgt_style::{Style, impl_named_style_fn};
 use zng_wgt_text::Text;
 
 use std::fmt;
@@ -146,7 +146,7 @@ pub fn default_undo_entry_fn(args: UndoEntryArgs) -> UiNode {
     Button! {
         child = Text!(label);
         undo_entry = args;
-        style_fn = UNDO_BUTTON_STYLE_FN_VAR;
+        style_fn = UndoRedoButtonStyle!();
         on_click = hn!(|args: &ClickArgs| {
             args.propagation().stop();
             cmd.notify_param(ts);
@@ -157,8 +157,6 @@ pub fn default_undo_entry_fn(args: UndoEntryArgs) -> UiNode {
 /// Default [`UNDO_STACK_FN_VAR`].
 ///
 /// Returns top-to-bottom `Stack!` of [`UNDO_ENTRY_FN_VAR`], latest first.
-///
-/// [`UndoRedoButtonStyle!`]: struct@UndoRedoButtonStyle
 pub fn default_undo_stack_fn(args: UndoStackArgs) -> UiNode {
     let entry = UNDO_ENTRY_FN_VAR.get();
 
@@ -373,10 +371,12 @@ impl UndoPanelArgs {
 /// Menu style button for an entry in a undo/redo stack.
 #[widget($crate::UndoRedoButtonStyle)]
 pub struct UndoRedoButtonStyle(Style);
+impl_named_style_fn!(undo_button, UndoRedoButtonStyle); // TODO(breaking) rename to undo_redo
 impl UndoRedoButtonStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            named_style_fn = UNDO_BUTTON_STYLE_FN_VAR;
             padding = 4;
             child_align = Align::START;
 
@@ -405,20 +405,6 @@ context_var! {
 
     /// Variable set in each undo/redo stack widget.
     pub static UNDO_STACK_VAR: Option<UndoOp> = None;
-
-    /// Style for the default undo/redo entry [`Button!`].
-    ///
-    /// Is [`UndoRedoButtonStyle!`] by default.
-    ///
-    /// [`UndoRedoButtonStyle!`]: struct@UndoRedoButtonStyle
-    /// [`Button!`]: struct@Button
-    pub static UNDO_BUTTON_STYLE_FN_VAR: StyleFn = style_fn!(|_| UndoRedoButtonStyle!());
-}
-
-/// Extend or replace the undo/redo entry button style in a context.
-#[property(CONTEXT, default(StyleFn::nil()))]
-pub fn undo_button_style_fn(child: impl IntoUiNode, style: impl IntoVar<StyleFn>) -> UiNode {
-    zng_wgt_style::with_style_fn(child, UNDO_BUTTON_STYLE_FN_VAR, style)
 }
 
 /// Sets the undo/redo entry widget context.

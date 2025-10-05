@@ -141,7 +141,7 @@
 //!
 //! ## Combo
 //!
-//! The [`COMBO_STYLE_FN_VAR`] together with the [`checked_popup`](struct@Toggle#method.checked_popup) property can be used
+//! The [`ComboStyle!`](struct@ComboStyle) together with the [`checked_popup`](struct@Toggle#method.checked_popup) property can be used
 //! to declare a combo box, that is a toggle for a drop down that contains another toggle selector context that selects a value.
 //!
 //! Note that the `checked_popup` setups the `checked` state, you cannot set one of the other checked properties in the same
@@ -162,7 +162,7 @@
 //!         txt = txt.clone();
 //!         gesture::on_click = hn!(|a: &gesture::ClickArgs| a.propagation().stop());
 //!     };
-//!     style_fn = toggle::COMBO_STYLE_FN_VAR;
+//!     style_fn = toggle::ComboStyle!();
 //!
 //!     checked_popup = wgt_fn!(|_| popup::Popup! {
 //!         id = "popup";
@@ -186,13 +186,11 @@
 //! See [`zng_wgt_toggle`] for the full widget API.
 
 pub use zng_wgt_toggle::{
-    COMBO_STYLE_FN_VAR, CheckStyle, DefaultComboStyle, DefaultStyle, IS_CHECKED_VAR, LightStyle, RadioStyle, Selector, SelectorError,
-    SelectorImpl, SwitchStyle, Toggle, check_spacing, combo_spacing, combo_style_fn, deselect_on_deinit, deselect_on_new, is_checked,
-    radio_spacing, scroll_on_select, select_on_init, select_on_new, selector, style_fn, switch_spacing, tristate,
+    CheckStyle, ComboStyle, DefaultStyle, IS_CHECKED_VAR, LightStyle, RadioStyle, Selector, SelectorError, SelectorImpl, SwitchStyle,
+    Toggle, check_spacing, check_style_fn, combo_spacing, combo_style_fn, deselect_on_deinit, deselect_on_new, is_checked, light_style_fn,
+    radio_spacing, radio_style_fn, scroll_on_select, select_on_init, select_on_new, selector, style_fn, switch_spacing, switch_style_fn,
+    tristate,
 };
-
-#[allow(deprecated)] // TODO(breaking)
-pub use zng_wgt_toggle::ComboStyle;
 
 /// Toggle commands.
 pub mod cmd {

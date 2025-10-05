@@ -141,7 +141,7 @@ fn split_button() -> UiNode {
     let split_count = var(0u32);
 
     Toggle! {
-        style_fn = toggle::COMBO_STYLE_FN_VAR;
+        style_fn = toggle::ComboStyle!();
 
         on_click = hn!(split_count, |_| {
             tracing::info!("Clicked split part");
@@ -240,7 +240,7 @@ fn combo_box() -> UiNode {
             txt = txt.clone();
             gesture::on_click = hn!(|a: &ClickArgs| a.propagation().stop());
         };
-        style_fn = toggle::COMBO_STYLE_FN_VAR;
+        style_fn = toggle::ComboStyle!();
 
         checked_popup = wgt_fn!(|_| popup::Popup! {
             id = "popup";

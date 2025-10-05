@@ -18,7 +18,7 @@ use zng_wgt_menu::{
 };
 use zng_wgt_rule_line::hr::Hr;
 use zng_wgt_size_offset::{offset, y};
-use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn, style_fn};
 use zng_wgt_text::{self as text, *};
 use zng_wgt_undo::{UndoMix, undo_scope};
 
@@ -183,10 +183,12 @@ impl DefaultStyle {
 /// Text input style for a search field.
 #[widget($crate::SearchStyle)]
 pub struct SearchStyle(DefaultStyle);
+impl_named_style_fn!(search, SearchStyle);
 impl SearchStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            named_style_fn = SEARCH_STYLE_FN_VAR;
             zng_wgt_container::padding = (7, 10, 7, 0);
             zng_wgt_access::access_role = zng_wgt_access::AccessRole::SearchBox;
             auto_selection = true;
@@ -295,6 +297,7 @@ pub fn placeholder(child: impl IntoUiNode, placeholder: impl IntoUiNode) -> UiNo
 /// [`field_help`]: fn@field_help
 #[widget($crate::FieldStyle)]
 pub struct FieldStyle(DefaultStyle);
+impl_named_style_fn!(field, FieldStyle);
 impl FieldStyle {
     fn widget_intrinsic(&mut self) {
         let top_notes = var(DataNotes::default());
@@ -316,6 +319,7 @@ impl FieldStyle {
 
         widget_set! {
             self;
+            named_style_fn = FIELD_STYLE_FN_VAR;
             zng_wgt_data::get_data_notes_top = top_notes.clone();
             get_chars_count = chars_count.clone();
             auto_selection = true;

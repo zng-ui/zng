@@ -88,7 +88,8 @@
 
 pub use zng_wgt_dialog::{
     AskStyle, ConfirmStyle, DIALOG, DefaultStyle, Dialog, DialogButtonArgs, DialogKind, ErrorStyle, FileDialogFilters, FileDialogResponse,
-    InfoStyle, Response, Responses, WarnStyle, native_dialogs,
+    InfoStyle, Response, Responses, WarnStyle, ask_style_fn, confirm_style_fn, error_style_fn, info_style_fn, native_dialogs,
+    warn_style_fn,
 };
 
 /// Modal dialog parent widget that fills the window.

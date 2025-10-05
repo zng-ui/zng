@@ -20,6 +20,7 @@ zng-wgt = { path = "../zng-wgt", version = "0.10.2", default-features = false }
 zng-app = { path = "../zng-app", version = "0.18.2", default-features = false }
 
 tracing = { version = "0.1", default-features = false }
+pastey = { version = "0.1", default-features = false }
 
 [lints.clippy]
 exhaustive_structs = "warn"

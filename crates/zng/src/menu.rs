@@ -130,7 +130,12 @@ impl TextInputStyle {
         widget_set! {
             self;
             zng::layout::padding = 2;
-            // !!: TODO return focus on enter
+            // return focus on enter
+            zng::keyboard::on_pre_key_down = zng::handler::hn!(|args: &zng::keyboard::KeyInputArgs| {
+                use zng::event::AnyEventArgs as _;
+                args.propagation().stop();
+                zng::focus::FOCUS.focus_exit();
+            });
         }
     }
 }
@@ -152,7 +157,7 @@ pub mod sub {
 pub mod context {
     pub use zng_wgt_menu::context::{
         ContextMenu, ContextMenuArgs, DefaultStyle, TouchStyle, context_menu, context_menu_anchor, context_menu_fn, disabled_context_menu,
-        disabled_context_menu_fn, panel_fn, style_fn,
+        disabled_context_menu_fn, panel_fn, style_fn, touch_style_fn,
     };
 }
 

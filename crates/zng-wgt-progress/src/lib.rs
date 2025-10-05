@@ -16,7 +16,7 @@ use zng_wgt::{base_color, prelude::*, visibility};
 use zng_wgt_container::{Container, child_out_bottom};
 use zng_wgt_fill::background_color;
 use zng_wgt_size_offset::{height, width, x};
-use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn, style_fn};
 
 pub use zng_task::Progress;
 
@@ -196,10 +196,12 @@ impl DefaultStyle {
 /// Progress view style that is only the progress bar, no message text.
 #[widget($crate::SimpleBarStyle)]
 pub struct SimpleBarStyle(DefaultStyle);
+impl_named_style_fn!(simple_bar, SimpleBarStyle);
 impl SimpleBarStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            named_style_fn = SIMPLE_BAR_STYLE_FN_VAR;
             child_out_bottom = unset!;
         }
     }
