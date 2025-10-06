@@ -33,12 +33,12 @@ use std::{fmt, ops};
 /// can set [`replace`](fn@replace) on a style to `true` to fully remove all contextual properties and only use the
 /// new style properties.
 ///
-/// ## Context Name
+/// ## Named Styles
 ///
 /// Styleable widgets have one contextual style by default, usually defined by [`impl_style_fn!`] the `style_fn` property
 /// implements the extend/replace mixing of the style, tracked by a `STYLE_FN_VAR`.
 ///
-/// This same pattern can be used to define alternate named styles, these styles set [`style_fn_var`](fn@style_fn_var) to another
+/// This same pattern can be used to define alternate named styles, these styles set [`named_style_fn`](fn@named_style_fn) to another
 /// context variable that defines the style context, on widget instantiation this other context will be used instead of the default one.
 /// You can use [`impl_named_style_fn!`] to declare most of the boilerplate.
 ///
@@ -46,7 +46,8 @@ use std::{fmt, ops};
 ///
 /// Note that you can declare a custom style *widget* using the same inheritance mechanism of normal widgets, as long
 /// as they build to [`StyleBuilder`]. This is different from the *extend/replace* mechanism as it operates on the style
-/// type, not the instances.
+/// type, not the instances. A style that inherits a `named_style_fn` will not inherit that named context either, each named
+/// context property is strongly associated with a single style type only.
 #[widget($crate::Style)]
 pub struct Style(zng_app::widget::base::NonWidgetBase);
 impl Style {
@@ -328,6 +329,7 @@ fn style_node(
                                 let _ = from.builder.capture_value::<NamedStyleVar>(named_style_fn); // cleanup capture-only property
 
                                 // only override instance set properties/whens
+
                                 from.extend_named(style);
                                 style = from;
                             }
@@ -436,13 +438,17 @@ impl StyleBuilder {
         }
     }
 
-    /// Override `self` with items set in the instance of `other`.
+    /// Override `self` with items set in the instance of `other` if both are the same type. Otherwise replace `self` with `other`.
     ///
     /// `self` is the [`named_style_fn`] and `other` is the style instance set in `style_fn`.
     ///
     /// [`named_style_fn`]: fn@named_style_fn
     pub fn extend_named(&mut self, other: StyleBuilder) {
-        self.builder.extend_important(other.builder, Self::INSTANCE_IMPORTANCE);
+        if self.builder.widget_type() != other.builder.widget_type() {
+            *self = other;
+        } else {
+            self.builder.extend_important(other.builder, Self::INSTANCE_IMPORTANCE);
+        }
     }
 
     /// if the style removes all contextual properties.

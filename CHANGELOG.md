@@ -1,7 +1,5 @@
 # Unreleased
 
-* !!: TODO named styles cause icons to not appear in menu button
-
 * Fix misaligned icons in `Menu!`.
 
 * Named styles now can also be modified in context.
