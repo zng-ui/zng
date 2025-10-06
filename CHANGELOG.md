@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.17.4
+
 * Fix misaligned icons in `Menu!`.
 
 * Named styles now can also be modified in context.
