@@ -81,7 +81,7 @@ pub fn named_style_fn(name: impl IntoValue<NamedStyleVar>) {}
 pub struct NamedStyleVar(ContextVar<StyleFn>);
 impl fmt::Debug for NamedStyleVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("NamedStyleContext").finish_non_exhaustive()
+        f.debug_tuple("NamedStyleVar").finish_non_exhaustive()
     }
 }
 impl PartialEq for NamedStyleVar {

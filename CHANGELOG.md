@@ -1,5 +1,9 @@
 # Unreleased
 
+* !!: TODO named styles cause icons to not appear in menu button
+
+* Fix misaligned icons in `Menu!`.
+
 * Named styles now can also be modified in context.
     - Add `style::impl_named_style` macro and associated items.
     - Add `button::{light_style_fn, primary_style_fn, link_style_fn}`.
@@ -11,6 +15,7 @@
 
 * Add `"deadlock_detection"` to default `"dev"` feature.
 * Style more widgets inside `Menu!` root.
+    - Add `menu::{TextInputStyle, ComboStyle}`.
 
 # 0.17.3
 

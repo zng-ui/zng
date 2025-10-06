@@ -107,10 +107,10 @@ impl DefaultStyle {
             base_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
             zng_wgt_button::style_fn = style_fn!(|_| ButtonStyle!());
             zng_wgt_toggle::style_fn = style_fn!(|_| ToggleStyle!());
+            zng_wgt_toggle::combo_style_fn = style_fn!(|_| ComboStyle!());
             zng_wgt_rule_line::hr::color = BASE_COLOR_VAR.shade(1);
             zng_wgt_rule_line::vr::color = BASE_COLOR_VAR.shade(1);
             zng_wgt_rule_line::vr::height = 1.em();
-            zng_wgt_text::icon::ico_size = 18;
         }
     }
 }
@@ -221,6 +221,24 @@ impl ToggleStyle {
             padding = 4;
             access_role = AccessRole::MenuItem;
             focus_click_behavior = FocusClickBehavior::ExitEnabled;
+        }
+    }
+}
+
+/// Style applied to all [`Toggle!`] widgets using the [`toggle::ComboStyle!`] inside [`Menu!`] root.
+///
+/// Gives the toggle a *toolbar-item* look.
+///
+/// [`Toggle!`]: struct@zng_wgt_toggle::Toggle
+/// [`toggle::ComboStyle!`]: struct@zng_wgt_toggle::ComboStyle
+/// [`Menu!`]: struct@Menu
+#[widget($crate::ComboStyle)]
+pub struct ComboStyle(zng_wgt_toggle::ComboStyle);
+impl ComboStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            access_role = AccessRole::MenuItem;
         }
     }
 }
