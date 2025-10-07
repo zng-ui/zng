@@ -68,6 +68,8 @@ struct ViewProcessService {
 
     message_dialogs: Vec<(zng_view_api::dialog::DialogId, ResponderVar<MsgDialogResponse>)>,
     file_dialogs: Vec<(zng_view_api::dialog::DialogId, ResponderVar<FileDialogResponse>)>,
+
+    ping_count: u16,
 }
 app_local! {
     static VIEW_PROCESS_SV: Option<ViewProcessService> = None;
@@ -324,6 +326,7 @@ impl VIEW_PROCESS {
             message_dialogs: vec![],
             file_dialogs: vec![],
             extensions: ApiExtensions::default(),
+            ping_count: 0,
         });
     }
 
@@ -544,6 +547,25 @@ impl VIEW_PROCESS {
 
     pub(crate) fn exit(&self) {
         *VIEW_PROCESS_SV.write() = None;
+    }
+
+    pub(crate) fn ping(&self) {
+        let mut app = self.write();
+        let count = app.ping_count.wrapping_add(1);
+        if let Ok(c) = app.process.ping(count)
+            && c != count
+        {
+            tracing::error!("incorrect ping response, expected {count}, was {c}");
+        }
+        app.ping_count = count;
+    }
+
+    pub(crate) fn on_pong(&self, count: u16) {
+        let expected = self.read().ping_count;
+        if expected != count {
+            // this could indicates a severe slowdown in the event pump
+            tracing::warn!("unexpected pong event, expected {expected}, was {count}");
+        }
     }
 }
 impl ViewProcessService {

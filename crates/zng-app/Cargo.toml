@@ -54,7 +54,7 @@ crash_handler = [
 
 # Enable trace recording.
 #
-# Note that this does not auto start recording, to do that run with the `ZNG_RECORD_TRACE` env var set.
+# Note that this does not auto start recording, to do that run with the `"ZNG_RECORD_TRACE"` env var set.
 trace_recorder = ["dep:serde_json", "dep:tracing-chrome"]
 
 # Enables IPC tasks and pre-build views and connecting to views running in another process.

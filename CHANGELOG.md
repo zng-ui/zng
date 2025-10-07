@@ -1,5 +1,8 @@
 # Unreleased
 
+* Detect and recover from view-process not responding.
+    - **Breaking** Added `Api::ping` and related items to the view-process API.
+    - Only breaking for custom view-process implementers.
 
 # 0.17.4
 

@@ -143,7 +143,7 @@ pub fn sort_licenses(l: &mut Vec<LicenseUsed>) {
 ///
 /// This method must be used in build scripts (`build.rs`).
 ///
-/// Returns an empty vec if the [`DOCS_RS`] env var is set to any value or if `ZNG_TP_LICENSES=false` is set.
+/// Returns an empty vec if the [`DOCS_RS`] env var is set to any value or if `"ZNG_TP_LICENSES=false"` is set.
 ///
 /// # Panics
 ///

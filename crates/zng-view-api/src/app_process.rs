@@ -38,6 +38,9 @@ enum ViewState {
 /// The View Process is [killed] when the controller is dropped, if the app is running in same process mode
 /// then the current process [exits] with code 0 on drop.
 ///
+/// In multi-process mode the View Process is also killed to respawn if it does not send any event after 30 seconds,
+/// the app must call [`Controller::ping`] periodically to generate the [`Event::Pong`] to detect availability.
+///
 /// [killed]: std::process::Child::kill
 /// [exits]: std::process::exit
 #[cfg_attr(not(ipc), allow(unused))]
@@ -148,12 +151,19 @@ impl Controller {
         process: Arc<Mutex<Option<std::process::Child>>>,
         generation: ViewProcessGen,
     ) -> std::thread::JoinHandle<Box<dyn FnMut(Event) + Send>> {
-        // ipc-channel sometimes does not signal disconnect when the view-process dies
+        // spawns a thread that receives view-process events and monitors for process responsiveness
+        // - ipc-channel sometimes does not signal disconnect when the view-process dies, this monitors the process state every second.
+        // - app-process pings every 10s of inactivity, this kills the view-process it it does not respond for more them 30s.
         thread::spawn(move || {
-            let ping_time = Duration::from_secs(1);
-            while let Ok(maybe) = event_receiver.recv_timeout(ping_time) {
+            const PROCESS_CHECK_DUR: Duration = Duration::from_secs(1);
+            const TIMEOUT_SECS: u8 = 30;
+            let mut check_count = 0u8;
+            while let Ok(maybe) = event_receiver.recv_timeout(PROCESS_CHECK_DUR) {
                 match maybe {
-                    Some(ev) => on_event(ev),
+                    Some(ev) => {
+                        check_count = 0;
+                        on_event(ev)
+                    }
                     None => {
                         if let Some(p) = &mut *process.lock() {
                             match p.try_wait() {
@@ -161,11 +171,18 @@ impl Controller {
                                     if c.is_some() {
                                         // view-process died
                                         break;
+                                    } else {
+                                        check_count += 1;
+                                        if check_count == TIMEOUT_SECS {
+                                            tracing::error!("view-process not responding for {TIMEOUT_SECS}s, will respawn");
+                                            let _ = p.kill();
+                                            break;
+                                        }
                                     }
                                 }
                                 Err(e) => {
                                     if e.kind() != std::io::ErrorKind::Interrupted {
-                                        // signal disconnected to trigger a respawn
+                                        tracing::error!("view-process try_wait error after inactivity, {e}");
                                         break;
                                     }
                                 }

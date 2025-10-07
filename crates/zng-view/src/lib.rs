@@ -183,7 +183,7 @@ zng_env::on_process_start!(|args| {
 /// Note that this only needs to be called if the view-process is not built on the same executable, if
 /// it is you only need to call [`zng_env::init!`] at the beginning of the executable main.
 ///
-/// You can also disable start on init by setting the `ZNG_VIEW_NO_INIT_START` environment variable. In this
+/// You can also disable start on init by setting the `"ZNG_VIEW_NO_INIT_START"` environment variable. In this
 /// case you must manually call this function.
 #[cfg(ipc)]
 pub fn view_process_main() {
@@ -2419,6 +2419,11 @@ impl Api for App {
         with_window_or_surface!(self, id, |w| w.render_extension(extension_id, extension_request), || {
             ApiExtensionPayload::invalid_request(extension_id, "renderer not found")
         })
+    }
+
+    fn ping(&mut self, count: u16) -> u16 {
+        self.notify(Event::Pong(count));
+        count
     }
 }
 

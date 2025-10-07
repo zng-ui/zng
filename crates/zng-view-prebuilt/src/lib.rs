@@ -28,7 +28,7 @@ zng_env::on_process_start!(|_| {
 /// Note that this only needs to be called if the view-process is not built on the same executable, if
 /// it is you only need to call [`zng_env::init!`] at the beginning of the executable main.
 ///
-/// You can also disable start on init by setting the `ZNG_VIEW_NO_INIT_START` environment variable. In this
+/// You can also disable start on init by setting the `"ZNG_VIEW_NO_INIT_START"` environment variable. In this
 /// case you must manually call this function.
 ///
 /// [`view_process_main`]: https://docs.rs/zng-view/fn.view_process_main.html

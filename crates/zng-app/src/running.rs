@@ -39,6 +39,7 @@ pub(crate) struct RunningApp<E: AppExtension> {
 
     loop_timer: LoopTimer,
     loop_monitor: LoopMonitor,
+    last_wait_event: Instant,
 
     pending_view_events: Vec<zng_view_api::Event>,
     pending_view_frame_events: Vec<zng_view_api::window::EventFrameRendered>,
@@ -111,6 +112,7 @@ impl<E: AppExtension> RunningApp<E> {
 
             loop_timer: LoopTimer::default(),
             loop_monitor: LoopMonitor::default(),
+            last_wait_event: Instant::now(),
 
             pending_view_events: Vec::with_capacity(100),
             pending_view_frame_events: Vec::with_capacity(5),
@@ -581,6 +583,7 @@ impl<E: AppExtension> RunningApp<E> {
 
                     self.pending_view_frame_events.push(ev);
                 }
+                zng_view_api::Event::Pong(count) => VIEW_PROCESS.on_pong(count),
                 zng_view_api::Event::Inited(zng_view_api::Inited {
                     generation,
                     is_respawn,
@@ -650,37 +653,31 @@ impl<E: AppExtension> RunningApp<E> {
             let idle = tracing::debug_span!("<idle>", ended_by = tracing::field::Empty).entered();
 
             let timer = if self.view_is_busy() { None } else { self.loop_timer.poll() };
-            if let Some(time) = timer {
-                match self.receiver.recv_deadline_sp(time) {
-                    Ok(ev) => {
-                        idle.record("ended_by", "event");
-                        drop(idle);
-                        self.push_coalesce(ev, observer)
-                    }
-                    Err(e) => match e {
-                        flume::RecvTimeoutError::Timeout => {
+            const PING_TIMER: Duration = Duration::from_secs(10);
+
+            match self.receiver.recv_deadline_sp(timer.unwrap_or(Deadline::timeout(PING_TIMER))) {
+                Ok(ev) => {
+                    idle.record("ended_by", "event");
+                    drop(idle);
+                    self.last_wait_event = Instant::now();
+                    self.push_coalesce(ev, observer)
+                }
+                Err(e) => match e {
+                    flume::RecvTimeoutError::Timeout => {
+                        if timer.is_none() {
+                            idle.record("ended_by", "timeout (ping)");
+                        } else {
                             idle.record("ended_by", "timeout");
                         }
-                        flume::RecvTimeoutError::Disconnected => {
-                            idle.record("ended_by", "disconnected");
-                            disconnected = true
+                        if self.last_wait_event.elapsed() > PING_TIMER && !VIEW_PROCESS.is_same_process() && VIEW_PROCESS.is_connected() {
+                            VIEW_PROCESS.ping();
                         }
-                    },
-                }
-            } else {
-                match self.receiver.recv() {
-                    Ok(ev) => {
-                        idle.record("ended_by", "event");
-                        drop(idle);
-                        self.push_coalesce(ev, observer)
                     }
-                    Err(e) => match e {
-                        flume::RecvError::Disconnected => {
-                            idle.record("ended_by", "disconnected");
-                            disconnected = true
-                        }
-                    },
-                }
+                    flume::RecvTimeoutError::Disconnected => {
+                        idle.record("ended_by", "disconnected");
+                        disconnected = true
+                    }
+                },
             }
         }
         loop {
