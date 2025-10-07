@@ -548,6 +548,11 @@ pub enum Event {
 
     /// Represents a custom event send by the extension.
     ExtensionEvent(ApiExtensionId, ApiExtensionPayload),
+
+    /// Signal the view-process is alive.
+    ///
+    /// The associated value must be the count requested by [`Api::ping`](crate::Api::ping).
+    Pong(u16),
 }
 impl Event {
     /// Change `self` to incorporate `other` or returns `other` if both events cannot be coalesced.

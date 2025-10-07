@@ -531,7 +531,7 @@ impl Info {
 
 /// Starts recording, stops on process exit or on [`stop_recording`].
 ///
-/// Note that this is called automatically on startup if the `ZNG_RECORD_TRACE` environment variable is set and that is
+/// Note that this is called automatically on startup if the `"ZNG_RECORD_TRACE"` environment variable is set and that is
 /// the recommended way of enabling recording as it record all processes not just the calling process.
 ///
 /// # Config and Output

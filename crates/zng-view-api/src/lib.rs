@@ -626,6 +626,13 @@ declare_api! {
         extension_id: ApiExtensionId,
         extension_request: ApiExtensionPayload,
     ) -> ApiExtensionPayload;
+
+    /// Returns the `count` and notifies [`Event::Pong`] after ensuring the view-process is responsive.
+    ///
+    /// The app-process and view-process automatically monitor message frequency to detect when the paired process
+    /// is stuck. View-process implementers must only ensure the response event goes through its *main loop* to get an
+    /// accurate read of it is stuck.
+    pub fn ping(&mut self, count: u16) -> u16;
 }
 
 pub(crate) type AnyResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
