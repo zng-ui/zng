@@ -43,8 +43,13 @@ impl<R> UiTask<R> {
     where
         F: Future<Output = R> + Send + 'static,
     {
+        Self::new_raw_boxed(event_loop_waker, Box::pin(task.into_future()))
+    }
+
+    /// Like like `new_raw` with already boxed and pinned future.
+    pub fn new_raw_boxed(event_loop_waker: Waker, task: Pin<Box<dyn Future<Output = R> + Send + 'static>>) -> Self {
         UiTask(UiTaskState::Pending {
-            future: Box::pin(task.into_future()),
+            future: task,
             event_loop_waker,
             #[cfg(debug_assertions)]
             last_update: None,
@@ -114,6 +119,19 @@ impl<R> UiTask<R> {
     /// Drop the task without logging a warning if it is pending.
     pub fn cancel(mut self) {
         self.0 = UiTaskState::Cancelled;
+    }
+}
+impl<R: Send + 'static> IntoFuture for UiTask<R> {
+    type Output = R;
+
+    type IntoFuture = Pin<Box<dyn Future<Output = R> + Send>>;
+
+    fn into_future(mut self) -> Self::IntoFuture {
+        match mem::replace(&mut self.0, UiTaskState::Cancelled) {
+            UiTaskState::Pending { future, .. } => future,
+            UiTaskState::Ready(r) => Box::pin(async move { r }),
+            UiTaskState::Cancelled => unreachable!(),
+        }
     }
 }
 impl<R> Drop for UiTask<R> {

@@ -520,7 +520,7 @@ pub fn return_focus_on_deinit(child: impl IntoUiNode, enabled: impl IntoVar<bool
                 }
                 // try focus after info rebuild.
                 WIDGET_INFO_CHANGED_EVENT
-                    .on_pre_event(app_hn_once!(|_| {
+                    .on_pre_event(hn_once!(|_| {
                         FOCUS.focus_widget(id, false);
                     }))
                     .perm();

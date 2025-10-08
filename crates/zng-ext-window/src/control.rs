@@ -5,8 +5,8 @@ use std::{mem, sync::Arc};
 use parking_lot::Mutex;
 use zng_app::{
     access::{ACCESS_DEINITED_EVENT, ACCESS_INITED_EVENT},
-    app_hn_once,
     event::{AnyEventArgs, CommandHandle},
+    hn_once,
     render::{FrameBuilder, FrameUpdate},
     static_id,
     timer::TIMERS,
@@ -498,7 +498,7 @@ impl HeadedCtrl {
                 TIMERS
                     .on_deadline(
                         self.img_res.deadline,
-                        app_hn_once!(|_| {
+                        hn_once!(|_| {
                             if img_res_loading.iter().any(|i| i.get().is_loading()) {
                                 // window maybe still waiting.
                                 UPDATES.layout_window(window_id);
@@ -2751,7 +2751,7 @@ impl UiNodeImpl for NestedWindowNode {
         TIMERS
             .on_deadline(
                 100.ms(),
-                app_hn_once!(c, |_| {
+                hn_once!(c, |_| {
                     let c = c.lock();
                     if c.host.is_none() {
                         let _ = WINDOWS.close(c.ctx.id());

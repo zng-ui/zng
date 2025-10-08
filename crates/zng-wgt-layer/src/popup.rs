@@ -459,7 +459,7 @@ fn setup_popup_close_service() {
 
     if !std::mem::replace(&mut *POPUP_SETUP.write(), true) {
         POPUP_CLOSE_REQUESTED_EVENT
-            .on_event(app_hn!(|args: &PopupCloseRequestedArgs, _| {
+            .on_event(hn!(|args| {
                 if !args.propagation().is_stopped() {
                     POPUP_CLOSE_CMD.scoped(args.popup).notify_param(PopupCloseMode::Force);
                 }
@@ -512,7 +512,7 @@ pub fn close_delay(child: impl IntoUiNode, delay: impl IntoVar<Duration>) -> UiN
                     let cmd = POPUP_CLOSE_CMD.scoped(args.popup);
                     timer = Some(TIMERS.on_deadline(
                         delay,
-                        app_hn_once!(|_| {
+                        hn_once!(|_| {
                             cmd.notify_param(PopupCloseMode::Force);
                         }),
                     ));

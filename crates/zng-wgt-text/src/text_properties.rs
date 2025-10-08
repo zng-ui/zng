@@ -1520,7 +1520,7 @@ pub fn is_parse_pending(child: impl IntoUiNode, state: impl IntoVar<bool>) -> Ui
 /// [`accepts_enter`]: fn@accepts_enter
 /// [`Key::Enter`]: zng_ext_input::keyboard::Key::Enter
 #[property(EVENT, widget_impl(TextEditMix<P>))]
-pub fn on_change_stop(child: impl IntoUiNode, handler: impl WidgetHandler<ChangeStopArgs>) -> UiNode {
+pub fn on_change_stop(child: impl IntoUiNode, handler: Handler<ChangeStopArgs>) -> UiNode {
     super::node::on_change_stop(child, handler)
 }
 

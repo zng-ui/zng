@@ -1,5 +1,5 @@
 use std::io::Write as _;
-use window::{FrameCaptureMode, FrameImageReadyArgs};
+use window::FrameCaptureMode;
 use zng::prelude::*;
 
 /// This example uses a headless window to render frames for FFmpeg.
@@ -37,7 +37,7 @@ pub fn run() {
             frame_capture_mode = FrameCaptureMode::All;
 
             // this event will fire every time a frame is rendered.
-            on_frame_image_ready = async_hn!(temp, frame, |args: FrameImageReadyArgs| {
+            on_frame_image_ready = async_hn!(temp, frame, |args| {
                 let img = args.frame_image.unwrap();
 
                 let frame_i = frame.get();

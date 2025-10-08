@@ -60,7 +60,4 @@
 //!
 //! See [`zng_app::handler`] for the full handler API.
 
-pub use zng_app::handler::{
-    AppHandler, AppHandlerArgs, AppWeakHandle, FilterAppHandler, FilterWidgetHandler, WidgetHandler, app_hn, app_hn_once, async_app_hn,
-    async_app_hn_once, async_hn, async_hn_once, hn, hn_once,
-};
+pub use zng_app::handler::{APP_HANDLER, AppWeakHandle, ArcHandler, Handler, HandlerExt, async_hn, async_hn_once, hn, hn_once};

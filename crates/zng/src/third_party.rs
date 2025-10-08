@@ -151,10 +151,7 @@ pub(crate) fn setup_default_view() {
     OPEN_LICENSES_CMD
         .on_event(
             true,
-            app_hn!(|args: &zng_app::event::AppCommandArgs, _| {
-                if args.propagation().is_stopped() {
-                    return;
-                }
+            hn!(|args| {
                 args.propagation().stop();
 
                 let parent = WINDOWS.focused_window_id();

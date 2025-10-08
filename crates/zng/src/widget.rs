@@ -136,11 +136,11 @@ pub use zng_wgt_fill::{
 /// See [`zng_app::widget::builder`] for the full API.
 pub mod builder {
     pub use zng_app::widget::builder::{
-        AnyWhenArcWidgetHandlerBuilder, ArcWidgetHandler, BuilderProperty, BuilderPropertyMut, BuilderPropertyRef, Importance, InputKind,
-        NestGroup, NestPosition, PropertyArgs, PropertyBuildAction, PropertyBuildActionArgs, PropertyBuildActions,
-        PropertyBuildActionsWhenData, PropertyId, PropertyInfo, PropertyInput, PropertyInputTypes, PropertyNewArgs, SourceLocation,
-        WhenBuildAction, WhenInfo, WhenInput, WhenInputMember, WhenInputVar, WidgetBuilder, WidgetBuilderProperties, WidgetBuilding,
-        WidgetType, property_args, property_id, property_info, property_input_types, source_location, widget_type,
+        AnyWhenArcHandlerBuilder, BuilderProperty, BuilderPropertyMut, BuilderPropertyRef, Importance, InputKind, NestGroup, NestPosition,
+        PropertyArgs, PropertyBuildAction, PropertyBuildActionArgs, PropertyBuildActions, PropertyBuildActionsWhenData, PropertyId,
+        PropertyInfo, PropertyInput, PropertyInputTypes, PropertyNewArgs, SourceLocation, WhenBuildAction, WhenInfo, WhenInput,
+        WhenInputMember, WhenInputVar, WidgetBuilder, WidgetBuilderProperties, WidgetBuilding, WidgetType, property_args, property_id,
+        property_info, property_input_types, source_location, widget_type,
     };
 }
 

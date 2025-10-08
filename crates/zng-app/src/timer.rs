@@ -4,7 +4,10 @@
 //! create UI bound timers that run using only the main thread and can awake the app event loop
 //! to notify updates.
 
-use crate::Deadline;
+use crate::{
+    Deadline,
+    handler::{Handler, HandlerExt as _},
+};
 use parking_lot::Mutex;
 use std::{
     fmt, mem,
@@ -21,11 +24,7 @@ use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_time::{DInstant, INSTANT, INSTANT_APP};
 use zng_var::{Var, WeakVar, var};
 
-use crate::{
-    LoopTimer,
-    handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
-    update::UPDATES,
-};
+use crate::{LoopTimer, handler::AppWeakHandle, update::UPDATES};
 
 struct DeadlineHandlerEntry {
     handle: HandleOwner<DeadlineState>,
@@ -115,21 +114,19 @@ impl TimersService {
         timer.read_only()
     }
 
-    fn on_deadline<H>(&mut self, deadline: Deadline, mut handler: H) -> DeadlineHandle
-    where
-        H: AppHandler<DeadlineArgs>,
-    {
+    fn on_deadline(&mut self, deadline: Deadline, mut handler: Handler<DeadlineArgs>) -> DeadlineHandle {
         let (handle_owner, handle) = DeadlineHandle::new(deadline);
         self.deadline_handlers.push(DeadlineHandlerEntry {
             handle: handle_owner,
             handler: Mutex::new(Box::new(move |handle| {
-                handler.event(
+                handler.app_event(
+                    handle.clone_boxed(),
+                    true,
                     &DeadlineArgs {
                         timestamp: INSTANT.now(),
                         deadline,
                     },
-                    &AppHandlerArgs { handle, is_preview: true },
-                )
+                );
             })),
             pending: false,
         });
@@ -137,16 +134,13 @@ impl TimersService {
         handle
     }
 
-    fn on_interval<H>(&mut self, interval: Duration, paused: bool, mut handler: H) -> TimerHandle
-    where
-        H: AppHandler<TimerArgs>,
-    {
+    fn on_interval(&mut self, interval: Duration, paused: bool, mut handler: Handler<TimerArgs>) -> TimerHandle {
         let (owner, handle) = TimerHandle::new(interval, paused);
 
         self.timer_handlers.push(TimerHandlerEntry {
             handle: owner,
             handler: Mutex::new(Box::new(move |args, handle| {
-                handler.event(args, &AppHandlerArgs { handle, is_preview: true });
+                handler.app_event(handle.clone_boxed(), true, args);
             })),
             pending: None,
         });
@@ -462,20 +456,14 @@ impl TIMERS {
     /// Returns a [`DeadlineHandle`] that can be used to cancel the timer, either by dropping the handle or by
     /// calling [`cancel`](DeadlineHandle::cancel). You can also call [`perm`](DeadlineHandle::perm)
     /// to drop the handle without cancelling.
-    pub fn on_deadline<H>(&self, deadline: impl Into<Deadline>, handler: H) -> DeadlineHandle
-    where
-        H: AppHandler<DeadlineArgs>,
-    {
+    pub fn on_deadline(&self, deadline: impl Into<Deadline>, handler: Handler<DeadlineArgs>) -> DeadlineHandle {
         TIMERS_SV.write().on_deadline(deadline.into(), handler)
     }
 
     /// Register a `handler` that will be called every time the `interval` elapses.
     ///
     /// The timer starts running immediately if `paused` is `false`.
-    pub fn on_interval<H>(&self, interval: Duration, paused: bool, handler: H) -> TimerHandle
-    where
-        H: AppHandler<TimerArgs>,
-    {
+    pub fn on_interval(&self, interval: Duration, paused: bool, handler: Handler<TimerArgs>) -> TimerHandle {
         TIMERS_SV.write().on_interval(interval, paused, handler)
     }
 }

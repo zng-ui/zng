@@ -16,7 +16,7 @@ use std::{fmt, ops, path::PathBuf, sync::Arc};
 use bitflags::bitflags;
 use parking_lot::Mutex;
 use zng_ext_l10n::l10n;
-use zng_ext_window::{WINDOW_CLOSE_REQUESTED_EVENT, WINDOWS, WindowCloseRequestedArgs};
+use zng_ext_window::{WINDOW_CLOSE_REQUESTED_EVENT, WINDOWS};
 use zng_var::{ContextInitHandle, animation::easing};
 use zng_view_api::dialog as native_api;
 use zng_wgt::{node::VarPresent as _, prelude::*, *};
@@ -71,7 +71,7 @@ impl Dialog {
         /// An attempt to close the dialog was made without setting the response.
         ///
         /// Dialogs must only close using [`DIALOG.respond`](DIALOG::respond).
-        pub on_dialog_close_canceled(args: impl WidgetHandler<DialogCloseCanceledArgs>);
+        pub on_dialog_close_canceled(args: Handler<DialogCloseCanceledArgs>);
     }
 }
 impl_style_fn!(Dialog);
@@ -85,7 +85,7 @@ fn dialog_closing_node(child: impl IntoUiNode) -> UiNode {
                 let ctx = DIALOG_CTX.get();
                 let default_response = DEFAULT_RESPONSE_VAR.current_context();
                 let responder = ctx.responder.clone();
-                let handle = WINDOW_CLOSE_REQUESTED_EVENT.on_pre_event(app_hn!(|args: &WindowCloseRequestedArgs, _| {
+                let handle = WINDOW_CLOSE_REQUESTED_EVENT.on_pre_event(hn!(|args| {
                     // a window is closing
                     if responder.get().is_waiting() {
                         // dialog has no response

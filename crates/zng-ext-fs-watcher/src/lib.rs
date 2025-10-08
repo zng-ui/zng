@@ -24,7 +24,7 @@ use path_absolutize::Absolutize;
 use zng_app::{
     AppExtension,
     event::{EventHandle, event, event_args},
-    handler::{AppHandler, FilterAppHandler},
+    handler::{Handler, HandlerExt as _},
     update::EventUpdate,
     view_process::raw_events::LOW_MEMORY_EVENT,
 };
@@ -321,15 +321,15 @@ impl WATCHER {
 
     /// Watch `file` and calls `handler` every time it changes.
     ///
-    /// Note that the `handler` is blocking, use [`async_app_hn!`] and [`task::wait`] to run IO without
+    /// Note that the `handler` is blocking, use [`async_hn!`] and [`task::wait`] to run IO without
     /// blocking the app.
     ///
-    /// [`async_app_hn!`]: macro@zng_app::handler::async_app_hn
+    /// [`async_hn!`]: macro@zng_app::handler::async_hn
     /// [`task::wait`]: zng_task::wait
-    pub fn on_file_changed(&self, file: impl Into<PathBuf>, handler: impl AppHandler<FsChangesArgs>) -> EventHandle {
+    pub fn on_file_changed(&self, file: impl Into<PathBuf>, handler: Handler<FsChangesArgs>) -> EventHandle {
         let file = file.into();
         let handle = self.watch(file.clone());
-        FS_CHANGES_EVENT.on_event(FilterAppHandler::new(handler, move |args| {
+        FS_CHANGES_EVENT.on_event(handler.filtered(move |args| {
             let _handle = &handle;
             args.events_for_path(&file).next().is_some()
         }))
@@ -337,15 +337,15 @@ impl WATCHER {
 
     /// Watch `dir` and calls `handler` every time something inside it changes.
     ///
-    /// Note that the `handler` is blocking, use [`async_app_hn!`] and [`task::wait`] to run IO without
+    /// Note that the `handler` is blocking, use [`async_hn!`] and [`task::wait`] to run IO without
     /// blocking the app.
     ///
-    /// [`async_app_hn!`]: macro@zng_app::handler::async_app_hn
+    /// [`async_hn!`]: macro@zng_app::handler::async_hn
     /// [`task::wait`]: zng_task::wait
-    pub fn on_dir_changed(&self, dir: impl Into<PathBuf>, recursive: bool, handler: impl AppHandler<FsChangesArgs>) -> EventHandle {
+    pub fn on_dir_changed(&self, dir: impl Into<PathBuf>, recursive: bool, handler: Handler<FsChangesArgs>) -> EventHandle {
         let dir = dir.into();
         let handle = self.watch_dir(dir.clone(), recursive);
-        FS_CHANGES_EVENT.on_event(FilterAppHandler::new(handler, move |args| {
+        FS_CHANGES_EVENT.on_event(handler.filtered(move |args| {
             let _handle = &handle;
             args.events_for_path(&dir).next().is_some()
         }))

@@ -29,7 +29,7 @@ pub fn run() {
             frame_capture_mode = FrameCaptureMode::Next;
 
             // this event will fire every time a frame is rendered (just once in this case).
-            on_frame_image_ready = async_hn_once!(|args: FrameImageReadyArgs| {
+            on_frame_image_ready = async_hn_once!(|args: &FrameImageReadyArgs| {
                 // in this case a `frame_image` was already captured.
                 let img = args.frame_image.unwrap();
 

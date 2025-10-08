@@ -1,100 +1,207 @@
 //! Handler types and macros.
 
-use std::any::Any;
-use std::marker::PhantomData;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::thread;
 use std::time::Duration;
-use std::{mem, thread};
 
+use parking_lot::Mutex;
 #[doc(hidden)]
 pub use zng_clone_move::*;
 
+use crate::update::UPDATES;
+use crate::widget::{UiTaskWidget as _, WIDGET};
+use crate::{AppControlFlow, HeadlessApp};
 use zng_handle::{Handle, WeakHandle};
 use zng_task::{self as task, UiTask};
 
 use crate::INSTANT;
 
+/// Output of [`Handler<A>`].
+pub enum HandlerResult {
+    /// Handler already finished.
+    Done,
+    /// Handler is async and the future was pending after first poll. The caller must run the future in the same context the handler was called.
+    Continue(Pin<Box<dyn Future<Output = ()> + Send + 'static>>),
+}
+
 /// Represents a handler in a widget context.
 ///
 /// There are different flavors of handlers, you can use macros to declare then.
 /// See [`hn!`], [`hn_once!`] or [`async_hn!`], [`async_hn_once!`] to start.
-#[diagnostic::on_unimplemented(
-    note = "use `hn!(|args: &{A}| {{ }})` to declare a widget handler from a `FnMut` closure",
-    note = "use `hn_once!`, `async_hn!` or `async_hn_once!` for other closure types"
-)]
-pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
-    // TODO(breaking) replace with `struct`, like the `UiNode` refactor. Having it as an struct enables type inference
-    /// Called every time the handler's event happens in the widget context.
-    ///
-    /// Returns `true` when the event handler is async and it has not finished handling the event.
-    ///
-    /// [`update`]: WidgetHandler::update
-    /// [`info`]: crate::widget::node::UiNode::info
-    fn event(&mut self, args: &A) -> bool;
+///
+/// # Type Inference Limitations
+///
+/// This type is not a full struct because the closure args type inference only works with `Box`, if this was
+/// a full `struct` all handler declarations that use the args would have to declare the args type.
+/// Methods for this type are implemented in [`HandlerExt`]. Also note that the `A` type must be `Clone + 'static`,
+/// unfortunately Rust does not enforce bounds in type alias.
+#[allow(type_alias_bounds)] // we need a type alias here
+pub type Handler<A: Clone + 'static> = Box<dyn FnMut(&A) -> HandlerResult + Send + 'static>;
 
-    /// Called every widget update.
+/// Extension methods for [`Handler<A>`].
+pub trait HandlerExt<A: Clone + 'static> {
+    /// Notify the handler in a widget context.
     ///
-    /// Returns `false` when all pending async tasks are completed. Note that event properties
-    /// will call this method every update even if it is returning `false`.
+    /// If the handler is async polls once immediately and returns an [`UiTask`] if the future is pending.
+    /// The caller must update the task until completion in the same widget context.
+    fn widget_event(&mut self, args: &A) -> Option<UiTask<()>>;
+
+    /// Notify the handler outside of any widget or window context, inside a [`APP_HANDLER`] context.
     ///
-    /// [`update`]: WidgetHandler::update
-    fn update(&mut self) -> bool {
-        false
+    /// If the handler is async polls once and continue execution in [`UPDATES`].
+    fn app_event(&mut self, handle: Box<dyn AppWeakHandle>, is_preview: bool, args: &A);
+
+    /// New handler that only calls for arguments approved by `filter`.
+    fn filtered(self, filter: impl FnMut(&A) -> bool + Send + 'static) -> Handler<A>;
+
+    /// New handler that calls this one only once.
+    fn into_once(self) -> Handler<A>;
+
+    /// Into cloneable handler.
+    ///
+    /// Note that [`hn_once!`] and [`async_hn_once!`] handlers will still only run once.
+    fn into_arc(self) -> ArcHandler<A>;
+
+    /// Wrap the handler into a type that implements the async task management in an widget context.
+    fn into_wgt_runner(self) -> WidgetRunner<A>;
+}
+impl<A: Clone + 'static> HandlerExt<A> for Handler<A> {
+    fn widget_event(&mut self, args: &A) -> Option<UiTask<()>> {
+        match self(args) {
+            HandlerResult::Done => None,
+            HandlerResult::Continue(future) => {
+                let mut task = UiTask::new_boxed(Some(WIDGET.id()), future);
+                if task.update().is_none() { Some(task) } else { None }
+            }
+        }
     }
 
-    /// Box the handler.
-    ///
-    /// The type `Box<dyn WidgetHandler<A>>` implements `WidgetHandler<A>` and just returns itself
-    /// in this method, avoiding double boxing.
-    fn boxed(self) -> Box<dyn WidgetHandler<A>>
-    where
-        Self: Sized,
-    {
-        Box::new(self)
+    fn app_event(&mut self, handle: Box<dyn AppWeakHandle>, is_preview: bool, args: &A) {
+        match APP_HANDLER.with(handle.clone_boxed(), is_preview, || self(args)) {
+            HandlerResult::Done => {}
+            HandlerResult::Continue(future) => {
+                let mut task = UiTask::new_boxed(None, future);
+                if APP_HANDLER.with(handle.clone_boxed(), is_preview, || task.update().is_none()) {
+                    if is_preview {
+                        UPDATES
+                            .on_pre_update(hn!(|_| {
+                                if APP_HANDLER.with(handle.clone_boxed(), is_preview, || task.update().is_some()) {
+                                    handle.unsubscribe();
+                                }
+                            }))
+                            .perm();
+                    } else {
+                        UPDATES
+                            .on_update(hn!(|_| {
+                                if APP_HANDLER.with(handle.clone_boxed(), is_preview, || task.update().is_some()) {
+                                    handle.unsubscribe();
+                                }
+                            }))
+                            .perm();
+                    }
+                }
+            }
+        }
+    }
+
+    fn filtered(mut self, mut filter: impl FnMut(&A) -> bool + Send + 'static) -> Self {
+        Box::new(move |a| if filter(a) { self(a) } else { HandlerResult::Done })
+    }
+
+    fn into_once(self) -> Self {
+        let mut f = Some(self);
+        Box::new(move |a| {
+            if let Some(mut f) = f.take() {
+                APP_HANDLER.unsubscribe();
+                f(a)
+            } else {
+                HandlerResult::Done
+            }
+        })
+    }
+
+    fn into_arc(self) -> ArcHandler<A> {
+        ArcHandler(Arc::new(Mutex::new(self)))
+    }
+
+    fn into_wgt_runner(self) -> WidgetRunner<A> {
+        WidgetRunner::new(self)
     }
 }
-impl<A: Clone + 'static> WidgetHandler<A> for Box<dyn WidgetHandler<A>> {
-    #[inline(always)]
-    fn event(&mut self, args: &A) -> bool {
-        self.as_mut().event(args)
+
+/// Represents a cloneable handler.
+///
+/// See [`Handler::into_arc`] for more details.
+#[derive(Clone)]
+pub struct ArcHandler<A: Clone + 'static>(Arc<Mutex<Handler<A>>>);
+impl<A: Clone + 'static> ArcHandler<A> {
+    /// Calls [`HandlerExt::widget_event`].
+    pub fn widget_event(&self, args: &A) -> Option<UiTask<()>> {
+        self.0.lock().widget_event(args)
     }
 
-    #[inline(always)]
-    fn update(&mut self) -> bool {
-        self.as_mut().update()
+    /// Calls [`HandlerExt::app_event`].
+    pub fn app_event(&self, handle: Box<dyn AppWeakHandle>, is_preview: bool, args: &A) {
+        self.0.lock().app_event(handle, is_preview, args)
     }
 
-    #[inline(always)]
-    fn boxed(self) -> Box<dyn WidgetHandler<A>>
-    where
-        Self: Sized,
-    {
-        self
+    /// Calls the handler.
+    pub fn call(&self, args: &A) -> HandlerResult {
+        self.0.lock()(args)
+    }
+
+    /// Make a handler from this arc handler.
+    pub fn handler(&self) -> Handler<A> {
+        self.clone().into()
+    }
+}
+impl<A: Clone + 'static> From<ArcHandler<A>> for Handler<A> {
+    fn from(f: ArcHandler<A>) -> Self {
+        Box::new(move |a| f.0.lock()(a))
     }
 }
 
-#[doc(hidden)]
-pub struct FnMutWidgetHandler<H> {
-    handler: H,
-}
-impl<A, H> WidgetHandler<A> for FnMutWidgetHandler<H>
-where
-    A: Clone + 'static,
-    H: FnMut(&A) + Send + 'static,
-{
-    #[inline(always)]
-    fn event(&mut self, args: &A) -> bool {
-        (self.handler)(args);
-        false
-    }
+/// Represents an widget [`Handler<A>`] caller that manages the async tasks if needed.
+///
+/// See [`Handler::into_wgt_runner`] for more details.
+pub struct WidgetRunner<A: Clone + 'static> {
+    handler: Handler<A>,
+    tasks: Vec<UiTask<()>>,
 }
 
-#[doc(hidden)]
-pub fn hn<A, H>(handler: H) -> FnMutWidgetHandler<H>
-where
-    A: Clone + 'static,
-    H: FnMut(&A) + Send + 'static,
-{
-    FnMutWidgetHandler { handler }
+impl<A: Clone + 'static> WidgetRunner<A> {
+    fn new(handler: Handler<A>) -> Self {
+        Self { handler, tasks: vec![] }
+    }
+
+    /// Call [`HandlerExt::widget_event`] and start UI task is needed.
+    pub fn event(&mut self, args: &A) {
+        if let Some(task) = self.handler.widget_event(args) {
+            self.tasks.push(task);
+        }
+    }
+
+    /// Update async tasks.
+    ///
+    /// UI node implementers must call this on [`UiNodeOp::Update`].
+    /// For preview events before delegation to child, for other after delegation.
+    ///
+    /// [`UiNodeOp::Update`]: crate::widget::node::UiNodeOp::Update
+    pub fn update(&mut self) {
+        self.tasks.retain_mut(|t| t.update().is_none());
+    }
+
+    /// Drop pending tasks.
+    ///
+    /// Dropped tasks will log a warning.
+    ///
+    /// UI node implementers must call this on [`UiNodeOp::Deinit`], async tasks must not run across widget reinit.
+    ///
+    /// [`UiNodeOp::Deinit`]: crate::widget::node::UiNodeOp::Deinit
+    pub fn deinit(&mut self) {
+        self.tasks.clear();
+    }
 }
 
 ///<span data-del-macro-root></span> Declare a mutable *clone-move* event handler.
@@ -113,21 +220,6 @@ where
 /// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = hn!(|_| {
-///     println!("Clicked!");
-/// });
-/// # on_click }
-/// ```
-///
-/// The closure input is `&ClickArgs` for this property. Note that
-/// if you want to use the event args you must annotate the input type, the context type is inferred.
-///
-/// ```
-/// # #[derive(Clone)] pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize }
-/// # use zng_app::handler::hn;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
-/// # let
-/// on_click = hn!(|args: &ClickArgs| {
 ///     println!("Clicked {}!", args.click_count);
 /// });
 /// # on_click }
@@ -147,7 +239,7 @@ where
 /// // ..
 ///
 /// # let
-/// on_click = hn!(foo, |args: &ClickArgs| {
+/// on_click = hn!(foo, |args| {
 ///     foo.set(args.click_count);
 /// });
 ///
@@ -160,42 +252,73 @@ where
 /// In the example above only a clone of `foo` is moved into the handler. Note that handlers always capture by move, if `foo` was not
 /// listed in the *clone-move* section it would not be available after the handler is created. See [`clmv!`] for details.
 ///
+/// # App Scope
+///
+/// When used in app scopes the [`APP_HANDLER`] contextual service can be used to unsubscribe from inside the handler.
+///
+/// The example declares an event handler for the `CLICK_EVENT`. Unlike in an widget this handler will run in the app scope, in this case
+/// the `APP_HANDLER` is available during handler calls, in the example the subscription handle is marked `perm`, but the event still unsubscribes
+/// from the inside.
+///
+/// ```
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zng_app::handler::{hn, APP_HANDLER};
+/// # let _scope = zng_app::APP.minimal();
+/// # fn assert_type() {
+/// CLICK_EVENT
+///     .on_event(hn!(|args| {
+///         println!("Clicked Somewhere!");
+///         if args.target == "something" {
+///             APP_HANDLER.unsubscribe();
+///         }
+///     }))
+///     .perm();
+/// # }
+/// ```
+///
 /// [`clmv!`]: zng_clone_move::clmv
 #[macro_export]
 macro_rules! hn {
-    ($($tt:tt)+) => {
-        $crate::handler::hn($crate::handler::clmv!{ $($tt)+ })
-    }
+    ($($clmv:ident,)* |_| $body:expr) => {
+        std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |_| {
+            #[allow(clippy::redundant_closure_call)] // closure is to support `return;`
+            (||{
+                $body
+            })();
+            #[allow(unused)]
+            {
+                $crate::handler::HandlerResult::Done
+            }
+        }))
+    };
+    ($($clmv:ident,)* |$args:ident| $body:expr) => {
+        std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |$args| {
+            #[allow(clippy::redundant_closure_call)]
+            (||{
+                $body
+            })();
+            #[allow(unused)]
+            {
+                $crate::handler::HandlerResult::Done
+            }
+        }))
+    };
+    ($($clmv:ident,)* |$args:ident  : & $Args:ty| $body:expr) => {
+        std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |$args: &$Args| {
+            #[allow(clippy::redundant_closure_call)]
+            (||{
+                $body
+            })();
+            #[allow(unused)]
+            {
+                $crate::handler::HandlerResult::Done
+            }
+        }))
+    };
 }
 #[doc(inline)]
 pub use crate::hn;
-use crate::{AppControlFlow, HeadlessApp};
-
-#[doc(hidden)]
-pub struct FnOnceWidgetHandler<H> {
-    handler: Option<H>,
-}
-impl<A, H> WidgetHandler<A> for FnOnceWidgetHandler<H>
-where
-    A: Clone + 'static,
-    H: FnOnce(&A) + Send + 'static,
-{
-    #[inline(always)]
-    fn event(&mut self, args: &A) -> bool {
-        if let Some(handler) = self.handler.take() {
-            handler(args);
-        }
-        false
-    }
-}
-#[doc(hidden)]
-pub fn hn_once<A, H>(handler: H) -> FnOnceWidgetHandler<H>
-where
-    A: Clone + 'static,
-    H: FnOnce(&A) + Send + 'static,
-{
-    FnOnceWidgetHandler { handler: Some(handler) }
-}
 
 ///<span data-del-macro-root></span> Declare a *clone-move* event handler that is only called once.
 ///
@@ -222,75 +345,43 @@ where
 /// # on_click }
 /// ```
 ///
-/// Other then declaring a `FnOnce` this macro behaves like [`hn!`], so the same considerations apply. You can *clone-move* variables,
-/// the type of the input is the event arguments and must be annotated.
-///
-/// ```
-/// # use zng_app::handler::hn_once;
-/// # let _scope = zng_app::APP.minimal();
-/// # #[derive(Clone)]
-/// # pub struct ClickArgs { click_count: usize }
-/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
-/// let data = vec![1, 2, 3];
-/// # let
-/// on_click = hn_once!(data, |args: &ClickArgs| {
-///     drop(data);
-/// });
-///
-/// println!("{data:?}");
-/// # on_click }
-/// ```
-///
 /// [`clmv!`]: zng_clone_move::clmv
 #[macro_export]
 macro_rules! hn_once {
-    ($($tt:tt)+) => {
-        $crate::handler::hn_once($crate::handler::clmv! { $($tt)+ })
-    }
+    ($($clmv:ident,)* |_| $body:expr) => {{
+        let mut once: Option<std::boxed::Box<dyn FnOnce() + Send + 'static>> =
+            Some(std::boxed::Box::new($crate::handler::clmv!($($clmv,)* || { $body })));
+        $crate::handler::hn!(|_| if let Some(f) = once.take() {
+            $crate::handler::APP_HANDLER.unsubscribe();
+            f();
+        })
+    }};
+    ($($clmv:ident,)* |$args:ident| $body:expr) => {{
+        // type inference fails here, error message slightly better them not having this pattern
+        let mut once: std::boxed::Box<dyn FnOnce(&_) + Send + 'static> =
+            Some(std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |$args: &_| { $body })));
+        $crate::handler::hn!(|$args: &_| if let Some(f) = once.take() {
+            $crate::handler::APP_HANDLER.unsubscribe();
+            f($args);
+        })
+    }};
+    ($($clmv:ident,)* |$args:ident  : & $Args:ty| $body:expr) => {{
+        // type inference fails here, error message slightly better them not having this pattern
+        let mut once: Option<std::boxed::Box<dyn FnOnce(&$Args) + Send + 'static>> =
+            Some(std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |$args: &$Args| { $body })));
+        $crate::handler::hn!(|$args: &$Args| if let Some(f) = once.take() {
+            $crate::handler::APP_HANDLER.unsubscribe();
+            f($args);
+        })
+    }};
 }
 #[doc(inline)]
 pub use crate::hn_once;
 
-#[doc(hidden)]
-pub struct AsyncFnMutWidgetHandler<H> {
-    handler: H,
-    tasks: Vec<UiTask<()>>,
-}
-impl<A, F, H> WidgetHandler<A> for AsyncFnMutWidgetHandler<H>
-where
-    A: Clone + 'static,
-    F: Future<Output = ()> + Send + 'static,
-    H: FnMut(A) -> F + Send + 'static,
-{
-    fn event(&mut self, args: &A) -> bool {
-        let handler = &mut self.handler;
-        let mut task = UiTask::new(Some(WIDGET.id()), handler(args.clone()));
-        let need_update = task.update().is_none();
-        if need_update {
-            self.tasks.push(task);
-        }
-        need_update
-    }
-
-    fn update(&mut self) -> bool {
-        self.tasks.retain_mut(|t| t.update().is_none());
-        !self.tasks.is_empty()
-    }
-}
-#[doc(hidden)]
-pub fn async_hn<A, F, H>(handler: H) -> AsyncFnMutWidgetHandler<H>
-where
-    A: Clone + 'static,
-    F: Future<Output = ()> + Send + 'static,
-    H: FnMut(A) -> F + Send + 'static,
-{
-    AsyncFnMutWidgetHandler { handler, tasks: vec![] }
-}
-
 ///<span data-del-macro-root></span> Declare an async *clone-move* event handler.
 ///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clmv_fn!`] so
-/// the input is the same syntax.
+/// The macro input is a closure with optional *clone-move* variables, internally it uses [`clmv!`] so
+/// the input is the same syntax, for each call is also uses [`async_clmv!`] to clone the args and other cloning captures.
 ///
 /// # Examples
 ///
@@ -303,8 +394,8 @@ where
 /// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
 /// # let
-/// on_click = async_hn!(|_| {
-///     println!("Clicked!");
+/// on_click = async_hn!(|args| {
+///     println!("Clicked {} {} times!", WIDGET.id(), args.click_count);
 ///
 ///     task::run(async {
 ///         println!("In other thread!");
@@ -312,22 +403,6 @@ where
 ///     .await;
 ///
 ///     println!("Back in UI thread, in a widget update.");
-/// });
-/// # on_click }
-/// ```
-///
-/// The closure input is `ClickArgs` for this property. Note that
-/// if you want to use the event args you must annotate the input type.
-///
-/// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zng_app::handler::async_hn;
-/// # use zng_app::widget::WIDGET;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
-/// # let
-/// on_click = async_hn!(|args: ClickArgs| {
-///     println!("Clicked {} {} times!", WIDGET.id(), args.click_count);
 /// });
 /// # on_click }
 /// ```
@@ -347,7 +422,7 @@ where
 /// // ..
 ///
 /// # let
-/// on_click = async_hn!(enabled, |args: ClickArgs| {
+/// on_click = async_hn!(enabled, |args| {
 ///     enabled.set(false);
 ///
 ///     task::run(async move {
@@ -385,72 +460,31 @@ where
 /// [`async_clmv_fn!`]: zng_clone_move::async_clmv_fn
 #[macro_export]
 macro_rules! async_hn {
-    ($($tt:tt)+) => {
-        $crate::handler::async_hn($crate::handler::async_clmv_fn! { $($tt)+ })
-    }
+    ($($clmv:ident,)* |_| $body:expr) => {
+        std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |_| {
+            $crate::handler::APP_HANDLER.unsubscribe();
+            $crate::handler::HandlerResult::Continue(std::boxed::Box::pin($crate::handler::async_clmv!($($clmv,)* {$body})))
+        }))
+    };
+    ($($clmv:ident,)* |$args:ident| $body:expr) => {
+        std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |$args| {
+            $crate::handler::APP_HANDLER.unsubscribe();
+            $crate::handler::HandlerResult::Continue(std::boxed::Box::pin($crate::handler::async_clmv!($args, $($clmv,)* {$body})))
+        }))
+    };
+    ($($clmv:ident,)* |$args:ident  : & $Args:ty| $body:expr) => {
+        std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |$args: &$Args| {
+            $crate::handler::APP_HANDLER.unsubscribe();
+            $crate::handler::HandlerResult::Continue(std::boxed::Box::pin($crate::handler::async_clmv!($args, $($clmv,)* {$body})))
+        }))
+    };
 }
 #[doc(inline)]
 pub use crate::async_hn;
 
-enum AsyncFnOnceWhState<H> {
-    NotCalled(H),
-    Pending(UiTask<()>),
-    Done,
-}
-#[doc(hidden)]
-pub struct AsyncFnOnceWidgetHandler<H> {
-    state: AsyncFnOnceWhState<H>,
-}
-impl<A, F, H> WidgetHandler<A> for AsyncFnOnceWidgetHandler<H>
-where
-    A: Clone + 'static,
-    F: Future<Output = ()> + Send + 'static,
-    H: FnOnce(A) -> F + Send + 'static,
-{
-    fn event(&mut self, args: &A) -> bool {
-        match mem::replace(&mut self.state, AsyncFnOnceWhState::Done) {
-            AsyncFnOnceWhState::NotCalled(handler) => {
-                let mut task = UiTask::new(Some(WIDGET.id()), handler(args.clone()));
-                let is_pending = task.update().is_none();
-                if is_pending {
-                    self.state = AsyncFnOnceWhState::Pending(task);
-                }
-                is_pending
-            }
-            AsyncFnOnceWhState::Pending(t) => {
-                self.state = AsyncFnOnceWhState::Pending(t);
-                false
-            }
-            AsyncFnOnceWhState::Done => false,
-        }
-    }
-
-    fn update(&mut self) -> bool {
-        let mut is_pending = false;
-        if let AsyncFnOnceWhState::Pending(t) = &mut self.state {
-            is_pending = t.update().is_none();
-            if !is_pending {
-                self.state = AsyncFnOnceWhState::Done;
-            }
-        }
-        is_pending
-    }
-}
-#[doc(hidden)]
-pub fn async_hn_once<A, F, H>(handler: H) -> AsyncFnOnceWidgetHandler<H>
-where
-    A: Clone + 'static,
-    F: Future<Output = ()> + Send + 'static,
-    H: FnOnce(A) -> F + Send + 'static,
-{
-    AsyncFnOnceWidgetHandler {
-        state: AsyncFnOnceWhState::NotCalled(handler),
-    }
-}
-
 ///<span data-del-macro-root></span> Declare an async *clone-move* event handler that is only called once.
 ///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clmv_fn_once!`] so
+/// The macro input is a closure with optional *clone-move* variables, internally it uses [`clmv!`] so
 /// the input is the same syntax.
 ///
 /// # Examples
@@ -508,15 +542,54 @@ where
 /// [`async_clmv_fn_once!`]: zng_clone_move::async_clmv_fn_once
 #[macro_export]
 macro_rules! async_hn_once {
-    ($($tt:tt)+) => {
-        $crate::handler::async_hn_once($crate::handler::async_clmv_fn_once! { $($tt)+ })
-    }
+    ($($clmv:ident,)* |_| $body:expr) => {
+        {
+            let mut once: Option<std::boxed::Box<dyn FnOnce() -> std::pin::Pin<std::boxed::Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static>>
+                = Some(std::boxed::Box::new($crate::handler::clmv!($($clmv,)* || {
+                    std::boxed::Box::pin($crate::handler::async_clmv!($($clmv,)* { $body }))
+                })));
+
+            std::boxed::Box::new(move |_| if let Some(f) = once.take() {
+                $crate::handler::HandlerResult::Continue(f())
+            } else {
+                $crate::handler::HandlerResult::Done
+            })
+        }
+    };
+    ($($clmv:ident,)* |$args:ident| $body:expr) => {
+        {
+            let mut once: Option<std::boxed::Box<dyn FnOnce(&_) -> std::pin::Pin<std::boxed::Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static>>
+                = Some(std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |$args: &_| {
+                    std::boxed::Box::pin($crate::handler::async_clmv!($args, $($clmv,)* { $body }))
+                })));
+
+            std::boxed::Box::new(move |$args: &_| if let Some(f) = once.take() {
+                $crate::handler::HandlerResult::Continue(f($args))
+            } else {
+                $crate::handler::HandlerResult::Done
+            })
+        }
+    };
+    ($($clmv:ident,)* |$args:ident  : & $Args:ty| $body:expr) => {
+        {
+            let mut once: Option<std::boxed::Box<dyn FnOnce(&$Args) -> std::pin::Pin<std::boxed::Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static>>
+                = Some(std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |$args: &$Args| {
+                    std::boxed::Box::pin($crate::handler::async_clmv!($args, $($clmv,)* { $body }))
+                })));
+
+            std::boxed::Box::new(move |$args: &$Args| if let Some(f) = once.take() {
+                $crate::handler::HandlerResult::Continue(f($args))
+            } else {
+                $crate::handler::HandlerResult::Done
+            })
+        }
+    };
 }
 #[doc(inline)]
 pub use crate::async_hn_once;
 
 /// Represents a weak handle to an [`AppHandler`] subscription.
-pub trait AppWeakHandle: Send {
+pub trait AppWeakHandle: Send + Sync + 'static {
     /// Dynamic clone.
     fn clone_boxed(&self) -> Box<dyn AppWeakHandle>;
 
@@ -537,629 +610,77 @@ impl<D: Send + Sync + 'static> AppWeakHandle for WeakHandle<D> {
     }
 }
 
-/// Arguments for a call of [`AppHandler::event`].
-#[non_exhaustive]
-pub struct AppHandlerArgs<'a> {
-    /// Handle to the [`AppHandler`] subscription.
-    pub handle: &'a dyn AppWeakHandle,
-    /// If the handler is invoked in a *preview* context.
-    pub is_preview: bool,
-}
+/// Service available in app scoped [`Handler<A>`] calls.
+#[allow(non_camel_case_types)]
+pub struct APP_HANDLER;
 
-/// Represents an event handler in the app context.
-///
-/// There are different flavors of handlers, you can use macros to declare then.
-/// See [`app_hn!`], [`app_hn_once!`] or [`async_app_hn!`], [`async_app_hn_once!`] to start.
-#[diagnostic::on_unimplemented(
-    note = "use `app_hn!(|args: &{A}, _| {{ }})` to declare an app handler closure",
-    note = "use `app_hn_once!`, `async_app_hn!` or `async_app_hn_once!` for other closure types"
-)]
-pub trait AppHandler<A: Clone + 'static>: Any + Send {
-    /// Called every time the event happens.
-    ///
-    /// The `handler_args` can be used to unsubscribe the handler. Async handlers are expected to schedule
-    /// their tasks to run somewhere in the app, usually in the [`UPDATES.on_update`]. The `handle` is
-    /// **not** expected to cancel running async tasks, only to drop `self` before the next event happens.
-    ///
-    /// [`UPDATES.on_update`]: crate::update::UPDATES::on_update
-    fn event(&mut self, args: &A, handler_args: &AppHandlerArgs);
-
-    /// Boxes the handler.
-    ///
-    /// The type `Box<dyn AppHandler<A>>` implements `AppHandler<A>` and just returns itself
-    /// in this method, avoiding double boxing.
-    fn boxed(self) -> Box<dyn AppHandler<A>>
-    where
-        Self: Sized,
-    {
-        Box::new(self)
-    }
-}
-impl<A: Clone + 'static> AppHandler<A> for Box<dyn AppHandler<A>> {
-    #[inline(always)]
-    fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
-        self.as_mut().event(args, handler_args)
-    }
-
-    #[inline(always)]
-    fn boxed(self) -> Box<dyn AppHandler<A>> {
-        self
-    }
-}
-
-#[doc(hidden)]
-pub struct FnMutAppHandler<H> {
-    handler: H,
-}
-impl<A, H> AppHandler<A> for FnMutAppHandler<H>
-where
-    A: Clone + 'static,
-    H: FnMut(&A, &dyn AppWeakHandle) + Send + 'static,
-{
-    #[inline(always)]
-    fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
-        (self.handler)(args, handler_args.handle);
-    }
-}
-#[doc(hidden)]
-pub fn app_hn<A, H>(handler: H) -> FnMutAppHandler<H>
-where
-    A: Clone + 'static,
-    H: FnMut(&A, &dyn AppWeakHandle) + Send + 'static,
-{
-    FnMutAppHandler { handler }
-}
-
-///<span data-del-macro-root></span> Declare a mutable *clone-move* app event handler.
-///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`clmv!`] so
-/// the input is the same syntax.
-///
-/// # Examples
-///
-/// The example declares an event handler for the `CLICK_EVENT`.
-///
-/// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zng_app::handler::app_hn;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() {
-/// CLICK_EVENT
-///     .on_event(app_hn!(|_, _| {
-///         println!("Clicked Somewhere!");
-///     }))
-///     .perm();
-/// # }
-/// ```
-///
-/// The closure input is `&A, &dyn AppWeakHandle` with `&A` equaling `&ClickArgs` for this event. Note that
-/// if you want to use the event args you must annotate the input type, the context and handle type is inferred.
-///
-/// The handle can be used to unsubscribe the event handler, if [`unsubscribe`](AppWeakHandle::unsubscribe) is called the handler
-/// will be dropped some time before the next event update.
-///
-/// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zng_app::handler::app_hn;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() {
-/// CLICK_EVENT
-///     .on_event(app_hn!(|args: &ClickArgs, handle| {
-///         println!("Clicked {}!", args.target);
-///         handle.unsubscribe();
-///     }))
-///     .perm();
-/// # }
-/// ```
-///
-/// Internally the [`clmv!`] macro is used so you can *clone-move* variables into the handler.
-///
-/// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zng_txt::{formatx, ToTxt};
-/// # use zng_var::{var, Var};
-/// # use zng_app::handler::app_hn;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() {
-/// let foo = var("".to_txt());
-///
-/// CLICK_EVENT
-///     .on_event(app_hn!(foo, |args: &ClickArgs, _| {
-///         foo.set(args.target.to_txt());
-///     }))
-///     .perm();
-///
-/// // can still use after:
-/// let bar = foo.map(|c| formatx!("last click: {c}"));
-///
-/// # }
-/// ```
-///
-/// In the example above only a clone of `foo` is moved into the handler. Note that handlers always capture by move, if `foo` was not
-/// listed in the *clone-move* section it would not be available after the handler is created. See [`clmv!`] for details.
-///
-/// [`clmv!`]: zng_clone_move::clmv
-#[macro_export]
-macro_rules! app_hn {
-    ($($tt:tt)+) => {
-        $crate::handler::app_hn($crate::handler::clmv!{ $($tt)+ })
-    }
-}
-#[doc(inline)]
-pub use crate::app_hn;
-
-#[doc(hidden)]
-pub struct FnOnceAppHandler<H> {
-    handler: Option<H>,
-}
-impl<A, H> AppHandler<A> for FnOnceAppHandler<H>
-where
-    A: Clone + 'static,
-    H: FnOnce(&A) + Send + 'static,
-{
-    fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
-        if let Some(handler) = self.handler.take() {
-            handler(args);
-            handler_args.handle.unsubscribe();
+impl APP_HANDLER {
+    /// Acquire a weak reference to the event subscription handle if the handler is being called in the app scope.
+    pub fn weak_handle(&self) -> Option<Box<dyn AppWeakHandle>> {
+        if let Some(ctx) = &*APP_HANDLER_CTX.get() {
+            Some(ctx.handle.clone_boxed())
         } else {
-            tracing::error!("`app_hn_once!` called after requesting unsubscribe");
+            None
         }
     }
-}
-#[doc(hidden)]
-pub fn app_hn_once<A, H>(handler: H) -> FnOnceAppHandler<H>
-where
-    A: Clone + 'static,
-    H: FnOnce(&A) + Send + 'static,
-{
-    FnOnceAppHandler { handler: Some(handler) }
-}
 
-///<span data-del-macro-root></span> Declare a *clone-move* app event handler that is only called once.
-///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`clmv!`] so
-/// the input is the same syntax.
-///
-/// # Examples
-///
-/// The example captures `data` by move and then destroys it in the first call, this cannot be done using [`app_hn!`] because
-/// the `data` needs to be available for all event calls. In this case the closure is only called once, subsequent events
-/// are ignored by the handler and it automatically requests unsubscribe.
-///
-/// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zng_app::handler::app_hn_once;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() {
-/// let data = vec![1, 2, 3];
-///
-/// CLICK_EVENT
-///     .on_event(app_hn_once!(|_| {
-///         for i in data {
-///             print!("{i}, ");
-///         }
-///     }))
-///     .perm();
-/// # }
-/// ```
-///
-/// Other then declaring a `FnOnce` this macro behaves like [`app_hn!`], so the same considerations apply. You can *clone-move* variables,
-/// the type of the input is the event arguments and must be annotated.
-///
-/// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zng_app::handler::app_hn_once;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() {
-/// let data = vec![1, 2, 3];
-///
-/// CLICK_EVENT
-///     .on_event(app_hn_once!(data, |args: &ClickArgs| {
-///         drop(data);
-///     }))
-///     .perm();
-///
-/// println!("{data:?}");
-/// # }
-/// ```
-///
-/// [`clmv!`]: zng_clone_move::clmv
-#[macro_export]
-macro_rules! app_hn_once {
-    ($($tt:tt)+) => {
-        $crate::handler::app_hn_once($crate::handler::clmv! { $($tt)+ })
-    }
-}
-#[doc(inline)]
-pub use crate::app_hn_once;
-
-#[doc(hidden)]
-pub struct AsyncFnMutAppHandler<H> {
-    handler: H,
-}
-impl<A, F, H> AppHandler<A> for AsyncFnMutAppHandler<H>
-where
-    A: Clone + 'static,
-    F: Future<Output = ()> + Send + 'static,
-    H: FnMut(A, Box<dyn AppWeakHandle>) -> F + Send + 'static,
-{
-    fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
-        let handler = &mut self.handler;
-        let mut task = UiTask::new(None, handler(args.clone(), handler_args.handle.clone_boxed()));
-        if task.update().is_none() {
-            if handler_args.is_preview {
-                UPDATES
-                    .on_pre_update(app_hn!(|_, handle| {
-                        if task.update().is_some() {
-                            handle.unsubscribe();
-                        }
-                    }))
-                    .perm();
-            } else {
-                UPDATES
-                    .on_update(app_hn!(|_, handle| {
-                        if task.update().is_some() {
-                            handle.unsubscribe();
-                        }
-                    }))
-                    .perm();
-            }
+    /// Unsubscribe, if the handler is being called in the app scope.
+    pub fn unsubscribe(&self) {
+        if let Some(h) = self.weak_handle() {
+            h.unsubscribe();
         }
     }
-}
-#[doc(hidden)]
-pub fn async_app_hn<A, F, H>(handler: H) -> AsyncFnMutAppHandler<H>
-where
-    A: Clone + 'static,
-    F: Future<Output = ()> + Send + 'static,
-    H: FnMut(A, Box<dyn AppWeakHandle>) -> F + Send + 'static,
-{
-    AsyncFnMutAppHandler { handler }
-}
 
-///<span data-del-macro-root></span> Declare an async *clone-move* app event handler.
-///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clmv_fn!`] so
-/// the input is the same syntax.
-///
-/// The handler generates a future for each event, the future is polled immediately if it does not finish it is scheduled
-/// to update in [`on_pre_update`](crate::update::UPDATES::on_pre_update) or [`on_update`](crate::update::UPDATES::on_update) depending
-/// on if the handler was assigned to a *preview* event or not.
-///
-/// Note that this means [`propagation`](crate::event::AnyEventArgs::propagation) can only be meaningfully stopped before the
-/// first `.await`, after, the event has already propagated.
-///
-/// # Examples
-///
-/// The example declares an async event handler for the `CLICK_EVENT`.
-///
-/// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zng_app::handler::async_app_hn;
-/// # use zng_task as task;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() {
-/// CLICK_EVENT
-///     .on_event(async_app_hn!(|_, _| {
-///         println!("Clicked Somewhere!");
-///
-///         task::run(async {
-///             println!("In other thread!");
-///         })
-///         .await;
-///
-///         println!("Back in UI thread, in an app update.");
-///     }))
-///     .perm();
-/// # }
-/// ```
-///
-/// The closure input is `A, Box<dyn AppWeakHandle>` for all handlers and `A` is `ClickArgs` for this example. Note that
-/// if you want to use the event args you must annotate the input type, the context and handle types are inferred.
-///
-/// The handle can be used to unsubscribe the event handler, if [`unsubscribe`](AppWeakHandle::unsubscribe) is called the handler
-/// will be dropped some time before the next event update. Running tasks are not canceled by unsubscribing, the only way to *cancel*
-/// then is by returning early inside the async blocks.
-///
-/// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zng_app::handler::async_app_hn;
-/// # use zng_task as task;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() {
-/// CLICK_EVENT
-///     .on_event(async_app_hn!(|args: ClickArgs, handle| {
-///         println!("Clicked {}!", args.target);
-///         task::run(async move {
-///             handle.unsubscribe();
-///         });
-///     }))
-///     .perm();
-/// # }
-/// ```
-///
-/// Internally the [`async_clmv_fn!`] macro is used so you can *clone-move* variables into the handler.
-///
-/// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zng_app::handler::async_app_hn;
-/// # use zng_var::{var, Var};
-/// # use zng_task as task;
-/// # use zng_txt::{formatx, ToTxt};
-/// #
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() {
-/// let status = var("pending..".to_txt());
-///
-/// CLICK_EVENT
-///     .on_event(async_app_hn!(status, |args: ClickArgs, _| {
-///         status.set(formatx!("processing {}..", args.target));
-///
-///         task::run(async move {
-///             println!("do something slow");
-///         })
-///         .await;
-///
-///         status.set(formatx!("finished {}", args.target));
-///     }))
-///     .perm();
-///
-/// // can still use after:
-/// let text = status;
-///
-/// # }
-/// ```
-///
-/// In the example above only a clone of `status` is moved into the handler. Note that handlers always capture by move, if `status` was not
-/// listed in the *clone-move* section it would not be available after the handler is created. See [`async_clmv_fn!`] for details.
-///
-/// ## Futures and Clone-Move
-///
-/// You may want to always *clone-move* captures for async handlers, because they then automatically get cloned again for each event. This
-/// needs to happen because you can have more then one *handler task* running at the same type, and both want access to the captured variables.
-///
-/// This second cloning can be avoided by using the [`async_hn_once!`] macro instead, but only if you expect a single event.
-///
-/// [`async_clmv_fn!`]: zng_clone_move::async_clmv_fn
-#[macro_export]
-macro_rules! async_app_hn {
-    ($($tt:tt)+) => {
-        $crate::handler::async_app_hn($crate::handler::async_clmv_fn! { $($tt)+ })
-    }
-}
-#[doc(inline)]
-pub use crate::async_app_hn;
-
-#[doc(hidden)]
-pub struct AsyncFnOnceAppHandler<H> {
-    handler: Option<H>,
-}
-
-impl<A, F, H> AppHandler<A> for AsyncFnOnceAppHandler<H>
-where
-    A: Clone + 'static,
-    F: Future<Output = ()> + Send + 'static,
-    H: FnOnce(A) -> F + Send + 'static,
-{
-    fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
-        if let Some(handler) = self.handler.take() {
-            handler_args.handle.unsubscribe();
-
-            let mut task = UiTask::new(None, handler(args.clone()));
-            if task.update().is_none() {
-                if handler_args.is_preview {
-                    UPDATES
-                        .on_pre_update(app_hn!(|_, handle| {
-                            if task.update().is_some() {
-                                handle.unsubscribe();
-                            }
-                        }))
-                        .perm();
-                } else {
-                    UPDATES
-                        .on_update(app_hn!(|_, handle| {
-                            if task.update().is_some() {
-                                handle.unsubscribe();
-                            }
-                        }))
-                        .perm();
-                }
-            }
+    /// If the handler is being called in the *preview* track.
+    pub fn is_preview(&self) -> bool {
+        if let Some(ctx) = &*APP_HANDLER_CTX.get() {
+            ctx.is_preview
         } else {
-            tracing::error!("`async_app_hn_once!` called after requesting unsubscribe");
+            false
         }
     }
+
+    /// Calls `f` with the `handle` and `is_preview` values in context.
+    pub fn with<R>(&self, handle: Box<dyn AppWeakHandle>, is_preview: bool, f: impl FnOnce() -> R) -> R {
+        APP_HANDLER_CTX.with_context(&mut Some(Arc::new(Some(AppHandlerCtx { handle, is_preview }))), f)
+    }
 }
-#[doc(hidden)]
-pub fn async_app_hn_once<A, F, H>(handler: H) -> AsyncFnOnceAppHandler<H>
-where
-    A: Clone + 'static,
-    F: Future<Output = ()> + Send + 'static,
-    H: FnOnce(A) -> F + Send + 'static,
-{
-    AsyncFnOnceAppHandler { handler: Some(handler) }
+zng_app_context::context_local! {
+    static APP_HANDLER_CTX: Option<AppHandlerCtx> = None;
 }
 
-///<span data-del-macro-root></span> Declare an async *clone-move* app event handler that is only called once.
-///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clmv_fn_once!`] so
-/// the input is the same syntax.
-///
-/// # Examples
-///
-/// The example captures `data` by move and then moves it again to another thread. This is not something you can do using [`async_app_hn!`]
-/// because that handler expects to be called many times. We want to handle `CLICK_EVENT` once in this example, so we can don't need
-/// to capture by *clone-move* just to use `data`.
-///
-/// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zng_app::handler::async_hn_once;
-/// # use zng_task as task;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
-/// let data = vec![1, 2, 3];
-/// # let
-/// on_open = async_hn_once!(|_| {
-///     task::run(async move {
-///         for i in data {
-///             print!("{i}, ");
-///         }
-///     })
-///     .await;
-///
-///     println!("Done!");
-/// });
-/// # on_open }
-/// ```
-///
-/// You can still *clone-move* to have access to the variable after creating the handler, in this case the `data` will be cloned into the handler
-/// but will just be moved to the other thread, avoiding a needless clone.
-///
-/// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zng_app::handler::async_hn_once;
-/// # use zng_task as task;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
-/// let data = vec![1, 2, 3];
-/// # let
-/// on_open = async_hn_once!(data, |_| {
-///     task::run(async move {
-///         for i in data {
-///             print!("{i}, ");
-///         }
-///     })
-///     .await;
-///
-///     println!("Done!");
-/// });
-/// println!("{data:?}");
-/// # on_open }
-/// ```
-///
-/// [`async_clmv_fn_once!`]: zng_clone_move::async_clmv_fn_once
-#[macro_export]
-macro_rules! async_app_hn_once {
-    ($($tt:tt)+) => {
-        $crate::handler::async_app_hn_once($crate::handler::async_clmv_fn_once! { $($tt)+ })
-    }
-}
-#[doc(inline)]
-pub use crate::async_app_hn_once;
-use crate::update::UPDATES;
-use crate::widget::{UiTaskWidget, WIDGET};
-
-/// Widget handler wrapper that filters the events, only delegating to `self` when `filter` returns `true`.
-pub struct FilterWidgetHandler<A, H, F> {
-    _args: PhantomData<fn() -> A>,
-    handler: H,
-    filter: F,
-}
-impl<A, H, F> FilterWidgetHandler<A, H, F>
-where
-    A: Clone + 'static,
-    H: WidgetHandler<A>,
-    F: FnMut(&A) -> bool + Send + 'static,
-{
-    /// New filter handler.
-    pub fn new(handler: H, filter: F) -> Self {
-        Self {
-            handler,
-            filter,
-            _args: PhantomData,
-        }
-    }
-}
-impl<A, H, F> WidgetHandler<A> for FilterWidgetHandler<A, H, F>
-where
-    A: Clone + 'static,
-    H: WidgetHandler<A>,
-    F: FnMut(&A) -> bool + Send + 'static,
-{
-    #[inline(always)]
-    fn event(&mut self, args: &A) -> bool {
-        if (self.filter)(args) { self.handler.event(args) } else { false }
-    }
-
-    #[inline(always)]
-    fn update(&mut self) -> bool {
-        self.handler.update()
-    }
-}
-
-/// App handler wrapper that filters the events, only delegating to `self` when `filter` returns `true`.
-pub struct FilterAppHandler<A, H, F> {
-    _args: PhantomData<fn() -> A>,
-    handler: H,
-    filter: F,
-}
-impl<A, H, F> FilterAppHandler<A, H, F>
-where
-    A: Clone + 'static,
-    H: AppHandler<A>,
-    F: FnMut(&A) -> bool + Send + 'static,
-{
-    /// New filter handler.
-    pub fn new(handler: H, filter: F) -> Self {
-        Self {
-            handler,
-            filter,
-            _args: PhantomData,
-        }
-    }
-}
-impl<A, H, F> AppHandler<A> for FilterAppHandler<A, H, F>
-where
-    A: Clone + 'static,
-    H: AppHandler<A>,
-    F: FnMut(&A) -> bool + Send + 'static,
-{
-    #[inline(always)]
-    fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
-        if (self.filter)(args) {
-            self.handler.event(args, handler_args);
-        }
-    }
+struct AppHandlerCtx {
+    handle: Box<dyn AppWeakHandle>,
+    is_preview: bool,
 }
 
 impl HeadlessApp {
-    /// Calls an [`AppHandler<A>`] once and blocks until the update tasks started during the call complete.
+    /// Calls a [`Handler<A>`] once and blocks until the update tasks started during the call complete.
     ///
     /// This function *spins* until all update tasks are completed. Timers or send events can
     /// be received during execution but the loop does not sleep, it just spins requesting an update
     /// for each pass.
-    pub fn block_on<A>(&mut self, handler: &mut dyn AppHandler<A>, args: &A, timeout: Duration) -> Result<(), String>
+    pub fn block_on<A>(&mut self, handler: &mut Handler<A>, args: &A, timeout: Duration) -> Result<(), String>
     where
         A: Clone + 'static,
     {
         self.block_on_multi(vec![handler], args, timeout)
     }
 
-    /// Calls multiple [`AppHandler<A>`] once each and blocks until all update tasks are complete.
+    /// Calls multiple [`Handler<A>`] once each and blocks until all update tasks are complete.
     ///
     /// This function *spins* until all update tasks are completed. Timers or send events can
     /// be received during execution but the loop does not sleep, it just spins requesting an update
     /// for each pass.
-    pub fn block_on_multi<A>(&mut self, handlers: Vec<&mut dyn AppHandler<A>>, args: &A, timeout: Duration) -> Result<(), String>
+    pub fn block_on_multi<A>(&mut self, handlers: Vec<&mut Handler<A>>, args: &A, timeout: Duration) -> Result<(), String>
     where
         A: Clone + 'static,
     {
         let (pre_len, pos_len) = UPDATES.handler_lens();
 
-        let handler_args = AppHandlerArgs {
-            handle: &Handle::dummy(()).downgrade(),
-            is_preview: false,
-        };
+        let handle = Handle::dummy(()).downgrade();
         for handler in handlers {
-            handler.event(args, &handler_args);
+            handler.app_event(handle.clone_boxed(), false, args);
         }
 
         let mut pending = UPDATES.new_update_handlers(pre_len, pos_len);
@@ -1235,10 +756,9 @@ impl HeadlessApp {
     /// [`block_on`]: Self::block_on
     #[track_caller]
     #[cfg(any(test, doc, feature = "test_util"))]
-    pub fn doc_test<A, H>(args: A, mut handler: H)
+    pub fn doc_test<A, H>(args: A, mut handler: Handler<A>)
     where
         A: Clone + 'static,
-        H: AppHandler<A>,
     {
         let mut app = crate::APP.minimal().run_headless(false);
         app.block_on(&mut handler, &args, DOC_TEST_BLOCK_ON_TIMEOUT).unwrap();
@@ -1249,15 +769,71 @@ impl HeadlessApp {
     /// [`block_on_multi`]: Self::block_on_multi
     #[track_caller]
     #[cfg(any(test, doc, feature = "test_util"))]
-    pub fn doc_test_multi<A>(args: A, mut handlers: Vec<Box<dyn AppHandler<A>>>)
+    pub fn doc_test_multi<A>(args: A, mut handlers: Vec<Handler<A>>)
     where
         A: Clone + 'static,
     {
         let mut app = crate::APP.minimal().run_headless(false);
-        app.block_on_multi(handlers.iter_mut().map(|h| h.as_mut()).collect(), &args, DOC_TEST_BLOCK_ON_TIMEOUT)
+        app.block_on_multi(handlers.iter_mut().collect(), &args, DOC_TEST_BLOCK_ON_TIMEOUT)
             .unwrap()
     }
 }
 
 #[cfg(any(test, doc, feature = "test_util"))]
 const DOC_TEST_BLOCK_ON_TIMEOUT: Duration = Duration::from_secs(60);
+
+#[cfg(test)]
+mod tests {
+    use crate::handler::{Handler, async_hn, async_hn_once, hn, hn_once};
+
+    #[test]
+    fn hn_return() {
+        t(hn!(|args| {
+            if args.field {
+                return;
+            }
+            println!("else");
+        }))
+    }
+
+    #[test]
+    fn hn_once_return() {
+        t(hn_once!(|args: &TestArgs| {
+            if args.field {
+                return;
+            }
+            println!("else");
+        }))
+    }
+
+    #[test]
+    fn async_hn_return() {
+        t(async_hn!(|args| {
+            if args.field {
+                return;
+            }
+            args.task().await;
+        }))
+    }
+
+        #[test]
+    fn async_hn_once_return() {
+        t(async_hn_once!(|args: &TestArgs| {
+            if args.field {
+                return;
+            }
+            args.task().await;
+        }))
+    }
+
+    fn t(_: Handler<TestArgs>) {}
+
+    #[derive(Clone, Default)]
+    struct TestArgs {
+        pub field: bool,
+    }
+
+    impl TestArgs {
+        async fn task(&self) {}
+    }
+}

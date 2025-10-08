@@ -581,7 +581,7 @@ mod __prelude {
     pub use zng_app::{
         INSTANT,
         event::{AnyEventArgs as _, CommandInfoExt as _, CommandNameExt as _, CommandParam, EventArgs as _},
-        handler::{app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once},
+        handler::{HandlerExt as _, async_hn, async_hn_once, hn, hn_once},
         shortcut::{CommandShortcutExt as _, shortcut},
         widget::{
             AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _, WIDGET, WidgetId, easing,
@@ -769,7 +769,7 @@ mod __prelude_wgt {
             AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, CommandParam, Event, EventArgs as _,
             EventHandle, EventHandles, EventPropagationHandle, command, event, event_args,
         },
-        handler::{AppHandler, WidgetHandler, app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once},
+        handler::{Handler, HandlerExt as _, async_hn, async_hn_once, hn, hn_once},
         render::{FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, SpatialFrameId, TransformStyle},
         shortcut::{CommandShortcutExt as _, Shortcut, ShortcutFilter, Shortcuts, shortcut},
         timer::{DeadlineHandle, DeadlineVar, TIMERS, TimerHandle, TimerVar},

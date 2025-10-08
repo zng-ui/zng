@@ -48,7 +48,7 @@ fn text_editor_window(is_open: Var<bool>) -> WindowRoot {
         on_close = hn!(is_open, |_| {
             is_open.set(false);
         });
-        on_close_requested = async_hn!(editor, |args: WindowCloseRequestedArgs| {
+        on_close_requested = async_hn!(editor, |args| {
             editor.on_close_requested(args).await;
         });
         min_width = 450;

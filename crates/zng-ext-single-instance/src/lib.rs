@@ -15,7 +15,7 @@ use std::{
 use zng_app::{
     AppExtension,
     event::{event, event_args},
-    handler::{async_app_hn, clmv},
+    handler::{async_hn, clmv},
 };
 use zng_ext_fs_watcher::WATCHER;
 use zng_txt::{ToTxt, Txt};
@@ -45,7 +45,7 @@ impl AppExtension for SingleInstanceManager {
         WATCHER
             .on_file_changed(
                 &args_file,
-                async_app_hn!(args_file, |_, _| {
+                async_hn!(args_file, |_| {
                     let args = zng_task::wait(clmv!(args_file, || {
                         for i in 0..5 {
                             if i > 0 {

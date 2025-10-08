@@ -264,7 +264,7 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
                         align = Align::TOP_RIGHT;
                         padding = 2;
                         margin = 4;
-                        on_click = async_hn!(opacity, |args: ClickArgs| {
+                        on_click = async_hn!(opacity, |args| {
                             args.propagation().stop();
 
                             opacity.ease(0.fct(), 150.ms(), easing::linear).perm();

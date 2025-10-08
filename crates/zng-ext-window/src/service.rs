@@ -2,8 +2,9 @@ use std::{mem, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
-    APP, AppEventSender, Deadline, EXIT_REQUESTED_EVENT, app_hn_once,
+    APP, AppEventSender, Deadline, EXIT_REQUESTED_EVENT,
     event::AnyEventArgs,
+    hn_once,
     timer::{DeadlineHandle, TIMERS},
     update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, WidgetUpdates},
     view_process::{
@@ -1770,7 +1771,7 @@ impl WindowLoading {
             if self.timer.is_none() {
                 let t = TIMERS.on_deadline(
                     deadline,
-                    app_hn_once!(|_| {
+                    hn_once!(|_| {
                         UPDATES.update_window(window_id).layout_window(window_id).render_window(window_id);
                     }),
                 );

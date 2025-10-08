@@ -329,7 +329,7 @@ pub fn handle_settings_cmd() {
     SETTINGS_CMD
         .on_event(
             true,
-            async_app_hn!(|args: zng_app::event::AppCommandArgs, _| {
+            async_hn!(|args| {
                 if args.propagation().is_stopped() || !SETTINGS.any(|_, _| true) {
                     return;
                 }

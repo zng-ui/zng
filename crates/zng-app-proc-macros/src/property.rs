@@ -180,7 +180,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         InputKind::UiNode => default.extend(quote! {
                             #core::widget::node::UiNode::nil(),
                         }),
-                        InputKind::WidgetHandler if !has_generics => default.extend(quote! {
+                        InputKind::Handler if !has_generics => default.extend(quote! {
                             #core::handler::hn!(|_| {}),
                         }),
                         _ => {
@@ -217,7 +217,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let mut get_var = quote!();
         let mut get_value = quote!();
         let mut get_ui_node = quote!();
-        let mut get_widget_handler = quote!();
+        let mut get_handler = quote!();
 
         let mut instantiate = quote!();
         let mut input_idents = vec![];
@@ -350,36 +350,36 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         }
                     });
                 }
-                InputKind::WidgetHandler => {
+                InputKind::Handler => {
                     allowed_in_when_expr = false;
                     input_to_storage.push(quote! {
-                        #core::widget::builder::widget_handler_to_args(#ident)
+                        #core::widget::builder::handler_to_args(#ident)
                     });
                     named_into.extend(quote! {
                         pub fn #ident #impl_gens(&self, #ident: #input_ty) -> #input_ty #where_gens {
                             #ident
                         }
                     });
-                    get_widget_handler.extend(quote! {
+                    get_handler.extend(quote! {
                         #i => &self.#ident,
                     });
                     instantiate.extend(quote! {
-                        std::clone::Clone::clone(&self.#ident),
+                        self.#ident.handler(),
                     });
                     input_new_dyn.push(quote! {
                         let __actions__ = #core::widget::builder::iter_input_build_actions(&__args__.build_actions, &__args__.build_actions_when_data, #i);
-                        #core::widget::builder::new_dyn_widget_handler(&mut __inputs__, __actions__)
+                        #core::widget::builder::new_dyn_handler(&mut __inputs__, __actions__)
                     });
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
                         pub fn #get_ident #impl_gens(&self)
-                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#core::widget::builder::WidgetHandlerInWhenExprError>) #where_gens {
-                            #core::widget::builder::WhenInputVar::new::<#core::widget::builder::WidgetHandlerInWhenExprError>()
+                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#core::widget::builder::HandlerInWhenExprError>) #where_gens {
+                            #core::widget::builder::WhenInputVar::new::<#core::widget::builder::HandlerInWhenExprError>()
                         }
                         pub fn #get_ident_i #impl_gens(&self)
-                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#core::widget::builder::WidgetHandlerInWhenExprError>) #where_gens {
-                            #core::widget::builder::WhenInputVar::new::<#core::widget::builder::WidgetHandlerInWhenExprError>()
+                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#core::widget::builder::HandlerInWhenExprError>) #where_gens {
+                            #core::widget::builder::WhenInputVar::new::<#core::widget::builder::HandlerInWhenExprError>()
                         }
                     });
                 }
@@ -416,12 +416,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
             }
         }
-        if !get_widget_handler.is_empty() {
-            get_widget_handler = quote! {
-                fn widget_handler(&self, __index__: usize) -> &dyn #core::widget::builder::AnyArcWidgetHandler {
+        if !get_handler.is_empty() {
+            get_handler = quote! {
+                fn handler(&self, __index__: usize) -> &dyn #core::widget::builder::AnyArcHandler {
                     match __index__ {
-                        #get_widget_handler
-                        n => #core::widget::builder::panic_input(&self.property(), n, #core::widget::builder::InputKind::WidgetHandler),
+                        #get_handler
+                        n => #core::widget::builder::panic_input(&self.property(), n, #core::widget::builder::InputKind::Handler),
                     }
                 }
             }
@@ -575,7 +575,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #get_var
                 #get_value
                 #get_ui_node
-                #get_widget_handler
+                #get_handler
             }
         };
         let inputs = quote! {
@@ -781,7 +781,7 @@ enum InputKind {
     Var,
     Value,
     UiNode,
-    WidgetHandler,
+    Handler,
 }
 impl ToTokens for InputKind {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -789,7 +789,7 @@ impl ToTokens for InputKind {
             InputKind::Var => ident!("Var"),
             InputKind::Value => ident!("Value"),
             InputKind::UiNode => ident!("UiNode"),
-            InputKind::WidgetHandler => ident!("WidgetHandler"),
+            InputKind::Handler => ident!("Handler"),
         };
         let core = crate_core();
         tokens.extend(quote! {
@@ -836,6 +836,19 @@ impl Input {
                 }
                 let core = crate_core();
 
+                fn ty_from_generic(input: &mut Input, errors: &mut Errors, t: &Type, kind: InputKind, args: &PathArguments) -> bool {
+                    if let PathArguments::AngleBracketed(it) = args
+                        && it.args.len() == 1
+                    {
+                        input.kind = kind;
+                        input.ty = t.to_token_stream();
+                        input.info_ty = it.args.last().unwrap().to_token_stream();
+                        return true;
+                    }
+                    errors.push("expected single generic param", args.span());
+                    false
+                }
+
                 match *t.ty.clone() {
                     Type::ImplTrait(mut it) if it.bounds.len() == 1 => {
                         let bounds = it.bounds.pop().unwrap().into_value();
@@ -843,26 +856,6 @@ impl Input {
                             TypeParamBound::Trait(tra) if tra.lifetimes.is_none() && tra.paren_token.is_none() => {
                                 let path = tra.path;
                                 let seg = path.segments.last().unwrap();
-
-                                fn ty_from_generic(
-                                    input: &mut Input,
-                                    errors: &mut Errors,
-                                    t: &Type,
-                                    kind: InputKind,
-                                    args: &PathArguments,
-                                ) -> bool {
-                                    if let PathArguments::AngleBracketed(it) = args
-                                        && it.args.len() == 1
-                                    {
-                                        input.kind = kind;
-                                        input.ty = t.to_token_stream();
-                                        input.info_ty = it.args.last().unwrap().to_token_stream();
-                                        return true;
-                                    }
-                                    errors.push("expected single generic param", args.span());
-                                    false
-                                }
-
                                 match seg.ident.to_string().as_str() {
                                     "IntoVar" if !seg.arguments.is_empty() => {
                                         if ty_from_generic(&mut input, errors, &t.ty, InputKind::Var, &seg.arguments) {
@@ -875,12 +868,6 @@ impl Input {
                                             input.storage_ty = input.info_ty.clone();
                                         }
                                     }
-                                    "WidgetHandler" if !seg.arguments.is_empty() => {
-                                        if ty_from_generic(&mut input, errors, &t.ty, InputKind::WidgetHandler, &seg.arguments) {
-                                            let t = &input.info_ty;
-                                            input.storage_ty = quote!(#core::widget::builder::ArcWidgetHandler<#t>);
-                                        }
-                                    }
                                     "IntoUiNode" => {
                                         input.kind = InputKind::UiNode;
                                         input.ty = t.ty.to_token_stream();
@@ -888,17 +875,38 @@ impl Input {
                                         input.storage_ty = quote!(#core::widget::node::ArcNode);
                                     }
                                     _ => {
-                                        errors.push("property input can only have impl types for: IntoVar<T>, IntoValue<T>, IntoUiNode, WidgetHandler<A>", seg.span());
+                                        errors.push("property input can only have types impl IntoVar<T>, impl IntoValue<T>, impl IntoUiNode or Handler<A>", seg.span());
                                     }
                                 }
                             }
                             t => {
-                                errors.push("property input can only have `impl OneTrait`", t.span());
+                                errors.push(
+                                    "property input can only have types impl IntoVar<T>, impl IntoValue<T>, impl IntoUiNode or Handler<A>",
+                                    t.span(),
+                                );
                             }
                         }
                     }
+                    Type::Path(p) if p.qself.is_none() && !p.path.segments.is_empty() => {
+                        let seg = p.path.segments.last().unwrap();
+
+                        if seg.ident.to_string().as_str() == "Handler" && !seg.arguments.is_empty() {
+                            if ty_from_generic(&mut input, errors, &t.ty, InputKind::Handler, &seg.arguments) {
+                                let t = &input.info_ty;
+                                input.storage_ty = quote!(#core::handler::ArcHandler<#t>);
+                            }
+                        } else {
+                            errors.push(
+                                "property input can only have types impl IntoVar<T>, impl IntoValue<T>, impl IntoUiNode or Handler<A>",
+                                seg.span(),
+                            );
+                        }
+                    }
                     t => {
-                        errors.push("property input can only have `impl OneTrait` types", t.span());
+                        errors.push(
+                            "property input can only have types impl IntoVar<T>, impl IntoValue<T>, impl IntoUiNode or Handler<A>",
+                            t.span(),
+                        );
                     }
                 }
             }

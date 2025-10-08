@@ -26,7 +26,7 @@ mod channel;
 pub use channel::*;
 
 use crate::{
-    handler::{AppHandler, AppHandlerArgs},
+    handler::{AppWeakHandle, Handler, HandlerExt as _},
     update::{EventUpdate, UpdateDeliveryList, UpdateSubscribers},
     widget::WidgetId,
 };
@@ -251,10 +251,7 @@ impl<A: EventArgs> Event<A> {
     /// [`async_app_hn!`]: crate::handler::async_app_hn!
     /// [`app_hn_once!`]: crate::handler::app_hn_once!
     /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
-    pub fn on_pre_event<H>(&self, handler: H) -> EventHandle
-    where
-        H: AppHandler<A>,
-    {
+    pub fn on_pre_event(&self, handler: Handler<A>) -> EventHandle {
         self.on_event_impl(handler, true)
     }
 
@@ -298,12 +295,12 @@ impl<A: EventArgs> Event<A> {
     /// [`async_app_hn!`]: crate::handler::async_app_hn!
     /// [`app_hn_once!`]: crate::handler::app_hn_once!
     /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
-    pub fn on_event(&self, handler: impl AppHandler<A>) -> EventHandle {
+    pub fn on_event(&self, handler: Handler<A>) -> EventHandle {
         self.on_event_impl(handler, false)
     }
 
-    fn on_event_impl(&self, handler: impl AppHandler<A>, is_preview: bool) -> EventHandle {
-        let handler = Arc::new(Mutex::new(handler));
+    fn on_event_impl(&self, handler: Handler<A>, is_preview: bool) -> EventHandle {
+        let handler = handler.into_arc();
         let (inner_handle_owner, inner_handle) = zng_handle::Handle::new(());
         self.as_any().hook(move |update| {
             if inner_handle_owner.is_dropped() {
@@ -315,13 +312,7 @@ impl<A: EventArgs> Event<A> {
                 Box::new(clmv!(handler, |update| {
                     let args = update.args().as_any().downcast_ref::<A>().unwrap();
                     if !args.propagation().is_stopped() {
-                        handler.lock().event(
-                            args,
-                            &AppHandlerArgs {
-                                handle: &handle,
-                                is_preview,
-                            },
-                        );
+                        handler.app_event(handle.clone_boxed(), is_preview, args);
                     }
                 })),
                 is_preview,

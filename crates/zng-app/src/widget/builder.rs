@@ -1,6 +1,9 @@
 //! Widget and property builder types.
 
-use crate::{handler::WidgetHandler, widget::node::IntoUiNode};
+use crate::{
+    handler::{ArcHandler, Handler, HandlerExt},
+    widget::node::IntoUiNode,
+};
 use std::{
     any::{Any, TypeId},
     collections::{HashMap, hash_map},
@@ -580,40 +583,12 @@ pub enum InputKind {
     Value,
     /// Input is `impl IntoUiNode`, build value is `ArcNode`.
     UiNode,
-    /// Input is `impl WidgetHandler<A>`, build value is `ArcWidgetHandler<A>`.
-    WidgetHandler,
+    /// Input is `impl Handler<A>`, build value is `ArcHandler<A>`.
+    Handler,
 }
 
-/// Represents a [`WidgetHandler<A>`] that can be reused.
-///
-/// Note that [`hn_once!`] will still only be used once, and [`async_hn!`] tasks are bound to the specific widget
-/// context that spawned them. This `struct` is cloneable to support handler properties in styleable widgets, but the
-/// general expectation is that the handler will be used on one property instance at a time.
-///
-/// [`hn_once!`]: macro@crate::handler::hn_once
-/// [`async_hn!`]: macro@crate::handler::async_hn
-#[derive(Clone)]
-pub struct ArcWidgetHandler<A: Clone + 'static>(Arc<Mutex<dyn WidgetHandler<A>>>);
-impl<A: Clone + 'static> ArcWidgetHandler<A> {
-    /// New from `handler`.
-    pub fn new(handler: impl WidgetHandler<A>) -> Self {
-        Self(Arc::new(Mutex::new(handler)))
-    }
-}
-impl<A: Clone + 'static> WidgetHandler<A> for ArcWidgetHandler<A> {
-    #[inline(always)]
-    fn event(&mut self, args: &A) -> bool {
-        self.0.lock().event(args)
-    }
-
-    #[inline(always)]
-    fn update(&mut self) -> bool {
-        self.0.lock().update()
-    }
-}
-
-/// Represents a type erased [`ArcWidgetHandler<A>`].
-pub trait AnyArcWidgetHandler: Any {
+/// Represents a type erased [`ArcHandler<A>`].
+pub trait AnyArcHandler: Any {
     /// Access to `dyn Any` methods.
     fn as_any(&self) -> &dyn Any;
 
@@ -621,10 +596,10 @@ pub trait AnyArcWidgetHandler: Any {
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
     /// Clone the handler reference.
-    fn clone_boxed(&self) -> Box<dyn AnyArcWidgetHandler>;
+    fn clone_boxed(&self) -> Box<dyn AnyArcHandler>;
 }
-impl<A: Clone + 'static> AnyArcWidgetHandler for ArcWidgetHandler<A> {
-    fn clone_boxed(&self) -> Box<dyn AnyArcWidgetHandler> {
+impl<A: Clone + 'static> AnyArcHandler for ArcHandler<A> {
+    fn clone_boxed(&self) -> Box<dyn AnyArcHandler> {
         Box::new(self.clone())
     }
 
@@ -637,16 +612,16 @@ impl<A: Clone + 'static> AnyArcWidgetHandler for ArcWidgetHandler<A> {
     }
 }
 
-/// A `when` builder for [`AnyArcWidgetHandler`] values.
+/// A `when` builder for [`AnyArcHandler`] values.
 ///
 /// This builder is used to generate a composite handler that redirects to active `when` matched property values.
-pub struct AnyWhenArcWidgetHandlerBuilder {
-    default: Box<dyn AnyArcWidgetHandler>,
-    conditions: Vec<(Var<bool>, Box<dyn AnyArcWidgetHandler>)>,
+pub struct AnyWhenArcHandlerBuilder {
+    default: Box<dyn AnyArcHandler>,
+    conditions: Vec<(Var<bool>, Box<dyn AnyArcHandler>)>,
 }
-impl AnyWhenArcWidgetHandlerBuilder {
+impl AnyWhenArcHandlerBuilder {
     /// New from default value.
-    pub fn new(default: Box<dyn AnyArcWidgetHandler>) -> Self {
+    pub fn new(default: Box<dyn AnyArcHandler>) -> Self {
         Self {
             default,
             conditions: vec![],
@@ -654,51 +629,33 @@ impl AnyWhenArcWidgetHandlerBuilder {
     }
 
     /// Push a conditional handler.
-    pub fn push(&mut self, condition: Var<bool>, handler: Box<dyn AnyArcWidgetHandler>) {
+    pub fn push(&mut self, condition: Var<bool>, handler: Box<dyn AnyArcHandler>) {
         self.conditions.push((condition, handler));
     }
 
     /// Build the handler.
-    pub fn build<A: Clone + 'static>(self) -> ArcWidgetHandler<A> {
-        match self.default.into_any().downcast::<ArcWidgetHandler<A>>() {
+    pub fn build<A: Clone + 'static>(self) -> ArcHandler<A> {
+        match self.default.into_any().downcast::<ArcHandler<A>>() {
             Ok(default) => {
                 let mut conditions = Vec::with_capacity(self.conditions.len());
                 for (c, h) in self.conditions {
-                    match h.into_any().downcast::<ArcWidgetHandler<A>>() {
+                    match h.into_any().downcast::<ArcHandler<A>>() {
                         Ok(h) => conditions.push((c, *h)),
                         Err(_) => continue,
                     }
                 }
-                ArcWidgetHandler::new(WhenWidgetHandler {
-                    default: *default,
-                    conditions,
-                })
+                let handler: Handler<A> = Box::new(move |args: &A| {
+                    for (c, h) in &conditions {
+                        if c.get() {
+                            return h.call(args);
+                        }
+                    }
+                    default.call(args)
+                });
+                handler.into_arc()
             }
             Err(_) => panic!("unexpected build type in widget handler when builder"),
         }
-    }
-}
-
-struct WhenWidgetHandler<A: Clone + 'static> {
-    default: ArcWidgetHandler<A>,
-    conditions: Vec<(Var<bool>, ArcWidgetHandler<A>)>,
-}
-impl<A: Clone + 'static> WidgetHandler<A> for WhenWidgetHandler<A> {
-    fn event(&mut self, args: &A) -> bool {
-        for (c, h) in &mut self.conditions {
-            if c.get() {
-                return h.event(args);
-            }
-        }
-        self.default.event(args)
-    }
-
-    fn update(&mut self) -> bool {
-        let mut pending = self.default.update();
-        for (_, h) in &mut self.conditions {
-            pending |= h.update();
-        }
-        pending
     }
 }
 
@@ -725,14 +682,14 @@ pub struct PropertyNewArgs {
     /// | [`Var`]             | `Box<AnyVar>` or `Box<AnyWhenVarBuilder>`
     /// | [`Value`]           | `Box<T>`
     /// | [`UiNode`]          | `Box<ArcNode>` or `Box<WhenUiNodeBuilder>`
-    /// | [`WidgetHandler`]   | `Box<ArcWidgetHandler<A>>` or `Box<AnyWhenArcWidgetHandlerBuilder>`
+    /// | [`Handler`]   | `Box<ArcHandler<A>>` or `Box<AnyWhenArcHandlerBuilder>`
     ///
     /// The new function will downcast and unbox the args.
     ///
     /// [`Var`]: InputKind::Var
     /// [`Value`]: InputKind::Value
     /// [`UiNode`]: InputKind::UiNode
-    /// [`WidgetHandler`]: InputKind::WidgetHandler
+    /// [`Handler`]: InputKind::Handler
     pub args: Vec<Box<dyn Any>>,
 
     /// The property build actions can be empty or each item must contain one builder for each input in the same order they
@@ -745,14 +702,14 @@ pub struct PropertyNewArgs {
     /// | [`Var`]             | `Box<PropertyBuildAction<Var<T>>>`
     /// | [`Value`]           | `Box<PropertyBuildAction<BoxAnyVarValue>>`
     /// | [`UiNode`]          | `Box<PropertyBuildAction<ArcNode<BoxedUiNode>>>`
-    /// | [`WidgetHandler`]   | `Box<PropertyBuildAction<ArcWidgetHandler<A>>>`
+    /// | [`Handler`]   | `Box<PropertyBuildAction<ArcHandler<A>>>`
     ///
     /// The new function will downcast and unbox the args.
     ///
     /// [`Var`]: InputKind::Var
     /// [`Value`]: InputKind::Value
     /// [`UiNode`]: InputKind::UiNode
-    /// [`WidgetHandler`]: InputKind::WidgetHandler
+    /// [`Handler`]: InputKind::Handler
     pub build_actions: PropertyBuildActions,
 
     /// When build action data for each [`build_actions`].
@@ -859,11 +816,11 @@ pub trait PropertyArgs: Send + Sync {
         panic_input(&self.property(), i, InputKind::UiNode)
     }
 
-    /// Gets a [`InputKind::WidgetHandler`].
+    /// Gets a [`InputKind::Handler`].
     ///
-    /// Is a `ArcWidgetHandler<A>`.
-    fn widget_handler(&self, i: usize) -> &dyn AnyArcWidgetHandler {
-        panic_input(&self.property(), i, InputKind::WidgetHandler)
+    /// Is an `ArcHandler<A>`.
+    fn handler(&self, i: usize) -> &dyn AnyArcHandler {
+        panic_input(&self.property(), i, InputKind::Handler)
     }
 
     /// Create a property instance with args clone or taken.
@@ -908,13 +865,13 @@ impl dyn PropertyArgs + '_ {
     /// Panics if the args type does not match.
     ///
     /// [`widget_handler`]: PropertyArgs::widget_handler
-    pub fn downcast_handler<A>(&self, i: usize) -> &ArcWidgetHandler<A>
+    pub fn downcast_handler<A>(&self, i: usize) -> &ArcHandler<A>
     where
         A: 'static + Clone,
     {
-        self.widget_handler(i)
+        self.handler(i)
             .as_any()
-            .downcast_ref::<ArcWidgetHandler<A>>()
+            .downcast_ref::<ArcHandler<A>>()
             .expect("cannot downcast handler to type")
     }
 
@@ -929,7 +886,7 @@ impl dyn PropertyArgs + '_ {
             InputKind::Var => self.var(i).map_debug(false),
             InputKind::Value => const_var(formatx!("{:?}", self.value(i))),
             InputKind::UiNode => const_var(Txt::from_static("UiNode")),
-            InputKind::WidgetHandler => const_var(formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name())),
+            InputKind::Handler => const_var(formatx!("Handler<{}>", p.inputs[i].display_ty_name())),
         }
     }
 
@@ -942,7 +899,7 @@ impl dyn PropertyArgs + '_ {
             InputKind::Var => formatx!("{:?}", self.var(i).get()),
             InputKind::Value => formatx!("{:?}", self.value(i)),
             InputKind::UiNode => Txt::from_static("UiNode"),
-            InputKind::WidgetHandler => formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name()),
+            InputKind::Handler => formatx!("Handler<{}>", p.inputs[i].display_ty_name()),
         }
     }
 
@@ -962,7 +919,7 @@ impl dyn PropertyArgs + '_ {
                 InputKind::Var => args.push(Box::new(self.var(i).clone())),
                 InputKind::Value => args.push(Box::new(self.value(i).clone_boxed())),
                 InputKind::UiNode => args.push(Box::new(self.ui_node(i).clone())),
-                InputKind::WidgetHandler => args.push(self.widget_handler(i).clone_boxed().into_any()),
+                InputKind::Handler => args.push(self.handler(i).clone_boxed().into_any()),
             }
         }
 
@@ -1004,8 +961,8 @@ pub fn ui_node_to_args(node: impl IntoUiNode) -> ArcNode {
 }
 
 #[doc(hidden)]
-pub fn widget_handler_to_args<A: Clone + 'static>(handler: impl WidgetHandler<A>) -> ArcWidgetHandler<A> {
-    ArcWidgetHandler::new(handler)
+pub fn handler_to_args<A: Clone + 'static>(handler: Handler<A>) -> ArcHandler<A> {
+    handler.into_arc()
 }
 
 #[doc(hidden)]
@@ -1077,16 +1034,16 @@ pub fn new_dyn_ui_node<'a>(
 }
 
 #[doc(hidden)]
-pub fn new_dyn_widget_handler<'a, A: Clone + 'static>(
+pub fn new_dyn_handler<'a, A: Clone + 'static>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
     actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
-) -> ArcWidgetHandler<A> {
+) -> ArcHandler<A> {
     let item = inputs.next().expect("missing input");
 
-    let item = match item.downcast::<AnyWhenArcWidgetHandlerBuilder>() {
+    let item = match item.downcast::<AnyWhenArcHandlerBuilder>() {
         Ok(builder) => builder.build(),
         Err(item) => *item
-            .downcast::<ArcWidgetHandler<A>>()
+            .downcast::<ArcHandler<A>>()
             .expect("input did not match expected WidgetHandler types"),
     };
 
@@ -1124,17 +1081,17 @@ impl fmt::Display for UiNodeInWhenExprError {
 }
 impl std::error::Error for UiNodeInWhenExprError {}
 
-/// Error value used in a reference to an [`WidgetHandler`] property input is made in `when` expression.
+/// Error value used in a reference to an [`Handler`] property input is made in `when` expression.
 ///
 /// Only variables and values can be referenced in `when` expression.
 #[derive(Clone, PartialEq)]
-pub struct WidgetHandlerInWhenExprError;
-impl fmt::Debug for WidgetHandlerInWhenExprError {
+pub struct HandlerInWhenExprError;
+impl fmt::Debug for HandlerInWhenExprError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self}")
     }
 }
-impl fmt::Display for WidgetHandlerInWhenExprError {
+impl fmt::Display for HandlerInWhenExprError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -1142,7 +1099,7 @@ impl fmt::Display for WidgetHandlerInWhenExprError {
         )
     }
 }
-impl std::error::Error for WidgetHandlerInWhenExprError {}
+impl std::error::Error for HandlerInWhenExprError {}
 
 /*
 
@@ -2190,7 +2147,7 @@ impl WidgetBuilding {
     }
 
     /// Flags the property as captured and downcast the input handler.
-    pub fn capture_widget_handler<A: Clone + 'static>(&mut self, property_id: PropertyId) -> Option<ArcWidgetHandler<A>> {
+    pub fn capture_handler<A: Clone + 'static>(&mut self, property_id: PropertyId) -> Option<ArcHandler<A>> {
         let p = self.capture_property(property_id)?;
         let handler = p.args.downcast_handler::<A>(0).clone();
         Some(handler)
@@ -2306,9 +2263,7 @@ impl WidgetBuilding {
                             .map(|(i, input)| match input.kind {
                                 InputKind::Var => Box::new(AnyWhenVarBuilder::new(default_args.var(i).clone())) as _,
                                 InputKind::UiNode => Box::new(WhenUiNodeBuilder::new(default_args.ui_node(i).take_on_init())) as _,
-                                InputKind::WidgetHandler => {
-                                    Box::new(AnyWhenArcWidgetHandlerBuilder::new(default_args.widget_handler(i).clone_boxed())) as _
-                                }
+                                InputKind::Handler => Box::new(AnyWhenArcHandlerBuilder::new(default_args.handler(i).clone_boxed())) as _,
                                 InputKind::Value => panic!("can only assign vars in when blocks"),
                             })
                             .collect(),
@@ -2330,9 +2285,9 @@ impl WidgetBuilding {
                             let node = assign.ui_node(i).take_on_init();
                             entry.push(when.state.clone(), node);
                         }
-                        InputKind::WidgetHandler => {
-                            let entry = entry.downcast_mut::<AnyWhenArcWidgetHandlerBuilder>().unwrap();
-                            let handler = assign.widget_handler(i).clone_boxed();
+                        InputKind::Handler => {
+                            let entry = entry.downcast_mut::<AnyWhenArcHandlerBuilder>().unwrap();
+                            let handler = assign.handler(i).clone_boxed();
                             entry.push(when.state.clone(), handler);
                         }
                         InputKind::Value => panic!("cannot assign `Value` in when blocks"),

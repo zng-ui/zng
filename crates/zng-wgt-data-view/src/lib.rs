@@ -124,9 +124,9 @@ impl DataView {
 ///
 /// [`DataView!`]: struct@DataView
 #[property(CHILD, widget_impl(DataView))]
-pub fn view<D: VarValue>(child: impl IntoUiNode, data: impl IntoVar<D>, update: impl WidgetHandler<DataViewArgs<D>>) -> UiNode {
+pub fn view<D: VarValue>(child: impl IntoUiNode, data: impl IntoVar<D>, update: Handler<DataViewArgs<D>>) -> UiNode {
     let data = data.into_var();
-    let mut update = update;
+    let mut update = update.into_wgt_runner();
     let replace = Arc::new(Mutex::new((false, UiNode::nil())));
 
     match_node(child, move |c, op| match op {
@@ -146,6 +146,7 @@ pub fn view<D: VarValue>(child: impl IntoUiNode, data: impl IntoVar<D>, update: 
         UiNodeOp::Deinit => {
             c.deinit();
             *c.node() = UiNode::nil();
+            update.deinit();
         }
         UiNodeOp::Update { .. } => {
             if data.is_new() {

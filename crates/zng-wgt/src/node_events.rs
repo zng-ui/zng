@@ -56,14 +56,11 @@ impl OnNodeOpArgs {
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
 /// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
-pub fn on_node_op(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_node_op(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_node_op_impl(child.into_node(), handler, |_| true)
 }
-fn on_node_op_impl(
-    child: UiNode,
-    mut handler: impl WidgetHandler<OnNodeOpArgs>,
-    filter: impl Fn(UiNodeMethod) -> bool + Send + 'static,
-) -> UiNode {
+fn on_node_op_impl(child: UiNode, handler: Handler<OnNodeOpArgs>, filter: impl Fn(UiNodeMethod) -> bool + Send + 'static) -> UiNode {
+    let mut handler = handler.into_wgt_runner();
     let mut count = 1;
     match_node(child, move |child, op| {
         let mtd = op.mtd();
@@ -76,6 +73,8 @@ fn on_node_op_impl(
 
         if let UiNodeMethod::Update = mtd {
             handler.update();
+        } else if let UiNodeMethod::Deinit = mtd {
+            handler.deinit();
         }
     })
 }
@@ -104,15 +103,12 @@ fn on_node_op_impl(
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
 /// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
-pub fn on_pre_node_op(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_pre_node_op(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_pre_node_op_impl(child.into_node(), handler, |_| true)
 }
-fn on_pre_node_op_impl(
-    child: UiNode,
-    mut handler: impl WidgetHandler<OnNodeOpArgs>,
-    filter: impl Fn(UiNodeMethod) -> bool + Send + 'static,
-) -> UiNode {
+fn on_pre_node_op_impl(child: UiNode, handler: Handler<OnNodeOpArgs>, filter: impl Fn(UiNodeMethod) -> bool + Send + 'static) -> UiNode {
     let mut count = 1;
+    let mut handler = handler.into_wgt_runner();
     match_node(child, move |_, op| {
         if let UiNodeOp::Update { .. } = &op {
             handler.update();
@@ -122,6 +118,10 @@ fn on_pre_node_op_impl(
         if filter(mtd) {
             handler.event(&OnNodeOpArgs::now(mtd, count));
             count = count.wrapping_add(1);
+        }
+
+        if let UiNodeOp::Deinit = op {
+            handler.deinit();
         }
     })
 }
@@ -154,7 +154,7 @@ fn on_pre_node_op_impl(
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
 /// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
-pub fn on_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_init(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Init))
 }
 
@@ -162,7 +162,7 @@ pub fn on_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>
 ///
 /// [`on_init`]: fn@on_init
 #[property(EVENT)]
-pub fn on_pre_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_pre_init(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Init))
 }
 
@@ -191,8 +191,8 @@ pub fn on_pre_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpA
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
 /// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
-pub fn on_info_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    let mut handler = handler;
+pub fn on_info_init(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
+    let mut handler = handler.into_wgt_runner();
     let mut count = 1;
     enum State {
         WaitInfo,
@@ -203,6 +203,9 @@ pub fn on_info_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOp
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             state = State::WaitInfo;
+        }
+        UiNodeOp::Deinit => {
+            handler.deinit();
         }
         UiNodeOp::Info { .. } => {
             if let State::WaitInfo = &state {
@@ -238,7 +241,7 @@ pub fn on_info_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOp
 /// [`hn!`]: zng_app::handler::hn!
 /// [`hn_once!`]: zng_app::handler::hn_once!
 #[property(EVENT)]
-pub fn on_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_update(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Update))
 }
 
@@ -257,7 +260,7 @@ pub fn on_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArg
 /// [`hn!`]: zng_app::handler::hn!
 /// [`hn_once!`]: zng_app::handler::hn_once!
 #[property(EVENT)]
-pub fn on_pre_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_pre_update(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Update))
 }
 
@@ -288,7 +291,7 @@ pub fn on_pre_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeO
 /// [`hn_once!`]: zng_app::handler::hn_once!
 /// [`task::spawn`]: zng_task::spawn
 #[property(EVENT)]
-pub fn on_deinit(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_deinit(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Deinit))
 }
 
@@ -296,7 +299,7 @@ pub fn on_deinit(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArg
 ///
 /// [`on_deinit`]: fn@on_deinit
 #[property(EVENT)]
-pub fn on_pre_deinit(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_pre_deinit(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Deinit))
 }
 

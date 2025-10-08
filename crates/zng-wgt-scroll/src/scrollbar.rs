@@ -92,11 +92,11 @@ pub enum Orientation {
     Vertical,
 }
 
-fn scroll_click_handler() -> impl WidgetHandler<MouseClickArgs> {
+fn scroll_click_handler() -> Handler<MouseClickArgs> {
     use std::cmp::Ordering;
 
     let mut ongoing_direction = Ordering::Equal;
-    hn!(|args: &MouseClickArgs| {
+    hn!(|args| {
         use crate::*;
 
         let orientation = ORIENTATION_VAR.get();

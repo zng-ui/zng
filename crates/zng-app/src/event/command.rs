@@ -581,14 +581,8 @@ impl Command {
     ///
     /// The `enabled` parameter defines the initial state of the command subscription, the subscription
     /// handle is available in the handler args.
-    pub fn on_pre_event<H>(&self, enabled: bool, handler: H) -> EventHandle
-    where
-        H: AppHandler<AppCommandArgs>,
-    {
-        self.event().on_pre_event(CmdAppHandler {
-            handler,
-            handle: Arc::new(self.subscribe(enabled)),
-        })
+    pub fn on_pre_event(&self, enabled: bool, handler: Handler<AppCommandArgs>) -> EventHandle {
+        self.event().on_pre_event(self.handler(enabled, handler))
     }
 
     /// Creates an event handler for the command.
@@ -598,13 +592,17 @@ impl Command {
     ///
     /// The `enabled` parameter defines the initial state of the command subscription, the subscription
     /// handle is available in the handler args.
-    pub fn on_event<H>(&self, enabled: bool, handler: H) -> EventHandle
-    where
-        H: AppHandler<AppCommandArgs>,
-    {
-        self.event().on_event(CmdAppHandler {
-            handler,
-            handle: Arc::new(self.subscribe(enabled)),
+    pub fn on_event(&self, enabled: bool, handler: Handler<AppCommandArgs>) -> EventHandle {
+        self.event().on_event(self.handler(enabled, handler))
+    }
+
+    fn handler(&self, enabled: bool, mut handler: Handler<AppCommandArgs>) -> Handler<CommandArgs> {
+        let handle = Arc::new(self.subscribe(enabled));
+        Box::new(move |args| {
+            handler(&AppCommandArgs {
+                args: args.clone(),
+                handle: handle.clone(),
+            })
         })
     }
 
@@ -661,20 +659,6 @@ impl std::hash::Hash for Command {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         std::hash::Hash::hash(&self.event.as_any(), state);
         std::hash::Hash::hash(&self.scope, state);
-    }
-}
-
-struct CmdAppHandler<H> {
-    handler: H,
-    handle: Arc<CommandHandle>,
-}
-impl<H: AppHandler<AppCommandArgs>> AppHandler<CommandArgs> for CmdAppHandler<H> {
-    fn event(&mut self, args: &CommandArgs, handler_args: &AppHandlerArgs) {
-        let args = AppCommandArgs {
-            args: args.clone(),
-            handle: self.handle.clone(),
-        };
-        self.handler.event(&args, handler_args);
     }
 }
 

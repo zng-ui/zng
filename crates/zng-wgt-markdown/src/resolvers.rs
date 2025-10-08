@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use zng_wgt::{prelude::*, *};
 
-use zng_app::widget::info::TransformChangedArgs;
 use zng_ext_clipboard::{CLIPBOARD, COPY_CMD};
 use zng_ext_image::ImageSource;
 use zng_ext_input::focus::WidgetInfoFocusExt as _;
@@ -328,7 +327,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
 
             LAYERS.remove(popup_id);
         });
-        on_move = async_hn!(status, |args: TransformChangedArgs| {
+        on_move = async_hn!(status, |args| {
             if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
                 return;
             }
@@ -349,7 +348,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
 
             text::underline_skip = text::UnderlineSkip::SPACES;
 
-            on_click = async_hn_once!(status, link, |args: ClickArgs| {
+            on_click = async_hn_once!(status, link, |args: &ClickArgs| {
                 if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
                     return;
                 }
@@ -421,7 +420,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                 style_fn = zng_wgt_button::LightStyle!();
                 padding = 3;
                 child = COPY_CMD.icon().present_data(());
-                on_click = async_hn_once!(status, |args: ClickArgs| {
+                on_click = async_hn_once!(status, |args: &ClickArgs| {
                     if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
                         return;
                     }

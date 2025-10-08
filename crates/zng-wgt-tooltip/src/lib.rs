@@ -166,7 +166,7 @@ fn tooltip_node(child: impl IntoUiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>
                             if hide {
                                 // cancel
                                 pop_state
-                                    .on_pre_new(app_hn_once!(|a: &OnVarArgs<PopupState>| {
+                                    .on_pre_new(hn_once!(|a: &OnVarArgs<PopupState>| {
                                         match a.value {
                                             PopupState::Open(id) => {
                                                 POPUP.force_close_id(id);

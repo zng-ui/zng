@@ -4,7 +4,7 @@ use zng::{
     app::EXIT_CMD,
     color::Rgba,
     event::Command,
-    handler::WidgetHandler,
+    handler::Handler,
     image::ImageDataFormat,
     layout::*,
     prelude::*,
@@ -172,7 +172,7 @@ fn screenshot() -> UiNode {
                             child = Text!("No Head!");
 
                             frame_capture_mode = FrameCaptureMode::Next;
-                            on_frame_image_ready = async_hn_once!(|args: FrameImageReadyArgs| {
+                            on_frame_image_ready = async_hn_once!(|args: &FrameImageReadyArgs| {
                                 tracing::info!("saving screenshot..");
                                 match args.frame_image.unwrap().save("screenshot.png").await {
                                     Ok(_) => tracing::info!("saved"),
@@ -654,9 +654,9 @@ enum CloseState {
     Asking,
     Close,
 }
-fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
+fn confirm_close() -> Handler<WindowCloseRequestedArgs> {
     let state = var(CloseState::Ask);
-    async_hn!(state, |args: WindowCloseRequestedArgs| {
+    async_hn!(state, |args| {
         match state.get() {
             CloseState::Ask => {
                 args.propagation().stop();

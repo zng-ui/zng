@@ -7,7 +7,7 @@ use std::{any::Any, sync::Arc};
 use crate::WidgetFn;
 use zng_app::{
     event::{AnyEventArgs, Command, CommandArgs, CommandHandle, CommandScope, Event, EventArgs, EventPropagationHandle},
-    handler::WidgetHandler,
+    handler::{Handler, HandlerExt as _},
     render::{FrameBuilder, FrameValueKey},
     update::WidgetUpdates,
     widget::{
@@ -33,7 +33,7 @@ pub use pastey::paste;
 pub mod __macro_util {
     pub use zng_app::{
         event::CommandArgs,
-        handler::{WidgetHandler, hn},
+        handler::{Handler, hn},
         widget::{
             node::{IntoUiNode, UiNode},
             property,
@@ -499,7 +499,7 @@ macro_rules! __event_property {
             )]
             $vis fn [<on_ $event>](
                 child: impl $crate::node::__macro_util::IntoUiNode,
-                handler: impl $crate::node::__macro_util::WidgetHandler<$Args>,
+                handler: $crate::node::__macro_util::Handler<$Args>,
             ) -> $crate::node::__macro_util::UiNode {
                 $crate::__event_property!(=> with($crate::node::on_event(child, $EVENT, $filter, handler), false, $($with)?))
             }
@@ -522,7 +522,7 @@ macro_rules! __event_property {
             )]
             $vis fn [<on_pre_ $event>](
                 child: impl $crate::node::__macro_util::IntoUiNode,
-                handler: impl $crate::node::__macro_util::WidgetHandler<$Args>,
+                handler: $crate::node::__macro_util::Handler<$Args>,
             ) -> $crate::node::__macro_util::UiNode {
                 $crate::__event_property!(=> with($crate::node::on_pre_event(child, $EVENT, $filter, handler), true, $($with)?))
             }
@@ -562,24 +562,26 @@ macro_rules! __event_property {
 /// [`propagation`]: zng_app::event::AnyEventArgs::propagation
 /// [`ENABLED`]: zng_app::widget::info::Interactivity::ENABLED
 /// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
-pub fn on_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H) -> UiNode
+pub fn on_event<C, A, F>(child: C, event: Event<A>, filter: F, handler: Handler<A>) -> UiNode
 where
     C: IntoUiNode,
     A: EventArgs,
     F: FnMut(&A) -> bool + Send + 'static,
-    H: WidgetHandler<A>,
 {
     on_event_impl(child.into_node(), event, filter, handler)
 }
-fn on_event_impl<A, F, H>(child: UiNode, event: Event<A>, mut filter: F, mut handler: H) -> UiNode
+fn on_event_impl<A, F>(child: UiNode, event: Event<A>, mut filter: F, handler: Handler<A>) -> UiNode
 where
     A: EventArgs,
     F: FnMut(&A) -> bool + Send + 'static,
-    H: WidgetHandler<A>,
 {
+    let mut handler = handler.into_wgt_runner();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_event(&event);
+        }
+        UiNodeOp::Deinit => {
+            handler.deinit();
         }
         UiNodeOp::Event { update } => {
             child.event(update);
@@ -645,24 +647,26 @@ where
 /// [`propagation`]: zng_app::event::AnyEventArgs::propagation
 /// [`ENABLED`]: zng_app::widget::info::Interactivity::ENABLED
 /// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
-pub fn on_pre_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H) -> UiNode
+pub fn on_pre_event<C, A, F>(child: C, event: Event<A>, filter: F, handler: Handler<A>) -> UiNode
 where
     C: IntoUiNode,
     A: EventArgs,
     F: FnMut(&A) -> bool + Send + 'static,
-    H: WidgetHandler<A>,
 {
     on_pre_event_impl(child.into_node(), event, filter, handler)
 }
-fn on_pre_event_impl<A, F, H>(child: UiNode, event: Event<A>, mut filter: F, mut handler: H) -> UiNode
+fn on_pre_event_impl<A, F>(child: UiNode, event: Event<A>, mut filter: F, handler: Handler<A>) -> UiNode
 where
     A: EventArgs,
     F: FnMut(&A) -> bool + Send + 'static,
-    H: WidgetHandler<A>,
 {
+    let mut handler = handler.into_wgt_runner();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_event(&event);
+        }
+        UiNodeOp::Deinit => {
+            handler.deinit();
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = event.on(update)
@@ -770,7 +774,7 @@ macro_rules! __command_property {
         #[$crate::node::__macro_util::property(EVENT, default( $crate::node::__macro_util::hn!(|_|{}) ))]
         $vis fn [<on_ $command>](
             child: impl $crate::node::__macro_util::IntoUiNode,
-            handler: impl $crate::node::__macro_util::WidgetHandler<$crate::node::__macro_util::CommandArgs>,
+            handler: $crate::node::__macro_util::Handler<$crate::node::__macro_util::CommandArgs>,
         ) -> $crate::node::__macro_util::UiNode {
             $crate::node::on_command(child, || $cmd_init, || $crate::node::__macro_util::IntoVar::into_var(self::[<CAN_ $command:upper _VAR>]), handler)
         }
@@ -793,7 +797,7 @@ macro_rules! __command_property {
         #[$crate::node::__macro_util::property(EVENT, default( $crate::node::__macro_util::hn!(|_|{}) ) $($widget_impl)*)]
         $vis fn [<on_pre_ $command>](
             child: impl $crate::node::__macro_util::IntoUiNode,
-            handler: impl $crate::node::__macro_util::WidgetHandler<$crate::node::__macro_util::CommandArgs>,
+            handler: $crate::node::__macro_util::Handler<$crate::node::__macro_util::CommandArgs>,
         ) -> $crate::node::__macro_util::UiNode {
             $crate::node::on_pre_command(child, || $cmd_init, || $crate::node::__macro_util::IntoVar::into_var(self::[<CAN_ $command:upper _VAR>]), handler)
         }
@@ -1050,21 +1054,20 @@ macro_rules! command_property {
 ///  
 /// [`propagation`]: zng_app::event::AnyEventArgs::propagation
 /// [`Command::subscribe`]: zng_app::event::Command::subscribe
-pub fn on_command<U, CB, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> UiNode
+pub fn on_command<U, CB, EB>(child: U, command_builder: CB, enabled_builder: EB, handler: Handler<CommandArgs>) -> UiNode
 where
     U: IntoUiNode,
     CB: FnMut() -> Command + Send + 'static,
     EB: FnMut() -> Var<bool> + Send + 'static,
-    H: WidgetHandler<CommandArgs>,
 {
     on_command_impl(child.into_node(), command_builder, enabled_builder, handler)
 }
-fn on_command_impl<CB, EB, H>(child: UiNode, mut command_builder: CB, mut enabled_builder: EB, mut handler: H) -> UiNode
+fn on_command_impl<CB, EB>(child: UiNode, mut command_builder: CB, mut enabled_builder: EB, handler: Handler<CommandArgs>) -> UiNode
 where
     CB: FnMut() -> Command + Send + 'static,
     EB: FnMut() -> Var<bool> + Send + 'static,
-    H: WidgetHandler<CommandArgs>,
 {
+    let mut handler = handler.into_wgt_runner();
     let mut enabled = None;
     let mut handle = CommandHandle::dummy();
     let mut win_handle = CommandHandle::dummy();
@@ -1096,6 +1099,7 @@ where
             handle = CommandHandle::dummy();
             win_handle = CommandHandle::dummy();
             command = NIL_CMD;
+            handler.deinit();
         }
 
         UiNodeOp::Event { update } => {
@@ -1143,21 +1147,20 @@ zng_app::event::command! {
 ///
 /// The event `handler` is called before the [`on_command`] equivalent at the same context level. If the command event
 /// targets more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
-pub fn on_pre_command<U, CB, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> UiNode
+pub fn on_pre_command<U, CB, EB>(child: U, command_builder: CB, enabled_builder: EB, handler: Handler<CommandArgs>) -> UiNode
 where
     U: IntoUiNode,
     CB: FnMut() -> Command + Send + 'static,
     EB: FnMut() -> Var<bool> + Send + 'static,
-    H: WidgetHandler<CommandArgs>,
 {
     on_pre_command_impl(child.into_node(), command_builder, enabled_builder, handler)
 }
-fn on_pre_command_impl<CB, EB, H>(child: UiNode, mut command_builder: CB, mut enabled_builder: EB, mut handler: H) -> UiNode
+fn on_pre_command_impl<CB, EB>(child: UiNode, mut command_builder: CB, mut enabled_builder: EB, handler: Handler<CommandArgs>) -> UiNode
 where
     CB: FnMut() -> Command + Send + 'static,
     EB: FnMut() -> Var<bool> + Send + 'static,
-    H: WidgetHandler<CommandArgs>,
 {
+    let mut handler = handler.into_wgt_runner();
     let mut enabled = None;
     let mut handle = CommandHandle::dummy();
     let mut win_handle = CommandHandle::dummy();
@@ -1189,6 +1192,7 @@ where
             handle = CommandHandle::dummy();
             win_handle = CommandHandle::dummy();
             command = NIL_CMD;
+            handler.deinit();
         }
 
         UiNodeOp::Event { update } => {

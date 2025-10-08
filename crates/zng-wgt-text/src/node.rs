@@ -904,9 +904,13 @@ where
     })
 }
 
-pub(super) fn on_change_stop(child: impl IntoUiNode, mut handler: impl WidgetHandler<ChangeStopArgs>) -> UiNode {
+pub(super) fn on_change_stop(child: impl IntoUiNode, handler: Handler<ChangeStopArgs>) -> UiNode {
+    let mut handler = handler.into_wgt_runner();
     let mut pending = None;
     match_node(child, move |c, op| match op {
+        UiNodeOp::Deinit => {
+            handler.deinit();
+        }
         UiNodeOp::Event { update } => {
             if pending.is_none() {
                 return;

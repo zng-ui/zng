@@ -142,7 +142,7 @@ impl Button {
 
     widget_impl! {
         /// Button click event.
-        pub on_click(handler: impl WidgetHandler<ClickArgs>);
+        pub on_click(handler: Handler<ClickArgs>);
 
         /// If pointer interaction with other widgets is blocked while the button is pressed.
         ///

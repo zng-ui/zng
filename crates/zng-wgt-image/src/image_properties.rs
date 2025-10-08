@@ -444,8 +444,8 @@ impl ImgErrorArgs {
 /// [`async_hn!`]: zng_wgt::prelude::async_hn!
 /// [`async_hn_once!`]: zng_wgt::prelude::async_hn_once!
 #[property(EVENT, widget_impl(Image))]
-pub fn on_error(child: impl IntoUiNode, handler: impl WidgetHandler<ImgErrorArgs>) -> UiNode {
-    let mut handler = handler;
+pub fn on_error(child: impl IntoUiNode, handler: Handler<ImgErrorArgs>) -> UiNode {
+    let mut handler = handler.into_wgt_runner();
     let mut error = Txt::from_str("");
     let mut first_update = false;
 
@@ -457,6 +457,9 @@ pub fn on_error(child: impl IntoUiNode, handler: impl WidgetHandler<ImgErrorArgs
                 first_update = true;
                 WIDGET.update();
             }
+        }
+        UiNodeOp::Deinit => {
+            handler.deinit();
         }
         UiNodeOp::Update { .. } => {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
@@ -504,8 +507,8 @@ pub fn on_error(child: impl IntoUiNode, handler: impl WidgetHandler<ImgErrorArgs
 /// [`async_hn!`]: zng_wgt::prelude::async_hn!
 /// [`async_hn_once!`]: zng_wgt::prelude::async_hn_once!
 #[property(EVENT, widget_impl(Image))]
-pub fn on_load(child: impl IntoUiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> UiNode {
-    let mut handler = handler;
+pub fn on_load(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> UiNode {
+    let mut handler = handler.into_wgt_runner();
     let mut first_update = false;
 
     match_node(child, move |_, op| match op {
@@ -516,6 +519,9 @@ pub fn on_load(child: impl IntoUiNode, handler: impl WidgetHandler<ImgLoadArgs>)
                 first_update = true;
                 WIDGET.update();
             }
+        }
+        UiNodeOp::Deinit => {
+            handler.deinit();
         }
         UiNodeOp::Update { .. } => {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
