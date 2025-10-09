@@ -214,26 +214,17 @@ impl<A: Clone + 'static> WidgetRunner<A> {
 /// The example declares an event handler for the `on_click` property.
 ///
 /// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zng_app::handler::hn;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> zng_app::handler::Handler<ClickArgs> {
-/// # let
+/// # macro_rules! example { () => {
 /// on_click = hn!(|_| {
 ///     println!("Clicked {}!", args.click_count);
 /// });
-/// # on_click }
+/// # }}
 /// ```
 ///
 /// Internally the [`clmv!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
-/// # #[derive(Clone)] pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize }
-/// # use zng_txt::formatx;
-/// # use zng_var::{var, Var};
-/// # use zng_app::handler::hn;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> zng_app::handler::Handler<ClickArgs> {
+/// # macro_rules! example { () => {
 /// let foo = var(0);
 ///
 /// // ..
@@ -246,7 +237,7 @@ impl<A: Clone + 'static> WidgetRunner<A> {
 /// // can still use after:
 /// let bar = foo.map(|c| formatx!("click_count: {c}"));
 ///
-/// # on_click }
+/// # }}
 /// ```
 ///
 /// In the example above only a clone of `foo` is moved into the handler. Note that handlers always capture by move, if `foo` was not
@@ -332,9 +323,7 @@ pub use crate::hn;
 /// are ignored by the handler.
 ///
 /// ```
-/// # use zng_app::handler::hn_once;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> zng_app::handler::Handler<()> {
+/// # macro_rules! example { () => {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_click = hn_once!(|_| {
@@ -342,7 +331,7 @@ pub use crate::hn;
 ///         print!("{i}, ");
 ///     }
 /// });
-/// # on_click }
+/// # }}
 /// ```
 ///
 /// [`clmv!`]: zng_clone_move::clmv
@@ -388,12 +377,7 @@ pub use crate::hn_once;
 /// The example declares an async event handler for the `on_click` property.
 ///
 /// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zng_app::{handler::async_hn, widget::WIDGET};
-/// # use zng_task as task;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> zng_app::handler::Handler<ClickArgs> {
-/// # let
+/// # macro_rules! example { () => {
 /// on_click = async_hn!(|args| {
 ///     println!("Clicked {} {} times!", WIDGET.id(), args.click_count);
 ///
@@ -404,7 +388,7 @@ pub use crate::hn_once;
 ///
 ///     println!("Back in UI thread, in a widget update.");
 /// });
-/// # on_click }
+/// # }}
 /// ```
 ///
 /// Internally the [`clmv!`] macro is used so you can *clone-move* variables into the handler.
@@ -494,11 +478,7 @@ pub use crate::async_hn;
 /// *clone-move* here just to use `data`.
 ///
 /// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zng_app::handler::async_hn_once;
-/// # use zng_task as task;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> zng_app::handler::Handler<ClickArgs> {
+/// # macro_rules! example { () => {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_open = async_hn_once!(|_| {
@@ -511,18 +491,14 @@ pub use crate::async_hn;
 ///
 ///     println!("Done!");
 /// });
-/// # on_open }
+/// # }}
 /// ```
 ///
 /// You can still *clone-move* to have access to the variable after creating the handler, in this case the `data` will be cloned into the handler
 /// but will just be moved to the other thread, avoiding a needless clone.
 ///
 /// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zng_app::handler::async_hn_once;
-/// # use zng_task as task;
-/// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> zng_app::handler::Handler<ClickArgs> {
+/// # macro_rules! example { () => {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_open = async_hn_once!(data, |_| {
@@ -536,7 +512,7 @@ pub use crate::async_hn;
 ///     println!("Done!");
 /// });
 /// println!("{data:?}");
-/// # on_open }
+/// # }}
 /// ```
 ///
 /// [`async_clmv_fn_once!`]: zng_clone_move::async_clmv_fn_once

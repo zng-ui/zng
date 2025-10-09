@@ -4,7 +4,7 @@ error: unexpected token
 3 | #[property(CONTEXT, unknown = true)]
   |                   ^
 
-error: property input can only have `impl OneTrait` types
+error: property input can only have types impl IntoVar<T>, impl IntoValue<T>, impl IntoUiNode or Handler<A>
  --> cases/property/incorrect_attr_args.rs:4:47
   |
 4 | fn unknown_arg(child: impl IntoUiNode, input: bool) -> UiNode {
