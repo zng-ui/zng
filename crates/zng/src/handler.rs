@@ -1,13 +1,11 @@
 //! Event handler API.
 //!
-//! A handler is a closure that takes a *context* and *arguments*, the context can be [`WIDGET`] or the app,
-//! handler types implement [`WidgetHandler`] or [`AppHandler`] respectively. These traits allow a single caller
-//! to support multiple different flavors of handlers, both synchronous and asynchronous, and both `FnMut` and `FnOnce` all
-//! by implementing a single entry point.
+//! A handler is a closure that takes a *context* and *arguments*, the context can be [`WIDGET`] or the app. The [`Handler<A>`]
+//! type supports both synchronous and asynchronous handlers. The handler is not usually instantiated directly, macros are provided
+//! for declaring handlers.
 //!
-//! Macros are provided for declaring the various flavors of handlers, [`hn!`], [`hn_once!`], [`async_hn!`], [`async_hn_once!`]
-//! for widget contexts and [`app_hn!`], [`app_hn_once!`], [`async_app_hn!`], [`async_app_hn_once!`] for the app context. These
-//! macros also build on top of the primitive macros [`clmv!`], [`async_clmv_fn!`] and [`async_clmv_fn_once!`] to
+//! The handler macros are [`hn!`], [`hn_once!`], [`async_hn!`], [`async_hn_once!`].
+//! These macros are built on top of the primitive macros [`clmv!`], [`async_clmv_fn!`] and [`async_clmv_fn_once!`] to
 //! provide a very easy way to *clone-move* captured variables into the handler.
 //!
 //! ```
@@ -51,6 +49,15 @@
 //! # ; }
 //! ```
 //!
+//! App Context
+//!
+//! When a handler is not set in a widget the [`APP_HANDLER`] contextual service is available !!: TODO docs
+//!
+//! Args Type Inference
+//!
+//! The [`Handler<A>`] type is an alias for `Box<dyn FnMut(&A) ...>` by necessity as this is the only way to have a type where
+//! the closure args is inferred. !!: TODO limitations
+//!
 //! [`WIDGET`]: crate::widget::WIDGET
 //! [`clmv!`]: crate::clmv
 //! [`async_clmv_fn!`]: crate::async_clmv_fn
@@ -60,7 +67,4 @@
 //!
 //! See [`zng_app::handler`] for the full handler API.
 
-pub use zng_app::handler::{
-    AppHandler, AppHandlerArgs, AppWeakHandle, FilterAppHandler, FilterWidgetHandler, WidgetHandler, app_hn, app_hn_once, async_app_hn,
-    async_app_hn_once, async_hn, async_hn_once, hn, hn_once,
-};
+pub use zng_app::handler::{APP_HANDLER, AppWeakHandle, ArcHandler, Handler, HandlerExt, async_hn, async_hn_once, hn, hn_once};

@@ -179,7 +179,7 @@ pub fn render_mode(mode: impl IntoValue<Option<RenderMode>>) {}
 ///
 /// [`on_pre_window_open`]: fn@events::on_pre_window_open
 #[property(EVENT, widget_impl(Window))]
-pub fn on_open(child: impl IntoUiNode, handler: impl WidgetHandler<WindowOpenArgs>) -> UiNode {
+pub fn on_open(child: impl IntoUiNode, handler: Handler<WindowOpenArgs>) -> UiNode {
     events::on_pre_window_open(child, handler)
 }
 
@@ -193,7 +193,7 @@ pub fn on_open(child: impl IntoUiNode, handler: impl WidgetHandler<WindowOpenArg
 /// [`WindowLoadingHandle`]: zng_ext_window::WindowLoadingHandle
 /// [`on_pre_window_load`]: fn@events::on_pre_window_load
 #[property(EVENT, widget_impl(Window))]
-pub fn on_load(child: impl IntoUiNode, handler: impl WidgetHandler<WindowOpenArgs>) -> UiNode {
+pub fn on_load(child: impl IntoUiNode, handler: Handler<WindowOpenArgs>) -> UiNode {
     events::on_pre_window_load(child, handler)
 }
 
@@ -206,7 +206,7 @@ pub fn on_load(child: impl IntoUiNode, handler: impl WidgetHandler<WindowOpenArg
 ///
 /// [`on_window_close_requested`]: fn@events::on_window_close_requested
 #[property(EVENT, widget_impl(Window))]
-pub fn on_close_requested(child: impl IntoUiNode, handler: impl WidgetHandler<WindowCloseRequestedArgs>) -> UiNode {
+pub fn on_close_requested(child: impl IntoUiNode, handler: Handler<WindowCloseRequestedArgs>) -> UiNode {
     events::on_window_close_requested(child, handler)
 }
 
@@ -218,7 +218,7 @@ pub fn on_close_requested(child: impl IntoUiNode, handler: impl WidgetHandler<Wi
 ///
 /// [`on_pre_window_close`]: fn@events::on_pre_window_close
 #[property(EVENT, widget_impl(Window))]
-pub fn on_close(child: impl IntoUiNode, handler: impl WidgetHandler<WindowCloseArgs>) -> UiNode {
+pub fn on_close(child: impl IntoUiNode, handler: Handler<WindowCloseArgs>) -> UiNode {
     events::on_pre_window_close(child, handler)
 }
 
@@ -232,7 +232,7 @@ pub fn on_close(child: impl IntoUiNode, handler: impl WidgetHandler<WindowCloseA
 /// [`actual_position`]: zng_ext_window::WindowVars::actual_position
 /// [`on_pre_window_moved`]: fn@events::on_pre_window_moved
 #[property(EVENT, widget_impl(Window))]
-pub fn on_moved(child: impl IntoUiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> UiNode {
+pub fn on_moved(child: impl IntoUiNode, handler: Handler<WindowChangedArgs>) -> UiNode {
     events::on_pre_window_moved(child, handler)
 }
 
@@ -246,7 +246,7 @@ pub fn on_moved(child: impl IntoUiNode, handler: impl WidgetHandler<WindowChange
 /// [`actual_size`]: zng_ext_window::WindowVars::actual_size
 /// [`on_pre_window_resized`]: fn@events::on_pre_window_resized
 #[property(EVENT, widget_impl(Window))]
-pub fn on_resized(child: impl IntoUiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> UiNode {
+pub fn on_resized(child: impl IntoUiNode, handler: Handler<WindowChangedArgs>) -> UiNode {
     events::on_pre_window_resized(child, handler)
 }
 
@@ -262,7 +262,7 @@ pub fn on_resized(child: impl IntoUiNode, handler: impl WidgetHandler<WindowChan
 /// [`state`]: fn@state
 /// [`on_pre_window_state_changed`]: fn@events::on_pre_window_state_changed
 #[property(EVENT, widget_impl(Window))]
-pub fn on_state_changed(child: impl IntoUiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> UiNode {
+pub fn on_state_changed(child: impl IntoUiNode, handler: Handler<WindowChangedArgs>) -> UiNode {
     events::on_pre_window_state_changed(child, handler)
 }
 
@@ -274,7 +274,7 @@ pub fn on_state_changed(child: impl IntoUiNode, handler: impl WidgetHandler<Wind
 ///
 /// [`on_pre_window_maximized`]: fn@events::on_pre_window_maximized
 #[property(EVENT, widget_impl(Window))]
-pub fn on_maximized(child: impl IntoUiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> UiNode {
+pub fn on_maximized(child: impl IntoUiNode, handler: Handler<WindowChangedArgs>) -> UiNode {
     events::on_pre_window_maximized(child, handler)
 }
 
@@ -286,7 +286,7 @@ pub fn on_maximized(child: impl IntoUiNode, handler: impl WidgetHandler<WindowCh
 ///
 /// [`on_pre_window_unmaximized`]: fn@events::on_pre_window_unmaximized
 #[property(EVENT, widget_impl(Window))]
-pub fn on_unmaximized(child: impl IntoUiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> UiNode {
+pub fn on_unmaximized(child: impl IntoUiNode, handler: Handler<WindowChangedArgs>) -> UiNode {
     events::on_pre_window_unmaximized(child, handler)
 }
 
@@ -298,7 +298,7 @@ pub fn on_unmaximized(child: impl IntoUiNode, handler: impl WidgetHandler<Window
 ///
 /// [`on_pre_window_maximized`]: fn@events::on_pre_window_maximized
 #[property(EVENT, widget_impl(Window))]
-pub fn on_minimized(child: impl IntoUiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> UiNode {
+pub fn on_minimized(child: impl IntoUiNode, handler: Handler<WindowChangedArgs>) -> UiNode {
     events::on_pre_window_minimized(child, handler)
 }
 
@@ -310,7 +310,7 @@ pub fn on_minimized(child: impl IntoUiNode, handler: impl WidgetHandler<WindowCh
 ///
 /// [`on_pre_window_unminimized`]: fn@events::on_pre_window_unminimized
 #[property(EVENT, widget_impl(Window))]
-pub fn on_unminimized(child: impl IntoUiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> UiNode {
+pub fn on_unminimized(child: impl IntoUiNode, handler: Handler<WindowChangedArgs>) -> UiNode {
     events::on_pre_window_unminimized(child, handler)
 }
 
@@ -323,7 +323,7 @@ pub fn on_unminimized(child: impl IntoUiNode, handler: impl WidgetHandler<Window
 /// [`Normal`]: zng_ext_window::WindowState::Normal
 /// [`on_pre_window_restored`]: fn@events::on_pre_window_restored
 #[property(EVENT, widget_impl(Window))]
-pub fn on_restored(child: impl IntoUiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> UiNode {
+pub fn on_restored(child: impl IntoUiNode, handler: Handler<WindowChangedArgs>) -> UiNode {
     events::on_pre_window_restored(child, handler)
 }
 
@@ -337,7 +337,7 @@ pub fn on_restored(child: impl IntoUiNode, handler: impl WidgetHandler<WindowCha
 /// [`Exclusive`]: zng_ext_window::WindowState::Exclusive
 /// [`on_pre_window_fullscreen`]: fn@events::on_pre_window_fullscreen
 #[property(EVENT, widget_impl(Window))]
-pub fn on_fullscreen(child: impl IntoUiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> UiNode {
+pub fn on_fullscreen(child: impl IntoUiNode, handler: Handler<WindowChangedArgs>) -> UiNode {
     events::on_pre_window_fullscreen(child, handler)
 }
 
@@ -349,7 +349,7 @@ pub fn on_fullscreen(child: impl IntoUiNode, handler: impl WidgetHandler<WindowC
 ///
 /// [`on_pre_window_exited_fullscreen`]: fn@events::on_pre_window_exited_fullscreen
 #[property(EVENT, widget_impl(Window))]
-pub fn on_exited_fullscreen(child: impl IntoUiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> UiNode {
+pub fn on_exited_fullscreen(child: impl IntoUiNode, handler: Handler<WindowChangedArgs>) -> UiNode {
     events::on_pre_window_exited_fullscreen(child, handler)
 }
 
@@ -358,7 +358,7 @@ pub fn on_exited_fullscreen(child: impl IntoUiNode, handler: impl WidgetHandler<
 /// If [`frame_capture_mode`](fn@frame_capture_mode) is set the image will be available in the event args.
 #[cfg(feature = "image")]
 #[property(EVENT, widget_impl(Window))]
-pub fn on_frame_image_ready(child: impl IntoUiNode, handler: impl WidgetHandler<FrameImageReadyArgs>) -> UiNode {
+pub fn on_frame_image_ready(child: impl IntoUiNode, handler: Handler<FrameImageReadyArgs>) -> UiNode {
     events::on_pre_frame_image_ready(child, handler)
 }
 

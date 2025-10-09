@@ -14,9 +14,9 @@ use zng_unique_id::IdSet;
 use zng_var::VARS_APP;
 
 use crate::{
-    AppChannelError, AppEventSender, AppExtension, LoopTimer,
+    AppChannelError, AppEventSender, AppExtension, LoopTimer, async_hn_once,
     event::{AnyEvent, AnyEventArgs, EVENTS, EVENTS_SV},
-    handler::{AppHandler, AppHandlerArgs, AppWeakHandle, async_app_hn_once},
+    handler::{AppWeakHandle, Handler, HandlerExt as _},
     timer::TIMERS_SV,
     widget::{
         WIDGET, WidgetId,
@@ -1347,15 +1347,16 @@ impl UPDATES {
     /// Schedule the `future` to run in the app context, each future awake work runs as a *preview* update.
     ///
     /// Returns a handle that can be dropped to cancel execution.
-    pub fn run<F: Future<Output = ()> + Send + 'static>(&self, future: F) -> OnUpdateHandle {
-        self.run_hn_once(async_app_hn_once!(|_| future.await))
+    pub fn run<F: Future<Output = ()> + Send + 'static>(&self, future: impl IntoFuture<Output = (), IntoFuture = F>) -> OnUpdateHandle {
+        let future = future.into_future();
+        self.run_hn_once(async_hn_once!(|_| future.await))
     }
 
     /// Schedule an *once* handler to run when these updates are applied.
     ///
-    /// The callback is any of the *once* [`AppHandler`], including async handlers. If the handler is async and does not finish in
+    /// The callback is any of the *once* [`Handler`], including async handlers. If the handler is async and does not finish in
     /// one call it is scheduled to update in *preview* updates.
-    pub fn run_hn_once<H: AppHandler<UpdateArgs>>(&self, handler: H) -> OnUpdateHandle {
+    pub fn run_hn_once(&self, handler: Handler<UpdateArgs>) -> OnUpdateHandle {
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::UPDATE);
         u.send_awake();
@@ -1364,59 +1365,56 @@ impl UPDATES {
 
     /// Create a preview update handler.
     ///
-    /// The `handler` is called every time the app updates, just before the UI updates. It can be any of the non-async [`AppHandler`],
-    /// use the [`app_hn!`] or [`app_hn_once!`] macros to declare the closure. You must avoid using async handlers because UI bound async
+    /// The `handler` is called every time the app updates, just before the UI updates. It can be any of the non-async [`Handler`],
+    /// use the [`hn!`] or [`hn_once!`] macros to declare the closure. You must avoid using async handlers because UI bound async
     /// tasks cause app updates to awake, so it is very easy to lock the app in a constant sequence of updates. You can use [`run`](Self::run)
     /// to start an async app context task.
     ///
     /// Returns an [`OnUpdateHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
-    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
+    /// [`APP_HANDLER.unsubscribe`].
     ///
-    /// [`app_hn_once!`]: macro@crate::handler::app_hn_once
-    /// [`app_hn!`]: macro@crate::handler::app_hn
-    /// [`async_app_hn!`]: macro@crate::handler::async_app_hn
-    pub fn on_pre_update<H>(&self, handler: H) -> OnUpdateHandle
-    where
-        H: AppHandler<UpdateArgs>,
-    {
+    /// [`hn_once!`]: macro@crate::handler::hn_once
+    /// [`hn!`]: macro@crate::handler::hn
+    /// [`async_hn!`]: macro@crate::handler::async_hn
+    /// [`APP_HANDLER.unsubscribe`]: crate::handler::APP_HANDLER::unsubscribe
+    pub fn on_pre_update(&self, handler: Handler<UpdateArgs>) -> OnUpdateHandle {
         let u = UPDATES_SV.read();
         Self::push_handler(&mut u.pre_handlers.lock(), true, handler, false)
     }
 
     /// Create an update handler.
     ///
-    /// The `handler` is called every time the app updates, just after the UI updates. It can be any of the non-async [`AppHandler`],
-    /// use the [`app_hn!`] or [`app_hn_once!`] macros to declare the closure. You must avoid using async handlers because UI bound async
+    /// The `handler` is called every time the app updates, just after the UI updates. It can be any of the non-async [`Handler`],
+    /// use the [`hn!`] or [`hn_once!`] macros to declare the closure. You must avoid using async handlers because UI bound async
     /// tasks cause app updates to awake, so it is very easy to lock the app in a constant sequence of updates. You can use [`run`](Self::run)
     /// to start an async app context task.
     ///
     /// Returns an [`OnUpdateHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
-    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
+    /// [`APP_HANDLER.unsubscribe`].
     ///
-    /// [`app_hn!`]: macro@crate::handler::app_hn
-    /// [`app_hn_once!`]: macro@crate::handler::app_hn_once
-    /// [`async_app_hn!`]: macro@crate::handler::async_app_hn
-    pub fn on_update<H>(&self, handler: H) -> OnUpdateHandle
-    where
-        H: AppHandler<UpdateArgs>,
-    {
+    /// [`hn_once!`]: macro@crate::handler::hn_once
+    /// [`hn!`]: macro@crate::handler::hn
+    /// [`async_hn!`]: macro@crate::handler::async_hn
+    /// [`APP_HANDLER.unsubscribe`]: crate::handler::APP_HANDLER::unsubscribe
+    pub fn on_update(&self, handler: Handler<UpdateArgs>) -> OnUpdateHandle {
         let u = UPDATES_SV.read();
         Self::push_handler(&mut u.pos_handlers.lock(), false, handler, false)
     }
 
-    fn push_handler<H>(entries: &mut Vec<UpdateHandler>, is_preview: bool, mut handler: H, force_once: bool) -> OnUpdateHandle
-    where
-        H: AppHandler<UpdateArgs>,
-    {
+    fn push_handler(
+        entries: &mut Vec<UpdateHandler>,
+        is_preview: bool,
+        mut handler: Handler<UpdateArgs>,
+        force_once: bool,
+    ) -> OnUpdateHandle {
         let (handle_owner, handle) = OnUpdateHandle::new();
         entries.push(UpdateHandler {
             handle: handle_owner,
             count: 0,
             handler: Box::new(move |args, handle| {
-                let handler_args = AppHandlerArgs { handle, is_preview };
-                handler.event(args, &handler_args);
+                handler.app_event(handle.clone_boxed(), is_preview, args);
                 if force_once {
-                    handler_args.handle.unsubscribe();
+                    handle.unsubscribe();
                 }
             }),
         });

@@ -14,9 +14,11 @@ use atomic::Atomic;
 use parking_lot::{Mutex, RwLock};
 use std::{
     borrow::Cow,
+    pin::Pin,
     sync::{Arc, atomic::Ordering::Relaxed},
 };
 use zng_app_context::context_local;
+use zng_clone_move::clmv;
 use zng_handle::Handle;
 use zng_layout::unit::{DipPoint, DipToPx as _, Layout1d, Layout2d, Px, PxPoint, PxTransform};
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
@@ -27,7 +29,7 @@ use zng_view_api::display_list::ReuseRange;
 
 use crate::{
     event::{Event, EventArgs, EventHandle, EventHandles},
-    handler::{AppHandler, AppHandlerArgs, app_hn, app_hn_once},
+    handler::{APP_HANDLER, AppWeakHandle, Handler, HandlerExt as _, HandlerResult},
     update::{LayoutUpdates, RenderUpdates, UPDATES, UpdateFlags, UpdateOp, UpdatesTrace},
     window::WINDOW,
 };
@@ -1418,9 +1420,7 @@ pub trait VarSubscribe<T: VarValue>: AnyVarSubscribe {
     /// Note that the handler runs on the app context, all [`ContextVar<T>`] used inside will have the default value.
     ///
     /// [`ContextVar<T>`]: zng_var::ContextVar
-    fn on_pre_new<H>(&self, handler: H) -> VarHandle
-    where
-        H: AppHandler<OnVarArgs<T>>;
+    fn on_pre_new(&self, handler: Handler<OnVarArgs<T>>) -> VarHandle;
 
     /// Add a `handler` that is called every time this variable updates,
     /// the handler is called after UI update.
@@ -1428,9 +1428,7 @@ pub trait VarSubscribe<T: VarValue>: AnyVarSubscribe {
     /// Note that the handler runs on the app context, all [`ContextVar<T>`] used inside will have the default value.
     ///
     /// [`ContextVar<T>`]: zng_var::ContextVar
-    fn on_new<H>(&self, handler: H) -> VarHandle
-    where
-        H: AppHandler<OnVarArgs<T>>;
+    fn on_new(&self, handler: Handler<OnVarArgs<T>>) -> VarHandle;
 }
 impl<T: VarValue> AnyVarSubscribe for Var<T> {
     fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
@@ -1451,17 +1449,11 @@ impl<T: VarValue> VarSubscribe<T> for Var<T> {
         })
     }
 
-    fn on_pre_new<H>(&self, handler: H) -> VarHandle
-    where
-        H: AppHandler<OnVarArgs<T>>,
-    {
+    fn on_pre_new(&self, handler: Handler<OnVarArgs<T>>) -> VarHandle {
         var_on_new(self, handler, true)
     }
 
-    fn on_new<H>(&self, handler: H) -> VarHandle
-    where
-        H: AppHandler<OnVarArgs<T>>,
-    {
+    fn on_new(&self, handler: Handler<OnVarArgs<T>>) -> VarHandle {
         var_on_new(self, handler, false)
     }
 }
@@ -1471,68 +1463,52 @@ pub trait ResponseVarSubscribe<T: VarValue> {
     /// Add a `handler` that is called once when the response is received,
     /// the handler is called before all other UI updates.
     ///
-    /// The handle is not called if already [`is_done`], in this case a dummy handle is returned.
+    /// The handler is not called if already [`is_done`], in this case a dummy handle is returned.
     ///
     /// [`is_done`]: ResponseVar::is_done
-    fn on_pre_rsp<H>(&self, handler: H) -> VarHandle
-    where
-        H: AppHandler<OnVarArgs<T>>;
+    fn on_pre_rsp(&self, handler: Handler<OnVarArgs<T>>) -> VarHandle;
 
     /// Add a `handler` that is called once when the response is received,
     /// the handler is called after all other UI updates.
     ///
-    /// The handle is not called if already [`is_done`], in this case a dummy handle is returned.
+    /// The handler is not called if already [`is_done`], in this case a dummy handle is returned.
     ///
     /// [`is_done`]: ResponseVar::is_done
-    fn on_rsp<H>(&self, handler: H) -> VarHandle
-    where
-        H: AppHandler<OnVarArgs<T>>;
+    fn on_rsp(&self, handler: Handler<OnVarArgs<T>>) -> VarHandle;
 }
 impl<T: VarValue> ResponseVarSubscribe<T> for ResponseVar<T> {
-    fn on_pre_rsp<H>(&self, mut handler: H) -> VarHandle
-    where
-        H: AppHandler<OnVarArgs<T>>,
-    {
+    fn on_pre_rsp(&self, mut handler: Handler<OnVarArgs<T>>) -> VarHandle {
         if self.is_done() {
             return VarHandle::dummy();
         }
 
-        self.on_pre_new(app_hn!(|args: &OnVarArgs<zng_var::Response<T>>, handler_args| {
+        self.on_pre_new(Box::new(move |args| {
             if let zng_var::Response::Done(value) = &args.value {
-                handler.event(
-                    &OnVarArgs::new(value.clone(), args.tags.iter().map(|t| (*t).clone_boxed()).collect()),
-                    &crate::handler::AppHandlerArgs {
-                        handle: handler_args,
-                        is_preview: true,
-                    },
-                )
+                APP_HANDLER.unsubscribe();
+                handler(&OnVarArgs::new(value.clone(), args.tags.clone()))
+            } else {
+                HandlerResult::Done
             }
         }))
     }
 
-    fn on_rsp<H>(&self, mut handler: H) -> VarHandle
-    where
-        H: AppHandler<OnVarArgs<T>>,
-    {
+    fn on_rsp(&self, mut handler: Handler<OnVarArgs<T>>) -> VarHandle {
         if self.is_done() {
             return VarHandle::dummy();
         }
 
-        self.on_new(app_hn!(|args: &OnVarArgs<zng_var::Response<T>>, handler_args| {
+        self.on_new(Box::new(move |args| {
             if let zng_var::Response::Done(value) = &args.value {
-                handler.event(
-                    &OnVarArgs::new(value.clone(), args.tags.iter().map(|t| (*t).clone_boxed()).collect()),
-                    &crate::handler::AppHandlerArgs {
-                        handle: handler_args,
-                        is_preview: false,
-                    },
-                )
+                APP_HANDLER.unsubscribe();
+                handler(&OnVarArgs::new(value.clone(), args.tags.clone()))
+            } else {
+                HandlerResult::Done
             }
         }))
     }
 }
 
-fn var_on_new<T>(var: &Var<T>, handler: impl AppHandler<OnVarArgs<T>>, is_preview: bool) -> VarHandle
+fn var_on_new<T>(var: &Var<T>, handler: Handler<OnVarArgs<T>>, is_preview: bool) -> VarHandle
 where
     T: VarValue,
 {
@@ -1540,7 +1516,7 @@ where
         return VarHandle::dummy();
     }
 
-    let handler = Arc::new(Mutex::new(handler));
+    let handler = handler.into_arc();
     let (inner_handle_owner, inner_handle) = Handle::new(());
     var.hook(move |args| {
         if inner_handle_owner.is_dropped() {
@@ -1549,16 +1525,14 @@ where
 
         let handle = inner_handle.downgrade();
         let value = args.value().clone();
-        let tags = args.tags().iter().map(|t| (*t).clone_boxed()).collect();
-        let update_once = app_hn_once!(handler, value, |_| {
-            handler.lock().event(
-                &OnVarArgs::new(value, tags),
-                &AppHandlerArgs {
-                    handle: &handle,
-                    is_preview,
-                },
-            );
-        });
+        let tags: Vec<_> = args.tags().to_vec();
+
+        let update_once: Handler<crate::update::UpdateArgs> = Box::new(clmv!(handler, |_| {
+            APP_HANDLER.unsubscribe(); // once
+            APP_HANDLER.with(handle.clone_boxed(), is_preview, || {
+                handler.call(&OnVarArgs::new(value.clone(), tags.clone()))
+            })
+        }));
 
         if is_preview {
             UPDATES.on_pre_update(update_once).perm();
@@ -1726,6 +1700,11 @@ pub trait UiTaskWidget<R> {
     fn new<F>(target: Option<WidgetId>, task: impl IntoFuture<IntoFuture = F>) -> Self
     where
         F: Future<Output = R> + Send + 'static;
+
+    /// Like [`new`], from an already boxed and pinned future.
+    ///
+    /// [`new`]: UiTaskWidget::new
+    fn new_boxed(target: Option<WidgetId>, task: Pin<Box<dyn Future<Output = R> + Send + 'static>>) -> Self;
 }
 impl<R> UiTaskWidget<R> for UiTask<R> {
     fn new<F>(target: Option<WidgetId>, task: impl IntoFuture<IntoFuture = F>) -> Self
@@ -1733,5 +1712,9 @@ impl<R> UiTaskWidget<R> for UiTask<R> {
         F: Future<Output = R> + Send + 'static,
     {
         UiTask::new_raw(UPDATES.waker(target), task)
+    }
+
+    fn new_boxed(target: Option<WidgetId>, task: Pin<Box<dyn Future<Output = R> + Send + 'static>>) -> Self {
+        UiTask::new_raw_boxed(UPDATES.waker(target), task)
     }
 }

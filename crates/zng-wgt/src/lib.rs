@@ -33,7 +33,7 @@ mod __prelude {
             AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, Event, EventArgs as _, EventHandle,
             EventHandles, EventPropagationHandle, command, event, event_args,
         },
-        handler::{AppHandler, WidgetHandler, app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once},
+        handler::{Handler, HandlerExt as _, async_hn, async_hn_once, hn, hn_once},
         render::{FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, SpatialFrameId, TransformStyle},
         shortcut::{CommandShortcutExt as _, Shortcut, ShortcutFilter, Shortcuts, shortcut},
         timer::{DeadlineHandle, DeadlineVar, TIMERS, TimerHandle, TimerVar},

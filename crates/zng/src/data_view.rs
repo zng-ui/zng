@@ -12,7 +12,7 @@
 //! use zng::prelude::*;
 //!
 //! fn countdown(n: impl IntoVar<usize>) -> UiNode {
-//!     DataView!(::<usize>, n, hn!(|a: &DataViewArgs<usize>| {
+//!     DataView!(::<usize>, n, hn!(|a| {
 //!         // we generate a new view on the first call or when the data has changed to zero.
 //!         if a.view_is_nil() || a.data().get_new() == Some(0) {
 //!             a.set_view(if a.data().get() > 0 {
@@ -43,7 +43,7 @@
 //! DataView! {
 //!     view::<usize> = {
 //!         data: n,
-//!         update: hn!(|a: &DataViewArgs<usize>| {}),
+//!         update: hn!(|a| {}),
 //!     };
 //! }
 //! # ; }

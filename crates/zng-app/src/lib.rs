@@ -101,11 +101,10 @@ pub mod __proc_macro_util {
         pub mod builder {
             #[doc(hidden)]
             pub use crate::widget::builder::{
-                AnyArcWidgetHandler, ArcWidgetHandler, Importance, InputKind, PropertyArgs, PropertyId, PropertyInfo, PropertyInput,
+                AnyArcHandler, HandlerInWhenExprError, Importance, InputKind, PropertyArgs, PropertyId, PropertyInfo, PropertyInput,
                 PropertyInputTypes, PropertyNewArgs, SourceLocation, UiNodeInWhenExprError, WgtInfo, WhenInput, WhenInputMember,
-                WhenInputVar, WidgetHandlerInWhenExprError, WidgetType, iter_input_build_actions, nest_group_items, new_dyn_other,
-                new_dyn_ui_node, new_dyn_var, new_dyn_widget_handler, panic_input, ui_node_to_args, value_to_args, var_getter, var_state,
-                var_to_args, widget_handler_to_args,
+                WhenInputVar, WidgetType, handler_to_args, iter_input_build_actions, nest_group_items, new_dyn_handler, new_dyn_other,
+                new_dyn_ui_node, new_dyn_var, panic_input, ui_node_to_args, value_to_args, var_getter, var_state, var_to_args,
             };
         }
 
@@ -159,7 +158,7 @@ pub mod __proc_macro_util {
     #[doc(hidden)]
     pub mod handler {
         #[doc(hidden)]
-        pub use crate::handler::hn;
+        pub use crate::handler::{ArcHandler, hn};
     }
 
     #[doc(hidden)]

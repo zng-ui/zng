@@ -11,7 +11,6 @@
 
 zng_wgt::enable_widget_macros!();
 
-use zng_app::handler::FilterWidgetHandler;
 use zng_wgt::{base_color, prelude::*, visibility};
 use zng_wgt_container::{Container, child_out_bottom};
 use zng_wgt_fill::background_color;
@@ -67,7 +66,7 @@ pub fn collapse_complete(child: impl IntoUiNode, collapse: impl IntoVar<bool>) -
 ///
 /// This event works in any context that sets [`PROGRESS_VAR`].
 #[property(EVENT, widget_impl(ProgressView))]
-pub fn on_progress(child: impl IntoUiNode, mut handler: impl WidgetHandler<Progress>) -> UiNode {
+pub fn on_progress(child: impl IntoUiNode, handler: Handler<Progress>) -> UiNode {
     // copied from `on_info_init`
     enum State {
         WaitInfo,
@@ -75,11 +74,15 @@ pub fn on_progress(child: impl IntoUiNode, mut handler: impl WidgetHandler<Progr
         Done,
     }
     let mut state = State::WaitInfo;
+    let mut handler = handler.into_wgt_runner();
 
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&PROGRESS_VAR);
             state = State::WaitInfo;
+        }
+        UiNodeOp::Deinit => {
+            handler.deinit();
         }
         UiNodeOp::Info { .. } => {
             if let State::WaitInfo = &state {
@@ -113,11 +116,11 @@ pub fn on_progress(child: impl IntoUiNode, mut handler: impl WidgetHandler<Progr
 ///
 /// This event works in any context that sets [`PROGRESS_VAR`].
 #[property(EVENT, widget_impl(ProgressView))]
-pub fn on_complete(child: impl IntoUiNode, handler: impl WidgetHandler<Progress>) -> UiNode {
+pub fn on_complete(child: impl IntoUiNode, handler: Handler<Progress>) -> UiNode {
     let mut is_complete = false;
     on_progress(
         child,
-        FilterWidgetHandler::new(handler, move |u| {
+        handler.filtered(move |u| {
             let complete = u.is_complete();
             if complete != is_complete {
                 is_complete = complete;
@@ -160,7 +163,7 @@ impl DefaultStyle {
                     #[easing(200.ms())]
                     width = PROGRESS_VAR.map(|p| Length::from(p.fct()));
 
-                    on_progress = hn!(indeterminate_x, |p: &Progress| {
+                    on_progress = hn!(indeterminate_x, |p| {
                         if p.is_indeterminate() {
                             // only animates when actually indeterminate
                             if indeterminate_animation.is_none() {

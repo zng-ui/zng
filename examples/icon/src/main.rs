@@ -7,10 +7,10 @@ use zng::{
     clipboard,
     color::filter::{backdrop_blur, drop_shadow, opacity},
     container,
-    data_view::{DataView, DataViewArgs},
+    data_view::DataView,
     focus::{DirectionalNav, TabNav, directional_nav, focus_scope, focus_shortcut, tab_nav},
     font::FontName,
-    gesture::{ClickArgs, on_click},
+    gesture::on_click,
     icon::{self, GlyphIcon, Icon},
     layout::{align, margin, padding},
     prelude::*,
@@ -132,8 +132,9 @@ fn icons() -> UiNode {
             DataView!(
                 ::<(&'static str, Txt)>,
                 merge_var!(selected_font, search, |f, s| (*f, s.clone())),
-                hn!(|a: &DataViewArgs<(&'static str, Txt)>| {
+                hn!(|a| {
                     if let Some((f, s)) = a.get_new() {
+                        let s: Txt = s;
                         let mut icons: Vec<_> = match f {
                             "filled" => icon::material::filled::all().collect(),
                             "outlined" => icon::material::outlined::all().collect(),
@@ -207,7 +208,7 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
         backdrop_blur = 2;
         background_color = light_dark(colors::BLACK.with_alpha(10.pct()), colors::WHITE.with_alpha(10.pct()));
         child_align = Align::CENTER;
-        on_click = hn!(|args: &ClickArgs| {
+        on_click = hn!(|args| {
             if WIDGET.id() == args.target.widget_id() {
                 args.propagation().stop();
                 ACCESS.click(WINDOW.id(), "close-btn", true);
@@ -264,7 +265,7 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
                         align = Align::TOP_RIGHT;
                         padding = 2;
                         margin = 4;
-                        on_click = async_hn!(opacity, |args: ClickArgs| {
+                        on_click = async_hn!(opacity, |args| {
                             args.propagation().stop();
 
                             opacity.ease(0.fct(), 150.ms(), easing::linear).perm();

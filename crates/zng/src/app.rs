@@ -89,7 +89,7 @@
 //!         render_mode = window::RenderMode::Software;
 //!         frame_capture_mode = window::FrameCaptureMode::Next;
 //!
-//!         on_frame_image_ready = async_hn!(|args: window::FrameImageReadyArgs| {
+//!         on_frame_image_ready = async_hn!(|args| {
 //!             if let Some(img) = args.frame_image {
 //!                 // if the app runs with `run_headless(/* with_renderer: */ true)` an image is captured
 //!                 // and saved here.

@@ -29,7 +29,7 @@
 //!     on_click = hn!(count, |_| {
 //!         count.set(count.get() + 1);
 //!     });
-//!     gesture::on_pre_click = hn!(|args: &gesture::ClickArgs| {
+//!     gesture::on_pre_click = hn!(|args| {
 //!         if count.get() == 10 {
 //!             args.propagation().stop();
 //!             count.set(0u8);
@@ -77,10 +77,8 @@
 //! # fn example() {
 //! # fn cmd_btn_example() -> UiNode { widget::node::UiNode::nil() }
 //! # let _ =
-//! zng::clipboard::COPY_CMD.on_event(true, app_hn!(|_, _| { println!("copy") })).perm();
-//! zng::clipboard::PASTE_CMD
-//!     .on_event(true, app_hn!(|_, _| { println!("paste") }))
-//!     .perm();
+//! zng::clipboard::COPY_CMD.on_event(true, hn!(|_| println!("copy"))).perm();
+//! zng::clipboard::PASTE_CMD.on_event(true, hn!(|_| println!("paste"))).perm();
 //! Window! {
 //!     child = cmd_btn_example();
 //! }

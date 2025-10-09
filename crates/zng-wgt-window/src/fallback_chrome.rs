@@ -1,4 +1,3 @@
-use zng_ext_input::mouse::*;
 use zng_ext_window::{cmd::*, *};
 use zng_wgt::{prelude::*, *};
 use zng_wgt_button::Button;
@@ -88,13 +87,13 @@ pub fn fallback_chrome() -> UiNode {
         when *#{can_move.clone()} {
             cursor = CursorIcon::Move;
         }
-        mouse::on_mouse_down = hn!(|args: &MouseInputArgs| {
+        mouse::on_mouse_down = hn!(|args| {
             if args.is_primary() && can_move.get() && args.target.widget_id() == WIDGET.id() {
                 DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify();
             }
         });
 
-        gesture::on_context_click = hn!(|args: &gesture::ClickArgs| {
+        gesture::on_context_click = hn!(|args| {
             if matches!(WINDOW.vars().state().get(), WindowState::Normal | WindowState::Maximized)
                 && args.target.widget_id() == WIDGET.id()
                 && let Some(p) = args.position()
@@ -161,13 +160,13 @@ pub fn fallback_chrome() -> UiNode {
         when matches!(#{vars.state()}, WindowState::Normal) {
             border = 5, light_dark(colors::WHITE, colors::BLACK).rgba().map_into();
             cursor = cursor.clone();
-            on_mouse_move = hn!(|args: &MouseMoveArgs| {
+            on_mouse_move = hn!(|args| {
                 cursor.set(match args.position_wgt().and_then(resize_direction) {
                     Some(d) => CursorIcon::from(d).into(),
                     None => CursorSource::Hidden,
                 });
             });
-            on_mouse_down = hn!(|args: &MouseInputArgs| {
+            on_mouse_down = hn!(|args| {
                 if args.is_primary()
                     && let Some(d) = args.position_wgt().and_then(resize_direction)
                 {

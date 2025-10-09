@@ -12,7 +12,7 @@
 //! # fn example() {
 //! # let _ =
 //! Window! {
-//!     gesture::on_click = hn!(|args: &gesture::ClickArgs| {
+//!     gesture::on_click = hn!(|args| {
 //!         use gesture::ClickArgsSource::*;
 //!         match args.source {
 //!             Mouse { .. } => println!("mouse click"),

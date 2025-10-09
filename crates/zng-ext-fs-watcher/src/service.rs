@@ -7,7 +7,7 @@ use std::{
 
 use atomic::{Atomic, Ordering};
 use zng_app::{
-    APP, DInstant, INSTANT, app_hn_once,
+    APP, DInstant, INSTANT, hn_once,
     timer::{DeadlineHandle, TIMERS},
 };
 use zng_app_context::{LocalContext, app_local};
@@ -347,7 +347,7 @@ impl WatcherService {
         } else if self.debounce_timer.is_none() {
             self.debounce_timer = Some(TIMERS.on_deadline(
                 self.debounce.get(),
-                app_hn_once!(|_| {
+                hn_once!(|_| {
                     WATCHER_SV.write().on_debounce_timer();
                 }),
             ));

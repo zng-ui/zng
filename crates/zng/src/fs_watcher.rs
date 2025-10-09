@@ -67,7 +67,7 @@ pub use zng_ext_fs_watcher::{
 mod images_ext {
     use std::path::PathBuf;
 
-    use zng_app::app_hn;
+    use zng_app::hn;
     use zng_ext_fs_watcher::WATCHER;
     use zng_ext_image::{IMAGES, ImageVar};
 
@@ -89,7 +89,7 @@ mod images_ext {
         let img = IMAGES.read(path.clone());
         let handle = WATCHER.on_file_changed(
             path.clone(),
-            app_hn!(|_, _| {
+            hn!(|_| {
                 let _ = IMAGES.reload(path.clone());
             }),
         );

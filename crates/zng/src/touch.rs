@@ -27,7 +27,7 @@
 //!             None => layout::Vector::zero(),
 //!         });
 //!     };
-//!     touch::on_touch_input = hn!(|args: &touch::TouchInputArgs| {
+//!     touch::on_touch_input = hn!(|args| {
 //!         println!("touch {:?} {:?}", args.touch, args.phase);
 //!     });
 //! }

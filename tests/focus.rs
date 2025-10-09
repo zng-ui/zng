@@ -1,7 +1,7 @@
 use keyboard::KeyLocation;
 use zng::{
     app::{AppExtended, AppExtension, HeadlessApp},
-    data_view::{DataView, DataViewArgs},
+    data_view::DataView,
     event::EventReceiver,
     focus::{
         DirectionalNav, FOCUS_CHANGED_EVENT, FocusChangedArgs, FocusChangedCause, RETURN_FOCUS_CHANGED_EVENT, ReturnFocusChangedArgs,
@@ -1365,7 +1365,7 @@ pub fn focused_removed_by_deleting() {
         Button! {
             child = Text!("Button 0");
         },
-        DataView!(::<bool>, exist.clone(), hn!(|a: &DataViewArgs<bool>| {
+        DataView!(::<bool>, exist.clone(), hn!(|a| {
             if a.data().get() {
                 a.set_view(Button! {
                     id = button1_id;
@@ -1474,7 +1474,7 @@ pub fn focus_continued_after_widget_id_move() {
     let mut app = app.run(DataView!(
         ::<bool>,
         do_move_id.clone(),
-        hn!(|a: &DataViewArgs<bool>| {
+        hn!(|a| {
             if a.data().get() {
                 a.set_view(Container! {
                     id = "some_other_place";

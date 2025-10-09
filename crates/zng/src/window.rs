@@ -18,7 +18,7 @@
 //! fn window() -> window::WindowRoot {
 //!     let allow_close = var(true);
 //!     Window! {
-//!         on_close_requested = hn!(allow_close, |args: &window::WindowCloseRequestedArgs| {
+//!         on_close_requested = hn!(allow_close, |args| {
 //!             if !allow_close.get() {
 //!                 args.propagation().stop();
 //!             }
@@ -95,6 +95,7 @@
 //!
 //! See [`zng_ext_window`], [`zng_app::window`] and [`zng_wgt_window`] for the full window API.
 
+use zng_app::handler::APP_HANDLER;
 pub use zng_app::window::{MonitorId, WINDOW, WindowId, WindowMode};
 
 pub use zng_ext_window::{
@@ -243,7 +244,7 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
                                 Button! {
                                     style_fn = zng::button::LightStyle!();
                                     child = ICONS.get_or("close", || Text!("x"));
-                                    on_click = hn!(|args: &gesture::ClickArgs| {
+                                    on_click = hn!(|args| {
                                         args.propagation().stop();
                                         let _ = WINDOWS.close(id);
                                     });
@@ -265,9 +266,9 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
         ));
 
         window::WINDOW_CLOSE_EVENT
-            .on_pre_event(app_hn!(|args: &window::WindowCloseArgs, ev: &dyn zng::handler::AppWeakHandle| {
+            .on_pre_event(hn!(|args| {
                 if args.windows.contains(&id) {
-                    ev.unsubscribe();
+                    APP_HANDLER.unsubscribe();
                     layer::LAYERS_REMOVE_CMD.scoped(host_win_id).notify_param(host_wgt_id);
                 }
             }))

@@ -3,7 +3,7 @@
 use zng_wgt::{prelude::*, *};
 use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
-use zng_wgt_input::gesture::{ClickArgs, on_click};
+use zng_wgt_input::gesture::on_click;
 use zng_wgt_layer::popup::POPUP_CLOSE_REQUESTED_EVENT;
 use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 
@@ -34,7 +34,7 @@ impl DialogBackdrop {
             style_base_fn = style_fn!(|_| DefaultStyle!());
             modal = true;
 
-            on_click = hn!(|args: &ClickArgs| {
+            on_click = hn!(|args| {
                 args.propagation().stop();
                 DIALOG.respond_default();
             });

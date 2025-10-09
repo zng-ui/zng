@@ -9,7 +9,7 @@
 //! # let _ =
 //! Window! {
 //!     child = Text!(keyboard::KEYBOARD.keys().map_debug(false));
-//!     keyboard::on_key_input = hn!(|args: &keyboard::KeyInputArgs| {
+//!     keyboard::on_key_input = hn!(|args| {
 //!         println!("key {:?} {:?}", args.key, args.state);
 //!     });
 //! }
@@ -48,7 +48,7 @@ pub use zng_wgt_input::keyboard::{
 ///     APP.device_events_filter().modify(|f| f.input |= InputDeviceCapability::KEY);
 ///
 ///     keyboard::raw_device_events::KEY_EVENT
-///         .on_pre_event(app_hn!(|args: &keyboard::raw_device_events::KeyArgs, _| {
+///         .on_pre_event(hn!(|args| {
 ///             if args.state == keyboard::KeyState::Pressed {
 ///                 println!("key pressed {:?}", args.key_code);
 ///             }

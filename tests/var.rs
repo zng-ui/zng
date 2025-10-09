@@ -575,11 +575,15 @@ mod context {
     }
 
     #[property(EVENT)]
-    fn on_init(child: impl IntoUiNode, mut handler: impl WidgetHandler<()>) -> UiNode {
+    fn on_init(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
+        let mut handler = handler.into_wgt_runner();
         match_node(child, move |child, op| match op {
             UiNodeOp::Init => {
                 child.init();
                 handler.event(&());
+            }
+            UiNodeOp::Deinit => {
+                handler.deinit();
             }
             UiNodeOp::Update { updates } => {
                 child.update(updates);

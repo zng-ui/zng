@@ -161,7 +161,7 @@ fn clip_to_bounds_demo() -> UiNode {
         corner_radius = 10;
         widget::border = 0.5, web_colors::RED.darken(20.pct());
         clip_to_bounds = clip.clone();
-        gesture::on_click = hn!(clip, |_| { clip.modify(|c| **c = !**c) });
+        gesture::on_click = hn!(clip, |_| clip.modify(|c| **c = !**c));
         child = Text! {
             corner_radius = 0;
             background_color = web_colors::GREEN.darken(40.pct());

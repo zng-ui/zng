@@ -16,7 +16,7 @@
 //! # fn example() {
 //!
 //! focus::FOCUS_CHANGED_EVENT
-//!     .on_pre_event(app_hn!(|args: &focus::FocusChangedArgs, _| {
+//!     .on_pre_event(hn!(|args| {
 //!         println!("new_focus: {:?}", args.new_focus);
 //!     }))
 //!     .perm();

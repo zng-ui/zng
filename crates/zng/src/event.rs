@@ -41,12 +41,12 @@
 //! Button! {
 //!     child = Text!("Button");
 //!
-//!     gesture::on_pre_single_click = hn!(|args: &gesture::ClickArgs| {
+//!     gesture::on_pre_single_click = hn!(|args| {
 //!         assert!(args.is_single());
 //!         println!("single click");
 //!         args.propagation().stop();
 //!     });
-//!     on_click = hn!(|args: &gesture::ClickArgs| {
+//!     on_click = hn!(|args| {
 //!         assert!(!args.is_single());
 //!         println!("click {:?}", args.click_count.get());
 //!     });
@@ -139,13 +139,13 @@
 //! # fn example() {
 //!
 //! gesture::CLICK_EVENT
-//!     .on_pre_event(app_hn!(|_, _| {
+//!     .on_pre_event(hn!(|_| {
 //!         println!("click, before all UI handlers");
 //!     }))
 //!     .perm();
 //!
 //! gesture::CLICK_EVENT
-//!     .on_event(app_hn!(|_, _| {
+//!     .on_event(hn!(|_| {
 //!         println!("click, after all UI handlers");
 //!     }))
 //!     .perm();
@@ -297,7 +297,7 @@
 //!                 cmd.name().set(r#"Print "copy!""#);
 //!                 cmd.info().set("");
 //!             });
-//!             clipboard::on_pre_copy = hn!(|args: &CommandArgs| {
+//!             clipboard::on_pre_copy = hn!(|args| {
 //!                 args.propagation().stop();
 //!                 println!("copy!");
 //!             });

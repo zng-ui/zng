@@ -1,5 +1,16 @@
 # Unreleased
 
+This release contains breaking changes that affect the advanced event handler and view-process APIs.
+
+* Refactor handlers to enable args type inference.
+    - Added unified `Handler<A>` type.
+    - **Breaking** Removed `WidgetHandler` and `AppHandler` trait.
+    - **Breaking** Removed `FilterWidgetHandler` and `ArcWidgetHandler` struct.
+    - **Breaking** Removed `app_hn!`, `app_hn_once!`, `async_app_hn!` and `async_app_hn_once!`.
+    - App scoped handler are just normal handlers now, with an `APP_HANDLER` contextual service to unsubscribe from inside.
+
+    To migrate app handlers remove `app_` prefix with normal. To migrate custom event property declarations replace `impl WidgetHandler<A>` with `Handler<A>` and execute the async task is needed. Other use cases will continue working, you can now omit the args type in most handlers. 
+
 * Detect and recover from view-process not responding.
     - **Breaking** Added `Api::ping` and related items to the view-process API.
     - Only breaking for custom view-process implementers.

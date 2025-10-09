@@ -180,7 +180,7 @@ fn anchor_example() -> UiNode {
         viewport_bound: false,
     });
 
-    let next_offset = hn!(|_| {
+    let next_offset: zng::handler::Handler<_> = hn!(|_| {
         idx.modify(move |i| {
             let next = **i + 1;
             **i = if next == len { 0 } else { next };

@@ -4,12 +4,11 @@ use zng::{
     button,
     color::filter::drop_shadow,
     focus::{
-        DirectionalNav, FOCUS_CHANGED_EVENT, FocusChangedArgs, FocusClickBehavior, FocusRequest, FocusTarget, TabIndex, TabNav,
-        alt_focus_scope, directional_nav, focus_click_behavior, focus_scope, focus_shortcut, focusable, is_focused, is_return_focus,
-        return_focus_on_deinit, tab_index, tab_nav,
+        DirectionalNav, FOCUS_CHANGED_EVENT, FocusClickBehavior, FocusRequest, FocusTarget, TabIndex, TabNav, alt_focus_scope,
+        directional_nav, focus_click_behavior, focus_scope, focus_shortcut, focusable, is_focused, is_return_focus, return_focus_on_deinit,
+        tab_index, tab_nav,
     },
     font::FontName,
-    gesture::ClickArgs,
     layout::{align, margin, padding},
     prelude::*,
     text::font_color,
@@ -324,7 +323,7 @@ fn commands() -> UiNode {
 
 fn trace_focus() {
     FOCUS_CHANGED_EVENT
-        .on_pre_event(app_hn!(|args: &FocusChangedArgs, _| {
+        .on_pre_event(hn!(|args| {
             if args.is_highlight_changed() {
                 tracing::info!("highlight: {}", args.highlight);
             } else if args.is_widget_move() {
@@ -342,7 +341,7 @@ fn nested_focusables() -> UiNode {
     Button! {
         child = Text!("Nested Focusables");
 
-        on_click = hn!(|args: &ClickArgs| {
+        on_click = hn!(|args| {
             args.propagation().stop();
             WINDOWS.focus_or_open("nested-focusables", async {
                 Window! {

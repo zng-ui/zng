@@ -12,7 +12,6 @@
 zng_wgt::enable_widget_macros!();
 
 use colors::BASE_COLOR_VAR;
-use zng_ext_input::gesture::ClickArgs;
 use zng_ext_l10n::{L10nArgument, l10n};
 use zng_ext_undo::*;
 use zng_wgt::{base_color, margin, prelude::*};
@@ -147,7 +146,7 @@ pub fn default_undo_entry_fn(args: UndoEntryArgs) -> UiNode {
         child = Text!(label);
         undo_entry = args;
         style_fn = UndoRedoButtonStyle!();
-        on_click = hn!(|args: &ClickArgs| {
+        on_click = hn!(|args| {
             args.propagation().stop();
             cmd.notify_param(ts);
         });

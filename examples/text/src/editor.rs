@@ -48,7 +48,7 @@ fn text_editor_window(is_open: Var<bool>) -> WindowRoot {
         on_close = hn!(is_open, |_| {
             is_open.set(false);
         });
-        on_close_requested = async_hn!(editor, |args: WindowCloseRequestedArgs| {
+        on_close_requested = async_hn!(editor, |args| {
             editor.on_close_requested(args).await;
         });
         min_width = 450;
@@ -144,7 +144,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
                 child = cmd.flat_map(|c| c.icon()).present_data(());
                 child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
                 tooltip = Tip!(Text!(cmd.flat_map(|c| c.name_with_shortcut())));
-                on_click = hn!(|a: &gesture::ClickArgs| {
+                on_click = hn!(|a| {
                     a.propagation().stop();
                     cmd.get().notify();
                 });

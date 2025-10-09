@@ -40,7 +40,7 @@ impl OnNodeOpArgs {
 ///
 /// # Handlers
 ///
-/// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// This property accepts any [`Handler<A>`], including the async handlers. Use one of the handler macros, [`hn!`],
 /// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
 ///
 /// ## Async
@@ -53,17 +53,15 @@ impl OnNodeOpArgs {
 /// [`hn!`]: zng_app::handler::hn!
 /// [`async_hn!`]: zng_app::handler::async_hn!
 /// [`hn_once!`]: zng_app::handler::hn_once!
+/// [`Handler<A>`]: zng_app::handler::Handler
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
-/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
+/// [`Handler`]: zng_app::handler::Handler
 #[property(EVENT)]
-pub fn on_node_op(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_node_op(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_node_op_impl(child.into_node(), handler, |_| true)
 }
-fn on_node_op_impl(
-    child: UiNode,
-    mut handler: impl WidgetHandler<OnNodeOpArgs>,
-    filter: impl Fn(UiNodeMethod) -> bool + Send + 'static,
-) -> UiNode {
+fn on_node_op_impl(child: UiNode, handler: Handler<OnNodeOpArgs>, filter: impl Fn(UiNodeMethod) -> bool + Send + 'static) -> UiNode {
+    let mut handler = handler.into_wgt_runner();
     let mut count = 1;
     match_node(child, move |child, op| {
         let mtd = op.mtd();
@@ -76,6 +74,8 @@ fn on_node_op_impl(
 
         if let UiNodeMethod::Update = mtd {
             handler.update();
+        } else if let UiNodeMethod::Deinit = mtd {
+            handler.deinit();
         }
     })
 }
@@ -88,7 +88,7 @@ fn on_node_op_impl(
 ///
 /// # Handlers
 ///
-/// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// This property accepts any [`Handler<A>`], including the async handlers. Use one of the handler macros, [`hn!`],
 /// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
 ///
 /// ## Async
@@ -102,17 +102,14 @@ fn on_node_op_impl(
 /// [`hn_once!`]: zng_app::handler::hn_once!
 /// [`async_hn!`]: zng_app::handler::async_hn!
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
-/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
+/// [`Handler`]: zng_app::handler::Handler
 #[property(EVENT)]
-pub fn on_pre_node_op(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_pre_node_op(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_pre_node_op_impl(child.into_node(), handler, |_| true)
 }
-fn on_pre_node_op_impl(
-    child: UiNode,
-    mut handler: impl WidgetHandler<OnNodeOpArgs>,
-    filter: impl Fn(UiNodeMethod) -> bool + Send + 'static,
-) -> UiNode {
+fn on_pre_node_op_impl(child: UiNode, handler: Handler<OnNodeOpArgs>, filter: impl Fn(UiNodeMethod) -> bool + Send + 'static) -> UiNode {
     let mut count = 1;
+    let mut handler = handler.into_wgt_runner();
     match_node(child, move |_, op| {
         if let UiNodeOp::Update { .. } = &op {
             handler.update();
@@ -122,6 +119,10 @@ fn on_pre_node_op_impl(
         if filter(mtd) {
             handler.event(&OnNodeOpArgs::now(mtd, count));
             count = count.wrapping_add(1);
+        }
+
+        if let UiNodeOp::Deinit = op {
+            handler.deinit();
         }
     })
 }
@@ -138,7 +139,7 @@ fn on_pre_node_op_impl(
 ///
 /// # Handlers
 ///
-/// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// This property accepts any [`Handler<A>`], including the async handlers. Use one of the handler macros, [`hn!`],
 /// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
 ///
 /// ## Async
@@ -152,9 +153,9 @@ fn on_pre_node_op_impl(
 /// [`hn_once!`]: zng_app::handler::hn_once!
 /// [`async_hn!`]: zng_app::handler::async_hn!
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
-/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
+/// [`Handler`]: zng_app::handler::Handler
 #[property(EVENT)]
-pub fn on_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_init(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Init))
 }
 
@@ -162,7 +163,7 @@ pub fn on_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>
 ///
 /// [`on_init`]: fn@on_init
 #[property(EVENT)]
-pub fn on_pre_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_pre_init(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Init))
 }
 
@@ -173,7 +174,7 @@ pub fn on_pre_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpA
 ///
 /// # Handlers
 ///
-/// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// This property accepts any [`Handler<A>`], including the async handlers. Use one of the handler macros, [`hn!`],
 /// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
 ///
 /// ## Async
@@ -189,10 +190,10 @@ pub fn on_pre_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpA
 /// [`hn_once!`]: zng_app::handler::hn_once!
 /// [`async_hn!`]: zng_app::handler::async_hn!
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
-/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
+/// [`Handler<A>`]: zng_app::handler::Handler
 #[property(EVENT)]
-pub fn on_info_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
-    let mut handler = handler;
+pub fn on_info_init(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
+    let mut handler = handler.into_wgt_runner();
     let mut count = 1;
     enum State {
         WaitInfo,
@@ -203,6 +204,9 @@ pub fn on_info_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOp
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             state = State::WaitInfo;
+        }
+        UiNodeOp::Deinit => {
+            handler.deinit();
         }
         UiNodeOp::Info { .. } => {
             if let State::WaitInfo = &state {
@@ -238,7 +242,7 @@ pub fn on_info_init(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOp
 /// [`hn!`]: zng_app::handler::hn!
 /// [`hn_once!`]: zng_app::handler::hn_once!
 #[property(EVENT)]
-pub fn on_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_update(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Update))
 }
 
@@ -257,7 +261,7 @@ pub fn on_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArg
 /// [`hn!`]: zng_app::handler::hn!
 /// [`hn_once!`]: zng_app::handler::hn_once!
 #[property(EVENT)]
-pub fn on_pre_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_pre_update(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Update))
 }
 
@@ -270,7 +274,7 @@ pub fn on_pre_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeO
 ///
 /// # Handlers
 ///
-/// This property accepts the [`WidgetHandler`] that are not async. Use one of the handler macros, [`hn!`] or
+/// This property accepts the [`Handler`] that are not async. Use one of the handler macros, [`hn!`] or
 /// [`hn_once!`], to declare a handler closure.
 ///
 /// Note that async handlers do not work here because widget bound async tasks only advance past the first `.await`
@@ -283,12 +287,12 @@ pub fn on_pre_update(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeO
 ///
 /// [`UPDATES.run`]: zng_app::update::UPDATES::run
 /// [`on_pre_deinit`]: fn@on_pre_deinit
-/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
+/// [`Handler`]: zng_app::handler::Handler
 /// [`hn!`]: zng_app::handler::hn!
 /// [`hn_once!`]: zng_app::handler::hn_once!
 /// [`task::spawn`]: zng_task::spawn
 #[property(EVENT)]
-pub fn on_deinit(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_deinit(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Deinit))
 }
 
@@ -296,7 +300,7 @@ pub fn on_deinit(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArg
 ///
 /// [`on_deinit`]: fn@on_deinit
 #[property(EVENT)]
-pub fn on_pre_deinit(child: impl IntoUiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> UiNode {
+pub fn on_pre_deinit(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_pre_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Deinit))
 }
 

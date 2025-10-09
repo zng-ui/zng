@@ -1,7 +1,6 @@
 use std::mem;
 
 use zng_app::widget::{
-    OnVarArgs,
     border::{BorderSide, BorderSides},
     builder::{Importance, PropertyArgs, PropertyInfo, WidgetType},
     inspector::{InspectorActualVars, InstanceItem},
@@ -64,7 +63,7 @@ pub(super) fn new(
     let wgt_filter = var(Txt::from_static(""));
 
     // hit_select var is used to communicate with the `select_on_click` node on the inspected window.
-    let hit_select_handle = hit_select.on_new(app_hn!(inspected_tree, selected_wgt, |a: &OnVarArgs<HitSelect>, _| {
+    let hit_select_handle = hit_select.on_new(hn!(inspected_tree, selected_wgt, |a| {
         if let HitSelect::Select(id) = a.value {
             // clicked on a widget to select
             selected_wgt.set(inspected_tree.inspect(id));
@@ -534,7 +533,7 @@ fn value_background(value: &Var<Txt>) -> Var<Rgba> {
     let flash = var(rgba(0, 0, 0, 0));
     let mut _flashing = None;
     value
-        .on_pre_new(app_hn!(flash, |_, _| {
+        .on_pre_new(hn!(flash, |_| {
             let h = flash.set_ease(colors::BLACK, colors::BLACK.transparent(), 500.ms(), easing::linear);
             _flashing = Some(h);
         }))

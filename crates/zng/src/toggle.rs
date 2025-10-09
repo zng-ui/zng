@@ -160,7 +160,7 @@
 //! Toggle! {
 //!     child = TextInput! {
 //!         txt = txt.clone();
-//!         gesture::on_click = hn!(|a: &gesture::ClickArgs| a.propagation().stop());
+//!         gesture::on_click = hn!(|a| a.propagation().stop());
 //!     };
 //!     style_fn = toggle::ComboStyle!();
 //!
