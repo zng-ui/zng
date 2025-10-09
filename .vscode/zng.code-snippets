@@ -244,46 +244,6 @@
 			"})"
 		]
 	},
-	"App Event Handler": {
-		"description": "Declare an app event handler",
-		"scope": "rust",
-		"prefix": "app_hn!",
-		"body": [
-			"app_hn!($1|${2:_}, ${3:_}| {",
-			"    $4",
-			"})"
-		]
-	},
-	"Once App Event Handler": {
-		"description": "Declare an once app event handler",
-		"scope": "rust",
-		"prefix": "app_hn_once!",
-		"body": [
-			"app_hn_once!($1|${2:_}| {",
-			"    $3",
-			"})"
-		]
-	},
-	"Async App Event Handler": {
-		"description": "Declare an async app event handler",
-		"scope": "rust",
-		"prefix": "async_app_hn!",
-		"body": [
-			"async_app_hn!($1|${2:_}, ${3:_}| {",
-			"    $4",
-			"})"
-		]
-	},
-	"Async Once App Event Handler": {
-		"description": "Declare an async once app event handler",
-		"scope": "rust",
-		"prefix": "async_app_hn_once!",
-		"body": [
-			"async_hn_once!($1|${2:_}| {",
-			"    $3",
-			"})"
-		]
-	},
 	"Widget Set": {
 		"description": "Set properties and 'when' blocks in a widget builder",
 		"scope": "rust",

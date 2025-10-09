@@ -70,7 +70,7 @@ impl<D: VarValue> DataViewArgs<D> {
 /// # use zng_wgt_data_view::*;
 /// # use zng_wgt::prelude::*;
 /// # fn main() { }
-/// # fn shorthand_demo<T: VarValue>(data: impl IntoVar<T>, update: impl WidgetHandler<DataViewArgs<T>>) -> UiNode {
+/// # fn shorthand_demo<T: VarValue>(data: impl IntoVar<T>, update: Handler<DataViewArgs<T>>) -> UiNode {
 /// DataView!(::<T>, data, update)
 /// # }
 /// ```
@@ -84,7 +84,7 @@ impl<D: VarValue> DataViewArgs<D> {
 /// # use zng_wgt_data_view::*;
 /// # use zng_wgt::prelude::*;
 /// # fn main() { }
-/// # fn shorthand_demo<T: VarValue>(data: impl IntoVar<T>, update: impl WidgetHandler<DataViewArgs<T>>) -> UiNode {
+/// # fn shorthand_demo<T: VarValue>(data: impl IntoVar<T>, update: Handler<DataViewArgs<T>>) -> UiNode {
 /// DataView! {
 ///     view::<T> = {
 ///         data: data,

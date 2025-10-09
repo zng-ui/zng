@@ -222,7 +222,7 @@ impl SearchStyle {
                             false => Visibility::Visible,
                         })
                     });
-                    on_click = hn!(|args: &zng_ext_input::gesture::ClickArgs| {
+                    on_click = hn!(|args| {
                         args.propagation().stop();
                         zng_wgt_text::cmd::EDIT_CMD
                             .scoped(WIDGET.info().parent().unwrap().id())

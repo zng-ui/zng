@@ -17,7 +17,7 @@
 //!             None => layout::Vector::zero(),
 //!         });
 //!     };
-//!     mouse::on_mouse_input = hn!(|args: &mouse::MouseInputArgs| {
+//!     mouse::on_mouse_input = hn!(|args| {
 //!         println!("button {:?} {:?}", args.button, args.state);
 //!     });
 //! }

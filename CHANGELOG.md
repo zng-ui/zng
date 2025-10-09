@@ -1,7 +1,5 @@
 # Unreleased
 
-!!: TODO fix `return` in hn!
-
 This release contains breaking changes that affect the advanced event handler and view-process APIs.
 
 * Refactor handlers to enable args type inference.

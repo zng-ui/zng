@@ -2,7 +2,6 @@
 
 use zng::{
     color::filter::opacity,
-    gesture::ClickArgs,
     layout::{align, margin},
     mouse::ClickMode,
     prelude::*,
@@ -126,7 +125,7 @@ fn repeat_button() -> UiNode {
     Button! {
         id = "repeat-btn";
         mouse::click_mode = ClickMode::repeat();
-        on_click = hn!(t, |args: &ClickArgs| {
+        on_click = hn!(t, |args| {
             let new_txt = formatx!("repeat: {}, count: {}", args.is_repeat, args.click_count);
             t.set(new_txt);
         });
@@ -149,7 +148,7 @@ fn split_button() -> UiNode {
         });
 
         child = Button! {
-            on_click = hn!(button_count, |args: &ClickArgs| {
+            on_click = hn!(button_count, |args| {
                 tracing::info!("Clicked button part");
                 button_count.set(button_count.get() + 1);
 
@@ -238,7 +237,7 @@ fn combo_box() -> UiNode {
         id = "combo";
         child = TextInput! {
             txt = txt.clone();
-            gesture::on_click = hn!(|a: &ClickArgs| a.propagation().stop());
+            gesture::on_click = hn!(|a| a.propagation().stop());
         };
         style_fn = toggle::ComboStyle!();
 

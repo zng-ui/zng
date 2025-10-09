@@ -860,11 +860,11 @@ impl dyn PropertyArgs + '_ {
             .unwrap_or_else(|_| panic!("cannot downcast var to type"))
     }
 
-    /// Gets a strongly typed [`widget_handler`].
+    /// Gets a strongly typed [`handler`].
     ///
     /// Panics if the args type does not match.
     ///
-    /// [`widget_handler`]: PropertyArgs::widget_handler
+    /// [`handler`]: PropertyArgs::handler
     pub fn downcast_handler<A>(&self, i: usize) -> &ArcHandler<A>
     where
         A: 'static + Clone,
@@ -1044,7 +1044,7 @@ pub fn new_dyn_handler<'a, A: Clone + 'static>(
         Ok(builder) => builder.build(),
         Err(item) => *item
             .downcast::<ArcHandler<A>>()
-            .expect("input did not match expected WidgetHandler types"),
+            .expect("input did not match expected Handler types"),
     };
 
     apply_build_actions(item, actions)
@@ -1095,7 +1095,7 @@ impl fmt::Display for HandlerInWhenExprError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "cannot ref `impl WidgetHandler<A>` in when expression, only var and value properties allowed"
+            "cannot ref `Handler<A>` in when expression, only var and value properties allowed"
         )
     }
 }
@@ -2754,17 +2754,17 @@ pub struct PropertyBuildActionArgs<'a, I: Any + Send> {
 ///
 /// The expected types for each [`InputKind`] are:
 ///
-/// | Kind                | Expected Type
-/// |---------------------|-------------------------------------------------
-/// | [`Var`]             | `Var<T>`
-/// | [`Value`]           | `T`
-/// | [`UiNode`]          | `ArcNode<BoxedUiNode>`
-/// | [`WidgetHandler`]   | `ArcWidgetHandler<A>`
+/// | Kind          | Expected Type
+/// |---------------|-------------------------------------------------
+/// | [`Var`]       | `Var<T>`
+/// | [`Value`]     | `T`
+/// | [`UiNode`]    | `ArcNode<BoxedUiNode>`
+/// | [`Handler`]   | `ArcHandler<A>`
 ///
 /// [`Var`]: InputKind::Var
 /// [`Value`]: InputKind::Value
 /// [`UiNode`]: InputKind::UiNode
-/// [`WidgetHandler`]: InputKind::WidgetHandler
+/// [`Handler`]: InputKind::Handler
 pub struct PropertyBuildAction<I: Any + Send>(Arc<Mutex<dyn FnMut(PropertyBuildActionArgs<I>) -> I + Send>>);
 impl<I: Any + Send> crate::private::Sealed for PropertyBuildAction<I> {}
 impl<I: Any + Send> Clone for PropertyBuildAction<I> {

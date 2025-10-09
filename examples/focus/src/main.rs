@@ -9,7 +9,6 @@ use zng::{
         tab_index, tab_nav,
     },
     font::FontName,
-    gesture::ClickArgs,
     layout::{align, margin, padding},
     prelude::*,
     text::font_color,
@@ -342,7 +341,7 @@ fn nested_focusables() -> UiNode {
     Button! {
         child = Text!("Nested Focusables");
 
-        on_click = hn!(|args: &ClickArgs| {
+        on_click = hn!(|args| {
             args.propagation().stop();
             WINDOWS.focus_or_open("nested-focusables", async {
                 Window! {

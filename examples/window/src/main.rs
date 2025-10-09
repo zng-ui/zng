@@ -10,7 +10,7 @@ use zng::{
     prelude::*,
     scroll::ScrollMode,
     widget::{LineStyle, background_color, corner_radius, enabled, visibility},
-    window::{FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowState},
+    window::{FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowState},
 };
 
 fn main() {
@@ -42,7 +42,7 @@ async fn main_window() -> window::WindowRoot {
         background_color = background.easing(150.ms(), easing::linear);
         clear_color = rgba(0, 0, 0, 0);
         title;
-        on_state_changed = hn!(|args: &WindowChangedArgs| {
+        on_state_changed = hn!(|args| {
             tracing::info!("state: {:?}", args.new_state().unwrap());
         });
         on_close_requested = confirm_close();
@@ -391,13 +391,13 @@ fn custom_chrome(title: Var<Txt>) -> UiNode {
         when *#{can_move.clone()} {
             mouse::cursor = mouse::CursorIcon::Move;
         }
-        mouse::on_mouse_down = hn!(|args: &mouse::MouseInputArgs| {
+        mouse::on_mouse_down = hn!(|args| {
             if args.is_primary() && can_move.get() {
                 window::cmd::DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify();
             }
         });
 
-        gesture::on_context_click = hn!(|args: &gesture::ClickArgs| {
+        gesture::on_context_click = hn!(|args| {
             if matches!(WINDOW.vars().state().get(), WindowState::Normal | WindowState::Maximized)
                 && let Some(p) = args.position()
             {
@@ -462,13 +462,13 @@ fn custom_chrome(title: Var<Txt>) -> UiNode {
         when matches!(#{vars.state()}, WindowState::Normal) {
             widget::border = 5, light_dark(colors::WHITE, colors::BLACK).rgba().map_into();
             mouse::cursor = cursor.clone();
-            mouse::on_mouse_move = hn!(|args: &mouse::MouseMoveArgs| {
+            mouse::on_mouse_move = hn!(|args| {
                 cursor.set(match args.position_wgt().and_then(resize_direction) {
                     Some(d) => mouse::CursorIcon::from(d).into(),
                     None => mouse::CursorSource::Hidden,
                 });
             });
-            mouse::on_mouse_down = hn!(|args: &mouse::MouseInputArgs| {
+            mouse::on_mouse_down = hn!(|args| {
                 if args.is_primary()
                     && let Some(d) = args.position_wgt().and_then(resize_direction)
                 {

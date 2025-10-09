@@ -100,7 +100,7 @@ fn window_content() -> UiNode {
         children = ui_vec![
             Button! {
                 child = Text!(l10n!("button", "Button")); // l10n-# button sets "click-count"
-                gesture::on_any_click = hn!(|a: &gesture::ClickArgs| {
+                gesture::on_any_click = hn!(|a| {
                     if a.is_primary() {
                         click_count.set(click_count.get() + 1);
                     } else if a.is_context() {
@@ -275,7 +275,7 @@ fn shortcut_input_dialog(output: Var<gesture::Shortcuts>) -> UiNode {
             }
         };
 
-        on_pre_key_down = hn!(|args: &KeyInputArgs| {
+        on_pre_key_down = hn!(|args| {
             args.propagation().stop();
 
             match &args.key {

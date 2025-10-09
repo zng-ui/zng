@@ -218,7 +218,7 @@ pub(crate) fn setup_default_view() {
                 child = DataView! {
                     view::<Txt> =
                         search,
-                        hn!(selected, |a: &DataViewArgs<Txt>| {
+                        hn!(selected, |a| {
                             let search = a.data().get();
                             let licenses = if search.is_empty() {
                                 licenses.clone()

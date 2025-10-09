@@ -384,7 +384,7 @@
 //! The example above uses events and command events. Events are represented by a static instance
 //! of [`Event<A>`] with name suffix `_EVENT`. Events are usually abstracted by
 //! one or more event property, event properties are named with prefix `on_` and accept one input of
-//! [`impl WidgetHandler<A>`]. Commands are specialized events represented by a static instance of [`Command`]
+//! [`Handler<A>`]. Commands are specialized events represented by a static instance of [`Command`]
 //! with name suffix `_CMD`. Every command is also an `Event<CommandArgs>`, unlike other events it is common
 //! for the command instance to be used directly.
 //!
@@ -407,7 +407,7 @@
 //!
 //! [`Event<A>`]: event::Event
 //! [`Command`]: event::Command
-//! [`impl WidgetHandler<A>`]: handler::WidgetHandler
+//! [`Handler<A>`]: handler::Handler
 //! [`hn!`]: handler::hn!
 //! [`async_hn!`]: handler::async_hn!
 //!
@@ -1031,7 +1031,7 @@ mod defaults {
             #[cfg(all(single_instance, feature = "window"))]
             {
                 crate::app::APP_INSTANCE_EVENT
-                    .on_pre_event(crate::handler::app_hn!(|args: &crate::app::AppInstanceArgs, _| {
+                    .on_pre_event(crate::handler::hn!(|args| {
                         use crate::window::*;
 
                         // focus a window if none are focused.

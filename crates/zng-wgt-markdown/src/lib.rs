@@ -54,7 +54,7 @@ impl Markdown {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-            on_link = hn!(|args: &LinkArgs| {
+            on_link = hn!(|args| {
                 try_default_link_action(args);
             });
             zng_wgt_text::rich_text = true;

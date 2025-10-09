@@ -23,7 +23,7 @@
 //!         on_drag_leave = hn!(data, |_| {
 //!             data.set(vec![]);
 //!         });
-//!         on_drop = hn!(data, |args: &DropArgs| {
+//!         on_drop = hn!(data, |args| {
 //!             data.set(args.data.clone());
 //!         });
 //!         child = Text!(data.map(|d| if d.is_empty() {

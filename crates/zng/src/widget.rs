@@ -619,7 +619,7 @@ pub use zng_app::widget::easing;
 /// the widget macros use this to set the property. Because it has the same name it is imported together with the property
 /// function, in practice this only matters in doc links where you must use the `fn@` disambiguator.
 ///
-/// # Attribute
+/// # Attribute Args
 ///
 /// The property attribute has one required argument and three optional.
 ///
@@ -713,7 +713,7 @@ pub use zng_app::widget::easing;
 /// pub fn children(children: impl IntoUiNode) {}
 /// ```
 ///
-/// # Args
+/// # Function Args
 ///
 /// The property function requires at least two args, the first is the child node and the other(s) the input values. The
 /// number and type of inputs is validated at compile time, the types are limited and are identified and validated by their
@@ -760,10 +760,10 @@ pub use zng_app::widget::easing;
 ///
 /// Note that UI lists like [`ui_vec!`] are also nodes, so panel children properties also receive `impl IntoUiNode`.
 ///
-/// ##### `impl WidgetHandler<A>`
+/// ##### `Handler<A>`
 ///
-/// This input accepts any [`WidgetHandler<A>`] for the argument type `A`, usually the property defines the `A`, but it can be generic.
-/// The input kind is [`InputKind::WidgetHandler`]. A no-op handler is used for the default if no other is provided.
+/// This input is the type alias [`Handler<A>`], generic for the argument type `A`, usually the property defines the `A`, but it can be generic.
+/// The input kind is [`InputKind::Handler`]. A no-op handler is used for the default if no other is provided.
 ///
 /// Event handler properties usually have the `on_` name prefix. You can use the [`event_property!`] macro to generate standard event properties.
 ///
@@ -789,7 +789,7 @@ pub use zng_app::widget::easing;
 /// # Generics
 ///
 /// Apart from the `impl` generics of inputs and child, there is some support for named generic types, only one named generic is allowed
-/// for inputs `impl IntoVar<T>`, `impl IntoValue<T>` and `impl WidgetHandler<A>`.
+/// for inputs `impl IntoVar<T>`, `impl IntoValue<T>` and `Handler<A>`.
 ///
 /// # Output
 ///
@@ -811,7 +811,7 @@ pub use zng_app::widget::easing;
 /// [`VarValue`]: crate::var::VarValue
 /// [`IntoValue<T>`]: crate::var::IntoValue
 /// [`IntoVar<T>`]: crate::var::IntoVar
-/// [`WidgetHandler<A>`]: crate::handler::WidgetHandler
+/// [`Handler<A>`]: crate::handler::Handler
 /// [`UiNode`]: crate::widget::node::UiNode
 /// [`IntoUiNode`]: crate::widget::node::IntoUiNode
 /// [`UiNode::nil`]: crate::widget::node::UiNode::nil
@@ -820,7 +820,7 @@ pub use zng_app::widget::easing;
 /// [`InputKind::Value`]: crate::widget::builder::InputKind::Value
 /// [`InputKind::UiNode`]: crate::widget::builder::InputKind::UiNode
 /// [`InputKind::UiNodeList`]: crate::widget::builder::InputKind::UiNodeList
-/// [`InputKind::WidgetHandler`]: crate::widget::builder::InputKind::WidgetHandler
+/// [`InputKind::Handler`]: crate::widget::builder::InputKind::Handler
 /// [`event_property!`]: crate::event::event_property
 ///
 /// <script>

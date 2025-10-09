@@ -49,7 +49,7 @@
 //!             }
 //!         };
 //!
-//!         on_pre_key_down = hn!(|args: &KeyInputArgs| {
+//!         on_pre_key_down = hn!(|args| {
 //!             args.propagation().stop();
 //!             match &args.key {
 //!                 Key::Enter => {

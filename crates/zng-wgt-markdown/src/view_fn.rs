@@ -3,7 +3,6 @@ use std::num::NonZeroU32;
 pub use pulldown_cmark::HeadingLevel;
 use zng_ext_font::*;
 use zng_ext_image::ImageSource;
-use zng_ext_input::gesture::ClickArgs;
 use zng_wgt::*;
 use zng_wgt_access::{self as access, AccessRole, access_role};
 use zng_wgt_button::{Button, LinkStyle};
@@ -712,7 +711,7 @@ pub fn default_link_fn(args: LinkFnArgs) -> UiNode {
             style_fn = LinkStyle!();
             child = items;
 
-            on_click = hn!(|args: &ClickArgs| {
+            on_click = hn!(|args| {
                 args.propagation().stop();
 
                 let link = WINDOW.info().get(WIDGET.id()).unwrap().interaction_path();
@@ -1101,7 +1100,7 @@ pub fn default_footnote_ref_fn(args: FootnoteRefFnArgs) -> UiNode {
         offset = (0, (-0.5).em());
         crate::anchor = formatx!("footnote-ref-{}", args.label);
         child = Text!("[{}]", args.label);
-        on_click = hn!(|args: &ClickArgs| {
+        on_click = hn!(|args| {
             args.propagation().stop();
 
             let link = WINDOW.info().get(WIDGET.id()).unwrap().interaction_path();
@@ -1135,7 +1134,7 @@ pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> UiNode {
             Button! {
                 style_fn = LinkStyle!();
                 child = Text!("[^{}]", args.label);
-                on_click = hn!(|args: &ClickArgs| {
+                on_click = hn!(|args| {
                     args.propagation().stop();
 
                     let link = WINDOW.info().get(WIDGET.id()).unwrap().interaction_path();

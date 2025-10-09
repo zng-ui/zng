@@ -90,7 +90,7 @@ impl Button {
                             if on_click {
                                 child = self::on_click(
                                     child,
-                                    hn!(cmd, |args: &ClickArgs| {
+                                    hn!(cmd, |args| {
                                         let cmd = cmd.get();
                                         if cmd.is_enabled_value() {
                                             if let Some(param) = CMD_PARAM_VAR.get() {
@@ -106,7 +106,7 @@ impl Button {
                             if on_disabled_click {
                                 child = self::on_disabled_click(
                                     child,
-                                    hn!(cmd, |args: &ClickArgs| {
+                                    hn!(cmd, |args| {
                                         let cmd = cmd.get();
                                         if !cmd.is_enabled_value() {
                                             if let Some(param) = CMD_PARAM_VAR.get() {

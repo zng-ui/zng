@@ -331,7 +331,7 @@ fn large_image() -> UiNode {
                             );
                             img_downscale = ImageDownscale::from(layout::Px(8000));
 
-                            on_error = hn!(|args: &ImgErrorArgs| {
+                            on_error = hn!(|args| {
                                 tracing::error!(target: "unexpected", "{}", args.error);
                             });
                             on_load = hn!(|_| {
@@ -380,7 +380,7 @@ fn panorama_image() -> UiNode {
                                     .with_max_encoded_len(130.megabytes())
                                     .with_max_decoded_len(1.gigabytes()),
                             );
-                            on_error = hn!(|args: &ImgErrorArgs| {
+                            on_error = hn!(|args| {
                                 tracing::error!(target: "unexpected", "{}", args.error);
                             });
                         };
@@ -429,7 +429,7 @@ fn block_window_load_image() -> UiNode {
                                     .with_max_decoded_len(1.gigabytes()),
                             );
 
-                            on_error = hn!(|args: &ImgErrorArgs| {
+                            on_error = hn!(|args| {
                                 tracing::error!(target: "unexpected", "{}", args.error);
                             });
                         };
@@ -467,10 +467,10 @@ fn repeat_image() -> UiNode {
                                     .easing(300.ms(), easing::linear),
                             ;
                             size = (10000, 100.pct());
-                            mouse::on_mouse_input = hn!(show_pattern, |args: &mouse::MouseInputArgs| {
+                            mouse::on_mouse_input = hn!(show_pattern, |args| {
                                 show_pattern.set(matches!(args.state, mouse::ButtonState::Pressed));
                             });
-                            zng::image::on_error = hn!(|args: &ImgErrorArgs| {
+                            zng::image::on_error = hn!(|args| {
                                 tracing::error!(target: "unexpected", "{}", args.error);
                             });
                         };
@@ -483,10 +483,10 @@ fn repeat_image() -> UiNode {
                         //         .map(|&s| layout::Size::from(if s { 10 } else { 0 }))
                         //         .easing(300.ms(), easing::linear);
                         //     size = (10000, 100.pct());
-                        //     mouse::on_mouse_input = hn!(show_pattern, |args: &mouse::MouseInputArgs| {
+                        //     mouse::on_mouse_input = hn!(show_pattern, |args| {
                         //         show_pattern.set(matches!(args.state, mouse::ButtonState::Pressed));
                         //     });
-                        //     on_error = hn!(|args: &ImgErrorArgs| {
+                        //     on_error = hn!(|args| {
                         //         tracing::error!(target: "unexpected", "{}", args.error);
                         //     });
                         // };
@@ -532,7 +532,7 @@ fn open_or_paste_image() -> UiNode {
                                 source;
                                 get_img_layout_size = img_size;
                                 layout::actual_size_px = img_wgt_size;
-                                on_error = hn!(|args: &ImgErrorArgs| {
+                                on_error = hn!(|args| {
                                     tracing::error!(target: "unexpected", "{}", args.error);
                                 });
                             },

@@ -96,7 +96,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             InputKind::UiNode => unpack_args.extend(quote! {
                 __args__.pop_ui_node(),
             }),
-            InputKind::WidgetHandler => unpack_args.extend(quote! {
+            InputKind::Handler => unpack_args.extend(quote! {
                 __args__.pop_widget_handler::<#t>(),
             }),
             InputKind::TryClone => unpack_args.extend(quote! {
@@ -156,7 +156,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     __args__.push_ui_node(#ident);
                 });
             }
-            InputKind::WidgetHandler => {
+            InputKind::Handler => {
                 pack_args.extend(quote_spanned! {ident.span()=>
                     __args__.push_widget_handler::<#t>(#ident);
                 });
@@ -212,7 +212,7 @@ enum InputKind {
     Var,
     Value,
     UiNode,
-    WidgetHandler,
+    Handler,
     TryClone,
 }
 struct Input {
@@ -248,6 +248,18 @@ impl Input {
                     }
                 }
 
+                fn ty_from_generic(input: &mut Input, errors: &mut Errors, kind: InputKind, args: &PathArguments) -> bool {
+                    if let PathArguments::AngleBracketed(it) = args
+                        && it.args.len() == 1
+                    {
+                        input.kind = kind;
+                        input.gen_ty = it.args.last().unwrap().to_token_stream();
+                        return true;
+                    }
+                    errors.push("expected single generic param", args.span());
+                    false
+                }
+
                 match *t.ty.clone() {
                     Type::ImplTrait(mut it) if it.bounds.len() == 1 => {
                         let bounds = it.bounds.pop().unwrap().into_value();
@@ -256,18 +268,6 @@ impl Input {
                                 let path = tra.path;
                                 let seg = path.segments.last().unwrap();
 
-                                fn ty_from_generic(input: &mut Input, errors: &mut Errors, kind: InputKind, args: &PathArguments) -> bool {
-                                    if let PathArguments::AngleBracketed(it) = args
-                                        && it.args.len() == 1
-                                    {
-                                        input.kind = kind;
-                                        input.gen_ty = it.args.last().unwrap().to_token_stream();
-                                        return true;
-                                    }
-                                    errors.push("expected single generic param", args.span());
-                                    false
-                                }
-
                                 match seg.ident.to_string().as_str() {
                                     "IntoVar" if !seg.arguments.is_empty() => {
                                         ty_from_generic(&mut input, errors, InputKind::Var, &seg.arguments);
@@ -275,20 +275,35 @@ impl Input {
                                     "IntoValue" if !seg.arguments.is_empty() => {
                                         ty_from_generic(&mut input, errors, InputKind::Value, &seg.arguments);
                                     }
-                                    "WidgetHandler" if !seg.arguments.is_empty() => {
-                                        ty_from_generic(&mut input, errors, InputKind::WidgetHandler, &seg.arguments);
-                                    }
                                     "IntoUiNode" => {
                                         input.kind = InputKind::UiNode;
                                     }
                                     _ => {
-                                        errors.push("hot node input can only have impl types for: IntoVar<T>, IntoValue<T>, IntoUiNode, WidgetHandler<A>", seg.span());
+                                        errors.push(
+                                            "hot node input can only have impl types for: IntoVar<T>, IntoValue<T>, IntoUiNode",
+                                            seg.span(),
+                                        );
                                     }
                                 }
                             }
                             t => {
                                 errors.push("hot node input can only have `impl OneTrait`", t.span());
                             }
+                        }
+                    }
+                    Type::Path(p) => {
+                        let mut handler = false;
+                        if p.qself.is_none() && !p.path.segments.is_empty() {
+                            let seg = p.path.segments.last().unwrap();
+
+                            if seg.ident.to_string().as_str() == "Handler" && !seg.arguments.is_empty() {
+                                handler = true;
+                                ty_from_generic(&mut input, errors, InputKind::Handler, &seg.arguments);
+                            }
+                        }
+                        if !handler {
+                            input.kind = InputKind::TryClone;
+                            input.gen_ty = p.to_token_stream();
                         }
                     }
                     Type::Array(a) => {
@@ -298,10 +313,6 @@ impl Input {
                     Type::BareFn(f) => {
                         input.kind = InputKind::TryClone;
                         input.gen_ty = f.to_token_stream();
-                    }
-                    Type::Path(p) => {
-                        input.kind = InputKind::TryClone;
-                        input.gen_ty = p.to_token_stream();
                     }
                     Type::Tuple(t) => {
                         input.kind = InputKind::TryClone;

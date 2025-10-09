@@ -11,7 +11,7 @@
 //! # fn example() {
 //!
 //! zng::update::UPDATES
-//!     .on_pre_update(app_hn!(|args: &zng::update::UpdateArgs, _| {
+//!     .on_pre_update(hn!(|args| {
 //!         println!("pre_update #{}", args.count);
 //!     }))
 //!     .perm();

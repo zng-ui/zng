@@ -217,7 +217,7 @@ impl<A: Clone + 'static> WidgetRunner<A> {
 /// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # use zng_app::handler::hn;
 /// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
+/// # fn assert_type() -> zng_app::handler::Handler<ClickArgs> {
 /// # let
 /// on_click = hn!(|_| {
 ///     println!("Clicked {}!", args.click_count);
@@ -233,7 +233,7 @@ impl<A: Clone + 'static> WidgetRunner<A> {
 /// # use zng_var::{var, Var};
 /// # use zng_app::handler::hn;
 /// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
+/// # fn assert_type() -> zng_app::handler::Handler<ClickArgs> {
 /// let foo = var(0);
 ///
 /// // ..
@@ -334,7 +334,7 @@ pub use crate::hn;
 /// ```
 /// # use zng_app::handler::hn_once;
 /// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<()> {
+/// # fn assert_type() -> zng_app::handler::Handler<()> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_click = hn_once!(|_| {
@@ -389,10 +389,10 @@ pub use crate::hn_once;
 ///
 /// ```
 /// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zng_app::handler::async_hn;
+/// # use zng_app::{handler::async_hn, widget::WIDGET};
 /// # use zng_task as task;
 /// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
+/// # fn assert_type() -> zng_app::handler::Handler<ClickArgs> {
 /// # let
 /// on_click = async_hn!(|args| {
 ///     println!("Clicked {} {} times!", WIDGET.id(), args.click_count);
@@ -407,7 +407,7 @@ pub use crate::hn_once;
 /// # on_click }
 /// ```
 ///
-/// Internally the [`async_clmv_fn!`] macro is used so you can *clone-move* variables into the handler.
+/// Internally the [`clmv!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
 /// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
@@ -416,13 +416,13 @@ pub use crate::hn_once;
 /// # use zng_task as task;
 /// # use zng_txt::formatx;
 /// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
+/// # fn assert_type() -> zng_app::handler::Handler<ClickArgs> {
 /// let enabled = var(true);
 ///
 /// // ..
 ///
 /// # let
-/// on_click = async_hn!(enabled, |args| {
+/// on_click = async_hn!(enabled, |args: &ClickArgs| {
 ///     enabled.set(false);
 ///
 ///     task::run(async move {
@@ -498,7 +498,7 @@ pub use crate::async_hn;
 /// # use zng_app::handler::async_hn_once;
 /// # use zng_task as task;
 /// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
+/// # fn assert_type() -> zng_app::handler::Handler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_open = async_hn_once!(|_| {
@@ -522,7 +522,7 @@ pub use crate::async_hn;
 /// # use zng_app::handler::async_hn_once;
 /// # use zng_task as task;
 /// # let _scope = zng_app::APP.minimal();
-/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
+/// # fn assert_type() -> zng_app::handler::Handler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_open = async_hn_once!(data, |_| {
@@ -588,12 +588,14 @@ macro_rules! async_hn_once {
 #[doc(inline)]
 pub use crate::async_hn_once;
 
-/// Represents a weak handle to an [`AppHandler`] subscription.
+/// Represents a weak handle to a [`Handler`] subscription in the app context.
+///
+/// Inside the handler use [`APP_HANDLER`] to access this handle.
 pub trait AppWeakHandle: Send + Sync + 'static {
     /// Dynamic clone.
     fn clone_boxed(&self) -> Box<dyn AppWeakHandle>;
 
-    /// Unsubscribes the [`AppHandler`].
+    /// Unsubscribes the [`Handler`].
     ///
     /// This stops the handler from being called again and causes it to be dropped in a future app update.
     fn unsubscribe(&self);
@@ -816,7 +818,7 @@ mod tests {
         }))
     }
 
-        #[test]
+    #[test]
     fn async_hn_once_return() {
         t(async_hn_once!(|args: &TestArgs| {
             if args.field {

@@ -359,8 +359,6 @@ impl TimersService {
 /// [variable]: Var
 /// [`deadline`]: TIMERS::deadline
 /// [`interval`]: TIMERS::interval
-/// [`async_app_hn!`]: crate::handler::async_app_hn!
-/// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
 pub struct TIMERS;
 impl TIMERS {
     /// Returns a [`DeadlineVar`] that will update once when the `deadline` is reached.
@@ -435,7 +433,7 @@ impl TIMERS {
     /// # fn foo() {
     /// let handle = TIMERS.on_deadline(
     ///     20.secs(),
-    ///     app_hn_once!(|_| {
+    ///     hn_once!(|_| {
     ///         println!("20 seconds have passed");
     ///     }),
     /// );
@@ -444,8 +442,8 @@ impl TIMERS {
     ///
     /// # Handler
     ///
-    /// The `handler` can be any of the *once* [`AppHandler`] implementers. You can use the macros
-    /// [`app_hn_once!`](crate::handler::app_hn_once!) or [`async_hn_once!`](crate::handler::async_app_hn_once!)
+    /// The `handler` can be any of the *once* [`Handler<A>`] flavors. You can use the macros
+    /// [`hn_once!`](crate::handler::hn_once!) or [`async_hn_once!`](crate::handler::async_hn_once!)
     /// to declare a handler closure.
     ///
     /// Async handlers execute up to the first `.await` immediately when the `deadline` is reached, subsequent awakes

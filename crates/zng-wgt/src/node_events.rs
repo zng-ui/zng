@@ -40,7 +40,7 @@ impl OnNodeOpArgs {
 ///
 /// # Handlers
 ///
-/// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// This property accepts any [`Handler<A>`], including the async handlers. Use one of the handler macros, [`hn!`],
 /// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
 ///
 /// ## Async
@@ -53,8 +53,9 @@ impl OnNodeOpArgs {
 /// [`hn!`]: zng_app::handler::hn!
 /// [`async_hn!`]: zng_app::handler::async_hn!
 /// [`hn_once!`]: zng_app::handler::hn_once!
+/// [`Handler<A>`]: zng_app::handler::Handler
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
-/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
+/// [`Handler`]: zng_app::handler::Handler
 #[property(EVENT)]
 pub fn on_node_op(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_node_op_impl(child.into_node(), handler, |_| true)
@@ -87,7 +88,7 @@ fn on_node_op_impl(child: UiNode, handler: Handler<OnNodeOpArgs>, filter: impl F
 ///
 /// # Handlers
 ///
-/// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// This property accepts any [`Handler<A>`], including the async handlers. Use one of the handler macros, [`hn!`],
 /// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
 ///
 /// ## Async
@@ -101,7 +102,7 @@ fn on_node_op_impl(child: UiNode, handler: Handler<OnNodeOpArgs>, filter: impl F
 /// [`hn_once!`]: zng_app::handler::hn_once!
 /// [`async_hn!`]: zng_app::handler::async_hn!
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
-/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
+/// [`Handler`]: zng_app::handler::Handler
 #[property(EVENT)]
 pub fn on_pre_node_op(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_pre_node_op_impl(child.into_node(), handler, |_| true)
@@ -138,7 +139,7 @@ fn on_pre_node_op_impl(child: UiNode, handler: Handler<OnNodeOpArgs>, filter: im
 ///
 /// # Handlers
 ///
-/// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// This property accepts any [`Handler<A>`], including the async handlers. Use one of the handler macros, [`hn!`],
 /// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
 ///
 /// ## Async
@@ -152,7 +153,7 @@ fn on_pre_node_op_impl(child: UiNode, handler: Handler<OnNodeOpArgs>, filter: im
 /// [`hn_once!`]: zng_app::handler::hn_once!
 /// [`async_hn!`]: zng_app::handler::async_hn!
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
-/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
+/// [`Handler`]: zng_app::handler::Handler
 #[property(EVENT)]
 pub fn on_init(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     on_node_op_impl(child.into_node(), handler, |op| matches!(op, UiNodeMethod::Init))
@@ -173,7 +174,7 @@ pub fn on_pre_init(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> Ui
 ///
 /// # Handlers
 ///
-/// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// This property accepts any [`Handler<A>`], including the async handlers. Use one of the handler macros, [`hn!`],
 /// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
 ///
 /// ## Async
@@ -189,7 +190,7 @@ pub fn on_pre_init(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> Ui
 /// [`hn_once!`]: zng_app::handler::hn_once!
 /// [`async_hn!`]: zng_app::handler::async_hn!
 /// [`async_hn_once!`]: zng_app::handler::async_hn_once!
-/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
+/// [`Handler<A>`]: zng_app::handler::Handler
 #[property(EVENT)]
 pub fn on_info_init(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> UiNode {
     let mut handler = handler.into_wgt_runner();
@@ -273,7 +274,7 @@ pub fn on_pre_update(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> 
 ///
 /// # Handlers
 ///
-/// This property accepts the [`WidgetHandler`] that are not async. Use one of the handler macros, [`hn!`] or
+/// This property accepts the [`Handler`] that are not async. Use one of the handler macros, [`hn!`] or
 /// [`hn_once!`], to declare a handler closure.
 ///
 /// Note that async handlers do not work here because widget bound async tasks only advance past the first `.await`
@@ -286,7 +287,7 @@ pub fn on_pre_update(child: impl IntoUiNode, handler: Handler<OnNodeOpArgs>) -> 
 ///
 /// [`UPDATES.run`]: zng_app::update::UPDATES::run
 /// [`on_pre_deinit`]: fn@on_pre_deinit
-/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
+/// [`Handler`]: zng_app::handler::Handler
 /// [`hn!`]: zng_app::handler::hn!
 /// [`hn_once!`]: zng_app::handler::hn_once!
 /// [`task::spawn`]: zng_task::spawn

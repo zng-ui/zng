@@ -163,7 +163,7 @@ impl DefaultStyle {
                     #[easing(200.ms())]
                     width = PROGRESS_VAR.map(|p| Length::from(p.fct()));
 
-                    on_progress = hn!(indeterminate_x, |p: &Progress| {
+                    on_progress = hn!(indeterminate_x, |p| {
                         if p.is_indeterminate() {
                             // only animates when actually indeterminate
                             if indeterminate_animation.is_none() {

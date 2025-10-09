@@ -724,7 +724,7 @@ macro_rules! __command_property {
         #[$crate::node::__macro_util::property(EVENT, default( $crate::node::__macro_util::hn!(|_|{}) ))]
         $vis fn [<on_ $command>](
             child: impl $crate::node::__macro_util::IntoUiNode,
-            handler: impl $crate::node::__macro_util::WidgetHandler<$crate::node::__macro_util::CommandArgs>,
+            handler: $crate::node::__macro_util::Handler<$crate::node::__macro_util::CommandArgs>,
         ) -> $crate::node::__macro_util::UiNode {
             $crate::node::on_command(child, || $cmd_init, || $enabled_var, handler)
         }
@@ -743,7 +743,7 @@ macro_rules! __command_property {
         #[$crate::node::__macro_util::property(EVENT, default( $crate::node::__macro_util::hn!(|_|{}) ) $($widget_impl)*)]
         $vis fn [<on_pre_ $command>](
             child: impl $crate::node::__macro_util::IntoUiNode,
-            handler: impl $crate::node::__macro_util::WidgetHandler<$crate::node::__macro_util::CommandArgs>,
+            handler: $crate::node::__macro_util::Handler<$crate::node::__macro_util::CommandArgs>,
         ) -> $crate::node::__macro_util::UiNode {
             $crate::node::on_pre_command(child, || $cmd_init, || $enabled_var, handler)
         }

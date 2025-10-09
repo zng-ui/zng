@@ -218,18 +218,18 @@ impl<A: EventArgs> Event<A> {
     /// after all previous registered preview handlers.
     ///
     /// Returns an [`EventHandle`] that can be dropped to unsubscribe, you can also unsubscribe from inside the handler by calling
-    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
+    /// [`unsubscribe`](crate::handler::APP_HANDLER::unsubscribe).
     ///
     /// # Examples
     ///
     /// ```
     /// # use zng_app::event::*;
     /// # use zng_app::APP;
-    /// # use zng_app::handler::app_hn;
+    /// # use zng_app::handler::hn;
     /// # event_args! { pub struct FocusChangedArgs { pub new_focus: bool, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
     /// # event! { pub static FOCUS_CHANGED_EVENT: FocusChangedArgs; }
     /// # let _scope = APP.minimal();
-    /// let handle = FOCUS_CHANGED_EVENT.on_pre_event(app_hn!(|args: &FocusChangedArgs, _| {
+    /// let handle = FOCUS_CHANGED_EVENT.on_pre_event(hn!(|args| {
     ///     println!("focused: {:?}", args.new_focus);
     /// }));
     /// ```
@@ -237,9 +237,9 @@ impl<A: EventArgs> Event<A> {
     ///
     /// # Handlers
     ///
-    /// the event handler can be any type that implements [`AppHandler`], there are multiple flavors of handlers, including
-    /// async handlers that allow calling `.await`. The handler closures can be declared using [`app_hn!`], [`async_app_hn!`],
-    /// [`app_hn_once!`] and [`async_app_hn_once!`].
+    /// the event handler can be any [`Handler<A>`], there are multiple flavors of handlers, including
+    /// async handlers that allow calling `.await`. The handler closures can be declared using [`hn!`], [`async_hn!`],
+    /// [`hn_once!`] and [`async_hn_once!`].
     ///
     /// ## Async
     ///
@@ -247,10 +247,10 @@ impl<A: EventArgs> Event<A> {
     /// subsequent event updates, after the event has already propagated, so stopping [`propagation`](AnyEventArgs::propagation)
     /// only causes the desired effect before the first `.await`.
     ///
-    /// [`app_hn!`]: crate::handler::app_hn!
-    /// [`async_app_hn!`]: crate::handler::async_app_hn!
-    /// [`app_hn_once!`]: crate::handler::app_hn_once!
-    /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
+    /// [`hn!`]: crate::handler::hn!
+    /// [`async_hn!`]: crate::handler::async_hn!
+    /// [`hn_once!`]: crate::handler::hn_once!
+    /// [`async_hn_once!`]: crate::handler::async_hn_once!
     pub fn on_pre_event(&self, handler: Handler<A>) -> EventHandle {
         self.on_event_impl(handler, true)
     }
@@ -262,18 +262,18 @@ impl<A: EventArgs> Event<A> {
     /// handlers registered before this one.
     ///
     /// Returns an [`EventHandle`] that can be dropped to unsubscribe, you can also unsubscribe from inside the handler by calling
-    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
+    /// [`unsubscribe`](crate::handler::APP_HANDLER::unsubscribe) in the third parameter of [`hn!`] or [`async_hn!`].
     ///
     /// # Examples
     ///
     /// ```
     /// # use zng_app::event::*;
     /// # use zng_app::APP;
-    /// # use zng_app::handler::app_hn;
+    /// # use zng_app::handler::hn;
     /// # event_args! { pub struct FocusChangedArgs { pub new_focus: bool, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
     /// # event! { pub static FOCUS_CHANGED_EVENT: FocusChangedArgs; }
     /// # let _scope = APP.minimal();
-    /// let handle = FOCUS_CHANGED_EVENT.on_event(app_hn!(|args: &FocusChangedArgs, _| {
+    /// let handle = FOCUS_CHANGED_EVENT.on_event(hn!(|args| {
     ///     println!("focused: {:?}", args.new_focus);
     /// }));
     /// ```
@@ -281,9 +281,9 @@ impl<A: EventArgs> Event<A> {
     ///
     /// # Handlers
     ///
-    /// the event handler can be any type that implements [`AppHandler`], there are multiple flavors of handlers, including
-    /// async handlers that allow calling `.await`. The handler closures can be declared using [`app_hn!`], [`async_app_hn!`],
-    /// [`app_hn_once!`] and [`async_app_hn_once!`].
+    /// the event handler can be any [`Handler<A>`], there are multiple flavors of handlers, including
+    /// async handlers that allow calling `.await`. The handler closures can be declared using [`hn!`], [`async_hn!`],
+    /// [`hn_once!`] and [`async_hn_once!`].
     ///
     /// ## Async
     ///
@@ -291,10 +291,10 @@ impl<A: EventArgs> Event<A> {
     /// subsequent event updates, after the event has already propagated, so stopping [`propagation`](AnyEventArgs::propagation)
     /// only causes the desired effect before the first `.await`.
     ///
-    /// [`app_hn!`]: crate::handler::app_hn!
-    /// [`async_app_hn!`]: crate::handler::async_app_hn!
-    /// [`app_hn_once!`]: crate::handler::app_hn_once!
-    /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
+    /// [`hn!`]: crate::handler::hn!
+    /// [`async_hn!`]: crate::handler::async_hn!
+    /// [`hn_once!`]: crate::handler::hn_once!
+    /// [`async_hn_once!`]: crate::handler::async_hn_once!
     pub fn on_event(&self, handler: Handler<A>) -> EventHandle {
         self.on_event_impl(handler, false)
     }
