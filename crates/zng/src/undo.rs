@@ -69,6 +69,6 @@ pub use zng_wgt_undo::{UndoMix, undo_enabled, undo_interval, undo_limit, undo_sc
 pub mod history {
     pub use zng_wgt_undo_history::{
         UndoEntryArgs, UndoHistory, UndoPanelArgs, UndoRedoButtonStyle, UndoStackArgs, group_by_undo_interval, is_cap_hovered_timestamp,
-        undo_button_style_fn,
+        undo_redo_button_style_fn,
     };
 }
