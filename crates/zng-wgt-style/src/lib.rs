@@ -110,14 +110,14 @@ impl ops::Deref for NamedStyleVar {
 
 /// Styleable widget mixin.
 ///
-/// Widgets that inherit this mix-in have a `style_fn` property that can be set to a [`style_fn!`]
+/// Widgets that inherit this mixin have a `style_fn` property that can be set to a [`style_fn!`]
 /// that generates properties that are dynamically injected into the widget to alter its appearance.
 ///
 /// The style mixin drastically affects the widget build process, only the `style_fn` and `when` condition
 /// properties that affects it are instantiated with the widget, all the other properties and intrinsic nodes are instantiated
 /// on init, after the style is generated.
 ///
-/// Widgets that inherit this mix-in must call [`style_intrinsic`] in their own `widget_intrinsic`, if the call is missing
+/// Widgets that inherit this mixin must call [`style_intrinsic`] in their own `widget_intrinsic`, if the call is missing
 /// the widget will log an error on instantiation. You can use the [`impl_style_fn!`] macro to generate the style var and property.
 ///
 /// [`style_intrinsic`]: StyleMix::style_intrinsic

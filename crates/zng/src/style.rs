@@ -1,4 +1,4 @@
-//! Style mix-in and other types.
+//! Style mixin and other types.
 //!
 //! A [`Style!`](struct@Style) is an special widget that represents a set of properties that are dynamically applied to
 //! another styleable widget. Styleable widgets inherit from [`StyleMix<P>`](struct@StyleMix) and provide a contextual

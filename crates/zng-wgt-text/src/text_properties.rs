@@ -58,7 +58,7 @@ context_var! {
 }
 
 impl FontMix<()> {
-    /// Insert context variables used by properties in this mix-in.
+    /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&FONT_FAMILY_VAR);
         set.insert(&FONT_SIZE_VAR);
@@ -207,7 +207,7 @@ context_var! {
 }
 
 impl TextFillMix<()> {
-    /// Insert context variables used by properties in this mix-in.
+    /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&FONT_COLOR_VAR);
         set.insert(&FONT_PALETTE_VAR);
@@ -299,7 +299,7 @@ context_var! {
 }
 
 impl TextAlignMix<()> {
-    /// Insert context variables used by properties in this mix-in.
+    /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&TEXT_ALIGN_VAR);
         set.insert(&TEXT_OVERFLOW_ALIGN_VAR);
@@ -389,7 +389,7 @@ context_var! {
 }
 
 impl TextWrapMix<()> {
-    /// Insert context variables used by properties in this mix-in.
+    /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&TEXT_WRAP_VAR);
         set.insert(&WORD_BREAK_VAR);
@@ -675,7 +675,7 @@ context_var! {
 }
 
 impl TextDecorationMix<()> {
-    /// Insert context variables used by properties in this mix-in.
+    /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&UNDERLINE_THICKNESS_VAR);
         set.insert(&UNDERLINE_STYLE_VAR);
@@ -808,7 +808,7 @@ context_var! {
 }
 
 impl TextSpacingMix<()> {
-    /// Insert context variables used by properties in this mix-in.
+    /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&LINE_HEIGHT_VAR);
         set.insert(&LINE_SPACING_VAR);
@@ -924,7 +924,7 @@ context_var! {
 }
 
 impl TextTransformMix<()> {
-    /// Insert context variables used by properties in this mix-in.
+    /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&WHITE_SPACE_VAR);
         set.insert(&TEXT_TRANSFORM_VAR);
@@ -1012,7 +1012,7 @@ pub fn direction(child: impl IntoUiNode, direction: impl IntoVar<LayoutDirection
 }
 
 impl LangMix<()> {
-    /// Insert context variables used by properties in this mix-in.
+    /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&LANG_VAR);
         set.insert(&DIRECTION_VAR);
@@ -1040,7 +1040,7 @@ context_var! {
 }
 
 impl FontFeaturesMix<()> {
-    /// Insert context variables used by properties in this mix-in.
+    /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&FONT_FEATURES_VAR);
         set.insert(&FONT_VARIATIONS_VAR);
@@ -1283,7 +1283,7 @@ context_var! {
 }
 
 impl TextEditMix<()> {
-    /// Insert context variables used by properties in this mix-in.
+    /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&TEXT_EDITABLE_VAR);
         set.insert(&TEXT_SELECTABLE_VAR);
@@ -1746,7 +1746,7 @@ impl LinesWrapCount {
 
 /// Text paragraph properties.
 ///
-/// Note that the [`Text!`] widget does not include this mix-in, as raw text does not encode
+/// Note that the [`Text!`] widget does not include this mixin, as raw text does not encode
 /// paragraph breaks, other rich text widgets can include it to configure paragraphs.
 ///
 /// [`Text!`]: struct@crate::Text
@@ -1759,7 +1759,7 @@ context_var! {
 }
 
 impl ParagraphMix<()> {
-    /// Insert context variables used by properties in this mix-in.
+    /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&PARAGRAPH_SPACING_VAR);
     }
@@ -1790,7 +1790,7 @@ context_var! {
 }
 
 impl SelectionToolbarMix<()> {
-    /// Insert context variables used by properties in this mix-in.
+    /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&SELECTION_TOOLBAR_FN_VAR);
         set.insert(&SELECTION_TOOLBAR_ANCHOR_VAR);
@@ -1848,7 +1848,7 @@ pub fn selection_toolbar_anchor(child: impl IntoUiNode, offset: impl IntoVar<Anc
 pub struct TextInspectMix<P>(P);
 
 impl TextInspectMix<()> {
-    /// Insert context variables used by properties in this mix-in.
+    /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
         let _ = set;
     }
@@ -2068,7 +2068,7 @@ context_var! {
 }
 
 impl RichTextMix<()> {
-    /// Insert context variables used by properties in this mix-in.
+    /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&RICH_TEXT_FOCUSED_Z_VAR);
     }

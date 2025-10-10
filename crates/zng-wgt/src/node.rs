@@ -250,7 +250,7 @@ pub fn with_context_var_init<T: VarValue>(
 ///
 /// # Implement For
 ///
-/// You can implement the new properties for a widget or mix-in using the `widget_impl:` directive:
+/// You can implement the new properties for a widget or mixin using the `widget_impl:` directive:
 ///
 /// ```
 /// # fn main() { }
@@ -971,7 +971,7 @@ macro_rules! __command_property {
 ///
 /// # Implement For
 ///
-/// You can implement the new properties for a widget or mix-in using the `widget_impl:` directive:
+/// You can implement the new properties for a widget or mixin using the `widget_impl:` directive:
 ///
 /// ```
 /// # fn main() { }

@@ -244,7 +244,7 @@ pub mod node {
 /// Expands a struct to a widget struct and macro.
 ///
 /// Each widget is a struct and macro pair of the same name that builds a custom widget using [`WidgetBuilder`]. Widgets
-/// *inherit* from one other widget and can also inherit multiple mix-ins. Widgets can have intrinsic nodes, default properties
+/// *inherit* from one other widget and can also inherit multiple mixins. Widgets can have intrinsic nodes, default properties
 /// and can build to a custom output type.
 ///
 /// Properties can be strongly associated with the widget using the `#[property(.., widget_impl(Widget))]` directive, existing properties
@@ -479,12 +479,12 @@ pub mod node {
 /// </script>
 pub use zng_app::widget::widget;
 
-/// Expands a struct to a widget mix-in.
+/// Expands a struct to a widget mixin.
 ///
-/// Widget mix-ins can be inserted on a widgets inheritance chain, but they cannot be instantiated directly. Unlike
+/// Widget mixins can be inserted on a widgets inheritance chain, but they cannot be instantiated directly. Unlike
 /// the full widgets it defines its parent as a generic type, that must be filled with a real widget when used.
 ///
-/// By convention mix-ins have the suffix `Mix` and the generic parent is named `P`. The `P` must not have any generic bounds
+/// By convention mixins have the suffix `Mix` and the generic parent is named `P`. The `P` must not have any generic bounds
 /// in the declaration, the expansion will bound it to [`WidgetImpl`].
 ///
 /// # Examples
@@ -515,11 +515,11 @@ pub use zng_app::widget::widget;
 /// pub struct Foo(FocusableMix<WidgetBase>);
 /// ```
 ///
-/// The example above declares a mix-in `FocusableMix<P>` and a widget `Foo`, the mix-in is used as a parent of the widget, only
-/// the `Foo! { }` widget can be instantiated, and it will have the strongly associated property `focusable` from the mix-in.
+/// The example above declares a mixin `FocusableMix<P>` and a widget `Foo`, the mixin is used as a parent of the widget, only
+/// the `Foo! { }` widget can be instantiated, and it will have the strongly associated property `focusable` from the mixin.
 ///
-/// All widget `impl` items can be declared in a mix-in, including the `fn widget_build(&mut self) -> T`. Multiple mix-ins can be inherited
-/// by nesting the types in a full widget `Foo(AMix<BMix<Base>>)`. Mix-ins cannot inherit from other mix-ins.
+/// All widget `impl` items can be declared in a mixin, including the `fn widget_build(&mut self) -> T`. Multiple mixins can be inherited
+/// by nesting the types in a full widget `Foo(AMix<BMix<Base>>)`. Mixins cannot inherit from other mixins.
 ///
 /// <script>
 /// // hide re-exported docs
