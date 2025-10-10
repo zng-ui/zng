@@ -57,6 +57,7 @@
 //! ```
 //! # use zng::prelude::*;
 //! # use zng::focus::FOCUS_CHANGED_EVENT;
+//! # fn example() {
 //! FOCUS_CHANGED_EVENT
 //!     .on_pre_event(hn!(|args| {
 //!         println!("focused: {:?}", args.new_focus);
@@ -65,6 +66,7 @@
 //!         }
 //!     }))
 //!     .perm();
+//! # }
 //! ```
 //!
 //! In the example above the event subscription is made `perm`, but inside the handler `unsubscribe` is called when a
