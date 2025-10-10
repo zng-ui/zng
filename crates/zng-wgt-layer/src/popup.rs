@@ -10,7 +10,7 @@ use zng_wgt_filter::drop_shadow;
 use zng_wgt_input::focus::{
     FocusClickBehavior, FocusableMix, alt_focus_scope, directional_nav, focus_click_behavior, focus_scope_behavior, tab_nav,
 };
-use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn};
 
 use crate::{AnchorMode, AnchorOffset, LAYERS, LayerIndex};
 
@@ -42,7 +42,6 @@ impl Popup {
 
         widget_set! {
             self;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
 
             alt_focus_scope = true;
             directional_nav = DirectionalNav::Cycle;
@@ -63,7 +62,7 @@ impl Popup {
         pub focus_click_behavior(behavior: impl IntoVar<FocusClickBehavior>);
     }
 }
-impl_style_fn!(Popup);
+impl_style_fn!(Popup, DefaultStyle);
 
 context_var! {
     /// If popup will close when it no longer contains the focused widget.

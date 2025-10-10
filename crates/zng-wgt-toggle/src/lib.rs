@@ -32,7 +32,7 @@ use zng_wgt_filter::opacity;
 use zng_wgt_input::{click_mode, is_hovered, pointer_capture::capture_pointer_on_init};
 use zng_wgt_layer::popup::{POPUP, PopupState};
 use zng_wgt_size_offset::{size, x, y};
-use zng_wgt_style::{Style, impl_named_style_fn, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, impl_named_style_fn, impl_style_fn};
 
 pub mod cmd;
 
@@ -51,13 +51,9 @@ pub struct Toggle(zng_wgt_button::Button);
 impl Toggle {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
-        widget_set! {
-            self;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
-        }
     }
 }
-impl_style_fn!(Toggle);
+impl_style_fn!(Toggle, DefaultStyle);
 
 context_var! {
     /// The toggle button checked state.

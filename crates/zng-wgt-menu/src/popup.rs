@@ -25,7 +25,6 @@ impl SubMenuPopup {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
         widget_set! {
             self;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
 
             // Supports press-and-drag to click gesture:
             //
@@ -48,7 +47,7 @@ impl SubMenuPopup {
         });
     }
 }
-impl_style_fn!(SubMenuPopup);
+impl_style_fn!(SubMenuPopup, DefaultStyle);
 
 /// Sub-menu items.
 #[property(CHILD, capture, default(ui_vec![]), widget_impl(SubMenuPopup))]

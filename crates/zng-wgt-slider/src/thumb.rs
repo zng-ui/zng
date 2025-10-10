@@ -2,7 +2,7 @@
 
 use zng_wgt::prelude::*;
 use zng_wgt_input::{focus::FocusableMix, pointer_capture::capture_pointer};
-use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn};
 
 use crate::{SLIDER_DIRECTION_VAR, SliderDirection, ThumbValue};
 
@@ -27,14 +27,13 @@ impl Thumb {
 
         widget_set! {
             self;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
             // this to enable visual feedback on thumb (is_cap_hovered)
             // the SliderTrack also captures the subtree
             capture_pointer = true;
         }
     }
 }
-impl_style_fn!(Thumb);
+impl_style_fn!(Thumb, DefaultStyle);
 
 /// Default slider style.
 #[widget($crate::thumb::DefaultStyle)]

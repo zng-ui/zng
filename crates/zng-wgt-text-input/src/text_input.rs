@@ -18,7 +18,7 @@ use zng_wgt_menu::{
 };
 use zng_wgt_rule_line::hr::Hr;
 use zng_wgt_size_offset::{offset, y};
-use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn};
 use zng_wgt_text::{self as text, *};
 use zng_wgt_undo::{UndoMix, undo_scope};
 
@@ -66,11 +66,10 @@ impl TextInput {
             focusable = true;
             undo_scope = true;
             undo_limit = 100;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
         }
     }
 }
-impl_style_fn!(TextInput);
+impl_style_fn!(TextInput, DefaultStyle);
 
 /// Context menu set by the [`DefaultStyle!`].
 ///

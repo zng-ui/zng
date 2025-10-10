@@ -8,7 +8,7 @@ use zng_ext_input::{
 };
 use zng_wgt::prelude::*;
 use zng_wgt_input::focus::FocusableMix;
-use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn};
 
 /// Styleable and focusable read-only text widget.
 ///
@@ -39,13 +39,9 @@ pub struct Label(FocusableMix<StyleMix<zng_wgt_text::Text>>);
 impl Label {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
-        widget_set! {
-            self;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
-        }
     }
 }
-impl_style_fn!(Label);
+impl_style_fn!(Label, DefaultStyle);
 
 /// Default label style.
 #[widget($crate::label::DefaultStyle)]

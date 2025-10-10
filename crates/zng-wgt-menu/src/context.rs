@@ -127,11 +127,10 @@ impl ContextMenu {
             self;
             alt_focus_scope = true;
             zng_wgt_rule_line::collapse_scope = true;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
         }
     }
 }
-impl_style_fn!(ContextMenu);
+impl_style_fn!(ContextMenu, DefaultStyle);
 
 /// Arguments for context menu widget functions.
 #[non_exhaustive]

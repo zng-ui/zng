@@ -183,7 +183,7 @@ pub trait TxtParseValue: VarValue {
     /// Display the value, the returned text can be parsed back to an equal value.
     ///
     /// Note that the widget context is not available here as this method is called in the app context.
-    fn to_txt(&self) -> Txt; // TODO(breaking) remove this and add ToTxt requirement
+    fn to_txt(&self) -> Txt;
 }
 impl<T> TxtParseValue for T
 where

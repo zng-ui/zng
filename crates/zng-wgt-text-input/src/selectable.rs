@@ -8,7 +8,7 @@ use zng_wgt_menu::{
     self as menu,
     context::{ContextMenu, context_menu_fn},
 };
-use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn};
 use zng_wgt_text::{self as text, *};
 
 #[doc(hidden)]
@@ -37,11 +37,10 @@ impl SelectableText {
         widget_set! {
             self;
             txt_selectable = true;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
         }
     }
 }
-impl_style_fn!(SelectableText);
+impl_style_fn!(SelectableText, DefaultStyle);
 
 /// Default selectable text style.
 #[widget($crate::selectable::DefaultStyle)]

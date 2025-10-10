@@ -11,6 +11,10 @@ This release contains breaking changes that affect the advanced event handler an
 
     To migrate app handlers remove `app_` prefix with normal. To migrate custom event property declarations replace `impl WidgetHandler<A>` with `Handler<A>` and execute the async task is needed. Other use cases will continue working, you can now omit the args type in most handlers. 
 
+* Refactor how the default style is declared.
+    - **Breaking** Removed `style_base_fn`.
+    - **Breaking** `impl_style_fn!` macro now also requires the default style name.
+
 * **Breaking** `Length` and `LengthExpr` are now `non_exhaustive`.
 
 * **Breaking** Rename *logo* to *super* in `ModifiersState`. This was missed in a previous breaking refactor.

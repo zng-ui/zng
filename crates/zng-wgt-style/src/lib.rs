@@ -113,13 +113,12 @@ impl ops::Deref for NamedStyleVar {
 /// Widgets that inherit this mix-in have a `style_fn` property that can be set to a [`style_fn!`]
 /// that generates properties that are dynamically injected into the widget to alter its appearance.
 ///
-/// The style mixin drastically affects the widget build process, only the `style_base_fn`, `style_fn` and `when` condition
-/// properties that affects these are instantiated with the widget, all the other properties and intrinsic nodes are instantiated
+/// The style mixin drastically affects the widget build process, only the `style_fn` and `when` condition
+/// properties that affects it are instantiated with the widget, all the other properties and intrinsic nodes are instantiated
 /// on init, after the style is generated.
 ///
 /// Widgets that inherit this mix-in must call [`style_intrinsic`] in their own `widget_intrinsic`, if the call is missing
-/// the widget will log an error on instantiation and only the `style_base_fn` will be used. You can use the [`impl_style_fn!`]
-/// macro to generate the style var and property.
+/// the widget will log an error on instantiation. You can use the [`impl_style_fn!`] macro to generate the style var and property.
 ///
 /// [`style_intrinsic`]: StyleMix::style_intrinsic
 #[widget_mixin]
@@ -146,38 +145,30 @@ impl<P> StyleMix<P> {
             (MISSING_STYLE_VAR, property_id!(self::missing_style_fn))
         });
 
-        // 1 - "split_off" the properties `style_base_fn` and `style_fn`
+        // 1 - "split_off" the property `style_fn`
         //     this moves the properties and any `when` that affects them to a new widget builder.
-        let style_base_id = property_id!(style_base_fn);
         let mut style_builder = WidgetBuilder::new(wgt.widget_type());
-        wgt.split_off([style_base_id, style_id], &mut style_builder);
+        wgt.split_off([style_id], &mut style_builder);
 
-        if style_builder.has_properties() {
-            // 2.a - There was a `style_fn` property, build a "mini widget" that is only the style property
-            //       and when condition properties that affect it.
+        // 2 - build a "mini widget" that is only the intrinsic default style var,
+        //     `style_fn` property and when condition properties that affect `style_fn`.
 
-            #[cfg(feature = "trace_widget")]
-            wgt.push_build_action(|wgt| {
-                // avoid double trace as the style builder already inserts a widget tracer.
-                wgt.disable_trace_widget();
-            });
+        #[cfg(feature = "trace_widget")]
+        wgt.push_build_action(|wgt| {
+            // avoid double trace as the style builder already inserts a widget tracer.
+            wgt.disable_trace_widget();
+        });
 
-            let mut wgt = Some(wgt);
-            style_builder.push_build_action(move |b| {
-                // 3 - The actual style_node and builder is a child of the "mini widget".
+        let mut wgt = Some(wgt);
+        style_builder.push_build_action(move |b| {
+            // 3 - The actual style_node and builder is a child of the "mini widget".
 
-                let style_base = b.capture_var::<StyleFn>(style_base_id).unwrap_or_else(|| const_var(StyleFn::nil()));
-                let style = b.capture_var::<StyleFn>(style_id).unwrap_or_else(|| const_var(StyleFn::nil()));
+            let style = b.capture_var::<StyleFn>(style_id).unwrap_or_else(|| const_var(StyleFn::nil()));
 
-                b.set_child(style_node(UiNode::nil(), wgt.take().unwrap(), style_base, style_var, style));
-            });
-            // 4 - Build the "mini widget",
-            //     if the `style` property was not affected by any `when` this just returns the `StyleNode`.
-            style_builder.build()
-        } else {
-            // 2.b - There was no `style_fn` property, this widget is not styleable, just build the default.
-            wgt.build()
-        }
+            b.set_child(style_node(UiNode::nil(), wgt.take().unwrap(), style_var, style));
+        });
+        // 4 - Build the "mini widget"
+        style_builder.build()
     }
 }
 
@@ -193,12 +184,16 @@ pub mod __impl_style_context_util {
 /// documentation for more details.
 #[macro_export]
 macro_rules! impl_style_fn {
-    ($Widget:ty) => {
-        $crate::__impl_style_context_util::context_var! {
-            /// Contextual style variable.
-            ///
-            /// Use [`style_fn`](fn@style_fn) to set.
-            pub static STYLE_FN_VAR: $crate::StyleFn = $crate::StyleFn::nil();
+    ($Widget:path, $DefaultStyle:path) => {
+        $crate::__impl_style_context_util::paste! {
+            $crate::__impl_style_context_util::context_var! {
+                /// Contextual style variable.
+                ///
+                /// Use [`style_fn`](fn@style_fn) to set.
+                ///
+                #[doc = "Is `" $DefaultStyle "!` by default."]
+                pub static STYLE_FN_VAR: $crate::StyleFn = $crate::style_fn!(|_| $DefaultStyle!());
+            }
         }
 
         /// Extends or replaces the widget style.
@@ -271,12 +266,6 @@ macro_rules! impl_named_style_fn {
     };
 }
 
-/// Widget's base style. All other styles set using `style_fn` are applied over this style.
-///
-/// Is `nil` by default.
-#[property(WIDGET, capture, default(StyleFn::nil()), widget_impl(StyleMix<P>))]
-pub fn style_base_fn(style: impl IntoVar<StyleFn>) {} // TODO(breaking) remove this and set the default style directly on the STYLE_FN_VAR
-
 /// Helper for declaring the `style_fn` property.
 ///
 /// The [`impl_style_fn!`] and [`impl_named_style_fn!`] macros uses this function as the implementation of `style_fn`.
@@ -290,14 +279,8 @@ pub fn with_style_fn(child: impl IntoUiNode, style_context: ContextVar<StyleFn>,
     )
 }
 
-fn style_node(
-    child: UiNode,
-    widget_builder: WidgetBuilder,
-    captured_style_base: Var<StyleFn>,
-    style_var: ContextVar<StyleFn>,
-    captured_style: Var<StyleFn>,
-) -> UiNode {
-    let style_vars = [captured_style_base, style_var.into_var(), captured_style];
+fn style_node(child: UiNode, widget_builder: WidgetBuilder, style_var: ContextVar<StyleFn>, captured_style: Var<StyleFn>) -> UiNode {
+    let style_vars = [style_var.into_var(), captured_style];
     let mut style_fn_var_styles = vec![];
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {

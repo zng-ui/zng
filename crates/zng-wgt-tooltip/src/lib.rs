@@ -31,7 +31,7 @@ use zng_wgt_layer::{
     AnchorMode,
     popup::{ContextCapture, POPUP, Popup, PopupState},
 };
-use zng_wgt_style::{Style, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, impl_style_fn};
 
 /// Widget tooltip.
 ///
@@ -546,8 +546,6 @@ impl Tip {
 
             focusable = false;
             focus_on_init = unset!;
-
-            style_base_fn = style_fn!(|_| DefaultStyle!());
         }
     }
 
@@ -558,7 +556,7 @@ impl Tip {
         pub hit_test_mode(mode: impl IntoVar<HitTestMode>);
     }
 }
-impl_style_fn!(Tip);
+impl_style_fn!(Tip, DefaultStyle);
 
 /// Tip default style.
 #[widget($crate::DefaultStyle)]

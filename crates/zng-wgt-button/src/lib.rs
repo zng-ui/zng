@@ -28,7 +28,7 @@ use zng_wgt_input::{
     is_cap_hovered, is_pressed,
     pointer_capture::{CaptureMode, capture_pointer},
 };
-use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn};
 use zng_wgt_text::{FONT_COLOR_VAR, Text, font_color, txt_selectable_alt_only, underline};
 
 #[cfg(feature = "tooltip")]
@@ -47,7 +47,6 @@ impl Button {
 
         widget_set! {
             self;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
             capture_pointer = true;
             labelled_by_child = true;
             txt_selectable_alt_only = true;
@@ -150,7 +149,7 @@ impl Button {
         pub capture_pointer(mode: impl IntoVar<CaptureMode>);
     }
 }
-impl_style_fn!(Button);
+impl_style_fn!(Button, DefaultStyle);
 
 context_var! {
     /// Optional parameter for the button to use when notifying command.
