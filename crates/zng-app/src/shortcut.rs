@@ -306,7 +306,7 @@ impl ModifierGesture {
     /// To modifiers state.
     pub fn modifiers_state(&self) -> ModifiersState {
         match self {
-            ModifierGesture::Super => ModifiersState::LOGO,
+            ModifierGesture::Super => ModifiersState::SUPER,
             ModifierGesture::Ctrl => ModifiersState::CTRL,
             ModifierGesture::Shift => ModifiersState::SHIFT,
             ModifierGesture::Alt => ModifiersState::ALT,
@@ -588,7 +588,7 @@ bitflags! {
         /// Any "logo" key.
         ///
         /// This is the "windows" key on PC and "command" key on Mac.
-        const LOGO = 0b1100_0000; // TODO(breaking) rename to SUPER
+        const SUPER = 0b1100_0000;
     }
 }
 impl ModifiersState {
@@ -606,7 +606,7 @@ impl ModifiersState {
     }
     /// Returns `true` if any logo key is pressed.
     pub fn has_super(self) -> bool {
-        self.intersects(Self::LOGO)
+        self.intersects(Self::SUPER)
     }
 
     /// Returns `true` if only any flag in `part` is pressed.
@@ -627,8 +627,8 @@ impl ModifiersState {
         self.is_only(ModifiersState::ALT)
     }
     /// Returns `true` if only any logo key is pressed.
-    pub fn is_only_logo(self) -> bool {
-        self.is_only(ModifiersState::LOGO)
+    pub fn is_only_super(self) -> bool {
+        self.is_only(ModifiersState::SUPER)
     }
 
     /// Removes `part` and returns if it was removed.
@@ -655,9 +655,9 @@ impl ModifiersState {
         self.take(ModifiersState::ALT)
     }
 
-    /// Removes `LOGO` and returns if it was removed.
-    pub fn take_logo(&mut self) -> bool {
-        self.take(ModifiersState::LOGO)
+    /// Removes `SUPER` and returns if it was removed.
+    pub fn take_super(&mut self) -> bool {
+        self.take(ModifiersState::SUPER)
     }
 
     /// Returns modifiers that set both left and right flags if any side is set in `self`.
@@ -673,7 +673,7 @@ impl ModifiersState {
             r |= Self::SHIFT;
         }
         if self.has_super() {
-            r |= Self::LOGO;
+            r |= Self::SUPER;
         }
         r
     }
@@ -694,8 +694,8 @@ impl ModifiersState {
     }
 
     /// Returns only the logo flags in `self`.
-    pub fn into_logo(self) -> Self {
-        self & Self::LOGO
+    pub fn into_super(self) -> Self {
+        self & Self::SUPER
     }
 
     /// Modifier from `code`, returns empty if the key is not a modifier.
@@ -720,14 +720,14 @@ impl ModifiersState {
             Key::AltGraph => Self::R_ALT,
             Key::Shift => Self::SHIFT,
             Key::Ctrl => Self::CTRL,
-            Key::Super => Self::LOGO,
+            Key::Super => Self::SUPER,
             _ => Self::empty(),
         }
     }
 
     /// All key codes that when pressed form the modifiers state.
     ///
-    /// In case of multiple keys the order is `LOGO`, `CTRL`, `SHIFT`, `ALT`.
+    /// In case of multiple keys the order is `SUPER`, `CTRL`, `SHIFT`, `ALT`.
     ///
     /// In case both left and right keys are flagged for a modifier, the left key is used.
     pub fn codes(self) -> Vec<KeyCode> {
@@ -762,11 +762,11 @@ impl ModifiersState {
 
     /// All keys that when pressed form the modifiers state.
     ///
-    /// In case of multiple keys the order is `LOGO`, `CTRL`, `SHIFT`, `ALT`.
+    /// In case of multiple keys the order is `SUPER`, `CTRL`, `SHIFT`, `ALT`.
     pub fn keys(self) -> Vec<Key> {
         let mut r = vec![];
 
-        if self.intersects(Self::LOGO) {
+        if self.intersects(Self::SUPER) {
             r.push(Key::Super);
         }
 
