@@ -669,7 +669,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     self.ext_property_unset__(#ident_meta {}.id())
                 }
 
-                #[doc(hidden)]
+                #(#docs)*
                 fn #ident_sorted #impl_gens(&mut self, #(#sorted_idents: #sorted_tys),*) #where_gens {
                     let args = #ident_meta { }.args_sorted(#(#sorted_idents),*);
                     self.ext_property__(args)
