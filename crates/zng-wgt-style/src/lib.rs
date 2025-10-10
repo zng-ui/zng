@@ -191,7 +191,7 @@ macro_rules! impl_style_fn {
                 ///
                 /// Use [`style_fn`](fn@style_fn) to set.
                 ///
-                #[doc = "Is [`" $DefaultStyle "!`](struct@ " $DefaultStyle ") by default."]
+                #[doc = "Is `" $DefaultStyle "!` by default."]
                 pub static STYLE_FN_VAR: $crate::StyleFn = $crate::style_fn!(|_| $DefaultStyle!());
             }
         }
