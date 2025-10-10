@@ -370,12 +370,12 @@ impl UndoPanelArgs {
 /// Menu style button for an entry in a undo/redo stack.
 #[widget($crate::UndoRedoButtonStyle)]
 pub struct UndoRedoButtonStyle(Style);
-impl_named_style_fn!(undo_button, UndoRedoButtonStyle); // TODO(breaking) rename to undo_redo
+impl_named_style_fn!(undo_redo_button, UndoRedoButtonStyle);
 impl UndoRedoButtonStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-            named_style_fn = UNDO_BUTTON_STYLE_FN_VAR;
+            named_style_fn = UNDO_REDO_BUTTON_STYLE_FN_VAR;
             padding = 4;
             child_align = Align::START;
 
