@@ -150,31 +150,25 @@ impl<P> StyleMix<P> {
         let mut style_builder = WidgetBuilder::new(wgt.widget_type());
         wgt.split_off([style_id], &mut style_builder);
 
-        if style_builder.has_properties() {
-            // 2.a - There was a `style_fn` property, build a "mini widget" that is only the style property
-            //       and when condition properties that affect it.
+        // 2 - build a "mini widget" that is only the intrinsic default style var,
+        //     `style_fn` property and when condition properties that affect `style_fn`.
 
-            #[cfg(feature = "trace_widget")]
-            wgt.push_build_action(|wgt| {
-                // avoid double trace as the style builder already inserts a widget tracer.
-                wgt.disable_trace_widget();
-            });
+        #[cfg(feature = "trace_widget")]
+        wgt.push_build_action(|wgt| {
+            // avoid double trace as the style builder already inserts a widget tracer.
+            wgt.disable_trace_widget();
+        });
 
-            let mut wgt = Some(wgt);
-            style_builder.push_build_action(move |b| {
-                // 3 - The actual style_node and builder is a child of the "mini widget".
+        let mut wgt = Some(wgt);
+        style_builder.push_build_action(move |b| {
+            // 3 - The actual style_node and builder is a child of the "mini widget".
 
-                let style = b.capture_var::<StyleFn>(style_id).unwrap_or_else(|| const_var(StyleFn::nil()));
+            let style = b.capture_var::<StyleFn>(style_id).unwrap_or_else(|| const_var(StyleFn::nil()));
 
-                b.set_child(style_node(UiNode::nil(), wgt.take().unwrap(), style_var, style));
-            });
-            // 4 - Build the "mini widget",
-            //     if the `style` property was not affected by any `when` this just returns the `StyleNode`.
-            style_builder.build()
-        } else {
-            // 2.b - There was no `style_fn` property, this widget is not styleable, just build the default.
-            wgt.build()
-        }
+            b.set_child(style_node(UiNode::nil(), wgt.take().unwrap(), style_var, style));
+        });
+        // 4 - Build the "mini widget"
+        style_builder.build()
     }
 }
 

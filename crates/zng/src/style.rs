@@ -143,7 +143,6 @@
 //! set/replaced in this order:
 //!
 //! 1 - The default properties set on the widget declaration.
-//! 1 - The `base_style_fn`, if set directly on the widget.
 //! 2 - The default style and any extension/replacement style set for the default style using `style_fn` in a parent widget.
 //! 3 - The named style set using `style_fn` on the widget and any extension/replacement style set for the named style property in a parent widget.
 //! 4 - The properties set on the widget instance.
