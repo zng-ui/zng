@@ -15,7 +15,7 @@ use zng_wgt::{base_color, prelude::*, visibility};
 use zng_wgt_container::{Container, child_out_bottom};
 use zng_wgt_fill::background_color;
 use zng_wgt_size_offset::{height, width, x};
-use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn};
 
 pub use zng_task::Progress;
 
@@ -25,13 +25,9 @@ pub struct ProgressView(StyleMix<WidgetBase>);
 impl ProgressView {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
-        widget_set! {
-            self;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
-        }
     }
 }
-impl_style_fn!(ProgressView);
+impl_style_fn!(ProgressView, DefaultStyle);
 
 context_var! {
     /// The progress status value in a [`ProgressView`](struct@ProgressView)

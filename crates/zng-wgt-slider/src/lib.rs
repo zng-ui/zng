@@ -25,7 +25,7 @@ use zng_ext_input::{
 use zng_var::{AnyVar, AnyVarValue};
 use zng_wgt::prelude::*;
 use zng_wgt_input::{focus::FocusableMix, pointer_capture::capture_pointer};
-use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn};
 
 /// Value selector from a range of values.
 #[widget($crate::Slider)]
@@ -33,14 +33,9 @@ pub struct Slider(FocusableMix<StyleMix<WidgetBase>>);
 impl Slider {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
-
-        widget_set! {
-            self;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
-        }
     }
 }
-impl_style_fn!(Slider);
+impl_style_fn!(Slider, DefaultStyle);
 
 /// Default slider style.
 #[widget($crate::DefaultStyle)]

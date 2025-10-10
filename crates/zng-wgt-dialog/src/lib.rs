@@ -28,7 +28,7 @@ use zng_wgt_layer::{
     AnchorMode,
     popup::{ContextCapture, POPUP, POPUP_CLOSE_REQUESTED_EVENT},
 };
-use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn};
 use zng_wgt_text::Text;
 use zng_wgt_text_input::selectable::SelectableText;
 use zng_wgt_wrap::Wrap;
@@ -49,7 +49,6 @@ impl Dialog {
 
         widget_set! {
             self;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
 
             focus_on_init = true;
             return_focus_on_deinit = true;
@@ -74,7 +73,7 @@ impl Dialog {
         pub on_dialog_close_canceled(args: Handler<DialogCloseCanceledArgs>);
     }
 }
-impl_style_fn!(Dialog);
+impl_style_fn!(Dialog, DefaultStyle);
 
 fn dialog_closing_node(child: impl IntoUiNode) -> UiNode {
     match_node(child, move |_, op| {

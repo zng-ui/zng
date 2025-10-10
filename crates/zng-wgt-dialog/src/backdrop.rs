@@ -5,7 +5,7 @@ use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
 use zng_wgt_input::gesture::on_click;
 use zng_wgt_layer::popup::POPUP_CLOSE_REQUESTED_EVENT;
-use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn};
 
 use crate::DIALOG;
 
@@ -31,7 +31,6 @@ impl DialogBackdrop {
 
         widget_set! {
             self;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
             modal = true;
 
             on_click = hn!(|args| {
@@ -41,7 +40,7 @@ impl DialogBackdrop {
         }
     }
 }
-impl_style_fn!(DialogBackdrop);
+impl_style_fn!(DialogBackdrop, DefaultStyle);
 
 /// Share popup events with the dialog child.
 fn backdrop_node(child: impl IntoUiNode) -> UiNode {

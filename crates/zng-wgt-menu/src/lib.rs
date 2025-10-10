@@ -33,13 +33,12 @@ impl Menu {
             self;
             alt_focus_scope = true;
             zng_wgt_panel::panel_fn = PANEL_FN_VAR;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
             access_role = AccessRole::Menu;
             zng_wgt_rule_line::collapse_scope = true;
         }
     }
 }
-impl_style_fn!(Menu);
+impl_style_fn!(Menu, DefaultStyle);
 
 context_var! {
     /// Defines the layout widget for [`Menu!`].

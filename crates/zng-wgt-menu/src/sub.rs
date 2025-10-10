@@ -54,7 +54,6 @@ impl SubMenu {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
         widget_set! {
             self;
-            style_base_fn = style_fn!(|_| DefaultStyle!());
             focusable = true;
             click_mode = ClickMode::press();
             focus_click_behavior = FocusClickBehavior::Ignore; // we handle clicks.
@@ -77,7 +76,7 @@ impl SubMenu {
         });
     }
 }
-impl_style_fn!(SubMenu);
+impl_style_fn!(SubMenu, DefaultStyle);
 
 /// Sub-menu implementation.
 pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
