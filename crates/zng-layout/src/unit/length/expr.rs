@@ -9,7 +9,8 @@ use crate::{
 };
 
 /// Represents an unresolved [`Length`] expression.
-#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)] // TODO(breaking) non_exhaustive
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum LengthExpr {
     /// Sums the both layout length.
     Add(Length, Length),

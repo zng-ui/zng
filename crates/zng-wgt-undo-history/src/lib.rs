@@ -65,11 +65,11 @@ context_var! {
 
 /// Widget function that converts [`UndoEntryArgs`] to widgets.
 ///
-/// Try [`undo_button_style_fn`] for making only visual changes.
+/// Try [`undo_redo_button_style_fn`] for making only visual changes.
 ///
 /// Sets the [`UNDO_ENTRY_FN_VAR`].
 ///
-/// [`undo_button_style_fn`]: fn@undo_button_style_fn
+/// [`undo_redo_button_style_fn`]: fn@undo_redo_button_style_fn
 #[property(CONTEXT+1, default(UNDO_ENTRY_FN_VAR), widget_impl(UndoHistory))]
 pub fn undo_entry_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<UndoEntryArgs>>) -> UiNode {
     with_context_var(child, UNDO_ENTRY_FN_VAR, wgt_fn)
@@ -109,7 +109,7 @@ pub fn op(op: impl IntoValue<UndoOp>) {}
 
 /// Default [`UNDO_ENTRY_FN_VAR`].
 ///
-/// Returns a `Button!` with the [`UNDO_BUTTON_STYLE_FN_VAR`] and the entry displayed in a `Text!` child.
+/// Returns a `Button!` with the [`UNDO_REDO_BUTTON_STYLE_FN_VAR`] and the entry displayed in a `Text!` child.
 /// The button notifies [`UNDO_CMD`] or [`REDO_CMD`] with the entry timestamp, the command is scoped on the
 /// undo parent of the caller not of the button.
 ///
@@ -370,12 +370,12 @@ impl UndoPanelArgs {
 /// Menu style button for an entry in a undo/redo stack.
 #[widget($crate::UndoRedoButtonStyle)]
 pub struct UndoRedoButtonStyle(Style);
-impl_named_style_fn!(undo_button, UndoRedoButtonStyle); // TODO(breaking) rename to undo_redo
+impl_named_style_fn!(undo_redo_button, UndoRedoButtonStyle);
 impl UndoRedoButtonStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-            named_style_fn = UNDO_BUTTON_STYLE_FN_VAR;
+            named_style_fn = UNDO_REDO_BUTTON_STYLE_FN_VAR;
             padding = 4;
             child_align = Align::START;
 

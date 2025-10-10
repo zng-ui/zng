@@ -49,14 +49,42 @@
 //! # ; }
 //! ```
 //!
-//! App Context
+//! # App Context
 //!
-//! When a handler is not set in a widget the [`APP_HANDLER`] contextual service is available !!: TODO docs
+//! When a handler is not set in a widget the [`APP_HANDLER`] contextual service is available, it can be used to unsubscribe
+//! the event from within.
 //!
-//! Args Type Inference
+//! ```
+//! # use zng::prelude::*;
+//! # use zng::focus::FOCUS_CHANGED_EVENT;
+//! # fn example() {
+//! FOCUS_CHANGED_EVENT
+//!     .on_pre_event(hn!(|args| {
+//!         println!("focused: {:?}", args.new_focus);
+//!         if args.new_focus.is_none() {
+//!             zng::handler::APP_HANDLER.unsubscribe();
+//!         }
+//!     }))
+//!     .perm();
+//! # }
+//! ```
 //!
-//! The [`Handler<A>`] type is an alias for `Box<dyn FnMut(&A) ...>` by necessity as this is the only way to have a type where
-//! the closure args is inferred. !!: TODO limitations
+//! In the example above the event subscription is made `perm`, but inside the handler `unsubscribe` is called when a
+//! condition is met, causing the handler to be dropped. This is a common pattern for app level event handlers that
+//! can manage their own subscription.
+//!
+//! The [`APP_HANDLER`] will also be available after each `await` point in async handlers, after an async task unsubscribes
+//! all running handler tasks will run to the end and no new tasks will be started.
+//!
+//! # Args Type Inference
+//!
+//! The [`Handler<A>`] type is an alias for `Box<dyn FnMut(&A + Clone + 'static) ...>` by necessity as this is the only way to have a type where
+//! the closure args is inferred. Unfortunately this has some limitations, documentation shows the raw box type, the `A` bounds is not enforced
+//! on type declaration too.
+//!
+//! These limitations enable type inference for the arguments of [`hn!`] and [`async_hn!`] set directly on a property, reducing the need to
+//! track down exact event args types, unfortunately as of this release the [`hn_once!`] and [`async_hn_once!`] handlers will still need
+//! and explicit args type if the handler uses the arg.
 //!
 //! [`WIDGET`]: crate::widget::WIDGET
 //! [`clmv!`]: crate::clmv

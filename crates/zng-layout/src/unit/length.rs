@@ -28,7 +28,8 @@ pub use expr::*;
 /// * `Dip` and `px` lengths uses [`Dip`] and [`Px`] equality.
 /// * `Relative`, `Em`, `RootEm` lengths use the [`Factor`] equality.
 /// * Viewport lengths uses [`about_eq`] with `0.00001` granularity.
-#[derive(Clone, serde::Serialize, serde::Deserialize)] // TODO(breaking) non_exhaustive
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum Length {
     /// The default (initial) value.
     Default,

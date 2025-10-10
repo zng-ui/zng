@@ -248,7 +248,25 @@ impl ContextInitFnImpl for AnyWhenVarBuilder {
         when_var_tail(builder)
     }
 }
-fn when_var_tail(builder: AnyWhenVarBuilder) -> AnyVar {
+fn when_var_tail(mut builder: AnyWhenVarBuilder) -> AnyVar {
+    builder.conditions.retain(|(c, _)| !c.capabilities().is_const() || c.get());
+    if builder.conditions.is_empty() {
+        return builder.default;
+    }
+
+    let all_equal = builder.default.capabilities().is_const()
+        && builder.default.with(|default| {
+            builder
+                .conditions
+                .iter()
+                .all(|(_, v)| v.capabilities().is_const() && v.with(|v| v == default))
+        });
+    if all_equal {
+        // this happens usually due to a multi input property where only one input
+        // really changes over when blocks.
+        return builder.default;
+    }
+
     AnyVar(DynAnyVar::When(when_var_tail_impl(builder)))
 }
 fn when_var_tail_impl(builder: AnyWhenVarBuilder) -> WhenVar {
