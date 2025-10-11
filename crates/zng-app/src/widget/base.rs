@@ -10,8 +10,8 @@ use crate::{
 use super::{
     WIDGET,
     builder::{
-        AnyPropertyBuildAction, Importance, PropertyArgs, PropertyId, SourceLocation, WhenBuildAction, WhenInfo, WhenInput, WidgetBuilder,
-        WidgetType,
+        AnyPropertyAttribute, Importance, PropertyArgs, PropertyAttributeWhen, PropertyId, SourceLocation, WhenInfo, WhenInput,
+        WidgetBuilder, WidgetType,
     },
     node::{FillUiNode, UiNode, UiNodeOp},
 };
@@ -99,7 +99,7 @@ impl WidgetBase {
             inputs,
             state,
             assigns: vec![],
-            build_action_data: vec![],
+            attributes_data: vec![],
             expr,
             location,
         });
@@ -154,43 +154,48 @@ impl WidgetBase {
     }
 
     #[doc(hidden)]
-    pub fn push_unset_property_build_action__(&mut self, property_id: PropertyId, action_name: &'static str) {
-        assert!(self.when.get_mut().is_none(), "cannot unset build actions in when assigns");
+    pub fn push_unset_property_attribute__(&mut self, property_id: PropertyId, attribute_name: &'static str) {
+        assert!(self.when.get_mut().is_none(), "cannot unset property attribute in when assigns");
 
         self.builder
             .get_mut()
             .as_mut()
-            .expect("cannot unset build actions after build")
-            .push_unset_property_build_action(property_id, action_name, self.importance);
+            .expect("cannot unset property attribute after build")
+            .push_unset_property_attribute(property_id, attribute_name, self.importance);
     }
 
     #[doc(hidden)]
-    pub fn push_property_build_action__(
+    pub fn push_property_attribute__(
         &mut self,
         property_id: PropertyId,
-        action_name: &'static str,
-        input_actions: Vec<Box<dyn AnyPropertyBuildAction>>,
+        attribute_name: &'static str,
+        input_actions: Vec<Box<dyn AnyPropertyAttribute>>,
     ) {
         assert!(
             self.when.get_mut().is_none(),
-            "cannot push property build action in `when`, use `push_when_build_action_data__`"
+            "cannot push property attribute in `when`, use `push_when_property_attribute_data__`"
         );
 
         self.builder
             .get_mut()
             .as_mut()
-            .expect("cannot unset build actions after build")
-            .push_property_build_action(property_id, action_name, self.importance, input_actions);
+            .expect("cannot set property attributes after build")
+            .push_property_attribute(property_id, attribute_name, self.importance, input_actions);
     }
 
     #[doc(hidden)]
-    pub fn push_when_build_action_data__(&mut self, property_id: PropertyId, action_name: &'static str, data: WhenBuildAction) {
+    pub fn push_when_property_attribute_data__(
+        &mut self,
+        property_id: PropertyId,
+        attribute_name: &'static str,
+        data: PropertyAttributeWhen,
+    ) {
         let when = self
             .when
             .get_mut()
             .as_mut()
-            .expect("cannot push when build action data outside when blocks");
-        when.build_action_data.push(((property_id, action_name), data));
+            .expect("cannot push when property attribute data outside when blocks");
+        when.attributes_data.push(((property_id, attribute_name), data));
     }
 }
 
@@ -380,23 +385,23 @@ impl NonWidgetBase {
     }
 
     #[doc(hidden)]
-    pub fn push_unset_property_build_action__(&mut self, property_id: PropertyId, action_name: &'static str) {
-        self.base.push_unset_property_build_action__(property_id, action_name)
+    pub fn push_unset_property_attribute__(&mut self, property_id: PropertyId, action_name: &'static str) {
+        self.base.push_unset_property_attribute__(property_id, action_name)
     }
 
     #[doc(hidden)]
-    pub fn push_property_build_action__(
+    pub fn push_property_attribute__(
         &mut self,
         property_id: PropertyId,
         action_name: &'static str,
-        input_actions: Vec<Box<dyn AnyPropertyBuildAction>>,
+        input_actions: Vec<Box<dyn AnyPropertyAttribute>>,
     ) {
-        self.base.push_property_build_action__(property_id, action_name, input_actions)
+        self.base.push_property_attribute__(property_id, action_name, input_actions)
     }
 
     #[doc(hidden)]
-    pub fn push_when_build_action_data__(&mut self, property_id: PropertyId, action_name: &'static str, data: WhenBuildAction) {
-        self.base.push_when_build_action_data__(property_id, action_name, data)
+    pub fn push_when_property_attribute_data__(&mut self, property_id: PropertyId, action_name: &'static str, data: PropertyAttributeWhen) {
+        self.base.push_when_property_attribute_data__(property_id, action_name, data)
     }
 }
 impl WidgetImpl for NonWidgetBase {

@@ -229,7 +229,7 @@ impl<O: VarValue> WhenVarBuilder<O> {
     ///
     /// [`build`]: Self::build
     pub fn try_from_built(var: &Var<O>) -> Option<Self> {
-        // this is used by #[easing(_)] in PropertyBuildAction to modify widget properties
+        // this is used by #[easing(_)] in PropertyAttribute to modify widget properties
 
         let builder = AnyWhenVarBuilder::try_from_built(var)?;
         Some(Self { builder, _t: PhantomData })

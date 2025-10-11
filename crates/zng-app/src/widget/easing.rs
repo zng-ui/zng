@@ -19,8 +19,8 @@ type EasingFn = Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>;
 #[expect(non_camel_case_types)]
 pub trait easing_property: Send + Sync + Clone + Copy {
     fn easing_property_unset(self);
-    fn easing_property(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>>;
-    fn easing_when_data(self, duration: Duration, easing: EasingFn) -> WhenBuildAction;
+    fn easing_property(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyAttribute>>;
+    fn easing_when_data(self, duration: Duration, easing: EasingFn) -> PropertyAttributeWhen;
 }
 
 #[doc(hidden)]
@@ -30,7 +30,7 @@ pub trait easing_property_input_Transitionable: Any + Send {
     fn easing(self, duration: Duration, easing: EasingFn, when_conditions_data: &[Option<Arc<dyn Any + Send + Sync>>]) -> Self;
 }
 impl<T: VarValue + Transitionable> easing_property_input_Transitionable for Var<T> {
-    // Called by PropertyBuildAction for each property input of properties that have #[easing(_)]
+    // Called by PropertyAttribute for each property input of properties that have #[easing(_)]
     fn easing(self, duration: Duration, easing: EasingFn, when_conditions_data: &[Option<Arc<dyn Any + Send + Sync>>]) -> Self {
         if let Some(when) = WhenVarBuilder::try_from_built(&self) {
             // property assigned normally and in when conditions, may need to coordinate multiple `#[easing(_)]` animations
@@ -65,33 +65,33 @@ macro_rules! impl_easing_property_inputs {
             $T0: easing_property_input_Transitionable,
             $($T: easing_property_input_Transitionable),*
         > easing_property for PropertyInputTypes<($T0, $($T,)*)> {
-            // #[easing(unset)] calls this simply to assert T: Transitionable, will generate a push_unset_property_build_action__ on the builder
+            // #[easing(unset)] calls this simply to assert T: Transitionable, will generate a push_unset_property_attribute__ on the builder
             fn easing_property_unset(self) { }
 
-            // #[easing(duration, easing?)] in normal assign calls this to build data for push_property_build_action__
-            fn easing_property(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>> {
+            // #[easing(duration, easing?)] in normal assign calls this to build data for push_property_attribute__
+            fn easing_property(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyAttribute>> {
                 if duration == Duration::ZERO {
                     vec![]
                 } else {
                     vec![
-                        Box::new(PropertyBuildAction::<$T0>::new($crate::handler::clmv!(easing, |a| easing_property_input_Transitionable::easing(a.input, duration, easing.clone(), &a.when_conditions_data)))),
-                        $(Box::new(PropertyBuildAction::<$T>::new($crate::handler::clmv!(easing, |a| easing_property_input_Transitionable::easing(a.input, duration, easing.clone(), &a.when_conditions_data)))),)*
+                        Box::new(PropertyAttribute::<$T0>::new($crate::handler::clmv!(easing, |a| easing_property_input_Transitionable::easing(a.input, duration, easing.clone(), &a.when_conditions_data)))),
+                        $(Box::new(PropertyAttribute::<$T>::new($crate::handler::clmv!(easing, |a| easing_property_input_Transitionable::easing(a.input, duration, easing.clone(), &a.when_conditions_data)))),)*
                     ]
                 }
             }
 
-            // #[easing(duration, easing?)] in when assign calls this to build data for push_when_build_action_data__
-            fn easing_when_data(self, duration: Duration, easing: EasingFn) -> WhenBuildAction {
+            // #[easing(duration, easing?)] in when assign calls this to build data for push_when_property_attribute_data__
+            fn easing_when_data(self, duration: Duration, easing: EasingFn) -> PropertyAttributeWhen {
                 if duration == Duration::ZERO {
-                    WhenBuildAction::new_no_default((duration, easing))
+                    PropertyAttributeWhen::new_no_default((duration, easing))
                 } else {
-                    WhenBuildAction::new(
+                    PropertyAttributeWhen::new(
                         (duration, easing),
                         || {
                             let easing = Arc::new($crate::var::animation::easing::linear) as EasingFn;
                             vec![
-                                Box::new(PropertyBuildAction::<$T0>::new($crate::handler::clmv!(easing, |a| easing_property_input_Transitionable::easing(a.input, 0.ms(), easing.clone(), &a.when_conditions_data)))),
-                                $(Box::new(PropertyBuildAction::<$T>::new($crate::handler::clmv!(easing, |a| easing_property_input_Transitionable::easing(a.input, 0.ms(), easing.clone(), &a.when_conditions_data)))),)*
+                                Box::new(PropertyAttribute::<$T0>::new($crate::handler::clmv!(easing, |a| easing_property_input_Transitionable::easing(a.input, 0.ms(), easing.clone(), &a.when_conditions_data)))),
+                                $(Box::new(PropertyAttribute::<$T>::new($crate::handler::clmv!(easing, |a| easing_property_input_Transitionable::easing(a.input, 0.ms(), easing.clone(), &a.when_conditions_data)))),)*
                             ]
                         }
                     )
