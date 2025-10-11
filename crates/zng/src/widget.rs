@@ -789,19 +789,38 @@ pub use zng_app::widget::easing;
 /// and widget intrinsic build actions, the function can modify the [`WidgetBuilding`], just like an intrinsic build action.
 ///
 /// ```
-/// // !!: TODO
+/// # fn main() { }
+/// use zng::prelude_wgt::*;
+///
+/// #[property(CHILD)]
+/// pub fn child(wgt: &mut WidgetBuilding, child: impl IntoUiNode) {
+///     wgt.set_child(child);
+/// }
 /// ```
+///
+/// The example above declares a simple property that replaces the widget child.
 ///
 /// ## Capture Only
 ///
 /// Some widgets intrinsic behavior depend on the value of multiple properties that cannot provide any implementation by themselves. In
 /// this case the property should be declared as a build action property and call [`expect_property_capture`].
-///
-/// ```
-/// // !!: TODO
-/// ```
-///
 /// The widget them must capture the property during build, if it does not an error is logged in build with debug assertions enabled.
+///
+/// ```
+/// # fn main() { }
+/// use zng::prelude_wgt::*;
+/// # #[widget($crate::MyPanel)]
+/// # pub struct MyPanel(WidgetBase);
+///
+/// #[property(CHILD, widget_impl(MyPanel))]
+/// pub fn children(wgt: &mut WidgetBuilding, children: impl IntoUiNode) {
+///     let _ = children;
+///     wgt.expect_property_capture();
+/// }
+/// ```
+///
+/// The example above declares a property that expects to be captured, if the property function actually runs it will log an error
+/// in builds with debug assertions enabled.
 ///
 /// # More Details
 ///
