@@ -787,20 +787,20 @@ pub use zng_app::widget::easing;
 /// Property functions can take a `&mut WidgetBuilding` first arg, in this case they are *build action properties*. These properties cannot
 /// be instantiated into a node, they only work if set on an widget. The property function is called during widget build, after property resolution
 /// and widget intrinsic build actions, the function can modify the [`WidgetBuilding`], just like an intrinsic build action.
-/// 
+///
 /// ```
 /// // !!: TODO
 /// ```
-/// 
+///
 /// ## Capture Only
-/// 
+///
 /// Some widgets intrinsic behavior depend on the value of multiple properties that cannot provide any implementation by themselves. In
 /// this case the property should be declared as a build action property and call [`expect_property_capture`].
-/// 
+///
 /// ```
 /// // !!: TODO
 /// ```
-/// 
+///
 /// The widget them must capture the property during build, if it does not an error is logged in build with debug assertions enabled.
 ///
 /// # More Details

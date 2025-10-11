@@ -66,8 +66,8 @@ impl DefaultStyle {
 
 /// Value represented by the thumb.
 #[property(CONTEXT, widget_impl(Thumb))]
-pub fn value(wgt: &mut WidgetBuilding, thumb: impl IntoVar<ThumbValue>) {
-    let _ = thumb;
+pub fn value(wgt: &mut WidgetBuilding, value: impl IntoVar<ThumbValue>) {
+    let _ = value;
     wgt.expect_property_capture();
 }
 

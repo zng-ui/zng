@@ -31,7 +31,7 @@ impl Icon {
             let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(ico)) {
                 icon
             } else {
-                tracing::error!("missing `icon` property");
+                tracing::error!("missing `ico` property");
                 return;
             };
 

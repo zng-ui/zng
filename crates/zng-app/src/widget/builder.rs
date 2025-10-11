@@ -1979,7 +1979,7 @@ impl ops::DerefMut for WidgetBuilder {
 /// Represents a finalizing [`WidgetBuilder`].
 ///
 /// Widgets can register a [build action] to get access to this on build, build action properties also receive it as their first argument.
-/// Build actions provides an opportunity to remove or capture the final properties of a widget, after they have all been resolved 
+/// Build actions provides an opportunity to remove or capture the final properties of a widget, after they have all been resolved
 /// and `when` assigns generated. Build actions can also define the child node and insert intrinsic nodes.
 ///
 /// [build action]: WidgetBuilder::push_build_action
@@ -2452,14 +2452,16 @@ impl WidgetBuilding {
         if self.items.is_empty() {
             return;
         }
-    
+
         // sort by group, index and insert index.
         self.items.sort_unstable_by_key(|b| b.sort_key());
-    
+
         let mut i = self.items.len();
         loop {
             i -= 1;
-            if let WidgetItem::Property { args, captured, .. } = &self.p.items[i].item && !captured {
+            if let WidgetItem::Property { args, captured, .. } = &self.p.items[i].item
+                && !captured
+            {
                 let p = args.property();
                 if p.build_action {
                     self.build_action_property = Some(p);
@@ -2482,19 +2484,6 @@ impl WidgetBuilding {
             match item {
                 WidgetItem::Property { args, captured, .. } => {
                     if !captured {
-                        #[cfg(debug_assertions)]
-                        {
-                            let p = args.property();
-                            if p.build_action {
-                                // !!: TODO
-                                tracing::error!(
-                                    "capture only property `{}` is not captured in `{}!`, it will have no effect",
-                                    p.name,
-                                    self.widget_type.name()
-                                );
-                            }
-                        }
-
                         node = args.instantiate(node);
 
                         #[cfg(feature = "trace_wgt_item")]
