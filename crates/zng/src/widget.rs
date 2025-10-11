@@ -137,8 +137,8 @@ pub use zng_wgt_fill::{
 pub mod builder {
     pub use zng_app::widget::builder::{
         AnyWhenArcHandlerBuilder, BuilderProperty, BuilderPropertyMut, BuilderPropertyRef, Importance, InputKind, NestGroup, NestPosition,
-        PropertyArgs, PropertyAttribute, PropertyAttributeArgs, PropertyAttributes, PropertyAttributesWhenData, PropertyId, PropertyInfo,
-        PropertyInput, PropertyInputTypes, PropertyNewArgs, SourceLocation, PropertyAttributeWhen, WhenInfo, WhenInput, WhenInputMember,
+        PropertyArgs, PropertyAttribute, PropertyAttributeArgs, PropertyAttributeWhen, PropertyAttributes, PropertyAttributesWhenData,
+        PropertyId, PropertyInfo, PropertyInput, PropertyInputTypes, PropertyNewArgs, SourceLocation, WhenInfo, WhenInput, WhenInputMember,
         WhenInputVar, WidgetBuilder, WidgetBuilderProperties, WidgetBuilding, WidgetType, property_args, property_id, property_info,
         property_input_types, source_location, widget_type,
     };

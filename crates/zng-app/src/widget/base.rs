@@ -10,8 +10,8 @@ use crate::{
 use super::{
     WIDGET,
     builder::{
-        AnyPropertyAttribute, Importance, PropertyArgs, PropertyId, SourceLocation, PropertyAttributeWhen, WhenInfo, WhenInput, WidgetBuilder,
-        WidgetType,
+        AnyPropertyAttribute, Importance, PropertyArgs, PropertyAttributeWhen, PropertyId, SourceLocation, WhenInfo, WhenInput,
+        WidgetBuilder, WidgetType,
     },
     node::{FillUiNode, UiNode, UiNodeOp},
 };
@@ -184,7 +184,12 @@ impl WidgetBase {
     }
 
     #[doc(hidden)]
-    pub fn push_when_property_attribute_data__(&mut self, property_id: PropertyId, attribute_name: &'static str, data: PropertyAttributeWhen) {
+    pub fn push_when_property_attribute_data__(
+        &mut self,
+        property_id: PropertyId,
+        attribute_name: &'static str,
+        data: PropertyAttributeWhen,
+    ) {
         let when = self
             .when
             .get_mut()
