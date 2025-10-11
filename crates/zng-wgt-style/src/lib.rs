@@ -60,8 +60,11 @@ impl Style {
 /// Fully replace the contextual style.
 ///
 /// This is not enabled by default, if set to `true` the contextual style properties are removed.
-#[property(WIDGET, capture, default(false), widget_impl(Style))]
-pub fn replace(replace: impl IntoValue<bool>) {}
+#[property(WIDGET, default(false), widget_impl(Style))]
+pub fn replace(wgt: &mut WidgetBuilding, replace: impl IntoValue<bool>) {
+    let _ = replace;
+    wgt.expect_property_capture();
+}
 
 /// Set in the default properties of a named style to define the contextual variable for that style.
 ///
@@ -72,8 +75,11 @@ pub fn replace(replace: impl IntoValue<bool>) {}
 ///
 /// Note that this property expects a `ContextVar<StyleFn>` as a value, not a variable directly, it will also only work if
 /// set in the default properties of a style type.
-#[property(WIDGET, capture, widget_impl(Style))]
-pub fn named_style_fn(name: impl IntoValue<NamedStyleVar>) {}
+#[property(WIDGET, widget_impl(Style))]
+pub fn named_style_fn(wgt: &mut WidgetBuilding, name: impl IntoValue<NamedStyleVar>) {
+    let _ = name;
+    wgt.expect_property_capture();
+}
 
 /// Represents a `ContextVar<StyleFn>` that defines a named style.
 ///

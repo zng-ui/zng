@@ -727,10 +727,10 @@ pub struct PropertyNewArgs {
 pub struct PropertyInfo {
     /// Property nest position group.
     pub group: NestGroup,
-    /// Property is "capture-only", no standalone implementation is provided, instantiating does not add a node, just returns the child.
+    /// Property modifies the widget builder, like a widget build action.
     ///
-    /// Note that all properties can be captured, but if this is `false` they provide an implementation that works standalone.
-    pub capture: bool,
+    /// No standalone implementation is provided, instantiating does not add a node, just logs an error and returns the child.
+    pub build_action: bool,
 
     /// Unique ID that identifies the property implementation.
     pub id: PropertyId,
@@ -823,9 +823,14 @@ pub trait PropertyArgs: Send + Sync {
         panic_input(&self.property(), i, InputKind::Handler)
     }
 
-    /// Create a property instance with args clone or taken.
+    /// Apply the build action property from the args.
     ///
-    /// If the property is [`PropertyInfo::capture`] the `child` is returned.
+    /// if the property is not [`PropertyInfo::build_action`] does nothing.
+    fn build_action(&self, wgt: &mut WidgetBuilding);
+
+    /// Create a property instance from args clone or taken.
+    ///
+    /// If the property is [`PropertyInfo::build_action`] the `child` is returned unchanged.
     fn instantiate(&self, child: UiNode) -> UiNode;
 }
 impl dyn PropertyArgs + '_ {
@@ -1932,6 +1937,7 @@ impl WidgetBuilder {
             widget_type: self.widget_type,
             p: self.p,
             child: None,
+            build_action_property: None,
         };
 
         let mut p_build_actions = self.p_build_actions.into_iter().collect();
@@ -1952,6 +1958,8 @@ impl WidgetBuilder {
             (action.lock())(&mut building);
         }
 
+        building.run_build_action_properties();
+
         building.build(when_init_context_handle)
     }
 }
@@ -1970,9 +1978,9 @@ impl ops::DerefMut for WidgetBuilder {
 
 /// Represents a finalizing [`WidgetBuilder`].
 ///
-/// Widgets can register a [build action] to get access to this, it provides an opportunity
-/// to remove or capture the final properties of a widget, after they have all been resolved and `when` assigns generated.
-/// Build actions can also define the child node, intrinsic nodes and a custom builder.
+/// Widgets can register a [build action] to get access to this on build, build action properties also receive it as their first argument.
+/// Build actions provides an opportunity to remove or capture the final properties of a widget, after they have all been resolved 
+/// and `when` assigns generated. Build actions can also define the child node and insert intrinsic nodes.
 ///
 /// [build action]: WidgetBuilder::push_build_action
 pub struct WidgetBuilding {
@@ -1986,6 +1994,8 @@ pub struct WidgetBuilding {
     widget_type: WidgetType,
     p: WidgetBuilderProperties,
     child: Option<UiNode>,
+
+    build_action_property: Option<PropertyInfo>,
 }
 impl WidgetBuilding {
     /// The widget that started this builder.
@@ -2151,6 +2161,26 @@ impl WidgetBuilding {
         let p = self.capture_property(property_id)?;
         let handler = p.args.downcast_handler::<A>(0).clone();
         Some(handler)
+    }
+
+    /// Identifies the current running build action property.
+    pub fn build_action_property(&mut self) -> Option<&PropertyInfo> {
+        self.build_action_property.as_ref()
+    }
+
+    /// If is running a [`build_action_property`] and is building with debug assertions logs an error that
+    /// explains the property will not work on the widget because it was not captured.
+    ///
+    /// [`build_action_property`]: Self::build_action_property
+    pub fn expect_property_capture(&mut self) {
+        #[cfg(debug_assertions)]
+        if let Some(p_name) = self.build_action_property().map(|p| p.name) {
+            tracing::error!(
+                "capture only property `{}` is not captured in `{}!`, it will have no effect",
+                p_name,
+                self.widget_type.name()
+            );
+        }
     }
 
     fn build_whens(
@@ -2418,10 +2448,32 @@ impl WidgetBuilding {
         }
     }
 
-    fn build(mut self, when_init_context_handle: Option<ContextInitHandle>) -> UiNode {
+    fn run_build_action_properties(&mut self) {
+        if self.items.is_empty() {
+            return;
+        }
+    
         // sort by group, index and insert index.
         self.items.sort_unstable_by_key(|b| b.sort_key());
+    
+        let mut i = self.items.len();
+        loop {
+            i -= 1;
+            if let WidgetItem::Property { args, captured, .. } = &self.p.items[i].item && !captured {
+                let p = args.property();
+                if p.build_action {
+                    self.build_action_property = Some(p);
+                    args.clone_boxed().build_action(self);
+                    self.build_action_property = None;
+                }
+            }
+            if i == 0 {
+                break;
+            }
+        }
+    }
 
+    fn build(mut self, when_init_context_handle: Option<ContextInitHandle>) -> UiNode {
         #[cfg(feature = "inspector")]
         let mut inspector_items = Vec::with_capacity(self.p.items.len());
 
@@ -2433,7 +2485,8 @@ impl WidgetBuilding {
                         #[cfg(debug_assertions)]
                         {
                             let p = args.property();
-                            if p.capture {
+                            if p.build_action {
+                                // !!: TODO
                                 tracing::error!(
                                     "capture only property `{}` is not captured in `{}!`, it will have no effect",
                                     p.name,

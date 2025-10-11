@@ -11,9 +11,9 @@ This release contains breaking changes that affect the advanced event handler an
 
     To migrate app handlers remove `app_` prefix with normal. To migrate custom event property declarations replace `impl WidgetHandler<A>` with `Handler<A>` and execute the async task is needed. Other use cases will continue working, you can now omit the args type in most handlers. 
 
-* Add mixin properties.
-    - There are properties that modify the widget builder, with the same access level as a widget mixin.
-    - `#[property]` now accepts functions with signature `fn(&mut WidgetBuilder, property_inputs...)`.
+* Add build action properties.
+    - Properties that modify the widget build, with the same access level as a widget build action.
+    - `#[property]` now accepts functions with signature `fn(&mut WidgetBuilding, ...)`.
     - **Breaking** Removed `capture` from `#[property]`, migrate to an empty mixin property.
 
 * Refactor how the default style is declared.

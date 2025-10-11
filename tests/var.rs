@@ -604,8 +604,11 @@ mod context {
             });
         }
     }
-    #[property(CHILD, capture, widget_impl(TestWgt))]
-    fn child(child: impl IntoUiNode) {}
+    #[property(CHILD, widget_impl(TestWgt))]
+    fn child(wgt: &mut WidgetBuilding, child: impl IntoUiNode) {
+        let _ = child;
+        wgt.expect_property_capture();
+    }
 
     fn test_app(app: AppExtended<impl AppExtension>, root: impl IntoUiNode) -> HeadlessApp {
         zng_app::test_log();

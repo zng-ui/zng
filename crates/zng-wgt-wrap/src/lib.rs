@@ -64,8 +64,11 @@ impl Wrap {
 }
 
 /// Inlined wrap items.
-#[property(CHILD, capture, default(ui_vec![]), widget_impl(Wrap))]
-pub fn children(children: impl IntoUiNode) {}
+#[property(CHILD, default(ui_vec![]), widget_impl(Wrap))]
+pub fn children(wgt: &mut WidgetBuilding, children: impl IntoUiNode) {
+    let _ = children;
+    wgt.expect_property_capture();
+}
 
 /// Space in between items and rows.
 ///
@@ -75,12 +78,18 @@ pub fn children(children: impl IntoUiNode) {}
 /// [`LINE_SPACING_VAR`]: zng_wgt_text::LINE_SPACING_VAR
 /// [`line_spacing`]: fn@zng_wgt_text::txt_align
 /// [`word_spacing`]: fn@zng_wgt_text::word_spacing
-#[property(LAYOUT, capture, widget_impl(Wrap))]
-pub fn spacing(spacing: impl IntoVar<GridSpacing>) {}
+#[property(LAYOUT, widget_impl(Wrap))]
+pub fn spacing(wgt: &mut WidgetBuilding, spacing: impl IntoVar<GridSpacing>) {
+    let _ = spacing;
+    wgt.expect_property_capture();
+}
 
 /// Children align.
-#[property(LAYOUT, capture, widget_impl(Wrap))]
-pub fn children_align(align: impl IntoVar<Align>) {}
+#[property(LAYOUT, widget_impl(Wrap))]
+pub fn children_align(wgt: &mut WidgetBuilding, align: impl IntoVar<Align>) {
+    let _ = align;
+    wgt.expect_property_capture();
+}
 
 /// Wrap node.
 ///

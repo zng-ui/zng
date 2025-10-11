@@ -610,7 +610,7 @@ pub use zng_app::widget::easing;
 /// Expands a function to a widget property.
 ///
 /// Property functions take one [`IntoUiNode`] child input and one or more other inputs and produces an [`UiNode`] that implements
-/// the property feature.
+/// the property feature. Alternatively it takes one [`WidgetBuilding`] input plus other inputs and modifies the widget build.
 ///
 /// The attribute expansion does not modify the function, it can still be used as a function directly. Some
 /// properties are implemented by calling other property functions to generate a derived effect.
@@ -692,27 +692,6 @@ pub use zng_app::widget::easing;
 ///
 /// Note that you can also use the [`widget_impl!`] in widget declarations to implement existing properties for a widget.
 ///
-/// #### Capture
-///
-/// After the nest group and before default the `, capture, ` value indicates that the property is capture-only. This flag
-/// changes how the property must be declared, the first argument is a property input and the function can have only one input,
-/// no return type is allowed and the function body must be empty, unused input warnings are suppressed by the expanded code.
-///
-/// Capture-only properties must be captured by a widget and implemented as part of the widget's intrinsics, the reason for
-/// a property function is purely to define the property signature and metadata, the capture-only property function can also
-/// be used to set a property dynamically, such as in a style widget that is applied on the actual widget that captures the property.
-///
-/// A documentation sections explaining capture-only properties is generated for the property, it is also tagged differently in the functions list.
-///
-/// ```
-/// # fn main() { }
-/// use zng::prelude_wgt::*;
-///
-/// /// Children property, must be captured by panel widgets.
-/// #[property(CONTEXT, capture)]
-/// pub fn children(children: impl IntoUiNode) {}
-/// ```
-///
 /// # Function Args
 ///
 /// The property function requires at least two args, the first is the child node and the other(s) the input values. The
@@ -724,6 +703,11 @@ pub use zng_app::widget::easing;
 /// The first function arg must be of type `impl IntoUiNode`, it represents the child node and the property node must
 /// delegate to it so that the UI tree functions correctly. The type must be an `impl` generic, a full path to [`IntoUiNode`]
 /// is allowed, but no import renames as the proc-macro attribute can only use tokens to identify the type.
+///
+/// ##### Or Building
+///
+/// Alternatively, the first function arg must be of type `&mut WidgetBuilding`, in this case the property function runs
+/// during widget build and can do things like insert multiple nodes on the widget or set the widget child node.
 ///
 /// #### Inputs
 ///
@@ -798,11 +782,34 @@ pub use zng_app::widget::easing;
 ///
 /// Some common property patterns have helper functions, for example, to setup a context var you can use the [`with_context_var`] function.
 ///
+/// # Build Action Properties
+///
+/// Property functions can take a `&mut WidgetBuilding` first arg, in this case they are *build action properties*. These properties cannot
+/// be instantiated into a node, they only work if set on an widget. The property function is called during widget build, after property resolution
+/// and widget intrinsic build actions, the function can modify the [`WidgetBuilding`], just like an intrinsic build action.
+/// 
+/// ```
+/// // !!: TODO
+/// ```
+/// 
+/// ## Capture Only
+/// 
+/// Some widgets intrinsic behavior depend on the value of multiple properties that cannot provide any implementation by themselves. In
+/// this case the property should be declared as a build action property and call [`expect_property_capture`].
+/// 
+/// ```
+/// // !!: TODO
+/// ```
+/// 
+/// The widget them must capture the property during build, if it does not an error is logged in build with debug assertions enabled.
+///
 /// # More Details
 ///
 /// See [`property_id!`] and [`property_args!`] for more details about what kind of meta-code is generated for properties.
 ///
 /// [`NestGroup`]: crate::widget::builder::NestGroup
+/// [`WidgetBuilding`]: crate::widget::builder::WidgetBuilding
+/// [`expect_property_capture`]: crate::widget::builder::WidgetBuilding::expect_property_capture
 /// [`property_id!`]: crate::widget::builder::property_id
 /// [`property_args!`]: crate::widget::builder::property_args
 /// [`ui_node`]: macro@ui_node

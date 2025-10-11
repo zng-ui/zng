@@ -107,7 +107,7 @@
         propertiesList.innerHTML = "<div class='impl-items'></div>";
         propertiesList = propertiesList.firstChild;
         implementationsList.querySelectorAll("details.method-toggle").forEach(function (e) {
-            let t = e.querySelector("strong[data-tag='P'],strong[data-tag='c']");
+            let t = e.querySelector("strong[data-tag='P'],strong[data-tag='B']");
             if (t != null) {
                 let mtdAnchor = e.querySelector('a.fn');
                 let propertyName = mtdAnchor.innerText;

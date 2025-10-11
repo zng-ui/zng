@@ -244,8 +244,11 @@ pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> UiNode {
 /// [`visibility`]: fn@zng_wgt::visibility
 /// [`on_click`]: fn@on_click
 /// [`on_disabled_click`]: fn@on_disabled_click
-#[property(CHILD, capture, widget_impl(Button))]
-pub fn cmd(cmd: impl IntoVar<Command>) {}
+#[property(CHILD, widget_impl(Button))]
+pub fn cmd(wgt: &mut WidgetBuilding, cmd: impl IntoVar<Command>) {
+    let _ = cmd;
+    wgt.expect_property_capture();
+}
 
 /// Optional command parameter for the button to use when notifying [`cmd`].
 ///

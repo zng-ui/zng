@@ -33,16 +33,25 @@ impl Thumb {
 /// Viewport/content ratio.
 ///
 /// This becomes the height for vertical and width for horizontal.
-#[property(LAYOUT, capture, widget_impl(Thumb))]
-pub fn viewport_ratio(ratio: impl IntoVar<Factor>) {}
+#[property(LAYOUT, widget_impl(Thumb))]
+pub fn viewport_ratio(wgt: &mut WidgetBuilding, ratio: impl IntoVar<Factor>) {
+    let _ = ratio;
+    wgt.expect_property_capture();
+}
 
 /// Content offset.
-#[property(LAYOUT, capture, widget_impl(Thumb))]
-pub fn offset(offset: impl IntoVar<Factor>) {}
+#[property(LAYOUT, widget_impl(Thumb))]
+pub fn offset(wgt: &mut WidgetBuilding, offset: impl IntoVar<Factor>) {
+    let _ = offset;
+    wgt.expect_property_capture();
+}
 
 /// Width if orientation is vertical, otherwise height if orientation is horizontal.
-#[property(SIZE, capture, default(16), widget_impl(Thumb))]
-pub fn cross_length(length: impl IntoVar<Length>) {}
+#[property(SIZE, default(16), widget_impl(Thumb))]
+pub fn cross_length(wgt: &mut WidgetBuilding, length: impl IntoVar<Length>) {
+    let _ = length;
+    wgt.expect_property_capture();
+}
 
 fn on_build(wgt: &mut WidgetBuilding) {
     let cross_length = wgt.capture_var_or_else::<Length, _>(property_id!(cross_length), || 16);

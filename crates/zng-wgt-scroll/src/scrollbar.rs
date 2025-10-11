@@ -51,14 +51,20 @@ impl Scrollbar {
 /// thumb behavior and tags itself in the frame.
 ///
 /// [`Thumb!`]: struct@super::Thumb
-#[property(CHILD, capture, default(super::Thumb!()), widget_impl(Scrollbar))]
-pub fn thumb(node: impl IntoUiNode) {}
+#[property(CHILD, default(super::Thumb!()), widget_impl(Scrollbar))]
+pub fn thumb(wgt: &mut WidgetBuilding, node: impl IntoUiNode) {
+    let _ = node;
+    wgt.expect_property_capture();
+}
 
 /// Scrollbar orientation.
 ///
 /// This sets the scrollbar alignment to fill its axis and take the cross-length from the thumb.
-#[property(CONTEXT, capture, default(Orientation::Vertical), widget_impl(Scrollbar))]
-pub fn orientation(orientation: impl IntoVar<Orientation>) {}
+#[property(CONTEXT, default(Orientation::Vertical), widget_impl(Scrollbar))]
+pub fn orientation(wgt: &mut WidgetBuilding, orientation: impl IntoVar<Orientation>) {
+    let _ = orientation;
+    wgt.expect_property_capture();
+}
 
 context_var! {
     pub(super) static ORIENTATION_VAR: Orientation = Orientation::Vertical;

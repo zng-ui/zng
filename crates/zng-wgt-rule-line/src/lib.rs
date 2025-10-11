@@ -38,28 +38,43 @@ impl RuleLine {
 }
 
 /// Line orientation.
-#[property(CONTEXT, capture, default(LineOrientation::Horizontal), widget_impl(RuleLine))]
-pub fn orientation(orientation: impl IntoVar<LineOrientation>) {}
+#[property(CONTEXT, default(LineOrientation::Horizontal), widget_impl(RuleLine))]
+pub fn orientation(wgt: &mut WidgetBuilding, orientation: impl IntoVar<LineOrientation>) {
+    let _ = orientation;
+    wgt.expect_property_capture();
+}
 
 /// Line color.
-#[property(CONTEXT, capture, default(rgb(0, 0, 0)), widget_impl(RuleLine))]
-pub fn color(color: impl IntoVar<Rgba>) {}
+#[property(CONTEXT, default(rgb(0, 0, 0)), widget_impl(RuleLine))]
+pub fn color(wgt: &mut WidgetBuilding, color: impl IntoVar<Rgba>) {
+    let _ = color;
+    wgt.expect_property_capture();
+}
 
 /// Line stroke thickness.
-#[property(CONTEXT, capture, default(1), widget_impl(RuleLine))]
-pub fn stroke_thickness(thickness: impl IntoVar<Length>) {}
+#[property(CONTEXT, default(1), widget_impl(RuleLine))]
+pub fn stroke_thickness(wgt: &mut WidgetBuilding, thickness: impl IntoVar<Length>) {
+    let _ = thickness;
+    wgt.expect_property_capture();
+}
 
 /// Line length.
 ///
 /// Set to [`Default`] to fill available length.
 ///
 /// [`Default`]: Length::Default
-#[property(CONTEXT, capture, default(Length::Default), widget_impl(RuleLine))]
-pub fn length(length: impl IntoVar<Length>) {}
+#[property(CONTEXT, default(Length::Default), widget_impl(RuleLine))]
+pub fn length(wgt: &mut WidgetBuilding, length: impl IntoVar<Length>) {
+    let _ = length;
+    wgt.expect_property_capture();
+}
 
 /// Line style.
-#[property(CONTEXT, capture, default(LineStyle::Solid), widget_impl(RuleLine))]
-pub fn line_style(style: impl IntoVar<LineStyle>) {}
+#[property(CONTEXT, default(LineStyle::Solid), widget_impl(RuleLine))]
+pub fn line_style(wgt: &mut WidgetBuilding, style: impl IntoVar<LineStyle>) {
+    let _ = style;
+    wgt.expect_property_capture();
+}
 
 fn on_build(wgt: &mut WidgetBuilding) {
     let mut bounds = PxSize::zero();

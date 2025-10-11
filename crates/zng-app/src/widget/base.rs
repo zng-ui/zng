@@ -2,7 +2,10 @@
 
 use std::{any::TypeId, cell::RefCell, fmt};
 
-use crate::{source_location, widget::WidgetId};
+use crate::{
+    source_location,
+    widget::{WidgetId, builder::WidgetBuilding},
+};
 
 use super::{
     WIDGET,
@@ -916,8 +919,11 @@ pub mod node {
 /// Unique ID of the widget instance.
 ///
 /// Note that the `id` can convert from a `&'static str` unique name.
-#[property(CONTEXT, capture, default(WidgetId::new_unique()), widget_impl(WidgetBase))]
-pub fn id(id: impl IntoValue<WidgetId>) {}
+#[property(CONTEXT, default(WidgetId::new_unique()), widget_impl(WidgetBase))]
+pub fn id(wgt: &mut WidgetBuilding, id: impl IntoValue<WidgetId>) {
+    let _ = id;
+    wgt.expect_property_capture();
+}
 
 /// Defines if and how a widget is hit-tested.
 #[derive(Copy, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]

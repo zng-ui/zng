@@ -32,8 +32,11 @@ impl Panel {
 }
 
 /// Panel items.
-#[property(CHILD, capture, default(ui_vec![]), widget_impl(Panel))]
-pub fn children(children: impl IntoUiNode) {}
+#[property(CHILD, default(ui_vec![]), widget_impl(Panel))]
+pub fn children(wgt: &mut WidgetBuilding, children: impl IntoUiNode) {
+    let _ = children;
+    wgt.expect_property_capture();
+}
 
 context_var! {
     /// Defines the layout widget for [`Panel!`].

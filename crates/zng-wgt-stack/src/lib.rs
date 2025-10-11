@@ -86,12 +86,18 @@ impl Stack {
 }
 
 /// Stack items.
-#[property(CHILD, capture, default(ui_vec![]), widget_impl(Stack))]
-pub fn children(children: impl IntoUiNode) {}
+#[property(CHILD, default(ui_vec![]), widget_impl(Stack))]
+pub fn children(wgt: &mut WidgetBuilding, children: impl IntoUiNode) {
+    let _ = children;
+    wgt.expect_property_capture();
+}
 
 /// Stack direction.
-#[property(LAYOUT, capture, widget_impl(Stack))]
-pub fn direction(direction: impl IntoVar<StackDirection>) {}
+#[property(LAYOUT, widget_impl(Stack))]
+pub fn direction(wgt: &mut WidgetBuilding, direction: impl IntoVar<StackDirection>) {
+    let _ = direction;
+    wgt.expect_property_capture();
+}
 
 /// Space in-between items.
 ///
@@ -100,8 +106,11 @@ pub fn direction(direction: impl IntoVar<StackDirection>) {}
 ///
 /// [`direction`]: fn@direction
 /// [direction factor]: StackDirection::direction_factor
-#[property(LAYOUT, capture, widget_impl(Stack))]
-pub fn spacing(spacing: impl IntoVar<Length>) {}
+#[property(LAYOUT, widget_impl(Stack))]
+pub fn spacing(wgt: &mut WidgetBuilding, spacing: impl IntoVar<Length>) {
+    let _ = spacing;
+    wgt.expect_property_capture();
+}
 
 /// Items alignment.
 ///
@@ -111,8 +120,11 @@ pub fn spacing(spacing: impl IntoVar<Length>) {}
 ///
 /// [`FILL`]: Align::FILL
 /// [`direction`]: fn@direction
-#[property(LAYOUT, capture, default(Align::FILL), widget_impl(Stack))]
-pub fn children_align(align: impl IntoVar<Align>) {}
+#[property(LAYOUT, default(Align::FILL), widget_impl(Stack))]
+pub fn children_align(wgt: &mut WidgetBuilding, align: impl IntoVar<Align>) {
+    let _ = align;
+    wgt.expect_property_capture();
+}
 
 /// Stack node.
 ///

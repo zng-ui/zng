@@ -15,7 +15,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             errors.push_syn(e);
             Args {
                 nest_group: parse_quote!(CONTEXT),
-                capture: false,
                 default: None,
                 impl_for: None,
             }
@@ -23,7 +22,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     };
 
     let nest_group = args.nest_group;
-    let capture = args.capture;
     let impl_for = args.impl_for;
 
     let mut item = match parse::<ItemFn>(input.clone()) {
@@ -43,24 +41,31 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     mtd_attrs.docs.clone_from(&attrs.docs);
     let mut extra_docs = quote!();
 
-    // note that the tags "c" and "P" are used by the `widget.js` to find properties.
-    if capture {
-        attrs.tag_doc("c", "Capture-only property function");
-        mtd_attrs.tag_doc("c", "Capture-only property method");
+    if item.sig.inputs.is_empty() {
+        // patch to continue validation.
+        let core = crate_core();
+        item.sig.inputs.push(parse_quote!(__child__: impl #core::widget::node::IntoUiNode));
+    }
+
+    let first_arg = FirstArg::from_arg(&item.sig.inputs[0], &mut errors);
+    let build_action = matches!(first_arg.kind, FirstArgKind::WidgetBuilding);
+
+    // note that the tags "p" and "P" are used by the `widget.js` to find properties.
+    if build_action {
+        attrs.tag_doc("B", "Build action property function");
+        mtd_attrs.tag_doc("B", "Build action property method");
         if !attrs.docs.is_empty() {
             extra_docs = quote! {
                 ///
-                /// # Capture-Only
+                /// # Mixin Property
                 ///
-                /// This property is capture-only, it only defines a property signature, it does not implement any behavior by itself.
-                /// Widgets can capture and implement this property as part of their intrinsics, otherwise it will have no
-                /// effect if set on a widget that does not implement it.
+                /// This property is a *mixin*, it modifies the widget builder during build, it does not produce a standalone UI node.
             };
         }
 
-        if item.sig.inputs.is_empty() {
+        if item.sig.inputs.len() < 2 {
             errors.push(
-                "capture property functions must have at least 1 input: arg0, ..",
+                "mixin property functions must have at least 2 inputs: wgt: &mut WidgetBuilding, arg0, ..",
                 item.sig.inputs.span(),
             );
         }
@@ -74,12 +79,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 item.sig.inputs.span(),
             );
         }
-    }
-
-    if item.sig.inputs.is_empty() {
-        // patch to continue validation.
-        let core = crate_core();
-        item.sig.inputs.push(parse_quote!(__child__: impl #core::widget::node::IntoUiNode));
     }
 
     if let Some(async_) = &item.sig.asyncness {
@@ -98,36 +97,25 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         errors.push("property functions do not support `const` generics", const_.span());
     }
 
-    let inputs: Vec<_> = item.sig.inputs.iter().map(|arg| Input::from_arg(arg, &mut errors)).collect();
-    if !inputs[0].ty.is_empty() && !capture {
-        // first param passed Input::from_arg validation, check if is node.
-        if !matches!(inputs[0].kind, InputKind::UiNode) {
-            errors.push("first input must be `impl IntoUiNode`", inputs[0].ty.span());
-        }
-    }
+    let inputs: Vec<_> = item
+        .sig
+        .inputs
+        .iter()
+        .skip(1)
+        .map(|arg| Input::from_arg(arg, &mut errors))
+        .collect();
 
-    if capture {
-        let inputs = inputs.iter().map(|i| &i.ident);
-        if !item.block.stmts.is_empty() {
-            errors.push("capture property must have an empty body", item.block.span());
-        }
-        item.block.stmts.clear();
-        item.block.stmts.push(parse_quote! {
-            let _ = (#(#inputs,)*);
-        });
-    }
     let item = item;
-    let first_input = if capture { 0 } else { 1 };
 
     match &item.sig.output {
         ReturnType::Default => {
-            if !capture {
+            if !build_action {
                 errors.push("output type must be `UiNode`", item.sig.ident.span());
             }
         }
         ReturnType::Type(_, ty) => {
-            if capture {
-                errors.push("capture must not have output", ty.span());
+            if build_action {
+                errors.push("build action property must not have output", ty.span());
             }
         }
     };
@@ -161,8 +149,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             Some(d) => Some((d.default.span(), d.args.to_token_stream())),
             None => {
                 let mut default = quote!();
-                let first_input = if capture { 0 } else { 1 };
-                for input in &inputs[first_input..] {
+                for input in &inputs {
                     match input.kind {
                         InputKind::Var => {
                             if ident_str.starts_with("is_") || ident_str.starts_with("has_") {
@@ -231,7 +218,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let mut allowed_in_when_expr = true;
         let mut allowed_in_when_assign = true;
 
-        for (i, input) in inputs[first_input..].iter().enumerate() {
+        for (i, input) in inputs.iter().enumerate() {
             let ident = &input.ident;
             let input_ty = &input.ty;
             input_idents.push(ident);
@@ -427,7 +414,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }
         }
 
-        let mut sorted_inputs: Vec<_> = inputs[first_input..].iter().collect();
+        let mut sorted_inputs: Vec<_> = inputs.iter().collect();
         sorted_inputs.sort_by_key(|i| &i.ident);
         let sorted_idents: Vec<_> = sorted_inputs.iter().map(|i| &i.ident).collect();
         let sorted_tys: Vec<_> = sorted_inputs.iter().map(|i| &i.ty).collect();
@@ -477,7 +464,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                             use #core::widget::builder::nest_group_items::*;
                             #nest_group
                         },
-                        capture: #capture,
+                        build_action: #build_action,
                         id: self.id(),
                         name: std::stringify!(#ident),
                         location: #source_location,
@@ -529,7 +516,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
             }
         };
-        let instantiate = if capture {
+        let instantiate_body = if build_action {
             quote! {
                 #[allow(unused)]
                 use self::#ident;
@@ -538,6 +525,16 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         } else {
             quote! {
                 #ident(__child__, #instantiate)
+            }
+        };
+
+        let build_action_body = if build_action {
+            quote! {
+                #ident(__wgt__, #instantiate)
+            }
+        } else {
+            quote! {
+                let _ = __wgt__;
             }
         };
 
@@ -569,7 +566,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
                 #allow_deprecated
                 fn instantiate(&self, __child__: #core::widget::node::UiNode) -> #core::widget::node::UiNode {
-                    #instantiate
+                    #instantiate_body
+                }
+
+                #allow_deprecated
+                fn build_action(&self, __wgt__: &mut #core::widget::builder::WidgetBuilding) {
+                    #build_action_body
                 }
 
                 #get_var
@@ -716,7 +718,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
 struct Args {
     nest_group: Expr,
-    capture: bool,
     default: Option<Default>,
     impl_for: Option<ImplFor>,
 }
@@ -724,13 +725,6 @@ impl Parse for Args {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         Ok(Args {
             nest_group: input.parse()?,
-            capture: if input.peek(Token![,]) && input.peek2(keyword::capture) {
-                let _: Token![,] = input.parse()?;
-                let _: keyword::capture = input.parse()?;
-                true
-            } else {
-                false
-            },
             default: if input.peek(Token![,]) && input.peek2(Token![default]) {
                 Some(input.parse()?)
             } else {
@@ -915,8 +909,107 @@ impl Input {
     }
 }
 
+#[derive(Clone, Copy)]
+enum FirstArgKind {
+    UiNode,
+    WidgetBuilding,
+}
+struct FirstArg {
+    ident: Ident,
+    kind: FirstArgKind,
+}
+impl FirstArg {
+    fn from_arg(arg: &FnArg, errors: &mut Errors) -> FirstArg {
+        let mut out = FirstArg {
+            ident: ident!("__invalid__"),
+            kind: FirstArgKind::UiNode,
+        };
+
+        match arg {
+            FnArg::Receiver(rcv) => {
+                errors.push("methods cannot be properties", rcv.span());
+            }
+            FnArg::Typed(t) => {
+                if !t.attrs.is_empty() {
+                    errors.push("property input cannot have attributes", t.attrs[0].span());
+                }
+
+                match *t.pat.clone() {
+                    Pat::Ident(id) => {
+                        if id.ident == "self" {
+                            errors.push("methods cannot be properties", id.ident.span());
+                        }
+                        out.ident = id.ident;
+                    }
+                    p => {
+                        errors.push("property input can only have a simple ident", p.span());
+                    }
+                }
+
+                match *t.ty.clone() {
+                    Type::ImplTrait(mut it) if it.bounds.len() == 1 => {
+                        let bounds = it.bounds.pop().unwrap().into_value();
+                        match bounds {
+                            TypeParamBound::Trait(tra) if tra.lifetimes.is_none() && tra.paren_token.is_none() => {
+                                let path = tra.path;
+                                let seg = path.segments.last().unwrap();
+                                match seg.ident.to_string().as_str() {
+                                    "IntoUiNode" => {
+                                        out.kind = FirstArgKind::UiNode;
+                                    }
+                                    _ => {
+                                        errors.push(
+                                            "property first arg can only have types `impl IntoUiNode` or `&mut WidgetBuilding`",
+                                            seg.span(),
+                                        );
+                                    }
+                                }
+                            }
+                            t => {
+                                errors.push(
+                                    "property first arg can only have types `impl IntoUiNode` or `&mut WidgetBuilding`",
+                                    t.span(),
+                                );
+                            }
+                        }
+                    }
+                    Type::Reference(r) if r.mutability.is_some() => {
+                        if let Type::Path(p) = *r.elem
+                            && p.qself.is_none()
+                            && !p.path.segments.is_empty()
+                        {
+                            let seg = p.path.segments.last().unwrap();
+
+                            if seg.ident.to_string().as_str() == "WidgetBuilding" && seg.arguments.is_empty() {
+                                out.kind = FirstArgKind::WidgetBuilding;
+                            } else {
+                                errors.push(
+                                    "property first arg can only have types `impl IntoUiNode` or `&mut WidgetBuilding`",
+                                    t.span(),
+                                );
+                            }
+                        } else {
+                            errors.push(
+                                "property first arg can only have types `impl IntoUiNode` or `&mut WidgetBuilding`",
+                                t.span(),
+                            );
+                        }
+                    }
+                    t => {
+                        errors.push(
+                            "property first arg can only have types `impl IntoUiNode` or `&mut WidgetBuilding`",
+                            t.span(),
+                        );
+                    }
+                }
+            }
+        }
+
+        out
+    }
+}
+
 pub mod keyword {
-    syn::custom_keyword!(capture);
     syn::custom_keyword!(widget_impl);
 }
 
