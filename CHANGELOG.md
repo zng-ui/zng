@@ -1,6 +1,6 @@
 # Unreleased
 
-This release contains breaking changes that affect the advanced event handler and view-process APIs.
+This release contains breaking changes that affect the advanced event handler, capture-only properties and view-process APIs.
 
 * Refactor handlers to enable args type inference.
     - Added unified `Handler<A>` type.
@@ -15,6 +15,7 @@ This release contains breaking changes that affect the advanced event handler an
     - Properties that modify the widget build, with the same access level as a widget build action.
     - `#[property]` now accepts functions with signature `fn(&mut WidgetBuilding, ...)`.
     - **Breaking** Removed `capture` from `#[property]`, migrate to an empty mixin property.
+    - **Breaking** Renamed old "property build action" to "property attributes". This is a more accurate name and avoids confusion.
 
 * Refactor how the default style is declared.
     - **Breaking** Removed `style_base_fn`.

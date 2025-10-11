@@ -137,10 +137,10 @@ pub use zng_wgt_fill::{
 pub mod builder {
     pub use zng_app::widget::builder::{
         AnyWhenArcHandlerBuilder, BuilderProperty, BuilderPropertyMut, BuilderPropertyRef, Importance, InputKind, NestGroup, NestPosition,
-        PropertyArgs, PropertyBuildAction, PropertyBuildActionArgs, PropertyBuildActions, PropertyBuildActionsWhenData, PropertyId,
-        PropertyInfo, PropertyInput, PropertyInputTypes, PropertyNewArgs, SourceLocation, WhenBuildAction, WhenInfo, WhenInput,
-        WhenInputMember, WhenInputVar, WidgetBuilder, WidgetBuilderProperties, WidgetBuilding, WidgetType, property_args, property_id,
-        property_info, property_input_types, source_location, widget_type,
+        PropertyArgs, PropertyAttribute, PropertyAttributeArgs, PropertyAttributes, PropertyAttributesWhenData, PropertyId, PropertyInfo,
+        PropertyInput, PropertyInputTypes, PropertyNewArgs, SourceLocation, PropertyAttributeWhen, WhenInfo, WhenInput, WhenInputMember,
+        WhenInputVar, WidgetBuilder, WidgetBuilderProperties, WidgetBuilding, WidgetType, property_args, property_id, property_info,
+        property_input_types, source_location, widget_type,
     };
 }
 
@@ -534,7 +534,7 @@ pub use zng_app::widget::widget_mixin;
 
 /// Expands a property assign to include an easing animation.
 ///
-/// The attribute generates a [property build action] that applies [`Var::easing`] to the final variable inputs of the property.
+/// The attribute generates a [property attribute] that applies [`Var::easing`] to the final variable inputs of the property.
 ///
 /// # Arguments
 ///
@@ -551,7 +551,7 @@ pub use zng_app::widget::widget_mixin;
 /// [`TimeUnits`]: zng::layout::TimeUnits
 /// [`easing`]: mod@zng::var::animation::easing
 /// [`easing::linear`]: zng::var::animation::easing::linear
-/// [property build action]: crate::widget::builder::WidgetBuilder::push_property_build_action
+/// [property attribute]: crate::widget::builder::WidgetBuilder::push_property_attribute
 /// [`Var::easing`]: crate::var::Var::easing
 ///
 /// ## When

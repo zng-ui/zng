@@ -255,7 +255,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         }
                     });
                     input_new_dyn.push(quote! {
-                        let __actions__ = #core::widget::builder::iter_input_build_actions(&__args__.build_actions, &__args__.build_actions_when_data, #i);
+                        let __actions__ = #core::widget::builder::iter_input_attributes(&__args__.attributes, &__args__.attributes_when_data, #i);
                         #core::widget::builder::new_dyn_var(&mut __inputs__, __actions__)
                     });
                     let get_ident = ident!("__w_{ident}__");
@@ -288,7 +288,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         std::clone::Clone::clone(&self.#ident),
                     });
                     input_new_dyn.push(quote! {
-                        let __actions__ = #core::widget::builder::iter_input_build_actions(&__args__.build_actions, &__args__.build_actions_when_data, #i);
+                        let __actions__ = #core::widget::builder::iter_input_attributes(&__args__.attributes, &__args__.attributes_when_data, #i);
                         #core::widget::builder::new_dyn_other(&mut __inputs__, __actions__)
                     });
                     let get_ident = ident!("__w_{ident}__");
@@ -321,7 +321,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         self.#ident.take_on_init(),
                     });
                     input_new_dyn.push(quote! {
-                        let __actions__ = #core::widget::builder::iter_input_build_actions(&__args__.build_actions, &__args__.build_actions_when_data, #i);
+                        let __actions__ = #core::widget::builder::iter_input_attributes(&__args__.attributes, &__args__.attributes_when_data, #i);
                         #core::widget::builder::new_dyn_ui_node(&mut __inputs__, __actions__)
                     });
                     let get_ident = ident!("__w_{ident}__");
@@ -354,7 +354,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         self.#ident.handler(),
                     });
                     input_new_dyn.push(quote! {
-                        let __actions__ = #core::widget::builder::iter_input_build_actions(&__args__.build_actions, &__args__.build_actions_when_data, #i);
+                        let __actions__ = #core::widget::builder::iter_input_attributes(&__args__.attributes, &__args__.attributes_when_data, #i);
                         #core::widget::builder::new_dyn_handler(&mut __inputs__, __actions__)
                     });
                     let get_ident = ident!("__w_{ident}__");

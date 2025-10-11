@@ -103,7 +103,7 @@ pub mod __proc_macro_util {
             pub use crate::widget::builder::{
                 AnyArcHandler, HandlerInWhenExprError, Importance, InputKind, PropertyArgs, PropertyId, PropertyInfo, PropertyInput,
                 PropertyInputTypes, PropertyNewArgs, SourceLocation, UiNodeInWhenExprError, WgtInfo, WhenInput, WhenInputMember,
-                WhenInputVar, WidgetBuilding, WidgetType, handler_to_args, iter_input_build_actions, nest_group_items, new_dyn_handler,
+                WhenInputVar, WidgetBuilding, WidgetType, handler_to_args, iter_input_attributes, nest_group_items, new_dyn_handler,
                 new_dyn_other, new_dyn_ui_node, new_dyn_var, panic_input, ui_node_to_args, value_to_args, var_getter, var_state,
                 var_to_args,
             };

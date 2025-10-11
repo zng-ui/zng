@@ -659,15 +659,15 @@ impl AnyWhenArcHandlerBuilder {
     }
 }
 
-/// Property build actions that must be applied to property args.
+/// Property attribute build actions that must be applied to property args.
 ///
-/// See [`PropertyNewArgs::build_actions`] for more details.
-pub type PropertyBuildActions = Vec<Vec<Box<dyn AnyPropertyBuildAction>>>;
+/// See [`PropertyNewArgs::attributes`] for more details.
+pub type PropertyAttributes = Vec<Vec<Box<dyn AnyPropertyAttribute>>>;
 
 /// Data for property build actions associated with when condition assigns.
 ///
-/// See [`PropertyNewArgs::build_actions_when_data`] for more details.
-pub type PropertyBuildActionsWhenData = Vec<Vec<Option<WhenBuildActionData>>>;
+/// See [`PropertyNewArgs::attributes_when_data`] for more details.
+pub type PropertyAttributesWhenData = Vec<Vec<Option<PropertyAttributeWhenData>>>;
 
 /// Args for [`PropertyInfo::new`] closure.
 #[non_exhaustive]
@@ -677,11 +677,11 @@ pub struct PropertyNewArgs {
     ///
     /// The expected types for each [`InputKind`] are:
     ///
-    /// | Kind                | Expected Type
-    /// |---------------------|-------------------------------------------------
-    /// | [`Var`]             | `Box<AnyVar>` or `Box<AnyWhenVarBuilder>`
-    /// | [`Value`]           | `Box<T>`
-    /// | [`UiNode`]          | `Box<ArcNode>` or `Box<WhenUiNodeBuilder>`
+    /// | Kind          | Expected Type
+    /// |---------------|-------------------------------------------------
+    /// | [`Var`]       | `Box<AnyVar>` or `Box<AnyWhenVarBuilder>`
+    /// | [`Value`]     | `Box<T>`
+    /// | [`UiNode`]    | `Box<ArcNode>` or `Box<WhenUiNodeBuilder>`
     /// | [`Handler`]   | `Box<ArcHandler<A>>` or `Box<AnyWhenArcHandlerBuilder>`
     ///
     /// The new function will downcast and unbox the args.
@@ -692,17 +692,17 @@ pub struct PropertyNewArgs {
     /// [`Handler`]: InputKind::Handler
     pub args: Vec<Box<dyn Any>>,
 
-    /// The property build actions can be empty or each item must contain one builder for each input in the same order they
+    /// The property attribute build actions can be empty or each item must contain one builder for each input in the same order they
     /// appear in [`PropertyInfo::inputs`], the function panics if the types don't match or not all inputs are provided.
     ///
     /// The expected types for each [`InputKind`] are:
     ///
-    /// | Kind                | Expected Type
-    /// |---------------------|-------------------------------------------------
-    /// | [`Var`]             | `Box<PropertyBuildAction<Var<T>>>`
-    /// | [`Value`]           | `Box<PropertyBuildAction<BoxAnyVarValue>>`
-    /// | [`UiNode`]          | `Box<PropertyBuildAction<ArcNode<BoxedUiNode>>>`
-    /// | [`Handler`]   | `Box<PropertyBuildAction<ArcHandler<A>>>`
+    /// | Kind          | Expected Type
+    /// |---------------|-------------------------------------------------
+    /// | [`Var`]       | `Box<PropertyAttribute<Var<T>>>`
+    /// | [`Value`]     | `Box<PropertyAttribute<BoxAnyVarValue>>`
+    /// | [`UiNode`]    | `Box<PropertyAttribute<ArcNode<BoxedUiNode>>>`
+    /// | [`Handler`]   | `Box<PropertyAttribute<ArcHandler<A>>>`
     ///
     /// The new function will downcast and unbox the args.
     ///
@@ -710,14 +710,14 @@ pub struct PropertyNewArgs {
     /// [`Value`]: InputKind::Value
     /// [`UiNode`]: InputKind::UiNode
     /// [`Handler`]: InputKind::Handler
-    pub build_actions: PropertyBuildActions,
+    pub attributes: PropertyAttributes,
 
-    /// When build action data for each [`build_actions`].
+    /// When build action data for each [`attributes`].
     ///
-    /// If not empty, each item is the [`PropertyBuildActionArgs::when_conditions_data`] for each action.
+    /// If not empty, each item is the [`PropertyAttributeArgs::when_conditions_data`] for each action.
     ///
-    /// [`build_actions`]: Self::build_actions
-    pub build_actions_when_data: PropertyBuildActionsWhenData,
+    /// [`attributes`]: Self::attributes
+    pub attributes_when_data: PropertyAttributesWhenData,
 }
 
 /// Property info.
@@ -911,11 +911,7 @@ impl dyn PropertyArgs + '_ {
     /// Call [`new`] with the same instance info and args, but with the `build_actions` and `build_actions_when_data`.
     ///
     /// [`new`]: PropertyInfo::new
-    pub fn new_build(
-        &self,
-        build_actions: PropertyBuildActions,
-        build_actions_when_data: PropertyBuildActionsWhenData,
-    ) -> Box<dyn PropertyArgs> {
+    pub fn new_build(&self, attributes: PropertyAttributes, attributes_when_data: PropertyAttributesWhenData) -> Box<dyn PropertyArgs> {
         let p = self.property();
 
         let mut args: Vec<Box<dyn Any>> = Vec::with_capacity(p.inputs.len());
@@ -930,8 +926,8 @@ impl dyn PropertyArgs + '_ {
 
         (p.new)(PropertyNewArgs {
             args,
-            build_actions,
-            build_actions_when_data,
+            attributes,
+            attributes_when_data,
         })
     }
 }
@@ -971,33 +967,33 @@ pub fn handler_to_args<A: Clone + 'static>(handler: Handler<A>) -> ArcHandler<A>
 }
 
 #[doc(hidden)]
-pub fn iter_input_build_actions<'a>(
-    actions: &'a PropertyBuildActions,
-    data: &'a PropertyBuildActionsWhenData,
+pub fn iter_input_attributes<'a>(
+    attributes: &'a PropertyAttributes,
+    data: &'a PropertyAttributesWhenData,
     index: usize,
-) -> impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])> {
-    let mut actions = actions.iter();
+) -> impl Iterator<Item = (&'a dyn AnyPropertyAttribute, &'a [Option<PropertyAttributeWhenData>])> {
+    let mut attributes = attributes.iter();
     let mut data = data.iter();
 
     std::iter::from_fn(move || {
-        let action = &*actions.next()?[index];
+        let action = &*attributes.next()?[index];
         let data = if let Some(data) = data.next() { &data[..] } else { &[] };
 
         Some((action, data))
     })
 }
 
-fn apply_build_actions<'a, I: Any + Send>(
+fn apply_attributes<'a, I: Any + Send>(
     mut item: I,
-    mut actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
+    mut attributes: impl Iterator<Item = (&'a dyn AnyPropertyAttribute, &'a [Option<PropertyAttributeWhenData>])>,
 ) -> I {
-    if let Some((action, data)) = actions.next() {
-        let action = action
+    if let Some((attribute, data)) = attributes.next() {
+        let attribute = attribute
             .as_any()
-            .downcast_ref::<PropertyBuildAction<I>>()
-            .expect("property build action type did not match expected var type");
+            .downcast_ref::<PropertyAttribute<I>>()
+            .expect("property attribute build action type did not match expected var type");
 
-        item = action.build(PropertyBuildActionArgs {
+        item = attribute.build(PropertyAttributeArgs {
             input: item,
             when_conditions_data: data,
         });
@@ -1008,7 +1004,7 @@ fn apply_build_actions<'a, I: Any + Send>(
 #[doc(hidden)]
 pub fn new_dyn_var<'a, T: VarValue>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
-    actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
+    attributes: impl Iterator<Item = (&'a dyn AnyPropertyAttribute, &'a [Option<PropertyAttributeWhenData>])>,
 ) -> Var<T> {
     let item = inputs.next().expect("missing input");
 
@@ -1020,13 +1016,13 @@ pub fn new_dyn_var<'a, T: VarValue>(
         }
     };
 
-    apply_build_actions(item, actions)
+    apply_attributes(item, attributes)
 }
 
 #[doc(hidden)]
 pub fn new_dyn_ui_node<'a>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
-    actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
+    attributes: impl Iterator<Item = (&'a dyn AnyPropertyAttribute, &'a [Option<PropertyAttributeWhenData>])>,
 ) -> ArcNode {
     let item = inputs.next().expect("missing input");
 
@@ -1035,13 +1031,13 @@ pub fn new_dyn_ui_node<'a>(
         Err(item) => *item.downcast::<ArcNode>().expect("input did not match expected UiNode types"),
     };
 
-    apply_build_actions(item, actions)
+    apply_attributes(item, attributes)
 }
 
 #[doc(hidden)]
 pub fn new_dyn_handler<'a, A: Clone + 'static>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
-    actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
+    attributes: impl Iterator<Item = (&'a dyn AnyPropertyAttribute, &'a [Option<PropertyAttributeWhenData>])>,
 ) -> ArcHandler<A> {
     let item = inputs.next().expect("missing input");
 
@@ -1052,13 +1048,13 @@ pub fn new_dyn_handler<'a, A: Clone + 'static>(
             .expect("input did not match expected Handler types"),
     };
 
-    apply_build_actions(item, actions)
+    apply_attributes(item, attributes)
 }
 
 #[doc(hidden)]
 pub fn new_dyn_other<'a, T: Any + Send>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
-    actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
+    attributes: impl Iterator<Item = (&'a dyn AnyPropertyAttribute, &'a [Option<PropertyAttributeWhenData>])>,
 ) -> T {
     let item = *inputs
         .next()
@@ -1066,7 +1062,7 @@ pub fn new_dyn_other<'a, T: Any + Send>(
         .downcast::<T>()
         .expect("input did not match expected var type");
 
-    apply_build_actions(item, actions)
+    apply_attributes(item, attributes)
 }
 
 /// Error value used in a reference to an [`UiNode`] property input is made in `when` expression.
@@ -1278,32 +1274,32 @@ impl WhenInputVar {
     }
 }
 
-type WhenBuildActionData = Arc<dyn Any + Send + Sync>;
-type WhenBuildDefaultAction = Arc<dyn Fn() -> Vec<Box<dyn AnyPropertyBuildAction>> + Send + Sync>;
+type PropertyAttributeWhenData = Arc<dyn Any + Send + Sync>;
+type PropertyAttributeWhenDefault = Arc<dyn Fn() -> Vec<Box<dyn AnyPropertyAttribute>> + Send + Sync>;
 
-/// Data for a custom when build action associated with an [`WhenInfo`].
+/// Data for a property attribute associated with an [`WhenInfo`].
 #[derive(Clone)]
 #[non_exhaustive]
-pub struct WhenBuildAction {
+pub struct PropertyAttributeWhen {
     /// Data for all inputs.
-    pub data: WhenBuildActionData,
-    /// Closure that generates the default build actions, used when the final widget has no build action instance.
+    pub data: PropertyAttributeWhenData,
+    /// Closure that generates the default attribute actions, used when the final widget has no attribute instance.
     ///
-    /// The closure must generate an action that behaves like it is not present and then activates when the condition data activates.
+    /// The closure must generate an action that behaves like the attribute is not present and then activates when the condition data activates.
     ///
     /// If the final widget has no action and all when data for it has no default, the data is ignored.
-    pub default_action: Option<WhenBuildDefaultAction>,
+    pub default: Option<PropertyAttributeWhenDefault>,
 }
-impl WhenBuildAction {
+impl PropertyAttributeWhen {
     /// New from strongly typed values.
     pub fn new<D, F>(data: D, default_action: F) -> Self
     where
         D: Any + Send + Sync + 'static,
-        F: Fn() -> Vec<Box<dyn AnyPropertyBuildAction>> + Send + Sync + 'static,
+        F: Fn() -> Vec<Box<dyn AnyPropertyAttribute>> + Send + Sync + 'static,
     {
         Self {
             data: Arc::new(data),
-            default_action: Some(Arc::new(default_action)),
+            default: Some(Arc::new(default_action)),
         }
     }
 
@@ -1311,7 +1307,7 @@ impl WhenBuildAction {
     pub fn new_no_default(data: impl Any + Send + Sync + 'static) -> Self {
         Self {
             data: Arc::new(data),
-            default_action: None,
+            default: None,
         }
     }
 }
@@ -1338,8 +1334,8 @@ pub struct WhenInfo {
     /// from other `when` blocks into a single property instance set to `when_var!` inputs.
     pub assigns: Vec<Box<dyn PropertyArgs>>,
 
-    /// Data associated with the when condition in the build action.
-    pub build_action_data: Vec<((PropertyId, &'static str), WhenBuildAction)>,
+    /// Data associated with the when condition in the attribute.
+    pub attributes_data: Vec<((PropertyId, &'static str), PropertyAttributeWhen)>,
 
     /// The condition expression code.
     pub expr: &'static str,
@@ -1352,7 +1348,7 @@ impl fmt::Debug for WhenInfo {
         struct DebugBuildActions<'a>(&'a WhenInfo);
         impl fmt::Debug for DebugBuildActions<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.debug_list().entries(self.0.build_action_data.iter().map(|(k, _)| k)).finish()
+                f.debug_list().entries(self.0.attributes_data.iter().map(|(k, _)| k)).finish()
             }
         }
 
@@ -1360,7 +1356,7 @@ impl fmt::Debug for WhenInfo {
             .field("inputs", &self.inputs)
             .field("state", &self.state.get_debug(false))
             .field("assigns", &self.assigns)
-            .field("build_action_data", &DebugBuildActions(self))
+            .field("attributes_data", &DebugBuildActions(self))
             .field("expr", &self.expr)
             .finish()
     }
@@ -1437,9 +1433,9 @@ impl Clone for WidgetItem {
     }
 }
 
-// [(PropertyId, "action-key") => (Importance, Vec<{action for each input}>)]
-type PropertyBuildActionsMap = HashMap<(PropertyId, &'static str), (Importance, Vec<Box<dyn AnyPropertyBuildAction>>)>;
-type PropertyBuildActionsVec = Vec<((PropertyId, &'static str), (Importance, Vec<Box<dyn AnyPropertyBuildAction>>))>;
+// [(PropertyId, "attribute-key") => (Importance, Vec<{action for each input}>)]
+type PropertyAttributesMap = HashMap<(PropertyId, &'static str), (Importance, Vec<Box<dyn AnyPropertyAttribute>>)>;
+type PropertyAttributesVec = Vec<((PropertyId, &'static str), (Importance, Vec<Box<dyn AnyPropertyAttribute>>))>;
 
 /// Widget instance builder.
 pub struct WidgetBuilder {
@@ -1452,8 +1448,8 @@ pub struct WidgetBuilder {
     whens: Vec<WhenItemPositioned>,
     when_insert_idx: u32,
 
-    p_build_actions: PropertyBuildActionsMap,
-    p_build_actions_unset: HashMap<(PropertyId, &'static str), Importance>,
+    p_attributes: PropertyAttributesMap,
+    p_attributes_unset: HashMap<(PropertyId, &'static str), Importance>,
 
     build_actions: Vec<Arc<Mutex<dyn FnMut(&mut WidgetBuilding) + Send>>>,
 
@@ -1464,10 +1460,10 @@ impl Clone for WidgetBuilder {
         Self {
             widget_type: self.widget_type,
             p: WidgetBuilderProperties { items: self.items.clone() },
-            p_build_actions: self.p_build_actions.clone(),
+            p_attributes: self.p_attributes.clone(),
             insert_idx: self.insert_idx,
             unset: self.unset.clone(),
-            p_build_actions_unset: self.p_build_actions_unset.clone(),
+            p_attributes_unset: self.p_attributes_unset.clone(),
             whens: self.whens.clone(),
             when_insert_idx: self.when_insert_idx,
             build_actions: self.build_actions.clone(),
@@ -1502,8 +1498,8 @@ impl WidgetBuilder {
             insert_idx: 0,
             unset: Default::default(),
             whens: Default::default(),
-            p_build_actions: Default::default(),
-            p_build_actions_unset: Default::default(),
+            p_attributes: Default::default(),
+            p_attributes_unset: Default::default(),
             when_insert_idx: 0,
             build_actions: Default::default(),
             custom_build: Default::default(),
@@ -1638,21 +1634,21 @@ impl WidgetBuilder {
     ///
     /// The `importance` overrides previous build action of the same name and property. The `input_actions` vec must
     /// contain one action for each property input.
-    pub fn push_property_build_action(
+    pub fn push_property_attribute(
         &mut self,
         property_id: PropertyId,
-        action_name: &'static str,
+        attribute_name: &'static str,
         importance: Importance,
-        input_actions: Vec<Box<dyn AnyPropertyBuildAction>>,
+        input_actions: Vec<Box<dyn AnyPropertyAttribute>>,
     ) {
-        match self.p_build_actions.entry((property_id, action_name)) {
+        match self.p_attributes.entry((property_id, attribute_name)) {
             hash_map::Entry::Occupied(mut e) => {
                 if e.get().0 < importance {
                     e.insert((importance, input_actions));
                 }
             }
             hash_map::Entry::Vacant(e) => {
-                if let Some(imp) = self.p_build_actions_unset.get(&(property_id, action_name))
+                if let Some(imp) = self.p_attributes_unset.get(&(property_id, attribute_name))
                     && *imp >= importance
                 {
                     // blocked by unset
@@ -1663,12 +1659,12 @@ impl WidgetBuilder {
         }
     }
 
-    /// Insert a [property build action] filter.
+    /// Insert a [property attribute] filter.
     ///
-    /// [property build action]: Self::push_property_build_action
-    pub fn push_unset_property_build_action(&mut self, property_id: PropertyId, action_name: &'static str, importance: Importance) {
+    /// [property attribute]: Self::push_property_attribute
+    pub fn push_unset_property_attribute(&mut self, property_id: PropertyId, attribute_name: &'static str, importance: Importance) {
         let mut check = false;
-        match self.p_build_actions_unset.entry((property_id, action_name)) {
+        match self.p_attributes_unset.entry((property_id, attribute_name)) {
             hash_map::Entry::Occupied(mut e) => {
                 if *e.get() < importance {
                     e.insert(importance);
@@ -1681,13 +1677,13 @@ impl WidgetBuilder {
             }
         }
         if check {
-            self.p_build_actions.retain(|_, (imp, _)| *imp > importance);
+            self.p_attributes.retain(|_, (imp, _)| *imp > importance);
         }
     }
 
-    /// Remove all registered property build actions.
-    pub fn clear_property_build_actions(&mut self) {
-        self.p_build_actions.clear();
+    /// Remove all registered property attributes.
+    pub fn clear_property_attributes(&mut self) {
+        self.p_attributes.clear();
     }
 
     /// Add an `action` closure that is called every time this builder or a clone of it builds a widget instance.
@@ -1742,9 +1738,9 @@ impl WidgetBuilder {
             }
         }
 
-        for ((id, name), imp) in other.p_build_actions_unset {
+        for ((id, name), imp) in other.p_attributes_unset {
             if imp >= min_importance {
-                self.push_unset_property_build_action(id, name, imp);
+                self.push_unset_property_attribute(id, name, imp);
             }
         }
 
@@ -1769,9 +1765,9 @@ impl WidgetBuilder {
             }
         }
 
-        for ((id, name), (imp, action)) in other.p_build_actions {
+        for ((id, name), (imp, action)) in other.p_attributes {
             if imp >= min_importance {
-                self.push_property_build_action(id, name, imp, action);
+                self.push_property_attribute(id, name, imp, action);
             }
         }
 
@@ -1865,7 +1861,7 @@ impl WidgetBuilder {
                         inputs: when.inputs.clone(),
                         state: when.state.clone(),
                         assigns: moved_assigns,
-                        build_action_data: when.build_action_data.clone(),
+                        attributes_data: when.attributes_data.clone(),
                         expr: when.expr,
                         location: when.location,
                     };
@@ -1940,18 +1936,18 @@ impl WidgetBuilder {
             build_action_property: None,
         };
 
-        let mut p_build_actions = self.p_build_actions.into_iter().collect();
+        let mut p_attributes = self.p_attributes.into_iter().collect();
 
         let mut when_init_context_handle = None;
 
         if !self.whens.is_empty() {
             let handle = ContextInitHandle::new();
-            building.build_whens(self.whens, handle.downgrade(), &mut p_build_actions);
+            building.build_whens(self.whens, handle.downgrade(), &mut p_attributes);
             when_init_context_handle = Some(handle);
         }
 
-        if !p_build_actions.is_empty() {
-            building.build_p_actions(p_build_actions);
+        if !p_attributes.is_empty() {
+            building.build_p_attributes(p_attributes);
         }
 
         for action in self.build_actions {
@@ -2187,7 +2183,7 @@ impl WidgetBuilding {
         &mut self,
         mut whens: Vec<WhenItemPositioned>,
         when_init_context_id: WeakContextInitHandle,
-        build_actions: &mut PropertyBuildActionsVec,
+        attributes: &mut PropertyAttributesVec,
     ) {
         whens.sort_unstable_by_key(|w| w.sort_key());
 
@@ -2203,7 +2199,7 @@ impl WidgetBuilding {
             when_count: usize,
             /// map of key:action set in the property, in at least one when, and value:Vec of data for each when in order and
             /// Option of default action.
-            actions_data: HashMap<&'static str, (Vec<Option<WhenBuildActionData>>, Option<WhenBuildDefaultAction>)>,
+            attrs_data: HashMap<&'static str, (Vec<Option<PropertyAttributeWhenData>>, Option<PropertyAttributeWhenDefault>)>,
         }
         let mut assigns = IdMap::default();
 
@@ -2298,7 +2294,7 @@ impl WidgetBuilding {
                             })
                             .collect(),
                         when_count: 0,
-                        actions_data: Default::default(),
+                        attrs_data: Default::default(),
                     }),
                 };
                 entry.when_count += 1;
@@ -2324,17 +2320,17 @@ impl WidgetBuilding {
                     }
                 }
 
-                for ((property_id, action_key), action) in &when.build_action_data {
+                for ((property_id, attr_key), action) in &when.attributes_data {
                     if *property_id == id {
-                        match entry.actions_data.entry(*action_key) {
+                        match entry.attrs_data.entry(*attr_key) {
                             hash_map::Entry::Occupied(mut e) => {
                                 let e = e.get_mut();
                                 for _ in e.0.len()..(entry.when_count - 1) {
                                     e.0.push(None);
                                 }
                                 e.0.push(Some(action.data.clone()));
-                                if action.default_action.is_some() && e.1.is_none() {
-                                    e.1.clone_from(&action.default_action);
+                                if action.default.is_some() && e.1.is_none() {
+                                    e.1.clone_from(&action.default);
                                 }
                             }
                             hash_map::Entry::Vacant(e) => {
@@ -2343,7 +2339,7 @@ impl WidgetBuilding {
                                     a.push(None);
                                 }
                                 a.push(Some(action.data.clone()));
-                                e.insert((a, action.default_action.clone()));
+                                e.insert((a, action.default.clone()));
                             }
                         }
                     }
@@ -2382,7 +2378,7 @@ impl WidgetBuilding {
                 item_idx,
                 builder,
                 when_count,
-                mut actions_data,
+                attrs_data: mut actions_data,
             },
         ) in assigns
         {
@@ -2391,20 +2387,20 @@ impl WidgetBuilding {
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             };
 
-            let mut actions = vec![];
-            let mut b_actions_data = vec![];
-            if !build_actions.is_empty() {
+            let mut attrs = vec![];
+            let mut attrs_data = vec![];
+            if !attributes.is_empty() {
                 let p_id = args.id();
-                while let Some(i) = build_actions.iter().position(|((id, _), _)| *id == p_id) {
-                    let ((_, action_key), (_, a)) = build_actions.swap_remove(i);
-                    actions.push(a);
+                while let Some(i) = attributes.iter().position(|((id, _), _)| *id == p_id) {
+                    let ((_, action_key), (_, a)) = attributes.swap_remove(i);
+                    attrs.push(a);
 
                     if let Some(data) = actions_data.remove(action_key) {
                         let mut data = data.clone();
                         for _ in data.0.len()..when_count {
                             data.0.push(None);
                         }
-                        b_actions_data.push(data.0);
+                        attrs_data.push(data.0);
                     }
                 }
             }
@@ -2416,32 +2412,32 @@ impl WidgetBuilding {
                         data.push(None);
                     }
 
-                    actions.push(action);
-                    b_actions_data.push(data);
+                    attrs.push(action);
+                    attrs_data.push(data);
                 }
             }
 
             *args = (args.property().new)(PropertyNewArgs {
                 args: builder,
-                build_actions: actions,
-                build_actions_when_data: b_actions_data,
+                attributes: attrs,
+                attributes_when_data: attrs_data,
             });
         }
     }
 
-    fn build_p_actions(&mut self, mut build_actions: PropertyBuildActionsVec) {
-        while !build_actions.is_empty() {
-            let ((p_id, _), (_, a)) = build_actions.swap_remove(0);
-            let mut actions = vec![a];
+    fn build_p_attributes(&mut self, mut attributes: PropertyAttributesVec) {
+        while !attributes.is_empty() {
+            let ((p_id, _), (_, a)) = attributes.swap_remove(0);
+            let mut attrs = vec![a];
 
-            while let Some(i) = build_actions.iter().position(|((id, _), _)| *id == p_id) {
-                let (_, (_, a)) = build_actions.swap_remove(i);
-                actions.push(a);
+            while let Some(i) = attributes.iter().position(|((id, _), _)| *id == p_id) {
+                let (_, (_, a)) = attributes.swap_remove(i);
+                attrs.push(a);
             }
 
             if let Some(i) = self.property_index(p_id) {
                 match &mut self.items[i].item {
-                    WidgetItem::Property { args, .. } => *args = args.new_build(actions, vec![]),
+                    WidgetItem::Property { args, .. } => *args = args.new_build(attrs, vec![]),
                     WidgetItem::Intrinsic { .. } => unreachable!(),
                 }
             }
@@ -2770,24 +2766,24 @@ impl WidgetBuilderProperties {
     }
 }
 
-/// Represents any [`PropertyBuildAction<I>`].
-pub trait AnyPropertyBuildAction: crate::private::Sealed + Any + Send + Sync {
+/// Represents any [`PropertyAttribute<I>`].
+pub trait AnyPropertyAttribute: crate::private::Sealed + Any + Send + Sync {
     /// As any.
     fn as_any(&self) -> &dyn Any;
 
-    /// Clone the action into a new box.
-    fn clone_boxed(&self) -> Box<dyn AnyPropertyBuildAction>;
+    /// Clone the attribute action into a new box.
+    fn clone_boxed(&self) -> Box<dyn AnyPropertyAttribute>;
 }
 
-/// Arguments for [`PropertyBuildAction<I>`].
+/// Arguments for [`PropertyAttribute<I>`] build action.
 #[non_exhaustive]
-pub struct PropertyBuildActionArgs<'a, I: Any + Send> {
+pub struct PropertyAttributeArgs<'a, I: Any + Send> {
     /// The property input value.
     pub input: I,
-    /// The [`WhenBuildAction::data`] for each when assign that affects `input` in the order that `input` was generated.
+    /// The [`PropertyAttributeWhen::data`] for each when assign that affects `input` in the order that `input` was generated.
     ///
     /// Items are `None` for when assigns that do not have associated build action data.
-    pub when_conditions_data: &'a [Option<WhenBuildActionData>],
+    pub when_conditions_data: &'a [Option<PropertyAttributeWhenData>],
 }
 
 /// Represents a custom build action targeting a property input that is applied after `when` is build.
@@ -2807,15 +2803,15 @@ pub struct PropertyBuildActionArgs<'a, I: Any + Send> {
 /// [`Value`]: InputKind::Value
 /// [`UiNode`]: InputKind::UiNode
 /// [`Handler`]: InputKind::Handler
-pub struct PropertyBuildAction<I: Any + Send>(Arc<Mutex<dyn FnMut(PropertyBuildActionArgs<I>) -> I + Send>>);
-impl<I: Any + Send> crate::private::Sealed for PropertyBuildAction<I> {}
-impl<I: Any + Send> Clone for PropertyBuildAction<I> {
+pub struct PropertyAttribute<I: Any + Send>(Arc<Mutex<dyn FnMut(PropertyAttributeArgs<I>) -> I + Send>>);
+impl<I: Any + Send> crate::private::Sealed for PropertyAttribute<I> {}
+impl<I: Any + Send> Clone for PropertyAttribute<I> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
-impl<I: Any + Send> AnyPropertyBuildAction for PropertyBuildAction<I> {
-    fn clone_boxed(&self) -> Box<dyn AnyPropertyBuildAction> {
+impl<I: Any + Send> AnyPropertyAttribute for PropertyAttribute<I> {
+    fn clone_boxed(&self) -> Box<dyn AnyPropertyAttribute> {
         Box::new(self.clone())
     }
 
@@ -2823,9 +2819,9 @@ impl<I: Any + Send> AnyPropertyBuildAction for PropertyBuildAction<I> {
         self
     }
 }
-impl<I: Any + Send> PropertyBuildAction<I> {
-    /// New build action.
-    pub fn new(build: impl FnMut(PropertyBuildActionArgs<I>) -> I + Send + 'static) -> Self {
+impl<I: Any + Send> PropertyAttribute<I> {
+    /// New property attribute build action.
+    pub fn new(build: impl FnMut(PropertyAttributeArgs<I>) -> I + Send + 'static) -> Self {
         Self(Arc::new(Mutex::new(build)))
     }
 
@@ -2835,11 +2831,11 @@ impl<I: Any + Send> PropertyBuildAction<I> {
     }
 
     /// Run the build action on a input.
-    pub fn build(&self, args: PropertyBuildActionArgs<I>) -> I {
+    pub fn build(&self, args: PropertyAttributeArgs<I>) -> I {
         (self.0.lock())(args)
     }
 }
-impl Clone for Box<dyn AnyPropertyBuildAction> {
+impl Clone for Box<dyn AnyPropertyAttribute> {
     fn clone(&self) -> Self {
         self.clone_boxed()
     }
