@@ -744,8 +744,11 @@ mod __prelude {
 /// pub struct TextButton(Button);
 ///
 /// /// Button text.
-/// #[property(CHILD, capture, widget_impl(TextButton))]
-/// pub fn txt(txt: impl IntoVar<Txt>) {}
+/// #[property(CHILD, widget_impl(TextButton))]
+/// pub fn txt(wgt: &mut WidgetBuilding, txt: impl IntoVar<Txt>) {
+///     let _ = txt;
+///     wgt.expect_property_capture();
+/// }
 ///
 /// impl TextButton {
 ///     fn widget_intrinsic(&mut self) {

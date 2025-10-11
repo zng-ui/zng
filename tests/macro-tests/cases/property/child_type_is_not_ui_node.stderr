@@ -1,4 +1,4 @@
-error: property input can only have types impl IntoVar<T>, impl IntoValue<T>, impl IntoUiNode or Handler<A>
+error: property first arg can only have types `impl IntoUiNode` or `&mut WidgetBuilding`
  --> cases/property/child_type_is_not_ui_node.rs:6:29
   |
 6 | pub fn invalid_child(child: NotUiNode, input: impl IntoVar<bool>) -> UiNode {
