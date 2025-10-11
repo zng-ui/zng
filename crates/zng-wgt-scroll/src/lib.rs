@@ -67,8 +67,11 @@ pub struct Scroll(ScrollUnitsMix<ScrollbarFnMix<Container>>);
 /// Scroll mode.
 ///
 /// Is [`ScrollMode::ZOOM`] by default.
-#[property(CONTEXT, capture, default(ScrollMode::ZOOM), widget_impl(Scroll))]
-pub fn mode(mode: impl IntoVar<ScrollMode>) {}
+#[property(CONTEXT, default(ScrollMode::ZOOM), widget_impl(Scroll))]
+pub fn mode(wgt: &mut WidgetBuilding, mode: impl IntoVar<ScrollMode>) {
+    let _ = mode;
+    wgt.expect_property_capture();
+}
 
 impl Scroll {
     fn widget_intrinsic(&mut self) {
@@ -110,8 +113,11 @@ impl Scroll {
 /// Clip content to only be visible within the viewport, not under scrollbars.
 ///
 /// Disabled by default.
-#[property(CONTEXT, capture, default(false), widget_impl(Scroll))]
-pub fn clip_to_viewport(clip: impl IntoVar<bool>) {}
+#[property(CONTEXT, default(false), widget_impl(Scroll))]
+pub fn clip_to_viewport(wgt: &mut WidgetBuilding, clip: impl IntoVar<bool>) {
+    let _ = clip;
+    wgt.expect_property_capture();
+}
 
 /// Properties that define scroll units.
 #[widget_mixin]

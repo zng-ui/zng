@@ -51,92 +51,6 @@ impl Button {
             labelled_by_child = true;
             txt_selectable_alt_only = true;
         }
-
-        self.widget_builder().push_build_action(|wgt| {
-            if let Some(cmd) = wgt.capture_var::<Command>(property_id!(Self::cmd)) {
-                if wgt.property(property_id!(Self::child)).is_none() {
-                    wgt.set_child(cmd.present(CMD_CHILD_FN_VAR));
-                }
-
-                let enabled = wgt.property(property_id!(zng_wgt::enabled)).is_none();
-                let visibility = wgt.property(property_id!(zng_wgt::visibility)).is_none();
-                wgt.push_intrinsic(
-                    NestGroup::CONTEXT,
-                    "cmd-context",
-                    clmv!(cmd, |mut child| {
-                        if enabled {
-                            child = zng_wgt::enabled(child, cmd.flat_map(|c| c.is_enabled()));
-                        }
-                        if visibility {
-                            child = zng_wgt::visibility(child, cmd.flat_map(|c| c.has_handlers()).map_into());
-                        }
-
-                        with_context_var(child, CMD_VAR, cmd.map(|c| Some(*c)))
-                    }),
-                );
-
-                let on_click = wgt.property(property_id!(Self::on_click)).is_none();
-                let on_disabled_click = wgt.property(property_id!(on_disabled_click)).is_none();
-                #[cfg(feature = "tooltip")]
-                let tooltip = wgt.property(property_id!(tooltip)).is_none() && wgt.property(property_id!(tooltip_fn)).is_none();
-                #[cfg(not(feature = "tooltip"))]
-                let tooltip = false;
-                if on_click || on_disabled_click || tooltip {
-                    wgt.push_intrinsic(
-                        NestGroup::EVENT,
-                        "cmd-event",
-                        clmv!(cmd, |mut child| {
-                            if on_click {
-                                child = self::on_click(
-                                    child,
-                                    hn!(cmd, |args| {
-                                        let cmd = cmd.get();
-                                        if cmd.is_enabled_value() {
-                                            if let Some(param) = CMD_PARAM_VAR.get() {
-                                                cmd.notify_param(param);
-                                            } else {
-                                                cmd.notify();
-                                            }
-                                            args.propagation().stop();
-                                        }
-                                    }),
-                                );
-                            }
-                            if on_disabled_click {
-                                child = self::on_disabled_click(
-                                    child,
-                                    hn!(cmd, |args| {
-                                        let cmd = cmd.get();
-                                        if !cmd.is_enabled_value() {
-                                            if let Some(param) = CMD_PARAM_VAR.get() {
-                                                cmd.notify_param(param);
-                                            } else {
-                                                cmd.notify();
-                                            }
-                                            args.propagation().stop();
-                                        }
-                                    }),
-                                );
-                            }
-                            #[cfg(feature = "tooltip")]
-                            if tooltip {
-                                child = self::tooltip_fn(
-                                    child,
-                                    merge_var!(cmd, CMD_TOOLTIP_FN_VAR, |cmd, tt_fn| {
-                                        if tt_fn.is_nil() {
-                                            WidgetFn::nil()
-                                        } else {
-                                            wgt_fn!(cmd, tt_fn, |tooltip| { tt_fn(CmdTooltipArgs { tooltip, cmd }) })
-                                        }
-                                    }),
-                                );
-                            }
-                            child
-                        }),
-                    );
-                }
-            }
-        });
     }
 
     widget_impl! {
@@ -244,8 +158,92 @@ pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> UiNode {
 /// [`visibility`]: fn@zng_wgt::visibility
 /// [`on_click`]: fn@on_click
 /// [`on_disabled_click`]: fn@on_disabled_click
-#[property(CHILD, capture, widget_impl(Button))]
-pub fn cmd(cmd: impl IntoVar<Command>) {}
+#[property(CHILD, widget_impl(Button))]
+pub fn cmd(wgt: &mut WidgetBuilding, cmd: impl IntoVar<Command>) {
+    let cmd = cmd.into_var();
+
+    if wgt.property(property_id!(zng_wgt_container::child)).is_none() {
+        wgt.set_child(cmd.present(CMD_CHILD_FN_VAR));
+    }
+
+    let enabled = wgt.property(property_id!(zng_wgt::enabled)).is_none();
+    let visibility = wgt.property(property_id!(zng_wgt::visibility)).is_none();
+    wgt.push_intrinsic(
+        NestGroup::CONTEXT,
+        "cmd-context",
+        clmv!(cmd, |mut child| {
+            if enabled {
+                child = zng_wgt::enabled(child, cmd.flat_map(|c| c.is_enabled()));
+            }
+            if visibility {
+                child = zng_wgt::visibility(child, cmd.flat_map(|c| c.has_handlers()).map_into());
+            }
+
+            with_context_var(child, CMD_VAR, cmd.map(|c| Some(*c)))
+        }),
+    );
+
+    let on_click = wgt.property(property_id!(on_click)).is_none();
+    let on_disabled_click = wgt.property(property_id!(on_disabled_click)).is_none();
+    #[cfg(feature = "tooltip")]
+    let tooltip = wgt.property(property_id!(tooltip)).is_none() && wgt.property(property_id!(tooltip_fn)).is_none();
+    #[cfg(not(feature = "tooltip"))]
+    let tooltip = false;
+    if on_click || on_disabled_click || tooltip {
+        wgt.push_intrinsic(
+            NestGroup::EVENT,
+            "cmd-event",
+            clmv!(cmd, |mut child| {
+                if on_click {
+                    child = self::on_click(
+                        child,
+                        hn!(cmd, |args| {
+                            let cmd = cmd.get();
+                            if cmd.is_enabled_value() {
+                                if let Some(param) = CMD_PARAM_VAR.get() {
+                                    cmd.notify_param(param);
+                                } else {
+                                    cmd.notify();
+                                }
+                                args.propagation().stop();
+                            }
+                        }),
+                    );
+                }
+                if on_disabled_click {
+                    child = self::on_disabled_click(
+                        child,
+                        hn!(cmd, |args| {
+                            let cmd = cmd.get();
+                            if !cmd.is_enabled_value() {
+                                if let Some(param) = CMD_PARAM_VAR.get() {
+                                    cmd.notify_param(param);
+                                } else {
+                                    cmd.notify();
+                                }
+                                args.propagation().stop();
+                            }
+                        }),
+                    );
+                }
+                #[cfg(feature = "tooltip")]
+                if tooltip {
+                    child = self::tooltip_fn(
+                        child,
+                        merge_var!(cmd, CMD_TOOLTIP_FN_VAR, |cmd, tt_fn| {
+                            if tt_fn.is_nil() {
+                                WidgetFn::nil()
+                            } else {
+                                wgt_fn!(cmd, tt_fn, |tooltip| { tt_fn(CmdTooltipArgs { tooltip, cmd }) })
+                            }
+                        }),
+                    );
+                }
+                child
+            }),
+        );
+    }
+}
 
 /// Optional command parameter for the button to use when notifying [`cmd`].
 ///

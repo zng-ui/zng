@@ -317,8 +317,11 @@ pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
 }
 
 /// Defines the sub-menu header child.
-#[property(CHILD, capture, default(FillUiNode), widget_impl(SubMenu))]
-pub fn header(child: impl IntoUiNode) {}
+#[property(CHILD, default(FillUiNode), widget_impl(SubMenu))]
+pub fn header(wgt: &mut WidgetBuilding, child: impl IntoUiNode) {
+    let _ = child;
+    wgt.expect_property_capture();
+}
 
 /// Width of the icon/checkmark column.
 ///

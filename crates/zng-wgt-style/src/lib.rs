@@ -60,8 +60,11 @@ impl Style {
 /// Fully replace the contextual style.
 ///
 /// This is not enabled by default, if set to `true` the contextual style properties are removed.
-#[property(WIDGET, capture, default(false), widget_impl(Style))]
-pub fn replace(replace: impl IntoValue<bool>) {}
+#[property(WIDGET, default(false), widget_impl(Style))]
+pub fn replace(wgt: &mut WidgetBuilding, replace: impl IntoValue<bool>) {
+    let _ = replace;
+    wgt.expect_property_capture();
+}
 
 /// Set in the default properties of a named style to define the contextual variable for that style.
 ///
@@ -72,8 +75,11 @@ pub fn replace(replace: impl IntoValue<bool>) {}
 ///
 /// Note that this property expects a `ContextVar<StyleFn>` as a value, not a variable directly, it will also only work if
 /// set in the default properties of a style type.
-#[property(WIDGET, capture, widget_impl(Style))]
-pub fn named_style_fn(name: impl IntoValue<NamedStyleVar>) {}
+#[property(WIDGET, widget_impl(Style))]
+pub fn named_style_fn(wgt: &mut WidgetBuilding, name: impl IntoValue<NamedStyleVar>) {
+    let _ = name;
+    wgt.expect_property_capture();
+}
 
 /// Represents a `ContextVar<StyleFn>` that defines a named style.
 ///
@@ -110,14 +116,14 @@ impl ops::Deref for NamedStyleVar {
 
 /// Styleable widget mixin.
 ///
-/// Widgets that inherit this mix-in have a `style_fn` property that can be set to a [`style_fn!`]
+/// Widgets that inherit this mixin have a `style_fn` property that can be set to a [`style_fn!`]
 /// that generates properties that are dynamically injected into the widget to alter its appearance.
 ///
 /// The style mixin drastically affects the widget build process, only the `style_fn` and `when` condition
 /// properties that affects it are instantiated with the widget, all the other properties and intrinsic nodes are instantiated
 /// on init, after the style is generated.
 ///
-/// Widgets that inherit this mix-in must call [`style_intrinsic`] in their own `widget_intrinsic`, if the call is missing
+/// Widgets that inherit this mixin must call [`style_intrinsic`] in their own `widget_intrinsic`, if the call is missing
 /// the widget will log an error on instantiation. You can use the [`impl_style_fn!`] macro to generate the style var and property.
 ///
 /// [`style_intrinsic`]: StyleMix::style_intrinsic

@@ -562,8 +562,11 @@ impl InteractiveCaret {
         });
     }
 }
-#[property(CONTEXT, capture, widget_impl(InteractiveCaret))]
-fn interactive_caret_input(input: impl IntoValue<InteractiveCaretInput>) {}
+#[property(CONTEXT, widget_impl(InteractiveCaret))]
+fn interactive_caret_input(wgt: &mut WidgetBuilding, input: impl IntoValue<InteractiveCaretInput>) {
+    let _ = input;
+    wgt.expect_property_capture();
+}
 
 /// Default interactive caret visual.
 ///

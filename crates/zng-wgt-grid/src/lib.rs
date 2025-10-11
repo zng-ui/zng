@@ -50,8 +50,11 @@ impl Grid {
 /// logical index *i*, the column *i % columns* and the row *i / columns*.
 ///
 /// [`Cell!`]: struct@Cell
-#[property(CHILD, capture, widget_impl(Grid))]
-pub fn cells(cells: impl IntoUiNode) {}
+#[property(CHILD, widget_impl(Grid))]
+pub fn cells(wgt: &mut WidgetBuilding, cells: impl IntoUiNode) {
+    let _ = cells;
+    wgt.expect_property_capture();
+}
 
 /// Column definitions.
 ///
@@ -102,8 +105,11 @@ pub fn cells(cells: impl IntoUiNode) {}
 /// [`lft`]: zng_layout::unit::LengthUnits::lft
 /// [`WIDGET_SIZE`]: zng_wgt_size_offset::WIDGET_SIZE
 /// [`Length::Default`]: zng_layout::unit::Length::Default
-#[property(CHILD, capture, widget_impl(Grid))]
-pub fn columns(cells: impl IntoUiNode) {}
+#[property(CHILD, widget_impl(Grid))]
+pub fn columns(wgt: &mut WidgetBuilding, columns: impl IntoUiNode) {
+    let _ = columns;
+    wgt.expect_property_capture();
+}
 
 /// Row definitions.
 ///
@@ -141,8 +147,11 @@ pub fn columns(cells: impl IntoUiNode) {}
 /// [`lft`]: zng_layout::unit::LengthUnits::lft
 /// [`WIDGET_SIZE`]: zng_wgt_size_offset::WIDGET_SIZE
 /// [`Length::Default`]: zng_layout::unit::Length::Default
-#[property(CHILD, capture, widget_impl(Grid))]
-pub fn rows(cells: impl IntoUiNode) {}
+#[property(CHILD, widget_impl(Grid))]
+pub fn rows(wgt: &mut WidgetBuilding, rows: impl IntoUiNode) {
+    let _ = rows;
+    wgt.expect_property_capture();
+}
 
 /// Widget function used when new rows or columns are needed to cover a cell placement.
 ///
@@ -151,20 +160,29 @@ pub fn rows(cells: impl IntoUiNode) {}
 ///
 /// [`auto_grow_mode`]: fn@auto_grow_mode
 /// [`WidgetFn::nil`]: zng_wgt::prelude::WidgetFn::nil
-#[property(CONTEXT, capture, default(WidgetFn::nil()), widget_impl(Grid))]
-pub fn auto_grow_fn(auto_grow: impl IntoVar<WidgetFn<AutoGrowFnArgs>>) {}
+#[property(CONTEXT, default(WidgetFn::nil()), widget_impl(Grid))]
+pub fn auto_grow_fn(wgt: &mut WidgetBuilding, auto_grow: impl IntoVar<WidgetFn<AutoGrowFnArgs>>) {
+    let _ = auto_grow;
+    wgt.expect_property_capture();
+}
 
 /// Defines the direction the grid auto-grows and the maximum inclusive index that can be covered by auto-generated columns or rows.
 /// If a cell is outside this index and is not covered by predefined columns or rows a new one is auto generated for it, but if the
 /// cell is also outside this max it is *collapsed*.
 ///
 /// Is `AutoGrowMode::rows() by default.
-#[property(CONTEXT, capture, default(AutoGrowMode::rows()), widget_impl(Grid))]
-pub fn auto_grow_mode(mode: impl IntoVar<AutoGrowMode>) {}
+#[property(CONTEXT, default(AutoGrowMode::rows()), widget_impl(Grid))]
+pub fn auto_grow_mode(wgt: &mut WidgetBuilding, mode: impl IntoVar<AutoGrowMode>) {
+    let _ = mode;
+    wgt.expect_property_capture();
+}
 
 /// Space in-between cells.
-#[property(LAYOUT, capture, default(GridSpacing::default()), widget_impl(Grid))]
-pub fn spacing(spacing: impl IntoVar<GridSpacing>) {}
+#[property(LAYOUT, default(GridSpacing::default()), widget_impl(Grid))]
+pub fn spacing(wgt: &mut WidgetBuilding, spacing: impl IntoVar<GridSpacing>) {
+    let _ = spacing;
+    wgt.expect_property_capture();
+}
 
 /// Grid node.
 ///

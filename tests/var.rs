@@ -595,17 +595,10 @@ mod context {
 
     #[widget($crate::context::TestWgt)]
     struct TestWgt(WidgetBase);
-    impl TestWgt {
-        fn widget_intrinsic(&mut self) {
-            self.widget_builder().push_build_action(|wgt| {
-                if let Some(child) = wgt.capture_ui_node(property_id!(Self::child)) {
-                    wgt.set_child(child);
-                }
-            });
-        }
+    #[property(CHILD, widget_impl(TestWgt))]
+    fn child(wgt: &mut WidgetBuilding, child: impl IntoUiNode) {
+        wgt.set_child(child);
     }
-    #[property(CHILD, capture, widget_impl(TestWgt))]
-    fn child(child: impl IntoUiNode) {}
 
     fn test_app(app: AppExtended<impl AppExtension>, root: impl IntoUiNode) -> HeadlessApp {
         zng_app::test_log();

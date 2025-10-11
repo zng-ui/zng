@@ -41,13 +41,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
     let (mixin_p, mixin_p_bounded) = if mixin {
         if struct_.generics.params.is_empty() {
-            let mut r = syn::Error::new(struct_.ident.span(), "mix-ins must have one generic `P`")
+            let mut r = syn::Error::new(struct_.ident.span(), "mixins must have one generic `P`")
                 .to_compile_error()
                 .to_token_stream();
             struct_.to_tokens(&mut r);
             return r.into();
         } else if struct_.generics.params.len() > 1 {
-            let mut r = syn::Error::new(struct_.generics.span(), "mix-ins must have one generic `P` only")
+            let mut r = syn::Error::new(struct_.generics.span(), "mixins must have one generic `P` only")
                 .to_compile_error()
                 .to_token_stream();
             struct_.to_tokens(&mut r);
@@ -55,14 +55,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         }
         match struct_.generics.params.first().unwrap() {
             GenericParam::Lifetime(l) => {
-                let mut r = syn::Error::new(l.span(), "mix-ins must have one generic `P` only")
+                let mut r = syn::Error::new(l.span(), "mixins must have one generic `P` only")
                     .to_compile_error()
                     .to_token_stream();
                 struct_.to_tokens(&mut r);
                 return r.into();
             }
             GenericParam::Const(c) => {
-                let mut r = syn::Error::new(c.span(), "mix-ins must have one generic `P` only")
+                let mut r = syn::Error::new(c.span(), "mixins must have one generic `P` only")
                     .to_compile_error()
                     .to_token_stream();
                 struct_.to_tokens(&mut r);
@@ -71,14 +71,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
             GenericParam::Type(t) => {
                 if !t.bounds.is_empty() || t.default.is_some() {
-                    let mut r = syn::Error::new(t.span(), "mix-ins must have one unbounded generic `P`")
+                    let mut r = syn::Error::new(t.span(), "mixins must have one unbounded generic `P`")
                         .to_compile_error()
                         .to_token_stream();
                     struct_.to_tokens(&mut r);
                     return r.into();
                 }
                 if let Some(where_) = &struct_.generics.where_clause {
-                    let mut r = syn::Error::new(where_.span(), "mix-ins must have one unbounded generic `P`")
+                    let mut r = syn::Error::new(where_.span(), "mixins must have one unbounded generic `P`")
                         .to_compile_error()
                         .to_token_stream();
                     struct_.to_tokens(&mut r);
@@ -107,7 +107,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                 Ok(a) => a.path.span(),
                 Err(e) => e.span(),
             };
-            let mut r = syn::Error::new(span, "mix-ins do not need a `$crate` path")
+            let mut r = syn::Error::new(span, "mixins do not need a `$crate` path")
                 .to_compile_error()
                 .to_token_stream();
             struct_.to_tokens(&mut r);
@@ -130,7 +130,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let ident = struct_.ident;
     let mut attrs = util::Attributes::new(struct_.attrs);
     if mixin {
-        attrs.tag_doc("m", "Widget mix-in struct");
+        attrs.tag_doc("m", "Widget mixin struct");
     } else {
         attrs.tag_doc("W", "Widget struct and macro");
     }

@@ -31,7 +31,7 @@ impl Icon {
             let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(ico)) {
                 icon
             } else {
-                tracing::error!("missing `icon` property");
+                tracing::error!("missing `ico` property");
                 return;
             };
 
@@ -52,8 +52,11 @@ impl Icon {
 }
 
 /// The glyph icon.
-#[property(CONTEXT, capture, widget_impl(Icon))]
-pub fn ico(ico: impl IntoVar<GlyphIcon>) {}
+#[property(CONTEXT, widget_impl(Icon))]
+pub fn ico(wgt: &mut WidgetBuilding, ico: impl IntoVar<GlyphIcon>) {
+    let _ = ico;
+    wgt.expect_property_capture();
+}
 
 /// Identifies an icon glyph in the font set.
 #[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]

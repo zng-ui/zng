@@ -41,8 +41,11 @@ impl ShortcutText {
 }
 
 /// Shortcut(s)  that must be displayed
-#[property(CHILD, capture, widget_impl(ShortcutText))]
-pub fn shortcut(shortcuts: impl IntoVar<Shortcuts>) {}
+#[property(CHILD, widget_impl(ShortcutText))]
+pub fn shortcut(wgt: &mut WidgetBuilding, shortcuts: impl IntoVar<Shortcuts>) {
+    let _ = shortcuts;
+    wgt.expect_property_capture();
+}
 
 context_var! {
     /// Maximum number of shortcuts to display.

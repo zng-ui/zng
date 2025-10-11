@@ -8,6 +8,7 @@ use crate::{
     widget::{
         WidgetUpdateMode,
         base::PARALLEL_VAR,
+        builder::WidgetBuilding,
         node::{IntoUiNode, PanelList, UiNodeImpl as _},
     },
     window::WINDOW,
@@ -95,16 +96,11 @@ pub fn par_each_ctx() {
 
 #[widget($crate::tests::ui_node_list::ListWgt)]
 pub struct ListWgt(crate::widget::base::WidgetBase);
-impl ListWgt {
-    fn widget_intrinsic(&mut self) {
-        self.widget_builder().push_build_action(|wgt| {
-            let child = wgt.capture_ui_node_or_nil(crate::property_id!(Self::children));
-            wgt.set_child(child);
-        });
-    }
+
+#[property(CHILD, widget_impl(ListWgt))]
+pub fn children(wgt: &mut WidgetBuilding, children: impl IntoUiNode) {
+    wgt.set_child(children);
 }
-#[property(CHILD, capture, widget_impl(ListWgt))]
-pub fn children(children: impl IntoUiNode) {}
 
 mod util {
     use std::{

@@ -104,8 +104,11 @@ pub fn group_by_undo_interval(child: impl IntoUiNode, enabled: impl IntoVar<bool
 }
 
 /// Identifies what stack history is shown by the widget.
-#[property(CONTEXT, capture, default(UndoOp::Undo), widget_impl(UndoHistory))]
-pub fn op(op: impl IntoValue<UndoOp>) {}
+#[property(CONTEXT, default(UndoOp::Undo), widget_impl(UndoHistory))]
+pub fn op(wgt: &mut WidgetBuilding, op: impl IntoValue<UndoOp>) {
+    let _ = op;
+    wgt.expect_property_capture();
+}
 
 /// Default [`UNDO_ENTRY_FN_VAR`].
 ///

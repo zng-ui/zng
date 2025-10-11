@@ -28,6 +28,7 @@ use zng_var::{BoxAnyVarValue, ContextInitHandle, ResponseVar, response_done_var,
 use crate::{
     render::{FrameBuilder, FrameUpdate},
     update::{EventUpdate, WidgetUpdates},
+    widget::builder::WidgetBuilding,
 };
 
 use super::{
@@ -1193,15 +1194,12 @@ impl<'u> WidgetUiNode<'u> {
 #[expect(non_camel_case_types)]
 #[widget($crate::widget::node::into_widget)]
 struct into_widget(crate::widget::base::WidgetBase);
-#[zng_app_proc_macros::property(CHILD, capture, widget_impl(into_widget))]
-fn child(child: impl IntoUiNode) {}
+#[zng_app_proc_macros::property(CHILD, widget_impl(into_widget))]
+fn child(wgt: &mut WidgetBuilding, child: impl IntoUiNode) {
+    wgt.set_child(child);
+}
 impl into_widget {
-    fn widget_intrinsic(&mut self) {
-        self.widget_builder().push_build_action(|b| {
-            let child = b.capture_ui_node(crate::property_id!(Self::child)).unwrap();
-            b.set_child(child);
-        });
-    }
+    fn widget_intrinsic(&mut self) {}
 }
 
 struct NilUiNode;

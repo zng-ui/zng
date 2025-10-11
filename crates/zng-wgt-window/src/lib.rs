@@ -129,16 +129,22 @@ impl Window {
 }
 
 /// Defines how the window is positioned when it first opens.
-#[property(LAYOUT, capture, widget_impl(Window))]
-pub fn start_position(position: impl IntoValue<StartPosition>) {}
+#[property(LAYOUT, widget_impl(Window))]
+pub fn start_position(wgt: &mut WidgetBuilding, position: impl IntoValue<StartPosition>) {
+    let _ = position;
+    wgt.expect_property_capture();
+}
 
 /// If the window is steals keyboard focus on open.
 ///
 /// By default the operating system decides if the window will receive focus after opening, usually it is focused
 /// only if the process that started the window already has focus. Enabling this ensures that focus
 /// is moved to the new window, potentially stealing the focus from other apps and disrupting the user.
-#[property(CONTEXT, capture, widget_impl(Window))]
-pub fn start_focused(enabled: impl IntoValue<bool>) {}
+#[property(CONTEXT, widget_impl(Window))]
+pub fn start_focused(wgt: &mut WidgetBuilding, enabled: impl IntoValue<bool>) {
+    let _ = enabled;
+    wgt.expect_property_capture();
+}
 
 /// Lock-in kiosk mode.
 ///
@@ -148,8 +154,11 @@ pub fn start_focused(enabled: impl IntoValue<bool>) {}
 /// Note that this does not configure the operating system,
 /// you still need to setup a kiosk environment. This just stops the
 /// app itself from accidentally exiting fullscreen.
-#[property(CONTEXT, capture, widget_impl(Window))]
-pub fn kiosk(kiosk: impl IntoValue<bool>) {}
+#[property(CONTEXT, widget_impl(Window))]
+pub fn kiosk(wgt: &mut WidgetBuilding, kiosk: impl IntoValue<bool>) {
+    let _ = kiosk;
+    wgt.expect_property_capture();
+}
 
 /// If semi-transparent content is see-through, mixing with the operating system pixels behind the window.
 ///
@@ -158,8 +167,11 @@ pub fn kiosk(kiosk: impl IntoValue<bool>) {}
 ///
 /// [`clear_color`]: fn@clear_color
 /// [`background_color`]: fn@background_color
-#[property(CONTEXT, capture, widget_impl(Window))]
-pub fn allow_transparency(allow: impl IntoValue<bool>) {}
+#[property(CONTEXT, widget_impl(Window))]
+pub fn allow_transparency(wgt: &mut WidgetBuilding, allow: impl IntoValue<bool>) {
+    let _ = allow;
+    wgt.expect_property_capture();
+}
 
 /// Render performance mode overwrite for this window, if set to `None` the [`WINDOWS.default_render_mode`] is used.
 ///
@@ -168,8 +180,11 @@ pub fn allow_transparency(allow: impl IntoValue<bool>) {}
 ///
 /// [`WINDOWS.default_render_mode`]: zng_ext_window::WINDOWS::default_render_mode
 /// [`RenderMode`]: crate::RenderMode
-#[property(CONTEXT, capture, widget_impl(Window))]
-pub fn render_mode(mode: impl IntoValue<Option<RenderMode>>) {}
+#[property(CONTEXT, widget_impl(Window))]
+pub fn render_mode(wgt: &mut WidgetBuilding, mode: impl IntoValue<Option<RenderMode>>) {
+    let _ = mode;
+    wgt.expect_property_capture();
+}
 
 /// Event just after the window opens.
 ///
@@ -363,5 +378,8 @@ pub fn on_frame_image_ready(child: impl IntoUiNode, handler: Handler<FrameImageR
 }
 
 /// Imaginary monitor used by the window when it runs in [headless mode](zng_app::window::WindowMode::is_headless).
-#[property(LAYOUT, capture, widget_impl(Window))]
-pub fn headless_monitor(monitor: impl IntoValue<HeadlessMonitor>) {}
+#[property(LAYOUT, widget_impl(Window))]
+pub fn headless_monitor(wgt: &mut WidgetBuilding, monitor: impl IntoValue<HeadlessMonitor>) {
+    let _ = monitor;
+    wgt.expect_property_capture();
+}

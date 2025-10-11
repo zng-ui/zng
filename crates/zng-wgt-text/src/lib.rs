@@ -142,8 +142,11 @@ impl Text {
 /// The text string.
 ///
 /// Set to an empty string (`""`) by default.
-#[property(CHILD, capture, default(""), widget_impl(Text))]
-pub fn txt(txt: impl IntoVar<Txt>) {}
+#[property(CHILD, default(""), widget_impl(Text))]
+pub fn txt(wgt: &mut WidgetBuilding, txt: impl IntoVar<Txt>) {
+    let _ = txt;
+    wgt.expect_property_capture();
+}
 
 /// Value that is parsed from the text and displayed as the text.
 ///

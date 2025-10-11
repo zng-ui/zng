@@ -50,12 +50,18 @@ impl SubMenuPopup {
 impl_style_fn!(SubMenuPopup, DefaultStyle);
 
 /// Sub-menu items.
-#[property(CHILD, capture, default(ui_vec![]), widget_impl(SubMenuPopup))]
-pub fn children(children: impl IntoUiNode) {}
+#[property(CHILD, default(ui_vec![]), widget_impl(SubMenuPopup))]
+pub fn children(wgt: &mut WidgetBuilding, children: impl IntoUiNode) {
+    let _ = children;
+    wgt.expect_property_capture();
+}
 
 /// Parent sub-menu ID.
-#[property(CONTEXT, capture, widget_impl(SubMenuPopup))]
-pub fn parent_id(submenu_id: impl IntoValue<WidgetId>) {}
+#[property(CONTEXT, widget_impl(SubMenuPopup))]
+pub fn parent_id(wgt: &mut WidgetBuilding, submenu_id: impl IntoValue<WidgetId>) {
+    let _ = submenu_id;
+    wgt.expect_property_capture();
+}
 
 context_var! {
     /// Defines the layout widget for [`SubMenuPopup!`].
