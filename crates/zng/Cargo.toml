@@ -308,7 +308,7 @@ drag_drop = ["zng-ext-input/drag_drop", "zng-wgt-input/drag_drop"]
 grid = ["dep:zng-wgt-grid"]
 
 # Enable image service, widgets, window icons, image cursors, frame capturing.
-image = ["dep:zng-ext-image", "dep:zng-wgt-image", "zng-ext-window?/image", "zng-wgt-window?/image", "zng-wgt-input/image"]
+image = ["dep:zng-ext-image", "dep:zng-wgt-image", "zng-ext-window?/image", "zng-wgt-window?/image", "zng-wgt-input/image", "zng-wgt-inspector?/image"]
 
 # Enable markdown widget.
 markdown = ["dep:zng-wgt-markdown"]

@@ -33,6 +33,8 @@
     - **Breaking** Added `Api::ping` and related items to the view-process API.
     - Only breaking for custom view-process implementers.
 
+* Fix menu not appearing in Inspector Window.
+
 # 0.17.4
 
 * Fix misaligned icons in `Menu!`.
