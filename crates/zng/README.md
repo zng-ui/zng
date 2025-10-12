@@ -161,7 +161,7 @@ Instrument every widget outer-most node to trace UI methods.
 #### `"trace_recorder"`
 Enable trace recording.
 
-Note that this does not auto start recording, to do that run with the `ZNG_RECORD_TRACE` env var set.
+Note that this does not auto start recording, to do that run with the `"ZNG_RECORD_TRACE"` env var set.
 
 #### `"trace_wgt_item"`
 Instrument every property and intrinsic node to trace UI methods.
