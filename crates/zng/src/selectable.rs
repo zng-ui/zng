@@ -22,18 +22,16 @@
 //!             child = Container! {
 //!                 padding = 10;
 //!                 widget::background_color = colors::RED.desaturate(80.pct());
-//!                 child_top = text::Strong!("Error"), 5;
+//!                 child_spacing = (5, 0, 10, 0);
+//!                 child_top = text::Strong!("Error");
 //!                 child = SelectableText!(msg.into());
-//!                 child_bottom =
-//!                     Button! {
-//!                         child = Text!("Ok");
-//!                         layout::align = layout::Align::END;
-//!                         on_click = hn!(|_| {
-//!                             LAYERS.remove("error-dlg");
-//!                         });
-//!                     },
-//!                     10,
-//!                 ;
+//!                 child_bottom = Button! {
+//!                     child = Text!("Ok");
+//!                     layout::align = layout::Align::END;
+//!                     on_click = hn!(|_| {
+//!                         LAYERS.remove("error-dlg");
+//!                     });
+//!                 };
 //!             };
 //!         },
 //!     );

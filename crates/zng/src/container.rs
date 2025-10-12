@@ -13,10 +13,8 @@
 //! # fn example() {
 //! # let _ =
 //! Container! {
-//!     child_top = {
-//!         node: Text!("secondary (top)"),
-//!         spacing: 5,
-//!     };
+//!     child_spacing = 5;
+//!     child_top = Text!("secondary (top)");
 //!     child = Text! {
 //!         txt = "primary";
 //!         widget::background_color = colors::BLUE;

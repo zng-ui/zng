@@ -21,17 +21,15 @@
 //! # let _ =
 //! Container! {
 //!     child = TextInput!(txt.clone());
-//!     child_end =
-//!         Button! {
-//!             child = Text!(copied.map(|&c| if !c { "Copy" } else { "Copied!" }.into()));
-//!             on_click = async_hn!(txt, copied, |_| {
-//!                 if zng::clipboard::CLIPBOARD.set_text(txt.get()).wait_rsp().await.is_ok() {
-//!                     copied.set(true);
-//!                 }
-//!             });
-//!         },
-//!         4,
-//!     ;
+//!     child_spacing = 5;
+//!     child_end = Button! {
+//!         child = Text!(copied.map(|&c| if !c { "Copy" } else { "Copied!" }.into()));
+//!         on_click = async_hn!(txt, copied, |_| {
+//!             if zng::clipboard::CLIPBOARD.set_text(txt.get()).wait_rsp().await.is_ok() {
+//!                 copied.set(true);
+//!             }
+//!         });
+//!     };
 //! }
 //! # ; }
 //! ```
@@ -49,7 +47,8 @@
 //!         id = "input-1";
 //!         txt = var(Txt::from(""));
 //!     };
-//!     child_end = Button!(zng::clipboard::PASTE_CMD.scoped(WidgetId::named("input-1"))), 4;
+//!     child_spacing = 4;
+//!     child_end = Button!(zng::clipboard::PASTE_CMD.scoped(WidgetId::named("input-1")));
 //! }
 //! # ; }
 //! ```
