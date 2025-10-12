@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-hot-reload-proc-macros"
-version = "0.3.1"
+version = "0.4.0"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"

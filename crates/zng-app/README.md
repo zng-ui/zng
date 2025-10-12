@@ -42,7 +42,7 @@ Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_o
 #### `"trace_recorder"`
 Enable trace recording.
 
-Note that this does not auto start recording, to do that run with the `ZNG_RECORD_TRACE` env var set.
+Note that this does not auto start recording, to do that run with the `"ZNG_RECORD_TRACE"` env var set.
 
 #### `"ipc"`
 Enables IPC tasks and pre-build views and connecting to views running in another process.

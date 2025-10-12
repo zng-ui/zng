@@ -199,7 +199,7 @@ impl std::str::FromStr for LengthExpr {
         let expr = Parser::new(s).parse()?;
         match Length::try_from(expr)? {
             Length::Expr(expr) => Ok(*expr),
-            _ => Err(ParseCompositeError::MissingComponent), // TODO(breaking) add NoOp variant to LengthExpr
+            _ => Err(ParseCompositeError::MissingComponent),
         }
     }
 }
@@ -269,7 +269,7 @@ fn try_args<const N: usize>(args: Vec<Expr>) -> Result<[Length; N], ParseComposi
 /// Basic string representation of `lengthExpr`, without validating functions and Length values.
 #[derive(Debug, PartialEq)]
 enum Expr<'a> {
-    #[allow(unused)] // TODO(breaking) use
+    #[allow(unused)]
     Value(&'a str),
     UnaryOp {
         op: char,

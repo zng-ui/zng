@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-progress"
-version = "0.6.4"
+version = "0.7.0"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,16 +12,16 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.10.3", default-features = false }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.9.4", default-features = false }
-zng-ext-font = { path = "../zng-ext-font", version = "0.9.3", default-features = false }
-zng-layout = { path = "../zng-layout", version = "0.6.2", default-features = false }
-zng-app = { path = "../zng-app", version = "0.18.3", default-features = false }
-zng-task = { path = "../zng-task", version = "0.8.2", default-features = false }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.8.3", default-features = false }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.9.3", default-features = false }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.7.3", default-features = false }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.7.3", default-features = false }
-zng-var = { path = "../zng-var", version = "0.9.2", default-features = false }
+zng-wgt = { path = "../zng-wgt", version = "0.11.0", default-features = false }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.10.0", default-features = false }
+zng-ext-font = { path = "../zng-ext-font", version = "0.10.0", default-features = false }
+zng-layout = { path = "../zng-layout", version = "0.7.0", default-features = false }
+zng-app = { path = "../zng-app", version = "0.19.0", default-features = false }
+zng-task = { path = "../zng-task", version = "0.9.0", default-features = false }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.9.0", default-features = false }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.10.0", default-features = false }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.8.0", default-features = false }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.8.0", default-features = false }
+zng-var = { path = "../zng-var", version = "0.10.0", default-features = false }
 
 tracing = { version = "0.1", default-features = false }

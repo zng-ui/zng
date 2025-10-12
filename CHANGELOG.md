@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.18.0
+
 * Refactor child insert properties (`child_top`, `child_start` and others).
     - **Breaking** Removed `spacing` input from each property.
     - Add `child_spacing` and `child_out_spacing` properties that now configures the spacing.

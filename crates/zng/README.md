@@ -10,7 +10,7 @@ First add `zng` to your `Cargo.toml`, or call `cargo add zng -F view_prebuilt`:
 
 ```toml
 [dependencies]
-zng = { version = "0.17.4", features = ["view_prebuilt"] }
+zng = { version = "0.18.0", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:
@@ -161,7 +161,7 @@ Instrument every widget outer-most node to trace UI methods.
 #### `"trace_recorder"`
 Enable trace recording.
 
-Note that this does not auto start recording, to do that run with the `ZNG_RECORD_TRACE` env var set.
+Note that this does not auto start recording, to do that run with the `"ZNG_RECORD_TRACE"` env var set.
 
 #### `"trace_wgt_item"`
 Instrument every property and intrinsic node to trace UI methods.
