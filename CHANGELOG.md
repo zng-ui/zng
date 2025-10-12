@@ -1,6 +1,10 @@
 # Unreleased
 
-This release contains breaking changes that affect the advanced event handler, capture-only properties and view-process APIs.
+* Refactor child insert properties (`child_top`, `child_start` and others).
+    - **Breaking** Removed `spacing` input from each property.
+    - Add `child_spacing` and `child_out_spacing` properties that now configures the spacing.
+
+    To migrate remove the second input, and if it was not zero set it in the new spacing properties.
 
 * Refactor handlers to enable args type inference.
     - Added unified `Handler<A>` type.

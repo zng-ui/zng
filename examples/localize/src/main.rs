@@ -49,7 +49,7 @@ fn main() {
             // l10n-# Main window title
             title = l10n!("window.title", "Localize Example (template)");
             icon = WindowIcon::render(window_icon);
-            child_top = locale_menu(), 0;
+            child_top = locale_menu();
             child = window_content();
         }
     })
@@ -264,8 +264,8 @@ fn shortcut_input_dialog(output: Var<gesture::Shortcuts>) -> UiNode {
                 }
                 Wrap!(items)
             })),
-            20,
         ;
+        child_spacing = 20;
         child = ShortcutText! {
             shortcut = pressed.clone();
             font_size = 3.em();

@@ -53,7 +53,7 @@ fn text_editor_window(is_open: Var<bool>) -> WindowRoot {
         });
         min_width = 450;
 
-        child_top = text_editor_menu(editor.clone()), 0;
+        child_top = text_editor_menu(editor.clone());
 
         child = Scroll! {
             mode = ScrollMode::VERTICAL;
@@ -62,35 +62,32 @@ fn text_editor_window(is_open: Var<bool>) -> WindowRoot {
             enabled = editor.enabled();
 
             // line numbers
-            child_start =
-                Text! {
-                    padding = (7, 4);
-                    txt_align = Align::TOP_RIGHT;
-                    opacity = 80.pct();
-                    layout::min_width = 24;
-                    txt = editor.lines.map(|s| {
-                        use std::fmt::Write;
-                        let mut txt = String::new();
-                        match s {
-                            text::LinesWrapCount::NoWrap(len) => {
-                                for i in 1..=(*len).max(1) {
-                                    let _ = writeln!(&mut txt, "{i}");
-                                }
+            child_start = Text! {
+                padding = (7, 4);
+                txt_align = Align::TOP_RIGHT;
+                opacity = 80.pct();
+                layout::min_width = 24;
+                txt = editor.lines.map(|s| {
+                    use std::fmt::Write;
+                    let mut txt = String::new();
+                    match s {
+                        text::LinesWrapCount::NoWrap(len) => {
+                            for i in 1..=(*len).max(1) {
+                                let _ = writeln!(&mut txt, "{i}");
                             }
-                            text::LinesWrapCount::Wrap(counts) => {
-                                for (i, &c) in counts.iter().enumerate() {
-                                    let _ = write!(&mut txt, "{}", i + 1);
-                                    for _ in 0..c {
-                                        txt.push('\n');
-                                    }
+                        }
+                        text::LinesWrapCount::Wrap(counts) => {
+                            for (i, &c) in counts.iter().enumerate() {
+                                let _ = write!(&mut txt, "{}", i + 1);
+                                for _ in 0..c {
+                                    txt.push('\n');
                                 }
                             }
                         }
-                        Txt::from_str(&txt)
-                    });
-                },
-                0,
-            ;
+                    }
+                    Txt::from_str(&txt)
+                });
+            };
 
             // editor
             child = TextInput! {
@@ -104,14 +101,11 @@ fn text_editor_window(is_open: Var<bool>) -> WindowRoot {
             };
         };
 
-        child_bottom =
-            Text! {
-                margin = (0, 4);
-                align = Align::RIGHT;
-                txt = editor.caret_status.map_to_txt();
-            },
-            0,
-        ;
+        child_bottom = Text! {
+            margin = (0, 4);
+            align = Align::RIGHT;
+            txt = editor.caret_status.map_to_txt();
+        };
     }
 }
 
@@ -125,7 +119,8 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
         let cmd = cmd.focus_scoped();
         Button! {
             child = cmd.flat_map(|c| c.icon()).present_data(());
-            child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
+            child_spacing = 4;
+            child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone());
             tooltip = Tip!(Text!(cmd.flat_map(|c| c.name_with_shortcut())));
             visibility = true;
             cmd;
@@ -142,7 +137,8 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
 
             child = Button! {
                 child = cmd.flat_map(|c| c.icon()).present_data(());
-                child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
+                child_spacing = 4;
+                child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone());
                 tooltip = Tip!(Text!(cmd.flat_map(|c| c.name_with_shortcut())));
                 on_click = hn!(|a| {
                     a.propagation().stop();
@@ -175,7 +171,8 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
         children = ui_vec![
             Button! {
                 child = ICONS.req("material/sharp/insert-drive-file");
-                child_right = Text!(txt = NEW_CMD.name(); visibility = gt_500.clone()), 4;
+                child_spacing = 4;
+                child_right = Text!(txt = NEW_CMD.name(); visibility = gt_500.clone());
                 tooltip = Tip!(Text!(NEW_CMD.name_with_shortcut()));
 
                 click_shortcut = NEW_CMD.shortcut();
@@ -185,7 +182,8 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
             },
             Button! {
                 child = ICONS.req("material/sharp/folder-open");
-                child_right = Text!(txt = OPEN_CMD.name(); visibility = gt_500.clone()), 4;
+                child_spacing = 4;
+                child_right = Text!(txt = OPEN_CMD.name(); visibility = gt_500.clone());
                 tooltip = Tip!(Text!(OPEN_CMD.name_with_shortcut()));
 
                 click_shortcut = OPEN_CMD.shortcut();
@@ -195,7 +193,8 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
             },
             Button! {
                 child = ICONS.req("material/sharp/save");
-                child_right = Text!(txt = SAVE_CMD.name(); visibility = gt_500.clone()), 4;
+                child_spacing = 4;
+                child_right = Text!(txt = SAVE_CMD.name(); visibility = gt_500.clone());
                 tooltip = Tip!(Text!(SAVE_CMD.name_with_shortcut()));
 
                 enabled = editor.unsaved();

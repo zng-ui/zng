@@ -39,7 +39,7 @@
 //! }
 //!
 //! Window! {
-//!     child_top = main_menu(), 0;
+//!     child_top = main_menu();
 //!     zng::app::on_new = hn!(|_| {});
 //!     zng::app::on_open = hn!(|_| {});
 //!     // ..
@@ -89,9 +89,7 @@
 //!
 //! See [`zng_wgt_menu`] for the full widget API.
 
-pub use zng_wgt_menu::{
-    ButtonStyle, IconButtonStyle, Menu, ToggleStyle, icon, icon_fn, panel_fn, shortcut_spacing, shortcut_txt, style_fn,
-};
+pub use zng_wgt_menu::{ButtonStyle, IconButtonStyle, Menu, ToggleStyle, icon, icon_fn, panel_fn, shortcut_txt, style_fn};
 
 use crate::{
     style::style_fn,

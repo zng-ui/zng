@@ -26,7 +26,7 @@ use zng_ext_l10n::lang;
 use zng_var::{AnyVar, AnyVarValue, BoxAnyVarValue, Var, VarIsReadOnlyError};
 use zng_wgt::{ICONS, Wgt, align, border, border_align, border_over, corner_radius, hit_test_mode, is_inited, prelude::*};
 use zng_wgt_access::{AccessRole, access_role, accessible};
-use zng_wgt_container::{child_align, child_end, child_start, padding};
+use zng_wgt_container::{child_align, child_end, child_spacing, child_start, padding};
 use zng_wgt_fill::background_color;
 use zng_wgt_filter::opacity;
 use zng_wgt_input::{click_mode, is_hovered, pointer_capture::capture_pointer_on_init};
@@ -950,26 +950,14 @@ impl CheckStyle {
             self;
             replace = true;
             named_style_fn = CHECK_STYLE_FN_VAR;
+            child_spacing = 4;
             child_start = {
-                node: {
-                    let parent_hovered = var(false);
-                    is_hovered(checkmark_visual(parent_hovered.clone()), parent_hovered)
-                },
-                spacing: CHECK_SPACING_VAR,
+                let parent_hovered = var(false);
+                is_hovered(checkmark_visual(parent_hovered.clone()), parent_hovered)
             };
             access_role = AccessRole::CheckBox;
         }
     }
-}
-context_var! {
-    /// Spacing between the checkmark and the content.
-    pub static CHECK_SPACING_VAR: Length = 4;
-}
-
-/// Spacing between the checkmark and the content.
-#[property(CONTEXT, default(CHECK_SPACING_VAR), widget_impl(CheckStyle))]
-pub fn check_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
-    with_context_var(child, CHECK_SPACING_VAR, spacing)
 }
 
 fn checkmark_visual(parent_hovered: Var<bool>) -> UiNode {
@@ -1034,10 +1022,7 @@ impl ComboStyle {
             border_align = 1.fct();
             padding = -1;
             checked = var(false);
-            child_end = {
-                node: combomark_visual(),
-                spacing: COMBO_SPACING_VAR,
-            };
+            child_end = combomark_visual();
 
             click_mode = ClickMode::press();
 
@@ -1090,16 +1075,6 @@ impl ComboStyle {
             };
         }
     }
-}
-context_var! {
-    /// Spacing between the arrow symbol and the content.
-    pub static COMBO_SPACING_VAR: Length = 0;
-}
-
-/// Spacing between the arrow symbol and the content.
-#[property(CONTEXT, default(COMBO_SPACING_VAR), widget_impl(ComboStyle))]
-pub fn combo_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
-    with_context_var(child, COMBO_SPACING_VAR, spacing)
 }
 
 /// Popup open when the toggle button is checked.
@@ -1248,25 +1223,13 @@ impl SwitchStyle {
             replace = true;
             named_style_fn = SWITCH_STYLE_FN_VAR;
 
+            child_spacing = 2;
             child_start = {
-                node: {
-                    let parent_hovered = var(false);
-                    is_hovered(switch_visual(parent_hovered.clone()), parent_hovered)
-                },
-                spacing: SWITCH_SPACING_VAR,
+                let parent_hovered = var(false);
+                is_hovered(switch_visual(parent_hovered.clone()), parent_hovered)
             };
         }
     }
-}
-context_var! {
-    /// Spacing between the switch and the content.
-    pub static SWITCH_SPACING_VAR: Length = 2;
-}
-
-/// Spacing between the switch and the content.
-#[property(CONTEXT, default(SWITCH_SPACING_VAR), widget_impl(SwitchStyle))]
-pub fn switch_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
-    with_context_var(child, SWITCH_SPACING_VAR, spacing)
 }
 
 fn switch_visual(parent_hovered: Var<bool>) -> UiNode {
@@ -1316,26 +1279,13 @@ impl RadioStyle {
             named_style_fn = RADIO_STYLE_FN_VAR;
 
             access_role = AccessRole::Radio;
+            child_spacing = 2;
             child_start = {
-                node: {
-                    let parent_hovered = var(false);
-                    is_hovered(radio_visual(parent_hovered.clone()), parent_hovered)
-                },
-                spacing: RADIO_SPACING_VAR,
+                let parent_hovered = var(false);
+                is_hovered(radio_visual(parent_hovered.clone()), parent_hovered)
             };
         }
     }
-}
-
-context_var! {
-    /// Spacing between the radio and the content.
-    pub static RADIO_SPACING_VAR: Length = 2;
-}
-
-/// Spacing between the radio and the content.
-#[property(CONTEXT, default(RADIO_SPACING_VAR), widget_impl(RadioStyle))]
-pub fn radio_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
-    with_context_var(child, RADIO_SPACING_VAR, spacing)
 }
 
 fn radio_visual(parent_hovered: Var<bool>) -> UiNode {

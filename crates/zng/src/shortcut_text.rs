@@ -32,13 +32,11 @@
 //!     let pressed = var(Shortcuts::new());
 //!     let is_valid = var(true);
 //!     Container! {
-//!         child_top =
-//!             Wrap!(ui_vec![
-//!                 Text!("Press the new shortcut and then press "),
-//!                 ShortcutText!(shortcut!(Enter)), // shortcut text supports inlining
-//!             ]),
-//!             20,
-//!         ;
+//!         child_top = Wrap!(ui_vec![
+//!             Text!("Press the new shortcut and then press "),
+//!             ShortcutText!(shortcut!(Enter)), // shortcut text supports inlining
+//!         ]);
+//!         child_spacing = 20;
 //!         // default style is derived from the `font_size` and `font_color` values.
 //!         child = ShortcutText! {
 //!             shortcut = pressed.clone();

@@ -187,9 +187,8 @@
 
 pub use zng_wgt_toggle::{
     CheckStyle, ComboStyle, DefaultStyle, IS_CHECKED_VAR, LightStyle, RadioStyle, Selector, SelectorError, SelectorImpl, SwitchStyle,
-    Toggle, check_spacing, check_style_fn, combo_spacing, combo_style_fn, deselect_on_deinit, deselect_on_new, is_checked, light_style_fn,
-    radio_spacing, radio_style_fn, scroll_on_select, select_on_init, select_on_new, selector, style_fn, switch_spacing, switch_style_fn,
-    tristate,
+    Toggle, check_style_fn, combo_style_fn, deselect_on_deinit, deselect_on_new, is_checked, light_style_fn, radio_style_fn,
+    scroll_on_select, select_on_init, select_on_new, selector, style_fn, switch_style_fn, tristate,
 };
 
 /// Toggle commands.

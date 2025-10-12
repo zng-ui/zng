@@ -93,53 +93,44 @@ fn app_main() {
             child = zng::config::settings::editor::SettingsEditor! {
                 id = "settings";
             };
-            child_bottom =
-                Container! {
-                    child_out_top = Hr!(layout::margin = 0), 0;
-                    padding = 10;
+            child_bottom = Container! {
+                child_out_top = Hr!(layout::margin = 0);
+                padding = 10;
 
-                    // status
-                    child_left =
-                        Text! {
-                            txt = CONFIG.status().map_to_txt();
-                            layout::margin = 10;
-                            font_family = "monospace";
-                            align = Align::TOP_LEFT;
-                            font_weight = FontWeight::BOLD;
+                // status
+                child_left = Text! {
+                    txt = CONFIG.status().map_to_txt();
+                    layout::margin = 10;
+                    font_family = "monospace";
+                    align = Align::TOP_LEFT;
+                    font_weight = FontWeight::BOLD;
 
-                            when *#{CONFIG.status().map(|s| s.is_err())} {
-                                font_color = colors::RED;
-                            }
-                        },
-                        0,
-                    ;
+                    when *#{CONFIG.status().map(|s| s.is_err())} {
+                        font_color = colors::RED;
+                    }
+                };
 
-                    // spawn another process to demonstrate the live update of configs
-                    child_right =
-                        Button! {
-                            child = Text!("Open Another Process");
-                            on_click = hn!(|_| {
-                                let offset = layout::Dip::new(30);
-                                let pos = WINDOW.vars().actual_position().get() + layout::DipVector::new(offset, offset);
-                                let pos = pos.to_i32();
-                                let r: Result<(), Box<dyn std::error::Error>> = (|| {
-                                    let exe = dunce::canonicalize(std::env::current_exe()?)?;
-                                    std::process::Command::new(exe)
-                                        .env("OTHER-PROCESS", format!("{},{}", pos.x, pos.y))
-                                        .spawn()?;
-                                    Ok(())
-                                })();
-                                match r {
-                                    Ok(_) => tracing::info!("Opened another process"),
-                                    Err(e) => tracing::error!("Error opening another process, {e:?}"),
-                                }
-                            });
-                        },
-                        0,
-                    ;
-                },
-                0,
-            ;
+                // spawn another process to demonstrate the live update of configs
+                child_right = Button! {
+                    child = Text!("Open Another Process");
+                    on_click = hn!(|_| {
+                        let offset = layout::Dip::new(30);
+                        let pos = WINDOW.vars().actual_position().get() + layout::DipVector::new(offset, offset);
+                        let pos = pos.to_i32();
+                        let r: Result<(), Box<dyn std::error::Error>> = (|| {
+                            let exe = dunce::canonicalize(std::env::current_exe()?)?;
+                            std::process::Command::new(exe)
+                                .env("OTHER-PROCESS", format!("{},{}", pos.x, pos.y))
+                                .spawn()?;
+                            Ok(())
+                        })();
+                        match r {
+                            Ok(_) => tracing::info!("Opened another process"),
+                            Err(e) => tracing::error!("Error opening another process, {e:?}"),
+                        }
+                    });
+                };
+            };
             on_load = hn_once!(|_| {
                 // window position is saved, so we move the second window a bit
                 if let Ok(pos) = std::env::var("OTHER-PROCESS")

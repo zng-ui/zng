@@ -542,7 +542,7 @@ fn open_or_paste_image() -> UiNode {
                                         let cmd = cmd.scoped(WINDOW.id());
                                         Button! {
                                             padding = (2, 5);
-                                            child_left = cmd.icon().present_data(()), 0;
+                                            child_left = cmd.icon().present_data(());
                                             child = Text!(cmd.name_with_shortcut());
                                             cmd;
                                         }
@@ -581,29 +581,23 @@ fn exif_rotated() -> UiNode {
             WINDOWS.open(async {
                 fn example(file: &'static str) -> UiNode {
                     Image! {
-                        zng::container::child_top =
-                            Text! {
-                                txt = file;
-                                txt_align = Align::CENTER;
-                                font_weight = FontWeight::BOLD;
-                            },
-                            0,
-                        ;
+                        zng::container::child_top = Text! {
+                            txt = file;
+                            txt_align = Align::CENTER;
+                            font_weight = FontWeight::BOLD;
+                        };
                         source = zng::env::res(file);
                     }
                 }
                 Window! {
                     title = "Exif Rotated";
                     child_align = Align::TOP;
-                    child_top =
-                        Text! {
-                            txt = "all arrows must point right";
-                            txt_align = Align::CENTER;
-                            font_size = 2.em();
-                            margin = 20;
-                        },
-                        0,
-                    ;
+                    child_top = Text! {
+                        txt = "all arrows must point right";
+                        txt_align = Align::CENTER;
+                        font_size = 2.em();
+                        margin = 20;
+                    };
                     child = Stack!(
                         left_to_right,
                         10,

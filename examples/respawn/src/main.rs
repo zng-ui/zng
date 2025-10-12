@@ -87,36 +87,34 @@ fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) {
             });
 
             padding = 5;
-            child = Markdown!("The Respawn Example app has crashed.\n\n{}\n\n", args.latest().message(),);
-            child_bottom =
-                Stack! {
-                    spacing = 5;
-                    direction = StackDirection::start_to_end();
-                    layout::align = Align::END;
-                    children = ui_vec![
-                        Button! {
-                            child = Text!("Crash Dialog");
-                            on_click = hn_once!(|_| {
-                                panic!("Test dialog-process crash!");
-                            });
-                        },
-                        Vr!(),
-                        Button! {
-                            child = Text!("Restart App");
-                            on_click = hn_once!(args, |_| {
-                                args.restart();
-                            });
-                        },
-                        Button! {
-                            child = Text!("Exit App");
-                            on_click = hn_once!(args, |_| {
-                                args.exit(0);
-                            });
-                        }
-                    ];
-                },
-                5,
-            ;
+            child = Markdown!("The Respawn Example app has crashed.\n\n{}\n\n", args.latest().message());
+            child_spacing = 5;
+            child_bottom = Stack! {
+                spacing = 5;
+                direction = StackDirection::start_to_end();
+                layout::align = Align::END;
+                children = ui_vec![
+                    Button! {
+                        child = Text!("Crash Dialog");
+                        on_click = hn_once!(|_| {
+                            panic!("Test dialog-process crash!");
+                        });
+                    },
+                    Vr!(),
+                    Button! {
+                        child = Text!("Restart App");
+                        on_click = hn_once!(args, |_| {
+                            args.restart();
+                        });
+                    },
+                    Button! {
+                        child = Text!("Exit App");
+                        on_click = hn_once!(args, |_| {
+                            args.exit(0);
+                        });
+                    }
+                ];
+            };
         }
     });
 }

@@ -6,7 +6,6 @@ use zng::{
     access::ACCESS,
     clipboard,
     color::filter::{backdrop_blur, drop_shadow, opacity},
-    container,
     data_view::DataView,
     focus::{DirectionalNav, TabNav, directional_nav, focus_scope, focus_shortcut, tab_nav},
     font::FontName,
@@ -84,23 +83,20 @@ fn icons() -> UiNode {
                     .collect_into_vec(&mut r);
                 r
             };
-            zng::container::child_bottom =
-                Wrap! {
-                    layout::margin = 30;
-                    layout::align = Align::CENTER;
-                    children = ui_vec![
-                        Text!("{icons_len} results, "),
-                        Button! {
-                            style_fn = style_fn!(|_| zng::button::LinkStyle!());
-                            child = Text!("back to search");
-                            on_click = hn!(|_| {
-                                FOCUS.focus_widget("search", false);
-                            });
-                        },
-                    ];
-                },
-                0,
-            ;
+            zng::container::child_bottom = Wrap! {
+                layout::margin = 30;
+                layout::align = Align::CENTER;
+                children = ui_vec![
+                    Text!("{icons_len} results, "),
+                    Button! {
+                        style_fn = style_fn!(|_| zng::button::LinkStyle!());
+                        child = Text!("back to search");
+                        on_click = hn!(|_| {
+                            FOCUS.focus_widget("search", false);
+                        });
+                    },
+                ];
+            };
         }
     }
     Stack! {
@@ -303,7 +299,8 @@ fn code_copy(label: Txt, code: Txt) -> UiNode {
         style_fn = zng::button::LightStyle!();
         padding = 2;
 
-        container::child_start = ICONS.get("copy"), 4;
+        child_start = ICONS.get("copy");
+        child_spacing = 4;
         child = Text!(label);
 
         text::font_family = FontName::monospace();

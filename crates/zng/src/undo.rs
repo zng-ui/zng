@@ -25,7 +25,8 @@
 //!
 //!         child = Button! {
 //!             child = cmd.flat_map(|c| c.icon()).present_data(());
-//!             child_right = Text!(cmd.flat_map(|c| c.name())), 4;
+//!             child_spacing = 4;
+//!             child_right = Text!(cmd.flat_map(|c| c.name()));
 //!             tooltip = Tip!(Text!(cmd.flat_map(|c| c.name_with_shortcut())));
 //!             on_click = hn!(|a| {
 //!                 a.propagation().stop();

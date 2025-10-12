@@ -13,18 +13,13 @@
 //! # fn example() {
 //! # let _ =
 //! Container! {
-//!     child_top = {
-//!         node: Text!("secondary (top)"),
-//!         spacing: 5,
-//!     };
+//!     child_spacing = 5;
+//!     child_top = Text!("secondary (top)");
 //!     child = Text! {
 //!         txt = "primary";
 //!         widget::background_color = colors::BLUE;
 //!     };
-//!     child_bottom = {
-//!         node: Text!("secondary (bottom)"),
-//!         spacing: 0,
-//!     };
+//!     child_bottom = Text!("secondary (bottom)");
 //! }
 //! # ; }
 //! ```
@@ -39,9 +34,9 @@
 //! # fn status() -> UiNode { widget::node::UiNode::nil() }
 //! # let _ =
 //! Window! {
-//!     child_top = tools(), 0;
+//!     child_out_top = tools();
 //!     child = content();
-//!     child_bottom = status(), 0;
+//!     child_out_bottom = status();
 //! }
 //! # ; }
 //! ```
@@ -89,5 +84,6 @@
 
 pub use zng_wgt_container::{
     ChildInsert, Container, child, child_bottom, child_end, child_insert, child_left, child_out_bottom, child_out_end, child_out_insert,
-    child_out_left, child_out_right, child_out_start, child_out_top, child_over, child_right, child_start, child_top, child_under,
+    child_out_left, child_out_over, child_out_right, child_out_spacing, child_out_start, child_out_top, child_out_under, child_over,
+    child_right, child_spacing, child_start, child_top, child_under,
 };

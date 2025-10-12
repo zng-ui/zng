@@ -104,30 +104,27 @@ fn form_editor_window(is_open: Var<bool>) -> WindowRoot {
                 },
             ];
         };
-
-        child_bottom = {
-            node: Stack! {
-                direction = StackDirection::start_to_end();
-                padding = 10;
-                align = Align::END;
-                spacing = 5;
-                children = ui_vec![
-                    Button! {
-                        child = Text!("Cancel");
-                        on_click = hn!(|_| {
-                            WINDOW.close();
-                        });
-                    },
-                    Button! {
-                        font_weight = FontWeight::BOLD;
-                        child = Text!("Validate");
-                        on_click = hn!(|_| {
-                            zng::text::cmd::PARSE_CMD.notify_descendants(&WINDOW.info().get("form").unwrap());
-                        });
-                    }
-                ];
-            },
-            spacing: 10,
+        child_spacing = 10;
+        child_bottom = Stack! {
+            direction = StackDirection::start_to_end();
+            padding = 10;
+            align = Align::END;
+            spacing = 5;
+            children = ui_vec![
+                Button! {
+                    child = Text!("Cancel");
+                    on_click = hn!(|_| {
+                        WINDOW.close();
+                    });
+                },
+                Button! {
+                    font_weight = FontWeight::BOLD;
+                    child = Text!("Validate");
+                    on_click = hn!(|_| {
+                        zng::text::cmd::PARSE_CMD.notify_descendants(&WINDOW.info().get("form").unwrap());
+                    });
+                }
+            ];
         };
     }
 }

@@ -28,7 +28,8 @@
 //! # let _ =
 //! Container! {
 //!     child = txt_input();
-//!     child_bottom = txt_display(), 20;
+//!     child_spacing = 20;
+//!     child_bottom = txt_display();
 //! }
 //! # ; }
 //! ```

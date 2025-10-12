@@ -129,7 +129,7 @@ pub fn default_category_header_fn(args: CategoryHeaderArgs) -> UiNode {
 pub fn default_categories_list_fn(args: CategoriesListArgs) -> UiNode {
     Container! {
         child = categories_list(args.items.into_node());
-        child_end = Vr!(zng_wgt::margin = 0), 0;
+        child_end = Vr!(zng_wgt::margin = 0);
     }
 }
 fn categories_list(items: UiNode) -> UiNode {
@@ -194,54 +194,47 @@ pub fn default_setting_fn(args: SettingArgs) -> UiNode {
         zng_wgt_input::focus::focus_scope = true;
         zng_wgt_input::focus::focus_scope_behavior = zng_ext_input::focus::FocusScopeOnFocus::FirstDescendant;
 
-        child_start =
-            {
-                let s = args.setting;
-                Wgt! {
-                    zng_wgt::align = Align::TOP;
-                    zng_wgt::visibility = can_reset.map(|c| match c {
-                        true => Visibility::Visible,
-                        false => Visibility::Hidden,
-                    });
-                    zng_wgt_input::gesture::on_click = hn!(|_| {
-                        s.reset();
-                    });
+        child_spacing = (4, 5);
+        child_start = {
+            let s = args.setting;
+            Wgt! {
+                zng_wgt::align = Align::TOP;
+                zng_wgt::visibility = can_reset.map(|c| match c {
+                    true => Visibility::Visible,
+                    false => Visibility::Hidden,
+                });
+                zng_wgt_input::gesture::on_click = hn!(|_| {
+                    s.reset();
+                });
 
-                    zng_wgt_fill::background = ICONS.req_or(["settings-reset", "settings-backup-restore"], || Text!("R"));
-                    zng_wgt_size_offset::size = 18;
+                zng_wgt_fill::background = ICONS.req_or(["settings-reset", "settings-backup-restore"], || Text!("R"));
+                zng_wgt_size_offset::size = 18;
 
-                    tooltip = Tip!(Text!("reset"));
-                    disabled_tooltip = Tip!(Text!("is default"));
+                tooltip = Tip!(Text!("reset"));
+                disabled_tooltip = Tip!(Text!("is default"));
 
-                    zng_wgt_input::focus::tab_index = zng_ext_input::focus::TabIndex::SKIP;
+                zng_wgt_input::focus::tab_index = zng_ext_input::focus::TabIndex::SKIP;
 
-                    opacity = 70.pct();
-                    when *#zng_wgt_input::is_cap_hovered {
-                        opacity = 100.pct();
-                    }
-                    when *#zng_wgt::is_disabled {
-                        opacity = 30.pct();
-                    }
+                opacity = 70.pct();
+                when *#zng_wgt_input::is_cap_hovered {
+                    opacity = 100.pct();
                 }
-            },
-            4,
-        ;
-        child_top =
-            Container! {
-                child_top =
-                    Text! {
-                        txt = name;
-                        font_weight = FontWeight::BOLD;
-                    },
-                    4,
-                ;
-                child = Markdown! {
-                    txt = description;
-                    opacity = 70.pct();
-                };
-            },
-            5,
-        ;
+                when *#zng_wgt::is_disabled {
+                    opacity = 30.pct();
+                }
+            }
+        };
+        child_top = Container! {
+            child_top = Text! {
+                txt = name;
+                font_weight = FontWeight::BOLD;
+            };
+            child_spacing = 4;
+            child = Markdown! {
+                txt = description;
+                opacity = 70.pct();
+            };
+        };
         child = args.editor;
     }
 }
@@ -249,7 +242,8 @@ pub fn default_setting_fn(args: SettingArgs) -> UiNode {
 /// Default settings for a category view.
 pub fn default_settings_fn(args: SettingsArgs) -> UiNode {
     Container! {
-        child_top = args.header, 5;
+        child_spacing = 5;
+        child_top = args.header;
         child = Scroll! {
             mode = ScrollMode::VERTICAL;
             padding = (0, 20, 20, 10);
@@ -272,16 +266,16 @@ pub fn default_settings_search_fn(_: SettingsSearchArgs) -> UiNode {
             zng_wgt_input::focus::focus_shortcut = [shortcut![CTRL + 'F'], shortcut![Find]];
             placeholder_txt = l10n!("search.placeholder", "search settings ({$shortcut})", shortcut = "Ctrl+F");
         };
-        child_bottom = Hr!(zng_wgt::margin = (10, 10, 0, 10)), 0;
+        child_bottom = Hr!(zng_wgt::margin = (10, 10, 0, 10));
     }
 }
 
 /// Default editor layout on `actual_width > 400`.
 pub fn default_panel_fn(args: PanelArgs) -> UiNode {
     Container! {
-        child_top = args.search, 0;
+        child_top = args.search;
         child = Container! {
-            child_start = args.categories, 0;
+            child_start = args.categories;
             child = args.settings;
         };
     }
@@ -290,9 +284,9 @@ pub fn default_panel_fn(args: PanelArgs) -> UiNode {
 /// Default editor layout on `actual_width <= 400`.
 pub fn default_panel_mobile_fn(args: PanelArgs) -> UiNode {
     Container! {
-        child_top = args.search, 0;
+        child_top = args.search;
         child = Container! {
-            child_top = args.categories, 0;
+            child_top = args.categories;
             child = args.settings;
         };
     }

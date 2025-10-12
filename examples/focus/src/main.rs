@@ -27,7 +27,8 @@ fn main() {
         Window! {
             title = "Focus Example";
             enabled = window_enabled.clone();
-            child_top = alt_scope(), 50;
+            child_top = alt_scope();
+            child_spacing = 50;
             child = Stack! {
                 direction = StackDirection::left_to_right();
                 align = Align::TOP;

@@ -11,7 +11,8 @@
 //!
 //! # let _ =
 //! Container! {
-//!     child_start = zng::label::Label!("Name", "name-field"), 5;
+//!     child_start = zng::label::Label!("Name", "name-field");
+//!     child_spacing = 5;
 //!     child = TextInput! {
 //!         id = "name-field";
 //!         txt = var_from("");

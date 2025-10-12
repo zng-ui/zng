@@ -12,7 +12,7 @@
 zng_wgt::enable_widget_macros!();
 
 use zng_wgt::{base_color, prelude::*, visibility};
-use zng_wgt_container::{Container, child_out_bottom};
+use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
 use zng_wgt_size_offset::{height, width, x};
 use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn};
@@ -180,14 +180,12 @@ impl DefaultStyle {
                 };
             };
 
-            child_out_bottom =
-                zng_wgt_text::Text! {
-                    txt = PROGRESS_VAR.map(|p| p.msg());
-                    zng_wgt::visibility = PROGRESS_VAR.map(|p| Visibility::from(!p.msg().is_empty()));
-                    zng_wgt::align = Align::CENTER;
-                },
-                6,
-            ;
+            zng_wgt_container::child_spacing = 6;
+            zng_wgt_container::child_out_bottom = zng_wgt_text::Text! {
+                txt = PROGRESS_VAR.map(|p| p.msg());
+                zng_wgt::visibility = PROGRESS_VAR.map(|p| Visibility::from(!p.msg().is_empty()));
+                zng_wgt::align = Align::CENTER;
+            };
         }
     }
 }
@@ -201,7 +199,7 @@ impl SimpleBarStyle {
         widget_set! {
             self;
             named_style_fn = SIMPLE_BAR_STYLE_FN_VAR;
-            child_out_bottom = unset!;
+            zng_wgt_container::child_out_bottom = unset!;
         }
     }
 }
