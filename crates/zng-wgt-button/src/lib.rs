@@ -170,7 +170,7 @@ pub fn cmd(wgt: &mut WidgetBuilding, cmd: impl IntoVar<Command>) {
     let visibility = wgt.property(property_id!(zng_wgt::visibility)).is_none();
     wgt.push_intrinsic(
         NestGroup::CONTEXT,
-        "cmd-context",
+        "cmd_context",
         clmv!(cmd, |mut child| {
             if enabled {
                 child = zng_wgt::enabled(child, cmd.flat_map(|c| c.is_enabled()));
@@ -192,7 +192,7 @@ pub fn cmd(wgt: &mut WidgetBuilding, cmd: impl IntoVar<Command>) {
     if on_click || on_disabled_click || tooltip {
         wgt.push_intrinsic(
             NestGroup::EVENT,
-            "cmd-event",
+            "cmd_event",
             clmv!(cmd, |mut child| {
                 if on_click {
                     child = self::on_click(

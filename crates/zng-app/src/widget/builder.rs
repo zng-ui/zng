@@ -2452,6 +2452,7 @@ impl WidgetBuilding {
         // sort by group, index and insert index.
         self.items.sort_unstable_by_key(|b| b.sort_key());
 
+        let mut any = false;
         let mut i = self.items.len();
         loop {
             i -= 1;
@@ -2460,6 +2461,7 @@ impl WidgetBuilding {
             {
                 let p = args.property();
                 if p.build_action {
+                    any = true;
                     self.build_action_property = Some(p);
                     args.clone_boxed().build_action(self);
                     self.build_action_property = None;
@@ -2468,6 +2470,10 @@ impl WidgetBuilding {
             if i == 0 {
                 break;
             }
+        }
+
+        if any {
+            self.items.sort_unstable_by_key(|b| b.sort_key());
         }
     }
 
