@@ -69,7 +69,7 @@
 //! bundle_licenses = ["dep:zng-tp-licenses"]
 //!
 //! [dependencies]
-//! zng-tp-licenses = { version = "0.5.2", features = ["bundle"], optional = true }
+//! zng-tp-licenses = { version = "0.6.0", features = ["bundle"], optional = true }
 //!
 //! [build-dependencies]
 //! zng-tp-licenses = { version = "0.2.0", features = ["build"], optional = true }
