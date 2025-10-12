@@ -55,9 +55,10 @@ pub fn debug_dialog(args: CrashArgs) -> WindowRoot {
         });
 
         padding = 5;
-        child_top = header(error), 5;
+        child_spacing = 5;
+        child_top = header(error);
         child = panels(error);
-        child_bottom = commands(args), 5;
+        child_bottom = commands(args);
     }
 }
 
@@ -97,23 +98,21 @@ fn panels(error: &CrashError) -> UiNode {
     let active = var(active);
 
     Container! {
-        child_top =
-            Wrap! {
-                toggle::selector = toggle::Selector::single(active.clone());
-                children = options.iter().map(|p| {
-                    Toggle! {
-                        child = Text!(p.title());
-                        value = *p;
-                    }
-                });
-                toggle::style_fn = Style! {
-                    padding = (2, 4);
-                    corner_radius = 2;
-                };
-                spacing = 5;
-            },
-            5,
-        ;
+        child_spacing = 5;
+        child_top = Wrap! {
+            toggle::selector = toggle::Selector::single(active.clone());
+            children = options.iter().map(|p| {
+                Toggle! {
+                    child = Text!(p.title());
+                    value = *p;
+                }
+            });
+            toggle::style_fn = Style! {
+                padding = (2, 4);
+                corner_radius = 2;
+            };
+            spacing = 5;
+        };
         child = active.present(wgt_fn!(error, |p: ErrorPanel| p.panel(&error)));
     }
 }

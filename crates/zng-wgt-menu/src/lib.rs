@@ -53,16 +53,6 @@ context_var! {
         }
     });
 
-    /// Minimum space between a menu item child and the [`shortcut_txt`] child.
-    ///
-    /// The spacing is applied only if the shortcut child is set to a non-zero sized widget and
-    /// there is no other wider menu item.
-    ///
-    /// Is `20` by default.
-    ///
-    /// [`shortcut_txt`]: fn@shortcut_txt
-    pub static SHORTCUT_SPACING_VAR: Length = 20;
-
     static OPEN_SUBMENU_VAR: u32 = 0;
 }
 
@@ -140,7 +130,6 @@ impl ButtonStyle {
                     .cmd()
                     .flat_map(|c| c.as_ref().map(|c| c.icon()).unwrap_or_else(|| const_var(WidgetFn::nil())))
                     .present_data(()),
-                0,
             ;
         }
     }
@@ -282,18 +271,5 @@ pub fn icon_fn(child: impl IntoUiNode, icon: impl IntoVar<WidgetFn<()>>) -> UiNo
 #[property(CHILD_CONTEXT)]
 pub fn shortcut_txt(child: impl IntoUiNode, shortcut: impl IntoUiNode) -> UiNode {
     let shortcut = margin(shortcut, sub::END_COLUMN_WIDTH_VAR.map(|w| SideOffsets::new(0, w.clone(), 0, 0)));
-    child_end(child, shortcut, SHORTCUT_SPACING_VAR)
-}
-
-/// Minimum space between a menu item child and the [`shortcut_txt`] child.
-///
-/// The spacing is applied only if the shortcut child is set to a non-zero sized widget and
-/// there is no other wider menu item.
-///
-/// This property sets the [`SHORTCUT_SPACING_VAR`].
-///
-/// [`shortcut_txt`]: fn@shortcut_txt
-#[property(CONTEXT, default(SHORTCUT_SPACING_VAR))]
-pub fn shortcut_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Length>) -> UiNode {
-    with_context_var(child, SHORTCUT_SPACING_VAR, spacing)
+    child_end(child, shortcut)
 }

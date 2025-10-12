@@ -192,44 +192,38 @@ impl SearchStyle {
             zng_wgt_access::access_role = zng_wgt_access::AccessRole::SearchBox;
             auto_selection = true;
 
-            zng_wgt_container::child_out_start =
-                zng_wgt_container::Container! {
-                    child = zng_wgt::ICONS.req("search");
-                    zng_wgt::align = Align::CENTER;
-                    zng_wgt::hit_test_mode = false;
-                    zng_wgt_size_offset::size = 18;
-                    zng_wgt::margin = DIRECTION_VAR.map(|d| {
-                        match d {
-                            LayoutDirection::LTR => (0, 0, 0, 6),
-                            LayoutDirection::RTL => (0, 6, 0, 0),
-                        }
-                        .into()
-                    });
-                },
-                0,
-            ;
+            zng_wgt_container::child_out_start = zng_wgt_container::Container! {
+                child = zng_wgt::ICONS.req("search");
+                zng_wgt::align = Align::CENTER;
+                zng_wgt::hit_test_mode = false;
+                zng_wgt_size_offset::size = 18;
+                zng_wgt::margin = DIRECTION_VAR.map(|d| {
+                    match d {
+                        LayoutDirection::LTR => (0, 0, 0, 6),
+                        LayoutDirection::RTL => (0, 6, 0, 0),
+                    }
+                    .into()
+                });
+            };
 
-            zng_wgt_container::child_out_end =
-                zng_wgt_button::Button! {
-                    zng_wgt::corner_radius = 0;
-                    style_fn = zng_wgt_button::LightStyle!();
-                    child = zng_wgt::ICONS.req("backspace");
-                    focusable = false;
-                    zng_wgt::visibility = zng_var::contextual_var(|| {
-                        zng_wgt_text::node::TEXT.resolved().txt.clone().map(|t| match t.is_empty() {
-                            true => Visibility::Collapsed,
-                            false => Visibility::Visible,
-                        })
-                    });
-                    on_click = hn!(|args| {
-                        args.propagation().stop();
-                        zng_wgt_text::cmd::EDIT_CMD
-                            .scoped(WIDGET.info().parent().unwrap().id())
-                            .notify_param(zng_wgt_text::cmd::TextEditOp::clear());
-                    });
-                },
-                0,
-            ;
+            zng_wgt_container::child_out_end = zng_wgt_button::Button! {
+                zng_wgt::corner_radius = 0;
+                style_fn = zng_wgt_button::LightStyle!();
+                child = zng_wgt::ICONS.req("backspace");
+                focusable = false;
+                zng_wgt::visibility = zng_var::contextual_var(|| {
+                    zng_wgt_text::node::TEXT.resolved().txt.clone().map(|t| match t.is_empty() {
+                        true => Visibility::Collapsed,
+                        false => Visibility::Visible,
+                    })
+                });
+                on_click = hn!(|args| {
+                    args.propagation().stop();
+                    zng_wgt_text::cmd::EDIT_CMD
+                        .scoped(WIDGET.info().parent().unwrap().id())
+                        .notify_param(zng_wgt_text::cmd::TextEditOp::clear());
+                });
+            };
         }
     }
 }

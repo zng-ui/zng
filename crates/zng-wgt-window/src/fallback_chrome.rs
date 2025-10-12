@@ -21,68 +21,65 @@ pub fn fallback_chrome() -> UiNode {
         zng_wgt_size_offset::height = 28;
         txt_align = Align::CENTER;
 
-        child_right =
-            Stack! {
-                direction = StackDirection::left_to_right();
-                zng_wgt_button::style_fn = zng_wgt_button::LightStyle! {
-                    corner_radius = 0;
-                    zng_wgt_button::cmd_child_fn = wgt_fn!(|cmd: Command| {
-                        presenter(
-                            (),
-                            cmd.icon().map(move |ico| {
-                                wgt_fn!(ico, |_| {
-                                    let ico = ico(());
-                                    if ico.is_nil() {
-                                        // fallback to Unicode symbol
-                                        let cmd = cmd.scoped(zng_app::event::CommandScope::App);
-                                        let (symbol, size, padding_top) = if cmd == RESTORE_CMD {
-                                            ("🗗", 9, 0)
-                                        } else if cmd == MINIMIZE_CMD {
-                                            ("🗕", 9, 0)
-                                        } else if cmd == MAXIMIZE_CMD {
-                                            ("🗖", 9, 0)
-                                        } else if cmd == CLOSE_CMD {
-                                            ("🗙", 12, -5)
-                                        } else {
-                                            unreachable!("{cmd:?} what")
-                                        };
-                                        Text! {
-                                            font_family = "Noto Sans Symbols 2";
-                                            font_size = size.pt();
-                                            padding = (padding_top, 0, 0, 0);
-                                            txt = symbol;
-                                        }
+        child_right = Stack! {
+            direction = StackDirection::left_to_right();
+            zng_wgt_button::style_fn = zng_wgt_button::LightStyle! {
+                corner_radius = 0;
+                zng_wgt_button::cmd_child_fn = wgt_fn!(|cmd: Command| {
+                    presenter(
+                        (),
+                        cmd.icon().map(move |ico| {
+                            wgt_fn!(ico, |_| {
+                                let ico = ico(());
+                                if ico.is_nil() {
+                                    // fallback to Unicode symbol
+                                    let cmd = cmd.scoped(zng_app::event::CommandScope::App);
+                                    let (symbol, size, padding_top) = if cmd == RESTORE_CMD {
+                                        ("🗗", 9, 0)
+                                    } else if cmd == MINIMIZE_CMD {
+                                        ("🗕", 9, 0)
+                                    } else if cmd == MAXIMIZE_CMD {
+                                        ("🗖", 9, 0)
+                                    } else if cmd == CLOSE_CMD {
+                                        ("🗙", 12, -5)
                                     } else {
-                                        ico
+                                        unreachable!("{cmd:?} what")
+                                    };
+                                    Text! {
+                                        font_family = "Noto Sans Symbols 2";
+                                        font_size = size.pt();
+                                        padding = (padding_top, 0, 0, 0);
+                                        txt = symbol;
                                     }
-                                })
-                            }),
-                        )
-                    });
-                };
-                children = ui_vec![
-                    Button! {
-                        cmd = MINIMIZE_CMD.scoped(win_id);
-                    },
-                    Button! {
-                        cmd = MAXIMIZE_CMD.scoped(win_id);
-                        when #is_disabled {
-                            visibility = false;
-                        }
-                    },
-                    Button! {
-                        cmd = RESTORE_CMD.scoped(win_id);
-                        when #is_disabled {
-                            visibility = false;
-                        }
-                    },
-                    Button! {
-                        cmd = CLOSE_CMD.scoped(win_id);
-                    },
-                ];
-            },
-            0,
-        ;
+                                } else {
+                                    ico
+                                }
+                            })
+                        }),
+                    )
+                });
+            };
+            children = ui_vec![
+                Button! {
+                    cmd = MINIMIZE_CMD.scoped(win_id);
+                },
+                Button! {
+                    cmd = MAXIMIZE_CMD.scoped(win_id);
+                    when #is_disabled {
+                        visibility = false;
+                    }
+                },
+                Button! {
+                    cmd = RESTORE_CMD.scoped(win_id);
+                    when #is_disabled {
+                        visibility = false;
+                    }
+                },
+                Button! {
+                    cmd = CLOSE_CMD.scoped(win_id);
+                },
+            ];
+        };
 
         when *#{can_move.clone()} {
             cursor = CursorIcon::Move;

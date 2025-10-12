@@ -153,7 +153,7 @@ async fn listener_window(focused_wgt: bool) -> window::WindowRoot {
 
     Window! {
         parallel = false;
-        child_top = foo_window_handler(), 0;
+        child_top = foo_window_handler();
         child = Stack! {
             direction = StackDirection::top_to_bottom();
             children = ui_vec![

@@ -220,39 +220,32 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
                     widget::background_color = light_dark(rgb(0.95, 0.95, 0.95), rgb(0.05, 0.05, 0.05));
                     widget::corner_radius = 4;
                     layout::padding = 5;
-                    child_top = {
-                        node: Container! {
-                            #[cfg(feature = "image")]
-                            child_start =
-                                Image! {
-                                    layout::size = 24;
-                                    source = icon.map(|i| match i {
-                                        WindowIcon::Image(s) => s.clone(),
-                                        WindowIcon::Default => ImageSource::flood(layout::PxSize::zero(), rgba(0, 0, 0, 0), None),
-                                        _ => unreachable!(),
-                                    });
-                                },
-                                4,
-                            ;
-                            child = Text! {
-                                txt = title.clone();
-                                txt_align = Align::CENTER;
-                                font_weight = FontWeight::BOLD;
-                            };
-                            #[cfg(feature = "button")]
-                            child_end =
-                                Button! {
-                                    style_fn = zng::button::LightStyle!();
-                                    child = ICONS.get_or("close", || Text!("x"));
-                                    on_click = hn!(|args| {
-                                        args.propagation().stop();
-                                        let _ = WINDOWS.close(id);
-                                    });
-                                },
-                                4,
-                            ;
-                        },
-                        spacing: 5,
+                    child_spacing = 5;
+                    child_top = Container! {
+                        child_spacing = 4;
+                        #[cfg(feature = "image")]
+                        child_start = Image! {
+                            layout::size = 24;
+                            source = icon.map(|i| match i {
+                                WindowIcon::Image(s) => s.clone(),
+                                WindowIcon::Default => ImageSource::flood(layout::PxSize::zero(), rgba(0, 0, 0, 0), None),
+                                _ => unreachable!(),
+                            });
+                        };
+                        child = Text! {
+                            txt = title.clone();
+                            txt_align = Align::CENTER;
+                            font_weight = FontWeight::BOLD;
+                        };
+                        #[cfg(feature = "button")]
+                        child_end = Button! {
+                            style_fn = zng::button::LightStyle!();
+                            child = ICONS.get_or("close", || Text!("x"));
+                            on_click = hn!(|args| {
+                                args.propagation().stop();
+                                let _ = WINDOWS.close(id);
+                            });
+                        };
                     };
                     child = node.lock().take().into_node().into_widget();
                 };

@@ -186,50 +186,41 @@ impl DefaultStyle {
 
             align = Align::CENTER;
 
-            zng_wgt_container::child_out_top =
-                Container! {
+            zng_wgt_container::child_out_top = Container! {
+                corner_radius = 0;
+                background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
+                child = TITLE_VAR.present_data(());
+                child_align = Align::START;
+                padding = (4, 8);
+                zng_wgt_text::font_weight = zng_ext_font::FontWeight::BOLD;
+            };
+
+            zng_wgt_container::child_out_bottom = RESPONSES_VAR.present(wgt_fn!(|responses: Responses| {
+                Wrap! {
                     corner_radius = 0;
                     background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
-                    child = TITLE_VAR.present_data(());
-                    child_align = Align::START;
-                    padding = (4, 8);
-                    zng_wgt_text::font_weight = zng_ext_font::FontWeight::BOLD;
-                },
-                0,
-            ;
+                    children_align = Align::END;
+                    zng_wgt_container::padding = 3;
+                    spacing = 3;
+                    children = {
+                        let last = responses.len().saturating_sub(1);
+                        responses.0.into_iter().enumerate().map(move |(i, r)| {
+                            presenter(
+                                DialogButtonArgs {
+                                    response: r,
+                                    is_last: i == last,
+                                },
+                                BUTTON_FN_VAR,
+                            )
+                        })
+                    };
+                }
+            }));
 
-            zng_wgt_container::child_out_bottom =
-                RESPONSES_VAR.present(wgt_fn!(|responses: Responses| {
-                    Wrap! {
-                        corner_radius = 0;
-                        background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
-                        children_align = Align::END;
-                        zng_wgt_container::padding = 3;
-                        spacing = 3;
-                        children = {
-                            let last = responses.len().saturating_sub(1);
-                            responses.0.into_iter().enumerate().map(move |(i, r)| {
-                                presenter(
-                                    DialogButtonArgs {
-                                        response: r,
-                                        is_last: i == last,
-                                    },
-                                    BUTTON_FN_VAR,
-                                )
-                            })
-                        };
-                    }
-                })),
-                0,
-            ;
-
-            zng_wgt_container::child_out_left =
-                Container! {
-                    child = ICON_VAR.present_data(());
-                    child_align = Align::TOP;
-                },
-                0,
-            ;
+            zng_wgt_container::child_out_left = Container! {
+                child = ICON_VAR.present_data(());
+                child_align = Align::TOP;
+            };
 
             zng_wgt_container::child = CONTENT_VAR.present_data(());
 

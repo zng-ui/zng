@@ -228,14 +228,11 @@ pub fn default_undo_stack_fn(args: UndoStackArgs) -> UiNode {
             max_height = 200.dip().min(80.pct());
         };
 
-        child_bottom =
-            Text! {
-                margin = 2;
-                txt = count;
-                txt_align = Align::CENTER;
-            },
-            0,
-        ;
+        child_bottom = Text! {
+            margin = 2;
+            txt = count;
+            txt_align = Align::CENTER;
+        };
     }
 }
 

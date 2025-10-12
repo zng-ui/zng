@@ -98,7 +98,7 @@
 //! let img_source = var(ImageSource::flood(layout::PxSize::splat(layout::Px(1)), colors::BLACK, None));
 //! Window! {
 //!     # widget::on_init = hn_once!(|_| {WINDOW.close();});
-//!     child_top = Button!(clipboard::PASTE_CMD.scoped(WINDOW.id())), 0;
+//!     child_top = Button!(clipboard::PASTE_CMD.scoped(WINDOW.id()));
 //!     child = Image!(img_source.clone());
 //!     clipboard::on_paste = hn!(|_| {
 //!         if let Ok(Some(img)) = clipboard::CLIPBOARD.image() {
