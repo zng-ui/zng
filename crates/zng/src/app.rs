@@ -512,29 +512,27 @@ pub use zng_ext_single_instance::{APP_INSTANCE_EVENT, AppInstanceArgs};
 ///                 start_position = window::StartPosition::CenterMonitor;
 ///                 on_load = hn_once!(|_| WINDOW.bring_to_top());
 ///                 padding = 10;
+///                 child_spacing = 10;
 ///                 child = Text!(args.latest().message());
-///                 child_bottom =
-///                     Stack! {
-///                         direction = StackDirection::start_to_end();
-///                         layout::align = Align::BOTTOM_END;
-///                         spacing = 5;
-///                         children = ui_vec![
-///                             Button! {
-///                                 child = Text!("Restart App");
-///                                 on_click = hn_once!(args, |_| {
-///                                     args.restart();
-///                                 });
-///                             },
-///                             Button! {
-///                                 child = Text!("Exit App");
-///                                 on_click = hn_once!(|_| {
-///                                     args.exit(0);
-///                                 });
-///                             },
-///                         ];
-///                     },
-///                     10,
-///                 ;
+///                 child_bottom = Stack! {
+///                     direction = StackDirection::start_to_end();
+///                     layout::align = Align::BOTTOM_END;
+///                     spacing = 5;
+///                     children = ui_vec![
+///                         Button! {
+///                             child = Text!("Restart App");
+///                             on_click = hn_once!(args, |_| {
+///                                 args.restart();
+///                             });
+///                         },
+///                         Button! {
+///                             child = Text!("Exit App");
+///                             on_click = hn_once!(|_| {
+///                                 args.exit(0);
+///                             });
+///                         },
+///                     ];
+///                 };
 ///             }
 ///         });
 ///     });
