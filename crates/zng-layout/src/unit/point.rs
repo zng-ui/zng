@@ -19,17 +19,13 @@ impl fmt::Debug for Point {
         if f.alternate() {
             f.debug_struct("Point").field("x", &self.x).field("y", &self.y).finish()
         } else {
-            write!(f, "({:?}, {:?})", self.x, self.y)
+            write!(f, "({:.p$?}, {:.p$?})", self.x, self.y, p = f.precision().unwrap_or(0))
         }
     }
 }
 impl fmt::Display for Point {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(p) = f.precision() {
-            write!(f, "({:.p$}, {:.p$})", self.x, self.y, p = p)
-        } else {
-            write!(f, "({}, {})", self.x, self.y)
-        }
+        write!(f, "({:.p$}, {:.p$}", self.x, self.y, p = f.precision().unwrap_or(0))
     }
 }
 impl std::str::FromStr for Point {

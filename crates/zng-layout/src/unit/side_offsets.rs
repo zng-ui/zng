@@ -31,11 +31,19 @@ impl fmt::Debug for SideOffsets {
                 .field("left", &self.left)
                 .finish()
         } else if self.all_eq() {
-            write!(f, "{:?}", self.top)
+            write!(f, "{:.p$?}", self.top, p = f.precision().unwrap_or(0))
         } else if self.dimensions_eq() {
-            write!(f, "({:?}, {:?})", self.top, self.left)
+            write!(f, "({:.p$?}, {:.p$?})", self.top, self.left, p = f.precision().unwrap_or(0))
         } else {
-            write!(f, "({:?}, {:?}, {:?}, {:?})", self.top, self.right, self.bottom, self.left)
+            write!(
+                f,
+                "({:.p$?}, {:.p$?}, {:.p$?}, {:.p$?})",
+                self.top,
+                self.right,
+                self.bottom,
+                self.left,
+                p = f.precision().unwrap_or(0)
+            )
         }
     }
 }

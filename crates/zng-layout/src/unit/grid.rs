@@ -88,18 +88,18 @@ impl fmt::Debug for GridSpacing {
                 .field("row", &self.row)
                 .finish()
         } else if self.column == self.row {
-            write!(f, "{:?}", self.column)
+            write!(f, "{:.p$?}", self.column, p = f.precision().unwrap_or(0))
         } else {
-            write!(f, "({:?}, {:?})", self.column, self.row)
+            write!(f, "({:.p$?}, {:.p$?})", self.column, self.row, p = f.precision().unwrap_or(0))
         }
     }
 }
 impl fmt::Display for GridSpacing {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.column == self.row {
-            write!(f, "{}", self.column)
+            write!(f, "{:.p$}", self.column, p = f.precision().unwrap_or(0))
         } else {
-            write!(f, "({}, {})", self.column, self.row)
+            write!(f, "({:.p$}, {:.p$})", self.column, self.row, p = f.precision().unwrap_or(0))
         }
     }
 }

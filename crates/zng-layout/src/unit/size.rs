@@ -22,17 +22,13 @@ impl fmt::Debug for Size {
                 .field("height", &self.height)
                 .finish()
         } else {
-            write!(f, "({:?}, {:?})", self.width, self.height)
+            write!(f, "({:.p$?}, {:.p$?})", self.width, self.height, p = f.precision().unwrap_or(0))
         }
     }
 }
 impl fmt::Display for Size {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(p) = f.precision() {
-            write!(f, "{:.p$} × {:.p$}", self.width, self.height, p = p)
-        } else {
-            write!(f, "{} × {}", self.width, self.height)
-        }
+        write!(f, "({:.p$} × {:.p$})", self.width, self.height, p = f.precision().unwrap_or(0))
     }
 }
 impl std::str::FromStr for Size {

@@ -22,17 +22,13 @@ impl fmt::Debug for Rect {
                 .field("size", &self.size)
                 .finish()
         } else {
-            write!(f, "{:?}.at{:?}", self.origin, self.size)
+            write!(f, "{:.p$?}.at{:.p$?}", self.size, self.origin, p = f.precision().unwrap_or(0))
         }
     }
 }
 impl fmt::Display for Rect {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(p) = f.precision() {
-            write!(f, "{:.p$} {:.p$}", self.origin, self.size, p = p)
-        } else {
-            write!(f, "{} at {}", self.origin, self.size)
-        }
+        write!(f, "{:.p$} at {:.p$}", self.size, self.origin, p = f.precision().unwrap_or(0))
     }
 }
 impl std::str::FromStr for Rect {
