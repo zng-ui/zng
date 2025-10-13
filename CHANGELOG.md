@@ -1,5 +1,7 @@
 # Unreleased
 
+* Implement image `ppi` metadata in `zng-view` for JPEG, PNG and TIFF.
+* Add pixels-per-centimeter support in `ImagePpi`.
 
 # 0.18.0
 

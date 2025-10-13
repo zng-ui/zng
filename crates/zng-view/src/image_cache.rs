@@ -126,6 +126,7 @@ impl ImageCache {
                                 image::ImageBuffer::from_raw(size.width.0 as _, size.height.0 as _, data.to_vec()).unwrap(),
                             ),
                             mask,
+                            ppi,
                         );
                         Ok((pixels, size, ppi, is_opaque, true))
                     } else {
@@ -146,6 +147,7 @@ impl ImageCache {
                                 image::ImageBuffer::from_raw(size.width.0 as _, size.height.0 as _, data.to_vec()).unwrap(),
                             ),
                             None,
+                            None,
                         );
                         Ok((pixels, size, None, is_opaque, false))
                     } else {
@@ -153,8 +155,9 @@ impl ImageCache {
                         Ok((data, size, None, is_opaque, true))
                     }
                 }
-                fmt => match Self::get_format_and_size(&fmt, &data[..]) {
-                    Ok((fmt, mut size, orientation)) => {
+                fmt => match Self::header_decode(&fmt, &data[..]) {
+                    Ok(h) => {
+                        let mut size = h.size;
                         let decoded_len = size.width.0 as u64 * size.height.0 as u64 * 4;
                         if decoded_len > max_decoded_len {
                             Err(formatx!(
@@ -167,11 +170,11 @@ impl ImageCache {
                             let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataLoaded {
                                 image: id,
                                 size,
-                                ppi: None,
+                                ppi: h.ppi,
                                 is_mask: false,
                             }));
-                            match Self::image_decode(&data[..], fmt, downscale, orientation) {
-                                Ok(img) => Ok(Self::convert_decoded(img, mask)),
+                            match Self::image_decode(&data[..], h.format, downscale, h.orientation) {
+                                Ok(img) => Ok(Self::convert_decoded(img, mask, h.ppi)),
                                 Err(e) => Err(e.to_txt()),
                             }
                         }
@@ -244,10 +247,11 @@ impl ImageCache {
 
                         if let Some(fmt) = format {
                             if size.is_none() {
-                                if let Ok((f, s, o)) = Self::get_format_and_size(&request_fmt, &full) {
-                                    size = Some(s);
-                                    orientation = o;
-                                    format = Some(f);
+                                if let Ok(h) = Self::header_decode(&request_fmt, &full) {
+                                    size = Some(h.size);
+                                    orientation = h.orientation;
+                                    format = Some(h.format);
+                                    ppi = h.ppi;
                                 }
                                 if let Ok(mut d) = image::ImageReader::with_format(std::io::Cursor::new(&full), fmt).into_decoder() {
                                     use image::metadata::Orientation::*;
@@ -287,7 +291,7 @@ impl ImageCache {
             if let Some(fmt) = format {
                 match Self::image_decode(&full[..], fmt, downscale, orientation) {
                     Ok(img) => {
-                        let (pixels, size, ppi, is_opaque, is_mask) = Self::convert_decoded(img, mask);
+                        let (pixels, size, ppi, is_opaque, is_mask) = Self::convert_decoded(img, mask, ppi);
                         let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
                             id, size, ppi, is_opaque, is_mask, pixels,
                         )));
@@ -353,7 +357,7 @@ impl ImageCache {
         let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoaded(data)));
     }
 
-    fn get_format_and_size(fmt: &ImageDataFormat, data: &[u8]) -> Result<(image::ImageFormat, PxSize, image::metadata::Orientation), Txt> {
+    fn header_decode(fmt: &ImageDataFormat, data: &[u8]) -> Result<ImageHeader, Txt> {
         let maybe_fmt = match fmt {
             ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext.as_str()),
             ImageDataFormat::MimeType(t) => t.strip_prefix("image/").and_then(image::ImageFormat::from_extension),
@@ -380,7 +384,7 @@ impl ImageCache {
                         // decoder error, try fallback to Unknown
                         if let image::ImageError::Decoding(_) = &e
                             && maybe_fmt.is_some()
-                            && let Ok(r) = Self::get_format_and_size(&ImageDataFormat::Unknown, data)
+                            && let Ok(r) = Self::header_decode(&ImageDataFormat::Unknown, data)
                         {
                             return Ok(r);
                         }
@@ -389,12 +393,103 @@ impl ImageCache {
                 };
                 let (mut w, mut h) = decoder.dimensions();
                 let orientation = decoder.orientation().unwrap_or(NoTransforms);
-
                 if matches!(orientation, Rotate90 | Rotate270 | Rotate90FlipH | Rotate270FlipH) {
                     mem::swap(&mut w, &mut h)
                 }
 
-                Ok((fmt, PxSize::new(Px(w as i32), Px(h as i32)), orientation))
+                let mut ppi = None;
+
+                match fmt {
+                    #[cfg(feature = "image_jpeg")]
+                    image::ImageFormat::Jpeg => {
+                        let mut d = zune_jpeg::JpegDecoder::new(data);
+                        d.set_options(
+                            zune_jpeg::zune_core::options::DecoderOptions::default()
+                                .set_strict_mode(false)
+                                .set_max_width(usize::MAX)
+                                .set_max_height(usize::MAX),
+                        );
+                        d.decode_headers().map_err(|e| e.to_txt())?;
+                        if let Some(info) = d.info() {
+                            match info.pixel_density {
+                                // inches
+                                1 => ppi = Some(ImagePpi::new(info.x_density as f32, info.y_density as f32)),
+                                // centimeters
+                                2 => ppi = Some(ImagePpi::new_cm(info.x_density as f32, info.y_density as f32)),
+                                _ => {}
+                            }
+                        }
+                    }
+                    #[cfg(feature = "image_png")]
+                    image::ImageFormat::Png => {
+                        let mut d = png::Decoder::new_with_limits(std::io::Cursor::new(data), png::Limits { bytes: usize::MAX });
+                        let info = d.read_header_info().map_err(|e| e.to_txt())?;
+                        if let Some(d) = info.pixel_dims {
+                            match d.unit {
+                                png::Unit::Unspecified => {}
+                                png::Unit::Meter => {
+                                    ppi = Some(ImagePpi::new_cm(d.xppu as f32 / 100.0, d.yppu as f32 / 100.0));
+                                }
+                            }
+                        }
+                    }
+                    #[cfg(feature = "image_tiff")]
+                    image::ImageFormat::Tiff => {
+                        use tiff::{decoder::ifd::Value, tags::Tag};
+                        let mut d = tiff::decoder::Decoder::new(std::io::Cursor::new(data))
+                            .map_err(|e| e.to_txt())?
+                            .with_limits(tiff::decoder::Limits::unlimited());
+                        let res_unit = d.get_tag(Tag::ResolutionUnit).ok().and_then(|t| t.into_u16().ok()).unwrap_or(2);
+                        if let Ok(Value::Rational(x_num, x_denom)) = d.get_tag(Tag::XResolution)
+                            && let Ok(Value::Rational(y_num, y_denom)) = d.get_tag(Tag::YResolution)
+                        {
+                            let x = x_num as f32 / x_denom as f32;
+                            let y = y_num as f32 / y_denom as f32;
+                            match res_unit {
+                                // inches
+                                2 => {
+                                    ppi = Some(ImagePpi::new(x, y));
+                                }
+                                // centimeters
+                                3 => {
+                                    ppi = Some(ImagePpi::new_cm(x, y));
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+
+                if ppi.is_none()
+                    && let Ok(Some(exif)) = decoder.exif_metadata()
+                    && let Ok(exif) = exif::Reader::new().read_from_container(&mut std::io::Cursor::new(exif))
+                {
+                    use exif::Tag;
+                    if let Some(unit) = exif.get_field(Tag::ResolutionUnit, exif::In::PRIMARY)
+                        && let Some(x) = exif.get_field(Tag::XResolution, exif::In::PRIMARY)
+                        && let Some(y) = exif.get_field(Tag::YResolution, exif::In::PRIMARY)
+                        && let exif::Value::Rational(x) = &x.value
+                        && let exif::Value::Rational(y) = &y.value
+                    {
+                        let x = x[0].to_f32();
+                        let y = y[0].to_f32();
+                        match unit.value.get_uint(0) {
+                            // inches
+                            Some(2) => ppi = Some(ImagePpi::new(x, y)),
+                            // centimeters
+                            Some(3) => ppi = Some(ImagePpi::new(x, y)),
+                            _ => {}
+                        }
+                    }
+                }
+
+                Ok(ImageHeader {
+                    format: fmt,
+                    size: PxSize::new(Px(w as i32), Px(h as i32)),
+                    orientation,
+                    ppi,
+                })
             }
             None => Err(Txt::from_static("unknown format")),
         }
@@ -438,7 +533,7 @@ impl ImageCache {
         Ok(image)
     }
 
-    fn convert_decoded(image: image::DynamicImage, mask: Option<ImageMaskMode>) -> RawLoadedImg {
+    fn convert_decoded(image: image::DynamicImage, mask: Option<ImageMaskMode>, ppi: Option<ImagePpi>) -> RawLoadedImg {
         use image::DynamicImage::*;
 
         let mut is_opaque = true;
@@ -865,7 +960,7 @@ impl ImageCache {
         (
             IpcBytes::from_vec(pixels),
             PxSize::new(Px(size.0 as i32), Px(size.1 as i32)),
-            None,
+            ppi,
             is_opaque,
             mask.is_some(), // is_mask
         )
@@ -919,6 +1014,12 @@ impl ImageCache {
     }
 }
 
+struct ImageHeader {
+    format: image::ImageFormat,
+    size: PxSize,
+    orientation: image::metadata::Orientation,
+    ppi: Option<ImagePpi>,
+}
 /// (pixels, size, ppi, is_opaque, is_mask)
 type RawLoadedImg = (IpcBytes, PxSize, Option<ImagePpi>, bool, bool);
 pub(crate) enum ImageData {
@@ -1433,11 +1534,15 @@ mod capture {
                         bgra.swap(0, 3);
                     }
                 }
+                let ppi = 96.0 * scale_factor.0;
+                let ppi = Some(ImagePpi::splat(ppi));
+
                 let (pixels, size, ppi, is_opaque, is_mask) = Self::convert_decoded(
                     image::DynamicImage::ImageRgba8(
                         image::ImageBuffer::from_raw(rect.size.width.0 as u32, rect.size.height.0 as u32, buf).unwrap(),
                     ),
                     Some(mask),
+                    ppi,
                 );
 
                 let id = self.add(ImageRequest::new(

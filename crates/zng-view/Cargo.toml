@@ -66,9 +66,9 @@ image_hdr = ["image/hdr"]
 # Enable ICO image decoder and encoder.
 image_ico = ["image/ico"]
 # Enable JPEG image decoder and encoder.
-image_jpeg = ["image/jpeg"]
+image_jpeg = ["image/jpeg", "dep:zune-jpeg"]
 # Enable PNG image decoder and encoder.
-image_png = ["image/png"]
+image_png = ["image/png", "dep:png"]
 # Enable PNM image decoder and encoder.
 image_pnm = ["image/pnm"]
 # Enable QOI image decoder and encoder.
@@ -76,7 +76,7 @@ image_qoi = ["image/qoi"]
 # Enable TGA image decoder and encoder.
 image_tga = ["image/tga"]
 # Enable TIFF image decoder and encoder.
-image_tiff = ["image/tiff"]
+image_tiff = ["image/tiff", "dep:tiff"]
 # Enable WEBP image decoder.
 image_webp = ["image/webp"]
 
@@ -135,6 +135,11 @@ rayon = { version = "1.10", default-features = false }
 serde = { version = "1.0", default-features = false }
 accesskit = { version = "0.21", default-features = false }
 accesskit_winit = { version = "0.29", default-features = false, features = ["rwh_06", "accesskit_unix", "async-io"] }
+kamadak-exif = { version = "0.6.1", default-features = false }
+# matches `image` dependency version
+zune-jpeg = { version = "0.4.13", default-features = false, optional = true }
+png = { version = "0.18.0", default-features = false, optional = true }
+tiff = { version = "0.10.3", default-features = false, optional = true }
 # rfd
 ## cfg(not(linux, android, ios))
 [target.'cfg(not(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd", target_os = "android", target_os = "ios")))'.dependencies.rfd]

@@ -329,6 +329,26 @@ impl ImagePpi {
     pub const fn splat(xy: f32) -> Self {
         Self::new(xy, xy)
     }
+
+    /// New from pixels-per-centimeter
+    pub const fn new_cm(x: f32, y: f32) -> Self {
+        Self {
+            x: x * Self::CM_TO_INCH,
+            y: y * Self::CM_TO_INCH,
+        }
+    }
+
+    /// Pixels-per-centimeter in the X dimension.
+    pub const fn x_cm(self) -> f32 {
+        self.x / Self::CM_TO_INCH
+    }
+
+    /// Pixels-per-centimeter in the Y dimension.
+    pub const fn y_cm(self) -> f32 {
+        self.y / Self::CM_TO_INCH
+    }
+
+    const CM_TO_INCH: f32 = 2.54;
 }
 impl Default for ImagePpi {
     /// 96.0
