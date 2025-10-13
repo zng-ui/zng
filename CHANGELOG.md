@@ -1,5 +1,6 @@
 # Unreleased
 
+* Update default inspector watchers. Root widget now watches some general stats. All widgets now show *actual_size*.
 * Fix layout unit display print issues, precision propagation.
 * Implement image `ppi` metadata in `zng-view` for JPEG, PNG and TIFF.
 * Add pixels-per-centimeter support in `ImagePpi`.
