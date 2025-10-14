@@ -19,17 +19,13 @@ impl fmt::Debug for Line {
         if f.alternate() {
             f.debug_struct("Line").field("start", &self.start).field("end", &self.end).finish()
         } else {
-            write!(f, "{:?}.to{:?}", self.start, self.end)
+            write!(f, "{:.p$?}.to{:.p$?}", self.start, self.end, p = f.precision().unwrap_or(0))
         }
     }
 }
 impl fmt::Display for Line {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(p) = f.precision() {
-            write!(f, "{:.p$} to {:.p$}", self.start, self.end, p = p)
-        } else {
-            write!(f, "{} to {}", self.start, self.end)
-        }
+        write!(f, "{:.p$} to {:.p$}", self.start, self.end, p = f.precision().unwrap_or(0))
     }
 }
 impl std::str::FromStr for Line {

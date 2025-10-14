@@ -163,15 +163,15 @@ impl fmt::Debug for LengthExpr {
             }
         } else {
             match self {
-                Add(a, b) => write!(f, "({a:?} + {b:?})"),
-                Sub(a, b) => write!(f, "({a:?} - {b:?})"),
-                Mul(l, s) => write!(f, "({l:?} * {:?}.pct())", s.0 * 100.0),
-                Div(l, s) => write!(f, "({l:?} / {:?}.pct())", s.0 * 100.0),
-                Max(a, b) => write!(f, "max({a:?}, {b:?})"),
-                Min(a, b) => write!(f, "min({a:?}, {b:?})"),
-                Abs(e) => write!(f, "abs({e:?})"),
-                Neg(e) => write!(f, "-({e:?})"),
-                Lerp(a, b, n) => write!(f, "lerp({a:?}, {b:?}, {n:?})"),
+                Add(a, b) => write!(f, "({a:.p$?} + {b:.p$?})", p = f.precision().unwrap_or(0)),
+                Sub(a, b) => write!(f, "({a:.p$?} - {b:.p$?})", p = f.precision().unwrap_or(0)),
+                Mul(l, s) => write!(f, "({l:.p$?} * {:.p$?}.pct())", s.0 * 100.0, p = f.precision().unwrap_or(0)),
+                Div(l, s) => write!(f, "({l:.p$?} / {:.p$?}.pct())", s.0 * 100.0, p = f.precision().unwrap_or(0)),
+                Max(a, b) => write!(f, "max({a:.p$?}, {b:.p$?})", p = f.precision().unwrap_or(0)),
+                Min(a, b) => write!(f, "min({a:.p$?}, {b:.p$?})", p = f.precision().unwrap_or(0)),
+                Abs(e) => write!(f, "abs({e:.p$?})", p = f.precision().unwrap_or(0)),
+                Neg(e) => write!(f, "-({e:.p$?})", p = f.precision().unwrap_or(0)),
+                Lerp(a, b, n) => write!(f, "lerp({a:.p$?}, {b:.p$?}, {n:.p$?})", p = f.precision().unwrap_or(0)),
             }
         }
     }
@@ -180,15 +180,15 @@ impl fmt::Display for LengthExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use LengthExpr::*;
         match self {
-            Add(a, b) => write!(f, "({a} + {b})"),
-            Sub(a, b) => write!(f, "({a} - {b})"),
-            Mul(l, s) => write!(f, "({l} * {}%)", s.0 * 100.0),
-            Div(l, s) => write!(f, "({l} / {}%)", s.0 * 100.0),
-            Max(a, b) => write!(f, "max({a}, {b})"),
-            Min(a, b) => write!(f, "min({a}, {b})"),
-            Abs(e) => write!(f, "abs({e})"),
-            Neg(e) => write!(f, "-({e})"),
-            Lerp(a, b, n) => write!(f, "lerp({a}, {b}, {n})"),
+            Add(a, b) => write!(f, "({a:.p$} + {b:.p$})", p = f.precision().unwrap_or(0)),
+            Sub(a, b) => write!(f, "({a:.p$} - {b:.p$})", p = f.precision().unwrap_or(0)),
+            Mul(l, s) => write!(f, "({l:.p$} * {:.p$}%)", s.0 * 100.0, p = f.precision().unwrap_or(0)),
+            Div(l, s) => write!(f, "({l:.p$} / {:.p$}%)", s.0 * 100.0, p = f.precision().unwrap_or(0)),
+            Max(a, b) => write!(f, "max({a:.p$}, {b:.p$})", p = f.precision().unwrap_or(0)),
+            Min(a, b) => write!(f, "min({a:.p$}, {b:.p$})", p = f.precision().unwrap_or(0)),
+            Abs(e) => write!(f, "abs({e:.p$})", p = f.precision().unwrap_or(0)),
+            Neg(e) => write!(f, "-({e:.p$})", p = f.precision().unwrap_or(0)),
+            Lerp(a, b, n) => write!(f, "lerp({a:.p$}, {b:.p$}, {n:.p$})", p = f.precision().unwrap_or(0)),
         }
     }
 }

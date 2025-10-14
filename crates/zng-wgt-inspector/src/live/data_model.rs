@@ -382,8 +382,28 @@ impl INSPECTOR {
         builder.insert("interactivity", target.info().map(|i| formatx!("{:?}", i.interactivity())));
         builder.insert("visibility", target.render_watcher(|i| formatx!("{:?}", i.visibility())));
         builder.insert(
-            "inner_bounds",
-            target.render_watcher(|i| formatx!("{:?}", i.bounds_info().inner_bounds())),
+            "actual_size",
+            target.render_watcher(|i| {
+                let size_px = i.bounds_info().inner_bounds().size;
+                let size = size_px.to_dip(i.tree().scale_factor());
+                formatx!("{:.0?}", Size::from(size))
+            }),
         );
+
+        if target.info().with(|i| i.parent().is_none()) {
+            // root widget
+
+            builder.insert("scale_factor", target.render_watcher(|i| i.tree().scale_factor().to_txt()));
+            builder.insert(
+                "view_process_gen",
+                target.render_watcher(|i| i.tree().view_process_gen().get().to_txt()),
+            );
+            builder.insert(
+                "last_frame",
+                target.render_watcher(|i| formatx!("{:?}", i.tree().stats().last_frame)),
+            );
+            builder.insert("tree.len", target.info().map(|i| formatx!("{} widgets", i.tree().len())));
+            builder.insert("tree.generation", target.info().map(|i| i.tree().stats().generation.to_txt()));
+        }
     }
 }

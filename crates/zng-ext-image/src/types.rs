@@ -518,6 +518,7 @@ impl ImageHasher {
     /// Finish computing the hash.
     pub fn finish(self) -> ImageHash {
         use sha2::Digest;
+        #[allow(deprecated)] // dependencies `sha2 -> digest` need to upgrade, TODO(breaking) review this
         ImageHash(self.0.finalize().as_slice().try_into().unwrap())
     }
 }
