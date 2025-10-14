@@ -205,6 +205,7 @@ fn main() {
                                     open_or_paste_image(),
                                     exif_rotated(),
                                     ppi_scaled(),
+                                    color_profiles(),
                                 ]
                             )
                         ];
@@ -642,6 +643,122 @@ fn ppi_scaled() -> UiNode {
                         spacing = 10;
                         zng::image::img_scale_ppi = enabled;
                         children = ui_vec![example("300x300@96dpi"), example("600x600@192dpi"),];
+                    };
+                }
+            });
+        });
+    }
+}
+
+fn color_profiles() -> UiNode {
+    Button! {
+        child = Text!("Color Profiles");
+        on_click = hn!(|_| {
+            WINDOWS.open(async {
+                Window! {
+                    title = "Color Profiles";
+                    child_top = Text! {
+                        txt = "All rows must have the same color";
+                        txt_align = Align::CENTER;
+                        margin = 20;
+                    };
+                    auto_size = true;
+                    padding = 10;
+                    child = Grid! {
+                        align = Align::TOP;
+                        rows = ui_vec![grid::Row!(), grid::Row!(1.lft()),];
+                        auto_grow_mode = grid::AutoGrowMode::columns();
+                        auto_grow_fn = wgt_fn!(|_| grid::Column!(50));
+                        text::font_size = 12;
+                        text::txt_align = Align::CENTER;
+                        cells = ui_vec![
+                            Text! {
+                                grid::cell::at = (0, 0);
+                                txt = "Colors";
+                            },
+                            Stack! {
+                                grid::cell::at = (0, 1);
+                                direction = StackDirection::top_to_bottom();
+                                children = [hex!(#c08800), hex!(#88c088), hex!(#ff8888), hex!(#4088c0)].into_iter().map(|c| {
+                                    Wgt! {
+                                        size = 50;
+                                        background_color = c;
+                                    }
+                                });
+                            },
+                            Text! {
+                                grid::cell::at = (1, 0);
+                                txt = "GIF";
+                            },
+                            Image! {
+                                grid::cell::at = (1, 1);
+                                source = zng::env::res("color_profiles/anon.gif");
+                            },
+                            Text! {
+                                grid::cell::at = (2, 0);
+                                txt = "PNG";
+                            },
+                            Image! {
+                                grid::cell::at = (2, 1);
+                                source = zng::env::res("color_profiles/anon.png");
+                            },
+                            Text! {
+                                grid::cell::at = (3, 0);
+                                txt = "sRGB PNG";
+                            },
+                            Image! {
+                                grid::cell::at = (3, 1);
+                                source = zng::env::res("color_profiles/srgb.png");
+                            },
+                            Text! {
+                                grid::cell::at = (4, 0);
+                                txt = "Adobe98 PNG";
+                            },
+                            Image! {
+                                grid::cell::at = (4, 1);
+                                source = zng::env::res("color_profiles/adobe.png");
+                            },
+                            Text! {
+                                grid::cell::at = (5, 0);
+                                txt = "Custom ICC PNG";
+                            },
+                            Image! {
+                                grid::cell::at = (5, 1);
+                                source = zng::env::res("color_profiles/odd.png");
+                            },
+                            Text! {
+                                grid::cell::at = (6, 0);
+                                txt = "Gamma 1.0 PNG";
+                            },
+                            Image! {
+                                grid::cell::at = (6, 1);
+                                source = zng::env::res("color_profiles/gamma.png");
+                            },
+                            Text! {
+                                grid::cell::at = (7, 0);
+                                txt = "JPEG";
+                            },
+                            Image! {
+                                grid::cell::at = (7, 1);
+                                source = zng::env::res("color_profiles/anon.jpg");
+                            },
+                            Text! {
+                                grid::cell::at = (8, 0);
+                                txt = "sRGB JPEG";
+                            },
+                            Image! {
+                                grid::cell::at = (8, 1);
+                                source = zng::env::res("color_profiles/srgb.jpg");
+                            },
+                            Text! {
+                                grid::cell::at = (9, 0);
+                                txt = "Rec. 709 JPEG";
+                            },
+                            Image! {
+                                grid::cell::at = (9, 1);
+                                source = zng::env::res("color_profiles/rec709.jpg");
+                            },
+                        ];
                     };
                 }
             });

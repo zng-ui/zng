@@ -1618,3 +1618,108 @@ impl Drop for WinitEventLoopGuard<'_> {
         }
     }
 }
+
+#[cfg(feature = "image_png")]
+pub(crate) use png_color::png_color_metadata_to_icc;
+
+#[cfg(feature = "image_png")]
+mod png_color {
+    use lcms2::{CIExyY, CIExyYTRIPLE, Profile, ToneCurve};
+    use png::{ScaledFloat, SourceChromaticities};
+
+    fn is_srgb_equivalent(gamma: Option<ScaledFloat>, chromaticities: Option<SourceChromaticities>) -> bool {
+        const SRGB_GAMMA: f32 = 1.0 / 2.2;
+        const GAMMA_EPSILON: f32 = 0.01;
+
+        const SRGB_WHITE_X: f32 = 0.3127;
+        const SRGB_WHITE_Y: f32 = 0.3290;
+        const SRGB_RED_X: f32 = 0.64;
+        const SRGB_RED_Y: f32 = 0.33;
+        const SRGB_GREEN_X: f32 = 0.30;
+        const SRGB_GREEN_Y: f32 = 0.60;
+        const SRGB_BLUE_X: f32 = 0.15;
+        const SRGB_BLUE_Y: f32 = 0.06;
+        const CHROMA_EPSILON: f32 = 0.001;
+
+        let about_eq = |a: f32, b: f32, epsilon: f32| (a - b).abs() < epsilon;
+
+        let gamma_matches = gamma.is_some_and(|g| about_eq(g.into_value(), SRGB_GAMMA, GAMMA_EPSILON));
+
+        let chroma_matches = chromaticities.is_some_and(|c| {
+            about_eq(c.white.0.into_value(), SRGB_WHITE_X, CHROMA_EPSILON)
+                && about_eq(c.white.1.into_value(), SRGB_WHITE_Y, CHROMA_EPSILON)
+                && about_eq(c.red.0.into_value(), SRGB_RED_X, CHROMA_EPSILON)
+                && about_eq(c.red.1.into_value(), SRGB_RED_Y, CHROMA_EPSILON)
+                && about_eq(c.green.0.into_value(), SRGB_GREEN_X, CHROMA_EPSILON)
+                && about_eq(c.green.1.into_value(), SRGB_GREEN_Y, CHROMA_EPSILON)
+                && about_eq(c.blue.0.into_value(), SRGB_BLUE_X, CHROMA_EPSILON)
+                && about_eq(c.blue.1.into_value(), SRGB_BLUE_Y, CHROMA_EPSILON)
+        });
+
+        match (gamma.is_some(), chromaticities.is_some()) {
+            (true, true) => gamma_matches && chroma_matches,
+            (true, false) => gamma_matches,
+            (false, true) => chroma_matches,
+            (false, false) => false,
+        }
+    }
+
+    pub(crate) fn png_color_metadata_to_icc(gamma: Option<ScaledFloat>, chromaticities: Option<SourceChromaticities>) -> Option<Profile> {
+        if gamma.is_none() && chromaticities.is_none() {
+            return None;
+        }
+
+        if is_srgb_equivalent(gamma, chromaticities) {
+            return None;
+        }
+
+        let white_point = chromaticities.map_or_else(
+            || CIExyY {
+                x: 0.3127,
+                y: 0.3290,
+                Y: 1.0,
+            },
+            |c| CIExyY {
+                x: c.white.0.into_value() as f64,
+                y: c.white.1.into_value() as f64,
+                Y: 1.0,
+            },
+        );
+
+        let primaries = chromaticities.map_or_else(
+            || CIExyYTRIPLE {
+                Red: CIExyY { x: 0.64, y: 0.33, Y: 1.0 },
+                Green: CIExyY { x: 0.30, y: 0.60, Y: 1.0 },
+                Blue: CIExyY { x: 0.15, y: 0.06, Y: 1.0 },
+            },
+            |c| CIExyYTRIPLE {
+                Red: CIExyY {
+                    x: c.red.0.into_value() as f64,
+                    y: c.red.1.into_value() as f64,
+                    Y: 1.0,
+                },
+                Green: CIExyY {
+                    x: c.green.0.into_value() as f64,
+                    y: c.green.1.into_value() as f64,
+                    Y: 1.0,
+                },
+                Blue: CIExyY {
+                    x: c.blue.0.into_value() as f64,
+                    y: c.blue.1.into_value() as f64,
+                    Y: 1.0,
+                },
+            },
+        );
+
+        let display_gamma = match gamma.map(|g| g.into_value()) {
+            Some(g) if (g - 1.0).abs() < 0.001 => 1.0,
+            Some(g) => (1.0 / g) as f64,
+            None => 2.2,
+        };
+
+        let tone_curve = ToneCurve::new(display_gamma);
+        let curves = [&tone_curve, &tone_curve, &tone_curve];
+
+        Profile::new_rgb(&white_point, &primaries, &curves).ok()
+    }
+}
