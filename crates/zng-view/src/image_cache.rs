@@ -127,6 +127,7 @@ impl ImageCache {
                             ),
                             mask,
                             ppi,
+                            vec![],
                         );
                         Ok((pixels, size, ppi, is_opaque, true))
                     } else {
@@ -148,6 +149,7 @@ impl ImageCache {
                             ),
                             None,
                             None,
+                            vec![],
                         );
                         Ok((pixels, size, None, is_opaque, false))
                     } else {
@@ -174,7 +176,7 @@ impl ImageCache {
                                 is_mask: false,
                             }));
                             match Self::image_decode(&data[..], h.format, downscale, h.orientation) {
-                                Ok(img) => Ok(Self::convert_decoded(img, mask, h.ppi)),
+                                Ok(img) => Ok(Self::convert_decoded(img, mask, h.ppi, h.icc_profile)),
                                 Err(e) => Err(e.to_txt()),
                             }
                         }
@@ -216,6 +218,7 @@ impl ImageCache {
             let mut full = vec![];
             let mut size = None;
             let mut ppi = None;
+            let mut icc_profile = vec![];
             let mut is_encoded = true;
             let mut orientation = image::metadata::Orientation::NoTransforms;
 
@@ -252,6 +255,7 @@ impl ImageCache {
                                     orientation = h.orientation;
                                     format = Some(h.format);
                                     ppi = h.ppi;
+                                    icc_profile = h.icc_profile;
                                 }
                                 if let Ok(mut d) = image::ImageReader::with_format(std::io::Cursor::new(&full), fmt).into_decoder() {
                                     use image::metadata::Orientation::*;
@@ -291,7 +295,7 @@ impl ImageCache {
             if let Some(fmt) = format {
                 match Self::image_decode(&full[..], fmt, downscale, orientation) {
                     Ok(img) => {
-                        let (pixels, size, ppi, is_opaque, is_mask) = Self::convert_decoded(img, mask, ppi);
+                        let (pixels, size, ppi, is_opaque, is_mask) = Self::convert_decoded(img, mask, ppi, icc_profile);
                         let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
                             id, size, ppi, is_opaque, is_mask, pixels,
                         )));
@@ -511,11 +515,14 @@ impl ImageCache {
                     }
                 }
 
+                let icc_profile = if let Ok(Some(icc)) = decoder.icc_profile() { icc } else { vec![] };
+
                 Ok(ImageHeader {
                     format: fmt,
                     size: PxSize::new(Px(w as i32), Px(h as i32)),
                     orientation,
                     ppi,
+                    icc_profile,
                 })
             }
             None => Err(Txt::from_static("unknown format")),
@@ -560,12 +567,17 @@ impl ImageCache {
         Ok(image)
     }
 
-    fn convert_decoded(image: image::DynamicImage, mask: Option<ImageMaskMode>, ppi: Option<ImagePpi>) -> RawLoadedImg {
+    fn convert_decoded(
+        image: image::DynamicImage,
+        mask: Option<ImageMaskMode>,
+        ppi: Option<ImagePpi>,
+        icc_profile: Vec<u8>,
+    ) -> RawLoadedImg {
         use image::DynamicImage::*;
 
         let mut is_opaque = true;
 
-        let (size, pixels) = match image {
+        let (size, mut pixels) = match image {
             ImageLuma8(img) => (
                 img.dimensions(),
                 if mask.is_some() {
@@ -984,6 +996,18 @@ impl ImageCache {
             _ => unreachable!(),
         };
 
+        if !icc_profile.is_empty() {
+            use lcms2::*;
+            match Profile::new_icc(&icc_profile) {
+                Ok(p) => {
+                    let srgb = Profile::new_srgb();
+                    let t = Transform::new(&p, PixelFormat::BGRA_8, &srgb, PixelFormat::BGRA_8, Intent::Perceptual).unwrap();
+                    t.transform_in_place(&mut pixels);
+                }
+                Err(e) => tracing::error!("cannot parse ICC profile, {e}"),
+            }
+        }
+
         (
             IpcBytes::from_vec(pixels),
             PxSize::new(Px(size.0 as i32), Px(size.1 as i32)),
@@ -1046,6 +1070,7 @@ struct ImageHeader {
     size: PxSize,
     orientation: image::metadata::Orientation,
     ppi: Option<ImagePpi>,
+    icc_profile: Vec<u8>,
 }
 /// (pixels, size, ppi, is_opaque, is_mask)
 type RawLoadedImg = (IpcBytes, PxSize, Option<ImagePpi>, bool, bool);
@@ -1570,6 +1595,7 @@ mod capture {
                     ),
                     Some(mask),
                     ppi,
+                    vec![],
                 );
 
                 let id = self.add(ImageRequest::new(
