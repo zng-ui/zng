@@ -127,7 +127,7 @@ impl ImageCache {
                             ),
                             mask,
                             ppi,
-                            vec![],
+                            None,
                         );
                         Ok((pixels, size, ppi, is_opaque, true))
                     } else {
@@ -149,7 +149,7 @@ impl ImageCache {
                             ),
                             None,
                             None,
-                            vec![],
+                            None,
                         );
                         Ok((pixels, size, None, is_opaque, false))
                     } else {
@@ -218,7 +218,7 @@ impl ImageCache {
             let mut full = vec![];
             let mut size = None;
             let mut ppi = None;
-            let mut icc_profile = vec![];
+            let mut icc_profile = None;
             let mut is_encoded = true;
             let mut orientation = image::metadata::Orientation::NoTransforms;
 
@@ -402,6 +402,10 @@ impl ImageCache {
                 }
 
                 let mut ppi = None;
+                #[cfg(feature = "image_png")]
+                let mut png_gamma = None;
+                #[cfg(feature = "image_png")]
+                let mut png_chromaticities = None;
 
                 match fmt {
                     #[cfg(feature = "image_jpeg")]
@@ -455,7 +459,8 @@ impl ImageCache {
                     image::ImageFormat::Png => {
                         let d = png::Decoder::new_with_limits(std::io::Cursor::new(data), png::Limits { bytes: usize::MAX });
                         let d = d.read_info().map_err(|e| e.to_txt())?;
-                        if let Some(d) = d.info().pixel_dims {
+                        let info = d.info();
+                        if let Some(d) = info.pixel_dims {
                             match d.unit {
                                 png::Unit::Unspecified => {}
                                 png::Unit::Meter => {
@@ -463,6 +468,8 @@ impl ImageCache {
                                 }
                             }
                         }
+                        png_gamma = info.gama_chunk;
+                        png_chromaticities = info.chrm_chunk;
                     }
                     #[cfg(feature = "image_tiff")]
                     image::ImageFormat::Tiff => {
@@ -515,7 +522,18 @@ impl ImageCache {
                     }
                 }
 
-                let icc_profile = if let Ok(Some(icc)) = decoder.icc_profile() { icc } else { vec![] };
+                let mut icc_profile = None;
+                if let Ok(Some(icc)) = decoder.icc_profile() {
+                    match lcms2::Profile::new_icc(&icc) {
+                        Ok(p) => icc_profile = Some(p),
+                        Err(e) => tracing::error!("error parsing ICC profile, {e}"),
+                    }
+                }
+                #[cfg(feature = "image_png")]
+                if icc_profile.is_none() {
+                    // PNG has some color management metadata, convert to standard
+                    icc_profile = crate::util::png_color_metadata_to_icc(png_gamma, png_chromaticities);
+                }
 
                 Ok(ImageHeader {
                     format: fmt,
@@ -571,7 +589,7 @@ impl ImageCache {
         image: image::DynamicImage,
         mask: Option<ImageMaskMode>,
         ppi: Option<ImagePpi>,
-        icc_profile: Vec<u8>,
+        icc_profile: Option<lcms2::Profile>,
     ) -> RawLoadedImg {
         use image::DynamicImage::*;
 
@@ -996,16 +1014,11 @@ impl ImageCache {
             _ => unreachable!(),
         };
 
-        if !icc_profile.is_empty() {
+        if let Some(p) = icc_profile {
             use lcms2::*;
-            match Profile::new_icc(&icc_profile) {
-                Ok(p) => {
-                    let srgb = Profile::new_srgb();
-                    let t = Transform::new(&p, PixelFormat::BGRA_8, &srgb, PixelFormat::BGRA_8, Intent::Perceptual).unwrap();
-                    t.transform_in_place(&mut pixels);
-                }
-                Err(e) => tracing::error!("cannot parse ICC profile, {e}"),
-            }
+            let srgb = Profile::new_srgb();
+            let t = Transform::new(&p, PixelFormat::BGRA_8, &srgb, PixelFormat::BGRA_8, Intent::Perceptual).unwrap();
+            t.transform_in_place(&mut pixels);
         }
 
         (
@@ -1070,7 +1083,7 @@ struct ImageHeader {
     size: PxSize,
     orientation: image::metadata::Orientation,
     ppi: Option<ImagePpi>,
-    icc_profile: Vec<u8>,
+    icc_profile: Option<lcms2::Profile>,
 }
 /// (pixels, size, ppi, is_opaque, is_mask)
 type RawLoadedImg = (IpcBytes, PxSize, Option<ImagePpi>, bool, bool);
@@ -1595,7 +1608,7 @@ mod capture {
                     ),
                     Some(mask),
                     ppi,
-                    vec![],
+                    None,
                 );
 
                 let id = self.add(ImageRequest::new(
