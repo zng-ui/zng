@@ -422,9 +422,9 @@ impl ImageCache {
                     }
                     #[cfg(feature = "image_png")]
                     image::ImageFormat::Png => {
-                        let mut d = png::Decoder::new_with_limits(std::io::Cursor::new(data), png::Limits { bytes: usize::MAX });
-                        let info = d.read_header_info().map_err(|e| e.to_txt())?;
-                        if let Some(d) = info.pixel_dims {
+                        let d = png::Decoder::new_with_limits(std::io::Cursor::new(data), png::Limits { bytes: usize::MAX });
+                        let d = d.read_info().map_err(|e| e.to_txt())?;
+                        if let Some(d) = d.info().pixel_dims {
                             match d.unit {
                                 png::Unit::Unspecified => {}
                                 png::Unit::Meter => {
