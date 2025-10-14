@@ -641,7 +641,7 @@ fn ppi_scaled() -> UiNode {
                         direction = StackDirection::left_to_right();
                         spacing = 10;
                         zng::image::img_scale_ppi = enabled;
-                        children =  ui_vec![example("300x300@96dpi"), example("600x600@192dpi"),]
+                        children = ui_vec![example("300x300@96dpi"), example("600x600@192dpi"),];
                     };
                 }
             });

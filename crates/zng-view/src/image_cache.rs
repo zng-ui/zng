@@ -402,20 +402,47 @@ impl ImageCache {
                 match fmt {
                     #[cfg(feature = "image_jpeg")]
                     image::ImageFormat::Jpeg => {
-                        let mut d = zune_jpeg::JpegDecoder::new(data);
-                        d.set_options(
-                            zune_jpeg::zune_core::options::DecoderOptions::default()
-                                .set_strict_mode(false)
-                                .set_max_width(usize::MAX)
-                                .set_max_height(usize::MAX),
-                        );
-                        d.decode_headers().map_err(|e| e.to_txt())?;
-                        if let Some(info) = d.info() {
-                            match info.pixel_density {
+                        // `image` uses `zune-jpeg`, that decoder does not parse density correctly,
+                        // so we do it manually here
+                        fn parse_density(data: &[u8]) -> Option<(u8, u16, u16)> {
+                            let mut i = 0;
+                            while i + 4 < data.len() {
+                                // APP0
+                                if data[i] == 0xFF && data[i + 1] == 0xE0 {
+                                    let len = u16::from_be_bytes([data[i + 2], data[i + 3]]) as usize;
+                                    if i + 2 + len > data.len() {
+                                        break;
+                                    }
+
+                                    // APP0 payload starts at i+4, identifier is 5 bytes: "JFIF\0"
+                                    let p = i + 4;
+                                    if &data[p..p + 5] == b"JFIF\0" && p + 14 <= data.len() {
+                                        let unit = data[p + 7];
+                                        let x = u16::from_be_bytes([data[p + 8], data[p + 9]]);
+                                        let y = u16::from_be_bytes([data[p + 10], data[p + 11]]);
+                                        return Some((unit, x, y));
+                                    }
+
+                                    i += 2 + len;
+                                } else if data[i] == 0xFF && data[i + 1] == 0xDA {
+                                    // Start of Scan
+                                    break;
+                                } else {
+                                    i += 1;
+                                }
+                            }
+                            None
+                        }
+                        if let Some((unit, x, y)) = parse_density(data) {
+                            match unit {
                                 // inches
-                                1 => ppi = Some(ImagePpi::new(info.x_density as f32, info.y_density as f32)),
+                                1 => {
+                                    ppi = Some(ImagePpi::new(x as f32, y as f32));
+                                }
                                 // centimeters
-                                2 => ppi = Some(ImagePpi::new_cm(info.x_density as f32, info.y_density as f32)),
+                                2 => {
+                                    ppi = Some(ImagePpi::new_cm(x as f32, y as f32));
+                                }
                                 _ => {}
                             }
                         }
