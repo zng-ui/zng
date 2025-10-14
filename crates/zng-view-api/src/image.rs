@@ -175,7 +175,7 @@ pub enum ImageDataFormat {
     /// Decoded BGRA8.
     ///
     /// This is the internal image format, it indicates the image data
-    /// is already decoded and must only be entered into the cache.
+    /// is already decoded and color managed (to sRGB).
     Bgra8 {
         /// Size in pixels.
         size: PxSize,
@@ -186,7 +186,7 @@ pub enum ImageDataFormat {
     /// Decoded A8.
     ///
     /// This is the internal mask format it indicates the mask data
-    /// is already decoded and must only be entered into the cache.
+    /// is already decoded.
     A8 {
         /// Size in pixels.
         size: PxSize,

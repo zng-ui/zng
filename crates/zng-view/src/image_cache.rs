@@ -1,21 +1,31 @@
-use std::{fmt, mem, sync::Arc};
+use std::{fmt, sync::Arc};
 
-use image::ImageDecoder;
+#[cfg(feature = "image_any")]
+use image::ImageDecoder as _;
+
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use winit::{
     event_loop::ActiveEventLoop,
     window::{CustomCursor, Icon},
 };
-use zng_txt::{ToTxt, Txt, formatx};
+#[cfg(feature = "image_any")]
+use zng_txt::ToTxt as _;
+use zng_txt::{Txt, formatx};
+
 use zng_unit::{Px, PxPoint, PxSize};
 use zng_view_api::{
     Event,
-    image::{ImageDataFormat, ImageDownscale, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
+    image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
     ipc::{IpcBytes, IpcBytesReceiver},
 };
 
 use crate::{AppEvent, AppEventSender};
 use rustc_hash::FxHashMap;
+
+#[cfg(not(feature = "image_any"))]
+mod lcms2 {
+    pub struct Profile {}
+}
 
 pub(crate) const ENCODERS: &[&str] = &[
     #[cfg(feature = "image_png")]
@@ -157,32 +167,41 @@ impl ImageCache {
                         Ok((data, size, None, is_opaque, true))
                     }
                 }
-                fmt => match Self::header_decode(&fmt, &data[..]) {
-                    Ok(h) => {
-                        let mut size = h.size;
-                        let decoded_len = size.width.0 as u64 * size.height.0 as u64 * 4;
-                        if decoded_len > max_decoded_len {
-                            Err(formatx!(
-                                "image {size:?} needs to allocate {decoded_len} bytes, but max allowed size is {max_decoded_len} bytes",
-                            ))
-                        } else {
-                            if let Some(d) = downscale {
-                                size = d.resize_dimensions(size);
-                            }
-                            let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataLoaded {
-                                image: id,
-                                size,
-                                ppi: h.ppi,
-                                is_mask: false,
-                            }));
-                            match Self::image_decode(&data[..], h.format, downscale, h.orientation) {
-                                Ok(img) => Ok(Self::convert_decoded(img, mask, h.ppi, h.icc_profile)),
-                                Err(e) => Err(e.to_txt()),
+                fmt => {
+                    #[cfg(not(feature = "image_any"))]
+                    {
+                        let _ = (max_decoded_len, downscale);
+                        Err(zng_txt::formatx!("no decoder for {fmt:?}"))
+                    }
+
+                    #[cfg(feature = "image_any")]
+                    match Self::header_decode(&fmt, &data[..]) {
+                        Ok(h) => {
+                            let mut size = h.size;
+                            let decoded_len = size.width.0 as u64 * size.height.0 as u64 * 4;
+                            if decoded_len > max_decoded_len {
+                                Err(formatx!(
+                                    "image {size:?} needs to allocate {decoded_len} bytes, but max allowed size is {max_decoded_len} bytes",
+                                ))
+                            } else {
+                                if let Some(d) = downscale {
+                                    size = d.resize_dimensions(size);
+                                }
+                                let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataLoaded {
+                                    image: id,
+                                    size,
+                                    ppi: h.ppi,
+                                    is_mask: false,
+                                }));
+                                match Self::image_decode(&data[..], h.format, downscale, h.orientation) {
+                                    Ok(img) => Ok(Self::convert_decoded(img, mask, h.ppi, h.icc_profile)),
+                                    Err(e) => Err(e.to_txt()),
+                                }
                             }
                         }
+                        Err(e) => Err(e),
                     }
-                    Err(e) => Err(e),
-                },
+                }
             };
 
             match r {
@@ -218,11 +237,11 @@ impl ImageCache {
             let mut full = vec![];
             let mut size = None;
             let mut ppi = None;
-            let mut icc_profile = None;
+            let mut icc_profile = None::<lcms2::Profile>;
             let mut is_encoded = true;
             let mut orientation = image::metadata::Orientation::NoTransforms;
 
-            let mut format = match &request_fmt {
+            let mut format: Option<image::ImageFormat> = match &request_fmt {
                 ImageDataFormat::Bgra8 { size: s, ppi: p } => {
                     is_encoded = false;
                     size = Some(*s);
@@ -234,7 +253,9 @@ impl ImageCache {
                     size = Some(*s);
                     None
                 }
+                #[cfg(feature = "image_any")]
                 ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext.as_str()),
+                #[cfg(feature = "image_any")]
                 ImageDataFormat::MimeType(t) => t.strip_prefix("image/").and_then(image::ImageFormat::from_extension),
                 ImageDataFormat::Unknown => None,
                 _ => None,
@@ -248,6 +269,7 @@ impl ImageCache {
 
                         full.extend(d);
 
+                        #[cfg(feature = "image_any")]
                         if let Some(fmt) = format {
                             if size.is_none() {
                                 if let Ok(h) = Self::header_decode(&request_fmt, &full) {
@@ -264,7 +286,7 @@ impl ImageCache {
                                     orientation = d.orientation().unwrap_or(NoTransforms);
 
                                     if matches!(orientation, Rotate90 | Rotate270 | Rotate90FlipH | Rotate270FlipH) {
-                                        mem::swap(&mut w, &mut h)
+                                        std::mem::swap(&mut w, &mut h)
                                     }
 
                                     size = Some(PxSize::new(Px(w as i32), Px(h as i32)));
@@ -293,6 +315,18 @@ impl ImageCache {
             }
 
             if let Some(fmt) = format {
+                #[cfg(not(feature = "image_any"))]
+                let _ = (
+                    fmt,
+                    max_decoded_len,
+                    downscale,
+                    mask,
+                    &mut icc_profile,
+                    &mut orientation,
+                    &mut format,
+                );
+
+                #[cfg(feature = "image_any")]
                 match Self::image_decode(&full[..], fmt, downscale, orientation) {
                     Ok(img) => {
                         let (pixels, size, ppi, is_opaque, is_mask) = Self::convert_decoded(img, mask, ppi, icc_profile);
@@ -361,6 +395,7 @@ impl ImageCache {
         let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoaded(data)));
     }
 
+    #[cfg(feature = "image_any")]
     fn header_decode(fmt: &ImageDataFormat, data: &[u8]) -> Result<ImageHeader, Txt> {
         let maybe_fmt = match fmt {
             ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext.as_str()),
@@ -398,7 +433,7 @@ impl ImageCache {
                 let (mut w, mut h) = decoder.dimensions();
                 let orientation = decoder.orientation().unwrap_or(NoTransforms);
                 if matches!(orientation, Rotate90 | Rotate270 | Rotate90FlipH | Rotate270FlipH) {
-                    mem::swap(&mut w, &mut h)
+                    std::mem::swap(&mut w, &mut h)
                 }
 
                 let mut ppi = None;
@@ -547,10 +582,11 @@ impl ImageCache {
         }
     }
 
+    #[cfg(feature = "image_any")]
     fn image_decode(
         buf: &[u8],
         format: image::ImageFormat,
-        downscale: Option<ImageDownscale>,
+        downscale: Option<zng_view_api::image::ImageDownscale>,
         orientation: image::metadata::Orientation,
     ) -> image::ImageResult<image::DynamicImage> {
         let buf = std::io::Cursor::new(buf);
@@ -564,15 +600,16 @@ impl ImageCache {
 
         if let Some(s) = downscale {
             let (img_w, img_h) = (image.width(), image.height());
+            use zng_view_api::image::ImageDownscale::*;
             match s {
-                ImageDownscale::Fit(s) => {
+                Fit(s) => {
                     let w = img_w.min(s.width.0 as u32);
                     let h = img_h.min(s.height.0 as u32);
                     if w != img_w || h != img_h {
                         image = image.resize(w, h, image::imageops::FilterType::Triangle);
                     }
                 }
-                ImageDownscale::Fill(s) => {
+                Fill(s) => {
                     let w = img_w.min(s.width.0 as u32);
                     let h = img_h.min(s.height.0 as u32);
                     if w != img_w && h != img_h {
@@ -1014,12 +1051,15 @@ impl ImageCache {
             _ => unreachable!(),
         };
 
+        #[cfg(feature = "image_any")]
         if let Some(p) = icc_profile {
             use lcms2::*;
             let srgb = Profile::new_srgb();
             let t = Transform::new(&p, PixelFormat::BGRA_8, &srgb, PixelFormat::BGRA_8, Intent::Perceptual).unwrap();
             t.transform_in_place(&mut pixels);
         }
+        #[cfg(not(feature = "image_any"))]
+        let _ = (icc_profile, &mut pixels);
 
         (
             IpcBytes::from_vec(pixels),
@@ -1077,7 +1117,7 @@ impl ImageCache {
         self.images.clear();
     }
 }
-
+#[cfg(feature = "image_any")]
 struct ImageHeader {
     format: image::ImageFormat,
     size: PxSize,

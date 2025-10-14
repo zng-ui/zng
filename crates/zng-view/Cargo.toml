@@ -52,33 +52,36 @@ android_native_activity = ["winit/android-native-activity"]
 # image_avif = ["image/avif", "image/avif-native"]
 
 # Enable BMP image decoder and encoder.
-image_bmp = ["image/bmp"]
+image_bmp = ["image_any", "image/bmp"]
 # Enable DDS image decoder.
-image_dds = ["image/dds"]
+image_dds = ["image_any", "image/dds"]
 # Enable EXR image decoder and encoder.
-image_exr = ["image/exr"]
+image_exr = ["image_any", "image/exr"]
 # Enable Farbfeld image decoder and encoder.
-image_ff = ["image/ff"]
+image_ff = ["image_any", "image/ff"]
 # Enable GIF image decoder and encoder.
-image_gif = ["image/gif"]
+image_gif = ["image_any", "image/gif"]
 # Enable Radiance HDR image decoder and encoder.
-image_hdr = ["image/hdr"]
+image_hdr = ["image_any", "image/hdr"]
 # Enable ICO image decoder and encoder.
-image_ico = ["image/ico"]
+image_ico = ["image_any", "image/ico"]
 # Enable JPEG image decoder and encoder.
-image_jpeg = ["image/jpeg"]
+image_jpeg = ["image_any", "image/jpeg"]
 # Enable PNG image decoder and encoder.
-image_png = ["image/png", "dep:png"]
+image_png = ["image_any", "image/png", "dep:png"]
 # Enable PNM image decoder and encoder.
-image_pnm = ["image/pnm"]
+image_pnm = ["image_any", "image/pnm"]
 # Enable QOI image decoder and encoder.
-image_qoi = ["image/qoi"]
+image_qoi = ["image_any", "image/qoi"]
 # Enable TGA image decoder and encoder.
-image_tga = ["image/tga"]
+image_tga = ["image_any", "image/tga"]
 # Enable TIFF image decoder and encoder.
-image_tiff = ["image/tiff", "dep:tiff"]
+image_tiff = ["image_any", "image/tiff", "dep:tiff"]
 # Enable WEBP image decoder.
-image_webp = ["image/webp"]
+image_webp = ["image_any", "image/webp"]
+
+# If any image format feature is enabled.
+image_any = ["dep:kamadak-exif", "dep:lcms2"]
 
 # Enable all image decoders and encoders.
 image_all = [
@@ -135,8 +138,8 @@ rayon = { version = "1.10", default-features = false }
 serde = { version = "1.0", default-features = false }
 accesskit = { version = "0.21", default-features = false }
 accesskit_winit = { version = "0.29", default-features = false, features = ["rwh_06", "accesskit_unix", "async-io"] }
-kamadak-exif = { version = "0.6.1", default-features = false }
-lcms2 = { version = "6.1.1", default-features = false, features = ["static"] }
+kamadak-exif = { version = "0.6.1", default-features = false, optional = true }
+lcms2 = { version = "6.1.1", default-features = false, features = ["static"], optional = true }
 # matches `image` dependency version
 png = { version = "0.18.0", default-features = false, optional = true }
 tiff = { version = "0.10.3", default-features = false, optional = true }
