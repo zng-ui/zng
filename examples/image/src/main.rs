@@ -204,6 +204,7 @@ fn main() {
                                     repeat_image(),
                                     open_or_paste_image(),
                                     exif_rotated(),
+                                    ppi_scaled(),
                                 ]
                             )
                         ];
@@ -591,18 +592,57 @@ fn exif_rotated() -> UiNode {
                 }
                 Window! {
                     title = "Exif Rotated";
-                    child_align = Align::TOP;
                     child_top = Text! {
                         txt = "all arrows must point right";
                         txt_align = Align::CENTER;
                         font_size = 2.em();
                         margin = 20;
                     };
+                    auto_size = true;
+                    padding = 10;
                     child = Stack!(
                         left_to_right,
                         10,
                         ui_vec![example("exif rotated.jpg"), example("exif rotated.tif"),]
                     );
+                }
+            });
+        });
+    }
+}
+
+fn ppi_scaled() -> UiNode {
+    Button! {
+        child = Text!("PPI Scaled");
+        on_click = hn!(|_| {
+            WINDOWS.open(async {
+                fn example(file: &'static str) -> UiNode {
+                    Image! {
+                        zng::container::child_top = Text! {
+                            txt = file;
+                            txt_align = Align::CENTER;
+                            font_weight = FontWeight::BOLD;
+                        };
+                        source = zng::env::res(format!("{file}.png"));
+                    }
+                }
+                let enabled = var(false);
+                Window! {
+                    title = "PPI Scaled";
+                    child_top = Toggle! {
+                        layout::align = Align::CENTER;
+                        checked = enabled.clone();
+                        child = Text!(enabled.map(|e| formatx!("image_scale_ppi = {e}")));
+                        margin = 20;
+                    };
+                    auto_size = true;
+                    padding = 10;
+                    child = Stack! {
+                        direction = StackDirection::left_to_right();
+                        spacing = 10;
+                        zng::image::img_scale_ppi = enabled;
+                        children =  ui_vec![example("300x300@96dpi"), example("600x600@192dpi"),]
+                    };
                 }
             });
         });
