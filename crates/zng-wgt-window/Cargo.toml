@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-window"
-version = "0.12.0"
+version = "0.12.1"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -16,24 +16,24 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 image = ["zng-ext-window/image"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.11.0", default-features = false }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.10.0", default-features = false }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.8.0", default-features = false }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.10.0", default-features = false }
-zng-app = { path = "../zng-app", version = "0.19.0", default-features = false }
-zng-ext-window = { path = "../zng-ext-window", version = "0.9.0", default-features = false }
-zng-ext-config = { path = "../zng-ext-config", version = "0.9.0", default-features = false }
-zng-ext-input = { path = "../zng-ext-input", version = "0.11.0", default-features = false }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.11.0", default-features = false }
+zng-wgt = { path = "../zng-wgt", version = "0.11.1", default-features = false }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.10.1", default-features = false }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.8.1", default-features = false }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.10.1", default-features = false }
+zng-app = { path = "../zng-app", version = "0.19.1", default-features = false }
+zng-ext-window = { path = "../zng-ext-window", version = "0.9.1", default-features = false }
+zng-ext-config = { path = "../zng-ext-config", version = "0.9.1", default-features = false }
+zng-ext-input = { path = "../zng-ext-input", version = "0.11.1", default-features = false }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.11.1", default-features = false }
 zng-var = { path = "../zng-var", version = "0.10.0", default-features = false }
-zng-color = { path = "../zng-color", version = "0.9.0", default-features = false }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.8.0", default-features = false }
-zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.9.0", default-features = false }
+zng-color = { path = "../zng-color", version = "0.9.1", default-features = false }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.8.1", default-features = false }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.9.1", default-features = false }
 
 # used only by fallback_chrome
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.8.0", default-features = false }
-zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.9.0", default-features = false }
-zng-wgt-button = { path = "../zng-wgt-button", version = "0.10.0", default-features = false }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.8.1", default-features = false }
+zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.9.1", default-features = false }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.10.1", default-features = false }
 
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 pastey = { version = "0.1", default-features = false }
