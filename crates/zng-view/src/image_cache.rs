@@ -536,7 +536,7 @@ impl ImageCache {
 
                 if ppi.is_none()
                     && let Ok(Some(exif)) = decoder.exif_metadata()
-                    && let Ok(exif) = exif::Reader::new().read_from_container(&mut std::io::Cursor::new(exif))
+                    && let Ok(exif) = exif::Reader::new().read_raw(exif)
                 {
                     use exif::Tag;
                     if let Some(unit) = exif.get_field(Tag::ResolutionUnit, exif::In::PRIMARY)

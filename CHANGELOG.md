@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix EXIF metadata reading to define `ppi`.
 
 # 0.18.1
 
