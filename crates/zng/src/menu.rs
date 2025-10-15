@@ -91,10 +91,7 @@
 
 pub use zng_wgt_menu::{ButtonStyle, IconButtonStyle, Menu, ToggleStyle, icon, icon_fn, panel_fn, shortcut_txt, style_fn};
 
-use crate::{
-    style::style_fn,
-    widget::{widget, widget_set},
-};
+use crate::widget::{widget, widget_set};
 
 /// Default [`Menu!`] style.
 ///
@@ -109,7 +106,7 @@ impl DefaultStyle {
         widget_set! {
             self;
             #[cfg(feature = "text_input")]
-            crate::text_input::style_fn = style_fn!(|_| TextInputStyle!());
+            crate::text_input::style_fn = crate::style::style_fn!(|_| TextInputStyle!());
         }
     }
 }
@@ -123,6 +120,7 @@ impl DefaultStyle {
 #[cfg(feature = "text_input")]
 #[widget($crate::menu::TextInputStyle)]
 pub struct TextInputStyle(crate::text_input::DefaultStyle);
+#[cfg(feature = "text_input")]
 impl TextInputStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
