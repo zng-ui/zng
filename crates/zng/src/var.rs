@@ -311,8 +311,8 @@ pub use zng_var::{
     AnyVar, AnyVarValue, AnyWhenVarBuilder, ArcEq, BoxAnyVarValue, ContextInitHandle, ContextVar, IntoValue, IntoVar, MergeVarBuilder,
     ObservableVec, ResponderVar, Response, ResponseVar, VARS, Var, VarCapability, VarEq, VarHandle, VarHandles, VarHookArgs,
     VarInstanceTag, VarModify, VarUpdateId, VarValue, VecChange, WeakAnyVar, WeakVar, any_var_derived, const_var, context_var,
-    contextual_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, var, var_default, var_from, var_getter,
-    var_state, when_var,
+    contextual_var, expr_var, flat_expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, var, var_default,
+    var_from, var_getter, var_state, when_var,
 };
 
 pub use zng_app::widget::{AnyVarSubscribe, OnVarArgs, VarLayout, VarSubscribe};
