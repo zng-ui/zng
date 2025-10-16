@@ -63,6 +63,18 @@ macro_rules! expr_var {
     };
 }
 
+///<span data-del-macro-root></span> New variable from an expression with interpolated vars that produces another variable.
+///
+/// This macro is very similar to [`expr_var!`], it just expect an expression that produces another variable and flattens it.
+#[macro_export]
+macro_rules! flat_expr_var {
+    ($($expr:tt)+) => {
+        $crate::expr_var! {
+            $crate::VarEq($($expr)+)
+        }.flatten()
+    };
+}
+
 #[doc(hidden)]
 pub use zng_var_proc_macros::expr_var as __expr_var;
 

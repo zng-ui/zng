@@ -128,6 +128,14 @@ impl<T: VarValue> From<Response<T>> for Option<T> {
         }
     }
 }
+impl<T: VarValue> From<Response<Option<T>>> for Option<T> {
+    fn from(value: Response<Option<T>>) -> Self {
+        match value {
+            Response::Waiting => None,
+            Response::Done(r) => r,
+        }
+    }
+}
 
 impl<T: VarValue> ResponseVar<T> {
     /// Visit the response, if present.
