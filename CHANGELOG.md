@@ -1,5 +1,7 @@
 # Unreleased
 
+* Implement more Option conversions for response vars.
+    - You can now `map_into` from `ResponseVar<Option<T>>` to `Var<Option<T>>`.
 * Add `flat_expr_var!`, a helper for declaring an expression var that flattens.
 * Fix EXIF metadata reading to define `ppi`.
 
