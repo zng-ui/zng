@@ -17,16 +17,22 @@ pub struct SETTINGS;
 
 impl SETTINGS {
     /// Register a closure that provides settings metadata.
+    ///
+    /// The closure can be called multiple times.
     pub fn register(&self, f: impl Fn(&mut SettingsBuilder) + Send + Sync + 'static) {
         SETTINGS_SV.write().sources.push(Box::new(f))
     }
 
     /// Register a closure that provides category metadata.
+    ///
+    /// The closure can be called multiple times.
     pub fn register_categories(&self, f: impl Fn(&mut CategoriesBuilder) + Send + Sync + 'static) {
         SETTINGS_SV.write().sources_cat.push(Box::new(f))
     }
 
     /// Select and sort settings matched by `filter`.
+    ///
+    /// This calls all registered closures that are not excluded by `filter`.
     pub fn get(&self, mut filter: impl FnMut(&ConfigKey, &CategoryId) -> bool, sort: bool) -> Vec<(Category, Vec<Setting>)> {
         self.get_impl(&mut filter, sort)
     }
