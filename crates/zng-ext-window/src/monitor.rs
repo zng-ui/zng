@@ -282,7 +282,7 @@ impl MonitorInfo {
             | check_set(&self.video_modes, info.video_modes)
     }
 
-    /// Unique ID.
+    /// Unique ID in this process instance.
     pub fn id(&self) -> MonitorId {
         self.id
     }
