@@ -3,3 +3,5 @@ search =
 
 window =
     .title = {$app} - Configurações
+
+reset = Redefinir para o padrão
