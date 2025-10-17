@@ -361,8 +361,7 @@ impl Setting {
 
     /// If the `value` is set to an actual config variable.
     ///
-    /// Setting builders can not set the value, this can be used to indicate that the setting must be edited
-    /// directly on the config file.
+    /// Setting builders can skip setting the value, this can indicate the config should be edited directly.
     pub fn value_is_set(&self) -> bool {
         self.value_type != TypeId::of::<SettingValueNotSet>()
     }
@@ -564,12 +563,12 @@ impl SettingBuilder<'_> {
         self.meta.borrow_mut()
     }
 
-    /// Set the value variable from [`CONFIG`].
+    /// Get the value variable for editing from [`CONFIG`]. The `default` value is used when getting the variable.
     pub fn value<T: ConfigValue>(&mut self, default: T) -> &mut Self {
         self.cfg_value(&mut CONFIG, default)
     }
 
-    /// Set the value variable from a different config.
+    /// Get the value variable for editing from `cfg`. The `default` value is used when getting the variable.
     pub fn cfg_value<T: ConfigValue>(&mut self, cfg: &mut impl Config, default: T) -> &mut Self {
         let value = cfg.get(self.config_key.clone(), default, false);
         self.value = Some((value.into(), TypeId::of::<T>()));
@@ -602,10 +601,10 @@ impl SettingBuilder<'_> {
 }
 impl Drop for SettingBuilder<'_> {
     fn drop(&mut self) {
-        let (cfg, cfg_type) = self
-            .value
-            .take()
-            .unwrap_or_else(|| (const_var(SettingValueNotSet).into(), TypeId::of::<SettingValueNotSet>()));
+        let (cfg, cfg_type) = self.value.take().unwrap_or_else(|| {
+            tracing::debug!("no value provided for {} settings", self.config_key);
+            (const_var(SettingValueNotSet).into(), TypeId::of::<SettingValueNotSet>())
+        });
         self.settings.push(Setting {
             key: mem::take(&mut self.config_key),
             order: self.order,

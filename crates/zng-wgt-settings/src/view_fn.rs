@@ -399,7 +399,7 @@ impl PanelArgs {
 pub trait SettingBuilderEditorExt {
     /// Custom editor for the setting.
     ///
-    /// If an editor is set the `VAR_EDITOR` service is used to instantiate the editor.
+    /// If no editor is set the [`EDITORS`] service is used to instantiate the editor.
     fn editor_fn(&mut self, editor: WidgetFn<Setting>) -> &mut Self;
 }
 
@@ -410,7 +410,7 @@ pub trait SettingEditorExt {
 
     /// Instantiate editor.
     ///
-    /// If an editor is set the [`EDITORS`] service is used to instantiate the editor.
+    /// If no editor is set the [`EDITORS`] service is used to instantiate the editor.
     fn editor(&self) -> UiNode;
 }
 
