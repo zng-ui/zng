@@ -110,9 +110,14 @@ impl ResolutionUnits for f32 {
     }
 }
 
+/// Prints `"{}ppi"`. Alternate prints `"{}dpi"`.
 impl fmt::Display for Ppi {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}ppi", self.0)
+        if f.alternate() {
+            write!(f, "{}dpi", self.0)
+        } else {
+            write!(f, "{}ppi", self.0)
+        }
     }
 }
 impl fmt::Display for Ppm {
@@ -120,6 +125,23 @@ impl fmt::Display for Ppm {
         write!(f, "{}ppm", self.0)
     }
 }
+impl std::str::FromStr for Ppi {
+    type Err = std::num::ParseFloatError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.strip_suffix("ppi").or_else(|| s.strip_suffix("dpi")).unwrap_or(s);
+        Ok(Ppi(s.parse()?))
+    }
+}
+impl std::str::FromStr for Ppm {
+    type Err = std::num::ParseFloatError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.strip_suffix("ppm").unwrap_or(s);
+        Ok(Ppm(s.parse()?))
+    }
+}
+
 impl_from_and_into_var! {
     fn from(ppi: Ppi) -> Ppm {
         Ppm(ppi.0 * 39.3701)
@@ -129,3 +151,5 @@ impl_from_and_into_var! {
         Ppi(ppm.0 / 39.3701)
     }
 }
+
+// TODO(breaking) integrate this with ImagePpi
