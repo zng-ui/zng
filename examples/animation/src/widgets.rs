@@ -86,7 +86,7 @@ fn plot(easing: EasingFn) -> ImageSource {
                 font_size = 12;
                 font_style = FontStyle::Italic;
                 font_color = meta_color.clone();
-                layout::offset = ((-3).dip() - 100.pct(), (-3).dip());
+                layout::offset = (-3.dip() - 100.pct(), -3.dip());
             });
             children.push(Text! {
                 txt = "t";

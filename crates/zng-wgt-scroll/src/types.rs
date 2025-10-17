@@ -470,7 +470,7 @@ impl SCROLL {
             State::Increment => {
                 // set the increment and start delay to animation.
                 **o += delta;
-                **o = (*o).clamp((-1).fct(), 1.fct());
+                **o = (*o).clamp(-1.fct(), 1.fct());
 
                 a.sleep(300.ms());
                 state = State::ClearDelay;
