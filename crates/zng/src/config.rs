@@ -117,25 +117,26 @@ pub use zng_ext_config::YamlConfig;
 /// # use zng::prelude::*;
 /// fn register_categories() {
 ///     SETTINGS.register_categories(|c| {
-///         c.entry("cat-example", |c| c.name("Example Settings"))
+///         c.entry("cat-example", |c| c.name("Example Settings"));
 ///     });
 /// }
 ///
 /// fn register_settings() {
 ///     SETTINGS.register(|s| {
-///     s.entry("settings.value", "cat-example", |s| {
-///         s.name("Value")
-///             .description("Example using EDITORS provided editor.")
-///             .value(Txt::default())
-///     });
-///     s.entry("settings.custom", "cat-example", |s| {
-///         s.name("Custom")
-///             .description("Example using custom editor.")
-///             .editor_fn(wgt_fn!(|_setting| {
-///                 TextInput! {
-///                     txt = CONFIG.get("settings.custom", Txt::default());
-///                 }
-///             }))
+///         s.entry("settings.value", "cat-example", |s| {
+///             s.name("Value")
+///                 .description("Example using EDITORS provided editor.")
+///                 .value(Txt::default())
+///         });
+///         s.entry("settings.custom", "cat-example", |s| {
+///             s.name("Custom")
+///                 .description("Example using custom editor.")
+///                 .editor_fn(wgt_fn!(|_setting| {
+///                     TextInput! {
+///                         txt = CONFIG.get("settings.custom", Txt::default());
+///                     }
+///                 }))
+///         });
 ///     });
 /// }
 /// ```
@@ -158,6 +159,7 @@ pub use zng_ext_config::YamlConfig;
 /// ```
 /// # use zng::config::*;
 /// # use zng::config::settings::*;
+/// # use zng::prelude::*;
 /// #
 /// fn load_config() -> Box<dyn FallbackConfigReset> {
 ///     // user edited config (settings.)
@@ -173,12 +175,11 @@ pub use zng_ext_config::YamlConfig;
 ///
 ///     settings_ref
 /// }
-/// fn register_settings(reset: &dyn FallbackConfigReset) {
-///     SETTINGS.register(|s| {
-///     s.entry("settings.value", "cat-example", |s| {
-///         s.name("Value")
-///             .value(Txt::default())
-///             .reset(reset.clone_boxed(), "settings.")
+/// fn register_settings(reset: Box<dyn FallbackConfigReset>) {
+///     SETTINGS.register(move |s| {
+///         s.entry("settings.value", "cat-example", |s| {
+///             s.name("Value").value(Txt::default()).reset(reset.clone_boxed(), "settings.")
+///         });
 ///     });
 /// }
 /// ```
