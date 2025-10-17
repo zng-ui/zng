@@ -187,7 +187,7 @@ pub use zng_ext_config::YamlConfig;
 /// The default file is deployed with the app resources and is read-only, the user file is created in the user data directory and
 /// contains only the custom values set by the user. The [`FallbackConfigReset`] has access to the user file and can remove entries from it.
 ///
-/// The [`FallbackConfigReset::can_reset`] variable tracks the presence of the config in the user file. The default settings widget 
+/// The [`FallbackConfigReset::can_reset`] variable tracks the presence of the config in the user file. The default settings widget
 /// uses this to show a little reset arrow button that users can click to reset.
 ///
 /// The [`FallbackConfig`] handles entry removal by updating the config variable back to the fallback file entry.
