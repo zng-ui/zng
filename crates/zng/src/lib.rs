@@ -993,7 +993,7 @@ mod defaults {
         fn init(&mut self) {
             // Common editors.
             zng_wgt::EDITORS.register_fallback(zng_wgt::WidgetFn::new(default_editors::handler));
-            tracing::debug!("defaults init, var_editor set");
+            tracing::debug!("defaults init, EDITORS set");
 
             // injected in all windows
             #[cfg(feature = "window")]
