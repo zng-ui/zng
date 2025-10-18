@@ -326,9 +326,9 @@ fn cube_example() -> UiNode {
                                 1 => Transform::new_rotate_y(0.deg()),
                                 2 => Transform::new_rotate_y(90.deg()),
                                 3 => Transform::new_rotate_y(180.deg()),
-                                4 => Transform::new_rotate_y((-90).deg()),
+                                4 => Transform::new_rotate_y(-90.deg()),
                                 5 => Transform::new_rotate_x(90.deg()),
-                                6 => Transform::new_rotate_x((-90).deg()),
+                                6 => Transform::new_rotate_x(-90.deg()),
                                 _ => unreachable!(),
                             });
                         }
@@ -338,10 +338,10 @@ fn cube_example() -> UiNode {
                         show.map(|&i| {
                             match i {
                                 1 => Transform::new_rotate_y(0.deg()),
-                                2 => Transform::new_rotate_y((-90).deg()),
-                                3 => Transform::new_rotate_y((-180).deg()),
+                                2 => Transform::new_rotate_y(-90.deg()),
+                                3 => Transform::new_rotate_y(-180.deg()),
                                 4 => Transform::new_rotate_y(90.deg()),
-                                5 => Transform::new_rotate_x((-90).deg()),
+                                5 => Transform::new_rotate_x(-90.deg()),
                                 6 => Transform::new_rotate_x(90.deg()),
                                 _ => unreachable!(),
                             }

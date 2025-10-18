@@ -1097,7 +1097,7 @@ pub fn default_footnote_ref_fn(args: FootnoteRefFnArgs) -> UiNode {
     Button! {
         style_fn = LinkStyle!();
         font_size = 0.7.em();
-        offset = (0, (-0.5).em());
+        offset = (0, -0.5.em());
         crate::anchor = formatx!("footnote-ref-{}", args.label);
         child = Text!("[{}]", args.label);
         on_click = hn!(|args| {

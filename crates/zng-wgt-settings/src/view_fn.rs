@@ -23,7 +23,7 @@ use zng_wgt_style::Style;
 use zng_wgt_text::Text;
 use zng_wgt_text_input::TextInput;
 use zng_wgt_toggle::{Selector, Toggle};
-use zng_wgt_tooltip::{Tip, disabled_tooltip, tooltip};
+use zng_wgt_tooltip::{Tip, tooltip};
 
 use crate::SettingsEditor;
 
@@ -185,45 +185,17 @@ pub fn default_categories_list_mobile_fn(args: CategoriesListArgs) -> UiNode {
 
 /// Default setting item view.
 pub fn default_setting_fn(args: SettingArgs) -> UiNode {
-    let name = args.setting.name().clone();
-    let description = args.setting.description().clone();
-    let can_reset = args.setting.can_reset();
+    let s = args.setting;
+    let name = s.name().clone();
+    let description = s.description().clone();
     Container! {
-        setting = args.setting.clone();
+        setting = s.clone();
 
         zng_wgt_input::focus::focus_scope = true;
         zng_wgt_input::focus::focus_scope_behavior = zng_ext_input::focus::FocusScopeOnFocus::FirstDescendant;
 
         child_spacing = (4, 5);
-        child_start = {
-            let s = args.setting;
-            Wgt! {
-                zng_wgt::align = Align::TOP;
-                zng_wgt::visibility = can_reset.map(|c| match c {
-                    true => Visibility::Visible,
-                    false => Visibility::Hidden,
-                });
-                zng_wgt_input::gesture::on_click = hn!(|_| {
-                    s.reset();
-                });
-
-                zng_wgt_fill::background = ICONS.req_or(["settings-reset", "settings-backup-restore"], || Text!("R"));
-                zng_wgt_size_offset::size = 18;
-
-                tooltip = Tip!(Text!("reset"));
-                disabled_tooltip = Tip!(Text!("is default"));
-
-                zng_wgt_input::focus::tab_index = zng_ext_input::focus::TabIndex::SKIP;
-
-                opacity = 70.pct();
-                when *#zng_wgt_input::is_cap_hovered {
-                    opacity = 100.pct();
-                }
-                when *#zng_wgt::is_disabled {
-                    opacity = 30.pct();
-                }
-            }
-        };
+        child_start = reset_button(s.can_reset(), hn!(|_| s.reset()));
         child_top = Container! {
             child_top = Text! {
                 txt = name;
@@ -236,6 +208,31 @@ pub fn default_setting_fn(args: SettingArgs) -> UiNode {
             };
         };
         child = args.editor;
+    }
+}
+
+/// Reset button used by [`default_setting_fn`].
+pub fn reset_button(can_reset: Var<bool>, reset: Handler<zng_wgt_input::gesture::ClickArgs>) -> UiNode {
+    Wgt! {
+        zng_wgt::align = Align::TOP;
+        zng_wgt::visibility = can_reset.map(|c| match c {
+            true => Visibility::Visible,
+            false => Visibility::Hidden,
+        });
+        zng_wgt_input::gesture::on_click = reset;
+
+        zng_wgt_fill::background = ICONS.req_or(["settings-reset", "settings-backup-restore"], || Text!("R"));
+        zng_wgt_size_offset::size = 18;
+
+        // l10n-# tip on hover of the reset arrow button
+        tooltip = Tip!(Text!(l10n!("reset", "Reset to default")));
+
+        zng_wgt_input::focus::tab_index = zng_ext_input::focus::TabIndex::SKIP;
+
+        opacity = 70.pct();
+        when *#zng_wgt_input::is_cap_hovered {
+            opacity = 100.pct();
+        }
     }
 }
 

@@ -47,7 +47,7 @@ fn logo() -> UiNode {
             text::font_weight = FontWeight::EXTRA_BOLD;
             text::txt_align = Align::CENTER;
             text::font_color = colors::WHITE;
-            layout::transform = layout::Transform::new_rotate_y((-45).deg()).rotate_x((-35).deg()).translate_z(-100);
+            layout::transform = layout::Transform::new_rotate_y(-45.deg()).rotate_x(-35.deg()).translate_z(-100);
             children = ui_vec![
                 Text! {
                     txt = "Z";

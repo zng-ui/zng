@@ -1,5 +1,7 @@
 # Unreleased
 
+* Default setting editor reset button is now localizable in the `zng-wgt-settings` l10n resources.
+    - Also surface it in `zng::config::settings::editor::reset_button` for use in custom editors.
 * Implement `FromStr` for resolution units.
 * Implement more Option conversions for response vars.
     - You can now `map_into` from `ResponseVar<Option<T>>` to `Var<Option<T>>`.

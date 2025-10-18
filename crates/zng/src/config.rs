@@ -218,7 +218,7 @@ pub mod settings {
     pub mod editor {
         pub use zng_wgt_settings::{
             CategoriesListArgs, CategoryHeaderArgs, CategoryItemArgs, SettingArgs, SettingBuilderEditorExt, SettingsArgs, SettingsCtxExt,
-            SettingsEditor, categories_list_fn, category_header_fn, category_item_fn, setting_fn, settings_fn,
+            SettingsEditor, categories_list_fn, category_header_fn, category_item_fn, reset_button, setting_fn, settings_fn,
         };
     }
 }
