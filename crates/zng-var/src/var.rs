@@ -589,6 +589,48 @@ impl<T: VarValue> Var<crate::VarEq<T>> {
         self.flat_map(|v| v.0.clone())
     }
 }
+impl<T: VarValue> Var<Vec<T>> {
+    /// Create a flat mapping variable that maps each variable entry in `self` to a value entry in the output.
+    ///
+    /// This is similar to [`flat_map`], but operates over many inner variables in a `Vec` value. Note that the `map`
+    /// closure inputs are each item index and the item.
+    ///
+    /// # Capabilities
+    ///
+    /// If this variable is static the `map` closure is called immediately for each item and dropped. The selected inner variables
+    /// are merged into the mapping variable and will continue updating it.
+    ///
+    /// If this variable is a shared reference the `map` closure is called immediately for each item to init the result and will
+    /// be called again for each item for every update of this variable. The mapping variable is another shared reference and it holds
+    /// a strong reference to this variable and the inner variables.
+    ///
+    /// If this variable is contextual the initial `map` calls is deferred until first usage of the mapping variable. The
+    /// mapping variable is also contextual and will init for every context it is used in.
+    ///
+    /// The mapping variable is read-only.
+    ///
+    /// [`flat_map`]: Self::flat_map
+    pub fn flat_map_vec<O: VarValue>(&self, mut map: impl FnMut(usize, &T) -> Var<O> + Send + 'static) -> Var<Vec<O>> {
+        self.flat_map(move |vec| {
+            let item_vars: Vec<Var<O>> = vec.iter().enumerate().map(|(i, it)| map(i, it)).collect();
+            let out_value: Vec<O> = item_vars.iter().map(|v| v.get()).collect();
+            let out_var = crate::var(out_value);
+
+            for (i, item_var) in item_vars.iter().enumerate() {
+                item_var
+                    .bind_modify(&out_var, move |item_value, out_value| {
+                        if &out_value.value()[i] != item_value {
+                            out_value.value_mut()[i] = item_value.clone();
+                        }
+                    })
+                    .perm();
+            }
+            out_var.hold(item_vars).perm();
+
+            out_var.read_only()
+        })
+    }
+}
 /// Binding
 impl<T: VarValue> Var<T> {
     /// Bind `other` to receive the new values from this variable.
