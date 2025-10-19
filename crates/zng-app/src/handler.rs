@@ -87,7 +87,7 @@ impl<A: Clone + 'static> HandlerExt<A> for Handler<A> {
                         UPDATES
                             .on_pre_update(hn!(|_| {
                                 if APP_HANDLER.with(handle.clone_boxed(), is_preview, || task.update().is_some()) {
-                                    handle.unsubscribe();
+                                    APP_HANDLER.unsubscribe();
                                 }
                             }))
                             .perm();
@@ -95,7 +95,7 @@ impl<A: Clone + 'static> HandlerExt<A> for Handler<A> {
                         UPDATES
                             .on_update(hn!(|_| {
                                 if APP_HANDLER.with(handle.clone_boxed(), is_preview, || task.update().is_some()) {
-                                    handle.unsubscribe();
+                                    APP_HANDLER.unsubscribe();
                                 }
                             }))
                             .perm();
@@ -446,19 +446,16 @@ pub use crate::hn_once;
 macro_rules! async_hn {
     ($($clmv:ident,)* |_| $body:expr) => {
         std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |_| {
-            $crate::handler::APP_HANDLER.unsubscribe();
             $crate::handler::HandlerResult::Continue(std::boxed::Box::pin($crate::handler::async_clmv!($($clmv,)* {$body})))
         }))
     };
     ($($clmv:ident,)* |$args:ident| $body:expr) => {
         std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |$args| {
-            $crate::handler::APP_HANDLER.unsubscribe();
             $crate::handler::HandlerResult::Continue(std::boxed::Box::pin($crate::handler::async_clmv!($args, $($clmv,)* {$body})))
         }))
     };
     ($($clmv:ident,)* |$args:ident  : & $Args:ty| $body:expr) => {
         std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |$args: &$Args| {
-            $crate::handler::APP_HANDLER.unsubscribe();
             $crate::handler::HandlerResult::Continue(std::boxed::Box::pin($crate::handler::async_clmv!($args, $($clmv,)* {$body})))
         }))
     };
@@ -522,6 +519,7 @@ macro_rules! async_hn_once {
         {
             let mut once: Option<std::boxed::Box<dyn FnOnce() -> std::pin::Pin<std::boxed::Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static>>
                 = Some(std::boxed::Box::new($crate::handler::clmv!($($clmv,)* || {
+                    $crate::handler::APP_HANDLER.unsubscribe();
                     std::boxed::Box::pin($crate::handler::async_clmv!($($clmv,)* { $body }))
                 })));
 
@@ -536,6 +534,7 @@ macro_rules! async_hn_once {
         {
             let mut once: Option<std::boxed::Box<dyn FnOnce(&_) -> std::pin::Pin<std::boxed::Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static>>
                 = Some(std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |$args: &_| {
+                    $crate::handler::APP_HANDLER.unsubscribe();
                     std::boxed::Box::pin($crate::handler::async_clmv!($args, $($clmv,)* { $body }))
                 })));
 
@@ -550,6 +549,7 @@ macro_rules! async_hn_once {
         {
             let mut once: Option<std::boxed::Box<dyn FnOnce(&$Args) -> std::pin::Pin<std::boxed::Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static>>
                 = Some(std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |$args: &$Args| {
+                    $crate::handler::APP_HANDLER.unsubscribe();
                     std::boxed::Box::pin($crate::handler::async_clmv!($args, $($clmv,)* { $body }))
                 })));
 

@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `async_hn!` handlers in the app scope unsubscribing after first event.
 * Fix layout dependent on `LayoutMetrics::screen_ppi` not updating on change.
 * Add `Var::flat_map_vec` for mapping `Var<Vec<T>>` to `Var<Vec<O>>` where `T` projects a `Var<O>`.
 * Default setting editor reset button is now localizable in the `zng-wgt-settings` l10n resources.
