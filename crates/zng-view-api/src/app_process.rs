@@ -101,7 +101,7 @@ impl Controller {
         let (process, request_sender, response_receiver, event_receiver) =
             Self::spawn_view_process(&view_process_exe, &view_process_env, headless).expect("failed to spawn or connect to view-process");
         let same_process = process.is_none();
-        let process = Arc::new(Mutex::new(Some((process.unwrap(), false))));
+        let process = Arc::new(Mutex::new(process.map(|p| (p, false))));
         let ev = if same_process {
             Self::spawn_same_process_listener(on_event, event_receiver, ViewProcessGen::first())
         } else {
