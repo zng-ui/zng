@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-menu"
-version = "0.9.1"
+version = "0.9.2"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,27 +12,27 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.11.1", default-features = false }
-zng-app = { path = "../zng-app", version = "0.19.1", default-features = false }
-zng-layout = { path = "../zng-layout", version = "0.7.1", default-features = false }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.9.1", default-features = false }
-zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.9.1", default-features = false }
-zng-wgt-panel = { path = "../zng-wgt-panel", version = "0.9.1", default-features = false }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.10.1", default-features = false }
-zng-wgt-button = { path = "../zng-wgt-button", version = "0.10.1", default-features = false, features = ["tooltip"] }
-zng-ext-input = { path = "../zng-ext-input", version = "0.11.1", default-features = false }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.8.1", default-features = false }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.10.1", default-features = false }
-zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.10.1", default-features = false }
-zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.9.1", default-features = false }
-zng-ext-font = { path = "../zng-ext-font", version = "0.10.1", default-features = false }
-zng-wgt-wrap = { path = "../zng-wgt-wrap", version = "0.9.1", default-features = false }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.8.1", default-features = false }
-zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.8.1", default-features = false }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.8.1", default-features = false }
-zng-wgt-access = { path = "../zng-wgt-access", version = "0.8.1", default-features = false }
-zng-wgt-rule-line = { path = "../zng-wgt-rule-line", version = "0.9.1", default-features = false }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.11.1", default-features = false }
-zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.9.1", default-features = false }
-zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.10.1", default-features = false }
-zng-wgt-shortcut = { path = "../zng-wgt-shortcut", version = "0.3.1", default-features = false }
+zng-wgt = { path = "../zng-wgt", version = "0.11.2", default-features = false }
+zng-app = { path = "../zng-app", version = "0.19.2", default-features = false }
+zng-layout = { path = "../zng-layout", version = "0.7.2", default-features = false }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.9.2", default-features = false }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.9.2", default-features = false }
+zng-wgt-panel = { path = "../zng-wgt-panel", version = "0.9.2", default-features = false }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.10.2", default-features = false }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.10.2", default-features = false, features = ["tooltip"] }
+zng-ext-input = { path = "../zng-ext-input", version = "0.11.2", default-features = false }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.8.2", default-features = false }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.10.2", default-features = false }
+zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.10.2", default-features = false }
+zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.9.2", default-features = false }
+zng-ext-font = { path = "../zng-ext-font", version = "0.10.2", default-features = false }
+zng-wgt-wrap = { path = "../zng-wgt-wrap", version = "0.9.2", default-features = false }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.8.2", default-features = false }
+zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.8.2", default-features = false }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.8.2", default-features = false }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.8.2", default-features = false }
+zng-wgt-rule-line = { path = "../zng-wgt-rule-line", version = "0.9.2", default-features = false }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.11.2", default-features = false }
+zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.9.2", default-features = false }
+zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.10.2", default-features = false }
+zng-wgt-shortcut = { path = "../zng-wgt-shortcut", version = "0.3.2", default-features = false }
