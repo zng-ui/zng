@@ -118,7 +118,7 @@ pub use progress::*;
 ///
 /// # Panic Handling
 ///
-/// If the `task` panics the panic message is logged as an error, and can observed using [`register_spawn_panic_handler`]. It
+/// If the `task` panics the panic message is logged as an error, and can observed using [`set_spawn_panic_handler`]. It
 /// is otherwise ignored.
 ///
 /// # Unwind Safety
@@ -689,7 +689,7 @@ where
 ///
 /// # Panic Handling
 ///
-/// If the `task` panics the panic message is logged as an error, and can observed using [`register_spawn_panic_handler`]. It
+/// If the `task` panics the panic message is logged as an error, and can observed using [`set_spawn_panic_handler`]. It
 /// is otherwise ignored.
 ///
 /// # Unwind Safety
@@ -2217,7 +2217,21 @@ app_local! {
 /// On panic the tasks [`spawn`], [`poll_spawn`] and [`spawn_wait`] log an error, notifies the `handler` and otherwise ignores the panic.
 ///
 /// The handler is set for the process lifetime, only handler can be set per app. The handler is called inside the same [`LocalContext`]
-/// the task that panicked was called in.
+/// and thread the task that panicked was called in.
+///
+/// ```
+/// # macro_rules! example { () => {
+/// task::set_spawn_panic_handler(|p| {
+///     UPDATES
+///         .run_hn_once(hn_once!(|_| {
+///             std::panic::resume_unwind(p.payload);
+///         }))
+///         .perm();
+/// });
+/// # }}
+/// ```
+///
+/// The example above shows how to set a handler that propagates the panic to the app main thread.
 ///
 /// # Panics
 ///
