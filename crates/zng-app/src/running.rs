@@ -1313,40 +1313,43 @@ pub fn spawn_deadlock_detection() {
         return;
     }
 
-    thread::spawn(|| {
-        loop {
-            thread::sleep(Duration::from_secs(10));
+    thread::Builder::new()
+        .name("deadlock_detection".into())
+        .spawn(|| {
+            loop {
+                thread::sleep(Duration::from_secs(10));
 
-            let deadlocks = deadlock::check_deadlock();
-            if deadlocks.is_empty() {
-                continue;
-            }
+                let deadlocks = deadlock::check_deadlock();
+                if deadlocks.is_empty() {
+                    continue;
+                }
 
-            use std::fmt::Write;
-            let mut msg = String::new();
+                use std::fmt::Write;
+                let mut msg = String::new();
 
-            let _ = writeln!(&mut msg, "{} deadlocks detected", deadlocks.len());
-            for (i, threads) in deadlocks.iter().enumerate() {
-                let _ = writeln!(&mut msg, "Deadlock #{}, {} threads", i, threads.len());
-                for t in threads {
-                    let _ = writeln!(&mut msg, "Thread Id {:#?}", t.thread_id());
-                    let _ = writeln!(&mut msg, "{:#?}", t.backtrace());
+                let _ = writeln!(&mut msg, "{} deadlocks detected", deadlocks.len());
+                for (i, threads) in deadlocks.iter().enumerate() {
+                    let _ = writeln!(&mut msg, "Deadlock #{}, {} threads", i, threads.len());
+                    for t in threads {
+                        let _ = writeln!(&mut msg, "Thread Id {:#?}", t.thread_id());
+                        let _ = writeln!(&mut msg, "{:#?}", t.backtrace());
+                    }
+                }
+
+                #[cfg(not(feature = "test_util"))]
+                eprint!("{msg}");
+
+                #[cfg(feature = "test_util")]
+                {
+                    // test runner captures output and ignores panics in background threads, so
+                    // we write directly to stderr and exit the process.
+                    use std::io::Write;
+                    let _ = write!(&mut std::io::stderr(), "{msg}");
+                    zng_env::exit(-1);
                 }
             }
-
-            #[cfg(not(feature = "test_util"))]
-            eprint!("{msg}");
-
-            #[cfg(feature = "test_util")]
-            {
-                // test runner captures output and ignores panics in background threads, so
-                // we write directly to stderr and exit the process.
-                use std::io::Write;
-                let _ = write!(&mut std::io::stderr(), "{msg}");
-                zng_env::exit(-1);
-            }
-        }
-    });
+        })
+        .expect("failed to spawn thread");
 }
 /// When compiled with `"deadlock_detection"` spawns a thread that monitors for `parking_lot` deadlocks.
 ///

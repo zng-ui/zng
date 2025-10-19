@@ -84,9 +84,12 @@ impl<T: Send + Sync + 'static> AppLocalVec<T> {
         } else if tries > 5 {
             tracing::error!("failed to cleanup `app_local` for {id:?}, was locked after app drop");
         } else {
-            std::thread::spawn(move || {
-                self.try_cleanup(id, tries + 1);
-            });
+            std::thread::Builder::new()
+                .name("app_local_cleanup".into())
+                .spawn(move || {
+                    self.try_cleanup(id, tries + 1);
+                })
+                .expect("failed to spawn thread");
         }
     }
 

@@ -260,15 +260,18 @@ pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: f
         .spawn(move || {
             // SAFETY: we exit the process in case of panic.
             if let Err(e) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(run_app)) {
-                thread::spawn(|| {
-                    // Sometimes the channel does not disconnect on panic,
-                    // observed this issue on a panic in `AppExtension::init`.
-                    //
-                    // This workaround ensures that don't become a zombie process.
-                    thread::sleep(std::time::Duration::from_secs(5));
-                    eprintln!("run_same_process did not exit after 5s of a fatal panic, exiting now");
-                    zng_env::exit(101);
-                });
+                thread::Builder::new()
+                    .name("ensure-exit".into())
+                    .spawn(|| {
+                        // Sometimes the channel does not disconnect on panic,
+                        // observed this issue on a panic in `AppExtension::init`.
+                        //
+                        // This workaround ensures that we don't become a zombie process.
+                        thread::sleep(std::time::Duration::from_secs(5));
+                        eprintln!("run_same_process did not exit after 5s of a fatal panic, exiting now");
+                        zng_env::exit(101);
+                    })
+                    .expect("failed to spawn thread");
                 // Propagate panic in case the normal disconnect/shutdown handler works.
                 std::panic::resume_unwind(e);
             }
@@ -1420,14 +1423,17 @@ impl App {
 
     fn start_receiving(&mut self, mut request_recv: ipc::RequestReceiver) {
         let app_sender = self.app_sender.clone();
-        thread::spawn(move || {
-            while let Ok(r) = request_recv.recv() {
-                if let Err(ipc::ViewChannelError::Disconnected) = app_sender.request(r) {
-                    break;
+        thread::Builder::new()
+            .name("request-recv".into())
+            .spawn(move || {
+                while let Ok(r) = request_recv.recv() {
+                    if let Err(ipc::ViewChannelError::Disconnected) = app_sender.request(r) {
+                        break;
+                    }
                 }
-            }
-            let _ = app_sender.send(AppEvent::ParentProcessExited);
-        });
+                let _ = app_sender.send(AppEvent::ParentProcessExited);
+            })
+            .expect("failed to spawn thread");
     }
 
     fn monitor_handle_to_id(&mut self, handle: &MonitorHandle) -> MonitorId {

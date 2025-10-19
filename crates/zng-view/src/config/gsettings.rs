@@ -199,20 +199,23 @@ pub fn spawn_listener(event_loop: crate::AppEventSender) -> Option<Box<dyn FnOnc
         }
     };
     let stdout = w.stdout.take().unwrap();
-    std::thread::spawn(move || {
-        for line in std::io::BufReader::new(stdout).lines() {
-            match line {
-                Ok(l) => {
-                    if l.starts_with('/') {
-                        on_change(&l, &event_loop);
+    std::thread::Builder::new()
+        .name("dconf-watcher".into())
+        .spawn(move || {
+            for line in std::io::BufReader::new(stdout).lines() {
+                match line {
+                    Ok(l) => {
+                        if l.starts_with('/') {
+                            on_change(&l, &event_loop);
+                        }
+                    }
+                    Err(_) => {
+                        break;
                     }
                 }
-                Err(_) => {
-                    break;
-                }
             }
-        }
-    });
+        })
+        .expect("failed to spawn thread");
 
     Some(Box::new(move || {
         let _ = w.kill();

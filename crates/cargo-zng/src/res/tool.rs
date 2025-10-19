@@ -222,17 +222,20 @@ impl Tool {
 
         // indent stderr
         let cmd_err = cmd.stderr.take().unwrap();
-        let error_pipe = std::thread::spawn(move || {
-            for line in io::BufReader::new(cmd_err).lines() {
-                match line {
-                    Ok(l) => eprintln!("  {l}"),
-                    Err(e) => {
-                        error!("{e}");
-                        return;
+        let error_pipe = std::thread::Builder::new()
+            .name("stderr-reader".into())
+            .spawn(move || {
+                for line in io::BufReader::new(cmd_err).lines() {
+                    match line {
+                        Ok(l) => eprintln!("  {l}"),
+                        Err(e) => {
+                            error!("{e}");
+                            return;
+                        }
                     }
                 }
-            }
-        });
+            })
+            .expect("failed to spawn thread");
 
         // indent stdout and capture "zng-res::" requests
         let mut requests = vec![];
