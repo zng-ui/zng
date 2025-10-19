@@ -253,7 +253,7 @@ impl AppInit {
         });
 
         let (_, (req_sender, chan_sender)) = init_recv.recv_timeout(Duration::from_secs(10)).map_err(|e| match e {
-            flume::RecvTimeoutError::Timeout => "timeout, did not connect in 10 seconds",
+            flume::RecvTimeoutError::Timeout => "timeout, did not connect in 10s",
             flume::RecvTimeoutError::Disconnected => {
                 std::panic::resume_unwind(handle.join().unwrap_err());
             }
@@ -351,7 +351,7 @@ impl AppInit {
     /// Tries to connect to the view-process and receive the actual channels.
     pub fn connect(self) -> AnyResult<(RequestSender, ResponseReceiver, EventReceiver)> {
         let (req_sender, chan_sender) = self.init.recv_timeout(Duration::from_secs(5)).map_err(|e| match e {
-            flume::RecvTimeoutError::Timeout => "timeout, did not connect in 5 seconds",
+            flume::RecvTimeoutError::Timeout => "timeout, did not connect in 5s",
             flume::RecvTimeoutError::Disconnected => panic!("disconnected"),
         })?;
         let (rsp_sender, rsp_recv) = flume::unbounded();

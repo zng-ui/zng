@@ -153,10 +153,10 @@ impl Controller {
     ) -> std::thread::JoinHandle<Box<dyn FnMut(Event) + Send>> {
         // spawns a thread that receives view-process events and monitors for process responsiveness
         // - ipc-channel sometimes does not signal disconnect when the view-process dies, this monitors the process state every second.
-        // - app-process pings every 10s of inactivity, this kills the view-process it it does not respond for more them 30s.
+        // - app-process pings every 2s of inactivity, this kills the view-process it it does not respond for more them 10s.
         thread::spawn(move || {
             const PROCESS_CHECK_DUR: Duration = Duration::from_secs(1);
-            const TIMEOUT_SECS: u8 = 30;
+            const TIMEOUT_SECS: u8 = 10;
             let mut check_count = 0u8;
             while let Ok(maybe) = event_receiver.recv_timeout(PROCESS_CHECK_DUR) {
                 match maybe {

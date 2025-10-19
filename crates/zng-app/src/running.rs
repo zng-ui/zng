@@ -652,10 +652,15 @@ impl<E: AppExtension> RunningApp<E> {
         if wait_app_event {
             let idle = tracing::debug_span!("<idle>", ended_by = tracing::field::Empty).entered();
 
-            let timer = if self.view_is_busy() { None } else { self.loop_timer.poll() };
-            const PING_TIMER: Duration = Duration::from_secs(10);
+            const PING_TIMER: Duration = Duration::from_secs(2);
 
-            match self.receiver.recv_deadline_sp(timer.unwrap_or(Deadline::timeout(PING_TIMER))) {
+            let ping_timer = Deadline::timeout(PING_TIMER);
+            let timer = if self.view_is_busy() {
+                None
+            } else {
+                self.loop_timer.poll().map(|t| t.min(ping_timer))
+            };
+            match self.receiver.recv_deadline_sp(timer.unwrap_or(ping_timer)) {
                 Ok(ev) => {
                     idle.record("ended_by", "event");
                     drop(idle);
@@ -669,7 +674,7 @@ impl<E: AppExtension> RunningApp<E> {
                         } else {
                             idle.record("ended_by", "timeout");
                         }
-                        if self.last_wait_event.elapsed() > PING_TIMER && !VIEW_PROCESS.is_same_process() && VIEW_PROCESS.is_connected() {
+                        if self.last_wait_event.elapsed() >= PING_TIMER && !VIEW_PROCESS.is_same_process() && VIEW_PROCESS.is_connected() {
                             VIEW_PROCESS.ping();
                         }
                     }
