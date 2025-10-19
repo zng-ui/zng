@@ -45,7 +45,7 @@ enum ViewState {
 /// [exits]: std::process::exit
 #[cfg_attr(not(ipc), allow(unused))]
 pub struct Controller {
-    process: Arc<Mutex<Option<std::process::Child>>>,
+    process: Arc<Mutex<Option<(std::process::Child, bool)>>>,
     view_state: ViewState,
     generation: ViewProcessGen,
     is_respawn: bool,
@@ -101,7 +101,7 @@ impl Controller {
         let (process, request_sender, response_receiver, event_receiver) =
             Self::spawn_view_process(&view_process_exe, &view_process_env, headless).expect("failed to spawn or connect to view-process");
         let same_process = process.is_none();
-        let process = Arc::new(Mutex::new(process));
+        let process = Arc::new(Mutex::new(process.map(|p| (p, false))));
         let ev = if same_process {
             Self::spawn_same_process_listener(on_event, event_receiver, ViewProcessGen::first())
         } else {
@@ -148,15 +148,15 @@ impl Controller {
     fn spawn_other_process_listener(
         mut on_event: Box<dyn FnMut(Event) + Send>,
         mut event_receiver: EventReceiver,
-        process: Arc<Mutex<Option<std::process::Child>>>,
+        process: Arc<Mutex<Option<(std::process::Child, bool)>>>,
         generation: ViewProcessGen,
     ) -> std::thread::JoinHandle<Box<dyn FnMut(Event) + Send>> {
         // spawns a thread that receives view-process events and monitors for process responsiveness
         // - ipc-channel sometimes does not signal disconnect when the view-process dies, this monitors the process state every second.
-        // - app-process pings every 10s of inactivity, this kills the view-process it it does not respond for more them 30s.
+        // - app-process pings every 2s of inactivity, this kills the view-process it it does not respond for more them 10s.
         thread::spawn(move || {
             const PROCESS_CHECK_DUR: Duration = Duration::from_secs(1);
-            const TIMEOUT_SECS: u8 = 30;
+            const TIMEOUT_SECS: u8 = 10;
             let mut check_count = 0u8;
             while let Ok(maybe) = event_receiver.recv_timeout(PROCESS_CHECK_DUR) {
                 match maybe {
@@ -166,7 +166,7 @@ impl Controller {
                     }
                     None => {
                         if let Some(p) = &mut *process.lock() {
-                            match p.try_wait() {
+                            match p.0.try_wait() {
                                 Ok(c) => {
                                     if c.is_some() {
                                         // view-process died
@@ -175,7 +175,8 @@ impl Controller {
                                         check_count += 1;
                                         if check_count == TIMEOUT_SECS {
                                             tracing::error!("view-process not responding for {TIMEOUT_SECS}s, will respawn");
-                                            let _ = p.kill();
+                                            let _ = p.0.kill();
+                                            p.1 = true;
                                             break;
                                         }
                                     }
@@ -437,7 +438,7 @@ impl Controller {
         self.view_state = ViewState::NotRunning;
         self.is_respawn = true;
 
-        let mut process = if let Some(p) = self.process.lock().take() {
+        let (mut process, mut killed_by_us) = if let Some(p) = self.process.lock().take() {
             p
         } else {
             if self.same_process {
@@ -467,7 +468,6 @@ impl Controller {
         }
 
         // try exit
-        let mut killed_by_us = false;
         if !is_crash {
             let _ = process.kill();
             killed_by_us = true;
@@ -560,10 +560,9 @@ impl Controller {
                 }
             }
         };
-        debug_assert!(new_process.is_some());
 
         // update connections
-        self.process = Arc::new(Mutex::new(new_process));
+        self.process = Arc::new(Mutex::new(Some((new_process.unwrap(), false))));
         self.request_sender = request;
         self.response_receiver = response;
 
@@ -583,7 +582,7 @@ impl Drop for Controller {
     fn drop(&mut self) {
         let _ = self.exit();
         #[cfg(ipc)]
-        if let Some(mut process) = self.process.lock().take()
+        if let Some((mut process, _)) = self.process.lock().take()
             && process.try_wait().is_err()
         {
             std::thread::sleep(Duration::from_secs(1));
