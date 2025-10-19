@@ -144,9 +144,9 @@
 //! This module fully re-exports [`zng_task`].
 
 pub use zng_task::{
-    DeadlineError, McWaker, ParallelIteratorExt, ParallelIteratorWithCtx, Progress, ScopeCtx, SignalOnce, UiTask, all, all_ok, all_some,
-    any, any_ok, any_some, block_on, channel, deadline, fs, future_fn, io, join, join_context, poll_respond, poll_spawn, respond, run,
-    run_catch, scope, spawn, spawn_wait, wait, wait_catch, wait_respond, with_deadline, yield_now,
+    DeadlineError, McWaker, ParallelIteratorExt, ParallelIteratorWithCtx, Progress, ScopeCtx, SignalOnce, TaskPanicError, UiTask, all,
+    all_ok, all_some, any, any_ok, any_some, block_on, channel, deadline, fs, future_fn, io, join, join_context, poll_respond, poll_spawn,
+    respond, run, run_catch, scope, set_spawn_panic_handler, spawn, spawn_wait, wait, wait_catch, wait_respond, with_deadline, yield_now,
 };
 
 #[cfg(any(doc, feature = "test_util"))]
