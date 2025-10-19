@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `zng::task::set_spawn_panic_handler` for apps to optionally handle panics in spawn and forget tasks.
 * Fix view-process recover when it stops responding.
 
 # 0.18.2

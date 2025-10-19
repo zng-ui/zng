@@ -10,6 +10,7 @@
 #![warn(missing_docs)]
 
 use std::{
+    any::Any,
     fmt,
     hash::Hash,
     mem, panic,
@@ -117,7 +118,8 @@ pub use progress::*;
 ///
 /// # Panic Handling
 ///
-/// If the `task` panics the panic message is logged as an error, the panic is otherwise ignored.
+/// If the `task` panics the panic message is logged as an error, and can observed using [`register_spawn_panic_handler`]. It
+/// is otherwise ignored.
 ///
 /// # Unwind Safety
 ///
@@ -212,6 +214,7 @@ impl RayonTask {
                     }));
                     if let Err(p) = r {
                         tracing::error!("panic in `task::spawn`: {}", crate_util::panic_str(&p));
+                        on_spawn_panic(p);
                     }
                 });
             }
@@ -686,7 +689,8 @@ where
 ///
 /// # Panic Handling
 ///
-/// If the `task` panics the panic message is logged as an error, the panic is otherwise ignored.
+/// If the `task` panics the panic message is logged as an error, and can observed using [`register_spawn_panic_handler`]. It
+/// is otherwise ignored.
 ///
 /// # Unwind Safety
 ///
@@ -702,7 +706,8 @@ where
 {
     spawn(async move {
         if let Err(p) = wait_catch(task).await {
-            tracing::error!("parallel `spawn_wait` task panicked: {}", crate_util::panic_str(&p))
+            tracing::error!("parallel `spawn_wait` task panicked: {}", crate_util::panic_str(&p));
+            on_spawn_panic(p);
         }
     });
 }
@@ -2166,5 +2171,67 @@ impl McWaker {
     /// Clear current registered wakers.
     pub fn cancel(&self) {
         self.0.cancel()
+    }
+}
+
+/// Panic payload, captured by [`std::panic::catch_unwind`].
+#[non_exhaustive]
+pub struct TaskPanicError {
+    /// Panic payload.
+    pub payload: Box<dyn Any + Send + 'static>,
+}
+impl TaskPanicError {
+    /// New from panic payload.
+    pub fn new(payload: Box<dyn Any + Send + 'static>) -> Self {
+        Self { payload }
+    }
+
+    /// Get the panic string if the `payload` is string like.
+    pub fn panic_str(&self) -> Option<&str> {
+        crate_util::try_panic_str(&self.payload)
+    }
+}
+impl fmt::Debug for TaskPanicError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TaskPanicError")
+            .field("payload", &crate_util::panic_str(&self.payload))
+            .finish()
+    }
+}
+impl fmt::Display for TaskPanicError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(crate_util::panic_str(&self.payload))
+    }
+}
+impl std::error::Error for TaskPanicError {}
+
+type SpawnPanicHandler = Box<dyn FnMut(TaskPanicError) + Send + 'static>;
+
+app_local! {
+    // Mutex for Sync only
+    static SPAWN_PANIC_HANDLERS: Option<Mutex<SpawnPanicHandler>> = None;
+}
+
+/// Set a `handler` that is called when spawn tasks panic.
+///
+/// On panic the tasks [`spawn`], [`poll_spawn`] and [`spawn_wait`] log an error, notifies the `handler` and otherwise ignores the panic.
+///
+/// The handler is set for the process lifetime, only handler can be set per app. The handler is called inside the same [`LocalContext`]
+/// the task that panicked was called in.
+///
+/// # Panics
+///
+/// Panics if another handler is already set in the same app.
+///
+/// Panics if no app is running in the caller thread.
+pub fn set_spawn_panic_handler(handler: impl FnMut(TaskPanicError) + Send + 'static) {
+    let mut h = SPAWN_PANIC_HANDLERS.try_write().expect("a spawn panic handler is already set");
+    assert!(h.is_none(), "a spawn panic handler is already set");
+    *h = Some(Mutex::new(Box::new(handler)));
+}
+
+fn on_spawn_panic(payload: Box<dyn Any + Send + 'static>) {
+    if let Some(f) = &mut *SPAWN_PANIC_HANDLERS.write() {
+        f.get_mut()(TaskPanicError { payload })
     }
 }
