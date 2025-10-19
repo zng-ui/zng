@@ -599,6 +599,7 @@ impl LayoutMetrics {
     ///
     /// Default is `96.0`.
     pub fn screen_ppi(&self) -> Ppi {
+        LAYOUT.register_metrics_use(LayoutMask::SCREEN_PPI);
         self.s.screen_ppi
     }
 
