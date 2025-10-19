@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.18.2
+
 * Fix `async_hn!` handlers in the app scope unsubscribing after first event.
 * Fix layout dependent on `LayoutMetrics::screen_ppi` not updating on change.
 * Add `Var::flat_map_vec` for mapping `Var<Vec<T>>` to `Var<Vec<O>>` where `T` projects a `Var<O>`.
