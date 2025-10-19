@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix view-process recover when it stops responding.
 
 # 0.18.2
 
