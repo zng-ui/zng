@@ -220,6 +220,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
         let requests = Arc::new(Mutex::new(IdMap::<RequestId, flume::Sender<O>>::new()));
         let receiver = std::thread::Builder::new()
             .name("task-ipc-recv".into())
+            .stack_size(256 * 1024)
             .spawn(clmv!(requests, || {
                 loop {
                     match rsp_recv.recv() {

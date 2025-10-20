@@ -1315,6 +1315,7 @@ pub fn spawn_deadlock_detection() {
 
     thread::Builder::new()
         .name("deadlock_detection".into())
+        .stack_size(256 * 1024)
         .spawn(|| {
             loop {
                 thread::sleep(Duration::from_secs(10));

@@ -201,6 +201,7 @@ pub fn spawn_listener(event_loop: crate::AppEventSender) -> Option<Box<dyn FnOnc
     let stdout = w.stdout.take().unwrap();
     std::thread::Builder::new()
         .name("dconf-watcher".into())
+        .stack_size(256 * 1024)
         .spawn(move || {
             for line in std::io::BufReader::new(stdout).lines() {
                 match line {

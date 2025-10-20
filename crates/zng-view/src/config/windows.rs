@@ -7,12 +7,6 @@ use zng_view_api::config::{
 /// Create a hidden window that listens to Windows config change events.
 pub(crate) fn spawn_listener(event_loop: crate::AppEventSender) -> Option<Box<dyn FnOnce()>> {
     config_listener(event_loop);
-    /*
-    std::thread::Builder::new()
-    .name("config_listener".to_owned())
-    .spawn(move || config_listener(event_loop))
-    .unwrap();
-    */
     None
 }
 fn config_listener(event_loop: crate::AppEventSender) {

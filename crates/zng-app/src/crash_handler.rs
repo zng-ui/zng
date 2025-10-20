@@ -1037,6 +1037,7 @@ fn run_process(
                         let shutdown = Arc::new(AtomicBool::new(false));
                         let runner = std::thread::Builder::new()
                             .name("minidumper-server".into())
+                            .stack_size(512 * 1024)
                             .spawn(clmv!(shutdown, || {
                                 let created_file = Arc::new(Mutex::new(None));
                                 if let Err(e) = s.run(
@@ -1132,6 +1133,7 @@ impl minidumper::ServerHandler for MinidumpServerHandler {
 fn capture_and_print(mut stream: impl std::io::Read + Send + 'static, is_err: bool) -> std::thread::JoinHandle<String> {
     std::thread::Builder::new()
         .name(format!("{}-reader", if is_err { "stderr" } else { "stdout" }))
+        .stack_size(256 * 1024)
         .spawn(move || {
             let mut capture = vec![];
             let mut buffer = [0u8; 32];

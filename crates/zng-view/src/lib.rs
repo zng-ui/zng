@@ -262,6 +262,7 @@ pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: f
             if let Err(e) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(run_app)) {
                 thread::Builder::new()
                     .name("ensure-exit".into())
+                    .stack_size(256 * 1024)
                     .spawn(|| {
                         // Sometimes the channel does not disconnect on panic,
                         // observed this issue on a panic in `AppExtension::init`.
@@ -1425,6 +1426,7 @@ impl App {
         let app_sender = self.app_sender.clone();
         thread::Builder::new()
             .name("request-recv".into())
+            .stack_size(256 * 1024)
             .spawn(move || {
                 while let Ok(r) = request_recv.recv() {
                     if let Err(ipc::ViewChannelError::Disconnected) = app_sender.request(r) {

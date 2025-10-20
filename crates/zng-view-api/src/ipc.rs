@@ -249,6 +249,7 @@ impl AppInit {
         let (init_sender, init_recv) = flume::bounded(1);
         let handle = std::thread::Builder::new()
             .name("connection-init".into())
+            .stack_size(256 * 1024)
             .spawn(move || {
                 let r = self.server.accept();
                 let _ = init_sender.send(r);
