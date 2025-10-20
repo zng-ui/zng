@@ -181,7 +181,7 @@ mod desktop {
                 }
 
                 let bytes = std::fs::read(&*path)?;
-                tracing::debug!("read font `{}:{}`, using {}", path.display(), font_index, bytes.capacity().bytes());
+                tracing::info!("read font `{}:{}`, using {}", path.display(), font_index, bytes.capacity().bytes());
 
                 let data = Arc::new(bytes);
                 let mut cache = DATA_CACHE.lock();

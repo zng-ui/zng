@@ -67,7 +67,7 @@ use zng_var::{
     IntoVar, ResponderVar, ResponseVar, Var, animation::Transitionable, const_var, impl_from_and_into_var, response_done_var, response_var,
     var,
 };
-use zng_view_api::config::FontAntiAliasing;
+use zng_view_api::{config::FontAntiAliasing, ipc::IpcBytes};
 
 /// Font family name.
 ///
@@ -2401,6 +2401,82 @@ impl GenericFonts {
     }
 }
 
+#[derive(Clone)]
+enum FontBytesImpl {
+    Ipc(IpcBytes),
+    Arc(Arc<Vec<u8>>),
+    Static(&'static [u8]),
+    SystemFont {
+        path: std::path::PathBuf,
+        mmap: Arc<(std::fs::File, memmap2::Mmap)>,
+    },
+}
+/// Reference to in memory font data.
+#[derive(Clone)]
+pub struct FontBytes(FontBytesImpl);
+impl FontBytes {
+    /// From shared memory that can be efficiently referenced in the view-process for rendering.
+    pub fn from_ipc(bytes: IpcBytes) -> Self {
+        Self(FontBytesImpl::Ipc(bytes))
+    }
+
+    /// Moves data to an [`IpcBytes`] shared reference.
+    pub fn from_vec(bytes: Vec<u8>) -> Self {
+        Self(FontBytesImpl::Ipc(IpcBytes::from_vec(bytes)))
+    }
+
+    /// Uses the reference in the app-process. In case the font needs to be send to view-process turns into [`IpcBytes`].
+    pub fn from_static(bytes: &'static [u8]) -> Self {
+        Self(FontBytesImpl::Static(bytes))
+    }
+
+    /// Uses the reference in the app-process. In case the font needs to be send to view-process turns into [`IpcBytes`].
+    pub fn from_arc(bytes: Arc<Vec<u8>>) -> Self {
+        Self(FontBytesImpl::Arc(bytes))
+    }
+
+    /// If the `path` is in the restricted system fonts directory memory maps it. Otherwise reads into [`IpcBytes`].
+    pub fn load(path: PathBuf) -> std::io::Result<Self> {
+        std::fs::read(path).map(Self::from_vec)
+    }
+
+    /// Read lock the `path` and memory maps it.
+    ///
+    /// # Safety
+    ///
+    /// You must ensure the file content does not change. If the file has the same access restrictions as the
+    /// current executable file you can say it is safe.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub unsafe fn mmap(path: PathBuf) -> std::io::Result<Self> {
+        let file = std::fs::File::open(&path)?;
+        file.try_lock_shared()?;
+        let mmap = unsafe { memmap2::Mmap::map(&file) }?;
+        Ok(Self(FontBytesImpl::SystemFont {
+            path,
+            mmap: Arc::new((file, mmap)),
+        }))
+    }
+
+    /// No memory map in wasm, just reads the file.
+    #[cfg(target_arch = "wasm32")]
+    pub unsafe fn mmap(path: PathBuf) -> std::io::Result<Self> {
+        Self::read(path)
+    }
+}
+impl std::ops::Deref for FontBytes {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        match &self.0 {
+            FontBytesImpl::Ipc(b) => &b[..],
+            FontBytesImpl::Arc(b) => &b[..],
+            FontBytesImpl::Static(b) => b,
+            FontBytesImpl::SystemFont { mmap, .. } => &mmap.1[..],
+        }
+    }
+}
+
+#[deprecated = "use FontBytes"]
 /// Reference to in memory font data.
 #[derive(Clone)]
 pub struct FontDataRef(pub Arc<Vec<u8>>);

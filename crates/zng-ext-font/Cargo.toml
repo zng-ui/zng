@@ -56,6 +56,7 @@ unic-langid = { version = "0.9", default-features = false }
 smallvec = { version = "1.13", default-features = false, features = ["const_new", "serde"] }
 hashbrown = { version = "0.16", default-features = false, features = ["allocator-api2", "default-hasher", "equivalent", "inline-more", "raw-entry" ]}
 pathfinder_geometry = { version = "0.5", default-features = false }
+memmap2 = "0.9.8"
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
 font-kit = { version = "0.14", default-features = false, features = ["source"] }
