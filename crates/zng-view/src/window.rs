@@ -1942,22 +1942,25 @@ impl Window {
     #[cfg(not(target_os = "android"))]
     fn run_dialog(run: impl Future + Send + 'static) {
         let mut task = Box::pin(run);
-        std::thread::spawn(move || {
-            struct ThreadWaker(std::thread::Thread);
-            impl std::task::Wake for ThreadWaker {
-                fn wake(self: std::sync::Arc<Self>) {
-                    self.0.unpark();
+        std::thread::Builder::new()
+            .name("run_dialog".into())
+            .spawn(move || {
+                struct ThreadWaker(std::thread::Thread);
+                impl std::task::Wake for ThreadWaker {
+                    fn wake(self: std::sync::Arc<Self>) {
+                        self.0.unpark();
+                    }
                 }
-            }
-            let waker = Arc::new(ThreadWaker(std::thread::current())).into();
-            let mut cx = std::task::Context::from_waker(&waker);
-            loop {
-                match task.as_mut().poll(&mut cx) {
-                    std::task::Poll::Ready(_) => return,
-                    std::task::Poll::Pending => std::thread::park(),
+                let waker = Arc::new(ThreadWaker(std::thread::current())).into();
+                let mut cx = std::task::Context::from_waker(&waker);
+                loop {
+                    match task.as_mut().poll(&mut cx) {
+                        std::task::Poll::Ready(_) => return,
+                        std::task::Poll::Pending => std::thread::park(),
+                    }
                 }
-            }
-        });
+            })
+            .expect("failed to spawn thread");
     }
 
     /// Pump the accessibility adapter and window extensions.

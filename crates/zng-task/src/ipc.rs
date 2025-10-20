@@ -218,34 +218,38 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
         crate::wait(move || chan_sender.send(rsp_sender)).await.unwrap();
 
         let requests = Arc::new(Mutex::new(IdMap::<RequestId, flume::Sender<O>>::new()));
-        let receiver = std::thread::spawn(clmv!(requests, || {
-            loop {
-                match rsp_recv.recv() {
-                    Ok((id, r)) => match requests.lock().remove(&id) {
-                        Some(s) => match r {
-                            Response::Out(r) => {
-                                let _ = s.send(r);
+        let receiver = std::thread::Builder::new()
+            .name("task-ipc-recv".into())
+            .stack_size(256 * 1024)
+            .spawn(clmv!(requests, || {
+                loop {
+                    match rsp_recv.recv() {
+                        Ok((id, r)) => match requests.lock().remove(&id) {
+                            Some(s) => match r {
+                                Response::Out(r) => {
+                                    let _ = s.send(r);
+                                }
+                            },
+                            None => tracing::error!("worker responded to unknown request #{}", id.sequential()),
+                        },
+                        Err(e) => match e {
+                            ipc_channel::ipc::IpcError::Disconnected => {
+                                requests.lock().clear();
+                                break;
+                            }
+                            ipc_channel::ipc::IpcError::Bincode(e) => {
+                                tracing::error!("worker response error, will shutdown, {e}");
+                                break;
+                            }
+                            ipc_channel::ipc::IpcError::Io(e) => {
+                                tracing::error!("worker response io error, will shutdown, {e}");
+                                break;
                             }
                         },
-                        None => tracing::error!("worker responded to unknown request #{}", id.sequential()),
-                    },
-                    Err(e) => match e {
-                        ipc_channel::ipc::IpcError::Disconnected => {
-                            requests.lock().clear();
-                            break;
-                        }
-                        ipc_channel::ipc::IpcError::Bincode(e) => {
-                            tracing::error!("worker response error, will shutdown, {e}");
-                            break;
-                        }
-                        ipc_channel::ipc::IpcError::Io(e) => {
-                            tracing::error!("worker response io error, will shutdown, {e}");
-                            break;
-                        }
-                    },
+                    }
                 }
-            }
-        }));
+            }))
+            .expect("failed to spawn thread");
 
         Ok(Self {
             running: Some((receiver, process)),

@@ -247,10 +247,14 @@ impl AppInit {
     /// Tries to connect to the view-process and receive the actual channels.
     pub fn connect(self) -> AnyResult<(RequestSender, ResponseReceiver, EventReceiver)> {
         let (init_sender, init_recv) = flume::bounded(1);
-        let handle = std::thread::spawn(move || {
-            let r = self.server.accept();
-            let _ = init_sender.send(r);
-        });
+        let handle = std::thread::Builder::new()
+            .name("connection-init".into())
+            .stack_size(256 * 1024)
+            .spawn(move || {
+                let r = self.server.accept();
+                let _ = init_sender.send(r);
+            })
+            .expect("failed to spawn thread");
 
         let (_, (req_sender, chan_sender)) = init_recv.recv_timeout(Duration::from_secs(10)).map_err(|e| match e {
             flume::RecvTimeoutError::Timeout => "timeout, did not connect in 10s",

@@ -135,15 +135,18 @@ impl Controller {
         mut event_receiver: EventReceiver,
         generation: ViewProcessGen,
     ) -> std::thread::JoinHandle<Box<dyn FnMut(Event) + Send>> {
-        thread::spawn(move || {
-            while let Ok(ev) = event_receiver.recv() {
-                on_event(ev);
-            }
-            on_event(Event::Disconnected(generation));
+        thread::Builder::new()
+            .name("same_process_listener".into())
+            .spawn(move || {
+                while let Ok(ev) = event_receiver.recv() {
+                    on_event(ev);
+                }
+                on_event(Event::Disconnected(generation));
 
-            // return to reuse in respawn.
-            on_event
-        })
+                // return to reuse in respawn.
+                on_event
+            })
+            .expect("failed to spawn thread")
     }
     fn spawn_other_process_listener(
         mut on_event: Box<dyn FnMut(Event) + Send>,
@@ -154,52 +157,55 @@ impl Controller {
         // spawns a thread that receives view-process events and monitors for process responsiveness
         // - ipc-channel sometimes does not signal disconnect when the view-process dies, this monitors the process state every second.
         // - app-process pings every 2s of inactivity, this kills the view-process it it does not respond for more them 10s.
-        thread::spawn(move || {
-            const PROCESS_CHECK_DUR: Duration = Duration::from_secs(1);
-            const TIMEOUT_SECS: u8 = 10;
-            let mut check_count = 0u8;
-            while let Ok(maybe) = event_receiver.recv_timeout(PROCESS_CHECK_DUR) {
-                match maybe {
-                    Some(ev) => {
-                        check_count = 0;
-                        on_event(ev)
-                    }
-                    None => {
-                        if let Some(p) = &mut *process.lock() {
-                            match p.0.try_wait() {
-                                Ok(c) => {
-                                    if c.is_some() {
-                                        // view-process died
-                                        break;
-                                    } else {
-                                        check_count += 1;
-                                        if check_count == TIMEOUT_SECS {
-                                            tracing::error!("view-process not responding for {TIMEOUT_SECS}s, will respawn");
-                                            let _ = p.0.kill();
-                                            p.1 = true;
+        thread::Builder::new()
+            .name("other_process_listener".into())
+            .spawn(move || {
+                const PROCESS_CHECK_DUR: Duration = Duration::from_secs(1);
+                const TIMEOUT_SECS: u8 = 10;
+                let mut check_count = 0u8;
+                while let Ok(maybe) = event_receiver.recv_timeout(PROCESS_CHECK_DUR) {
+                    match maybe {
+                        Some(ev) => {
+                            check_count = 0;
+                            on_event(ev)
+                        }
+                        None => {
+                            if let Some(p) = &mut *process.lock() {
+                                match p.0.try_wait() {
+                                    Ok(c) => {
+                                        if c.is_some() {
+                                            // view-process died
+                                            break;
+                                        } else {
+                                            check_count += 1;
+                                            if check_count == TIMEOUT_SECS {
+                                                tracing::error!("view-process not responding for {TIMEOUT_SECS}s, will respawn");
+                                                let _ = p.0.kill();
+                                                p.1 = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        if e.kind() != std::io::ErrorKind::Interrupted {
+                                            tracing::error!("view-process try_wait error after inactivity, {e}");
                                             break;
                                         }
                                     }
                                 }
-                                Err(e) => {
-                                    if e.kind() != std::io::ErrorKind::Interrupted {
-                                        tracing::error!("view-process try_wait error after inactivity, {e}");
-                                        break;
-                                    }
-                                }
+                            } else {
+                                // respawning already
+                                break;
                             }
-                        } else {
-                            // respawning already
-                            break;
                         }
                     }
                 }
-            }
-            on_event(Event::Disconnected(generation));
+                on_event(Event::Disconnected(generation));
 
-            // return to reuse in respawn.
-            on_event
-        })
+                // return to reuse in respawn.
+                on_event
+            })
+            .expect("failed to spawn thread")
     }
 
     fn try_init(&mut self) -> VpResult<()> {
