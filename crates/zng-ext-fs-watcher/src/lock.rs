@@ -1,60 +1,26 @@
-use std::time::Duration;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub use fs4::fs_std::FileExt;
-
-#[cfg(target_arch = "wasm32")]
-pub trait FileExt {
-    fn try_lock_shared(&self) -> std::io::Result<bool> {
-        not_supported()
-    }
-    fn try_lock_exclusive(&self) -> std::io::Result<bool> {
-        not_supported()
-    }
-    fn unlock(&self) -> std::io::Result<bool> {
-        not_supported()
-    }
-}
-#[cfg(target_arch = "wasm32")]
-impl FileExt for std::fs::File {}
-#[cfg(target_arch = "wasm32")]
-fn not_supported() -> std::io::Result<bool> {
-    Err(std::io::Error::new(
-        std::io::ErrorKind::Other,
-        "operation not supported on wasm yet",
-    ))
-}
+use std::{fs::File, time::Duration};
 
 /// Calls `fs4::FileExt::lock_exclusive` with a timeout.
-pub fn lock_exclusive(file: &impl FileExt, timeout: Duration) -> std::io::Result<()> {
-    lock_timeout(file, |f| f.try_lock_exclusive(), timeout)
+pub fn lock_exclusive(file: &File, timeout: Duration) -> std::io::Result<()> {
+    lock_timeout(file, |f| f.try_lock(), timeout)
 }
 
 /// Calls `fs4::FileExt::lock_shared` with a timeout.
-pub fn lock_shared(file: &impl FileExt, timeout: Duration) -> std::io::Result<()> {
+pub fn lock_shared(file: &File, timeout: Duration) -> std::io::Result<()> {
     lock_timeout(file, |f| f.try_lock_shared(), timeout)
 }
 
-#[cfg(target_arch = "wasm32")]
-
-pub fn lock_timeout<F: FileExt>(_: &F, _: impl Fn(&F) -> std::io::Result<bool>, _: Duration) -> std::io::Result<()> {
-    not_supported().map(|_| ())
-}
-#[cfg(not(target_arch = "wasm32"))]
-pub fn lock_timeout<F: FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Result<bool>, mut timeout: Duration) -> std::io::Result<()> {
-    let mut locked_error = None;
+pub fn lock_timeout(
+    file: &File,
+    try_lock: impl Fn(&File) -> Result<(), std::fs::TryLockError>,
+    mut timeout: Duration,
+) -> std::io::Result<()> {
     loop {
         let mut error = None;
         match try_lock(file) {
-            Ok(true) => return Ok(()),
-            Ok(false) => {}
+            Ok(()) => return Ok(()),
+            Err(std::fs::TryLockError::WouldBlock) => {}
             Err(e) => {
-                if e.kind() != std::io::ErrorKind::WouldBlock
-                    && e.raw_os_error() != locked_error.get_or_insert_with(fs4::lock_contended_error).raw_os_error()
-                {
-                    return Err(e);
-                }
-
                 error = Some(e);
             }
         }
@@ -64,7 +30,7 @@ pub fn lock_timeout<F: FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Resu
         if timeout.is_zero() {
             match error {
                 Some(e) => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e)),
-                None => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, fs4::lock_contended_error())),
+                None => return Err(std::io::Error::new(std::io::ErrorKind::WouldBlock, "lock timeout")),
             }
         } else {
             std::thread::sleep(INTERVAL.min(timeout));
@@ -72,7 +38,7 @@ pub fn lock_timeout<F: FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Resu
     }
 }
 
-pub fn unlock_ok(file: &impl FileExt) -> std::io::Result<()> {
+pub fn unlock_ok(file: &File) -> std::io::Result<()> {
     if let Err(e) = file.unlock() {
         if let Some(_code) = e.raw_os_error() {
             #[cfg(windows)]

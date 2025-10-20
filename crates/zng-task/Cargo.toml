@@ -33,7 +33,6 @@ http = [
     "dep:async-trait",
     "dep:sha2",
     "dep:base64",
-    "dep:fs4",
     "dep:remove_dir_all",
 ]
 
@@ -90,9 +89,6 @@ dunce = { version = "1.0", default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 duct = { version = "1.0", default-features = false, optional = true }
-fs4 = { version = "0.13", default-features = false, features = [
-    "sync",
-], optional = true }
 ipc-channel = { version = "0.20", default-features = false, optional = true }
 
 [build-dependencies]
