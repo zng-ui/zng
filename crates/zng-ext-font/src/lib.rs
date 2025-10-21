@@ -2493,12 +2493,12 @@ impl FontBytes {
         #[cfg(target_os = "macos")]
         if path.starts_with("/System/Library/Fonts/") || path.starts_with("/Library/Fonts/") {
             // SAFETY: macOS restricts write access to files in this directory.
-            return unsafe { Self::mmap(path) };
+            return unsafe { Self::from_file_mmap(path) };
         }
         #[cfg(unix)]
         if path.starts_with("/usr/share/fonts/") {
             // SAFETY: OS restricts write access to files in this directory.
-            return unsafe { Self::mmap(path) };
+            return unsafe { Self::from_file_mmap(path) };
         }
 
         std::fs::read(path).map(Self::from_vec)
