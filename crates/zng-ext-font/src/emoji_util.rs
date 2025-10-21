@@ -119,6 +119,7 @@ impl ColorPalettes {
                 colors.push(rgba(r, g, b, a));
             }
         }
+        println!("!!: COLORS {:?}", colors.len());
 
         let mut palette_types = vec![];
 
