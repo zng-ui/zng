@@ -2411,7 +2411,7 @@ pub(crate) enum WeakFontBytes {
     Ipc(std::sync::Weak<IpcBytes>),
     Arc(std::sync::Weak<Vec<u8>>),
     Static(&'static [u8]),
-    Mmap(std::sync::Weak<FontBytesMmap>)
+    Mmap(std::sync::Weak<FontBytesMmap>),
 }
 impl WeakFontBytes {
     pub(crate) fn upgrade(&self) -> Option<FontBytes> {
@@ -2518,7 +2518,7 @@ impl FontBytes {
         Ok(Self(FontBytesImpl::Mmap(Arc::new(FontBytesMmap {
             path,
             _read_lock: file,
-            mmap
+            mmap,
         }))))
     }
 
