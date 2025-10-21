@@ -157,7 +157,7 @@
 
 pub use zng_ext_font::{
     BidiLevel, CaretIndex, ColorGlyph, ColorGlyphs, ColorPalette, ColorPaletteType, ColorPalettes, CustomFont, FONT_CHANGED_EVENT, FONTS,
-    Font, FontChange, FontChangedArgs, FontColorPalette, FontDataRef, FontFace, FontFaceList, FontFaceMetrics, FontList, FontMetrics,
+    Font, FontChange, FontChangedArgs, FontColorPalette, FontBytes, FontFace, FontFaceList, FontFaceMetrics, FontList, FontMetrics,
     FontName, FontNames, FontSize, FontStretch, FontStyle, FontWeight, HYPHENATION, HyphenationDataDir, HyphenationDataSource, Hyphens,
     Justify, LayoutDirections, LetterSpacing, LineBreak, LineHeight, LineSpacing, OutlineSink, ParagraphSpacing, SegmentedText,
     SegmentedTextIter, ShapedColoredGlyphs, ShapedLine, ShapedSegment, ShapedText, TabLength, TextLineThickness, TextOverflowInfo,

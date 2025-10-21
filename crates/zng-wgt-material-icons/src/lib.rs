@@ -47,7 +47,7 @@ impl MaterialIconsManager {
         ];
 
         for (name, bytes) in sets {
-            let font = zng_ext_font::CustomFont::from_bytes(name, zng_ext_font::FontDataRef::from_static(bytes), 0);
+            let font = zng_ext_font::CustomFont::from_bytes(name, zng_ext_font::FontBytes::from_static(bytes), 0);
             zng_ext_font::FONTS.register(font);
         }
     }

@@ -2138,8 +2138,8 @@ impl Api for App {
         unimplemented!()
     }
 
-    fn add_font_face(&mut self, id: WindowId, bytes: IpcBytes, index: u32) -> FontFaceId {
-        with_window_or_surface!(self, id, |w| w.add_font_face(bytes.to_vec(), index), || FontFaceId::INVALID)
+    fn add_font_face(&mut self, id: WindowId, bytes: font::IpcFontBytes, index: u32) -> FontFaceId {
+        with_window_or_surface!(self, id, |w| w.add_font_face(bytes, index), || FontFaceId::INVALID)
     }
 
     fn delete_font_face(&mut self, id: WindowId, font_face_id: FontFaceId) {
