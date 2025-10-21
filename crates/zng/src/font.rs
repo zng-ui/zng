@@ -51,7 +51,7 @@
 //!         // OS UI and fallback fonts do not support `⌫`, load custom font that does.
 //!
 //!         static FALLBACK: &[u8] = include_bytes!("res/calculator/notosanssymbols2-regular-subset.ttf");
-//!         let fallback = CustomFont::from_bytes("fallback", FontDataRef::from_static(FALLBACK), 0);
+//!         let fallback = CustomFont::from_bytes("fallback", FontBytes::from_static(FALLBACK), 0);
 //!
 //!         FONTS.register(fallback).wait_rsp().await.unwrap();
 //!         FONTS.generics().set_fallback(und, "fallback");

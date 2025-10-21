@@ -228,7 +228,19 @@ impl Surface {
         let mut txn = webrender::Transaction::new();
         match font {
             IpcFontBytes::Bytes(b) => txn.add_raw_font(key, b.to_vec(), index),
-            IpcFontBytes::System(p) => txn.add_native_font(key, webrender::api::NativeFontHandle { path: p, index }),
+            IpcFontBytes::System(p) => {
+                #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+                txn.add_native_font(key, webrender::api::NativeFontHandle { path: p, index });
+
+                #[cfg(any(target_os = "macos", target_os = "ios"))]
+                match std::fs::read(p) {
+                    Ok(d) => txn.add_raw_font(key, d, index),
+                    Err(e) => {
+                        tracing::error!("cannot load font, {e}");
+                        return FontFaceId::INVALID;
+                    }
+                }
+            }
         }
         self.api.send_transaction(self.document_id, txn);
         FontFaceId::from_raw(key.1)
