@@ -402,7 +402,7 @@ pub fn render_text() -> UiNode {
                                 ShapedColoredGlyphs::Colored { point, glyphs, .. } => {
                                     for (index, color_i) in glyphs.iter() {
                                         let color = if let Some(color_i) = color_i {
-                                            if let Some(i) = palette_colors.iter().position(|(ci, _)| *ci == color_i as u16) {
+                                            if let Some(i) = palette_colors.iter().position(|(ci, _)| *ci == color_i) {
                                                 palette_colors[i].1
                                             } else {
                                                 // FontFace only parses colored glyphs if the font has at least one
@@ -411,7 +411,7 @@ pub fn render_text() -> UiNode {
                                                     .get_or_insert_with(|| font.face().color_palettes().palette(palette_query).unwrap());
 
                                                 // the font could have a bug and return an invalid palette index
-                                                palette.colors.get(color_i).copied().unwrap_or(color)
+                                                palette.colors.get(color_i as usize).copied().unwrap_or(color)
                                             }
                                         } else {
                                             // color_i is None, meaning the base color.

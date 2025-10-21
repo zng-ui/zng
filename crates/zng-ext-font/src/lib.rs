@@ -874,7 +874,6 @@ struct LoadedFontFace {
     stretch: FontStretch,
     metrics: FontFaceMetrics,
     color_palettes: ColorPalettes,
-    color_glyphs: ColorGlyphs,
     lig_carets: LigatureCaretList,
     flags: FontFaceFlags,
     m: Mutex<FontFaceMut>,
@@ -907,7 +906,6 @@ impl fmt::Debug for FontFace {
             .field("stretch", &self.0.stretch)
             .field("metrics", &self.0.metrics)
             .field("color_palettes.len()", &self.0.color_palettes.len())
-            .field("color_glyphs.len()", &self.0.color_glyphs.len())
             .field("instances.len()", &m.instances.len())
             .field("render_keys.len()", &m.render_ids.len())
             .field("unregistered", &m.unregistered)
@@ -947,7 +945,6 @@ impl FontFace {
                 bounds: euclid::Box2D::new(euclid::point2(0.0, -432.0), euclid::point2(1291.0, 1616.0)).to_rect(),
             },
             color_palettes: ColorPalettes::empty(),
-            color_glyphs: ColorGlyphs::empty(),
             lig_carets: LigatureCaretList::empty(),
             m: Mutex::new(FontFaceMut {
                 instances: HashMap::default(),
@@ -997,7 +994,6 @@ impl FontFace {
                             unregistered: Default::default(),
                         }),
                         color_palettes: other_font.0.color_palettes.clone(),
-                        color_glyphs: other_font.0.color_glyphs.clone(),
                         lig_carets: other_font.0.lig_carets.clone(),
                         flags: other_font.0.flags,
                     }))),
@@ -1023,11 +1019,6 @@ impl FontFace {
         };
 
         let color_palettes = ColorPalettes::load(ttf_face.raw_face())?;
-        let color_glyphs = if color_palettes.is_empty() {
-            ColorGlyphs::empty()
-        } else {
-            ColorGlyphs::load(ttf_face.raw_face())?
-        };
         let has_ligatures = ttf_face.tables().gsub.is_some();
         let lig_carets = if has_ligatures {
             LigatureCaretList::empty()
@@ -1057,7 +1048,6 @@ impl FontFace {
             stretch: custom_font.stretch,
             metrics: ttf_face.into(),
             color_palettes,
-            color_glyphs,
             lig_carets,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
@@ -1089,11 +1079,6 @@ impl FontFace {
         };
 
         let color_palettes = ColorPalettes::load(ttf_face.raw_face())?;
-        let color_glyphs = if color_palettes.is_empty() {
-            ColorGlyphs::empty()
-        } else {
-            ColorGlyphs::load(ttf_face.raw_face())?
-        };
 
         let has_ligatures = ttf_face.tables().gsub.is_some();
         let lig_carets = if has_ligatures {
@@ -1162,7 +1147,6 @@ impl FontFace {
             stretch: ttf_face.width().into(),
             metrics: ttf_face.into(),
             color_palettes,
-            color_glyphs,
             lig_carets,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
@@ -1338,8 +1322,11 @@ impl FontFace {
     /// COLR table.
     ///
     /// Is empty if not provided by the font.
-    pub fn color_glyphs(&self) -> &ColorGlyphs {
-        &self.0.color_glyphs
+    pub fn color_glyphs(&self) -> ColorGlyphs<'_> {
+        match self.ttf() {
+            Some(ttf) => ColorGlyphs::new(*ttf.raw_face()),
+            None => ColorGlyphs::empty(),
+        }
     }
 
     /// If the font provides glyph substitutions.
