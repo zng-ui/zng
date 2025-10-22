@@ -13,9 +13,9 @@ use parking_lot::Mutex;
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
 zng_app_context::hot_static! {
-    static PROFILER: Mutex<Option<(dhat::Profiler, PathBuf)>> = Mutex::new(None);
+    static PROFILER: Mutex<Option<(dhat::Profiler, String)>> = Mutex::new(None);
 }
-fn profiler() -> parking_lot::MutexGuard<'static, Option<(dhat::Profiler, PathBuf)>> {
+fn profiler() -> parking_lot::MutexGuard<'static, Option<(dhat::Profiler, String)>> {
     zng_app_context::hot_static_ref!(PROFILER).lock()
 }
 
@@ -39,11 +39,7 @@ zng_env::on_process_start!(|_| {
             }
         };
 
-        let pid = std::process::id();
-        let file = std::env::temp_dir().join(format!("zng-mem-{timestamp}-{pid}.json"));
-        let profiler = dhat::Profiler::builder().file_name(&file).build();
-
-        *p = Some((profiler, file));
+        *p = Some((dhat::Profiler::builder().file_name(PathBuf::new()).build(), timestamp));
         zng_env::on_process_exit(|_| stop_recording());
     }
 });
@@ -54,11 +50,11 @@ zng_env::on_process_start!(|_| {
 ///
 /// [`on_process_exit`]: zng_env::on_process_exit
 pub fn stop_recording() {
-    if let Some((profiler, file)) = profiler().take() {
-        drop(profiler);
+    if let Some((mut profiler, timestamp)) = profiler().take() {
+        let profile = profiler.drop_and_get_memory_output();
+        std::mem::forget(profiler);
 
-        let file_name = file.file_name().unwrap().to_string_lossy();
-        let (timestamp, pid) = file_name.strip_suffix(".json").unwrap().rsplit_once('-').unwrap();
+        let p_id = std::process::id();
         let p_name = zng_env::process_name();
 
         let dir = std::env::var("ZNG_MEMORY_PROFILER_DIR")
@@ -69,6 +65,6 @@ pub fn stop_recording() {
         let dir = dir.join(timestamp);
         std::fs::create_dir_all(&dir).expect("cannot create memory profile output dir");
 
-        std::fs::copy(&file, dir.join(format!("{p_name}-{pid}.json"))).expect("cannot copy memory profile to output dir");
+        std::fs::write(dir.join(format!("{p_name}-{p_id}.json")), profile.as_bytes()).expect("cannot write profile to output dir");
     }
 }
