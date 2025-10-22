@@ -1,9 +1,11 @@
 //! Font types.
 
+use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
 use zng_unit::Px;
 
-use crate::{config::FontAntiAliasing, declare_id};
+use crate::{config::FontAntiAliasing, declare_id, ipc::IpcBytes};
 
 declare_id! {
     /// Font resource in a renderer cache.
@@ -67,3 +69,15 @@ impl GlyphInstance {
 
 /// Glyph index in a font.
 pub type GlyphIndex = u32;
+
+/// Represents font face data.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum IpcFontBytes {
+    /// Custom font bytes.
+    Bytes(IpcBytes),
+    /// Font file path.
+    ///
+    /// The path must be safe for potential memory mapping. If the file is
+    /// as restricted as the current executable if can be considered safe.
+    System(PathBuf),
+}

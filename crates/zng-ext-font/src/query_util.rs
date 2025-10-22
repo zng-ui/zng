@@ -10,18 +10,16 @@ pub use android::*;
 #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
 mod desktop {
     use std::{
-        borrow::Cow,
         path::{Path, PathBuf},
         sync::Arc,
     };
 
     use parking_lot::Mutex;
-    use zng_layout::unit::ByteUnits;
     use zng_var::ResponseVar;
 
-    use crate::{FontDataRef, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight, GlyphLoadingError};
+    use crate::{FontBytes, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight, GlyphLoadingError, WeakFontBytes};
 
-    static DATA_CACHE: Mutex<Vec<(PathBuf, std::sync::Weak<Vec<u8>>)>> = Mutex::new(vec![]);
+    static DATA_CACHE: Mutex<Vec<(PathBuf, WeakFontBytes)>> = Mutex::new(vec![]);
 
     pub fn system_all() -> ResponseVar<Vec<FontName>> {
         zng_task::wait_respond(|| {
@@ -39,7 +37,7 @@ mod desktop {
         style: FontStyle,
         weight: FontWeight,
         stretch: FontStretch,
-    ) -> Result<Option<(FontDataRef, u32)>, FontLoadingError> {
+    ) -> Result<Option<(FontBytes, u32)>, FontLoadingError> {
         if font_name == "Ubuntu"
             && let Ok(Some(h)) = workaround_ubuntu(style, weight, stretch)
         {
@@ -70,11 +68,7 @@ mod desktop {
     }
 
     // see https://github.com/servo/font-kit/issues/245
-    fn workaround_ubuntu(
-        style: FontStyle,
-        weight: FontWeight,
-        stretch: FontStretch,
-    ) -> Result<Option<(FontDataRef, u32)>, FontLoadingError> {
+    fn workaround_ubuntu(style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Result<Option<(FontBytes, u32)>, FontLoadingError> {
         let source = font_kit::source::SystemSource::new();
         let ubuntu = match source.select_family_by_name("Ubuntu") {
             Ok(u) => u,
@@ -150,10 +144,10 @@ mod desktop {
         Ok(None)
     }
 
-    fn load_handle(handle: &font_kit::handle::Handle) -> Result<(FontDataRef, u32), FontLoadingError> {
+    fn load_handle(handle: &font_kit::handle::Handle) -> Result<(FontBytes, u32), FontLoadingError> {
         match handle {
             font_kit::handle::Handle::Path { path, font_index } => {
-                let mut path = Cow::Borrowed(path);
+                let mut path = path.clone();
                 // try replacing type1 fonts with OpenType
                 // RustyBuzz does not support type1 (neither does Harfbuzz, it is obsolete)
                 //
@@ -168,7 +162,7 @@ mod desktop {
                     let rep = Path::new("/usr/share/fonts/opentype/").join(base.with_extension("otf"));
                     if rep.exists() {
                         tracing::debug!("replaced `{name}` with .otf of same name");
-                        path = Cow::Owned(rep);
+                        path = rep;
                     }
                 }
 
@@ -176,21 +170,19 @@ mod desktop {
                     if *k == *path
                         && let Some(data) = data.upgrade()
                     {
-                        return Ok((FontDataRef(data), *font_index));
+                        return Ok((data, *font_index));
                     }
                 }
 
-                let bytes = std::fs::read(&*path)?;
-                tracing::debug!("read font `{}:{}`, using {}", path.display(), font_index, bytes.capacity().bytes());
+                let data = FontBytes::from_file(path.clone())?;
 
-                let data = Arc::new(bytes);
                 let mut cache = DATA_CACHE.lock();
                 cache.retain(|(_, v)| v.strong_count() > 0);
-                cache.push((path.to_path_buf(), Arc::downgrade(&data)));
+                cache.push((path.clone(), data.downgrade()));
 
-                Ok((FontDataRef(data), *font_index))
+                Ok((data, *font_index))
             }
-            font_kit::handle::Handle::Memory { bytes, font_index } => Ok((FontDataRef(bytes.clone()), *font_index)),
+            font_kit::handle::Handle::Memory { bytes, font_index } => Ok((FontBytes::from_arc(bytes.clone()), *font_index)),
         }
     }
 
@@ -258,7 +250,7 @@ mod desktop {
 mod wasm {
     use zng_var::ResponseVar;
 
-    use crate::{FontDataRef, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight};
+    use crate::{FontBytes, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight};
 
     pub fn system_all() -> ResponseVar<Vec<FontName>> {
         zng_var::response_done_var(vec![])
@@ -269,7 +261,7 @@ mod wasm {
         style: FontStyle,
         weight: FontWeight,
         stretch: FontStretch,
-    ) -> Result<Option<(FontDataRef, u32)>, FontLoadingError> {
+    ) -> Result<Option<(FontBytes, u32)>, FontLoadingError> {
         let _ = (font_name, style, weight, stretch);
         Err(FontLoadingError::NoFilesystem)
     }
@@ -284,7 +276,7 @@ mod android {
 
     use zng_var::ResponseVar;
 
-    use crate::{FontDataRef, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight};
+    use crate::{FontBytes, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight};
 
     pub fn system_all() -> ResponseVar<Vec<FontName>> {
         zng_task::wait_respond(|| {
@@ -322,8 +314,8 @@ mod android {
                 let entry = entry.path();
                 let ext = entry.extension().and_then(|e| e.to_str()).unwrap_or_default().to_ascii_lowercase();
                 if ["ttf", "otf"].contains(&ext.as_str()) && entry.is_file() {
-                    if let Ok(bytes) = std::fs::read(&entry) {
-                        match crate::FontFace::load(FontDataRef(Arc::new(bytes)), 0) {
+                    if let Ok(bytes) = FontBytes::from_file(entry.clone()) {
+                        match crate::FontFace::load(bytes, 0) {
                             Ok(f) => {
                                 lock.push((f.family_name().clone(), entry));
                             }
@@ -343,7 +335,7 @@ mod android {
         style: FontStyle,
         weight: FontWeight,
         stretch: FontStretch,
-    ) -> Result<Option<(FontDataRef, u32)>, FontLoadingError> {
+    ) -> Result<Option<(FontBytes, u32)>, FontLoadingError> {
         let lock = cached_system_all();
         let lock = &*lock;
 
@@ -378,7 +370,7 @@ mod android {
         let mut candidates = Vec::with_capacity(family_len);
 
         for (_, path) in &lock[start_i..=end_i] {
-            if let Ok(bytes) = std::fs::read(path) {
+            if let Ok(bytes) = FontBytes::from_file(path.clone()) {
                 if let Ok(f) = ttf_parser::Face::parse(&bytes, 0) {
                     candidates.push(matching::Properties {
                         style: f.style(),
@@ -400,7 +392,7 @@ mod android {
         ) {
             Ok(i) => {
                 let bytes = options.swap_remove(i);
-                Ok(Some((FontDataRef(Arc::new(bytes)), 0)))
+                Ok(Some((bytes, 0)))
             }
             Err(FontLoadingError::NoSuchFontInCollection) => {
                 tracing::debug!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));

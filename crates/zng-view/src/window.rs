@@ -23,7 +23,7 @@ use zng_unit::{DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, Px, 
 use zng_view_api::{
     Event, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
-    font::{FontFaceId, FontId, FontOptions, FontVariationName},
+    font::{FontFaceId, FontId, FontOptions, FontVariationName, IpcFontBytes},
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
     raw_input::InputDeviceId,
     window::{
@@ -1383,7 +1383,7 @@ impl Window {
         self.image_use.delete(texture_id, self.document_id, &mut self.api);
     }
 
-    pub fn add_font_face(&mut self, font: Vec<u8>, index: u32) -> FontFaceId {
+    pub fn add_font_face(&mut self, font: IpcFontBytes, index: u32) -> FontFaceId {
         #[cfg(target_os = "macos")]
         let index = {
             if index != 0 {
@@ -1393,7 +1393,22 @@ impl Window {
         };
         let key = self.api.generate_font_key();
         let mut txn = webrender::Transaction::new();
-        txn.add_raw_font(key, font, index);
+        match font {
+            IpcFontBytes::Bytes(b) => txn.add_raw_font(key, b.to_vec(), index),
+            IpcFontBytes::System(p) => {
+                #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+                txn.add_native_font(key, webrender::api::NativeFontHandle { path: p, index });
+
+                #[cfg(any(target_os = "macos", target_os = "ios"))]
+                match std::fs::read(p) {
+                    Ok(d) => txn.add_raw_font(key, d, index),
+                    Err(e) => {
+                        tracing::error!("cannot load font, {e}");
+                        return FontFaceId::INVALID;
+                    }
+                }
+            }
+        }
         self.api.send_transaction(self.document_id, txn);
         FontFaceId::from_raw(key.1)
     }
