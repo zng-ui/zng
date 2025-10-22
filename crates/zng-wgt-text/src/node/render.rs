@@ -411,7 +411,7 @@ pub fn render_text() -> UiNode {
                                                     .get_or_insert_with(|| font.face().color_palettes().palette(palette_query).unwrap());
 
                                                 // the font could have a bug and return an invalid palette index
-                                                palette.colors.get(color_i as usize).copied().unwrap_or(color)
+                                                palette.get(color_i).unwrap_or(color)
                                             }
                                         } else {
                                             // color_i is None, meaning the base color.

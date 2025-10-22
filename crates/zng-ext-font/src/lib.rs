@@ -873,7 +873,6 @@ struct LoadedFontFace {
     weight: FontWeight,
     stretch: FontStretch,
     metrics: FontFaceMetrics,
-    color_palettes: ColorPalettes,
     lig_carets: LigatureCaretList,
     flags: FontFaceFlags,
     m: Mutex<FontFaceMut>,
@@ -905,7 +904,6 @@ impl fmt::Debug for FontFace {
             .field("weight", &self.0.weight)
             .field("stretch", &self.0.stretch)
             .field("metrics", &self.0.metrics)
-            .field("color_palettes.len()", &self.0.color_palettes.len())
             .field("instances.len()", &m.instances.len())
             .field("render_keys.len()", &m.render_ids.len())
             .field("unregistered", &m.unregistered)
@@ -944,7 +942,6 @@ impl FontFace {
                 // `xMin`/`xMax`/`yMin`/`yMax`
                 bounds: euclid::Box2D::new(euclid::point2(0.0, -432.0), euclid::point2(1291.0, 1616.0)).to_rect(),
             },
-            color_palettes: ColorPalettes::empty(),
             lig_carets: LigatureCaretList::empty(),
             m: Mutex::new(FontFaceMut {
                 instances: HashMap::default(),
@@ -993,7 +990,6 @@ impl FontFace {
                             render_ids: Default::default(),
                             unregistered: Default::default(),
                         }),
-                        color_palettes: other_font.0.color_palettes.clone(),
                         lig_carets: other_font.0.lig_carets.clone(),
                         flags: other_font.0.flags,
                     }))),
@@ -1018,7 +1014,6 @@ impl FontFace {
             }
         };
 
-        let color_palettes = ColorPalettes::load(ttf_face.raw_face())?;
         let has_ligatures = ttf_face.tables().gsub.is_some();
         let lig_carets = if has_ligatures {
             LigatureCaretList::empty()
@@ -1047,7 +1042,6 @@ impl FontFace {
             weight: custom_font.weight,
             stretch: custom_font.stretch,
             metrics: ttf_face.into(),
-            color_palettes,
             lig_carets,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
@@ -1077,8 +1071,6 @@ impl FontFace {
                 }
             }
         };
-
-        let color_palettes = ColorPalettes::load(ttf_face.raw_face())?;
 
         let has_ligatures = ttf_face.tables().gsub.is_some();
         let lig_carets = if has_ligatures {
@@ -1146,7 +1138,6 @@ impl FontFace {
             weight: ttf_face.weight().into(),
             stretch: ttf_face.width().into(),
             metrics: ttf_face.into(),
-            color_palettes,
             lig_carets,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
@@ -1315,8 +1306,11 @@ impl FontFace {
     /// CPAL table.
     ///
     /// Is empty if not provided by the font.
-    pub fn color_palettes(&self) -> &ColorPalettes {
-        &self.0.color_palettes
+    pub fn color_palettes(&self) -> ColorPalettes<'_> {
+        match self.ttf() {
+            Some(ttf) => ColorPalettes::new(*ttf.raw_face()),
+            None => ColorPalettes::empty(),
+        }
     }
 
     /// COLR table.

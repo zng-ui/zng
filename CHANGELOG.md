@@ -6,7 +6,7 @@ This release only contains breaking changes in advanced APIs.
     - **Breaking** Removed `FontDataRef`.
     - Added `FontBytes` that can efficiently reference bytes in various formats, including memory maps.
     - **Breaking** View API `add_font_face` now receives a `IpcFontBytes`.
-    - Refactored `ColorGlyphs` to be parsed on demand.
+    - Refactored `ColorGlyphs` and `ColorPalettes` to parse on demand.
 * Add `zng::task::set_spawn_panic_handler` for apps to optionally handle panics in spawn and forget tasks.
 * Fix view-process recover when it stops responding.
 
