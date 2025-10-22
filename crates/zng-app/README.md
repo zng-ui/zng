@@ -4,7 +4,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 10 feature flags, 0 enabled by default.
+This crate provides 11 feature flags, 0 enabled by default.
 
 #### `"inspector"`
 Instrument each widget instance to retain build information.
@@ -44,6 +44,8 @@ Enable trace recording.
 
 Note that this does not auto start recording, to do that run with the `"ZNG_RECORD_TRACE"` env var set.
 
+See `zng::app::trace_recorder` for more details.
+
 #### `"ipc"`
 Enables IPC tasks and pre-build views and connecting to views running in another process.
 
@@ -51,6 +53,15 @@ Enables IPC tasks and pre-build views and connecting to views running in another
 Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
 
 Not enabled by default, but enabled by `feature="test_util"`.
+
+See `zng::app::spawn_deadlock_detection` for more details.
+
+#### `"memory_profiler"`
+Enable instrumented allocator and record allocations.
+
+Note that this replaces the `#[global_allocator]` and has an impact in performance.
+
+See `zng::app::memory_profiler` for more details.
 
 <!--do doc --readme #SECTION-END-->
 

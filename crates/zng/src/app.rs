@@ -672,7 +672,8 @@ pub mod trace_recorder {
 ///
 /// Build with debug symbols and `"memory_profiler"` feature to record heap allocations.
 ///
-/// Instrumentation and recording is done with the `dhat` crate. Recorded profiles can be visualized using the [online DHAT Viewer](https://nnethercote.github.io/dh_view/dh_view.html).
+/// Instrumentation and recording is done with the `dhat` crate. Recorded profiles can be visualized using the
+/// [online DHAT Viewer](https://nnethercote.github.io/dh_view/dh_view.html). Stack traces are captured for each significant allocation.
 ///
 /// # Config
 ///
@@ -687,6 +688,18 @@ pub mod trace_recorder {
 /// to the same *timestamp* folder, even worker processes started later.
 ///
 /// The primary process is named `"app-process"`. See [`zng::env::process_name`] for more details about the default processes.
+///
+/// # Limitations
+///
+/// Only heap allocations using the `#[global_allocator]` are captured, some dependencies can skip the allocator, for example, the view-process
+/// only traces a fraction of allocations because most of its heap usage comes from the graphics driver.
+///
+/// Compiling with `"memory_profiler"` feature replaces the global allocator, so if you use a custom allocator you need to setup
+/// a feature that disables it, otherwise it will not compile. The instrumented allocator also has an impact in performance so
+/// it is only recommended for test builds.
+///
+/// As an alternative on Unix you can use the external [Valgrind DHAT tool](https://valgrind.org/docs/manual/dh-manual.html).
+/// On Windows you can [Record a Heap Snapshot](https://learn.microsoft.com/en-us/windows-hardware/test/wpt/record-heap-snapshot).
 ///
 /// # Full API
 ///
