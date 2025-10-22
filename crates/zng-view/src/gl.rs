@@ -104,7 +104,13 @@ impl GlContextManager {
             }));
 
             let error = match r {
-                Ok(Ok(r)) => return r,
+                Ok(Ok(r)) => {
+                    let actual_mode = r.1.render_mode();
+                    if render_mode != actual_mode {
+                        tracing::warn!("render mode `{render_mode:?}` is not available, will use `{actual_mode:?}`");
+                    }
+                    return r;
+                }
                 Ok(Err(e)) => e,
                 Err(panic) => {
                     let component = match config.mode {
@@ -167,7 +173,13 @@ impl GlContextManager {
             }));
 
             let error = match r {
-                Ok(Ok(ctx)) => return ctx,
+                Ok(Ok(ctx)) => {
+                    let actual_mode = ctx.render_mode();
+                    if render_mode != actual_mode {
+                        tracing::warn!("render mode `{render_mode:?}` is not available, will use `{actual_mode:?}`");
+                    }
+                    return ctx;
+                }
                 Ok(Err(e)) => e,
                 Err(panic) => {
                     let component = match config.mode {
