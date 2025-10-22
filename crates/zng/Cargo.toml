@@ -44,6 +44,7 @@ default = ["dev"]
 dev = [
     "ipc", 
     "view_software", 
+   # "view_hardware", 
     "crash_handler",
     "crash_handler_debug",
     "window", 
@@ -240,10 +241,15 @@ config_yaml = ["zng-ext-config/yaml"]
 config_all = ["config_json", "config_toml", "config_ron", "config_yaml"]
 
 
-# Enables software renderer fallback in the default view-process.
+# Enables software renderer in the default view-process.
 #
-# If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
+# Recommended for all apps. The software renderer is used as fallback in case the hardware renderer stops working.
 view_software = ["zng-view?/software"]
+# Enables GPU renderer in the default view-process.
+#
+# Requires OpenGL 3.2 driver. Recommended for most apps. Uses ~20MB more RAM.
+view_hardware = ["zng-view?/hardware"]
+
 # Collects and bundles third-party licenses used by the `zng-view` crate.
 #
 # Needs `cargo-about` and Internet connection during build.

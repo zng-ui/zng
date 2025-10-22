@@ -1,13 +1,17 @@
 # Unreleased
 
-This release only contains breaking changes in advanced APIs. Mostly slight changes in the font shaping API
-that greatly reduces memory use with system fonts and embedded static fonts.
+* Add `"view_hardware"` feature to make hardware rendering optional.
+    - On Windows the `"view_software"` renderer uses ~20MB less RAM than Nvidia OpenGL drivers.
+    - Only recommended for small apps with simple UIs.
+    - If you hand pick features (recommended for release builds) you **must enable** this to retain hardware acceleration.
 
 * Optimize system fonts memory use.
     - **Breaking** Removed `FontDataRef`.
     - Added `FontBytes` that can efficiently reference bytes in various formats, including memory maps.
     - **Breaking** View API `add_font_face` now receives a `IpcFontBytes`.
     - Refactored `ColorGlyphs` and `ColorPalettes` to parse on demand.
+    - Windows builds with default fonts now uses ~20MB less memory.
+
 * Add `zng::app::memory_profiler` for recording DHAT heap traces.
 * Add `zng::task::set_spawn_panic_handler` for apps to optionally handle panics in spawn and forget tasks.
 * Fix view-process recover when it stops responding.
