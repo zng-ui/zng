@@ -368,7 +368,7 @@ impl<'a> ColorGlyphs<'a> {
     /// The `base_glyph` is the glyph selected by the font during shaping.
     ///
     /// Returns a [`ColorGlyph`] that provides the colored glyphs from the back (first item) to the front (last item).
-    /// Paired with each glyph is an index in the font's [`ColorPalette::colors`] or `None` if the base text color must be used.
+    /// Paired with each glyph is an index in the font's [`ColorPalette`] or `None` if the base text color must be used.
     ///
     /// Returns ``None  if the `base_glyph` has no associated colored replacements.
     pub fn glyph(&self, base_glyph: GlyphIndex) -> Option<ColorGlyph<'a>> {
