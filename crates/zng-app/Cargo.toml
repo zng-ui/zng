@@ -55,6 +55,8 @@ crash_handler = [
 # Enable trace recording.
 #
 # Note that this does not auto start recording, to do that run with the `"ZNG_RECORD_TRACE"` env var set.
+#
+# See `zng::app::trace_recorder` for more details.
 trace_recorder = ["dep:serde_json", "dep:tracing-chrome"]
 
 # Enables IPC tasks and pre-build views and connecting to views running in another process.
@@ -63,7 +65,17 @@ ipc = ["zng-view-api/ipc", "zng-task/ipc"]
 # Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
 #
 # Not enabled by default, but enabled by `feature="test_util"`.
+#
+# See `zng::app::spawn_deadlock_detection` for more details.
 deadlock_detection = ["zng-task/deadlock_detection"]
+
+
+# Enable instrumented allocator and record allocations.
+#
+# Note that this replaces the `#[global_allocator]` and has an impact in performance.
+#
+# See `zng::app::memory_profiler` for more details.
+memory_profiler = ["dep:dhat"]
 
 [dependencies]
 zng-app-proc-macros = { path = "../zng-app-proc-macros", version = "0.7.0", default-features = false }
@@ -111,6 +123,8 @@ minidump = { version = "0.26", optional = true, default-features = false }
 linkme = { version = "=0.3.33", optional = true, default-features = false }
 uuid = { version = "1.3", default-features = false, features = ["std", "v4"], optional = true }
 tracing-chrome = { version = "0.7", optional = true, default-features = false }
+# pinned because we depend on a doc(hidden) method. Will be fixed with release of https://github.com/nnethercote/dhat-rs/pull/36
+dhat = { version = "=0.3.3", optional = true, default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tracing-web = { version = "0.1", default-features = false }

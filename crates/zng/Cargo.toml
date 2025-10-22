@@ -161,6 +161,8 @@ trace_widget = ["zng-app/trace_widget", "zng-wgt-style/trace_widget"]
 # Enable trace recording.
 #
 # Note that this does not auto start recording, to do that run with the `"ZNG_RECORD_TRACE"` env var set.
+#
+# See `zng::app::trace_recorder` for more details.
 trace_recorder = ["zng-app/trace_recorder"]
 
 # Instrument every property and intrinsic node to trace UI methods.
@@ -169,7 +171,16 @@ trace_recorder = ["zng-app/trace_recorder"]
 trace_wgt_item = ["zng-app/trace_wgt_item"]
 
 # Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
+#
+# See `zng::app::spawn_deadlock_detection` for more details.
 deadlock_detection = ["zng-app/deadlock_detection"]
+
+# Enable instrumented allocator and record allocations.
+#
+# Note that this replaces the `#[global_allocator]` and has an impact in performance.
+#
+# See `zng::app::memory_profiler` for more details.
+memory_profiler = ["zng-app/memory_profiler"]
 
 # Embed hyphenation dictionaries for all supported languages.
 #
