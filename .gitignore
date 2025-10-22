@@ -23,4 +23,4 @@ do
 **/pseudo*.ftl
 **/pseudo*/*.ftl
 /zng-trace
-dhat-heap.json
+/zng-dhat
