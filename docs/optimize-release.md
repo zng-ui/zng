@@ -26,6 +26,8 @@ dev = ["zng/default", "zng/view_prebuilt"]
 release = [
     "zng-ipc", # to support running the view-process as a separate process
     "zng/view", # build the view-process to avoid embedding the prebuilt binary
+    "zng/view_hardware", # enable GPU renderer, better performance, but uses more RAM
+    "zng/view_software", # enable CPU renderer, good to have as fallback
     "zng/crash_handler", # use the crash handler to recover from fatal crashes
     "zng/window", # enable the windows service and `Window!` widget
     "zng/button", # enable the `Button!` widget
