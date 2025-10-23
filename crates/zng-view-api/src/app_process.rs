@@ -79,9 +79,9 @@ impl Controller {
     /// The [`current_exe`] cannot be used in tests, you should set an external view-process executable. Unfortunately there
     /// is no way to check if `start` was called in a test so we cannot provide an error message for this.
     /// If the test is hanging in debug builds or has a timeout error in release builds this is probably the reason.
-    /// 
+    ///
     /// # Connect Timeout
-    /// 
+    ///
     /// If the view process takes longer than 10 seconds to connect it is considered failed and a respawn will be attempted.
     /// This timeout is very reasonable in most cases, specially since users definitely need some visual feedback sooner, but
     /// some test runner machines can be very slow. You can can set the `"ZNG_VIEW_TIMEOUT"` variable to a custom timeout in
