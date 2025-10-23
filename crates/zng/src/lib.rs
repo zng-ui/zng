@@ -1,6 +1,6 @@
 #![expect(clippy::needless_doctest_main)]
-#![doc(html_favicon_url = "https://raw.githubusercontent.com/zng-ui/zng/main/examples/image/res/zng-logo-icon.png")]
-#![doc(html_logo_url = "https://raw.githubusercontent.com/zng-ui/zng/main/examples/image/res/zng-logo.png")]
+#![doc(html_favicon_url = "https://zng-ui.github.io/res/zng-logo-icon.png")]
+#![doc(html_logo_url = "https://zng-ui.github.io/res/zng-logo.png")]
 
 //! Zng is a cross-platform GUI framework, it provides ready made highly customizable widgets, responsive layout,
 //! live data binding, easy localization, automatic focus navigation and accessibility, async and multi-threaded tasks, robust

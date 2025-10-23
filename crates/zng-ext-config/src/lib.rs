@@ -1,5 +1,5 @@
-#![doc(html_favicon_url = "https://raw.githubusercontent.com/zng-ui/zng/main/examples/image/res/zng-logo-icon.png")]
-#![doc(html_logo_url = "https://raw.githubusercontent.com/zng-ui/zng/main/examples/image/res/zng-logo.png")]
+#![doc(html_favicon_url = "https://zng-ui.github.io/res/zng-logo-icon.png")]
+#![doc(html_logo_url = "https://zng-ui.github.io/res/zng-logo.png")]
 //!
 //! Config service and sources.
 //!
