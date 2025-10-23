@@ -80,6 +80,13 @@ impl Controller {
     /// is no way to check if `start` was called in a test so we cannot provide an error message for this.
     /// If the test is hanging in debug builds or has a timeout error in release builds this is probably the reason.
     ///
+    /// # Connect Timeout
+    ///
+    /// If the view process takes longer than 10 seconds to connect it is considered failed and a respawn will be attempted.
+    /// This timeout is very reasonable in most cases, specially since users definitely need some visual feedback sooner, but
+    /// some test runner machines can be very slow. You can can set the `"ZNG_VIEW_TIMEOUT"` variable to a custom timeout in
+    /// seconds. The minimum value is 5 seconds. This timeout value is also used to define a *not responding* respawn.
+    ///
     /// [`current_exe`]: std::env::current_exe
     /// [`VERSION`]: crate::VERSION
     pub fn start<F>(view_process_exe: PathBuf, view_process_env: HashMap<Txt, Txt>, headless: bool, on_event: F) -> Self
@@ -156,13 +163,13 @@ impl Controller {
     ) -> std::thread::JoinHandle<Box<dyn FnMut(Event) + Send>> {
         // spawns a thread that receives view-process events and monitors for process responsiveness
         // - ipc-channel sometimes does not signal disconnect when the view-process dies, this monitors the process state every second.
-        // - app-process pings every 2s of inactivity, this kills the view-process it it does not respond for more them 10s.
+        // - app-process pings every 2s of inactivity, this kills the view-process it it does not respond for more them ZNG_VIEW_TIMEOUT.
         thread::Builder::new()
             .name("other_process_listener".into())
             .spawn(move || {
                 const PROCESS_CHECK_DUR: Duration = Duration::from_secs(1);
-                const TIMEOUT_SECS: u8 = 10;
-                let mut check_count = 0u8;
+                let timeout = view_timeout();
+                let mut check_count = 0u64;
                 while let Ok(maybe) = event_receiver.recv_timeout(PROCESS_CHECK_DUR) {
                     match maybe {
                         Some(ev) => {
@@ -178,8 +185,8 @@ impl Controller {
                                             break;
                                         } else {
                                             check_count += 1;
-                                            if check_count == TIMEOUT_SECS {
-                                                tracing::error!("view-process not responding for {TIMEOUT_SECS}s, will respawn");
+                                            if check_count == timeout {
+                                                tracing::error!("view-process not responding for {timeout}s, will respawn");
                                                 let _ = p.0.kill();
                                                 p.1 = true;
                                                 break;
@@ -598,5 +605,20 @@ impl Drop for Controller {
                 let _ = process.wait();
             }
         }
+    }
+}
+
+const VIEW_TIMEOUT: &str = "ZNG_VIEW_TIMEOUT";
+/// Timeout in seconds.
+pub(crate) fn view_timeout() -> u64 {
+    match std::env::var(VIEW_TIMEOUT) {
+        Ok(s) if !s.is_empty() => match s.parse::<u64>() {
+            Ok(s) => s.max(5),
+            Err(e) => {
+                tracing::error!("invalid {VIEW_TIMEOUT:?} value, {e}");
+                10
+            }
+        },
+        _ => 10,
     }
 }

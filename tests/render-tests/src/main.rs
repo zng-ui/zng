@@ -44,10 +44,11 @@ fn main() {
         if args.include_vp(&view_process) {
             let mut retries = 0;
             while retries < 5 {
-                // CI fails some times (view 10s disconnect)
+                // CI fails some times (view timeout even after 60s?)
                 let result = std::process::Command::new(std::env::current_exe().unwrap())
                     .env("ZNG_VIEW_NO_INIT_START", "")
                     .env("ZNG_NO_CRASH_HANDLER", "")
+                    .env("ZNG_VIEW_TIMEOUT", "60")
                     .env("RENDER_TESTS_VP", &view_process)
                     .args(std::env::args().skip(1))
                     // .env("RUST_BACKTRACE", "1")

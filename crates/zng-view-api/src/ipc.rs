@@ -246,6 +246,8 @@ impl AppInit {
 
     /// Tries to connect to the view-process and receive the actual channels.
     pub fn connect(self) -> AnyResult<(RequestSender, ResponseReceiver, EventReceiver)> {
+        use crate::view_timeout;
+
         let (init_sender, init_recv) = flume::bounded(1);
         let handle = std::thread::Builder::new()
             .name("connection-init".into())
@@ -256,8 +258,9 @@ impl AppInit {
             })
             .expect("failed to spawn thread");
 
-        let (_, (req_sender, chan_sender)) = init_recv.recv_timeout(Duration::from_secs(10)).map_err(|e| match e {
-            flume::RecvTimeoutError::Timeout => "timeout, did not connect in 10s",
+        let timeout = view_timeout();
+        let (_, (req_sender, chan_sender)) = init_recv.recv_timeout(Duration::from_secs(timeout)).map_err(|e| match e {
+            flume::RecvTimeoutError::Timeout => format!("timeout, did not connect in {timeout}s"),
             flume::RecvTimeoutError::Disconnected => {
                 std::panic::resume_unwind(handle.join().unwrap_err());
             }
