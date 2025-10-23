@@ -15,6 +15,7 @@
 * Add `zng::app::memory_profiler` for recording DHAT heap traces.
 * Add `zng::task::set_spawn_panic_handler` for apps to optionally handle panics in spawn and forget tasks.
 * Task worker process timeout is now configurable with ZNG_TASK_WORKER_TIMEOUT env var.
+* View process timeout is now configurable with ZNG_VIEW_TIMEOUT env var.
 * Fix view-process recover when it stops responding.
 
 # 0.18.2

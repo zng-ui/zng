@@ -79,9 +79,9 @@
 //! Note that you can setup multiple workers the same executable, as long as the `on_process_start!` call happens
 //! on different modules.
 //!
-//! # Connection Timeout
+//! # Connect Timeout
 //!
-//! If the worker process takes longer them 10 seconds to connect the tasks fails. This is more then enough in most cases, but
+//! If the worker process takes longer than 10 seconds to connect the tasks fails. This is more then enough in most cases, but
 //! it can be too little in some test runner machines. You can set the `"ZNG_TASK_WORKER_TIMEOUT"` environment variable to a custom
 //! timeout in seconds. The minimum value is 1 second, set to 0 or empty use the default timeout.
 

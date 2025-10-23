@@ -31,6 +31,8 @@
 //! See the [`app`](crate::app) module documentation for more details about view-processes.
 //!
 //! See [`zng::env::init!`] for more details about running Android apps.
+//!
+//! See [`zng_view_api::Controller::start`] for details on how to relax connection timeouts in very slow test runner machines.
 
 /// Default view-process implementation.
 ///
