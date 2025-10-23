@@ -45,7 +45,7 @@ enum ViewState {
 /// [exits]: std::process::exit
 #[cfg_attr(not(ipc), allow(unused))]
 pub struct Controller {
-    process: Arc<Mutex<Option<std::process::Child>>>,
+    process: Arc<Mutex<Option<(std::process::Child, bool)>>>,
     view_state: ViewState,
     generation: ViewProcessGen,
     is_respawn: bool,
@@ -80,6 +80,13 @@ impl Controller {
     /// is no way to check if `start` was called in a test so we cannot provide an error message for this.
     /// If the test is hanging in debug builds or has a timeout error in release builds this is probably the reason.
     ///
+    /// # Connect Timeout
+    ///
+    /// If the view process takes longer than 10 seconds to connect it is considered failed and a respawn will be attempted.
+    /// This timeout is very reasonable in most cases, specially since users definitely need some visual feedback sooner, but
+    /// some test runner machines can be very slow. You can can set the `"ZNG_VIEW_TIMEOUT"` variable to a custom timeout in
+    /// seconds. The minimum value is 5 seconds. This timeout value is also used to define a *not responding* respawn.
+    ///
     /// [`current_exe`]: std::env::current_exe
     /// [`VERSION`]: crate::VERSION
     pub fn start<F>(view_process_exe: PathBuf, view_process_env: HashMap<Txt, Txt>, headless: bool, on_event: F) -> Self
@@ -101,7 +108,7 @@ impl Controller {
         let (process, request_sender, response_receiver, event_receiver) =
             Self::spawn_view_process(&view_process_exe, &view_process_env, headless).expect("failed to spawn or connect to view-process");
         let same_process = process.is_none();
-        let process = Arc::new(Mutex::new(process));
+        let process = Arc::new(Mutex::new(process.map(|p| (p, false))));
         let ev = if same_process {
             Self::spawn_same_process_listener(on_event, event_receiver, ViewProcessGen::first())
         } else {
@@ -135,70 +142,77 @@ impl Controller {
         mut event_receiver: EventReceiver,
         generation: ViewProcessGen,
     ) -> std::thread::JoinHandle<Box<dyn FnMut(Event) + Send>> {
-        thread::spawn(move || {
-            while let Ok(ev) = event_receiver.recv() {
-                on_event(ev);
-            }
-            on_event(Event::Disconnected(generation));
+        thread::Builder::new()
+            .name("same_process_listener".into())
+            .spawn(move || {
+                while let Ok(ev) = event_receiver.recv() {
+                    on_event(ev);
+                }
+                on_event(Event::Disconnected(generation));
 
-            // return to reuse in respawn.
-            on_event
-        })
+                // return to reuse in respawn.
+                on_event
+            })
+            .expect("failed to spawn thread")
     }
     fn spawn_other_process_listener(
         mut on_event: Box<dyn FnMut(Event) + Send>,
         mut event_receiver: EventReceiver,
-        process: Arc<Mutex<Option<std::process::Child>>>,
+        process: Arc<Mutex<Option<(std::process::Child, bool)>>>,
         generation: ViewProcessGen,
     ) -> std::thread::JoinHandle<Box<dyn FnMut(Event) + Send>> {
         // spawns a thread that receives view-process events and monitors for process responsiveness
         // - ipc-channel sometimes does not signal disconnect when the view-process dies, this monitors the process state every second.
-        // - app-process pings every 10s of inactivity, this kills the view-process it it does not respond for more them 30s.
-        thread::spawn(move || {
-            const PROCESS_CHECK_DUR: Duration = Duration::from_secs(1);
-            const TIMEOUT_SECS: u8 = 30;
-            let mut check_count = 0u8;
-            while let Ok(maybe) = event_receiver.recv_timeout(PROCESS_CHECK_DUR) {
-                match maybe {
-                    Some(ev) => {
-                        check_count = 0;
-                        on_event(ev)
-                    }
-                    None => {
-                        if let Some(p) = &mut *process.lock() {
-                            match p.try_wait() {
-                                Ok(c) => {
-                                    if c.is_some() {
-                                        // view-process died
-                                        break;
-                                    } else {
-                                        check_count += 1;
-                                        if check_count == TIMEOUT_SECS {
-                                            tracing::error!("view-process not responding for {TIMEOUT_SECS}s, will respawn");
-                                            let _ = p.kill();
+        // - app-process pings every 2s of inactivity, this kills the view-process it it does not respond for more them ZNG_VIEW_TIMEOUT.
+        thread::Builder::new()
+            .name("other_process_listener".into())
+            .spawn(move || {
+                const PROCESS_CHECK_DUR: Duration = Duration::from_secs(1);
+                let timeout = view_timeout();
+                let mut check_count = 0u64;
+                while let Ok(maybe) = event_receiver.recv_timeout(PROCESS_CHECK_DUR) {
+                    match maybe {
+                        Some(ev) => {
+                            check_count = 0;
+                            on_event(ev)
+                        }
+                        None => {
+                            if let Some(p) = &mut *process.lock() {
+                                match p.0.try_wait() {
+                                    Ok(c) => {
+                                        if c.is_some() {
+                                            // view-process died
+                                            break;
+                                        } else {
+                                            check_count += 1;
+                                            if check_count == timeout {
+                                                tracing::error!("view-process not responding for {timeout}s, will respawn");
+                                                let _ = p.0.kill();
+                                                p.1 = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        if e.kind() != std::io::ErrorKind::Interrupted {
+                                            tracing::error!("view-process try_wait error after inactivity, {e}");
                                             break;
                                         }
                                     }
                                 }
-                                Err(e) => {
-                                    if e.kind() != std::io::ErrorKind::Interrupted {
-                                        tracing::error!("view-process try_wait error after inactivity, {e}");
-                                        break;
-                                    }
-                                }
+                            } else {
+                                // respawning already
+                                break;
                             }
-                        } else {
-                            // respawning already
-                            break;
                         }
                     }
                 }
-            }
-            on_event(Event::Disconnected(generation));
+                on_event(Event::Disconnected(generation));
 
-            // return to reuse in respawn.
-            on_event
-        })
+                // return to reuse in respawn.
+                on_event
+            })
+            .expect("failed to spawn thread")
     }
 
     fn try_init(&mut self) -> VpResult<()> {
@@ -437,7 +451,7 @@ impl Controller {
         self.view_state = ViewState::NotRunning;
         self.is_respawn = true;
 
-        let mut process = if let Some(p) = self.process.lock().take() {
+        let (mut process, mut killed_by_us) = if let Some(p) = self.process.lock().take() {
             p
         } else {
             if self.same_process {
@@ -467,7 +481,6 @@ impl Controller {
         }
 
         // try exit
-        let mut killed_by_us = false;
         if !is_crash {
             let _ = process.kill();
             killed_by_us = true;
@@ -560,10 +573,9 @@ impl Controller {
                 }
             }
         };
-        debug_assert!(new_process.is_some());
 
         // update connections
-        self.process = Arc::new(Mutex::new(new_process));
+        self.process = Arc::new(Mutex::new(Some((new_process.unwrap(), false))));
         self.request_sender = request;
         self.response_receiver = response;
 
@@ -583,7 +595,7 @@ impl Drop for Controller {
     fn drop(&mut self) {
         let _ = self.exit();
         #[cfg(ipc)]
-        if let Some(mut process) = self.process.lock().take()
+        if let Some((mut process, _)) = self.process.lock().take()
             && process.try_wait().is_err()
         {
             std::thread::sleep(Duration::from_secs(1));
@@ -593,5 +605,20 @@ impl Drop for Controller {
                 let _ = process.wait();
             }
         }
+    }
+}
+
+const VIEW_TIMEOUT: &str = "ZNG_VIEW_TIMEOUT";
+/// Timeout in seconds.
+pub(crate) fn view_timeout() -> u64 {
+    match std::env::var(VIEW_TIMEOUT) {
+        Ok(s) if !s.is_empty() => match s.parse::<u64>() {
+            Ok(s) => s.max(5),
+            Err(e) => {
+                tracing::error!("invalid {VIEW_TIMEOUT:?} value, {e}");
+                10
+            }
+        },
+        _ => 10,
     }
 }

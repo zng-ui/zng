@@ -5,7 +5,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 21 feature flags, 0 enabled by default.
+This crate provides 22 feature flags, 0 enabled by default.
 
 #### `"ipc"`
 Enables pre-build and init as view-process.
@@ -16,9 +16,14 @@ even in same-process mode.
 Only enables in `cfg(not(target_os = "android"))` builds.
 
 #### `"software"`
-Enables software renderer fallback.
+Enables software renderer.
 
-If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
+Recommended for all apps. The software renderer is used as fallback in case the hardware renderer stops working.
+
+#### `"hardware"`
+Enables GPU renderer.
+
+Requires OpenGL 3.2 driver. Recommended for most apps. Uses ~20MB more RAM.
 
 #### `"bundle_licenses"`
 Bundle third party licenses.

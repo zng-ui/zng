@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 80 feature flags, 1 enabled by default.
+This crate provides 82 feature flags, 1 enabled by default.
 
 #### `"dev"`
 Defaults recommended for the dev profile (debug builds).
@@ -163,6 +163,8 @@ Enable trace recording.
 
 Note that this does not auto start recording, to do that run with the `"ZNG_RECORD_TRACE"` env var set.
 
+See `zng::app::trace_recorder` for more details.
+
 #### `"trace_wgt_item"`
 Instrument every property and intrinsic node to trace UI methods.
 
@@ -170,6 +172,15 @@ Note that this can cause very large trace files and bad performance.
 
 #### `"deadlock_detection"`
 Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
+
+See `zng::app::spawn_deadlock_detection` for more details.
+
+#### `"memory_profiler"`
+Enable instrumented allocator and record allocations.
+
+Note that this replaces the `#[global_allocator]` and has an impact in performance.
+
+See `zng::app::memory_profiler` for more details.
 
 #### `"hyphenation_embed_all"`
 Embed hyphenation dictionaries for all supported languages.
@@ -213,9 +224,14 @@ Enable YAML config format and file watcher helper.
 Enable all config formats an file watcher helpers.
 
 #### `"view_software"`
-Enables software renderer fallback in the default view-process.
+Enables software renderer in the default view-process.
 
-If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
+Recommended for all apps. The software renderer is used as fallback in case the hardware renderer stops working.
+
+#### `"view_hardware"`
+Enables GPU renderer in the default view-process.
+
+Requires OpenGL 3.2 driver. Recommended for most apps. Uses ~20MB more RAM.
 
 #### `"view_bundle_licenses"`
 Collects and bundles third-party licenses used by the `zng-view` crate.

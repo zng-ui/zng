@@ -1242,7 +1242,7 @@ fn prebuild(mut args: Vec<&str>) {
             "--profile",
             profile,
             "--features",
-            "ipc,software,bundle_licenses,image_all",
+            "ipc,software,hardware,bundle_licenses,image_all",
         ],
         &args,
     );

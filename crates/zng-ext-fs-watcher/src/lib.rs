@@ -483,11 +483,6 @@ impl ops::DerefMut for WatchFile {
         &mut self.0
     }
 }
-impl Drop for WatchFile {
-    fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.0);
-    }
-}
 
 const TRANSACTION_GUID: &str = "6eIw3bYMS0uKaQMkTIQacQ";
 const TRANSACTION_LOCK_EXT: &str = "6eIw3bYMS0uKaQMkTIQacQ-lock.tmp";
@@ -575,7 +570,7 @@ impl WriteFile {
         let mut temp_path = actual_path.with_file_name(format!("{hidden_name}.{TRANSACTION_GUID}-{n}.tmp"));
         let temp_file = loop {
             if let Ok(f) = fs::OpenOptions::new().write(true).create(true).truncate(true).open(&temp_path)
-                && let Ok(true) = f.try_lock_exclusive()
+                && f.try_lock().is_ok()
             {
                 break f;
             }
@@ -755,18 +750,18 @@ impl WriteFile {
         self.cleaned = true;
 
         if let Some(tmp) = self.temp_file.take() {
-            let _ = FileExt::unlock(&tmp);
+            let _ = tmp.unlock();
         }
         if let Err(e) = fs::remove_file(&self.temp_path) {
             tracing::debug!("failed to cleanup temp file, {e}")
         }
 
         if let Some(file) = self.actual_file.take() {
-            let _ = FileExt::unlock(&file);
+            let _ = file.unlock();
         }
 
         let transaction = self.transaction_lock.take().unwrap();
-        let _ = FileExt::unlock(&transaction);
+        let _ = transaction.unlock();
         let _ = fs::remove_file(&self.transaction_path);
     }
 }

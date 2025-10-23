@@ -26,7 +26,7 @@ use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
-    font::FontOptions,
+    font::{FontOptions, IpcFontBytes},
     image::{ImageMaskMode, ImagePpi, ImageRequest, ImageTextureId},
     ipc::{IpcBytes, IpcBytesReceiver, ViewChannelError},
     window::{
@@ -1096,8 +1096,8 @@ impl ViewRenderer {
     /// Add a raw font resource to the window renderer.
     ///
     /// Returns the new font face ID, unique for this renderer.
-    pub fn add_font_face(&self, bytes: Vec<u8>, index: u32) -> Result<FontFaceId> {
-        self.call(|id, p| p.add_font_face(id, IpcBytes::from_vec(bytes), index))
+    pub fn add_font_face(&self, bytes: IpcFontBytes, index: u32) -> Result<FontFaceId> {
+        self.call(|id, p| p.add_font_face(id, bytes, index))
     }
 
     /// Delete the font resource in the window renderer.

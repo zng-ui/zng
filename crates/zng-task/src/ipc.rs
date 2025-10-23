@@ -78,6 +78,12 @@
 //!
 //! Note that you can setup multiple workers the same executable, as long as the `on_process_start!` call happens
 //! on different modules.
+//!
+//! # Connect Timeout
+//!
+//! If the worker process takes longer than 10 seconds to connect the tasks fails. This is more then enough in most cases, but
+//! it can be too little in some test runner machines. You can set the `"ZNG_TASK_WORKER_TIMEOUT"` environment variable to a custom
+//! timeout in seconds. The minimum value is 1 second, set to 0 or empty use the default timeout.
 
 use core::fmt;
 use std::{marker::PhantomData, path::PathBuf, pin::Pin, sync::Arc};
@@ -111,6 +117,8 @@ impl<T: fmt::Debug + serde::Serialize + for<'d> serde::de::Deserialize<'d> + Sen
 const WORKER_VERSION: &str = "ZNG_TASK_IPC_WORKER_VERSION";
 const WORKER_SERVER: &str = "ZNG_TASK_IPC_WORKER_SERVER";
 const WORKER_NAME: &str = "ZNG_TASK_IPC_WORKER_NAME";
+
+const WORKER_TIMEOUT: &str = "ZNG_TASK_WORKER_TIMEOUT";
 
 /// The *App Process* and *Worker Process* must be build using the same exact version and this is
 /// validated during run-time, causing a panic if the versions don't match.
@@ -185,7 +193,18 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
 
         let process = crate::wait(move || worker.start()).await?;
 
-        let r = crate::with_deadline(crate::wait(move || server.accept()), 10.secs()).await;
+        let timeout = match std::env::var(WORKER_TIMEOUT) {
+            Ok(t) if !t.is_empty() => match t.parse::<u64>() {
+                Ok(t) => t.max(1),
+                Err(e) => {
+                    tracing::error!("invalid {WORKER_TIMEOUT:?} value, {e}");
+                    10
+                }
+            },
+            _ => 10,
+        };
+
+        let r = crate::with_deadline(crate::wait(move || server.accept()), timeout.secs()).await;
 
         let (_, (req_sender, chan_sender)) = match r {
             Ok(r) => match r {
@@ -201,14 +220,14 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::TimedOut,
                         format!(
-                            "worker process did not connect in 10 seconds\nworker exit code: {code}\n--worker stdout--\n{stdout}\n--worker stderr--\n{stderr}"
+                            "worker process did not connect in {timeout}s\nworker exit code: {code}\n--worker stdout--\n{stdout}\n--worker stderr--\n{stderr}"
                         ),
                     ));
                 }
                 Err(e) => {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::TimedOut,
-                        format!("worker process did not connect in 10s\ncannot be kill worker process, {e}"),
+                        format!("worker process did not connect in {timeout}s\ncannot be kill worker process, {e}"),
                     ));
                 }
             },
@@ -218,34 +237,38 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
         crate::wait(move || chan_sender.send(rsp_sender)).await.unwrap();
 
         let requests = Arc::new(Mutex::new(IdMap::<RequestId, flume::Sender<O>>::new()));
-        let receiver = std::thread::spawn(clmv!(requests, || {
-            loop {
-                match rsp_recv.recv() {
-                    Ok((id, r)) => match requests.lock().remove(&id) {
-                        Some(s) => match r {
-                            Response::Out(r) => {
-                                let _ = s.send(r);
+        let receiver = std::thread::Builder::new()
+            .name("task-ipc-recv".into())
+            .stack_size(256 * 1024)
+            .spawn(clmv!(requests, || {
+                loop {
+                    match rsp_recv.recv() {
+                        Ok((id, r)) => match requests.lock().remove(&id) {
+                            Some(s) => match r {
+                                Response::Out(r) => {
+                                    let _ = s.send(r);
+                                }
+                            },
+                            None => tracing::error!("worker responded to unknown request #{}", id.sequential()),
+                        },
+                        Err(e) => match e {
+                            ipc_channel::ipc::IpcError::Disconnected => {
+                                requests.lock().clear();
+                                break;
+                            }
+                            ipc_channel::ipc::IpcError::Bincode(e) => {
+                                tracing::error!("worker response error, will shutdown, {e}");
+                                break;
+                            }
+                            ipc_channel::ipc::IpcError::Io(e) => {
+                                tracing::error!("worker response io error, will shutdown, {e}");
+                                break;
                             }
                         },
-                        None => tracing::error!("worker responded to unknown request #{}", id.sequential()),
-                    },
-                    Err(e) => match e {
-                        ipc_channel::ipc::IpcError::Disconnected => {
-                            requests.lock().clear();
-                            break;
-                        }
-                        ipc_channel::ipc::IpcError::Bincode(e) => {
-                            tracing::error!("worker response error, will shutdown, {e}");
-                            break;
-                        }
-                        ipc_channel::ipc::IpcError::Io(e) => {
-                            tracing::error!("worker response io error, will shutdown, {e}");
-                            break;
-                        }
-                    },
+                    }
                 }
-            }
-        }));
+            }))
+            .expect("failed to spawn thread");
 
         Ok(Self {
             running: Some((receiver, process)),

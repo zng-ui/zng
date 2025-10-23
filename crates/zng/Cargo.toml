@@ -42,12 +42,13 @@ default = ["dev"]
 # ]
 # ```
 dev = [
-    "ipc", 
-    "view_software", 
+    "ipc",
+    "view_software",
+    "view_hardware",
     "crash_handler",
     "crash_handler_debug",
-    "window", 
-    "third_party", 
+    "window",
+    "third_party",
     "third_party_default",
     "checkerboard",
     "clipboard",
@@ -107,7 +108,11 @@ svg = ["dep:zng-ext-svg", "zng-ext-font/svg"]
 
 # Instrument each property and widget instance with "Inspector" nodes and
 # extend windows to be inspected on Ctrl+Shift+I.
-inspector = ["dep:zng-wgt-inspector", "zng-app/inspector", "zng-wgt-inspector/live"]
+inspector = [
+    "dep:zng-wgt-inspector",
+    "zng-app/inspector",
+    "zng-wgt-inspector/live",
+]
 
 # Enable hot reload builds.
 #
@@ -161,6 +166,8 @@ trace_widget = ["zng-app/trace_widget", "zng-wgt-style/trace_widget"]
 # Enable trace recording.
 #
 # Note that this does not auto start recording, to do that run with the `"ZNG_RECORD_TRACE"` env var set.
+#
+# See `zng::app::trace_recorder` for more details.
 trace_recorder = ["zng-app/trace_recorder"]
 
 # Instrument every property and intrinsic node to trace UI methods.
@@ -169,7 +176,16 @@ trace_recorder = ["zng-app/trace_recorder"]
 trace_wgt_item = ["zng-app/trace_wgt_item"]
 
 # Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
+#
+# See `zng::app::spawn_deadlock_detection` for more details.
 deadlock_detection = ["zng-app/deadlock_detection"]
+
+# Enable instrumented allocator and record allocations.
+#
+# Note that this replaces the `#[global_allocator]` and has an impact in performance.
+#
+# See `zng::app::memory_profiler` for more details.
+memory_profiler = ["zng-app/memory_profiler"]
 
 # Embed hyphenation dictionaries for all supported languages.
 #
@@ -229,10 +245,15 @@ config_yaml = ["zng-ext-config/yaml"]
 config_all = ["config_json", "config_toml", "config_ron", "config_yaml"]
 
 
-# Enables software renderer fallback in the default view-process.
+# Enables software renderer in the default view-process.
 #
-# If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
+# Recommended for all apps. The software renderer is used as fallback in case the hardware renderer stops working.
 view_software = ["zng-view?/software"]
+# Enables GPU renderer in the default view-process.
+#
+# Requires OpenGL 3.2 driver. Recommended for most apps. Uses ~20MB more RAM.
+view_hardware = ["zng-view?/hardware"]
+
 # Collects and bundles third-party licenses used by the `zng-view` crate.
 #
 # Needs `cargo-about` and Internet connection during build.
@@ -267,7 +288,15 @@ window = ["dep:zng-ext-window", "dep:zng-wgt-window"]
 third_party = []
 
 # Enable default third-party licenses default view.
-third_party_default = ["window", "scroll", "text_input", "data_view", "markdown", "stack", "toggle"]
+third_party_default = [
+    "window",
+    "scroll",
+    "text_input",
+    "data_view",
+    "markdown",
+    "stack",
+    "toggle",
+]
 
 # Enable ANSI text widget.
 #
@@ -308,7 +337,14 @@ drag_drop = ["zng-ext-input/drag_drop", "zng-wgt-input/drag_drop"]
 grid = ["dep:zng-wgt-grid"]
 
 # Enable image service, widgets, window icons, image cursors, frame capturing.
-image = ["dep:zng-ext-image", "dep:zng-wgt-image", "zng-ext-window?/image", "zng-wgt-window?/image", "zng-wgt-input/image", "zng-wgt-inspector?/image"]
+image = [
+    "dep:zng-ext-image",
+    "dep:zng-wgt-image",
+    "zng-ext-window?/image",
+    "zng-wgt-window?/image",
+    "zng-wgt-input/image",
+    "zng-wgt-inspector?/image",
+]
 
 # Enable markdown widget.
 markdown = ["dep:zng-wgt-markdown"]
@@ -402,7 +438,9 @@ zng-app = { path = "../zng-app", version = "0.19.2", default-features = false }
 zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.8.2", optional = true, default-features = false }
 zng-ext-config = { path = "../zng-ext-config", version = "0.9.2", default-features = false, optional = true }
 zng-ext-font = { path = "../zng-ext-font", version = "0.10.2", default-features = false }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.11.2", features = ["tar"], default-features = false }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.11.2", features = [
+    "tar",
+], default-features = false }
 zng-ext-image = { path = "../zng-ext-image", version = "0.8.2", optional = true, default-features = false }
 zng-ext-svg = { path = "../zng-ext-svg", version = "0.7.2", optional = true, default-features = false }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.8.2", optional = true, default-features = false }
@@ -456,13 +494,17 @@ zng-ext-single-instance = { path = "../zng-ext-single-instance", version = "0.9.
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 # view
-zng-view-api = { path = "../zng-view-api", version = "0.16.2", default-features = false, features = ["var"] }
+zng-view-api = { path = "../zng-view-api", version = "0.16.2", default-features = false, features = [
+    "var",
+] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 zng-view = { path = "../zng-view", version = "0.13.2", default-features = false, optional = true }
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android", target_os = "ios")))'.dependencies]
-zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.18.2", optional = true, default-features = false, features = ["embedded"] }
+zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.18.2", optional = true, default-features = false, features = [
+    "embedded",
+] }
 
 [build-dependencies]
 cfg_aliases = { version = "0.2", default-features = false }

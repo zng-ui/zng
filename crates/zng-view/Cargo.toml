@@ -20,10 +20,15 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 # Only enables in `cfg(not(target_os = "android"))` builds.
 ipc = ["zng-view-api/ipc"]
 
-# Enables software renderer fallback.
+# Enables software renderer.
 #
-# If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
+# Recommended for all apps. The software renderer is used as fallback in case the hardware renderer stops working.
 software = ["dep:swgl", "dep:softbuffer"]
+
+# Enables GPU renderer.
+#
+# Requires OpenGL 3.2 driver. Recommended for most apps. Uses ~20MB more RAM.
+hardware = ["dep:glutin"]
 
 # Bundle third party licenses.
 #
@@ -127,7 +132,7 @@ winit = { version = "0.30", default-features = false, features = [
     "wayland-dlopen",
     "rwh_06",
 ] }
-glutin = { version = "0.32", default-features = false, features = ["egl", "glx", "wayland", "wgl", "x11" ] }
+glutin = { version = "0.32", default-features = false, features = ["egl", "glx", "wayland", "wgl", "x11" ], optional = true }
 raw-window-handle = { version = "0.6", default-features = false } # matches glutin
 flume = { version = "0.11", default-features = false }
 image = { version = "0.25", default-features = false, features = ["rayon"] } # on upgrade review audit.toml

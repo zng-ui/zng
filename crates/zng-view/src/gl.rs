@@ -1,6 +1,8 @@
-use std::{cell::Cell, error::Error, ffi::CString, fmt, mem, num::NonZeroU32, rc::Rc, thread};
+use std::{cell::Cell, error::Error, fmt, mem, num::NonZeroU32, rc::Rc, thread};
 
 use gleam::gl;
+
+#[cfg(feature = "hardware")]
 use glutin::{
     config::{Api, ConfigSurfaceTypes, ConfigTemplateBuilder},
     context::{ContextAttributesBuilder, PossiblyCurrentContext},
@@ -8,12 +10,15 @@ use glutin::{
     prelude::*,
     surface::{Surface, SurfaceAttributesBuilder, WindowSurface},
 };
+#[cfg(feature = "hardware")]
+use raw_window_handle::*;
+#[cfg(feature = "hardware")]
+use std::ffi::CString;
+
 use rustc_hash::FxHashSet;
 use winit::{dpi::PhysicalSize, event_loop::ActiveEventLoop};
 use zng_txt::ToTxt as _;
 use zng_view_api::window::{RenderMode, WindowId};
-
-use raw_window_handle::*;
 
 use crate::{AppEvent, AppEventSender, util};
 
@@ -74,6 +79,9 @@ impl GlContextManager {
     ) -> (winit::window::Window, GlContext) {
         let mut errors = vec![];
 
+        #[cfg(not(feature = "hardware"))]
+        let _ = prefer_egl;
+
         for config in TryConfig::iter(render_mode) {
             if self.unsupported_headed.contains(&config) {
                 errors.push((config, "previous attempt failed, not supported".into()));
@@ -87,14 +95,22 @@ impl GlContextManager {
             };
 
             let r = util::catch_suppress(std::panic::AssertUnwindSafe(|| match config.mode {
+                #[cfg(feature = "hardware")]
                 RenderMode::Dedicated => self.create_headed_glutin(winit_loop, id, window, config.hardware_acceleration, prefer_egl),
+                #[cfg(feature = "hardware")]
                 RenderMode::Integrated => self.create_headed_glutin(winit_loop, id, window, Some(false), prefer_egl),
                 RenderMode::Software => self.create_headed_swgl(winit_loop, id, window),
                 _ => self.create_headed_swgl(winit_loop, id, window),
             }));
 
             let error = match r {
-                Ok(Ok(r)) => return r,
+                Ok(Ok(r)) => {
+                    let actual_mode = r.1.render_mode();
+                    if render_mode != actual_mode {
+                        tracing::warn!("render mode `{render_mode:?}` is not available, will use `{actual_mode:?}`");
+                    }
+                    return r;
+                }
                 Ok(Err(e)) => e,
                 Err(panic) => {
                     let component = match config.mode {
@@ -138,6 +154,9 @@ impl GlContextManager {
     ) -> GlContext {
         let mut errors = vec![];
 
+        #[cfg(not(feature = "hardware"))]
+        let _ = (winit_loop, prefer_egl);
+
         for config in TryConfig::iter(render_mode) {
             if self.unsupported_headed.contains(&config) {
                 errors.push((config, "previous attempt failed, not supported".into()));
@@ -145,14 +164,22 @@ impl GlContextManager {
             }
 
             let r = util::catch_suppress(std::panic::AssertUnwindSafe(|| match config.mode {
+                #[cfg(feature = "hardware")]
                 RenderMode::Dedicated => self.create_headless_glutin(id, winit_loop, config.hardware_acceleration, prefer_egl),
+                #[cfg(feature = "hardware")]
                 RenderMode::Integrated => self.create_headless_glutin(id, winit_loop, Some(false), prefer_egl),
                 RenderMode::Software => self.create_headless_swgl(id),
                 _ => self.create_headless_swgl(id),
             }));
 
             let error = match r {
-                Ok(Ok(ctx)) => return ctx,
+                Ok(Ok(ctx)) => {
+                    let actual_mode = ctx.render_mode();
+                    if render_mode != actual_mode {
+                        tracing::warn!("render mode `{render_mode:?}` is not available, will use `{actual_mode:?}`");
+                    }
+                    return ctx;
+                }
                 Ok(Err(e)) => e,
                 Err(panic) => {
                     let component = match config.mode {
@@ -185,6 +212,7 @@ impl GlContextManager {
         panic!("{msg}")
     }
 
+    #[cfg(feature = "hardware")]
     fn create_headed_glutin(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -393,6 +421,7 @@ impl GlContextManager {
         }
     }
 
+    #[cfg(feature = "hardware")]
     fn create_headless_glutin(
         &mut self,
         id: WindowId,
@@ -549,6 +578,7 @@ impl GlContextManager {
 
 #[allow(clippy::large_enum_variant)] // glutin is the largest, but also most common
 enum GlBackend {
+    #[cfg(feature = "hardware")]
     Glutin {
         headless: Option<GlutinHeadless>,
         context: PossiblyCurrentContext,
@@ -619,6 +649,7 @@ impl GlContext {
         assert!(self.is_current());
 
         match &mut self.backend {
+            #[cfg(feature = "hardware")]
             GlBackend::Glutin {
                 context,
                 surface,
@@ -657,6 +688,7 @@ impl GlContext {
             self.current.set(id);
 
             match &self.backend {
+                #[cfg(feature = "hardware")]
                 GlBackend::Glutin { context, surface, .. } => context.make_current(surface).unwrap(),
                 #[cfg(feature = "software")]
                 GlBackend::Swgl { context, .. } => context.make_current(),
@@ -669,6 +701,7 @@ impl GlContext {
         assert!(self.is_current());
 
         match &mut self.backend {
+            #[cfg(feature = "hardware")]
             GlBackend::Glutin {
                 context,
                 surface,
@@ -718,6 +751,7 @@ impl Drop for GlContext {
         self.make_current();
 
         match mem::replace(&mut self.backend, GlBackend::Dropped) {
+            #[cfg(feature = "hardware")]
             GlBackend::Glutin { headless, .. } => {
                 if let Some(h) = headless {
                     let _ = h.hidden_window;
@@ -734,7 +768,7 @@ impl Drop for GlContext {
 
 /// Warmup the OpenGL driver in a throwaway thread, some NVIDIA drivers have a slow startup (500ms~),
 /// hopefully this loads it in parallel while the app is starting up so we don't block creating the first window.
-#[cfg(windows)]
+#[cfg(all(windows, feature = "hardware"))]
 pub(crate) fn warmup() {
     // idea copied from here:
     // https://hero.handmade.network/forums/code-discussion/t/2503-day_235_opengl%2527s_pixel_format_takes_a_long_time#13029
@@ -755,10 +789,11 @@ pub(crate) fn warmup() {
         });
 }
 
-#[cfg(not(windows))]
+#[cfg(not(all(windows, feature = "hardware")))]
 pub(crate) fn warmup() {}
 
 // check if equal or newer then 3.1
+#[cfg(feature = "hardware")]
 fn check_wr_gl_version(gl: &dyn gl::Gl) -> Result<(), String> {
     let mut version = [0; 2];
     let is_2_or_1;
@@ -841,6 +876,7 @@ impl TryConfig {
     }
 }
 
+#[cfg(feature = "hardware")]
 struct GlutinHeadless {
     hidden_window: winit::window::Window,
 
@@ -848,6 +884,7 @@ struct GlutinHeadless {
     rbos: [u32; 2],
     fbo: u32,
 }
+#[cfg(feature = "hardware")]
 impl GlutinHeadless {
     fn new(gl: &Rc<dyn gl::Gl>, hidden_window: winit::window::Window) -> Self {
         // create a surface for Webrender:

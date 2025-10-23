@@ -13,7 +13,13 @@
 
 use font_features::RFontVariations;
 use hashbrown::{HashMap, HashSet};
-use std::{borrow::Cow, fmt, ops, path::PathBuf, slice::SliceIndex, sync::Arc};
+use std::{
+    borrow::Cow,
+    fmt, ops,
+    path::{Path, PathBuf},
+    slice::SliceIndex,
+    sync::Arc,
+};
 
 #[macro_use]
 extern crate bitflags;
@@ -58,8 +64,8 @@ use zng_app::{
 use zng_app_context::app_local;
 use zng_ext_l10n::{Lang, LangMap, lang};
 use zng_layout::unit::{
-    EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _, about_eq, about_eq_hash,
-    about_eq_ord, euclid,
+    ByteUnits as _, EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _, about_eq,
+    about_eq_hash, about_eq_ord, euclid,
 };
 use zng_task as task;
 use zng_txt::Txt;
@@ -67,7 +73,7 @@ use zng_var::{
     IntoVar, ResponderVar, ResponseVar, Var, animation::Transitionable, const_var, impl_from_and_into_var, response_done_var, response_var,
     var,
 };
-use zng_view_api::config::FontAntiAliasing;
+use zng_view_api::{config::FontAntiAliasing, font::IpcFontBytes, ipc::IpcBytes};
 
 /// Font family name.
 ///
@@ -858,7 +864,7 @@ impl FontInstanceKey {
 #[derive(Clone)]
 pub struct FontFace(Arc<LoadedFontFace>);
 struct LoadedFontFace {
-    data: FontDataRef,
+    data: FontBytes,
     face_index: u32,
     display_name: FontName,
     family_name: FontName,
@@ -867,8 +873,6 @@ struct LoadedFontFace {
     weight: FontWeight,
     stretch: FontStretch,
     metrics: FontFaceMetrics,
-    color_palettes: ColorPalettes,
-    color_glyphs: ColorGlyphs,
     lig_carets: LigatureCaretList,
     flags: FontFaceFlags,
     m: Mutex<FontFaceMut>,
@@ -900,8 +904,6 @@ impl fmt::Debug for FontFace {
             .field("weight", &self.0.weight)
             .field("stretch", &self.0.stretch)
             .field("metrics", &self.0.metrics)
-            .field("color_palettes.len()", &self.0.color_palettes.len())
-            .field("color_glyphs.len()", &self.0.color_glyphs.len())
             .field("instances.len()", &m.instances.len())
             .field("render_keys.len()", &m.render_ids.len())
             .field("unregistered", &m.unregistered)
@@ -918,7 +920,7 @@ impl FontFace {
     /// New empty font face.
     pub fn empty() -> Self {
         FontFace(Arc::new(LoadedFontFace {
-            data: FontDataRef::from_static(&[]),
+            data: FontBytes::from_static(&[]),
             face_index: 0,
             display_name: FontName::from("<empty>"),
             family_name: FontName::from("<empty>"),
@@ -940,8 +942,6 @@ impl FontFace {
                 // `xMin`/`xMax`/`yMin`/`yMax`
                 bounds: euclid::Box2D::new(euclid::point2(0.0, -432.0), euclid::point2(1291.0, 1616.0)).to_rect(),
             },
-            color_palettes: ColorPalettes::empty(),
-            color_glyphs: ColorGlyphs::empty(),
             lig_carets: LigatureCaretList::empty(),
             m: Mutex::new(FontFaceMut {
                 instances: HashMap::default(),
@@ -962,7 +962,7 @@ impl FontFace {
 
         match custom_font.source {
             FontSource::File(path, index) => {
-                bytes = FontDataRef(Arc::new(task::wait(|| std::fs::read(path)).await?));
+                bytes = task::wait(|| FontBytes::from_file(path)).await?;
                 face_index = index;
             }
             FontSource::Memory(arc, index) => {
@@ -990,8 +990,6 @@ impl FontFace {
                             render_ids: Default::default(),
                             unregistered: Default::default(),
                         }),
-                        color_palettes: other_font.0.color_palettes.clone(),
-                        color_glyphs: other_font.0.color_glyphs.clone(),
                         lig_carets: other_font.0.lig_carets.clone(),
                         flags: other_font.0.flags,
                     }))),
@@ -1016,12 +1014,6 @@ impl FontFace {
             }
         };
 
-        let color_palettes = ColorPalettes::load(ttf_face.raw_face())?;
-        let color_glyphs = if color_palettes.is_empty() {
-            ColorGlyphs::empty()
-        } else {
-            ColorGlyphs::load(ttf_face.raw_face())?
-        };
         let has_ligatures = ttf_face.tables().gsub.is_some();
         let lig_carets = if has_ligatures {
             LigatureCaretList::empty()
@@ -1050,8 +1042,6 @@ impl FontFace {
             weight: custom_font.weight,
             stretch: custom_font.stretch,
             metrics: ttf_face.into(),
-            color_palettes,
-            color_glyphs,
             lig_carets,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
@@ -1063,7 +1053,7 @@ impl FontFace {
         })))
     }
 
-    fn load(bytes: FontDataRef, mut face_index: u32) -> Result<Self, FontLoadingError> {
+    fn load(bytes: FontBytes, mut face_index: u32) -> Result<Self, FontLoadingError> {
         let _span = tracing::trace_span!("FontFace::load").entered();
 
         let ttf_face = match ttf_parser::Face::parse(&bytes, face_index) {
@@ -1080,13 +1070,6 @@ impl FontFace {
                     Err(_) => return Err(FontLoadingError::Parse(e)),
                 }
             }
-        };
-
-        let color_palettes = ColorPalettes::load(ttf_face.raw_face())?;
-        let color_glyphs = if color_palettes.is_empty() {
-            ColorGlyphs::empty()
-        } else {
-            ColorGlyphs::load(ttf_face.raw_face())?
         };
 
         let has_ligatures = ttf_face.tables().gsub.is_some();
@@ -1155,8 +1138,6 @@ impl FontFace {
             weight: ttf_face.weight().into(),
             stretch: ttf_face.width().into(),
             metrics: ttf_face.into(),
-            color_palettes,
-            color_glyphs,
             lig_carets,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
@@ -1182,7 +1163,7 @@ impl FontFace {
             }
         }
 
-        let key = match renderer.add_font_face((*self.0.data.0).clone(), self.0.face_index) {
+        let key = match renderer.add_font_face(self.0.data.to_ipc(), self.0.face_index) {
             Ok(k) => k,
             Err(_) => {
                 tracing::debug!("respawned calling `add_font`, will return dummy font key");
@@ -1207,7 +1188,7 @@ impl FontFace {
         if self.is_empty() {
             None
         } else {
-            Some(rustybuzz::Face::from_slice(&self.0.data.0, self.0.face_index).unwrap())
+            Some(rustybuzz::Face::from_slice(&self.0.data, self.0.face_index).unwrap())
         }
     }
 
@@ -1223,12 +1204,12 @@ impl FontFace {
         if self.is_empty() {
             None
         } else {
-            Some(ttf_parser::Face::parse(&self.0.data.0, self.0.face_index).unwrap())
+            Some(ttf_parser::Face::parse(&self.0.data, self.0.face_index).unwrap())
         }
     }
 
     /// Reference the font file bytes.
-    pub fn bytes(&self) -> &FontDataRef {
+    pub fn bytes(&self) -> &FontBytes {
         &self.0.data
     }
     /// Index of the font face in the [font file](Self::bytes).
@@ -1325,15 +1306,21 @@ impl FontFace {
     /// CPAL table.
     ///
     /// Is empty if not provided by the font.
-    pub fn color_palettes(&self) -> &ColorPalettes {
-        &self.0.color_palettes
+    pub fn color_palettes(&self) -> ColorPalettes<'_> {
+        match self.ttf() {
+            Some(ttf) => ColorPalettes::new(*ttf.raw_face()),
+            None => ColorPalettes::empty(),
+        }
     }
 
     /// COLR table.
     ///
     /// Is empty if not provided by the font.
-    pub fn color_glyphs(&self) -> &ColorGlyphs {
-        &self.0.color_glyphs
+    pub fn color_glyphs(&self) -> ColorGlyphs<'_> {
+        match self.ttf() {
+            Some(ttf) => ColorGlyphs::new(*ttf.raw_face()),
+            None => ColorGlyphs::empty(),
+        }
     }
 
     /// If the font provides glyph substitutions.
@@ -2089,7 +2076,7 @@ impl FontFaceLoader {
         result
     }
 
-    fn get_system(font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<(FontDataRef, u32)> {
+    fn get_system(font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<(FontBytes, u32)> {
         let _span = tracing::trace_span!("FontFaceLoader::get_system").entered();
         match query_util::best(font_name, style, weight, stretch) {
             Ok(r) => r,
@@ -2401,32 +2388,230 @@ impl GenericFonts {
     }
 }
 
+#[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
+pub(crate) enum WeakFontBytes {
+    Ipc(std::sync::Weak<IpcBytes>),
+    Arc(std::sync::Weak<Vec<u8>>),
+    Static(&'static [u8]),
+    Mmap(std::sync::Weak<FontBytesMmap>),
+}
+#[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
+impl WeakFontBytes {
+    pub(crate) fn upgrade(&self) -> Option<FontBytes> {
+        match self {
+            WeakFontBytes::Ipc(weak) => Some(FontBytes(FontBytesImpl::Ipc(weak.upgrade()?))),
+            WeakFontBytes::Arc(weak) => Some(FontBytes(FontBytesImpl::Arc(weak.upgrade()?))),
+            WeakFontBytes::Static(b) => Some(FontBytes(FontBytesImpl::Static(b))),
+            WeakFontBytes::Mmap(weak) => Some(FontBytes(FontBytesImpl::Mmap(weak.upgrade()?))),
+        }
+    }
+
+    pub(crate) fn strong_count(&self) -> usize {
+        match self {
+            WeakFontBytes::Ipc(weak) => weak.strong_count(),
+            WeakFontBytes::Arc(weak) => weak.strong_count(),
+            WeakFontBytes::Static(_) => 1,
+            WeakFontBytes::Mmap(weak) => weak.strong_count(),
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+struct FontBytesMmap {
+    path: std::path::PathBuf,
+    _read_lock: std::fs::File,
+    mmap: memmap2::Mmap,
+}
+
+#[derive(Clone)]
+enum FontBytesImpl {
+    /// IpcBytes already clones references, but we need the weak_count for caching
+    Ipc(Arc<IpcBytes>),
+    Arc(Arc<Vec<u8>>),
+    Static(&'static [u8]),
+    #[cfg(not(target_arch = "wasm32"))]
+    Mmap(Arc<FontBytesMmap>),
+}
 /// Reference to in memory font data.
 #[derive(Clone)]
-pub struct FontDataRef(pub Arc<Vec<u8>>);
-impl FontDataRef {
-    /// Copy bytes from embedded font.
-    pub fn from_static(data: &'static [u8]) -> Self {
-        FontDataRef(Arc::new(data.to_vec()))
+pub struct FontBytes(FontBytesImpl);
+impl FontBytes {
+    /// From shared memory that can be efficiently referenced in the view-process for rendering.
+    pub fn from_ipc(bytes: IpcBytes) -> Self {
+        Self(FontBytesImpl::Ipc(Arc::new(bytes)))
+    }
+
+    /// Moves data to an [`IpcBytes`] shared reference.
+    pub fn from_vec(bytes: Vec<u8>) -> Self {
+        Self(FontBytesImpl::Ipc(Arc::new(IpcBytes::from_vec(bytes))))
+    }
+
+    /// Uses the reference in the app-process. In case the font needs to be send to view-process turns into [`IpcBytes`].
+    pub fn from_static(bytes: &'static [u8]) -> Self {
+        Self(FontBytesImpl::Static(bytes))
+    }
+
+    /// Uses the reference in the app-process. In case the font needs to be send to view-process turns into [`IpcBytes`].
+    ///
+    /// Prefer `from_ipc` if you can control the data creation.
+    pub fn from_arc(bytes: Arc<Vec<u8>>) -> Self {
+        Self(FontBytesImpl::Arc(bytes))
+    }
+
+    /// If the `path` is in the restricted system fonts directory memory maps it. Otherwise reads into [`IpcBytes`].
+    pub fn from_file(path: PathBuf) -> std::io::Result<Self> {
+        let path = dunce::canonicalize(path)?;
+
+        #[cfg(windows)]
+        {
+            use windows::Win32::{Foundation::MAX_PATH, System::SystemInformation::GetSystemWindowsDirectoryW};
+            let mut buffer = [0u16; MAX_PATH as usize];
+            // SAFETY: Buffer allocated to max possible
+            let len = unsafe { GetSystemWindowsDirectoryW(Some(&mut buffer)) };
+            let fonts_dir = String::from_utf16_lossy(&buffer[..len as usize]);
+            // usually this is: r"C:\Windows\Fonts"
+            if path.starts_with(fonts_dir) {
+                // SAFETY: Windows restricts write access to files in this directory.
+                return unsafe { Self::from_file_mmap(path) };
+            }
+        }
+        #[cfg(target_os = "macos")]
+        if path.starts_with("/System/Library/Fonts/") || path.starts_with("/Library/Fonts/") {
+            // SAFETY: macOS restricts write access to files in this directory.
+            return unsafe { Self::from_file_mmap(path) };
+        }
+        #[cfg(target_os = "android")]
+        if path.starts_with("/system/fonts/") || path.starts_with("/system/font/") || path.starts_with("/system/product/fonts/") {
+            // SAFETY: Android restricts write access to files in this directory.
+            return unsafe { Self::from_file_mmap(path) };
+        }
+        #[cfg(unix)]
+        if path.starts_with("/usr/share/fonts/") {
+            // SAFETY: OS restricts write access to files in this directory.
+            return unsafe { Self::from_file_mmap(path) };
+        }
+
+        std::fs::read(path).map(Self::from_vec)
+    }
+
+    /// Read lock the `path` and memory maps it.
+    ///
+    /// # Safety
+    ///
+    /// You must ensure the file content does not change. If the file has the same access restrictions as the
+    /// current executable file you can say it is safe.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub unsafe fn from_file_mmap(path: PathBuf) -> std::io::Result<Self> {
+        let file = std::fs::File::open(&path)?;
+        file.try_lock_shared()?;
+        let mmap = unsafe { memmap2::Mmap::map(&file) }?;
+        Ok(Self(FontBytesImpl::Mmap(Arc::new(FontBytesMmap {
+            path,
+            _read_lock: file,
+            mmap,
+        }))))
+    }
+
+    /// No memory map in wasm, just reads the file.
+    #[cfg(target_arch = "wasm32")]
+    pub unsafe fn from_file_mmap(path: PathBuf) -> std::io::Result<Self> {
+        Self::from_file(path)
+    }
+
+    /// File path, if the bytes are memory mapped.
+    ///
+    /// Note that the path is read-locked until all clones of `FontBytes` are dropped.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn mmap_path(&self) -> Option<&Path> {
+        if let FontBytesImpl::Mmap(m) = &self.0 {
+            Some(&m.path)
+        } else {
+            None
+        }
+    }
+    /// Always `None` in WASM
+    #[cfg(target_arch = "wasm32")]
+    pub fn mmap_path(&self) -> Option<&Path> {
+        None
+    }
+
+    /// Clone [`IpcBytes`] reference or clone data into a new one.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn to_ipc(&self) -> IpcFontBytes {
+        if let FontBytesImpl::Mmap(m) = &self.0 {
+            IpcFontBytes::System(m.path.clone())
+        } else {
+            IpcFontBytes::Bytes(self.to_ipc_bytes())
+        }
+    }
+    #[cfg(target_arch = "wasm32")]
+    /// Clone [`IpcBytes`] reference or clone data into a new one.
+    pub fn to_ipc(&self) -> IpcFontBytes {
+        IpcFontBytes::Bytes(self.to_ipc_bytes())
+    }
+
+    /// Clone [`IpcBytes`] reference or clone data into a new one.
+    pub fn to_ipc_bytes(&self) -> IpcBytes {
+        match &self.0 {
+            FontBytesImpl::Ipc(b) => (**b).clone(),
+            FontBytesImpl::Arc(b) => IpcBytes::from_vec((**b).clone()),
+            FontBytesImpl::Static(b) => IpcBytes::from_slice(b),
+            #[cfg(not(target_arch = "wasm32"))]
+            FontBytesImpl::Mmap(m) => IpcBytes::from_slice(&m.mmap[..]),
+        }
+    }
+
+    #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
+    pub(crate) fn downgrade(&self) -> WeakFontBytes {
+        match &self.0 {
+            FontBytesImpl::Ipc(arc) => WeakFontBytes::Ipc(Arc::downgrade(arc)),
+            FontBytesImpl::Arc(arc) => WeakFontBytes::Arc(Arc::downgrade(arc)),
+            FontBytesImpl::Static(b) => WeakFontBytes::Static(b),
+            #[cfg(not(target_arch = "wasm32"))]
+            FontBytesImpl::Mmap(arc) => WeakFontBytes::Mmap(Arc::downgrade(arc)),
+        }
     }
 }
-impl fmt::Debug for FontDataRef {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "FontDataRef(Arc<{} bytes>>)", self.0.len())
-    }
-}
-impl std::ops::Deref for FontDataRef {
+impl std::ops::Deref for FontBytes {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
-        self.0.deref()
+        match &self.0 {
+            FontBytesImpl::Ipc(b) => &b[..],
+            FontBytesImpl::Arc(b) => &b[..],
+            FontBytesImpl::Static(b) => b,
+            #[cfg(not(target_arch = "wasm32"))]
+            FontBytesImpl::Mmap(m) => &m.mmap[..],
+        }
+    }
+}
+impl fmt::Debug for FontBytes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut b = f.debug_struct("FontBytes");
+        b.field(
+            ".kind",
+            &match &self.0 {
+                FontBytesImpl::Ipc(_) => "IpcBytes",
+                FontBytesImpl::Arc(_) => "Arc",
+                FontBytesImpl::Static(_) => "Static",
+                #[cfg(not(target_arch = "wasm32"))]
+                FontBytesImpl::Mmap { .. } => "Mmap",
+            },
+        );
+        b.field(".len", &self.len().bytes());
+        #[cfg(not(target_arch = "wasm32"))]
+        if let FontBytesImpl::Mmap(m) = &self.0 {
+            b.field(".path", &m.path);
+        }
+
+        b.finish()
     }
 }
 
 #[derive(Debug, Clone)]
 enum FontSource {
     File(PathBuf, u32),
-    Memory(FontDataRef, u32),
+    Memory(FontBytes, u32),
     Alias(FontName),
 }
 
@@ -2464,7 +2649,7 @@ impl CustomFont {
     /// The font is loaded in [`FONTS.register`].
     ///
     /// [`FONTS.register`]: FONTS::register
-    pub fn from_bytes<N: Into<FontName>>(name: N, data: FontDataRef, font_index: u32) -> Self {
+    pub fn from_bytes<N: Into<FontName>>(name: N, data: FontBytes, font_index: u32) -> Self {
         CustomFont {
             name: name.into(),
             source: FontSource::Memory(data, font_index),

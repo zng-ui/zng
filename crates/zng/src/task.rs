@@ -45,7 +45,7 @@
 //! `on_click` context and thread. This is good for coordinating UI state, like setting variables, but is not good if you want to do CPU intensive work.
 //!
 //! To keep the app responsive we move the computation work inside a [`run`] task, this task is *async* and *parallel*,
-//! meaning it can `.await` and will execute in parallel threads. It runs in a [`rayon`] thread-pool so you can
+//! meaning it can `.await` and will execute in parallel threads. It runs in [`rayon`] so you can
 //! easily make the task multi-threaded and when it is done it sends the result back to the widget task that is awaiting for it. We
 //! resolved the responsiveness problem, but there is one extra problem to solve, how to not block one of the worker threads waiting IO.
 //!
@@ -144,9 +144,9 @@
 //! This module fully re-exports [`zng_task`].
 
 pub use zng_task::{
-    DeadlineError, McWaker, ParallelIteratorExt, ParallelIteratorWithCtx, Progress, ScopeCtx, SignalOnce, UiTask, all, all_ok, all_some,
-    any, any_ok, any_some, block_on, channel, deadline, fs, future_fn, io, join, join_context, poll_respond, poll_spawn, respond, run,
-    run_catch, scope, spawn, spawn_wait, wait, wait_catch, wait_respond, with_deadline, yield_now,
+    DeadlineError, McWaker, ParallelIteratorExt, ParallelIteratorWithCtx, Progress, ScopeCtx, SignalOnce, TaskPanicError, UiTask, all,
+    all_ok, all_some, any, any_ok, any_some, block_on, channel, deadline, fs, future_fn, io, join, join_context, poll_respond, poll_spawn,
+    respond, run, run_catch, scope, set_spawn_panic_handler, spawn, spawn_wait, wait, wait_catch, wait_respond, with_deadline, yield_now,
 };
 
 #[cfg(any(doc, feature = "test_util"))]

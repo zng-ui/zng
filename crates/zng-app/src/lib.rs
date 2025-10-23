@@ -28,6 +28,7 @@ pub mod access;
 pub mod crash_handler;
 pub mod event;
 pub mod handler;
+pub mod memory_profiler;
 pub mod render;
 pub mod shortcut;
 pub mod third_party;

@@ -4,9 +4,9 @@ Loaded data is !Send+!Sync so we probably don't need to cache it.
 
 use std::{fmt, mem::size_of};
 
-use byteorder::{BigEndian, ReadBytesExt};
+use byteorder::{BigEndian, ByteOrder as _, ReadBytesExt};
 use icu_properties::props::{self, BinaryProperty};
-use zng_color::{ColorScheme, Rgba, rgba};
+use zng_color::{ColorScheme, Rgba};
 use zng_var::impl_from_and_into_var;
 use zng_view_api::font::GlyphIndex;
 
@@ -46,39 +46,46 @@ const COLR: u32 = u32::from_be_bytes(*b"COLR");
 /// The palettes for a font are available in [`FontFace::color_palettes`].
 ///
 /// [`FontFace::color_palettes`]: crate::FontFace::color_palettes
-#[derive(Clone, Debug)]
-pub struct ColorPalettes {
+#[derive(Clone, Copy)]
+pub struct ColorPalettes<'a> {
+    table: &'a [u8],
     num_palettes: u16,
     num_palette_entries: u16,
-    colors: Box<[Rgba]>,
-    types: Box<[ColorPaletteType]>,
+    color_records_array_offset: u32,
+    color_record_indices_offset: u32,
+    /// is `0` for version 0
+    palette_types_array_offset: u32,
 }
-impl Default for ColorPalettes {
-    /// Empty.
-    fn default() -> Self {
-        Self::empty()
-    }
-}
-impl ColorPalettes {
-    /// No palettes.
+impl ColorPalettes<'static> {
+    /// No color palettes.
     pub fn empty() -> Self {
         Self {
+            table: &[],
             num_palettes: 0,
             num_palette_entries: 0,
-            colors: Box::new([]),
-            types: Box::new([]),
+            color_records_array_offset: 0,
+            color_record_indices_offset: 0,
+            palette_types_array_offset: 0,
         }
     }
 
-    /// Load the table, if present in the font.
-    pub fn load(font: &ttf_parser::RawFace) -> std::io::Result<Self> {
-        // ttf_parser::Face does not expose CPAL
-
+    /// New from font.
+    ///
+    /// Palettes are parsed on demand.
+    pub fn new<'a>(font: ttf_parser::RawFace<'a>) -> ColorPalettes<'a> {
+        match Self::new_impl(font) {
+            Ok(g) => g,
+            Err(e) => {
+                tracing::error!("error parsing color palettes, {e}");
+                Self::empty()
+            }
+        }
+    }
+    fn new_impl<'a>(font: ttf_parser::RawFace<'a>) -> std::io::Result<ColorPalettes<'a>> {
         let table = match font.table(ttf_parser::Tag(CPAL)) {
             Some(t) => t,
             None => return Ok(Self::empty()),
         };
-
         /*
         https://learn.microsoft.com/en-us/typography/opentype/spec/cpal
         CPAL version 0
@@ -99,29 +106,10 @@ impl ColorPalettes {
         let num_palette_entries = cursor.read_u16::<BigEndian>()?;
         let num_palettes = cursor.read_u16::<BigEndian>()?;
         let _num_color_records = cursor.read_u16::<BigEndian>()?;
-        let color_records_array_offset = cursor.read_u32::<BigEndian>()? as u64;
+        let color_records_array_offset = cursor.read_u32::<BigEndian>()?;
 
+        let mut palette_types_array_offset = 0;
         let color_record_indices = cursor.position();
-        let mut colors = Vec::with_capacity(num_palettes as usize * num_palette_entries as usize);
-        for i in 0..num_palettes {
-            cursor.set_position(color_record_indices + i as u64 * size_of::<u16>() as u64);
-
-            let color_record_index = cursor.read_u16::<BigEndian>()? as u64;
-            let color_record_offset = color_records_array_offset + color_record_index * size_of::<(u8, u8, u8, u8)>() as u64;
-
-            cursor.set_position(color_record_offset);
-            for _ in 0..num_palette_entries {
-                let b = cursor.read_u8()?;
-                let g = cursor.read_u8()?;
-                let r = cursor.read_u8()?;
-                let a = cursor.read_u8()?;
-
-                colors.push(rgba(r, g, b, a));
-            }
-        }
-
-        let mut palette_types = vec![];
-
         if version >= 1 {
             cursor.set_position(color_record_indices + num_palettes as u64 * size_of::<u16>() as u64);
 
@@ -134,33 +122,25 @@ impl ColorPalettes {
             Offset32 paletteLabelsArrayOffset 	   Offset from the beginning of CPAL table to the Palette Labels Array. Set to 0 if no array is provided.
             Offset32 paletteEntryLabelsArrayOffset Offset from the beginning of CPAL table to the Palette Entry Labels Array. Set to 0 if no array is provided.
             */
-            let palette_types_array_offset = cursor.read_u32::<BigEndian>()? as u64;
+            palette_types_array_offset = cursor.read_u32::<BigEndian>()?;
             let _palette_labels_array_offset = cursor.read_u32::<BigEndian>()? as u64;
             let _palette_entry_labels_array_offset = cursor.read_u32::<BigEndian>()? as u64;
-
-            if palette_types_array_offset > 0 {
-                palette_types.reserve(num_palettes as usize);
-
-                cursor.set_position(palette_types_array_offset);
-                for _ in 0..num_palettes {
-                    let flags = cursor.read_u32::<BigEndian>()?;
-                    let flags = ColorPaletteType::from_bits(flags).unwrap_or_else(ColorPaletteType::empty);
-                    palette_types.push(flags);
-                }
-            }
         }
 
-        Ok(Self {
+        Ok(ColorPalettes {
+            table,
             num_palettes,
             num_palette_entries,
-            colors: colors.into_boxed_slice(),
-            types: palette_types.into_boxed_slice(),
+            color_record_indices_offset: color_record_indices as u32,
+            color_records_array_offset,
+            palette_types_array_offset,
         })
     }
-
+}
+impl<'a> ColorPalettes<'a> {
     /// Number of palettes.
-    pub fn len(&self) -> usize {
-        self.num_palettes as usize
+    pub fn len(&self) -> u16 {
+        self.num_palettes
     }
 
     /// If the font does not have any color palette.
@@ -169,29 +149,47 @@ impl ColorPalettes {
     }
 
     /// Gets the requested palette or the first if it is not found.
-    pub fn palette(&self, p: impl Into<FontColorPalette>) -> Option<ColorPalette<'_>> {
+    pub fn palette(&self, p: impl Into<FontColorPalette>) -> Option<ColorPalette<'a>> {
         let i = self.palette_i(p.into());
         self.palette_get(i.unwrap_or(0))
     }
 
     /// Gets the requested palette.
-    pub fn palette_exact(&self, p: impl Into<FontColorPalette>) -> Option<ColorPalette<'_>> {
+    pub fn palette_exact(&self, p: impl Into<FontColorPalette>) -> Option<ColorPalette<'a>> {
         let i = self.palette_i(p.into())?;
         self.palette_get(i)
     }
 
-    fn palette_i(&self, p: FontColorPalette) -> Option<usize> {
+    fn palette_types_iter(&self) -> impl Iterator<Item = ColorPaletteType> + 'a {
+        let mut cursor = std::io::Cursor::new(&self.table[self.palette_types_array_offset as usize..]);
+        let mut i = if self.palette_types_array_offset > 0 {
+            self.num_palettes
+        } else {
+            0
+        };
+        std::iter::from_fn(move || {
+            if i > 0 {
+                i -= 1;
+                let flags = cursor.read_u32::<BigEndian>().ok()?;
+                Some(ColorPaletteType::from_bits_retain(flags))
+            } else {
+                None
+            }
+        })
+    }
+
+    fn palette_i(&self, p: FontColorPalette) -> Option<u16> {
         match p {
             FontColorPalette::Light => self
-                .types
-                .iter()
-                .position(|p| p.contains(ColorPaletteType::USABLE_WITH_LIGHT_BACKGROUND)),
+                .palette_types_iter()
+                .position(|p| p.contains(ColorPaletteType::USABLE_WITH_LIGHT_BACKGROUND))
+                .map(|i| i as u16),
             FontColorPalette::Dark => self
-                .types
-                .iter()
-                .position(|p| p.contains(ColorPaletteType::USABLE_WITH_DARK_BACKGROUND)),
+                .palette_types_iter()
+                .position(|p| p.contains(ColorPaletteType::USABLE_WITH_DARK_BACKGROUND))
+                .map(|i| i as u16),
             FontColorPalette::Index(i) => {
-                if i < self.num_palette_entries {
+                if i < self.num_palettes {
                     Some(i as _)
                 } else {
                     None
@@ -200,26 +198,33 @@ impl ColorPalettes {
         }
     }
 
-    fn palette_get(&self, i: usize) -> Option<ColorPalette<'_>> {
-        let len = self.num_palette_entries as usize;
-        let s = len * i;
-        let e = s + len;
+    fn index_palette_type(&self, i: u16) -> ColorPaletteType {
+        if self.palette_types_array_offset == 0 || i >= self.num_palettes {
+            return ColorPaletteType::empty();
+        }
+        let t = &self.table[self.palette_types_array_offset as usize + i as usize * 4..];
+        let flags = BigEndian::read_u32(t);
+        ColorPaletteType::from_bits_retain(flags)
+    }
 
-        self.colors.get(s..e).map(|c| ColorPalette {
-            flags: self.types.get(i).copied().unwrap_or_else(ColorPaletteType::empty),
-            colors: c,
-        })
+    fn palette_get(&self, i: u16) -> Option<ColorPalette<'a>> {
+        if i < self.num_palettes {
+            let byte_i = BigEndian::read_u16(&self.table[self.color_record_indices_offset as usize + i as usize * 2..]) as usize * 4;
+
+            let start = self.color_records_array_offset as usize + byte_i;
+            let palette_len = self.num_palette_entries as usize * 4;
+            Some(ColorPalette {
+                table: &self.table[start..start + palette_len],
+                flags: self.index_palette_type(i),
+            })
+        } else {
+            None
+        }
     }
 
     /// Iterate over color palettes.
     pub fn iter(&self) -> impl ExactSizeIterator<Item = ColorPalette<'_>> {
-        self.colors
-            .chunks_exact(self.num_palette_entries as _)
-            .enumerate()
-            .map(|(i, c)| ColorPalette {
-                flags: self.types.get(i).copied().unwrap_or_else(ColorPaletteType::empty),
-                colors: c,
-            })
+        (0..self.num_palettes).map(|i| self.palette_get(i).unwrap())
     }
 }
 
@@ -241,10 +246,42 @@ bitflags! {
 /// See [`ColorPalettes`] for more details.
 #[non_exhaustive]
 pub struct ColorPalette<'a> {
+    table: &'a [u8],
+    flags: ColorPaletteType,
+}
+impl<'a> ColorPalette<'a> {
+    /// Number of colors in palette.
+    ///
+    /// This is never 0.
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> u16 {
+        (self.table.len() / 4) as u16
+    }
+
+    /// Get the color at `i`.
+    pub fn index(&self, i: u16) -> Rgba {
+        let i = i as usize * 4;
+        let b = self.table[i];
+        let g = self.table[i + 1];
+        let r = self.table[i + 2];
+        let a = self.table[i + 3];
+        Rgba::new(r, g, b, a)
+    }
+
+    /// Get the color at `i`, if `i` is within bounds.
+    pub fn get(&self, i: u16) -> Option<Rgba> {
+        if i < self.len() { Some(self.index(i)) } else { None }
+    }
+
+    /// Iterate over colors.
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = Rgba> + '_ {
+        (0..self.len()).map(|i| self.index(i))
+    }
+
     /// Palette v1 flags.
-    pub flags: ColorPaletteType,
-    /// Palette colors.
-    pub colors: &'a [Rgba],
+    pub fn flags(&self) -> ColorPaletteType {
+        self.flags
+    }
 }
 
 /// COLR table.
@@ -252,22 +289,37 @@ pub struct ColorPalette<'a> {
 /// The color glyphs for a font are available in [`FontFace::color_glyphs`].
 ///
 /// [`FontFace::color_glyphs`]: crate::FontFace::color_glyphs
-#[derive(Clone, Debug)]
-pub struct ColorGlyphs {
-    base_glyph_records: Vec<BaseGlyphRecord>,
-    layer_records: Vec<LayerRecord>,
+#[derive(Clone, Copy)]
+pub struct ColorGlyphs<'a> {
+    table: &'a [u8],
+    num_base_glyph_records: u16,
+    base_glyph_records_offset: u32,
+    layer_records_offset: u32,
 }
-impl ColorGlyphs {
+impl ColorGlyphs<'static> {
     /// No color glyphs.
     pub fn empty() -> Self {
         Self {
-            base_glyph_records: vec![],
-            layer_records: vec![],
+            table: &[],
+            num_base_glyph_records: 0,
+            base_glyph_records_offset: 0,
+            layer_records_offset: 0,
         }
     }
 
-    /// Load the table, if present in the font.
-    pub fn load(font: &ttf_parser::RawFace) -> std::io::Result<Self> {
+    /// New from font.
+    ///
+    /// Color glyphs are parsed on demand.
+    pub fn new<'a>(font: ttf_parser::RawFace<'a>) -> ColorGlyphs<'a> {
+        match Self::new_impl(font) {
+            Ok(g) => g,
+            Err(e) => {
+                tracing::error!("error parsing color glyphs, {e}");
+                Self::empty()
+            }
+        }
+    }
+    fn new_impl<'a>(font: ttf_parser::RawFace<'a>) -> std::io::Result<ColorGlyphs<'a>> {
         let table = match font.table(ttf_parser::Tag(COLR)) {
             Some(t) => t,
             None => return Ok(Self::empty()),
@@ -285,135 +337,145 @@ impl ColorGlyphs {
         uint16 	 numLayerRecords 	    Number of Layer records.
         */
 
-        let mut cursor = std::io::Cursor::new(&table);
+        let mut cursor = std::io::Cursor::new(table);
 
         let _version = cursor.read_u16::<BigEndian>()?;
         let num_base_glyph_records = cursor.read_u16::<BigEndian>()?;
-        let base_glyph_records_offset = cursor.read_u32::<BigEndian>()? as u64;
-        let layer_records_offset = cursor.read_u32::<BigEndian>()? as u64;
-        let num_layer_records = cursor.read_u16::<BigEndian>()?;
+        let base_glyph_records_offset = cursor.read_u32::<BigEndian>()?;
+        let layer_records_offset = cursor.read_u32::<BigEndian>()?;
 
-        let mut base_glyph_records = Vec::with_capacity(num_base_glyph_records as _);
-
-        cursor.set_position(base_glyph_records_offset);
-        for _ in 0..num_base_glyph_records {
-            /*
-            https://learn.microsoft.com/en-us/typography/opentype/spec/colr#baseglyph-and-layer-records
-
-            BaseGlyph record:
-
-            Type   Name            Description
-            uint16 glyphID         Glyph ID of the base glyph.
-            uint16 firstLayerIndex Index (base 0) into the layerRecords array.
-            uint16 numLayers       Number of color layers associated with this glyph.
-            */
-
-            base_glyph_records.push(BaseGlyphRecord {
-                glyph_id: cursor.read_u16::<BigEndian>()?,
-                first_layer_index: cursor.read_u16::<BigEndian>()?,
-                num_layers: cursor.read_u16::<BigEndian>()?,
-            });
-        }
-
-        let mut layer_records = Vec::with_capacity(num_layer_records as _);
-        cursor.set_position(layer_records_offset);
-        for _ in 0..num_layer_records {
-            /*
-            Layer record:
-
-            Type   Name 	    Description
-            uint16 glyphID      Glyph ID of the glyph used for a given layer.
-            uint16 paletteIndex Index (base 0) for a palette entry in the CPAL table.
-            */
-
-            layer_records.push(LayerRecord {
-                glyph_id: cursor.read_u16::<BigEndian>()?,
-                palette_index: cursor.read_u16::<BigEndian>()?,
-            });
-        }
-
-        Ok(Self {
-            base_glyph_records,
-            layer_records,
+        Ok(ColorGlyphs {
+            table,
+            num_base_glyph_records,
+            base_glyph_records_offset,
+            layer_records_offset,
         })
     }
-
-    /// Iterate over color glyphs that replace the `base_glyph` to render in color.
-    ///
-    /// The `base_glyph` is the glyph selected by the font during shaping.
-    ///
-    /// Returns an iterator that *renders* an Emoji by overlaying colored glyphs, from the back (first item)
-    /// to the front (last item). Paired with each glyph is an index in the font's [`ColorPalette::colors`] or
-    /// `None` if the base text color must be used.
-    ///
-    /// Yields the `base_glyph` with no palette color if the font does not provide colored replacements for it.
-    pub fn glyph(&self, base_glyph: GlyphIndex) -> Option<ColorGlyph<'_>> {
-        match self.base_glyph_records.binary_search_by_key(&(base_glyph as u16), |e| e.glyph_id) {
-            Ok(i) => {
-                let rec = &self.base_glyph_records[i];
-
-                let s = rec.first_layer_index as usize;
-                let e = s + rec.num_layers as usize;
-                Some(ColorGlyph {
-                    layers: &self.layer_records[s..e],
-                })
-            }
-            Err(_) => None,
-        }
-    }
-
+}
+impl<'a> ColorGlyphs<'a> {
     /// If the font does not have any colored glyphs.
     pub fn is_empty(&self) -> bool {
-        self.base_glyph_records.is_empty()
+        self.num_base_glyph_records == 0
     }
 
     /// Number of base glyphs that have colored replacements.
-    pub fn len(&self) -> usize {
-        self.base_glyph_records.len()
+    pub fn len(&self) -> u16 {
+        self.num_base_glyph_records
+    }
+
+    /// Gets the color glyph layers that replace the `base_glyph` to render in color.
+    ///
+    /// The `base_glyph` is the glyph selected by the font during shaping.
+    ///
+    /// Returns a [`ColorGlyph`] that provides the colored glyphs from the back (first item) to the front (last item).
+    /// Paired with each glyph is an index in the font's [`ColorPalette`] or `None` if the base text color must be used.
+    ///
+    /// Returns ``None  if the `base_glyph` has no associated colored replacements.
+    pub fn glyph(&self, base_glyph: GlyphIndex) -> Option<ColorGlyph<'a>> {
+        if self.is_empty() {
+            return None;
+        }
+
+        let (first_layer_index, num_layers) = self.find_base_glyph(base_glyph)?;
+
+        let record_size = 4;
+        let table = &self.table[self.layer_records_offset as usize + (first_layer_index as usize * record_size)..];
+        Some(ColorGlyph { table, num_layers })
+    }
+
+    /// Returns (firstLayerIndex, numLayers)
+    fn find_base_glyph(&self, base_glyph: GlyphIndex) -> Option<(u16, u16)> {
+        /*
+        https://learn.microsoft.com/en-us/typography/opentype/spec/colr#baseglyph-and-layer-records
+
+        BaseGlyph record:
+
+        Type   Name            Description
+        uint16 glyphID         Glyph ID of the base glyph.
+        uint16 firstLayerIndex Index (base 0) into the layerRecords array.
+        uint16 numLayers       Number of color layers associated with this glyph.
+        */
+
+        let base_glyph: u16 = base_glyph.try_into().ok()?;
+
+        let record_size = 6;
+        let base = self.base_glyph_records_offset as usize;
+
+        let mut left = 0;
+        let mut right = self.num_base_glyph_records as isize - 1;
+
+        while left <= right {
+            let mid = (left + right) / 2;
+            let pos = base + mid as usize * record_size;
+
+            // Safety: ensure within bounds
+            if pos + record_size > self.table.len() {
+                return None;
+            }
+
+            let glyph_id = BigEndian::read_u16(&self.table[pos..pos + 2]);
+            match glyph_id.cmp(&base_glyph) {
+                std::cmp::Ordering::Equal => {
+                    let first_layer_index = BigEndian::read_u16(&self.table[pos + 2..pos + 4]);
+                    let num_layers = BigEndian::read_u16(&self.table[pos + 4..pos + 6]);
+                    return if num_layers > 0 {
+                        Some((first_layer_index, num_layers))
+                    } else {
+                        None
+                    };
+                }
+                std::cmp::Ordering::Less => left = mid + 1,
+                std::cmp::Ordering::Greater => right = mid - 1,
+            }
+        }
+
+        None
     }
 }
 
-/// Represents all layer glyphs selected by the font to replace a colored glyph.
+/// Color glyph layers.
 ///
-/// Get using [`ColorGlyphs::glyph`].
+/// See [`ColorGlyphs::glyph`] for more details.
+#[derive(Clone, Copy)]
 pub struct ColorGlyph<'a> {
-    layers: &'a [LayerRecord],
-}
-impl<'a> ColorGlyph<'a> {
-    /// Iterate over the layer glyphs and palette color from back to front.
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = (GlyphIndex, Option<usize>)> + 'a {
-        self.layers.iter().map(|l| (l.glyph_id(), l.palette_index()))
-    }
-
-    /// Number of layer glyphs that replace the colored glyph.
-    pub fn layers_len(&self) -> usize {
-        self.layers.len()
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct BaseGlyphRecord {
-    glyph_id: u16,
-    first_layer_index: u16,
+    table: &'a [u8],
     num_layers: u16,
 }
-
-#[derive(Debug, Clone, Copy)]
-struct LayerRecord {
-    glyph_id: u16,
-    palette_index: u16,
-}
-impl LayerRecord {
-    fn glyph_id(&self) -> GlyphIndex {
-        self.glyph_id as _
+impl<'a> ColorGlyph<'a> {
+    /// Number of layers.
+    ///
+    /// This is always a non zero value as the [`ColorGlyphs`] returns `None` if there are no colored glyph replacements.
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> u16 {
+        self.num_layers
     }
 
-    fn palette_index(&self) -> Option<usize> {
-        if self.palette_index == 0xFFFF {
-            None
+    /// Get the layer.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `layer` is out of bounds.
+    pub fn index(&self, layer: u16) -> (GlyphIndex, Option<u16>) {
+        /*
+        Layer record:
+
+        Type   Name 	    Description
+        uint16 glyphID      Glyph ID of the glyph used for a given layer.
+        uint16 paletteIndex Index (base 0) for a palette entry in the CPAL table.
+        */
+        let t = &self.table[layer as usize * 4..];
+        let glyph_id = BigEndian::read_u16(t);
+        let pallet_index = BigEndian::read_u16(&t[2..]);
+        if pallet_index == 0xFFFF {
+            (glyph_id as _, None)
         } else {
-            Some(self.palette_index as _)
+            (glyph_id as _, Some(pallet_index))
         }
+    }
+
+    /// Iterate over layers, back to front.
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (GlyphIndex, Option<u16>)> + '_ {
+        (0..self.num_layers).map(move |i| self.index(i))
     }
 }
 

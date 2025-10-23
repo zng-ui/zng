@@ -266,7 +266,6 @@ mod file_cache {
         io::{McBufErrorExt, McBufReader},
     };
     use async_trait::async_trait;
-    use fs4::fs_std::FileExt;
     use zng_unit::TimeUnits;
 
     use super::*;
@@ -360,7 +359,7 @@ mod file_cache {
                         let entry = entry.path();
                         if entry.is_dir()
                             && let Ok(lock) = File::open(entry.join(CacheEntry::LOCK))
-                            && FileExt::try_lock_shared(&lock).is_ok()
+                            && lock.try_lock_shared().is_ok()
                         {
                             CacheEntry::try_delete_locked_dir(&entry, &lock);
                         }

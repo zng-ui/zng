@@ -1,34 +1,27 @@
 use std::time::Duration;
 
-/// Calls [`fs4::FileExt::lock_exclusive`] with a timeout.
-pub fn lock_exclusive(file: &impl fs4::fs_std::FileExt, timeout: Duration) -> std::io::Result<()> {
-    lock_timeout(file, |f| f.try_lock_exclusive(), timeout)
+/// Calls [`std::fs::File::lock_exclusive`] with a timeout.
+pub fn lock_exclusive(file: &std::fs::File, timeout: Duration) -> std::io::Result<()> {
+    lock_timeout(file, |f| f.try_lock(), timeout)
 }
 
-/// Calls [`fs4::FileExt::lock_shared`] with a timeout.
-pub fn lock_shared(file: &impl fs4::fs_std::FileExt, timeout: Duration) -> std::io::Result<()> {
+/// Calls [`std::fs::File::lock_shared`] with a timeout.
+pub fn lock_shared(file: &std::fs::File, timeout: Duration) -> std::io::Result<()> {
     lock_timeout(file, |f| f.try_lock_shared(), timeout)
 }
 
-fn lock_timeout<F: fs4::fs_std::FileExt>(
-    file: &F,
-    try_lock: impl Fn(&F) -> std::io::Result<bool>,
+fn lock_timeout(
+    file: &std::fs::File,
+    try_lock: impl Fn(&std::fs::File) -> Result<(), std::fs::TryLockError>,
     mut timeout: Duration,
 ) -> std::io::Result<()> {
-    let mut locked_error = None;
     loop {
         let mut error = None;
         match try_lock(file) {
-            Ok(true) => return Ok(()),
-            Ok(false) => {}
+            Ok(()) => return Ok(()),
+            Err(std::fs::TryLockError::WouldBlock) => {}
             Err(e) => {
-                if e.kind() != std::io::ErrorKind::WouldBlock
-                    && e.raw_os_error() != locked_error.get_or_insert_with(fs4::lock_contended_error).raw_os_error()
-                {
-                    return Err(e);
-                }
-
-                error = Some(e)
+                error = Some(e);
             }
         }
 
@@ -37,7 +30,7 @@ fn lock_timeout<F: fs4::fs_std::FileExt>(
         if timeout.is_zero() {
             match error {
                 Some(e) => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e)),
-                None => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, fs4::lock_contended_error())),
+                None => return Err(std::io::Error::new(std::io::ErrorKind::WouldBlock, "lock timeout")),
             }
         } else {
             std::thread::sleep(INTERVAL.min(timeout));
@@ -45,8 +38,8 @@ fn lock_timeout<F: fs4::fs_std::FileExt>(
     }
 }
 
-/// Calls [`fs4::FileExt::unlock`] and ignores "already unlocked" errors.
-pub fn unlock_ok(file: &impl fs4::fs_std::FileExt) -> std::io::Result<()> {
+/// Calls [`std::fs::File::unlock`] and ignores "already unlocked" errors.
+pub fn unlock_ok(file: &std::fs::File) -> std::io::Result<()> {
     if let Err(e) = file.unlock() {
         if let Some(code) = e.raw_os_error() {
             #[cfg(windows)]

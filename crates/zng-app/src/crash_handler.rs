@@ -1035,20 +1035,24 @@ fn run_process(
                     Ok(mut s) => {
                         command.env(DUMP_CHANNEL, &dump_channel);
                         let shutdown = Arc::new(AtomicBool::new(false));
-                        let runner = std::thread::spawn(clmv!(shutdown, || {
-                            let created_file = Arc::new(Mutex::new(None));
-                            if let Err(e) = s.run(
-                                Box::new(MinidumpServerHandler {
-                                    dump_file,
-                                    created_file: created_file.clone(),
-                                }),
-                                &shutdown,
-                                None,
-                            ) {
-                                tracing::error!("minidump server exited with error, {e}");
-                            }
-                            created_file.lock().take()
-                        }));
+                        let runner = std::thread::Builder::new()
+                            .name("minidumper-server".into())
+                            .stack_size(512 * 1024)
+                            .spawn(clmv!(shutdown, || {
+                                let created_file = Arc::new(Mutex::new(None));
+                                if let Err(e) = s.run(
+                                    Box::new(MinidumpServerHandler {
+                                        dump_file,
+                                        created_file: created_file.clone(),
+                                    }),
+                                    &shutdown,
+                                    None,
+                                ) {
+                                    tracing::error!("minidump server exited with error, {e}");
+                                }
+                                created_file.lock().take()
+                            }))
+                            .expect("failed to spawn thread");
                         dump_server = Some(DumpServer { shutdown, runner });
                     }
                     Err(e) => tracing::error!("failed to spawn minidump server, will not enable crash handling, {e}"),
@@ -1127,34 +1131,38 @@ impl minidumper::ServerHandler for MinidumpServerHandler {
     }
 }
 fn capture_and_print(mut stream: impl std::io::Read + Send + 'static, is_err: bool) -> std::thread::JoinHandle<String> {
-    std::thread::spawn(move || {
-        let mut capture = vec![];
-        let mut buffer = [0u8; 32];
-        loop {
-            match stream.read(&mut buffer) {
-                Ok(n) => {
-                    if n == 0 {
-                        break;
-                    }
+    std::thread::Builder::new()
+        .name(format!("{}-reader", if is_err { "stderr" } else { "stdout" }))
+        .stack_size(256 * 1024)
+        .spawn(move || {
+            let mut capture = vec![];
+            let mut buffer = [0u8; 32];
+            loop {
+                match stream.read(&mut buffer) {
+                    Ok(n) => {
+                        if n == 0 {
+                            break;
+                        }
 
-                    let new = &buffer[..n];
-                    capture.write_all(new).unwrap();
-                    let r = if is_err {
-                        let mut s = std::io::stderr();
-                        s.write_all(new).and_then(|_| s.flush())
-                    } else {
-                        let mut s = std::io::stdout();
-                        s.write_all(new).and_then(|_| s.flush())
-                    };
-                    if let Err(e) = r {
-                        panic!("{} write error, {}", if is_err { "stderr" } else { "stdout" }, e)
+                        let new = &buffer[..n];
+                        capture.write_all(new).unwrap();
+                        let r = if is_err {
+                            let mut s = std::io::stderr();
+                            s.write_all(new).and_then(|_| s.flush())
+                        } else {
+                            let mut s = std::io::stdout();
+                            s.write_all(new).and_then(|_| s.flush())
+                        };
+                        if let Err(e) = r {
+                            panic!("{} write error, {}", if is_err { "stderr" } else { "stdout" }, e)
+                        }
                     }
+                    Err(e) => panic!("{} read error, {}", if is_err { "stderr" } else { "stdout" }, e),
                 }
-                Err(e) => panic!("{} read error, {}", if is_err { "stderr" } else { "stdout" }, e),
             }
-        }
-        String::from_utf8_lossy(&capture).into_owned()
-    })
+            String::from_utf8_lossy(&capture).into_owned()
+        })
+        .expect("failed to spawn thread")
 }
 
 fn crash_handler_app_process(dump_enabled: bool) {

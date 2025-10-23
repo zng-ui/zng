@@ -409,7 +409,7 @@
 pub use zng_app::{
     AppControlFlow, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed, AppExtensionInfo, AppStartArgs, DInstant, Deadline,
     EXIT_CMD, EXIT_REQUESTED_EVENT, ExitRequestedArgs, HeadlessApp, INSTANT, InstantMode, on_app_start, print_tracing,
-    print_tracing_filter,
+    print_tracing_filter, spawn_deadlock_detection,
 };
 
 #[cfg(feature = "test_util")]
@@ -597,7 +597,7 @@ pub mod crash_handler {
 /// All tracing instrumentation in Zng projects is done using the `tracing` crate, trace recording is done using the `tracing-chrome` crate.
 /// The recorded traces can be viewed in `chrome://tracing` or `ui.perfetto.dev` and can be parsed by the [`Trace`] data model.
 ///
-/// Run the app with the `"ZNG_RECORD_TRACE"` env var set to record the app-process and all other processes spawned by the app.
+/// Build the app with `"trace_recorder"` and run the with the `"ZNG_RECORD_TRACE"` env var set to record all other processes spawned by the app.
 ///
 /// ```no_run
 /// use zng::prelude::*;
@@ -622,7 +622,7 @@ pub mod crash_handler {
 ///
 /// # Config
 ///
-/// The `"ZNG_RECORD_TRACE_DIR"` variable can be set to define a custom `output-dir` directory path, relative to the current dir.
+/// The `"ZNG_RECORD_TRACE_DIR"` variable can be set to define a custom output directory path, relative to the current dir.
 /// The default dir is `"./zng-trace/"`.
 ///
 /// The `"ZNG_RECORD_TRACE_FILTER"` or `"RUST_LOG"` variables can be used to set custom tracing filters, see the [filter syntax] for details.
@@ -630,10 +630,10 @@ pub mod crash_handler {
 ///
 /// # Output
 ///
-/// Raw trace files are saved to `"{--output-dir}/{timestamp}/{pid}.json"`. If the `--output-dir` is not provided
-/// it is `"{current_dir}/zng-trace/"`.
+/// Raw trace files are saved to `"{ZNG_RECORD_TRACE_DIR}/{timestamp}/{pid}.json"`.
 ///
-/// The dir timestamp is in microseconds from Unix epoch and is defined by the first process that runs.
+/// The timestamp is in microseconds from Unix epoch and is defined by the first process that runs. All processes are
+/// recorded to the same *timestamp* folder.
 ///
 /// The process name is defined by an event INFO message that reads `"pid: {pid}, name: {name}"`. See [`zng::env::process_name`] for more details.
 ///
@@ -666,4 +666,45 @@ pub mod crash_handler {
 #[cfg(trace_recorder)]
 pub mod trace_recorder {
     pub use zng_app::trace_recorder::{EventTrace, ProcessTrace, ThreadTrace, Trace, stop_recording};
+}
+
+/// Heap memory usage profiling.
+///
+/// Build with debug symbols and `"memory_profiler"` feature to record heap allocations.
+///
+/// Instrumentation and recording is done with the `dhat` crate. Recorded profiles can be visualized using the
+/// [online DHAT Viewer](https://nnethercote.github.io/dh_view/dh_view.html). Stack traces are captured for each significant allocation.
+///
+/// # Config
+///
+/// The `"ZNG_MEMORY_PROFILER_DIR"` variable can be set to define a custom output directory path, relative to the current dir.
+/// The default dir is `"./zng-dhat/"`.
+///
+/// # Output
+///
+/// The recorded data is saved to `"{ZNG_MEMORY_PROFILER_DIR}/{timestamp}/{pname}-{pid}.json"`.
+///
+/// The timestamp is in microseconds from Unix epoch and is defined by the first process that runs. All processes are recorded
+/// to the same *timestamp* folder, even worker processes started later.
+///
+/// The primary process is named `"app-process"`. See [`zng::env::process_name`] for more details about the default processes.
+///
+/// # Limitations
+///
+/// Only heap allocations using the `#[global_allocator]` are captured, some dependencies can skip the allocator, for example, the view-process
+/// only traces a fraction of allocations because most of its heap usage comes from the graphics driver.
+///
+/// Compiling with `"memory_profiler"` feature replaces the global allocator, so if you use a custom allocator you need to setup
+/// a feature that disables it, otherwise it will not compile. The instrumented allocator also has an impact in performance so
+/// it is only recommended for test builds.
+///
+/// As an alternative on Unix you can use the external [Valgrind DHAT tool](https://valgrind.org/docs/manual/dh-manual.html).
+/// On Windows you can [Record a Heap Snapshot](https://learn.microsoft.com/en-us/windows-hardware/test/wpt/record-heap-snapshot).
+///
+/// # Full API
+///
+/// See [`zng_app::memory_profiler`] for the full API.
+#[cfg(memory_profiler)]
+pub mod memory_profiler {
+    pub use zng_app::memory_profiler::stop_recording;
 }
