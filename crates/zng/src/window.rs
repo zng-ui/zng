@@ -91,6 +91,10 @@
 //! # fn main() { }
 //! ```
 //!
+//! # Theming
+//!
+//! !!: TODO
+//!
 //! # Full API
 //!
 //! See [`zng_ext_window`], [`zng_app::window`] and [`zng_wgt_window`] for the full window API.
@@ -117,7 +121,7 @@ pub mod cmd {
     pub use zng_wgt_inspector::INSPECT_CMD;
 }
 
-pub use zng_wgt_window::{BlockWindowLoad, Window};
+pub use zng_wgt_window::{BlockWindowLoad, DefaultStyle, WINDOWS_Ext, Window};
 
 pub use zng_wgt_window::events::{
     on_ime, on_pre_ime, on_pre_window_changed, on_pre_window_close_requested, on_pre_window_exited_fullscreen, on_pre_window_fullscreen,

@@ -642,6 +642,8 @@ mod __prelude {
         AppRunWindowExt as _, HeadlessAppWindowExt as _, WINDOW_Ext as _, WINDOWS, WidgetInfoImeArea as _, WindowCloseRequestedArgs,
         WindowIcon,
     };
+    #[cfg(feature = "window")]
+    pub use zng_wgt_window::WINDOWS_Ext as _;
 
     pub use zng_wgt::{CommandIconExt as _, ICONS, Wgt};
 

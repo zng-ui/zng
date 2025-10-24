@@ -29,6 +29,7 @@ zng-var = { path = "../zng-var", version = "0.10.1", default-features = false }
 zng-color = { path = "../zng-color", version = "0.9.2", default-features = false }
 zng-wgt-input = { path = "../zng-wgt-input", version = "0.8.2", default-features = false }
 zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.9.2", default-features = false }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.9.2", default-features = false }
 
 # used only by fallback_chrome
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.8.2", default-features = false }

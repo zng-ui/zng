@@ -12,6 +12,7 @@
     - Refactored `ColorGlyphs` and `ColorPalettes` to parse on demand.
     - Windows builds with default fonts now uses ~20MB less memory.
 
+* Inherit `StyleMix` for `Window` to facilitate theme implementation and live change.
 * Fix gradient stops with midway adjustment.
 * Replace `layout::Vector` add and sub implementations to be generic over any type that converts to vector.
 * Add `Var::chase_begin` to begin a deferred chase animation.

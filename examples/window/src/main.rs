@@ -9,6 +9,7 @@ use zng::{
     layout::*,
     prelude::*,
     scroll::ScrollMode,
+    style::StyleFn,
     widget::{LineStyle, background_color, corner_radius, enabled, visibility},
     window::{FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowState},
 };
@@ -37,6 +38,9 @@ async fn main_window() -> window::WindowRoot {
 
     LAYERS.insert(LayerIndex::TOP_MOST, custom_chrome(title.clone()));
 
+    let theme = var(style_fn!(|_| zng::window::DefaultStyle!()));
+    WINDOWS.register_style_fn(theme.clone());
+
     let background = var(colors::BLACK);
     Window! {
         background_color = background.easing(150.ms(), easing::linear);
@@ -64,7 +68,7 @@ async fn main_window() -> window::WindowRoot {
                 Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_vec![icon_example(), background_color_example(background)];
+                    children = ui_vec![icon_example(), background_color_example(background), theme_example(theme)];
                 },
                 Stack! {
                     direction = StackDirection::top_to_bottom();
@@ -106,10 +110,26 @@ fn background_color_example(color: Var<Rgba>) -> UiNode {
         color,
         ui_vec![
             color_btn(light_dark(rgb(0.9, 0.9, 0.9), rgb(0.1, 0.1, 0.1)).rgba(), true),
-            primary_color(rgb(1.0, 0.0, 0.0)),
             primary_color(rgb(0.0, 0.8, 0.0)),
-            primary_color(rgb(0.0, 0.0, 1.0)),
             primary_color(rgba(0, 0, 240, 20.pct())),
+        ],
+    )
+}
+
+fn theme_example(style_fn: Var<StyleFn>) -> UiNode {
+    fn theme_btn(name: &'static str, t: StyleFn, select_on_init: bool) -> UiNode {
+        Toggle! {
+            value::<StyleFn> = t;
+            select_on_init;
+            child = Text!(name);
+        }
+    }
+    select(
+        "Theme",
+        style_fn,
+        ui_vec![
+            theme_btn("Default", style_fn!(|_| zng::window::DefaultStyle!()), true),
+            theme_btn("Custom", style_fn!(|_| zng::window::DefaultStyle! {}), false)
         ],
     )
 }
