@@ -22,6 +22,7 @@ fn main() {
             padding = 10;
             child_align = Align::CENTER;
             child = example();
+            child_out_bottom = example_fps();
         }
     })
 }
@@ -141,5 +142,47 @@ fn example() -> UiNode {
                 });
             },
         ];
+    }
+}
+
+fn example_fps() -> UiNode {
+    Button! {
+        child = Text!("Continuous Animation");
+        style_fn = button::LinkStyle!();
+        on_click = hn!(|_| {
+            WINDOWS.focus_or_open("continuous", async {
+                let offset = var(layout::Vector::zero());
+                let mut offset_chase = offset.chase_begin();
+                Window! {
+                    title = "Continuous Animation";
+                    zng_wgt_webrender_debug::renderer_debug = "FPS";
+
+                    gesture::on_click = hn!(|args| {
+                        if let Some(p) = args.position() {
+                            offset_chase.set(p.to_vector(), 1.secs(), |t| easing::ease_out(easing::cubic, t));
+                        }
+                    });
+
+                    child = Wgt! {
+                        layout::size = 30;
+                        layout::offset = offset.map(|o| o.clone() - 15.dip());
+                        layout::align = Align::TOP_LEFT;
+                        widget::corner_radius = 30;
+                        widget::background_conic = {
+                            center: 50.pct(),
+                            angle: 90.deg(),
+                            stops: color::gradient::stops![colors::RED, colors::BLUE, colors::GREEN, colors::RED],
+                        };
+                        layout::rotate = {
+                            let r = var(0.deg());
+                            r.sequence(|r| r.set_ease(0.deg(), 360.deg(), 500.ms(), easing::linear)).perm();
+                            r.map_into()
+                        };
+                    };
+                }
+            });
+        });
+        layout::margin = 10;
+        layout::align = Align::BOTTOM_RIGHT;
     }
 }
