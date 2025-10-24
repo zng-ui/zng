@@ -157,6 +157,7 @@ fn example_fps() -> UiNode {
                     title = "Continuous Animation";
                     zng_wgt_webrender_debug::renderer_debug = "FPS";
 
+                    zng::mouse::cursor = zng::mouse::CursorIcon::Crosshair;
                     gesture::on_click = hn!(|args| {
                         if let Some(p) = args.position() {
                             offset_chase.set(p.to_vector(), 1.secs(), |t| easing::ease_out(easing::cubic, t));
@@ -180,15 +181,30 @@ fn example_fps() -> UiNode {
                         };
                     };
 
-                    // widget::background_radial = {
-                    //     center: offset.map_into(),
-                    //     radius: color::gradient::GradientRadius::default().circle(),
-                    //     stops: color::gradient::stops![rgb(255, 0, 0), 10.pct(), colors::GREEN],
-                    // };
-                    widget::background_gradient = {
-                        axis: 90.deg(),
-                        // stops: color::gradient::stops![colors::GREEN, 10.pct(), colors::RED],
-                        stops: color::gradient::stops![colors::RED, 10.pct(), colors::GREEN],
+                    widget::background_radial = {
+                        center: offset.map_into(),
+                        radius: color::gradient::GradientRadius::default().circle(),
+                        stops: expr_var! {
+                            // sample conic hue
+                            let fct = *#{WINDOW.vars().scale_factor()};
+                            let size = *#{WINDOW.vars().actual_size_px()};
+                            let c = size.to_vector().cast::<f32>() * 0.5;
+                            let offset = layout::LAYOUT.with_context(layout::LayoutMetrics::new(fct, size, layout::Px(16)), || {
+                                #{offset}.layout().cast::<f32>()
+                            });
+                            let d = offset - c;
+                            let mut angle = (d.y).atan2(d.x);
+                            if angle < 0.0 {
+                                angle += 2.0 * std::f32::consts::PI;
+                            }
+
+                            // bright at the middle
+                            let r = (d.x * d.x + d.y * d.y).sqrt();
+                            let max_r = (c.x * c.x + c.y * c.y).sqrt();
+                            let rel = (r / max_r).clamp(0.0, 1.0);
+
+                            color::gradient::stops![hsl(angle.rad(), 1.fct(), (1.0 - rel * 0.5).fct()), 10.pct(), colors::BLACK]
+                        },
                     };
                 }
             });
