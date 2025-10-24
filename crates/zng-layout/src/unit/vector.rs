@@ -202,7 +202,10 @@ impl<V: Into<Vector>> ops::Add<V> for Vector {
 
     fn add(self, rhs: V) -> Self {
         let rhs = rhs.into();
-        Self { x: self.x + rhs.x, y: self.y + rhs.y }
+        Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
     }
 }
 impl<'a> ops::Add<&'a Vector> for &Vector {
@@ -224,7 +227,10 @@ impl<V: Into<Vector>> ops::Sub<V> for Vector {
 
     fn sub(self, rhs: V) -> Self {
         let rhs = rhs.into();
-        Self { x: self.x - rhs.x, y: self.y - rhs.y }
+        Self {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
     }
 }
 impl<'a> ops::Sub<&'a Vector> for &Vector {
