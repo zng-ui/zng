@@ -12,6 +12,7 @@
     - Refactored `ColorGlyphs` and `ColorPalettes` to parse on demand.
     - Windows builds with default fonts now uses ~20MB less memory.
 
+* Replace `layout::Vector` add and sub implementations to be generic over any type that converts to vector.
 * Add `Var::chase_begin` to begin a deferred chase animation.
 * Add `zng::app::memory_profiler` for recording DHAT heap traces.
 * Add `zng::task::set_spawn_panic_handler` for apps to optionally handle panics in spawn and forget tasks.

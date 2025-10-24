@@ -197,12 +197,12 @@ impl_from_and_into_var! {
         Length::from(l).into()
     }
 }
-impl ops::Add for Vector {
+impl<V: Into<Vector>> ops::Add<V> for Vector {
     type Output = Self;
 
-    fn add(mut self, rhs: Self) -> Self {
-        self += rhs;
-        self
+    fn add(self, rhs: V) -> Self {
+        let rhs = rhs.into();
+        Self { x: self.x + rhs.x, y: self.y + rhs.y }
     }
 }
 impl<'a> ops::Add<&'a Vector> for &Vector {
@@ -212,18 +212,19 @@ impl<'a> ops::Add<&'a Vector> for &Vector {
         self.clone() + rhs.clone()
     }
 }
-impl ops::AddAssign for Vector {
-    fn add_assign(&mut self, rhs: Self) {
+impl<V: Into<Vector>> ops::AddAssign<V> for Vector {
+    fn add_assign(&mut self, rhs: V) {
+        let rhs = rhs.into();
         self.x += rhs.x;
         self.y += rhs.y;
     }
 }
-impl ops::Sub for Vector {
+impl<V: Into<Vector>> ops::Sub<V> for Vector {
     type Output = Self;
 
-    fn sub(mut self, rhs: Self) -> Self {
-        self -= rhs;
-        self
+    fn sub(self, rhs: V) -> Self {
+        let rhs = rhs.into();
+        Self { x: self.x - rhs.x, y: self.y - rhs.y }
     }
 }
 impl<'a> ops::Sub<&'a Vector> for &Vector {
@@ -233,8 +234,9 @@ impl<'a> ops::Sub<&'a Vector> for &Vector {
         self.clone() - rhs.clone()
     }
 }
-impl ops::SubAssign for Vector {
-    fn sub_assign(&mut self, rhs: Self) {
+impl<V: Into<Vector>> ops::SubAssign<V> for Vector {
+    fn sub_assign(&mut self, rhs: V) {
+        let rhs = rhs.into();
         self.x -= rhs.x;
         self.y -= rhs.y;
     }
