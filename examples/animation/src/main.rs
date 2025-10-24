@@ -179,6 +179,17 @@ fn example_fps() -> UiNode {
                             r.map_into()
                         };
                     };
+
+                    // widget::background_radial = {
+                    //     center: offset.map_into(),
+                    //     radius: color::gradient::GradientRadius::default().circle(),
+                    //     stops: color::gradient::stops![rgb(255, 0, 0), 10.pct(), colors::GREEN],
+                    // };
+                    widget::background_gradient = {
+                        axis: 90.deg(),
+                        // stops: color::gradient::stops![colors::GREEN, 10.pct(), colors::RED],
+                        stops: color::gradient::stops![colors::RED, 10.pct(), colors::GREEN],
+                    };
                 }
             });
         });

@@ -982,7 +982,7 @@ impl GradientStops {
                     }
                     offset += prev.offset;
 
-                    let color = prev.color.lerp(&after.color, (100.0 / length / 2.0).fct());
+                    let color = prev.color.lerp(&after.color, 0.5.fct());
 
                     let stop = &mut render_stops[i];
                     stop.color = color;
