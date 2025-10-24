@@ -1285,6 +1285,19 @@ impl<T: VarValue> Var<T> {
         }
     }
 
+    /// Start a [`chase`] animation without a first target.
+    /// 
+    /// Use [`ChaseAnimation<T>::set`] to set the first chase target.
+    /// 
+    /// [`chase`]: Self::chase
+    pub fn chase_begin(&self) -> ChaseAnimation<T> where T: Transitionable {
+        ChaseAnimation {
+            handle: AnimationHandle::dummy(),
+            target: self.get(),
+            var: self.current_context(),
+        }
+    }
+
     /// Create a vars that [`ease`] to each new value of `self`.
     ///
     /// Note that the mapping var can be [contextualized], see [`map`] for more details.
