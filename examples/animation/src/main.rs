@@ -22,6 +22,7 @@ fn main() {
             padding = 10;
             child_align = Align::CENTER;
             child = example();
+            child_out_bottom = example_fps();
         }
     })
 }
@@ -141,5 +142,74 @@ fn example() -> UiNode {
                 });
             },
         ];
+    }
+}
+
+fn example_fps() -> UiNode {
+    Button! {
+        child = Text!("Continuous Animation");
+        style_fn = button::LinkStyle!();
+        on_click = hn!(|_| {
+            WINDOWS.focus_or_open("continuous", async {
+                let offset = var(layout::Vector::zero());
+                let mut offset_chase = offset.chase_begin();
+                Window! {
+                    title = "Continuous Animation";
+                    zng_wgt_webrender_debug::renderer_debug = "FPS";
+
+                    zng::mouse::cursor = zng::mouse::CursorIcon::Crosshair;
+                    gesture::on_click = hn!(|args| {
+                        if let Some(p) = args.position() {
+                            offset_chase.set(p.to_vector(), 1.secs(), |t| easing::ease_out(easing::cubic, t));
+                        }
+                    });
+
+                    child = Wgt! {
+                        layout::size = 30;
+                        layout::offset = offset.map(|o| o.clone() - 15.dip());
+                        layout::align = Align::TOP_LEFT;
+                        widget::corner_radius = 30;
+                        widget::background_conic = {
+                            center: 50.pct(),
+                            angle: 90.deg(),
+                            stops: color::gradient::stops![colors::RED, colors::BLUE, colors::GREEN, colors::RED],
+                        };
+                        layout::rotate = {
+                            let r = var(0.deg());
+                            r.sequence(|r| r.set_ease(0.deg(), 360.deg(), 500.ms(), easing::linear)).perm();
+                            r.map_into()
+                        };
+                    };
+
+                    widget::background_radial = {
+                        center: offset.map_into(),
+                        radius: color::gradient::GradientRadius::default().circle(),
+                        stops: expr_var! {
+                            // sample conic hue
+                            let fct = *#{WINDOW.vars().scale_factor()};
+                            let size = *#{WINDOW.vars().actual_size_px()};
+                            let c = size.to_vector().cast::<f32>() * 0.5;
+                            let offset = layout::LAYOUT.with_context(layout::LayoutMetrics::new(fct, size, layout::Px(16)), || {
+                                #{offset}.layout().cast::<f32>()
+                            });
+                            let d = offset - c;
+                            let mut angle = (d.y).atan2(d.x);
+                            if angle < 0.0 {
+                                angle += 2.0 * std::f32::consts::PI;
+                            }
+
+                            // bright at the middle
+                            let r = (d.x * d.x + d.y * d.y).sqrt();
+                            let max_r = (c.x * c.x + c.y * c.y).sqrt();
+                            let rel = (r / max_r).clamp(0.0, 1.0);
+
+                            color::gradient::stops![hsl(angle.rad(), 1.fct(), (1.0 - rel * 0.5).fct()), 10.pct(), colors::BLACK]
+                        },
+                    };
+                }
+            });
+        });
+        layout::margin = 10;
+        layout::align = Align::BOTTOM_RIGHT;
     }
 }
