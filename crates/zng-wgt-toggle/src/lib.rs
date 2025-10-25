@@ -12,7 +12,7 @@
 zng_wgt::enable_widget_macros!();
 
 use std::ops;
-use std::{error::Error, fmt, marker::PhantomData, sync::Arc};
+use std::{error::Error, fmt, sync::Arc};
 
 use colors::BASE_COLOR_VAR;
 use task::parking_lot::Mutex;
@@ -305,14 +305,38 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
         UiNodeOp::Init => {
             let id = WIDGET.id();
             WIDGET.sub_var(&value).sub_var(&DESELECT_ON_NEW_VAR).sub_var(&checked);
-            SELECTOR.get().subscribe();
+            let selector = SELECTOR.get();
+            selector.subscribe();
 
             value.with(|value| {
-                let selected = if SELECT_ON_INIT_VAR.get() {
-                    select(value)
-                } else {
-                    is_selected(value)
+                let select_on_init = SELECT_ON_INIT_VAR.get() && {
+                    // We don't want to select again on reinit, but that is tricky to detect
+                    // when styleable widgets re-instantiate most properties.
+                    app_local! {
+                        // (id, selector)
+                        static SELECTED_ON_INIT: IdMap<WidgetId, std::sync::Weak<Mutex<dyn SelectorImpl>>> = IdMap::new();
+                    }
+                    let mut map = SELECTED_ON_INIT.write();
+                    map.retain(|_, v| v.strong_count() > 0);
+                    let selector_wk = Arc::downgrade(&selector.0);
+                    match map.entry(id) {
+                        hashbrown::hash_map::Entry::Occupied(mut e) => {
+                            if !e.get().ptr_eq(&selector_wk) {
+                                e.insert(selector_wk);
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        hashbrown::hash_map::Entry::Vacant(e) => {
+                            e.insert(selector_wk);
+                            true
+                        }
+                    }
                 };
+
+                let selected = if select_on_init { select(value) } else { is_selected(value) };
+
                 checked.set(Some(selected));
 
                 if DESELECT_ON_DEINIT_VAR.get() {
@@ -497,6 +521,8 @@ pub fn selector(child: impl IntoUiNode, selector: impl IntoValue<Selector>) -> U
 
 /// If [`value`] is selected when the widget that has the value is inited.
 ///
+/// Only applies on the first init in the selector context.
+///
 /// [`value`]: fn@value
 #[property(CONTEXT, default(SELECT_ON_INIT_VAR), widget_impl(Toggle))]
 pub fn select_on_init(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
@@ -504,6 +530,8 @@ pub fn select_on_init(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> Ui
 }
 
 /// If [`value`] is deselected when the widget that has the value is deinited and the value was selected.
+///
+/// Only applies if after an update cycle the widget remains deinited, to avoid deselection on reinit.
 ///
 /// [`value`]: fn@value
 #[property(CONTEXT, default(DESELECT_ON_DEINIT_VAR), widget_impl(Toggle))]
@@ -632,7 +660,6 @@ impl Selector {
     {
         struct SingleSel<T: VarValue> {
             selection: Var<T>,
-            _type: PhantomData<T>,
         }
         impl<T: VarValue> SelectorImpl for SingleSel<T> {
             fn subscribe(&self) {
@@ -666,7 +693,6 @@ impl Selector {
         }
         Self::new(SingleSel {
             selection: selection.into_var(),
-            _type: PhantomData,
         })
     }
 
@@ -677,7 +703,6 @@ impl Selector {
     {
         struct SingleOptSel<T: VarValue> {
             selection: Var<Option<T>>,
-            _type: PhantomData<T>,
         }
         impl<T: VarValue> SelectorImpl for SingleOptSel<T> {
             fn subscribe(&self) {
@@ -744,7 +769,6 @@ impl Selector {
         }
         Self::new(SingleOptSel {
             selection: selection.into_var(),
-            _type: PhantomData,
         })
     }
 
@@ -755,7 +779,6 @@ impl Selector {
     {
         struct BitflagsSel<T: VarValue> {
             selection: Var<T>,
-            _type: PhantomData<T>,
         }
         impl<T> SelectorImpl for BitflagsSel<T>
         where
@@ -805,7 +828,6 @@ impl Selector {
 
         Self::new(BitflagsSel {
             selection: selection.into_var(),
-            _type: PhantomData,
         })
     }
 

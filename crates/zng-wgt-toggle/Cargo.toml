@@ -32,3 +32,4 @@ zng-var = { path = "../zng-var", version = "0.10.1", default-features = false }
 
 parking_lot = { version = "0.12", default-features = false }
 tracing = { version = "0.1", default-features = false }
+hashbrown = { version = "0.16", default-features = false }

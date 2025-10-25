@@ -38,8 +38,11 @@ async fn main_window() -> window::WindowRoot {
 
     LAYERS.insert(LayerIndex::TOP_MOST, custom_chrome(title.clone()));
 
-    let theme = var(style_fn!(|_| zng::window::DefaultStyle!()));
-    WINDOWS.register_style_fn(theme.clone());
+    let theme = var(Txt::from("Default"));
+    WINDOWS.register_style_fn(theme.map(|t| match t.as_str() {
+        "Custom 98" => theme_custom_98(),
+        _ => style_fn!(|_| zng::window::DefaultStyle!()),
+    }));
 
     let background = var(colors::BLACK);
     Window! {
@@ -116,22 +119,28 @@ fn background_color_example(color: Var<Rgba>) -> UiNode {
     )
 }
 
-fn theme_example(style_fn: Var<StyleFn>) -> UiNode {
-    fn theme_btn(name: &'static str, t: StyleFn, select_on_init: bool) -> UiNode {
+fn theme_example(style_fn: Var<Txt>) -> UiNode {
+    fn theme_btn(t: Txt, select_on_init: bool) -> UiNode {
         Toggle! {
-            value::<StyleFn> = t;
-            select_on_init;
-            child = Text!(name);
+            value::<Txt> = t.clone();
+            select_on_init; // !!: TODO remove this after test, there is no need for it
+            child = Text!(t);
         }
     }
     select(
         "Theme",
         style_fn,
-        ui_vec![
-            theme_btn("Default", style_fn!(|_| zng::window::DefaultStyle!()), true),
-            theme_btn("Custom", style_fn!(|_| zng::window::DefaultStyle! {}), false)
-        ],
+        ui_vec![theme_btn("Default".into(), true), theme_btn("Custom 98".into(), false)],
     )
+}
+fn theme_custom_98() -> StyleFn {
+    style_fn!(|_| {
+        zng::window::DefaultStyle! {
+            zng::button::style_fn = Style! {
+                replace = true;
+            };
+        }
+    })
 }
 
 fn screenshot() -> UiNode {
