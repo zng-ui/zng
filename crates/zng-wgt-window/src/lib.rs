@@ -39,7 +39,7 @@ pub use fallback_chrome::fallback_chrome;
 
 /// A window container.
 ///
-/// The instance type is [`WindowRoot`], it can be given to the [`WINDOWS`](zng_ext_window::WINDOWS) service
+/// The instance type is [`WindowRoot`], it can be given to the [`WINDOWS`] service
 /// to open a system window that is kept in sync with the window properties set in the widget.
 ///
 /// See [`run_window`] for more details.

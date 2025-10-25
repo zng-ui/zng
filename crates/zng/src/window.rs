@@ -144,7 +144,7 @@
 //! # fn example() {
 //! let theme = var(Theme::Default);
 //! WINDOWS.register_style_fn(theme.map(|t| t.window_style_fn()));
-//! #}
+//! # }
 //! ```
 //!
 //! The example above provide a simple theming setup and a very basic custom theme, the theme will be applied for all
