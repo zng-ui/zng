@@ -684,8 +684,8 @@ pub use zng_app::widget::easing;
 ///
 /// #### Impl For
 ///
-/// The last argument is an optional `impl(<widget-type>)`, it strongly associates
-/// the property with a widget, users can set this property on the widget without needing to import the property.
+/// The last argument is an optional `impl(<widget-type>,...)`, it strongly associates the property with one or more widgets. 
+/// When a property is implemented on a widget users can set it without needing to import the property.
 ///
 /// Note that this makes the property have priority over all others of the same name, only a derived widget can override
 /// with another strongly associated property.

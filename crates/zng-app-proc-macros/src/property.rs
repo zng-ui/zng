@@ -594,60 +594,60 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }
         };
 
-        let direct_impl = if let Some(impl_for) = impl_for {
-            let mut target = impl_for.target;
-            let (generics_impl, generics) = match &target.segments.last().unwrap().arguments {
-                PathArguments::None => (quote!(), quote!()),
-                PathArguments::AngleBracketed(b) => {
-                    if b.args.is_empty() {
+        let mut direct_impl = quote!();
+        if let Some(impl_for) = impl_for {
+            for mut target in impl_for.targets.into_iter() {
+                let (generics_impl, generics) = match &target.segments.last().unwrap().arguments {
+                    PathArguments::None => (quote!(), quote!()),
+                    PathArguments::AngleBracketed(b) => {
+                        if b.args.is_empty() {
+                            (quote!(), quote!())
+                        } else if b.args.len() > 1 {
+                            errors.push("only `<P>` generics is allowed", b.span());
+                            (quote!(), quote!())
+                        } else {
+                            target.segments.last_mut().unwrap().arguments = PathArguments::None;
+                            (quote!(<P: #core::widget::base::WidgetImpl>), quote!(<P>))
+                        }
+                    }
+                    PathArguments::Parenthesized(p) => {
+                        errors.push("only `<P>` generics is allowed", p.span());
                         (quote!(), quote!())
-                    } else if b.args.len() > 1 {
-                        errors.push("only `<P>` generics is allowed", b.span());
-                        (quote!(), quote!())
-                    } else {
-                        target.segments.last_mut().unwrap().arguments = PathArguments::None;
-                        (quote!(<P: #core::widget::base::WidgetImpl>), quote!(<P>))
                     }
-                }
-                PathArguments::Parenthesized(p) => {
-                    errors.push("only `<P>` generics is allowed", p.span());
-                    (quote!(), quote!())
-                }
-            };
-            let docs = &mtd_attrs.docs;
-            quote! {
-                #cfg
-                impl #generics_impl #target #generics {
-                    #(#docs)*
-                    #deprecated
-                    #vis fn #ident #impl_gens(&self, #(#input_idents: #input_tys),*) #where_gens {
-                        let args = #ident_meta { }.args(#(#input_idents),*);
-                        #core::widget::base::WidgetImpl::base_ref(self).mtd_property__(args)
-                    }
+                };
+                let docs = &mtd_attrs.docs;
+                direct_impl.extend(quote! {
+                    #cfg
+                    impl #generics_impl #target #generics {
+                        #(#docs)*
+                        #deprecated
+                        #vis fn #ident #impl_gens(&self, #(#input_idents: #input_tys),*) #where_gens {
+                            let args = #ident_meta { }.args(#(#input_idents),*);
+                            #core::widget::base::WidgetImpl::base_ref(self).mtd_property__(args)
+                        }
 
-                    #[doc(hidden)]
-                    #[allow(dead_code)]
-                    #vis fn #ident_unset(&self) {
-                        #core::widget::base::WidgetImpl::base_ref(self).mtd_property_unset__(#ident_meta { }.id())
-                    }
+                        #[doc(hidden)]
+                        #[allow(dead_code)]
+                        #vis fn #ident_unset(&self) {
+                            #core::widget::base::WidgetImpl::base_ref(self).mtd_property_unset__(#ident_meta { }.id())
+                        }
 
-                    #[doc(hidden)]
-                    #[allow(dead_code)]
-                    #vis fn #ident_sorted #impl_gens(&mut self, #(#sorted_idents: #sorted_tys),*) #where_gens {
-                        let args = #ident_meta { }.args_sorted(#(#sorted_idents),*);
-                        #core::widget::base::WidgetImpl::base_ref(self).mtd_property__(args)
-                    }
+                        #[doc(hidden)]
+                        #[allow(dead_code)]
+                        #vis fn #ident_sorted #impl_gens(&mut self, #(#sorted_idents: #sorted_tys),*) #where_gens {
+                            let args = #ident_meta { }.args_sorted(#(#sorted_idents),*);
+                            #core::widget::base::WidgetImpl::base_ref(self).mtd_property__(args)
+                        }
 
-                    #[doc(hidden)]
-                    #[allow(dead_code)]
-                    #vis fn #ident_meta(&self) -> #ident_meta {
-                        #ident_meta { }
+                        #[doc(hidden)]
+                        #[allow(dead_code)]
+                        #vis fn #ident_meta(&self) -> #ident_meta {
+                            #ident_meta { }
+                        }
                     }
-                }
+                })
             }
-        } else {
-            quote!()
-        };
+        }
 
         quote! {
             #direct_impl
@@ -730,7 +730,7 @@ impl Parse for Args {
             } else {
                 None
             },
-            impl_for: if input.peek(Token![,]) && (input.peek2(keyword::widget_impl) || input.peek2(Token![for])) {
+            impl_for: if input.peek(Token![,]) && input.peek2(keyword::widget_impl) {
                 Some(input.parse()?)
             } else {
                 None
@@ -757,7 +757,7 @@ impl Parse for Default {
 }
 
 struct ImplFor {
-    target: Path,
+    targets: Punctuated<Path, Token![,]>,
 }
 impl Parse for ImplFor {
     fn parse(input: parse::ParseStream) -> Result<Self> {
@@ -765,8 +765,13 @@ impl Parse for ImplFor {
         let _: keyword::widget_impl = input.parse()?;
         let inner;
         parenthesized!(inner in input);
-
-        Ok(ImplFor { target: inner.parse()? })
+        let r = ImplFor {
+            targets: Punctuated::parse_terminated(&inner)?,
+        };
+        if r.targets.is_empty() {
+            return Err(syn::Error::new(r.targets.span(), "widget_impl requires at least one target"));
+        }
+        Ok(r)
     }
 }
 
