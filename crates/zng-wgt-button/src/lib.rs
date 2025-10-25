@@ -50,6 +50,7 @@ impl Button {
             capture_pointer = true;
             labelled_by_child = true;
             txt_selectable_alt_only = true;
+            access_role = AccessRole::Button;
         }
     }
 
@@ -296,8 +297,6 @@ impl DefaultStyle {
             self;
 
             replace = true;
-
-            access_role = AccessRole::Button;
 
             padding = (7, 15);
             corner_radius = 4;

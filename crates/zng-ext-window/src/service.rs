@@ -735,6 +735,9 @@ impl WINDOWS {
     /// Note that the *root* node passed to the extender is the child node of the `WindowRoot` widget, not the widget itself.
     /// The extended root will be wrapped in the root widget node, that is, the final root widget will be
     /// `root(extender_nodes(CONTEXT(EVENT(..))))`, so extension nodes should operate as `CONTEXT` properties.
+    ///
+    /// Note that for themes the `zng-wgt-window` crate provides a `register_style_fn` API that is built over this
+    /// method and more oriented for theming.
     pub fn register_root_extender(&self, extender: impl FnMut(WindowRootExtenderArgs) -> UiNode + Send + 'static) {
         WINDOWS_SV.write().root_extenders.get_mut().push(Box::new(extender))
     }

@@ -12,7 +12,7 @@
 zng_wgt::enable_widget_macros!();
 
 use std::ops;
-use std::{error::Error, fmt, marker::PhantomData, sync::Arc};
+use std::{error::Error, fmt, sync::Arc};
 
 use colors::BASE_COLOR_VAR;
 use task::parking_lot::Mutex;
@@ -305,14 +305,38 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
         UiNodeOp::Init => {
             let id = WIDGET.id();
             WIDGET.sub_var(&value).sub_var(&DESELECT_ON_NEW_VAR).sub_var(&checked);
-            SELECTOR.get().subscribe();
+            let selector = SELECTOR.get();
+            selector.subscribe();
 
             value.with(|value| {
-                let selected = if SELECT_ON_INIT_VAR.get() {
-                    select(value)
-                } else {
-                    is_selected(value)
+                let select_on_init = SELECT_ON_INIT_VAR.get() && {
+                    // We don't want to select again on reinit, but that is tricky to detect
+                    // when styleable widgets re-instantiate most properties.
+                    app_local! {
+                        // (id, selector)
+                        static SELECTED_ON_INIT: IdMap<WidgetId, WeakSelector> = IdMap::new();
+                    }
+                    let mut map = SELECTED_ON_INIT.write();
+                    map.retain(|_, v| v.strong_count() > 0);
+                    let selector_wk = selector.downgrade();
+                    match map.entry(id) {
+                        hashbrown::hash_map::Entry::Occupied(mut e) => {
+                            let changed_ctx = e.get() != &selector_wk;
+                            if changed_ctx {
+                                e.insert(selector_wk);
+                            }
+                            // -> select_on_init
+                            changed_ctx
+                        }
+                        hashbrown::hash_map::Entry::Vacant(e) => {
+                            e.insert(selector_wk);
+                            true
+                        }
+                    }
                 };
+
+                let selected = if select_on_init { select(value) } else { is_selected(value) };
+
                 checked.set(Some(selected));
 
                 if DESELECT_ON_DEINIT_VAR.get() {
@@ -326,11 +350,29 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
         }
         UiNodeOp::Deinit => {
             if checked.get() == Some(true) && DESELECT_ON_DEINIT_VAR.get() {
-                value.with(|value| {
-                    if deselect(value) {
-                        checked.set(Some(false));
-                    }
-                });
+                // deselect after an update to avoid deselecting due to `reinit`.
+                let value = value.get();
+                let selector = SELECTOR.get().downgrade();
+                let checked = checked.downgrade();
+                let id = WIDGET.id();
+                UPDATES
+                    .run(async move {
+                        task::yield_now().await; // wait one update, info rebuild.
+
+                        if let Some(selector) = selector.upgrade()
+                            && zng_ext_window::WINDOWS.widget_info(id).is_none()
+                        {
+                            // selector still exists and widget does not
+                            let deselected = match selector.deselect(&*value) {
+                                Ok(()) => true,
+                                Err(_) => !selector.is_selected(&*value),
+                            };
+                            if deselected && let Some(c) = checked.upgrade() {
+                                c.set(false);
+                            }
+                        }
+                    })
+                    .perm();
             }
 
             prev_value = None;
@@ -497,6 +539,8 @@ pub fn selector(child: impl IntoUiNode, selector: impl IntoValue<Selector>) -> U
 
 /// If [`value`] is selected when the widget that has the value is inited.
 ///
+/// Only applies on the first init in the selector context.
+///
 /// [`value`]: fn@value
 #[property(CONTEXT, default(SELECT_ON_INIT_VAR), widget_impl(Toggle))]
 pub fn select_on_init(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
@@ -504,6 +548,8 @@ pub fn select_on_init(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> Ui
 }
 
 /// If [`value`] is deselected when the widget that has the value is deinited and the value was selected.
+///
+/// Only applies if after an update cycle the widget remains deinited, to avoid deselection on reinit.
 ///
 /// [`value`]: fn@value
 #[property(CONTEXT, default(DESELECT_ON_DEINIT_VAR), widget_impl(Toggle))]
@@ -632,7 +678,6 @@ impl Selector {
     {
         struct SingleSel<T: VarValue> {
             selection: Var<T>,
-            _type: PhantomData<T>,
         }
         impl<T: VarValue> SelectorImpl for SingleSel<T> {
             fn subscribe(&self) {
@@ -666,7 +711,6 @@ impl Selector {
         }
         Self::new(SingleSel {
             selection: selection.into_var(),
-            _type: PhantomData,
         })
     }
 
@@ -677,7 +721,6 @@ impl Selector {
     {
         struct SingleOptSel<T: VarValue> {
             selection: Var<Option<T>>,
-            _type: PhantomData<T>,
         }
         impl<T: VarValue> SelectorImpl for SingleOptSel<T> {
             fn subscribe(&self) {
@@ -744,7 +787,6 @@ impl Selector {
         }
         Self::new(SingleOptSel {
             selection: selection.into_var(),
-            _type: PhantomData,
         })
     }
 
@@ -755,7 +797,6 @@ impl Selector {
     {
         struct BitflagsSel<T: VarValue> {
             selection: Var<T>,
-            _type: PhantomData<T>,
         }
         impl<T> SelectorImpl for BitflagsSel<T>
         where
@@ -805,7 +846,6 @@ impl Selector {
 
         Self::new(BitflagsSel {
             selection: selection.into_var(),
-            _type: PhantomData,
         })
     }
 
@@ -830,6 +870,16 @@ impl Selector {
     pub fn is_selected(&self, value: &dyn AnyVarValue) -> bool {
         self.0.lock().is_selected(value)
     }
+
+    /// Create a [`WeakSelector`] pointer to this selector.
+    pub fn downgrade(&self) -> WeakSelector {
+        WeakSelector(Arc::downgrade(&self.0))
+    }
+
+    /// Number of strong pointers to this selector.
+    pub fn strong_count(&self) -> usize {
+        Arc::strong_count(&self.0)
+    }
 }
 impl<S: SelectorImpl> From<S> for Selector {
     fn from(sel: S) -> Self {
@@ -844,6 +894,30 @@ impl fmt::Debug for Selector {
 impl PartialEq for Selector {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+/// Weak reference to a [`Selector`].
+pub struct WeakSelector(std::sync::Weak<Mutex<dyn SelectorImpl>>);
+impl WeakSelector {
+    /// Attempts to upgrade.
+    pub fn upgrade(&self) -> Option<Selector> {
+        self.0.upgrade().map(Selector)
+    }
+
+    /// Number of strong pointers to the selector.
+    pub fn strong_count(&self) -> usize {
+        self.0.strong_count()
+    }
+}
+impl fmt::Debug for WeakSelector {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "WeakSelector(_)")
+    }
+}
+impl PartialEq for WeakSelector {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.ptr_eq(&other.0)
     }
 }
 

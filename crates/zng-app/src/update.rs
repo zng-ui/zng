@@ -1344,7 +1344,9 @@ impl UPDATES {
         u.render_widgets.enter_window(window_id) || u.render_update_widgets.enter_window(window_id)
     }
 
-    /// Schedule the `future` to run in the app context, each future awake work runs as a *preview* update.
+    /// Schedule the `future` to run in the app context, in the *preview* track of the next update.
+    ///
+    /// This requests an app update. Each future awake also requests an app update and also runs in the *preview* track.
     ///
     /// Returns a handle that can be dropped to cancel execution.
     pub fn run<F: Future<Output = ()> + Send + 'static>(&self, future: impl IntoFuture<Output = (), IntoFuture = F>) -> OnUpdateHandle {
@@ -1352,15 +1354,17 @@ impl UPDATES {
         self.run_hn_once(async_hn_once!(|_| future.await))
     }
 
-    /// Schedule an *once* handler to run when these updates are applied.
+    /// Schedule a handler to run once in the app context, in the *preview* track of the next update.
     ///
-    /// The callback is any of the *once* [`Handler`], including async handlers. If the handler is async and does not finish in
+    /// The [`Handler`] can be any kind, including async handlers. If the handler is async and does not finish in
     /// one call it is scheduled to update in *preview* updates.
+    ///
+    /// Returns a handle that can be dropped to cancel execution.
     pub fn run_hn_once(&self, handler: Handler<UpdateArgs>) -> OnUpdateHandle {
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::UPDATE);
         u.send_awake();
-        Self::push_handler(u.pos_handlers.get_mut(), true, handler, true)
+        Self::push_handler(u.pre_handlers.get_mut(), true, handler.into_once(), true)
     }
 
     /// Create a preview update handler.

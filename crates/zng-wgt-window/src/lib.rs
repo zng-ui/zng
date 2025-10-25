@@ -15,7 +15,7 @@ zng_wgt::enable_widget_macros!();
 use zng_color::colors::BASE_COLOR_VAR;
 use zng_ext_input::focus::{DirectionalNav, FocusScopeOnFocus, TabNav};
 use zng_ext_window::{
-    HeadlessMonitor, RenderMode, StartPosition, WINDOW_Ext as _, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs,
+    HeadlessMonitor, RenderMode, StartPosition, WINDOW_Ext as _, WINDOWS, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs,
     WindowOpenArgs, WindowRoot,
 };
 use zng_var::contextual_var;
@@ -39,7 +39,7 @@ pub use fallback_chrome::fallback_chrome;
 
 /// A window container.
 ///
-/// The instance type is [`WindowRoot`], it can be given to the [`WINDOWS`](zng_ext_window::WINDOWS) service
+/// The instance type is [`WindowRoot`], it can be given to the [`WINDOWS`] service
 /// to open a system window that is kept in sync with the window properties set in the widget.
 ///
 /// See [`run_window`] for more details.
@@ -47,61 +47,33 @@ pub use fallback_chrome::fallback_chrome;
 /// [`WindowRoot`]: zng_ext_window::WindowRoot
 /// [`run_window`]: zng_ext_window::AppRunWindowExt::run_window
 #[widget($crate::Window)]
-pub struct Window(zng_wgt_container::Container);
+pub struct Window(zng_wgt_style::StyleMix<zng_wgt_container::Container>);
+zng_wgt_style::impl_style_fn!(Window, DefaultStyle);
 impl Window {
     fn widget_intrinsic(&mut self) {
+        self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
         widget_set! {
             self;
 
             // set the root font size
             font_size = FONT_SIZE_VAR;
 
-            // optimization, actualize mapping context-vars early, see `context_var!` docs.
-            zng_wgt_text::font_palette = zng_wgt_text::FONT_PALETTE_VAR;
-
             // set layout direction.
             lang = zng_ext_l10n::LANG_VAR;
 
-            font_color = light_dark(rgb(0.08, 0.08, 0.08), rgb(0.92, 0.92, 0.92));
-            base_color = light_dark(rgb(0.9, 0.9, 0.9), rgb(0.1, 0.1, 0.1));
-            background_color = BASE_COLOR_VAR.rgba();
-            clear_color = BASE_COLOR_VAR.rgba();
-            focus_highlight = {
-                offsets: FOCUS_HIGHLIGHT_OFFSETS_VAR,
-                widths: FOCUS_HIGHLIGHT_WIDTHS_VAR,
-                sides: light_dark(colors::BLACK, rgb(200, 200, 200)).rgba_map(BorderSides::dashed),
-            };
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             focus_scope_behavior = FocusScopeOnFocus::LastFocused;
+
             config_block_window_load = true;
             save_state = SaveState::enabled();
 
-            padding = contextual_var(|| WINDOW.vars().safe_padding().map(|p| SideOffsets::from(*p)));
+            safe_padding = contextual_var(|| WINDOW.vars().safe_padding().map(|p| SideOffsets::from(*p)));
 
             when #is_mobile {
                 // users tap the main background to dismiss `TextInput!` soft keyboard
                 focus_scope_behavior = FocusScopeOnFocus::Widget;
-                font_size = FONT_SIZE_VAR.map(|f| f.clone() * 1.5.fct());
-            }
-
-            when #needs_fallback_chrome {
-                custom_chrome_adorner_fn = wgt_fn!(|_| { fallback_chrome() });
-                custom_chrome_padding_fn = contextual_var(|| {
-                    let vars = WINDOW.vars();
-                    expr_var! {
-                        let title_padding = SideOffsets::new(28, 0, 0, 0);
-                        let chrome_padding = if matches!(#{vars.state()}, zng_ext_window::WindowState::Maximized) {
-                            title_padding
-                        } else {
-                            title_padding + SideOffsets::new_all(5)
-                        };
-                        // safe_padding is 0 in GNOME+Wayland, but better be safe :D
-                        let safe_padding = SideOffsets::from(*#{vars.safe_padding()});
-                        chrome_padding + safe_padding
-                    }
-                });
             }
         }
 
@@ -128,6 +100,69 @@ impl Window {
     }
 }
 
+/// Default window style.
+///
+/// See also [`register_style_fn`] for how to set a style for all windows in the app.
+///
+/// [`register_style_fn`]: WINDOWS_Ext::register_style_fn
+#[widget($crate::DefaultStyle)]
+pub struct DefaultStyle(zng_wgt_style::Style);
+impl DefaultStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+
+            replace = true;
+            font_color = light_dark(rgb(0.08, 0.08, 0.08), rgb(0.92, 0.92, 0.92));
+            base_color = light_dark(rgb(0.9, 0.9, 0.9), rgb(0.1, 0.1, 0.1));
+            background_color = BASE_COLOR_VAR.rgba();
+            clear_color = BASE_COLOR_VAR.rgba();
+            focus_highlight = {
+                offsets: FOCUS_HIGHLIGHT_OFFSETS_VAR,
+                widths: FOCUS_HIGHLIGHT_WIDTHS_VAR,
+                sides: light_dark(colors::BLACK, rgb(200, 200, 200)).rgba_map(BorderSides::dashed),
+            };
+
+            when #is_mobile {
+                font_size = FONT_SIZE_VAR.map(|f| f.clone() * 1.5.fct());
+            }
+
+            when #needs_fallback_chrome {
+                custom_chrome_adorner_fn = wgt_fn!(|_| { fallback_chrome() });
+                safe_padding = 0;
+                custom_chrome_padding_fn = contextual_var(|| {
+                    let vars = WINDOW.vars();
+                    expr_var! {
+                        let title_padding = SideOffsets::new(28, 0, 0, 0);
+                        let chrome_padding = if matches!(#{vars.state()}, zng_ext_window::WindowState::Maximized) {
+                            title_padding
+                        } else {
+                            title_padding + SideOffsets::new_all(5)
+                        };
+                        // safe_padding is 0 in GNOME+Wayland, but better be safe :D
+                        let safe_padding = SideOffsets::from(*#{vars.safe_padding()});
+                        chrome_padding + safe_padding
+                    }
+                });
+            }
+        }
+    }
+
+    // !!: TODO implement all style oriented Window properties? Is this or need to reexport them all
+    // Maybe widget_impl can accept multiple widgets?
+}
+
+/// Padding required to avoid physical screen obstructions.
+///
+/// By default this is [`WINDOW.vars().safe_padding()`] that is defined by the operating system. You can
+/// unset this property to implement your own *unsafe area* handling.
+///
+/// [`WINDOW.vars().safe_padding()`]: zng_ext_window::WindowVars::safe_padding
+#[property(CHILD_LAYOUT, default(0), widget_impl(Window))]
+pub fn safe_padding(child: impl IntoUiNode, padding: impl IntoVar<SideOffsets>) -> UiNode {
+    zng_wgt_container::padding(child, padding)
+}
+
 /// Defines how the window is positioned when it first opens.
 #[property(LAYOUT, widget_impl(Window))]
 pub fn start_position(wgt: &mut WidgetBuilding, position: impl IntoValue<StartPosition>) {
@@ -135,7 +170,7 @@ pub fn start_position(wgt: &mut WidgetBuilding, position: impl IntoValue<StartPo
     wgt.expect_property_capture();
 }
 
-/// If the window is steals keyboard focus on open.
+/// If the window steals keyboard focus on open.
 ///
 /// By default the operating system decides if the window will receive focus after opening, usually it is focused
 /// only if the process that started the window already has focus. Enabling this ensures that focus
@@ -382,4 +417,22 @@ pub fn on_frame_image_ready(child: impl IntoUiNode, handler: Handler<FrameImageR
 pub fn headless_monitor(wgt: &mut WidgetBuilding, monitor: impl IntoValue<HeadlessMonitor>) {
     let _ = monitor;
     wgt.expect_property_capture();
+}
+
+/// Extension methods for [`WINDOWS`].
+#[allow(non_camel_case_types)]
+pub trait WINDOWS_Ext {
+    /// Set the `style_fn` in all windows instantiated after this call.
+    ///
+    /// This method is the recommended entry point for themes. It uses [`register_root_extender`]
+    /// to inject the style in every new window instance.
+    ///
+    /// [`register_root_extender`]: WINDOWS::register_root_extender
+    fn register_style_fn(&self, style_fn: impl IntoVar<zng_wgt_style::StyleFn>);
+}
+impl WINDOWS_Ext for WINDOWS {
+    fn register_style_fn(&self, style: impl IntoVar<zng_wgt_style::StyleFn>) {
+        let style = style.into_var();
+        WINDOWS.register_root_extender(move |args| style_fn(args.root, style.clone()));
+    }
 }
