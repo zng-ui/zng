@@ -40,7 +40,7 @@ async fn main_window() -> window::WindowRoot {
 
     let theme = var(Txt::from("Default"));
     WINDOWS.register_style_fn(theme.map(|t| match t.as_str() {
-        "Custom 98" => theme_custom_98(),
+        "Custom" => theme_custom(),
         _ => style_fn!(|_| zng::window::DefaultStyle!()),
     }));
 
@@ -120,24 +120,32 @@ fn background_color_example(color: Var<Rgba>) -> UiNode {
 }
 
 fn theme_example(style_fn: Var<Txt>) -> UiNode {
-    fn theme_btn(t: Txt, select_on_init: bool) -> UiNode {
+    fn theme_btn(t: Txt) -> UiNode {
         Toggle! {
             value::<Txt> = t.clone();
-            select_on_init; // !!: TODO remove this after test, there is no need for it
             child = Text!(t);
         }
     }
     select(
-        "Theme",
+        "Theming",
         style_fn,
-        ui_vec![theme_btn("Default".into(), true), theme_btn("Custom 98".into(), false)],
+        ui_vec![theme_btn("Default".into()), theme_btn("Custom".into())],
     )
 }
-fn theme_custom_98() -> StyleFn {
+fn theme_custom() -> StyleFn {
+    let color = colors::RED.with_alpha(70.pct());
     style_fn!(|_| {
         zng::window::DefaultStyle! {
+            // custom themes are just a collection of styles applied by a Window style.
+
             zng::button::style_fn = Style! {
-                replace = true;
+                color::base_color = color;
+            };
+            zng::toggle::style_fn = Style! {
+                color::base_color = color;
+            };
+            zng::toggle::check_style_fn = Style! {
+                color::accent_color = colors::RED;
             };
         }
     })

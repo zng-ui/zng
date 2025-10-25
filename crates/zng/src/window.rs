@@ -93,7 +93,68 @@
 //!
 //! # Theming
 //!
-//! !!: TODO
+//! Themes are a collection of widget styles that replace the look and feel of the entire application. This can
+//! be achieved by setting contextual properties that change the style and appearance for all widgets in all windows.
+//!
+//! The [`WINDOWS.register_style_fn`] method is a convenient entry point for applying themes. It injects a window
+//! style in all subsequent window instances. A custom theme can define a window style that sets all the contextual properties
+//! that affect the other widgets. Widgets either implement the [`zng::style`] feature or provide their own contextual properties.
+//!
+//! Note that the theme concept is different from the [`accent_color`] and [`color_scheme`] (light/dark). Themes usually provide a more drastic
+//! change in appearance, not just changing the colors. Custom theme implementers should strongly consider incorporating these contextual
+//! color values, these values are usually provided by the operating system, derived from the user preferences.
+//!
+//! ```
+//! use zng::prelude::*;
+//!
+//! #[derive(Debug, Clone, Copy, PartialEq)]
+//! pub enum Theme {
+//!     Default,
+//!     Custom,
+//! }
+//! impl Theme {
+//!     pub fn window_style_fn(&self) -> zng::style::StyleFn {
+//!         match self {
+//!             Theme::Default => style_fn!(|_| zng::window::DefaultStyle!()),
+//!             Theme::Custom => style_fn!(|_| themes::custom()),
+//!         }
+//!     }
+//! }
+//!
+//! mod themes {
+//!     use zng::{prelude::*, style::StyleBuilder};
+//!
+//!     pub fn custom() -> StyleBuilder {
+//!         let base_color = colors::RED.with_alpha(60.pct());
+//!
+//!         zng::window::DefaultStyle! {
+//!             zng::button::style_fn = Style! {
+//!                 color::base_color = base_color;
+//!             };
+//!             zng::toggle::style_fn = Style! {
+//!                 color::base_color = base_color;
+//!             };
+//!             zng::toggle::check_style_fn = Style! {
+//!                 color::accent_color = colors::RED;
+//!             };
+//!         }
+//!     }
+//! }
+//!
+//! # fn example() {
+//! let theme = var(Theme::Default);
+//! WINDOWS.register_style_fn(theme.map(|t| t.window_style_fn()));
+//! #}
+//! ```
+//!
+//! The example above provide a simple theming setup and a very basic custom theme, the theme will be applied for all
+//! subsequent window instances and will dynamically update on variable change. Usually in a full app the
+//! `Theme` enum would be serializable and the variable provided by the [`zng::config::CONFIG`] service.
+//! See [`zng::style`] docs for more details about styles that fully replace the appearance of a widget.
+//!
+//! [`WINDOWS.register_style_fn`]: WINDOWS_Ext::register_style_fn
+//! [`color_scheme`]: fn@zng::color::color_scheme
+//! [`accent_color`]: fn@zng::color::accent_color
 //!
 //! # Full API
 //!
