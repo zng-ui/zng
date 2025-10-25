@@ -147,9 +147,6 @@ impl DefaultStyle {
             }
         }
     }
-
-    // !!: TODO implement all style oriented Window properties? Is this or need to reexport them all
-    // Maybe widget_impl can accept multiple widgets?
 }
 
 /// Padding required to avoid physical screen obstructions.
@@ -158,13 +155,13 @@ impl DefaultStyle {
 /// unset this property to implement your own *unsafe area* handling.
 ///
 /// [`WINDOW.vars().safe_padding()`]: zng_ext_window::WindowVars::safe_padding
-#[property(CHILD_LAYOUT, default(0), widget_impl(Window))]
+#[property(CHILD_LAYOUT, default(0), widget_impl(Window, DefaultStyle))]
 pub fn safe_padding(child: impl IntoUiNode, padding: impl IntoVar<SideOffsets>) -> UiNode {
     zng_wgt_container::padding(child, padding)
 }
 
 /// Defines how the window is positioned when it first opens.
-#[property(LAYOUT, widget_impl(Window))]
+#[property(LAYOUT, widget_impl(Window, DefaultStyle))]
 pub fn start_position(wgt: &mut WidgetBuilding, position: impl IntoValue<StartPosition>) {
     let _ = position;
     wgt.expect_property_capture();
@@ -202,7 +199,7 @@ pub fn kiosk(wgt: &mut WidgetBuilding, kiosk: impl IntoValue<bool>) {
 ///
 /// [`clear_color`]: fn@clear_color
 /// [`background_color`]: fn@background_color
-#[property(CONTEXT, widget_impl(Window))]
+#[property(CONTEXT, widget_impl(Window, DefaultStyle))]
 pub fn allow_transparency(wgt: &mut WidgetBuilding, allow: impl IntoValue<bool>) {
     let _ = allow;
     wgt.expect_property_capture();

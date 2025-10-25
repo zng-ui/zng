@@ -15,7 +15,7 @@ use zng_wgt_layer::adorner_fn;
 #[cfg(feature = "image")]
 use zng_ext_window::FrameCaptureMode;
 
-use super::Window;
+use super::{DefaultStyle, Window};
 
 fn bind_window_var<T>(child: impl IntoUiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> Var<T> + Send + 'static) -> UiNode
 where
@@ -45,7 +45,7 @@ macro_rules! set_properties {
             #[doc = "Binds the [`"$ident "`](fn@WindowVars::"$ident ") window var with the property value."]
             ///
             /// The binding is bidirectional and the window variable is assigned on init.
-            #[property(CONTEXT, widget_impl(Window))]
+            #[property(CONTEXT, widget_impl(Window, DefaultStyle))]
             pub fn $ident(child: impl IntoUiNode, $ident: impl IntoVar<$Type>) -> UiNode {
                 bind_window_var(child, $ident, |w|w.$ident().clone())
             }
@@ -101,7 +101,7 @@ macro_rules! map_properties {
         #[doc = "Binds the `"$member "` of the [`"$ident "`](fn@WindowVars::"$ident ") window var with the property value."]
         ///
         /// The binding is bidirectional and the window variable is assigned on init.
-        #[property(CONTEXT, widget_impl(Window))]
+        #[property(CONTEXT, widget_impl(Window, DefaultStyle))]
         pub fn $name(child: impl IntoUiNode, $name: impl IntoVar<$Type>) -> UiNode {
             bind_window_var(child, $name, |w|w.$ident().map_bidi_modify(|v| v.$member.clone(), |v, m|m.$member = v.clone()))
         }
@@ -125,7 +125,7 @@ map_properties! {
 /// It is visible if window content does not completely fill the content area, this
 /// can happen if you do not set a background or the background is semi-transparent, also
 /// can happen during very fast resizes.
-#[property(LAYOUT-1, default(colors::WHITE), widget_impl(Window))]
+#[property(LAYOUT-1, default(colors::WHITE), widget_impl(Window, DefaultStyle))]
 pub fn clear_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode {
     let clear_color = color.into_var();
     match_node(child, move |_, op| match op {
@@ -487,7 +487,7 @@ pub fn needs_fallback_chrome(child: impl IntoUiNode, needs: impl IntoVar<bool>) 
 ///
 /// [`chrome`]: fn@chrome
 /// [`WINDOWS.system_chrome`]: WINDOWS::system_chrome
-#[property(EVENT, default(var_state()), widget_impl(Window))]
+#[property(EVENT, default(var_state()), widget_impl(Window, DefaultStyle))]
 pub fn prefer_custom_chrome(child: impl IntoUiNode, prefer: impl IntoVar<bool>) -> UiNode {
     zng_wgt::node::bind_state(child, WINDOWS.system_chrome().map(|c| c.prefer_custom), prefer)
 }
@@ -500,7 +500,7 @@ pub fn prefer_custom_chrome(child: impl IntoUiNode, prefer: impl IntoVar<bool>) 
 /// Note that you can also set the `custom_chrome_padding_fn` to ensure that the content is not hidden behind the adorner.
 ///
 /// [`adorner_fn`]: fn@adorner_fn
-#[property(FILL, default(WidgetFn::nil()), widget_impl(Window))]
+#[property(FILL, default(WidgetFn::nil()), widget_impl(Window, DefaultStyle))]
 pub fn custom_chrome_adorner_fn(child: impl IntoUiNode, custom_chrome: impl IntoVar<WidgetFn<()>>) -> UiNode {
     adorner_fn(child, custom_chrome)
 }
@@ -508,7 +508,7 @@ pub fn custom_chrome_adorner_fn(child: impl IntoUiNode, custom_chrome: impl Into
 /// Extra padding for window content in windows that display a [`custom_chrome_adorner_fn`].
 ///
 /// [`custom_chrome_adorner_fn`]: fn@custom_chrome_adorner_fn
-#[property(CHILD_LAYOUT, default(0), widget_impl(Window))]
+#[property(CHILD_LAYOUT, default(0), widget_impl(Window, DefaultStyle))]
 pub fn custom_chrome_padding_fn(child: impl IntoUiNode, padding: impl IntoVar<SideOffsets>) -> UiNode {
     zng_wgt_container::padding(child, padding)
 }

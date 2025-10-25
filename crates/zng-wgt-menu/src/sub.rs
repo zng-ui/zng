@@ -326,7 +326,7 @@ pub fn header(wgt: &mut WidgetBuilding, child: impl IntoUiNode) {
 /// Width of the icon/checkmark column.
 ///
 /// This property sets [`START_COLUMN_WIDTH_VAR`].
-#[property(CONTEXT, default(START_COLUMN_WIDTH_VAR), widget_impl(SubMenu))]
+#[property(CONTEXT, default(START_COLUMN_WIDTH_VAR), widget_impl(SubMenu, DefaultStyle))]
 pub fn start_column_width(child: impl IntoUiNode, width: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, START_COLUMN_WIDTH_VAR, width)
 }
@@ -334,7 +334,7 @@ pub fn start_column_width(child: impl IntoUiNode, width: impl IntoVar<Length>) -
 /// Width of the sub-menu expand symbol column.
 ///
 /// This property sets [`END_COLUMN_WIDTH_VAR`].
-#[property(CONTEXT, default(END_COLUMN_WIDTH_VAR), widget_impl(SubMenu))]
+#[property(CONTEXT, default(END_COLUMN_WIDTH_VAR), widget_impl(SubMenu, DefaultStyle))]
 pub fn end_column_width(child: impl IntoUiNode, width: impl IntoVar<Length>) -> UiNode {
     with_context_var(child, END_COLUMN_WIDTH_VAR, width)
 }
@@ -445,7 +445,7 @@ context_var! {
 }
 
 /// If the sub-menu popup is open or opening.
-#[property(EVENT, widget_impl(SubMenu))]
+#[property(EVENT, widget_impl(SubMenu, DefaultStyle))]
 pub fn is_open(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state(child, IS_OPEN_VAR, state)
 }
@@ -455,7 +455,7 @@ pub fn is_open(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
 /// Is `300.ms()` by default.
 ///
 /// This property sets the [`HOVER_OPEN_DELAY_VAR`].
-#[property(CONTEXT, default(HOVER_OPEN_DELAY_VAR), widget_impl(SubMenu))]
+#[property(CONTEXT, default(HOVER_OPEN_DELAY_VAR), widget_impl(SubMenu, DefaultStyle))]
 pub fn hover_open_delay(child: impl IntoUiNode, delay: impl IntoVar<Duration>) -> UiNode {
     with_context_var(child, HOVER_OPEN_DELAY_VAR, delay)
 }

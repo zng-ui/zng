@@ -13,12 +13,15 @@
     - Windows builds with default fonts now uses ~20MB less memory.
 
 * Inherit `StyleMix` for `Window` to facilitate theme implementation and live change.
+    - See `zng::window` documentation for theming tips.
+
 * Fix gradient stops with midway adjustment.
-* Replace `layout::Vector` add and sub implementations to be generic over any type that converts to vector.
+* Impl of `Add` and `Sub` for `layout::Vector` is now generic over any type that converts to vector.
 * Add `Var::chase_begin` to begin a deferred chase animation.
 * Add `zng::app::memory_profiler` for recording DHAT heap traces.
 * Add `zng::task::set_spawn_panic_handler` for apps to optionally handle panics in spawn and forget tasks.
 * Refactor `toggle::{select_on_init, deselect_on_deinit}` to ignore reinit (quick deinit/init).
+* `#[property]` argument `widget_impl` now accepts multiple widget targets.
 * Task worker process timeout is now configurable with ZNG_TASK_WORKER_TIMEOUT env var.
 * View process timeout is now configurable with ZNG_VIEW_TIMEOUT env var.
 * Fix view-process recover when it stops responding.

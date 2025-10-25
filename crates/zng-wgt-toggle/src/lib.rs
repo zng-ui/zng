@@ -226,7 +226,7 @@ pub fn tristate(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
 /// If the toggle is checked from any of the three primary properties.
 ///
 /// Note to read the tristate directly use [`IS_CHECKED_VAR`] directly.
-#[property(EVENT, widget_impl(Toggle))]
+#[property(EVENT, widget_impl(Toggle, DefaultStyle))]
 pub fn is_checked(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)
 }
@@ -488,7 +488,7 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
 /// This is enabled by default.
 ///
 /// [`value`]: fn@value
-#[property(CONTEXT, default(SCROLL_ON_SELECT_VAR), widget_impl(Toggle))]
+#[property(CONTEXT, default(SCROLL_ON_SELECT_VAR), widget_impl(Toggle, DefaultStyle))]
 pub fn scroll_on_select(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, SCROLL_ON_SELECT_VAR, enabled)
 }

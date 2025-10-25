@@ -172,7 +172,7 @@ context_var! {
 /// Widget function that generates the context menu layout.
 ///
 /// This property sets [`PANEL_FN_VAR`].
-#[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(ContextMenu))]
+#[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(ContextMenu, DefaultStyle))]
 pub fn panel_fn(child: impl IntoUiNode, panel: impl IntoVar<WidgetFn<zng_wgt_panel::PanelArgs>>) -> UiNode {
     with_context_var(child, PANEL_FN_VAR, panel)
 }

@@ -475,7 +475,7 @@ context_var! {
 /// Defines the orientation and direction of the slider track.
 ///
 /// This property sets the [`SLIDER_DIRECTION_VAR`].
-#[property(CONTEXT, default(SLIDER_DIRECTION_VAR), widget_impl(Slider))]
+#[property(CONTEXT, default(SLIDER_DIRECTION_VAR), widget_impl(Slider, DefaultStyle))]
 fn direction(child: impl IntoUiNode, direction: impl IntoVar<SliderDirection>) -> UiNode {
     with_context_var(child, SLIDER_DIRECTION_VAR, direction)
 }
