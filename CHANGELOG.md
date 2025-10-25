@@ -18,7 +18,7 @@
 * Add `Var::chase_begin` to begin a deferred chase animation.
 * Add `zng::app::memory_profiler` for recording DHAT heap traces.
 * Add `zng::task::set_spawn_panic_handler` for apps to optionally handle panics in spawn and forget tasks.
-* Refactor `toggle::{select_on_init, deselect_on_deinit}` to ignore reinit (quick deinit/init). !!: TODO
+* Refactor `toggle::{select_on_init, deselect_on_deinit}` to ignore reinit (quick deinit/init).
 * Task worker process timeout is now configurable with ZNG_TASK_WORKER_TIMEOUT env var.
 * View process timeout is now configurable with ZNG_VIEW_TIMEOUT env var.
 * Fix view-process recover when it stops responding.

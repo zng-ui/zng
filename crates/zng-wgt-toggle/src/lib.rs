@@ -314,19 +314,19 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
                     // when styleable widgets re-instantiate most properties.
                     app_local! {
                         // (id, selector)
-                        static SELECTED_ON_INIT: IdMap<WidgetId, std::sync::Weak<Mutex<dyn SelectorImpl>>> = IdMap::new();
+                        static SELECTED_ON_INIT: IdMap<WidgetId, WeakSelector> = IdMap::new();
                     }
                     let mut map = SELECTED_ON_INIT.write();
                     map.retain(|_, v| v.strong_count() > 0);
-                    let selector_wk = Arc::downgrade(&selector.0);
+                    let selector_wk = selector.downgrade();
                     match map.entry(id) {
                         hashbrown::hash_map::Entry::Occupied(mut e) => {
-                            if !e.get().ptr_eq(&selector_wk) {
+                            let changed_ctx = e.get() != &selector_wk;
+                            if changed_ctx {
                                 e.insert(selector_wk);
-                                true
-                            } else {
-                                false
                             }
+                            // -> select_on_init
+                            changed_ctx
                         }
                         hashbrown::hash_map::Entry::Vacant(e) => {
                             e.insert(selector_wk);
@@ -350,11 +350,29 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
         }
         UiNodeOp::Deinit => {
             if checked.get() == Some(true) && DESELECT_ON_DEINIT_VAR.get() {
-                value.with(|value| {
-                    if deselect(value) {
-                        checked.set(Some(false));
-                    }
-                });
+                // deselect after an update to avoid deselecting due to `reinit`.
+                let value = value.get();
+                let selector = SELECTOR.get().downgrade();
+                let checked = checked.downgrade();
+                let id = WIDGET.id();
+                UPDATES
+                    .run(async move {
+                        task::yield_now().await; // wait one update, info rebuild.
+
+                        if let Some(selector) = selector.upgrade()
+                            && zng_ext_window::WINDOWS.widget_info(id).is_none()
+                        {
+                            // selector still exists and widget does not
+                            let deselected = match selector.deselect(&*value) {
+                                Ok(()) => true,
+                                Err(_) => !selector.is_selected(&*value),
+                            };
+                            if deselected && let Some(c) = checked.upgrade() {
+                                c.set(false);
+                            }
+                        }
+                    })
+                    .perm();
             }
 
             prev_value = None;
@@ -852,6 +870,16 @@ impl Selector {
     pub fn is_selected(&self, value: &dyn AnyVarValue) -> bool {
         self.0.lock().is_selected(value)
     }
+
+    /// Create a [`WeakSelector`] pointer to this selector.
+    pub fn downgrade(&self) -> WeakSelector {
+        WeakSelector(Arc::downgrade(&self.0))
+    }
+
+    /// Number of strong pointers to this selector.
+    pub fn strong_count(&self) -> usize {
+        Arc::strong_count(&self.0)
+    }
 }
 impl<S: SelectorImpl> From<S> for Selector {
     fn from(sel: S) -> Self {
@@ -866,6 +894,30 @@ impl fmt::Debug for Selector {
 impl PartialEq for Selector {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+/// Weak reference to a [`Selector`].
+pub struct WeakSelector(std::sync::Weak<Mutex<dyn SelectorImpl>>);
+impl WeakSelector {
+    /// Attempts to upgrade.
+    pub fn upgrade(&self) -> Option<Selector> {
+        self.0.upgrade().map(Selector)
+    }
+
+    /// Number of strong pointers to the selector.
+    pub fn strong_count(&self) -> usize {
+        self.0.strong_count()
+    }
+}
+impl fmt::Debug for WeakSelector {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "WeakSelector(_)")
+    }
+}
+impl PartialEq for WeakSelector {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.ptr_eq(&other.0)
     }
 }
 
