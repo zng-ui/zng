@@ -331,7 +331,7 @@ pub fn content(child: impl IntoUiNode, content: impl IntoUiNode) -> UiNode {
 }
 
 /// Dialog button generator.
-#[property(CONTEXT, default(BUTTON_FN_VAR), widget_impl(Dialog))]
+#[property(CONTEXT, default(BUTTON_FN_VAR), widget_impl(Dialog, DefaultStyle))]
 pub fn button_fn(child: impl IntoUiNode, button: impl IntoVar<WidgetFn<DialogButtonArgs>>) -> UiNode {
     with_context_var(child, BUTTON_FN_VAR, button)
 }

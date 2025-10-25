@@ -232,7 +232,7 @@ impl SearchStyle {
 ///
 /// The placeholder has the same text style as the parent widget, with 50% opacity.
 /// You can use the [`placeholder`](fn@placeholder) to use a custom widget placeholder.
-#[property(CHILD, default(""), widget_impl(TextInput))]
+#[property(CHILD, default(""), widget_impl(TextInput, DefaultStyle))]
 pub fn placeholder_txt(child: impl IntoUiNode, txt: impl IntoVar<Txt>) -> UiNode {
     placeholder(
         child,
@@ -247,7 +247,7 @@ pub fn placeholder_txt(child: impl IntoUiNode, txt: impl IntoVar<Txt>) -> UiNode
 /// Widget shown when the `txt` is empty.
 ///
 /// The `placeholder` can be any widget, the `Text!` widget is recommended.
-#[property(CHILD, widget_impl(TextInput))]
+#[property(CHILD, widget_impl(TextInput, DefaultStyle))]
 pub fn placeholder(child: impl IntoUiNode, placeholder: impl IntoUiNode) -> UiNode {
     let mut txt_is_empty = None;
     zng_wgt_container::child_under(

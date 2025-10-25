@@ -274,7 +274,7 @@ pub fn cmd_param<T: VarValue>(child: impl IntoUiNode, cmd_param: impl IntoVar<T>
 ///
 /// [`cmd`]: fn@cmd
 /// [`child`]: fn@zng_wgt_container::child
-#[property(CONTEXT, default(CMD_CHILD_FN_VAR), widget_impl(Button))]
+#[property(CONTEXT, default(CMD_CHILD_FN_VAR), widget_impl(Button, DefaultStyle))]
 pub fn cmd_child_fn(child: impl IntoUiNode, cmd_child: impl IntoVar<WidgetFn<Command>>) -> UiNode {
     with_context_var(child, CMD_CHILD_FN_VAR, cmd_child)
 }
@@ -283,7 +283,7 @@ pub fn cmd_child_fn(child: impl IntoUiNode, cmd_child: impl IntoVar<WidgetFn<Com
 /// Sets the widget function used to produce the button tooltip when [`cmd`] is set and tooltip is not.
 ///
 /// [`cmd`]: fn@cmd
-#[property(CONTEXT, default(CMD_TOOLTIP_FN_VAR), widget_impl(Button))]
+#[property(CONTEXT, default(CMD_TOOLTIP_FN_VAR), widget_impl(Button, DefaultStyle))]
 pub fn cmd_tooltip_fn(child: impl IntoUiNode, cmd_tooltip: impl IntoVar<WidgetFn<CmdTooltipArgs>>) -> UiNode {
     with_context_var(child, CMD_TOOLTIP_FN_VAR, cmd_tooltip)
 }

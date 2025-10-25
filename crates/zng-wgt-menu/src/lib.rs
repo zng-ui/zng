@@ -63,13 +63,13 @@ context_var! {
 /// This property sets [`PANEL_FN_VAR`].
 ///
 /// [`Menu!`]: struct@Menu
-#[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(Menu))]
+#[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(Menu, DefaultStyle))]
 pub fn panel_fn(child: impl IntoUiNode, panel: impl IntoVar<WidgetFn<zng_wgt_panel::PanelArgs>>) -> UiNode {
     with_context_var(child, PANEL_FN_VAR, panel)
 }
 
 /// Gets if any descendant sub-menu is open.
-#[property(EVENT + 1, widget_impl(Menu))]
+#[property(EVENT + 1, widget_impl(Menu, DefaultStyle))]
 pub fn has_open(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     // EVENT+1 to clear the `sub_menu_node` in case this is set in a sub-menu that
     // sub-menu will see the parent OPEN_SUBMENU_VAR for setting its own state

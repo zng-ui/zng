@@ -43,7 +43,7 @@ pub fn progress(child: impl IntoUiNode, progress: impl IntoVar<Progress>) -> UiN
 }
 
 /// Collapse visibility when [`Progress::is_complete`].
-#[property(CONTEXT, default(false), widget_impl(ProgressView))]
+#[property(CONTEXT, default(false), widget_impl(ProgressView, DefaultStyle))]
 pub fn collapse_complete(child: impl IntoUiNode, collapse: impl IntoVar<bool>) -> UiNode {
     let collapse = collapse.into_var();
     visibility(
@@ -130,7 +130,7 @@ pub fn on_complete(child: impl IntoUiNode, handler: Handler<Progress>) -> UiNode
 /// Getter property that is `true` when progress is indeterminate.
 ///
 /// This event works in any context that sets [`PROGRESS_VAR`].
-#[property(EVENT, widget_impl(ProgressView))]
+#[property(EVENT, widget_impl(ProgressView, DefaultStyle))]
 pub fn is_indeterminate(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state(child, PROGRESS_VAR.map(|p| p.is_indeterminate()), state)
 }

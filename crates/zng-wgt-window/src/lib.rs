@@ -161,7 +161,7 @@ pub fn safe_padding(child: impl IntoUiNode, padding: impl IntoVar<SideOffsets>) 
 }
 
 /// Defines how the window is positioned when it first opens.
-#[property(LAYOUT, widget_impl(Window))]
+#[property(LAYOUT, widget_impl(Window, DefaultStyle))]
 pub fn start_position(wgt: &mut WidgetBuilding, position: impl IntoValue<StartPosition>) {
     let _ = position;
     wgt.expect_property_capture();
@@ -199,7 +199,7 @@ pub fn kiosk(wgt: &mut WidgetBuilding, kiosk: impl IntoValue<bool>) {
 ///
 /// [`clear_color`]: fn@clear_color
 /// [`background_color`]: fn@background_color
-#[property(CONTEXT, widget_impl(Window))]
+#[property(CONTEXT, widget_impl(Window, DefaultStyle))]
 pub fn allow_transparency(wgt: &mut WidgetBuilding, allow: impl IntoValue<bool>) {
     let _ = allow;
     wgt.expect_property_capture();

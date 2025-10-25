@@ -473,7 +473,7 @@ fn setup_popup_close_service() {
 /// while awaiting the `delay`.
 ///
 /// [`is_close_delaying`]: fn@is_close_delaying
-#[property(EVENT, default(Duration::ZERO), widget_impl(Popup))]
+#[property(EVENT, default(Duration::ZERO), widget_impl(Popup, DefaultStyle))]
 pub fn close_delay(child: impl IntoUiNode, delay: impl IntoVar<Duration>) -> UiNode {
     let delay = delay.into_var();
     let mut timer = None::<DeadlineHandle>;
@@ -526,7 +526,7 @@ pub fn close_delay(child: impl IntoUiNode, delay: impl IntoVar<Duration>) -> UiN
 /// If close was requested for this layered widget and it is just awaiting for the [`close_delay`].
 ///
 /// [`close_delay`]: fn@close_delay
-#[property(EVENT+1, widget_impl(Popup))]
+#[property(EVENT+1, widget_impl(Popup, DefaultStyle))]
 pub fn is_close_delaying(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state(child, IS_CLOSE_DELAYED_VAR, state)
 }
