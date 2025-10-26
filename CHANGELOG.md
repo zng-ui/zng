@@ -12,7 +12,7 @@
     - Refactored `ColorGlyphs` and `ColorPalettes` to parse on demand.
     - Windows builds with default fonts now uses ~20MB less memory.
 
-* Inherit `StyleMix` for `Window` to facilitate theme implementation and live change.
+* Inherit `StyleMix` for `Window` to facilitate theme implementation.
     - See `zng::window` documentation for theming tips.
 
 * Fix gradient stops with midway adjustment.
@@ -21,6 +21,7 @@
 * Add `zng::app::memory_profiler` for recording DHAT heap traces.
 * Add `zng::task::set_spawn_panic_handler` for apps to optionally handle panics in spawn and forget tasks.
 * Refactor `toggle::{select_on_init, deselect_on_deinit}` to ignore reinit (quick deinit/init).
+* Token data package for custom property assign attributes is now documented.
 * `#[property]` argument `widget_impl` now accepts multiple widget targets.
 * Task worker process timeout is now configurable with ZNG_TASK_WORKER_TIMEOUT env var.
 * View process timeout is now configurable with ZNG_VIEW_TIMEOUT env var.

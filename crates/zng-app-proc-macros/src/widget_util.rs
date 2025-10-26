@@ -12,7 +12,7 @@ use syn::{
 
 use crate::{
     util::{self, Attributes, ErrorRecoverable, Errors, parse_outer_attrs, parse_punct_terminated2, path_span, peek_any3},
-    wgt_property_attrs::PropertyAttrData,
+    wgt_property_attrs::PropertyAssignAttributeData,
 };
 
 /// Represents a property assign or when block.
@@ -55,19 +55,20 @@ impl WgtProperty {
     }
 
     /// Gets custom attributes expansion data if any was present in the property.
-    pub fn custom_attrs_expand(&self, builder: Ident, is_when: bool) -> TokenStream {
+    pub fn custom_attrs_expand(&self, builder: Ident, is_when: bool, assign: TokenStream) -> TokenStream {
         debug_assert!(self.has_custom_attrs());
 
         let attrs = &self.attrs.others;
 
         let path_slug = util::display_path(&self.path).replace("::", "_");
-        PropertyAttrData {
+        PropertyAssignAttributeData {
             pending_attrs: attrs.clone(),
             data_ident: ident!("__property_custom_expand_data_p_{}__", path_slug),
             builder,
             is_unset: self.is_unset(),
             is_when,
             property: self.path.clone(),
+            assign,
         }
         .to_token_stream()
     }

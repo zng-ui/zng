@@ -460,6 +460,15 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 /// The same apply for properties referenced in the condition expression, note that all `is_state` properties have a default value so
 /// it is more rare that a default value is not available. If a condition property cannot be generated the entire when block is ignored.
 ///
+/// # Attributes
+///
+/// Property assigns can be annotated with attributes, the `cfg` and lint attributes (`allow`, `warn`, etc.) are copied to the expanded
+/// code. Other attributes are transferred to a special token stream with metadata about the property assign, with the expectation they
+/// are custom proc-macro attributes that operate on property assigns.
+///
+/// An example of custom attribute is `#[easing]`, it provides animation transitions between the default and `when` assigns. Custom
+/// attribute implementers must parse data in a specific format, see `PropertyAssignAttributeData` in the `zng-app-proc-macros` crate.
+///
 /// [`WidgetBase`]: struct@crate::widget::base::WidgetBase
 /// [`WidgetBuilder::push_unset`]: crate::widget::builder::WidgetBuilder::push_unset
 #[macro_export]

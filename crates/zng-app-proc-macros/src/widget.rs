@@ -595,11 +595,6 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenStream {
     let core = util::crate_core();
 
-    let custom_expand = if prop.has_custom_attrs() {
-        prop.custom_attrs_expand(ident!("wgt__"), is_when)
-    } else {
-        quote!()
-    };
     let attrs = prop.attrs.cfg_and_lints();
 
     let ident = prop.ident();
@@ -609,7 +604,7 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
 
     macro_rules! quote_call {
         (#$mtd:ident ( $($args:tt)* )) => {
-            if path.get_ident().is_some() {
+            if path.get_ident().is_some() { // is single ident
                 quote! {
                     wgt__.#$mtd #generics($($args)*);
                 }
@@ -685,11 +680,16 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
         }
     }
 
+    let expand = if prop.has_custom_attrs() {
+        prop.custom_attrs_expand(ident!("wgt__"), is_when, prop_init)
+    } else {
+        prop_init
+    };
+
     quote! {
         #attrs {
             #when_check
-            #custom_expand
-            #prop_init
+            #expand
         }
     }
 }

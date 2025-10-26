@@ -4,9 +4,9 @@ use syn::{parse::Parse, *};
 use crate::util::crate_core;
 
 pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let data = parse_macro_input!(input as PropertyAttrData);
+    let data = parse_macro_input!(input as PropertyAssignAttributeData);
     let args = parse_macro_input!(args as Args);
-    let PropertyAttrData {
+    let PropertyAssignAttributeData {
         builder,
         is_unset: property_is_unset,
         property,
@@ -142,24 +142,41 @@ impl Parse for Args {
     }
 }
 
-pub(crate) struct PropertyAttrData {
-    /// Other custom property attributes that must be expanded.
-    ///
-    /// `PropertyAttrData::to_tokens` only generates tokens if there are pending attrs.
+/// Custom attributes for property assigns in widget macros must parse to this type. the `widget_set!` and other
+/// widget macros generates a formatted *data package* with metadata about the property assign (and the assign code).
+///
+/// Custom attributes must generate their own code, replace `assign` if needed and forward this struct instance.
+/// The `PropertyAttrData::to_tokens` method expands to another data package if `pending_attrs` is not empty, otherwise it expands to `assign`.
+///
+/// # Stability
+///
+/// The data format and `assign` default format are a public API. Any change to it will be considered breaking and the
+/// `zng-app-proc-macros` crate version will reflect that (and dependents). If you are implementing a custom attribute, copy
+/// this struct to your own crate.
+pub(crate) struct PropertyAssignAttributeData {
+    /// Other custom property attributes that will be expanded on forward.
     pub pending_attrs: Vec<Attribute>,
     /// ident of the "fake" data module used to expand this attribute, is unique in scope.
     pub data_ident: Ident,
 
-    /// mut local: WidgetBuilder.
+    /// Identity of a local mutable variable that is the WidgetBuilder.
     pub builder: Ident,
     /// If is property `unset!`.
     pub is_unset: bool,
     /// path to the property function/struct.
+    ///
+    /// If the path is a single ident it must be called `#builder.#property(...)`,
+    /// otherwise it must be called `#property(&mut #builder, ...)`.
     pub property: Path,
     /// If is inside `when` block.
     pub is_when: bool,
+
+    /// Default property assign expansion.
+    ///
+    /// Custom attributes that replace assign must replace this before forwarding the `PropertyAttrData::to_tokens`.
+    pub assign: proc_macro2::TokenStream,
 }
-impl Parse for PropertyAttrData {
+impl Parse for PropertyAssignAttributeData {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let item_mod: ItemMod = input.parse()?;
 
@@ -167,12 +184,22 @@ impl Parse for PropertyAttrData {
         let mut is_unset = false;
         let mut property = None;
         let mut is_when = false;
+        let mut assign = quote!();
 
         for item in item_mod.content.unwrap_or_else(|| non_user_error!("")).1 {
             let mut f = match item {
                 Item::Fn(f) => f,
                 _ => non_user_error!(""),
             };
+
+            if f.sig.ident == ident!("assign") {
+                if f.block.stmts.len() == 1 {
+                    assign = f.block.stmts[0].to_token_stream();
+                    continue;
+                } else {
+                    non_user_error!("")
+                }
+            }
 
             let stmt = f.block.stmts.pop().unwrap_or_else(|| non_user_error!(""));
             let expr = match stmt {
@@ -228,6 +255,10 @@ impl Parse for PropertyAttrData {
             }
         }
 
+        if assign.is_empty() {
+            non_user_error!("")
+        }
+
         Ok(Self {
             pending_attrs: item_mod.attrs,
             data_ident: item_mod.ident,
@@ -235,12 +266,14 @@ impl Parse for PropertyAttrData {
             is_unset,
             property: property.unwrap_or_else(|| non_user_error!("")),
             is_when,
+            assign,
         })
     }
 }
-impl ToTokens for PropertyAttrData {
+impl ToTokens for PropertyAssignAttributeData {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         if self.pending_attrs.is_empty() {
+            tokens.extend(self.assign.clone());
             return;
         }
 
@@ -253,6 +286,7 @@ impl ToTokens for PropertyAttrData {
             is_unset,
             property,
             is_when,
+            assign,
         } = self;
 
         tokens.extend(quote_spanned! {span=>
@@ -272,6 +306,10 @@ impl ToTokens for PropertyAttrData {
 
                 fn is_when() {
                     #is_when
+                }
+
+                fn assign() {
+                    #assign
                 }
             }
         })
