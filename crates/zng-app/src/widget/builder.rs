@@ -701,7 +701,7 @@ pub struct PropertyNewArgs {
     /// |---------------|-------------------------------------------------
     /// | [`Var`]       | `Box<PropertyAttribute<Var<T>>>`
     /// | [`Value`]     | `Box<PropertyAttribute<BoxAnyVarValue>>`
-    /// | [`UiNode`]    | `Box<PropertyAttribute<ArcNode<BoxedUiNode>>>`
+    /// | [`UiNode`]    | `Box<PropertyAttribute<ArcNode>>`
     /// | [`Handler`]   | `Box<PropertyAttribute<ArcHandler<A>>>`
     ///
     /// The new function will downcast and unbox the args.
@@ -776,9 +776,26 @@ pub struct PropertyInput {
     pub name: &'static str,
     /// Input kind.
     pub kind: InputKind,
+
     /// Type as defined by kind.
+    ///
+    /// The type ID each `kind` are:
+    ///
+    /// | Kind          | `TypeId::of`
+    /// |---------------|-------------------------------------------------
+    /// | [`Var`]       | `T` of `Var<T>`
+    /// | [`Value`]     | `T`
+    /// | [`UiNode`]    | `UiNode`
+    /// | [`Handler`]   | `A` of `Handler<A>`
+    ///
+    /// [`Var`]: InputKind::Var
+    /// [`Value`]: InputKind::Value
+    /// [`UiNode`]: InputKind::UiNode
+    /// [`Handler`]: InputKind::Handler
     pub ty: TypeId,
-    /// Type name.
+    /// Type name of [`ty`].
+    ///
+    /// [`ty`]: Self::ty
     pub ty_name: &'static str,
 
     #[doc(hidden)] // #[property] generates instantiation in external contexts, so can't mark `#[non_exhaustive]`.
@@ -788,8 +805,40 @@ impl PropertyInput {
     /// Shorter [`ty_name`].
     ///
     /// [`ty_name`]: Self::ty_name
-    pub fn display_ty_name(&self) -> Txt {
+    pub fn short_ty_name(&self) -> Txt {
         pretty_type_name::pretty_type_name_str(self.ty_name).into()
+    }
+
+    /// Short type name with `Var<{}>` and `Handler<{}>` included.
+    pub fn actual_ty_name(&self) -> Txt {
+        match self.kind {
+            InputKind::Var => formatx!("Var<{}>", self.short_ty_name()),
+            InputKind::Handler => formatx!("Handler<{}>", self.short_ty_name()),
+            InputKind::Value => self.short_ty_name(),
+            InputKind::UiNode => self.short_ty_name(),
+        }
+    }
+
+    /// Text that depicts how the property input is written.
+    ///
+    /// | Kind          |
+    /// |---------------|-------------------------------------------------
+    /// | [`Var`]       | `"impl IntoVar<{short_ty_name}>"`
+    /// | [`Value`]     | `"impl IntoValue<{short_ty_name}>"`
+    /// | [`UiNode`]    | `impl IntoUiNode`
+    /// | [`Handler`]   | `"Handler<{short_ty_name}>"`
+    ///
+    /// [`Var`]: InputKind::Var
+    /// [`Value`]: InputKind::Value
+    /// [`UiNode`]: InputKind::UiNode
+    /// [`Handler`]: InputKind::Handler
+    pub fn input_ty_name(&self) -> Txt {
+        match self.kind {
+            InputKind::Var => formatx!("impl IntoVar<{}>", self.short_ty_name()),
+            InputKind::Value => formatx!("impl IntoValue<{}>", self.short_ty_name()),
+            InputKind::UiNode => Txt::from_static("impl IntoUiNode"),
+            InputKind::Handler => formatx!("Handler<{}>", self.short_ty_name()),
+        }
     }
 }
 
@@ -891,7 +940,7 @@ impl dyn PropertyArgs + '_ {
             InputKind::Var => self.var(i).map_debug(false),
             InputKind::Value => const_var(formatx!("{:?}", self.value(i))),
             InputKind::UiNode => const_var(Txt::from_static("UiNode")),
-            InputKind::Handler => const_var(formatx!("Handler<{}>", p.inputs[i].display_ty_name())),
+            InputKind::Handler => const_var(formatx!("Handler<{}>", p.inputs[i].short_ty_name())),
         }
     }
 
@@ -904,7 +953,7 @@ impl dyn PropertyArgs + '_ {
             InputKind::Var => formatx!("{:?}", self.var(i).get()),
             InputKind::Value => formatx!("{:?}", self.value(i)),
             InputKind::UiNode => Txt::from_static("UiNode"),
-            InputKind::Handler => formatx!("Handler<{}>", p.inputs[i].display_ty_name()),
+            InputKind::Handler => formatx!("Handler<{}>", p.inputs[i].short_ty_name()),
         }
     }
 
@@ -2802,7 +2851,7 @@ pub struct PropertyAttributeArgs<'a, I: Any + Send> {
 /// |---------------|-------------------------------------------------
 /// | [`Var`]       | `Var<T>`
 /// | [`Value`]     | `T`
-/// | [`UiNode`]    | `ArcNode<BoxedUiNode>`
+/// | [`UiNode`]    | `ArcNode`
 /// | [`Handler`]   | `ArcHandler<A>`
 ///
 /// [`Var`]: InputKind::Var
