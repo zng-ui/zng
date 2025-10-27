@@ -256,13 +256,10 @@ impl_from_and_into_var! {
     }
 }
 macro_rules! named_aligns {
-    ( $($NAME:ident = ($x:expr, $rtl:expr, $y:expr);)+ ) => {named_aligns!{$(
-        [stringify!(($x, $y))] $NAME = ($x, $rtl, $y);
-    )+}};
 
-    ( $([$doc:expr] $NAME:ident = ($x:expr, $rtl:expr, $y:expr);)+ ) => {
+    ( $($(#[$doc:meta])* $NAME:ident = ($x:expr, $rtl:expr, $y:expr);)+ ) => {
         $(
-        #[doc=$doc]
+        $(#[$doc])*
         pub const $NAME: Align = Align { x: Factor($x), x_rtl_aware: $rtl, y: Factor($y) };
         )+
 
@@ -376,43 +373,93 @@ impl<'a> ComponentParser<'a> {
 }
 impl Align {
     named_aligns! {
+        /// x: 0, y: 0, RTL aware.
+        ///
+        /// In left-to-right contexts this is `TOP_LEFT`, in right-to-left contexts this is `TOP_RIGHT`.
         TOP_START = (0.0, true, 0.0);
+        /// x: 0, y: 0
         TOP_LEFT = (0.0, false, 0.0);
+        /// x: 0, y: 1, RTL aware.
+        ///
+        /// In left-to-right contexts this is `BOTTOM_LEFT`, in right-to-left contexts this is `BOTTOM_RIGHT`.
         BOTTOM_START = (0.0, true, 1.0);
+        /// x: 0, y: 1
         BOTTOM_LEFT = (0.0, false, 1.0);
 
+        /// x: 1, y: 0, RTL aware.
+        ///
+        /// In left-to-right contexts this is `TOP_RIGHT`, in right-to-left contexts this is `TOP_LEFT`.
         TOP_END = (1.0, true, 0.0);
+        /// x: 1, y: 0
         TOP_RIGHT = (1.0, false, 0.0);
+        /// x: 1, y: 1
+        ///
+        /// In left-to-right contexts this is `BOTTOM_RIGHT`, in right-to-left contexts this is `BOTTOM_LEFT`.
         BOTTOM_END = (1.0, true, 1.0);
+        /// x: 1, y: 1
         BOTTOM_RIGHT = (1.0, false, 1.0);
 
+        /// x: 0, y: 0.5, RTL aware.
+        ///
+        /// In left-to-right contexts this is `LEFT`, in right-to-left contexts this is `RIGHT`.
         START = (0.0, true, 0.5);
+        /// x: 0, y: 0.5
         LEFT = (0.0, false, 0.5);
+        /// x: 1, y: 0.5, RTL aware.
+        ///
+        /// In left-to-right contexts this is `RIGHT`, in right-to-left contexts this is `LEFT`.
         END = (1.0, true, 0.5);
+        /// x: 1, y: 0.5
         RIGHT = (1.0, false, 0.5);
+        /// x: 0.5, y: 0
         TOP = (0.5, false, 0.0);
+        /// x: 0.5, y: 1
         BOTTOM = (0.5, false, 1.0);
 
+        /// x: 0.5, y: 0.5
         CENTER = (0.5, false, 0.5);
 
+        /// x: +inf, y: 0
         FILL_TOP = (f32::INFINITY, false, 0.0);
+        /// x: +inf, y: 1
         FILL_BOTTOM = (f32::INFINITY, false, 1.0);
+        /// x: 0, y: +inf, RTL aware.
+        ///
+        /// In left-to-right contexts this is `FILL_LEFT`, in right-to-left contexts this is `FILL_RIGHT`.
         FILL_START = (0.0, true, f32::INFINITY);
+        /// x: 0, y: +inf
         FILL_LEFT = (0.0, false, f32::INFINITY);
+        /// x: 1, y: +inf
         FILL_RIGHT = (1.0, false, f32::INFINITY);
+        /// x: 1, y: +inf, RTL aware.
+        ///
+        /// In left-to-right contexts this is `FILL_RIGHT`, in right-to-left contexts this is `FILL_LEFT`.
         FILL_END = (1.0, true, f32::INFINITY);
 
+        /// x: +inf, y: 0.5
         FILL_X = (f32::INFINITY, false, 0.5);
+        /// x: 0.5, y: +inf
         FILL_Y = (0.5, false, f32::INFINITY);
 
+        /// x: +inf, y: +inf
         FILL = (f32::INFINITY, false, f32::INFINITY);
 
+        /// x: 0, y: -inf, RTL aware.
+        ///
+        /// In left-to-right contexts this is `BASELINE_LEFT`, in right-to-left contexts this is `BASELINE_RIGHT`.
         BASELINE_START = (0.0, true, f32::NEG_INFINITY);
+        /// x: 0, y: -inf
         BASELINE_LEFT = (0.0, false, f32::NEG_INFINITY);
+        /// x: 0.5, y: -inf
         BASELINE_CENTER = (0.5, false, f32::NEG_INFINITY);
+        /// x: 1, y: -inf, RTL aware.
+        ///
+        /// In left-to-right contexts this is `BASELINE_RIGHT`, in right-to-left contexts this is `BASELINE_LEFT`.
         BASELINE_END = (1.0, true, f32::NEG_INFINITY);
+        /// x: 1, y: -inf
         BASELINE_RIGHT = (1.0, false, f32::NEG_INFINITY);
 
+        /// x: +inf, y: -inf
         BASELINE = (f32::INFINITY, false, f32::NEG_INFINITY);
     }
 }
