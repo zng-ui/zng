@@ -15,6 +15,10 @@
 * Inherit `StyleMix` for `Window` to facilitate theme implementation.
     - See `zng::window` documentation for theming tips.
 
+* Add shorthand value syntax for widgets to reduce the need for importing value types.
+    - The syntax `ident!` that was previously used only for `unset!` now can be any ident.
+    - Value types can implement conversions from `ShorthandUnit![ident]` to support a shorthand.
+
 * Fix gradient stops with midway adjustment.
 * Impl of `Add` and `Sub` for `layout::Vector` is now generic over any type that converts to vector.
 * Add `Var::chase_begin` to begin a deferred chase animation.

@@ -11,7 +11,7 @@ use syn::{
 };
 
 use crate::{
-    util::{self, Attributes, ErrorRecoverable, Errors, parse_outer_attrs, parse_punct_terminated2, path_span, peek_any3},
+    util::{self, Attributes, ErrorRecoverable, Errors, parse_outer_attrs, parse_punct_terminated2, path_span},
     wgt_property_attrs::PropertyAssignAttributeData,
 };
 
@@ -42,7 +42,7 @@ impl WgtProperty {
 
     /// Gets if this property is assigned `unset!`.
     pub fn is_unset(&self) -> bool {
-        if let Some((_, PropertyValue::Special(special, _))) = &self.value {
+        if let Some((_, PropertyValue::Special(special))) = &self.value {
             special == "unset"
         } else {
             false
@@ -153,7 +153,7 @@ impl Parse for PropertyField {
 // Value assigned in a [`PropertyAssign`].
 pub enum PropertyValue {
     /// `unset!`.
-    Special(Ident, #[expect(dead_code)] Token![!]),
+    Special(Ident),
     /// `arg0, arg1,`
     Unnamed(TokenStream),
     /// `{ field0: true, field1: false, }`
@@ -161,15 +161,6 @@ pub enum PropertyValue {
 }
 impl Parse for PropertyValue {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
-        if input.peek(Ident) && input.peek2(Token![!]) && (input.peek3(Token![;]) || input.peek3(Ident::peek_any) || !peek_any3(input)) {
-            let ident: Ident = input.parse().unwrap();
-            if ident != "unset" {
-                return Err(Error::new(ident.span(), "unknown special value, expected `unset!`"));
-            }
-            let r = PropertyValue::Special(ident, input.parse().unwrap());
-            return Ok(r);
-        }
-
         if input.peek(token::Brace) && !input.peek2(Token![,]) {
             // Differentiating between a fields declaration and a single unnamed arg declaration gets tricky.
             //
@@ -218,6 +209,16 @@ impl Parse for PropertyValue {
                 break;
             }
             input.parse::<TokenTree>().unwrap().to_tokens(&mut args_input);
+        }
+
+        let mut unset_check = args_input.clone().into_iter();
+        if let Some(TokenTree::Ident(id)) = unset_check.next()
+            && id == "unset"
+            && let Some(TokenTree::Punct(p)) = unset_check.next()
+            && p.as_char() == '!'
+            && unset_check.next().is_none()
+        {
+            return Ok(PropertyValue::Special(id));
         }
 
         Ok(PropertyValue::Unnamed(args_input))
@@ -316,7 +317,7 @@ impl WgtWhen {
                             }
                         }
 
-                        if let Some((_, PropertyValue::Special(s, _))) = &p.value {
+                        if let Some((_, PropertyValue::Special(s))) = &p.value {
                             errors.push(format!("cannot {s} in when assign"), s.span());
                         }
 

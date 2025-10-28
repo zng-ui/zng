@@ -665,23 +665,6 @@ pub fn parse_punct_terminated2<T: Parse, P: syn::token::Token + Parse>(input: To
     syn::parse2::<PunctTerm<T, P>>(input).map(|p| p.0)
 }
 
-/// Returns `true` if the stream has at least 3 more tokens.
-pub fn peek_any3(stream: ParseStream) -> bool {
-    let mut cursor = stream.cursor();
-
-    if let Some(group) = stream.cursor().group(Delimiter::None) {
-        cursor = group.0;
-    }
-
-    if let Some((_, cursor)) = cursor.token_tree()
-        && let Some((_, cursor)) = cursor.token_tree()
-        && let Some((_tt, _)) = cursor.token_tree()
-    {
-        return true;
-    }
-    false
-}
-
 /// Set the span for each token-tree in the stream.
 pub fn set_stream_span(stream: TokenStream, span: Span) -> TokenStream {
     stream

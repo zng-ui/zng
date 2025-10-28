@@ -202,35 +202,6 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 /// # }; }
 /// ```
 ///
-/// Internally each property method has auxiliary methods that validate the member names and construct the property using sorted params, therefore
-/// accepting any parameter order. Note each parameter is evaluated in the order they appear, even if they are assigned in a different order after.
-///
-/// ```rust,no_fmt
-/// # use zng_app::{*, widget::{node::*, property}};
-/// # use zng_color::*;
-/// # use zng_var::*;
-/// # use zng_layout::unit::*;
-/// # #[property(CONTEXT)] pub fn border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> UiNode { child.into_node() }
-/// # fn main() {
-/// let mut eval_order = vec![];
-///
-/// # let wgt = zng_app::widget::base::WidgetBase! {
-/// border = {
-///     sides: {
-///         eval_order.push("sides");
-///         colors::RED
-///     },
-///     widths: {
-///         eval_order.push("widths");
-///         1
-///     },
-/// };
-/// # };
-///
-/// assert_eq!(eval_order, vec!["sides", "widths"]);
-/// # }
-/// ```
-///
 /// ## Unnamed Assign Multiple
 ///
 /// Properties with multiple parameters don't need to be set using the named syntax:
@@ -315,6 +286,33 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 /// # }
 /// ```
 ///
+/// ## Shorthand Values
+///
+/// Var and value inputs can implement conversions from [`ShorthandUnit!`] types. The special syntax `ident!` instantiates
+/// a shorthand unit:
+///
+/// ```
+/// # macro_rules! example {
+/// Stack! {
+///     direction = top_to_bottom!;
+///     layout::align = CENTER!;
+/// }
+/// # }
+/// ```
+///
+/// The above is equivalent to:
+///
+/// ```
+/// # macro_rules! example {
+/// Stack! {
+///     direction = stack::StackDirection::top_to_bottom();
+///     layout::align = layout::Align::CENTER;
+/// }
+/// # }
+/// ```
+///
+/// Shorthand units always match the name of an associated const or function in the target type.
+///
 /// # Property Unset
 ///
 /// All properties can be assigned to an special value `unset!`, that *removes* a property, when the widget is build the
@@ -349,6 +347,8 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 /// Each property method generates an auxiliary `unset_property` method, the unset is registered in the widget builder using the current
 /// importance, in `widget_intrinsic` they only unset already inherited default assigns, in instances it unsets all inherited or
 /// previous assigns, see [`WidgetBuilder::push_unset`] for more details.
+///
+/// Note properties with multiple inputs are also unset with a single `unset!`.
 ///
 /// # Generic Properties
 ///
@@ -471,6 +471,7 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 ///
 /// [`WidgetBase`]: struct@crate::widget::base::WidgetBase
 /// [`WidgetBuilder::push_unset`]: crate::widget::builder::WidgetBuilder::push_unset
+/// [`ShorthandUnit!`]: zng_var::ShorthandUnit!
 #[macro_export]
 macro_rules! widget_set {
     (

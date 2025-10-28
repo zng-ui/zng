@@ -1,5 +1,5 @@
 use proc_macro2::{Span, TokenStream, TokenTree};
-use quote::{ToTokens, quote};
+use quote::{ToTokens, TokenStreamExt, quote};
 use syn::{ext::IdentExt, parse::Parse, spanned::Spanned, *};
 
 use crate::{
@@ -634,7 +634,7 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
 
     match &prop.value {
         Some((_, val)) => match val {
-            widget_util::PropertyValue::Special(special, _) => {
+            widget_util::PropertyValue::Special(special) => {
                 if prop.is_unset() {
                     let unset_ident = ident_spanned!(ident.span()=> "unset_{}", ident);
                     prop_init = quote_call!(#unset_ident());
@@ -644,13 +644,93 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
                 }
             }
             widget_util::PropertyValue::Unnamed(val) => {
-                prop_init = quote_call!( #ident(#val));
+                // replace `#ident!` with `$crate::var::ShorthandUnit![#ident]`.
+                let mut final_val = quote!();
+                let mut iter = val.clone().into_iter();
+                let mut start = true;
+                let crate_core = util::crate_core();
+                while let Some(tt0) = iter.next() {
+                    if start {
+                        if let TokenTree::Ident(id) = &tt0 {
+                            if let Some(tt1) = iter.next() {
+                                if let TokenTree::Punct(p) = &tt1
+                                    && p.as_char() == '!'
+                                {
+                                    if let Some(tt2) = iter.next() {
+                                        if let TokenTree::Punct(p) = &tt2
+                                            && p.as_char() == ','
+                                        {
+                                            // matches ident!,
+                                            final_val.extend(quote_spanned! {id.span()=>
+                                                #crate_core::var::ShorthandUnit![#id]
+                                            });
+                                            start = true;
+                                            final_val.append(tt0);
+                                            final_val.append(tt1);
+                                            final_val.append(tt2);
+                                        } else {
+                                            // !Punct(',')
+                                            start = false;
+                                            final_val.append(tt0);
+                                            final_val.append(tt1);
+                                            final_val.append(tt2);
+                                        }
+                                    } else {
+                                        // None
+                                        // matches ident!<EOS>
+                                        let s = quote_spanned! {id.span()=>
+                                            #crate_core::var::ShorthandUnit![#id]
+                                        };
+                                        final_val.extend(util::set_stream_span(s, id.span()));
+                                    }
+                                } else {
+                                    // !Punct('!')
+                                    start = false;
+                                    final_val.append(tt0);
+                                    final_val.append(tt1);
+                                }
+                            } else {
+                                // None
+                                start = matches!(&tt0, TokenTree::Punct(p) if p.as_char() == ',');
+                                final_val.append(tt0);
+                            }
+                        } else {
+                            // !Ident
+                            // could be invalid code like ,,
+                            start = matches!(&tt0, TokenTree::Punct(p) if p.as_char() == ',');
+                            final_val.append(tt0);
+                        }
+                    } else {
+                        // !start
+                        start = matches!(&tt0, TokenTree::Punct(p) if p.as_char() == ',');
+                        final_val.append(tt0);
+                    }
+                }
+                // make call
+                prop_init = quote_call!( #ident(#final_val));
             }
             widget_util::PropertyValue::Named(_, fields) => {
                 let mut idents_sorted: Vec<_> = fields.iter().map(|f| &f.ident).collect();
                 idents_sorted.sort();
                 let idents = fields.iter().map(|f| &f.ident);
-                let values = fields.iter().map(|f| &f.expr);
+                let mut values: Vec<_> = fields.iter().map(|f| f.expr.clone()).collect();
+                let crate_core = util::crate_core();
+                // replace `#ident!` with `$crate::var::ShorthandUnit![#ident]`.
+                for expr in &mut values {
+                    let mut iter = expr.clone().into_iter();
+                    if let Some(TokenTree::Ident(id)) = iter.next()
+                        && let Some(TokenTree::Punct(p)) = iter.next()
+                        && p.as_char() == '!'
+                        && iter.next().is_none()
+                    {
+                        // matches ident!<EOS>
+                        let s = quote_spanned! {id.span()=>
+                            #crate_core::var::ShorthandUnit![#id]
+                        };
+                        *expr = util::set_stream_span(s, id.span());
+                    }
+                }
+
                 let ident_sorted = ident_spanned!(ident.span()=> "{}__", ident);
 
                 let call = quote_call!(#ident_sorted(#(#idents_sorted),*));

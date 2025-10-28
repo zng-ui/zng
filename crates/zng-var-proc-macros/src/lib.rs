@@ -19,6 +19,7 @@ mod util;
 
 mod expr_var;
 mod merge_var;
+mod shorthand_unit;
 mod transitionable;
 mod when_var;
 
@@ -32,6 +33,12 @@ pub fn transitionable(args: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn expr_var(input: TokenStream) -> TokenStream {
     expr_var::expand(input)
+}
+
+#[doc(hidden)]
+#[proc_macro]
+pub fn shorthand_unit(input: TokenStream) -> TokenStream {
+    shorthand_unit::expand(input)
 }
 
 #[doc(hidden)]
