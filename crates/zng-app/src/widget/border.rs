@@ -26,30 +26,46 @@ use super::{WIDGET, WidgetId, info::WidgetBorderInfo};
 #[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum LineStyle {
     /// A solid line.
+    ///
+    /// The shorthand unit `Solid!` converts into this.
     Solid,
     /// Two solid lines in parallel.
+    ///
+    /// The shorthand unit `Double!` converts into this.
     Double,
 
     /// Dotted line.
+    ///
+    /// The shorthand unit `Dotted!` converts into this.
     Dotted,
     /// Dashed line.
+    ///
+    /// The shorthand unit `Dashed!` converts into this.
     Dashed,
 
     /// Faux shadow with carved appearance.
+    ///
+    /// The shorthand unit `Groove!` converts into this.
     Groove,
     /// Faux shadow with extruded appearance.
+    ///
+    /// The shorthand unit `Ridge!` converts into this.
     Ridge,
 
     /// A wavy line, like an error underline.
     ///
     /// The wave magnitude is defined by the overall line thickness, the associated value
     /// here defines the thickness of the wavy line.
+    ///
+    /// The shorthand `Wavy!` converts into this with `1.0` wavy line thickness.
     Wavy(f32),
 
     /// Fully transparent line.
     ///
     /// Note that the line space is still reserved, this is will have the same effect as `Solid` with a fully
     /// transparent color.
+    ///
+    /// The shorthand unit `Hidden!` converts into this.
     Hidden,
 }
 impl fmt::Debug for LineStyle {
@@ -83,32 +99,76 @@ impl Transitionable for LineStyle {
         }
     }
 }
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Solid]) -> LineStyle {
+        LineStyle::Solid
+    }
+    fn from(_: ShorthandUnit![Double]) -> LineStyle {
+        LineStyle::Double
+    }
+    fn from(_: ShorthandUnit![Dotted]) -> LineStyle {
+        LineStyle::Dotted
+    }
+    fn from(_: ShorthandUnit![Dashed]) -> LineStyle {
+        LineStyle::Dashed
+    }
+    fn from(_: ShorthandUnit![Groove]) -> LineStyle {
+        LineStyle::Groove
+    }
+    fn from(_: ShorthandUnit![Ridge]) -> LineStyle {
+        LineStyle::Ridge
+    }
+    fn from(_: ShorthandUnit![Wavy]) -> LineStyle {
+        LineStyle::Wavy(1.0)
+    }
+    fn from(_: ShorthandUnit![Hidden]) -> LineStyle {
+        LineStyle::Hidden
+    }
+}
 
 /// The line style for the sides of a widget's border.
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Hash, Eq, serde::Serialize, serde::Deserialize)]
 pub enum BorderStyle {
     /// Displays a single, straight, solid line.
+    ///
+    /// The shorthand `Solid!` converts into this.
     Solid = 1,
     /// Displays two straight lines that add up to the pixel size defined by the side width.
+    ///
+    /// The shorthand `Double!` converts into this.
     Double = 2,
 
     /// Displays a series of rounded dots.
+    ///
+    /// The shorthand `Dotted` converts into this.
     Dotted = 3,
     /// Displays a series of short square-ended dashes or line segments.
+    ///
+    /// The shorthand `Dashed` converts into this.
     Dashed = 4,
 
     /// Fully transparent line.
+    ///
+    /// The shorthand `Hidden` converts into this.
     Hidden = 5,
 
     /// Displays a border with a carved appearance.
+    ///
+    /// The shorthand `Groove` converts into this.
     Groove = 6,
     /// Displays a border with an extruded appearance.
+    ///
+    /// The shorthand `Ridge` converts into this.
     Ridge = 7,
 
     /// Displays a border that makes the widget appear embedded.
+    ///
+    /// The shorthand `Inset` converts into this.
     Inset = 8,
     /// Displays a border that makes the widget appear embossed.
+    ///
+    /// The shorthand `Outset` converts into this.
     Outset = 9,
 }
 impl fmt::Debug for BorderStyle {
@@ -148,6 +208,35 @@ impl Transitionable for BorderStyle {
     /// Returns `self` for `step < 1.fct()` or `to` for `step >= 1.fct()`.
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
         if step < 1.fct() { self } else { *to }
+    }
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Solid]) -> BorderStyle {
+        BorderStyle::Solid
+    }
+    fn from(_: ShorthandUnit![Double]) -> BorderStyle {
+        BorderStyle::Double
+    }
+    fn from(_: ShorthandUnit![Dotted]) -> BorderStyle {
+        BorderStyle::Dotted
+    }
+    fn from(_: ShorthandUnit![Dashed]) -> BorderStyle {
+        BorderStyle::Dashed
+    }
+    fn from(_: ShorthandUnit![Groove]) -> BorderStyle {
+        BorderStyle::Groove
+    }
+    fn from(_: ShorthandUnit![Ridge]) -> BorderStyle {
+        BorderStyle::Ridge
+    }
+    fn from(_: ShorthandUnit![Inset]) -> BorderStyle {
+        BorderStyle::Inset
+    }
+    fn from(_: ShorthandUnit![Outset]) -> BorderStyle {
+        BorderStyle::Outset
+    }
+    fn from(_: ShorthandUnit![Hidden]) -> BorderStyle {
+        BorderStyle::Hidden
     }
 }
 
@@ -503,6 +592,8 @@ impl BorderSides {
     }
 
     /// All sides hidden.
+    ///
+    /// The shorthand unit `hidden!` converts to this.
     pub fn hidden() -> Self {
         Self::new_all(BorderSide::hidden())
     }
@@ -592,6 +683,10 @@ impl_from_and_into_var! {
     ) -> BorderSides {
         let style = style.into();
         BorderSides::new((top, style), (right, style), (bottom, style), (left, style))
+    }
+
+    fn from(_: ShorthandUnit![hidden]) -> BorderSides {
+        BorderSides::hidden()
     }
 }
 

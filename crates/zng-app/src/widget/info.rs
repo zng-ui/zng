@@ -2303,14 +2303,20 @@ pub enum Visibility {
     /// The widget is visible.
     ///
     /// This is also the default state, before the first layout and render.
+    ///
+    /// The shorthand unit `Visible!` converts to this.
     Visible,
     /// The widget is not visible, but still affects layout.
     ///
     /// Hidden widgets reserve space in their parent but do not render.
+    ///
+    /// The shorthand unit `Hidden!` converts to this.
     Hidden,
     /// The widget is not visible and does not affect layout.
     ///
     /// Collapsed widgets always measure to zero and do not render.
+    ///
+    /// The shorthand unit `Collapsed!` converts to this.
     Collapsed,
 }
 impl Visibility {
@@ -2370,6 +2376,16 @@ impl_from_and_into_var! {
     /// * `false` -> `Collapsed`
     fn from(visible: bool) -> Visibility {
         if visible { Visibility::Visible } else { Visibility::Collapsed }
+    }
+
+    fn from(_: ShorthandUnit![Visible]) -> Visibility {
+        Visibility::Visible
+    }
+    fn from(_: ShorthandUnit![Hidden]) -> Visibility {
+        Visibility::Hidden
+    }
+    fn from(_: ShorthandUnit![Collapsed]) -> Visibility {
+        Visibility::Collapsed
     }
 }
 

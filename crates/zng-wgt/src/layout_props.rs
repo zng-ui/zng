@@ -103,6 +103,8 @@ pub enum InlineMode {
     /// Widget does inline if requested by the parent widget layout and is composed only of properties that support inline.
     ///
     /// This is the default behavior.
+    ///
+    /// The shorthand unit `Allow!` converts into this.
     #[default]
     Allow,
     /// Widget always does inline.
@@ -112,11 +114,15 @@ pub enum InlineMode {
     /// that is only enabled when the widget is inlined.
     ///
     /// Note that the widget will only inline if composed only of properties that support inline.
+    ///
+    /// The shorthand unit `Inline!` converts into this.
     Inline,
     /// Widget disables inline.
     ///
     /// If the parent widget requests inline the request does not propagate for child nodes and
     /// inline is disabled on the widget.
+    ///
+    /// The shorthand unit `Block!` converts into this.
     Block,
 }
 impl fmt::Debug for InlineMode {
@@ -134,6 +140,16 @@ impl fmt::Debug for InlineMode {
 impl_from_and_into_var! {
     fn from(inline: bool) -> InlineMode {
         if inline { InlineMode::Inline } else { InlineMode::Block }
+    }
+
+    fn from(_: ShorthandUnit![Allow]) -> InlineMode {
+        InlineMode::Allow
+    }
+    fn from(_: ShorthandUnit![Inline]) -> InlineMode {
+        InlineMode::Inline
+    }
+    fn from(_: ShorthandUnit![Block]) -> InlineMode {
+        InlineMode::Block
     }
 }
 

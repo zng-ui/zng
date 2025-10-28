@@ -1808,7 +1808,7 @@ impl ZIndex {
     /// Z-index of widgets that don't set the index.
     ///
     /// The value is `u32::MAX / 2`.
-    pub const DEFAULT: ZIndex = ZIndex(u32::MAX / 2);
+    pub const DEFAULT: ZIndex = ZIndex(u32::MAX / 2); // !!: TODO review this for shorthand, usually users do DEFAULT+n?
 
     /// Widget is rendered after all siblings causing it to render on top.
     pub const FRONT: ZIndex = ZIndex(u32::MAX);

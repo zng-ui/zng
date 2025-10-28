@@ -515,10 +515,16 @@ context_local! {
 pub struct DataNoteLevel(pub NonZeroU8);
 impl DataNoteLevel {
     /// Entry represents useful information.
+    ///
+    /// The shorthand unit `INFO!` converts into this.
     pub const INFO: Self = Self(NonZeroU8::new(1).unwrap());
     /// Entry represents a data validation warning.
+    ///
+    /// The shorthand unit `WARN!` converts into this.
     pub const WARN: Self = Self(NonZeroU8::new(128).unwrap());
     /// Entry represents a data validation error.
+    ///
+    /// The shorthand unit `ERROR!` converts into this.
     pub const ERROR: Self = Self(NonZeroU8::new(255).unwrap());
 
     /// Gets the level name, if it is one of the `const` levels.
@@ -545,6 +551,17 @@ impl fmt::Debug for DataNoteLevel {
             }
             write!(f, "{name}")
         }
+    }
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![INFO]) -> DataNoteLevel {
+        DataNoteLevel::INFO
+    }
+    fn from(_: ShorthandUnit![WARN]) -> DataNoteLevel {
+        DataNoteLevel::WARN
+    }
+    fn from(_: ShorthandUnit![ERROR]) -> DataNoteLevel {
+        DataNoteLevel::ERROR
     }
 }
 

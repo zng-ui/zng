@@ -908,37 +908,51 @@ impl_from_and_into_var! {
 #[repr(u8)]
 pub enum CapsVariant {
     /// No caps variant.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     #[default]
     Auto,
 
     /// Enable small caps alternative for lowercase letters.
     ///
     /// This corresponds to OpenType `smcp` feature.
+    ///
+    /// The shorthand unit `SmallCaps!` converts into this.
     SmallCaps,
 
     /// Enable small caps alternative for lower and upper case letters.
     ///
     /// This corresponds to OpenType `smcp` and `c2sc` features.
+    ///
+    /// The shorthand unit `AllSmallCaps!` converts into this.
     AllSmallCaps,
 
     /// Enable petite caps alternative for lowercase letters.
     ///
     /// This corresponds to OpenType `pcap` feature.
+    ///
+    /// The shorthand unit `Petite!` converts into this.
     Petite,
 
     /// Enable petite caps alternative for lower and upper case letters.
     ///
     /// This corresponds to OpenType `pcap` and `c2pc` features.
+    ///
+    /// The shorthand unit `AllPetite!` converts into this.
     AllPetite,
 
     /// Enables unicase, using small caps for upper case letters mixed with normal lowercase letters.
     ///
     /// This corresponds to OpenType `unic` feature.
+    ///
+    /// The shorthand unit `Unicase!` converts into this.
     Unicase,
 
     /// Enable title caps alternatives. This uses alternative uppercase glyphs designed for all uppercase words.
     ///
     /// This corresponds to OpenType `titl` feature.
+    ///
+    /// The shorthand unit `TitlingCaps!` converts into this.
     TitlingCaps,
 }
 impl fmt::Debug for CapsVariant {
@@ -987,22 +1001,62 @@ impl FontFeatureExclusiveSetsState for CapsVariant {
         CapsVariant::Auto
     }
 }
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Auto]) -> CapsVariant {
+        CapsVariant::Auto
+    }
+    fn from(_: ShorthandUnit![SmallCaps]) -> CapsVariant {
+        CapsVariant::SmallCaps
+    }
+    fn from(_: ShorthandUnit![AllSmallCaps]) -> CapsVariant {
+        CapsVariant::AllSmallCaps
+    }
+    fn from(_: ShorthandUnit![Petite]) -> CapsVariant {
+        CapsVariant::Petite
+    }
+    fn from(_: ShorthandUnit![AllPetite]) -> CapsVariant {
+        CapsVariant::AllPetite
+    }
+    fn from(_: ShorthandUnit![Unicase]) -> CapsVariant {
+        CapsVariant::Unicase
+    }
+    fn from(_: ShorthandUnit![TitlingCaps]) -> CapsVariant {
+        CapsVariant::TitlingCaps
+    }
+}
 
 /// Font numeric variant features.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, FromPrimitive)]
 #[repr(u8)]
 pub enum NumVariant {
     /// Uses the default numeric glyphs, in most fonts this is the same as `Lining`, some fonts use the `OldStyle`.
+    ///
+    /// The shorthand unit `Auto` converts into this.
     #[default]
     Auto,
     /// Uses numeric glyphs that rest on the baseline.
     ///
     /// This corresponds to OpenType `lnum` feature.
+    ///
+    /// The shorthand unit `Lining` converts into this.
     Lining,
     /// Uses old-style numeric glyphs, where some numbers, like 3, 4, 7, 9 have descenders.
     ///
     /// This corresponds to OpenType `onum` feature.
+    ///
+    /// The shorthand unit `OldStyle` converts into this.
     OldStyle,
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Auto]) -> NumVariant {
+        NumVariant::Auto
+    }
+    fn from(_: ShorthandUnit![Lining]) -> NumVariant {
+        NumVariant::Lining
+    }
+    fn from(_: ShorthandUnit![OldStyle]) -> NumVariant {
+        NumVariant::OldStyle
+    }
 }
 impl fmt::Debug for NumVariant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1050,16 +1104,33 @@ impl FontFeatureExclusiveSetState for NumVariant {
 #[repr(u8)]
 pub enum NumSpacing {
     /// Uses the default numeric width, usually this is `Tabular` for *monospace* fonts and `Proportional` for the others.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     #[default]
     Auto,
     /// Numeric glyphs take different space depending on the design of the glyph.
     ///
     /// This corresponds to OpenType `pnum` feature.
+    ///
+    /// The shorthand unit `Proportional!` converts into this.
     Proportional,
     /// Numeric glyphs take the same space even if the glyphs design width is different.
     ///
     /// This corresponds to OpenType `tnum` feature.
+    ///
+    /// The shorthand unit `Tabular!` converts into this.
     Tabular,
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Auto]) -> NumSpacing {
+        NumSpacing::Auto
+    }
+    fn from(_: ShorthandUnit![Proportional]) -> NumSpacing {
+        NumSpacing::Proportional
+    }
+    fn from(_: ShorthandUnit![Tabular]) -> NumSpacing {
+        NumSpacing::Tabular
+    }
 }
 impl fmt::Debug for NumSpacing {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1107,16 +1178,35 @@ impl FontFeatureExclusiveSetState for NumSpacing {
 #[repr(u8)]
 pub enum NumFraction {
     /// Don't use fraction variants.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     #[default]
     Auto,
     /// Variant where the numerator and denominator are made smaller and separated by a slash.
     ///
     /// This corresponds to OpenType `frac` feature.
+    ///
+    /// The shorthand unit `Diagonal!` converts into this.
     Diagonal,
     /// Variant where the numerator and denominator are made smaller, stacked and separated by a horizontal line.
     ///
     /// This corresponds to OpenType `afrc` feature.
+    ///
+    /// The shorthand unit `Stacked!` converts into this.
     Stacked,
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Auto]) -> NumFraction {
+        NumFraction::Auto
+    }
+
+    fn from(_: ShorthandUnit![Diagonal]) -> NumFraction {
+        NumFraction::Diagonal
+    }
+
+    fn from(_: ShorthandUnit![Stacked]) -> NumFraction {
+        NumFraction::Stacked
+    }
 }
 impl fmt::Debug for NumFraction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1406,16 +1496,33 @@ impl FontFeatureExclusiveSetState for CharVariant {
 #[repr(u8)]
 pub enum FontPosition {
     /// Don't use sub/super script positions.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     #[default]
     Auto,
     /// Uses sub-script position and alternative glyphs.
     ///
     /// This corresponds to OpenType `subs` feature.
+    ///
+    /// The shorthand unit `Sub!` converts into this.
     Sub,
     /// Uses super-script position and alternative glyphs.
     ///
     /// This corresponds to OpenType `sups` feature.
+    ///
+    /// The shorthand unit `Super!` converts into this.
     Super,
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Auto]) -> FontPosition {
+        FontPosition::Auto
+    }
+    fn from(_: ShorthandUnit![Sub]) -> FontPosition {
+        FontPosition::Sub
+    }
+    fn from(_: ShorthandUnit![Super]) -> FontPosition {
+        FontPosition::Super
+    }
 }
 impl fmt::Debug for FontPosition {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1463,30 +1570,62 @@ impl FontFeatureExclusiveSetState for FontPosition {
 #[repr(u8)]
 pub enum JpVariant {
     /// Uses the font default glyphs.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     #[default]
     Auto,
 
     /// JIS X 0208-1978 (first standard)
     ///
     /// This corresponds to OpenType `jp78` feature.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     Jis78,
     /// JIS X 0208-1983 (second standard)
     ///
     /// This corresponds to OpenType `jp83` feature.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     Jis83,
     /// JIS X 0208-1990 (third standard)
     ///
     /// This corresponds to OpenType `jp90` feature.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     Jis90,
 
     /// JIS X 0213 (2004)
     ///
     /// This corresponds to OpenType `jp04` feature.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     Jis04,
     /// NLC new shapes for JIS (2000).
     ///
     /// This corresponds to OpenType `nlck` feature.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     NlcKanji,
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Auto]) -> JpVariant {
+        JpVariant::Auto
+    }
+    fn from(_: ShorthandUnit![Jis78]) -> JpVariant {
+        JpVariant::Jis78
+    }
+    fn from(_: ShorthandUnit![Jis83]) -> JpVariant {
+        JpVariant::Jis83
+    }
+    fn from(_: ShorthandUnit![Jis90]) -> JpVariant {
+        JpVariant::Jis90
+    }
+    fn from(_: ShorthandUnit![Jis04]) -> JpVariant {
+        JpVariant::Jis04
+    }
+    fn from(_: ShorthandUnit![NlcKanji]) -> JpVariant {
+        JpVariant::NlcKanji
+    }
 }
 impl fmt::Debug for JpVariant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1538,16 +1677,33 @@ impl FontFeatureExclusiveSetState for JpVariant {
 #[repr(u8)]
 pub enum CnVariant {
     /// Uses the font default glyphs.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     #[default]
     Auto,
     /// Simplified Chinese glyphs.
     ///
     /// This corresponds to OpenType `smpl` feature.
+    ///
+    /// The shorthand unit `Simplified!` converts into this.
     Simplified,
     /// Traditional Chinese glyphs.
     ///
     /// This corresponds to OpenType `trad` feature.
+    ///
+    /// The shorthand unit `Traditional!` converts into this.
     Traditional,
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Auto]) -> CnVariant {
+        CnVariant::Auto
+    }
+    fn from(_: ShorthandUnit![Simplified]) -> CnVariant {
+        CnVariant::Simplified
+    }
+    fn from(_: ShorthandUnit![Traditional]) -> CnVariant {
+        CnVariant::Traditional
+    }
 }
 impl fmt::Debug for CnVariant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1595,48 +1751,95 @@ impl FontFeatureExclusiveSetState for CnVariant {
 #[repr(u8)]
 pub enum EastAsianWidth {
     /// Uses the font default glyphs and spacing.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     #[default]
     Auto,
 
     /// Uses the set of glyphs designed for proportional spacing.
     ///
     /// This corresponds to OpenType `pwid` feature.
+    ///
+    /// The shorthand unit `Proportional!` converts into this.
     Proportional,
 
     /// Uses the set of glyphs designed for full-width but re-spaced to take proportional space.
     ///
     /// This corresponds to OpenType `palt` feature.
+    ///
+    /// The shorthand unit `ProportionalAlt!` converts into this.
     ProportionalAlt,
 
     /// Like [`Proportional`](Self::Proportional) but only affects kana and kana related glyphs.
     ///
     /// This corresponds to OpenType `pkna` feature.
+    ///
+    /// The shorthand unit `ProportionalKana!` converts into this.
     ProportionalKana,
 
     /// Uses the set of glyphs designed for full-width monospace.
     ///
     /// This corresponds to OpenType `fwid` feature.
+    ///
+    /// The shorthand unit `Full!` converts into this.
     Full,
 
     /// Uses the set of glyphs designed for half-width monospace.
     ///
     /// This corresponds to OpenType `hwid` feature.
+    ///
+    /// The shorthand unit `Half!` converts into this.
     Half,
 
     /// Uses the set of glyphs designed for full-width but re-spaced to take half-width monospace.
     ///
     /// This corresponds to OpenType `halt` feature.
+    ///
+    /// The shorthand unit `HalfAlt!` converts into this.
     HalfAlt,
 
     /// Uses the set of glyphs designed for a third-width monospace.
     ///
     /// This corresponds to OpenType `twid` feature.
+    ///
+    /// The shorthand unit `Third!` converts into this.
     Third,
 
     /// Uses the set of glyphs designed for a quarter-width monospace.
     ///
     /// This corresponds to OpenType `qwid` feature.
+    ///
+    /// The shorthand unit `Quarter!` converts into this.
     Quarter,
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Auto]) -> EastAsianWidth {
+        EastAsianWidth::Auto
+    }
+    fn from(_: ShorthandUnit![Proportional]) -> EastAsianWidth {
+        EastAsianWidth::Proportional
+    }
+    fn from(_: ShorthandUnit![ProportionalAlt]) -> EastAsianWidth {
+        EastAsianWidth::ProportionalAlt
+    }
+    fn from(_: ShorthandUnit![ProportionalKana]) -> EastAsianWidth {
+        EastAsianWidth::ProportionalKana
+    }
+    fn from(_: ShorthandUnit![Full]) -> EastAsianWidth {
+        EastAsianWidth::Full
+    }
+    fn from(_: ShorthandUnit![Half]) -> EastAsianWidth {
+        EastAsianWidth::Half
+    }
+    fn from(_: ShorthandUnit![HalfAlt]) -> EastAsianWidth {
+        EastAsianWidth::HalfAlt
+    }
+    fn from(_: ShorthandUnit![Third]) -> EastAsianWidth {
+        EastAsianWidth::Third
+    }
+    fn from(_: ShorthandUnit![Quarter]) -> EastAsianWidth {
+        EastAsianWidth::Quarter
+    }
 }
 impl fmt::Debug for EastAsianWidth {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

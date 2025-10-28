@@ -292,23 +292,23 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 /// a shorthand unit:
 ///
 /// ```
-/// # macro_rules! example {
+/// # macro_rules! example {()=>
 /// Stack! {
 ///     direction = top_to_bottom!;
 ///     layout::align = CENTER!;
 /// }
-/// # }
+/// # }}
 /// ```
 ///
 /// The above is equivalent to:
 ///
 /// ```
-/// # macro_rules! example {
+/// # macro_rules! example {()=>{
 /// Stack! {
 ///     direction = stack::StackDirection::top_to_bottom();
 ///     layout::align = layout::Align::CENTER;
 /// }
-/// # }
+/// # }}
 /// ```
 ///
 /// Shorthand units always match the name of an associated const or function in the target type.

@@ -2842,11 +2842,17 @@ impl From<FontStretch> for ttf_parser::Width {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
 pub enum FontStyle {
     /// The regular form.
+    ///
+    /// The shorthand unit `Normal!` converts into this.
     #[default]
     Normal,
     /// A form that is generally cursive in nature.
+    ///
+    /// The shorthand unit `Italic!` converts into this.
     Italic,
     /// A skewed version of the regular form.
+    ///
+    /// The shorthand unit `Oblique!` converts into this.
     Oblique,
 }
 impl fmt::Debug for FontStyle {
@@ -2871,7 +2877,6 @@ impl From<ttf_parser::Style> for FontStyle {
         }
     }
 }
-
 impl From<FontStyle> for ttf_parser::Style {
     fn from(value: FontStyle) -> Self {
         match value {
@@ -2879,6 +2884,17 @@ impl From<FontStyle> for ttf_parser::Style {
             FontStyle::Italic => Self::Italic,
             FontStyle::Oblique => Self::Oblique,
         }
+    }
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Normal]) -> FontStyle {
+        FontStyle::Normal
+    }
+    fn from(_: ShorthandUnit![Italic]) -> FontStyle {
+        FontStyle::Italic
+    }
+    fn from(_: ShorthandUnit![Oblique]) -> FontStyle {
+        FontStyle::Oblique
     }
 }
 
@@ -3003,14 +3019,24 @@ impl From<FontWeight> for ttf_parser::Weight {
 #[derive(Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LineBreak {
     /// The same rule used by other languages.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     Auto,
     /// The least restrictive rule, good for short lines.
+    ///
+    /// The shorthand unit `Loose!` converts into this.
     Loose,
     /// The most common rule.
+    ///
+    /// The shorthand unit `Normal!` converts into this.
     Normal,
     /// The most stringent rule.
+    ///
+    /// The shorthand unit `Strict!` converts into this.
     Strict,
     /// Allow line breaks in between any character including punctuation.
+    ///
+    /// The shorthand unit `Anywhere!` converts into this.
     Anywhere,
 }
 impl Default for LineBreak {
@@ -3033,18 +3059,41 @@ impl fmt::Debug for LineBreak {
         }
     }
 }
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Auto]) -> LineBreak {
+        LineBreak::Auto
+    }
+    fn from(_: ShorthandUnit![Loose]) -> LineBreak {
+        LineBreak::Loose
+    }
+    fn from(_: ShorthandUnit![Normal]) -> LineBreak {
+        LineBreak::Normal
+    }
+    fn from(_: ShorthandUnit![Strict]) -> LineBreak {
+        LineBreak::Strict
+    }
+    fn from(_: ShorthandUnit![Anywhere]) -> LineBreak {
+        LineBreak::Anywhere
+    }
+}
 
 /// Hyphenation mode.
 #[derive(Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Hyphens {
     /// Hyphens are never inserted in word breaks.
+    ///
+    /// The shorthand unit `None!` converts into this.
     None,
     /// Word breaks only happen in specially marked break characters: `-` and `\u{00AD} SHY`.
     ///
     /// * `U+2010` - The visible hyphen character.
     /// * `U+00AD` - The invisible hyphen character, is made visible in a word break.
+    ///
+    /// The shorthand unit `Manual!` converts into this.
     Manual,
     /// Hyphens are inserted like `Manual` and also using language specific hyphenation rules.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     Auto,
 }
 impl Default for Hyphens {
@@ -3065,6 +3114,17 @@ impl fmt::Debug for Hyphens {
         }
     }
 }
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![None]) -> Hyphens {
+        Hyphens::None
+    }
+    fn from(_: ShorthandUnit![Manual]) -> Hyphens {
+        Hyphens::Manual
+    }
+    fn from(_: ShorthandUnit![Auto]) -> Hyphens {
+        Hyphens::Auto
+    }
+}
 
 /// Configure line breaks inside words during text wrap.
 ///
@@ -3074,10 +3134,16 @@ impl fmt::Debug for Hyphens {
 #[derive(Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum WordBreak {
     /// Line breaks can be inserted in between letters of Chinese/Japanese/Korean text only.
+    ///
+    /// The shorthand unit `Normal!` converts into this.
     Normal,
     /// Line breaks can be inserted between any letter.
+    ///
+    /// The shorthand unit `BreakAll!` converts into this.
     BreakAll,
     /// Line breaks are not inserted between any letter.
+    ///
+    /// The shorthand unit `KeepAll!` converts into this.
     KeepAll,
 }
 impl Default for WordBreak {
@@ -3098,6 +3164,17 @@ impl fmt::Debug for WordBreak {
         }
     }
 }
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Normal]) -> WordBreak {
+        WordBreak::Normal
+    }
+    fn from(_: ShorthandUnit![BreakAll]) -> WordBreak {
+        WordBreak::BreakAll
+    }
+    fn from(_: ShorthandUnit![KeepAll]) -> WordBreak {
+        WordBreak::KeepAll
+    }
+}
 
 /// Text alignment justification mode.
 #[derive(Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -3105,10 +3182,16 @@ pub enum Justify {
     /// Selects the justification mode based on the language.
     ///
     /// For Chinese/Japanese/Korean uses `InterLetter` for the others uses `InterWord`.
+    ///
+    /// The shorthand unit `Auto!` converts into this.
     Auto,
     /// The text is justified by adding space between words.
+    ///
+    /// The shorthand unit `InterWord!` converts into this.
     InterWord,
     /// The text is justified by adding space between letters.
+    ///
+    /// The shorthand unit `InterLetter!` converts into this.
     InterLetter,
 }
 impl Default for Justify {
@@ -3139,6 +3222,17 @@ impl fmt::Debug for Justify {
             Justify::InterWord => write!(f, "InterWord"),
             Justify::InterLetter => write!(f, "InterLetter"),
         }
+    }
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Auto]) -> Justify {
+        Justify::Auto
+    }
+    fn from(_: ShorthandUnit![InterWord]) -> Justify {
+        Justify::InterWord
+    }
+    fn from(_: ShorthandUnit![InterLetter]) -> Justify {
+        Justify::InterLetter
     }
 }
 
@@ -3265,13 +3359,30 @@ impl FontMetrics {
 #[derive(Clone)]
 pub enum TextTransformFn {
     /// No transform.
+    ///
+    /// The shorthand unit `None!` converts into this.
     None,
     /// To UPPERCASE.
+    ///
+    /// The shorthand unit `Uppercase!` converts into this.
     Uppercase,
     /// to lowercase.
+    ///
+    /// The shorthand unit `Lowercase!` converts into this.
     Lowercase,
     /// Custom transform function.
     Custom(Arc<dyn Fn(&Txt) -> Cow<Txt> + Send + Sync>),
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![None]) -> TextTransformFn {
+        TextTransformFn::None
+    }
+    fn from(_: ShorthandUnit![Uppercase]) -> TextTransformFn {
+        TextTransformFn::Uppercase
+    }
+    fn from(_: ShorthandUnit![Lowercase]) -> TextTransformFn {
+        TextTransformFn::Lowercase
+    }
 }
 impl TextTransformFn {
     /// Apply the text transform.
@@ -3329,16 +3440,33 @@ impl PartialEq for TextTransformFn {
 #[derive(Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum WhiteSpace {
     /// Text is not changed, all white spaces and line breaks are preserved.
+    ///
+    /// The shorthand unit `Preserve!` converts into this.
     Preserve,
     /// Replace white spaces with a single `U+0020 SPACE` and trim lines. Line breaks are preserved.
+    ///
+    /// The shorthand unit `Merge!` converts into this.
     Merge,
     /// Replace white spaces and line breaks with `U+0020 SPACE` and trim the text.
+    ///
+    /// The shorthand unit `MergeAll!` converts into this.
     MergeAll,
 }
 impl Default for WhiteSpace {
     /// [`WhiteSpace::Preserve`].
     fn default() -> Self {
         WhiteSpace::Preserve
+    }
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Preserve]) -> WhiteSpace {
+        WhiteSpace::Preserve
+    }
+    fn from(_: ShorthandUnit![Merge]) -> WhiteSpace {
+        WhiteSpace::Merge
+    }
+    fn from(_: ShorthandUnit![MergeAll]) -> WhiteSpace {
+        WhiteSpace::MergeAll
     }
 }
 impl WhiteSpace {

@@ -2,8 +2,9 @@ use super::{Hsla, Hsva, PreMulRgba, Rgba, clamp_normal};
 use zng_layout::unit::Factor;
 
 use pastey::*;
+use zng_var::impl_from_and_into_var;
 
-/// Webrender [`MixBlendMode`].
+/// View API [`MixBlendMode`].
 pub type RenderMixBlendMode = zng_view_api::MixBlendMode;
 
 macro_rules! impl_mix {
@@ -21,13 +22,18 @@ macro_rules! impl_mix {
         /// Color mix blend mode.
         #[repr(u8)]
         #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+        #[non_exhaustive]
         pub enum MixBlendMode {
             $(
                 $(#[$meta])*
+                ///
+                #[doc = concat!("The shorthand unit `", stringify!($Mode), "!` converts into this.")]
                 $Mode,
             )+
             $(
                 $(#[$ns_meta])*
+                ///
+                #[doc = concat!("The shorthand unit `", stringify!($NsMode), "!` converts into this.")]
                 $NsMode,
             )+
         }
@@ -39,6 +45,19 @@ macro_rules! impl_mix {
                     $(MixBlendMode::$NsMode => RenderMixBlendMode::$NsMode,)+
                 }
             }
+        }
+
+        impl_from_and_into_var! {
+            $(
+                fn from(_: ShorthandUnit![$Mode]) -> MixBlendMode {
+                    MixBlendMode::$Mode
+                }
+            )+
+            $(
+                fn from(_: ShorthandUnit![$NsMode]) -> MixBlendMode {
+                    MixBlendMode::$NsMode
+                }
+            )+
         }
 
         /// Color mix and adjustment methods.

@@ -19,15 +19,25 @@ use zng_wgt_window::BlockWindowLoad;
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ImageFit {
     /// The image original size is preserved, the image is clipped if larger then the final size.
+    ///
+    /// The shorthand unit `None!` converts into this.
     None,
     /// The image is resized to fill the final size, the aspect-ratio is not preserved.
+    ///
+    /// The shorthand unit `Fill!` converts into this.
     Fill,
     /// The image is resized to fit the final size, preserving the aspect-ratio.
+    ///
+    /// The shorthand unit `Contain!` converts into this.
     Contain,
     /// The image is resized to fill the final size while preserving the aspect-ratio.
     /// If the aspect ratio of the final size differs from the image, it is clipped.
+    ///
+    /// The shorthand unit `Cover!` converts into this.
     Cover,
     /// If the image is smaller then the final size applies the [`None`] layout, if its larger applies the [`Contain`] layout.
+    ///
+    /// The shorthand unit `ScaleDown!` converts into this.
     ///
     /// [`None`]: ImageFit::None
     /// [`Contain`]: ImageFit::Contain
@@ -45,6 +55,23 @@ impl fmt::Debug for ImageFit {
             Self::Cover => write!(f, "Cover"),
             Self::ScaleDown => write!(f, "ScaleDown"),
         }
+    }
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![None]) -> ImageFit {
+        ImageFit::None
+    }
+    fn from(_: ShorthandUnit![Fill]) -> ImageFit {
+        ImageFit::Fill
+    }
+    fn from(_: ShorthandUnit![Contain]) -> ImageFit {
+        ImageFit::Contain
+    }
+    fn from(_: ShorthandUnit![Cover]) -> ImageFit {
+        ImageFit::Cover
+    }
+    fn from(_: ShorthandUnit![ScaleDown]) -> ImageFit {
+        ImageFit::ScaleDown
     }
 }
 

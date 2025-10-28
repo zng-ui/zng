@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use zng_txt::Txt;
 use zng_unit::{Dip, DipSize, Rgba};
+use zng_var::impl_from_and_into_var;
 
 /// System settings needed for implementing double/triple clicks.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]
@@ -181,13 +182,21 @@ impl LocaleConfig {
 #[non_exhaustive]
 pub enum FontAntiAliasing {
     /// Uses the operating system configuration.
+    ///
+    /// The shorthand unit `Default!` converts into this.
     #[default]
     Default,
     /// Sub-pixel anti-aliasing if a fast implementation is available, otherwise uses `Alpha`.
+    ///
+    /// The shorthand unit `Subpixel!` converts into this.
     Subpixel,
     /// Alpha blending anti-aliasing.
+    ///
+    /// The shorthand unit `Alpha!` converts into this.
     Alpha,
     /// Disable anti-aliasing.
+    ///
+    /// The shorthand unit `Mono!` converts into this.
     Mono,
 }
 impl fmt::Debug for FontAntiAliasing {
@@ -203,15 +212,33 @@ impl fmt::Debug for FontAntiAliasing {
         }
     }
 }
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Default]) -> FontAntiAliasing {
+        FontAntiAliasing::Default
+    }
+    fn from(_: ShorthandUnit![Subpixel]) -> FontAntiAliasing {
+        FontAntiAliasing::Subpixel
+    }
+    fn from(_: ShorthandUnit![Alpha]) -> FontAntiAliasing {
+        FontAntiAliasing::Alpha
+    }
+    fn from(_: ShorthandUnit![Mono]) -> FontAntiAliasing {
+        FontAntiAliasing::Mono
+    }
+}
 
 /// Color scheme preference.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum ColorScheme {
     /// Dark text, light background.
+    ///
+    /// The shorthand unit `Light!` converts into this.
     Light,
 
     /// Light text, dark background.
+    ///
+    /// The shorthand unit `Dark!` converts into this.
     Dark,
 }
 impl Default for ColorScheme {
@@ -252,6 +279,13 @@ impl Default for ColorsConfig {
 #[cfg(feature = "var")]
 zng_var::impl_from_and_into_var! {
     fn from(some: ColorScheme) -> Option<ColorScheme>;
+
+    fn from(_: ShorthandUnit![Light]) -> ColorScheme {
+        ColorScheme::Light
+    }
+    fn from(_: ShorthandUnit![Dark]) -> ColorScheme {
+        ColorScheme::Dark
+    }
 }
 
 /// Window chrome (decorations) preference.

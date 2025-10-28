@@ -1289,11 +1289,28 @@ impl AppExtension for MouseManager {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ClickTrigger {
     /// Widget is clicked when the same mouse button is pressed and released on it.
+    ///
+    /// The shorthand unit `PressRelease!` converts to this.
     PressRelease,
     /// Widget is clicked when a mouse button is pressed on it.
+    ///
+    /// The shorthand unit `Press!` converts to this.
     Press,
     /// Widget is clicked when a mouse button is released on it, even if not pressed on it.
+    ///
+    /// The shorthand unit `Release!` converts to this.
     Release,
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![PressRelease]) -> ClickTrigger {
+        ClickTrigger::PressRelease
+    }
+    fn from(_: ShorthandUnit![Press]) -> ClickTrigger {
+        ClickTrigger::Press
+    }
+    fn from(_: ShorthandUnit![Release]) -> ClickTrigger {
+        ClickTrigger::Release
+    }
 }
 
 /// Defines how click events are generated for a widget.
@@ -1336,6 +1353,8 @@ impl_from_and_into_var! {
 }
 impl ClickMode {
     /// Click on [`ClickTrigger::Press`].
+    ///
+    /// Shorthand unit `press!` converts into this.
     pub fn press() -> Self {
         Self {
             single: ClickTrigger::Press,
@@ -1345,6 +1364,8 @@ impl ClickMode {
     }
 
     /// Click on release.
+    ///
+    /// Shorthand unit `release!` converts into this.
     pub fn release() -> Self {
         Self {
             single: ClickTrigger::Release,
@@ -1354,6 +1375,8 @@ impl ClickMode {
     }
 
     /// Click on press and repeat.
+    ///
+    /// Shorthand unit `repeat!` converts into this.
     pub fn repeat() -> Self {
         Self {
             single: ClickTrigger::Press,
@@ -1363,12 +1386,28 @@ impl ClickMode {
     }
 
     /// Click on press+release or repeat.
+    ///
+    /// Shorthand unit `mixed_repeat!` converts into this.
     pub fn mixed_repeat() -> Self {
         Self {
             single: ClickTrigger::PressRelease,
             double: ClickTrigger::Press,
             repeat: true,
         }
+    }
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![press]) -> ClickMode {
+        ClickMode::press()
+    }
+    fn from(_: ShorthandUnit![release]) -> ClickMode {
+        ClickMode::release()
+    }
+    fn from(_: ShorthandUnit![repeat]) -> ClickMode {
+        ClickMode::repeat()
+    }
+    fn from(_: ShorthandUnit![mixed_repeat]) -> ClickMode {
+        ClickMode::mixed_repeat()
     }
 }
 

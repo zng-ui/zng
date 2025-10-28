@@ -47,12 +47,16 @@ pub enum RenderMode {
     /// most power consumption.
     ///
     /// Falls back to `Integrated`, then `Software`.
+    ///
+    /// The shorthand unit `Dedicated!` converts to this.
     Dedicated,
 
     /// Prefer the integrated GPU (provided by the CPU), probably the best power consumption and good performance for most GUI applications,
     /// this is the default value.
     ///
     /// Falls back to `Dedicated`, then `Software`.
+    ///
+    /// The shorthand unit `Integrated!` converts to this.
     Integrated,
 
     /// Use a software render fallback, this has the best compatibility and best initialization time. This is probably the
@@ -60,6 +64,8 @@ pub enum RenderMode {
     /// the render time gains.
     ///
     /// If the view-process implementation has no software, falls back to `Integrated`, then `Dedicated`.
+    ///
+    /// The shorthand unit `Software!` converts to this.
     Software,
 }
 impl Default for RenderMode {
@@ -91,6 +97,17 @@ impl RenderMode {
 #[cfg(feature = "var")]
 zng_var::impl_from_and_into_var! {
     fn from(some: RenderMode) -> Option<RenderMode>;
+
+    fn from(_: ShorthandUnit![Dedicated]) -> RenderMode {
+        // !!: TODO review Option<RenderMode>
+        RenderMode::Dedicated
+    }
+    fn from(_: ShorthandUnit![Integrated]) -> RenderMode {
+        RenderMode::Integrated
+    }
+    fn from(_: ShorthandUnit![Software]) -> RenderMode {
+        RenderMode::Software
+    }
 }
 
 /// Configuration of a new headless surface.

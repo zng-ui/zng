@@ -23,7 +23,7 @@ mod list;
 pub use list::*;
 use zng_app_proc_macros::widget;
 use zng_layout::{context::LAYOUT, unit::PxSize};
-use zng_var::{BoxAnyVarValue, ContextInitHandle, ResponseVar, response_done_var, response_var};
+use zng_var::{BoxAnyVarValue, ContextInitHandle, ResponseVar, ShorthandUnit, response_done_var, response_var};
 
 use crate::{
     render::{FrameBuilder, FrameUpdate},
@@ -763,8 +763,16 @@ impl UiNode {
     }
 
     /// New UI node that does nothing and collapses layout.
+    ///
+    /// The shorthand unit `nil` converts into this.
     pub fn nil() -> Self {
         Self::new(NilUiNode)
+    }
+}
+
+impl IntoUiNode for ShorthandUnit![nil] {
+    fn into_node(self) -> UiNode {
+        UiNode::nil()
     }
 }
 

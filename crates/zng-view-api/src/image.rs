@@ -27,24 +27,52 @@ pub enum ImageMaskMode {
     /// Alpha channel.
     ///
     /// If the image has no alpha channel masks by `Luminance`.
+    ///
+    /// The shorthand unit `A!` converts into this.
     #[default]
     A,
     /// Blue channel.
     ///
     /// If the image has no color channel fallback to monochrome channel, or `A`.
+    ///
+    /// The shorthand unit `B!` converts into this.
     B,
     /// Green channel.
     ///
     /// If the image has no color channel fallback to monochrome channel, or `A`.
+    ///
+    /// The shorthand unit `G!` converts into this.
     G,
     /// Red channel.
     ///
     /// If the image has no color channel fallback to monochrome channel, or `A`.
+    ///
+    /// The shorthand unit `R!` converts into this.
     R,
     /// Relative luminance.
     ///
     /// If the image has no color channel fallback to monochrome channel, or `A`.
+    ///
+    /// The shorthand unit `Luminance!` converts into this.
     Luminance,
+}
+#[cfg(feature = "var")]
+zng_var::impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![A]) -> ImageMaskMode {
+        ImageMaskMode::A
+    }
+    fn from(_: ShorthandUnit![B]) -> ImageMaskMode {
+        ImageMaskMode::B
+    }
+    fn from(_: ShorthandUnit![G]) -> ImageMaskMode {
+        ImageMaskMode::G
+    }
+    fn from(_: ShorthandUnit![R]) -> ImageMaskMode {
+        ImageMaskMode::R
+    }
+    fn from(_: ShorthandUnit![Luminance]) -> ImageMaskMode {
+        ImageMaskMode::Luminance
+    }
 }
 
 /// Represent a image load/decode request.

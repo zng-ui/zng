@@ -208,13 +208,21 @@ macro_rules! __impl_from_and_into_var {
     // INPUT SHORTHAND:
     (
         =input=>
-        [$($config:tt)*]
+        [
+            input { _ : ShorthandUnit![$_ignore:ident] }
+            generics { }
+            docs { $($_hide:tt)* }
+            $($config:tt)*
+        ]
         (_ : ShorthandUnit![$ident:ident]) $($rest:tt)+
     ) => {
         $crate::__impl_from_and_into_var! {
             =output=>
             [
                 input_type { $crate::ShorthandUnit![$ident] }
+                input { _: $crate::ShorthandUnit![$ident] }
+                generics { }
+                docs { #[doc(hidden)] }
                 $($config)*
             ]
             $($rest)+

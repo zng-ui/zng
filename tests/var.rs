@@ -786,7 +786,7 @@ mod context {
                 on_init = hn_once!(other_var, |_| {
                     TEST_VAR.bind(&other_var).perm();
                 });
-                child = UiNode::nil();
+                child = nil!;
             },
         );
 

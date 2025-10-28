@@ -170,16 +170,22 @@ impl_from_and_into_var! {
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum StartPosition {
     /// Resolves to [`position`](crate::WindowVars::position).
+    ///
+    /// The shorthand unit `Default!` converts to this.
     Default,
 
     /// Centralizes the window in the monitor screen, defined by the [`monitor`](crate::WindowVars::monitor).
     ///
     /// Uses the `headless_monitor` in headless windows and falls back to not centering if no
     /// monitor was found in headed windows.
+    ///
+    /// The shorthand unit `CenterMonitor!` converts to this.
     CenterMonitor,
     /// Centralizes the window in the parent window, defined by the [`parent`](crate::WindowVars::parent).
     ///
     /// Falls back to center on the monitor if the window has no parent.
+    ///
+    /// The shorthand unit `CenterParent!` converts to this.
     CenterParent,
 }
 impl Default for StartPosition {
@@ -197,6 +203,17 @@ impl fmt::Debug for StartPosition {
             StartPosition::CenterMonitor => write!(f, "CenterMonitor"),
             StartPosition::CenterParent => write!(f, "CenterParent"),
         }
+    }
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Default]) -> StartPosition {
+        StartPosition::Default
+    }
+    fn from(_: ShorthandUnit![CenterMonitor]) -> StartPosition {
+        StartPosition::CenterMonitor
+    }
+    fn from(_: ShorthandUnit![CenterParent]) -> StartPosition {
+        StartPosition::CenterParent
     }
 }
 
@@ -391,6 +408,8 @@ pub enum CursorSource {
     #[cfg(feature = "image")]
     Img(CursorImg),
     /// Don't show cursor.
+    ///
+    /// The shorthand unit `Hidden!` converts into this.
     Hidden,
 }
 impl CursorSource {
@@ -440,6 +459,10 @@ impl_from_and_into_var! {
         } else {
             CursorSource::Hidden
         }
+    }
+
+    fn from(_: ShorthandUnit![Hidden]) -> CursorSource {
+        CursorSource::Hidden
     }
 }
 

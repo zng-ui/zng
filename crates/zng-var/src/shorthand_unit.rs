@@ -31,6 +31,8 @@ pub use zng_var_proc_macros::shorthand_unit;
 ///
 /// The shorthand conversions must be `doc(hidden)`. The expanded unit type can pollute the impl section in the docs page. The
 /// [`impl_from_and_into_var!`] macro automatically hides generated its impls.
+///
+/// [`impl_from_and_into_var!`]: crate::impl_from_and_into_var
 #[macro_export]
 macro_rules! ShorthandUnit {
     ($ident:ident) => {

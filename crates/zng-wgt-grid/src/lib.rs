@@ -491,11 +491,15 @@ impl AutoGrowMode {
     }
 
     /// Columns, not specific maximum limit.
+    ///
+    /// The shorthand unit `columns!` converts into this.
     pub const fn columns() -> Self {
         Self::Columns(u32::MAX)
     }
 
     /// Rows, not specific maximum limit.
+    ///
+    /// The shorthand unit `columns!` converts into this.
     pub const fn rows() -> Self {
         Self::Rows(u32::MAX)
     }
@@ -520,6 +524,14 @@ impl fmt::Debug for AutoGrowMode {
             AutoGrowMode::Columns(l) => write!(f, "Columns({l})"),
             AutoGrowMode::Rows(l) => write!(f, "Rows({l})"),
         }
+    }
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![columns]) -> AutoGrowMode {
+        AutoGrowMode::columns()
+    }
+    fn from(_: ShorthandUnit![rows]) -> AutoGrowMode {
+        AutoGrowMode::rows()
     }
 }
 

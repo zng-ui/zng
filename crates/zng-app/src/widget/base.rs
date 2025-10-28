@@ -937,19 +937,27 @@ pub enum HitTestMode {
     ///
     /// This mode affects the entire UI branch, if set it disables hit-testing for the widget and all its descendants,
     /// even if they set explicitly set their hit-test mode to something else.
+    ///
+    /// The shorthand unit `Disabled!` converts into this.
     Disabled,
     /// Widget is hit by any point that intersects the transformed inner bounds rectangle. If the widget is inlined
     /// excludes the first row advance and the last row trailing space.
+    ///
+    /// The shorthand unit `Bounds!` converts into this.
     Bounds,
     /// Same as `Bounds`, but also excludes the outside of rounded corners.
     ///
     /// This is the default mode.
+    ///
+    /// The shorthand unit `RoundedBounds!` converts into this.
     #[default]
     RoundedBounds,
     /// Widget is hit by any point that intersects the hit-test shape defined on render by
     /// [`FrameBuilder::hit_test`] and auto hit-test.
     ///
     /// [`FrameBuilder::hit_test`]: crate::render::FrameBuilder::hit_test
+    ///
+    /// The shorthand unit `Detailed!` converts into this.
     Detailed,
 }
 impl HitTestMode {
@@ -980,6 +988,19 @@ impl_from_and_into_var! {
         } else {
             HitTestMode::Disabled
         }
+    }
+
+    fn from(_: ShorthandUnit![Disabled]) -> HitTestMode {
+        HitTestMode::Disabled
+    }
+    fn from(_: ShorthandUnit![Bounds]) -> HitTestMode {
+        HitTestMode::Bounds
+    }
+    fn from(_: ShorthandUnit![RoundedBounds]) -> HitTestMode {
+        HitTestMode::RoundedBounds
+    }
+    fn from(_: ShorthandUnit![Detailed]) -> HitTestMode {
+        HitTestMode::Detailed
     }
 }
 

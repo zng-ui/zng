@@ -39,7 +39,7 @@ use zng_clone_move::clmv;
 use zng_ext_input::{focus::cmd::CommandFocusExt, keyboard::KEYBOARD};
 use zng_state_map::{StateId, StateMapRef, static_id};
 use zng_txt::Txt;
-use zng_var::{Var, VarHandle, VarValue, context_var, var};
+use zng_var::{Var, VarHandle, VarValue, context_var, impl_from_and_into_var, var};
 use zng_wgt::{CommandIconExt as _, ICONS, wgt_fn};
 
 mod private {
@@ -636,8 +636,12 @@ pub trait RedoAction: Send + Any {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UndoOp {
     /// Undo the action.
+    ///
+    /// The [`Undo!`] shorthand unit converts into this.
     Undo,
     /// Redo the action.
+    ///
+    /// The [`Redo!`] shorthand unit converts into this.
     Redo,
 }
 impl UndoOp {
@@ -647,6 +651,14 @@ impl UndoOp {
             UndoOp::Undo => UNDO_CMD,
             UndoOp::Redo => REDO_CMD,
         }
+    }
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Undo]) -> UndoOp {
+        UndoOp::Undo
+    }
+    fn from(_: ShorthandUnit![Redo]) -> UndoOp {
+        UndoOp::Redo
     }
 }
 

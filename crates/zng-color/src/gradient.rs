@@ -12,11 +12,17 @@ pub enum ExtendMode {
     /// The color values at the ends of the gradient vector fill the remaining space.
     ///
     /// This is the default mode.
+    ///
+    /// The shorthand unit `Clamp!` converts into this.
     #[default]
     Clamp,
     /// The gradient is repeated until the space is filled.
+    ///
+    /// The shorthand unit `Repeat!` converts into this.
     Repeat,
     /// The gradient is repeated alternating direction until the space is filled.
+    ///
+    /// The shorthand unit `Reflect!` converts into this.
     Reflect,
 }
 impl fmt::Debug for ExtendMode {
@@ -39,6 +45,17 @@ impl From<ExtendMode> for RenderExtendMode {
             ExtendMode::Repeat => RenderExtendMode::Repeat,
             ExtendMode::Reflect => RenderExtendMode::Repeat,
         }
+    }
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Clamp]) -> ExtendMode {
+        ExtendMode::Clamp
+    }
+    fn from(_: ShorthandUnit![Repeat]) -> ExtendMode {
+        ExtendMode::Repeat
+    }
+    fn from(_: ShorthandUnit![Reflect]) -> ExtendMode {
+        ExtendMode::Reflect
     }
 }
 
@@ -107,12 +124,16 @@ impl fmt::Debug for GradientRadius {
 }
 impl Default for GradientRadius {
     /// `farthest_corner(100.pct())`
+    ///
+    /// The shorthand unit `default!` converts to this.
     fn default() -> Self {
         Self::farthest_corner(1.fct())
     }
 }
 impl GradientRadius {
     /// Ellipse radii relative from center to the closest edge.
+    ///
+    ///  The shorthand unit `closest_side!` converts to `closest_side(100.pct())`.
     pub fn closest_side(radius: impl Into<Size>) -> Self {
         Self {
             base: GradientRadiusBase::ClosestSide,
@@ -122,6 +143,8 @@ impl GradientRadius {
     }
 
     /// Ellipse radii relative from center to the closest corner.
+    ///
+    ///  The shorthand unit `closest_corner!` converts to `closest_corner(100.pct())`.
     pub fn closest_corner(radius: impl Into<Size>) -> Self {
         Self {
             base: GradientRadiusBase::ClosestCorner,
@@ -131,6 +154,8 @@ impl GradientRadius {
     }
 
     /// Ellipse radii relative from center to the farthest edge.
+    ///
+    ///  The shorthand unit `farthest_side!` converts to `farthest_side(100.pct())`.
     pub fn farthest_side(radius: impl Into<Size>) -> Self {
         Self {
             base: GradientRadiusBase::FarthestSide,
@@ -140,6 +165,8 @@ impl GradientRadius {
     }
 
     /// Ellipse radii relative from center to the farthest corner.
+    ///
+    ///  The shorthand unit `farthest_corner!` converts to `farthest_corner(100.pct())`.
     pub fn farthest_corner(radius: impl Into<Size>) -> Self {
         Self {
             base: GradientRadiusBase::FarthestCorner,
@@ -269,6 +296,22 @@ impl_from_and_into_var! {
     /// Conversion to [`Length::Dip`] and to radius.
     fn from(l: Dip) -> GradientRadius {
         Length::Dip(l).into()
+    }
+
+    fn from(_: ShorthandUnit![default]) -> GradientRadius {
+        GradientRadius::default()
+    }
+    fn from(_: ShorthandUnit![closest_side]) -> GradientRadius {
+        GradientRadius::closest_side(100.pct())
+    }
+    fn from(_: ShorthandUnit![closest_corner]) -> GradientRadius {
+        GradientRadius::closest_corner(100.pct())
+    }
+    fn from(_: ShorthandUnit![farthest_side]) -> GradientRadius {
+        GradientRadius::farthest_side(100.pct())
+    }
+    fn from(_: ShorthandUnit![farthest_corner]) -> GradientRadius {
+        GradientRadius::farthest_corner(100.pct())
     }
 }
 

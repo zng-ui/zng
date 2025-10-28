@@ -371,11 +371,19 @@ impl<'a> ComponentParser<'a> {
         }
     }
 }
+impl_from_and_into_var! {
+    #[doc(hidden)]
+    fn from(_: ShorthandUnit![TOP]) -> Align {
+        Align::TOP
+    }
+}
 impl Align {
     named_aligns! {
         /// x: 0, y: 0, RTL aware.
         ///
         /// In left-to-right contexts this is `TOP_LEFT`, in right-to-left contexts this is `TOP_RIGHT`.
+        ///
+        /// The shorthand unit `TOP_START!` converts to this value.
         TOP_START = (0.0, true, 0.0);
         /// x: 0, y: 0
         TOP_LEFT = (0.0, false, 0.0);

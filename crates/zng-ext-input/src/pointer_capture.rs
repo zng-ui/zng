@@ -333,12 +333,18 @@ pub enum CaptureMode {
     /// Mouse and touch captured by the window only.
     ///
     /// Default behavior.
+    ///
+    /// The shorthand unit `Window!` converts into this.
     Window,
     /// Mouse and touch events inside the widget sub-tree permitted. Mouse events
     /// outside of the widget redirected to the widget.
+    ///
+    /// The shorthand unit `Subtree!` converts into this.
     Subtree,
 
     /// Mouse and touch events redirected to the widget.
+    ///
+    /// The shorthand unit `Widget!` converts into this.
     Widget,
 }
 impl fmt::Debug for CaptureMode {
@@ -363,6 +369,16 @@ impl_from_and_into_var! {
     /// Convert `true` to [`CaptureMode::Widget`] and `false` to [`CaptureMode::Window`].
     fn from(widget: bool) -> CaptureMode {
         if widget { CaptureMode::Widget } else { CaptureMode::Window }
+    }
+
+    fn from(_: ShorthandUnit![Window]) -> CaptureMode {
+        CaptureMode::Window
+    }
+    fn from(_: ShorthandUnit![Subtree]) -> CaptureMode {
+        CaptureMode::Subtree
+    }
+    fn from(_: ShorthandUnit![Widget]) -> CaptureMode {
+        CaptureMode::Widget
     }
 }
 

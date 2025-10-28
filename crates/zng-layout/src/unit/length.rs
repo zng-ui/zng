@@ -32,6 +32,8 @@ pub use expr::*;
 #[non_exhaustive]
 pub enum Length {
     /// The default (initial) value.
+    ///
+    /// The shorthand unit `Default!` converts into this.
     Default,
     /// The exact length in device independent units.
     Dip(Dip),
@@ -486,10 +488,15 @@ impl_from_and_into_var! {
     fn from(expr: LengthExpr) -> Length {
         Length::Expr(Box::new(expr))
     }
+
+    fn from(_: ShorthandUnit![Default]) -> Length {
+        Length::Default
+    }
 }
 impl Length {
     /// Length of exact zero.
     pub const fn zero() -> Length {
+        // !!: TODO review these and all Length derived units
         Length::Px(Px(0))
     }
 
