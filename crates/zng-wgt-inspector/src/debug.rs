@@ -15,14 +15,20 @@ use zng_wgt::prelude::*;
 #[derive(Default, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum InspectMode {
     /// Just the widget where the inspector property is set.
+    ///
+    /// The shorthand unit `Widget!` converts into this.
     Widget,
     /// The widget where the inspector property is set and all descendants.
     ///
     /// The `true` value converts to this.
+    ///
+    /// The shorthand unit `Widget!` converts into this.
     WidgetAndDescendants,
     /// Disable inspection.
     ///
     /// The `false` value converts to this.
+    ///
+    /// The shorthand unit `Widget!` converts into this.
     #[default]
     Disabled,
 }
@@ -45,6 +51,15 @@ impl_from_and_into_var! {
         } else {
             InspectMode::Disabled
         }
+    }
+    fn from(_: ShorthandUnit![Widget]) -> InspectMode {
+        InspectMode::Widget
+    }
+    fn from(_: ShorthandUnit![WidgetAndDescendants]) -> InspectMode {
+        InspectMode::WidgetAndDescendants
+    }
+    fn from(_: ShorthandUnit![Disabled]) -> InspectMode {
+        InspectMode::Disabled
     }
 }
 

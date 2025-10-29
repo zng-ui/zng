@@ -172,15 +172,36 @@ pub fn skip_directional(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum FocusClickBehavior {
     /// Click event always ignored.
+    ///
+    /// The shorthand unit `Ignore!` converts into this.
     Ignore,
     /// Exit focus if a click event was send to the widget or descendant.
+    ///
+    /// The shorthand unit `Exit!` converts into this.
     Exit,
     /// Exit focus if a click event was send to the enabled widget or enabled descendant.
+    ///
+    /// The shorthand unit `ExitEnabled!` converts into this.
     ExitEnabled,
     /// Exit focus if the click event was received by the widget or descendant and event propagation was stopped.
+    ///
+    /// The shorthand unit `ExitHandled!` converts into this.
     ExitHandled,
 }
-
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Ignore]) -> FocusClickBehavior {
+        FocusClickBehavior::Ignore
+    }
+    fn from(_: ShorthandUnit![Exit]) -> FocusClickBehavior {
+        FocusClickBehavior::Exit
+    }
+    fn from(_: ShorthandUnit![ExitEnabled]) -> FocusClickBehavior {
+        FocusClickBehavior::ExitEnabled
+    }
+    fn from(_: ShorthandUnit![ExitHandled]) -> FocusClickBehavior {
+        FocusClickBehavior::ExitHandled
+    }
+}
 impl std::fmt::Debug for FocusClickBehavior {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if f.alternate() {

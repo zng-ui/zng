@@ -499,7 +499,7 @@ impl AutoGrowMode {
 
     /// Rows, not specific maximum limit.
     ///
-    /// The shorthand unit `columns!` converts into this.
+    /// The shorthand unit `rows!` converts into this.
     pub const fn rows() -> Self {
         Self::Rows(u32::MAX)
     }

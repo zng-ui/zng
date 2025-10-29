@@ -258,34 +258,46 @@ impl_from_and_into_var! {
 macro_rules! named_aligns {
 
     ( $($(#[$doc:meta])* $NAME:ident = ($x:expr, $rtl:expr, $y:expr);)+ ) => {
-        $(
-        $(#[$doc])*
-        pub const $NAME: Align = Align { x: Factor($x), x_rtl_aware: $rtl, y: Factor($y) };
-        )+
-
-        /// Returns the alignment `const` name if `self` is equal to one of then.
-        pub fn name(self) -> Option<&'static str> {
+        impl Align {
             $(
-                if self == Self::$NAME {
-                    Some(stringify!($NAME))
+            $(#[$doc])*
+            ///
+            #[doc = concat!("The shorthand unit `", stringify!($NAME) ,"!` converts into this.")]
+            pub const $NAME: Align = Align { x: Factor($x), x_rtl_aware: $rtl, y: Factor($y) };
+            )+
+
+            /// Returns the alignment `const` name if `self` is equal to one of then.
+            pub fn name(self) -> Option<&'static str> {
+                $(
+                    if self == Self::$NAME {
+                        Some(stringify!($NAME))
+                    }
+                )else+
+                else {
+                    None
                 }
-            )else+
-            else {
-                None
+            }
+
+            /// Returns the named alignment.
+            pub fn from_name(name: &str) -> Option<Self> {
+                $(
+                    if name == stringify!($NAME) {
+                        Some(Self::$NAME)
+                    }
+                )else+
+                else {
+                    None
+                }
             }
         }
 
-        /// Returns the named alignment.
-        pub fn from_name(name: &str) -> Option<Self> {
-            $(
-                if name == stringify!($NAME) {
-                    Some(Self::$NAME)
-                }
-            )else+
-            else {
-                None
+    $(
+        impl_from_and_into_var! {
+            fn from(_: ShorthandUnit![$NAME]) -> Align {
+                Align::$NAME
             }
         }
+    )+
     };
 }
 impl fmt::Debug for Align {
@@ -371,106 +383,98 @@ impl<'a> ComponentParser<'a> {
         }
     }
 }
-impl_from_and_into_var! {
-    #[doc(hidden)]
-    fn from(_: ShorthandUnit![TOP]) -> Align {
-        Align::TOP
-    }
+
+named_aligns! {
+    /// x: 0, y: 0, RTL aware.
+    ///
+    /// In left-to-right contexts this is `TOP_LEFT`, in right-to-left contexts this is `TOP_RIGHT`.
+    TOP_START = (0.0, true, 0.0);
+    /// x: 0, y: 0
+    TOP_LEFT = (0.0, false, 0.0);
+    /// x: 0, y: 1, RTL aware.
+    ///
+    /// In left-to-right contexts this is `BOTTOM_LEFT`, in right-to-left contexts this is `BOTTOM_RIGHT`.
+    BOTTOM_START = (0.0, true, 1.0);
+    /// x: 0, y: 1
+    BOTTOM_LEFT = (0.0, false, 1.0);
+
+    /// x: 1, y: 0, RTL aware.
+    ///
+    /// In left-to-right contexts this is `TOP_RIGHT`, in right-to-left contexts this is `TOP_LEFT`.
+    TOP_END = (1.0, true, 0.0);
+    /// x: 1, y: 0
+    TOP_RIGHT = (1.0, false, 0.0);
+    /// x: 1, y: 1
+    ///
+    /// In left-to-right contexts this is `BOTTOM_RIGHT`, in right-to-left contexts this is `BOTTOM_LEFT`.
+    BOTTOM_END = (1.0, true, 1.0);
+    /// x: 1, y: 1
+    BOTTOM_RIGHT = (1.0, false, 1.0);
+
+    /// x: 0, y: 0.5, RTL aware.
+    ///
+    /// In left-to-right contexts this is `LEFT`, in right-to-left contexts this is `RIGHT`.
+    START = (0.0, true, 0.5);
+    /// x: 0, y: 0.5
+    LEFT = (0.0, false, 0.5);
+    /// x: 1, y: 0.5, RTL aware.
+    ///
+    /// In left-to-right contexts this is `RIGHT`, in right-to-left contexts this is `LEFT`.
+    END = (1.0, true, 0.5);
+    /// x: 1, y: 0.5
+    RIGHT = (1.0, false, 0.5);
+    /// x: 0.5, y: 0
+    TOP = (0.5, false, 0.0);
+    /// x: 0.5, y: 1
+    BOTTOM = (0.5, false, 1.0);
+
+    /// x: 0.5, y: 0.5
+    CENTER = (0.5, false, 0.5);
+
+    /// x: +inf, y: 0
+    FILL_TOP = (f32::INFINITY, false, 0.0);
+    /// x: +inf, y: 1
+    FILL_BOTTOM = (f32::INFINITY, false, 1.0);
+    /// x: 0, y: +inf, RTL aware.
+    ///
+    /// In left-to-right contexts this is `FILL_LEFT`, in right-to-left contexts this is `FILL_RIGHT`.
+    FILL_START = (0.0, true, f32::INFINITY);
+    /// x: 0, y: +inf
+    FILL_LEFT = (0.0, false, f32::INFINITY);
+    /// x: 1, y: +inf
+    FILL_RIGHT = (1.0, false, f32::INFINITY);
+    /// x: 1, y: +inf, RTL aware.
+    ///
+    /// In left-to-right contexts this is `FILL_RIGHT`, in right-to-left contexts this is `FILL_LEFT`.
+    FILL_END = (1.0, true, f32::INFINITY);
+
+    /// x: +inf, y: 0.5
+    FILL_X = (f32::INFINITY, false, 0.5);
+    /// x: 0.5, y: +inf
+    FILL_Y = (0.5, false, f32::INFINITY);
+
+    /// x: +inf, y: +inf
+    FILL = (f32::INFINITY, false, f32::INFINITY);
+
+    /// x: 0, y: -inf, RTL aware.
+    ///
+    /// In left-to-right contexts this is `BASELINE_LEFT`, in right-to-left contexts this is `BASELINE_RIGHT`.
+    BASELINE_START = (0.0, true, f32::NEG_INFINITY);
+    /// x: 0, y: -inf
+    BASELINE_LEFT = (0.0, false, f32::NEG_INFINITY);
+    /// x: 0.5, y: -inf
+    BASELINE_CENTER = (0.5, false, f32::NEG_INFINITY);
+    /// x: 1, y: -inf, RTL aware.
+    ///
+    /// In left-to-right contexts this is `BASELINE_RIGHT`, in right-to-left contexts this is `BASELINE_LEFT`.
+    BASELINE_END = (1.0, true, f32::NEG_INFINITY);
+    /// x: 1, y: -inf
+    BASELINE_RIGHT = (1.0, false, f32::NEG_INFINITY);
+
+    /// x: +inf, y: -inf
+    BASELINE = (f32::INFINITY, false, f32::NEG_INFINITY);
 }
-impl Align {
-    named_aligns! {
-        /// x: 0, y: 0, RTL aware.
-        ///
-        /// In left-to-right contexts this is `TOP_LEFT`, in right-to-left contexts this is `TOP_RIGHT`.
-        ///
-        /// The shorthand unit `TOP_START!` converts to this value.
-        TOP_START = (0.0, true, 0.0);
-        /// x: 0, y: 0
-        TOP_LEFT = (0.0, false, 0.0);
-        /// x: 0, y: 1, RTL aware.
-        ///
-        /// In left-to-right contexts this is `BOTTOM_LEFT`, in right-to-left contexts this is `BOTTOM_RIGHT`.
-        BOTTOM_START = (0.0, true, 1.0);
-        /// x: 0, y: 1
-        BOTTOM_LEFT = (0.0, false, 1.0);
 
-        /// x: 1, y: 0, RTL aware.
-        ///
-        /// In left-to-right contexts this is `TOP_RIGHT`, in right-to-left contexts this is `TOP_LEFT`.
-        TOP_END = (1.0, true, 0.0);
-        /// x: 1, y: 0
-        TOP_RIGHT = (1.0, false, 0.0);
-        /// x: 1, y: 1
-        ///
-        /// In left-to-right contexts this is `BOTTOM_RIGHT`, in right-to-left contexts this is `BOTTOM_LEFT`.
-        BOTTOM_END = (1.0, true, 1.0);
-        /// x: 1, y: 1
-        BOTTOM_RIGHT = (1.0, false, 1.0);
-
-        /// x: 0, y: 0.5, RTL aware.
-        ///
-        /// In left-to-right contexts this is `LEFT`, in right-to-left contexts this is `RIGHT`.
-        START = (0.0, true, 0.5);
-        /// x: 0, y: 0.5
-        LEFT = (0.0, false, 0.5);
-        /// x: 1, y: 0.5, RTL aware.
-        ///
-        /// In left-to-right contexts this is `RIGHT`, in right-to-left contexts this is `LEFT`.
-        END = (1.0, true, 0.5);
-        /// x: 1, y: 0.5
-        RIGHT = (1.0, false, 0.5);
-        /// x: 0.5, y: 0
-        TOP = (0.5, false, 0.0);
-        /// x: 0.5, y: 1
-        BOTTOM = (0.5, false, 1.0);
-
-        /// x: 0.5, y: 0.5
-        CENTER = (0.5, false, 0.5);
-
-        /// x: +inf, y: 0
-        FILL_TOP = (f32::INFINITY, false, 0.0);
-        /// x: +inf, y: 1
-        FILL_BOTTOM = (f32::INFINITY, false, 1.0);
-        /// x: 0, y: +inf, RTL aware.
-        ///
-        /// In left-to-right contexts this is `FILL_LEFT`, in right-to-left contexts this is `FILL_RIGHT`.
-        FILL_START = (0.0, true, f32::INFINITY);
-        /// x: 0, y: +inf
-        FILL_LEFT = (0.0, false, f32::INFINITY);
-        /// x: 1, y: +inf
-        FILL_RIGHT = (1.0, false, f32::INFINITY);
-        /// x: 1, y: +inf, RTL aware.
-        ///
-        /// In left-to-right contexts this is `FILL_RIGHT`, in right-to-left contexts this is `FILL_LEFT`.
-        FILL_END = (1.0, true, f32::INFINITY);
-
-        /// x: +inf, y: 0.5
-        FILL_X = (f32::INFINITY, false, 0.5);
-        /// x: 0.5, y: +inf
-        FILL_Y = (0.5, false, f32::INFINITY);
-
-        /// x: +inf, y: +inf
-        FILL = (f32::INFINITY, false, f32::INFINITY);
-
-        /// x: 0, y: -inf, RTL aware.
-        ///
-        /// In left-to-right contexts this is `BASELINE_LEFT`, in right-to-left contexts this is `BASELINE_RIGHT`.
-        BASELINE_START = (0.0, true, f32::NEG_INFINITY);
-        /// x: 0, y: -inf
-        BASELINE_LEFT = (0.0, false, f32::NEG_INFINITY);
-        /// x: 0.5, y: -inf
-        BASELINE_CENTER = (0.5, false, f32::NEG_INFINITY);
-        /// x: 1, y: -inf, RTL aware.
-        ///
-        /// In left-to-right contexts this is `BASELINE_RIGHT`, in right-to-left contexts this is `BASELINE_LEFT`.
-        BASELINE_END = (1.0, true, f32::NEG_INFINITY);
-        /// x: 1, y: -inf
-        BASELINE_RIGHT = (1.0, false, f32::NEG_INFINITY);
-
-        /// x: +inf, y: -inf
-        BASELINE = (f32::INFINITY, false, f32::NEG_INFINITY);
-    }
-}
 impl_from_and_into_var! {
     /// To relative length x and y.
     fn from(alignment: Align) -> Point {

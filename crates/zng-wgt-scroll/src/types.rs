@@ -1108,8 +1108,20 @@ pub struct AutoScrollArgs {}
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ZoomToFitMode {
     /// The content is scaled down or up to fit the viewport.
+    ///
+    /// The shorthand unit `Contain!` converts into this.
     #[default]
     Contain,
     /// The content is only scaled down to fit the viewport. If the content is smaller them the viewport the scale is set to 100%.
+    ///
+    /// The shorthand unit `ScaleDown!` converts into this.
     ScaleDown,
+}
+impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Contain]) -> ZoomToFitMode {
+        ZoomToFitMode::Contain
+    }
+    fn from(_: ShorthandUnit![ScaleDown]) -> ZoomToFitMode {
+        ZoomToFitMode::ScaleDown
+    }
 }

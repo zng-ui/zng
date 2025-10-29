@@ -313,6 +313,8 @@ impl BorderSide {
     }
 
     /// New border side with [`Hidden`](BorderStyle::Hidden) style and transparent color.
+    ///
+    /// The hidden
     pub fn hidden() -> Self {
         Self::new(colors::BLACK.transparent(), BorderStyle::Hidden)
     }

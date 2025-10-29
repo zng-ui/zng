@@ -20,7 +20,7 @@ fn main() {
         Window! {
             title = "Animation Example";
             padding = 10;
-            child_align = Align::CENTER;
+            child_align = CENTER!;
             child = example();
             child_out_bottom = example_fps();
         }
@@ -46,16 +46,16 @@ fn example() -> UiNode {
     let easing_mod = var(Txt::from("ease_out"));
 
     Stack! {
-        direction = StackDirection::top_to_bottom();
+        direction = top_to_bottom!;
         spacing = 10;
-        children_align = Align::TOP;
+        children_align = TOP!;
         children = ui_vec![
             Container! {
                 id = "demo";
                 layout::width = 301;
                 widget::background = ruler();
                 margin = (0, 0, 40, 0);
-                child_align = Align::LEFT;
+                child_align = LEFT!;
                 child = Wgt! {
                     id = "ball";
                     size = (40, 40);
@@ -71,7 +71,7 @@ fn example() -> UiNode {
             },
             Stack! {
                 id = "mod-menu";
-                direction = StackDirection::left_to_right();
+                direction = left_to_right!;
                 spacing = 2;
                 toggle::selector = toggle::Selector::single(easing_mod.clone());
                 children = {
@@ -210,6 +210,6 @@ fn example_fps() -> UiNode {
             });
         });
         layout::margin = 10;
-        layout::align = Align::BOTTOM_RIGHT;
+        layout::align = BOTTOM_RIGHT!;
     }
 }
