@@ -7,7 +7,7 @@ use crate::{
     window::WINDOW,
 };
 use zng_color::{
-    RenderMixBlendMode, Rgba, colors,
+    MixBlendMode, Rgba, colors,
     filter::RenderFilter,
     gradient::{RenderExtendMode, RenderGradientStop},
 };
@@ -105,7 +105,7 @@ struct WidgetData {
     inner_is_set: bool, // used to flag if frame is always 2d translate/scale.
     inner_transform: PxTransform,
     filter: RenderFilter,
-    blend: RenderMixBlendMode,
+    blend: MixBlendMode,
     backdrop_filter: RenderFilter,
 }
 
@@ -210,7 +210,7 @@ impl FrameBuilder {
             hit_clips: HitTestClips::default(),
             widget_data: Some(WidgetData {
                 filter: vec![],
-                blend: RenderMixBlendMode::Normal,
+                blend: MixBlendMode::Normal,
                 backdrop_filter: vec![],
                 parent_child_offset: PxVector::zero(),
                 inner_is_set: false,
@@ -540,7 +540,7 @@ impl FrameBuilder {
 
                     frame.widget_data = Some(WidgetData {
                         filter: vec![],
-                        blend: RenderMixBlendMode::Normal,
+                        blend: MixBlendMode::Normal,
                         backdrop_filter: vec![],
                         parent_child_offset: self.child_offset,
                         inner_is_set: frame.perspective.is_some(),
@@ -849,7 +849,7 @@ impl FrameBuilder {
     ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
-    pub fn push_inner_blend(&mut self, mode: RenderMixBlendMode, render: impl FnOnce(&mut Self)) {
+    pub fn push_inner_blend(&mut self, mode: MixBlendMode, render: impl FnOnce(&mut Self)) {
         if let Some(data) = self.widget_data.as_mut() {
             data.blend = mode;
 
@@ -973,7 +973,7 @@ impl FrameBuilder {
                         builder.transform_style = wgt_info.transform_style();
 
                         let has_3d_ctx = matches!(builder.transform_style, TransformStyle::Preserve3D);
-                        let has_filters = !data.filter.is_empty() || data.blend != RenderMixBlendMode::Normal;
+                        let has_filters = !data.filter.is_empty() || data.blend != MixBlendMode::Normal;
 
                         // reference frame must be just outside the stacking context, except for the
                         // pre-filter context in Preserve3D roots.
@@ -1015,7 +1015,7 @@ impl FrameBuilder {
                                     push_reference_frame!();
                                     builder
                                         .display_list
-                                        .push_stacking_context(RenderMixBlendMode::Normal, builder.transform_style, &[]);
+                                        .push_stacking_context(MixBlendMode::Normal, builder.transform_style, &[]);
                                     builder
                                         .display_list
                                         .push_stacking_context(data.blend, TransformStyle::Flat, &data.filter);
@@ -1034,7 +1034,7 @@ impl FrameBuilder {
                                     push_reference_frame!();
                                     builder
                                         .display_list
-                                        .push_stacking_context(RenderMixBlendMode::Normal, builder.transform_style, &[]);
+                                        .push_stacking_context(MixBlendMode::Normal, builder.transform_style, &[]);
                                     self.ctx_inside_ref_frame = 1;
                                 } else {
                                     // extends 3D space, cannot splice a filters stacking context because that
@@ -1046,7 +1046,7 @@ impl FrameBuilder {
                                     push_reference_frame!();
                                     builder
                                         .display_list
-                                        .push_stacking_context(RenderMixBlendMode::Normal, builder.transform_style, &[]);
+                                        .push_stacking_context(MixBlendMode::Normal, builder.transform_style, &[]);
                                     self.ctx_inside_ref_frame = 1;
                                 }
                             } else {
@@ -1062,7 +1062,7 @@ impl FrameBuilder {
                             push_reference_frame!();
                             builder
                                 .display_list
-                                .push_stacking_context(RenderMixBlendMode::Normal, builder.transform_style, &[]);
+                                .push_stacking_context(MixBlendMode::Normal, builder.transform_style, &[]);
                             self.ctx_inside_ref_frame = 1;
                         } else {
                             // just flat, no filters
@@ -1280,7 +1280,7 @@ impl FrameBuilder {
     ///
     /// [`push_inner_blend`]: Self::push_inner_blend
     /// [`push_inner_filter`]: Self::push_inner_filter
-    pub fn push_filter(&mut self, blend: RenderMixBlendMode, filter: &RenderFilter, render: impl FnOnce(&mut Self)) {
+    pub fn push_filter(&mut self, blend: MixBlendMode, filter: &RenderFilter, render: impl FnOnce(&mut Self)) {
         expect_inner!(self.push_filter);
 
         if self.visible {
@@ -1305,7 +1305,7 @@ impl FrameBuilder {
 
         if self.visible {
             self.display_list
-                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style, &[FilterOp::Opacity(bind)]);
+                .push_stacking_context(MixBlendMode::Normal, self.transform_style, &[FilterOp::Opacity(bind)]);
 
             render(self);
 

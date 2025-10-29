@@ -2,64 +2,19 @@ use super::{Hsla, Hsva, PreMulRgba, Rgba, clamp_normal};
 use zng_layout::unit::Factor;
 
 use pastey::*;
-use zng_var::impl_from_and_into_var;
 
-/// View API [`MixBlendMode`].
-pub type RenderMixBlendMode = zng_view_api::MixBlendMode;
+pub use zng_view_api::MixBlendMode;
 
 macro_rules! impl_mix {
     (
         separable {$(
-            $(#[$meta:meta])*
             $Mode:ident => |$fg:ident, $bg:ident, $ca0:ident, $ca1:ident| $mix:expr,
         )+}
 
         non_separable {$(
-            $(#[$ns_meta:meta])*
             $NsMode:ident => |[$fgh:ident, $fgs:ident, $fgl:ident], [$bgh:ident, $bgs:ident, $bgl:ident]| $ns_mix:expr,
         )+}
     ) => {
-        /// Color mix blend mode.
-        #[repr(u8)]
-        #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-        #[non_exhaustive]
-        pub enum MixBlendMode {
-            $(
-                $(#[$meta])*
-                ///
-                #[doc = concat!("The shorthand unit `", stringify!($Mode), "!` converts into this.")]
-                $Mode,
-            )+
-            $(
-                $(#[$ns_meta])*
-                ///
-                #[doc = concat!("The shorthand unit `", stringify!($NsMode), "!` converts into this.")]
-                $NsMode,
-            )+
-        }
-
-        impl From<MixBlendMode> for RenderMixBlendMode {
-            fn from(mode: MixBlendMode) -> Self {
-                match mode {
-                    $(MixBlendMode::$Mode => RenderMixBlendMode::$Mode,)+
-                    $(MixBlendMode::$NsMode => RenderMixBlendMode::$NsMode,)+
-                }
-            }
-        }
-
-        impl_from_and_into_var! {
-            $(
-                fn from(_: ShorthandUnit![$Mode]) -> MixBlendMode {
-                    MixBlendMode::$Mode
-                }
-            )+
-            $(
-                fn from(_: ShorthandUnit![$NsMode]) -> MixBlendMode {
-                    MixBlendMode::$NsMode
-                }
-            )+
-        }
-
         /// Color mix and adjustment methods.
         pub trait MixAdjust {
             /// MixAdjust `self` over `background` using the `mode`.
@@ -67,6 +22,7 @@ macro_rules! impl_mix {
                 match mode {
                     $(MixBlendMode::$Mode => paste!(self.[<mix_ $Mode:lower>](background)),)+
                     $(MixBlendMode::$NsMode => paste!(self.[<mix_ $NsMode:lower>](background)),)+
+                    _ => unreachable!()
                 }
             }
 
@@ -74,7 +30,6 @@ macro_rules! impl_mix {
                 paste! {
                     #[doc = "MixAdjust `self` over `background` using the [`MixBlendMode::" $Mode "`]."]
                     ///
-                    $(#[$meta])*
                     fn [<mix_ $Mode:lower>](self, background: Self) -> Self;
                 }
             )+
@@ -82,8 +37,6 @@ macro_rules! impl_mix {
             $(
                 paste! {
                     #[doc = "MixAdjust `self` over `background` using the [`MixBlendMode::`" $NsMode "`]."]
-                    ///
-                    $(#[$ns_meta])*
                     ///
                     /// This method converts both inputs to [`Hsla`] and the result back to `Rgba`.
                     fn [<mix_ $NsMode:lower>](self, background: Self) -> Self;
@@ -192,7 +145,7 @@ macro_rules! impl_mix {
                             alpha: {
                                 let fga = self.alpha;
                                 let bga = background.alpha;
-                                (fga + bga - fga * bga).max(0.0).min(1.0)
+                                (fga + bga - fga * bga).clamp(0.0, 1.0)
                             }
                         }
                     }
@@ -345,68 +298,36 @@ macro_rules! impl_mix {
 #[rustfmt::skip]// zng fmt can't handle this syntax and is slightly slower because it causes rustfmt errors
 impl_mix! {
     separable {
-        /// Normal alpha blend of the foreground color over the background.
         Normal => |fg, bg, fga, _bga| fg + bg * (1.0 - fga),
 
-        /// Multiply the colors.
-        ///
-        /// The resultant color is always at least as dark as either color.
-        /// Multiplying any color with black results in black.
-        /// Multiplying any color with white preserves the original color.
         Multiply => |fg, bg, fga, bga| fg * bg + fg * (1.0 - bga) + bg * (1.0 - fga),
 
-        /// Multiply the colors, then complements the result.
-        ///
-        /// The result color is always at least as light as either of the two constituent colors.
-        /// Screening any color with white produces white; screening with black leaves the original color unchanged.
-        /// The effect is similar to projecting multiple photographic slides simultaneously onto a single screen.
         Screen => |fg, bg, _fga, _bga| fg + bg - fg * bg,
 
-        /// Multiplies or screens the colors, depending on the background color value.
-        ///
-        /// Foreground color overlays the background while preserving its highlights and shadows.
-        /// The background color is not replaced but is mixed with the foreground color to reflect the lightness or darkness
-        /// of the background.
-        ///
-        /// This is the inverse of *hardlight*.
         Overlay => |fg, bg, fga, bga| if bg * 2.0 <= bga {
             2.0 * fg * bg + fg * (1.0 - bga) + bg * (1.0 - fga)
         } else {
             fg * (1.0 + bga) + bg * (1.0 + fga) - 2.0 * fg * bg - fga * bga
         },
 
-        /// Selects the darker of the colors.
-        ///
-        /// The background color is replaced with the foreground where the background is darker; otherwise, it is left unchanged.
         Darken => |fg, bg, fga, bga| (fg * bga).min(bg * fga) + fg * (1.0 - bga) + bg * (1.0 - fga),
 
-        /// Selects the lighter of the colors.
-        ///
-        /// The background color is replaced with the foreground where the background is lighter; otherwise, it is left unchanged.
         Lighten => |fg, bg, fga, bga| (fg * bga).max(bg * fga) + fg * (1.0 - bga) + bg * (1.0 - fga),
 
-        /// Brightens the background color to reflect the foreground color. Painting with black produces no changes.
         ColorDodge => |fg, bg, fga, bga| if fg == fga {
             fga * bga + fg * (1.0 - bga) + bg * (1.0 - fga)
         } else {
             fga * bga * 1.0_f32.min((bg / bga) * fga / (fga - fg)) + fg * (1.0 - bga) + bg * (1.0 - fga)
         },
 
-        /// Darkens the background color to reflect the foreground color. Painting with white produces no change.
         ColorBurn => |fg, bg, fga, bga| fga * bga * (1.0 - 1.0_f32.min((1.0 - bg / bga) * fga / fg)) + fg * (1.0 - bga) + bg * (1.0 - fga),
 
-        /// Multiplies or screens the colors, depending on the foreground color value.
-        ///
-        /// The effect is similar to shining a harsh spotlight on the background color.
         HardLight => |fg, bg, fga, bga| if fg * 2.0 <= fga {
             2.0 * fg * bg + fg * (1.0 - bga) + bg * (1.0 - fga)
         } else {
             fg * (1.0 + bga) + bg * (1.0 + fga) - 2.0 * fg * bg - fga * bga
         },
 
-        /// Darkens or lightens the colors, depending on the foreground color value.
-        ///
-        /// The effect is similar to shining a diffused spotlight on the background color.
         SoftLight => |fg, bg, fga, bga| {
             let m = bg / bga;
 
@@ -421,34 +342,20 @@ impl_mix! {
             }
         },
 
-        /// Subtracts the darker of the two constituent colors from the lighter color.
-        ///
-        /// Painting with white inverts the background color; painting with black produces no change.
         Difference => |fg, bg, fga, bga| fg + bg - 2.0 * (fg * bga).min(bg * fga),
 
-        /// Produces an effect similar to that of the *difference* mode but lower in contrast.
-        ///
-        /// Painting with white inverts the background color; painting with black produces no change.
         Exclusion => |fg, bg, _fga, _bga| fg + bg - 2.0 * fg * bg,
+
+        PlusLighter => |fg, bg, fga, bga| (bg * bga + fg * fga).clamp(0.0, 1.0),
     }
 
     non_separable {
-        /// Creates a color with the hue of the foreground color and the saturation and luminosity of the background color.
         Hue => |[fgh, _fgs, _fgl], [_bgh, bgs, bgl]| [fgh, bgs, bgl],
 
-        /// Creates a color with the saturation of the foreground color and the hue and luminosity of the background color.
         Saturation => |[_fgh, fgs, _fgl], [bgh, _bgs, bgl]| [bgh, fgs, bgl],
 
-        /// Creates a color with the hue and saturation of the foreground color and the luminosity of the background color.
         Color => |[fgh, fgs, _fgl], [_bgh, _bgs, bgl]| [fgh, fgs, bgl],
 
-        /// Creates a color with the luminosity of the foreground color and the hue and saturation of the background color.
         Luminosity => |[fgh, _fgs, _fbl], [bgh, bgs, _bgl]| [bgh, bgs, fgh],
-    }
-}
-#[expect(clippy::derivable_impls)] // macro generated enum
-impl Default for MixBlendMode {
-    fn default() -> Self {
-        MixBlendMode::Normal
     }
 }

@@ -828,7 +828,7 @@ pub struct BorderSide {
 pub enum TransformStyle {
     /// Widget is not a part of the 3D space of the parent. If it has
     /// 3D children they will be rendered into a flat plane that is placed in the 3D space of the parent.
-    /// 
+    ///
     /// The shorthand unit `Flat!` converts into this.
     #[default]
     Flat = 0,
@@ -839,7 +839,7 @@ pub enum TransformStyle {
     /// When such a property is set in a widget that is `Preserve3D` and has both a parent and one child also `Preserve3D` the
     /// filters are ignored and a warning is logged. When the widget is `Preserve3D` and the parent is not the filters are applied
     /// *outside* the 3D space, when the widget is `Preserve3D` with all `Flat` children the filters are applied *inside* the 3D space.
-    /// 
+    ///
     /// The shorthand unit `Preserve3D!` converts into this.
     Preserve3D = 1,
 }
@@ -930,29 +930,173 @@ zng_var::impl_from_and_into_var! {
 }
 
 /// Color mix blend mode.
-#[allow(missing_docs)]
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Default)]
 #[non_exhaustive]
 pub enum MixBlendMode {
+    /// The final color is the top color, regardless of what the bottom color is.
+    /// The effect is like two opaque pieces of paper overlapping.
+    ///
+    /// The shorthand unit `Normal!` converts into this.
     #[default]
     Normal = 0,
+    /// The final color is the result of multiplying the top and bottom colors.
+    /// A black layer leads to a black final layer, and a white layer leads to no change.
+    /// The effect is like two images printed on transparent film overlapping.
+    ///
+    /// The shorthand unit `Multiply!` converts into this.
     Multiply = 1,
+    /// The final color is the result of inverting the colors, multiplying them, and inverting that value.
+    /// A black layer leads to no change, and a white layer leads to a white final layer.
+    /// The effect is like two images shining onto a projection screen.
+    ///
+    /// The shorthand unit `Screen!` converts into this.
     Screen = 2,
+    /// The final color is the result of [`Multiply`] if the bottom color is darker, or [`Screen`] if the bottom color is lighter.
+    /// This blend mode is equivalent to [`HardLight`] but with the layers swapped.
+    ///
+    /// The shorthand unit `Overlay!` converts into this.
+    ///
+    /// [`Multiply`]: MixBlendMode::Multiply
+    /// [`Screen`]: MixBlendMode::Screen
+    /// [`HardLight`]: MixBlendMode::HardLight
     Overlay = 3,
+    /// The final color is composed of the darkest values of each color channel.
+    ///
+    /// The shorthand unit `Darken!` converts into this.
     Darken = 4,
+    /// The final color is composed of the lightest values of each color channel.
+    ///
+    /// The shorthand unit `Lighten!` converts into this.
     Lighten = 5,
+    /// The final color is the result of dividing the bottom color by the inverse of the top color.
+    /// A black foreground leads to no change.
+    /// A foreground with the inverse color of the backdrop leads to a fully lit color.
+    /// This blend mode is similar to [`Screen`], but the foreground only needs to be as light as the inverse
+    /// of the backdrop to create a fully lit color.
+    ///
+    /// The shorthand unit `ColorDodge!` converts into this.
+    ///
+    /// [`Screen`]: MixBlendMode::Screen
     ColorDodge = 6,
+    /// The final color is the result of inverting the bottom color, dividing the value by the top color, and inverting that value.
+    /// A white foreground leads to no change. A foreground with the inverse color of the backdrop leads to a black final image.
+    /// This blend mode is similar to [`Multiply`], but the foreground only needs to be as dark as the inverse of the backdrop
+    /// to make the final image black.
+    ///
+    /// The shorthand unit `ColorBurn!` converts into this.
+    ///
+    /// [`Multiply`]: MixBlendMode::Multiply
     ColorBurn = 7,
+    /// The final color is the result of [`Multiply`] if the top color is darker, or [`Screen`] if the top color is lighter.
+    /// This blend mode is equivalent to [`Overlay`] but with the layers swapped.
+    /// The effect is similar to shining a harsh spotlight on the backdrop.
+    ///
+    /// The shorthand unit `HardLight!` converts into this.
+    ///
+    /// [`Multiply`]: MixBlendMode::Multiply
+    /// [`Screen`]: MixBlendMode::Screen
+    /// [`Overlay`]: MixBlendMode::Overlay
     HardLight = 8,
+    /// The final color is similar to [`HardLight`], but softer. This blend mode behaves similar to [`HardLight`].
+    /// The effect is similar to shining a diffused spotlight on the backdrop.
+    ///
+    /// The shorthand unit `SoftLight!` converts into this.
+    ///
+    /// [`HardLight`]: MixBlendMode::HardLight
     SoftLight = 9,
+    /// The final color is the result of subtracting the darker of the two colors from the lighter one.
+    /// A black layer has no effect, while a white layer inverts the other layer's color.
+    ///
+    /// The shorthand unit `Difference!` converts into this.
     Difference = 10,
+    /// The final color is similar to [`Difference`], but with less contrast.
+    /// As with [`Difference`], a black layer has no effect, while a white layer inverts the other layer's color.
+    ///
+    /// The shorthand unit `Exclusion!` converts into this.
+    ///
+    /// [`Difference`]: MixBlendMode::Difference
     Exclusion = 11,
+    /// The final color has the *hue* of the top color, while using the *saturation* and *luminosity* of the bottom color.
+    ///
+    /// The shorthand unit `Hue!` converts into this.
     Hue = 12,
+    /// The final color has the *saturation* of the top color, while using the *hue* and *luminosity* of the bottom color.
+    /// A pure gray backdrop, having no saturation, will have no effect.
+    ///
+    /// The shorthand unit `Saturation!` converts into this.
     Saturation = 13,
+    /// The final color has the *hue* and *saturation* of the top color, while using the *luminosity* of the bottom color.
+    /// The effect preserves gray levels and can be used to colorize the foreground.
+    ///
+    /// The shorthand unit `Color!` converts into this.
     Color = 14,
+    /// The final color has the *luminosity* of the top color, while using the *hue* and *saturation* of the bottom color.
+    /// This blend mode is equivalent to [`Color`], but with the layers swapped.
+    ///
+    /// The shorthand unit `Luminosity!` converts into this.
+    ///
+    /// [`Color`]: MixBlendMode::Color
     Luminosity = 15,
+    /// The final color adds the top color multiplied by alpha to the bottom color multiplied by alpha.
+    /// This blend mode is particularly useful in cross fades where the opacity of both layers transition in reverse.
+    ///
+    /// The shorthand unit `PlusLighter!` converts into this. !!: TODO all shorthands
     PlusLighter = 16,
+}
+#[cfg(feature = "var")]
+zng_var::impl_from_and_into_var! {
+    fn from(_: ShorthandUnit![Normal]) -> MixBlendMode {
+        MixBlendMode::Normal
+    }
+    fn from(_: ShorthandUnit![Multiply]) -> MixBlendMode {
+        MixBlendMode::Multiply
+    }
+    fn from(_: ShorthandUnit![Screen]) -> MixBlendMode {
+        MixBlendMode::Screen
+    }
+    fn from(_: ShorthandUnit![Overlay]) -> MixBlendMode {
+        MixBlendMode::Overlay
+    }
+    fn from(_: ShorthandUnit![Darken]) -> MixBlendMode {
+        MixBlendMode::Darken
+    }
+    fn from(_: ShorthandUnit![Lighten]) -> MixBlendMode {
+        MixBlendMode::Lighten
+    }
+    fn from(_: ShorthandUnit![ColorDodge]) -> MixBlendMode {
+        MixBlendMode::ColorDodge
+    }
+    fn from(_: ShorthandUnit![ColorBurn]) -> MixBlendMode {
+        MixBlendMode::ColorBurn
+    }
+    fn from(_: ShorthandUnit![HardLight]) -> MixBlendMode {
+        MixBlendMode::HardLight
+    }
+    fn from(_: ShorthandUnit![SoftLight]) -> MixBlendMode {
+        MixBlendMode::SoftLight
+    }
+    fn from(_: ShorthandUnit![Difference]) -> MixBlendMode {
+        MixBlendMode::Difference
+    }
+    fn from(_: ShorthandUnit![Exclusion]) -> MixBlendMode {
+        MixBlendMode::Exclusion
+    }
+    fn from(_: ShorthandUnit![Hue]) -> MixBlendMode {
+        MixBlendMode::Hue
+    }
+    fn from(_: ShorthandUnit![Saturation]) -> MixBlendMode {
+        MixBlendMode::Saturation
+    }
+    fn from(_: ShorthandUnit![Color]) -> MixBlendMode {
+        MixBlendMode::Color
+    }
+    fn from(_: ShorthandUnit![Luminosity]) -> MixBlendMode {
+        MixBlendMode::Luminosity
+    }
+    fn from(_: ShorthandUnit![PlusLighter]) -> MixBlendMode {
+        MixBlendMode::PlusLighter
+    }
 }
 
 /// Image scaling algorithm in the renderer.

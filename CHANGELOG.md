@@ -19,6 +19,10 @@
     - The syntax `ident!` that was previously used only for `unset!` now can be any ident.
     - Value types can implement conversions from `ShorthandUnit![ident]` to support a shorthand.
 
+* Unify `MixBlendMode` type with view API.
+    - **Breaking** Remove `zng::color::RenderMixBlendMode`.
+    - **Breaking** `zng::color::MixBlendMode` is now non-exhaustive and has a new variant `PlusLighter`.
+
 * Fix gradient stops with midway adjustment.
 * Impl of `Add` and `Sub` for `layout::Vector` is now generic over any type that converts to vector.
 * Add `Var::chase_begin` to begin a deferred chase animation.
