@@ -39,8 +39,8 @@ pub use vars::*;
 mod vec;
 pub use vec::*;
 
-mod shorthand_unit;
-pub use shorthand_unit::*;
+mod property_value;
+pub use property_value::*;
 
 mod impls;
 
@@ -204,29 +204,6 @@ macro_rules! __impl_from_and_into_var {
             $($rest)*
         }
         //}
-    };
-    // INPUT SHORTHAND:
-    (
-        =input=>
-        [
-            input { _ : ShorthandUnit![$_ignore:ident] }
-            generics { }
-            docs { $($_hide:tt)* }
-            $($config:tt)*
-        ]
-        (_ : ShorthandUnit![$ident:ident]) $($rest:tt)+
-    ) => {
-        $crate::__impl_from_and_into_var! {
-            =output=>
-            [
-                input_type { $crate::ShorthandUnit![$ident] }
-                input { _: $crate::ShorthandUnit![$ident] }
-                generics { }
-                docs { #[doc(hidden)] }
-                $($config)*
-            ]
-            $($rest)+
-        }
     };
     // INPUT SIMPLE:
     (

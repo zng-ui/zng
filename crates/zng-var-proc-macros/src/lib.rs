@@ -18,8 +18,8 @@ extern crate quote;
 mod util;
 
 mod expr_var;
+mod impl_property_value;
 mod merge_var;
-mod shorthand_unit;
 mod transitionable;
 mod when_var;
 
@@ -35,10 +35,10 @@ pub fn expr_var(input: TokenStream) -> TokenStream {
     expr_var::expand(input)
 }
 
-#[doc(hidden)]
-#[proc_macro]
-pub fn shorthand_unit(input: TokenStream) -> TokenStream {
-    shorthand_unit::expand(input)
+/// Implement `PropertyValue`.
+#[proc_macro_attribute]
+pub fn impl_property_value(args: TokenStream, input: TokenStream) -> TokenStream {
+    impl_property_value::expand(args, input)
 }
 
 #[doc(hidden)]
