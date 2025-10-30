@@ -191,19 +191,15 @@ mod ansi_parse {
     /// Font weight defined by ANSI escape codes.
     ///
     /// See [`AnsiStyle`] for more details.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
     pub enum AnsiWeight {
         /// Normal.
+        #[default]
         Normal,
         /// Bold.
         Bold,
         /// Light.
         Faint,
-    }
-    impl Default for AnsiWeight {
-        fn default() -> Self {
-            Self::Normal
-        }
     }
     impl_from_and_into_var! {
         fn from(weight: AnsiWeight) -> FontWeight {

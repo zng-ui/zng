@@ -828,8 +828,6 @@ pub struct BorderSide {
 pub enum TransformStyle {
     /// Widget is not a part of the 3D space of the parent. If it has
     /// 3D children they will be rendered into a flat plane that is placed in the 3D space of the parent.
-    ///
-    /// The shorthand unit `Flat!` converts into this.
     #[default]
     Flat = 0,
     /// Widget is a part of the 3D space of the parent. If it has 3D children
@@ -839,8 +837,6 @@ pub enum TransformStyle {
     /// When such a property is set in a widget that is `Preserve3D` and has both a parent and one child also `Preserve3D` the
     /// filters are ignored and a warning is logged. When the widget is `Preserve3D` and the parent is not the filters are applied
     /// *outside* the 3D space, when the widget is `Preserve3D` with all `Flat` children the filters are applied *inside* the 3D space.
-    ///
-    /// The shorthand unit `Preserve3D!` converts into this.
     Preserve3D = 1,
 }
 impl fmt::Debug for TransformStyle {

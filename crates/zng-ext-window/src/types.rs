@@ -167,9 +167,10 @@ impl_from_and_into_var! {
 /// is open just after the first [`UiNode::layout`] call.
 ///
 ///  [`UiNode::layout`]: zng_app::widget::node::UiNode::layout
-#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum StartPosition {
     /// Resolves to [`position`](crate::WindowVars::position).
+    #[default]
     Default,
 
     /// Centralizes the window in the monitor screen, defined by the [`monitor`](crate::WindowVars::monitor).
@@ -181,11 +182,6 @@ pub enum StartPosition {
     ///
     /// Falls back to center on the monitor if the window has no parent.
     CenterParent,
-}
-impl Default for StartPosition {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 impl fmt::Debug for StartPosition {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
