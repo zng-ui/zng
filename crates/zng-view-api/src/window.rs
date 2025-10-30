@@ -41,22 +41,19 @@ crate::declare_id! {
 ///
 /// This is mostly a trade-off between performance, power consumption and cold startup time.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "var", zng_var::impl_property_value(:Default))]
 #[non_exhaustive]
 pub enum RenderMode {
     /// Prefer the best dedicated GPU, probably the best performance after initialization, but also the
     /// most power consumption.
     ///
     /// Falls back to `Integrated`, then `Software`.
-    ///
-    /// The shorthand unit `Dedicated!` converts to this.
     Dedicated,
 
     /// Prefer the integrated GPU (provided by the CPU), probably the best power consumption and good performance for most GUI applications,
     /// this is the default value.
     ///
     /// Falls back to `Dedicated`, then `Software`.
-    ///
-    /// The shorthand unit `Integrated!` converts to this.
     Integrated,
 
     /// Use a software render fallback, this has the best compatibility and best initialization time. This is probably the
@@ -64,10 +61,9 @@ pub enum RenderMode {
     /// the render time gains.
     ///
     /// If the view-process implementation has no software, falls back to `Integrated`, then `Dedicated`.
-    ///
-    /// The shorthand unit `Software!` converts to this.
     Software,
 }
+#[cfg_attr(feature = "var", zng_var::impl_property_value(Default))]
 impl Default for RenderMode {
     /// [`RenderMode::Integrated`].
     fn default() -> Self {
@@ -97,17 +93,6 @@ impl RenderMode {
 #[cfg(feature = "var")]
 zng_var::impl_from_and_into_var! {
     fn from(some: RenderMode) -> Option<RenderMode>;
-
-    fn from(_: ShorthandUnit![Dedicated]) -> RenderMode {
-        // !!: TODO review Option<RenderMode>
-        RenderMode::Dedicated
-    }
-    fn from(_: ShorthandUnit![Integrated]) -> RenderMode {
-        RenderMode::Integrated
-    }
-    fn from(_: ShorthandUnit![Software]) -> RenderMode {
-        RenderMode::Software
-    }
 }
 
 /// Configuration of a new headless surface.
@@ -746,200 +731,133 @@ impl WindowStateAll {
 /// Named system dependent cursor icon.
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "var", zng_var::impl_property_value)]
 pub enum CursorIcon {
     /// The platform-dependent default cursor. Often rendered as arrow.
-    ///
-    /// The shorthand unit `Default!` converts into this.
     #[default]
     Default,
 
     /// A context menu is available for the object under the cursor. Often
     /// rendered as an arrow with a small menu-like graphic next to it.
-    ///
-    /// The shorthand unit `ContextMenu!` converts into this.
     ContextMenu,
 
     /// Help is available for the object under the cursor. Often rendered as a
     /// question mark or a balloon.
-    ///
-    /// The shorthand unit `Help!` converts into this.
     Help,
 
     /// The cursor is a pointer that indicates a link. Often rendered as the
     /// backside of a hand with the index finger extended.
-    ///
-    /// The shorthand unit `Pointer!` converts into this.
     Pointer,
 
     /// A progress indicator. The program is performing some processing, but is
     /// different from [`CursorIcon::Wait`] in that the user may still interact
     /// with the program.
-    ///
-    /// The shorthand unit `Progress!` converts into this.
     Progress,
 
     /// Indicates that the program is busy and the user should wait. Often
     /// rendered as a watch or hourglass.
-    ///
-    /// The shorthand unit `Wait!` converts into this.
     Wait,
 
     /// Indicates that a cell or set of cells may be selected. Often rendered as
     /// a thick plus-sign with a dot in the middle.
-    ///
-    /// The shorthand unit `Cell!` converts into this.
     Cell,
 
     /// A simple crosshair (e.g., short line segments resembling a "+" sign).
     /// Often used to indicate a two dimensional bitmap selection mode.
-    ///
-    /// The shorthand unit `Crosshair!` converts into this.
     Crosshair,
 
     /// Indicates text that may be selected. Often rendered as an I-beam.
-    ///
-    /// The shorthand unit `Text!` converts into this.
     Text,
 
     /// Indicates vertical-text that may be selected. Often rendered as a
     /// horizontal I-beam.
-    ///
-    /// The shorthand unit `VerticalText!` converts into this.
     VerticalText,
 
     /// Indicates an alias of/shortcut to something is to be created. Often
     /// rendered as an arrow with a small curved arrow next to it.
-    ///
-    /// The shorthand unit `Alias!` converts into this.
     Alias,
 
     /// Indicates something is to be copied. Often rendered as an arrow with a
     /// small plus sign next to it.
-    ///
-    /// The shorthand unit `Copy!` converts into this.
     Copy,
 
     /// Indicates something is to be moved.
-    ///
-    /// The shorthand unit `Move!` converts into this.
     Move,
 
     /// Indicates that the dragged item cannot be dropped at the current cursor
     /// location. Often rendered as a hand or pointer with a small circle with a
     /// line through it.
-    ///
-    /// The shorthand unit `NoDrop!` converts into this.
     NoDrop,
 
     /// Indicates that the requested action will not be carried out. Often
     /// rendered as a circle with a line through it.
-    ///
-    /// The shorthand unit `NotAllowed!` converts into this.
     NotAllowed,
 
     /// Indicates that something can be grabbed (dragged to be moved). Often
     /// rendered as the backside of an open hand.
-    ///
-    /// The shorthand unit `Grab!` converts into this.
     Grab,
 
     /// Indicates that something is being grabbed (dragged to be moved). Often
     /// rendered as the backside of a hand with fingers closed mostly out of
     /// view.
-    ///
-    /// The shorthand unit `Grabbing!` converts into this.
     Grabbing,
 
     /// The east border to be moved.
-    ///
-    /// The shorthand unit `EResize!` converts into this.
     EResize,
 
     /// The north border to be moved.
-    ///
-    /// The shorthand unit `NResize!` converts into this.
     NResize,
 
     /// The north-east corner to be moved.
-    ///
-    /// The shorthand unit `NeResize!` converts into this.
     NeResize,
 
     /// The north-west corner to be moved.
-    ///
-    /// The shorthand unit `NwResize!` converts into this.
     NwResize,
 
     /// The south border to be moved.
-    ///
-    /// The shorthand unit `SResize!` converts into this.
     SResize,
 
     /// The south-east corner to be moved.
-    ///
-    /// The shorthand unit `SeResize!` converts into this.
     SeResize,
 
     /// The south-west corner to be moved.
-    ///
-    /// The shorthand unit `SwResize!` converts into this.
     SwResize,
 
     /// The west border to be moved.
-    ///
-    /// The shorthand unit `WResize!` converts into this.
     WResize,
 
     /// The east and west borders to be moved.
-    ///
-    /// The shorthand unit `EwResize!` converts into this.
     EwResize,
 
     /// The south and north borders to be moved.
-    ///
-    /// The shorthand unit `NsResize!` converts into this.
     NsResize,
 
     /// The north-east and south-west corners to be moved.
-    ///
-    /// The shorthand unit `NeswResize!` converts into this.
     NeswResize,
 
     /// The north-west and south-east corners to be moved.
-    ///
-    /// The shorthand unit `NwseResize!` converts into this.
     NwseResize,
 
     /// Indicates that the item/column can be resized horizontally. Often
     /// rendered as arrows pointing left and right with a vertical bar
     /// separating them.
-    ///
-    /// The shorthand unit `ColResize!` converts into this.
     ColResize,
 
     /// Indicates that the item/row can be resized vertically. Often rendered as
     /// arrows pointing up and down with a horizontal bar separating them.
-    ///
-    /// The shorthand unit `RowResize!` converts into this.
     RowResize,
 
     /// Indicates that the something can be scrolled in any direction. Often
     /// rendered as arrows pointing up, down, left, and right with a dot in the
     /// middle.
-    ///
-    /// The shorthand unit `AllScroll!` converts into this.
     AllScroll,
 
     /// Indicates that something can be zoomed in. Often rendered as a
     /// magnifying glass with a "+" in the center of the glass.
-    ///
-    /// The shorthand unit `ZoomIn!` converts into this.
     ZoomIn,
 
     /// Indicates that something can be zoomed in. Often rendered as a
     /// magnifying glass with a "-" in the center of the glass.
-    ///
-    /// The shorthand unit `ZoomOut!` converts into this.
     ZoomOut,
 }
 #[cfg(feature = "var")]
@@ -1018,111 +936,6 @@ impl CursorIcon {
         (size.to_px(scale_factor), spot.to_px(scale_factor))
     }
 }
-#[cfg(feature = "var")]
-zng_var::impl_from_and_into_var! {
-    fn from(_: ShorthandUnit![Default]) -> CursorIcon {
-        CursorIcon::Default
-    }
-    fn from(_: ShorthandUnit![ContextMenu]) -> CursorIcon {
-        CursorIcon::ContextMenu
-    }
-    fn from(_: ShorthandUnit![Help]) -> CursorIcon {
-        CursorIcon::Help
-    }
-    fn from(_: ShorthandUnit![Pointer]) -> CursorIcon {
-        CursorIcon::Pointer
-    }
-    fn from(_: ShorthandUnit![Progress]) -> CursorIcon {
-        CursorIcon::Progress
-    }
-    fn from(_: ShorthandUnit![Wait]) -> CursorIcon {
-        CursorIcon::Wait
-    }
-    fn from(_: ShorthandUnit![Cell]) -> CursorIcon {
-        CursorIcon::Cell
-    }
-    fn from(_: ShorthandUnit![Crosshair]) -> CursorIcon {
-        CursorIcon::Crosshair
-    }
-    fn from(_: ShorthandUnit![Text]) -> CursorIcon {
-        CursorIcon::Text
-    }
-    fn from(_: ShorthandUnit![VerticalText]) -> CursorIcon {
-        CursorIcon::VerticalText
-    }
-    fn from(_: ShorthandUnit![Alias]) -> CursorIcon {
-        CursorIcon::Alias
-    }
-    fn from(_: ShorthandUnit![Copy]) -> CursorIcon {
-        CursorIcon::Copy
-    }
-    fn from(_: ShorthandUnit![Move]) -> CursorIcon {
-        CursorIcon::Move
-    }
-    fn from(_: ShorthandUnit![NoDrop]) -> CursorIcon {
-        CursorIcon::NoDrop
-    }
-    fn from(_: ShorthandUnit![NotAllowed]) -> CursorIcon {
-        CursorIcon::NotAllowed
-    }
-    fn from(_: ShorthandUnit![Grab]) -> CursorIcon {
-        CursorIcon::Grab
-    }
-    fn from(_: ShorthandUnit![Grabbing]) -> CursorIcon {
-        CursorIcon::Grabbing
-    }
-    fn from(_: ShorthandUnit![EResize]) -> CursorIcon {
-        CursorIcon::EResize
-    }
-    fn from(_: ShorthandUnit![NResize]) -> CursorIcon {
-        CursorIcon::NResize
-    }
-    fn from(_: ShorthandUnit![NeResize]) -> CursorIcon {
-        CursorIcon::NeResize
-    }
-    fn from(_: ShorthandUnit![NwResize]) -> CursorIcon {
-        CursorIcon::NwResize
-    }
-    fn from(_: ShorthandUnit![SResize]) -> CursorIcon {
-        CursorIcon::SResize
-    }
-    fn from(_: ShorthandUnit![SeResize]) -> CursorIcon {
-        CursorIcon::SeResize
-    }
-    fn from(_: ShorthandUnit![SwResize]) -> CursorIcon {
-        CursorIcon::SwResize
-    }
-    fn from(_: ShorthandUnit![WResize]) -> CursorIcon {
-        CursorIcon::WResize
-    }
-    fn from(_: ShorthandUnit![EwResize]) -> CursorIcon {
-        CursorIcon::EwResize
-    }
-    fn from(_: ShorthandUnit![NsResize]) -> CursorIcon {
-        CursorIcon::NsResize
-    }
-    fn from(_: ShorthandUnit![NeswResize]) -> CursorIcon {
-        CursorIcon::NeswResize
-    }
-    fn from(_: ShorthandUnit![NwseResize]) -> CursorIcon {
-        CursorIcon::NwseResize
-    }
-    fn from(_: ShorthandUnit![ColResize]) -> CursorIcon {
-        CursorIcon::ColResize
-    }
-    fn from(_: ShorthandUnit![RowResize]) -> CursorIcon {
-        CursorIcon::RowResize
-    }
-    fn from(_: ShorthandUnit![AllScroll]) -> CursorIcon {
-        CursorIcon::AllScroll
-    }
-    fn from(_: ShorthandUnit![ZoomIn]) -> CursorIcon {
-        CursorIcon::ZoomIn
-    }
-    fn from(_: ShorthandUnit![ZoomOut]) -> CursorIcon {
-        CursorIcon::ZoomOut
-    }
-}
 
 /// Defines a custom mouse cursor.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1144,38 +957,23 @@ impl CursorImage {
 
 /// Defines the orientation that a window resize will be performed.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "var", zng_var::impl_property_value)]
 pub enum ResizeDirection {
     /// The east border will be moved.
-    ///
-    /// The shorthand unit `East!` converts into this.
     East,
     /// The north border will be moved.
-    ///     
-    /// The shorthand unit `North!` converts into this.
     North,
     /// The north-east corner will be moved.
-    ///
-    /// The shorthand unit `NorthEast!` converts into this.
     NorthEast,
     /// The north-west corner will be moved.
-    ///
-    /// The shorthand unit `NorthWest!` converts into this.
     NorthWest,
     /// The south border will be moved.
-    ///
-    /// The shorthand unit `South!` converts into this.
     South,
     /// The south-east corner will be moved.
-    ///
-    /// The shorthand unit `SouthEast!` converts into this.
     SouthEast,
     /// The south-west corner will be moved.
-    ///
-    /// The shorthand unit `SouthWest!` converts into this.
     SouthWest,
     /// The west border will be moved.
-    ///
-    /// The shorthand unit `West!` converts into this.
     West,
 }
 impl From<ResizeDirection> for CursorIcon {
@@ -1199,30 +997,6 @@ zng_var::impl_from_and_into_var! {
     fn from(some: ResizeDirection) -> Option<CursorIcon> {
         Some(some.into())
     }
-    fn from(_: ShorthandUnit![East]) -> ResizeDirection {
-        ResizeDirection::East
-    }
-    fn from(_: ShorthandUnit![North]) -> ResizeDirection {
-        ResizeDirection::North
-    }
-    fn from(_: ShorthandUnit![NorthEast]) -> ResizeDirection {
-        ResizeDirection::NorthEast
-    }
-    fn from(_: ShorthandUnit![NorthWest]) -> ResizeDirection {
-        ResizeDirection::NorthWest
-    }
-    fn from(_: ShorthandUnit![South]) -> ResizeDirection {
-        ResizeDirection::South
-    }
-    fn from(_: ShorthandUnit![SouthEast]) -> ResizeDirection {
-        ResizeDirection::SouthEast
-    }
-    fn from(_: ShorthandUnit![SouthWest]) -> ResizeDirection {
-        ResizeDirection::SouthWest
-    }
-    fn from(_: ShorthandUnit![West]) -> ResizeDirection {
-        ResizeDirection::West
-    }
 }
 impl ResizeDirection {
     /// All directions.
@@ -1244,29 +1018,20 @@ impl ResizeDirection {
 
 /// Window state.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "var", zng_var::impl_property_value)]
 pub enum WindowState {
     /// Window is visible, but does not fill the screen.
-    ///
-    /// The shorthand unit `Normal!` converts into this.
     #[default]
     Normal,
     /// Window is only visible as an icon in the taskbar.
-    ///
-    /// The shorthand unit `Minimized!` converts into this.
     Minimized,
     /// Window fills the screen, but not the parts reserved by the system, like the taskbar.
-    ///
-    /// The shorthand unit `Maximized!` converts into this.
     Maximized,
     /// Window is chromeless and completely fills the screen, including over parts reserved by the system.
     ///
     /// Also called borderless fullscreen.
-    ///
-    /// The shorthand unit `Fullscreen!` converts into this.
     Fullscreen,
     /// Window has exclusive access to the monitor's video output, so only the window content is visible.
-    ///
-    /// The shorthand unit `Exclusive!` converts into this.
     Exclusive,
 }
 impl WindowState {
@@ -1276,24 +1041,6 @@ impl WindowState {
     /// [`Exclusive`]: WindowState::Exclusive
     pub fn is_fullscreen(self) -> bool {
         matches!(self, Self::Fullscreen | Self::Exclusive)
-    }
-}
-#[cfg(feature = "var")]
-zng_var::impl_from_and_into_var! {
-    fn from(_: ShorthandUnit![Normal]) -> WindowState {
-        WindowState::Normal
-    }
-    fn from(_: ShorthandUnit![Minimized]) -> WindowState {
-        WindowState::Minimized
-    }
-    fn from(_: ShorthandUnit![Maximized]) -> WindowState {
-        WindowState::Maximized
-    }
-    fn from(_: ShorthandUnit![Fullscreen]) -> WindowState {
-        WindowState::Fullscreen
-    }
-    fn from(_: ShorthandUnit![Exclusive]) -> WindowState {
-        WindowState::Exclusive
     }
 }
 

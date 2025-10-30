@@ -536,6 +536,7 @@ impl_from_and_into_var! {
 /// Response labels.
 #[derive(Clone, PartialEq, Debug)]
 pub struct Responses(pub Vec<Response>);
+#[zng_var::impl_property_value]
 impl Responses {
     /// new with first response.
     pub fn new(r: impl Into<Response>) -> Self {
@@ -549,29 +550,21 @@ impl Responses {
     }
 
     /// "Ok"
-    ///
-    /// The shorthand unit `ok!` converts into this.
     pub fn ok() -> Self {
         Response::ok().into()
     }
 
     /// "Close"
-    ///
-    /// The shorthand unit `close!` converts into this.
     pub fn close() -> Self {
         Response::close().into()
     }
 
     /// "No", "Yes"
-    ///
-    /// The shorthand unit `no_yes!` converts into this.
     pub fn no_yes() -> Self {
         vec![Response::no(), Response::yes()].into()
     }
 
     /// "Cancel", "Ok"
-    ///
-    /// The shorthand unit `cancel_ok!` converts into this.
     pub fn cancel_ok() -> Self {
         vec![Response::cancel(), Response::ok()].into()
     }
@@ -594,19 +587,6 @@ impl_from_and_into_var! {
     }
     fn from(responses: Vec<Response>) -> Responses {
         Responses(responses)
-    }
-
-    fn from(_: ShorthandUnit![ok]) -> Responses {
-        Responses::ok()
-    }
-    fn from(_: ShorthandUnit![close]) -> Responses {
-        Responses::close()
-    }
-    fn from(_: ShorthandUnit![no_yes]) -> Responses {
-        Responses::no_yes()
-    }
-    fn from(_: ShorthandUnit![cancel_ok]) -> Responses {
-        Responses::cancel_ok()
     }
 }
 
@@ -804,49 +784,29 @@ impl DIALOG {
 }
 bitflags! {
     /// Dialog kind options.
-    #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)] // !!: TODO #[zng_var::impl_property_value]
     pub struct DialogKind: u32 {
         /// [`DIALOG.info`](DIALOG::info)
-        ///
-        /// The shorthand unit `INFO!` converts into this.
         const INFO = 0b0000_0000_0000_0001;
         /// [`DIALOG.warn`](DIALOG::warn)
-        ///
-        /// The shorthand unit `WARN!` converts into this.
         const WARN = 0b0000_0000_0000_0010;
         /// [`DIALOG.error`](DIALOG::error)
-        ///
-        /// The shorthand unit `ERROR!` converts into this.
         const ERROR = 0b0000_0000_0000_0100;
         /// [`DIALOG.ask`](DIALOG::ask)
-        ///
-        /// The shorthand unit `ASK!` converts into this.
         const ASK = 0b0000_0000_0000_1000;
         /// [`DIALOG.confirm`](DIALOG::confirm)
-        ///
-        /// The shorthand unit `CONFIRM!` converts into this.
         const CONFIRM = 0b0000_0000_0001_0000;
 
         /// [`DIALOG.open_file`](DIALOG::open_file)
-        ///
-        /// The shorthand unit `OPEN_FILE!` converts into this.
         const OPEN_FILE = 0b1000_0000_0000_0000;
         /// [`DIALOG.open_files`](DIALOG::open_files)
-        ///
-        /// The shorthand unit `OPEN_FILES!` converts into this.
         const OPEN_FILES = 0b0100_0000_0000_0000;
         /// [`DIALOG.save_file`](DIALOG::save_file)
-        ///
-        /// The shorthand unit `SAVE_FILE!` converts into this.
         const SAVE_FILE = 0b0010_0000_0000_0000;
 
         /// [`DIALOG.select_folder`](DIALOG::select_folder)
-        ///
-        /// The shorthand unit `SELECT_FOLDER!` converts into this.
         const SELECT_FOLDER = 0b0001_0000_0000_0000;
         /// [`DIALOG.select_folders`](DIALOG::select_folders)
-        ///
-        /// The shorthand unit `SELECT_FOLDERS!` converts into this.
         const SELECT_FOLDERS = 0b0000_1000_0000_0000;
 
         /// All message dialogs.
@@ -862,37 +822,6 @@ bitflags! {
 impl_from_and_into_var! {
     fn from(empty_or_all: bool) -> DialogKind {
         if empty_or_all { DialogKind::all() } else { DialogKind::empty() }
-    }
-
-    fn from(_: ShorthandUnit![INFO]) -> DialogKind {
-        DialogKind::INFO
-    }
-    fn from(_: ShorthandUnit![WARN]) -> DialogKind {
-        DialogKind::WARN
-    }
-    fn from(_: ShorthandUnit![ERROR]) -> DialogKind {
-        DialogKind::ERROR
-    }
-    fn from(_: ShorthandUnit![ASK]) -> DialogKind {
-        DialogKind::ASK
-    }
-    fn from(_: ShorthandUnit![CONFIRM]) -> DialogKind {
-        DialogKind::CONFIRM
-    }
-    fn from(_: ShorthandUnit![OPEN_FILE]) -> DialogKind {
-        DialogKind::OPEN_FILE
-    }
-    fn from(_: ShorthandUnit![OPEN_FILES]) -> DialogKind {
-        DialogKind::OPEN_FILES
-    }
-    fn from(_: ShorthandUnit![SAVE_FILE]) -> DialogKind {
-        DialogKind::SAVE_FILE
-    }
-    fn from(_: ShorthandUnit![SELECT_FOLDER]) -> DialogKind {
-        DialogKind::SELECT_FOLDER
-    }
-    fn from(_: ShorthandUnit![SELECT_FOLDERS]) -> DialogKind {
-        DialogKind::SELECT_FOLDERS
     }
 }
 

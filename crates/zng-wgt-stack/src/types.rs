@@ -68,6 +68,7 @@ impl fmt::Display for StackDirection {
         }
     }
 }
+#[zng_var::impl_property_value]
 impl StackDirection {
     /// New custom direction.
     pub fn new<P: Into<Point>, O: Into<Point>>(place: P, origin: O, is_rtl_aware: bool) -> Self {
@@ -81,8 +82,6 @@ impl StackDirection {
     /// `((100.pct(), 0), (0, 0))`, items are placed in a row from left to right.
     ///
     /// Alignment works on the `y` direction because it is not affected.
-    ///
-    /// The shorthand unit `left_to_right!` converts into this.
     pub fn left_to_right() -> Self {
         Self {
             place: (100.pct(), 0).into(),
@@ -94,8 +93,6 @@ impl StackDirection {
     /// `((0, 0), (100.pct(), 0))`, items are placed in a row from right to left.
     ///
     /// Alignment works on the `y` direction because it is not affected.
-    ///
-    /// The shorthand unit `right_to_left!` converts into this.
     pub fn right_to_left() -> Self {
         Self {
             place: (0, 0).into(),
@@ -111,8 +108,6 @@ impl StackDirection {
     /// Alignment works on the `y` direction because it is not affected.
     ///
     /// [`LayoutDirection::RTL`]: zng_wgt::prelude::LayoutDirection::RTL
-    ///
-    /// The shorthand unit `start_to_end!` converts into this.
     pub fn start_to_end() -> Self {
         Self {
             place: (100.pct(), 0).into(),
@@ -128,8 +123,6 @@ impl StackDirection {
     /// Alignment works on the `y` direction because it is not affected.
     ///
     /// [`LayoutDirection::RTL`]: zng_wgt::prelude::LayoutDirection::RTL
-    ///
-    /// The shorthand unit `end_to_start!` converts into this.
     pub fn end_to_start() -> Self {
         Self {
             place: (0, 0).into(),
@@ -141,8 +134,6 @@ impl StackDirection {
     /// `((0, 100.pct()), (0, 0))`, items are placed in a column from top to bottom.
     ///  
     /// Alignment works on the `x` direction because it is not affected.
-    ///
-    /// The shorthand unit `top_to_bottom!` converts into this.
     pub fn top_to_bottom() -> Self {
         Self {
             place: (0, 100.pct()).into(),
@@ -154,8 +145,6 @@ impl StackDirection {
     /// `(0, 0), (0, 100.pct())`, items are placed in a column from bottom to top.
     ///  
     /// Alignment works on the `x` direction because it is not affected.
-    ///
-    /// The shorthand unit `bottom_to_top!` converts into this.
     pub fn bottom_to_top() -> Self {
         Self {
             place: (0, 0).into(),
@@ -171,8 +160,6 @@ impl StackDirection {
     /// Note that items are always rendered in the order defined by the [`z_index`] property.
     ///
     /// [`z_index`]: fn@zng_wgt::z_index
-    ///
-    /// The shorthand unit `none!` converts into this.
     pub fn none() -> Self {
         Self {
             place: Point::zero(),
@@ -258,28 +245,6 @@ impl_from_and_into_var! {
     /// New from place, origin, and RTL aware flag.
     fn from<P: Into<Point>, O: Into<Point>>((origin, size, rtl_aware): (P, O, bool)) -> StackDirection {
         StackDirection::new(origin, size, rtl_aware)
-    }
-
-    fn from(_: ShorthandUnit![left_to_right]) -> StackDirection {
-        StackDirection::left_to_right()
-    }
-    fn from(_: ShorthandUnit![right_to_left]) -> StackDirection {
-        StackDirection::right_to_left()
-    }
-    fn from(_: ShorthandUnit![start_to_end]) -> StackDirection {
-        StackDirection::start_to_end()
-    }
-    fn from(_: ShorthandUnit![end_to_start]) -> StackDirection {
-        StackDirection::end_to_start()
-    }
-    fn from(_: ShorthandUnit![top_to_bottom]) -> StackDirection {
-        StackDirection::top_to_bottom()
-    }
-    fn from(_: ShorthandUnit![bottom_to_top]) -> StackDirection {
-        StackDirection::bottom_to_top()
-    }
-    fn from(_: ShorthandUnit![none]) -> StackDirection {
-        StackDirection::none()
     }
 }
 impl<S: Into<Factor2d>> ops::Mul<S> for StackDirection {

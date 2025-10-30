@@ -22,57 +22,30 @@ crate::declare_id! {
 
 /// Defines how the A8 image mask pixels are to be derived from a source mask image.
 #[derive(Debug, Copy, Clone, Serialize, PartialEq, Eq, Hash, Deserialize, Default)]
+#[cfg_attr(feature = "var", zng_var::impl_property_value)]
 #[non_exhaustive]
 pub enum ImageMaskMode {
     /// Alpha channel.
     ///
     /// If the image has no alpha channel masks by `Luminance`.
-    ///
-    /// The shorthand unit `A!` converts into this.
     #[default]
     A,
     /// Blue channel.
     ///
     /// If the image has no color channel fallback to monochrome channel, or `A`.
-    ///
-    /// The shorthand unit `B!` converts into this.
     B,
     /// Green channel.
     ///
     /// If the image has no color channel fallback to monochrome channel, or `A`.
-    ///
-    /// The shorthand unit `G!` converts into this.
     G,
     /// Red channel.
     ///
     /// If the image has no color channel fallback to monochrome channel, or `A`.
-    ///
-    /// The shorthand unit `R!` converts into this.
     R,
     /// Relative luminance.
     ///
     /// If the image has no color channel fallback to monochrome channel, or `A`.
-    ///
-    /// The shorthand unit `Luminance!` converts into this.
     Luminance,
-}
-#[cfg(feature = "var")]
-zng_var::impl_from_and_into_var! {
-    fn from(_: ShorthandUnit![A]) -> ImageMaskMode {
-        ImageMaskMode::A
-    }
-    fn from(_: ShorthandUnit![B]) -> ImageMaskMode {
-        ImageMaskMode::B
-    }
-    fn from(_: ShorthandUnit![G]) -> ImageMaskMode {
-        ImageMaskMode::G
-    }
-    fn from(_: ShorthandUnit![R]) -> ImageMaskMode {
-        ImageMaskMode::R
-    }
-    fn from(_: ShorthandUnit![Luminance]) -> ImageMaskMode {
-        ImageMaskMode::Luminance
-    }
 }
 
 /// Represent a image load/decode request.
@@ -122,6 +95,7 @@ impl<D> ImageRequest<D> {
 /// The image aspect ratio is preserved in both modes, the image is not upscaled, if it already fits the size
 /// constraints if will not be resized.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "var", zng_var::impl_property_value)]
 pub enum ImageDownscale {
     /// Image is downscaled so that both dimensions fit inside the size.
     Fit(PxSize),
@@ -347,6 +321,7 @@ pub struct ImagePpi {
     /// Pixels-per-inch in the Y dimension.
     pub y: f32,
 }
+#[cfg_attr(feature = "var", zng_var::impl_property_value(:Default))]
 impl ImagePpi {
     /// New from x, y.
     pub const fn new(x: f32, y: f32) -> Self {
@@ -378,6 +353,7 @@ impl ImagePpi {
 
     const CM_TO_INCH: f32 = 2.54;
 }
+#[cfg_attr(feature = "var", zng_var::impl_property_value(Default))]
 impl Default for ImagePpi {
     /// 96.0
     fn default() -> Self {

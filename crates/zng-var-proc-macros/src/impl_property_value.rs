@@ -207,6 +207,10 @@ fn expand_impl(args: &Args, errors: &mut Errors, impl_block: syn::ItemImpl) -> (
                     || f.sig.unsafety.is_some()
                     || f.sig.variadic.is_some()
                     || f.sig.inputs.first().map(|a| matches!(a, syn::FnArg::Receiver(_))).unwrap_or(false)
+                    || match &f.sig.output {
+                        syn::ReturnType::Default => false,
+                        syn::ReturnType::Type(_, t) => !ty_is_self(t),
+                    }
                 {
                     continue;
                 }

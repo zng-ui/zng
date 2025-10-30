@@ -172,26 +172,17 @@ impl<'de> serde::Deserialize<'de> for TabIndex {
 ///
 /// See the [module level](../#tab-navigation) for an overview of tab navigation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[zng_var::impl_property_value]
 pub enum TabNav {
     /// Tab can move into the scope, but does not move the focus inside the scope.
-    ///
-    /// The shorthand unit `None!` converts into this.
     None,
     /// Tab moves the focus through the scope continuing out after the last item.
-    ///
-    /// The shorthand unit `Continue!` converts into this.
     Continue,
     /// Tab is contained in the scope, does not move after the last item.
-    ///
-    /// The shorthand unit `Contained!` converts into this.
     Contained,
     /// Tab is contained in the scope, after the last item moves to the first item in the scope.
-    ///
-    /// The shorthand unit `Cycle!` converts into this.
     Cycle,
     /// Tab moves into the scope once but then moves out of the scope.
-    ///
-    /// The shorthand unit `Once!` converts into this.
     Once,
 }
 impl fmt::Debug for TabNav {
@@ -208,44 +199,20 @@ impl fmt::Debug for TabNav {
         }
     }
 }
-impl_from_and_into_var! {
-    fn from(_: ShorthandUnit![None]) -> TabNav {
-        TabNav::None
-    }
-    fn from(_: ShorthandUnit![Continue]) -> TabNav {
-        TabNav::Continue
-    }
-    fn from(_: ShorthandUnit![Contained]) -> TabNav {
-        TabNav::Contained
-    }
-    fn from(_: ShorthandUnit![Cycle]) -> TabNav {
-        TabNav::Cycle
-    }
-    fn from(_: ShorthandUnit![Once]) -> TabNav {
-        TabNav::Once
-    }
-}
 
 /// Directional navigation configuration of a focus scope.
 ///
 /// See the [module level](../#directional-navigation) for an overview of directional navigation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[zng_var::impl_property_value]
 pub enum DirectionalNav {
     /// Arrows can move into the scope, but does not move the focus inside the scope.
-    ///
-    /// The shorthand unit `None!` converts into this.
     None,
     /// Arrows move the focus through the scope continuing out of the edges.
-    ///
-    /// The shorthand unit `Continue!` converts into this.
     Continue,
     /// Arrows move the focus inside the scope only, stops at the edges.
-    ///
-    /// The shorthand unit `Contained!` converts into this.
     Contained,
     /// Arrows move the focus inside the scope only, cycles back to opposite edges.
-    ///
-    /// The shorthand unit `Cycle!` converts into this.
     Cycle,
 }
 impl fmt::Debug for DirectionalNav {
@@ -259,20 +226,6 @@ impl fmt::Debug for DirectionalNav {
             DirectionalNav::Contained => write!(f, "Contained"),
             DirectionalNav::Cycle => write!(f, "Cycle"),
         }
-    }
-}
-impl_from_and_into_var! {
-    fn from(_: ShorthandUnit![None]) -> DirectionalNav {
-        DirectionalNav::None
-    }
-    fn from(_: ShorthandUnit![Continue]) -> DirectionalNav {
-        DirectionalNav::Continue
-    }
-    fn from(_: ShorthandUnit![Contained]) -> DirectionalNav {
-        DirectionalNav::Contained
-    }
-    fn from(_: ShorthandUnit![Cycle]) -> DirectionalNav {
-        DirectionalNav::Cycle
     }
 }
 
@@ -1790,11 +1743,10 @@ pub enum FocusInfo {
 }
 
 /// Behavior of a focus scope when it receives direct focus.
-#[derive(Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Eq, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+#[zng_var::impl_property_value]
 pub enum FocusScopeOnFocus {
     /// Just focus the scope widget.
-    ///
-    /// The shorthand unit `Widget!` converts into this.
     Widget,
     /// Focus the first descendant considering the TAB index, if the scope has no descendants
     /// behaves like [`Widget`].
@@ -1804,9 +1756,8 @@ pub enum FocusScopeOnFocus {
     /// Behaves like [`Widget`] if the first(or last) descendant inner-bounds is not fully contained
     /// by the scope inner-bounds.
     ///
-    /// The shorthand unit `FirstDescendant!` converts into this.
-    ///
     /// [`Widget`]: Self::Widget
+    #[default]
     FirstDescendant,
     /// Focus the descendant that was last focused before focus moved out of the scope. If the
     /// scope cannot return focus, behaves like [`FirstDescendant`].
@@ -1816,8 +1767,6 @@ pub enum FocusScopeOnFocus {
     ///
     /// Behaves like [`Widget`] if the first(or last) descendant inner-bounds is not fully contained
     /// by the scope inner-bounds.
-    ///
-    /// The shorthand unit `LastFocused!` converts into this.
     ///
     /// [`Widget`]: Self::Widget
     /// [`FirstDescendant`]: Self::FirstDescendant
@@ -1829,8 +1778,6 @@ pub enum FocusScopeOnFocus {
     /// The expectation is that the descendant is already visible or will be made visible when
     /// it receives focus, a scroll scope will scroll to make the descendant visible for example.
     ///
-    /// The shorthand unit `FirstDescendantIgnoreBounds!` converts into this.
-    ///
     /// [`FirstDescendant`]: Self::FirstDescendant
     FirstDescendantIgnoreBounds,
 
@@ -1839,8 +1786,6 @@ pub enum FocusScopeOnFocus {
     ///
     /// The expectation is that the descendant is already visible or will be made visible when
     /// it receives focus, a scroll scope will scroll to make the descendant visible for example.
-    ///
-    /// The shorthand unit `LastFocusedIgnoreBounds!` converts into this.
     ///
     /// [`LastFocused`]: Self::LastFocused
     LastFocusedIgnoreBounds,
@@ -1857,29 +1802,6 @@ impl fmt::Debug for FocusScopeOnFocus {
             FocusScopeOnFocus::FirstDescendantIgnoreBounds => write!(f, "FirstDescendantIgnoreBounds"),
             FocusScopeOnFocus::LastFocusedIgnoreBounds => write!(f, "LastFocusedIgnoreBounds"),
         }
-    }
-}
-impl Default for FocusScopeOnFocus {
-    /// [`FirstDescendant`](Self::FirstDescendant)
-    fn default() -> Self {
-        FocusScopeOnFocus::FirstDescendant
-    }
-}
-impl_from_and_into_var! {
-    fn from(_: ShorthandUnit![Widget]) -> FocusScopeOnFocus {
-        FocusScopeOnFocus::Widget
-    }
-    fn from(_: ShorthandUnit![FirstDescendant]) -> FocusScopeOnFocus {
-        FocusScopeOnFocus::FirstDescendant
-    }
-    fn from(_: ShorthandUnit![LastFocused]) -> FocusScopeOnFocus {
-        FocusScopeOnFocus::Widget
-    }
-    fn from(_: ShorthandUnit![FirstDescendantIgnoreBounds]) -> FocusScopeOnFocus {
-        FocusScopeOnFocus::FirstDescendantIgnoreBounds
-    }
-    fn from(_: ShorthandUnit![LastFocusedIgnoreBounds]) -> FocusScopeOnFocus {
-        FocusScopeOnFocus::LastFocusedIgnoreBounds
     }
 }
 

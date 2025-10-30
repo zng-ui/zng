@@ -56,9 +56,6 @@ pub(crate) mod future;
 /// The `U: From<T>` implement is optional, you can use the syntax `fn from(t: T) -> U;` to only generate
 /// the `T: IntoVar<U>` and `T: IntoValue<U>` implementations using an already implemented `U: From<T>`.
 ///
-/// The macro also matches input `_: ShorthandUnit![$ident]` to implement conversions from [`ShorthandUnit!`]. This is
-/// an exact match, you don't need to import [`ShorthandUnit!`].
-///
 /// # Examples
 ///
 /// The example declares an `enum` that represents the values possible in a property `foo` and
@@ -80,16 +77,6 @@ pub(crate) mod future;
 ///
 ///     // generates only `IntoVar<FooValue> for Foo`.
 ///     fn from(_: Foo) -> FooValue;
-///
-///     // Bind shorthand `On!` with variant
-///     fn from(_: ShorthandUnit![On]) -> FooValue {
-///         FooValue::On
-///     }
-///
-///     // Bind shorthand `Off!` with variant
-///     fn from(_: ShorthandUnit![Off]) -> FooValue {
-///         FooValue::Off
-///     }
 /// }
 ///
 /// impl From<Foo> for FooValue {
@@ -101,7 +88,6 @@ pub(crate) mod future;
 /// # fn assert(_: impl IntoVar<FooValue> + IntoValue<FooValue>) { }
 /// # assert(true);
 /// # assert(Foo);
-/// # assert(ShorthandUnit![On]);
 /// ```
 #[macro_export]
 macro_rules! impl_from_and_into_var {

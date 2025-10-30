@@ -29,11 +29,10 @@ pub use expr::*;
 /// * `Relative`, `Em`, `RootEm` lengths use the [`Factor`] equality.
 /// * Viewport lengths uses [`about_eq`] with `0.00001` granularity.
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[zng_var::impl_property_value]
 #[non_exhaustive]
 pub enum Length {
     /// The default (initial) value.
-    ///
-    /// The shorthand unit `Default!` converts into this.
     Default,
     /// The exact length in device independent units.
     Dip(Dip),
@@ -487,10 +486,6 @@ impl_from_and_into_var! {
 
     fn from(expr: LengthExpr) -> Length {
         Length::Expr(Box::new(expr))
-    }
-
-    fn from(_: ShorthandUnit![Default]) -> Length {
-        Length::Default
     }
 }
 impl Length {

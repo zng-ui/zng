@@ -402,14 +402,13 @@ impl TextWrapMix<()> {
 
 /// Defines how text overflow is handled by the text widgets.
 #[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[impl_property_value(Enum)]
 pub enum TextOverflow {
     /// Text is allowed to overflow.
     ///
     /// Note that the text widget can still [`clip_to_bounds`], and text widgets also clip any text
     /// that overflows over one line-height in any direction. Text overflow is tracked even if `Ignore`
     /// is set, so custom properties may also implement some form of overflow handling.
-    ///
-    /// The shorthand unit `Ignore!` converts into this.
     ///
     /// [`clip_to_bounds`]: fn@zng_wgt::clip_to_bounds
     Ignore,
@@ -430,17 +429,14 @@ impl fmt::Debug for TextOverflow {
         }
     }
 }
+#[impl_property_value(:Enum)]
 impl TextOverflow {
     /// Truncate without suffix.
-    ///
-    /// The shorthand unit `truncate!` converts into this.
     pub fn truncate() -> Self {
         Self::Truncate(Txt::from_static(""))
     }
 
     /// Truncate with the ellipses `'…'` char as suffix.
-    ///
-    /// The shorthand unit `ellipses!` converts into this.
     pub fn ellipses() -> Self {
         Self::Truncate(Txt::from_char('…'))
     }
@@ -462,16 +458,6 @@ impl_from_and_into_var! {
     }
     fn from(c: char) -> TextOverflow {
         Txt::from(c).into()
-    }
-
-    fn from(_: ShorthandUnit![Ignore]) -> TextOverflow {
-        TextOverflow::Ignore
-    }
-    fn from(_: ShorthandUnit![truncate]) -> TextOverflow {
-        TextOverflow::truncate()
-    }
-    fn from(_: ShorthandUnit![ellipses]) -> TextOverflow {
-        TextOverflow::ellipses()
     }
 }
 
@@ -650,24 +636,13 @@ impl Default for UnderlineSkip {
 
 /// Defines what line gets traced by the text underline decoration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[impl_property_value]
 pub enum UnderlinePosition {
     /// Underline is positioned using the offset defined in the font file.
-    ///
-    /// The shorthand unit `Font` converts into this.
     #[default]
     Font,
     /// Underline is positioned after the text *descent*, avoiding crossover with all glyph descenders.
-    ///
-    /// The shorthand unit `Descent` converts into this.
     Descent,
-}
-impl_from_and_into_var! {
-    fn from(_: ShorthandUnit![Font]) -> UnderlinePosition {
-        UnderlinePosition::Font
-    }
-    fn from(_: ShorthandUnit![Descent]) -> UnderlinePosition {
-        UnderlinePosition::Descent
-    }
 }
 
 context_var! {
@@ -1357,19 +1332,14 @@ impl fmt::Debug for CaretShape {
 
 /// Defines when the interactive carets are used.
 #[derive(Default, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[impl_property_value]
 pub enum InteractiveCaretMode {
     /// Uses interactive carets only for touch selections, uses non-interactive caret for other selections.
-    ///
-    /// The shorthand unit `TouchOnly` converts into this.
     #[default]
     TouchOnly,
     /// Uses interactive carets for all selections.
-    ///
-    /// The shorthand unit `Enabled` converts into this.
     Enabled,
     /// Uses non-interactive carets for all selections.
-    ///
-    /// The shorthand unit `Disabled` converts into this.
     Disabled,
 }
 impl fmt::Debug for InteractiveCaretMode {
@@ -1391,16 +1361,6 @@ impl_from_and_into_var! {
         } else {
             InteractiveCaretMode::Disabled
         }
-    }
-
-    fn from(_: ShorthandUnit![TouchOnly]) -> InteractiveCaretMode {
-        InteractiveCaretMode::TouchOnly
-    }
-    fn from(_: ShorthandUnit![Enabled]) -> InteractiveCaretMode {
-        InteractiveCaretMode::Enabled
-    }
-    fn from(_: ShorthandUnit![Disabled]) -> InteractiveCaretMode {
-        InteractiveCaretMode::Disabled
     }
 }
 

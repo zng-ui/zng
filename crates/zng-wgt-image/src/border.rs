@@ -219,17 +219,4 @@ impl_from_and_into_var! {
     fn from<TB: Into<RepeatMode>, LR: Into<RepeatMode>>((top_bottom, left_right): (TB, LR)) -> BorderRepeats {
         BorderRepeats::new(top_bottom, left_right)
     }
-
-    fn from(_: ShorthandUnit![Stretch]) -> BorderRepeats {
-        RepeatMode::Stretch.into()
-    }
-    fn from(_: ShorthandUnit![Repeat]) -> BorderRepeats {
-        RepeatMode::Repeat.into()
-    }
-    fn from(_: ShorthandUnit![Round]) -> BorderRepeats {
-        RepeatMode::Round.into()
-    }
-    fn from(_: ShorthandUnit![Space]) -> BorderRepeats {
-        RepeatMode::Space.into()
-    }
 }

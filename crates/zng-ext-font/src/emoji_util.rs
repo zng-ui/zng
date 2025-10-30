@@ -481,16 +481,13 @@ impl<'a> ColorGlyph<'a> {
 
 /// Color palette selector for colored fonts.
 #[derive(Clone, Copy, PartialEq, Eq)]
+#[zng_var::impl_property_value]
 pub enum FontColorPalette {
     /// Select first font palette tagged [`ColorPaletteType::USABLE_WITH_LIGHT_BACKGROUND`], or 0 if the
     /// font does not tag any palette or no match is found.
-    ///
-    /// The shorthand unit `Light!` converts into this.
     Light,
     /// Select first font palette tagged [`ColorPaletteType::USABLE_WITH_DARK_BACKGROUND`], or 0 if the
     /// font does not tag any palette or no match is found.
-    ///
-    /// The shorthand unit `Dark!` converts into this.
     Dark,
     /// Select one of the font provided palette by index.
     ///
@@ -523,12 +520,5 @@ impl_from_and_into_var! {
             ColorScheme::Dark => FontColorPalette::Dark,
             _ => FontColorPalette::Light,
         }
-    }
-
-    fn from(_: ShorthandUnit![Light]) -> FontColorPalette {
-        FontColorPalette::Light
-    }
-    fn from(_: ShorthandUnit![Dark]) -> FontColorPalette {
-        FontColorPalette::Dark
     }
 }

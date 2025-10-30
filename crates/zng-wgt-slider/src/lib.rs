@@ -401,55 +401,24 @@ static_id! {
 
 /// Slider orientation and direction.
 #[derive(Clone, Copy, PartialEq, Eq)]
+#[zng_var::impl_property_value]
 pub enum SliderDirection {
     /// Horizontal. Minimum at start, maximum at end.
     ///
     /// Start is left in LTR contexts and right in RTL contexts.
-    ///
-    /// The shorthand unit `StartToEnd!` converts into this.
     StartToEnd,
     /// Horizontal. Minimum at end, maximum at start.
     ///
     /// Start is left in LTR contexts and right in RTL contexts.
-    ///
-    /// The shorthand unit `EndToStart!` converts into this.
     EndToStart,
     /// Horizontal. Minimum at left, maximum at right.
-    ///
-    /// The shorthand unit `LeftToRight!` converts into this.
     LeftToRight,
     /// Horizontal. Minimum at right, maximum at left.
-    ///
-    /// The shorthand unit `RightToLeft!` converts into this.
     RightToLeft,
     /// Vertical. Minimum at bottom, maximum at top.
-    ///
-    /// The shorthand unit `BottomToTop!` converts into this.
     BottomToTop,
     /// Vertical. Minimum at top, maximum at bottom.
-    ///
-    /// The shorthand unit `TopToBottom!` converts into this.
     TopToBottom,
-}
-impl_from_and_into_var! {
-    fn from(_: ShorthandUnit![StartToEnd]) -> SliderDirection {
-        SliderDirection::StartToEnd
-    }
-    fn from(_: ShorthandUnit![EndToStart]) -> SliderDirection {
-        SliderDirection::EndToStart
-    }
-    fn from(_: ShorthandUnit![LeftToRight]) -> SliderDirection {
-        SliderDirection::LeftToRight
-    }
-    fn from(_: ShorthandUnit![RightToLeft]) -> SliderDirection {
-        SliderDirection::RightToLeft
-    }
-    fn from(_: ShorthandUnit![BottomToTop]) -> SliderDirection {
-        SliderDirection::BottomToTop
-    }
-    fn from(_: ShorthandUnit![TopToBottom]) -> SliderDirection {
-        SliderDirection::TopToBottom
-    }
 }
 impl SliderDirection {
     /// Slider track is vertical.

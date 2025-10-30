@@ -121,7 +121,6 @@ pub struct Attributes {
     pub docs: Vec<Attribute>,
     pub cfg: Option<Attribute>,
     pub deprecated: Option<Attribute>,
-    pub lints: Vec<Attribute>,
     pub others: Vec<Attribute>,
 }
 impl Attributes {
@@ -129,7 +128,6 @@ impl Attributes {
         let mut docs = vec![];
         let mut cfg = None;
         let mut deprecated = None;
-        let mut lints = vec![];
         let mut others = vec![];
 
         for attr in attrs {
@@ -141,8 +139,6 @@ impl Attributes {
                     cfg = Some(attr);
                 } else if ident == "deprecated" {
                     deprecated = Some(attr);
-                } else if ident == "allow" || ident == "expect" || ident == "warn" || ident == "deny" || ident == "forbid" {
-                    lints.push(attr);
                 } else {
                     others.push(attr);
                 }
@@ -155,21 +151,13 @@ impl Attributes {
             docs,
             cfg,
             deprecated,
-            lints,
             others,
         }
     }
 }
 impl ToTokens for Attributes {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        for attr in self
-            .docs
-            .iter()
-            .chain(&self.cfg)
-            .chain(&self.deprecated)
-            .chain(&self.lints)
-            .chain(&self.others)
-        {
+        for attr in self.docs.iter().chain(&self.cfg).chain(&self.deprecated).chain(&self.others) {
             attr.to_tokens(tokens);
         }
     }
@@ -192,7 +180,7 @@ pub fn crate_core() -> TokenStream {
     let ident = Ident::new(&ident, Span::call_site());
     if !module.is_empty() {
         let module = Ident::new(module, Span::call_site());
-        quote! { #ident::#module }
+        quote! { #ident::#module::var }
     } else {
         ident.to_token_stream()
     }

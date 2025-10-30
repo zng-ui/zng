@@ -167,31 +167,22 @@ impl_from_and_into_var! {
 /// is open just after the first [`UiNode::layout`] call.
 ///
 ///  [`UiNode::layout`]: zng_app::widget::node::UiNode::layout
-#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[zng_var::impl_property_value]
 pub enum StartPosition {
     /// Resolves to [`position`](crate::WindowVars::position).
-    ///
-    /// The shorthand unit `Default!` converts to this.
+    #[default]
     Default,
 
     /// Centralizes the window in the monitor screen, defined by the [`monitor`](crate::WindowVars::monitor).
     ///
     /// Uses the `headless_monitor` in headless windows and falls back to not centering if no
     /// monitor was found in headed windows.
-    ///
-    /// The shorthand unit `CenterMonitor!` converts to this.
     CenterMonitor,
     /// Centralizes the window in the parent window, defined by the [`parent`](crate::WindowVars::parent).
     ///
     /// Falls back to center on the monitor if the window has no parent.
-    ///
-    /// The shorthand unit `CenterParent!` converts to this.
     CenterParent,
-}
-impl Default for StartPosition {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 impl fmt::Debug for StartPosition {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -203,17 +194,6 @@ impl fmt::Debug for StartPosition {
             StartPosition::CenterMonitor => write!(f, "CenterMonitor"),
             StartPosition::CenterParent => write!(f, "CenterParent"),
         }
-    }
-}
-impl_from_and_into_var! {
-    fn from(_: ShorthandUnit![Default]) -> StartPosition {
-        StartPosition::Default
-    }
-    fn from(_: ShorthandUnit![CenterMonitor]) -> StartPosition {
-        StartPosition::CenterMonitor
-    }
-    fn from(_: ShorthandUnit![CenterParent]) -> StartPosition {
-        StartPosition::CenterParent
     }
 }
 
@@ -234,10 +214,12 @@ bitflags! {
 }
 
 /// Window icon.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Default)]
+#[zng_var::impl_property_value(Enum)]
 #[non_exhaustive]
 pub enum WindowIcon {
     /// The operating system's default icon.
+    #[default]
     Default,
     /// Image is requested from [`IMAGES`].
     ///
@@ -257,12 +239,7 @@ impl fmt::Debug for WindowIcon {
         }
     }
 }
-impl Default for WindowIcon {
-    /// [`WindowIcon::Default`]
-    fn default() -> Self {
-        Self::Default
-    }
-}
+#[zng_var::impl_property_value(:Enum)]
 #[cfg(feature = "image")]
 impl WindowIcon {
     /// New window icon from a closure that generates a new icon [`UiNode`] for the window.
@@ -401,6 +378,7 @@ impl_from_and_into_var! {
 
 /// Window cursor source.
 #[derive(Debug, Clone, PartialEq)]
+#[zng_var::impl_property_value]
 pub enum CursorSource {
     /// Platform dependent named cursor icon.
     Icon(CursorIcon),
@@ -408,8 +386,6 @@ pub enum CursorSource {
     #[cfg(feature = "image")]
     Img(CursorImg),
     /// Don't show cursor.
-    ///
-    /// The shorthand unit `Hidden!` converts into this.
     Hidden,
 }
 impl CursorSource {
@@ -459,10 +435,6 @@ impl_from_and_into_var! {
         } else {
             CursorSource::Hidden
         }
-    }
-
-    fn from(_: ShorthandUnit![Hidden]) -> CursorSource {
-        CursorSource::Hidden
     }
 }
 

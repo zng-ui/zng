@@ -64,22 +64,15 @@ pub fn child_align(child: impl IntoUiNode, alignment: impl IntoVar<Align>) -> Ui
 ///
 /// [`child_insert`]: fn@child_insert
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[impl_property_value]
 pub enum ChildInsert {
     /// Insert node above the child.
-    ///
-    /// The shorthand unit `Top!` converts into this.
     Top,
     /// Insert node to the right of child.
-    ///
-    /// The shorthand unit `Right!` converts into this.
     Right,
     /// Insert node below the child.
-    ///
-    /// The shorthand unit `Bottom!` converts into this.
     Bottom,
     /// Insert node to the left of child.
-    ///
-    /// The shorthand unit `Left!` converts into this.
     Left,
 
     /// Insert node to the left of child in [`LayoutDirection::LTR`] contexts and to the right of child
@@ -87,29 +80,21 @@ pub enum ChildInsert {
     ///
     /// [`LayoutDirection::LTR`]: zng_wgt::prelude::LayoutDirection::LTR
     /// [`LayoutDirection::RTL`]: zng_wgt::prelude::LayoutDirection::RTL
-    ///
-    /// The shorthand unit `Start!` converts into this.
     Start,
     /// Insert node to the right of child in [`LayoutDirection::LTR`] contexts and to the left of child
     /// in [`LayoutDirection::RTL`] contexts.
     ///
     /// [`LayoutDirection::LTR`]: zng_wgt::prelude::LayoutDirection::LTR
     /// [`LayoutDirection::RTL`]: zng_wgt::prelude::LayoutDirection::RTL
-    ///
-    /// The shorthand unit `End!` converts into this.
     End,
 
     /// Insert node over the child.
     ///
     /// Spacing is ignored for this placement.
-    ///
-    /// The shorthand unit `Over!` converts into this.
     Over,
     /// Insert node under the child.
     ///
     /// Spacing is ignored for this placement.
-    ///
-    /// The shorthand unit `Under!` converts into this.
     Under,
 }
 impl fmt::Debug for ChildInsert {
@@ -173,32 +158,6 @@ impl ChildInsert {
             ChildInsert::Left => s.left.layout_x(),
             _ => Px(0),
         })
-    }
-}
-impl_from_and_into_var! {
-    fn from(_: ShorthandUnit![Top]) -> ChildInsert {
-        ChildInsert::Top
-    }
-    fn from(_: ShorthandUnit![Right]) -> ChildInsert {
-        ChildInsert::Right
-    }
-    fn from(_: ShorthandUnit![Bottom]) -> ChildInsert {
-        ChildInsert::Bottom
-    }
-    fn from(_: ShorthandUnit![Left]) -> ChildInsert {
-        ChildInsert::Left
-    }
-    fn from(_: ShorthandUnit![Start]) -> ChildInsert {
-        ChildInsert::Start
-    }
-    fn from(_: ShorthandUnit![End]) -> ChildInsert {
-        ChildInsert::End
-    }
-    fn from(_: ShorthandUnit![Over]) -> ChildInsert {
-        ChildInsert::Over
-    }
-    fn from(_: ShorthandUnit![Under]) -> ChildInsert {
-        ChildInsert::Under
     }
 }
 

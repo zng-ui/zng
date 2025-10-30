@@ -6,7 +6,7 @@ use bitflags::bitflags;
 use unicode_bidi::BidiDataSource as _;
 use zng_app_context::context_local;
 use zng_unit::{Factor, Px, PxRect, PxSize, about_eq, about_eq_hash, about_eq_ord, euclid};
-use zng_var::{context_var, impl_from_and_into_var};
+use zng_var::context_var;
 
 use atomic::{Atomic, Ordering::Relaxed};
 
@@ -520,7 +520,7 @@ impl LayoutMetrics {
                 scale_factor,
                 viewport,
                 screen_ppi: Ppi::default(),
-                direction: LayoutDirection::default(),
+                direction: LayoutDirection::LTR,
                 leftover: euclid::size2(None, None),
             },
         }
@@ -708,14 +708,11 @@ context_var! {
 ///
 /// [`Align`]: crate::unit::Align
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[zng_var::impl_property_value]
 pub enum LayoutDirection {
     /// left-to-right.
-    ///
-    /// The shorthand unit `LTR!` converts into this.
     LTR,
     /// Right-to-left.
-    ///
-    /// The shorthand unit `RTL!` converts into this.
     RTL,
 }
 impl LayoutDirection {
@@ -729,12 +726,6 @@ impl LayoutDirection {
         matches!(self, Self::RTL)
     }
 }
-impl Default for LayoutDirection {
-    /// Default is `LTR`.
-    fn default() -> Self {
-        Self::LTR
-    }
-}
 impl fmt::Debug for LayoutDirection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
@@ -744,14 +735,6 @@ impl fmt::Debug for LayoutDirection {
             Self::LTR => write!(f, "LTR"),
             Self::RTL => write!(f, "RTL"),
         }
-    }
-}
-impl_from_and_into_var! {
-    fn from(_: ShorthandUnit![LTR]) -> LayoutDirection {
-        LayoutDirection::LTR
-    }
-    fn from(_: ShorthandUnit![RTL]) -> LayoutDirection {
-        LayoutDirection::RTL
     }
 }
 

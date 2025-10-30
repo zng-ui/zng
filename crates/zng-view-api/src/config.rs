@@ -180,23 +180,16 @@ impl LocaleConfig {
 /// Text anti-aliasing.
 #[derive(Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
+#[cfg_attr(feature = "var", zng_var::impl_property_value)]
 pub enum FontAntiAliasing {
     /// Uses the operating system configuration.
-    ///
-    /// The shorthand unit `Default!` converts into this.
     #[default]
     Default,
     /// Sub-pixel anti-aliasing if a fast implementation is available, otherwise uses `Alpha`.
-    ///
-    /// The shorthand unit `Subpixel!` converts into this.
     Subpixel,
     /// Alpha blending anti-aliasing.
-    ///
-    /// The shorthand unit `Alpha!` converts into this.
     Alpha,
     /// Disable anti-aliasing.
-    ///
-    /// The shorthand unit `Mono!` converts into this.
     Mono,
 }
 impl fmt::Debug for FontAntiAliasing {
@@ -212,40 +205,21 @@ impl fmt::Debug for FontAntiAliasing {
         }
     }
 }
-impl_from_and_into_var! {
-    fn from(_: ShorthandUnit![Default]) -> FontAntiAliasing {
-        FontAntiAliasing::Default
-    }
-    fn from(_: ShorthandUnit![Subpixel]) -> FontAntiAliasing {
-        FontAntiAliasing::Subpixel
-    }
-    fn from(_: ShorthandUnit![Alpha]) -> FontAntiAliasing {
-        FontAntiAliasing::Alpha
-    }
-    fn from(_: ShorthandUnit![Mono]) -> FontAntiAliasing {
-        FontAntiAliasing::Mono
-    }
-}
 
 /// Color scheme preference.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[non_exhaustive]
+#[cfg_attr(feature = "var", zng_var::impl_property_value)]
 pub enum ColorScheme {
     /// Dark text, light background.
-    ///
-    /// The shorthand unit `Light!` converts into this.
+    #[default]
     Light,
 
     /// Light text, dark background.
-    ///
-    /// The shorthand unit `Dark!` converts into this.
     Dark,
 }
-impl Default for ColorScheme {
-    /// Light.
-    fn default() -> Self {
-        ColorScheme::Light
-    }
+impl_from_and_into_var! {
+    fn from(_: ColorScheme) -> Option<ColorScheme>;
 }
 
 /// System colors and color scheme.
@@ -273,18 +247,6 @@ impl Default for ColorsConfig {
             scheme: Default::default(),
             accent: Rgba::new(10, 10, 200, 255),
         }
-    }
-}
-
-#[cfg(feature = "var")]
-zng_var::impl_from_and_into_var! {
-    fn from(some: ColorScheme) -> Option<ColorScheme>;
-
-    fn from(_: ShorthandUnit![Light]) -> ColorScheme {
-        ColorScheme::Light
-    }
-    fn from(_: ShorthandUnit![Dark]) -> ColorScheme {
-        ColorScheme::Dark
     }
 }
 
@@ -317,6 +279,7 @@ impl ChromeConfig {
     }
 }
 impl Default for ChromeConfig {
+    /// Prefer custom false, provided true.
     fn default() -> Self {
         Self {
             prefer_custom: false,

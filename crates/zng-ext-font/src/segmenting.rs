@@ -38,11 +38,20 @@ impl TextSegment {
 ///
 /// Each segment is tagged with a [`TextSegmentKind`] and is defines as
 /// an offset from the last segment.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SegmentedText {
     text: Txt,
     segments: Vec<TextSegment>,
     base_direction: LayoutDirection,
+}
+impl Default for SegmentedText {
+    fn default() -> Self {
+        Self {
+            text: "".into(),
+            segments: vec![],
+            base_direction: LayoutDirection::LTR,
+        }
+    }
 }
 impl SegmentedText {
     /// New segmented text from any text type.

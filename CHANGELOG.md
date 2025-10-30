@@ -16,8 +16,7 @@
     - See `zng::window` documentation for theming tips.
 
 * Add shorthand value syntax for widgets to reduce the need for importing value types.
-    - The syntax `ident!` that was previously used only for `unset!` now can be any ident.
-    - Value types can implement conversions from `ShorthandUnit![ident]` to support a shorthand.
+    - !!: TODO
 
 * Unify `MixBlendMode` type with view API.
     - **Breaking** Remove `zng::color::RenderMixBlendMode`.
