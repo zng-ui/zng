@@ -292,7 +292,10 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
             match crate::with_deadline(crate::wait(move || receiver.join()), 1.secs()).await {
                 Ok(r) => {
                     if let Err(p) = r {
-                        tracing::error!("worker receiver thread exited panicked, {}", TaskPanicError::new(p).panic_str().unwrap_or(""));
+                        tracing::error!(
+                            "worker receiver thread exited panicked, {}",
+                            TaskPanicError::new(p).panic_str().unwrap_or("")
+                        );
                     }
                 }
                 Err(_) => {
@@ -355,7 +358,10 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
             let (t, p) = self.running.take().unwrap();
 
             if let Err(e) = t.join() {
-                tracing::error!("panic in worker receiver thread, {}", TaskPanicError::new(e).panic_str().unwrap_or(""));
+                tracing::error!(
+                    "panic in worker receiver thread, {}",
+                    TaskPanicError::new(e).panic_str().unwrap_or("")
+                );
             }
 
             if let Err(e) = p.kill() {
