@@ -1,5 +1,5 @@
-use proc_macro2::{Span, TokenStream, TokenTree};
-use quote::{ToTokens, TokenStreamExt, quote};
+use proc_macro2::{Delimiter, Span, TokenStream, TokenTree};
+use quote::{ToTokens, quote};
 use syn::{ext::IdentExt, parse::Parse, spanned::Spanned, *};
 
 use crate::{
@@ -644,91 +644,18 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
                 }
             }
             widget_util::PropertyValue::Unnamed(val) => {
-                // replace `#ident!` with `$crate::var::ShorthandUnit![#ident]`.
-                let mut final_val = quote!();
-                let mut iter = val.clone().into_iter();
-                let mut start = true;
-                let crate_core = util::crate_core();
-                while let Some(tt0) = iter.next() {
-                    if start {
-                        if let TokenTree::Ident(id) = &tt0 {
-                            if let Some(tt1) = iter.next() {
-                                if let TokenTree::Punct(p) = &tt1
-                                    && p.as_char() == '!'
-                                {
-                                    if let Some(tt2) = iter.next() {
-                                        if let TokenTree::Punct(p) = &tt2
-                                            && p.as_char() == ','
-                                        {
-                                            // matches ident!,
-                                            final_val.extend(quote_spanned! {id.span()=>
-                                                #crate_core::var::ShorthandUnit![#id]
-                                            });
-                                            start = true;
-                                            final_val.append(tt0);
-                                            final_val.append(tt1);
-                                            final_val.append(tt2);
-                                        } else {
-                                            // !Punct(',')
-                                            start = false;
-                                            final_val.append(tt0);
-                                            final_val.append(tt1);
-                                            final_val.append(tt2);
-                                        }
-                                    } else {
-                                        // None
-                                        // matches ident!<EOS>
-                                        let s = quote_spanned! {id.span()=>
-                                            #crate_core::var::ShorthandUnit![#id]
-                                        };
-                                        final_val.extend(util::set_stream_span(s, id.span()));
-                                    }
-                                } else {
-                                    // !Punct('!')
-                                    start = false;
-                                    final_val.append(tt0);
-                                    final_val.append(tt1);
-                                }
-                            } else {
-                                // None
-                                start = matches!(&tt0, TokenTree::Punct(p) if p.as_char() == ',');
-                                final_val.append(tt0);
-                            }
-                        } else {
-                            // !Ident
-                            // could be invalid code like ,,
-                            start = matches!(&tt0, TokenTree::Punct(p) if p.as_char() == ',');
-                            final_val.append(tt0);
-                        }
-                    } else {
-                        // !start
-                        start = matches!(&tt0, TokenTree::Punct(p) if p.as_char() == ',');
-                        final_val.append(tt0);
-                    }
-                }
                 // make call
-                prop_init = quote_call!( #ident(#final_val));
+                let val = shorthand(prop, None, val.clone());
+                prop_init = quote_call!( #ident(#val));
             }
             widget_util::PropertyValue::Named(_, fields) => {
                 let mut idents_sorted: Vec<_> = fields.iter().map(|f| &f.ident).collect();
                 idents_sorted.sort();
-                let idents = fields.iter().map(|f| &f.ident);
+                let idents: Vec<_> = fields.iter().map(|f| &f.ident).collect();
                 let mut values: Vec<_> = fields.iter().map(|f| f.expr.clone()).collect();
-                let crate_core = util::crate_core();
-                // replace `#ident!` with `$crate::var::ShorthandUnit![#ident]`.
-                for expr in &mut values {
-                    let mut iter = expr.clone().into_iter();
-                    if let Some(TokenTree::Ident(id)) = iter.next()
-                        && let Some(TokenTree::Punct(p)) = iter.next()
-                        && p.as_char() == '!'
-                        && iter.next().is_none()
-                    {
-                        // matches ident!<EOS>
-                        let s = quote_spanned! {id.span()=>
-                            #crate_core::var::ShorthandUnit![#id]
-                        };
-                        *expr = util::set_stream_span(s, id.span());
-                    }
+                // replace `#ident!` with `$crate::var::PropertyValue::assoc_items(&property_.arg_ident_sample()).#ident()`.
+                for (expr, &field_id) in values.iter_mut().zip(&idents) {
+                    *expr = shorthand(prop, Some(field_id), expr.clone());
                 }
 
                 let ident_sorted = ident_spanned!(ident.span()=> "{}__", ident);
@@ -772,6 +699,120 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
             #expand
         }
     }
+}
+fn shorthand(prop: &WgtProperty, field_ident: Option<&Ident>, val: TokenStream) -> TokenStream {
+    let core = util::crate_core();
+    let path = &prop.path;
+    let ident = prop.ident();
+    let generics = &prop.generics;
+    macro_rules! quote_call {
+        (#$mtd:ident ( $($args:tt)* )) => {
+            if path.get_ident().is_some() { // is single ident
+                quote! {
+                    wgt__.#$mtd #generics($($args)*);
+                }
+            } else {
+                quote! {
+                    #path::#$mtd #generics(#core::widget::base::WidgetImpl::base(&mut *wgt__), $($args)*);
+                }
+            }
+        }
+    }
+    let ident_meta = ident_spanned!(ident.span()=> "{}_", ident);
+
+    // replace `#ident!` with `$crate::var::PropertyValue::assoc_items(&property_.arg_sample()).#ident()`.
+    let val: Vec<_> = val.clone().into_iter().collect();
+    let mut final_val = Vec::with_capacity(val.len());
+    let mut i = 0;
+    let mut arg_i = 0;
+    let is_punct = |i, c| matches!(val.get(i), Some(TokenTree::Punct(p)) if p.as_char() == c);
+    let get_ident = |i| {
+        if let Some(TokenTree::Ident(id)) = val.get(i) {
+            Some(id)
+        } else {
+            None
+        }
+    };
+    let is_group = |i| matches!(val.get(i), Some(TokenTree::Group(_)));
+    let get_parens = |i| {
+        if let Some(TokenTree::Group(g)) = val.get(i)
+            && matches!(g.delimiter(), Delimiter::Parenthesis)
+        {
+            Some(g)
+        } else {
+            None
+        }
+    };
+    let crate_core = util::crate_core();
+    while i < val.len() {
+        if is_punct(i, ':') && is_punct(i + 1, ':') && is_punct(i + 2, '<') {
+            // skip generics "group"
+            final_val.extend_from_slice(&val[i..i + 3]);
+            i += 3;
+            let mut depth = 1;
+            while i < val.len() && depth > 0 {
+                final_val.push(val[i].clone());
+                if is_punct(i, '>') {
+                    depth -= 1;
+                } else if is_punct(i, '<') {
+                    depth += 1;
+                }
+                i += 1;
+            }
+        }
+
+        if is_punct(i, ',') {
+            final_val.push(val[i].clone());
+            arg_i += 1;
+            i += 1;
+            continue;
+        }
+
+        if let Some(id) = get_ident(i) {
+            if is_punct(i + 1, '!') && !is_group(i + 2) {
+                // match ident!
+                let meta = quote_call!(#ident_meta());
+                let arg_sample = if let Some(f) = field_ident {
+                    ident!("arg_{f}_sample")
+                } else {
+                    ident!("arg_{arg_i}_sample")
+                };
+
+                let s = quote_spanned!(id.span()=> {
+                    let meta = #meta
+                    #crate_core::var::PropertyValue::assoc_items(&meta.#arg_sample()).#id()
+                });
+                final_val.extend(util::set_stream_span(s, id.span()));
+
+                i += 3;
+                continue;
+            } else if let Some(g) = get_parens(i + 1)
+                && is_punct(i + 2, '!')
+            {
+                // match ident(args)!
+                let meta = quote_call!(#ident_meta());
+                let arg_sample = if let Some(f) = field_ident {
+                    ident!("arg_{f}_sample")
+                } else {
+                    ident!("arg_{arg_i}_sample")
+                };
+
+                let s = quote_spanned!(id.span()=> {
+                    let meta = #meta
+                    #crate_core::var::PropertyValue::assoc_items(&meta.#arg_sample #g).#id()
+                });
+                final_val.extend(util::set_stream_span(s, id.span()));
+
+                i += 3;
+                continue;
+            }
+        }
+
+        final_val.push(val[i].clone());
+        i += 1;
+    }
+
+    final_val.into_iter().collect()
 }
 
 struct NewArgs {
