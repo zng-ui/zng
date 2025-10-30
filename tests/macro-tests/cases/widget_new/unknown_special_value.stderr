@@ -10,4 +10,4 @@ warning: unused import: `layout::margin`
 1 | use zng::{APP, layout::margin, widget::Wgt};
   |                ^^^^^^^^^^^^^^
   |
-  = note: `#[warn(unused_imports)]` on by default
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

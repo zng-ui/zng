@@ -4,7 +4,7 @@ warning: unused import: `UiNode`
 1 | use zng::prelude_wgt::{IntoUiNode, IntoVar, UiNode, property};
   |                                             ^^^^^^
   |
-  = note: `#[warn(unused_imports)]` on by default
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
 error[E0308]: mismatched types
  --> cases/property/return_type_is_not_ui_node.rs:5:1
