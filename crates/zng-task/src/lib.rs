@@ -26,9 +26,6 @@ use std::{
 pub use parking_lot;
 use parking_lot::Mutex;
 
-mod crate_util;
-
-use crate::crate_util::PanicResult;
 use zng_app_context::{LocalContext, app_local};
 use zng_time::Deadline;
 use zng_var::{ResponseVar, VarValue, response_done_var, response_var};
@@ -213,7 +210,8 @@ impl RayonTask {
                         }
                     }));
                     if let Err(p) = r {
-                        tracing::error!("panic in `task::spawn`: {}", crate_util::panic_str(&p));
+                        let p = TaskPanicError::new(p);
+                        tracing::error!("panic in `task::spawn`: {}", p.panic_str().unwrap_or(""));
                         on_spawn_panic(p);
                     }
                 });
@@ -400,7 +398,7 @@ where
 {
     match run_catch(task).await {
         Ok(r) => r,
-        Err(p) => panic::resume_unwind(p),
+        Err(p) => panic::resume_unwind(p.payload),
     }
 }
 
@@ -417,7 +415,7 @@ where
 /// if this function returns an error.
 ///
 /// [unwind safety validation]: std::panic::UnwindSafe
-pub async fn run_catch<R, T>(task: impl IntoFuture<IntoFuture = T>) -> PanicResult<R>
+pub async fn run_catch<R, T>(task: impl IntoFuture<IntoFuture = T>) -> Result<R, TaskPanicError>
 where
     R: Send + 'static,
     T: Future<Output = R> + Send + 'static,
@@ -428,7 +426,7 @@ where
     struct RayonCatchTask<R> {
         ctx: LocalContext,
         fut: Mutex<Option<Fut<R>>>,
-        sender: flume::Sender<PanicResult<R>>,
+        sender: flume::Sender<Result<R, TaskPanicError>>,
     }
     impl<R: Send + 'static> RayonCatchTask<R> {
         fn poll(self: Arc<Self>) {
@@ -455,7 +453,7 @@ where
                             }
                             Err(p) => {
                                 drop(task);
-                                let _ = sender.send(Err(p));
+                                let _ = sender.send(Err(TaskPanicError::new(p)));
                             }
                         }
                     });
@@ -559,9 +557,10 @@ where
                                 *task = Some(t);
                             }
                             Err(p) => {
-                                tracing::error!("panic in `task::respond`: {}", crate_util::panic_str(&p));
+                                let p = TaskPanicError::new(p);
+                                tracing::error!("panic in `task::respond`: {}", p.panic_str().unwrap_or(""));
                                 drop(task);
-                                responder.modify(move |_| panic::resume_unwind(p));
+                                responder.modify(move |_| panic::resume_unwind(p.payload));
                             }
                         }
                     });
@@ -659,7 +658,7 @@ where
 {
     match wait_catch(task).await {
         Ok(r) => r,
-        Err(p) => panic::resume_unwind(p),
+        Err(p) => panic::resume_unwind(p.payload),
     }
 }
 
@@ -676,13 +675,15 @@ where
 /// if this function returns an error.
 ///
 /// [unwind safety validation]: std::panic::UnwindSafe
-pub async fn wait_catch<T, F>(task: F) -> PanicResult<T>
+pub async fn wait_catch<T, F>(task: F) -> Result<T, TaskPanicError>
 where
     F: FnOnce() -> T + Send + 'static,
     T: Send + 'static,
 {
     let mut ctx = LocalContext::capture();
-    blocking::unblock(move || ctx.with_context(move || panic::catch_unwind(panic::AssertUnwindSafe(task)))).await
+    blocking::unblock(move || ctx.with_context(move || panic::catch_unwind(panic::AssertUnwindSafe(task))))
+        .await
+        .map_err(TaskPanicError::new)
 }
 
 /// Fire and forget a [`wait`] task. The `task` starts executing immediately.
@@ -706,7 +707,7 @@ where
 {
     spawn(async move {
         if let Err(p) = wait_catch(task).await {
-            tracing::error!("parallel `spawn_wait` task panicked: {}", crate_util::panic_str(&p));
+            tracing::error!("parallel `spawn_wait` task panicked: {}", p.panic_str().unwrap_or(""));
             on_spawn_panic(p);
         }
     });
@@ -730,8 +731,9 @@ where
     spawn_wait(move || match panic::catch_unwind(panic::AssertUnwindSafe(task)) {
         Ok(r) => responder.respond(r),
         Err(p) => {
-            tracing::error!("panic in `task::wait_respond`: {}", crate_util::panic_str(&p));
-            responder.modify(move |_| panic::resume_unwind(p));
+            let p = TaskPanicError::new(p);
+            tracing::error!("panic in `task::wait_respond`: {}", p.panic_str().unwrap_or(""));
+            responder.modify(move |_| panic::resume_unwind(p.payload));
         }
     });
     response
@@ -2188,19 +2190,23 @@ impl TaskPanicError {
 
     /// Get the panic string if the `payload` is string like.
     pub fn panic_str(&self) -> Option<&str> {
-        crate_util::try_panic_str(&self.payload)
+        if let Some(s) = self.payload.downcast_ref::<&str>() {
+            Some(s)
+        } else if let Some(s) = self.payload.downcast_ref::<String>() {
+            Some(s)
+        } else {
+            None
+        }
     }
 }
 impl fmt::Debug for TaskPanicError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TaskPanicError")
-            .field("payload", &crate_util::panic_str(&self.payload))
-            .finish()
+        f.debug_struct("TaskPanicError").field("panic_str()", &self.panic_str()).finish()
     }
 }
 impl fmt::Display for TaskPanicError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(crate_util::panic_str(&self.payload))
+        if let Some(s) = self.panic_str() { f.write_str(s) } else { Ok(()) }
     }
 }
 impl std::error::Error for TaskPanicError {}
@@ -2244,8 +2250,8 @@ pub fn set_spawn_panic_handler(handler: impl FnMut(TaskPanicError) + Send + 'sta
     *h = Some(Mutex::new(Box::new(handler)));
 }
 
-fn on_spawn_panic(payload: Box<dyn Any + Send + 'static>) {
+fn on_spawn_panic(p: TaskPanicError) {
     if let Some(f) = &mut *SPAWN_PANIC_HANDLERS.write() {
-        f.get_mut()(TaskPanicError { payload })
+        f.get_mut()(p)
     }
 }
