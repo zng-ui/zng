@@ -50,7 +50,7 @@ serde_variant = { version = "0.1", default-features = false }
 unic-langid = { version = "0.9", features = ["serde"] }
 
 dunce = { version = "1.0", default-features = false }
-tracing-shared = { version = "0.1.5", default-features = false, features = ["log"] }
+tracing-shared = { version = "0.2", default-features = false, features = ["log"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-time = { version = "1.0", default-features = false }
