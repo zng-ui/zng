@@ -364,9 +364,7 @@ fn filter_any(child: impl IntoUiNode, filter: impl IntoVar<Filter>, target_child
         }
         UiNodeOp::Render { frame } => {
             if target_child {
-                frame.push_filter(MixBlendMode::Normal.into(), render_filter.as_ref().unwrap(), |frame| {
-                    child.render(frame)
-                });
+                frame.push_filter(MixBlendMode::Normal, render_filter.as_ref().unwrap(), |frame| child.render(frame));
             } else {
                 frame.push_inner_filter(render_filter.clone().unwrap(), |frame| child.render(frame));
             }
@@ -435,7 +433,7 @@ fn filter_layout(child: impl IntoUiNode, filter: impl IntoVar<Filter>, target_ch
         UiNodeOp::Render { frame } => {
             if let Some(filter) = &render_filter {
                 if target_child {
-                    frame.push_filter(MixBlendMode::Normal.into(), filter, |frame| child.render(frame));
+                    frame.push_filter(MixBlendMode::Normal, filter, |frame| child.render(frame));
                 } else {
                     frame.push_inner_filter(filter.clone(), |frame| child.render(frame));
                 }
@@ -488,7 +486,7 @@ fn filter_render(child: impl IntoUiNode, filter: impl IntoVar<Filter>, target_ch
         UiNodeOp::Render { frame } => {
             if target_child {
                 filter.with(|f| {
-                    frame.push_filter(MixBlendMode::Normal.into(), f, |frame| child.render(frame));
+                    frame.push_filter(MixBlendMode::Normal, f, |frame| child.render(frame));
                 });
             } else {
                 frame.push_inner_filter(filter.get(), |frame| child.render(frame));
@@ -545,7 +543,7 @@ pub fn mix_blend(child: impl IntoUiNode, mode: impl IntoVar<MixBlendMode>) -> Ui
             WIDGET.sub_var_render(&mode);
         }
         UiNodeOp::Render { frame } => {
-            frame.push_inner_blend(mode.get().into(), |frame| c.render(frame));
+            frame.push_inner_blend(mode.get(), |frame| c.render(frame));
         }
         _ => {}
     })
@@ -560,7 +558,7 @@ pub fn child_mix_blend(child: impl IntoUiNode, mode: impl IntoVar<MixBlendMode>)
             WIDGET.sub_var_render(&mode);
         }
         UiNodeOp::Render { frame } => {
-            frame.push_filter(mode.get().into(), &vec![], |frame| c.render(frame));
+            frame.push_filter(mode.get(), &vec![], |frame| c.render(frame));
         }
         _ => {}
     })
