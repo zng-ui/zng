@@ -24,7 +24,7 @@ warning: unused import: `mouse::cursor`
 1 | use zng::{APP, layout::margin, mouse::cursor, widget::Wgt};
   |                                ^^^^^^^^^^^^^
   |
-  = note: `#[warn(unused_imports)]` on by default
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
 warning: unused import: `zng::layout::PxPoint`
   --> cases/widget_new/missing_value5.rs:10:17

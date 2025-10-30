@@ -10,4 +10,4 @@ warning: unused import: `gesture::is_pressed`
 1 | use zng::{APP, gesture::is_pressed, widget::Wgt};
   |                ^^^^^^^^^^^^^^^^^^^
   |
-  = note: `#[warn(unused_imports)]` on by default
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

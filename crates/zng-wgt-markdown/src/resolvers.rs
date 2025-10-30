@@ -69,11 +69,12 @@ pub fn link_scroll_mode(child: impl IntoUiNode, mode: impl IntoVar<ScrollToMode>
 /// Markdown image resolver.
 ///
 /// See [`IMAGE_RESOLVER_VAR`] for more details.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub enum ImageResolver {
     /// No extra resolution, just convert into [`ImageSource`].
     ///
     /// [`ImageSource`]: zng_ext_image::ImageSource
+    #[default]
     Default,
     /// Custom resolution.
     Resolve(Arc<dyn Fn(&str) -> ImageSource + Send + Sync>),
@@ -90,11 +91,6 @@ impl ImageResolver {
     /// New [`Resolve`](Self::Resolve).
     pub fn new(fn_: impl Fn(&str) -> ImageSource + Send + Sync + 'static) -> Self {
         ImageResolver::Resolve(Arc::new(fn_))
-    }
-}
-impl Default for ImageResolver {
-    fn default() -> Self {
-        Self::Default
     }
 }
 impl fmt::Debug for ImageResolver {
@@ -120,9 +116,10 @@ impl PartialEq for ImageResolver {
 /// Markdown link resolver.
 ///
 /// See [`LINK_RESOLVER_VAR`] for more details.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub enum LinkResolver {
     /// No extra resolution, just pass the link provided.
+    #[default]
     Default,
     /// Custom resolution.
     Resolve(Arc<dyn Fn(&str) -> Txt + Send + Sync>),
@@ -159,11 +156,6 @@ impl LinkResolver {
             }
             url.to_txt()
         })
-    }
-}
-impl Default for LinkResolver {
-    fn default() -> Self {
-        Self::Default
     }
 }
 impl fmt::Debug for LinkResolver {

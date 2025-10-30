@@ -10,4 +10,4 @@ warning: unused imports: `gesture::is_pressed` and `layout::margin`
 1 | use zng::{APP, gesture::is_pressed, layout::margin, widget::Wgt};
   |                ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
   |
-  = note: `#[warn(unused_imports)]` on by default
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
