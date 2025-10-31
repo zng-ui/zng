@@ -72,7 +72,7 @@ pub async fn bw_rgb(render_mode: RenderMode, scale_factor: Factor) {
 //             Arc::new(p.to_vec()),
 //             ImageDataFormat::Bgra8 {
 //                 size: rect.size,
-//                 ppi: None,
+//                 density: None,
 //             },
 //         );
 //         while img.with(Img::is_loading) {

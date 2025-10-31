@@ -9,7 +9,7 @@ use crate::{
     },
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect},
-    image::{ImageId, ImageLoadedData, ImagePpi},
+    image::{ImageId, ImageLoadedData},
     ipc::{self, IpcBytes},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
@@ -20,7 +20,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use zng_txt::Txt;
-use zng_unit::{DipPoint, PxRect, PxSize, Rgba};
+use zng_unit::{DipPoint, PxDensity2d, PxRect, PxSize, Rgba};
 
 macro_rules! declare_id {
     ($(
@@ -408,14 +408,14 @@ pub enum Event {
     /// The window has closed.
     WindowClosed(WindowId),
 
-    /// An image resource already decoded size and PPI.
+    /// An image resource already decoded size and density metadata.
     ImageMetadataLoaded {
         /// The image that started loading.
         image: ImageId,
         /// The image pixel size.
         size: PxSize,
-        /// The image pixels-per-inch metadata.
-        ppi: Option<ImagePpi>,
+        /// The image density metadata.
+        density: Option<PxDensity2d>,
         /// The image is a single channel R8.
         is_mask: bool,
     },
@@ -428,8 +428,8 @@ pub enum Event {
         /// The size of the decoded pixels, can be different then the image size if the
         /// image is not *interlaced*.
         partial_size: PxSize,
-        /// The image pixels-per-inch metadata.
-        ppi: Option<ImagePpi>,
+        /// The image density metadata.
+        density: Option<PxDensity2d>,
         /// If the decoded pixels so-far are all opaque (255 alpha).
         is_opaque: bool,
         /// If the decoded pixels so-far are a single channel.

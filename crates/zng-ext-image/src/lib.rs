@@ -169,7 +169,7 @@ impl AppExtension for ImageManager {
                         } else {
                             ImageDataFormat::Bgra8 {
                                 size: view.size(),
-                                ppi: view.ppi(),
+                                density: view.density(),
                             }
                         };
 
@@ -415,7 +415,7 @@ impl ImagesService {
                 } else {
                     ImageDataFormat::Bgra8 {
                         size: image.size(),
-                        ppi: image.ppi(),
+                        density: image.density(),
                     }
                 };
                 let img_var = var(Img::new(image));

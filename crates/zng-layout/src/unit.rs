@@ -28,9 +28,6 @@ pub use point::*;
 mod rect;
 pub use rect::*;
 
-mod resolution;
-pub use resolution::*;
-
 mod side_offsets;
 pub use side_offsets::*;
 

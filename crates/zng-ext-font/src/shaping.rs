@@ -2698,7 +2698,7 @@ impl ShapedTextBuilder {
     fn push_glyph_raster(&mut self, glyphs_i: u32, img: ttf_parser::RasterGlyphImage) {
         use ttf_parser::RasterImageFormat;
         let size = PxSize::new(Px(img.width as _), Px(img.height as _));
-        let bgra_fmt = ImageDataFormat::Bgra8 { size, ppi: None };
+        let bgra_fmt = ImageDataFormat::Bgra8 { size, density: None };
         let bgra_len = img.width as usize * img.height as usize * 4;
         let (data, fmt) = match img.format {
             RasterImageFormat::PNG => (img.data.to_vec(), ImageDataFormat::from("png")),

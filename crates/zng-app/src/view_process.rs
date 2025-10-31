@@ -17,6 +17,7 @@ use crate::{
 
 use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock};
 use zng_app_context::app_local;
+use zng_layout::unit::PxDensity2d;
 use zng_layout::unit::{DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect, PxSize};
 use zng_task::SignalOnce;
 use zng_txt::Txt;
@@ -27,7 +28,7 @@ use zng_view_api::{
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::{FontOptions, IpcFontBytes},
-    image::{ImageMaskMode, ImagePpi, ImageRequest, ImageTextureId},
+    image::{ImageMaskMode, ImageRequest, ImageTextureId},
     ipc::{IpcBytes, IpcBytesReceiver, ViewChannelError},
     window::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, RenderMode, ResizeDirection,
@@ -181,7 +182,7 @@ impl VIEW_PROCESS {
             generation: app.process.generation(),
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
-            ppi: None,
+            density: None,
             is_opaque: false,
             partial_pixels: None,
             pixels: None,
@@ -211,7 +212,7 @@ impl VIEW_PROCESS {
             generation: app.process.generation(),
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
-            ppi: None,
+            density: None,
             is_opaque: false,
             partial_pixels: None,
             pixels: None,
@@ -396,13 +397,19 @@ impl VIEW_PROCESS {
         app.loading_images.iter().position(|i| i.upgrade().unwrap().read().id == Some(id))
     }
 
-    pub(super) fn on_image_metadata_loaded(&self, id: ImageId, size: PxSize, ppi: Option<ImagePpi>, is_mask: bool) -> Option<ViewImage> {
+    pub(super) fn on_image_metadata_loaded(
+        &self,
+        id: ImageId,
+        size: PxSize,
+        density: Option<PxDensity2d>,
+        is_mask: bool,
+    ) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(id) {
             let img = self.read().loading_images[i].upgrade().unwrap();
             {
                 let mut img = img.write();
                 img.size = size;
-                img.ppi = ppi;
+                img.density = density;
                 img.is_mask = is_mask;
             }
             Some(ViewImage(img))
@@ -415,7 +422,7 @@ impl VIEW_PROCESS {
         &self,
         id: ImageId,
         partial_size: PxSize,
-        ppi: Option<ImagePpi>,
+        density: Option<PxDensity2d>,
         is_opaque: bool,
         is_mask: bool,
         partial_pixels: IpcBytes,
@@ -425,7 +432,7 @@ impl VIEW_PROCESS {
             {
                 let mut img = img.write();
                 img.partial_size = partial_size;
-                img.ppi = ppi;
+                img.density = density;
                 img.is_opaque = is_opaque;
                 img.partial_pixels = Some(partial_pixels);
                 img.is_mask = is_mask;
@@ -443,7 +450,7 @@ impl VIEW_PROCESS {
                 let mut img = img.write();
                 img.size = data.size;
                 img.partial_size = data.size;
-                img.ppi = data.ppi;
+                img.density = data.density;
                 img.is_opaque = data.is_opaque;
                 img.pixels = Some(Ok(data.pixels));
                 img.partial_pixels = None;
@@ -482,7 +489,7 @@ impl VIEW_PROCESS {
             generation: self.generation(),
             size: data.size,
             partial_size: data.size,
-            ppi: data.ppi,
+            density: data.density,
             is_opaque: data.is_opaque,
             partial_pixels: None,
             pixels: Some(Ok(data.pixels)),
@@ -1154,7 +1161,7 @@ impl ViewRenderer {
                 generation: app.process.generation(),
                 size: PxSize::zero(),
                 partial_size: PxSize::zero(),
-                ppi: None,
+                density: None,
                 is_opaque: false,
                 partial_pixels: None,
                 pixels: None,
@@ -1239,7 +1246,7 @@ impl fmt::Debug for ViewImage {
             .field("loaded", &self.is_loaded())
             .field("error", &self.error())
             .field("size", &self.size())
-            .field("dpi", &self.ppi())
+            .field("density", &self.density())
             .field("is_opaque", &self.is_opaque())
             .field("is_mask", &self.is_mask())
             .field("generation", &self.generation())
@@ -1254,7 +1261,7 @@ struct ViewImageData {
 
     size: PxSize,
     partial_size: PxSize,
-    ppi: Option<ImagePpi>,
+    density: Option<PxDensity2d>,
     is_opaque: bool,
 
     partial_pixels: Option<IpcBytes>,
@@ -1327,10 +1334,10 @@ impl ViewImage {
         self.0.read().partial_size
     }
 
-    /// Returns the "pixels-per-inch" metadata associated with the image, or `None` if not loaded or error or no
+    /// Returns the pixel density metadata associated with the image, or `None` if not loaded or error or no
     /// metadata provided by decoder.
-    pub fn ppi(&self) -> Option<ImagePpi> {
-        self.0.read().ppi
+    pub fn density(&self) -> Option<PxDensity2d> {
+        self.0.read().density
     }
 
     /// Returns if the image is fully opaque.
@@ -1390,7 +1397,7 @@ impl ViewImage {
             generation: ViewProcessGen::INVALID,
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
-            ppi: None,
+            density: None,
             is_opaque: true,
             partial_pixels: None,
             pixels: if let Some(e) = error {
@@ -1549,7 +1556,7 @@ impl ViewClipboard {
                         generation: app.process.generation(),
                         size: PxSize::zero(),
                         partial_size: PxSize::zero(),
-                        ppi: None,
+                        density: None,
                         is_opaque: false,
                         partial_pixels: None,
                         pixels: None,

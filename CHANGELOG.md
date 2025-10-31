@@ -15,10 +15,16 @@
 * Inherit `StyleMix` for `Window` to facilitate theme implementation.
     - See `zng::window` documentation for theming tips.
 
+* Unify pixel density units.
+    - **Breaking** Removed `zng::{layout::{Ppi, Dpi, ResolutionUnits}, image::ImagePpi}`.
+    - Added `zng::layout::{PxDensity, PxDensity2d, PxDensityUnits}`.
+    - **Breaking** Renamed all *ppi* to *density*.
+
 * Unify `MixBlendMode` type with view API.
     - **Breaking** Remove `zng::color::RenderMixBlendMode`.
     - **Breaking** `zng::color::MixBlendMode` is now non-exhaustive and has a new variant `PlusLighter`.
 
+* **Breaking** Task functions that capture panic now return `zng::task::TaskPanicError`.
 * Fix gradient stops with midway adjustment.
 * Impl of `Add` and `Sub` for `layout::Vector` is now generic over any type that converts to vector.
 * Add `Var::chase_begin` to begin a deferred chase animation.

@@ -33,7 +33,7 @@ pub(crate) fn ease_btn(l: &Var<Length>, color: &Var<Rgba>, name: &'static str, e
             children = ui_vec![
                 Text!(name),
                 Image! {
-                    img_scale_ppi = true;
+                    img_scale_density = true;
                     img_loading_fn = wgt_fn!(|_| Wgt! {
                         layout::size = (64, 64);
                         layout::margin = 10;

@@ -11,11 +11,13 @@ use winit::{
 #[cfg(feature = "image_any")]
 use zng_txt::ToTxt as _;
 use zng_txt::{Txt, formatx};
+#[cfg(feature = "image_any")]
+use zng_unit::PxDensityUnits as _;
 
-use zng_unit::{Px, PxPoint, PxSize};
+use zng_unit::{Px, PxDensity2d, PxPoint, PxSize};
 use zng_view_api::{
     Event,
-    image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
+    image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImageRequest},
     ipc::{IpcBytes, IpcBytesReceiver},
 };
 
@@ -123,7 +125,7 @@ impl ImageCache {
         let app_sender = self.app_sender.clone();
         rayon::spawn(move || {
             let r = match format {
-                ImageDataFormat::Bgra8 { size, ppi } => {
+                ImageDataFormat::Bgra8 { size, density } => {
                     let expected_len = size.width.0 as usize * size.height.0 as usize * 4;
                     if data.len() != expected_len {
                         Err(formatx!(
@@ -136,13 +138,13 @@ impl ImageCache {
                                 image::ImageBuffer::from_raw(size.width.0 as _, size.height.0 as _, data.to_vec()).unwrap(),
                             ),
                             mask,
-                            ppi,
+                            density,
                             None,
                         );
-                        Ok((pixels, size, ppi, is_opaque, true))
+                        Ok((pixels, size, density, is_opaque, true))
                     } else {
                         let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
-                        Ok((data, size, ppi, is_opaque, false))
+                        Ok((data, size, density, is_opaque, false))
                     }
                 }
                 ImageDataFormat::A8 { size } => {
@@ -190,11 +192,11 @@ impl ImageCache {
                                 let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataLoaded {
                                     image: id,
                                     size,
-                                    ppi: h.ppi,
+                                    density: h.density,
                                     is_mask: false,
                                 }));
                                 match Self::image_decode(&data[..], h.format, downscale, h.orientation) {
-                                    Ok(img) => Ok(Self::convert_decoded(img, mask, h.ppi, h.icc_profile)),
+                                    Ok(img) => Ok(Self::convert_decoded(img, mask, h.density, h.icc_profile)),
                                     Err(e) => Err(e.to_txt()),
                                 }
                             }
@@ -205,9 +207,9 @@ impl ImageCache {
             };
 
             match r {
-                Ok((pixels, size, ppi, is_opaque, is_mask)) => {
+                Ok((pixels, size, density, is_opaque, is_mask)) => {
                     let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
-                        id, size, ppi, is_opaque, is_mask, pixels,
+                        id, size, density, is_opaque, is_mask, pixels,
                     )));
                 }
                 Err(e) => {
@@ -236,16 +238,16 @@ impl ImageCache {
             // crate `images` does not do progressive decode.
             let mut full = vec![];
             let mut size = None;
-            let mut ppi = None;
+            let mut density = None;
             let mut icc_profile = None::<lcms2::Profile>;
             let mut is_encoded = true;
             let mut orientation = image::metadata::Orientation::NoTransforms;
 
             let mut format: Option<image::ImageFormat> = match &request_fmt {
-                ImageDataFormat::Bgra8 { size: s, ppi: p } => {
+                ImageDataFormat::Bgra8 { size: s, density: p } => {
                     is_encoded = false;
                     size = Some(*s);
-                    ppi = *p;
+                    density = *p;
                     None
                 }
                 ImageDataFormat::A8 { size: s } => {
@@ -276,7 +278,7 @@ impl ImageCache {
                                     size = Some(h.size);
                                     orientation = h.orientation;
                                     format = Some(h.format);
-                                    ppi = h.ppi;
+                                    density = h.density;
                                     icc_profile = h.icc_profile;
                                 }
                                 if let Ok(mut d) = image::ImageReader::with_format(std::io::Cursor::new(&full), fmt).into_decoder() {
@@ -329,9 +331,9 @@ impl ImageCache {
                 #[cfg(feature = "image_any")]
                 match Self::image_decode(&full[..], fmt, downscale, orientation) {
                     Ok(img) => {
-                        let (pixels, size, ppi, is_opaque, is_mask) = Self::convert_decoded(img, mask, ppi, icc_profile);
+                        let (pixels, size, density, is_opaque, is_mask) = Self::convert_decoded(img, mask, density, icc_profile);
                         let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
-                            id, size, ppi, is_opaque, is_mask, pixels,
+                            id, size, density, is_opaque, is_mask, pixels,
                         )));
                     }
                     Err(e) => {
@@ -347,7 +349,7 @@ impl ImageCache {
                 let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
                     id,
                     size.unwrap(),
-                    ppi,
+                    density,
                     is_opaque,
                     false,
                     pixels,
@@ -388,7 +390,7 @@ impl ImageCache {
                     if data.is_mask { ImageFormat::R8 } else { ImageFormat::BGRA8 },
                     flags,
                 ),
-                ppi: data.ppi,
+                density: data.density,
             })),
         );
 
@@ -436,7 +438,7 @@ impl ImageCache {
                     std::mem::swap(&mut w, &mut h)
                 }
 
-                let mut ppi = None;
+                let mut density = None;
                 #[cfg(feature = "image_png")]
                 let mut png_gamma = None;
                 #[cfg(feature = "image_png")]
@@ -480,11 +482,11 @@ impl ImageCache {
                             match unit {
                                 // inches
                                 1 => {
-                                    ppi = Some(ImagePpi::new(x as f32, y as f32));
+                                    density = Some(PxDensity2d::new((x as f32).ppi(), (y as f32).ppi()));
                                 }
                                 // centimeters
                                 2 => {
-                                    ppi = Some(ImagePpi::new_cm(x as f32, y as f32));
+                                    density = Some(PxDensity2d::new((x as f32).ppcm(), (y as f32).ppcm()));
                                 }
                                 _ => {}
                             }
@@ -499,7 +501,12 @@ impl ImageCache {
                             match d.unit {
                                 png::Unit::Unspecified => {}
                                 png::Unit::Meter => {
-                                    ppi = Some(ImagePpi::new_cm(d.xppu as f32 / 100.0, d.yppu as f32 / 100.0));
+                                    use zng_unit::PxDensity;
+
+                                    density = Some(PxDensity2d::new(
+                                        PxDensity::new_ppm(d.xppu as f32),
+                                        PxDensity::new_ppm(d.yppu as f32),
+                                    ));
                                 }
                             }
                         }
@@ -521,11 +528,11 @@ impl ImageCache {
                             match res_unit {
                                 // inches
                                 2 => {
-                                    ppi = Some(ImagePpi::new(x, y));
+                                    density = Some(PxDensity2d::new(x.ppi(), y.ppi()));
                                 }
                                 // centimeters
                                 3 => {
-                                    ppi = Some(ImagePpi::new_cm(x, y));
+                                    density = Some(PxDensity2d::new(x.ppcm(), y.ppcm()));
                                 }
                                 _ => {}
                             }
@@ -534,7 +541,7 @@ impl ImageCache {
                     _ => {}
                 }
 
-                if ppi.is_none()
+                if density.is_none()
                     && let Ok(Some(exif)) = decoder.exif_metadata()
                     && let Ok(exif) = exif::Reader::new().read_raw(exif)
                 {
@@ -549,9 +556,9 @@ impl ImageCache {
                         let y = y[0].to_f32();
                         match unit.value.get_uint(0) {
                             // inches
-                            Some(2) => ppi = Some(ImagePpi::new(x, y)),
+                            Some(2) => density = Some(PxDensity2d::new(x.ppi(), y.ppi())),
                             // centimeters
-                            Some(3) => ppi = Some(ImagePpi::new(x, y)),
+                            Some(3) => density = Some(PxDensity2d::new(x.ppcm(), y.ppcm())),
                             _ => {}
                         }
                     }
@@ -574,7 +581,7 @@ impl ImageCache {
                     format: fmt,
                     size: PxSize::new(Px(w as i32), Px(h as i32)),
                     orientation,
-                    ppi,
+                    density,
                     icc_profile,
                 })
             }
@@ -625,7 +632,7 @@ impl ImageCache {
     fn convert_decoded(
         image: image::DynamicImage,
         mask: Option<ImageMaskMode>,
-        ppi: Option<ImagePpi>,
+        density: Option<PxDensity2d>,
         icc_profile: Option<lcms2::Profile>,
     ) -> RawLoadedImg {
         use image::DynamicImage::*;
@@ -1064,7 +1071,7 @@ impl ImageCache {
         (
             IpcBytes::from_vec(pixels),
             PxSize::new(Px(size.0 as i32), Px(size.1 as i32)),
-            ppi,
+            density,
             is_opaque,
             mask.is_some(), // is_mask
         )
@@ -1122,17 +1129,17 @@ struct ImageHeader {
     format: image::ImageFormat,
     size: PxSize,
     orientation: image::metadata::Orientation,
-    ppi: Option<ImagePpi>,
+    density: Option<PxDensity2d>,
     icc_profile: Option<lcms2::Profile>,
 }
-/// (pixels, size, ppi, is_opaque, is_mask)
-type RawLoadedImg = (IpcBytes, PxSize, Option<ImagePpi>, bool, bool);
+/// (pixels, size, density, is_opaque, is_mask)
+type RawLoadedImg = (IpcBytes, PxSize, Option<PxDensity2d>, bool, bool);
 pub(crate) enum ImageData {
     RawData {
         size: PxSize,
         pixels: IpcBytes,
         descriptor: ImageDescriptor,
-        ppi: Option<ImagePpi>,
+        density: Option<PxDensity2d>,
     },
     NativeTexture {
         uv: webrender::api::units::TexelRect,
@@ -1164,12 +1171,12 @@ impl fmt::Debug for Image {
                 size,
                 pixels,
                 descriptor,
-                ppi,
+                density,
             } => f
                 .debug_struct("Image")
                 .field("size", size)
                 .field("descriptor", descriptor)
-                .field("ppi", ppi)
+                .field("density", density)
                 .field("pixels", &format_args!("<{} shared bytes>", pixels.len()))
                 .finish(),
             ImageData::NativeTexture { .. } => unreachable!(),
@@ -1254,8 +1261,8 @@ impl Image {
     }
 
     pub fn encode(&self, format: image::ImageFormat, buffer: &mut Vec<u8>) -> image::ImageResult<()> {
-        let (size, pixels, ppi) = match &*self.0 {
-            ImageData::RawData { size, pixels, ppi, .. } => (size, pixels, ppi),
+        let (size, pixels, density) = match &*self.0 {
+            ImageData::RawData { size, pixels, density, .. } => (size, pixels, density),
             ImageData::NativeTexture { .. } => unreachable!(),
         };
 
@@ -1295,9 +1302,9 @@ impl Image {
             #[cfg(feature = "image_jpeg")]
             image::ImageFormat::Jpeg => {
                 let mut jpg = image::codecs::jpeg::JpegEncoder::new(buffer);
-                if let Some(ppi) = ppi {
+                if let Some(density) = density {
                     jpg.set_pixel_density(image::codecs::jpeg::PixelDensity {
-                        density: (ppi.x as u16, ppi.y as u16),
+                        density: (density.height.ppi() as u16, density.height.ppi() as u16),
                         unit: image::codecs::jpeg::PixelDensityUnit::Inches,
                     });
                 }
@@ -1309,7 +1316,7 @@ impl Image {
                 if is_opaque {
                     img = image::DynamicImage::ImageRgb8(img.to_rgb8());
                 }
-                if let Some(ppi) = ppi {
+                if let Some(density) = density {
                     let mut png_bytes = vec![];
 
                     img.write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)?;
@@ -1322,9 +1329,9 @@ impl Image {
                     use byteorder::*;
                     let mut chunk = Vec::with_capacity(4 * 2 + 1);
 
-                    // ppi / inch_to_metric
-                    let ppm_x = (ppi.x / 0.0254) as u32;
-                    let ppm_y = (ppi.y / 0.0254) as u32;
+                    // density / inch_to_metric
+                    let ppm_x = density.width.ppm() as u32;
+                    let ppm_y = density.height.ppm() as u32;
 
                     chunk.write_u32::<BigEndian>(ppm_x).unwrap();
                     chunk.write_u32::<BigEndian>(ppm_y).unwrap();
@@ -1341,7 +1348,7 @@ impl Image {
             _ => {
                 // other formats that we don't with custom PPI meta.
 
-                let _ = ppi; // suppress warning when both png an jpeg are not enabled
+                let _ = density; // suppress warning when both png an jpeg are not enabled
 
                 let mut img = image::DynamicImage::ImageRgba8(image::ImageBuffer::from_raw(width, height, rgba).unwrap());
                 if is_opaque {
@@ -1517,10 +1524,10 @@ mod capture {
 
     use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
     use zng_txt::formatx;
-    use zng_unit::{Factor, PxRect};
+    use zng_unit::{Factor, PxDensity2d, PxDensityUnits as _, PxRect};
     use zng_view_api::{
         Event,
-        image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
+        image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImageRequest},
         ipc::IpcBytes,
         window::{FrameId, WindowId},
     };
@@ -1600,7 +1607,7 @@ mod capture {
                         if data.is_mask { ImageFormat::R8 } else { ImageFormat::BGRA8 },
                         flags,
                     ),
-                    ppi: data.ppi,
+                    density: data.density,
                 })),
             );
 
@@ -1639,15 +1646,15 @@ mod capture {
                         bgra.swap(0, 3);
                     }
                 }
-                let ppi = 96.0 * scale_factor.0;
-                let ppi = Some(ImagePpi::splat(ppi));
+                let density = 96.0 * scale_factor.0;
+                let density = Some(PxDensity2d::splat(density.ppi()));
 
-                let (pixels, size, ppi, is_opaque, is_mask) = Self::convert_decoded(
+                let (pixels, size, density, is_opaque, is_mask) = Self::convert_decoded(
                     image::DynamicImage::ImageRgba8(
                         image::ImageBuffer::from_raw(rect.size.width.0 as u32, rect.size.height.0 as u32, buf).unwrap(),
                     ),
                     Some(mask),
-                    ppi,
+                    density,
                     None,
                 );
 
@@ -1659,7 +1666,7 @@ mod capture {
                     Some(mask),
                 ));
 
-                ImageLoadedData::new(id, size, ppi, is_opaque, is_mask, pixels)
+                ImageLoadedData::new(id, size, density, is_opaque, is_mask, pixels)
             } else {
                 if format == gleam::gl::RGBA {
                     for rgba in buf.chunks_exact_mut(4) {
@@ -1670,19 +1677,19 @@ mod capture {
                 let is_opaque = buf.chunks_exact(4).all(|bgra| bgra[3] == 255);
 
                 let data = IpcBytes::from_vec(buf);
-                let ppi = 96.0 * scale_factor.0;
-                let ppi = Some(ImagePpi::splat(ppi));
+                let density = 96.0 * scale_factor.0;
+                let density = Some(PxDensity2d::splat(density.ppi()));
                 let size = rect.size;
 
                 let id = self.add(ImageRequest::new(
-                    ImageDataFormat::Bgra8 { size, ppi },
+                    ImageDataFormat::Bgra8 { size, density },
                     data.clone(),
                     u64::MAX,
                     None,
                     mask,
                 ));
 
-                ImageLoadedData::new(id, size, ppi, is_opaque, false, data)
+                ImageLoadedData::new(id, size, density, is_opaque, false, data)
             }
         }
     }

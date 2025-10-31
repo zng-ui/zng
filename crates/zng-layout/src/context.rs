@@ -10,7 +10,7 @@ use zng_var::context_var;
 
 use atomic::{Atomic, Ordering::Relaxed};
 
-use crate::unit::{LayoutAxis, Ppi, PxConstraints, PxConstraints2d};
+use crate::unit::{LayoutAxis, PxConstraints, PxConstraints2d, PxDensity};
 
 /// Current layout context.
 ///
@@ -196,14 +196,14 @@ impl LAYOUT {
         self.with_context(self.metrics().with_scale_factor(scale_factor), f)
     }
 
-    /// Current screen PPI.
-    pub fn screen_ppi(&self) -> Ppi {
-        LAYOUT_CTX.get().metrics.screen_ppi()
+    /// Current screen pixel density.
+    pub fn screen_density(&self) -> PxDensity {
+        LAYOUT_CTX.get().metrics.screen_density()
     }
 
-    /// Calls `f` with `screen_ppi` in the context.
-    pub fn with_screen_ppi<R>(&self, screen_ppi: Ppi, f: impl FnOnce() -> R) -> R {
-        self.with_context(self.metrics().with_screen_ppi(screen_ppi), f)
+    /// Calls `f` with `screen_density` in the context.
+    pub fn with_screen_density<R>(&self, screen_density: PxDensity, f: impl FnOnce() -> R) -> R {
+        self.with_context(self.metrics().with_screen_density(screen_density), f)
     }
 
     /// Current layout direction.
@@ -438,10 +438,10 @@ pub struct LayoutMetricsSnapshot {
     ///
     /// [`viewport`]: LayoutMetrics::viewport
     pub viewport: PxSize,
-    /// The [`screen_ppi`].
+    /// The [`screen_density`].
     ///
-    /// [`screen_ppi`]: LayoutMetrics::screen_ppi
-    pub screen_ppi: Ppi,
+    /// [`screen_density`]: LayoutMetrics::screen_density
+    pub screen_density: PxDensity,
 
     /// The [`direction`].
     ///
@@ -464,7 +464,7 @@ impl LayoutMetricsSnapshot {
             && (!mask.contains(LayoutMask::ROOT_FONT_SIZE) || self.root_font_size == other.root_font_size)
             && (!mask.contains(LayoutMask::SCALE_FACTOR) || self.scale_factor == other.scale_factor)
             && (!mask.contains(LayoutMask::VIEWPORT) || self.viewport == other.viewport)
-            && (!mask.contains(LayoutMask::SCREEN_PPI) || self.screen_ppi == other.screen_ppi)
+            && (!mask.contains(LayoutMask::SCREEN_DENSITY) || self.screen_density == other.screen_density)
             && (!mask.contains(LayoutMask::DIRECTION) || self.direction == other.direction)
             && (!mask.contains(LayoutMask::LEFTOVER) || self.leftover == other.leftover)
     }
@@ -478,7 +478,7 @@ impl PartialEq for LayoutMetricsSnapshot {
             && self.root_font_size == other.root_font_size
             && self.scale_factor == other.scale_factor
             && self.viewport == other.viewport
-            && self.screen_ppi == other.screen_ppi
+            && self.screen_density == other.screen_density
             && self.direction == other.direction
             && self.leftover == other.leftover
     }
@@ -491,7 +491,7 @@ impl std::hash::Hash for LayoutMetricsSnapshot {
         self.root_font_size.hash(state);
         self.scale_factor.hash(state);
         self.viewport.hash(state);
-        self.screen_ppi.hash(state);
+        self.screen_density.hash(state);
         self.direction.hash(state);
         self.leftover.hash(state);
     }
@@ -505,10 +505,10 @@ pub struct LayoutMetrics {
 impl LayoutMetrics {
     /// New root [`LayoutMetrics`].
     ///
-    /// The `font_size` sets both font sizes, the initial PPI is `96.0`, you can use the builder style method and
-    /// [`with_screen_ppi`] to set a different value.
+    /// The `font_size` sets both font sizes, the initial screen density is `96.ppi()`, you can use the builder style method and
+    /// [`with_screen_density`] to set a different value.
     ///
-    /// [`with_screen_ppi`]: LayoutMetrics::with_screen_ppi
+    /// [`with_screen_density`]: LayoutMetrics::with_screen_density
     pub fn new(scale_factor: Factor, viewport: PxSize, font_size: Px) -> Self {
         LayoutMetrics {
             s: LayoutMetricsSnapshot {
@@ -519,7 +519,7 @@ impl LayoutMetrics {
                 root_font_size: font_size,
                 scale_factor,
                 viewport,
-                screen_ppi: Ppi::default(),
+                screen_density: PxDensity::default(),
                 direction: LayoutDirection::default(),
                 leftover: euclid::size2(None, None),
             },
@@ -593,14 +593,12 @@ impl LayoutMetrics {
         self.s.viewport.width.max(self.s.viewport.height)
     }
 
-    /// The current screen "pixels-per-inch" resolution.
+    /// The current screen pixel density.
     ///
-    /// This value is dependent in the actual physical size of the screen.
-    ///
-    /// Default is `96.0`.
-    pub fn screen_ppi(&self) -> Ppi {
-        LAYOUT.register_metrics_use(LayoutMask::SCREEN_PPI);
-        self.s.screen_ppi
+    /// Default is `96.ppi()`.
+    pub fn screen_density(&self) -> PxDensity {
+        LAYOUT.register_metrics_use(LayoutMask::SCREEN_DENSITY);
+        self.s.screen_density
     }
 
     /// Computed leftover length for the widget, given the [`Length::Leftover`] value it communicated to the parent.
@@ -659,11 +657,11 @@ impl LayoutMetrics {
         self
     }
 
-    /// Sets the [`screen_ppi`].
+    /// Sets the [`screen_density`].
     ///
-    /// [`screen_ppi`]: Self::screen_ppi
-    pub fn with_screen_ppi(mut self, screen_ppi: Ppi) -> Self {
-        self.s.screen_ppi = screen_ppi;
+    /// [`screen_density`]: Self::screen_density
+    pub fn with_screen_density(mut self, screen_density: PxDensity) -> Self {
+        self.s.screen_density = screen_density;
         self
     }
 
@@ -1001,8 +999,8 @@ bitflags! {
         const SCALE_FACTOR = 1 << 2;
         /// The [`LayoutMetrics::viewport`].
         const VIEWPORT = 1 << 3;
-        /// The [`LayoutMetrics::screen_ppi`].
-        const SCREEN_PPI = 1 << 4;
+        /// The [`LayoutMetrics::screen_density`].
+        const SCREEN_DENSITY = 1 << 4;
         /// The [`LayoutMetrics::direction`].
         const DIRECTION = 1 << 5;
         /// The [`LayoutMetrics::leftover`].

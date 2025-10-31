@@ -92,7 +92,7 @@ fn main() {
                             },
                             sub_title("Render"),
                             Image! {
-                                img_scale_ppi = true;
+                                img_scale_density = true;
                                 source = ImageSource::render_node(RenderMode::Software, |_| Container! {
                                     size = (180, 120);
                                     widget::background_gradient = layout::Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
@@ -633,7 +633,7 @@ fn ppi_scaled() -> UiNode {
                     child_top = Toggle! {
                         layout::align = Align::CENTER;
                         checked = enabled.clone();
-                        child = Text!(enabled.map(|e| formatx!("image_scale_ppi = {e}")));
+                        child = Text!(enabled.map(|e| formatx!("image_scale_density = {e}")));
                         margin = 20;
                     };
                     auto_size = true;
@@ -641,7 +641,7 @@ fn ppi_scaled() -> UiNode {
                     child = Stack! {
                         direction = StackDirection::left_to_right();
                         spacing = 10;
-                        zng::image::img_scale_ppi = enabled;
+                        zng::image::img_scale_density = enabled;
                         children = ui_vec![example("300x300@96dpi"), example("600x600@192dpi"),];
                     };
                 }
