@@ -66,18 +66,18 @@ impl PxDensity {
 }
 impl PartialEq for PxDensity {
     fn eq(&self, other: &Self) -> bool {
-        super::about_eq(self.0, other.0, 0.0001)
+        super::about_eq(self.0, other.0, 0.001)
     }
 }
 impl Eq for PxDensity {}
 impl std::hash::Hash for PxDensity {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        super::about_eq_hash(self.0, 0.0001, state)
+        super::about_eq_hash(self.0, 0.001, state)
     }
 }
 impl Ord for PxDensity {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        super::about_eq_ord(self.0, other.0, 0.0001)
+        super::about_eq_ord(self.0, other.0, 0.001)
     }
 }
 impl PartialOrd for PxDensity {
