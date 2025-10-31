@@ -15,7 +15,7 @@
 * Inherit `StyleMix` for `Window` to facilitate theme implementation.
     - See `zng::window` documentation for theming tips.
 
-* Unify pixel resolution units.
+* Unify pixel density units.
     - **Breaking** Removed `zng::layout::{Ppi, Dpi, ResolutionUnits}`.
     - Added `zng::layout::{PxDensity, PxDensity2d, PxDensityUnits}`.
     - **Breaking** Renamed all *ppi* to *density*.
