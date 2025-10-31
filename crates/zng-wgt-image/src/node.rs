@@ -2,15 +2,14 @@
 
 use std::mem;
 
-use zng_ext_image::{IMAGES, ImageCacheMode, ImagePpi, ImageRenderArgs};
+use zng_ext_image::{IMAGES, ImageCacheMode, ImageRenderArgs};
 use zng_wgt_stack::stack_nodes;
 
 use super::image_properties::{
     IMAGE_ALIGN_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_DOWNSCALE_VAR, IMAGE_ERROR_FN_VAR, IMAGE_FIT_VAR, IMAGE_LIMITS_VAR,
-    IMAGE_LOADING_FN_VAR, IMAGE_OFFSET_VAR, IMAGE_RENDERING_VAR, IMAGE_SCALE_FACTOR_VAR, IMAGE_SCALE_PPI_VAR, IMAGE_SCALE_VAR, ImageFit,
-    ImgErrorArgs, ImgLoadingArgs,
+    IMAGE_LOADING_FN_VAR, IMAGE_OFFSET_VAR, IMAGE_RENDERING_VAR, IMAGE_SCALE_DENSITY_VAR, IMAGE_SCALE_FACTOR_VAR, IMAGE_SCALE_VAR,
+    ImageFit, ImgErrorArgs, ImgLoadingArgs,
 };
-
 use super::*;
 
 context_var! {
@@ -184,7 +183,7 @@ pub fn image_loading_presenter(child: impl IntoUiNode) -> UiNode {
 ///
 /// * [`CONTEXT_IMAGE_VAR`]: Defines the image to render.
 /// * [`IMAGE_CROP_VAR`]: Clip the image before layout.
-/// * [`IMAGE_SCALE_PPI_VAR`]: If the image desired size is scaled by PPI.
+/// * [`IMAGE_SCALE_DENSITY_VAR`]: If the image desired size is scaled by pixel density.
 /// * [`IMAGE_SCALE_FACTOR_VAR`]: If the image desired size is scaled by the screen scale factor.
 /// * [`IMAGE_SCALE_VAR`]: Custom scale applied to the desired size.
 /// * [`IMAGE_FIT_VAR`]: Defines the image final size.
@@ -205,7 +204,7 @@ pub fn image_presenter() -> UiNode {
             WIDGET
                 .sub_var(&CONTEXT_IMAGE_VAR)
                 .sub_var_layout(&IMAGE_CROP_VAR)
-                .sub_var_layout(&IMAGE_SCALE_PPI_VAR)
+                .sub_var_layout(&IMAGE_SCALE_DENSITY_VAR)
                 .sub_var_layout(&IMAGE_SCALE_FACTOR_VAR)
                 .sub_var_layout(&IMAGE_SCALE_VAR)
                 .sub_var_layout(&IMAGE_FIT_VAR)
@@ -234,10 +233,10 @@ pub fn image_presenter() -> UiNode {
             let metrics = LAYOUT.metrics();
 
             let mut scale = IMAGE_SCALE_VAR.get();
-            if IMAGE_SCALE_PPI_VAR.get() {
-                let sppi = metrics.screen_ppi();
-                let ippi = CONTEXT_IMAGE_VAR.with(Img::ppi).unwrap_or(ImagePpi::splat(sppi.0));
-                scale *= Factor2d::new(sppi.0 / ippi.x, sppi.0 / ippi.y);
+            if IMAGE_SCALE_DENSITY_VAR.get() {
+                let sppi = metrics.screen_density();
+                let ippi = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(sppi));
+                scale *= Factor2d::new(sppi.ppcm() / ippi.width.ppcm(), sppi.ppcm() / ippi.height.ppcm());
             }
             if IMAGE_SCALE_FACTOR_VAR.get() {
                 scale *= metrics.scale_factor();
@@ -263,10 +262,10 @@ pub fn image_presenter() -> UiNode {
             let metrics = LAYOUT.metrics();
 
             let mut scale = IMAGE_SCALE_VAR.get();
-            if IMAGE_SCALE_PPI_VAR.get() {
-                let sppi = metrics.screen_ppi();
-                let ippi = CONTEXT_IMAGE_VAR.with(Img::ppi).unwrap_or(ImagePpi::splat(sppi.0));
-                scale *= Factor2d::new(sppi.0 / ippi.x, sppi.0 / ippi.y);
+            if IMAGE_SCALE_DENSITY_VAR.get() {
+                let sppi = metrics.screen_density();
+                let ippi = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(sppi));
+                scale *= Factor2d::new(sppi.ppcm() / ippi.width.ppcm(), sppi.ppcm() / ippi.height.ppcm());
             }
             if IMAGE_SCALE_FACTOR_VAR.get() {
                 scale *= metrics.scale_factor();

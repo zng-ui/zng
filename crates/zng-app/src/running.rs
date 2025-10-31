@@ -360,10 +360,10 @@ impl<E: AppExtension> RunningApp<E> {
             Event::ImageMetadataLoaded {
                 image: id,
                 size,
-                ppi,
+                density,
                 is_mask,
             } => {
-                if let Some(img) = VIEW_PROCESS.on_image_metadata_loaded(id, size, ppi, is_mask) {
+                if let Some(img) = VIEW_PROCESS.on_image_metadata_loaded(id, size, density, is_mask) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RAW_IMAGE_METADATA_LOADED_EVENT.new_update(args), observer);
                 }
@@ -371,12 +371,12 @@ impl<E: AppExtension> RunningApp<E> {
             Event::ImagePartiallyLoaded {
                 image: id,
                 partial_size,
-                ppi,
+                density,
                 is_opaque,
                 is_mask,
                 partial_pixels: partial_bgra8,
             } => {
-                if let Some(img) = VIEW_PROCESS.on_image_partially_loaded(id, partial_size, ppi, is_opaque, is_mask, partial_bgra8) {
+                if let Some(img) = VIEW_PROCESS.on_image_partially_loaded(id, partial_size, density, is_opaque, is_mask, partial_bgra8) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RAW_IMAGE_PARTIALLY_LOADED_EVENT.new_update(args), observer);
                 }

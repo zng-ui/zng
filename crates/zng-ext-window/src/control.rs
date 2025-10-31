@@ -31,8 +31,8 @@ use zng_color::{LightDark, Rgba, colors};
 use zng_layout::{
     context::{DIRECTION_VAR, LAYOUT, LayoutMetrics, LayoutPassId},
     unit::{
-        Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, FactorUnits, Layout1d, Layout2d, Length, Ppi, Px, PxConstraints, PxPoint, PxRect,
-        PxSize, PxToDip, PxVector, TimeUnits,
+        Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, FactorUnits, Layout1d, Layout2d, Length, Px, PxConstraints, PxDensity, PxPoint,
+        PxRect, PxSize, PxToDip, PxVector, TimeUnits,
     },
 };
 use zng_state_map::StateId;
@@ -246,9 +246,9 @@ impl HeadedCtrl {
                 && let Some(m) = &self.monitor
             {
                 let scale_factor = m.scale_factor().get();
-                let screen_ppi = m.ppi().get();
+                let screen_density = m.density().get();
                 let screen_size = m.size().get();
-                let (min_size, max_size) = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+                let (min_size, max_size) = self.content.outer_layout(scale_factor, screen_density, screen_size, || {
                     let min_size = self.vars.min_size().layout_dft(default_min_size(scale_factor));
                     let max_size = self.vars.max_size().layout_dft(screen_size);
 
@@ -275,9 +275,9 @@ impl HeadedCtrl {
                     && let Some(m) = &self.monitor
                 {
                     let scale_factor = m.scale_factor().get();
-                    let screen_ppi = m.ppi().get();
+                    let screen_density = m.density().get();
                     let screen_size = m.size().get();
-                    let size = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+                    let size = self.content.outer_layout(scale_factor, screen_density, screen_size, || {
                         self.vars.size().layout_dft(default_size(scale_factor)).to_dip(scale_factor)
                     });
 
@@ -296,9 +296,9 @@ impl HeadedCtrl {
                 && let Some(m) = &self.monitor
             {
                 let scale_factor = m.scale_factor().get();
-                let screen_ppi = m.ppi().get();
+                let screen_density = m.density().get();
                 let screen_size = m.size().get();
-                let pos = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+                let pos = self.content.outer_layout(scale_factor, screen_density, screen_size, || {
                     pos.layout_dft(PxPoint::new(Px(50), Px(50)))
                 });
                 new_state.restore_rect.origin = pos.to_dip(scale_factor);
@@ -350,9 +350,9 @@ impl HeadedCtrl {
             && let Some(m) = &self.monitor
         {
             let scale_factor = m.scale_factor().get();
-            let screen_ppi = m.ppi().get();
+            let screen_density = m.density().get();
             let screen_size = m.size().get();
-            let mut font_size_px = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+            let mut font_size_px = self.content.outer_layout(scale_factor, screen_density, screen_size, || {
                 font_size.layout_dft_x(Length::pt_to_px(11.0, scale_factor))
             });
             if font_size_px < Px(0) {
@@ -454,8 +454,8 @@ impl HeadedCtrl {
                 let cursor_img_to_actual = move |img: &Img| -> Option<(Img, PxPoint)> {
                     let hotspot = if img.is_loaded() {
                         let mut metrics = LayoutMetrics::new(1.fct(), img.size(), Px(16));
-                        if let Some(ppi) = img.ppi() {
-                            metrics = metrics.with_screen_ppi(Ppi(ppi.x));
+                        if let Some(density) = img.density() {
+                            metrics = metrics.with_screen_density(density.width);
                         }
 
                         LAYOUT.with_context(metrics, || hotspot.layout())
@@ -544,7 +544,7 @@ impl HeadedCtrl {
             if let Some(fct) = m.scale_factor().get_new() {
                 self.vars.0.scale_factor.set(fct);
             }
-            if m.scale_factor().is_new() || m.size().is_new() || m.ppi().is_new() {
+            if m.scale_factor().is_new() || m.size().is_new() || m.density().is_new() {
                 UPDATES.layout_window(WINDOW.id());
             }
         }
@@ -1074,24 +1074,25 @@ impl HeadedCtrl {
         self.vars.0.scale_factor.set(m.scale_factor().get());
 
         let scale_factor = m.scale_factor().get();
-        let screen_ppi = m.ppi().get();
+        let screen_density = m.density().get();
         let screen_rect = m.px_rect();
 
         // Layout min, max and size in the monitor space.
-        let (min_size, max_size, mut size, root_font_size) = self.content.outer_layout(scale_factor, screen_ppi, screen_rect.size, || {
-            let min_size = self.vars.min_size().layout_dft(default_min_size(scale_factor));
-            let max_size = self.vars.max_size().layout_dft(screen_rect.size);
-            let size = self.vars.size().layout_dft(default_size(scale_factor));
+        let (min_size, max_size, mut size, root_font_size) =
+            self.content.outer_layout(scale_factor, screen_density, screen_rect.size, || {
+                let min_size = self.vars.min_size().layout_dft(default_min_size(scale_factor));
+                let max_size = self.vars.max_size().layout_dft(screen_rect.size);
+                let size = self.vars.size().layout_dft(default_size(scale_factor));
 
-            let font_size = self.vars.font_size().get();
-            let mut root_font_size = font_size.layout_dft_x(Length::pt_to_px(11.0, scale_factor));
-            if root_font_size < Px(0) {
-                tracing::error!("invalid font size {font_size:?} => {root_font_size:?}");
-                root_font_size = Length::pt_to_px(11.0, scale_factor);
-            }
+                let font_size = self.vars.font_size().get();
+                let mut root_font_size = font_size.layout_dft_x(Length::pt_to_px(11.0, scale_factor));
+                if root_font_size < Px(0) {
+                    tracing::error!("invalid font size {font_size:?} => {root_font_size:?}");
+                    root_font_size = Length::pt_to_px(11.0, scale_factor);
+                }
 
-            (min_size, max_size, size.min(max_size).max(min_size), root_font_size)
-        });
+                (min_size, max_size, size.min(max_size).max(min_size), root_font_size)
+            });
 
         self.root_font_size = root_font_size.to_dip(scale_factor);
 
@@ -1101,7 +1102,7 @@ impl HeadedCtrl {
             size = self.content.layout(
                 Arc::default(),
                 scale_factor,
-                screen_ppi,
+                screen_density,
                 min_size,
                 max_size,
                 size,
@@ -1119,7 +1120,7 @@ impl HeadedCtrl {
                     system_pos = true;
                     screen_rect.origin + PxVector::splat(Px(40))
                 } else {
-                    self.content.outer_layout(scale_factor, screen_ppi, screen_rect.size, || {
+                    self.content.outer_layout(scale_factor, screen_density, screen_rect.size, || {
                         pos.layout() + screen_rect.origin.to_vector()
                     })
                 }
@@ -1236,7 +1237,7 @@ impl HeadedCtrl {
     fn layout_update(&mut self, layout_widgets: Arc<LayoutUpdates>) {
         let m = self.monitor.as_ref().unwrap();
         let scale_factor = m.scale_factor().get();
-        let screen_ppi = m.ppi().get();
+        let screen_density = m.density().get();
 
         let mut state = self.state.clone().unwrap();
 
@@ -1262,7 +1263,7 @@ impl HeadedCtrl {
         let size = self.content.layout(
             layout_widgets,
             scale_factor,
-            screen_ppi,
+            screen_density,
             min_size,
             max_size,
             size,
@@ -1276,7 +1277,7 @@ impl HeadedCtrl {
             let auto_size_origin = self.vars.auto_size_origin().get();
             let auto_size_origin = |size| {
                 let metrics = LayoutMetrics::new(scale_factor, size, root_font_size)
-                    .with_screen_ppi(screen_ppi)
+                    .with_screen_density(screen_density)
                     .with_direction(DIRECTION_VAR.get());
                 LAYOUT.with_context(metrics, || auto_size_origin.layout().to_dip(scale_factor))
             };
@@ -1680,10 +1681,10 @@ impl HeadlessWithRendererCtrl {
         }
 
         let scale_factor = self.vars.0.scale_factor.get();
-        let screen_ppi = self.headless_monitor.ppi;
+        let screen_density = self.headless_monitor.density;
         let screen_size = self.headless_monitor.size.to_px(scale_factor);
 
-        let (min_size, max_size, size, root_font_size) = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+        let (min_size, max_size, size, root_font_size) = self.content.outer_layout(scale_factor, screen_density, screen_size, || {
             let min_size = self.vars.min_size().layout_dft(default_min_size(scale_factor));
             let max_size = self.vars.max_size().layout_dft(screen_size);
             let size = self.vars.size().layout_dft(default_size(scale_factor));
@@ -1695,7 +1696,7 @@ impl HeadlessWithRendererCtrl {
         let size = self.content.layout(
             layout_widgets,
             scale_factor,
-            screen_ppi,
+            screen_density,
             min_size,
             max_size,
             size,
@@ -1895,10 +1896,10 @@ impl HeadlessCtrl {
         }
 
         let scale_factor = self.vars.0.scale_factor.get();
-        let screen_ppi = self.headless_monitor.ppi;
+        let screen_density = self.headless_monitor.density;
         let screen_size = self.headless_monitor.size.to_px(scale_factor);
 
-        let (min_size, max_size, size, root_font_size) = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+        let (min_size, max_size, size, root_font_size) = self.content.outer_layout(scale_factor, screen_density, screen_size, || {
             let min_size = self.vars.min_size().layout_dft(default_min_size(scale_factor));
             let max_size = self.vars.max_size().layout_dft(screen_size);
             let size = self.vars.size().layout_dft(default_size(scale_factor));
@@ -1910,7 +1911,7 @@ impl HeadlessCtrl {
         let _surface_size = self.content.layout(
             layout_widgets,
             scale_factor,
-            screen_ppi,
+            screen_density,
             min_size,
             max_size,
             size,
@@ -2180,9 +2181,15 @@ impl ContentCtrl {
     }
 
     /// Run an `action` in the context of a monitor screen that is parent of this content.
-    pub fn outer_layout<R>(&mut self, scale_factor: Factor, screen_ppi: Ppi, screen_size: PxSize, action: impl FnOnce() -> R) -> R {
+    pub fn outer_layout<R>(
+        &mut self,
+        scale_factor: Factor,
+        screen_density: PxDensity,
+        screen_size: PxSize,
+        action: impl FnOnce() -> R,
+    ) -> R {
         let metrics = LayoutMetrics::new(scale_factor, screen_size, Length::pt_to_px(11.0, scale_factor))
-            .with_screen_ppi(screen_ppi)
+            .with_screen_density(screen_density)
             .with_direction(DIRECTION_VAR.get());
         LAYOUT.with_context(metrics, action)
     }
@@ -2193,7 +2200,7 @@ impl ContentCtrl {
         &mut self,
         layout_widgets: Arc<LayoutUpdates>,
         scale_factor: Factor,
-        screen_ppi: Ppi,
+        screen_density: PxDensity,
         min_size: PxSize,
         max_size: PxSize,
         size: PxSize,
@@ -2212,7 +2219,7 @@ impl ContentCtrl {
 
         let final_size = WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
             let metrics = LayoutMetrics::new(scale_factor, size, root_font_size)
-                .with_screen_ppi(screen_ppi)
+                .with_screen_density(screen_density)
                 .with_direction(DIRECTION_VAR.get());
             LAYOUT.with_root_context(self.layout_pass, metrics, || {
                 let mut root_cons = LAYOUT.constraints();
@@ -2678,7 +2685,7 @@ impl NestedWindowNode {
 
         let metrics = LayoutMetrics::new(LAYOUT.scale_factor(), PxSize::splat(Px::MAX), LAYOUT.root_font_size())
             .with_constraints(constraints)
-            .with_screen_ppi(LAYOUT.screen_ppi())
+            .with_screen_density(LAYOUT.screen_density())
             .with_direction(DIRECTION_VAR.get());
 
         // only the same app_local!, APP.id

@@ -551,7 +551,7 @@ impl ExternalImages {
             size: descriptor.size.cast().cast_unit(), // not used
             pixels,
             descriptor,
-            ppi: None,
+            density: None,
         })
     }
 

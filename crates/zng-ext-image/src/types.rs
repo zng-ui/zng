@@ -16,7 +16,7 @@ use zng_color::{
 };
 use zng_layout::{
     context::{LAYOUT, LayoutMetrics, LayoutPassId},
-    unit::{ByteLength, ByteUnits, FactorUnits as _, LayoutAxis, Px, PxLine, PxPoint, PxRect, PxSize},
+    unit::{ByteLength, ByteUnits, FactorUnits as _, LayoutAxis, Px, PxDensity2d, PxLine, PxPoint, PxRect, PxSize},
 };
 use zng_task::{self as task, SignalOnce};
 use zng_txt::Txt;
@@ -25,7 +25,7 @@ use zng_view_api::image::ImageTextureId;
 
 use crate::render::ImageRenderWindowRoot;
 
-pub use zng_view_api::image::{ImageDataFormat, ImageDownscale, ImageMaskMode, ImagePpi};
+pub use zng_view_api::image::{ImageDataFormat, ImageDownscale, ImageMaskMode};
 
 /// A custom proxy in [`IMAGES`].
 ///
@@ -233,10 +233,10 @@ impl Img {
         self.view.get().map(|v| v.size()).unwrap_or_else(PxSize::zero)
     }
 
-    /// Returns the image pixel-per-inch metadata if the image is loaded and the
+    /// Returns the image pixel density metadata if the image is loaded and the
     /// metadata was retrieved.
-    pub fn ppi(&self) -> Option<ImagePpi> {
-        self.view.get().and_then(|v| v.ppi())
+    pub fn density(&self) -> Option<PxDensity2d> {
+        self.view.get().and_then(|v| v.density())
     }
 
     /// Returns `true` if the image is fully opaque or it is not loaded.
@@ -256,13 +256,13 @@ impl Img {
 
     /// Calculate an *ideal* layout size for the image.
     ///
-    /// The image is scaled considering the [`ppi`] and screen scale factor. If the
-    /// image has no [`ppi`] falls back to the [`screen_ppi`] in both dimensions.
+    /// The image is scaled considering the [`density`] and screen scale factor. If the
+    /// image has no [`density`] falls back to the [`screen_density`] in both dimensions.
     ///
-    /// [`ppi`]: Self::ppi
-    /// [`screen_ppi`]: LayoutMetrics::screen_ppi
+    /// [`density`]: Self::density
+    /// [`screen_density`]: LayoutMetrics::screen_density
     pub fn layout_size(&self, ctx: &LayoutMetrics) -> PxSize {
-        self.calc_size(ctx, ImagePpi::splat(ctx.screen_ppi().0), false)
+        self.calc_size(ctx, PxDensity2d::splat(ctx.screen_density()), false)
     }
 
     /// Calculate a layout size for the image.
@@ -270,23 +270,23 @@ impl Img {
     /// # Parameters
     ///
     /// * `ctx`: Used to get the screen resolution.
-    /// * `fallback_ppi`: Resolution used if [`ppi`] is `None`.
-    /// * `ignore_image_ppi`: If `true` always uses the `fallback_ppi` as the resolution.
+    /// * `fallback_density`: Resolution used if [`density`] is `None`.
+    /// * `ignore_image_density`: If `true` always uses the `fallback_density` as the resolution.
     ///
-    /// [`ppi`]: Self::ppi
-    pub fn calc_size(&self, ctx: &LayoutMetrics, fallback_ppi: ImagePpi, ignore_image_ppi: bool) -> PxSize {
-        let dpi = if ignore_image_ppi {
-            fallback_ppi
+    /// [`density`]: Self::density
+    pub fn calc_size(&self, ctx: &LayoutMetrics, fallback_density: PxDensity2d, ignore_image_density: bool) -> PxSize {
+        let dpi = if ignore_image_density {
+            fallback_density
         } else {
-            self.ppi().unwrap_or(fallback_ppi)
+            self.density().unwrap_or(fallback_density)
         };
 
-        let s_ppi = ctx.screen_ppi();
+        let s_density = ctx.screen_density();
         let mut size = self.size();
 
         let fct = ctx.scale_factor().0;
-        size.width *= (s_ppi.0 / dpi.x) * fct;
-        size.height *= (s_ppi.0 / dpi.y) * fct;
+        size.width *= (s_density.ppcm() / dpi.width.ppcm()) * fct;
+        size.height *= (s_density.ppcm() / dpi.height.ppcm()) * fct;
 
         size
     }
@@ -702,29 +702,29 @@ impl ImageSource {
 
 impl ImageSource {
     /// New image data from solid color.
-    pub fn flood(size: impl Into<PxSize>, color: impl Into<Rgba>, ppi: Option<ImagePpi>) -> Self {
-        Self::flood_impl(size.into(), color.into(), ppi)
+    pub fn flood(size: impl Into<PxSize>, color: impl Into<Rgba>, density: Option<PxDensity2d>) -> Self {
+        Self::flood_impl(size.into(), color.into(), density)
     }
-    fn flood_impl(size: PxSize, color: Rgba, ppi: Option<ImagePpi>) -> Self {
+    fn flood_impl(size: PxSize, color: Rgba, density: Option<PxDensity2d>) -> Self {
         let pixels = size.width.0 as usize * size.height.0 as usize;
         let bgra = color.to_bgra_bytes();
         let mut data = Vec::with_capacity(pixels * 4);
         for _ in 0..pixels {
             data.extend_from_slice(&bgra);
         }
-        Self::from_data(Arc::new(data), ImageDataFormat::Bgra8 { size, ppi })
+        Self::from_data(Arc::new(data), ImageDataFormat::Bgra8 { size, density })
     }
 
     /// New image data from vertical linear gradient.
     pub fn linear_vertical(
         size: impl Into<PxSize>,
         stops: impl Into<GradientStops>,
-        ppi: Option<ImagePpi>,
+        density: Option<PxDensity2d>,
         mask: Option<ImageMaskMode>,
     ) -> Self {
-        Self::linear_vertical_impl(size.into(), stops.into(), ppi, mask)
+        Self::linear_vertical_impl(size.into(), stops.into(), density, mask)
     }
-    fn linear_vertical_impl(size: PxSize, stops: GradientStops, ppi: Option<ImagePpi>, mask: Option<ImageMaskMode>) -> Self {
+    fn linear_vertical_impl(size: PxSize, stops: GradientStops, density: Option<PxDensity2d>, mask: Option<ImageMaskMode>) -> Self {
         assert!(size.width > Px(0));
         assert!(size.height > Px(0));
 
@@ -805,7 +805,7 @@ impl ImageSource {
                     }
                 }
 
-                Self::from_data(Arc::new(data), ImageDataFormat::Bgra8 { size, ppi })
+                Self::from_data(Arc::new(data), ImageDataFormat::Bgra8 { size, density })
             }
         }
     }
@@ -814,12 +814,12 @@ impl ImageSource {
     pub fn linear_horizontal(
         size: impl Into<PxSize>,
         stops: impl Into<GradientStops>,
-        ppi: Option<ImagePpi>,
+        density: Option<PxDensity2d>,
         mask: Option<ImageMaskMode>,
     ) -> Self {
-        Self::linear_horizontal_impl(size.into(), stops.into(), ppi, mask)
+        Self::linear_horizontal_impl(size.into(), stops.into(), density, mask)
     }
-    fn linear_horizontal_impl(size: PxSize, stops: GradientStops, ppi: Option<ImagePpi>, mask: Option<ImageMaskMode>) -> Self {
+    fn linear_horizontal_impl(size: PxSize, stops: GradientStops, density: Option<PxDensity2d>, mask: Option<ImageMaskMode>) -> Self {
         assert!(size.width > Px(0));
         assert!(size.height > Px(0));
 
@@ -897,7 +897,7 @@ impl ImageSource {
                     }
                 }
 
-                Self::from_data(Arc::new(data), ImageDataFormat::Bgra8 { size, ppi })
+                Self::from_data(Arc::new(data), ImageDataFormat::Bgra8 { size, density })
             }
         }
     }

@@ -2303,7 +2303,7 @@ impl Api for App {
                 let id = self.image_cache.add(image::ImageRequest::new(
                     image::ImageDataFormat::Bgra8 {
                         size: zng_unit::PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
-                        ppi: None,
+                        density: None,
                     },
                     IpcBytes::from_vec(data),
                     u64::MAX,

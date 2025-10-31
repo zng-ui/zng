@@ -7,7 +7,7 @@ use zng_time::{DInstant, Deadline};
 use zng_txt::Txt;
 use zng_unit::{
     AngleDegree, AngleGradian, AngleRadian, AngleTurn, ByteLength, CornerRadius2D, Dip, Factor, FactorPercent, FactorUnits, Orientation2D,
-    Px, Rgba, euclid,
+    Px, PxDensity, Rgba, euclid,
 };
 
 use crate::{
@@ -318,5 +318,11 @@ impl TRANSITIONABLE_APP {
     /// [`Rgba`]: zng_unit::Rgba
     pub fn init_rgba_lerp(&self, lerp: fn(Rgba, Rgba, EasingStep) -> Rgba) {
         *RGBA_LERP.write() = lerp;
+    }
+}
+
+impl Transitionable for PxDensity {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        PxDensity::new_ppcm(self.ppcm().lerp(&to.ppcm(), step))
     }
 }

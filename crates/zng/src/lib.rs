@@ -601,7 +601,7 @@ mod __prelude {
 
     pub use zng_layout::unit::{
         Align, AngleUnits as _, ByteUnits as _, DipToPx as _, FactorUnits as _, Layout1d as _, Layout2d as _, Length, LengthUnits as _,
-        LineFromTuplesBuilder as _, PxToDip as _, RectFromTuplesBuilder as _, ResolutionUnits as _, TimeUnits as _,
+        LineFromTuplesBuilder as _, PxDensityUnits as _, PxToDip as _, RectFromTuplesBuilder as _, TimeUnits as _,
     };
 
     pub use zng_txt::{ToTxt as _, Txt, formatx};
@@ -811,8 +811,8 @@ mod __prelude_wgt {
             Align, AngleDegree, AngleGradian, AngleRadian, AngleUnits as _, ByteUnits as _, Dip, DipBox, DipPoint, DipRect, DipSideOffsets,
             DipSize, DipToPx as _, DipVector, Factor, Factor2d, FactorPercent, FactorSideOffsets, FactorUnits as _, Layout1d as _,
             Layout2d as _, LayoutAxis, Length, LengthUnits as _, Line, LineFromTuplesBuilder as _, Point, Px, PxBox, PxConstraints,
-            PxConstraints2d, PxCornerRadius, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip as _, PxTransform, PxVector, Rect,
-            RectFromTuplesBuilder as _, ResolutionUnits as _, SideOffsets, Size, TimeUnits as _, Transform, Vector,
+            PxConstraints2d, PxCornerRadius, PxDensityUnits as _, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip as _,
+            PxTransform, PxVector, Rect, RectFromTuplesBuilder as _, SideOffsets, Size, TimeUnits as _, Transform, Vector,
         },
     };
 

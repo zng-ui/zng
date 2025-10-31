@@ -125,7 +125,7 @@ context_var! {
     /// If the image desired size is scaled considering the image and screen PPIs.
     ///
     /// Is `false` by default.
-    pub static IMAGE_SCALE_PPI_VAR: bool = false;
+    pub static IMAGE_SCALE_DENSITY_VAR: bool = false;
 
     /// Align of the image in relation to the image widget final size.
     ///
@@ -161,11 +161,11 @@ pub fn img_fit(child: impl IntoUiNode, fit: impl IntoVar<ImageFit>) -> UiNode {
 
 /// Sets the scale applied to all inner images.
 ///
-/// The scaling is applied after [`img_scale_ppi`] if active.
+/// The scaling is applied after [`img_scale_density`] if active.
 ///
 /// By default not scaling is done.
 ///
-/// [`img_scale_ppi`]: fn@img_scale_ppi
+/// [`img_scale_density`]: fn@img_scale_density
 #[property(CONTEXT, default(IMAGE_SCALE_VAR), widget_impl(Image))]
 pub fn img_scale(child: impl IntoUiNode, scale: impl IntoVar<Factor2d>) -> UiNode {
     with_context_var(child, IMAGE_SCALE_VAR, scale)
@@ -185,19 +185,19 @@ pub fn img_scale_factor(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> 
     with_context_var(child, IMAGE_SCALE_FACTOR_VAR, enabled)
 }
 
-/// Sets if the image desired size is scaled considering the image and monitor PPI.
+/// Sets if the image desired size is scaled considering the image and monitor pixel density.
 ///
 /// The image desired size is its original size, after [`img_crop`], and it can be in pixels or scaled considering
-/// the image PPI, monitor PPI and scale factor.
+/// the image pixel density, monitor pixel density and scale factor.
 ///
 /// By default this is `false`, if `true` the image is scaled in a attempt to recreate the original physical dimensions, this
-/// only works if the image and monitor PPI are set correctly. The monitor PPI can be set using the [`MONITORS`] service.
+/// only works if the image and monitor pixel density are set correctly. The monitor pixel density can be set using the [`MONITORS`] service.
 ///
 /// [`img_crop`]: fn@img_crop
 /// [`MONITORS`]: zng_ext_window::MONITORS
-#[property(CONTEXT, default(IMAGE_SCALE_PPI_VAR), widget_impl(Image))]
-pub fn img_scale_ppi(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
-    with_context_var(child, IMAGE_SCALE_PPI_VAR, enabled)
+#[property(CONTEXT, default(IMAGE_SCALE_DENSITY_VAR), widget_impl(Image))]
+pub fn img_scale_density(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
+    with_context_var(child, IMAGE_SCALE_DENSITY_VAR, enabled)
 }
 
 /// Sets the [`Align`] of all inner images within each image widget area.
@@ -235,13 +235,13 @@ pub fn img_offset(child: impl IntoUiNode, offset: impl IntoVar<Vector>) -> UiNod
 
 /// Sets a [`Rect`] that is a clip applied to all inner images before their layout.
 ///
-/// Relative values are calculated from the image pixel size, the [`img_scale_ppi`] is only considered after.
+/// Relative values are calculated from the image pixel size, the [`img_scale_density`] is only considered after.
 /// Note that more complex clipping can be applied after to the full widget, this property exists primarily to
 /// render selections of a [texture atlas].
 ///
 /// By default no cropping is done.
 ///
-/// [`img_scale_ppi`]: #fn@img_scale_ppi
+/// [`img_scale_density`]: #fn@img_scale_density
 /// [texture atlas]: https://en.wikipedia.org/wiki/Texture_atlas
 /// [`Rect`]: zng_wgt::prelude::Rect
 #[property(CONTEXT, default(IMAGE_CROP_VAR), widget_impl(Image))]

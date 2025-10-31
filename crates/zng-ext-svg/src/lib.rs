@@ -14,7 +14,7 @@ use std::sync::Arc;
 use zng_app::AppExtension;
 use zng_ext_image::*;
 use zng_txt::{Txt, formatx};
-use zng_unit::{Px, PxSize};
+use zng_unit::{Px, PxDensity2d, PxDensityUnits as _, PxSize};
 
 /// Application extension that installs SVG handling.
 ///
@@ -101,7 +101,7 @@ fn load(data: SvgData, downscale: Option<ImageDownscale>) -> ImageSource {
                 Arc::new(data),
                 ImageDataFormat::Bgra8 {
                     size,
-                    ppi: Some(ImagePpi::splat(options.dpi)),
+                    density: Some(PxDensity2d::splat(options.dpi.ppi())),
                 },
             )
         }

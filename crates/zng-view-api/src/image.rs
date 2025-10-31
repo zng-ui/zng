@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use zng_txt::Txt;
 
 use crate::ipc::IpcBytes;
-use zng_unit::{Px, PxSize};
+use zng_unit::{Px, PxDensity2d, PxSize};
 
 crate::declare_id! {
     /// Id of a decoded image in the cache.
@@ -179,8 +179,8 @@ pub enum ImageDataFormat {
     Bgra8 {
         /// Size in pixels.
         size: PxSize,
-        /// Pixels-per-inch of the image.
-        ppi: Option<ImagePpi>,
+        /// Pixel density of the image.
+        density: Option<PxDensity2d>,
     },
 
     /// Decoded A8.
@@ -227,7 +227,7 @@ impl From<PxSize> for ImageDataFormat {
     fn from(bgra8_size: PxSize) -> Self {
         ImageDataFormat::Bgra8 {
             size: bgra8_size,
-            ppi: None,
+            density: None,
         }
     }
 }
@@ -236,7 +236,9 @@ impl PartialEq for ImageDataFormat {
         match (self, other) {
             (Self::FileExtension(l0), Self::FileExtension(r0)) => l0 == r0,
             (Self::MimeType(l0), Self::MimeType(r0)) => l0 == r0,
-            (Self::Bgra8 { size: s0, ppi: p0 }, Self::Bgra8 { size: s1, ppi: p1 }) => s0 == s1 && ppi_key(*p0) == ppi_key(*p1),
+            (Self::Bgra8 { size: s0, density: p0 }, Self::Bgra8 { size: s1, density: p1 }) => {
+                s0 == s1 && density_key(*p0) == density_key(*p1)
+            }
             (Self::Unknown, Self::Unknown) => true,
             _ => false,
         }
@@ -247,9 +249,9 @@ impl std::hash::Hash for ImageDataFormat {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
         match self {
-            ImageDataFormat::Bgra8 { size, ppi } => {
+            ImageDataFormat::Bgra8 { size, density } => {
                 size.hash(state);
-                ppi_key(*ppi).hash(state);
+                density_key(*density).hash(state);
             }
             ImageDataFormat::A8 { size } => {
                 size.hash(state);
@@ -261,8 +263,8 @@ impl std::hash::Hash for ImageDataFormat {
     }
 }
 
-fn ppi_key(ppi: Option<ImagePpi>) -> Option<(u16, u16)> {
-    ppi.map(|s| ((s.x * 3.0) as u16, (s.y * 3.0) as u16))
+fn density_key(density: Option<PxDensity2d>) -> Option<(u16, u16)> {
+    density.map(|s| ((s.width.ppcm() * 3.0) as u16, (s.height.ppcm() * 3.0) as u16))
 }
 
 /// Represents a successfully decoded image.
@@ -277,8 +279,8 @@ pub struct ImageLoadedData {
     pub id: ImageId,
     /// Pixel size.
     pub size: PxSize,
-    /// Pixel-per-inch metadata.
-    pub ppi: Option<ImagePpi>,
+    /// Pixel density metadata.
+    pub density: Option<PxDensity2d>,
     /// If all pixels have an alpha value of 255.
     pub is_opaque: bool,
     /// If the `pixels` are in a single channel (A8).
@@ -288,11 +290,11 @@ pub struct ImageLoadedData {
 }
 impl ImageLoadedData {
     /// New response.
-    pub fn new(id: ImageId, size: PxSize, ppi: Option<ImagePpi>, is_opaque: bool, is_mask: bool, pixels: IpcBytes) -> Self {
+    pub fn new(id: ImageId, size: PxSize, density: Option<PxDensity2d>, is_opaque: bool, is_mask: bool, pixels: IpcBytes) -> Self {
         Self {
             id,
             size,
-            ppi,
+            density,
             is_opaque,
             is_mask,
             pixels,
@@ -304,81 +306,10 @@ impl fmt::Debug for ImageLoadedData {
         f.debug_struct("ImageLoadedData")
             .field("id", &self.id)
             .field("size", &self.size)
-            .field("ppi", &self.ppi)
+            .field("density", &self.density)
             .field("is_opaque", &self.is_opaque)
             .field("is_mask", &self.is_mask)
             .field("pixels", &format_args!("<{} bytes shared memory>", self.pixels.len()))
             .finish()
     }
-}
-/// Pixels-per-inch of each dimension of an image.
-#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct ImagePpi {
-    /// Pixels-per-inch in the X dimension.
-    pub x: f32,
-    /// Pixels-per-inch in the Y dimension.
-    pub y: f32,
-}
-impl ImagePpi {
-    /// New from x, y.
-    pub const fn new(x: f32, y: f32) -> Self {
-        Self { x, y }
-    }
-
-    /// New equal in both dimensions.
-    pub const fn splat(xy: f32) -> Self {
-        Self::new(xy, xy)
-    }
-
-    /// New from pixels-per-centimeter
-    pub const fn new_cm(x: f32, y: f32) -> Self {
-        Self {
-            x: x * Self::CM_TO_INCH,
-            y: y * Self::CM_TO_INCH,
-        }
-    }
-
-    /// Pixels-per-centimeter in the X dimension.
-    pub const fn x_cm(self) -> f32 {
-        self.x / Self::CM_TO_INCH
-    }
-
-    /// Pixels-per-centimeter in the Y dimension.
-    pub const fn y_cm(self) -> f32 {
-        self.y / Self::CM_TO_INCH
-    }
-
-    const CM_TO_INCH: f32 = 2.54;
-}
-impl Default for ImagePpi {
-    /// 96.0
-    fn default() -> Self {
-        Self::splat(96.0)
-    }
-}
-impl fmt::Debug for ImagePpi {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() || self.x != self.y {
-            f.debug_struct("ImagePpi").field("x", &self.x).field("y", &self.y).finish()
-        } else {
-            write!(f, "{}", self.x)
-        }
-    }
-}
-
-impl From<f32> for ImagePpi {
-    fn from(xy: f32) -> Self {
-        ImagePpi::splat(xy)
-    }
-}
-impl From<(f32, f32)> for ImagePpi {
-    fn from((x, y): (f32, f32)) -> Self {
-        ImagePpi::new(x, y)
-    }
-}
-
-#[cfg(feature = "var")]
-zng_var::impl_from_and_into_var! {
-    fn from(xy: f32) -> ImagePpi;
-    fn from(xy: (f32, f32)) -> ImagePpi;
 }

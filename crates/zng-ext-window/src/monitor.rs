@@ -7,7 +7,7 @@ use zng_app::update::EventUpdate;
 use zng_app::view_process::raw_events::{RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT, RawMonitorsChangedArgs};
 use zng_app::window::{MonitorId, WINDOW, WindowId};
 use zng_app_context::app_local;
-use zng_layout::unit::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Ppi, Px, PxPoint, PxRect, PxSize, PxToDip};
+use zng_layout::unit::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Px, PxDensity, PxPoint, PxRect, PxSize, PxToDip};
 use zng_txt::{ToTxt, Txt};
 use zng_unique_id::IdMap;
 use zng_var::{Var, VarValue, impl_from_and_into_var, var};
@@ -26,7 +26,7 @@ app_local! {
 
 /// Monitors service.
 ///
-/// List monitor screens and configure the PPI of a given monitor.
+/// List monitor screens and configure the pixel density of a given monitor.
 ///
 /// # Uses
 ///
@@ -49,14 +49,14 @@ app_local! {
 /// Some apps, like image editors, may implement a feature where the user can preview the *real* dimensions of
 /// the content they are editing, to accurately implement this you must known the real dimensions of the monitor screen,
 /// unfortunately this information is not provided by display drivers. You can ask the user to measure their screen and
-/// set the **pixel-per-inch** ratio for the screen using the [`ppi`] variable, this value is then available in the [`LayoutMetrics`]
+/// set the pixel density for the screen using the [`density`] variable, this value is then available in the [`LayoutMetrics`]
 /// for the next layout. If not set, the default is `96.0ppi`.
 ///
 /// # Provider
 ///
 /// This service is provided by the [`WindowManager`] extension, it will panic if used in an app not extended.
 ///
-/// [`ppi`]: MonitorInfo::ppi
+/// [`density`]: MonitorInfo::density
 /// [`scale_factor`]: MonitorInfo::scale_factor
 /// [`LayoutMetrics`]: zng_layout::context::LayoutMetrics
 /// [`WindowManager`]: crate::WindowManager
@@ -165,16 +165,16 @@ pub struct HeadlessMonitor {
     /// `(11608, 8708)` by default.
     pub size: DipSize,
 
-    /// Pixel-per-inches used for the headless layout and rendering.
-    pub ppi: Ppi,
+    /// Pixel density used for the headless layout and rendering.
+    pub density: PxDensity,
 }
 impl fmt::Debug for HeadlessMonitor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() || self.ppi != Ppi::default() {
+        if f.alternate() || self.density != PxDensity::default() {
             f.debug_struct("HeadlessMonitor")
                 .field("scale_factor", &self.scale_factor)
                 .field("screen_size", &self.size)
-                .field("ppi", &self.ppi)
+                .field("density", &self.density)
                 .finish()
         } else {
             write!(f, "({:?}, ({}, {}))", self.scale_factor, self.size.width, self.size.height)
@@ -187,7 +187,7 @@ impl HeadlessMonitor {
         HeadlessMonitor {
             scale_factor: None,
             size,
-            ppi: Ppi::default(),
+            density: PxDensity::default(),
         }
     }
 
@@ -196,7 +196,7 @@ impl HeadlessMonitor {
         HeadlessMonitor {
             scale_factor: Some(scale_factor),
             size,
-            ppi: Ppi::default(),
+            density: PxDensity::default(),
         }
     }
 
@@ -233,7 +233,7 @@ pub struct MonitorInfo {
     size: Var<PxSize>,
     video_modes: Var<Vec<VideoMode>>,
     scale_factor: Var<Factor>,
-    ppi: Var<Ppi>,
+    density: Var<PxDensity>,
 }
 impl fmt::Debug for MonitorInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -261,7 +261,7 @@ impl MonitorInfo {
             size: var(info.size),
             scale_factor: var(info.scale_factor),
             video_modes: var(info.video_modes),
-            ppi: var(Ppi::default()),
+            density: var(PxDensity::default()),
         }
     }
 
@@ -316,9 +316,9 @@ impl MonitorInfo {
     pub fn scale_factor(&self) -> Var<Factor> {
         self.scale_factor.read_only()
     }
-    /// Pixel-per-inch config var.
-    pub fn ppi(&self) -> Var<Ppi> {
-        self.ppi.clone()
+    /// Pixel density config var.
+    pub fn density(&self) -> Var<PxDensity> {
+        self.density.clone()
     }
 
     /// Gets the monitor area in pixels.
@@ -353,7 +353,7 @@ impl MonitorInfo {
             size: var(defaults.size.to_px(fct)),
             video_modes: var(vec![]),
             scale_factor: var(fct),
-            ppi: var(Ppi::default()),
+            density: var(PxDensity::default()),
         }
     }
 }

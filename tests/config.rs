@@ -194,7 +194,7 @@ fn test_core_units() {
     test_config!("Length::Px" => Length::Px(Px(300)));
     test_config!("Length::Expr" => Length::Default * 20.pct());
     test_config!(GridSpacing::new(4.dip(), 5.dip()));
-    test_config!("Ppi" => 96.ppi());
+    test_config!("PxDensity" => 96.ppi());
 }
 
 fn test_core_border() {

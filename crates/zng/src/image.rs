@@ -72,7 +72,7 @@
 //! See [`zng_ext_image`] for the full image API and [`zng_wgt_image`] for the full widget API.
 
 pub use zng_ext_image::{
-    IMAGE_RENDER, IMAGES, ImageCacheMode, ImageDataFormat, ImageDownscale, ImageHash, ImageHasher, ImageLimits, ImagePpi, ImageRenderArgs,
+    IMAGE_RENDER, IMAGES, ImageCacheMode, ImageDataFormat, ImageDownscale, ImageHash, ImageHasher, ImageLimits, ImageRenderArgs,
     ImageSource, ImageSourceFilter, ImageVar, Img, PathFilter, render_retain,
 };
 
@@ -81,8 +81,8 @@ pub use zng_ext_image::UriFilter;
 
 pub use zng_wgt_image::{
     Image, ImageFit, ImageRepeat, ImgErrorArgs, ImgLoadArgs, ImgLoadingArgs, img_align, img_cache, img_crop, img_downscale, img_error_fn,
-    img_fit, img_limits, img_loading_fn, img_offset, img_rendering, img_repeat, img_repeat_spacing, img_scale, img_scale_factor,
-    img_scale_ppi, is_error, is_loaded, on_error, on_load,
+    img_fit, img_limits, img_loading_fn, img_offset, img_rendering, img_repeat, img_repeat_spacing, img_scale, img_scale_density,
+    img_scale_factor, is_error, is_loaded, on_error, on_load,
 };
 
 /// Mask image properties.
