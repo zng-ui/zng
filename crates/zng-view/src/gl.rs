@@ -1,4 +1,4 @@
-#![cfg_attr(any(feature = "hardware",  feature = "software"), allow(unused))]
+#![cfg_attr(any(feature = "hardware", feature = "software"), allow(unused))]
 
 use std::{cell::Cell, error::Error, fmt, mem, num::NonZeroU32, rc::Rc, thread};
 
