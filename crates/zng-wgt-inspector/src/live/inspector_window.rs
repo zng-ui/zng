@@ -205,7 +205,7 @@ fn menu(hit_test_select: Var<HitSelect>, adorn_selected: Var<bool>, select_focus
                 zng_wgt_rule_line::vr::Vr!(),
                 #[cfg(feature = "image")]
                 Toggle! {
-                    child = zng_wgt::ICONS.get("menu");
+                    child = zng_wgt::ICONS.get_or("menu", || Text!("☰"));
                     padding = 2;
                     checked = var(false);
                     checked_popup = {

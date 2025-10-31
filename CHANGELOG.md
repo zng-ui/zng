@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.19.0
+
 * Add `"view_hardware"` feature to make hardware rendering optional.
     - On Windows the `"view_software"` renderer uses ~20MB less RAM than Nvidia OpenGL drivers.
     - Only recommended for small apps with simple UIs.
