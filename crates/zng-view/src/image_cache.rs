@@ -11,8 +11,10 @@ use winit::{
 #[cfg(feature = "image_any")]
 use zng_txt::ToTxt as _;
 use zng_txt::{Txt, formatx};
+#[cfg(feature = "image_any")]
+use zng_unit::PxDensityUnits as _;
 
-use zng_unit::{Px, PxDensity2d, PxDensityUnits as _, PxPoint, PxSize};
+use zng_unit::{Px, PxDensity2d, PxPoint, PxSize};
 use zng_view_api::{
     Event,
     image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImageRequest},

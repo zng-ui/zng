@@ -91,8 +91,8 @@ impl PartialOrd for PxDensity {
 /// # Examples
 ///
 /// ```
-/// use zng_layout::unit::*;
-///
+/// # use zng_unit::*;
+/// #
 /// let p: PixelDensity = 96.ppi();
 ///
 /// println!("ppi: {p}");
@@ -103,7 +103,7 @@ pub trait PxDensityUnits {
     fn ppi(self) -> PxDensity;
     /// Same as [`ppi`].
     ///
-    /// [`ppi`]: PixelDensityUnits::ppi
+    /// [`ppi`]: PxDensityUnits::ppi
     fn dpi(self) -> PxDensity
     where
         Self: Sized,

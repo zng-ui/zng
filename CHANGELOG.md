@@ -16,7 +16,7 @@
     - See `zng::window` documentation for theming tips.
 
 * Unify pixel density units.
-    - **Breaking** Removed `zng::layout::{Ppi, Dpi, ResolutionUnits}`.
+    - **Breaking** Removed `zng::{layout::{Ppi, Dpi, ResolutionUnits}, image::ImagePpi}`.
     - Added `zng::layout::{PxDensity, PxDensity2d, PxDensityUnits}`.
     - **Breaking** Renamed all *ppi* to *density*.
 
