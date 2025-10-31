@@ -93,7 +93,7 @@ impl PartialOrd for PxDensity {
 /// ```
 /// # use zng_unit::*;
 /// #
-/// let p: PixelDensity = 96.ppi();
+/// let p: PxDensity = 96.ppi();
 ///
 /// println!("ppi: {p}");
 /// println!("ppcm: {p:#}");
