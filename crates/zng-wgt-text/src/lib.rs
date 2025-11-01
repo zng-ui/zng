@@ -157,7 +157,7 @@ pub fn txt(wgt: &mut WidgetBuilding, txt: impl IntoVar<Txt>) {
 /// can use [`has_data_error`] and [`get_data_error_txt`] to display the error.
 ///
 /// See also [`txt_parse_live`] for manually controlling when parse happens.
-/// 
+///
 /// See also [`txt_parse_on_stop`] for only parsing when the user stops typing.
 ///
 /// [`txt`]: fn@txt

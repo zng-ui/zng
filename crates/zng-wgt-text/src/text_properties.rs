@@ -1469,12 +1469,15 @@ pub fn txt_parse_live(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> Ui
     with_context_var(child, TXT_PARSE_LIVE_VAR, enabled)
 }
 
-/// Shorthand property, disables live parsing and parse on change stop.
+/// Disable live parsing and parse on change stop.
 ///
 /// This property sets [`txt_parse_live`] and [`on_change_stop`] on the widget.
 ///
+/// Consider increasing the [`change_stop_delay`] if the text can change after parse.
+///
 /// [`txt_parse_live`]: fn@txt_parse_live
 /// [`on_change_stop`]: fn@on_change_stop
+/// [`change_stop_delay`]: fn@change_stop_delay
 #[property(EVENT, widget_impl(TextEditMix<P>))]
 pub fn txt_parse_on_stop(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();

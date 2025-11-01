@@ -98,7 +98,7 @@ impl std::str::FromStr for PxDensity {
         }
         for suffix in ["ppcm", ".ppcm()"] {
             if let Some(s) = s.strip_suffix(suffix) {
-                return Ok(PxDensity::new_ppi(s.parse()?));
+                return Ok(PxDensity::new_ppcm(s.parse()?));
             }
         }
 
