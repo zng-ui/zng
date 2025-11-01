@@ -1,5 +1,6 @@
 # Unreleased
 
+* Image widget now ignores `img_scale_factor` when `img_scale_density` is enabled.
 * Implement `FromStr` for `PxDensity`.
 
 # 0.19.0

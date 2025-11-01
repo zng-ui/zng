@@ -237,8 +237,7 @@ pub fn image_presenter() -> UiNode {
                 let screen = metrics.screen_density();
                 let image = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(screen));
                 scale *= Factor2d::new(screen.ppcm() / image.width.ppcm(), screen.ppcm() / image.height.ppcm());
-            }
-            if IMAGE_SCALE_FACTOR_VAR.get() {
+            } else if IMAGE_SCALE_FACTOR_VAR.get() {
                 scale *= metrics.scale_factor();
             }
 
@@ -266,8 +265,7 @@ pub fn image_presenter() -> UiNode {
                 let screen = metrics.screen_density();
                 let image = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(screen));
                 scale *= Factor2d::new(screen.ppcm() / image.width.ppcm(), screen.ppcm() / image.height.ppcm());
-            }
-            if IMAGE_SCALE_FACTOR_VAR.get() {
+            } else if IMAGE_SCALE_FACTOR_VAR.get() {
                 scale *= metrics.scale_factor();
             }
 

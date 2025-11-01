@@ -179,7 +179,10 @@ pub fn img_scale(child: impl IntoUiNode, scale: impl IntoVar<Factor2d>) -> UiNod
 ///
 /// This is enabled by default.
 ///
+/// See also [`img_scale_density`], for physical scaling in calibrated monitors.
+///
 /// [`img_crop`]: fn@img_crop
+/// [`img_scale_density`]: fn@img_scale_density
 #[property(CONTEXT, default(IMAGE_SCALE_FACTOR_VAR), widget_impl(Image))]
 pub fn img_scale_factor(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     with_context_var(child, IMAGE_SCALE_FACTOR_VAR, enabled)
@@ -193,11 +196,14 @@ pub fn img_scale_factor(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> 
 /// By default this is `false`, if `true` the image is scaled in a attempt to recreate the original physical dimensions, this
 /// only works if the image and monitor pixel density are set correctly. The monitor pixel density can be set using the [`MONITORS`] service.
 ///
+/// This value supersedes [`img_scale_factor`], this this enabled the scale factor is ignored.
+///
 /// [`img_crop`]: fn@img_crop
 /// [`MONITORS`]: zng_ext_window::MONITORS
+/// [`img_scale_factor`]: fn@img_scale_factor
 #[property(CONTEXT, default(IMAGE_SCALE_DENSITY_VAR), widget_impl(Image))]
 pub fn img_scale_density(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
-    with_context_var(child, IMAGE_SCALE_DENSITY_VAR, enabled)
+    with_context_var(child, IMAGE_SCALE_DENSITY_VAR, enabled) // TODO(breaking) merge this property with `img_scale_factor`?
 }
 
 /// Sets the [`Align`] of all inner images within each image widget area.
