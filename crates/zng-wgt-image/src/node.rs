@@ -234,11 +234,10 @@ pub fn image_presenter() -> UiNode {
 
             let mut scale = IMAGE_SCALE_VAR.get();
             if IMAGE_SCALE_DENSITY_VAR.get() {
-                let sppi = metrics.screen_density();
-                let ippi = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(sppi));
-                scale *= Factor2d::new(sppi.ppcm() / ippi.width.ppcm(), sppi.ppcm() / ippi.height.ppcm());
-            }
-            if IMAGE_SCALE_FACTOR_VAR.get() {
+                let screen = metrics.screen_density();
+                let image = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(screen));
+                scale *= Factor2d::new(screen.ppcm() / image.width.ppcm(), screen.ppcm() / image.height.ppcm());
+            } else if IMAGE_SCALE_FACTOR_VAR.get() {
                 scale *= metrics.scale_factor();
             }
 
@@ -263,11 +262,10 @@ pub fn image_presenter() -> UiNode {
 
             let mut scale = IMAGE_SCALE_VAR.get();
             if IMAGE_SCALE_DENSITY_VAR.get() {
-                let sppi = metrics.screen_density();
-                let ippi = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(sppi));
-                scale *= Factor2d::new(sppi.ppcm() / ippi.width.ppcm(), sppi.ppcm() / ippi.height.ppcm());
-            }
-            if IMAGE_SCALE_FACTOR_VAR.get() {
+                let screen = metrics.screen_density();
+                let image = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(screen));
+                scale *= Factor2d::new(screen.ppcm() / image.width.ppcm(), screen.ppcm() / image.height.ppcm());
+            } else if IMAGE_SCALE_FACTOR_VAR.get() {
                 scale *= metrics.scale_factor();
             }
 
