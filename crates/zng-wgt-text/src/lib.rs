@@ -156,10 +156,13 @@ pub fn txt(wgt: &mut WidgetBuilding, txt: impl IntoVar<Txt>) {
 /// If the parse operation fails the value variable is not updated and the error display text is set in [`DATA.invalidate`], you
 /// can use [`has_data_error`] and [`get_data_error_txt`] to display the error.
 ///
-/// See also [`txt_parse_live`] for ways to control when the parse attempt happens.
+/// See also [`txt_parse_live`] for manually controlling when parse happens.
+/// 
+/// See also [`txt_parse_on_stop`] for only parsing when the user stops typing.
 ///
 /// [`txt`]: fn@txt
 /// [`txt_parse_live`]: fn@txt_parse_live
+/// [`txt_parse_on_stop`]: fn@txt_parse_on_stop
 /// [`DATA.invalidate`]: zng_wgt_data::DATA::invalidate
 /// [`has_data_error`]: fn@zng_wgt_data::has_data_error
 /// [`get_data_error_txt`]: fn@zng_wgt_data::get_data_error_txt
