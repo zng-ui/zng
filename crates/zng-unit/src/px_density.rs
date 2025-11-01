@@ -85,6 +85,26 @@ impl PartialOrd for PxDensity {
         Some(self.cmp(other))
     }
 }
+/// Parses `"##"`, `"##unit"` and `"##.unit()"` where `##` is a `f32` and `unit` is `ppi`, `dpi` or `ppcm`. When
+/// no unit is given assumes DPI.
+impl std::str::FromStr for PxDensity {
+    type Err = std::num::ParseFloatError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        for suffix in ["ppi", "dpi", ".ppi()", ".dpi()"] {
+            if let Some(s) = s.strip_suffix(suffix) {
+                return Ok(PxDensity::new_ppi(s.trim_end().parse()?));
+            }
+        }
+        for suffix in ["ppcm", ".ppcm()"] {
+            if let Some(s) = s.strip_suffix(suffix) {
+                return Ok(PxDensity::new_ppi(s.parse()?));
+            }
+        }
+
+        Ok(PxDensity::new_ppi(s.parse()?))
+    }
+}
 
 /// Extension methods for initializing pixel density units.
 ///
