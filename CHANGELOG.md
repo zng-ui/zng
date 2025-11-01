@@ -1,5 +1,6 @@
 # Unreleased
 
+* Implement `FromStr` for `PxDensity`.
 
 # 0.19.0
 

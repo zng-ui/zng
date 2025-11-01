@@ -136,7 +136,7 @@ impl std::str::FromStr for AngleRadian {
     type Err = std::num::ParseFloatError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        crate::parse_suffix(s, &[" rad", ".rad()"]).map(AngleRadian)
+        crate::parse_suffix(s, &[" rad", "rad", ".rad()"]).map(AngleRadian)
     }
 }
 
@@ -261,7 +261,7 @@ impl std::str::FromStr for AngleGradian {
     type Err = std::num::ParseFloatError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        crate::parse_suffix(s, &[" gon", ".grad()"]).map(AngleGradian)
+        crate::parse_suffix(s, &[" gon", "gon", ".grad()"]).map(AngleGradian)
     }
 }
 
@@ -479,7 +479,7 @@ impl std::str::FromStr for AngleTurn {
     type Err = std::num::ParseFloatError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        crate::parse_suffix(s, &[" turn", " turns", ".turn()"]).map(AngleTurn)
+        crate::parse_suffix(s, &[" turn", " turns", "turn", "turns", ".turn()"]).map(AngleTurn)
     }
 }
 impl PartialEq for AngleTurn {
