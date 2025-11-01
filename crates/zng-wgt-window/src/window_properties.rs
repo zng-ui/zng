@@ -213,7 +213,7 @@ impl_from_and_into_var! {
     }
 }
 
-/// Helper node for implementing widgets save.
+/// Helper node for implementing widget state saving.
 ///
 /// The `on_load_restore` closure is called on window load or on init if the window is already loaded. The argument
 /// is the saved state from a previous instance.
@@ -426,6 +426,7 @@ pub fn config_block_window_load(child: impl IntoUiNode, enabled: impl IntoValue<
         Allow,
         Block {
             _handle: WindowLoadingHandle,
+            _cfg_handle: VarHandle,
             cfg: Var<ConfigStatus>,
         },
     }
@@ -438,8 +439,9 @@ pub fn config_block_window_load(child: impl IntoUiNode, enabled: impl IntoValue<
                 if !cfg.get().is_idle()
                     && let Some(_handle) = WINDOW.loading_handle(delay)
                 {
+                    let _cfg_handle = cfg.subscribe(UpdateOp::Update, WIDGET.id());
                     WIDGET.sub_var(&cfg);
-                    state = State::Block { _handle, cfg };
+                    state = State::Block { _handle, _cfg_handle, cfg };
                 }
             }
         }
