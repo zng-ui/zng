@@ -598,9 +598,9 @@ impl WINDOWS {
     }
 
     /// Returns `true` if the window [`open`] task has completed.
-    /// 
+    ///
     /// Note that the window may not be fully [loaded] yet, or actually open in the the view-process.
-    /// 
+    ///
     /// [`open`]: WINDOWS::open
     /// [loaded]: WINDOWS::is_loaded
     pub fn is_open(&self, window_id: impl Into<WindowId>) -> bool {
@@ -624,9 +624,9 @@ impl WINDOWS {
     }
 
     /// Returns `true` if the window is open and has no pending loading handles.
-    /// 
+    ///
     /// See [`loading_handle`] for more details.
-    /// 
+    ///
     /// [`loading_handle`]: WINDOWS::loading_handle
     pub fn is_loaded(&self, window_id: impl Into<WindowId>) -> bool {
         let window_id = window_id.into();
@@ -1812,16 +1812,16 @@ pub trait WINDOW_Ext {
     }
 
     /// Returns `true` if the window open task has completed.
-    /// 
+    ///
     /// Note that the window may not yet be [loaded], or actually open in the view-process.
-    /// 
-    /// [loaded]: WINDOW_ext::is_loaded
+    ///
+    /// [loaded]: WINDOW_Ext::is_loaded
     fn is_open(&self) -> bool {
         WINDOWS.is_open(WINDOW.id())
     }
 
     /// Returns `true` if the window is open and has no pending loading handles.
-    /// 
+    ///
     /// See [`WINDOWS::is_loaded`] for more details.
     fn is_loaded(&self) -> bool {
         WINDOWS.is_loaded(WINDOW.id())

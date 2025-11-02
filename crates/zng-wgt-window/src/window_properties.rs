@@ -215,7 +215,8 @@ impl_from_and_into_var! {
 
 /// Helper node for implementing widget state saving.
 ///
-/// The `on_load_restore` closure is called on window load or on init if the window is already loaded. The argument
+/// The `on_load_restore` closure is called when either config status idle or window is loaded.
+/// If the window is already loaded and config idle the closure is called on init. The argument
 /// is the saved state from a previous instance.
 ///
 /// The `on_update_save` closure is called every update after the window loads, if it returns a value the config is updated.
@@ -229,16 +230,28 @@ pub fn save_state_node<S: ConfigValue>(
 ) -> UiNode {
     let enabled = enabled.into();
     enum State<S: ConfigValue> {
+        /// disabled by user or due to no key
         Disabled,
-        AwaitingLoad,
+        /// Awaiting config or window load
+        AwaitingLoad {
+            _window_load_handle: EventHandle,
+            _config_status_handle: VarHandle,
+        },
+        /// Loaded, there was no config entry for the key (using default values)
         Loaded,
+        /// Loaded and there was a config entry for the key
         LoadedWithCfg(Var<S>),
     }
     let mut state = State::Disabled;
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             if let Some(key) = enabled.enabled_key() {
-                if WINDOW.is_loaded() {
+                let is_loaded = WINDOW.is_loaded();
+                let status = CONFIG.status();
+                let is_idle = status.get().is_idle();
+                if is_idle || is_loaded {
+                    // either config is already loaded or cannot await it because the window is already presenting
+
                     if CONFIG.contains_key(key.clone()).get() {
                         let cfg = CONFIG.get(key, on_update_save(true).unwrap());
                         on_load_restore(Some(cfg.get()));
@@ -248,8 +261,21 @@ pub fn save_state_node<S: ConfigValue>(
                         state = State::Loaded;
                     }
                 } else {
-                    WIDGET.sub_event(&WINDOW_LOAD_EVENT);
-                    state = State::AwaitingLoad;
+                    let id = WIDGET.id();
+                    let _window_load_handle = if !is_loaded {
+                        WINDOW_LOAD_EVENT.subscribe(id)
+                    } else {
+                        EventHandle::dummy()
+                    };
+                    let _config_status_handle = if !is_idle {
+                        status.subscribe(UpdateOp::Update, id)
+                    } else {
+                        VarHandle::dummy()
+                    };
+                    state = State::AwaitingLoad {
+                        _window_load_handle,
+                        _config_status_handle,
+                    };
                 }
             } else {
                 state = State::Disabled;
@@ -259,7 +285,9 @@ pub fn save_state_node<S: ConfigValue>(
             state = State::Disabled;
         }
         UiNodeOp::Event { update } => {
-            if matches!(&state, State::AwaitingLoad) && WINDOW_LOAD_EVENT.has(update) {
+            if matches!(&state, State::AwaitingLoad { .. }) && WINDOW_LOAD_EVENT.has(update) {
+                // window loaded, can't await for config anymore
+
                 if let Some(key) = enabled.enabled_key() {
                     if CONFIG.contains_key(key.clone()).get() {
                         let cfg = CONFIG.get(key, on_update_save(true).unwrap());
@@ -287,6 +315,25 @@ pub fn save_state_node<S: ConfigValue>(
                         let cfg = CONFIG.insert(key, new.clone());
                         state = State::LoadedWithCfg(cfg);
                     } else {
+                        state = State::Disabled;
+                    }
+                }
+            }
+            State::AwaitingLoad { .. } => {
+                if CONFIG.status().get().is_idle() {
+                    // config finished loading, restore state
+
+                    if let Some(key) = enabled.enabled_key() {
+                        if CONFIG.contains_key(key.clone()).get() {
+                            let cfg = CONFIG.get(key, on_update_save(true).unwrap());
+                            on_load_restore(Some(cfg.get()));
+                            state = State::LoadedWithCfg(cfg);
+                        } else {
+                            on_load_restore(None);
+                            state = State::Loaded;
+                        }
+                    } else {
+                        // this can happen if the parent widget node is not properly implemented (changed context)
                         state = State::Disabled;
                     }
                 }
