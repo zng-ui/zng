@@ -815,10 +815,11 @@ impl TextSpacingMix<()> {
         set.insert(&LETTER_SPACING_VAR);
         set.insert(&WORD_SPACING_VAR);
         set.insert(&TAB_LENGTH_VAR);
+        set.insert(&PARAGRAPH_INDENT_VAR);
     }
 }
 
-/// Height of each text line. If not set inherits the `line_height` from the parent widget.
+/// Height of each text line.
 ///
 /// The [`Default`] value is computed from the font metrics, `ascent - descent + line_gap`, this is
 /// usually similar to `1.2.em()`. Relative values are computed from the default value, so `200.pct()` is double
@@ -834,7 +835,7 @@ pub fn line_height(child: impl IntoUiNode, height: impl IntoVar<LineHeight>) -> 
     with_context_var(child, LINE_HEIGHT_VAR, height)
 }
 
-/// Extra spacing added in between text letters. If not set inherits the `letter_spacing` from the parent widget.
+/// Extra spacing added in between text letters.
 ///
 /// Letter spacing is computed using the font data, this unit represents
 /// extra space added to the computed spacing.
@@ -854,7 +855,7 @@ pub fn letter_spacing(child: impl IntoUiNode, extra: impl IntoVar<LetterSpacing>
     with_context_var(child, LETTER_SPACING_VAR, extra)
 }
 
-/// Extra spacing in-between text lines. If not set inherits the `line_spacing` from the parent widget.
+/// Extra spacing in-between text lines.
 ///
 /// The [`Default`] value is zero. Relative values are calculated from the [`LineHeight`], so `50.pct()` is half
 /// the computed line height. If the text only has one line this property is not used.
@@ -869,7 +870,7 @@ pub fn line_spacing(child: impl IntoUiNode, extra: impl IntoVar<LineSpacing>) ->
     with_context_var(child, LINE_SPACING_VAR, extra)
 }
 
-/// Extra spacing added to the Unicode `U+0020 SPACE` character. If not set inherits the `word_spacing` from the parent widget.
+/// Extra spacing added to the Unicode `U+0020 SPACE` character.
 ///
 /// Word spacing is done using the space character "advance" as defined in the font,
 /// this unit represents extra spacing added to that default spacing.
@@ -1749,29 +1750,52 @@ impl LinesWrapCount {
 
 /// Text paragraph properties.
 ///
-/// Note that the [`Text!`] widget does not include this mixin, as raw text does not encode
-/// paragraph breaks, other rich text widgets can include it to configure paragraphs.
+/// The base [`Text!`] widget only implements minimal support for paragraphs, rich text widgets will probably
+/// segment paragraphs into sub widgets and may ignore [`PARAGRAPH_BREAK_VAR`] depending on the source text format.
 ///
 /// [`Text!`]: struct@crate::Text
 #[widget_mixin]
 pub struct ParagraphMix<P>(P);
 
 context_var! {
+    /// Defines how the text is split in paragraphs.
+    /// 
+    /// Is `Start` by default.
+    pub static PARAGRAPH_BREAK_VAR: ParagraphBreak = ParagraphBreak::Start;
+
     /// Extra paragraph spacing of text blocks.
     pub static PARAGRAPH_SPACING_VAR: ParagraphSpacing = 1.em();
+    
+    /// Spacing applied at start of paragraphs.
+    pub static PARAGRAPH_INDENT_VAR: Indentation = Indentation::default();
 }
 
 impl ParagraphMix<()> {
     /// Insert context variables used by properties in this mixin.
     pub fn context_vars_set(set: &mut ContextValueSet) {
+        set.insert(&PARAGRAPH_BREAK_VAR);
         set.insert(&PARAGRAPH_SPACING_VAR);
+        set.insert(&PARAGRAPH_INDENT_VAR);
     }
+}
+
+/// Defines paragraphs in the text.
+/// 
+/// In the base `Text!` widget this defines how [`paragraph_spacing`] and [`paragraph_indent`] are applied.
+/// 
+/// Other rich text widgets usually segment paragraphs into widgets and may ignore this property, depending on
+/// the source text format.
+/// 
+/// Sets the [`PARAGRAPH_BREAK_VAR`].
+#[property(CONTEXT, default(PARAGRAPH_BREAK_VAR), widget_impl(ParagraphMix<P>))]
+pub fn paragraph_break(child: impl IntoUiNode, mode: impl IntoVar<ParagraphBreak>) -> UiNode {
+    with_context_var(child, PARAGRAPH_BREAK_VAR, mode)
 }
 
 /// Extra spacing in-between paragraphs.
 ///
-/// The default value is `1.em()`. Note that the [`Text!`] widget does not implement this property, as raw text does not encode
-/// paragraph breaks, this property and context var exists to configure *rich-text* widgets, like the `Markdown!` widget.
+/// The default value is `1.em()`. Note that [`paragraph_break`] defines the entire text as a single paragraph
+/// by default, so this will not be applied by default on the base [`Text!`] widget.
 ///
 /// Sets the [`PARAGRAPH_SPACING_VAR`].
 ///
@@ -1779,6 +1803,21 @@ impl ParagraphMix<()> {
 #[property(CONTEXT, default(PARAGRAPH_SPACING_VAR), widget_impl(ParagraphMix<P>))]
 pub fn paragraph_spacing(child: impl IntoUiNode, extra: impl IntoVar<ParagraphSpacing>) -> UiNode {
     with_context_var(child, PARAGRAPH_SPACING_VAR, extra)
+}
+
+/// Extra spacing added at the start of lines in a paragraph.
+/// 
+/// This can be set to a width `Length` to insert spacing at the start of each first line, 
+/// or it can be set to `(Length, true)` to hang all lines except the first.
+/// 
+/// See [`paragraph_break`] for how to define paragraphs.
+/// 
+/// Sets the [`PARAGRAPH_INDENT_VAR`].
+/// 
+/// [`paragraph_break`]: Self::paragraph_break
+#[property(CONTEXT, default(PARAGRAPH_INDENT_VAR), widget_impl(ParagraphMix<P>))]
+pub fn paragraph_indent(child: impl IntoUiNode, indent: impl IntoVar<Indentation>) -> UiNode {
+    with_context_var(child, PARAGRAPH_INDENT_VAR, indent)
 }
 
 /// Selection toolbar properties.

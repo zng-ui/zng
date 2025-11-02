@@ -3034,6 +3034,32 @@ impl fmt::Debug for LineBreak {
     }
 }
 
+/// Definition of how text is split into paragraphs.
+/// 
+/// In the core text shaping this affects paragraph spacing and indent. Rich text widgets
+/// may also use this when defining their own paragraph segmentation.
+#[derive(Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ParagraphBreak {
+    /// Each actual line is a paragraph. That is `\n` is the paragraph break.
+    Line,
+    /// Each sequence of empty lines defines a paragraph break. That is `\n\n` or more are the line break.
+    EmptyLine,
+    /// The entire text is a single paragraph.
+    Start,
+}
+impl fmt::Debug for ParagraphBreak {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "ParagraphBreak::")?;
+        }
+        match self {
+            ParagraphBreak::Line => write!(f, "Line"),
+            ParagraphBreak::EmptyLine => write!(f, "EmptyLine"),
+            ParagraphBreak::Start => write!(f, "Start"),
+        }
+    }
+}
+
 /// Hyphenation mode.
 #[derive(Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Hyphens {

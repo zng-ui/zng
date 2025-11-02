@@ -1,3 +1,5 @@
+use std::fmt;
+
 use bitflags::bitflags;
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
@@ -23,7 +25,7 @@ impl Transitionable for PxConstraintsFlags {
 /// These constraints can express lower and upper bounds, unbounded upper and preference of *fill* length.
 ///
 /// See also the [`PxConstraints2d`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct PxConstraints {
     #[serde(with = "serde_constraints_max")]
     #[serde(default = "serde_constraints_max_default")]
@@ -31,6 +33,32 @@ pub struct PxConstraints {
     min: Px,
 
     flags: PxConstraintsFlags,
+}
+impl fmt::Debug for PxConstraints {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("PxConstraints").field("max", &self.max).field("min", &self.min).field("flags", &self.flags).finish()
+        } else {
+            write!(f, "{{ ")?;
+            let mut sep = "";
+            if self.min > Px(0) {
+                write!(f, "min: {}", self.min)?;
+                sep = ", ";
+            }
+            if self.max < Px::MAX {
+                write!(f, "{sep}max: {}", self.max)?;
+                sep = ", ";
+            }
+            if self.is_fill() {
+                write!(f, "{sep}is_fill")?;
+                sep = ", ";
+            }
+            if self.is_inner() {
+                write!(f, "{sep}is_inner")?;
+            }
+            write!(f, " }}")
+        }
+    }
 }
 impl PxConstraints {
     /// New unbounded constrain.
@@ -320,12 +348,51 @@ fn serde_constraints_max_default() -> Px {
 ///
 /// These constraints can express lower and upper bounds, unbounded upper and preference of *fill* length for
 /// both the ***x*** and ***y*** axis.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct PxConstraints2d {
     /// Constraints of lengths in the *x* or *width* dimension.
     pub x: PxConstraints,
     /// Constraints of lengths in the *y* or *height* dimension.
     pub y: PxConstraints,
+}
+
+impl fmt::Debug for PxConstraints2d {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("PxConstraints2d").field("x", &self.x).field("y", &self.y).finish()
+        } else if self.x == self.y {
+            fmt::Debug::fmt(&self.x, f)
+        } else {
+            write!(f, "{{ ")?;
+            let mut sep = "";
+            if self.x.min > Px(0) || self.y.min > Px(0) {
+                write!(f, "min: ({}, {})", self.x.min, self.y.min)?;
+                sep = ", ";
+            }
+            if self.x.max < Px::MAX || self.y.max < Px::MAX {
+                struct M(Px);
+                impl fmt::Display for M {
+                    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                        if self.0 == Px::MAX {
+                            write!(f, "_")
+                        } else {
+                            fmt::Display::fmt(&self.0, f)
+                        }
+                    }
+                }
+                write!(f, "{sep}max: ({}, {})", M(self.x.max), M(self.y.max))?;
+                sep = ", ";
+            }
+            if self.is_fill().any() {
+                write!(f, "{sep}is_fill: ({}, {})", self.x.is_fill(), self.y.is_fill())?;
+                sep = ", ";
+            }
+            if self.is_inner().any() {
+                write!(f, "{sep}is_inner: ({}, {})", self.x.is_inner(), self.y.is_inner())?
+            }
+            write!(f, " }}")
+        }
+    }
 }
 impl PxConstraints2d {
     /// New unbounded constrain.

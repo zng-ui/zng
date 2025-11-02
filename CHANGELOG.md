@@ -1,5 +1,10 @@
 # Unreleased
 
+* Implement basic paragraph support in base `Text!` widget.
+    - Add `paragraph_break` property that defines how the text is split in paragraphs.
+    - Add `paragraph_spacing` property to `Text!`.
+    - Add `paragraph_indent` property for inserting space on the first line or hanging other lines.
+
 * Show layout metrics used in the Inspector.
 * Fix `ProgressView!` default style not showing indicator.
 * Improve `save_state` properties and node.
