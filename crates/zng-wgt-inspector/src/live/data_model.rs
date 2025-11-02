@@ -1,13 +1,13 @@
 use std::{collections::HashMap, fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
+use std::fmt::Write as _;
 use zng_app::widget::{
     builder::WidgetType,
     info::WidgetInfoTree,
     inspector::{InspectorInfo, WidgetInfoInspectorExt},
 };
 use zng_layout::context::LayoutMask;
-use std::fmt::Write as _;
 use zng_view_api::window::FrameId;
 use zng_wgt::prelude::*;
 
