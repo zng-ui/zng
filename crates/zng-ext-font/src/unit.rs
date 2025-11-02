@@ -99,7 +99,7 @@ pub struct Indentation {
     /// The ident space width.
     pub spacing: Length,
     /// If `false` indents only the first lines after a line break.
-    /// 
+    ///
     /// If `true` indent all lines except the first lines (hang).
     pub invert: bool,
 }
@@ -130,6 +130,9 @@ impl_from_and_into_var! {
     }
 
     fn from<S: Into<Length>>(spacing_invert: (S, bool)) -> Indentation {
-        Indentation { spacing: spacing_invert.0.into(), invert: spacing_invert.1 }
+        Indentation {
+            spacing: spacing_invert.0.into(),
+            invert: spacing_invert.1,
+        }
     }
 }

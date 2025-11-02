@@ -3035,7 +3035,7 @@ impl fmt::Debug for LineBreak {
 }
 
 /// Definition of how text is split into paragraphs.
-/// 
+///
 /// In the core text shaping this affects paragraph spacing and indent. Rich text widgets
 /// may also use this when defining their own paragraph segmentation.
 #[derive(Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

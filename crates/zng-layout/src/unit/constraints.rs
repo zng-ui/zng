@@ -37,7 +37,11 @@ pub struct PxConstraints {
 impl fmt::Debug for PxConstraints {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            f.debug_struct("PxConstraints").field("max", &self.max).field("min", &self.min).field("flags", &self.flags).finish()
+            f.debug_struct("PxConstraints")
+                .field("max", &self.max)
+                .field("min", &self.min)
+                .field("flags", &self.flags)
+                .finish()
         } else {
             write!(f, "{{ ")?;
             let mut sep = "";

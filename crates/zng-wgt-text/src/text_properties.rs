@@ -1759,13 +1759,13 @@ pub struct ParagraphMix<P>(P);
 
 context_var! {
     /// Defines how the text is split in paragraphs.
-    /// 
+    ///
     /// Is `Start` by default.
     pub static PARAGRAPH_BREAK_VAR: ParagraphBreak = ParagraphBreak::Start;
 
     /// Extra paragraph spacing of text blocks.
     pub static PARAGRAPH_SPACING_VAR: ParagraphSpacing = 1.em();
-    
+
     /// Spacing applied at start of paragraphs.
     pub static PARAGRAPH_INDENT_VAR: Indentation = Indentation::default();
 }
@@ -1780,12 +1780,12 @@ impl ParagraphMix<()> {
 }
 
 /// Defines paragraphs in the text.
-/// 
+///
 /// In the base `Text!` widget this defines how [`paragraph_spacing`] and [`paragraph_indent`] are applied.
-/// 
+///
 /// Other rich text widgets usually segment paragraphs into widgets and may ignore this property, depending on
 /// the source text format.
-/// 
+///
 /// Sets the [`PARAGRAPH_BREAK_VAR`].
 #[property(CONTEXT, default(PARAGRAPH_BREAK_VAR), widget_impl(ParagraphMix<P>))]
 pub fn paragraph_break(child: impl IntoUiNode, mode: impl IntoVar<ParagraphBreak>) -> UiNode {
@@ -1806,14 +1806,14 @@ pub fn paragraph_spacing(child: impl IntoUiNode, extra: impl IntoVar<ParagraphSp
 }
 
 /// Extra spacing added at the start of lines in a paragraph.
-/// 
-/// This can be set to a width `Length` to insert spacing at the start of each first line, 
+///
+/// This can be set to a width `Length` to insert spacing at the start of each first line,
 /// or it can be set to `(Length, true)` to hang all lines except the first.
-/// 
+///
 /// See [`paragraph_break`] for how to define paragraphs.
-/// 
+///
 /// Sets the [`PARAGRAPH_INDENT_VAR`].
-/// 
+///
 /// [`paragraph_break`]: Self::paragraph_break
 #[property(CONTEXT, default(PARAGRAPH_INDENT_VAR), widget_impl(ParagraphMix<P>))]
 pub fn paragraph_indent(child: impl IntoUiNode, indent: impl IntoVar<Indentation>) -> UiNode {
