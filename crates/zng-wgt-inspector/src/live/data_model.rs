@@ -6,6 +6,8 @@ use zng_app::widget::{
     info::WidgetInfoTree,
     inspector::{InspectorInfo, WidgetInfoInspectorExt},
 };
+use zng_layout::context::LayoutMask;
+use std::fmt::Write as _;
 use zng_view_api::window::FrameId;
 use zng_wgt::prelude::*;
 
@@ -389,6 +391,36 @@ impl INSPECTOR {
                 formatx!("{:.0?}", Size::from(size))
             }),
         );
+        builder.insert("metrics_used", target.render_watcher(|i| {
+            let i = i.bounds_info();
+            if let Some(m) = i.metrics() {
+                let mut out = String::new();
+                let used = i.metrics_used();
+                macro_rules! w {
+                    ($($MASK:ident, $field:ident;)+) => {$(
+                        #[allow(unused_assignments)]
+                        if used.contains(LayoutMask::$MASK) {
+                            write!(&mut out, "\n{}: {:?}", stringify!($field), m.$field).ok();
+                        }
+                    )+};
+                }
+                w! {
+                    CONSTRAINTS, constraints;
+                    CONSTRAINTS, inline_constraints;
+                    CONSTRAINTS, z_constraints;
+                    FONT_SIZE, font_size;
+                    ROOT_FONT_SIZE, root_font_size;
+                    SCALE_FACTOR, scale_factor;
+                    VIEWPORT, viewport;
+                    SCREEN_DENSITY, screen_density;
+                    DIRECTION, direction;
+                    LEFTOVER, leftover;
+                }
+                out.into()
+            } else {
+                Txt::default()
+            }
+        }));
 
         if target.info().with(|i| i.parent().is_none()) {
             // root widget
