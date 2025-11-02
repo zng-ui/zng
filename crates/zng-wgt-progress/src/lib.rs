@@ -152,7 +152,6 @@ impl DefaultStyle {
                 background_color = colors::BASE_COLOR_VAR.rgba();
 
                 clip_to_bounds = true;
-                child_align = Align::FILL_START;
                 child = zng_wgt::Wgt! {
                     background_color = colors::ACCENT_COLOR_VAR.rgba();
 

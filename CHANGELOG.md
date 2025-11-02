@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `ProgressView!` default style not showing indicator.
 * Improve `save_state` properties and node.
     - Now restores state as soon as config is loaded, ideally before window is loaded.
     - This fixes issue when window presents one frame at restored size and then maximizes.
