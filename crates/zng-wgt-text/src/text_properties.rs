@@ -1760,8 +1760,8 @@ pub struct ParagraphMix<P>(P);
 context_var! {
     /// Defines how the text is split in paragraphs.
     ///
-    /// Is `Start` by default.
-    pub static PARAGRAPH_BREAK_VAR: ParagraphBreak = ParagraphBreak::Start;
+    /// Is `None` by default.
+    pub static PARAGRAPH_BREAK_VAR: ParagraphBreak = ParagraphBreak::default();
 
     /// Extra paragraph spacing of text blocks.
     pub static PARAGRAPH_SPACING_VAR: ParagraphSpacing = 1.em();
@@ -1800,6 +1800,7 @@ pub fn paragraph_break(child: impl IntoUiNode, mode: impl IntoVar<ParagraphBreak
 /// Sets the [`PARAGRAPH_SPACING_VAR`].
 ///
 /// [`Text!`]: struct@crate::Text
+/// [`paragraph_break`]: fn@paragraph_break
 #[property(CONTEXT, default(PARAGRAPH_SPACING_VAR), widget_impl(ParagraphMix<P>))]
 pub fn paragraph_spacing(child: impl IntoUiNode, extra: impl IntoVar<ParagraphSpacing>) -> UiNode {
     with_context_var(child, PARAGRAPH_SPACING_VAR, extra)
@@ -1814,7 +1815,7 @@ pub fn paragraph_spacing(child: impl IntoUiNode, extra: impl IntoVar<ParagraphSp
 ///
 /// Sets the [`PARAGRAPH_INDENT_VAR`].
 ///
-/// [`paragraph_break`]: Self::paragraph_break
+/// [`paragraph_break`]: fn@paragraph_break
 #[property(CONTEXT, default(PARAGRAPH_INDENT_VAR), widget_impl(ParagraphMix<P>))]
 pub fn paragraph_indent(child: impl IntoUiNode, indent: impl IntoVar<Indentation>) -> UiNode {
     with_context_var(child, PARAGRAPH_INDENT_VAR, indent)
