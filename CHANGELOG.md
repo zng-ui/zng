@@ -1,6 +1,6 @@
 # Unreleased
 
-* Implement basic paragraph support in base `Text!` widget. !!: TODO
+* Implement basic paragraph support in base `Text!` widget.
     - Added `paragraph_break` property that defines how the text is split in paragraphs.
     - Added `paragraph_spacing` property to `Text!`.
     - Added `paragraph_indent` property for inserting space on the first line or hanging other lines.

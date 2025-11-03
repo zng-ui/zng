@@ -555,6 +555,7 @@ fn property_view(
 
         children.push(Text! {
             txt = value;
+            paragraph_indent = (2.em(), true); // hang next lines
             font_color = PROPERTY_VALUE_COLOR_VAR;
             background_color = flash;
             tooltip = Tip!(Text!(if user_assigned { "instance value" } else { "intrinsic value" }));
@@ -602,7 +603,7 @@ fn info_watchers(wgt: &InspectedWidget) -> UiNode {
         let flash = value_background(&value);
         children.push(Text! {
             txt = value;
-            paragraph_indent = (1.em(), true); // hang next lines
+            paragraph_indent = (2.em(), true); // hang next lines
             font_color = PROPERTY_VALUE_COLOR_VAR;
             background_color = flash;
         });
