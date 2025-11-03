@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.19.1
+
 * Implement basic paragraph support in base `Text!` widget.
     - Added `paragraph_break` property that defines how the text is split in paragraphs.
     - Added `paragraph_spacing` property to `Text!`.
@@ -11,7 +14,7 @@
     - Now restores state as soon as config is loaded, ideally before window is loaded.
     - This fixes issue when window presents one frame at restored size and then maximizes.
 * Image widget now ignores `img_scale_factor` when `img_scale_density` is enabled.
-* Implement `FromStr` for `PxDensity`.
+* Implement `FromStr` for `PxDensity`. Fixes regression, the previous density units implemented parse.
 
 # 0.19.0
 
