@@ -3034,6 +3034,31 @@ impl fmt::Debug for LineBreak {
     }
 }
 
+/// Definition of how text is split into paragraphs.
+///
+/// In the core text shaping this affects paragraph spacing and indent. Rich text widgets
+/// may also use this when defining their own paragraph segmentation.
+#[derive(Default, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub enum ParagraphBreak {
+    /// The entire text is a single paragraph.
+    #[default]
+    None,
+    /// Each actual line is a paragraph. That is `\n` is the paragraph break.
+    Line,
+}
+impl fmt::Debug for ParagraphBreak {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "ParagraphBreak::")?;
+        }
+        match self {
+            ParagraphBreak::None => write!(f, "None"),
+            ParagraphBreak::Line => write!(f, "Line"),
+        }
+    }
+}
+
 /// Hyphenation mode.
 #[derive(Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Hyphens {
@@ -3328,6 +3353,7 @@ impl PartialEq for TextTransformFn {
 /// Text white space transform.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum WhiteSpace {
+    // TODO(breaking) non_exhaustive and merge line breaks (unless empty line)
     /// Text is not changed, all white spaces and line breaks are preserved.
     Preserve,
     /// Replace white spaces with a single `U+0020 SPACE` and trim lines. Line breaks are preserved.

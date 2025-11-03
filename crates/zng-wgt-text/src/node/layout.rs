@@ -10,7 +10,9 @@ use zng_app::{
         node::{UiNode, UiNodeOp, match_node},
     },
 };
-use zng_ext_font::{CaretIndex, FontFaceList, Hyphens, SegmentedText, ShapedText, TextShapingArgs, font_features::FontVariations};
+use zng_ext_font::{
+    CaretIndex, FontFaceList, Hyphens, SegmentedText, ShapedText, TextReshapingArgs, TextShapingArgs, font_features::FontVariations,
+};
 use zng_ext_input::{
     focus::FOCUS,
     keyboard::{KEY_INPUT_EVENT, KEYBOARD},
@@ -33,9 +35,10 @@ use crate::{
     ACCEPTS_ENTER_VAR, AUTO_SELECTION_VAR, AutoSelection, FONT_FAMILY_VAR, FONT_FEATURES_VAR, FONT_SIZE_VAR, FONT_STRETCH_VAR,
     FONT_STYLE_VAR, FONT_VARIATIONS_VAR, FONT_WEIGHT_VAR, HYPHEN_CHAR_VAR, HYPHENS_VAR, IME_UNDERLINE_THICKNESS_VAR, JUSTIFY_MODE_VAR,
     LETTER_SPACING_VAR, LINE_BREAK_VAR, LINE_HEIGHT_VAR, LINE_SPACING_VAR, OBSCURE_TXT_VAR, OBSCURING_CHAR_VAR, OVERLINE_THICKNESS_VAR,
-    STRIKETHROUGH_THICKNESS_VAR, TAB_LENGTH_VAR, TEXT_ALIGN_VAR, TEXT_EDITABLE_VAR, TEXT_OVERFLOW_ALIGN_VAR, TEXT_OVERFLOW_VAR,
-    TEXT_SELECTABLE_ALT_ONLY_VAR, TEXT_SELECTABLE_VAR, TEXT_WRAP_VAR, TextOverflow, UNDERLINE_POSITION_VAR, UNDERLINE_SKIP_VAR,
-    UNDERLINE_THICKNESS_VAR, UnderlinePosition, UnderlineSkip, WORD_BREAK_VAR, WORD_SPACING_VAR,
+    PARAGRAPH_BREAK_VAR, PARAGRAPH_INDENT_VAR, PARAGRAPH_SPACING_VAR, STRIKETHROUGH_THICKNESS_VAR, TAB_LENGTH_VAR, TEXT_ALIGN_VAR,
+    TEXT_EDITABLE_VAR, TEXT_OVERFLOW_ALIGN_VAR, TEXT_OVERFLOW_VAR, TEXT_SELECTABLE_ALT_ONLY_VAR, TEXT_SELECTABLE_VAR, TEXT_WRAP_VAR,
+    TextOverflow, UNDERLINE_POSITION_VAR, UNDERLINE_SKIP_VAR, UNDERLINE_THICKNESS_VAR, UnderlinePosition, UnderlineSkip, WORD_BREAK_VAR,
+    WORD_SPACING_VAR,
     cmd::{SELECT_ALL_CMD, SELECT_CMD, TextSelectOp},
     node::SelectionBy,
 };
@@ -113,6 +116,8 @@ fn layout_text_layout(child: impl IntoUiNode) -> UiNode {
                 .sub_var(&LETTER_SPACING_VAR)
                 .sub_var(&WORD_SPACING_VAR)
                 .sub_var(&LINE_SPACING_VAR)
+                .sub_var(&PARAGRAPH_SPACING_VAR)
+                .sub_var(&PARAGRAPH_INDENT_VAR)
                 .sub_var(&LINE_HEIGHT_VAR)
                 .sub_var(&TAB_LENGTH_VAR);
             WIDGET
@@ -122,6 +127,7 @@ fn layout_text_layout(child: impl IntoUiNode) -> UiNode {
                 .sub_var_layout(&STRIKETHROUGH_THICKNESS_VAR)
                 .sub_var_layout(&UNDERLINE_THICKNESS_VAR);
             WIDGET
+                .sub_var(&PARAGRAPH_BREAK_VAR)
                 .sub_var(&LINE_BREAK_VAR)
                 .sub_var(&WORD_BREAK_VAR)
                 .sub_var(&HYPHENS_VAR)
@@ -141,6 +147,7 @@ fn layout_text_layout(child: impl IntoUiNode) -> UiNode {
 
             txt.shaping_args.lang = LANG_VAR.with(|l| l.best().clone());
             txt.shaping_args.direction = txt.shaping_args.lang.direction();
+            txt.shaping_args.paragraph_break = PARAGRAPH_BREAK_VAR.get();
             txt.shaping_args.line_break = LINE_BREAK_VAR.get();
             txt.shaping_args.word_break = WORD_BREAK_VAR.get();
             txt.shaping_args.hyphens = HYPHENS_VAR.get();
@@ -161,14 +168,20 @@ fn layout_text_layout(child: impl IntoUiNode) -> UiNode {
                 WIDGET.layout();
             }
 
-            if LETTER_SPACING_VAR.is_new()
-                || WORD_SPACING_VAR.is_new()
-                || LINE_SPACING_VAR.is_new()
-                || LINE_HEIGHT_VAR.is_new()
-                || TAB_LENGTH_VAR.is_new()
-                || LANG_VAR.is_new()
-            {
-                txt.shaping_args.lang = LANG_VAR.with(|l| l.best().clone());
+            if LETTER_SPACING_VAR.is_new() || WORD_SPACING_VAR.is_new() || TAB_LENGTH_VAR.is_new() {
+                TEXT.layout().overflow_suffix = None;
+                txt.pending.insert(PendingLayout::RESHAPE);
+                WIDGET.layout();
+            }
+
+            if LINE_SPACING_VAR.is_new() || LINE_HEIGHT_VAR.is_new() || PARAGRAPH_SPACING_VAR.is_new() || PARAGRAPH_INDENT_VAR.is_new() {
+                TEXT.layout().overflow_suffix = None;
+                txt.pending.insert(PendingLayout::RESHAPE_LINES);
+                WIDGET.layout();
+            }
+
+            if let Some(l) = LANG_VAR.get_new() {
+                txt.shaping_args.lang = l.best().clone();
                 txt.shaping_args.direction = txt.shaping_args.lang.direction(); // will be set in layout too.
                 TEXT.layout().overflow_suffix = None;
                 txt.pending.insert(PendingLayout::RESHAPE);
@@ -179,7 +192,13 @@ fn layout_text_layout(child: impl IntoUiNode) -> UiNode {
                 txt.pending.insert(PendingLayout::UNDERLINE);
                 WIDGET.layout();
             }
-
+            if let Some(pb) = PARAGRAPH_BREAK_VAR.get_new()
+                && txt.shaping_args.paragraph_break != pb
+            {
+                txt.shaping_args.paragraph_break = pb;
+                txt.pending.insert(PendingLayout::RESHAPE_LINES);
+                WIDGET.layout();
+            }
             if let Some(lb) = LINE_BREAK_VAR.get_new()
                 && txt.shaping_args.line_break != lb
             {
@@ -478,34 +497,40 @@ impl LayoutTextFinal {
         let space_len = font.space_x_advance();
         let dft_tab_len = space_len * 3;
 
-        let (letter_spacing, word_spacing, tab_length) = {
+        let (letter_spacing, word_spacing, tab_length, paragraph_indent) = {
             LAYOUT.with_constraints(PxConstraints2d::new_exact(space_len, space_len), || {
                 (
                     LETTER_SPACING_VAR.layout_x(),
                     WORD_SPACING_VAR.layout_x(),
                     TAB_LENGTH_VAR.layout_dft_x(dft_tab_len),
+                    PARAGRAPH_INDENT_VAR.with(|i| i.spacing.layout_x()),
                 )
             })
         };
+        let paragraph_indent = (paragraph_indent, PARAGRAPH_INDENT_VAR.with(|i| i.invert));
 
         let dft_line_height = font.metrics().line_height();
-        let line_height = {
-            LAYOUT.with_constraints(PxConstraints2d::new_exact(dft_line_height, dft_line_height), || {
-                LINE_HEIGHT_VAR.layout_dft_y(dft_line_height)
-            })
-        };
-        let line_spacing =
-            { LAYOUT.with_constraints(PxConstraints2d::new_exact(line_height, line_height), || LINE_SPACING_VAR.layout_y()) };
+        let line_height = LAYOUT.with_constraints(PxConstraints2d::new_exact(dft_line_height, dft_line_height), || {
+            LINE_HEIGHT_VAR.layout_dft_y(dft_line_height)
+        });
+        let line_spacing = LAYOUT.with_constraints(PxConstraints2d::new_exact(line_height, line_height), || LINE_SPACING_VAR.layout_y());
+
+        let paragraph_spacing = LAYOUT.with_constraints(PxConstraints2d::new_exact(line_height, line_height), || {
+            PARAGRAPH_SPACING_VAR.layout_y()
+        });
 
         if !self.pending.contains(PendingLayout::RESHAPE)
             && (letter_spacing != self.shaping_args.letter_spacing
                 || word_spacing != self.shaping_args.word_spacing
-                || tab_length != self.shaping_args.tab_x_advance)
+                || tab_length != self.shaping_args.tab_x_advance
+                || paragraph_indent != self.shaping_args.paragraph_indent)
         {
             self.pending.insert(PendingLayout::RESHAPE);
         }
         if !self.pending.contains(PendingLayout::RESHAPE_LINES)
-            && (line_spacing != self.shaping_args.line_spacing || line_height != self.shaping_args.line_height)
+            && (line_spacing != self.shaping_args.line_spacing
+                || line_height != self.shaping_args.line_height
+                || paragraph_spacing != self.shaping_args.paragraph_spacing)
         {
             self.pending.insert(PendingLayout::RESHAPE_LINES);
         }
@@ -515,6 +540,8 @@ impl LayoutTextFinal {
         self.shaping_args.tab_x_advance = tab_length;
         self.shaping_args.line_height = line_height;
         self.shaping_args.line_spacing = line_spacing;
+        self.shaping_args.paragraph_spacing = paragraph_spacing;
+        self.shaping_args.paragraph_indent = paragraph_indent;
 
         let dft_thickness = font.metrics().underline_thickness;
         let (overline, strikethrough, underline, ime_underline) = {
@@ -578,15 +605,18 @@ impl LayoutTextFinal {
             //
             // Not sure if it is a bug that it does not work inlining, but it is not needed there anyway, so for now
             // this fix is sufficient.
-            ctx.shaped_text.reshape_lines(
-                metrics.constraints(),
-                metrics.inline_constraints().map(|c| c.layout()),
-                align,
-                overflow_align,
-                line_height,
-                line_spacing,
-                metrics.direction(),
-            );
+            let mut args = TextReshapingArgs::default();
+            args.constraints = metrics.constraints();
+            args.inline_constraints = metrics.inline_constraints().map(|c| c.layout());
+            args.align = align;
+            args.overflow_align = overflow_align;
+            args.direction = metrics.direction();
+            args.line_height = line_height;
+            args.line_spacing = line_spacing;
+            args.paragraph_spacing = paragraph_spacing;
+            args.paragraph_indent = paragraph_indent;
+            args.paragraph_break = PARAGRAPH_BREAK_VAR.get();
+            ctx.shaped_text.reshape_lines2(&args);
         }
 
         if !is_measure {
@@ -595,15 +625,18 @@ impl LayoutTextFinal {
             if self.pending.contains(PendingLayout::RESHAPE_LINES) {
                 if metrics.inline_constraints().is_some() {
                     // when inlining, only reshape lines in layout passes
-                    ctx.shaped_text.reshape_lines(
-                        metrics.constraints(),
-                        metrics.inline_constraints().map(|c| c.layout()),
-                        align,
-                        overflow_align,
-                        line_height,
-                        line_spacing,
-                        metrics.direction(),
-                    );
+                    let mut args = TextReshapingArgs::default();
+                    args.constraints = metrics.constraints();
+                    args.inline_constraints = metrics.inline_constraints().map(|c| c.layout());
+                    args.align = align;
+                    args.overflow_align = overflow_align;
+                    args.direction = metrics.direction();
+                    args.line_height = line_height;
+                    args.line_spacing = line_spacing;
+                    args.paragraph_spacing = paragraph_spacing;
+                    args.paragraph_indent = paragraph_indent;
+                    args.paragraph_break = PARAGRAPH_BREAK_VAR.get();
+                    ctx.shaped_text.reshape_lines2(&args);
                 }
                 ctx.shaped_text.reshape_lines_justify(justify, &self.shaping_args.lang);
 

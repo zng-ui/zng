@@ -16,7 +16,7 @@ use zng_txt::Txt;
 use zng_view_api::font::{GlyphIndex, GlyphInstance};
 
 use crate::{
-    BidiLevel, CaretIndex, Font, FontList, HYPHENATION, Hyphens, Justify, LineBreak, SegmentedText, TextSegment, WordBreak,
+    BidiLevel, CaretIndex, Font, FontList, HYPHENATION, Hyphens, Justify, LineBreak, ParagraphBreak, SegmentedText, TextSegment, WordBreak,
     font_features::RFontFeatures,
 };
 
@@ -60,6 +60,14 @@ pub struct TextShapingArgs {
     /// Extra spacing added in between lines.
     pub line_spacing: Px,
 
+    /// Replacement space between paragraphs.
+    pub paragraph_spacing: Px,
+
+    /// Extra spacing in paragraph lines start.
+    ///
+    /// The `bool` indicates if spacing is inverted (hang), applied to all paragraph lines except the first.
+    pub paragraph_indent: (Px, bool),
+
     /// Primary language of the text.
     pub lang: Lang,
 
@@ -86,6 +94,9 @@ pub struct TextShapingArgs {
     /// Is `Px::MAX` when text wrap is disabled.
     pub max_width: Px,
 
+    /// Definition of paragraphs.
+    pub paragraph_break: ParagraphBreak,
+
     /// Line break config for Chinese, Japanese, or Korean text.
     pub line_break: LineBreak,
 
@@ -110,6 +121,8 @@ impl Default for TextShapingArgs {
             word_spacing: Px(0),
             line_height: Px(0),
             line_spacing: Px(0),
+            paragraph_spacing: Px(0),
+            paragraph_indent: (Px(0), false),
             lang: lang!(und),
             direction: LayoutDirection::LTR,
             ignore_ligatures: false,
@@ -118,6 +131,7 @@ impl Default for TextShapingArgs {
             inline_constraints: None,
             font_features: RFontFeatures::default(),
             max_width: Px::MAX,
+            paragraph_break: Default::default(),
             line_break: Default::default(),
             word_break: Default::default(),
             hyphens: Default::default(),
@@ -125,6 +139,35 @@ impl Default for TextShapingArgs {
             obscuring_char: None,
         }
     }
+}
+
+/// Configuration for [`ShapedText::reshape_lines`].
+#[derive(Debug, Clone, Default)]
+#[non_exhaustive]
+pub struct TextReshapingArgs {
+    /// Layout constraints.
+    pub constraints: PxConstraints2d,
+    /// Inline layout constraints.
+    pub inline_constraints: Option<InlineConstraintsLayout>,
+    /// Text alignment inside the available space.
+    pub align: Align,
+    /// Text alignment inside the available space when it overflows.
+    pub overflow_align: Align,
+    /// Text flow direction.
+    pub direction: LayoutDirection,
+
+    /// Line height.
+    pub line_height: Px,
+    /// Spacing between lines of the same paragraph.
+    pub line_spacing: Px,
+    /// Spacing between paragraphs.
+    pub paragraph_spacing: Px,
+    /// Extra spacing in paragraph lines start.
+    ///
+    /// The `bool` indicates if spacing is inverted (hang), applied to all paragraph lines except the first.
+    pub paragraph_indent: (Px, bool),
+    /// How paragraphs are defined.
+    pub paragraph_break: ParagraphBreak,
 }
 
 /// Defines a range of segments in a [`ShapedText`] that form a line.
@@ -323,7 +366,10 @@ pub struct ShapedText {
 
     line_height: Px,
     line_spacing: Px,
+    paragraph_spacing: Px,
+    paragraph_break: ParagraphBreak,
 
+    // TODO review this, why is it needed?
     orig_line_height: Px,
     orig_line_spacing: Px,
     orig_first_line: PxSize,
@@ -709,6 +755,35 @@ impl ShapedText {
         self.mid_clear
     }
 
+    /// Deprecated, use [`ShapedText::reshape_lines2`].
+    ///
+    /// In Zng 0.20 this function will be removed and `reshape_lines2` renamed to `reshape_lines2`.
+    #[expect(clippy::too_many_arguments)]
+    #[deprecated = "use `reshape_lines2`"]
+    pub fn reshape_lines(
+        &mut self,
+        constraints: PxConstraints2d,
+        inline_constraints: Option<InlineConstraintsLayout>,
+        align: Align,
+        overflow_align: Align,
+        line_height: Px,
+        line_spacing: Px,
+        direction: LayoutDirection,
+    ) {
+        self.reshape_lines2(&TextReshapingArgs {
+            constraints,
+            inline_constraints,
+            align,
+            overflow_align,
+            direction,
+            line_height,
+            line_spacing,
+            paragraph_spacing: Px(0),
+            paragraph_indent: (Px(0), false),
+            paragraph_break: ParagraphBreak::None,
+        });
+    }
+
     /// Reshape text lines.
     ///
     /// Reshape text lines without re-wrapping, this is more efficient then fully reshaping every glyph, but may
@@ -720,33 +795,23 @@ impl ShapedText {
     /// Note that this method clears justify fill, of `align` is fill X you must call [`reshape_lines_justify`] after to refill.
     ///
     /// [`reshape_lines_justify`]: Self::reshape_lines_justify
-    #[expect(clippy::too_many_arguments)]
-    pub fn reshape_lines(
-        &mut self,
-        constraints: PxConstraints2d,
-        inline_constraints: Option<InlineConstraintsLayout>,
-        align: Align,
-        overflow_align: Align,
-        line_height: Px,
-        line_spacing: Px,
-        direction: LayoutDirection,
-    ) {
-        self.clear_justify_impl(align.is_fill_x());
-        self.reshape_line_height_and_spacing(line_height, line_spacing);
+    pub fn reshape_lines2(&mut self, args: &TextReshapingArgs) {
+        self.clear_justify_impl(args.align.is_fill_x());
+        self.reshape_line_height_and_spacing(args.line_height, args.line_spacing);
 
-        let is_inlined = inline_constraints.is_some();
+        let is_inlined = args.inline_constraints.is_some();
 
-        let align_x = align.x(direction);
-        let align_y = if is_inlined { 0.fct() } else { align.y() };
-        let overflow_align_x = overflow_align.x(direction);
-        let overflow_align_y = if is_inlined { 0.fct() } else { overflow_align.y() };
+        let align_x = args.align.x(args.direction);
+        let align_y = if is_inlined { 0.fct() } else { args.align.y() };
+        let overflow_align_x = args.overflow_align.x(args.direction);
+        let overflow_align_y = if is_inlined { 0.fct() } else { args.overflow_align.y() };
 
-        let (first, mid, last, first_segs, last_segs) = if let Some(l) = &inline_constraints {
+        let (first, mid, last, first_segs, last_segs) = if let Some(l) = &args.inline_constraints {
             (l.first, l.mid_clear, l.last, &*l.first_segs, &*l.last_segs)
         } else {
             // calculate our own first & last
             let block_size = self.block_size();
-            let align_size = constraints.fill_size_or(block_size);
+            let align_size = args.constraints.fill_size_or(block_size);
 
             let mut first = PxRect::from_size(self.line(0).map(|l| l.rect().size).unwrap_or_default());
             let mut last = PxRect::from_size(
@@ -869,7 +934,7 @@ impl ShapedText {
         self.last_line = last;
 
         let block_size = self.block_size();
-        let align_size = constraints.fill_size_or(block_size);
+        let align_size = args.constraints.fill_size_or(block_size);
 
         if self.lines.0.len() > 2 {
             // has mid-lines
@@ -916,7 +981,7 @@ impl ShapedText {
 
         // apply baseline to the content only,
         let baseline_offset =
-            if self.align.is_baseline() { -self.baseline } else { Px(0) } + if align.is_baseline() { self.baseline } else { Px(0) };
+            if self.align.is_baseline() { -self.baseline } else { Px(0) } + if args.align.is_baseline() { self.baseline } else { Px(0) };
         if baseline_offset != Px(0) {
             let baseline_offset = baseline_offset.0 as f32;
             for g in &mut self.glyphs {
@@ -925,8 +990,8 @@ impl ShapedText {
         }
 
         self.align_size = align_size;
-        self.align = align;
-        self.direction = direction;
+        self.align = args.align;
+        self.direction = args.direction;
         self.is_inlined = is_inlined;
 
         self.debug_assert_ranges();
@@ -988,15 +1053,7 @@ impl ShapedText {
 
     /// Restore text to initial shape.
     pub fn clear_reshape(&mut self) {
-        self.reshape_lines(
-            PxConstraints2d::new_fill_size(self.align_size()),
-            None,
-            Align::TOP_LEFT,
-            Align::TOP_LEFT,
-            self.orig_line_height,
-            self.orig_line_spacing,
-            LayoutDirection::LTR,
-        );
+        self.reshape_lines2(&TextReshapingArgs::default());
     }
 
     fn justify_lines_range(&self) -> ops::Range<usize> {
@@ -1268,14 +1325,24 @@ impl ShapedText {
         }
     }
 
+    /// Defines what lines are first and last in paragraph.
+    pub fn paragraph_break(&self) -> ParagraphBreak {
+        self.paragraph_break
+    }
+
     /// Height of a single line.
     pub fn line_height(&self) -> Px {
         self.line_height
     }
 
-    /// Vertical spacing in between lines.
+    /// Vertical spacing in between lines of the same paragraph.
     pub fn line_spacing(&self) -> Px {
         self.line_spacing
+    }
+
+    /// Vertical spacing in between paragraphs.
+    pub fn paragraph_spacing(&self) -> Px {
+        self.paragraph_spacing
     }
 
     /// Vertical offset from the line bottom up that is the text baseline.
@@ -1373,6 +1440,8 @@ impl ShapedText {
             orig_last_line: PxSize::zero(),
             line_height: self.orig_line_height,
             line_spacing: self.orig_line_spacing,
+            paragraph_spacing: self.paragraph_spacing,
+            paragraph_break: self.paragraph_break,
             baseline: self.baseline,
             overline: self.overline,
             strikethrough: self.strikethrough,
@@ -2253,8 +2322,10 @@ struct ShapedTextBuilder {
 
     line_height: f32,
     line_spacing: f32,
+    paragraph_spacing: f32,
     word_spacing: f32,
     letter_spacing: f32,
+    paragraph_indent: (f32, bool),
     max_width: f32,
     break_words: bool,
     hyphen_glyphs: (ShapedSegmentData, Font),
@@ -2295,6 +2366,8 @@ impl ShapedTextBuilder {
                 orig_line_spacing: Default::default(),
                 orig_first_line: Default::default(),
                 orig_last_line: Default::default(),
+                paragraph_break: Default::default(),
+                paragraph_spacing: Default::default(),
                 baseline: Default::default(),
                 overline: Default::default(),
                 strikethrough: Default::default(),
@@ -2319,8 +2392,10 @@ impl ShapedTextBuilder {
 
             line_height: 0.0,
             line_spacing: 0.0,
+            paragraph_spacing: 0.0,
             word_spacing: 0.0,
             letter_spacing: 0.0,
+            paragraph_indent: (0.0, false),
             max_width: 0.0,
             break_words: false,
             hyphen_glyphs: (ShapedSegmentData::default(), fonts[0].clone()),
@@ -2347,9 +2422,13 @@ impl ShapedTextBuilder {
         t.out.orig_line_spacing = config.line_spacing;
         t.out.line_height = config.line_height;
         t.out.line_spacing = config.line_spacing;
+        t.out.paragraph_spacing = config.paragraph_spacing;
+        t.out.paragraph_break = config.paragraph_break;
 
         t.line_height = config.line_height.0 as f32;
         t.line_spacing = config.line_spacing.0 as f32;
+        t.paragraph_spacing = config.paragraph_spacing.0 as f32;
+        t.paragraph_indent = (config.paragraph_indent.0.0 as f32, config.paragraph_indent.1);
         let baseline = metrics.ascent + metrics.line_gap / 2.0;
 
         t.out.baseline = t.out.line_height - baseline;
@@ -2362,6 +2441,11 @@ impl ShapedTextBuilder {
         let center_height = (t.line_height - dft_line_height) / 2.0;
 
         t.origin = euclid::point2::<_, ()>(0.0, baseline.0 as f32 + center_height);
+        if !t.paragraph_indent.1 {
+            // not invert
+            t.origin.x = t.paragraph_indent.0;
+        }
+
         t.max_line_x = 0.0;
         if let Some(inline) = config.inline_constraints {
             t.first_line_max = inline.first_max.0 as f32;
@@ -3027,8 +3111,24 @@ impl ShapedTextBuilder {
             }
 
             self.max_line_x = self.origin.x.max(self.max_line_x);
-            self.origin.x = 0.0;
-            self.origin.y += self.line_height + self.line_spacing;
+
+            let is_paragraph_break = match self.out.paragraph_break {
+                ParagraphBreak::None => false,
+                ParagraphBreak::Line => !soft,
+            };
+
+            self.origin.x = if self.paragraph_indent.1 != is_paragraph_break {
+                // first_line && !invert_indent || !first_line && invert_indent
+                self.paragraph_indent.0
+            } else {
+                0.0
+            };
+
+            self.origin.y += if is_paragraph_break {
+                self.paragraph_spacing
+            } else {
+                self.line_height + self.line_spacing
+            };
         }
     }
 
@@ -3278,6 +3378,30 @@ impl<'a> ShapedLine<'a> {
             return self.text.orig_last_line;
         }
         PxSize::new(self.width, self.text.line_height)
+    }
+
+    /// Gets if this line is the first of a paragraph.
+    ///
+    /// Paragraphs are defined by the [`paragraph_break`] value.
+    ///
+    /// [`paragraph_break`]: ShapedText::paragraph_break
+    pub fn is_paragraph_start(&self) -> bool {
+        match self.text.paragraph_break {
+            ParagraphBreak::None => self.index == 0,
+            ParagraphBreak::Line => !self.started_by_wrap(),
+        }
+    }
+
+    /// Gets if this line is the last of a paragraph.
+    ///
+    /// Paragraphs are defined by the [`paragraph_break`] value.
+    ///
+    /// [`paragraph_break`]: ShapedText::paragraph_break
+    pub fn is_paragraph_end(&self) -> bool {
+        match self.text.paragraph_break {
+            ParagraphBreak::None => self.index == self.text.lines.0.len() - 1,
+            ParagraphBreak::Line => !self.ended_by_wrap(),
+        }
     }
 
     /// Full overline, start point + width.
@@ -4644,7 +4768,10 @@ fn into_harf_direction(d: LayoutDirection) -> rustybuzz::Direction {
 
 #[cfg(test)]
 mod tests {
-    use crate::{FONTS, Font, FontManager, FontName, FontStretch, FontStyle, FontWeight, SegmentedText, TextShapingArgs, WordContextKey};
+    use crate::{
+        FONTS, Font, FontManager, FontName, FontStretch, FontStyle, FontWeight, ParagraphBreak, SegmentedText, TextReshapingArgs,
+        TextShapingArgs, WordContextKey,
+    };
     use zng_app::APP;
     use zng_ext_l10n::lang;
     use zng_layout::{
@@ -4697,15 +4824,18 @@ mod tests {
         let expected = font.shape_text(&text, &config);
 
         assert_eq!(from, test.line_spacing());
-        test.reshape_lines(
-            PxConstraints2d::new_fill_size(test.align_size()),
-            None,
-            test.align(),
-            test.overflow_align(),
-            test.line_height(),
-            to,
-            test.direction(),
-        );
+        test.reshape_lines2(&TextReshapingArgs {
+            constraints: PxConstraints2d::new_fill_size(test.align_size()),
+            inline_constraints: None,
+            align: test.align(),
+            overflow_align: test.overflow_align(),
+            direction: test.direction(),
+            line_height: test.line_height(),
+            line_spacing: to,
+            paragraph_spacing: Px(0),
+            paragraph_indent: (Px(0), false),
+            paragraph_break: ParagraphBreak::None,
+        });
         assert_eq!(to, test.line_spacing());
 
         for (i, (g0, g1)) in test.glyphs.iter().zip(expected.glyphs.iter()).enumerate() {
@@ -4740,15 +4870,18 @@ mod tests {
         let expected = font.shape_text(&text, &config);
 
         assert_eq!(from, test.line_height());
-        test.reshape_lines(
-            PxConstraints2d::new_fill_size(test.align_size()),
-            None,
-            test.align(),
-            test.overflow_align(),
-            to,
-            test.line_spacing(),
-            test.direction(),
-        );
+        test.reshape_lines2(&TextReshapingArgs {
+            constraints: PxConstraints2d::new_fill_size(test.align_size()),
+            inline_constraints: None,
+            align: test.align(),
+            overflow_align: test.overflow_align(),
+            direction: test.direction(),
+            line_height: to,
+            line_spacing: test.line_spacing(),
+            paragraph_spacing: Px(0),
+            paragraph_indent: (Px(0), false),
+            paragraph_break: ParagraphBreak::None,
+        });
         assert_eq!(to, test.line_height());
 
         for (i, (g0, g1)) in test.glyphs.iter().zip(expected.glyphs.iter()).enumerate() {

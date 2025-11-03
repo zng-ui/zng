@@ -113,11 +113,12 @@ pub struct Text(
     TextTransformMix<
     LangMix<
     FontFeaturesMix<
+    ParagraphMix<
     TextEditMix<
     SelectionToolbarMix<
     TextInspectMix<
     WidgetBase
-    >>>>>>>>>>>>
+    >>>>>>>>>>>>>
 );
 
 impl Text {

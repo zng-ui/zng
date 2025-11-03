@@ -1,4 +1,5 @@
-use zng_layout::unit::Length;
+use zng_layout::unit::*;
+use zng_var::impl_from_and_into_var;
 
 /// Text font size.
 ///
@@ -91,3 +92,47 @@ pub type UnderlineThickness = Length;
 ///
 /// The [`Default`] value is `10.pct()`.
 pub type TextLineThickness = Length;
+
+/// Extra spacing at the start of lines.
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+pub struct Indentation {
+    /// The ident space width.
+    pub spacing: Length,
+    /// If `false` indents only the first lines after a line break.
+    ///
+    /// If `true` indent all lines except the first lines (hang).
+    pub invert: bool,
+}
+impl_from_and_into_var! {
+    fn from(percent: FactorPercent) -> Indentation {
+        Length::from(percent).into()
+    }
+    fn from(norm: Factor) -> Indentation {
+        Length::from(norm).into()
+    }
+    fn from(f: f32) -> Indentation {
+        Length::from(f).into()
+    }
+    fn from(i: i32) -> Indentation {
+        Length::from(i).into()
+    }
+    fn from(l: Px) -> Indentation {
+        Length::from(l).into()
+    }
+    fn from(l: Dip) -> Indentation {
+        Length::from(l).into()
+    }
+    fn from(expr: LengthExpr) -> Indentation {
+        Length::from(expr).into()
+    }
+    fn from(spacing: Length) -> Indentation {
+        Indentation { spacing, invert: false }
+    }
+
+    fn from<S: Into<Length>>(spacing_invert: (S, bool)) -> Indentation {
+        Indentation {
+            spacing: spacing_invert.0.into(),
+            invert: spacing_invert.1,
+        }
+    }
+}
