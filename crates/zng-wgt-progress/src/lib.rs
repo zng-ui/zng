@@ -11,8 +11,12 @@
 
 zng_wgt::enable_widget_macros!();
 
-use zng_wgt::{base_color, prelude::*, visibility};
-use zng_wgt_container::Container;
+use zng_wgt::{
+    base_color,
+    prelude::{colors::ACCENT_COLOR_VAR, *},
+    visibility,
+};
+use zng_wgt_container::{self as container, Container};
 use zng_wgt_fill::background_color;
 use zng_wgt_size_offset::{height, width, x};
 use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn};
@@ -147,7 +151,7 @@ impl DefaultStyle {
             self;
             base_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
 
-            zng_wgt_container::child = Container! {
+            container::child = Container! {
                 height = 5;
                 background_color = colors::BASE_COLOR_VAR.rgba();
 
@@ -179,8 +183,8 @@ impl DefaultStyle {
                 };
             };
 
-            zng_wgt_container::child_spacing = 6;
-            zng_wgt_container::child_out_bottom = zng_wgt_text::Text! {
+            container::child_spacing = 6;
+            container::child_out_bottom = zng_wgt_text::Text! {
                 txt = PROGRESS_VAR.map(|p| p.msg());
                 zng_wgt::visibility = PROGRESS_VAR.map(|p| Visibility::from(!p.msg().is_empty()));
                 zng_wgt::align = Align::CENTER;
@@ -198,7 +202,44 @@ impl SimpleBarStyle {
         widget_set! {
             self;
             named_style_fn = SIMPLE_BAR_STYLE_FN_VAR;
-            zng_wgt_container::child_out_bottom = unset!;
+            container::child_out_bottom = unset!;
+        }
+    }
+}
+
+/// Circular progress indicator style.
+#[widget($crate::CircularStyle)]
+pub struct CircularStyle(Style);
+impl_named_style_fn!(circular, CircularStyle);
+impl CircularStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            replace = true;
+            named_style_fn = CIRCULAR_STYLE_FN_VAR;
+            container::child = zng_wgt::Wgt! {
+                zng_wgt_size_offset::size = 1.5.em();
+                zng_wgt_fill::background_conic = 50.pct(), 0.deg(), ACCENT_COLOR_VAR.rgba().map(|&c| gradient::stops![c, c.transparent()]);
+            };
+            container::child_spacing = 6;
+            container::child_end = zng_wgt_text::Text! {
+                txt = PROGRESS_VAR.map(|p| p.msg());
+                zng_wgt::visibility = PROGRESS_VAR.map(|p| Visibility::from(!p.msg().is_empty()));
+                zng_wgt::align = Align::START;
+            };
+        }
+    }
+}
+
+/// Circular progress indicator style without message text.
+#[widget($crate::SimpleCircularStyle)]
+pub struct SimpleCircularStyle(Style);
+impl_named_style_fn!(simple_circular, SimpleCircularStyle);
+impl SimpleCircularStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            container::child_end = unset!;
         }
     }
 }

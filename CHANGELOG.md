@@ -1,5 +1,5 @@
 # Unreleased
-
+* Add `zng::process::CircularStyle`.
 
 # 0.19.1
 
