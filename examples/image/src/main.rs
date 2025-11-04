@@ -92,7 +92,7 @@ fn main() {
                             },
                             sub_title("Render"),
                             Image! {
-                                img_scale_density = true;
+                                size = (180, 120);
                                 source = ImageSource::render_node(RenderMode::Software, |_| Container! {
                                     size = (180, 120);
                                     widget::background_gradient = layout::Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
