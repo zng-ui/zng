@@ -11,6 +11,8 @@
 
 zng_wgt::enable_widget_macros!();
 
+use zng_app::widget::border::BorderSide;
+use zng_layout::unit::euclid;
 use zng_wgt::{
     base_color,
     prelude::{colors::ACCENT_COLOR_VAR, *},
@@ -250,7 +252,7 @@ pub fn arc_shape(
     start: impl IntoVar<AngleRadian>,
     end: impl IntoVar<AngleRadian>,
 ) -> UiNode {
-    // To leverage GPU rendering we render the arc using two halves of a circle drawn 
+    // To leverage GPU rendering we render the arc using two halves of a circle drawn
     // with border+corner-radius and clips
     let thickness = thickness.into_var();
     let color = color.into_var();
@@ -272,16 +274,28 @@ pub fn arc_shape(
                 .then_translate(center)
         };
 
-        // first half is round border top-right, left side of area is clipped
-        // second is bottom-left, right side of area is clipped
+        // first half is round border top-right, clipped to left side of area
+        // second is bottom-left, clipped to right side of area
         let trick = 45.0_f32.to_radians();
 
         let length = (end.0 - start.0).max(0.0).min(360.0_f32.to_radians());
         let half_rad = 180.0_f32.to_radians();
+        let rotate_half = |length: f32, stitch: f32| {
+            let t = rotate(trick - half_rad + length);
+
+            // Webrender leaves a faint subpixel line at the edge of clips, translate to hide error
+            if length < 0.001 || length > 180.0_f32.to_radians() - 0.001 {
+                t.then_translate(euclid::vec2(stitch, 0.0))
+            } else {
+                t
+            }
+        };
+
+        let stitch = if start.0.abs() > 0.001 { 1.5 } else { 1.0 };
         [
             rotate(start.0),
-            rotate(trick - half_rad + length.min(half_rad)), 
-            rotate(trick - half_rad + (length - half_rad).max(0.0)),
+            rotate_half(length.min(half_rad), -stitch),
+            rotate_half((length - half_rad).max(0.0), stitch),
         ]
     }
 
@@ -295,8 +309,13 @@ pub fn arc_shape(
         }
         UiNodeOp::Layout { final_size, .. } => {
             *final_size = LAYOUT.constraints().fill_size();
-            if render_size != *final_size {
-                render_size = *final_size;
+
+            // Snap center point, without this can render a faint subpixel line, even with the correction implemented by `rotate_half`.
+            let mut s = *final_size;
+            s.width.0 = ((final_size.width.0 as f32 / 2.0).floor() * 2.0) as _;
+
+            if render_size != s {
+                render_size = s;
                 WIDGET.render();
             }
             let t = thickness.layout_x();
@@ -315,9 +334,10 @@ pub fn arc_shape(
                 false,
                 true,
                 |frame| {
-                    let half_size = PxSize::new(render_size.width / Px(2), render_size.height);
+                    let half = PxPoint::new(render_size.width / Px(2), Px(0));
+                    let color = BorderSide::from(color.get());
 
-                    frame.push_clip_rect(PxRect::from(half_size), true, true, |frame| {
+                    frame.push_clip_rect(PxRect::new(half, render_size), false, true, |frame| {
                         frame.push_reference_frame(
                             rotate_half0_key.into(),
                             rotate_half0_key.bind(half0_t, is_animating),
@@ -325,7 +345,7 @@ pub fn arc_shape(
                             true,
                             |frame| {
                                 let mut b = BorderSides::hidden();
-                                b.top = color.get().into();
+                                b.top = color;
                                 b.right = b.top;
                                 frame.push_border(
                                     PxRect::from(render_size),
@@ -337,7 +357,7 @@ pub fn arc_shape(
                         );
                     });
 
-                    frame.push_clip_rect(PxRect::from(half_size), false, true, |frame| {
+                    frame.push_clip_rect(PxRect::new(-half, render_size), false, true, |frame| {
                         frame.push_reference_frame(
                             rotate_half1_key.into(),
                             rotate_half1_key.bind(half1_t, is_animating),
@@ -345,7 +365,7 @@ pub fn arc_shape(
                             true,
                             |frame| {
                                 let mut b = BorderSides::hidden();
-                                b.bottom = color.get().into();
+                                b.bottom = color;
                                 b.left = b.bottom;
                                 frame.push_border(
                                     PxRect::from(render_size),
