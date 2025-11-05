@@ -1,4 +1,6 @@
 # Unreleased
+
+* Change `mask_image` to apply to the borders too.
 * Add `zng::process::CircularStyle`.
 
 # 0.19.1
