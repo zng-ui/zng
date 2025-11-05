@@ -217,15 +217,11 @@ impl CircularStyle {
             self;
             replace = true;
             named_style_fn = CIRCULAR_STYLE_FN_VAR;
-            container::child = zng_wgt::Wgt! {
-                zng_wgt_size_offset::size = 1.5.em();
-                zng_wgt_fill::background_conic = 50.pct(), 0.deg(), ACCENT_COLOR_VAR.rgba().map(|&c| gradient::stops![c, c.transparent()]);
-            };
+            container::child_start = arc_shape(0.3.em(), ACCENT_COLOR_VAR.rgba(), 0.turn(), 0.1.turn());
             container::child_spacing = 6;
-            container::child_end = zng_wgt_text::Text! {
+            container::child = zng_wgt_text::Text! {
                 txt = PROGRESS_VAR.map(|p| p.msg());
                 zng_wgt::visibility = PROGRESS_VAR.map(|p| Visibility::from(!p.msg().is_empty()));
-                zng_wgt::align = Align::START;
             };
         }
     }
@@ -239,7 +235,138 @@ impl SimpleCircularStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-            container::child_end = unset!;
+            container::child = unset!;
         }
     }
+}
+
+/// Render an arc line or circle.
+///
+/// The arc ellipses is defined by the fill area available for the node. If `start` and `end` are equal does not render, if
+/// `end` overlaps one turn renders a full circle. 0º is at the top.
+pub fn arc_shape(
+    thickness: impl IntoVar<Length>,
+    color: impl IntoVar<Rgba>,
+    start: impl IntoVar<AngleRadian>,
+    end: impl IntoVar<AngleRadian>,
+) -> UiNode {
+    // To leverage GPU rendering we render the arc using two halves of a circle drawn 
+    // with border+corner-radius and clips
+    let thickness = thickness.into_var();
+    let color = color.into_var();
+    let start = start.into_var();
+    let end = end.into_var();
+
+    let mut render_thickness = Px(0);
+    let mut render_size = PxSize::zero();
+    let rotate_start_key = FrameValueKey::new_unique();
+    let rotate_half0_key = FrameValueKey::new_unique();
+    let rotate_half1_key = FrameValueKey::new_unique();
+
+    // [start, half0, half1]
+    fn rotates(area: PxSize, start: AngleRadian, end: AngleRadian) -> [PxTransform; 3] {
+        let center = area.to_vector().cast::<f32>() * 0.5.fct();
+        let rotate = |rad: f32| {
+            PxTransform::translation(-center.x, -center.y)
+                .then(&Transform::new_rotate(rad.rad()).layout())
+                .then_translate(center)
+        };
+
+        // first half is round border top-right, left side of area is clipped
+        // second is bottom-left, right side of area is clipped
+        let trick = 45.0_f32.to_radians();
+
+        let length = (end.0 - start.0).max(0.0).min(360.0_f32.to_radians());
+        let half_rad = 180.0_f32.to_radians();
+        [
+            rotate(start.0),
+            rotate(trick - half_rad + length.min(half_rad)), 
+            rotate(trick - half_rad + (length - half_rad).max(0.0)),
+        ]
+    }
+
+    match_node_leaf(move |op| match op {
+        UiNodeOp::Init => {
+            WIDGET
+                .sub_var_layout(&thickness)
+                .sub_var_render(&color)
+                .sub_var_render_update(&start)
+                .sub_var_render_update(&end);
+        }
+        UiNodeOp::Layout { final_size, .. } => {
+            *final_size = LAYOUT.constraints().fill_size();
+            if render_size != *final_size {
+                render_size = *final_size;
+                WIDGET.render();
+            }
+            let t = thickness.layout_x();
+            if render_thickness != t {
+                render_thickness = t;
+                WIDGET.render();
+            }
+        }
+        UiNodeOp::Render { frame } => {
+            let [start_t, half0_t, half1_t] = rotates(render_size, start.get(), end.get());
+            let is_animating = start.is_animating() || end.is_animating();
+
+            frame.push_reference_frame(
+                rotate_start_key.into(),
+                rotate_start_key.bind(start_t, is_animating),
+                false,
+                true,
+                |frame| {
+                    let half_size = PxSize::new(render_size.width / Px(2), render_size.height);
+
+                    frame.push_clip_rect(PxRect::from(half_size), true, true, |frame| {
+                        frame.push_reference_frame(
+                            rotate_half0_key.into(),
+                            rotate_half0_key.bind(half0_t, is_animating),
+                            false,
+                            true,
+                            |frame| {
+                                let mut b = BorderSides::hidden();
+                                b.top = color.get().into();
+                                b.right = b.top;
+                                frame.push_border(
+                                    PxRect::from(render_size),
+                                    PxSideOffsets::new_all_same(render_thickness),
+                                    b,
+                                    PxCornerRadius::new_all(render_size),
+                                );
+                            },
+                        );
+                    });
+
+                    frame.push_clip_rect(PxRect::from(half_size), false, true, |frame| {
+                        frame.push_reference_frame(
+                            rotate_half1_key.into(),
+                            rotate_half1_key.bind(half1_t, is_animating),
+                            false,
+                            true,
+                            |frame| {
+                                let mut b = BorderSides::hidden();
+                                b.bottom = color.get().into();
+                                b.left = b.bottom;
+                                frame.push_border(
+                                    PxRect::from(render_size),
+                                    PxSideOffsets::new_all_same(render_thickness),
+                                    b,
+                                    PxCornerRadius::new_all(render_size),
+                                );
+                            },
+                        );
+                    });
+                },
+            );
+        }
+        UiNodeOp::RenderUpdate { update } => {
+            let [start_t, half0_t, half1_t] = rotates(render_size, start.get(), end.get());
+            let is_animating = start.is_animating() || end.is_animating();
+
+            update.update_transform(rotate_start_key.update(start_t, is_animating), true);
+            update.update_transform(rotate_half0_key.update(half0_t, is_animating), true);
+            update.update_transform(rotate_half1_key.update(half1_t, is_animating), true);
+        }
+        _ => {}
+    })
 }

@@ -38,7 +38,7 @@ pub(crate) fn ease_btn(l: &Var<Length>, color: &Var<Rgba>, name: &'static str, e
                         layout::margin = 10;
                     });
                     layout::size = 64 + 10;
-                    // img_scale_density = true; // TODO this used to work when it was not implemented correctly (just using image dpi as scale) 
+                    // img_scale_density = true; // TODO this used to work when it was not implemented correctly (just using image dpi as scale)
                     source = easing.map(move |(name, f)| plot_cache.entry(name.clone()).or_insert_with(|| plot(f.clone())).clone());
                 },
             ];
