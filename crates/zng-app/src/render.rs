@@ -3047,7 +3047,8 @@ impl<T> FrameValueKey<T> {
     /// Create a binding with this key.
     ///
     /// The `animating` flag controls if the binding will propagate to webrender, if `true`
-    /// webrender frame updates are generated for
+    /// webrender frame updates are generated for frame update requests, if `false` only the display
+    /// list is patched, a full frame is rendered on frame update requests.
     pub fn bind(self, value: T, animating: bool) -> FrameValue<T> {
         self.bind_child(u32::MAX, value, animating)
     }

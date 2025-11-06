@@ -382,6 +382,25 @@ impl ops::DivAssign<Factor> for DipVector {
         self.y /= rhs;
     }
 }
+// TODO, why can't we just implement for T: Mul<Factor> too?
+impl<U> ops::Mul<Factor> for euclid::Vector2D<f32, U> {
+    type Output = Self;
+
+    fn mul(mut self, rhs: Factor) -> Self {
+        self.x *= rhs;
+        self.y *= rhs;
+        self
+    }
+}
+impl<U> ops::Div<Factor> for euclid::Vector2D<f32, U> {
+    type Output = Self;
+
+    fn div(mut self, rhs: Factor) -> Self {
+        self.x /= rhs;
+        self.y /= rhs;
+        self
+    }
+}
 
 impl ops::Mul<Factor> for PxSize {
     type Output = PxSize;

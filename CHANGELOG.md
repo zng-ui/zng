@@ -1,5 +1,12 @@
 # Unreleased
 
+* Improve advanced animation API. 
+    - Add `EasingTime::seg` helper for segmenting an animation overall time for sub-animations.
+    - **Deprecated** `Animation::restart_count` renamed to `count`.
+    - Add `Animation::set_count`.
+    - Add `Animation::sleep_restart`.
+* Change `mask_image` to apply to the borders too.
+* Add `zng::process::CircularStyle`.
 
 # 0.19.1
 

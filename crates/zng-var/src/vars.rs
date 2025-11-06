@@ -194,6 +194,9 @@ impl VARS {
     /// is dropped before the *parent* animation. But because the animations share the same importance the parent animation can
     /// set the variable again.
     ///
+    /// You can also use the [`EasingTime::seg`] method to get a normalized time factor for a given segment or slice of the overall time,
+    /// complex animations targeting multiple variables can be coordinated with precision using this method.
+    ///
     /// # Examples
     ///
     /// The example animates a `text` variable from `"Animation at 0%"` to `"Animation at 100%"`, when the animation
@@ -270,6 +273,7 @@ impl VARS {
     /// [`with_animation_controller`]: VARS::with_animation_controller
     /// [`VARS.frame_duration`]: VARS::frame_duration
     /// [`VARS.current_modify`]: VARS::current_modify
+    /// [`EasingTime::seg`]: crate::animation::easing::EasingTime::seg
     pub fn animate<A>(&self, animation: A) -> AnimationHandle
     where
         A: FnMut(&Animation) + Send + 'static,

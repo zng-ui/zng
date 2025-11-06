@@ -77,9 +77,10 @@ context_local! {
 pub struct Animation(Arc<Mutex<AnimationData>>);
 struct AnimationData {
     start_time: DInstant,
-    restart_count: usize,
+    restarted_count: usize,
     stop: bool,
     sleep: Option<Deadline>,
+    restart_next: bool,
     animations_enabled: bool,
     force_enabled: bool,
     now: DInstant,
@@ -90,10 +91,11 @@ impl Animation {
     pub(super) fn new(animations_enabled: bool, now: DInstant, time_scale: Factor) -> Self {
         Animation(Arc::new(Mutex::new(AnimationData {
             start_time: now,
-            restart_count: 0,
+            restarted_count: 0,
             stop: false,
             now,
             sleep: None,
+            restart_next: false,
             animations_enabled,
             force_enabled: false,
             time_scale,
@@ -128,6 +130,11 @@ impl Animation {
         m.now = now;
         m.time_scale = time_scale;
         m.sleep = None;
+
+        if std::mem::take(&mut m.restart_next) {
+            m.start_time = now;
+            m.restarted_count += 1;
+        }
     }
 
     pub(crate) fn reset_sleep(&self) {
@@ -141,8 +148,21 @@ impl Animation {
     ///
     /// [`VARS.frame_duration`]: crate::VARS::frame_duration
     pub fn sleep(&self, duration: Duration) {
+        self.sleep_impl(duration, false);
+    }
+
+    /// Does [`sleep`] and after it elapses does [`restart`].
+    ///
+    /// [`sleep`]: Self::sleep
+    /// [`restart`]: Self::restart
+    pub fn sleep_restart(&self, duration: Duration) {
+        // TODO(breaking) add restart: bool to sleep?
+        self.sleep_impl(duration, true);
+    }
+    fn sleep_impl(&self, duration: Duration, restart: bool) {
         let mut me = self.0.lock();
         me.sleep = Some(Deadline(me.now + duration));
+        me.restart_next = restart;
     }
 
     pub(crate) fn sleep_deadline(&self) -> Option<Deadline> {
@@ -219,7 +239,7 @@ impl Animation {
     pub fn elapsed_restart_stop(&self, duration: Duration, max_restarts: usize) -> EasingTime {
         let t = self.elapsed(duration);
         if t.is_end() {
-            if self.restart_count() < max_restarts {
+            if self.count() < max_restarts {
                 self.restart();
             } else {
                 self.stop();
@@ -240,15 +260,20 @@ impl Animation {
 
     /// Set the animation start time to now.
     pub fn restart(&self) {
-        let now = self.0.lock().now;
-        self.set_start_time(now);
         let mut me = self.0.lock();
-        me.restart_count += 1;
+        me.start_time = me.now;
+        me.restarted_count += 1;
     }
 
-    /// Number of times the animation restarted.
+    #[doc(hidden)]
+    #[deprecated = "use  `count`"]
     pub fn restart_count(&self) -> usize {
-        self.0.lock().restart_count
+        self.0.lock().restarted_count
+    }
+
+    /// Number of times the animation time restarted.
+    pub fn count(&self) -> usize {
+        self.0.lock().restarted_count
     }
 
     /// Change the start time to an arbitrary value.
@@ -265,6 +290,11 @@ impl Animation {
     pub fn set_elapsed(&self, elapsed: EasingTime, duration: Duration) {
         let now = self.0.lock().now;
         self.set_start_time(now.checked_sub(duration * elapsed.fct()).unwrap());
+    }
+
+    /// Change the restart count to an arbitrary value.
+    pub fn set_count(&self, count: usize) {
+        self.0.lock().restarted_count = count;
     }
 }
 

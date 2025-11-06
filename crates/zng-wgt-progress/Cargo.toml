@@ -23,5 +23,8 @@ zng-wgt-container = { path = "../zng-wgt-container", version = "0.11.1", default
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.9.1", default-features = false }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.9.1", default-features = false }
 zng-var = { path = "../zng-var", version = "0.11.1", default-features = false }
+zng-wgt-image = { path = "../zng-wgt-image", version = "0.10.1", default-features = false }
+zng-ext-image = { path = "../zng-ext-image", version = "0.9.1", default-features = false }
+zng-view-api = { path = "../zng-view-api", version = "0.17.1", default-features = false }
 
 tracing = { version = "0.1", default-features = false }

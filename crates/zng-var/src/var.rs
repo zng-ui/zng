@@ -1425,7 +1425,7 @@ impl<T: VarValue> Var<T> {
         self.animate(move |a, vm| {
             let t = a.elapsed(duration);
             let mut step = easing(t);
-            if a.restart_count() % 2 != 0 {
+            if a.count() % 2 != 0 {
                 step = step.flip()
             }
             if t.is_end() {

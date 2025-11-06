@@ -15,7 +15,7 @@ use crate::ImageFit;
 ///
 /// [`mask`]: crate::mask
 /// [`mask_mode`]: fn@mask_mode
-#[property(FILL-1)]
+#[property(BORDER-1)]
 pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> UiNode {
     let source = source.into_var();
     let mut img = None;

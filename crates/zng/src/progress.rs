@@ -29,5 +29,6 @@
 //! See [`zng_wgt_progress`] and [`zng_task::Progress`] for the full widget API.
 
 pub use zng_wgt_progress::{
-    DefaultStyle, PROGRESS_VAR, ProgressView, SimpleBarStyle, is_indeterminate, on_complete, on_progress, simple_bar_style_fn,
+    CircularStyle, DefaultStyle, PROGRESS_VAR, ProgressView, SimpleBarStyle, SimpleCircularStyle, circular_style_fn, is_indeterminate,
+    on_complete, on_progress, simple_bar_style_fn, simple_circular_style_fn,
 };
