@@ -13,6 +13,10 @@ zng_wgt::enable_widget_macros!();
 
 use zng_app::widget::border::BorderSide;
 use zng_layout::unit::euclid;
+use zng_var::{
+    VARS,
+    animation::{AnimationHandle, Transition, easing},
+};
 use zng_wgt::{
     base_color,
     prelude::{colors::ACCENT_COLOR_VAR, *},
@@ -146,9 +150,6 @@ pub fn is_indeterminate(child: impl IntoUiNode, state: impl IntoVar<bool>) -> Ui
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
-        let indeterminate_x = var(Length::from(0));
-        let mut indeterminate_animation = None;
-        let indeterminate_width = 10.pct();
         widget_set! {
             self;
             base_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
@@ -158,29 +159,34 @@ impl DefaultStyle {
                 background_color = colors::BASE_COLOR_VAR.rgba();
 
                 clip_to_bounds = true;
-                child = zng_wgt::Wgt! {
-                    background_color = colors::ACCENT_COLOR_VAR.rgba();
+                child = {
+                    let ind_x = var(Length::from(0));
+                    let ind_width = 10.pct();
 
-                    #[easing(200.ms())]
-                    width = PROGRESS_VAR.map(|p| Length::from(p.fct()));
+                    zng_wgt::Wgt! {
+                        background_color = colors::ACCENT_COLOR_VAR.rgba();
 
-                    on_progress = hn!(indeterminate_x, |p| {
-                        if p.is_indeterminate() {
-                            // only animates when actually indeterminate
-                            if indeterminate_animation.is_none() {
-                                let h = indeterminate_x.sequence(move |i| {
-                                    use zng_var::animation::easing;
-                                    i.set_ease(-indeterminate_width, 100.pct(), 1.5.secs(), |t| easing::ease_out(easing::quad, t))
-                                });
-                                indeterminate_animation = Some(h);
-                            }
-                        } else {
-                            indeterminate_animation = None;
+                        #[easing(200.ms())]
+                        width = PROGRESS_VAR.map(|p| Length::from(p.fct()));
+
+                        on_progress = {
+                            let mut handle = VarHandle::dummy();
+                            hn!(ind_x, |p| {
+                                if p.is_indeterminate() {
+                                    // only animates when actually indeterminate
+                                    if handle.is_dummy() {
+                                        handle =
+                                            ind_x.sequence(move |x| x.set_ease(-ind_width, 100.pct(), 1.5.secs(), |t| easing::ease_out(easing::quad, t)));
+                                    }
+                                } else {
+                                    handle = VarHandle::dummy();
+                                }
+                            })
+                        };
+                        when #{PROGRESS_VAR}.is_indeterminate() {
+                            width = ind_width;
+                            x = ind_x;
                         }
-                    });
-                    when *#{PROGRESS_VAR.map(|p| p.is_indeterminate())} {
-                        width = indeterminate_width;
-                        x = indeterminate_x;
                     }
                 };
             };
@@ -219,7 +225,46 @@ impl CircularStyle {
             self;
             replace = true;
             named_style_fn = CIRCULAR_STYLE_FN_VAR;
-            container::child_start = arc_shape(0.3.em(), ACCENT_COLOR_VAR.rgba(), 0.turn(), 0.1.turn());
+            container::child_start = {
+                let start = var(0.rad());
+                let end = var(0.rad());
+                zng_wgt::Wgt! {
+                    zng_wgt_size_offset::size = 1.4.em();
+                    zng_wgt_fill::background = arc_shape(0.2.em(), ACCENT_COLOR_VAR.rgba(), start.clone(), end.clone());
+                    on_progress = {
+                        let mut ind_handle = AnimationHandle::dummy();
+                        hn!(|args| {
+                            if args.is_indeterminate() {
+                                if ind_handle.is_stopped() {
+                                    ind_handle = VARS.animate(clmv!(start, end, |a| {
+                                        if a.count() == 0 {
+                                            let t = a.elapsed_restart(1.secs());
+
+                                            end.set(Transition::new(0.turn(), 1.turn()).sample(t.fct()));
+
+                                            if let Some(t) = t.seg(80.pct()..) {
+                                                start.set(Transition::new(0.turn(), 0.8.turn()).sample(t.fct()));
+                                            }
+                                        } else {
+                                            let t = a.elapsed_restart(500.ms());
+                                            let v = Transition::new(0.turn(), 1.turn()).sample(t.fct());
+                                            start.set(v - 0.2.turn());
+                                            end.set(v);
+                                        }
+                                    }));
+                                }
+                            } else {
+                                if !ind_handle.is_stopped() {
+                                    ind_handle = AnimationHandle::dummy();
+                                    start.ease(0.rad(), 200.ms(), easing::linear).perm();
+                                }
+                                end.ease(args.fct().0.turn(), 200.ms(), |t| easing::ease_out(easing::quad, t))
+                                    .perm();
+                            }
+                        })
+                    };
+                }
+            };
             container::child_spacing = 6;
             container::child = zng_wgt_text::Text! {
                 txt = PROGRESS_VAR.map(|p| p.msg());

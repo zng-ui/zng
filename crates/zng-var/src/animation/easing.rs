@@ -41,6 +41,9 @@ impl_from_and_into_var! {
     fn from(factor: Factor) -> EasingTime {
         EasingTime::new(factor)
     }
+    fn from(factor: FactorPercent) -> EasingTime {
+        EasingTime::new(factor.fct())
+    }
 }
 impl EasingTime {
     /// New from [`Factor`].
@@ -98,6 +101,33 @@ impl EasingTime {
     /// Returns `1 - self`.
     pub fn reverse(self) -> Self {
         EasingTime(self.0.flip())
+    }
+
+    /// If the time is within `segment_range` returns it normalized for the segment range, with segment start at 0 and end at 1.
+    pub fn seg<T: Into<EasingTime> + Clone>(self, segment_range: impl ops::RangeBounds<T>) -> Option<EasingTime> {
+        const MIN_LENGTH: f32 = EQ_GRANULARITY + 0.00001;
+
+        let start = match segment_range.start_bound() {
+            ops::Bound::Included(t) => t.clone().into().fct(),
+            ops::Bound::Excluded(t) => t.clone().into().fct() + MIN_LENGTH.fct(),
+            ops::Bound::Unbounded => 0.fct(),
+        };
+        let end = match segment_range.end_bound() {
+            ops::Bound::Included(t) => t.clone().into().fct(),
+            ops::Bound::Excluded(t) => t.clone().into().fct() - MIN_LENGTH.fct(),
+            ops::Bound::Unbounded => 1.fct(),
+        };
+        self.seg_impl(start..=end)
+    }
+
+    fn seg_impl(self, s: ops::RangeInclusive<Factor>) -> Option<EasingTime> {
+        let len = *s.end() - *s.start();
+        let v = self.0 - *s.start();
+        if v >= 0.fct() && v <= len {
+            Some(EasingTime(v / len))
+        } else {
+            None
+        }
     }
 }
 impl ops::Add for EasingTime {
@@ -419,7 +449,7 @@ pub fn reverse_out(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime)
 }
 
 pub use bezier::*;
-use zng_unit::{FactorPercent, FactorUnits as _};
+use zng_unit::{EQ_GRANULARITY, FactorPercent, FactorUnits as _};
 
 mod bezier {
     /* This Source Code Form is subject to the terms of the Mozilla Public
