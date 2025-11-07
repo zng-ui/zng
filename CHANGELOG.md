@@ -1,5 +1,6 @@
 # Unreleased
 
+* Implement workaround deadlocks caused by the `notify` crate.
 * Improve advanced animation API. 
     - Add `EasingTime::seg` helper for segmenting an animation overall time for sub-animations.
     - **Deprecated** `Animation::restart_count` renamed to `count`.

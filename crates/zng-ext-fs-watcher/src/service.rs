@@ -383,5 +383,11 @@ impl WatcherService {
 }
 fn notify_watcher_handler() -> impl notify::EventHandler {
     let mut ctx = LocalContext::capture();
-    move |r| ctx.with_context(|| WATCHER_SV.write().on_watcher(r))
+    move |r| {
+        ctx.with_context(|| {
+            // this is an attempt to workaround https://github.com/notify-rs/notify/issues/463
+            // we have observed deadlocks inside notify code with a debugger
+            zng_task::spawn(async move { WATCHER_SV.write().on_watcher(r) });
+        })
+    }
 }
