@@ -330,7 +330,7 @@ impl Surface {
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame(frame.id.get(), true, render_reasons);
+        txn.generate_frame(frame.id.get(), true, false, render_reasons);
 
         let frame_scope =
             tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = false, thread = "<webrender>").entered();
@@ -354,7 +354,7 @@ impl Surface {
         let mut txn = Transaction::new();
         txn.set_root_pipeline(self.pipeline_id);
         self.push_resize(&mut txn);
-        txn.generate_frame(self.frame_id().get(), true, render_reasons);
+        txn.generate_frame(self.frame_id().get(), true, false, render_reasons);
 
         let frame_scope = match self.display_list_cache.update(
             &mut DisplayListExtAdapter {
