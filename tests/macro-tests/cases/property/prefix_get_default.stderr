@@ -17,21 +17,21 @@ help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
    |
 
 error[E0277]: can't compare `NotDefault` with `NotDefault`
- --> cases/property/prefix_get_default.rs:9:1
-  |
-9 | #[property(CONTEXT)]
-  | ^^^^^^^^^^^^^^^^^^^^ no implementation for `NotDefault == NotDefault`
-  |
-  = help: the trait `PartialEq` is not implemented for `NotDefault`
-  = note: required for `NotDefault` to implement `VarValue`
+  --> cases/property/prefix_get_default.rs:9:1
+   |
+ 9 | #[property(CONTEXT)]
+   | ^^^^^^^^^^^^^^^^^^^^ no implementation for `NotDefault == NotDefault`
+   |
+   = help: the trait `PartialEq` is not implemented for `NotDefault`
+   = note: required for `NotDefault` to implement `VarValue`
 note: required by a bound in `zng::var::Var`
- --> $WORKSPACE/crates/zng-var/src/var.rs
-  |
-  | pub struct Var<T: VarValue> {
-  |                   ^^^^^^^^ required by this bound in `Var`
-  = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+  --> $WORKSPACE/crates/zng-var/src/var.rs
+   |
+   | pub struct Var<T: VarValue> {
+   |                   ^^^^^^^^ required by this bound in `Var`
+   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
-  |
+   |
 16 + #[derive(PartialEq)]
 17 | pub struct NotDefault {}
    |
@@ -98,20 +98,20 @@ help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
    |
 
 error[E0277]: can't compare `NotDefault` with `NotDefault`
- --> cases/property/prefix_get_default.rs:9:1
-  |
-9 | #[property(CONTEXT)]
-  | ^^^^^^^^^^^^^^^^^^^^ no implementation for `NotDefault == NotDefault`
-  |
-  = help: the trait `PartialEq` is not implemented for `NotDefault`
-  = note: required for `NotDefault` to implement `VarValue`
+  --> cases/property/prefix_get_default.rs:9:1
+   |
+ 9 | #[property(CONTEXT)]
+   | ^^^^^^^^^^^^^^^^^^^^ no implementation for `NotDefault == NotDefault`
+   |
+   = help: the trait `PartialEq` is not implemented for `NotDefault`
+   = note: required for `NotDefault` to implement `VarValue`
 note: required by a bound in `zng::var::Var`
- --> $WORKSPACE/crates/zng-var/src/var.rs
-  |
-  | pub struct Var<T: VarValue> {
-  |                   ^^^^^^^^ required by this bound in `Var`
+  --> $WORKSPACE/crates/zng-var/src/var.rs
+   |
+   | pub struct Var<T: VarValue> {
+   |                   ^^^^^^^^ required by this bound in `Var`
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
-  |
+   |
 16 + #[derive(PartialEq)]
 17 | pub struct NotDefault {}
    |
@@ -146,23 +146,23 @@ error[E0308]: mismatched types
   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `NotDefault: VarValue` is not satisfied
- --> cases/property/prefix_get_default.rs:9:1
-  |
-9 | #[property(CONTEXT)]
-  | ^^^^^^^^^^^^^^^^^^^^ the trait `PartialEq` is not implemented for `NotDefault`
-  |
-  = note: required for `NotDefault` to implement `VarValue`
+  --> cases/property/prefix_get_default.rs:9:1
+   |
+ 9 | #[property(CONTEXT)]
+   | ^^^^^^^^^^^^^^^^^^^^ the trait `PartialEq` is not implemented for `NotDefault`
+   |
+   = note: required for `NotDefault` to implement `VarValue`
 note: required by a bound in `var_to_args`
- --> $WORKSPACE/crates/zng-app/src/widget/builder.rs
-  |
-  | pub fn var_to_args<T: VarValue>(var: impl IntoVar<T>) -> Var<T> {
-  |                       ^^^^^^^^ required by this bound in `var_to_args`
-  = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+  --> $WORKSPACE/crates/zng-app/src/widget/builder.rs
+   |
+   | pub fn var_to_args<T: VarValue>(var: impl IntoVar<T>) -> Var<T> {
+   |                       ^^^^^^^^ required by this bound in `var_to_args`
+   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
-  |
- 16 + #[derive(PartialEq)]
- 17 | pub struct NotDefault {}
-    |
+   |
+16 + #[derive(PartialEq)]
+17 | pub struct NotDefault {}
+   |
 
 error[E0277]: the trait bound `NotDefault: VarValue` is not satisfied
   --> cases/property/prefix_get_default.rs:10:70
@@ -178,6 +178,6 @@ note: required by a bound in `WhenInputVar::new`
    |                   ^^^^^^^^ required by this bound in `WhenInputVar::new`
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
    |
-  16 + #[derive(PartialEq)]
-  17 | pub struct NotDefault {}
-     |
+16 + #[derive(PartialEq)]
+17 | pub struct NotDefault {}
+   |
