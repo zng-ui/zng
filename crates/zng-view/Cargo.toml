@@ -111,9 +111,9 @@ crate-type = ["lib", "cdylib"]
 
 [dependencies]
 # path = "../../../zng-webrender/webrender" for testing webrender updates
-webrender = { package = "zng-webrender", path = "../../../zng-webrender/webrender", version = "0.66.0" }
+webrender = { package = "zng-webrender", version = "0.66.0" }
 # path = "../../../zng-webrender/swgl" 
-swgl = { package = "zng-swgl", version = "0.5.0", path = "../../../zng-webrender/swgl" , optional = true }
+swgl = { package = "zng-swgl", version = "0.5.0", optional = true }
 
 zng-view-api = { path = "../zng-view-api", version = "0.17.1", default-features = false }
 zng-unit = { path = "../zng-unit", version = "0.5.1", default-features = false }
