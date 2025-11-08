@@ -1,5 +1,7 @@
 use std::{
-    env, fmt, fs, io, mem, ops,
+    env, fmt, fs,
+    io::{self, Write},
+    mem, ops,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -21,7 +23,7 @@ use zng_layout::{
 use zng_task::{self as task, SignalOnce};
 use zng_txt::Txt;
 use zng_var::{Var, animation::Transitionable, impl_from_and_into_var};
-use zng_view_api::image::ImageTextureId;
+use zng_view_api::{image::ImageTextureId, ipc::IpcBytes};
 
 use crate::render::ImageRenderWindowRoot;
 
@@ -45,15 +47,25 @@ pub trait ImageCacheProxy: Send + Sync {
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
     ) -> ProxyGetResult {
-        let r = match source {
-            ImageSource::Static(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask, false),
-            ImageSource::Data(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask, false),
-            _ => return ProxyGetResult::None,
-        };
-        match r {
-            Some(img) => ProxyGetResult::Image(img),
-            None => ProxyGetResult::None,
-        }
+        let _ = (key, source, mode, downscale, mask);
+        ProxyGetResult::None
+    }
+
+    /// Deprecated
+    #[allow(clippy::too_many_arguments)]
+    #[deprecated = "use get to intercept `Data` and `Static` before load or `data_loaded` to intercept `Data`, `Static`, `Read` and `Download`"]
+    fn data(
+        &mut self,
+        key: &ImageHash,
+        data: &[u8],
+        image_format: &ImageDataFormat,
+        mode: ImageCacheMode,
+        downscale: Option<ImageDownscale>,
+        mask: Option<ImageMaskMode>,
+        is_loaded: bool,
+    ) -> Option<ImageVar> {
+        let _ = (key, data, image_format, mode, downscale, mask, is_loaded);
+        None
     }
 
     /// Intercept a [`Data`] or [`Static`] request.
@@ -70,17 +82,16 @@ pub trait ImageCacheProxy: Send + Sync {
     /// [`Read`]: ImageSource::Read
     /// [`Download`]: ImageSource::Download
     #[allow(clippy::too_many_arguments)]
-    fn data(
+    fn data_loaded(
         &mut self,
         key: &ImageHash,
-        data: &[u8],
+        data: &IpcBytes,
         image_format: &ImageDataFormat,
         mode: ImageCacheMode,
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
-        is_loaded: bool,
     ) -> Option<ImageVar> {
-        let _ = (key, data, image_format, mode, downscale, mask, is_loaded);
+        let _ = (key, data, image_format, mode, downscale, mask);
         None
     }
 
@@ -95,20 +106,8 @@ pub trait ImageCacheProxy: Send + Sync {
         let _ = purge;
     }
 
-    /// If this proxy only handles [`Data`] and [`Static`] sources.
-    ///
-    /// When this is `true` the [`get`] call is delayed to after [`Read`] and [`Download`] have loaded the data
-    /// and is skipped for [`Render`] and [`Image`].
-    ///
-    /// This is `false` by default.
-    ///
-    /// [`get`]: ImageCacheProxy::get
-    /// [`Data`]: ImageSource::Data
-    /// [`Static`]: ImageSource::Static
-    /// [`Read`]: ImageSource::Read
-    /// [`Download`]: ImageSource::Download
-    /// [`Render`]: ImageSource::Render
-    /// [`Image`]: ImageSource::Image
+    /// Deprecated
+    #[deprecated = "data intercept methods are always called now and do nothing by default"]
     fn is_data_proxy(&self) -> bool {
         false
     }
@@ -321,8 +320,9 @@ impl Img {
                 for l in y..y + height {
                     let line_start = l * row_stride + x * pixel;
                     let line_end = line_start + width * pixel;
-                    let line = &pixels[line_start..line_end];
-                    bytes.extend_from_slice(line);
+                    for part in pixels.parts(line_start..line_end) {
+                        bytes.extend_from_slice(part);
+                    }
                 }
                 (area, bytes)
             }
@@ -367,7 +367,14 @@ impl Img {
             .encode(format)
             .await
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        task::wait(move || fs::write(path, &data[..])).await
+        task::wait(move || {
+            let mut file = fs::File::create(path)?;
+            for part in data.parts(..) {
+                file.write_all(part)?;
+            }
+            Ok(())
+        })
+        .await
     }
 
     pub(crate) fn inner_set_or_replace(&mut self, img: ViewImage, done: bool) {

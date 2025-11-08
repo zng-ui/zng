@@ -240,9 +240,7 @@ impl AppExtension for ImageManager {
                         Ok(data) => {
                             if let Some((key, mode)) = &t.is_data_proxy_source {
                                 for proxy in &mut proxies {
-                                    if proxy.is_data_proxy()
-                                        && let Some(replaced) = proxy.data(key, &data, &d.format, *mode, t.downscale, t.mask, true)
-                                    {
+                                    if let Some(replaced) = proxy.data_loaded(key, &data, &d.format, *mode, t.downscale, t.mask) {
                                         replaced.set_bind(&t.image).perm();
                                         t.image.hold(replaced).perm();
                                         continue 'loading_tasks;
@@ -536,10 +534,6 @@ impl ImagesService {
 
         let key = source.hash128(downscale, mask).unwrap();
         for proxy in &mut proxies {
-            if proxy.is_data_proxy() && !matches!(source, ImageSource::Data(_, _, _) | ImageSource::Static(_, _, _)) {
-                continue;
-            }
-
             let r = proxy.get(&key, &source, mode, downscale, mask);
             match r {
                 ProxyGetResult::None => continue,

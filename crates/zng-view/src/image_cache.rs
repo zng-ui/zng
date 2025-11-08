@@ -143,7 +143,7 @@ impl ImageCache {
                         );
                         Ok((pixels, size, density, is_opaque, true))
                     } else {
-                        let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
+                        let is_opaque = data.parts(..).all(|p| p.chunks_exact(4).all(|c| c[3] == 255));
                         Ok((data, size, density, is_opaque, false))
                     }
                 }
@@ -165,7 +165,7 @@ impl ImageCache {
                         );
                         Ok((pixels, size, None, is_opaque, false))
                     } else {
-                        let is_opaque = data.iter().all(|&c| c == 255);
+                        let is_opaque = data.parts(..).all(|p| p.chunks_exact(4).all(|c| c[3] == 255));
                         Ok((data, size, None, is_opaque, true))
                     }
                 }
@@ -177,7 +177,7 @@ impl ImageCache {
                     }
 
                     #[cfg(feature = "image_any")]
-                    match Self::header_decode(&fmt, &data[..]) {
+                    match Self::header_decode(&fmt, data.part(0)) {
                         Ok(h) => {
                             let mut size = h.size;
                             let decoded_len = size.width.0 as u64 * size.height.0 as u64 * 4;
@@ -195,7 +195,7 @@ impl ImageCache {
                                     density: h.density,
                                     is_mask: false,
                                 }));
-                                match Self::image_decode(&data[..], h.format, downscale, h.orientation) {
+                                match Self::image_decode(data.part(0), h.format, downscale, h.orientation) {
                                     Ok(img) => Ok(Self::convert_decoded(img, mask, h.density, h.icc_profile)),
                                     Err(e) => Err(e.to_txt()),
                                 }
@@ -345,7 +345,7 @@ impl ImageCache {
                 }
             } else if !is_encoded {
                 let pixels = IpcBytes::from_vec(full);
-                let is_opaque = pixels.chunks_exact(4).all(|c| c[3] == 255);
+                let is_opaque = pixels.parts(..).all(|p| p.chunks_exact(4).all(|c| c[3] == 255));
                 let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
                     id,
                     size.unwrap(),
@@ -1205,7 +1205,7 @@ impl Image {
         } else {
             let r = if width > 255 || height > 255 {
                 // resize to max 255
-                let mut buf = pixels[..].to_vec();
+                let mut buf = pixels.clone().to_vec();
                 // BGRA to RGBA
                 buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
                 let img = image::ImageBuffer::from_raw(width, height, buf).unwrap();
@@ -1217,7 +1217,7 @@ impl Image {
                 let buf = img.into_rgba8().into_raw();
                 winit::window::Icon::from_rgba(buf, width, height)
             } else {
-                let mut buf = pixels[..].to_vec();
+                let mut buf = pixels.clone().to_vec();
                 // BGRA to RGBA
                 buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
                 winit::window::Icon::from_rgba(buf, width, height)
@@ -1247,7 +1247,7 @@ impl Image {
         if width == 0 || height == 0 || hotspot_x > width || hotspot_y > height || self.0.is_mask() {
             None
         } else {
-            let mut buf = pixels[..].to_vec();
+            let mut buf = pixels.clone().to_vec();
             // BGRA to RGBA
             buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
             match CustomCursor::from_rgba(buf, width, height, hotspot_x, hotspot_y) {
@@ -1277,7 +1277,7 @@ impl Image {
             let width = size.width.0 as u32;
             let height = size.height.0 as u32;
             let is_opaque = self.0.is_opaque();
-            let r8 = pixels[..].to_vec();
+            let r8 = pixels.clone().to_vec();
 
             let mut img = image::DynamicImage::ImageLuma8(image::ImageBuffer::from_raw(width, height, r8).unwrap());
             if is_opaque {
@@ -1289,7 +1289,7 @@ impl Image {
         }
 
         // invert rows, `image` only supports top-to-bottom buffers.
-        let mut buf = pixels[..].to_vec();
+        let mut buf = pixels.clone().to_vec();
         // BGRA to RGBA
         buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
         let rgba = buf;
@@ -1424,7 +1424,7 @@ mod external {
                 ImageData::RawData { pixels, .. } => {
                     ExternalImage {
                         uv: TexelRect::invalid(), // `RawData` does not use `uv`.
-                        source: ExternalImageSource::RawData(&pixels[..]),
+                        source: ExternalImageSource::RawData(pixels.part(0)),
                     }
                 }
                 ImageData::NativeTexture { uv, texture: id } => ExternalImage {

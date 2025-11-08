@@ -1,5 +1,9 @@
 # Unreleased
 
+* Refactor view-process API `IpcBytes` to accept transfers of over 2GB.
+    - **Deprecated** deref to `[u8]`.
+    - Added `IpcBytes::{parts_len, part, parts}` to access the underlying parts.
+* Refactor `ImageCacheProxy` API to make no distinction between image request and data interceptors.
 * Implement workaround deadlocks caused by the `notify` crate.
 * Improve advanced animation API. 
     - Add `EasingTime::seg` helper for segmenting an animation overall time for sub-animations.

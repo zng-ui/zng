@@ -2441,9 +2441,9 @@ impl FontBytes {
         Self(FontBytesImpl::Ipc(Arc::new(bytes)))
     }
 
-    /// Moves data to an [`IpcBytes`] shared reference.
+    /// Moves data to an [`Arc`] shared reference.  In case the font needs to be send to view-process turns into [`IpcBytes`].
     pub fn from_vec(bytes: Vec<u8>) -> Self {
-        Self(FontBytesImpl::Ipc(Arc::new(IpcBytes::from_vec(bytes))))
+        Self::from_arc(Arc::new(bytes))
     }
 
     /// Uses the reference in the app-process. In case the font needs to be send to view-process turns into [`IpcBytes`].
@@ -2577,7 +2577,11 @@ impl std::ops::Deref for FontBytes {
 
     fn deref(&self) -> &Self::Target {
         match &self.0 {
-            FontBytesImpl::Ipc(b) => &b[..],
+            FontBytesImpl::Ipc(b) => match b.parts_len() {
+                0 => &[],
+                1 => b.part(0),
+                _ => panic!("cannot slice font bytes over u32::MAX"),
+            },
             FontBytesImpl::Arc(b) => &b[..],
             FontBytesImpl::Static(b) => b,
             #[cfg(not(target_arch = "wasm32"))]

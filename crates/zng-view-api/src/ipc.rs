@@ -98,14 +98,19 @@ mod arc_bytes {
 
 /// Immutable shared memory that can be send fast over IPC.
 ///
-/// # `not(feature="ipc")`
+/// # IPC
 ///
-/// If the default `"ipc"` feature is disabled this is only a `Vec<u8>`.
+/// If the `"ipc"` feature is enabled this is a `Vec<ipc_channel::ipc::IpcSharedMemory>`. Shared memory
+/// is segmented in blocks of maximum `u32::MAX`.
+///
+/// # Not IPC
+///
+/// If the `"ipc"` feature is disabled this is only an `Arc<Vec<u8>>`.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct IpcBytes {
-    // `IpcSharedMemory` cannot have zero length, we use `None` in this case.
+    // `IpcSharedMemory` length must be < 0 on all platforms and <= u32::MAX on Windows
     #[cfg(ipc)]
-    bytes: Option<ipc_channel::ipc::IpcSharedMemory>,
+    bytes: Vec<ipc_channel::ipc::IpcSharedMemory>,
     // `IpcSharedMemory` only clones a pointer.
     #[cfg(not(ipc))]
     #[serde(with = "arc_bytes")]
@@ -115,16 +120,12 @@ pub struct IpcBytes {
 impl PartialEq for IpcBytes {
     #[cfg(not(ipc))]
     fn eq(&self, other: &Self) -> bool {
-        std::sync::Arc::ptr_eq(&self.bytes, &other.bytes)
+        std::sync::Arc::ptr_eq(&self.bytes, &other.bytes) || self.bytes.is_empty() && other.bytes.is_empty()
     }
 
     #[cfg(ipc)]
     fn eq(&self, other: &Self) -> bool {
-        match (&self.bytes, &other.bytes) {
-            (None, None) => true,
-            (Some(a), Some(b)) => a.as_ptr() == b.as_ptr(),
-            _ => false,
-        }
+        self.bytes.len() == other.bytes.len() && self.bytes.iter().zip(&other.bytes).all(|(s, o)| s.as_ptr() == o.as_ptr())
     }
 }
 impl IpcBytes {
@@ -133,11 +134,13 @@ impl IpcBytes {
         IpcBytes {
             #[cfg(ipc)]
             bytes: {
-                if bytes.is_empty() {
-                    None
-                } else {
-                    Some(ipc_channel::ipc::IpcSharedMemory::from_bytes(bytes))
-                }
+                let parts = bytes.len().div_ceil(u32::MAX as usize);
+                (0..parts)
+                    .map(|p| {
+                        let p = p * u32::MAX as usize;
+                        ipc_channel::ipc::IpcSharedMemory::from_bytes(&bytes[p..])
+                    })
+                    .collect()
             },
             #[cfg(not(ipc))]
             bytes: std::sync::Arc::new(bytes.to_vec()),
@@ -164,7 +167,11 @@ impl IpcBytes {
     pub fn to_vec(self) -> Vec<u8> {
         #[cfg(ipc)]
         {
-            self.bytes.map(|s| s.to_vec()).unwrap_or_default()
+            let mut r = Vec::with_capacity(self.len());
+            for part in &self.bytes {
+                r.extend(&part[..]);
+            }
+            r
         }
         #[cfg(not(ipc))]
         {
@@ -177,7 +184,14 @@ impl IpcBytes {
 
     /// Returns the underlying shared memory reference, if the bytes are not zero-length.
     #[cfg(ipc)]
+    #[deprecated = "use `ipc_parts`"]
     pub fn ipc_shared_memory(&self) -> Option<ipc_channel::ipc::IpcSharedMemory> {
+        self.bytes.first().cloned()
+    }
+
+    /// Returns the underlying shared memory references, segmented by `u32::MAX` blocks.
+    #[cfg(ipc)]
+    pub fn ipc_parts(&self) -> Vec<ipc_channel::ipc::IpcSharedMemory> {
         self.bytes.clone()
     }
 
@@ -186,13 +200,154 @@ impl IpcBytes {
     pub fn arc(&self) -> std::sync::Arc<Vec<u8>> {
         self.bytes.clone()
     }
+
+    /// Sum of length of all byte blocks.
+    pub fn len(&self) -> usize {
+        #[cfg(ipc)]
+        {
+            self.bytes.iter().map(|p| p.len()).sum()
+        }
+        #[cfg(not(ipc))]
+        {
+            self.bytes.len()
+        }
+    }
+
+    /// If has no bytes.
+    ///
+    /// Note that empty `IpcBytes` are always equal, but non-empty are equal by reference comparison.
+    pub fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+
+    /// Count of byte blocks.
+    ///
+    /// Shared memory is segmented in blocks of `u32::MAX` length. In 64-bit builds with `"ipc"` feature large allocations
+    /// are split, in builds without `"ipc"` the allocation is a single block.
+    ///
+    /// Empty is always `0` blocks.
+    pub fn parts_len(&self) -> usize {
+        #[cfg(ipc)]
+        {
+            self.bytes.len()
+        }
+        #[cfg(not(ipc))]
+        {
+            if self.is_empty() { 0 } else { 1 }
+        }
+    }
+
+    /// Reference the shared memory block.
+    pub fn part(&self, i: usize) -> &[u8] {
+        #[cfg(ipc)]
+        {
+            &self.bytes[i]
+        }
+        #[cfg(not(ipc))]
+        {
+            assert!(i < self.parts_len());
+            &self.bytes
+        }
+    }
+
+    /// Iterate over shared memory segments.
+    pub fn parts(&self, range: impl std::ops::RangeBounds<usize>) -> impl ExactSizeIterator<Item = &[u8]> {
+        let start = match range.start_bound() {
+            std::ops::Bound::Included(i) => *i,
+            std::ops::Bound::Excluded(i) => *i + 1,
+            std::ops::Bound::Unbounded => 0,
+        };
+        let len = self.len();
+        let end = match range.end_bound() {
+            std::ops::Bound::Included(i) => *i + 1,
+            std::ops::Bound::Excluded(i) => *i,
+            std::ops::Bound::Unbounded => len,
+        };
+        assert!(start < end);
+        assert!(end <= len);
+
+        #[cfg(ipc)]
+        {
+            IpcBytesIterator {
+                start,
+                end,
+                parts: &self.bytes,
+            }
+        }
+        #[cfg(not(ipc))]
+        {
+            [&self.bytes[start..end]].into_iter()
+        }
+    }
 }
+#[cfg(ipc)]
+struct IpcBytesIterator<'a> {
+    parts: &'a [ipc_channel::ipc::IpcSharedMemory],
+    // inclusive start
+    start: usize,
+    // exclusive end
+    end: usize,
+}
+#[cfg(ipc)]
+impl<'a> IpcBytesIterator<'a> {
+    // (part_i, i_in_part)
+    fn locate(&self, i: usize) -> Option<(usize, usize)> {
+        if i >= self.end {
+            return None;
+        }
+        let mut base = 0;
+        for (pi, p) in self.parts.iter().enumerate() {
+            let next = base + p.len();
+            if i < next {
+                return Some((pi, i - base));
+            }
+            base = next;
+        }
+        None
+    }
+}
+#[cfg(ipc)]
+impl<'a> Iterator for IpcBytesIterator<'a> {
+    type Item = &'a [u8];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (start, start_i) = self.locate(self.start)?;
+        let (end, end_i) = self.locate(self.end.checked_sub(1)?)?;
+        let next = if start == end {
+            &self.parts[start][start_i..end_i]
+        } else {
+            &self.parts[start][start_i..]
+        };
+        self.start += next.len();
+        Some(next)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+#[cfg(ipc)]
+impl<'a> ExactSizeIterator for IpcBytesIterator<'a> {
+    fn len(&self) -> usize {
+        if let Some((s, _)) = self.locate(self.start)
+            && let Some((e, _)) = self.locate(self.end - 1)
+        {
+            e - s + 1
+        } else {
+            0
+        }
+    }
+}
+
+/// **Deprecated** use `parts_len` and `part`.
 impl Deref for IpcBytes {
+    // !!: TODO to find deprecated
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
         #[cfg(ipc)]
-        return if let Some(bytes) = &self.bytes { bytes } else { &[] };
+        return if let Some(bytes) = self.bytes.first() { bytes } else { &[] };
 
         #[cfg(not(ipc))]
         &self.bytes

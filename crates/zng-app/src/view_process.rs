@@ -1357,7 +1357,7 @@ impl ViewImage {
     ///
     /// [`is_mask`]: Self::is_mask
     pub fn partial_pixels(&self) -> Option<Vec<u8>> {
-        self.0.read().partial_pixels.as_ref().map(|r| r[..].to_vec())
+        self.0.read().partial_pixels.as_ref().map(|r| r.clone().to_vec())
     }
 
     /// Reference the decoded pixels of image.
