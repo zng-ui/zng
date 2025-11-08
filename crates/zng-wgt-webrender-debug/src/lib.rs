@@ -163,7 +163,6 @@ mod serde_debug_flags {
             const GPU_CACHE_DBG = DebugFlags::GPU_CACHE_DBG.bits();
             const TEXTURE_CACHE_DBG_CLEAR_EVICTED = DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED.bits();
             const PICTURE_CACHING_DBG = DebugFlags::PICTURE_CACHING_DBG.bits();
-            const PRIMITIVE_DBG = DebugFlags::PRIMITIVE_DBG.bits();
             const ZOOM_DBG = DebugFlags::ZOOM_DBG.bits();
             const SMALL_SCREEN = DebugFlags::SMALL_SCREEN.bits();
             const DISABLE_OPAQUE_PASS = DebugFlags::DISABLE_OPAQUE_PASS.bits();

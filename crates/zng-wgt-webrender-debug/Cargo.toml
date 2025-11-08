@@ -18,7 +18,7 @@ zng-ext-window = { path = "../zng-ext-window", version = "0.10.1", default-featu
 zng-view-api = { path = "../zng-view-api", version = "0.17.1", default-features = false }
 
 # path = "../../../zng-webrender/webrender_api" for testing webrender updates
-webrender-api = { package = "zng-webrender-api", version = "0.65.0", default-features = false }
+webrender-api = { package = "zng-webrender-api", version = "0.66.0", default-features = false }
 
 serde = { version = "1.0", default-features = false }
 bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
