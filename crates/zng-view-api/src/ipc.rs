@@ -98,14 +98,16 @@ mod arc_bytes {
 
 /// Immutable shared memory that can be send fast over IPC.
 ///
-/// # IPC
+/// # Parts
 ///
-/// If the `"ipc"` feature is enabled this is a `Vec<ipc_channel::ipc::IpcSharedMemory>`. Shared memory
-/// is segmented in blocks of maximum `u32::MAX - 1` length.
+/// The bytes allocation can be split into multiple parts, in builds with `"ipc"` feature this is required
+/// if parts are `> u32::MAX - 1` and [`from_slice`] and [`from_vec`] automatically split. The [`from_split`]
+/// constructor can also be used to instantiate with custom split length, this can be used if the data
+/// needs contiguous sequencies of a specific size.
 ///
-/// # Not IPC
-///
-/// If the `"ipc"` feature is disabled this is only an `Arc<Vec<u8>>`.
+/// [`from_slice`]: IpcBytes::from_slice
+/// [`from_vec`]: IpcBytes::from_vec
+/// [`from_split`]: IpcBytes::from_split
 #[derive(Clone, Serialize, Deserialize)]
 pub struct IpcBytes {
     // `IpcSharedMemory` length must be < 0 on all platforms and < u32::MAX on Windows
@@ -115,12 +117,15 @@ pub struct IpcBytes {
     #[cfg(not(ipc))]
     #[serde(with = "arc_bytes")]
     bytes: std::sync::Arc<Vec<u8>>,
+    #[cfg(not(ipc))]
+    part_lens: Vec<u32>,
 }
 /// Pointer equal.
 impl PartialEq for IpcBytes {
     #[cfg(not(ipc))]
     fn eq(&self, other: &Self) -> bool {
-        std::sync::Arc::ptr_eq(&self.bytes, &other.bytes) || self.bytes.is_empty() && other.bytes.is_empty()
+        std::sync::Arc::ptr_eq(&self.bytes, &other.bytes) && self.part_lens == other.part_lens
+            || self.bytes.is_empty() && other.bytes.is_empty()
     }
 
     #[cfg(ipc)]
@@ -129,24 +134,48 @@ impl PartialEq for IpcBytes {
     }
 }
 impl IpcBytes {
-    #[cfg(ipc)]
     const PART_MAX: usize = (u32::MAX - 1) as usize;
 
     /// Copy the `bytes` to a new shared memory allocation.
     pub fn from_slice(bytes: &[u8]) -> Self {
-        IpcBytes {
-            #[cfg(ipc)]
-            bytes: {
-                let parts = bytes.len().div_ceil(Self::PART_MAX);
-                (0..parts)
-                    .map(|p| {
-                        let p = p * Self::PART_MAX;
-                        ipc_channel::ipc::IpcSharedMemory::from_bytes(&bytes[p..])
-                    })
-                    .collect()
-            },
-            #[cfg(not(ipc))]
-            bytes: std::sync::Arc::new(bytes.to_vec()),
+        #[cfg(ipc)]
+        {
+            IpcBytes {
+                bytes: {
+                    let parts = bytes.len().div_ceil(Self::PART_MAX);
+                    (0..parts)
+                        .map(|p| {
+                            let p = p * Self::PART_MAX;
+                            ipc_channel::ipc::IpcSharedMemory::from_bytes(&bytes[p..])
+                        })
+                        .collect()
+                },
+            }
+        }
+        #[cfg(not(ipc))]
+        {
+            if bytes.len() <= Self::PART_MAX {
+                IpcBytes {
+                    part_lens: vec![bytes.len() as u32],
+                    bytes: std::sync::Arc::new(bytes.to_vec()),
+                }
+            } else {
+                let mut part_lens = Vec::with_capacity(2);
+                let mut len = bytes.len();
+                loop {
+                    if len > Self::PART_MAX {
+                        part_lens.push(Self::PART_MAX as u32);
+                        len = len.saturating_sub(Self::PART_MAX);
+                    } else {
+                        part_lens.push(len as u32);
+                        break;
+                    }
+                }
+                IpcBytes {
+                    part_lens,
+                    bytes: std::sync::Arc::new(bytes.to_vec()),
+                }
+            }
         }
     }
 
@@ -159,8 +188,62 @@ impl IpcBytes {
         }
 
         #[cfg(not(ipc))]
-        IpcBytes {
-            bytes: std::sync::Arc::new(bytes),
+        {
+            if bytes.len() <= Self::PART_MAX {
+                IpcBytes {
+                    part_lens: vec![bytes.len() as u32],
+                    bytes: std::sync::Arc::new(bytes),
+                }
+            } else {
+                let mut part_lens = Vec::with_capacity(2);
+                let mut len = bytes.len();
+                loop {
+                    if len > Self::PART_MAX {
+                        part_lens.push(Self::PART_MAX as u32);
+                        len = len.saturating_sub(Self::PART_MAX);
+                    } else {
+                        part_lens.push(len as u32);
+                        break;
+                    }
+                }
+                IpcBytes {
+                    part_lens,
+                    bytes: std::sync::Arc::new(bytes),
+                }
+            }
+        }
+    }
+
+    /// Copy the `bytes` split by `part_lens`.
+    ///
+    /// Length of each part must be `<=u32::MAX - 1`.
+    pub fn from_split(bytes: &[u8], part_lens: Vec<u32>) -> Self {
+        #[cfg(ipc)]
+        {
+            let mut start = 0;
+            let mut r = Vec::with_capacity(part_lens.len());
+            for len in part_lens {
+                let len = len as usize;
+                assert!(len <= Self::PART_MAX);
+                let end = start + len;
+                r.push(ipc_channel::ipc::IpcSharedMemory::from_bytes(&bytes[start..end]));
+                start = end;
+            }
+            Self { bytes: r }
+        }
+        #[cfg(not(ipc))]
+        {
+            let mut sum = 0;
+            for &len in &part_lens {
+                let len = len as usize;
+                assert!(len <= Self::PART_MAX);
+                sum += len;
+            }
+            assert_eq!(bytes.len(), sum);
+            Self {
+                bytes: std::sync::Arc::new(bytes.to_vec()),
+                part_lens,
+            }
         }
     }
 
@@ -180,26 +263,21 @@ impl IpcBytes {
         {
             match std::sync::Arc::try_unwrap(self.bytes) {
                 Ok(d) => d,
-                Err(a) => a.as_ref().to_vec(),
+                Err(a) => a.to_vec(),
             }
         }
     }
 
-    /// Returns the underlying shared memory reference, if the bytes are not zero-length.
+    /// Deprecated.
     #[cfg(ipc)]
-    #[deprecated = "use `ipc_parts`"]
+    #[deprecated = "underlying memory no longer available"]
     pub fn ipc_shared_memory(&self) -> Option<ipc_channel::ipc::IpcSharedMemory> {
         self.bytes.first().cloned()
     }
 
-    /// Returns the underlying shared memory references, segmented by `u32::MAX - 1` blocks.
-    #[cfg(ipc)]
-    pub fn ipc_parts(&self) -> Vec<ipc_channel::ipc::IpcSharedMemory> {
-        self.bytes.clone()
-    }
-
-    /// Returns the underlying shared reference.
+    /// Deprecated.
     #[cfg(not(ipc))]
+    #[deprecated = "underlying memory no longer available"]
     pub fn arc(&self) -> std::sync::Arc<Vec<u8>> {
         self.bytes.clone()
     }
@@ -236,7 +314,7 @@ impl IpcBytes {
         }
         #[cfg(not(ipc))]
         {
-            if self.is_empty() { 0 } else { 1 }
+            self.part_lens.len()
         }
     }
 
@@ -248,8 +326,9 @@ impl IpcBytes {
         }
         #[cfg(not(ipc))]
         {
-            assert!(i < self.parts_len());
-            &self.bytes
+            let start = self.part_lens[..i].iter().map(|&l| l as usize).sum();
+            let end = start + self.part_lens[i] as usize;
+            &self.bytes[start..end]
         }
     }
 
@@ -279,13 +358,24 @@ impl IpcBytes {
         }
         #[cfg(not(ipc))]
         {
-            [&self.bytes[start..end]].into_iter()
+            IpcBytesIterator {
+                start,
+                end,
+                bytes: &self.bytes,
+                part_lens: &self.part_lens,
+            }
         }
     }
 }
-#[cfg(ipc)]
+
 struct IpcBytesIterator<'a> {
+    #[cfg(ipc)]
     parts: &'a [ipc_channel::ipc::IpcSharedMemory],
+    #[cfg(not(ipc))]
+    bytes: &'a [u8],
+    #[cfg(not(ipc))]
+    part_lens: &'a [u32],
+
     // inclusive start
     start: usize,
     // exclusive end
@@ -308,8 +398,35 @@ impl<'a> IpcBytesIterator<'a> {
         }
         None
     }
+
+    fn part(&self, pi: usize) -> &'a [u8] {
+        &self.parts[pi][..]
+    }
 }
-#[cfg(ipc)]
+#[cfg(not(ipc))]
+impl<'a> IpcBytesIterator<'a> {
+    // (part_i, i_in_part)
+    fn locate(&self, i: usize) -> Option<(usize, usize)> {
+        if i >= self.end {
+            return None;
+        }
+        let mut base = 0;
+        for (pi, &p_len) in self.part_lens.iter().enumerate() {
+            let next = base + p_len as usize;
+            if i < next {
+                return Some((pi, i - base));
+            }
+            base = next;
+        }
+        None
+    }
+
+    fn part(&self, pi: usize) -> &'a [u8] {
+        let start = self.part_lens[..pi].iter().map(|l| *l as usize).sum();
+        let end = start + self.part_lens[pi] as usize;
+        &self.bytes[start..end]
+    }
+}
 impl<'a> Iterator for IpcBytesIterator<'a> {
     type Item = &'a [u8];
 
@@ -317,9 +434,9 @@ impl<'a> Iterator for IpcBytesIterator<'a> {
         let (start, start_i) = self.locate(self.start)?;
         let (end, end_i) = self.locate(self.end.checked_sub(1)?)?;
         let next = if start == end {
-            &self.parts[start][start_i..=end_i]
+            &self.part(start)[start_i..=end_i]
         } else {
-            &self.parts[start][start_i..]
+            &self.part(start)[start_i..]
         };
         self.start += next.len();
         Some(next)
@@ -330,7 +447,6 @@ impl<'a> Iterator for IpcBytesIterator<'a> {
         (len, Some(len))
     }
 }
-#[cfg(ipc)]
 impl<'a> ExactSizeIterator for IpcBytesIterator<'a> {
     fn len(&self) -> usize {
         if let Some((s, _)) = self.locate(self.start)
@@ -345,7 +461,6 @@ impl<'a> ExactSizeIterator for IpcBytesIterator<'a> {
 
 /// **Deprecated** use `parts_len` and `part`.
 impl Deref for IpcBytes {
-    // !!: TODO to find deprecated
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
