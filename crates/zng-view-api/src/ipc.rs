@@ -101,14 +101,14 @@ mod arc_bytes {
 /// # IPC
 ///
 /// If the `"ipc"` feature is enabled this is a `Vec<ipc_channel::ipc::IpcSharedMemory>`. Shared memory
-/// is segmented in blocks of maximum `u32::MAX`.
+/// is segmented in blocks of maximum `u32::MAX - 1` length.
 ///
 /// # Not IPC
 ///
 /// If the `"ipc"` feature is disabled this is only an `Arc<Vec<u8>>`.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct IpcBytes {
-    // `IpcSharedMemory` length must be < 0 on all platforms and <= u32::MAX on Windows
+    // `IpcSharedMemory` length must be < 0 on all platforms and < u32::MAX on Windows
     #[cfg(ipc)]
     bytes: Vec<ipc_channel::ipc::IpcSharedMemory>,
     // `IpcSharedMemory` only clones a pointer.
@@ -129,15 +129,18 @@ impl PartialEq for IpcBytes {
     }
 }
 impl IpcBytes {
+    #[cfg(ipc)]
+    const PART_MAX: usize = (u32::MAX - 1) as usize;
+
     /// Copy the `bytes` to a new shared memory allocation.
     pub fn from_slice(bytes: &[u8]) -> Self {
         IpcBytes {
             #[cfg(ipc)]
             bytes: {
-                let parts = bytes.len().div_ceil(u32::MAX as usize);
+                let parts = bytes.len().div_ceil(Self::PART_MAX);
                 (0..parts)
                     .map(|p| {
-                        let p = p * u32::MAX as usize;
+                        let p = p * Self::PART_MAX;
                         ipc_channel::ipc::IpcSharedMemory::from_bytes(&bytes[p..])
                     })
                     .collect()
@@ -189,7 +192,7 @@ impl IpcBytes {
         self.bytes.first().cloned()
     }
 
-    /// Returns the underlying shared memory references, segmented by `u32::MAX` blocks.
+    /// Returns the underlying shared memory references, segmented by `u32::MAX - 1` blocks.
     #[cfg(ipc)]
     pub fn ipc_parts(&self) -> Vec<ipc_channel::ipc::IpcSharedMemory> {
         self.bytes.clone()
@@ -222,7 +225,7 @@ impl IpcBytes {
 
     /// Count of byte blocks.
     ///
-    /// Shared memory is segmented in blocks of `u32::MAX` length. In 64-bit builds with `"ipc"` feature large allocations
+    /// Shared memory is segmented in blocks of `u32::MAX - 1` length. In 64-bit builds with `"ipc"` feature large allocations
     /// are split, in builds without `"ipc"` the allocation is a single block.
     ///
     /// Empty is always `0` blocks.
@@ -314,7 +317,7 @@ impl<'a> Iterator for IpcBytesIterator<'a> {
         let (start, start_i) = self.locate(self.start)?;
         let (end, end_i) = self.locate(self.end.checked_sub(1)?)?;
         let next = if start == end {
-            &self.parts[start][start_i..end_i]
+            &self.parts[start][start_i..=end_i]
         } else {
             &self.parts[start][start_i..]
         };
