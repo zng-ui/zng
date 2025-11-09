@@ -142,13 +142,17 @@ impl IpcBytes {
         {
             IpcBytes {
                 bytes: {
-                    let parts = bytes.len().div_ceil(Self::PART_MAX);
-                    (0..parts)
-                        .map(|p| {
-                            let p = p * Self::PART_MAX;
-                            ipc_channel::ipc::IpcSharedMemory::from_bytes(&bytes[p..])
-                        })
-                        .collect()
+                    let mut r = Vec::with_capacity(bytes.len().div_ceil(Self::PART_MAX));
+                    let mut bytes = bytes;
+                    loop {
+                        let part_len = Self::PART_MAX.min(bytes.len());
+                        r.push(ipc_channel::ipc::IpcSharedMemory::from_bytes(&bytes[..part_len]));
+                        if bytes.len() == part_len {
+                            break;
+                        }
+                        bytes = &bytes[part_len..];
+                    }
+                    r
                 },
             }
         }
