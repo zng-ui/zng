@@ -495,7 +495,7 @@ impl Controller {
             }
         }
 
-        let code_and_output = match process.wait() {
+        let exit_status = match process.wait() {
             Ok(c) => Some(c),
             Err(e) => {
                 tracing::error!(target: "vp_respawn", "view-process could not be killed, will abandon running, {e:?}");
@@ -504,7 +504,7 @@ impl Controller {
         };
 
         // try print stdout/err and exit code.
-        if let Some(c) = code_and_output {
+        if let Some(c) = exit_status {
             tracing::info!(target: "vp_respawn", "view-process killed");
 
             let code = c.code();

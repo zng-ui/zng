@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.19.2
+
 * Implement workaround deadlocks caused by the `notify` crate.
 * Improve advanced animation API. 
     - Add `EasingTime::seg` helper for segmenting an animation overall time for sub-animations.
