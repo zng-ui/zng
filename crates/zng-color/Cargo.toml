@@ -1,6 +1,6 @@
 [package]
 name = "zng-color"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -13,10 +13,10 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
 zng-color-proc-macros = { path = "../zng-color-proc-macros", version = "0.4.0", default-features = false }
-zng-layout = { path = "../zng-layout", version = "0.8.1", default-features = false }
+zng-layout = { path = "../zng-layout", version = "0.8.2", default-features = false }
 zng-app-context = { path = "../zng-app-context", version = "0.10.0", default-features = false }
-zng-var = { path = "../zng-var", version = "0.11.1", default-features = false }
-zng-view-api = { path = "../zng-view-api", version = "0.17.1", default-features = false }
+zng-var = { path = "../zng-var", version = "0.11.2", default-features = false }
+zng-view-api = { path = "../zng-view-api", version = "0.17.2", default-features = false }
 
 pastey = { version = "0.1", default-features = false }
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
