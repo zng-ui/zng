@@ -97,6 +97,9 @@ use zng_unit::TimeUnits as _;
 #[doc(no_inline)]
 pub use ipc_channel::ipc::{IpcBytesReceiver, IpcBytesSender, IpcReceiver, IpcSender, bytes_channel};
 
+mod channel;
+pub use channel::*;
+
 use crate::TaskPanicError;
 
 /// Represents a type that can be an input and output of IPC workers.
