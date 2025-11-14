@@ -29,68 +29,17 @@
 //!
 //! [`flume`]: https://docs.rs/flume/0.10.7/flume/
 
-use std::{convert::TryFrom, fmt};
+use std::{fmt, sync::Arc};
 
 pub use flume::{RecvError, RecvTimeoutError, SendError, SendTimeoutError};
 
 use zng_time::Deadline;
 
-/// The transmitting end of an unbounded channel.
-///
-/// Use [`unbounded`] to create a channel.
-pub struct UnboundSender<T>(flume::Sender<T>);
-impl<T> fmt::Debug for UnboundSender<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "UnboundSender<{}>", pretty_type_name::pretty_type_name::<T>())
-    }
-}
-impl<T> Clone for UnboundSender<T> {
-    fn clone(&self) -> Self {
-        UnboundSender(self.0.clone())
-    }
-}
-impl<T> TryFrom<flume::Sender<T>> for UnboundSender<T> {
-    type Error = flume::Sender<T>;
+mod ipc;
+pub use ipc::*;
 
-    /// Convert to [`UnboundSender`] if the flume sender is unbound.
-    fn try_from(value: flume::Sender<T>) -> Result<Self, Self::Error> {
-        if value.capacity().is_none() {
-            Ok(UnboundSender(value))
-        } else {
-            Err(value)
-        }
-    }
-}
-impl<T> From<UnboundSender<T>> for flume::Sender<T> {
-    fn from(s: UnboundSender<T>) -> Self {
-        s.0
-    }
-}
-impl<T> UnboundSender<T> {
-    /// Send a value into the channel.
-    ///
-    /// If the messages are not received they accumulate in the channel buffer.
-    ///
-    /// Returns an error if all receivers have been dropped.
-    pub fn send(&self, msg: T) -> Result<(), SendError<T>> {
-        self.0.send(msg)
-    }
-
-    /// Returns `true` if all receivers for this channel have been dropped.
-    pub fn is_disconnected(&self) -> bool {
-        self.0.is_disconnected()
-    }
-
-    /// Returns `true` if the channel is empty.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// Returns the number of messages in the channel.
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-}
+mod ipc_bytes;
+pub use ipc_bytes::*;
 
 /// The transmitting end of a channel.
 ///
@@ -122,8 +71,9 @@ impl<T> Sender<T> {
     /// Waits until there is space in the channel buffer.
     ///
     /// Returns an error if all receivers have been dropped.
-    pub async fn send(&self, msg: T) -> Result<(), SendError<T>> {
-        self.0.send_async(msg).await
+    pub async fn send(&self, msg: T) -> Result<(), ChannelError> {
+        self.0.send_async(msg).await?; // !!: TODO add blocking send/recv
+        Ok(())
     }
 
     /// Send a value into the channel.
@@ -131,43 +81,14 @@ impl<T> Sender<T> {
     /// Waits until there is space in the channel buffer or the `deadline` is reached.
     ///
     /// Returns an error if all receivers have been dropped or the `deadline` is reached. The `msg` is lost in case of timeout.
-    pub async fn send_deadline(&self, msg: T, deadline: impl Into<Deadline>) -> Result<(), SendTimeoutError<Option<T>>> {
+    pub async fn send_deadline(&self, msg: T, deadline: impl Into<Deadline>) -> Result<(), ChannelError> {
         match super::with_deadline(self.send(msg), deadline).await {
             Ok(r) => match r {
                 Ok(_) => Ok(()),
-                Err(e) => Err(SendTimeoutError::Disconnected(Some(e.0))),
+                Err(e) => Err(e),
             },
-            Err(_) => Err(SendTimeoutError::Timeout(None)),
+            Err(_) => Err(ChannelError::Timeout),
         }
-    }
-
-    /// Returns `true` if all receivers for this channel have been dropped.
-    pub fn is_disconnected(&self) -> bool {
-        self.0.is_disconnected()
-    }
-
-    /// Returns `true` if the channel is empty.
-    ///
-    /// Note: [`rendezvous`] channels are always empty.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// Returns `true` if the channel is full.
-    ///
-    /// Note: [`rendezvous`] channels are always full and [`unbounded`] channels are never full.
-    pub fn is_full(&self) -> bool {
-        self.0.is_full()
-    }
-
-    /// Returns the number of messages in the channel.
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// If the channel is bounded, returns its capacity.
-    pub fn capacity(&self) -> Option<usize> {
-        self.0.capacity()
     }
 }
 
@@ -195,55 +116,22 @@ impl<T> Receiver<T> {
     /// Wait for an incoming value from the channel associated with this receiver.
     ///
     /// Returns an error if all senders have been dropped.
-    pub async fn recv(&self) -> Result<T, RecvError> {
-        self.0.recv_async().await
+    pub async fn recv(&self) -> Result<T, ChannelError> {
+        let r = self.0.recv_async().await?;
+        Ok(r)
     }
 
     /// Wait for an incoming value from the channel associated with this receiver.
     ///
     /// Returns an error if all senders have been dropped or the `deadline` is reached.
-    pub async fn recv_deadline(&self, deadline: impl Into<Deadline>) -> Result<T, RecvTimeoutError> {
+    pub async fn recv_deadline(&self, deadline: impl Into<Deadline>) -> Result<T, ChannelError> {
         match super::with_deadline(self.recv(), deadline).await {
             Ok(r) => match r {
                 Ok(m) => Ok(m),
-                Err(_) => Err(RecvTimeoutError::Disconnected),
+                Err(_) => Err(ChannelError::Disconnected),
             },
-            Err(_) => Err(RecvTimeoutError::Timeout),
+            Err(_) => Err(ChannelError::Timeout),
         }
-    }
-
-    /// Returns `true` if all senders for this channel have been dropped.
-    pub fn is_disconnected(&self) -> bool {
-        self.0.is_disconnected()
-    }
-
-    /// Returns `true` if the channel is empty.
-    ///
-    /// Note: [`rendezvous`] channels are always empty.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// Returns `true` if the channel is full.
-    ///
-    /// Note: [`rendezvous`] channels are always full and [`unbounded`] channels are never full.
-    pub fn is_full(&self) -> bool {
-        self.0.is_full()
-    }
-
-    /// Returns the number of messages in the channel.
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// If the channel is bounded, returns its capacity.
-    pub fn capacity(&self) -> Option<usize> {
-        self.0.capacity()
-    }
-
-    /// Takes all sitting in the channel.
-    pub fn drain(&self) -> flume::Drain<'_, T> {
-        self.0.drain()
     }
 }
 
@@ -292,9 +180,9 @@ impl<T> Receiver<T> {
 /// [`send`]: UnboundSender::send
 /// [received]: Receiver::recv
 /// [spawns]: crate::spawn
-pub fn unbounded<T>() -> (UnboundSender<T>, Receiver<T>) {
+pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
     let (s, r) = flume::unbounded();
-    (UnboundSender(s), Receiver(r))
+    (Sender(s), Receiver(r))
 }
 
 /// Create a channel with a maximum capacity.
@@ -394,4 +282,60 @@ pub fn bounded<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
 /// [spawns]: crate::spawn
 pub fn rendezvous<T>() -> (Sender<T>, Receiver<T>) {
     bounded::<T>(0)
+}
+
+/// Error during channel send or receive.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum ChannelError {
+    /// App connected to a sender/receiver channel has disconnected.
+    Disconnected,
+    /// Deadline elapsed before message could be send/received.
+    Timeout,
+    /// Other error specific for the internal implementation.
+    Other(Arc<dyn std::error::Error + Send + Sync + 'static>)
+}
+impl ChannelError {
+    /// New from other `error`.
+    pub fn other(error: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::Other(Arc::new(error))
+    }
+}
+impl fmt::Display for ChannelError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ChannelError::Disconnected => write!(f, "cannot receive because the sender disconnected"),
+            ChannelError::Timeout => write!(f, "deadline elapsed before message could be send/received"),
+            ChannelError::Other(e) => fmt::Display::fmt(e, f),
+        }
+    }
+}
+impl std::error::Error for ChannelError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        if let Self::Other(e) = self {
+            Some(e)
+        } else {
+            None
+        }
+    }
+}
+impl From<flume::RecvError> for ChannelError {
+    fn from(value: flume::RecvError) -> Self {
+        match value {
+            RecvError::Disconnected => ChannelError::Disconnected,
+        }
+    }
+}
+impl From<flume::RecvTimeoutError> for ChannelError {
+    fn from(value: flume::RecvTimeoutError) -> Self {
+        match value {
+            flume::RecvTimeoutError::Timeout => ChannelError::Timeout,
+            flume::RecvTimeoutError::Disconnected => ChannelError::Disconnected,
+        }
+    }
+}
+impl<T> From<flume::SendError<T>> for ChannelError {
+    fn from(_: flume::SendError<T>) -> Self {
+        ChannelError::Disconnected
+    }
 }

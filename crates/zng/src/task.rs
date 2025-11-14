@@ -156,7 +156,7 @@ pub use zng_task::{doc_test, spin_on};
 pub use zng_task::http;
 
 #[cfg(ipc)]
-pub use zng_task::ipc;
+pub use zng_task::process;
 
 #[doc(no_inline)]
 pub use zng_task::{parking_lot, rayon};

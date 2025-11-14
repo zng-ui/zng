@@ -50,7 +50,7 @@ mod ui;
 
 pub mod http;
 
-pub mod ipc;
+pub mod process;
 
 mod rayon_ctx;
 

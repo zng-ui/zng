@@ -1,5 +1,13 @@
 # Unreleased
 
+* Refactor IPC and worker process API.
+    - **Breaking** Remove `zng::task::ipc`.
+    - Add `zng::task::channel::ipc_channel` and related types.
+    - Add `zng::task::process` with the same worker process types. !!: TODO
+    - IPC types are now also available in builds without `"ipc"` feature, internally patched to use normal channels.
+    - **Breaking** Remove `zng::task::channel::{UnboundSender, UnboundReceiver}`.
+    - **Breaking** Unified channel error types. !!: TODO
+    - **Breaking** Remove conversions from underlying types. !!: TODO
 
 # 0.19.2
 
