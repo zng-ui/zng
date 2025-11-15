@@ -16,7 +16,7 @@
 //! task::spawn(async move {
 //!     task::deadline(5.secs()).await;
 //!     if let Err(e) = sender.send("Data!").await {
-//!         eprintln!("no receiver connected, did not send message: '{}'", e.0)
+//!         eprintln!("no receiver connected, did not send message: '{e}'")
 //!     }
 //! });
 //! task::spawn(async move {
@@ -37,11 +37,14 @@ mod ipc;
 pub use ipc::{IpcReceiver, IpcSender, IpcValue, ipc_channel};
 
 mod ipc_bytes;
-pub use ipc_bytes::{IpcBytes, is_ipc_serialization_context, with_ipc_serialization_context};
+pub use ipc_bytes::IpcBytes;
+
+#[cfg(ipc)]
+pub use ipc_bytes::{is_ipc_serialization, with_ipc_serialization};
 
 /// The transmitting end of a channel.
 ///
-/// Use [`bounded`] or [`rendezvous`] to create a channel. You can also convert an [`UnboundSender`] into this one.
+/// Use [`unbounded`], [`bounded`] or [`rendezvous`] to create a channel.
 pub struct Sender<T>(flume::Sender<T>);
 impl<T> fmt::Debug for Sender<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -111,7 +114,7 @@ impl<T> Sender<T> {
 
 /// The receiving end of a channel.
 ///
-/// Use [`bounded`],[`unbounded`] or [`rendezvous`] to create a channel.
+/// Use [`unbounded`], [`bounded`] or [`rendezvous`] to create a channel.
 ///
 /// # Work Stealing
 ///
@@ -170,7 +173,7 @@ impl<T> Receiver<T> {
 /// Create a channel with no maximum capacity.
 ///
 /// Unbound channels always [`send`] messages immediately, never yielding on await.
-/// If the messages are no [received] they accumulate in the channel buffer.
+/// If the messages are not [received] they accumulate in the channel buffer.
 ///
 /// # Examples
 ///
@@ -186,8 +189,8 @@ impl<T> Receiver<T> {
 /// task::spawn(async move {
 ///     for msg in ["Hello!", "Are you still there?"].into_iter().cycle() {
 ///         task::deadline(300.ms()).await;
-///         if let Err(e) = sender.send(msg) {
-///             eprintln!("no receiver connected, the message `{}` was not send", e.0);
+///         if let Err(e) = sender.send(msg).await {
+///             eprintln!("no receiver connected, the message `{e}` was not send");
 ///             break;
 ///         }
 ///     }
@@ -209,7 +212,7 @@ impl<T> Receiver<T> {
 ///
 /// Note that you don't need to `.await` on [`send`] as there is always space in the channel buffer.
 ///
-/// [`send`]: UnboundSender::send
+/// [`send`]: Sender::send
 /// [received]: Receiver::recv
 /// [spawns]: crate::spawn
 pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
@@ -237,7 +240,7 @@ pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
 ///     for msg in ["Hello!", "Data!"].into_iter().cycle() {
 ///         task::deadline(300.ms()).await;
 ///         if let Err(e) = sender.send(msg).await {
-///             eprintln!("no receiver connected, the message `{}` was not send", e.0);
+///             eprintln!("no receiver connected, the message `{e}` was not send");
 ///             break;
 ///         }
 ///     }
@@ -257,7 +260,7 @@ pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
 /// });
 /// ```
 ///
-/// [`send`]: UnboundSender::send
+/// [`send`]: Sender::send
 /// [received]: Receiver::recv
 /// [spawns]: crate::spawn
 pub fn bounded<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
@@ -287,7 +290,7 @@ pub fn bounded<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
 ///         let t = INSTANT.now();
 ///
 ///         if let Err(e) = sender.send("the stuff").await {
-///             eprintln!(r#"failed to send "{}", no receiver connected"#, e.0);
+///             eprintln!(r#"failed to send "{}", no receiver connected"#, e);
 ///             break;
 ///         }
 ///
@@ -309,7 +312,7 @@ pub fn bounded<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
 /// });
 /// ```
 ///
-/// [`send`]: UnboundSender::send
+/// [`send`]: Sender::send
 /// [received]: Receiver::recv
 /// [spawns]: crate::spawn
 pub fn rendezvous<T>() -> (Sender<T>, Receiver<T>) {

@@ -1,3 +1,5 @@
+#![cfg_attr(not(ipc), allow(unused))]
+
 use std::{
     cell::Cell,
     fmt, fs,
@@ -7,6 +9,7 @@ use std::{
     sync::Arc,
 };
 
+#[cfg(ipc)]
 use ipc_channel::ipc::IpcSharedMemory;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize, de::VariantAccess};
@@ -29,7 +32,7 @@ use zng_app_context::RunOnDrop;
 ///
 /// # Serialization
 ///
-/// When serialized inside [`ipc_serialization_context`] the memory map bytes are not copied, only the system handle and metadata is serialized.
+/// When serialized inside [`with_ipc_serialization`] the memory map bytes are not copied, only the system handle and metadata is serialized.
 /// When serialized in other contexts all bytes are copied.
 ///
 /// When deserializing memory map handles are reconnected and if deserializing bytes selects the best storage based on data length.
@@ -120,7 +123,7 @@ impl IpcBytes {
         {
             let mut buf = vec![];
             data.read_to_end(&mut buf)?;
-            Ok(Self::from_vec(buf))
+            Self::from_vec(buf)
         }
     }
     #[cfg(ipc)]
@@ -184,17 +187,27 @@ impl IpcBytes {
 
     /// Read `file` into shared memory.
     pub fn from_file(file: &Path) -> io::Result<Self> {
-        let mut file = fs::File::open(file)?;
-        let len = file.metadata()?.len();
-        if len <= Self::UNNAMED_MAX as u64 {
-            let mut buf = vec![0u8; len as usize];
-            file.read_exact(&mut buf)?;
+        #[cfg(ipc)]
+        {
+            let mut file = fs::File::open(file)?;
+            let len = file.metadata()?.len();
+            if len <= Self::UNNAMED_MAX as u64 {
+                let mut buf = vec![0u8; len as usize];
+                file.read_exact(&mut buf)?;
+                Self::from_vec(buf)
+            } else {
+                Self::new_memmap(|m| {
+                    io::copy(&mut file, m)?;
+                    Ok(())
+                })
+            }
+        }
+        #[cfg(not(ipc))]
+        {
+            let mut file = fs::File::open(file)?;
+            let mut buf = vec![];
+            file.read_to_end(&mut buf)?;
             Self::from_vec(buf)
-        } else {
-            Self::new_memmap(|m| {
-                io::copy(&mut file, m)?;
-                Ok(())
-            })
         }
     }
 
@@ -321,7 +334,7 @@ impl IpcMemMap {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            permissions.set_mode(400);
+            permissions.set_mode(0o400);
         }
         read_handle.set_permissions(permissions)?;
         read_handle.lock_shared()?;
@@ -376,7 +389,7 @@ impl Serialize for IpcBytes {
     {
         #[cfg(ipc)]
         {
-            if is_ipc_serialization_context() {
+            if is_ipc_serialization() {
                 match &*self.0 {
                     IpcBytesData::Heap(b) => serializer.serialize_newtype_variant("IpcBytes", 0, "Heap", serde_bytes::Bytes::new(&b[..])),
                     IpcBytesData::AnonMemMap(b) => serializer.serialize_newtype_variant("IpcBytes", 1, "AnonMemMap", b),
@@ -504,23 +517,23 @@ impl<'de> Deserialize<'de> for IpcBytes {
 ///
 /// IPC channels like [`IpcSender`] serialize messages inside this context to support [`IpcBytes`] fast memory map sharing across processes.
 ///
-/// You can use the [`is_ipc_serialization_context`] to check if inside context.
+/// You can use the [`is_ipc_serialization`] to check if inside context.
 ///
 /// [`IpcSender`]: super::IpcSender
 #[cfg(ipc)]
-pub fn with_ipc_serialization_context<R>(serialize: impl FnOnce() -> R) -> R {
-    let parent = IPC_SERIALIZATION_CONTEXT.replace(true);
-    RunOnDrop::new(|| IPC_SERIALIZATION_CONTEXT.set(parent));
+pub fn with_ipc_serialization<R>(serialize: impl FnOnce() -> R) -> R {
+    let parent = IPC_SERIALIZATION.replace(true);
+    RunOnDrop::new(|| IPC_SERIALIZATION.set(parent));
     serialize()
 }
 
-/// Checks if is inside [`ipc_serialization_context`].
+/// Checks if is inside [`with_ipc_serialization`].
 #[cfg(ipc)]
-pub fn is_ipc_serialization_context() -> bool {
-    IPC_SERIALIZATION_CONTEXT.get()
+pub fn is_ipc_serialization() -> bool {
+    IPC_SERIALIZATION.get()
 }
 
 #[cfg(ipc)]
 thread_local! {
-    static IPC_SERIALIZATION_CONTEXT: Cell<bool> = const { Cell::new(false) };
+    static IPC_SERIALIZATION: Cell<bool> = const { Cell::new(false) };
 }

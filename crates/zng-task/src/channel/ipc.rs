@@ -1,3 +1,5 @@
+#![cfg_attr(not(ipc), allow(unused))]
+
 use std::io;
 
 use serde::{Deserialize, Serialize};
@@ -29,11 +31,11 @@ impl<T: IpcValue> IpcSender<T> {
     pub fn send(&self, msg: T) -> Result<(), ChannelError> {
         #[cfg(ipc)]
         {
-            crate::channel::with_ipc_serialization_context(|| self.sender.send(msg).map_err(ChannelError::other))
+            crate::channel::with_ipc_serialization(|| self.sender.send(msg).map_err(ChannelError::other))
         }
         #[cfg(not(ipc))]
         {
-            self.sender.send(msg)
+            self.sender.send_blocking(msg)
         }
     }
 }
@@ -164,6 +166,7 @@ pub trait IpcValue: serde::Serialize + for<'d> serde::de::Deserialize<'d> + Send
 
 impl<T: serde::Serialize + for<'d> serde::de::Deserialize<'d> + Send + 'static> IpcValue for T {}
 
+#[cfg(ipc)]
 impl From<ipc_channel::ipc::IpcError> for ChannelError {
     fn from(value: ipc_channel::ipc::IpcError) -> Self {
         match value {
@@ -172,6 +175,7 @@ impl From<ipc_channel::ipc::IpcError> for ChannelError {
         }
     }
 }
+#[cfg(ipc)]
 impl From<ipc_channel::ipc::TryRecvError> for ChannelError {
     fn from(value: ipc_channel::ipc::TryRecvError) -> Self {
         match value {
