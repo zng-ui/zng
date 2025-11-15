@@ -31,15 +31,13 @@
 
 use std::{fmt, sync::Arc};
 
-pub use flume::{RecvError, RecvTimeoutError, SendError, SendTimeoutError};
-
 use zng_time::Deadline;
 
 mod ipc;
-pub use ipc::*;
+pub use ipc::{IpcReceiver, IpcSender, IpcValue, ipc_channel};
 
 mod ipc_bytes;
-pub use ipc_bytes::*;
+pub use ipc_bytes::{IpcBytes, is_ipc_serialization_context, with_ipc_serialization_context};
 
 /// The transmitting end of a channel.
 ///
@@ -72,7 +70,7 @@ impl<T> Sender<T> {
     ///
     /// Returns an error if all receivers have been dropped.
     pub async fn send(&self, msg: T) -> Result<(), ChannelError> {
-        self.0.send_async(msg).await?; // !!: TODO add blocking send/recv
+        self.0.send_async(msg).await?;
         Ok(())
     }
 
@@ -352,7 +350,7 @@ impl std::error::Error for ChannelError {
 impl From<flume::RecvError> for ChannelError {
     fn from(value: flume::RecvError) -> Self {
         match value {
-            RecvError::Disconnected => ChannelError::Disconnected,
+            flume::RecvError::Disconnected => ChannelError::Disconnected,
         }
     }
 }

@@ -14,8 +14,8 @@
 //!
 //! [`task::run_catch`]: crate::run_catch
 //! [`task::wait_catch`]: crate::wait_catch
-//! [ipc_channel]: crate::channel::ipc_channel
-//! [IpcBytes]: crate::channel::IpcBytes
+//! [`ipc_channel`]: crate::channel::ipc_channel
+//! [`IpcBytes`]: crate::channel::IpcBytes
 //!
 //! # Examples
 //!
@@ -149,17 +149,6 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
         for (name, value) in env_vars {
             worker = worker.env(name, value);
         }
-        Self::start_impl(worker_name.into(), worker).await
-    }
-
-    /// Start a worker process from a custom configured [`duct`] process.
-    ///
-    /// Note that the worker executable must call [`run_worker`] at startup to actually work.
-    /// You can use [`zng_env::on_process_start!`] to inject startup code, see the module level documentation
-    /// for details on how to do that properly.
-    ///
-    /// [`duct`]: https://docs.rs/duct/
-    pub async fn start_duct(worker_name: impl Into<Txt>, worker: duct::Expression) -> std::io::Result<Self> {
         Self::start_impl(worker_name.into(), worker).await
     }
 

@@ -380,9 +380,22 @@ impl Serialize for IpcBytes {
                 match &*self.0 {
                     IpcBytesData::Heap(b) => serializer.serialize_newtype_variant("IpcBytes", 0, "Heap", serde_bytes::Bytes::new(&b[..])),
                     IpcBytesData::AnonMemMap(b) => serializer.serialize_newtype_variant("IpcBytes", 1, "AnonMemMap", b),
+                    IpcBytesData::MemMap(b) => {
+                        // need to keep alive until other process is also holding it, so we send
+                        // a sender for the other process to signal received.
+                        let (sender, recv) = crate::channel::ipc_channel::<()>()
+                            .map_err(|e| serde::ser::Error::custom(format!("cannot serialize memmap bytes for ipc, {e}")))?;
 
-                    // !!: TODO serialize a new channel and keep alive until it signals received
-                    IpcBytesData::MemMap(b) => serializer.serialize_newtype_variant("IpcBytes", 2, "MemMap", b),
+                        let r = serializer.serialize_newtype_variant("IpcBytes", 2, "MemMap", &(b, sender))?;
+                        let hold = self.clone();
+                        crate::spawn_wait(move || {
+                            if let Err(e) = recv.recv_blocking() {
+                                tracing::error!("IpcBytes memmap completion signal not received, {e}")
+                            }
+                            drop(hold);
+                        });
+                        Ok(r)
+                    }
                 }
             } else {
                 serializer.serialize_newtype_variant("IpcBytes", 0, "Heap", serde_bytes::Bytes::new(&self[..]))
@@ -426,7 +439,13 @@ impl<'de> Deserialize<'de> for IpcBytes {
                     #[cfg(ipc)]
                     VariantId::AnonMemMap => Ok(IpcBytes(Arc::new(IpcBytesData::AnonMemMap(access.newtype_variant()?)))),
                     #[cfg(ipc)]
-                    VariantId::MemMap => Ok(IpcBytes(Arc::new(IpcBytesData::MemMap(access.newtype_variant()?)))),
+                    VariantId::MemMap => {
+                        let (memmap, completion_sender): (IpcMemMap, crate::channel::IpcSender<()>) = access.newtype_variant()?;
+                        completion_sender.send(()).map_err(|e| {
+                            serde::de::Error::custom(format!("cannot deserialize memmap bytes, completion signal failed, {e}"))
+                        })?;
+                        Ok(IpcBytes(Arc::new(IpcBytesData::MemMap(memmap))))
+                    }
                 }
             }
         }
@@ -489,7 +508,7 @@ impl<'de> Deserialize<'de> for IpcBytes {
 ///
 /// [`IpcSender`]: super::IpcSender
 #[cfg(ipc)]
-pub fn ipc_serialization_context<R>(serialize: impl FnOnce() -> R) -> R {
+pub fn with_ipc_serialization_context<R>(serialize: impl FnOnce() -> R) -> R {
     let parent = IPC_SERIALIZATION_CONTEXT.replace(true);
     RunOnDrop::new(|| IPC_SERIALIZATION_CONTEXT.set(parent));
     serialize()

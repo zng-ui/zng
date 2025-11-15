@@ -29,7 +29,7 @@ impl<T: IpcValue> IpcSender<T> {
     pub fn send(&self, msg: T) -> Result<(), ChannelError> {
         #[cfg(ipc)]
         {
-            self.sender.send(msg).map_err(ChannelError::other)
+            crate::channel::with_ipc_serialization_context(|| self.sender.send(msg).map_err(ChannelError::other))
         }
         #[cfg(not(ipc))]
         {
