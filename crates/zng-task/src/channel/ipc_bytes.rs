@@ -337,6 +337,8 @@ impl Serialize for IpcBytes {
             match &*self.0 {
                 IpcBytesData::Heap(b) => serializer.serialize_newtype_variant("IpcBytes", 0, "Heap", serde_bytes::Bytes::new(&b[..])),
                 IpcBytesData::AnonMemMap(b) => serializer.serialize_newtype_variant("IpcBytes", 1, "AnonMemMap", b),
+
+                // !!: TODO serialize a new channel and keep alive until it signals received
                 IpcBytesData::MemMap(b) => serializer.serialize_newtype_variant("IpcBytes", 2, "MemMap", b),
             }
         } else {

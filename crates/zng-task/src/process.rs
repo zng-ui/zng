@@ -94,7 +94,10 @@ use zng_txt::{ToTxt, Txt};
 use zng_unique_id::IdMap;
 use zng_unit::TimeUnits as _;
 
-use crate::{TaskPanicError, channel::{ChannelError, IpcSender, IpcValue}};
+use crate::{
+    TaskPanicError,
+    channel::{ChannelError, IpcSender, IpcValue},
+};
 
 const WORKER_VERSION: &str = "ZNG_TASK_IPC_WORKER_VERSION";
 const WORKER_SERVER: &str = "ZNG_TASK_IPC_WORKER_SERVER";
@@ -224,7 +227,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
             .stack_size(256 * 1024)
             .spawn(clmv!(requests, || {
                 loop {
-                    match rsp_recv.recv() {
+                    match rsp_recv.recv_blocking() {
                         Ok((id, r)) => match requests.lock().remove(&id) {
                             Some(s) => match r {
                                 Response::Out(r) => {
@@ -392,11 +395,11 @@ where
         let (chan_sender, chan_recv) = crate::channel::ipc_channel().unwrap();
 
         app_init_sender.send((req_sender, chan_sender)).unwrap();
-        let rsp_sender = chan_recv.recv().unwrap();
+        let rsp_sender = chan_recv.recv_blocking().unwrap();
         let handler = Arc::new(handler);
 
         loop {
-            match req_recv.recv() {
+            match req_recv.recv_blocking() {
                 Ok((id, input)) => match input {
                     Request::Run(r) => crate::spawn(async_clmv!(handler, rsp_sender, {
                         let output = handler(RequestArgs { request: r }).await;

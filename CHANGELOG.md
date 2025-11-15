@@ -6,8 +6,9 @@
     - Add `zng::task::process` with the same worker process types. !!: TODO
     - IPC types are now also available in builds without `"ipc"` feature, internally patched to use normal channels.
     - **Breaking** Remove `zng::task::channel::{UnboundSender, UnboundReceiver}`.
-    - **Breaking** Unified channel error types. !!: TODO
-    - **Breaking** Remove conversions from underlying types. !!: TODO
+    - **Breaking** Unified channel error types.
+    - **Breaking** Remove conversions from underlying channel types.
+* Add blocking API for `zng::task::channel` sender and receiver.
 
 # 0.19.2
 

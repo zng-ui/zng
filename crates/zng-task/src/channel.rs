@@ -90,6 +90,25 @@ impl<T> Sender<T> {
             Err(_) => Err(ChannelError::Timeout),
         }
     }
+
+    /// Send a value into the channel.
+    ///
+    /// Blocks until there is space in the channel buffer.
+    ///
+    /// Returns an error if all receivers have been dropped.
+    pub fn send_blocking(&self, msg: T) -> Result<(), ChannelError> {
+        self.0.send(msg)?;
+        Ok(())
+    }
+
+    /// Send a value into the channel.
+    ///
+    /// Blocks until there is space in the channel buffer or the `deadline` is reached.
+    ///
+    /// Returns an error if all receivers have been dropped or the `deadline` is reached. The `msg` is lost in case of timeout.
+    pub fn send_deadline_blocking(&self, msg: T, deadline: impl Into<Deadline>) -> Result<(), ChannelError> {
+        super::block_on(self.send_deadline(msg, deadline))
+    }
 }
 
 /// The receiving end of a channel.
@@ -132,6 +151,21 @@ impl<T> Receiver<T> {
             },
             Err(_) => Err(ChannelError::Timeout),
         }
+    }
+
+    /// Wait for an incoming value from the channel associated with this receiver.
+    ///
+    /// Returns an error if all senders have been dropped.
+    pub fn recv_blocking(&self) -> Result<T, ChannelError> {
+        let r = self.0.recv()?;
+        Ok(r)
+    }
+
+    /// Block for an incoming value from the channel associated with this receiver.
+    ///
+    /// Returns an error if all senders have been dropped or the `deadline` is reached.
+    pub fn recv_deadline_blocking(&self, deadline: impl Into<Deadline>) -> Result<T, ChannelError> {
+        super::block_on(self.recv_deadline(deadline))
     }
 }
 
@@ -293,7 +327,7 @@ pub enum ChannelError {
     /// Deadline elapsed before message could be send/received.
     Timeout,
     /// Other error specific for the internal implementation.
-    Other(Arc<dyn std::error::Error + Send + Sync + 'static>)
+    Other(Arc<dyn std::error::Error + Send + Sync + 'static>),
 }
 impl ChannelError {
     /// New from other `error`.
@@ -312,11 +346,7 @@ impl fmt::Display for ChannelError {
 }
 impl std::error::Error for ChannelError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        if let Self::Other(e) = self {
-            Some(e)
-        } else {
-            None
-        }
+        if let Self::Other(e) = self { Some(e) } else { None }
     }
 }
 impl From<flume::RecvError> for ChannelError {
