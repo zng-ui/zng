@@ -16,7 +16,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 # Enables parking_lot deadlock detection.
 deadlock_detection = ["parking_lot/deadlock_detection"]
 
-# Enables ipc tasks.
+# Enables real worker processes and IPC channels.
 #
 # Only enables in `cfg(not(any(target_os = "android", target_arch = "wasm32", target_os = "ios")))` builds.
 ipc = ["dep:duct", "dep:serde", "dep:ipc-channel", "dep:zng-unique-id", "dep:memmap2", "dep:serde_bytes"]

@@ -8,9 +8,12 @@ use crate::channel::ChannelError;
 /// The transmitting end of an IPC channel.
 ///
 /// Use [`ipc_channel`](self::ipc_channel) to declare a new channel.
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(ipc, derive(Serialize, Deserialize))]
 pub struct IpcSender<T> {
+    #[cfg(ipc)]
     sender: ipc_channel::ipc::IpcSender<T>,
+    #[cfg(not(ipc))]
+    sender: super::Sender<T>,
 }
 impl<T: IpcValue> Clone for IpcSender<T> {
     fn clone(&self) -> Self {
@@ -21,57 +24,96 @@ impl<T: IpcValue> Clone for IpcSender<T> {
 }
 impl<T: IpcValue> IpcSender<T> {
     /// Send a value into the channel.
-    /// 
+    ///
     /// IPC channels are unbounded, this never blocks.
     pub fn send(&self, msg: T) -> Result<(), ChannelError> {
-        self.sender.send(msg).map_err(ChannelError::other)
+        #[cfg(ipc)]
+        {
+            self.sender.send(msg).map_err(ChannelError::other)
+        }
+        #[cfg(not(ipc))]
+        {
+            self.sender.send(msg)
+        }
     }
 }
 
 /// The receiving end of an IPC channel.
 ///
 /// Use [`ipc_channel`](self::ipc_channel) to declare a new channel.
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(ipc, derive(Serialize, Deserialize))]
 pub struct IpcReceiver<T> {
+    #[cfg(ipc)]
     recv: Option<ipc_channel::ipc::IpcReceiver<T>>,
+    #[cfg(not(ipc))]
+    recv: super::Receiver<T>,
 }
 impl<T: IpcValue> IpcReceiver<T> {
     /// Wait for an incoming value from the channel associated with this receiver.
     ///
     /// Returns an error if all senders have been dropped.
     pub async fn recv(&mut self) -> Result<T, ChannelError> {
-        let recv = self.recv.take().unwrap();
-        let (recv, r) = crate::wait(move || {
-            let r = recv.recv();
-            (recv, r)
-        }).await;
-        self.recv = Some(recv);
-        Ok(r?)
+        #[cfg(ipc)]
+        {
+            let recv = self.recv.take().unwrap();
+            let (recv, r) = crate::wait(move || {
+                let r = recv.recv();
+                (recv, r)
+            })
+            .await;
+            self.recv = Some(recv);
+            Ok(r?)
+        }
+        #[cfg(not(ipc))]
+        {
+            self.recv.recv().await
+        }
     }
-    
+
     /// Block for an incoming value from the channel associated with this receiver.
     ///
     /// Returns an error if all senders have been dropped or the `deadline` is reached.
     pub async fn recv_deadline(&mut self, deadline: impl Into<Deadline>) -> Result<T, ChannelError> {
-        match crate::with_deadline(self.recv(), deadline).await {
-            Ok(r) => r,
-            Err(_) => Err(ChannelError::Timeout),
+        #[cfg(ipc)]
+        {
+            match crate::with_deadline(self.recv(), deadline).await {
+                Ok(r) => r,
+                Err(_) => Err(ChannelError::Timeout),
+            }
+        }
+        #[cfg(not(ipc))]
+        {
+            self.recv.recv_deadline(deadline).await
         }
     }
 
     /// Block for an incoming value from the channel associated with this receiver.
     pub fn recv_blocking(&self) -> Result<T, ChannelError> {
-        let r = self.recv.as_ref().unwrap().recv()?;
-        Ok(r)
+        #[cfg(ipc)]
+        {
+            let r = self.recv.as_ref().unwrap().recv()?;
+            Ok(r)
+        }
+        #[cfg(not(ipc))]
+        {
+            self.recv.recv_blocking()
+        }
     }
 
     /// Block for an incoming value from the channel associated with this receiver.
     ///
     /// Returns an error if all senders have been dropped or the `deadline` is reached.
     pub fn recv_deadline_blocking(&self, deadline: impl Into<Deadline>) -> Result<T, ChannelError> {
-        match deadline.into().time_left() {
-            Some(d) => Ok(self.recv.as_ref().unwrap().try_recv_timeout(d)?),
-            None => Err(ChannelError::Timeout),
+        #[cfg(ipc)]
+        {
+            match deadline.into().time_left() {
+                Some(d) => Ok(self.recv.as_ref().unwrap().try_recv_timeout(d)?),
+                None => Err(ChannelError::Timeout),
+            }
+        }
+        #[cfg(not(ipc))]
+        {
+            self.recv.recv_deadline_blocking(deadline)
         }
     }
 }
@@ -84,6 +126,8 @@ impl<T: IpcValue> IpcReceiver<T> {
 /// Note that the channel endpoints can also be send over IPC, the first channel is setup by [`process::Worker`]. You
 /// can also use the [`ipc_channel`] crate to setup the first channel with a custom worker process.
 ///
+/// Note that the channel is only IPC if build with `"ipc"` crate feature, otherwise it will falls back to [`channel::unbounded`].
+///
 /// [`channel::unbounded`]: crate::channel::unbounded
 /// [`process::Worker`]: crate::process::Worker
 /// [`ipc_channel`]: https://docs.rs/ipc-channel/latest/ipc_channel/ipc/struct.IpcOneShotServer.html
@@ -91,8 +135,16 @@ pub fn ipc_channel<T>() -> io::Result<(IpcSender<T>, IpcReceiver<T>)>
 where
     T: IpcValue,
 {
-    let (s, r) = ipc_channel::ipc::channel()?;
-    Ok((IpcSender { sender: s }, IpcReceiver { recv: Some(r) }))
+    #[cfg(ipc)]
+    {
+        let (s, r) = ipc_channel::ipc::channel()?;
+        Ok((IpcSender { sender: s }, IpcReceiver { recv: Some(r) }))
+    }
+    #[cfg(not(ipc))]
+    {
+        let (sender, recv) = super::unbounded();
+        Ok((IpcSender { sender }, IpcReceiver { recv }))
+    }
 }
 
 /// Represents a type that can be an input and output of IPC channels.

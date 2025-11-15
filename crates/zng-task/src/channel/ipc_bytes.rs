@@ -25,6 +25,8 @@ use zng_app_context::RunOnDrop;
 ///
 /// Constructor functions for creating memory maps directly are also provided.
 ///
+/// Note that in builds without the `"ipc"` crate feature only heap backend is available, in that case all data lengths are stored in the heap.
+///
 /// # Serialization
 ///
 /// When serialized inside [`ipc_serialization_context`] the memory map bytes are not copied, only the system handle and metadata is serialized.
@@ -37,9 +39,12 @@ use zng_app_context::RunOnDrop;
 pub struct IpcBytes(Arc<IpcBytesData>);
 enum IpcBytesData {
     Heap(Vec<u8>),
+    #[cfg(ipc)]
     AnonMemMap(IpcSharedMemory),
+    #[cfg(ipc)]
     MemMap(IpcMemMap),
 }
+#[cfg(ipc)]
 struct IpcMemMap {
     name: PathBuf,
     range: ops::Range<usize>,
@@ -58,7 +63,9 @@ impl ops::Deref for IpcBytes {
     fn deref(&self) -> &Self::Target {
         match &*self.0 {
             IpcBytesData::Heap(i) => i,
+            #[cfg(ipc)]
             IpcBytesData::AnonMemMap(m) => m,
+            #[cfg(ipc)]
             IpcBytesData::MemMap(f) => f.map.as_ref().unwrap(),
         }
     }
@@ -71,27 +78,53 @@ impl IpcBytes {
 
     /// Copy data from slice.
     pub fn from_slice(data: &[u8]) -> io::Result<Self> {
-        let data = if data.len() <= Self::INLINE_MAX {
-            IpcBytesData::Heap(data.to_vec())
-        } else if data.len() <= Self::UNNAMED_MAX {
-            IpcBytesData::AnonMemMap(IpcSharedMemory::from_bytes(data))
-        } else {
-            todo!()
-        };
-        Ok(Self(Arc::new(data)))
+        #[cfg(ipc)]
+        {
+            if data.len() <= Self::INLINE_MAX {
+                Ok(Self(Arc::new(IpcBytesData::Heap(data.to_vec()))))
+            } else if data.len() <= Self::UNNAMED_MAX {
+                Ok(Self(Arc::new(IpcBytesData::AnonMemMap(IpcSharedMemory::from_bytes(data)))))
+            } else {
+                Self::new_memmap(|m| m.write_all(data))
+            }
+        }
+        #[cfg(not(ipc))]
+        {
+            Ok(Self(Arc::new(IpcBytesData::Heap(data.to_vec()))))
+        }
     }
 
     /// Copy or move data from vector.
     pub fn from_vec(data: Vec<u8>) -> io::Result<Self> {
-        if data.len() <= Self::INLINE_MAX {
+        #[cfg(ipc)]
+        {
+            if data.len() <= Self::INLINE_MAX {
+                Ok(Self(Arc::new(IpcBytesData::Heap(data))))
+            } else {
+                Self::from_slice(&data)
+            }
+        }
+        #[cfg(not(ipc))]
+        {
             Ok(Self(Arc::new(IpcBytesData::Heap(data))))
-        } else {
-            Self::from_slice(&data)
         }
     }
 
     /// Read `data` into shared memory.
     pub fn from_read(data: &mut dyn io::Read) -> io::Result<Self> {
+        #[cfg(ipc)]
+        {
+            Self::from_read_ipc(data)
+        }
+        #[cfg(not(ipc))]
+        {
+            let mut buf = vec![];
+            data.read_to_end(&mut buf)?;
+            Ok(Self::from_vec(buf))
+        }
+    }
+    #[cfg(ipc)]
+    fn from_read_ipc(data: &mut dyn io::Read) -> io::Result<Self> {
         let mut buf = vec![0u8; Self::INLINE_MAX + 1];
         let mut len = 0;
 
@@ -169,6 +202,7 @@ impl IpcBytes {
     ///
     /// Note that the `from_` functions select optimized backing storage depending on data length, this function
     /// always selects the slowest options, a file backed memory map.
+    #[cfg(ipc)]
     pub fn new_memmap(write: impl FnOnce(&mut fs::File) -> io::Result<()>) -> io::Result<Self> {
         let (name, mut file) = Self::create_memmap()?;
         write(&mut file)?;
@@ -176,6 +210,7 @@ impl IpcBytes {
         let map = IpcMemMap::new(name, None)?;
         Ok(Self(Arc::new(IpcBytesData::MemMap(map))))
     }
+    #[cfg(ipc)]
     fn create_memmap() -> io::Result<(PathBuf, fs::File)> {
         static MEMMAP_DIR: Mutex<usize> = Mutex::new(0);
         let mut count = MEMMAP_DIR.lock();
@@ -207,7 +242,7 @@ impl IpcBytes {
         let file = fs::File::create(&name)?;
         Ok((name, file))
     }
-
+    #[cfg(ipc)]
     fn cleanup_memmap_storage() {
         if let Ok(dir) = fs::read_dir(zng_env::cache("zng-task-ipc-mem")) {
             let entries: Vec<_> = dir.flatten().map(|e| e.path()).collect();
@@ -231,6 +266,7 @@ impl IpcBytes {
     /// so that the file data is as read-only as the static data in the current executable file.
     ///
     /// [`new_memmap`]: Self::new_memmap
+    #[cfg(ipc)]
     pub unsafe fn open_memmap(file: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
         let read_handle = fs::File::open(&file)?;
         read_handle.lock_shared()?;
@@ -261,7 +297,9 @@ impl IpcBytes {
         (std::ptr::eq(a, b) && a.len() == b.len()) || (a.is_empty() && b.is_empty())
     }
 
+    #[cfg(ipc)]
     const INLINE_MAX: usize = 64 * 1024; // 64KB
+    #[cfg(ipc)]
     const UNNAMED_MAX: usize = 128 * 1024 * 1024; // 128MB
 }
 impl Default for IpcBytes {
@@ -274,6 +312,7 @@ impl PartialEq for IpcBytes {
         self.ptr_eq(other) || self[..] == other[..]
     }
 }
+#[cfg(ipc)]
 impl IpcMemMap {
     fn new(name: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
         let read_handle = fs::File::open(&name)?;
@@ -300,6 +339,7 @@ impl IpcMemMap {
         })
     }
 }
+#[cfg(ipc)]
 impl Serialize for IpcMemMap {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -308,7 +348,7 @@ impl Serialize for IpcMemMap {
         (&self.name, self.range.clone()).serialize(serializer)
     }
 }
-
+#[cfg(ipc)]
 impl<'de> Deserialize<'de> for IpcMemMap {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -318,6 +358,7 @@ impl<'de> Deserialize<'de> for IpcMemMap {
         IpcMemMap::new(name, Some(range)).map_err(|e| serde::de::Error::custom(format!("cannot load ipc memory map file, {e}")))
     }
 }
+#[cfg(ipc)]
 impl Drop for IpcMemMap {
     fn drop(&mut self) {
         self.map.take();
@@ -333,15 +374,22 @@ impl Serialize for IpcBytes {
     where
         S: serde::Serializer,
     {
-        if is_ipc_serialization_context() {
-            match &*self.0 {
-                IpcBytesData::Heap(b) => serializer.serialize_newtype_variant("IpcBytes", 0, "Heap", serde_bytes::Bytes::new(&b[..])),
-                IpcBytesData::AnonMemMap(b) => serializer.serialize_newtype_variant("IpcBytes", 1, "AnonMemMap", b),
+        #[cfg(ipc)]
+        {
+            if is_ipc_serialization_context() {
+                match &*self.0 {
+                    IpcBytesData::Heap(b) => serializer.serialize_newtype_variant("IpcBytes", 0, "Heap", serde_bytes::Bytes::new(&b[..])),
+                    IpcBytesData::AnonMemMap(b) => serializer.serialize_newtype_variant("IpcBytes", 1, "AnonMemMap", b),
 
-                // !!: TODO serialize a new channel and keep alive until it signals received
-                IpcBytesData::MemMap(b) => serializer.serialize_newtype_variant("IpcBytes", 2, "MemMap", b),
+                    // !!: TODO serialize a new channel and keep alive until it signals received
+                    IpcBytesData::MemMap(b) => serializer.serialize_newtype_variant("IpcBytes", 2, "MemMap", b),
+                }
+            } else {
+                serializer.serialize_newtype_variant("IpcBytes", 0, "Heap", serde_bytes::Bytes::new(&self[..]))
             }
-        } else {
+        }
+        #[cfg(not(ipc))]
+        {
             serializer.serialize_newtype_variant("IpcBytes", 0, "Heap", serde_bytes::Bytes::new(&self[..]))
         }
     }
@@ -354,7 +402,9 @@ impl<'de> Deserialize<'de> for IpcBytes {
         #[derive(Deserialize)]
         enum VariantId {
             Heap,
+            #[cfg(ipc)]
             AnonMemMap,
+            #[cfg(ipc)]
             MemMap,
         }
 
@@ -373,7 +423,9 @@ impl<'de> Deserialize<'de> for IpcBytes {
                 let (variant, access) = data.variant::<VariantId>()?;
                 match variant {
                     VariantId::Heap => access.newtype_variant_seed(ByteSliceVisitor),
+                    #[cfg(ipc)]
                     VariantId::AnonMemMap => Ok(IpcBytes(Arc::new(IpcBytesData::AnonMemMap(access.newtype_variant()?)))),
+                    #[cfg(ipc)]
                     VariantId::MemMap => Ok(IpcBytes(Arc::new(IpcBytesData::MemMap(access.newtype_variant()?)))),
                 }
             }
@@ -418,7 +470,14 @@ impl<'de> Deserialize<'de> for IpcBytes {
             }
         }
 
-        deserializer.deserialize_enum("IpcBytes", &["Heap", "AnonMemMap", "MemMap"], EnumVisitor)
+        #[cfg(ipc)]
+        {
+            deserializer.deserialize_enum("IpcBytes", &["Heap", "AnonMemMap", "MemMap"], EnumVisitor)
+        }
+        #[cfg(not(ipc))]
+        {
+            deserializer.deserialize_enum("IpcBytes", &["Heap"], EnumVisitor)
+        }
     }
 }
 
@@ -429,6 +488,7 @@ impl<'de> Deserialize<'de> for IpcBytes {
 /// You can use the [`is_ipc_serialization_context`] to check if inside context.
 ///
 /// [`IpcSender`]: super::IpcSender
+#[cfg(ipc)]
 pub fn ipc_serialization_context<R>(serialize: impl FnOnce() -> R) -> R {
     let parent = IPC_SERIALIZATION_CONTEXT.replace(true);
     RunOnDrop::new(|| IPC_SERIALIZATION_CONTEXT.set(parent));
@@ -436,10 +496,12 @@ pub fn ipc_serialization_context<R>(serialize: impl FnOnce() -> R) -> R {
 }
 
 /// Checks if is inside [`ipc_serialization_context`].
+#[cfg(ipc)]
 pub fn is_ipc_serialization_context() -> bool {
     IPC_SERIALIZATION_CONTEXT.get()
 }
 
+#[cfg(ipc)]
 thread_local! {
     static IPC_SERIALIZATION_CONTEXT: Cell<bool> = const { Cell::new(false) };
 }
