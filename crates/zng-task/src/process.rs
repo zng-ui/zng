@@ -1,21 +1,21 @@
 #![cfg(ipc)]
 
-//! IPC tasks.
+//! Worker process tasks.
 //!
-//! This module uses [`ipc_channel`] and [`duct`] crates to define a worker process that can run tasks in a separate process instance.
+//! This module defines a worker process that can run tasks in a separate process instance.
 //!
 //! Each worker process can run multiple tasks in parallel, the worker type is [`Worker`]. Note that this module does not offer a fork
 //! implementation, the worker processes begin from the start state. The primary use of process tasks is to make otherwise fatal tasks
 //! recoverable, if the task calls unsafe code or code that can potentially terminate the entire process it should run using a [`Worker`].
 //! If you only want to recover from panics in safe code consider using [`task::run_catch`] or [`task::wait_catch`] instead.
 //!
-//! This module also re-exports some [`ipc_channel`] types and functions. You can send IPC channels in the task request messages, this
-//! can be useful for implementing progress reporting or to transfer large byte blobs.
+//! You can send [`ipc_channel`] endpoints in the task request messages, this can be useful for implementing progress reporting,
+//! you can also send [`IpcBytes`] to efficiently share large byte blobs with the worker process.
 //!
 //! [`task::run_catch`]: crate::run_catch
 //! [`task::wait_catch`]: crate::wait_catch
-//! [`ipc_channel`]: https://docs.rs/ipc-channel
-//! [`duct`]: https://docs.rs/duct
+//! [`ipc_channel`]: crate::channel::ipc_channel
+//! [`IpcBytes`]: crate::channel::IpcBytes
 //!
 //! # Examples
 //!
@@ -32,7 +32,7 @@
 //!
 //! mod task1 {
 //! # use crate::zng;
-//!     use zng::{task::ipc, env};
+//!     use zng::{task, env};
 //!
 //!     const NAME: &str = "zng::example::task1";
 //!
@@ -40,9 +40,9 @@
 //!         // give tracing handlers a chance to observe the worker-process
 //!         if args.yield_count == 0 { return args.yield_once(); }
 //          // run the worker server
-//!         ipc::run_worker(NAME, work);
+//!         task::process::run_worker(NAME, work);
 //!     });
-//!     async fn work(args: ipc::RequestArgs<Request>) -> Response {
+//!     async fn work(args: task::process::RequestArgs<Request>) -> Response {
 //!         let rsp = format!("received 'task1' request `{:?}` in worker-process #{}", &args.request.data, std::process::id());
 //!         Response { data: rsp }
 //!     }
@@ -54,8 +54,8 @@
 //!     pub struct Response { pub data: String }
 //!
 //!     // called in app-process
-//!     pub async fn start() -> ipc::Worker<Request, Response> {
-//!         ipc::Worker::start(NAME).await.expect("cannot spawn 'task1'")
+//!     pub async fn start() -> task::process::Worker<Request, Response> {
+//!         task::process::Worker::start(NAME).await.expect("cannot spawn 'task1'")
 //!     }
 //! }
 //!
@@ -90,31 +90,14 @@ use std::{marker::PhantomData, path::PathBuf, pin::Pin, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_clone_move::{async_clmv, clmv};
-use zng_txt::{ToTxt, Txt};
+use zng_txt::Txt;
 use zng_unique_id::IdMap;
 use zng_unit::TimeUnits as _;
 
-#[doc(no_inline)]
-pub use ipc_channel::ipc::{IpcBytesReceiver, IpcBytesSender, IpcReceiver, IpcSender, bytes_channel};
-
-use crate::TaskPanicError;
-
-/// Represents a type that can be an input and output of IPC workers.
-///
-/// # Trait Alias
-///
-/// This trait is used like a type alias for traits and is
-/// already implemented for all types it applies to.
-///
-/// # Implementing
-///
-/// Types need to be `Debug + serde::Serialize + serde::de::Deserialize + Send + 'static` to auto-implement this trait,
-/// if you want to send an external type in that does not implement all the traits
-/// you may need to declare a *newtype* wrapper.
-#[diagnostic::on_unimplemented(note = "`IpcValue` is implemented for all `T: Debug + Serialize + Deserialize + Send + 'static`")]
-pub trait IpcValue: fmt::Debug + serde::Serialize + for<'d> serde::de::Deserialize<'d> + Send + 'static {}
-
-impl<T: fmt::Debug + serde::Serialize + for<'d> serde::de::Deserialize<'d> + Send + 'static> IpcValue for T {}
+use crate::{
+    TaskPanicError,
+    channel::{ChannelError, IpcSender, IpcValue},
+};
 
 const WORKER_VERSION: &str = "ZNG_TASK_IPC_WORKER_VERSION";
 const WORKER_SERVER: &str = "ZNG_TASK_IPC_WORKER_SERVER";
@@ -128,9 +111,9 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Represents a running worker process.
 pub struct Worker<I: IpcValue, O: IpcValue> {
-    running: Option<(std::thread::JoinHandle<()>, duct::Handle)>,
+    running: Option<(std::thread::JoinHandle<()>, std::process::Child)>,
 
-    sender: ipc_channel::ipc::IpcSender<(RequestId, Request<I>)>,
+    sender: IpcSender<(RequestId, Request<I>)>,
     requests: Arc<Mutex<IdMap<RequestId, flume::Sender<O>>>>,
 
     _p: PhantomData<fn(I) -> O>,
@@ -143,16 +126,12 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
     /// Note that the current process must call [`run_worker`] at startup to actually work.
     /// You can use [`zng_env::on_process_start!`] to inject startup code.
     pub async fn start(worker_name: impl Into<Txt>) -> std::io::Result<Self> {
-        Self::start_impl(worker_name.into(), duct::cmd!(dunce::canonicalize(std::env::current_exe()?)?)).await
+        Self::start_impl(worker_name.into(), std::env::current_exe()?, &[], &[]).await
     }
 
     /// Start a worker process implemented in the current executable with custom env vars and args.
     pub async fn start_with(worker_name: impl Into<Txt>, env_vars: &[(&str, &str)], args: &[&str]) -> std::io::Result<Self> {
-        let mut worker = duct::cmd(dunce::canonicalize(std::env::current_exe()?)?, args);
-        for (name, value) in env_vars {
-            worker = worker.env(name, value);
-        }
-        Self::start_impl(worker_name.into(), worker).await
+        Self::start_impl(worker_name.into(), std::env::current_exe()?, env_vars, args).await
     }
 
     /// Start a worker process implemented in another executable with custom env vars and args.
@@ -162,38 +141,27 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
         env_vars: &[(&str, &str)],
         args: &[&str],
     ) -> std::io::Result<Self> {
-        let mut worker = duct::cmd(worker_exe.into(), args);
-        for (name, value) in env_vars {
-            worker = worker.env(name, value);
-        }
-        Self::start_impl(worker_name.into(), worker).await
+        Self::start_impl(worker_name.into(), worker_exe.into(), env_vars, args).await
     }
 
-    /// Start a worker process from a custom configured [`duct`] process.
-    ///
-    /// Note that the worker executable must call [`run_worker`] at startup to actually work.
-    /// You can use [`zng_env::on_process_start!`] to inject startup code, see the module level documentation
-    /// for details on how to do that properly.
-    ///
-    /// [`duct`]: https://docs.rs/duct/
-    pub async fn start_duct(worker_name: impl Into<Txt>, worker: duct::Expression) -> std::io::Result<Self> {
-        Self::start_impl(worker_name.into(), worker).await
-    }
-
-    async fn start_impl(worker_name: Txt, worker: duct::Expression) -> std::io::Result<Self> {
+    async fn start_impl(worker_name: Txt, exe: PathBuf, env_vars: &[(&str, &str)], args: &[&str]) -> std::io::Result<Self> {
         let (server, name) = ipc_channel::ipc::IpcOneShotServer::<WorkerInit<I, O>>::new()?;
 
-        let worker = worker
-            .env(WORKER_VERSION, crate::ipc::VERSION)
+        let mut worker = std::process::Command::new(dunce::canonicalize(exe)?);
+        for (key, value) in env_vars {
+            worker.env(key, value);
+        }
+        for arg in args {
+            worker.arg(arg);
+        }
+
+        worker
+            .env(WORKER_VERSION, crate::process::VERSION)
             .env(WORKER_SERVER, name)
             .env(WORKER_NAME, worker_name)
-            .env("RUST_BACKTRACE", "full")
-            .stdin_null()
-            .stdout_capture()
-            .stderr_capture()
-            .unchecked();
+            .env("RUST_BACKTRACE", "full");
 
-        let process = crate::wait(move || worker.start()).await?;
+        let mut worker = crate::wait(move || worker.spawn()).await?;
 
         let timeout = match std::env::var(WORKER_TIMEOUT) {
             Ok(t) if !t.is_empty() => match t.parse::<u64>() {
@@ -213,29 +181,30 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
                 Ok(r) => r,
                 Err(e) => return Err(std::io::Error::new(std::io::ErrorKind::ConnectionRefused, e)),
             },
-            Err(_) => match process.kill() {
-                Ok(()) => {
-                    let output = process.wait().unwrap();
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    let code = output.status.code().unwrap_or(0);
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::TimedOut,
-                        format!(
-                            "worker process did not connect in {timeout}s\nworker exit code: {code}\n--worker stdout--\n{stdout}\n--worker stderr--\n{stderr}"
-                        ),
-                    ));
+            Err(_) => {
+                let cleanup = crate::wait(move || {
+                    worker.kill()?;
+                    worker.wait()
+                });
+                match cleanup.await {
+                    Ok(status) => {
+                        let code = status.code().unwrap_or(0);
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::TimedOut,
+                            format!("worker process did not connect in {timeout}s\nworker exit code: {code}"),
+                        ));
+                    }
+                    Err(e) => {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::TimedOut,
+                            format!("worker process did not connect in {timeout}s\ncannot be kill worker process, {e}"),
+                        ));
+                    }
                 }
-                Err(e) => {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::TimedOut,
-                        format!("worker process did not connect in {timeout}s\ncannot be kill worker process, {e}"),
-                    ));
-                }
-            },
+            }
         };
 
-        let (rsp_sender, rsp_recv) = ipc_channel::ipc::channel()?;
+        let (rsp_sender, rsp_recv) = crate::channel::ipc_channel()?;
         crate::wait(move || chan_sender.send(rsp_sender)).await.unwrap();
 
         let requests = Arc::new(Mutex::new(IdMap::<RequestId, flume::Sender<O>>::new()));
@@ -244,7 +213,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
             .stack_size(256 * 1024)
             .spawn(clmv!(requests, || {
                 loop {
-                    match rsp_recv.recv() {
+                    match rsp_recv.recv_blocking() {
                         Ok((id, r)) => match requests.lock().remove(&id) {
                             Some(s) => match r {
                                 Response::Out(r) => {
@@ -254,16 +223,12 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
                             None => tracing::error!("worker responded to unknown request #{}", id.sequential()),
                         },
                         Err(e) => match e {
-                            ipc_channel::ipc::IpcError::Disconnected => {
+                            ChannelError::Disconnected => {
                                 requests.lock().clear();
                                 break;
                             }
-                            ipc_channel::ipc::IpcError::Bincode(e) => {
+                            e => {
                                 tracing::error!("worker response error, will shutdown, {e}");
-                                break;
-                            }
-                            ipc_channel::ipc::IpcError::Io(e) => {
-                                tracing::error!("worker response io error, will shutdown, {e}");
                                 break;
                             }
                         },
@@ -273,7 +238,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
             .expect("failed to spawn thread");
 
         Ok(Self {
-            running: Some((receiver, process)),
+            running: Some((receiver, worker)),
             sender: req_sender,
             _p: PhantomData,
             crash: None,
@@ -283,7 +248,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
 
     /// Awaits current tasks and kills the worker process.
     pub async fn shutdown(mut self) -> std::io::Result<()> {
-        if let Some((receiver, process)) = self.running.take() {
+        if let Some((receiver, mut process)) = self.running.take() {
             while !self.requests.lock().is_empty() {
                 crate::deadline(100.ms()).await;
             }
@@ -355,7 +320,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
         if let Some((t, _)) = &self.running
             && t.is_finished()
         {
-            let (t, p) = self.running.take().unwrap();
+            let (t, mut p) = self.running.take().unwrap();
 
             if let Err(e) = t.join() {
                 tracing::error!(
@@ -368,13 +333,9 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
                 tracing::error!("error killing worker process after receiver exit, {e}");
             }
 
-            match p.into_output() {
+            match p.wait() {
                 Ok(o) => {
-                    self.crash = Some(WorkerCrashError {
-                        status: o.status,
-                        stdout: String::from_utf8_lossy(&o.stdout[..]).as_ref().to_txt(),
-                        stderr: String::from_utf8_lossy(&o.stderr[..]).as_ref().to_txt(),
-                    });
+                    self.crash = Some(WorkerCrashError { status: o });
                 }
                 Err(e) => tracing::error!("error reading crashed worker output, {e}"),
             }
@@ -385,7 +346,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
 }
 impl<I: IpcValue, O: IpcValue> Drop for Worker<I, O> {
     fn drop(&mut self) {
-        if let Some((receiver, process)) = self.running.take() {
+        if let Some((receiver, mut process)) = self.running.take() {
             if !receiver.is_finished() {
                 tracing::error!("dropped worker without shutdown");
             }
@@ -407,20 +368,21 @@ where
     F: Future<Output = O> + Send + Sync + 'static,
 {
     let name = worker_name.into();
-    zng_env::init_process_name(zng_txt::formatx!("worker-process ({name}, {})", std::process::id()));
     if let Some(server_name) = run_worker_server(&name) {
-        let app_init_sender = IpcSender::<WorkerInit<I, O>>::connect(server_name)
+        zng_env::init_process_name(zng_txt::formatx!("worker-process ({name}, {})", std::process::id()));
+
+        let app_init_sender = ipc_channel::ipc::IpcSender::<WorkerInit<I, O>>::connect(server_name)
             .unwrap_or_else(|e| panic!("failed to connect to '{name}' init channel, {e}"));
 
-        let (req_sender, req_recv) = ipc_channel::ipc::channel().unwrap();
-        let (chan_sender, chan_recv) = ipc_channel::ipc::channel().unwrap();
+        let (req_sender, req_recv) = crate::channel::ipc_channel().unwrap();
+        let (chan_sender, chan_recv) = crate::channel::ipc_channel().unwrap();
 
         app_init_sender.send((req_sender, chan_sender)).unwrap();
-        let rsp_sender = chan_recv.recv().unwrap();
+        let rsp_sender = chan_recv.recv_blocking().unwrap();
         let handler = Arc::new(handler);
 
         loop {
-            match req_recv.recv() {
+            match req_recv.recv_blocking() {
                 Ok((id, input)) => match input {
                     Request::Run(r) => crate::spawn(async_clmv!(handler, rsp_sender, {
                         let output = handler(RequestArgs { request: r }).await;
@@ -428,11 +390,8 @@ where
                     })),
                 },
                 Err(e) => match e {
-                    ipc_channel::ipc::IpcError::Bincode(e) => {
-                        eprintln!("worker '{name}' request error, {e}")
-                    }
-                    ipc_channel::ipc::IpcError::Io(e) => panic!("worker '{name}' request io error, {e}"),
-                    ipc_channel::ipc::IpcError::Disconnected => break,
+                    ChannelError::Disconnected => break,
+                    e => panic!("worker '{name}' request error, {e}"),
                 },
             }
         }
@@ -493,14 +452,10 @@ impl std::error::Error for RunError {}
 pub struct WorkerCrashError {
     /// Worker process exit code.
     pub status: std::process::ExitStatus,
-    /// Full capture of the worker stdout.
-    pub stdout: Txt,
-    /// Full capture of the worker stderr.
-    pub stderr: Txt,
 }
 impl fmt::Display for WorkerCrashError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}\nSTDOUT:\n{}\nSTDERR:\n{}", self.status, &self.stdout, &self.stderr)
+        write!(f, "{:?}", self.status)
     }
 }
 impl std::error::Error for WorkerCrashError {}
