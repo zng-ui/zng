@@ -3,9 +3,9 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
+use zng_task::channel::IpcBytes;
 use zng_txt::Txt;
 
-use crate::ipc::IpcBytes;
 use zng_unit::{Px, PxDensity2d, PxSize};
 
 crate::declare_id! {
@@ -55,9 +55,9 @@ pub struct ImageRequest<D> {
     pub format: ImageDataFormat,
     /// Image data.
     ///
-    /// Bytes layout depends on the `format`, data structure is [`IpcBytes`] or [`IpcBytesReceiver`] in the view API.
+    /// Bytes layout depends on the `format`, data structure is [`IpcBytes`] or [`IpcReceiver<IpcBytes>`] in the view API.
     ///
-    /// [`IpcBytesReceiver`]: crate::IpcBytesReceiver
+    /// [`IpcReceiver<IpcBytes>`]: crate::IpcReceiver
     pub data: D,
     /// Maximum allowed decoded size.
     ///

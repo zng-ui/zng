@@ -1,9 +1,7 @@
-//! Async channels.
+//! Communication channels.
 //!
-//! The channel can work across UI tasks and parallel tasks, it can be [`bounded`] or [`unbounded`] and is MPMC.
-//!
-//! This module is a thin wrapper around the [`flume`] crate's channel that just limits the API
-//! surface to only `async` methods. You can convert from/into that [`flume`] channel.
+//! Use [`bounded`], [`unbounded`] and [`rendezvous`] to create channels for use across threads in the same process.
+//! Use [`ipc_unbounded`] to create channels that work across processes.
 //!
 //! # Examples
 //!
@@ -27,20 +25,22 @@
 //! });
 //! ```
 //!
-//! [`flume`]: https://docs.rs/flume/0.10.7/flume/
+//! [`flume`]: https://docs.rs/flume
+//! [`ipc-channel`]: https://docs.rs/ipc-channel
 
-use std::{fmt, sync::Arc};
+use std::{fmt, sync::Arc, time::Duration};
 
-use zng_time::Deadline;
+use zng_time::{Deadline, INSTANT};
 
 mod ipc;
-pub use ipc::{IpcReceiver, IpcSender, IpcValue, ipc_channel};
+pub use ipc::{IpcReceiver, IpcSender, IpcValue, NamedIpcReceiver, NamedIpcSender, ipc_unbounded};
 
 mod ipc_bytes;
-pub use ipc_bytes::IpcBytes;
+pub use ipc_bytes::{IpcBytes, WeakIpcBytes};
 
 #[cfg(ipc)]
 pub use ipc_bytes::{is_ipc_serialization, with_ipc_serialization};
+use zng_txt::ToTxt;
 
 /// The transmitting end of a channel.
 ///
@@ -110,6 +110,13 @@ impl<T> Sender<T> {
     pub fn send_deadline_blocking(&self, msg: T, deadline: impl Into<Deadline>) -> Result<(), ChannelError> {
         super::block_on(self.send_deadline(msg, deadline))
     }
+
+    /// Gets if the channel has no pending messages.
+    ///
+    /// Note that [`rendezvous`] channels are always empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 /// The receiving end of a channel.
@@ -148,7 +155,7 @@ impl<T> Receiver<T> {
         match super::with_deadline(self.recv(), deadline).await {
             Ok(r) => match r {
                 Ok(m) => Ok(m),
-                Err(_) => Err(ChannelError::Disconnected),
+                e => e,
             },
             Err(_) => Err(ChannelError::Timeout),
         }
@@ -166,7 +173,86 @@ impl<T> Receiver<T> {
     ///
     /// Returns an error if all senders have been dropped or the `deadline` is reached.
     pub fn recv_deadline_blocking(&self, deadline: impl Into<Deadline>) -> Result<T, ChannelError> {
-        super::block_on(self.recv_deadline(deadline))
+        self.recv_deadline_blocking_impl(deadline.into())
+    }
+    fn recv_deadline_blocking_impl(&self, deadline: Deadline) -> Result<T, ChannelError> {
+        // Improve timeout precision because this is used in the app main loop and timers are implemented using it
+
+        const WORST_SLEEP_ERR: Duration = Duration::from_millis(if cfg!(windows) { 20 } else { 10 });
+        const WORST_SPIN_ERR: Duration = Duration::from_millis(if cfg!(windows) { 2 } else { 1 });
+
+        loop {
+            if let Some(d) = deadline.0.checked_duration_since(INSTANT.now()) {
+                if matches!(INSTANT.mode(), zng_time::InstantMode::Manual) {
+                    // manual time is probably desynced from `Instant`, so we use `recv_timeout` that
+                    // is slightly less precise, but an app in manual mode probably does not care.
+                    match self.0.recv_timeout(d.checked_sub(WORST_SLEEP_ERR).unwrap_or_default()) {
+                        Err(flume::RecvTimeoutError::Timeout) => continue, // continue to try_recv spin
+                        interrupt => return interrupt.map_err(ChannelError::from),
+                    }
+                } else if d > WORST_SLEEP_ERR {
+                    // probably sleeps here.
+                    #[cfg(not(target_arch = "wasm32"))]
+                    match self.0.recv_deadline(deadline.0.checked_sub(WORST_SLEEP_ERR).unwrap().into()) {
+                        Err(flume::RecvTimeoutError::Timeout) => continue, // continue to try_recv spin
+                        interrupt => return interrupt.map_err(ChannelError::from),
+                    }
+
+                    #[cfg(target_arch = "wasm32")] // this actually panics because flume tries to use Instant::now
+                    match self.0.recv_timeout(d.checked_sub(WORST_SLEEP_ERR).unwrap_or_default()) {
+                        Err(flume::RecvTimeoutError::Timeout) => continue, // continue to try_recv spin
+                        interrupt => return interrupt.map_err(ChannelError::from),
+                    }
+                } else if d > WORST_SPIN_ERR {
+                    let spin_deadline = Deadline(deadline.0.checked_sub(WORST_SPIN_ERR).unwrap());
+
+                    // try_recv spin
+                    while !spin_deadline.has_elapsed() {
+                        match self.0.try_recv() {
+                            Err(flume::TryRecvError::Empty) => std::thread::yield_now(),
+                            interrupt => return interrupt.map_err(ChannelError::from),
+                        }
+                    }
+                    continue; // continue to timeout spin
+                } else {
+                    // last millis spin for better timeout precision
+                    while !deadline.has_elapsed() {
+                        std::thread::yield_now();
+                    }
+                    return Err(ChannelError::Timeout);
+                }
+            } else {
+                return Err(ChannelError::Timeout);
+            }
+        }
+    }
+
+    /// Returns the next incoming message in the channel or `None`.
+    pub fn try_recv(&self) -> Result<Option<T>, ChannelError> {
+        match self.0.try_recv() {
+            Ok(r) => Ok(Some(r)),
+            Err(e) => match e {
+                flume::TryRecvError::Empty => Ok(None),
+                flume::TryRecvError::Disconnected => Err(ChannelError::disconnected()),
+            },
+        }
+    }
+
+    /// Create a blocking iterator that receives until a channel error.
+    pub fn iter(&self) -> impl Iterator<Item = T> {
+        self.0.iter()
+    }
+
+    /// Iterate over all the pending incoming messages in the channel, until the channel is empty or error.
+    pub fn try_iter(&self) -> impl Iterator<Item = T> {
+        self.0.try_iter()
+    }
+
+    /// Gets if the channel has no pending messages.
+    ///
+    /// Note that [`rendezvous`] channels are always empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 
@@ -321,39 +407,67 @@ pub fn rendezvous<T>() -> (Sender<T>, Receiver<T>) {
 
 /// Error during channel send or receive.
 #[derive(Debug, Clone)]
-#[non_exhaustive]
 pub enum ChannelError {
-    /// App connected to a sender/receiver channel has disconnected.
-    Disconnected,
+    /// Channel has disconnected.
+    Disconnected {
+        /// Inner error that caused disconnection.
+        ///
+        /// Is `None` if disconnection was due to endpoint dropping or if the error happened at the other endpoint.
+        cause: Option<Arc<dyn std::error::Error + Send + Sync + 'static>>,
+    },
     /// Deadline elapsed before message could be send/received.
     Timeout,
-    /// Other error specific for the internal implementation.
-    Other(Arc<dyn std::error::Error + Send + Sync + 'static>),
 }
 impl ChannelError {
+    /// Channel has disconnected due to endpoint drop.
+    pub fn disconnected() -> Self {
+        ChannelError::Disconnected { cause: None }
+    }
+
     /// New from other `error`.
-    pub fn other(error: impl std::error::Error + Send + Sync + 'static) -> Self {
-        Self::Other(Arc::new(error))
+    pub fn disconnected_by(cause: impl std::error::Error + Send + Sync + 'static) -> Self {
+        ChannelError::Disconnected {
+            cause: Some(Arc::new(cause)),
+        }
     }
 }
 impl fmt::Display for ChannelError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ChannelError::Disconnected => write!(f, "cannot receive because the sender disconnected"),
-            ChannelError::Timeout => write!(f, "deadline elapsed before message could be send/received"),
-            ChannelError::Other(e) => fmt::Display::fmt(e, f),
+            ChannelError::Disconnected { cause: source } => match source {
+                Some(e) => write!(f, "channel disconnected due to, {e}"),
+                None => write!(f, "channel disconnected"),
+            },
+            ChannelError::Timeout => write!(f, "deadline elapsed before message could be transferred"),
         }
     }
 }
 impl std::error::Error for ChannelError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        if let Self::Other(e) = self { Some(e) } else { None }
+        if let Self::Disconnected { cause: Some(e) } = self {
+            Some(e)
+        } else {
+            None
+        }
     }
 }
+impl PartialEq for ChannelError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Disconnected { cause: l_cause }, Self::Disconnected { cause: r_cause }) => match (l_cause, r_cause) {
+                (None, None) => true,
+                (Some(a), Some(b)) => a.to_txt() == b.to_txt(),
+                _ => false,
+            },
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+impl Eq for ChannelError {}
 impl From<flume::RecvError> for ChannelError {
     fn from(value: flume::RecvError) -> Self {
         match value {
-            flume::RecvError::Disconnected => ChannelError::Disconnected,
+            flume::RecvError::Disconnected => ChannelError::disconnected(),
         }
     }
 }
@@ -361,12 +475,20 @@ impl From<flume::RecvTimeoutError> for ChannelError {
     fn from(value: flume::RecvTimeoutError) -> Self {
         match value {
             flume::RecvTimeoutError::Timeout => ChannelError::Timeout,
-            flume::RecvTimeoutError::Disconnected => ChannelError::Disconnected,
+            flume::RecvTimeoutError::Disconnected => ChannelError::disconnected(),
         }
     }
 }
 impl<T> From<flume::SendError<T>> for ChannelError {
     fn from(_: flume::SendError<T>) -> Self {
-        ChannelError::Disconnected
+        ChannelError::disconnected()
+    }
+}
+impl From<flume::TryRecvError> for ChannelError {
+    fn from(value: flume::TryRecvError) -> Self {
+        match value {
+            flume::TryRecvError::Empty => ChannelError::Timeout,
+            flume::TryRecvError::Disconnected => ChannelError::disconnected(),
+        }
     }
 }

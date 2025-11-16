@@ -15,7 +15,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 # Enables creation of separate or pre-build view.
 #
 # Only enables in `cfg(not(any(target_os = "android", target_arch = "wasm32", target_os = "ios")))` builds.
-ipc = ["dep:ipc-channel"]
+ipc = ["zng-task/ipc"]
 
 # Implement `IntoVar<T>` for API types.
 var = ["dep:zng-var"]
@@ -31,12 +31,12 @@ zng-env = { path = "../zng-env", version = "0.8.0", default-features = false }
 zng-txt = { path = "../zng-txt", version = "0.5.0", default-features = false }
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.7.0", default-features = false }
 zng-var = { path = "../zng-var", version = "0.11.2", optional = true, default-features = false }
+zng-task = { path = "../zng-task", version = "0.10.2", default-features = false }
 
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_bytes = { version = "0.11", features = ["std"], default-features = false }
 
 tracing = { version = "0.1", default-features = false }
-flume = { version = "0.11", default-features = false }
 num-traits = { version = "0.2", default-features = false, features = ["std"] }
 rustc-hash = { version = "2.0", default-features = false, features = ["std"] }
 
@@ -54,9 +54,6 @@ tracing-shared = { version = "0.2", default-features = false, features = ["log"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-time = { version = "1.0", default-features = false }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ipc-channel = { version = "0.20", default-features = false, optional = true }
 
 [build-dependencies]
 cfg_aliases = { version = "0.2", default-features = false }

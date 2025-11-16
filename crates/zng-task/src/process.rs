@@ -9,12 +9,12 @@
 //! recoverable, if the task calls unsafe code or code that can potentially terminate the entire process it should run using a [`Worker`].
 //! If you only want to recover from panics in safe code consider using [`task::run_catch`] or [`task::wait_catch`] instead.
 //!
-//! You can send [`ipc_channel`] endpoints in the task request messages, this can be useful for implementing progress reporting,
+//! You can send [IPC channel] endpoints in the task request messages, this can be useful for implementing progress reporting,
 //! you can also send [`IpcBytes`] to efficiently share large byte blobs with the worker process.
 //!
 //! [`task::run_catch`]: crate::run_catch
 //! [`task::wait_catch`]: crate::wait_catch
-//! [`ipc_channel`]: crate::channel::ipc_channel
+//! [IPC channel]: crate::channel::ipc_unbounded
 //! [`IpcBytes`]: crate::channel::IpcBytes
 //!
 //! # Examples
@@ -22,16 +22,18 @@
 //! The example below demonstrates a worker-process setup that uses the same executable as the app-process.
 //!
 //! ```
+//! # fn main() { }
 //! # mod zng { pub mod env { pub use zng_env::*; } pub mod task { pub use zng_task::*; } }
-//! #
+//! # fn demo() {
 //! fn main() {
 //!     zng::env::init!();
 //!     // normal app init..
 //!     # zng::task::doc_test(false, on_click());
 //! }
+//! # }
 //!
 //! mod task1 {
-//! # use crate::zng;
+//! # use super::zng;
 //!     use zng::{task, env};
 //!
 //!     const NAME: &str = "zng::example::task1";
@@ -73,7 +75,6 @@
 //!     // the worker process can be gracefully shutdown, awaits all pending tasks.
 //!     let _ = worker.shutdown().await;
 //! }
-//!
 //! ```
 //!
 //! Note that you can setup multiple workers the same executable, as long as the `on_process_start!` call happens
@@ -176,7 +177,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
 
         let r = crate::with_deadline(crate::wait(move || server.accept()), timeout.secs()).await;
 
-        let (_, (req_sender, chan_sender)) = match r {
+        let (_, (req_sender, mut chan_sender)) = match r {
             Ok(r) => match r {
                 Ok(r) => r,
                 Err(e) => return Err(std::io::Error::new(std::io::ErrorKind::ConnectionRefused, e)),
@@ -204,7 +205,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
             }
         };
 
-        let (rsp_sender, rsp_recv) = crate::channel::ipc_channel()?;
+        let (rsp_sender, mut rsp_recv) = crate::channel::ipc_unbounded()?;
         crate::wait(move || chan_sender.send(rsp_sender)).await.unwrap();
 
         let requests = Arc::new(Mutex::new(IdMap::<RequestId, flume::Sender<O>>::new()));
@@ -223,7 +224,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
                             None => tracing::error!("worker responded to unknown request #{}", id.sequential()),
                         },
                         Err(e) => match e {
-                            ChannelError::Disconnected => {
+                            ChannelError::Disconnected { .. } => {
                                 requests.lock().clear();
                                 break;
                             }
@@ -292,7 +293,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
 
         let requests = self.requests.clone();
         requests.lock().insert(id, sx);
-        let sender = self.sender.clone();
+        let mut sender = self.sender.clone();
         let send_r = crate::wait(move || sender.send((id, request)));
 
         Box::pin(async move {
@@ -374,8 +375,8 @@ where
         let app_init_sender = ipc_channel::ipc::IpcSender::<WorkerInit<I, O>>::connect(server_name)
             .unwrap_or_else(|e| panic!("failed to connect to '{name}' init channel, {e}"));
 
-        let (req_sender, req_recv) = crate::channel::ipc_channel().unwrap();
-        let (chan_sender, chan_recv) = crate::channel::ipc_channel().unwrap();
+        let (req_sender, mut req_recv) = crate::channel::ipc_unbounded().unwrap();
+        let (chan_sender, mut chan_recv) = crate::channel::ipc_unbounded().unwrap();
 
         app_init_sender.send((req_sender, chan_sender)).unwrap();
         let rsp_sender = chan_recv.recv_blocking().unwrap();
@@ -384,14 +385,14 @@ where
         loop {
             match req_recv.recv_blocking() {
                 Ok((id, input)) => match input {
-                    Request::Run(r) => crate::spawn(async_clmv!(handler, rsp_sender, {
+                    Request::Run(r) => crate::spawn(async_clmv!(handler, mut rsp_sender, {
                         let output = handler(RequestArgs { request: r }).await;
                         let _ = rsp_sender.send((id, Response::Out(output)));
                     })),
                 },
                 Err(e) => match e {
-                    ChannelError::Disconnected => break,
-                    e => panic!("worker '{name}' request error, {e}"),
+                    ChannelError::Disconnected { .. } => break,
+                    ChannelError::Timeout => unreachable!(),
                 },
             }
         }

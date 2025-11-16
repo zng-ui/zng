@@ -23,6 +23,9 @@ hyphenation_embed_all = ["hyphenation/embed_all"]
 # using `zng-ext-svg` or another SVG extension.
 svg = []
 
+# Enables memory mapped font files.
+ipc = ["zng-task/ipc"]
+
 [dependencies]
 zng-clone-move = { path = "../zng-clone-move", version = "0.4.0", default-features = false }
 zng-app-context = { path = "../zng-app-context", version = "0.10.0", default-features = false }
@@ -60,8 +63,6 @@ dunce = { version = "1.0", default-features = false }
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
 font-kit = { version = "0.14", default-features = false, features = ["source"] }
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-memmap2 = { version = "0.9.8", default-features = false }
 
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.58.0"
@@ -69,6 +70,9 @@ default-features = false
 features = [
     "Win32_System_SystemInformation"
 ]
+
+[build-dependencies]
+cfg_aliases = { version = "0.2", default-features = false }
 
 [package.metadata.docs.rs]
 all-features = true

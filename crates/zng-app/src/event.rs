@@ -10,7 +10,6 @@ use std::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
-    time::Instant,
 };
 
 mod args;
@@ -22,17 +21,16 @@ pub use command::*;
 mod events;
 pub use events::*;
 
-mod channel;
-pub use channel::*;
-
 use crate::{
+    AppEventSender,
     handler::{AppWeakHandle, Handler, HandlerExt as _},
-    update::{EventUpdate, UpdateDeliveryList, UpdateSubscribers},
+    update::{EventUpdate, UpdateDeliveryList, UpdateSubscribers, UpdatesTrace},
     widget::WidgetId,
 };
 use parking_lot::Mutex;
 use zng_app_context::AppLocal;
 use zng_clone_move::clmv;
+use zng_task::channel::{self, ChannelError};
 use zng_unique_id::{IdEntry, IdMap, IdSet};
 
 ///<span data-del-macro-root></span> Declares new [`Event<A>`] static items.
@@ -327,17 +325,21 @@ impl<A: EventArgs> Event<A> {
     /// including non-app threads.
     ///
     /// Drop the receiver to stop listening.
-    pub fn receiver(&self) -> EventReceiver<A>
+    pub fn receiver(&self) -> channel::Receiver<A>
     where
         A: Send,
     {
-        let (sender, receiver) = flume::unbounded();
+        let (sender, receiver) = channel::unbounded();
 
         self.as_any()
-            .hook(move |update| sender.send(update.args().as_any().downcast_ref::<A>().unwrap().clone()).is_ok())
+            .hook(move |update| {
+                sender
+                    .send_blocking(update.args().as_any().downcast_ref::<A>().unwrap().clone())
+                    .is_ok()
+            })
             .perm();
 
-        EventReceiver { receiver, event: *self }
+        receiver
     }
 
     /// Creates a sender channel that can notify the event.
@@ -667,5 +669,70 @@ impl EventHook {
     /// Callback, returns `true` if the handle must be retained.
     fn call(&self, update: &mut EventUpdate) -> bool {
         (Arc::strong_count(&self.0) > 1 || self.0.perm.load(Ordering::Relaxed)) && (self.0.hook.as_ref().unwrap())(update)
+    }
+}
+
+pub(crate) struct EventUpdateMsg {
+    args: Box<dyn FnOnce() -> EventUpdate + Send>,
+}
+impl EventUpdateMsg {
+    pub(crate) fn get(self) -> EventUpdate {
+        (self.args)()
+    }
+}
+impl fmt::Debug for EventUpdateMsg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EventUpdateMsg").finish_non_exhaustive()
+    }
+}
+
+/// An event update sender that can be used from any thread and without access to [`EVENTS`].
+///
+/// Use [`Event::sender`] to create a sender.
+pub struct EventSender<A>
+where
+    A: EventArgs + Send,
+{
+    pub(super) sender: AppEventSender,
+    pub(super) event: Event<A>,
+}
+impl<A> Clone for EventSender<A>
+where
+    A: EventArgs + Send,
+{
+    fn clone(&self) -> Self {
+        EventSender {
+            sender: self.sender.clone(),
+            event: self.event,
+        }
+    }
+}
+impl<A> fmt::Debug for EventSender<A>
+where
+    A: EventArgs + Send,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "EventSender({:?})", &self.event)
+    }
+}
+impl<A> EventSender<A>
+where
+    A: EventArgs + Send,
+{
+    /// Send an event update.
+    pub fn send(&self, args: A) -> Result<(), ChannelError> {
+        UpdatesTrace::log_event(self.event.as_any());
+
+        let event = self.event;
+        let msg = EventUpdateMsg {
+            args: Box::new(move || event.new_update(args)),
+        };
+
+        self.sender.send_event(msg)
+    }
+
+    /// Event that receives from this sender.
+    pub fn event(&self) -> Event<A> {
+        self.event
     }
 }

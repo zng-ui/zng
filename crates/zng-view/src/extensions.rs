@@ -13,6 +13,7 @@ use webrender::api::{
     PipelineId, units::TexelRect,
 };
 use webrender::{DebugFlags, RenderApi};
+use zng_task::channel::{ChannelError, IpcBytes};
 use zng_unit::{Factor, PxSize};
 use zng_view_api::window::RenderMode;
 use zng_view_api::{
@@ -367,7 +368,7 @@ pub struct ExtensionEventSender {
 }
 impl ExtensionEventSender {
     /// Send the event `payload`.
-    pub fn send(&self, payload: ApiExtensionPayload) -> Result<(), zng_view_api::ipc::ViewChannelError> {
+    pub fn send(&self, payload: ApiExtensionPayload) -> Result<(), ChannelError> {
         self.sender.send(crate::AppEvent::Notify(Event::ExtensionEvent(self.id, payload)))
     }
 }
@@ -546,7 +547,7 @@ impl ExternalImages {
     /// The `pixels` are held in memory until [`unregister`] or the window is closed.
     ///
     /// [`unregister`]: Self::unregister
-    pub fn register_image(&mut self, descriptor: webrender::api::ImageDescriptor, pixels: zng_view_api::ipc::IpcBytes) -> ExternalImageId {
+    pub fn register_image(&mut self, descriptor: webrender::api::ImageDescriptor, pixels: IpcBytes) -> ExternalImageId {
         self.register(crate::image_cache::ImageData::RawData {
             size: descriptor.size.cast().cast_unit(), // not used
             pixels,

@@ -23,7 +23,6 @@
 #![warn(unused_extern_crates)]
 
 use drag_drop::{DragDropData, DragDropEffect, DragDropError};
-#[cfg(ipc)]
 use serde::{Deserialize, Serialize};
 
 /// The *App Process* and *View Process* must be build using the same exact version and this is
@@ -64,13 +63,12 @@ use clipboard::{ClipboardData, ClipboardError};
 use dialog::DialogId;
 use font::{FontFaceId, FontId, FontOptions, FontVariationName};
 use image::{ImageId, ImageMaskMode, ImageRequest, ImageTextureId};
-use ipc::{IpcBytes, IpcBytesReceiver};
 use window::WindowId;
+use zng_task::channel::{IpcBytes, IpcReceiver};
 use zng_unit::{DipPoint, DipRect, DipSize, Factor, Px, PxRect};
 
 /// Packaged API request.
-#[derive(Debug)]
-#[cfg_attr(ipc, derive(Serialize, Deserialize))]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Request(RequestData);
 impl Request {
     /// Returns `true` if the request can only be made after the *init* event.
@@ -104,8 +102,7 @@ impl Request {
 }
 
 /// Packaged API response.
-#[derive(Debug)]
-#[cfg_attr(ipc, derive(Serialize, Deserialize))]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Response(ResponseData);
 impl Response {
     /// If this response must be send back to the app process. Only [`Api`] methods
@@ -146,7 +143,7 @@ macro_rules! declare_api {
             ) $(-> $ResponseType:ty)?;
         )*
     ) => {
-        #[cfg_attr(ipc, derive(Serialize, Deserialize))]
+        #[derive(Serialize, Deserialize)]
         #[allow(non_camel_case_types)]
         #[allow(clippy::large_enum_variant)]
         #[repr(u32)]
@@ -195,7 +192,7 @@ macro_rules! declare_api {
         }
 
         #[derive(Debug)]
-        #[cfg_attr(ipc, derive(Serialize, Deserialize))]
+        #[derive(Serialize, Deserialize)]
         #[allow(non_camel_case_types)]
         #[repr(u32)]
         enum ResponseData {
@@ -392,7 +389,7 @@ declare_api! {
     /// be send while decoding.
     ///
     /// [`add_image`]: Api::add_image
-    pub fn add_image_pro(&mut self, request: ImageRequest<IpcBytesReceiver>) -> ImageId;
+    pub fn add_image_pro(&mut self, request: ImageRequest<IpcReceiver<IpcBytes>>) -> ImageId;
 
     /// Remove an image from cache.
     ///
@@ -451,7 +448,7 @@ declare_api! {
     /// # Unimplemented
     ///
     /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
-    pub fn add_audio_pro(&mut self, request: audio::AudioRequest<IpcBytesReceiver>) -> audio::AudioId;
+    pub fn add_audio_pro(&mut self, request: audio::AudioRequest<IpcReceiver<IpcBytes>>) -> audio::AudioId;
 
     /// Remove an audio from cache.
     ///

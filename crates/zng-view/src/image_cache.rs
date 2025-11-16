@@ -8,17 +8,16 @@ use winit::{
     event_loop::ActiveEventLoop,
     window::{CustomCursor, Icon},
 };
-#[cfg(feature = "image_any")]
 use zng_txt::ToTxt as _;
 use zng_txt::{Txt, formatx};
 #[cfg(feature = "image_any")]
 use zng_unit::PxDensityUnits as _;
 
+use zng_task::channel::{IpcBytes, IpcReceiver};
 use zng_unit::{Px, PxDensity2d, PxPoint, PxSize};
 use zng_view_api::{
     Event,
     image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImageRequest},
-    ipc::{IpcBytes, IpcBytesReceiver},
 };
 
 use crate::{AppEvent, AppEventSender};
@@ -133,7 +132,7 @@ impl ImageCache {
                             data.len()
                         ))
                     } else if mask.is_some() {
-                        let (pixels, size, _, is_opaque, _) = Self::convert_decoded(
+                        let r = Self::convert_decoded(
                             image::DynamicImage::ImageLuma8(
                                 image::ImageBuffer::from_raw(size.width.0 as _, size.height.0 as _, data.to_vec()).unwrap(),
                             ),
@@ -141,7 +140,10 @@ impl ImageCache {
                             density,
                             None,
                         );
-                        Ok((pixels, size, density, is_opaque, true))
+                        match r {
+                            Ok((pixels, size, _, is_opaque, _)) => Ok((pixels, size, density, is_opaque, true)),
+                            Err(e) => Err(e.to_txt()),
+                        }
                     } else {
                         let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
                         Ok((data, size, density, is_opaque, false))
@@ -155,7 +157,7 @@ impl ImageCache {
                             data.len()
                         ))
                     } else if mask.is_none() {
-                        let (pixels, size, _, is_opaque, _) = Self::convert_decoded(
+                        let r = Self::convert_decoded(
                             image::DynamicImage::ImageLuma8(
                                 image::ImageBuffer::from_raw(size.width.0 as _, size.height.0 as _, data.to_vec()).unwrap(),
                             ),
@@ -163,7 +165,10 @@ impl ImageCache {
                             None,
                             None,
                         );
-                        Ok((pixels, size, None, is_opaque, false))
+                        match r {
+                            Ok((pixels, size, _, is_opaque, _)) => Ok((pixels, size, None, is_opaque, false)),
+                            Err(e) => Err(e.to_txt()),
+                        }
                     } else {
                         let is_opaque = data.iter().all(|&c| c == 255);
                         Ok((data, size, None, is_opaque, true))
@@ -196,7 +201,10 @@ impl ImageCache {
                                     is_mask: false,
                                 }));
                                 match Self::image_decode(&data[..], h.format, downscale, h.orientation) {
-                                    Ok(img) => Ok(Self::convert_decoded(img, mask, h.density, h.icc_profile)),
+                                    Ok(img) => match Self::convert_decoded(img, mask, h.density, h.icc_profile) {
+                                        Ok(r) => Ok(r),
+                                        Err(e) => Err(e.to_txt()),
+                                    },
                                     Err(e) => Err(e.to_txt()),
                                 }
                             }
@@ -225,12 +233,12 @@ impl ImageCache {
         &mut self,
         ImageRequest {
             format: request_fmt,
-            data,
+            mut data,
             max_decoded_len,
             downscale,
             mask,
             ..
-        }: ImageRequest<IpcBytesReceiver>,
+        }: ImageRequest<IpcReceiver<IpcBytes>>,
     ) -> ImageId {
         let id = self.image_id_gen.incr();
         let app_sender = self.app_sender.clone();
@@ -265,11 +273,11 @@ impl ImageCache {
 
             let mut pending = true;
             while pending {
-                match data.recv() {
+                match data.recv_blocking() {
                     Ok(d) => {
                         pending = !d.is_empty();
 
-                        full.extend(d);
+                        full.extend(d.iter().copied());
 
                         #[cfg(feature = "image_any")]
                         if let Some(fmt) = format {
@@ -330,12 +338,19 @@ impl ImageCache {
 
                 #[cfg(feature = "image_any")]
                 match Self::image_decode(&full[..], fmt, downscale, orientation) {
-                    Ok(img) => {
-                        let (pixels, size, density, is_opaque, is_mask) = Self::convert_decoded(img, mask, density, icc_profile);
-                        let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
-                            id, size, density, is_opaque, is_mask, pixels,
-                        )));
-                    }
+                    Ok(img) => match Self::convert_decoded(img, mask, density, icc_profile) {
+                        Ok((pixels, size, density, is_opaque, is_mask)) => {
+                            let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
+                                id, size, density, is_opaque, is_mask, pixels,
+                            )));
+                        }
+                        Err(e) => {
+                            let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
+                                image: id,
+                                error: e.to_txt(),
+                            }));
+                        }
+                    },
                     Err(e) => {
                         let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
                             image: id,
@@ -344,7 +359,16 @@ impl ImageCache {
                     }
                 }
             } else if !is_encoded {
-                let pixels = IpcBytes::from_vec(full);
+                let pixels = match IpcBytes::from_vec(full) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
+                            image: id,
+                            error: e.to_txt(),
+                        }));
+                        return;
+                    }
+                };
                 let is_opaque = pixels.chunks_exact(4).all(|c| c[3] == 255);
                 let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
                     id,
@@ -634,7 +658,7 @@ impl ImageCache {
         mask: Option<ImageMaskMode>,
         density: Option<PxDensity2d>,
         icc_profile: Option<lcms2::Profile>,
-    ) -> RawLoadedImg {
+    ) -> std::io::Result<RawLoadedImg> {
         use image::DynamicImage::*;
 
         let mut is_opaque = true;
@@ -1068,13 +1092,13 @@ impl ImageCache {
         #[cfg(not(feature = "image_any"))]
         let _ = (icc_profile, &mut pixels);
 
-        (
-            IpcBytes::from_vec(pixels),
+        Ok((
+            IpcBytes::from_vec(pixels)?,
             PxSize::new(Px(size.0 as i32), Px(size.1 as i32)),
             density,
             is_opaque,
             mask.is_some(), // is_mask
-        )
+        ))
     }
 
     pub fn encode(&self, id: ImageId, format: Txt) {
@@ -1095,13 +1119,18 @@ impl ImageCache {
             rayon::spawn(move || {
                 let mut data = vec![];
                 match img.encode(fmt, &mut data) {
-                    Ok(_) => {
-                        let _ = sender.send(AppEvent::Notify(Event::ImageEncoded {
-                            image: id,
-                            format,
-                            data: IpcBytes::from_vec(data),
-                        }));
-                    }
+                    Ok(_) => match IpcBytes::from_vec(data) {
+                        Ok(data) => {
+                            let _ = sender.send(AppEvent::Notify(Event::ImageEncoded { image: id, format, data }));
+                        }
+                        Err(e) => {
+                            let _ = sender.send(AppEvent::Notify(Event::ImageEncodeError {
+                                image: id,
+                                format,
+                                error: e.to_txt(),
+                            }));
+                        }
+                    },
                     Err(e) => {
                         let error = formatx!("failed to encode `{id:?}` to `{format}`, {e}");
                         let _ = sender.send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
@@ -1523,12 +1552,12 @@ mod capture {
     use std::sync::Arc;
 
     use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
+    use zng_task::channel::IpcBytes;
     use zng_txt::formatx;
     use zng_unit::{Factor, PxDensity2d, PxDensityUnits as _, PxRect};
     use zng_view_api::{
         Event,
         image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImageRequest},
-        ipc::IpcBytes,
         window::{FrameId, WindowId},
     };
 
@@ -1656,7 +1685,8 @@ mod capture {
                     Some(mask),
                     density,
                     None,
-                );
+                )
+                .unwrap(); // frame size is not large enough to trigger an memmap that can fail
 
                 let id = self.add(ImageRequest::new(
                     ImageDataFormat::A8 { size },
@@ -1676,7 +1706,7 @@ mod capture {
 
                 let is_opaque = buf.chunks_exact(4).all(|bgra| bgra[3] == 255);
 
-                let data = IpcBytes::from_vec(buf);
+                let data = IpcBytes::from_vec(buf).unwrap(); // frame size is not large enough to trigger an memmap that can fail
                 let density = 96.0 * scale_factor.0;
                 let density = Some(PxDensity2d::splat(density.ppi()));
                 let size = rect.size;

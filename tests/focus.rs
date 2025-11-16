@@ -2,7 +2,6 @@ use keyboard::KeyLocation;
 use zng::{
     app::{AppExtended, AppExtension, HeadlessApp},
     data_view::DataView,
-    event::EventReceiver,
     focus::{
         DirectionalNav, FOCUS_CHANGED_EVENT, FocusChangedArgs, FocusChangedCause, RETURN_FOCUS_CHANGED_EVENT, ReturnFocusChangedArgs,
         TabIndex, TabNav, alt_focus_scope,
@@ -11,6 +10,7 @@ use zng::{
     },
     keyboard::{Key, KeyCode, KeyState},
     prelude::*,
+    task::channel::Receiver,
     widget::{Visibility, info::InteractionPath, interactive, node::ArcNode, visibility},
 };
 
@@ -2031,8 +2031,8 @@ struct TestApp {
     app: HeadlessApp,
     pub window_id: WindowId,
 
-    focus_changed: EventReceiver<FocusChangedArgs>,
-    return_focus_changed: EventReceiver<ReturnFocusChangedArgs>,
+    focus_changed: Receiver<FocusChangedArgs>,
+    return_focus_changed: Receiver<ReturnFocusChangedArgs>,
 }
 impl TestApp {
     /// Start app scope.

@@ -19,7 +19,10 @@ use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock};
 use zng_app_context::app_local;
 use zng_layout::unit::PxDensity2d;
 use zng_layout::unit::{DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect, PxSize};
-use zng_task::SignalOnce;
+use zng_task::{
+    SignalOnce,
+    channel::{self, ChannelError, IpcBytes, IpcReceiver},
+};
 use zng_txt::Txt;
 use zng_var::ResponderVar;
 use zng_view_api::{
@@ -29,7 +32,6 @@ use zng_view_api::{
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::{FontOptions, IpcFontBytes},
     image::{ImageMaskMode, ImageRequest, ImageTextureId},
-    ipc::{IpcBytes, IpcBytesReceiver, ViewChannelError},
     window::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, RenderMode, ResizeDirection,
         VideoMode, WindowButton, WindowRequest, WindowStateAll,
@@ -97,7 +99,7 @@ impl VIEW_PROCESS {
         {
             return Ok(MappedRwLockWriteGuard::map(vp, |w| w.as_mut().unwrap()));
         }
-        Err(ViewChannelError::Disconnected)
+        Err(ChannelError::disconnected())
     }
 
     fn check_app(&self, id: AppId) {
@@ -203,7 +205,7 @@ impl VIEW_PROCESS {
     /// [`Event::ImageLoaded`]: zng_view_api::Event::ImageLoaded
     /// [`Event::ImageLoadError`]: zng_view_api::Event::ImageLoadError
     /// [`Event::ImagePartiallyLoaded`]: zng_view_api::Event::ImagePartiallyLoaded
-    pub fn add_image_pro(&self, request: ImageRequest<IpcBytesReceiver>) -> Result<ViewImage> {
+    pub fn add_image_pro(&self, request: ImageRequest<IpcReceiver<IpcBytes>>) -> Result<ViewImage> {
         let mut app = self.write();
         let id = app.process.add_image_pro(request)?;
         let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
@@ -228,7 +230,7 @@ impl VIEW_PROCESS {
         if VIEW_PROCESS.is_connected() {
             Ok(&ViewClipboard {})
         } else {
-            Err(ViewChannelError::Disconnected)
+            Err(ChannelError::disconnected())
         }
     }
 
@@ -270,7 +272,7 @@ impl VIEW_PROCESS {
         if me.process.is_connected() {
             Ok(me.extensions.id(&extension_name.into()))
         } else {
-            Err(ViewChannelError::Disconnected)
+            Err(ChannelError::disconnected())
         }
     }
 
@@ -521,7 +523,7 @@ impl VIEW_PROCESS {
             let done = r.image_id == id && r.format == format;
             if done {
                 for sender in &r.listeners {
-                    let _ = sender.send(result.clone());
+                    let _ = sender.send_blocking(result.clone());
                 }
             }
             !done
@@ -732,7 +734,7 @@ impl ViewWindow {
                 if p.generation() == icon.generation {
                     p.set_icon(id, icon.id)
                 } else {
-                    Err(ViewChannelError::Disconnected)
+                    Err(ChannelError::disconnected())
                 }
             } else {
                 p.set_icon(id, None)
@@ -758,7 +760,7 @@ impl ViewWindow {
                 if p.generation() == cur.generation {
                     p.set_cursor_image(id, cur.id.map(|img| zng_view_api::window::CursorImage::new(img, hotspot)))
                 } else {
-                    Err(ViewChannelError::Disconnected)
+                    Err(ChannelError::disconnected())
                 }
             } else {
                 p.set_cursor_image(id, None)
@@ -979,7 +981,7 @@ impl ViewWindowData {
     fn call<R>(&self, f: impl FnOnce(ApiWindowId, &mut Controller) -> Result<R>) -> Result<R> {
         let mut app = VIEW_PROCESS.handle_write(self.app_id);
         if app.check_generation() {
-            Err(ViewChannelError::Disconnected)
+            Err(ChannelError::disconnected())
         } else {
             f(self.id, &mut app.process)
         }
@@ -995,7 +997,7 @@ impl Drop for ViewWindowData {
         }
     }
 }
-type Result<T> = std::result::Result<T, ViewChannelError>;
+type Result<T> = std::result::Result<T, ChannelError>;
 
 /// Handle to a headless surface/document open in the View Process.
 ///
@@ -1038,7 +1040,7 @@ impl ViewHeadless {
 
 /// Weak handle to a window or view.
 ///
-/// This is only a weak reference, every method returns [`ViewChannelError::Disconnected`] if the
+/// This is only a weak reference, every method returns [`ChannelError::disconnected`] if the
 /// window is closed or view is disposed.
 #[derive(Clone, Debug)]
 pub struct ViewRenderer(sync::Weak<ViewWindowData>);
@@ -1060,13 +1062,13 @@ impl ViewRenderer {
         if let Some(c) = self.0.upgrade() {
             c.call(f)
         } else {
-            Err(ViewChannelError::Disconnected)
+            Err(ChannelError::disconnected())
         }
     }
 
     /// Returns the view-process generation on which the renderer was created.
     pub fn generation(&self) -> Result<ViewProcessGen> {
-        self.0.upgrade().map(|c| c.generation).ok_or(ViewChannelError::Disconnected)
+        self.0.upgrade().map(|c| c.generation).ok_or(ChannelError::disconnected())
     }
 
     /// Use an image resource in the window renderer.
@@ -1078,7 +1080,7 @@ impl ViewRenderer {
             if p.generation() == image.generation {
                 p.use_image(id, image.id.unwrap_or(ImageId::INVALID))
             } else {
-                Err(ViewChannelError::Disconnected)
+                Err(ChannelError::disconnected())
             }
         })
     }
@@ -1090,7 +1092,7 @@ impl ViewRenderer {
             if p.generation() == image.generation {
                 p.update_image_use(id, tex_id, image.id.unwrap_or(ImageId::INVALID))
             } else {
-                Err(ViewChannelError::Disconnected)
+                Err(ChannelError::disconnected())
             }
         })
     }
@@ -1136,7 +1138,7 @@ impl ViewRenderer {
             let id = c.call(|id, p| p.frame_image(id, mask))?;
             Ok(Self::add_frame_image(c.app_id, id))
         } else {
-            Err(ViewChannelError::Disconnected)
+            Err(ChannelError::disconnected())
         }
     }
 
@@ -1146,7 +1148,7 @@ impl ViewRenderer {
             let id = c.call(|id, p| p.frame_image_rect(id, rect, mask))?;
             Ok(Self::add_frame_image(c.app_id, id))
         } else {
-            Err(ViewChannelError::Disconnected)
+            Err(ChannelError::disconnected())
         }
     }
 
@@ -1185,7 +1187,7 @@ impl ViewRenderer {
             VIEW_PROCESS.handle_write(w.app_id).pending_frames += 1;
             Ok(())
         } else {
-            Err(ViewChannelError::Disconnected)
+            Err(ChannelError::disconnected())
         }
     }
 
@@ -1198,7 +1200,7 @@ impl ViewRenderer {
             VIEW_PROCESS.handle_write(w.app_id).pending_frames += 1;
             Ok(())
         } else {
-            Err(ViewChannelError::Disconnected)
+            Err(ChannelError::disconnected())
         }
     }
 
@@ -1207,7 +1209,7 @@ impl ViewRenderer {
         if let Some(w) = self.0.upgrade() {
             w.call(|id, p| p.render_extension(id, extension_id, request))
         } else {
-            Err(ViewChannelError::Disconnected)
+            Err(ChannelError::disconnected())
         }
     }
 
@@ -1403,7 +1405,7 @@ impl ViewImage {
             pixels: if let Some(e) = error {
                 Some(Err(e))
             } else {
-                Some(Ok(IpcBytes::from_slice(&[])))
+                Some(Ok(IpcBytes::default()))
             },
             is_mask: false,
             done_signal: SignalOnce::new_set(),
@@ -1434,7 +1436,7 @@ impl ViewImage {
 
                 app.process.encode_image(id, format.clone())?;
 
-                let (sender, receiver) = flume::bounded(1);
+                let (sender, receiver) = channel::bounded(1);
                 if let Some(entry) = app.encoding_images.iter_mut().find(|r| r.image_id == id && r.format == format) {
                     entry.listeners.push(sender);
                 } else {
@@ -1450,7 +1452,7 @@ impl ViewImage {
             }
         };
 
-        receiver.recv_async().await?
+        receiver.recv().await?
     }
 }
 
@@ -1473,13 +1475,8 @@ impl From<Txt> for EncodeError {
         EncodeError::Encode(e)
     }
 }
-impl From<ViewChannelError> for EncodeError {
-    fn from(_: ViewChannelError) -> Self {
-        EncodeError::Disconnected
-    }
-}
-impl From<flume::RecvError> for EncodeError {
-    fn from(_: flume::RecvError) -> Self {
+impl From<ChannelError> for EncodeError {
+    fn from(_: ChannelError) -> Self {
         EncodeError::Disconnected
     }
 }
@@ -1488,7 +1485,7 @@ impl fmt::Display for EncodeError {
         match self {
             EncodeError::Encode(e) => write!(f, "{e}"),
             EncodeError::Dummy => write!(f, "cannot encode dummy image"),
-            EncodeError::Disconnected => write!(f, "{}", ViewChannelError::Disconnected),
+            EncodeError::Disconnected => write!(f, "{}", ChannelError::disconnected()),
         }
     }
 }
@@ -1513,7 +1510,7 @@ impl WeakViewImage {
 struct EncodeRequest {
     image_id: ImageId,
     format: Txt,
-    listeners: Vec<flume::Sender<std::result::Result<IpcBytes, EncodeError>>>,
+    listeners: Vec<channel::Sender<std::result::Result<IpcBytes, EncodeError>>>,
 }
 
 type ClipboardResult<T> = std::result::Result<T, ClipboardError>;

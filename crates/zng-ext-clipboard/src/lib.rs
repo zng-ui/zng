@@ -20,12 +20,12 @@ use zng_app::{
 };
 use zng_app_context::app_local;
 use zng_ext_image::{IMAGES, ImageHasher, ImageVar, Img};
+use zng_task::channel::{ChannelError, IpcBytes};
 use zng_txt::{ToTxt, Txt};
 use zng_var::{ResponderVar, ResponseVar, response_var};
 use zng_wgt::{CommandIconExt as _, ICONS, wgt_fn};
 
-use zng_view_api::ipc::IpcBytes;
-use zng_view_api::{clipboard as clipboard_api, ipc::ViewChannelError};
+use zng_view_api::clipboard as clipboard_api;
 
 /// Clipboard app extension.
 ///
@@ -287,7 +287,7 @@ impl CLIPBOARD {
     }
 }
 
-type ActualClipboardResult<T> = Result<Result<T, clipboard_api::ClipboardError>, ViewChannelError>;
+type ActualClipboardResult<T> = Result<Result<T, clipboard_api::ClipboardError>, ChannelError>;
 impl CLIPBOARD {
     fn actual(&self) -> &dyn ActualClipboard {
         if VIEW_PROCESS.is_available() {
@@ -297,14 +297,14 @@ impl CLIPBOARD {
                     if !APP.window_mode().has_renderer() {
                         &CLIPBOARD
                     } else {
-                        &ViewChannelError::Disconnected
+                        &NO_CLIPBOARD
                     }
                 }
             }
         } else if !APP.window_mode().has_renderer() {
             &CLIPBOARD
         } else {
-            &ViewChannelError::Disconnected
+            &NO_CLIPBOARD
         }
     }
 }
@@ -404,7 +404,8 @@ impl ActualClipboard for CLIPBOARD {
         self.headless_clipboard_set((data_type, data))
     }
 }
-impl ActualClipboard for ViewChannelError {
+static NO_CLIPBOARD: ChannelError = ChannelError::Disconnected { cause: None };
+impl ActualClipboard for ChannelError {
     fn read_text(&self) -> ActualClipboardResult<Txt> {
         Err(self.clone())
     }

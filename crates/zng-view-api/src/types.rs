@@ -10,7 +10,6 @@ use crate::{
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect},
     image::{ImageId, ImageLoadedData},
-    ipc::{self, IpcBytes},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
@@ -19,6 +18,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use zng_task::channel::{ChannelError, IpcBytes};
 use zng_txt::Txt;
 use zng_unit::{DipPoint, PxDensity2d, PxRect, PxSize, Rgba};
 
@@ -801,7 +801,7 @@ impl Event {
 }
 
 /// View Process IPC result.
-pub(crate) type VpResult<T> = std::result::Result<T, ipc::ViewChannelError>;
+pub(crate) type VpResult<T> = std::result::Result<T, ChannelError>;
 
 /// Offset and color in a gradient.
 #[repr(C)]

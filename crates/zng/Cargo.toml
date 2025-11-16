@@ -264,7 +264,7 @@ view_bundle_licenses = ["zng-view?/bundle_licenses"]
 # Enables IPC tasks, pre-build views and connecting to views running in another process.
 #
 # Only enables in `not(any(target_os = "android", target_arch = "wasm32", target_os = "ios"))` builds.
-ipc = ["zng-app/ipc", "zng-view-api/ipc", "zng-view?/ipc", "zng-task/ipc"]
+ipc = ["zng-app/ipc", "zng-view-api/ipc", "zng-view?/ipc", "zng-task/ipc", "zng-ext-font/ipc"]
 
 # Check if `zng::env::res` path is available in `init_built_res` first.
 #

@@ -1,5 +1,9 @@
 # Unreleased
 
+* Unity channel types.
+    - **Breaking** Removed `AppChannelError`, `EventReceiver`.
+    - **Breaking** Removed `bytes_channel` and related types. Use an IPC channel with `IpcBytes` messages.
+    - **Breaking** Removed `AppEventSender` *extension* channels. Simply create a wrapper that sends the message and awakes the app.
 * Refactor IPC and worker process API.
     - **Breaking** Remove `zng::task::ipc`.
     - Add `zng::task::channel::ipc_channel` and related types.

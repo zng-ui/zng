@@ -37,10 +37,6 @@ impl INSTANT {
     }
 
     /// Instant of first usage of the [`INSTANT`] service in the process, minus one day.
-    ///
-    /// # Panics
-    ///
-    /// Panics if called in a non-app thread.
     pub fn epoch(&self) -> Instant {
         if let Some(t) = *EPOCH.read() {
             return t;
@@ -239,6 +235,11 @@ impl From<DInstant> for Instant {
         INSTANT.epoch() + t.0
     }
 }
+impl From<Instant> for DInstant {
+    fn from(value: Instant) -> Self {
+        DInstant(value - INSTANT.epoch())
+    }
+}
 
 /// Defines how the [`INSTANT.now`] value updates in the app.
 ///
@@ -343,6 +344,11 @@ impl From<DInstant> for Deadline {
 impl From<Duration> for Deadline {
     fn from(value: Duration) -> Self {
         Deadline::timeout(value)
+    }
+}
+impl From<Instant> for Deadline {
+    fn from(value: Instant) -> Self {
+        DInstant::from(value).into()
     }
 }
 impl ops::Add<Duration> for Deadline {

@@ -36,12 +36,12 @@ use zng_layout::{
     },
 };
 use zng_state_map::StateId;
+use zng_task::channel::ChannelError;
 use zng_var::{Var, VarHandles};
 use zng_view_api::{
     DragDropId, FocusResult, Ime,
     config::{ColorScheme, FontAntiAliasing},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
-    ipc::ViewChannelError,
     window::{
         EventCause, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessRequest, RenderMode, WindowRequest,
         WindowState, WindowStateAll,
@@ -2527,7 +2527,7 @@ fn default_size(scale_factor: Factor) -> PxSize {
 }
 
 /// Respawned error is ok here, because we recreate the window/surface on respawn.
-type Ignore = Result<(), ViewChannelError>;
+type Ignore = Result<(), ChannelError>;
 
 pub(crate) struct NestedContentCtrl {
     content: ContentCtrl,

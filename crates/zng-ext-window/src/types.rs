@@ -8,12 +8,10 @@ use zng_app::{
     window::WindowId,
 };
 use zng_layout::unit::{DipPoint, DipSize, PxPoint};
+use zng_task::channel::ChannelError;
 use zng_unique_id::IdSet;
 use zng_var::impl_from_and_into_var;
-use zng_view_api::{
-    ipc::ViewChannelError,
-    window::{CursorIcon, EventCause},
-};
+use zng_view_api::window::{CursorIcon, EventCause};
 
 pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState};
 use zng_wgt::prelude::IntoUiNode;
@@ -852,7 +850,7 @@ impl fmt::Display for ViewExtensionError {
             Self::WindowNotFound(e) => fmt::Display::fmt(e, f),
             Self::WindowNotHeaded(id) => write!(f, "window `{id}` is not headed"),
             Self::NotOpenInViewProcess(id) => write!(f, "window/renderer `{id}` not open in the view-process"),
-            Self::Disconnected => fmt::Display::fmt(&ViewChannelError::Disconnected, f),
+            Self::Disconnected => fmt::Display::fmt(&DISCONNECTED_SOURCE, f),
             Self::Api(e) => fmt::Display::fmt(e, f),
         }
     }
@@ -863,8 +861,9 @@ impl std::error::Error for ViewExtensionError {
             Self::WindowNotFound(e) => Some(e),
             Self::WindowNotHeaded(_) => None,
             Self::NotOpenInViewProcess(_) => None,
-            Self::Disconnected => Some(&ViewChannelError::Disconnected),
+            Self::Disconnected => Some(&DISCONNECTED_SOURCE),
             Self::Api(e) => Some(e),
         }
     }
 }
+static DISCONNECTED_SOURCE: ChannelError = ChannelError::Disconnected { cause: None };
