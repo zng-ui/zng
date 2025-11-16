@@ -19,7 +19,7 @@ deadlock_detection = ["parking_lot/deadlock_detection"]
 # Enables real worker processes and IPC channels.
 #
 # Only enables in `cfg(not(any(target_os = "android", target_arch = "wasm32", target_os = "ios")))` builds.
-ipc = ["dep:duct", "dep:ipc-channel", "dep:zng-unique-id", "dep:memmap2"]
+ipc = ["dep:ipc-channel", "dep:zng-unique-id", "dep:memmap2"]
 
 # Enables http tasks.
 http = [
@@ -88,7 +88,6 @@ dunce = { version = "1.0", default-features = false }
 serde_bytes = { version = "0.11", features = ["std"], default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-duct = { version = "1.0", default-features = false, optional = true }
 ipc-channel = { version = "0.20", default-features = false, optional = true }
 memmap2 = { version = "0.9.8", default-features = false, optional = true }
 
