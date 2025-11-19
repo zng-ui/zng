@@ -2477,23 +2477,29 @@ impl FontBytes {
                 // usually this is: r"C:\Windows\Fonts"
                 if path.starts_with(fonts_dir) {
                     // SAFETY: Windows restricts write access to files in this directory.
-                    return unsafe { Self::from_file_mmap(path) };
+                    return unsafe { load_from_system(path) };
                 }
             }
             #[cfg(target_os = "macos")]
             if path.starts_with("/System/Library/Fonts/") || path.starts_with("/Library/Fonts/") {
                 // SAFETY: macOS restricts write access to files in this directory.
-                return unsafe { Self::from_file_mmap(path) };
+                return unsafe { load_from_system(path) };
             }
             #[cfg(target_os = "android")]
             if path.starts_with("/system/fonts/") || path.starts_with("/system/font/") || path.starts_with("/system/product/fonts/") {
                 // SAFETY: Android restricts write access to files in this directory.
-                return unsafe { Self::from_file_mmap(path) };
+                return unsafe { load_from_system(path) };
             }
             #[cfg(unix)]
             if path.starts_with("/usr/share/fonts/") {
                 // SAFETY: OS restricts write access to files in this directory.
-                return unsafe { Self::from_file_mmap(path) };
+                return unsafe { load_from_system(path) };
+            }
+
+            unsafe fn load_from_system(path: PathBuf) -> io::Result<FontBytes> {
+                // SAFETY: up to the caller
+                let mmap = unsafe { IpcBytes::open_memmap(path.clone(), None) }?;
+                Ok(FontBytes(FontBytesImpl::System(Arc::new(SystemFontBytes { path, mmap }))))
             }
         }
 

@@ -199,7 +199,51 @@ impl<T: IpcValue> IpcReceiver<T> {
 
     /// Create a blocking iterator that receives until a channel error.
     pub fn iter(&mut self) -> impl Iterator<Item = T> {
-        std::iter::from_fn(|| self.recv_blocking().ok()).fuse()
+        #[cfg(ipc)]
+        {
+            std::iter::from_fn(|| self.recv_blocking().ok()).fuse()
+        }
+        #[cfg(not(ipc))]
+        {
+            self.recv.iter()
+        }
+    }
+
+    /// Returns the next incoming message in the channel or `None`.
+    pub fn try_recv(&mut self) -> Result<Option<T>, ChannelError> {
+        #[cfg(ipc)]
+        {
+            let recv = match self.recv.take() {
+                Some(r) => r,
+                None => return Err(ChannelError::disconnected()),
+            };
+            match recv.try_recv() {
+                Ok(r) => {
+                    self.recv = Some(recv);
+                    Ok(Some(r))
+                }
+                Err(e) => match e {
+                    ipc_channel::ipc::TryRecvError::IpcError(e) => Err(ChannelError::disconnected_by(e)),
+                    ipc_channel::ipc::TryRecvError::Empty => Ok(None),
+                },
+            }
+        }
+        #[cfg(not(ipc))]
+        {
+            self.recv.try_recv()
+        }
+    }
+
+    /// Iterate over all the pending incoming messages in the channel, until the channel is empty or error.
+    pub fn try_iter(&mut self) -> impl Iterator<Item = T> {
+        #[cfg(ipc)]
+        {
+            std::iter::from_fn(|| self.try_recv().ok().flatten()).fuse()
+        }
+        #[cfg(not(ipc))]
+        {
+            self.recv.try_iter()
+        }
     }
 }
 impl<T: IpcValue> Serialize for IpcReceiver<T> {

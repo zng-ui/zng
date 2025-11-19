@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "config"), allow(unused))]
+
 use std::time::Duration;
 
 #[cfg(feature = "config")]

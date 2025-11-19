@@ -981,7 +981,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         let mut winit_loop_guard = self.winit_loop.set(winit_loop);
         match ev {
             AppEvent::Request => {
-                while let Ok(req) = self.request_recv.recv_blocking() {
+                while let Ok(Some(req)) = self.request_recv.try_recv() {
                     match req {
                         RequestEvent::Request(req) => {
                             let rsp = self.respond(req);
@@ -991,7 +991,9 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                                 self.winit_loop.exit();
                             }
                         }
-                        RequestEvent::FrameReady(wid, msg) => self.on_frame_ready(wid, msg),
+                        RequestEvent::FrameReady(wid, msg) => {
+                            self.on_frame_ready(wid, msg);
+                        }
                     }
                 }
             }
@@ -2290,6 +2292,7 @@ impl Api for App {
 
     #[cfg(not(any(windows, target_os = "android")))]
     fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
+        use zng_txt::ToTxt as _;
         match data_type {
             clipboard::ClipboardType::Text => self
                 .arboard()?
@@ -2307,7 +2310,7 @@ impl Api for App {
                         size: zng_unit::PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
                         density: None,
                     },
-                    IpcBytes::from_vec(data),
+                    IpcBytes::from_vec(data).map_err(|e| clipboard::ClipboardError::Other(e.to_txt()))?,
                     u64::MAX,
                     None,
                     None,
