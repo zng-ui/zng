@@ -66,7 +66,9 @@ impl Window {
             directional_nav = DirectionalNav::Cycle;
             focus_scope_behavior = FocusScopeOnFocus::LastFocused;
 
+            #[cfg(feature = "config")]
             config_block_window_load = true;
+            #[cfg(feature = "config")]
             save_state = SaveState::enabled();
 
             safe_padding = contextual_var(|| WINDOW.vars().safe_padding().map(|p| SideOffsets::from(*p)));

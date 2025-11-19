@@ -14,6 +14,7 @@
     - **Breaking** Remove conversions from underlying channel types.
     - **Breaking** Remove public `duct` crate types.
 * Add blocking API for `zng::task::channel` sender and receiver.
+* Fix `Window!` config properties trying to use `CONFIG` in builds without `"config"` feature.
 
 # 0.19.2
 
