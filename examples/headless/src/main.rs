@@ -6,6 +6,10 @@ mod video;
 
 fn main() {
     zng::env::init!();
+    // zng::view_process::default::run_same_process(run);
+    run();
+}
+fn run() {
     match std::env::args().nth(1).unwrap_or_default().as_str() {
         "image" => image::run(),
         "video" => video::run(),

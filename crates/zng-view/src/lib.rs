@@ -1268,7 +1268,7 @@ impl App {
                     match self.app_receiver.recv_blocking() {
                         Ok(app_ev) => match app_ev {
                             AppEvent::Request => {
-                                while let Ok(request) = self.app.request_recv.recv_blocking() {
+                                while let Ok(Some(request)) = self.app.request_recv.try_recv() {
                                     match request {
                                         RequestEvent::Request(request) => {
                                             let response = self.app.respond(request);
