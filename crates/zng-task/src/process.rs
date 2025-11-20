@@ -206,7 +206,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
         };
 
         let (rsp_sender, mut rsp_recv) = crate::channel::ipc_unbounded()?;
-        crate::wait(move || chan_sender.send(rsp_sender)).await.unwrap();
+        crate::wait(move || chan_sender.send_blocking(rsp_sender)).await.unwrap();
 
         let requests = Arc::new(Mutex::new(IdMap::<RequestId, flume::Sender<O>>::new()));
         let receiver = std::thread::Builder::new()
@@ -294,7 +294,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
         let requests = self.requests.clone();
         requests.lock().insert(id, sx);
         let mut sender = self.sender.clone();
-        let send_r = crate::wait(move || sender.send((id, request)));
+        let send_r = crate::wait(move || sender.send_blocking((id, request)));
 
         Box::pin(async move {
             if let Err(e) = send_r.await {
@@ -387,7 +387,7 @@ where
                 Ok((id, input)) => match input {
                     Request::Run(r) => crate::spawn(async_clmv!(handler, mut rsp_sender, {
                         let output = handler(RequestArgs { request: r }).await;
-                        let _ = rsp_sender.send((id, Response::Out(output)));
+                        let _ = rsp_sender.send_blocking((id, Response::Out(output)));
                     })),
                 },
                 Err(e) => match e {

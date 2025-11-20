@@ -34,7 +34,7 @@ zng-wgt-markdown = { path = "../zng-wgt-markdown", version = "0.10.2", default-f
 zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.11.2", default-features = false }
 zng-ext-input = { path = "../zng-ext-input", version = "0.12.2", default-features = false }
 zng-ext-window = { path = "../zng-ext-window", version = "0.10.2", default-features = false }
-zng-wgt-window = { path = "../zng-wgt-window", version = "0.13.2", default-features = false }
+zng-wgt-window = { path = "../zng-wgt-window", version = "0.13.2", default-features = false, features = ["config"] }
 zng-env = { path = "../zng-env", version = "0.8.0", default-features = false }
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.12.2", default-features = false }
 zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.10.2", default-features = false }

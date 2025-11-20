@@ -10,6 +10,7 @@
 #![expect(clippy::type_complexity)]
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
+#![cfg_attr(not(ipc), allow(unused))]
 
 use font_features::RFontVariations;
 use hashbrown::{HashMap, HashSet};
@@ -2420,7 +2421,6 @@ impl WeakFontBytes {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 struct SystemFontBytes {
     path: std::path::PathBuf,
     mmap: IpcBytes,
@@ -2432,7 +2432,6 @@ enum FontBytesImpl {
     Ipc(IpcBytes),
     Arc(Arc<Vec<u8>>),
     Static(&'static [u8]),
-    #[cfg(not(target_arch = "wasm32"))]
     System(Arc<SystemFontBytes>),
 }
 /// Reference to in memory font data.
@@ -2465,42 +2464,46 @@ impl FontBytes {
     pub fn from_file(path: PathBuf) -> io::Result<Self> {
         let path = dunce::canonicalize(path)?;
 
-        #[cfg(ipc)]
+        #[cfg(windows)]
         {
-            #[cfg(windows)]
-            {
-                use windows::Win32::{Foundation::MAX_PATH, System::SystemInformation::GetSystemWindowsDirectoryW};
-                let mut buffer = [0u16; MAX_PATH as usize];
-                // SAFETY: Buffer allocated to max possible
-                let len = unsafe { GetSystemWindowsDirectoryW(Some(&mut buffer)) };
-                let fonts_dir = String::from_utf16_lossy(&buffer[..len as usize]);
-                // usually this is: r"C:\Windows\Fonts"
-                if path.starts_with(fonts_dir) {
-                    // SAFETY: Windows restricts write access to files in this directory.
-                    return unsafe { load_from_system(path) };
-                }
-            }
-            #[cfg(target_os = "macos")]
-            if path.starts_with("/System/Library/Fonts/") || path.starts_with("/Library/Fonts/") {
-                // SAFETY: macOS restricts write access to files in this directory.
+            use windows::Win32::{Foundation::MAX_PATH, System::SystemInformation::GetSystemWindowsDirectoryW};
+            let mut buffer = [0u16; MAX_PATH as usize];
+            // SAFETY: Buffer allocated to max possible
+            let len = unsafe { GetSystemWindowsDirectoryW(Some(&mut buffer)) };
+            let fonts_dir = String::from_utf16_lossy(&buffer[..len as usize]);
+            // usually this is: r"C:\Windows\Fonts"
+            if path.starts_with(fonts_dir) {
+                // SAFETY: Windows restricts write access to files in this directory.
                 return unsafe { load_from_system(path) };
             }
-            #[cfg(target_os = "android")]
-            if path.starts_with("/system/fonts/") || path.starts_with("/system/font/") || path.starts_with("/system/product/fonts/") {
-                // SAFETY: Android restricts write access to files in this directory.
-                return unsafe { load_from_system(path) };
-            }
-            #[cfg(unix)]
-            if path.starts_with("/usr/share/fonts/") {
-                // SAFETY: OS restricts write access to files in this directory.
-                return unsafe { load_from_system(path) };
-            }
+        }
+        #[cfg(target_os = "macos")]
+        if path.starts_with("/System/Library/Fonts/") || path.starts_with("/Library/Fonts/") {
+            // SAFETY: macOS restricts write access to files in this directory.
+            return unsafe { load_from_system(path) };
+        }
+        #[cfg(target_os = "android")]
+        if path.starts_with("/system/fonts/") || path.starts_with("/system/font/") || path.starts_with("/system/product/fonts/") {
+            // SAFETY: Android restricts write access to files in this directory.
+            return unsafe { load_from_system(path) };
+        }
+        #[cfg(unix)]
+        if path.starts_with("/usr/share/fonts/") {
+            // SAFETY: OS restricts write access to files in this directory.
+            return unsafe { load_from_system(path) };
+        }
 
-            unsafe fn load_from_system(path: PathBuf) -> io::Result<FontBytes> {
-                // SAFETY: up to the caller
-                let mmap = unsafe { IpcBytes::open_memmap(path.clone(), None) }?;
-                Ok(FontBytes(FontBytesImpl::System(Arc::new(SystemFontBytes { path, mmap }))))
-            }
+        #[cfg(ipc)]
+        unsafe fn load_from_system(path: PathBuf) -> io::Result<FontBytes> {
+            // SAFETY: up to the caller
+            let mmap = unsafe { IpcBytes::open_memmap(path.clone(), None) }?;
+            Ok(FontBytes(FontBytesImpl::System(Arc::new(SystemFontBytes { path, mmap }))))
+        }
+
+        #[cfg(all(not(ipc), not(target_arch = "wasm32")))]
+        unsafe fn load_from_system(path: PathBuf) -> io::Result<FontBytes> {
+            let mmap = IpcBytes::from_file(&path)?;
+            Ok(FontBytes(FontBytesImpl::System(Arc::new(SystemFontBytes { path, mmap }))))
         }
 
         Ok(Self(FontBytesImpl::Ipc(IpcBytes::from_file(&path)?)))
@@ -2546,7 +2549,6 @@ impl FontBytes {
             FontBytesImpl::Ipc(b) => Ok(b.clone()),
             FontBytesImpl::Arc(b) => IpcBytes::from_slice(b),
             FontBytesImpl::Static(b) => IpcBytes::from_slice(b),
-            #[cfg(not(target_arch = "wasm32"))]
             FontBytesImpl::System(m) => IpcBytes::from_slice(&m.mmap[..]),
         }
     }
@@ -2557,7 +2559,6 @@ impl FontBytes {
             FontBytesImpl::Ipc(ipc) => WeakFontBytes::Ipc(ipc.downgrade()),
             FontBytesImpl::Arc(arc) => WeakFontBytes::Arc(Arc::downgrade(arc)),
             FontBytesImpl::Static(b) => WeakFontBytes::Static(b),
-            #[cfg(not(target_arch = "wasm32"))]
             FontBytesImpl::System(arc) => WeakFontBytes::Mmap(Arc::downgrade(arc)),
         }
     }
@@ -2570,7 +2571,6 @@ impl std::ops::Deref for FontBytes {
             FontBytesImpl::Ipc(b) => &b[..],
             FontBytesImpl::Arc(b) => &b[..],
             FontBytesImpl::Static(b) => b,
-            #[cfg(not(target_arch = "wasm32"))]
             FontBytesImpl::System(m) => &m.mmap[..],
         }
     }
@@ -2584,12 +2584,10 @@ impl fmt::Debug for FontBytes {
                 FontBytesImpl::Ipc(_) => "IpcBytes",
                 FontBytesImpl::Arc(_) => "Arc",
                 FontBytesImpl::Static(_) => "Static",
-                #[cfg(not(target_arch = "wasm32"))]
-                FontBytesImpl::System { .. } => "Mmap",
+                FontBytesImpl::System(_) => "Mmap",
             },
         );
         b.field(".len", &self.len().bytes());
-        #[cfg(not(target_arch = "wasm32"))]
         if let FontBytesImpl::System(m) = &self.0 {
             b.field(".path", &m.path);
         }

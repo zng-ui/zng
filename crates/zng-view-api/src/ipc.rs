@@ -39,7 +39,7 @@ impl AppInit {
         let (req_sender, req_recv) = channel::ipc_unbounded()?;
         let (rsp_sender, rsp_recv) = channel::ipc_unbounded()?;
         let (evt_sender, evt_recv) = channel::ipc_unbounded()?;
-        init_sender.send((req_recv, rsp_sender, evt_sender))?;
+        init_sender.send_blocking((req_recv, rsp_sender, evt_sender))?;
         Ok((
             RequestSender(Mutex::new(req_sender)),
             ResponseReceiver(Mutex::new(rsp_recv)),
@@ -83,7 +83,11 @@ type IpcResult<T> = Result<T, ChannelError>;
 pub(crate) struct RequestSender(Mutex<IpcSender<Request>>);
 impl RequestSender {
     pub fn send(&mut self, req: Request) -> IpcResult<()> {
-        self.0.get_mut().send(req)
+        let r = self.0.get_mut().send_blocking(req);
+        if let Err(e) = &r {
+            tracing::error!("request sender error, {e}");
+        }
+        r
     }
 }
 
@@ -97,7 +101,11 @@ pub struct RequestReceiver(Mutex<IpcReceiver<Request>>); // Mutex for Sync
 impl RequestReceiver {
     /// Receive one [`Request`].
     pub fn recv(&mut self) -> IpcResult<Request> {
-        self.0.get_mut().recv_blocking()
+        let r = self.0.get_mut().recv_blocking();
+        if let Err(e) = &r {
+            tracing::error!("request receiver error, {e}");
+        }
+        r
     }
 }
 
@@ -119,13 +127,21 @@ impl ResponseSender {
     /// [`must_be_send`]: Response::must_be_send
     pub fn send(&mut self, rsp: Response) -> IpcResult<()> {
         assert!(rsp.must_be_send());
-        self.0.get_mut().send(rsp)
+        let r = self.0.get_mut().send_blocking(rsp);
+        if let Err(e) = &r {
+            tracing::error!("response sender error, {e}");
+        }
+        r
     }
 }
 pub(crate) struct ResponseReceiver(Mutex<IpcReceiver<Response>>);
 impl ResponseReceiver {
     pub fn recv(&mut self) -> IpcResult<Response> {
-        self.0.get_mut().recv_blocking()
+        let r = self.0.get_mut().recv_blocking();
+        if let Err(e) = &r {
+            tracing::error!("response receiver error, {e}");
+        }
+        r
     }
 }
 
@@ -139,16 +155,31 @@ pub struct EventSender(Mutex<IpcSender<Event>>);
 impl EventSender {
     /// Send an event notification.
     pub fn send(&mut self, ev: Event) -> IpcResult<()> {
-        self.0.get_mut().send(ev)
+        let r = self.0.get_mut().send_blocking(ev);
+        if let Err(e) = &r {
+            tracing::error!("event sender error, {e}");
+        }
+        r
     }
 }
 pub(crate) struct EventReceiver(Mutex<IpcReceiver<Event>>);
 impl EventReceiver {
     pub fn recv(&mut self) -> IpcResult<Event> {
-        self.0.get_mut().recv_blocking()
+        let r = self.0.get_mut().recv_blocking();
+        if let Err(e) = &r {
+            tracing::error!("event receiver error, {e}");
+        }
+        r
     }
 
     pub fn recv_timeout(&mut self, duration: Duration) -> IpcResult<Event> {
-        self.0.get_mut().recv_deadline_blocking(duration)
+        let r = self.0.get_mut().recv_deadline_blocking(duration);
+        if let Err(e) = &r {
+            match e {
+                ChannelError::Timeout => {}
+                e => tracing::error!("event receiver error, {e}"),
+            }
+        }
+        r
     }
 }

@@ -454,7 +454,7 @@ impl<'de> Deserialize<'de> for IpcBytes {
                     #[cfg(ipc)]
                     VariantId::MemMap => {
                         let (memmap, mut completion_sender): (IpcMemMap, crate::channel::IpcSender<()>) = access.newtype_variant()?;
-                        completion_sender.send(()).map_err(|e| {
+                        completion_sender.send_blocking(()).map_err(|e| {
                             serde::de::Error::custom(format!("cannot deserialize memmap bytes, completion signal failed, {e}"))
                         })?;
                         Ok(IpcBytes(Arc::new(IpcBytesData::MemMap(memmap))))

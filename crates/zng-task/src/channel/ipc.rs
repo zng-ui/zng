@@ -31,8 +31,8 @@ impl<T: IpcValue> Clone for IpcSender<T> {
 impl<T: IpcValue> IpcSender<T> {
     /// Send a value into the channel.
     ///
-    /// IPC channels are unbounded, this never blocks.
-    pub fn send(&mut self, msg: T) -> Result<(), ChannelError> {
+    /// IPC channels are unbounded, this never blocks in the current release.
+    pub fn send_blocking(&mut self, msg: T) -> Result<(), ChannelError> {
         #[cfg(ipc)]
         {
             let sender = match self.sender.take() {
@@ -182,7 +182,10 @@ impl<T: IpcValue> IpcReceiver<T> {
                     }
                     Err(e) => match e {
                         ipc_channel::ipc::TryRecvError::IpcError(e) => Err(ChannelError::disconnected_by(e)),
-                        ipc_channel::ipc::TryRecvError::Empty => Err(ChannelError::Timeout),
+                        ipc_channel::ipc::TryRecvError::Empty => {
+                            self.recv = Some(recv);
+                            Err(ChannelError::Timeout)
+                        },
                     },
                 },
                 None => {
