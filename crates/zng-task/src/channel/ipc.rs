@@ -185,7 +185,7 @@ impl<T: IpcValue> IpcReceiver<T> {
                         ipc_channel::ipc::TryRecvError::Empty => {
                             self.recv = Some(recv);
                             Err(ChannelError::Timeout)
-                        },
+                        }
                     },
                 },
                 None => {
