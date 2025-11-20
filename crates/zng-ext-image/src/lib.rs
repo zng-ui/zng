@@ -40,11 +40,11 @@ mod render;
 #[doc(inline)]
 pub use render::{IMAGE_RENDER, IMAGES_WINDOW, ImageRenderWindowRoot, ImageRenderWindowsService, render_retain};
 use zng_layout::unit::{ByteLength, ByteUnits};
-use zng_task::UiTask;
+use zng_task::{UiTask, channel::IpcBytes};
 use zng_txt::{ToTxt, Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap};
 use zng_var::{Var, WeakVar, var};
-use zng_view_api::{image::ImageRequest, ipc::IpcBytes};
+use zng_view_api::image::ImageRequest;
 
 /// Application extension that provides an image cache.
 ///
@@ -422,7 +422,7 @@ impl ImagesService {
                 if is_loading {
                     self.decoding.push(ImageDecodingTask {
                         format,
-                        data: IpcBytes::from_vec(vec![]),
+                        data: IpcBytes::default(),
                         image: img_var.clone(),
                     });
                 }
@@ -650,7 +650,10 @@ impl ImagesService {
 
                     let mut data = Vec::with_capacity(len);
                     r.r = match file.read_to_end(&mut data).await {
-                        Ok(_) => Ok(IpcBytes::from_vec(data)),
+                        Ok(_) => match IpcBytes::from_vec(data) {
+                            Ok(r) => Ok(r),
+                            Err(e) => Err(e.to_txt()),
+                        },
                         Err(e) => Err(e.to_txt()),
                     };
 
@@ -691,7 +694,12 @@ impl ImagesService {
                                 }
 
                                 match rsp.bytes().await {
-                                    Ok(d) => r.r = Ok(IpcBytes::from_vec(d)),
+                                    Ok(d) => {
+                                        r.r = match IpcBytes::from_vec(d) {
+                                            Ok(r) => Ok(r),
+                                            Err(e) => Err(e.to_txt()),
+                                        }
+                                    }
                                     Err(e) => {
                                         r.r = Err(formatx!("download error: {e}"));
                                     }
@@ -711,14 +719,14 @@ impl ImagesService {
             ImageSource::Static(_, bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
-                    r: Ok(IpcBytes::from_slice(bytes)),
+                    r: IpcBytes::from_slice(bytes).map_err(|e| e.to_txt()),
                 };
                 self.load_task(key, mode, limits.max_decoded_len, downscale, mask, false, async { r })
             }
             ImageSource::Data(_, bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
-                    r: Ok(IpcBytes::from_slice(&bytes)),
+                    r: IpcBytes::from_slice(&bytes).map_err(|e| e.to_txt()),
                 };
                 self.load_task(key, mode, limits.max_decoded_len, downscale, mask, false, async { r })
             }

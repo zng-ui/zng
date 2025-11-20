@@ -107,6 +107,7 @@ use winit::{
     keyboard::ModifiersState,
     monitor::MonitorHandle,
 };
+use zng_task::channel::{self, ChannelError, IpcBytes, IpcReceiver, Receiver, Sender};
 
 #[cfg(not(target_os = "android"))]
 use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
@@ -151,7 +152,6 @@ use zng_view_api::{
     drag_drop::*,
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageRequest, ImageTextureId},
-    ipc::{IpcBytes, IpcBytesReceiver},
     keyboard::{Key, KeyCode, KeyState},
     mouse::ButtonId,
     raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
@@ -347,7 +347,7 @@ pub(crate) struct App {
     winit_loop: util::WinitEventLoop,
     idle: IdleTrace,
     app_sender: AppEventSender,
-    request_recv: flume::Receiver<RequestEvent>,
+    request_recv: Receiver<RequestEvent>,
 
     response_sender: ipc::ResponseSender,
     event_sender: ipc::EventSender,
@@ -498,7 +498,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     tracing::debug!("resize requested while still rendering");
 
                     // forward requests until webrender finishes or timeout.
-                    while let Ok(req) = self.request_recv.recv_deadline(deadline) {
+                    while let Ok(req) = self.request_recv.recv_deadline_blocking(deadline) {
                         match req {
                             RequestEvent::Request(req) => {
                                 let rsp = self.respond(req);
@@ -536,7 +536,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 // "modal" loop, breaks in 300ms or when a frame is received.
                 let mut received_frame = false;
                 loop {
-                    match self.request_recv.recv_deadline(deadline) {
+                    match self.request_recv.recv_deadline_blocking(deadline) {
                         Ok(req) => {
                             match req {
                                 RequestEvent::Request(req) => {
@@ -560,13 +560,13 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                             }
                         }
 
-                        Err(flume::RecvTimeoutError::Timeout) => {
+                        Err(ChannelError::Timeout) => {
                             // did not receive a new frame in time.
                             break;
                         }
-                        Err(flume::RecvTimeoutError::Disconnected) => {
+                        Err(e) => {
                             winit_loop_guard.unset(&mut self.winit_loop);
-                            unreachable!()
+                            panic!("{e}");
                         }
                     }
                 }
@@ -574,7 +574,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 // if we are still within 300ms, await webrender.
                 if received_frame && deadline > Instant::now() {
                     // forward requests until webrender finishes or timeout.
-                    while let Ok(req) = self.request_recv.recv_deadline(deadline) {
+                    while let Ok(req) = self.request_recv.recv_deadline_blocking(deadline) {
                         match req {
                             RequestEvent::Request(req) => {
                                 let rsp = self.respond(req);
@@ -981,7 +981,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         let mut winit_loop_guard = self.winit_loop.set(winit_loop);
         match ev {
             AppEvent::Request => {
-                while let Ok(req) = self.request_recv.try_recv() {
+                while let Ok(Some(req)) = self.request_recv.try_recv() {
                     match req {
                         RequestEvent::Request(req) => {
                             let rsp = self.respond(req);
@@ -991,7 +991,9 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                                 self.winit_loop.exit();
                             }
                         }
-                        RequestEvent::FrameReady(wid, msg) => self.on_frame_ready(wid, msg),
+                        RequestEvent::FrameReady(wid, msg) => {
+                            self.on_frame_ready(wid, msg);
+                        }
                     }
                 }
             }
@@ -1211,8 +1213,8 @@ impl App {
 
         gl::warmup();
 
-        let (app_sender, app_receiver) = flume::unbounded();
-        let (request_sender, request_receiver) = flume::unbounded();
+        let (app_sender, app_receiver) = channel::unbounded();
+        let (request_sender, request_receiver) = channel::unbounded();
         let mut app = App::new(
             AppEventSender::Headless(app_sender, request_sender),
             ipc.response_sender,
@@ -1253,7 +1255,7 @@ impl App {
         struct HeadlessApp {
             app: App,
             request_receiver: Option<ipc::RequestReceiver>,
-            app_receiver: flume::Receiver<AppEvent>,
+            app_receiver: Receiver<AppEvent>,
         }
         impl winit::application::ApplicationHandler<()> for HeadlessApp {
             fn resumed(&mut self, winit_loop: &ActiveEventLoop) {
@@ -1263,10 +1265,10 @@ impl App {
                 self.app.start_receiving(self.request_receiver.take().unwrap());
 
                 'app_loop: while !self.app.exited {
-                    match self.app_receiver.recv() {
+                    match self.app_receiver.recv_blocking() {
                         Ok(app_ev) => match app_ev {
                             AppEvent::Request => {
-                                while let Ok(request) = self.app.request_recv.try_recv() {
+                                while let Ok(Some(request)) = self.app.request_recv.try_recv() {
                                     match request {
                                         RequestEvent::Request(request) => {
                                             let response = self.app.respond(request);
@@ -1348,7 +1350,7 @@ impl App {
         drop(winit_span);
         let app_sender = event_loop.create_proxy();
 
-        let (request_sender, request_receiver) = flume::unbounded();
+        let (request_sender, request_receiver) = channel::unbounded();
         let mut app = App::new(
             AppEventSender::Headed(app_sender, request_sender),
             ipc.response_sender,
@@ -1373,7 +1375,7 @@ impl App {
         app_sender: AppEventSender,
         response_sender: ipc::ResponseSender,
         event_sender: ipc::EventSender,
-        request_recv: flume::Receiver<RequestEvent>,
+        request_recv: channel::Receiver<RequestEvent>,
         mut exts: ViewExtensions,
     ) -> Self {
         exts.renderer("zng-view.webrender_debug", extensions::RendererDebugExt::new);
@@ -1429,7 +1431,7 @@ impl App {
             .stack_size(256 * 1024)
             .spawn(move || {
                 while let Ok(r) = request_recv.recv() {
-                    if let Err(ipc::ViewChannelError::Disconnected) = app_sender.request(r) {
+                    if app_sender.request(r).is_err() {
                         break;
                     }
                 }
@@ -2084,7 +2086,7 @@ impl Api for App {
         self.image_cache.add(request)
     }
 
-    fn add_image_pro(&mut self, request: ImageRequest<IpcBytesReceiver>) -> ImageId {
+    fn add_image_pro(&mut self, request: ImageRequest<IpcReceiver<IpcBytes>>) -> ImageId {
         self.image_cache.add_pro(request)
     }
 
@@ -2118,7 +2120,7 @@ impl Api for App {
         unimplemented!()
     }
 
-    fn add_audio_pro(&mut self, _request: audio::AudioRequest<IpcBytesReceiver>) -> audio::AudioId {
+    fn add_audio_pro(&mut self, _request: audio::AudioRequest<IpcReceiver<IpcBytes>>) -> audio::AudioId {
         unimplemented!()
     }
 
@@ -2224,13 +2226,15 @@ impl Api for App {
                     .map(|s: String| clipboard::ClipboardData::Text(Txt::from_str(&s)))
             }
             clipboard::ClipboardType::Image => {
+                use zng_txt::ToTxt as _;
+
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
                 let bitmap = clipboard_win::get(clipboard_win::formats::Bitmap).map_err(util::clipboard_win_to_clip)?;
 
                 let id = self.image_cache.add(ImageRequest::new(
                     image::ImageDataFormat::FileExtension(Txt::from_str("bmp")),
-                    IpcBytes::from_vec(bitmap),
+                    IpcBytes::from_vec(bitmap).map_err(|e| clipboard::ClipboardError::Other(e.to_txt()))?,
                     u64::MAX,
                     None,
                     None,
@@ -2288,6 +2292,7 @@ impl Api for App {
 
     #[cfg(not(any(windows, target_os = "android")))]
     fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
+        use zng_txt::ToTxt as _;
         match data_type {
             clipboard::ClipboardType::Text => self
                 .arboard()?
@@ -2305,7 +2310,7 @@ impl Api for App {
                         size: zng_unit::PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
                         density: None,
                     },
-                    IpcBytes::from_vec(data),
+                    IpcBytes::from_vec(data).map_err(|e| clipboard::ClipboardError::Other(e.to_txt()))?,
                     u64::MAX,
                     None,
                     None,
@@ -2486,36 +2491,32 @@ pub(crate) struct FrameReadyMsg {
 /// Abstraction over channel senders that can inject [`AppEvent`] in the app loop.
 #[derive(Clone)]
 pub(crate) enum AppEventSender {
-    Headed(EventLoopProxy<AppEvent>, flume::Sender<RequestEvent>),
-    Headless(flume::Sender<AppEvent>, flume::Sender<RequestEvent>),
+    Headed(EventLoopProxy<AppEvent>, Sender<RequestEvent>),
+    Headless(Sender<AppEvent>, Sender<RequestEvent>),
 }
 impl AppEventSender {
     /// Send an event.
-    fn send(&self, ev: AppEvent) -> Result<(), ipc::ViewChannelError> {
+    fn send(&self, ev: AppEvent) -> Result<(), ChannelError> {
         match self {
-            AppEventSender::Headed(p, _) => p.send_event(ev).map_err(|_| ipc::ViewChannelError::Disconnected),
-            AppEventSender::Headless(p, _) => p.send(ev).map_err(|_| ipc::ViewChannelError::Disconnected),
+            AppEventSender::Headed(p, _) => p.send_event(ev).map_err(ChannelError::disconnected_by),
+            AppEventSender::Headless(p, _) => p.send_blocking(ev),
         }
     }
 
     /// Send a request.
-    fn request(&self, req: Request) -> Result<(), ipc::ViewChannelError> {
+    fn request(&self, req: Request) -> Result<(), ChannelError> {
         match self {
-            AppEventSender::Headed(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| ipc::ViewChannelError::Disconnected),
-            AppEventSender::Headless(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| ipc::ViewChannelError::Disconnected),
+            AppEventSender::Headed(_, p) => p.send_blocking(RequestEvent::Request(req)),
+            AppEventSender::Headless(_, p) => p.send_blocking(RequestEvent::Request(req)),
         }?;
         self.send(AppEvent::Request)
     }
 
     /// Send a frame-ready.
-    fn frame_ready(&self, window_id: WindowId, msg: FrameReadyMsg) -> Result<(), ipc::ViewChannelError> {
+    fn frame_ready(&self, window_id: WindowId, msg: FrameReadyMsg) -> Result<(), ChannelError> {
         match self {
-            AppEventSender::Headed(_, p) => p
-                .send(RequestEvent::FrameReady(window_id, msg))
-                .map_err(|_| ipc::ViewChannelError::Disconnected),
-            AppEventSender::Headless(_, p) => p
-                .send(RequestEvent::FrameReady(window_id, msg))
-                .map_err(|_| ipc::ViewChannelError::Disconnected),
+            AppEventSender::Headed(_, p) => p.send_blocking(RequestEvent::FrameReady(window_id, msg)),
+            AppEventSender::Headless(_, p) => p.send_blocking(RequestEvent::FrameReady(window_id, msg)),
         }?;
         self.send(AppEvent::Request)
     }

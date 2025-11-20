@@ -1,7 +1,11 @@
+#![cfg_attr(not(feature = "config"), allow(unused))]
+
 use std::time::Duration;
 
-use zng_app::widget::base::Parallel;
+#[cfg(feature = "config")]
 use zng_ext_config::{AnyConfig as _, CONFIG, ConfigKey, ConfigStatus, ConfigValue};
+
+use zng_app::widget::base::Parallel;
 use zng_ext_window::{
     AutoSize, MONITORS, MonitorQuery, WINDOW_Ext as _, WINDOW_LOAD_EVENT, WINDOWS, WindowButton, WindowIcon, WindowLoadingHandle,
     WindowState, WindowVars,
@@ -147,6 +151,7 @@ pub fn clear_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> UiNode 
 /// See the [`save_state_node`] for more details.
 ///
 /// [`save_state`]: fn@save_state
+#[cfg(feature = "config")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SaveState {
     /// Save and restore state.
@@ -162,12 +167,14 @@ pub enum SaveState {
     /// Don't save nor restore state.
     Disabled,
 }
+#[cfg(feature = "config")]
 impl Default for SaveState {
     /// Enabled, no key, delay 1s.
     fn default() -> Self {
         Self::enabled()
     }
 }
+#[cfg(feature = "config")]
 impl SaveState {
     /// Default, enabled, no key.
     pub const fn enabled() -> Self {
@@ -206,6 +213,7 @@ impl SaveState {
         }
     }
 }
+#[cfg(feature = "config")]
 impl_from_and_into_var! {
     /// Convert `true` to default config and `false` to `None`.
     fn from(persist: bool) -> SaveState {
@@ -222,6 +230,7 @@ impl_from_and_into_var! {
 /// The `on_update_save` closure is called every update after the window loads, if it returns a value the config is updated.
 /// If the argument is `true` the closure must return a value, this value is used as the CONFIG fallback value that is required
 /// by some config backends even when the config is already present.
+#[cfg(feature = "config")]
 pub fn save_state_node<S: ConfigValue>(
     child: impl IntoUiNode,
     enabled: impl IntoValue<SaveState>,
@@ -353,6 +362,7 @@ pub fn save_state_node<S: ConfigValue>(
 /// the state only actually enables if the window root widget ID or the window ID have a name.
 ///
 /// [`CONFIG`]: zng_ext_config::CONFIG
+#[cfg(feature = "config")]
 #[property(CONTEXT, default(SaveState::Disabled), widget_impl(Window))]
 pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) -> UiNode {
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -465,6 +475,7 @@ impl_from_and_into_var! {
 /// This property is enabled by default in the `Window!` widget.
 ///
 /// [`CONFIG.status`]: CONFIG::status
+#[cfg(feature = "config")]
 #[property(CONTEXT, default(false), widget_impl(Window))]
 pub fn config_block_window_load(child: impl IntoUiNode, enabled: impl IntoValue<BlockWindowLoad>) -> UiNode {
     let enabled = enabled.into();

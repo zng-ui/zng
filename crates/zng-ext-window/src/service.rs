@@ -27,6 +27,8 @@ use zng_app_context::app_local;
 use zng_color::{COLOR_SCHEME_VAR, colors::ACCENT_COLOR_VAR};
 use zng_layout::unit::FactorUnits;
 use zng_layout::unit::TimeUnits as _;
+#[cfg(feature = "image")]
+use zng_task::channel::ChannelError;
 use zng_task::{
     ParallelIteratorExt, UiTask,
     rayon::iter::{IntoParallelRefMutIterator, ParallelIterator},
@@ -65,7 +67,7 @@ use zng_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, 
 use crate::{FRAME_IMAGE_READY_EVENT, FrameCaptureMode, HeadlessMonitor, StartPosition};
 
 #[cfg(feature = "image")]
-use zng_view_api::{image::ImageMaskMode, ipc::ViewChannelError};
+use zng_view_api::image::ImageMaskMode;
 
 #[cfg(feature = "image")]
 use zng_var::WeakVar;
@@ -199,7 +201,7 @@ impl WindowsService {
     fn frame_image_impl(
         &mut self,
         window_id: WindowId,
-        action: impl FnOnce(&ViewRenderer) -> std::result::Result<ViewImage, ViewChannelError>,
+        action: impl FnOnce(&ViewRenderer) -> std::result::Result<ViewImage, ChannelError>,
     ) -> ImageVar {
         if let Some(w) = self.windows_info.get(&window_id) {
             if let Some(r) = &w.view {
@@ -653,10 +655,8 @@ impl WINDOWS {
         // start receiving before loading check otherwise could load after check and before receiver creation.
         let recv = WINDOW_LOAD_EVENT.receiver();
         while Self.is_loading(window_id) {
-            while let Ok(msg) = zng_task::with_deadline(recv.recv_async(), 1.secs()).await {
-                if let Ok(args) = msg
-                    && args.window_id == window_id
-                {
+            while let Ok(args) = recv.recv_deadline(1.secs()).await {
+                if args.window_id == window_id {
                     if wait_event {
                         zng_task::yield_now().await;
                     }

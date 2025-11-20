@@ -7,6 +7,7 @@ use std::{
     time::Duration,
 };
 use zng_handle::{Handle, HandleOwner};
+use zng_task::channel::{self, ChannelError};
 use zng_unit::TimeUnits;
 
 use crate::{WatcherHandle, fs_event};
@@ -321,13 +322,13 @@ enum PollMsg {
 ///
 /// We don't use the `notify` poll watcher to ignore path not found.
 struct PollWatcher {
-    sender: flume::Sender<PollMsg>,
+    sender: channel::Sender<PollMsg>,
     worker: Option<std::thread::JoinHandle<()>>,
 }
 
 impl PollWatcher {
     fn send_msg(&mut self, msg: PollMsg) {
-        if self.sender.send(msg).is_err()
+        if self.sender.send_blocking(msg).is_err()
             && let Some(worker) = self.worker.take()
             && let Err(panic) = worker.join()
         {
@@ -340,13 +341,13 @@ impl notify::Watcher for PollWatcher {
     where
         Self: Sized,
     {
-        let (sender, rcv) = flume::unbounded();
+        let (sender, rcv) = channel::unbounded();
         let mut dirs = HashMap::<PathBuf, PollInfo, _>::new();
         let worker = std::thread::Builder::new()
             .name(String::from("poll-watcher"))
             .spawn(move || {
                 loop {
-                    match rcv.recv_timeout(config.poll_interval().unwrap_or_default()) {
+                    match rcv.recv_deadline_blocking(config.poll_interval().unwrap_or_default()) {
                         Ok(msg) => match msg {
                             PollMsg::Watch(d, r) => {
                                 let info = PollInfo::new(&d, r);
@@ -363,8 +364,8 @@ impl notify::Watcher for PollWatcher {
                             PollMsg::SetConfig(c) => config = c,
                         },
                         Err(e) => match e {
-                            flume::RecvTimeoutError::Timeout => {}           // ok
-                            flume::RecvTimeoutError::Disconnected => return, // stop thread
+                            ChannelError::Timeout => {}                  // ok
+                            ChannelError::Disconnected { .. } => return, // stop thread
                         },
                     }
 

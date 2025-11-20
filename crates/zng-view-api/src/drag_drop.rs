@@ -2,9 +2,8 @@
 
 use std::{fmt, path::PathBuf};
 
+use zng_task::channel::IpcBytes;
 use zng_txt::Txt;
-
-use crate::ipc::IpcBytes;
 
 use bitflags::bitflags;
 

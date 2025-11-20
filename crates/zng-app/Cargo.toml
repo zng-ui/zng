@@ -103,7 +103,6 @@ pretty-type-name = { version = "1.0", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
-flume = { version = "0.11", default-features = false }
 atomic = { version = "0.6", default-features = false, features = ["fallback"] }
 bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
 pastey = { version = "0.1", default-features = false }

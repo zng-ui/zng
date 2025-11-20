@@ -238,6 +238,7 @@ impl<T> ReadOnlyRwLock<T> {
 }
 
 /// Helper, runs a cleanup action once on drop.
+#[must_use = "cleanup runs on drop"]
 pub struct RunOnDrop<F: FnOnce()>(Option<F>);
 impl<F: FnOnce()> RunOnDrop<F> {
     /// New with closure that will run once on drop.

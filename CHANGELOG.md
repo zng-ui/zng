@@ -1,5 +1,9 @@
 # Unreleased
 
+* Unity channel types.
+    - **Breaking** Removed `AppChannelError`, `EventReceiver`.
+    - **Breaking** Removed `bytes_channel` and related types. Use an IPC channel with `IpcBytes` messages.
+    - **Breaking** Removed `AppEventSender` *extension* channels. Simply create a wrapper that sends the message and awakes the app.
 * Refactor IPC and worker process API.
     - **Breaking** Remove `zng::task::ipc`.
     - Add `zng::task::channel::ipc_channel` and related types.
@@ -10,6 +14,7 @@
     - **Breaking** Remove conversions from underlying channel types.
     - **Breaking** Remove public `duct` crate types.
 * Add blocking API for `zng::task::channel` sender and receiver.
+* Fix `Window!` config properties trying to use `CONFIG` in builds without `"config"` feature.
 
 # 0.19.2
 

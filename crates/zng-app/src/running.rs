@@ -11,6 +11,7 @@ use crate::Deadline;
 use parking_lot::Mutex;
 use zng_app_context::{AppScope, app_local};
 use zng_task::DEADLINE_APP;
+use zng_task::channel::{self, ChannelError};
 use zng_time::{INSTANT_APP, InstantMode};
 use zng_txt::Txt;
 use zng_var::{ResponderVar, ResponseVar, VARS_APP, Var, response_var};
@@ -35,7 +36,7 @@ use crate::{
 pub(crate) struct RunningApp<E: AppExtension> {
     extensions: (AppIntrinsic, E),
 
-    receiver: flume::Receiver<AppEvent>,
+    receiver: channel::Receiver<AppEvent>,
 
     loop_timer: LoopTimer,
     loop_monitor: LoopMonitor,
@@ -660,7 +661,7 @@ impl<E: AppExtension> RunningApp<E> {
             } else {
                 self.loop_timer.poll().map(|t| t.min(ping_timer))
             };
-            match self.receiver.recv_deadline_sp(timer.unwrap_or(ping_timer)) {
+            match self.receiver.recv_deadline_blocking(timer.unwrap_or(ping_timer)) {
                 Ok(ev) => {
                     idle.record("ended_by", "event");
                     drop(idle);
@@ -668,7 +669,7 @@ impl<E: AppExtension> RunningApp<E> {
                     self.push_coalesce(ev, observer)
                 }
                 Err(e) => match e {
-                    flume::RecvTimeoutError::Timeout => {
+                    ChannelError::Timeout => {
                         if timer.is_none() {
                             idle.record("ended_by", "timeout (ping)");
                         } else {
@@ -678,7 +679,7 @@ impl<E: AppExtension> RunningApp<E> {
                             VIEW_PROCESS.ping();
                         }
                     }
-                    flume::RecvTimeoutError::Disconnected => {
+                    ChannelError::Disconnected { .. } => {
                         idle.record("ended_by", "disconnected");
                         disconnected = true
                     }
@@ -687,13 +688,16 @@ impl<E: AppExtension> RunningApp<E> {
         }
         loop {
             match self.receiver.try_recv() {
-                Ok(ev) => self.push_coalesce(ev, observer),
+                Ok(ev) => match ev {
+                    Some(ev) => self.push_coalesce(ev, observer),
+                    None => break,
+                },
                 Err(e) => match e {
-                    flume::TryRecvError::Empty => break,
-                    flume::TryRecvError::Disconnected => {
+                    ChannelError::Disconnected { .. } => {
                         disconnected = true;
                         break;
                     }
+                    _ => unreachable!(),
                 },
             }
         }
@@ -1429,191 +1433,61 @@ pub(crate) enum AppEvent {
 ///
 /// [`UPDATES.sender`]: crate::update::UPDATES::sender
 #[derive(Clone)]
-pub struct AppEventSender(flume::Sender<AppEvent>);
+pub struct AppEventSender(channel::Sender<AppEvent>);
 impl AppEventSender {
-    pub(crate) fn new() -> (Self, flume::Receiver<AppEvent>) {
-        let (sender, receiver) = flume::unbounded();
+    pub(crate) fn new() -> (Self, channel::Receiver<AppEvent>) {
+        let (sender, receiver) = channel::unbounded();
         (Self(sender), receiver)
     }
 
     #[allow(clippy::result_large_err)] // error does not move far up the stack
-    fn send_app_event(&self, event: AppEvent) -> Result<(), AppChannelError> {
-        self.0.send(event).map_err(|_| AppChannelError::Disconnected)
+    fn send_app_event(&self, event: AppEvent) -> Result<(), ChannelError> {
+        self.0.send_blocking(event)
     }
 
     #[allow(clippy::result_large_err)]
-    fn send_view_event(&self, event: zng_view_api::Event) -> Result<(), AppChannelError> {
-        self.0.send(AppEvent::ViewEvent(event)).map_err(|_| AppChannelError::Disconnected)
+    fn send_view_event(&self, event: zng_view_api::Event) -> Result<(), ChannelError> {
+        self.0.send_blocking(AppEvent::ViewEvent(event))
     }
 
     /// Causes an update cycle to happen in the app.
-    pub fn send_update(&self, op: UpdateOp, target: impl Into<Option<WidgetId>>) -> Result<(), AppChannelError> {
+    pub fn send_update(&self, op: UpdateOp, target: impl Into<Option<WidgetId>>) -> Result<(), ChannelError> {
         UpdatesTrace::log_update();
         self.send_app_event(AppEvent::Update(op, target.into()))
-            .map_err(|_| AppChannelError::Disconnected)
     }
 
     /// [`EventSender`](crate::event::EventSender) util.
-    pub(crate) fn send_event(&self, event: crate::event::EventUpdateMsg) -> Result<(), AppChannelError> {
+    pub(crate) fn send_event(&self, event: crate::event::EventUpdateMsg) -> Result<(), ChannelError> {
         self.send_app_event(AppEvent::Event(event))
-            .map_err(|_| AppChannelError::Disconnected)
     }
 
     /// Resume a panic in the app main loop thread.
-    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppChannelError> {
+    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), ChannelError> {
         self.send_app_event(AppEvent::ResumeUnwind(payload))
-            .map_err(|_| AppChannelError::Disconnected)
     }
 
     /// [`UPDATES`] util.
-    pub(crate) fn send_check_update(&self) -> Result<(), AppChannelError> {
+    pub(crate) fn send_check_update(&self) -> Result<(), ChannelError> {
         self.send_app_event(AppEvent::CheckUpdate)
-            .map_err(|_| AppChannelError::Disconnected)
     }
 
     /// Create an [`Waker`] that causes a [`send_update`](Self::send_update).
     pub fn waker(&self, target: impl Into<Option<WidgetId>>) -> Waker {
         Arc::new(AppWaker(self.0.clone(), target.into())).into()
     }
-
-    /// Create an unbound channel that causes an extension update for each message received.
-    pub fn ext_channel<T>(&self) -> (AppExtSender<T>, AppExtReceiver<T>) {
-        let (sender, receiver) = flume::unbounded();
-
-        (
-            AppExtSender {
-                update: self.clone(),
-                sender,
-            },
-            AppExtReceiver { receiver },
-        )
-    }
-
-    /// Create a bounded channel that causes an extension update for each message received.
-    pub fn ext_channel_bounded<T>(&self, cap: usize) -> (AppExtSender<T>, AppExtReceiver<T>) {
-        let (sender, receiver) = flume::bounded(cap);
-
-        (
-            AppExtSender {
-                update: self.clone(),
-                sender,
-            },
-            AppExtReceiver { receiver },
-        )
-    }
 }
 
-struct AppWaker(flume::Sender<AppEvent>, Option<WidgetId>);
+struct AppWaker(channel::Sender<AppEvent>, Option<WidgetId>);
 impl std::task::Wake for AppWaker {
     fn wake(self: std::sync::Arc<Self>) {
         self.wake_by_ref()
     }
     fn wake_by_ref(self: &Arc<Self>) {
-        let _ = self.0.send(AppEvent::Update(UpdateOp::Update, self.1));
+        let _ = self.0.send_blocking(AppEvent::Update(UpdateOp::Update, self.1));
     }
 }
 
 type PanicPayload = Box<dyn std::any::Any + Send + 'static>;
-
-/// Represents a channel sender that causes an extensions update for each value transferred.
-///
-/// A channel can be created using the [`AppEventSender::ext_channel`] method.
-pub struct AppExtSender<T> {
-    update: AppEventSender,
-    sender: flume::Sender<T>,
-}
-impl<T> Clone for AppExtSender<T> {
-    fn clone(&self) -> Self {
-        Self {
-            update: self.update.clone(),
-            sender: self.sender.clone(),
-        }
-    }
-}
-impl<T: Send> AppExtSender<T> {
-    /// Send an extension update and `msg`, blocks until the app receives the message.
-    pub fn send(&self, msg: T) -> Result<(), AppChannelError> {
-        match self.update.send_update(UpdateOp::Update, None) {
-            Ok(()) => self.sender.send(msg).map_err(|_| AppChannelError::Disconnected),
-            Err(_) => Err(AppChannelError::Disconnected),
-        }
-    }
-
-    /// Send an extension update and `msg`, blocks until the app receives the message or `dur` elapses.
-    pub fn send_timeout(&self, msg: T, dur: Duration) -> Result<(), AppChannelError> {
-        match self.update.send_update(UpdateOp::Update, None) {
-            Ok(()) => self.sender.send_timeout(msg, dur).map_err(|e| match e {
-                flume::SendTimeoutError::Timeout(_) => AppChannelError::Timeout,
-                flume::SendTimeoutError::Disconnected(_) => AppChannelError::Disconnected,
-            }),
-            Err(_) => Err(AppChannelError::Disconnected),
-        }
-    }
-
-    /// Send an extension update and `msg`, blocks until the app receives the message or `deadline` is reached.
-    pub fn send_deadline(&self, msg: T, deadline: Instant) -> Result<(), AppChannelError> {
-        match self.update.send_update(UpdateOp::Update, None) {
-            Ok(()) => self.sender.send_deadline(msg, deadline).map_err(|e| match e {
-                flume::SendTimeoutError::Timeout(_) => AppChannelError::Timeout,
-                flume::SendTimeoutError::Disconnected(_) => AppChannelError::Disconnected,
-            }),
-            Err(_) => Err(AppChannelError::Disconnected),
-        }
-    }
-}
-
-/// Represents a channel receiver in an app extension.
-///
-/// See [`AppExtSender`] for details.
-pub struct AppExtReceiver<T> {
-    receiver: flume::Receiver<T>,
-}
-impl<T> Clone for AppExtReceiver<T> {
-    fn clone(&self) -> Self {
-        Self {
-            receiver: self.receiver.clone(),
-        }
-    }
-}
-impl<T> AppExtReceiver<T> {
-    /// Receive an update if any was send.
-    ///
-    /// Returns `Ok(msg)` if there was at least one message, or returns `Err(None)` if there was no update or
-    /// returns `Err(AppExtSenderDisconnected)` if the connected sender was dropped.
-    pub fn try_recv(&self) -> Result<T, Option<AppChannelError>> {
-        self.receiver.try_recv().map_err(|e| match e {
-            flume::TryRecvError::Empty => None,
-            flume::TryRecvError::Disconnected => Some(AppChannelError::Disconnected),
-        })
-    }
-}
-
-/// Error during send or receive of app channels.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum AppChannelError {
-    /// App connected to a sender/receiver channel has disconnected.
-    Disconnected,
-    /// Deadline elapsed before message could be send/received.
-    Timeout,
-}
-impl fmt::Display for AppChannelError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            AppChannelError::Disconnected => write!(f, "cannot receive because the sender disconnected"),
-            AppChannelError::Timeout => write!(f, "deadline elapsed before message could be send/received"),
-        }
-    }
-}
-impl std::error::Error for AppChannelError {}
-impl From<flume::RecvTimeoutError> for AppChannelError {
-    fn from(value: flume::RecvTimeoutError) -> Self {
-        match value {
-            flume::RecvTimeoutError::Timeout => AppChannelError::Timeout,
-            flume::RecvTimeoutError::Disconnected => AppChannelError::Disconnected,
-        }
-    }
-}
 
 event_args! {
     /// Arguments for [`EXIT_REQUESTED_EVENT`].
@@ -1639,63 +1513,4 @@ event! {
     ///
     /// Requesting `propagation().stop()` on this event cancels the exit.
     pub static EXIT_REQUESTED_EVENT: ExitRequestedArgs;
-}
-
-/// Extension methods for [`flume::Receiver<T>`].
-trait ReceiverExt<T> {
-    /// Receive or precise timeout.
-    fn recv_deadline_sp(&self, deadline: Deadline) -> Result<T, flume::RecvTimeoutError>;
-}
-
-const WORST_SLEEP_ERR: Duration = Duration::from_millis(if cfg!(windows) { 20 } else { 10 });
-const WORST_SPIN_ERR: Duration = Duration::from_millis(if cfg!(windows) { 2 } else { 1 });
-
-impl<T> ReceiverExt<T> for flume::Receiver<T> {
-    fn recv_deadline_sp(&self, deadline: Deadline) -> Result<T, flume::RecvTimeoutError> {
-        loop {
-            if let Some(d) = deadline.0.checked_duration_since(INSTANT.now()) {
-                if matches!(INSTANT.mode(), zng_time::InstantMode::Manual) {
-                    // manual time is probably desynced from `Instant`, so we use `recv_timeout` that
-                    // is slightly less precise, but an app in manual mode probably does not care.
-                    match self.recv_timeout(d.checked_sub(WORST_SLEEP_ERR).unwrap_or_default()) {
-                        Err(flume::RecvTimeoutError::Timeout) => continue, // continue to try_recv spin
-                        interrupt => return interrupt,
-                    }
-                } else if d > WORST_SLEEP_ERR {
-                    // probably sleeps here.
-                    #[cfg(not(target_arch = "wasm32"))]
-                    match self.recv_deadline(deadline.0.checked_sub(WORST_SLEEP_ERR).unwrap().into()) {
-                        Err(flume::RecvTimeoutError::Timeout) => continue, // continue to try_recv spin
-                        interrupt => return interrupt,
-                    }
-
-                    #[cfg(target_arch = "wasm32")] // this actually panics because flume tries to use Instant::now
-                    match self.recv_timeout(d.checked_sub(WORST_SLEEP_ERR).unwrap_or_default()) {
-                        Err(flume::RecvTimeoutError::Timeout) => continue, // continue to try_recv spin
-                        interrupt => return interrupt,
-                    }
-                } else if d > WORST_SPIN_ERR {
-                    let spin_deadline = Deadline(deadline.0.checked_sub(WORST_SPIN_ERR).unwrap());
-
-                    // try_recv spin
-                    while !spin_deadline.has_elapsed() {
-                        match self.try_recv() {
-                            Err(flume::TryRecvError::Empty) => std::thread::yield_now(),
-                            Err(flume::TryRecvError::Disconnected) => return Err(flume::RecvTimeoutError::Disconnected),
-                            Ok(msg) => return Ok(msg),
-                        }
-                    }
-                    continue; // continue to timeout spin
-                } else {
-                    // last millis spin for better timeout precision
-                    while !deadline.has_elapsed() {
-                        std::thread::yield_now();
-                    }
-                    return Err(flume::RecvTimeoutError::Timeout);
-                }
-            } else {
-                return Err(flume::RecvTimeoutError::Timeout);
-            }
-        }
-    }
 }

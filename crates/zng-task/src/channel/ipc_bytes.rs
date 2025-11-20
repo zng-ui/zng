@@ -6,7 +6,7 @@ use std::{
     io::{self, Read, Write},
     ops,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, Weak},
 };
 
 #[cfg(ipc)]
@@ -219,8 +219,18 @@ impl IpcBytes {
     pub fn new_memmap(write: impl FnOnce(&mut fs::File) -> io::Result<()>) -> io::Result<Self> {
         let (name, mut file) = Self::create_memmap()?;
         write(&mut file)?;
+
+        let mut permissions = file.metadata()?.permissions();
+        permissions.set_readonly(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            permissions.set_mode(0o400);
+        }
+        file.set_permissions(permissions)?;
+
         drop(file);
-        let map = IpcMemMap::new(name, None)?;
+        let map = IpcMemMap::read(name, None)?;
         Ok(Self(Arc::new(IpcBytesData::MemMap(map))))
     }
     #[cfg(ipc)]
@@ -327,16 +337,8 @@ impl PartialEq for IpcBytes {
 }
 #[cfg(ipc)]
 impl IpcMemMap {
-    fn new(name: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
+    fn read(name: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
         let read_handle = fs::File::open(&name)?;
-        let mut permissions = read_handle.metadata()?.permissions();
-        permissions.set_readonly(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            permissions.set_mode(0o400);
-        }
-        read_handle.set_permissions(permissions)?;
         read_handle.lock_shared()?;
         // SAFETY: File is marked read-only and a read lock is held for it.
         let map = unsafe { memmap2::Mmap::map(&read_handle) }?;
@@ -368,7 +370,7 @@ impl<'de> Deserialize<'de> for IpcMemMap {
         D: serde::Deserializer<'de>,
     {
         let (name, range) = <(PathBuf, ops::Range<usize>)>::deserialize(deserializer)?;
-        IpcMemMap::new(name, Some(range)).map_err(|e| serde::de::Error::custom(format!("cannot load ipc memory map file, {e}")))
+        IpcMemMap::read(name, Some(range)).map_err(|e| serde::de::Error::custom(format!("cannot load ipc memory map file, {e}")))
     }
 }
 #[cfg(ipc)]
@@ -396,7 +398,7 @@ impl Serialize for IpcBytes {
                     IpcBytesData::MemMap(b) => {
                         // need to keep alive until other process is also holding it, so we send
                         // a sender for the other process to signal received.
-                        let (sender, recv) = crate::channel::ipc_channel::<()>()
+                        let (sender, mut recv) = crate::channel::ipc_unbounded::<()>()
                             .map_err(|e| serde::ser::Error::custom(format!("cannot serialize memmap bytes for ipc, {e}")))?;
 
                         let r = serializer.serialize_newtype_variant("IpcBytes", 2, "MemMap", &(b, sender))?;
@@ -453,8 +455,8 @@ impl<'de> Deserialize<'de> for IpcBytes {
                     VariantId::AnonMemMap => Ok(IpcBytes(Arc::new(IpcBytesData::AnonMemMap(access.newtype_variant()?)))),
                     #[cfg(ipc)]
                     VariantId::MemMap => {
-                        let (memmap, completion_sender): (IpcMemMap, crate::channel::IpcSender<()>) = access.newtype_variant()?;
-                        completion_sender.send(()).map_err(|e| {
+                        let (memmap, mut completion_sender): (IpcMemMap, crate::channel::IpcSender<()>) = access.newtype_variant()?;
+                        completion_sender.send_blocking(()).map_err(|e| {
                             serde::de::Error::custom(format!("cannot deserialize memmap bytes, completion signal failed, {e}"))
                         })?;
                         Ok(IpcBytes(Arc::new(IpcBytesData::MemMap(memmap))))
@@ -523,7 +525,7 @@ impl<'de> Deserialize<'de> for IpcBytes {
 #[cfg(ipc)]
 pub fn with_ipc_serialization<R>(serialize: impl FnOnce() -> R) -> R {
     let parent = IPC_SERIALIZATION.replace(true);
-    RunOnDrop::new(|| IPC_SERIALIZATION.set(parent));
+    let _clean = RunOnDrop::new(|| IPC_SERIALIZATION.set(parent));
     serialize()
 }
 
@@ -536,4 +538,27 @@ pub fn is_ipc_serialization() -> bool {
 #[cfg(ipc)]
 thread_local! {
     static IPC_SERIALIZATION: Cell<bool> = const { Cell::new(false) };
+}
+
+impl IpcBytes {
+    /// Create a weak in process reference.
+    ///
+    /// Note that the weak reference cannot upgrade if only another process holds a strong reference.
+    pub fn downgrade(&self) -> WeakIpcBytes {
+        WeakIpcBytes(Arc::downgrade(&self.0))
+    }
+}
+
+/// Weak reference to an in process [`IpcBytes`].
+pub struct WeakIpcBytes(Weak<IpcBytesData>);
+impl WeakIpcBytes {
+    /// Get strong reference if any exists in the process.
+    pub fn upgrade(&self) -> Option<IpcBytes> {
+        self.0.upgrade().map(IpcBytes)
+    }
+
+    /// Count of strong references in the process.
+    pub fn strong_count(&self) -> usize {
+        self.0.strong_count()
+    }
 }

@@ -3,9 +3,10 @@
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+use zng_task::channel::IpcBytes;
 use zng_unit::Px;
 
-use crate::{config::FontAntiAliasing, declare_id, ipc::IpcBytes};
+use crate::{config::FontAntiAliasing, declare_id};
 
 declare_id! {
     /// Font resource in a renderer cache.
@@ -75,7 +76,7 @@ pub type GlyphIndex = u32;
 pub enum IpcFontBytes {
     /// Custom font bytes.
     Bytes(IpcBytes),
-    /// Font file path.
+    /// Font file path in a restricted system fonts directory.
     ///
     /// The path must be safe for potential memory mapping. If the file is
     /// as restricted as the current executable if can be considered safe.

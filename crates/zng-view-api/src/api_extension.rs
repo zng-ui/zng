@@ -8,11 +8,9 @@ use zng_txt::Txt;
 /// Custom serialized data, in a format defined by the extension.
 ///
 /// Note that the bytes here should represent a serialized small `struct` only, you
-/// can add an [`IpcBytes`] or [`IpcBytesReceiver`] field to this struct to transfer
-/// large payloads.
+/// can add an [`IpcBytes`] field to this struct to transfer large payloads.
 ///
-/// [`IpcBytes`]: crate::ipc::IpcBytes
-/// [`IpcBytesReceiver`]: crate::ipc::IpcBytesReceiver
+/// [`IpcBytes`]: zng_task::channel::IpcBytes
 #[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ApiExtensionPayload(#[serde(with = "serde_bytes")] pub Vec<u8>);
 impl ApiExtensionPayload {

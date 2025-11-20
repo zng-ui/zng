@@ -330,6 +330,6 @@
 pub use zng_app::event::{
     AnyEvent, AnyEventArgs, AppCommandArgs, Command, CommandArgs, CommandHandle, CommandInfoExt, CommandMeta, CommandMetaVar,
     CommandMetaVarId, CommandNameExt, CommandParam, CommandScope, EVENTS, Event, EventArgs, EventHandle, EventHandles,
-    EventPropagationHandle, EventReceiver, command, event, event_args,
+    EventPropagationHandle, command, event, event_args,
 };
 pub use zng_wgt::node::{command_property, event_property, on_command, on_event, on_pre_command, on_pre_event};

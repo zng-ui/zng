@@ -10,16 +10,13 @@
 #![expect(clippy::type_complexity)]
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
+#![cfg_attr(not(ipc), allow(unused))]
 
 use font_features::RFontVariations;
 use hashbrown::{HashMap, HashSet};
-use std::{
-    borrow::Cow,
-    fmt, ops,
-    path::{Path, PathBuf},
-    slice::SliceIndex,
-    sync::Arc,
-};
+use std::{borrow::Cow, fmt, io, ops, path::PathBuf, slice::SliceIndex, sync::Arc};
+#[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
+use zng_task::channel::WeakIpcBytes;
 
 #[macro_use]
 extern crate bitflags;
@@ -67,13 +64,13 @@ use zng_layout::unit::{
     ByteUnits as _, EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _, about_eq,
     about_eq_hash, about_eq_ord, euclid,
 };
-use zng_task as task;
+use zng_task::{self as task, channel::IpcBytes};
 use zng_txt::Txt;
 use zng_var::{
     IntoVar, ResponderVar, ResponseVar, Var, animation::Transitionable, const_var, impl_from_and_into_var, response_done_var, response_var,
     var,
 };
-use zng_view_api::{config::FontAntiAliasing, font::IpcFontBytes, ipc::IpcBytes};
+use zng_view_api::{config::FontAntiAliasing, font::IpcFontBytes};
 
 /// Font family name.
 ///
@@ -1163,7 +1160,15 @@ impl FontFace {
             }
         }
 
-        let key = match renderer.add_font_face(self.0.data.to_ipc(), self.0.face_index) {
+        let data = match self.0.data.to_ipc() {
+            Ok(d) => d,
+            Err(e) => {
+                tracing::error!("cannot allocate ipc font data, {e}");
+                return zng_view_api::font::FontFaceId::INVALID;
+            }
+        };
+
+        let key = match renderer.add_font_face(data, self.0.face_index) {
             Ok(k) => k,
             Err(_) => {
                 tracing::debug!("respawned calling `add_font`, will return dummy font key");
@@ -2390,10 +2395,10 @@ impl GenericFonts {
 
 #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
 pub(crate) enum WeakFontBytes {
-    Ipc(std::sync::Weak<IpcBytes>),
+    Ipc(WeakIpcBytes),
     Arc(std::sync::Weak<Vec<u8>>),
     Static(&'static [u8]),
-    Mmap(std::sync::Weak<FontBytesMmap>),
+    Mmap(std::sync::Weak<SystemFontBytes>),
 }
 #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
 impl WeakFontBytes {
@@ -2402,7 +2407,7 @@ impl WeakFontBytes {
             WeakFontBytes::Ipc(weak) => Some(FontBytes(FontBytesImpl::Ipc(weak.upgrade()?))),
             WeakFontBytes::Arc(weak) => Some(FontBytes(FontBytesImpl::Arc(weak.upgrade()?))),
             WeakFontBytes::Static(b) => Some(FontBytes(FontBytesImpl::Static(b))),
-            WeakFontBytes::Mmap(weak) => Some(FontBytes(FontBytesImpl::Mmap(weak.upgrade()?))),
+            WeakFontBytes::Mmap(weak) => Some(FontBytes(FontBytesImpl::System(weak.upgrade()?))),
         }
     }
 
@@ -2416,21 +2421,18 @@ impl WeakFontBytes {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-struct FontBytesMmap {
+struct SystemFontBytes {
     path: std::path::PathBuf,
-    _read_lock: std::fs::File,
-    mmap: memmap2::Mmap,
+    mmap: IpcBytes,
 }
 
 #[derive(Clone)]
 enum FontBytesImpl {
     /// IpcBytes already clones references, but we need the weak_count for caching
-    Ipc(Arc<IpcBytes>),
+    Ipc(IpcBytes),
     Arc(Arc<Vec<u8>>),
     Static(&'static [u8]),
-    #[cfg(not(target_arch = "wasm32"))]
-    Mmap(Arc<FontBytesMmap>),
+    System(Arc<SystemFontBytes>),
 }
 /// Reference to in memory font data.
 #[derive(Clone)]
@@ -2438,12 +2440,12 @@ pub struct FontBytes(FontBytesImpl);
 impl FontBytes {
     /// From shared memory that can be efficiently referenced in the view-process for rendering.
     pub fn from_ipc(bytes: IpcBytes) -> Self {
-        Self(FontBytesImpl::Ipc(Arc::new(bytes)))
+        Self(FontBytesImpl::Ipc(bytes))
     }
 
     /// Moves data to an [`IpcBytes`] shared reference.
-    pub fn from_vec(bytes: Vec<u8>) -> Self {
-        Self(FontBytesImpl::Ipc(Arc::new(IpcBytes::from_vec(bytes))))
+    pub fn from_vec(bytes: Vec<u8>) -> io::Result<Self> {
+        Ok(Self(FontBytesImpl::Ipc(IpcBytes::from_vec(bytes)?)))
     }
 
     /// Uses the reference in the app-process. In case the font needs to be send to view-process turns into [`IpcBytes`].
@@ -2459,7 +2461,7 @@ impl FontBytes {
     }
 
     /// If the `path` is in the restricted system fonts directory memory maps it. Otherwise reads into [`IpcBytes`].
-    pub fn from_file(path: PathBuf) -> std::io::Result<Self> {
+    pub fn from_file(path: PathBuf) -> io::Result<Self> {
         let path = dunce::canonicalize(path)?;
 
         #[cfg(windows)]
@@ -2472,26 +2474,39 @@ impl FontBytes {
             // usually this is: r"C:\Windows\Fonts"
             if path.starts_with(fonts_dir) {
                 // SAFETY: Windows restricts write access to files in this directory.
-                return unsafe { Self::from_file_mmap(path) };
+                return unsafe { load_from_system(path) };
             }
         }
         #[cfg(target_os = "macos")]
         if path.starts_with("/System/Library/Fonts/") || path.starts_with("/Library/Fonts/") {
             // SAFETY: macOS restricts write access to files in this directory.
-            return unsafe { Self::from_file_mmap(path) };
+            return unsafe { load_from_system(path) };
         }
         #[cfg(target_os = "android")]
         if path.starts_with("/system/fonts/") || path.starts_with("/system/font/") || path.starts_with("/system/product/fonts/") {
             // SAFETY: Android restricts write access to files in this directory.
-            return unsafe { Self::from_file_mmap(path) };
+            return unsafe { load_from_system(path) };
         }
         #[cfg(unix)]
         if path.starts_with("/usr/share/fonts/") {
             // SAFETY: OS restricts write access to files in this directory.
-            return unsafe { Self::from_file_mmap(path) };
+            return unsafe { load_from_system(path) };
         }
 
-        std::fs::read(path).map(Self::from_vec)
+        #[cfg(ipc)]
+        unsafe fn load_from_system(path: PathBuf) -> io::Result<FontBytes> {
+            // SAFETY: up to the caller
+            let mmap = unsafe { IpcBytes::open_memmap(path.clone(), None) }?;
+            Ok(FontBytes(FontBytesImpl::System(Arc::new(SystemFontBytes { path, mmap }))))
+        }
+
+        #[cfg(all(not(ipc), not(target_arch = "wasm32")))]
+        unsafe fn load_from_system(path: PathBuf) -> io::Result<FontBytes> {
+            let mmap = IpcBytes::from_file(&path)?;
+            Ok(FontBytes(FontBytesImpl::System(Arc::new(SystemFontBytes { path, mmap }))))
+        }
+
+        Ok(Self(FontBytesImpl::Ipc(IpcBytes::from_file(&path)?)))
     }
 
     /// Read lock the `path` and memory maps it.
@@ -2500,75 +2515,51 @@ impl FontBytes {
     ///
     /// You must ensure the file content does not change. If the file has the same access restrictions as the
     /// current executable file you can say it is safe.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(ipc)]
     pub unsafe fn from_file_mmap(path: PathBuf) -> std::io::Result<Self> {
-        let file = std::fs::File::open(&path)?;
-        file.try_lock_shared()?;
-        let mmap = unsafe { memmap2::Mmap::map(&file) }?;
-        Ok(Self(FontBytesImpl::Mmap(Arc::new(FontBytesMmap {
-            path,
-            _read_lock: file,
-            mmap,
-        }))))
-    }
-
-    /// No memory map in wasm, just reads the file.
-    #[cfg(target_arch = "wasm32")]
-    pub unsafe fn from_file_mmap(path: PathBuf) -> std::io::Result<Self> {
-        Self::from_file(path)
+        // SAFETY: up to the caller
+        let ipc = unsafe { IpcBytes::open_memmap(path, None) }?;
+        Ok(Self(FontBytesImpl::Ipc(ipc)))
     }
 
     /// File path, if the bytes are memory mapped.
     ///
     /// Note that the path is read-locked until all clones of `FontBytes` are dropped.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn mmap_path(&self) -> Option<&Path> {
-        if let FontBytesImpl::Mmap(m) = &self.0 {
+    #[cfg(ipc)]
+    pub fn mmap_path(&self) -> Option<&std::path::Path> {
+        if let FontBytesImpl::System(m) = &self.0 {
             Some(&m.path)
         } else {
             None
         }
     }
-    /// Always `None` in WASM
-    #[cfg(target_arch = "wasm32")]
-    pub fn mmap_path(&self) -> Option<&Path> {
-        None
-    }
 
     /// Clone [`IpcBytes`] reference or clone data into a new one.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn to_ipc(&self) -> IpcFontBytes {
-        if let FontBytesImpl::Mmap(m) = &self.0 {
+    pub fn to_ipc(&self) -> io::Result<IpcFontBytes> {
+        Ok(if let FontBytesImpl::System(m) = &self.0 {
             IpcFontBytes::System(m.path.clone())
         } else {
-            IpcFontBytes::Bytes(self.to_ipc_bytes())
-        }
-    }
-    #[cfg(target_arch = "wasm32")]
-    /// Clone [`IpcBytes`] reference or clone data into a new one.
-    pub fn to_ipc(&self) -> IpcFontBytes {
-        IpcFontBytes::Bytes(self.to_ipc_bytes())
+            IpcFontBytes::Bytes(self.to_ipc_bytes()?)
+        })
     }
 
     /// Clone [`IpcBytes`] reference or clone data into a new one.
-    pub fn to_ipc_bytes(&self) -> IpcBytes {
+    pub fn to_ipc_bytes(&self) -> io::Result<IpcBytes> {
         match &self.0 {
-            FontBytesImpl::Ipc(b) => (**b).clone(),
-            FontBytesImpl::Arc(b) => IpcBytes::from_vec((**b).clone()),
+            FontBytesImpl::Ipc(b) => Ok(b.clone()),
+            FontBytesImpl::Arc(b) => IpcBytes::from_slice(b),
             FontBytesImpl::Static(b) => IpcBytes::from_slice(b),
-            #[cfg(not(target_arch = "wasm32"))]
-            FontBytesImpl::Mmap(m) => IpcBytes::from_slice(&m.mmap[..]),
+            FontBytesImpl::System(m) => IpcBytes::from_slice(&m.mmap[..]),
         }
     }
 
     #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
     pub(crate) fn downgrade(&self) -> WeakFontBytes {
         match &self.0 {
-            FontBytesImpl::Ipc(arc) => WeakFontBytes::Ipc(Arc::downgrade(arc)),
+            FontBytesImpl::Ipc(ipc) => WeakFontBytes::Ipc(ipc.downgrade()),
             FontBytesImpl::Arc(arc) => WeakFontBytes::Arc(Arc::downgrade(arc)),
             FontBytesImpl::Static(b) => WeakFontBytes::Static(b),
-            #[cfg(not(target_arch = "wasm32"))]
-            FontBytesImpl::Mmap(arc) => WeakFontBytes::Mmap(Arc::downgrade(arc)),
+            FontBytesImpl::System(arc) => WeakFontBytes::Mmap(Arc::downgrade(arc)),
         }
     }
 }
@@ -2580,8 +2571,7 @@ impl std::ops::Deref for FontBytes {
             FontBytesImpl::Ipc(b) => &b[..],
             FontBytesImpl::Arc(b) => &b[..],
             FontBytesImpl::Static(b) => b,
-            #[cfg(not(target_arch = "wasm32"))]
-            FontBytesImpl::Mmap(m) => &m.mmap[..],
+            FontBytesImpl::System(m) => &m.mmap[..],
         }
     }
 }
@@ -2594,13 +2584,11 @@ impl fmt::Debug for FontBytes {
                 FontBytesImpl::Ipc(_) => "IpcBytes",
                 FontBytesImpl::Arc(_) => "Arc",
                 FontBytesImpl::Static(_) => "Static",
-                #[cfg(not(target_arch = "wasm32"))]
-                FontBytesImpl::Mmap { .. } => "Mmap",
+                FontBytesImpl::System(_) => "Mmap",
             },
         );
         b.field(".len", &self.len().bytes());
-        #[cfg(not(target_arch = "wasm32"))]
-        if let FontBytesImpl::Mmap(m) = &self.0 {
+        if let FontBytesImpl::System(m) = &self.0 {
             b.field(".path", &m.path);
         }
 

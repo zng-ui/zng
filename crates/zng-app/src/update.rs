@@ -10,11 +10,12 @@ use std::{
 use parking_lot::Mutex;
 use zng_app_context::app_local;
 use zng_handle::{Handle, HandleOwner, WeakHandle};
+use zng_task::channel::ChannelError;
 use zng_unique_id::IdSet;
 use zng_var::VARS_APP;
 
 use crate::{
-    AppChannelError, AppEventSender, AppExtension, LoopTimer, async_hn_once,
+    AppEventSender, AppExtension, LoopTimer, async_hn_once,
     event::{AnyEvent, AnyEventArgs, EVENTS, EVENTS_SV},
     handler::{AppWeakHandle, Handler, HandlerExt as _},
     timer::TIMERS_SV,
@@ -1583,7 +1584,7 @@ impl UpdatesService {
             self.awake_pending = true;
             match self.event_sender.as_ref() {
                 Some(s) => {
-                    if let Err(AppChannelError::Disconnected) = s.send_check_update() {
+                    if let Err(ChannelError::Disconnected { .. }) = s.send_check_update() {
                         tracing::debug!("no app connected to update");
                     }
                 }

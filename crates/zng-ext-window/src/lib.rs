@@ -234,7 +234,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
                 let frame_rcv = FRAME_IMAGE_READY_EVENT.receiver();
                 zng_task::any!(
                     async {
-                        while let Ok(args) = close_rcv.recv_async().await {
+                        while let Ok(args) = close_rcv.recv().await {
                             if args.windows.contains(&window_id) {
                                 break;
                             }
@@ -242,7 +242,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
                     },
                     async {
                         #[cfg(feature = "image")]
-                        while let Ok(args) = frame_rcv.recv_async().await {
+                        while let Ok(args) = frame_rcv.recv().await {
                             if args.window_id == window_id {
                                 break;
                             }

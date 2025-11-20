@@ -2,9 +2,10 @@
 
 use std::{fmt, path::PathBuf};
 
+use zng_task::channel::IpcBytes;
 use zng_txt::Txt;
 
-use crate::{image::ImageId, ipc::IpcBytes};
+use crate::image::ImageId;
 
 /// Clipboard data.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

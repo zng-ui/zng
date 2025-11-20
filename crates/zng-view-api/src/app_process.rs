@@ -10,6 +10,7 @@ use std::{
 use std::time::Duration;
 
 use parking_lot::Mutex;
+use zng_task::channel::ChannelError;
 use zng_txt::Txt;
 
 use crate::{
@@ -131,7 +132,7 @@ impl Controller {
             fast_respawn_count: 0,
         };
 
-        if let Err(ipc::ViewChannelError::Disconnected) = c.try_init() {
+        if let Err(ChannelError::Disconnected { .. }) = c.try_init() {
             panic!("respawn on init");
         }
 
@@ -170,13 +171,13 @@ impl Controller {
                 const PROCESS_CHECK_DUR: Duration = Duration::from_secs(1);
                 let timeout = view_timeout();
                 let mut check_count = 0u64;
-                while let Ok(maybe) = event_receiver.recv_timeout(PROCESS_CHECK_DUR) {
-                    match maybe {
-                        Some(ev) => {
+                loop {
+                    match event_receiver.recv_timeout(PROCESS_CHECK_DUR) {
+                        Ok(ev) => {
                             check_count = 0;
                             on_event(ev)
                         }
-                        None => {
+                        Err(ChannelError::Timeout) => {
                             if let Some(p) = &mut *process.lock() {
                                 match p.0.try_wait() {
                                     Ok(c) => {
@@ -205,6 +206,7 @@ impl Controller {
                                 break;
                             }
                         }
+                        Err(_) => break,
                     }
                 }
                 on_event(Event::Disconnected(generation));
@@ -240,15 +242,15 @@ impl Controller {
         self.same_process
     }
 
-    fn disconnected_err(&self) -> Result<(), ipc::ViewChannelError> {
+    fn disconnected_err(&self) -> Result<(), ChannelError> {
         if self.is_connected() {
             Ok(())
         } else {
-            Err(ipc::ViewChannelError::Disconnected)
+            Err(ChannelError::disconnected())
         }
     }
 
-    fn try_talk(&mut self, req: Request) -> ipc::IpcResult<Response> {
+    fn try_talk(&mut self, req: Request) -> Result<Response, ChannelError> {
         self.request_sender.send(req)?;
         self.response_receiver.recv()
     }
@@ -261,14 +263,15 @@ impl Controller {
 
         match self.try_talk(req) {
             Ok(r) => Ok(r),
-            Err(ipc::ViewChannelError::Disconnected) => {
+            Err(ChannelError::Disconnected { cause }) => {
                 self.handle_disconnect(self.generation);
-                Err(ipc::ViewChannelError::Disconnected)
+                Err(ChannelError::Disconnected { cause })
             }
+            e => e,
         }
     }
 
-    pub(crate) fn command(&mut self, req: Request) -> VpResult<()> {
+    pub(crate) fn command(&mut self, req: Request) -> Result<(), ChannelError> {
         debug_assert!(!req.expect_response());
 
         if req.must_be_connected() {
@@ -277,10 +280,11 @@ impl Controller {
 
         match self.request_sender.send(req) {
             Ok(_) => Ok(()),
-            Err(ipc::ViewChannelError::Disconnected) => {
+            Err(ChannelError::Disconnected { cause }) => {
                 self.handle_disconnect(self.generation);
-                Err(ipc::ViewChannelError::Disconnected)
+                Err(ChannelError::Disconnected { cause })
             }
+            e => e,
         }
     }
 
@@ -585,7 +589,7 @@ impl Controller {
         let ev = Self::spawn_other_process_listener(on_event, event_listener, self.process.clone(), self.generation);
         self.event_listener = Some(ev);
 
-        if let Err(ipc::ViewChannelError::Disconnected) = self.try_init() {
+        if let Err(ChannelError::Disconnected { .. }) = self.try_init() {
             panic!("respawn on respawn startup");
         }
     }
