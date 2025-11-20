@@ -219,8 +219,18 @@ impl IpcBytes {
     pub fn new_memmap(write: impl FnOnce(&mut fs::File) -> io::Result<()>) -> io::Result<Self> {
         let (name, mut file) = Self::create_memmap()?;
         write(&mut file)?;
+
+        let mut permissions = file.metadata()?.permissions();
+        permissions.set_readonly(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            permissions.set_mode(0o400);
+        }
+        file.set_permissions(permissions)?;
+
         drop(file);
-        let map = IpcMemMap::new(name, None)?;
+        let map = IpcMemMap::read(name, None)?;
         Ok(Self(Arc::new(IpcBytesData::MemMap(map))))
     }
     #[cfg(ipc)]
@@ -327,16 +337,8 @@ impl PartialEq for IpcBytes {
 }
 #[cfg(ipc)]
 impl IpcMemMap {
-    fn new(name: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
+    fn read(name: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
         let read_handle = fs::File::open(&name)?;
-        let mut permissions = read_handle.metadata()?.permissions();
-        permissions.set_readonly(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            permissions.set_mode(0o400);
-        }
-        read_handle.set_permissions(permissions)?;
         read_handle.lock_shared()?;
         // SAFETY: File is marked read-only and a read lock is held for it.
         let map = unsafe { memmap2::Mmap::map(&read_handle) }?;
@@ -368,7 +370,7 @@ impl<'de> Deserialize<'de> for IpcMemMap {
         D: serde::Deserializer<'de>,
     {
         let (name, range) = <(PathBuf, ops::Range<usize>)>::deserialize(deserializer)?;
-        IpcMemMap::new(name, Some(range)).map_err(|e| serde::de::Error::custom(format!("cannot load ipc memory map file, {e}")))
+        IpcMemMap::read(name, Some(range)).map_err(|e| serde::de::Error::custom(format!("cannot load ipc memory map file, {e}")))
     }
 }
 #[cfg(ipc)]
