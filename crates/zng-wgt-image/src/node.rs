@@ -6,9 +6,8 @@ use zng_ext_image::{IMAGES, ImageCacheMode, ImageRenderArgs};
 use zng_wgt_stack::stack_nodes;
 
 use super::image_properties::{
-    IMAGE_ALIGN_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_DOWNSCALE_VAR, IMAGE_ERROR_FN_VAR, IMAGE_FIT_VAR, IMAGE_LIMITS_VAR,
-    IMAGE_LOADING_FN_VAR, IMAGE_OFFSET_VAR, IMAGE_RENDERING_VAR, IMAGE_SCALE_DENSITY_VAR, IMAGE_SCALE_FACTOR_VAR, IMAGE_SCALE_VAR,
-    ImageFit, ImgErrorArgs, ImgLoadingArgs,
+    IMAGE_ALIGN_VAR, IMAGE_AUTO_SCALE_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_DOWNSCALE_VAR, IMAGE_ERROR_FN_VAR, IMAGE_FIT_VAR,
+    IMAGE_LIMITS_VAR, IMAGE_LOADING_FN_VAR, IMAGE_OFFSET_VAR, IMAGE_RENDERING_VAR, IMAGE_SCALE_VAR, ImageFit, ImgErrorArgs, ImgLoadingArgs,
 };
 use super::*;
 
@@ -183,8 +182,7 @@ pub fn image_loading_presenter(child: impl IntoUiNode) -> UiNode {
 ///
 /// * [`CONTEXT_IMAGE_VAR`]: Defines the image to render.
 /// * [`IMAGE_CROP_VAR`]: Clip the image before layout.
-/// * [`IMAGE_SCALE_DENSITY_VAR`]: If the image desired size is scaled by pixel density.
-/// * [`IMAGE_SCALE_FACTOR_VAR`]: If the image desired size is scaled by the screen scale factor.
+/// * [`IMAGE_AUTO_SCALE_VAR`]: If the image desired size is scaled by pixel density.
 /// * [`IMAGE_SCALE_VAR`]: Custom scale applied to the desired size.
 /// * [`IMAGE_FIT_VAR`]: Defines the image final size.
 /// * [`IMAGE_ALIGN_VAR`]: Defines the image alignment in the presenter final size.
@@ -204,8 +202,7 @@ pub fn image_presenter() -> UiNode {
             WIDGET
                 .sub_var(&CONTEXT_IMAGE_VAR)
                 .sub_var_layout(&IMAGE_CROP_VAR)
-                .sub_var_layout(&IMAGE_SCALE_DENSITY_VAR)
-                .sub_var_layout(&IMAGE_SCALE_FACTOR_VAR)
+                .sub_var_layout(&IMAGE_AUTO_SCALE_VAR)
                 .sub_var_layout(&IMAGE_SCALE_VAR)
                 .sub_var_layout(&IMAGE_FIT_VAR)
                 .sub_var_layout(&IMAGE_ALIGN_VAR)
@@ -233,12 +230,16 @@ pub fn image_presenter() -> UiNode {
             let metrics = LAYOUT.metrics();
 
             let mut scale = IMAGE_SCALE_VAR.get();
-            if IMAGE_SCALE_DENSITY_VAR.get() {
-                let screen = metrics.screen_density();
-                let image = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(screen));
-                scale *= Factor2d::new(screen.ppcm() / image.width.ppcm(), screen.ppcm() / image.height.ppcm());
-            } else if IMAGE_SCALE_FACTOR_VAR.get() {
-                scale *= metrics.scale_factor();
+            match IMAGE_AUTO_SCALE_VAR.get() {
+                ImageAutoScale::Pixel => {}
+                ImageAutoScale::Factor => {
+                    scale *= metrics.scale_factor();
+                }
+                ImageAutoScale::Density => {
+                    let screen = metrics.screen_density();
+                    let image = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(screen));
+                    scale *= Factor2d::new(screen.ppcm() / image.width.ppcm(), screen.ppcm() / image.height.ppcm());
+                }
             }
 
             let img_rect = PxRect::from_size(img_size);
@@ -261,12 +262,16 @@ pub fn image_presenter() -> UiNode {
             let metrics = LAYOUT.metrics();
 
             let mut scale = IMAGE_SCALE_VAR.get();
-            if IMAGE_SCALE_DENSITY_VAR.get() {
-                let screen = metrics.screen_density();
-                let image = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(screen));
-                scale *= Factor2d::new(screen.ppcm() / image.width.ppcm(), screen.ppcm() / image.height.ppcm());
-            } else if IMAGE_SCALE_FACTOR_VAR.get() {
-                scale *= metrics.scale_factor();
+            match IMAGE_AUTO_SCALE_VAR.get() {
+                ImageAutoScale::Pixel => {}
+                ImageAutoScale::Factor => {
+                    scale *= metrics.scale_factor();
+                }
+                ImageAutoScale::Density => {
+                    let screen = metrics.screen_density();
+                    let image = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(screen));
+                    scale *= Factor2d::new(screen.ppcm() / image.width.ppcm(), screen.ppcm() / image.height.ppcm());
+                }
             }
 
             // webrender needs the full image size, we offset and clip it to render the final image.
