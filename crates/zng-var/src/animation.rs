@@ -146,20 +146,10 @@ impl Animation {
     /// The animation awakes in the next [`VARS.frame_duration`] after the `duration` elapses. The minimum
     /// possible `duration` is the frame duration, shorter durations behave the same as if not set.
     ///
-    /// [`VARS.frame_duration`]: crate::VARS::frame_duration
-    pub fn sleep(&self, duration: Duration) {
-        self.sleep_impl(duration, false);
-    }
-
-    /// Does [`sleep`] and after it elapses does [`restart`].
+    /// Set `restart` to restart the animation after the `duration` elapses.
     ///
-    /// [`sleep`]: Self::sleep
-    /// [`restart`]: Self::restart
-    pub fn sleep_restart(&self, duration: Duration) {
-        // TODO(breaking) add restart: bool to sleep?
-        self.sleep_impl(duration, true);
-    }
-    fn sleep_impl(&self, duration: Duration, restart: bool) {
+    /// [`VARS.frame_duration`]: crate::VARS::frame_duration
+    pub fn sleep(&self, duration: Duration, restart: bool) {
         let mut me = self.0.lock();
         me.sleep = Some(Deadline(me.now + duration));
         me.restart_next = restart;
