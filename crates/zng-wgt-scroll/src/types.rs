@@ -472,7 +472,7 @@ impl SCROLL {
                 **o += delta;
                 **o = (*o).clamp(-1.fct(), 1.fct());
 
-                a.sleep(300.ms());
+                a.sleep(300.ms(), false);
                 state = State::ClearDelay;
             }
             State::ClearDelay => {

@@ -1470,7 +1470,7 @@ impl<T: VarValue> Var<T> {
                     vm.set(nv);
                 }
             } else {
-                a.sleep(delay);
+                a.sleep(delay, false);
             }
         })
     }
@@ -1488,7 +1488,7 @@ impl<T: VarValue> Var<T> {
                 }
                 first = !first;
             }
-            a.sleep(delay);
+            a.sleep(delay, false);
         })
     }
 }

@@ -533,7 +533,7 @@ impl KeyboardService {
                 } else {
                     vm.set(one);
                 }
-                anim.sleep(interval);
+                anim.sleep(interval, false);
             }
         })
         .perm();
