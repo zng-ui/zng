@@ -78,6 +78,44 @@ impl_from_and_into_var! {
     }
 }
 
+/// Image auto scale mode.
+///
+/// Images can be auto scaled to display a a size normalized across screens.
+#[derive(Default, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ImageAutoScale {
+    /// Don't auto scale, image is sized by pixel size.
+    ///
+    /// Note that most widgets are scaled by the screen factor (DIP units), so the image will appear to have
+    /// different sizes depending on the screen.
+    Pixel,
+    /// Image is scaled by the screen scale factor, similar to DIP unit.
+    ///
+    /// This is the default, it makes the image appear to have the same proportional size as other widgets independent
+    /// of the screen that is displaying it.
+    #[default]
+    Factor,
+    /// Image is scaled by the physical size metadata of the image and the screen with the intent of displaying
+    /// at the *print size*.
+    Density,
+}
+impl fmt::Debug for ImageAutoScale {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "ImageAutoScale::")?
+        }
+        match self {
+            Self::Pixel => write!(f, "Pixel"),
+            Self::Factor => write!(f, "Factor"),
+            Self::Density => write!(f, "Density"),
+        }
+    }
+}
+impl_from_and_into_var! {
+    fn from(factor: bool) -> ImageAutoScale {
+        if factor { ImageAutoScale::Factor } else { ImageAutoScale::Pixel }
+    }
+}
+
 context_var! {
     /// The Image scaling algorithm in the renderer.
     ///
@@ -112,20 +150,15 @@ context_var! {
     /// Is [`ImageFit::Contain`] by default.
     pub static IMAGE_FIT_VAR: ImageFit = ImageFit::Contain;
 
+    /// Auto scaling applied to the image.
+    ///
+    /// Scales by factor by default.
+    pub static IMAGE_AUTO_SCALE_VAR: ImageAutoScale = ImageAutoScale::Factor;
+
     /// Scaling applied to the image desired size.
     ///
     /// Does not scale by default, `1.0`.
     pub static IMAGE_SCALE_VAR: Factor2d = Factor2d::identity();
-
-    /// If the image desired size is scaled by the screen scale factor.
-    ///
-    /// Is `true` by default.
-    pub static IMAGE_SCALE_FACTOR_VAR: bool = true;
-
-    /// If the image desired size is scaled considering the image and screen PPIs.
-    ///
-    /// Is `false` by default.
-    pub static IMAGE_SCALE_DENSITY_VAR: bool = false;
 
     /// Align of the image in relation to the image widget final size.
     ///
@@ -159,51 +192,27 @@ pub fn img_fit(child: impl IntoUiNode, fit: impl IntoVar<ImageFit>) -> UiNode {
     with_context_var(child, IMAGE_FIT_VAR, fit)
 }
 
-/// Sets the scale applied to all inner images.
+/// Sets the auto scale mode applied to all inner images.
 ///
-/// The scaling is applied after [`img_scale_density`] if active.
+/// By default scales by the screen factor so that the image layouts with the same proportional dimensions
+/// as other widgets independent of what screen is displaying it.
 ///
-/// By default not scaling is done.
+/// Set to `false` to display the original pixel size.
 ///
-/// [`img_scale_density`]: fn@img_scale_density
+/// Set to [`ImageAutoScale::Density`] to display the *print size* in a calibrated screen.
+#[property(CONTEXT, default(IMAGE_AUTO_SCALE_VAR), widget_impl(Image))]
+pub fn img_auto_scale(child: impl IntoUiNode, scale: impl IntoVar<ImageAutoScale>) -> UiNode {
+    with_context_var(child, IMAGE_AUTO_SCALE_VAR, scale)
+}
+
+/// Custom scale applied to all inner images.
+///
+/// By default only [`img_auto_scale`] is done. If this is set it multiplies the auto scale.
+///
+/// [`img_auto_scale`]: fn@img_auto_scale
 #[property(CONTEXT, default(IMAGE_SCALE_VAR), widget_impl(Image))]
 pub fn img_scale(child: impl IntoUiNode, scale: impl IntoVar<Factor2d>) -> UiNode {
     with_context_var(child, IMAGE_SCALE_VAR, scale)
-}
-
-/// Sets if the image desired size is scaled by the screen scale factor.
-///
-/// The image desired size is its original size after [`img_crop`], it is a pixel value, but widgets are layout using
-/// device independent pixels that automatically scale in higher definition displays, when this property is enabled
-/// the image size is also scaled so that the image will take the same screen space in all devices.
-///
-/// This is enabled by default.
-///
-/// See also [`img_scale_density`], for physical scaling in calibrated monitors.
-///
-/// [`img_crop`]: fn@img_crop
-/// [`img_scale_density`]: fn@img_scale_density
-#[property(CONTEXT, default(IMAGE_SCALE_FACTOR_VAR), widget_impl(Image))]
-pub fn img_scale_factor(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
-    with_context_var(child, IMAGE_SCALE_FACTOR_VAR, enabled)
-}
-
-/// Sets if the image desired size is scaled considering the image and monitor pixel density.
-///
-/// The image desired size is its original size, after [`img_crop`], and it can be in pixels or scaled considering
-/// the image pixel density, monitor pixel density and scale factor.
-///
-/// By default this is `false`, if `true` the image is scaled in a attempt to recreate the original physical dimensions, this
-/// only works if the image and monitor pixel density are set correctly. The monitor pixel density can be set using the [`MONITORS`] service.
-///
-/// This value supersedes [`img_scale_factor`], this this enabled the scale factor is ignored.
-///
-/// [`img_crop`]: fn@img_crop
-/// [`MONITORS`]: zng_ext_window::MONITORS
-/// [`img_scale_factor`]: fn@img_scale_factor
-#[property(CONTEXT, default(IMAGE_SCALE_DENSITY_VAR), widget_impl(Image))]
-pub fn img_scale_density(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
-    with_context_var(child, IMAGE_SCALE_DENSITY_VAR, enabled) // TODO(breaking) merge this property with `img_scale_factor`?
 }
 
 /// Sets the [`Align`] of all inner images within each image widget area.

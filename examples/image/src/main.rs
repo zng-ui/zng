@@ -613,6 +613,7 @@ fn exif_rotated() -> UiNode {
 }
 
 fn ppi_scaled() -> UiNode {
+    use zng::image::ImageAutoScale;
     Button! {
         child = Text!("PPI Scaled");
         on_click = hn!(|_| {
@@ -627,13 +628,16 @@ fn ppi_scaled() -> UiNode {
                         source = zng::env::res(format!("{file}.png"));
                     }
                 }
-                let enabled = var(false);
+                let enabled = var(ImageAutoScale::Factor);
                 Window! {
                     title = "PPI Scaled";
                     child_top = Toggle! {
                         layout::align = Align::CENTER;
-                        checked = enabled.clone();
-                        child = Text!(enabled.map(|e| formatx!("image_scale_density = {e}")));
+                        checked = enabled.map_bidi(
+                            |a| matches!(a, ImageAutoScale::Density),
+                            |e| if *e { ImageAutoScale::Density } else { ImageAutoScale::Factor },
+                        );
+                        child = Text!(enabled.map(|e| formatx!("image_scale_density = {e:?}")));
                         margin = 20;
                     };
                     auto_size = true;
@@ -641,7 +645,7 @@ fn ppi_scaled() -> UiNode {
                     child = Stack! {
                         direction = StackDirection::left_to_right();
                         spacing = 10;
-                        zng::image::img_scale_density = enabled;
+                        zng::image::img_auto_scale = enabled;
                         children = ui_vec![example("300x300@96dpi"), example("600x600@192dpi"),];
                     };
                 }

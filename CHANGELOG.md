@@ -1,5 +1,8 @@
 # Unreleased
 
+* **Breaking** Remove `img_scale_factor` and `img_scale_density` properties.
+    - Added `img_auto_scale` property and related `ImageAutoScale` enum.
+
 * **Breaking** Remove `Animation::sleep_restart`. Add restart flag to `Animation::sleep`.
 
 * Unify channel types.
