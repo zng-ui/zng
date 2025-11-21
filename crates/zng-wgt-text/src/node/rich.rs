@@ -100,21 +100,21 @@ fn rich_text_cmds(child: impl IntoUiNode) -> UiNode {
         select: CommandHandle,
         select_all: CommandHandle,
     }
-    let mut cmds = Cmds::default();
+    let mut _cmds = Cmds::default();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             if TEXT.try_rich().is_some() {
                 let id = WIDGET.id();
                 // cmds.cut = CUT_CMD.scoped(id).subscribe(true);
-                cmds.copy = COPY_CMD.scoped(id).subscribe(true);
+                _cmds.copy = COPY_CMD.scoped(id).subscribe(true);
                 // cmds.paste = PASTE_CMD.scoped(id).subscribe(true);
-                cmds.select = SELECT_CMD.scoped(id).subscribe(true);
+                _cmds.select = SELECT_CMD.scoped(id).subscribe(true);
                 // cmds.edit = EDIT_CMD.scoped(id).subscribe(true);
-                cmds.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
+                _cmds.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
             }
         }
         UiNodeOp::Deinit => {
-            cmds = Cmds::default();
+            _cmds = Cmds::default();
         }
         UiNodeOp::Event { update } => {
             let ctx = match TEXT.try_rich() {
