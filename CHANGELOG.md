@@ -1,5 +1,9 @@
 # Unreleased
 
+* Refactor `WhiteSpace` merging to better integrate with basic paragraph spacing.
+    - `Merge` now also merges multiple line breaks into a single one.
+    - **Breaking** Added `MergeParagraph`. Merges spaces and trim lines. Removes single line breaks. Merge multiple line breaks.
+
 * **Breaking** Remove `img_scale_factor` and `img_scale_density` properties.
     - Added `img_auto_scale` property and related `ImageAutoScale` enum.
 

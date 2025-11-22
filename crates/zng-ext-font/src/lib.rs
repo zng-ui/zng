@@ -3339,21 +3339,19 @@ impl PartialEq for TextTransformFn {
 }
 
 /// Text white space transform.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum WhiteSpace {
-    // TODO(breaking) non_exhaustive and merge line breaks (unless empty line)
     /// Text is not changed, all white spaces and line breaks are preserved.
+    #[default]
     Preserve,
-    /// Replace white spaces with a single `U+0020 SPACE` and trim lines. Line breaks are preserved.
+    /// Replace white space sequences with a single `' '` and trim lines.
+    /// Replace line break sequences with a single `'\n'` and trim text.
     Merge,
-    /// Replace white spaces and line breaks with `U+0020 SPACE` and trim the text.
+    /// Replace white space sequences with a single `' '` and trim lines.
+    /// Remove single line breaks. Replace line break sequences (>1) with a single `'\n'` and trim text.
+    MergeParagraph,
+    /// Replace white spaces and line breaks sequences with a single `' '` and trim the text.
     MergeAll,
-}
-impl Default for WhiteSpace {
-    /// [`WhiteSpace::Preserve`].
-    fn default() -> Self {
-        WhiteSpace::Preserve
-    }
 }
 impl WhiteSpace {
     /// Transform the white space of the text.
@@ -3363,67 +3361,185 @@ impl WhiteSpace {
         match self {
             WhiteSpace::Preserve => Cow::Borrowed(text),
             WhiteSpace::Merge => {
-                let is_white_space = |c: char| c.is_whitespace() && !"\n\r\u{85}".contains(c);
-                let t = text.trim_matches(is_white_space);
+                // search first repeat
+                let mut prev_i = 0;
+                for line in text.split_inclusive('\n') {
+                    // try trim
+                    let line_exclusive = line.trim_end_matches('\n').trim_end_matches('\r');
+                    let line_trim = line_exclusive.trim();
+                    let mut merge = line_trim.len() != line_exclusive.len() || line_trim.is_empty();
 
-                let mut prev_space = false;
-                for c in t.chars() {
-                    if is_white_space(c) {
-                        if prev_space || c != '\u{20}' {
-                            // collapse spaces or replace non ' ' white space with ' '.
-
-                            let mut r = String::new();
-                            let mut sep = "";
-                            for part in t.split(is_white_space).filter(|s| !s.is_empty()) {
-                                r.push_str(sep);
-                                r.push_str(part);
-                                sep = "\u{20}";
+                    // try sequence of spaces
+                    if !merge {
+                        let mut prev_is_space = true; // start true to trim
+                        for c in line.chars() {
+                            let is_space = c.is_whitespace();
+                            if prev_is_space && is_space {
+                                merge = true;
+                                break;
                             }
-                            return Cow::Owned(Txt::from_str(&r));
-                        } else {
-                            prev_space = true;
+                            prev_is_space = is_space;
                         }
-                    } else {
-                        prev_space = false;
+                    }
+
+                    if !merge {
+                        prev_i += line.len();
+                        continue;
+                    }
+
+                    // found repeat, enter merge mode
+                    let mut out = String::with_capacity(text.len() - 1);
+                    out.push_str(&text[..prev_i]);
+
+                    let mut chars = text[prev_i..].chars();
+                    let mut prev_is_space = true;
+                    let mut prev_is_break = true;
+                    while let Some(c) = chars.next() {
+                        if c == '\r'
+                            && let Some(nc) = chars.next()
+                        {
+                            if nc == '\n' {
+                                if !prev_is_break && !out.is_empty() {
+                                    out.push('\n');
+                                }
+                                prev_is_break = true;
+                                prev_is_space = true;
+                            } else {
+                                out.push(c);
+                                out.push(nc);
+                                prev_is_break = false;
+                                prev_is_space = nc.is_whitespace();
+                            }
+                        } else if c == '\n' {
+                            if !prev_is_break && !out.is_empty() {
+                                out.push('\n');
+                            }
+                            prev_is_break = true;
+                            prev_is_space = true;
+                        } else if c.is_whitespace() {
+                            if prev_is_space {
+                                continue;
+                            }
+                            out.push(' ');
+                            prev_is_space = true;
+                        } else {
+                            out.push(c);
+                            prev_is_space = false;
+                            prev_is_break = false;
+                        }
+                    }
+
+                    // trim end
+                    if let Some((i, c)) = out.char_indices().rev().find(|(_, c)| !c.is_whitespace()) {
+                        out.truncate(i + c.len_utf8());
+                    }
+
+                    return Cow::Owned(out.into());
+                }
+                Cow::Borrowed(text)
+            }
+            WhiteSpace::MergeParagraph => {
+                // needs to merge if contains '\n' because it is either removed or merged
+                // also needs to merge it needs to trim.
+                let mut merge = text.contains('\n') || text.chars().last().unwrap_or('\0').is_whitespace();
+                if !merge {
+                    let mut prev_is_space = true;
+                    for c in text.chars() {
+                        let is_space = c.is_whitespace();
+                        if prev_is_space && is_space {
+                            merge = true;
+                            break;
+                        }
+                        prev_is_space = is_space;
                     }
                 }
 
-                if t.len() != text.len() {
-                    Cow::Owned(Txt::from_str(t))
-                } else {
-                    Cow::Borrowed(text)
+                if merge {
+                    let mut out = String::with_capacity(text.len());
+                    let mut prev_is_break = false;
+                    for line in text.lines() {
+                        let line = line.trim();
+                        let is_break = line.is_empty();
+                        if !prev_is_break && is_break && !out.is_empty() {
+                            out.push('\n');
+                        }
+                        if !prev_is_break && !is_break && !out.is_empty() {
+                            out.push(' ');
+                        }
+                        prev_is_break = is_break;
+
+                        let mut prev_is_space = false;
+                        for c in line.chars() {
+                            let is_space = c.is_whitespace();
+                            if is_space {
+                                if !prev_is_space {
+                                    out.push(' ');
+                                }
+                            } else {
+                                out.push(c);
+                            }
+                            prev_is_space = is_space;
+                        }
+                    }
+
+                    // trim end
+                    if let Some((i, c)) = out.char_indices().rev().find(|(_, c)| !c.is_whitespace()) {
+                        out.truncate(i + c.len_utf8());
+                    }
+
+                    return Cow::Owned(out.into());
                 }
+                Cow::Borrowed(text)
             }
             WhiteSpace::MergeAll => {
-                let t = text.trim();
-
-                let mut prev_space = false;
-                for c in t.chars() {
-                    if c.is_whitespace() {
-                        if prev_space || c != '\u{20}' {
-                            // collapse spaces or replace non ' ' white space with ' '.
-
-                            let mut r = String::new();
-                            let mut sep = "";
-                            for part in t.split_whitespace() {
-                                r.push_str(sep);
-                                r.push_str(part);
-                                sep = "\u{20}";
-                            }
-                            return Cow::Owned(Txt::from_str(&r));
-                        } else {
-                            prev_space = true;
+                // search first repeat
+                let mut prev_i = 0;
+                let mut prev_is_space = true; // starts true to trim
+                for (i, c) in text.char_indices() {
+                    let is_space = c.is_whitespace();
+                    if prev_is_space && is_space || c == '\n' {
+                        if !prev_is_space {
+                            debug_assert_eq!(c, '\n');
+                            prev_i += c.len_utf8();
+                            prev_is_space = true;
                         }
-                    } else {
-                        prev_space = false;
+                        // found repeat, enter merge mode
+                        let mut out = String::with_capacity(text.len() - 1);
+                        // push ok start or trim start
+                        out.push_str(&text[..prev_i]);
+                        if !out.is_empty() {
+                            out.push(' ');
+                        }
+                        // collapse other whitespace sequences
+                        for c in text[(i + c.len_utf8())..].chars() {
+                            let is_space = c.is_whitespace();
+                            if prev_is_space && is_space {
+                                continue;
+                            }
+                            out.push(if is_space { ' ' } else { c });
+                            prev_is_space = is_space;
+                        }
+
+                        // trim end
+                        if let Some((i, c)) = out.char_indices().rev().find(|(_, c)| !c.is_whitespace()) {
+                            out.truncate(i + c.len_utf8());
+                        }
+
+                        return Cow::Owned(out.into());
                     }
+                    prev_i = i;
+                    prev_is_space = is_space;
                 }
 
-                if t.len() != text.len() {
-                    Cow::Owned(Txt::from_str(t))
-                } else {
-                    Cow::Borrowed(text)
+                // search did not trim start nor collapse whitespace sequences
+
+                // try trim end
+                let out = text.trim_end();
+                if out.len() != text.len() {
+                    return Cow::Owned(Txt::from_str(out));
                 }
+
+                Cow::Borrowed(text)
             }
         }
     }
@@ -3437,6 +3553,7 @@ impl fmt::Debug for WhiteSpace {
             WhiteSpace::Preserve => write!(f, "Preserve"),
             WhiteSpace::Merge => write!(f, "Merge"),
             WhiteSpace::MergeAll => write!(f, "MergeAll"),
+            WhiteSpace::MergeParagraph => write!(f, "MergeParagraph"),
         }
     }
 }
@@ -3595,5 +3712,61 @@ mod tests {
 
         assert_eq!(&GenericFonts {}.sans_serif(&lang!("en-US")), "sans-serif");
         assert_eq!(&GenericFonts {}.sans_serif(&lang!("es")), "Test Value");
+    }
+
+    #[test]
+    fn white_space_merge() {
+        macro_rules! test {
+            ($input:tt, $output:tt) => {
+                let input = Txt::from($input);
+                let output = WhiteSpace::Merge.transform(&input);
+                assert_eq!($output, output.as_str());
+
+                let input = input.replace('\n', "\r\n");
+                let output = WhiteSpace::Merge.transform(&Txt::from(input)).replace("\r\n", "\n");
+                assert_eq!($output, output.as_str());
+            };
+        }
+        test!("a  b\n\nc", "a b\nc");
+        test!("a b\nc", "a b\nc");
+        test!(" a b\nc\n  \n", "a b\nc");
+        test!(" \n a b\nc", "a b\nc");
+        test!("a\n \nb", "a\nb");
+    }
+
+    #[test]
+    fn white_space_merge_paragraph() {
+        macro_rules! test {
+            ($input:tt, $output:tt) => {
+                let input = Txt::from($input);
+                let output = WhiteSpace::MergeParagraph.transform(&input);
+                assert_eq!($output, output.as_str());
+
+                let input = input.replace('\n', "\r\n");
+                let output = WhiteSpace::MergeParagraph.transform(&Txt::from(input)).replace("\r\n", "\n");
+                assert_eq!($output, output.as_str());
+            };
+        }
+        test!("a  b\n\nc", "a b\nc");
+        test!("a b\nc", "a b c");
+        test!(" a b\nc\n  \n", "a b c");
+        test!(" \n a b\nc", "a b c");
+        test!("a\n \nb", "a\nb");
+    }
+
+    #[test]
+    fn white_space_merge_all() {
+        macro_rules! test {
+            ($input:tt, $output:tt) => {
+                let input = Txt::from($input);
+                let output = WhiteSpace::MergeAll.transform(&input);
+                assert_eq!($output, output.as_str());
+            };
+        }
+        test!("a  b\n\nc", "a b c");
+        test!("a b\nc", "a b c");
+        test!(" a b\nc\n  \n", "a b c");
+        test!(" \n a b\nc", "a b c");
+        test!("a\n \nb", "a b");
     }
 }
