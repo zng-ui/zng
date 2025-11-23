@@ -35,15 +35,6 @@ fn main() {
             l.allow_path = image::PathFilter::AllowAll;
         });
 
-        // setup a file cache so we don't download the images every run.
-        http::set_default_client_init(move || {
-            http::Client::builder()
-                .cache(http::FileSystemCache::new(zng::env::cache("image")).unwrap())
-                .cache_mode(img_cache_mode)
-                .build()
-        })
-        .unwrap();
-
         ImgWindow!(
             "Image Example",
             Stack! {
@@ -785,16 +776,6 @@ async fn open_dialog() -> Option<PathBuf> {
             tracing::error!("open file dialog error, {e}");
             None
         })
-}
-
-fn img_cache_mode(req: &task::http::Request) -> http::CacheMode {
-    if let Some(a) = req.uri().authority()
-        && a.host().contains("wikimedia.org")
-    {
-        // Wikimedia not configured for caching.
-        return http::CacheMode::Permanent;
-    }
-    http::CacheMode::default()
 }
 
 fn center_viewport(msg: impl IntoUiNode) -> UiNode {

@@ -1,5 +1,8 @@
 # Unreleased
 
+* **Breaking** Refactor `zng::task::http` into a backend agnostic API.
+    - Remove unmaintained `isahc` dependency.
+
 * Refactor `WhiteSpace` merging to better integrate with basic paragraph spacing.
     - `Merge` now also merges multiple line breaks into a single one.
     - **Breaking** Added `MergeParagraph`. Merges spaces and trim lines. Removes single line breaks. Merge multiple line breaks.

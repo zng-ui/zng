@@ -681,31 +681,18 @@ impl ImagesService {
                             .unwrap()
                             .header(task::http::header::ACCEPT, accept.as_str())
                             .unwrap()
-                            .max_length(max_encoded_size)
-                            .build();
+                            .max_length(max_encoded_size);
 
                         match task::http::send(request).await {
                             Ok(mut rsp) => {
-                                if let Some(m) = rsp.headers().get(&task::http::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()) {
+                                if let Some(m) = rsp.header().get(&task::http::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()) {
                                     let m = m.to_lowercase();
                                     if m.starts_with("image/") {
                                         r.format = ImageDataFormat::MimeType(Txt::from_str(&m));
                                     }
                                 }
 
-                                match rsp.bytes().await {
-                                    Ok(d) => {
-                                        r.r = match IpcBytes::from_vec(d) {
-                                            Ok(r) => Ok(r),
-                                            Err(e) => Err(e.to_txt()),
-                                        }
-                                    }
-                                    Err(e) => {
-                                        r.r = Err(formatx!("download error: {e}"));
-                                    }
-                                }
-
-                                let _ = rsp.consume().await;
+                                r.r = rsp.bytes().await.map_err(|e| formatx!("download error: {e}"));
                             }
                             Err(e) => {
                                 r.r = Err(formatx!("request error: {e}"));
@@ -888,8 +875,12 @@ impl IMAGES {
     /// Optionally define the HTTP ACCEPT header, if not set all image formats supported by the view-process
     /// backend are accepted.
     #[cfg(feature = "http")]
-    pub fn download(&self, uri: impl task::http::TryUri, accept: Option<Txt>) -> ImageVar {
-        match uri.try_uri() {
+    pub fn download<U>(&self, uri: U, accept: Option<Txt>) -> ImageVar
+    where
+        U: TryInto<task::http::Uri>,
+        <U as TryInto<task::http::Uri>>::Error: ToTxt,
+    {
+        match uri.try_into() {
             Ok(uri) => self.cache(ImageSource::Download(uri, accept)),
             Err(e) => self.dummy(Some(e.to_txt())),
         }

@@ -187,6 +187,7 @@ impl IpcBytes {
 
     /// Read `file` into shared memory.
     pub fn from_file(file: &Path) -> io::Result<Self> {
+        // !!: TODO async/blocking API
         #[cfg(ipc)]
         {
             let mut file = fs::File::open(file)?;
@@ -324,6 +325,11 @@ impl IpcBytes {
     const INLINE_MAX: usize = 64 * 1024; // 64KB
     #[cfg(ipc)]
     const UNNAMED_MAX: usize = 128 * 1024 * 1024; // 128MB
+}
+impl AsRef<[u8]> for IpcBytes {
+    fn as_ref(&self) -> &[u8] {
+        &self[..]
+    }
 }
 impl Default for IpcBytes {
     fn default() -> Self {
