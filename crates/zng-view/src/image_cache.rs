@@ -359,7 +359,7 @@ impl ImageCache {
                     }
                 }
             } else if !is_encoded {
-                let pixels = match IpcBytes::from_vec(full) {
+                let pixels = match IpcBytes::from_vec_blocking(full) {
                     Ok(p) => p,
                     Err(e) => {
                         let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
@@ -1093,7 +1093,7 @@ impl ImageCache {
         let _ = (icc_profile, &mut pixels);
 
         Ok((
-            IpcBytes::from_vec(pixels)?,
+            IpcBytes::from_vec_blocking(pixels)?,
             PxSize::new(Px(size.0 as i32), Px(size.1 as i32)),
             density,
             is_opaque,
@@ -1119,7 +1119,7 @@ impl ImageCache {
             rayon::spawn(move || {
                 let mut data = vec![];
                 match img.encode(fmt, &mut data) {
-                    Ok(_) => match IpcBytes::from_vec(data) {
+                    Ok(_) => match IpcBytes::from_vec_blocking(data) {
                         Ok(data) => {
                             let _ = sender.send(AppEvent::Notify(Event::ImageEncoded { image: id, format, data }));
                         }
@@ -1706,7 +1706,7 @@ mod capture {
 
                 let is_opaque = buf.chunks_exact(4).all(|bgra| bgra[3] == 255);
 
-                let data = IpcBytes::from_vec(buf).unwrap(); // frame size is not large enough to trigger an memmap that can fail
+                let data = IpcBytes::from_vec_blocking(buf).unwrap(); // frame size is not large enough to trigger an memmap that can fail
                 let density = 96.0 * scale_factor.0;
                 let density = Some(PxDensity2d::splat(density.ppi()));
                 let size = rect.size;

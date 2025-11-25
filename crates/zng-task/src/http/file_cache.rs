@@ -290,7 +290,7 @@ impl CacheEntry {
     /// Start reading the body content, returns `Some(_)` if the entry still exists.
     pub async fn open_body(&self) -> Option<IpcBytes> {
         let path = self.dir.join(Self::BODY);
-        match task::wait(move || IpcBytes::from_file(&path)).await {
+        match task::wait(move || IpcBytes::from_file_blocking(&path)).await {
             Ok(b) => Some(b),
             Err(e) => {
                 tracing::error!("cache open body error, {e:?}");

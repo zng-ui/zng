@@ -366,7 +366,7 @@ impl Request {
     /// [`body`]: field@Request::body
     pub fn body_json<T: Serialize>(self, body: &T) -> std::io::Result<Self> {
         let body = serde_json::to_vec(body)?;
-        Ok(self.body(IpcBytes::from_vec(body)?))
+        Ok(self.body(IpcBytes::from_vec_blocking(body)?))
     }
 }
 impl From<Request> for http::Request<IpcBytes> {
@@ -461,7 +461,7 @@ impl Response {
             header::HeaderMap::new(),
             Uri::from_static("/"),
             Metrics::zero(),
-            IpcBytes::from_slice(msg.to_txt().as_bytes()).unwrap(),
+            IpcBytes::from_slice_blocking(msg.to_txt().as_bytes()).unwrap(),
         )
     }
 
@@ -506,7 +506,7 @@ impl Response {
             return Ok(());
         }
 
-        let mut downloader = match mem::replace(
+        let downloader = match mem::replace(
             &mut self.body,
             ResponseBody::Done {
                 metrics: Metrics::zero(),
@@ -514,10 +514,15 @@ impl Response {
             },
         ) {
             ResponseBody::Read { downloader } => downloader,
-            ResponseBody::Done { metrics, bytes } => unreachable!(),
+            ResponseBody::Done { .. } => unreachable!(),
         };
+        let mut downloader = Box::into_pin(downloader);
+        let body = IpcBytes::from_read(downloader.as_mut()).await?;
 
-        let body = IpcBytes::from_read(data);
+        self.body = ResponseBody::Done {
+            metrics: downloader.metrics().clone(),
+            bytes: body,
+        };
 
         Ok(())
     }

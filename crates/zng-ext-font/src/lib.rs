@@ -2445,7 +2445,7 @@ impl FontBytes {
 
     /// Moves data to an [`IpcBytes`] shared reference.
     pub fn from_vec(bytes: Vec<u8>) -> io::Result<Self> {
-        Ok(Self(FontBytesImpl::Ipc(IpcBytes::from_vec(bytes)?)))
+        Ok(Self(FontBytesImpl::Ipc(IpcBytes::from_vec_blocking(bytes)?)))
     }
 
     /// Uses the reference in the app-process. In case the font needs to be send to view-process turns into [`IpcBytes`].
@@ -2496,7 +2496,7 @@ impl FontBytes {
         #[cfg(ipc)]
         unsafe fn load_from_system(path: PathBuf) -> io::Result<FontBytes> {
             // SAFETY: up to the caller
-            let mmap = unsafe { IpcBytes::open_memmap(path.clone(), None) }?;
+            let mmap = unsafe { IpcBytes::open_memmap_blocking(path.clone(), None) }?;
             Ok(FontBytes(FontBytesImpl::System(Arc::new(SystemFontBytes { path, mmap }))))
         }
 
@@ -2506,7 +2506,7 @@ impl FontBytes {
             Ok(FontBytes(FontBytesImpl::System(Arc::new(SystemFontBytes { path, mmap }))))
         }
 
-        Ok(Self(FontBytesImpl::Ipc(IpcBytes::from_file(&path)?)))
+        Ok(Self(FontBytesImpl::Ipc(IpcBytes::from_file_blocking(&path)?)))
     }
 
     /// Read lock the `path` and memory maps it.
@@ -2518,7 +2518,7 @@ impl FontBytes {
     #[cfg(ipc)]
     pub unsafe fn from_file_mmap(path: PathBuf) -> std::io::Result<Self> {
         // SAFETY: up to the caller
-        let ipc = unsafe { IpcBytes::open_memmap(path, None) }?;
+        let ipc = unsafe { IpcBytes::open_memmap_blocking(path, None) }?;
         Ok(Self(FontBytesImpl::Ipc(ipc)))
     }
 
@@ -2547,9 +2547,9 @@ impl FontBytes {
     pub fn to_ipc_bytes(&self) -> io::Result<IpcBytes> {
         match &self.0 {
             FontBytesImpl::Ipc(b) => Ok(b.clone()),
-            FontBytesImpl::Arc(b) => IpcBytes::from_slice(b),
-            FontBytesImpl::Static(b) => IpcBytes::from_slice(b),
-            FontBytesImpl::System(m) => IpcBytes::from_slice(&m.mmap[..]),
+            FontBytesImpl::Arc(b) => IpcBytes::from_slice_blocking(b),
+            FontBytesImpl::Static(b) => IpcBytes::from_slice_blocking(b),
+            FontBytesImpl::System(m) => IpcBytes::from_slice_blocking(&m.mmap[..]),
         }
     }
 

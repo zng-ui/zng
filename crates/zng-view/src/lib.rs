@@ -2234,7 +2234,7 @@ impl Api for App {
 
                 let id = self.image_cache.add(ImageRequest::new(
                     image::ImageDataFormat::FileExtension(Txt::from_str("bmp")),
-                    IpcBytes::from_vec(bitmap).map_err(|e| clipboard::ClipboardError::Other(e.to_txt()))?,
+                    IpcBytes::from_vec_blocking(bitmap).map_err(|e| clipboard::ClipboardError::Other(e.to_txt()))?,
                     u64::MAX,
                     None,
                     None,

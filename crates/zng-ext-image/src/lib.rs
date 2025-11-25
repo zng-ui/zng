@@ -650,7 +650,7 @@ impl ImagesService {
 
                     let mut data = Vec::with_capacity(len);
                     r.r = match file.read_to_end(&mut data).await {
-                        Ok(_) => match IpcBytes::from_vec(data) {
+                        Ok(_) => match IpcBytes::from_vec_blocking(data) {
                             Ok(r) => Ok(r),
                             Err(e) => Err(e.to_txt()),
                         },
@@ -706,14 +706,14 @@ impl ImagesService {
             ImageSource::Static(_, bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
-                    r: IpcBytes::from_slice(bytes).map_err(|e| e.to_txt()),
+                    r: IpcBytes::from_slice_blocking(bytes).map_err(|e| e.to_txt()),
                 };
                 self.load_task(key, mode, limits.max_decoded_len, downscale, mask, false, async { r })
             }
             ImageSource::Data(_, bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
-                    r: IpcBytes::from_slice(&bytes).map_err(|e| e.to_txt()),
+                    r: IpcBytes::from_slice_blocking(&bytes).map_err(|e| e.to_txt()),
                 };
                 self.load_task(key, mode, limits.max_decoded_len, downscale, mask, false, async { r })
             }
