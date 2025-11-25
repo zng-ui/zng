@@ -6,9 +6,11 @@ use std::{
     io::{self, Read, Write},
     ops,
     path::{Path, PathBuf},
+    pin::Pin,
     sync::{Arc, Weak},
 };
 
+use futures_lite::AsyncReadExt;
 #[cfg(ipc)]
 use ipc_channel::ipc::IpcSharedMemory;
 use parking_lot::Mutex;
@@ -183,6 +185,80 @@ impl IpcBytes {
             io::copy(data, m)?;
             Ok(())
         })
+    }
+
+    /// Read `data` into shared memory.
+    pub async fn from_async_read(data: Pin<&mut dyn futures_lite::AsyncRead>) -> io::Result<Self> {
+        #[cfg(ipc)]
+        {
+            Self::from_async_read_ipc(data).await
+        }
+        #[cfg(not(ipc))]
+        {
+            let mut data = data;
+            let mut buf = vec![];
+            data.read_to_end(&mut buf).await;
+            Self::from_vec(buf)
+        }
+    }
+    #[cfg(ipc)]
+    async fn from_async_read_ipc(mut data: Pin<&mut dyn futures_lite::AsyncRead>) -> io::Result<Self> {
+        let mut buf = vec![0u8; Self::INLINE_MAX + 1];
+        let mut len = 0;
+
+        // INLINE_MAX read
+        loop {
+            match data.read(&mut buf[len..]).await {
+                Ok(l) => {
+                    if l == 0 {
+                        // is <= INLINE_MAX
+                        buf.truncate(len);
+                        return Ok(Self(Arc::new(IpcBytesData::Heap(buf))));
+                    } else {
+                        len += l;
+                        if len == Self::INLINE_MAX + 1 {
+                            // goto UNNAMED_MAX read
+                            break;
+                        }
+                    }
+                }
+                Err(e) => match e.kind() {
+                    io::ErrorKind::WouldBlock => continue,
+                    _ => return Err(e),
+                },
+            }
+        }
+
+        // UNNAMED_MAX read
+        buf.resize(Self::UNNAMED_MAX + 1, 0);
+        loop {
+            match data.read(&mut buf[len..]).await {
+                Ok(l) => {
+                    if l == 0 {
+                        // is <= UNNAMED_MAX
+                        return Ok(Self(Arc::new(IpcBytesData::AnonMemMap(IpcSharedMemory::from_bytes(&buf[..len])))));
+                    } else {
+                        len += l;
+                        if len == Self::UNNAMED_MAX + 1 {
+                            // goto named file loop
+                            break;
+                        }
+                    }
+                }
+                Err(e) => match e.kind() {
+                    io::ErrorKind::WouldBlock => continue,
+                    _ => return Err(e),
+                },
+            }
+        }
+
+        // named file copy
+        Self::new_memmap(|m| {
+            m.write_all(&buf)?;
+            io::copy(data, m)?;
+            Ok(())
+        })
+        .await
     }
 
     /// Read `file` into shared memory.

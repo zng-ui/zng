@@ -145,8 +145,8 @@ impl Request {
     /// ```
     /// use zng_task::http;
     ///
-    /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let request = http::Request::new(http::Method::PUT, "https://httpbin.org/put")?;
+    /// # fn try_example() -> Result<(), http::Error> {
+    /// let request = http::Request::new(http::Method::PUT, "https://httpbin.org/put".try_into()?);
     /// # Ok(()) }
     /// ```
     pub fn new(method: Method, uri: Uri) -> Self {
@@ -176,8 +176,8 @@ impl Request {
     /// ```
     /// use zng_task::http;
     ///
-    /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let get = http::Request::get("https://httpbin.org/get")?.build();
+    /// # fn try_example() -> Result<(), http::Error> {
+    /// let get = http::Request::get("https://httpbin.org/get")?;
     /// # Ok(()) }
     /// ```
     pub fn get<U: TryInto<Uri>>(uri: U) -> Result<Self, <U as TryInto<Uri>>::Error> {
@@ -191,7 +191,7 @@ impl Request {
     /// ```
     /// use zng_task::http;
     ///
-    /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn try_example() -> Result<(), http::Error> {
     /// let put = http::Request::put("https://httpbin.org/put")?.header("accept", "application/json")?;
     /// # Ok(()) }
     /// ```
@@ -206,7 +206,7 @@ impl Request {
     /// ```
     /// use zng_task::http;
     ///
-    /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn try_example() -> Result<(), http::Error> {
     /// let post = http::Request::post("https://httpbin.org/post")?.header("accept", "application/json")?;
     /// # Ok(()) }
     /// ```
@@ -221,7 +221,7 @@ impl Request {
     /// ```
     /// use zng_task::http;
     ///
-    /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn try_example() -> Result<(), http::Error> {
     /// let delete = http::Request::delete("https://httpbin.org/delete")?.header("accept", "application/json")?;
     /// # Ok(()) }
     /// ```
@@ -236,7 +236,7 @@ impl Request {
     /// ```
     /// use zng_task::http;
     ///
-    /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn try_example() -> Result<(), http::Error> {
     /// let patch = http::Request::patch("https://httpbin.org/patch")?.header("accept", "application/json")?;
     /// # Ok(()) }
     /// ```
@@ -251,8 +251,8 @@ impl Request {
     /// ```
     /// use zng_task::http;
     ///
-    /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let head = http::Request::head("https://httpbin.org")?.build();
+    /// # fn try_example() -> Result<(), http::Error> {
+    /// let head = http::Request::head("https://httpbin.org")?;
     /// # Ok(()) }
     /// ```
     pub fn head<U: TryInto<Uri>>(uri: U) -> Result<Self, <U as TryInto<Uri>>::Error> {
@@ -399,7 +399,7 @@ impl From<http::Request<IpcBytes>> for Request {
 }
 
 /// Backend reader for [`Response`].
-pub trait HttpResponseConsumer: AsyncRead + Send + 'static {
+pub trait HttpResponseDownloader: AsyncRead + Send + 'static {
     /// Metrics of header and body download, if it was requested.
     fn metrics(&self) -> &Metrics;
 }
@@ -423,21 +423,21 @@ impl fmt::Debug for Response {
 }
 enum ResponseBody {
     Done { metrics: Metrics, bytes: IpcBytes },
-    Read { consumer: Box<dyn HttpResponseConsumer> },
+    Read { downloader: Box<dyn HttpResponseDownloader> },
 }
 impl Response {
     /// New with body download pending or ongoing.
-    pub fn from_consumer(
+    pub fn from_downloader(
         status: StatusCode,
         header: header::HeaderMap,
         effective_uri: Uri,
-        consumer: Box<dyn HttpResponseConsumer>,
+        downloader: Box<dyn HttpResponseDownloader>,
     ) -> Self {
         Self {
             status,
             headers: header,
             effective_uri,
-            body: ResponseBody::Read { consumer },
+            body: ResponseBody::Read { downloader },
         }
     }
 
@@ -482,14 +482,44 @@ impl Response {
         &self.effective_uri
     }
 
-    /// Decode `Content-Length` value if it is present in the headers.
+    /// Get the body bytes length if it is downloaded or `Content-Length` value if it is present in the headers.
     pub fn content_len(&self) -> Option<ByteLength> {
-        todo!() // !!: TODO
+        match &self.body {
+            ResponseBody::Done { bytes, .. } => Some(bytes.len().bytes()),
+            ResponseBody::Read { .. } => {
+                let len = self
+                    .headers
+                    .get(header::CONTENT_LENGTH)?
+                    .to_str()
+                    .ok()?
+                    .parse::<usize>()
+                    .ok()?
+                    .bytes();
+                Some(len)
+            }
+        }
     }
 
     /// Receive the entire body.
-    pub async fn consume(&mut self) -> Result<(), Error> {
-        todo!() // !!: TODO progress var?
+    pub async fn download(&mut self) -> Result<(), Error> {
+        if let ResponseBody::Done { .. } = &self.body {
+            return Ok(());
+        }
+
+        let mut downloader = match mem::replace(
+            &mut self.body,
+            ResponseBody::Done {
+                metrics: Metrics::zero(),
+                bytes: IpcBytes::default(),
+            },
+        ) {
+            ResponseBody::Read { downloader } => downloader,
+            ResponseBody::Done { metrics, bytes } => unreachable!(),
+        };
+
+        let body = IpcBytes::from_read(data);
+
+        Ok(())
     }
 
     // !!: TODO
@@ -502,7 +532,7 @@ impl Response {
 
     /// Await for the full body and returns a referent to it.
     pub async fn bytes(&mut self) -> Result<IpcBytes, Error> {
-        self.consume().await?;
+        self.download().await?;
         match &self.body {
             ResponseBody::Done { bytes, .. } => Ok(bytes.clone()),
             ResponseBody::Read { .. } => unreachable!(),
@@ -511,7 +541,21 @@ impl Response {
 
     /// Read the response body as a string.
     pub async fn text(&mut self) -> Result<Txt, Error> {
-        todo!() // !!: TODO
+        let content_type = self
+            .headers
+            .get(header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<mime::Mime>().ok());
+        let encoding_name = content_type
+            .as_ref()
+            .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
+            .unwrap_or("utf-8");
+
+        let bytes = self.bytes().await?;
+
+        let encoding = encoding_rs::Encoding::for_label(encoding_name.as_bytes()).unwrap_or(encoding_rs::UTF_8);
+        let (text, _, _) = encoding.decode(&bytes);
+        Ok(Txt::from_str(&text))
     }
 
     /// Deserialize the response body as JSON.
@@ -519,14 +563,16 @@ impl Response {
     where
         O: serde::de::DeserializeOwned + std::marker::Unpin,
     {
-        todo!() // !!: TODO
+        let bytes = self.bytes().await?;
+        let r = serde_json::from_slice(&bytes)?;
+        Ok(r)
     }
 
     /// Metrics for the task transfer, if it was enabled in the request.
     pub fn metrics(&self) -> &Metrics {
         match &self.body {
             ResponseBody::Done { metrics, .. } => metrics,
-            ResponseBody::Read { consumer, .. } => consumer.metrics(),
+            ResponseBody::Read { downloader: consumer, .. } => consumer.metrics(),
         }
     }
 }
