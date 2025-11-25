@@ -1,5 +1,6 @@
 use std::{any::Any, fmt, mem, pin::Pin};
 
+use http::{HeaderValue, Uri};
 use parking_lot::Mutex;
 
 use crate::{
@@ -29,8 +30,21 @@ pub trait HttpCache: Send + Sync + Any {
     /// Caches the `policy` and `body` for the given `key`.
     fn set(&'static self, key: CacheKey, policy: CachePolicy, body: IpcBytes) -> Fut<()>;
 
-    /// Remove cached policy and body for the given `key`.
+    /// Remove cache policy and body for the given `key`.
     fn remove(&'static self, key: CacheKey) -> Fut<()>;
+
+    /// Get the Cookie value associated with the `uri`.
+    ///
+    /// The returned value is validated and ready for sending.
+    fn cookie(&'static self, uri: Uri) -> Fut<Option<HeaderValue>>;
+
+    /// Store the Set-Cookie value associated with the `uri`.
+    ///
+    /// The uri and cookie must be directly from the response, the cache will parse and property associate the cookie with domain.
+    fn set_cookie(&'static self, uri: Uri, cookie: HeaderValue) -> Fut<()>;
+
+    /// Remove the Cookie value associated with the `uri`.
+    fn remove_cookie(&'static self, uri: Uri) -> Fut<()>;
 
     /// Remove all cached entries that are not locked in a `set*` operation.
     fn purge(&'static self) -> Fut<()>;

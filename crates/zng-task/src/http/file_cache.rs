@@ -51,6 +51,34 @@ impl FileSystemCache {
         let key = key.sha_str();
         task::wait(move || CacheEntry::open(dir.join(key), write)).await
     }
+
+    async fn cookie_jar(&self) -> cookie_store::CookieStore {
+        let s = match crate::fs::read_to_string(self.dir.join(Self::COOKIE_JAR)).await {
+            Ok(s) => s,
+            Err(e) => {
+                if !matches!(e.kind(), io::ErrorKind::NotFound) {
+                    tracing::error!("cannot read cookies store, {e}")
+                }
+                return cookie_store::CookieStore::default();
+            }
+        };
+        match serde_json::from_str(&s) {
+            Ok(j) => j,
+            Err(e) => {
+                tracing::error!("invalid cookie store format, {e}");
+                cookie_store::CookieStore::default()
+            }
+        }
+    }
+
+    async fn set_cookie_jar(&self, jar: cookie_store::CookieStore) {
+        let s = serde_json::to_string(&jar).unwrap();
+        if let Err(e) = crate::fs::write(self.dir.join(Self::COOKIE_JAR), s.as_bytes()).await {
+            tracing::error!("cannot write cookie store, {e}")
+        }
+    }
+
+    const COOKIE_JAR: &str = "cookie_jar.json";
 }
 impl HttpCache for FileSystemCache {
     fn policy(&'static self, key: CacheKey) -> Fut<Option<CachePolicy>> {
@@ -92,6 +120,67 @@ impl HttpCache for FileSystemCache {
                 })
                 .await
             }
+        })
+    }
+
+    fn cookie(&'static self, uri: Uri) -> Fut<Option<http::HeaderValue>> {
+        Box::pin(async move {
+            let jar = self.cookie_jar().await;
+            let mut r = String::new();
+            let mut sep = "";
+            for (key, value) in jar.get_request_values(&uri.to_string().parse().unwrap()) {
+                r.push_str(sep);
+                r.push_str(key);
+                r.push('=');
+                r.push_str(value);
+                sep = "; ";
+            }
+            if r.is_empty() {
+                None
+            } else {
+                match http::HeaderValue::from_str(&r) {
+                    Ok(c) => Some(c),
+                    Err(e) => {
+                        tracing::error!("invalid cookie storage, {e}");
+                        self.set_cookie_jar(jar).await;
+                        None
+                    }
+                }
+            }
+        })
+    }
+    fn set_cookie(&'static self, uri: Uri, cookie: http::HeaderValue) -> Fut<()> {
+        Box::pin(async move {
+            let cookie = match cookie.to_str() {
+                Ok(s) => s.to_owned(),
+                Err(e) => {
+                    tracing::error!("cannot store invalid cookie value, {e}");
+                    return;
+                }
+            };
+            let url = uri.to_string().parse().unwrap();
+            let cookies = cookie
+                .split(';')
+                .flat_map(|c| cookie_store::Cookie::parse(c.trim(), &url).ok())
+                .map(|c| (*c).clone().into_owned());
+            let mut jar = self.cookie_jar().await;
+            jar.store_response_cookies(cookies, &url);
+            self.set_cookie_jar(jar).await;
+        })
+    }
+
+    fn remove_cookie(&'static self, uri: Uri) -> Fut<()> {
+        Box::pin(async move {
+            let mut jar = self.cookie_jar().await;
+            let matches = jar.matches(&uri.to_string().parse().unwrap());
+            if matches.is_empty() {
+                return;
+            }
+            let matches: Vec<_> = matches.into_iter().cloned().collect();
+            for c in matches {
+                jar.remove(c.domain().unwrap_or(""), c.path().unwrap_or(""), c.name());
+            }
+            self.set_cookie_jar(jar).await;
         })
     }
 

@@ -177,6 +177,15 @@ pub mod http {
         Error, METRICS_ID, Method, Metrics, Request, Response, StatusCode, Uri, delete, get, get_bytes, get_json, get_txt, head, header,
         method, post, put, send, uri,
     };
+
+    /// Remove all cached entries, or just older ones if `prune` is enabled.
+    pub async fn cache_clean(prune: bool) {
+        if prune {
+            zng_task::http::http_cache().prune().await;
+        } else {
+            zng_task::http::http_cache().purge().await;
+        }
+    }
 }
 
 #[cfg(ipc)]

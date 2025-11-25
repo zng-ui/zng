@@ -124,7 +124,13 @@ pub struct Request {
     /// Is [`CacheMode::Default`] by default.
     pub cache: CacheMode,
 
-    // !!: TODO cookies
+    /// If cookies should be send and stored.
+    ///
+    /// When enabled the [`http_cache`] is used to retrieve and store cookies.
+    ///
+    /// Is not enabled by default.
+    pub cookies: bool,
+
     /// If transfer metrics should be measured.
     ///
     /// When enabled you can get the information using the [`Response::metrics`] method.
@@ -150,6 +156,7 @@ impl Request {
     /// # Ok(()) }
     /// ```
     pub fn new(method: Method, uri: Uri) -> Self {
+        // !!: TODO static default
         Self {
             uri,
             method,
@@ -164,6 +171,7 @@ impl Request {
             max_upload_speed: ByteLength::MAX,
             max_download_speed: ByteLength::MAX,
             cache: CacheMode::Default,
+            cookies: false,
             metrics: true,
             body: IpcBytes::default(),
         }
@@ -822,6 +830,3 @@ zng_state_map::static_id! {
     /// Metrics in a [`Progress::with_meta`] metadata.
     pub static ref METRICS_ID: zng_state_map::StateId<Metrics>;
 }
-
-// !!: TODO chunked downloader/DASH protocol?
-// !!: TODO public purge cache function

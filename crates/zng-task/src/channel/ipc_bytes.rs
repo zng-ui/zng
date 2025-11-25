@@ -84,7 +84,7 @@ impl IpcBytes {
     /// Copy or move data from vector.
     pub async fn from_vec(data: Vec<u8>) -> io::Result<Self> {
         crate::wait(move || Self::from_vec_blocking(data)).await
-    }    
+    }
 
     /// Read `data` into shared memory.
     pub async fn from_read(data: Pin<&mut (dyn futures_lite::AsyncRead + Send)>) -> io::Result<Self> {
@@ -194,7 +194,7 @@ impl IpcBytes {
         .await
     }
 
-        /// Memory map an existing file.
+    /// Memory map an existing file.
     ///
     /// The `range` defines the slice of the `file` that will be mapped. Returns [`io::ErrorKind::UnexpectedEof`] if the file does not have enough bytes.
     ///
@@ -211,9 +211,9 @@ impl IpcBytes {
         crate::wait(move || {
             // SAFETY: up to the caller
             unsafe { Self::open_memmap_blocking(file, range) }
-        }).await
+        })
+        .await
     }
-
 
     /// Gets if both point to the same memory.
     pub fn ptr_eq(&self, other: &Self) -> bool {
