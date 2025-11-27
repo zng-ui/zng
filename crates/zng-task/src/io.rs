@@ -142,6 +142,9 @@ impl<T: AsyncWrite + Unpin> AsyncWrite for Measure<T> {
 
 /// Information about the state of an async IO task.
 ///
+/// Read is also called *receive* or *download*. Write is also called *send* or *upload*. The default
+/// display print uses arrows ↓ and ↑ for read and write.
+///
 /// Use [`Measure`] to measure a task.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -176,18 +179,18 @@ impl Metrics {
 }
 impl fmt::Display for Metrics {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut w = false;
+        let mut nl = false;
         if self.read_progress.1 > 0.bytes() {
-            w = true;
+            nl = true;
             if self.read_progress.0 != self.read_progress.1 {
                 write!(f, "↓ {}-{}, {}/s", self.read_progress.0, self.read_progress.1, self.read_speed)?;
-                w = true;
+                nl = true;
             } else {
                 write!(f, "↓ {} . {:?}", self.read_progress.0, self.total_time)?;
             }
         }
         if self.write_progress.1 > 0.bytes() {
-            if w {
+            if nl {
                 writeln!(f)?;
             }
             if self.write_progress.0 != self.write_progress.1 {

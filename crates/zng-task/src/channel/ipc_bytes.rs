@@ -274,7 +274,7 @@ impl IpcBytes {
         {
             let mut buf = vec![];
             data.read_to_end(&mut buf)?;
-            Self::from_vec(buf)
+            Self::from_vec_blocking(buf)
         }
     }
     #[cfg(ipc)]
@@ -358,7 +358,7 @@ impl IpcBytes {
             let mut file = fs::File::open(file)?;
             let mut buf = vec![];
             file.read_to_end(&mut buf)?;
-            Self::from_vec(buf)
+            Self::from_vec_blocking(buf)
         }
     }
 

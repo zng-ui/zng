@@ -692,7 +692,7 @@ impl ImagesService {
                                     }
                                 }
 
-                                r.r = rsp.bytes().await.map_err(|e| formatx!("download error: {e}"));
+                                r.r = rsp.body().await.map_err(|e| formatx!("download error: {e}"));
                             }
                             Err(e) => {
                                 r.r = Err(formatx!("request error: {e}"));

@@ -489,10 +489,10 @@ mod tests {
         let policy = CachePolicy::new(&request, &response);
 
         let body = async_test(async move {
-            test.set(key.clone(), policy, response.bytes().await.unwrap()).await;
+            test.set(key.clone(), policy, response.body().await.unwrap()).await;
             let body = test.body(key).await.unwrap();
             Response::from_done(StatusCode::OK, HeaderMap::new(), Uri::from_static("/"), Metrics::zero(), body)
-                .text()
+                .body_text()
                 .await
                 .unwrap()
         });
@@ -512,7 +512,7 @@ mod tests {
         let policy = CachePolicy::new(&request, &response);
 
         async_test(async_clmv!(key, {
-            test.set(key.clone(), policy, response.bytes().await.unwrap()).await;
+            test.set(key.clone(), policy, response.body().await.unwrap()).await;
         }));
 
         let test: &'static FileSystemCache = Box::leak(Box::new(FileSystemCache::new(tmp.path().to_owned()).unwrap()));
@@ -520,7 +520,7 @@ mod tests {
         let body = async_test(async move {
             let body = test.body(key).await.unwrap();
             Response::from_done(StatusCode::OK, HeaderMap::new(), Uri::from_static("/"), Metrics::zero(), body)
-                .text()
+                .body_text()
                 .await
                 .unwrap()
         });
@@ -539,7 +539,7 @@ mod tests {
         let policy = CachePolicy::new(&request, &response);
 
         let r_policy = async_test(async_clmv!(policy, {
-            test.set(key.clone(), policy, response.bytes().await.unwrap()).await;
+            test.set(key.clone(), policy, response.body().await.unwrap()).await;
 
             let test: &'static FileSystemCache = Box::leak(Box::new(FileSystemCache::new(tmp.path().to_owned()).unwrap()));
 

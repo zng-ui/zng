@@ -174,8 +174,8 @@ pub use zng_task::{doc_test, spin_on};
 #[cfg(feature = "http")]
 pub mod http {
     pub use zng_task::http::{
-        Error, METRICS_ID, Method, Metrics, Request, Response, StatusCode, Uri, delete, get, get_bytes, get_json, get_txt, head, header,
-        method, post, put, send, uri,
+        Error, Method, Request, Response, StatusCode, Uri, delete, get, get_bytes, get_json, get_txt, head, header, method, post, put,
+        send, uri,
     };
 
     /// Remove all cached entries, or just older ones if `prune` is enabled.

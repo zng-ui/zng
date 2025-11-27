@@ -36,15 +36,8 @@ mod tests;
 #[doc(no_inline)]
 pub use rayon;
 
-/// Async filesystem primitives.
-///
-/// This module is the [async-fs](https://docs.rs/async-fs) crate re-exported for convenience.
-pub mod fs {
-    #[doc(inline)]
-    pub use async_fs::*;
-}
-
 pub mod channel;
+pub mod fs;
 pub mod io;
 mod ui;
 

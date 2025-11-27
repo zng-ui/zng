@@ -26,16 +26,16 @@ pub use http::{
     uri::{self, Uri},
 };
 use serde::{Deserialize, Serialize};
-use zng_var::impl_from_and_into_var;
+use zng_var::{Var, const_var};
 
 use std::time::Duration;
 use std::{fmt, mem};
 
-use crate::{Progress, channel::IpcBytes};
+use crate::{channel::IpcBytes, io::Metrics};
 
 use super::io::AsyncRead;
 
-use zng_txt::{ToTxt, Txt, formatx};
+use zng_txt::{ToTxt, Txt};
 use zng_unit::*;
 
 /// HTTP request.
@@ -369,10 +369,21 @@ impl Request {
         self
     }
 
-    /// Set the [`body`] to a JSON payload. Also sets the `Content-Type` header.
+    /// Set the [`body`] to a plain text UTF-8 payload.  Also sets the `Content-Type` header if it is not set.
+    pub fn body_text(mut self, body: &str) -> Result<Self, Error> {
+        if !self.headers.contains_key("Content-Type") {
+            self = self.header("Content-Type", "text/plain; charset=utf-8")?;
+        }
+        Ok(self.body(IpcBytes::from_slice_blocking(body.as_bytes())?))
+    }
+
+    /// Set the [`body`] to a JSON payload. Also sets the `Content-Type` header if it is not set.
     ///
     /// [`body`]: field@Request::body
-    pub fn body_json<T: Serialize>(self, body: &T) -> std::io::Result<Self> {
+    pub fn body_json<T: Serialize>(mut self, body: &T) -> Result<Self, Error> {
+        if !self.headers.contains_key("Content-Type") {
+            self = self.header("Content-Type", "text/json; charset=utf-8")?;
+        }
         let body = serde_json::to_vec(body)?;
         Ok(self.body(IpcBytes::from_vec_blocking(body)?))
     }
@@ -407,10 +418,7 @@ impl From<http::Request<IpcBytes>> for Request {
 }
 
 /// Backend reader for [`Response`].
-pub trait HttpResponseDownloader: AsyncRead + Send + 'static {
-    /// Metrics of header and body download, if it was requested.
-    fn metrics(&self) -> &Metrics;
-}
+pub trait HttpResponseDownloader: AsyncRead + Send + 'static {}
 
 /// HTTP response.
 pub struct Response {
@@ -418,6 +426,7 @@ pub struct Response {
     headers: header::HeaderMap,
     effective_uri: Uri,
     body: ResponseBody,
+    metrics: Var<Metrics>,
 }
 impl fmt::Debug for Response {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -425,12 +434,12 @@ impl fmt::Debug for Response {
             .field("status", &self.status)
             .field("effective_uri", &self.effective_uri)
             .field("header", &self.headers)
-            .field("metrics", self.metrics())
+            .field("metrics", &self.metrics.get())
             .finish_non_exhaustive()
     }
 }
 enum ResponseBody {
-    Done { metrics: Metrics, bytes: IpcBytes },
+    Done { bytes: IpcBytes },
     Read { downloader: Box<dyn HttpResponseDownloader> },
 }
 impl Response {
@@ -439,12 +448,14 @@ impl Response {
         status: StatusCode,
         header: header::HeaderMap,
         effective_uri: Uri,
+        metrics: Var<Metrics>,
         downloader: Box<dyn HttpResponseDownloader>,
     ) -> Self {
         Self {
             status,
             headers: header,
             effective_uri,
+            metrics,
             body: ResponseBody::Read { downloader },
         }
     }
@@ -458,7 +469,8 @@ impl Response {
             status,
             headers,
             effective_uri,
-            body: ResponseBody::Done { metrics, bytes: body },
+            metrics: const_var(metrics),
+            body: ResponseBody::Done { bytes: body },
         }
     }
 
@@ -517,7 +529,6 @@ impl Response {
         let downloader = match mem::replace(
             &mut self.body,
             ResponseBody::Done {
-                metrics: Metrics::zero(),
                 bytes: IpcBytes::default(),
             },
         ) {
@@ -527,24 +538,13 @@ impl Response {
         let mut downloader = Box::into_pin(downloader);
         let body = IpcBytes::from_read(downloader.as_mut()).await?;
 
-        self.body = ResponseBody::Done {
-            metrics: downloader.metrics().clone(),
-            bytes: body,
-        };
+        self.body = ResponseBody::Done { bytes: body };
 
         Ok(())
     }
 
-    // !!: TODO
-    // /// Get the configured cookie jar used for persisting cookies from this response, if any.
-    // ///
-    // /// Only returns `None` if the [`default_client`] was replaced by one with cookies disabled.
-    // pub fn cookie_jar(&self) -> Option<&CookieJar> {
-    //     self.0.cookie_jar()
-    // }
-
-    /// Await for the full body and returns a referent to it.
-    pub async fn bytes(&mut self) -> Result<IpcBytes, Error> {
+    /// Download the full body and returns a reference to it.
+    pub async fn body(&mut self) -> Result<IpcBytes, Error> {
         self.download().await?;
         match &self.body {
             ResponseBody::Done { bytes, .. } => Ok(bytes.clone()),
@@ -552,8 +552,8 @@ impl Response {
         }
     }
 
-    /// Read the response body as a string.
-    pub async fn text(&mut self) -> Result<Txt, Error> {
+    /// Download the full body and returns it decoded to text.
+    pub async fn body_text(&mut self) -> Result<Txt, Error> {
         let content_type = self
             .headers
             .get(header::CONTENT_TYPE)
@@ -564,29 +564,26 @@ impl Response {
             .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
             .unwrap_or("utf-8");
 
-        let bytes = self.bytes().await?;
+        let bytes = self.body().await?;
 
         let encoding = encoding_rs::Encoding::for_label(encoding_name.as_bytes()).unwrap_or(encoding_rs::UTF_8);
         let (text, _, _) = encoding.decode(&bytes);
         Ok(Txt::from_str(&text))
     }
 
-    /// Deserialize the response body as JSON.
-    pub async fn json<O>(&mut self) -> Result<O, Error>
+    /// Download the full body and returns it decoded to JSON and deserialized to `O`.
+    pub async fn body_json<O>(&mut self) -> Result<O, Error>
     where
         O: serde::de::DeserializeOwned + std::marker::Unpin,
     {
-        let bytes = self.bytes().await?;
+        let bytes = self.body().await?;
         let r = serde_json::from_slice(&bytes)?;
         Ok(r)
     }
 
     /// Metrics for the task transfer, if it was enabled in the request.
-    pub fn metrics(&self) -> &Metrics {
-        match &self.body {
-            ResponseBody::Done { metrics, .. } => metrics,
-            ResponseBody::Read { downloader: consumer, .. } => consumer.metrics(),
-        }
+    pub fn metrics(&self) -> Var<Metrics> {
+        self.metrics.read_only()
     }
 }
 
@@ -609,7 +606,7 @@ where
     U: TryInto<Uri>,
     Error: From<<U as TryInto<Uri>>::Error>,
 {
-    send(Request::get(uri)?).await?.text().await
+    send(Request::get(uri)?).await?.body_text().await
 }
 
 /// Send a GET request to the `uri` and read the response as raw bytes.
@@ -620,7 +617,7 @@ where
     U: TryInto<Uri>,
     Error: From<<U as TryInto<Uri>>::Error>,
 {
-    send(Request::get(uri)?).await?.bytes().await
+    send(Request::get(uri)?).await?.body().await
 }
 
 /// Send a GET request to the `uri` and de-serializes the response.
@@ -632,7 +629,7 @@ where
     Error: From<<U as TryInto<Uri>>::Error>,
     O: serde::de::DeserializeOwned + std::marker::Unpin,
 {
-    send(Request::get(uri)?).await?.json().await
+    send(Request::get(uri)?).await?.body_json().await
 }
 
 /// Send a HEAD request to the `uri`.
@@ -693,140 +690,4 @@ pub async fn send(request: Request) -> Result<Response, Error> {
             CacheMode::Permanent => cache::send_cache_perm(client, request).await,
         }
     }
-}
-
-/// Information about the state of an HTTP request.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct Metrics {
-    /// Number of bytes uploaded / estimated total.
-    pub upload_progress: (ByteLength, ByteLength),
-
-    /// Average upload speed so far in bytes/second.
-    pub upload_speed: ByteLength,
-
-    /// Number of bytes downloaded / estimated total.
-    pub download_progress: (ByteLength, ByteLength),
-
-    /// Average download speed so far in bytes/second.
-    pub download_speed: ByteLength,
-
-    /// Total time from the start of the request until DNS name resolving was completed.
-    ///
-    /// When a redirect is followed, the time from each request is added together.
-    pub name_lookup_time: Duration,
-
-    /// Amount of time taken to establish a connection to the server (not including TLS connection time).
-    ///
-    /// When a redirect is followed, the time from each request is added together.
-    pub connect_time: Duration,
-
-    /// Amount of time spent on TLS handshakes.
-    ///
-    /// When a redirect is followed, the time from each request is added together.
-    pub secure_connect_time: Duration,
-
-    /// Time it took from the start of the request until the first byte is either sent or received.
-    ///
-    /// When a redirect is followed, the time from each request is added together.
-    pub transfer_start_time: Duration,
-
-    /// Amount of time spent performing the actual request transfer. The “transfer” includes
-    /// both sending the request and receiving the response.
-    ///
-    /// When a redirect is followed, the time from each request is added together.
-    pub transfer_time: Duration,
-
-    /// Total time for the entire request. This will continuously increase until the entire
-    /// response body is consumed and completed.
-    ///
-    /// When a redirect is followed, the time from each request is added together.
-    pub total_time: Duration,
-
-    /// If automatic redirect following is enabled, the total time taken for all redirection steps
-    /// including name lookup, connect, pre-transfer and transfer before final transaction was started.
-    pub redirect_time: Duration,
-}
-impl Metrics {
-    /// All zeros.
-    pub fn zero() -> Self {
-        Self {
-            upload_progress: (0.bytes(), 0.bytes()),
-            upload_speed: 0.bytes(),
-            download_progress: (0.bytes(), 0.bytes()),
-            download_speed: 0.bytes(),
-            name_lookup_time: Duration::ZERO,
-            connect_time: Duration::ZERO,
-            secure_connect_time: Duration::ZERO,
-            transfer_start_time: Duration::ZERO,
-            transfer_time: Duration::ZERO,
-            total_time: Duration::ZERO,
-            redirect_time: Duration::ZERO,
-        }
-    }
-}
-impl fmt::Display for Metrics {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut ws = false; // written something
-
-        if self.upload_progress.0 != self.upload_progress.1 {
-            write!(
-                f,
-                "↑ {} - {}, {}/s",
-                self.upload_progress.0, self.upload_progress.1, self.upload_speed
-            )?;
-            ws = true;
-        }
-        if self.download_progress.0 != self.download_progress.1 {
-            write!(
-                f,
-                "{}↓ {} - {}, {}/s",
-                if ws { "\n" } else { "" },
-                self.download_progress.0,
-                self.download_progress.1,
-                self.download_speed
-            )?;
-            ws = true;
-        }
-
-        if !ws {
-            if self.upload_progress.1.bytes() > 0 {
-                write!(f, "↑ {}", self.upload_progress.1)?;
-                ws = true;
-            }
-            if self.download_progress.1.bytes() > 0 {
-                write!(f, "{}↓ {}", if ws { "\n" } else { "" }, self.download_progress.1)?;
-                ws = true;
-            }
-
-            if ws {
-                write!(f, "\n{:?}", self.total_time)?;
-            }
-        }
-
-        Ok(())
-    }
-}
-impl_from_and_into_var! {
-    fn from(metrics: Metrics) -> Progress {
-        let mut status = Progress::indeterminate();
-        if metrics.download_progress.1 > 0.bytes() {
-            status = Progress::from_n_of(metrics.download_progress.0.0, metrics.download_progress.1.0);
-        }
-        if metrics.upload_progress.1 > 0.bytes() {
-            let u_status = Progress::from_n_of(metrics.upload_progress.0.0, metrics.upload_progress.1.0);
-            if status.is_indeterminate() {
-                status = u_status;
-            } else {
-                status = status.and_fct(u_status.fct());
-            }
-        }
-        status.with_msg(formatx!("{metrics}")).with_meta_mut(|mut m| {
-            m.set(*METRICS_ID, metrics);
-        })
-    }
-}
-zng_state_map::static_id! {
-    /// Metrics in a [`Progress::with_meta`] metadata.
-    pub static ref METRICS_ID: zng_state_map::StateId<Metrics>;
 }

@@ -249,7 +249,7 @@ pub(crate) async fn send_cache(client: &'static dyn HttpClient, request: Request
                                 } else {
                                     cache.remove(key).await;
                                 }
-                                let mut metrics = response.metrics().clone();
+                                let mut metrics = response.metrics().get();
                                 if request.metrics {
                                     metrics.total_time = start_time.elapsed();
                                 }
@@ -258,7 +258,7 @@ pub(crate) async fn send_cache(client: &'static dyn HttpClient, request: Request
                             }
                             AfterResponse::Modified(cache_policy, parts) => {
                                 if cache_policy.should_store() {
-                                    let body = response.bytes().await?;
+                                    let body = response.body().await?;
                                     response.status = parts.status;
                                     response.headers = parts.headers;
                                     cache.set(key, cache_policy, body).await;
@@ -280,7 +280,7 @@ pub(crate) async fn send_cache(client: &'static dyn HttpClient, request: Request
             let mut response = client.send(request.clone()).await?;
             let cache_policy = CachePolicy::new(&request, &response);
             if cache_policy.should_store() {
-                let body = response.bytes().await?;
+                let body = response.body().await?;
                 cache.set(key, CachePolicy::new(&request, &response), body).await;
             }
 
@@ -323,7 +323,7 @@ pub(crate) async fn send_cache_perm(client: &'static dyn HttpClient, request: Re
                         match policy.after_response(&request, &response) {
                             AfterResponse::NotModified(_, parts) => {
                                 cache.set_policy(key, CachePolicy::new_permanent(&response)).await;
-                                let mut metrics = response.metrics().clone();
+                                let mut metrics = response.metrics().get();
                                 if request.metrics {
                                     metrics.total_time = start_time.elapsed();
                                 }
@@ -331,7 +331,7 @@ pub(crate) async fn send_cache_perm(client: &'static dyn HttpClient, request: Re
                                 return Ok(response);
                             }
                             AfterResponse::Modified(_, parts) => {
-                                let body = response.bytes().await?;
+                                let body = response.body().await?;
                                 response.status = parts.status;
                                 response.headers = parts.headers;
                                 cache.set(key, CachePolicy::new_permanent(&response), body).await;
@@ -348,7 +348,7 @@ pub(crate) async fn send_cache_perm(client: &'static dyn HttpClient, request: Re
         } else {
             // not cached
             let mut response = client.send(request).await?;
-            let body = response.bytes().await?;
+            let body = response.body().await?;
             cache.set(key, CachePolicy::new_permanent(&response), body).await;
 
             return Ok(response);
