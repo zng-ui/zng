@@ -1,5 +1,13 @@
 # Unreleased
 
+* **Breaking** Refactor `zng::task::http` into a backend agnostic API.
+    - Removed unmaintained `isahc` dependency.
+
+* **Breaking** Refactor `zng::task::io::ReadLimited`.
+    - No longer generic over the error function.
+    - Now also implements `BufRead`, `Read` and `AsyncBufRead`.
+    - Add constructor with default error.
+
 * Refactor `WhiteSpace` merging to better integrate with basic paragraph spacing.
     - `Merge` now also merges multiple line breaks into a single one.
     - **Breaking** Added `MergeParagraph`. Merges spaces and trim lines. Removes single line breaks. Merge multiple line breaks.
@@ -17,7 +25,7 @@
 * Refactor IPC and worker process API.
     - **Breaking** Remove `zng::task::ipc`.
     - Add `zng::task::channel::ipc_channel` and related types.
-    - Add `zng::task::process` with the same worker process types.
+    - Add `zng::task::process::worker` with the same worker process types.
     - IPC types are now also available in builds without `"ipc"` feature, internally patched to use normal channels.
     - **Breaking** Remove `zng::task::channel::{UnboundSender, UnboundReceiver}`.
     - **Breaking** Unified channel error types.

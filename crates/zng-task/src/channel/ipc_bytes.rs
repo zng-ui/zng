@@ -6,9 +6,11 @@ use std::{
     io::{self, Read, Write},
     ops,
     path::{Path, PathBuf},
+    pin::Pin,
     sync::{Arc, Weak},
 };
 
+use futures_lite::AsyncReadExt;
 #[cfg(ipc)]
 use ipc_channel::ipc::IpcSharedMemory;
 use parking_lot::Mutex;
@@ -79,8 +81,157 @@ impl IpcBytes {
         IpcBytes(Arc::new(IpcBytesData::Heap(vec![])))
     }
 
+    /// Copy or move data from vector.
+    pub async fn from_vec(data: Vec<u8>) -> io::Result<Self> {
+        crate::wait(move || Self::from_vec_blocking(data)).await
+    }
+
+    /// Read `data` into shared memory.
+    pub async fn from_read(data: Pin<&mut (dyn futures_lite::AsyncRead + Send)>) -> io::Result<Self> {
+        #[cfg(ipc)]
+        {
+            Self::from_read_ipc(data).await
+        }
+        #[cfg(not(ipc))]
+        {
+            let mut data = data;
+            let mut buf = vec![];
+            data.read_to_end(&mut buf).await;
+            Self::from_vec(buf).await
+        }
+    }
+    #[cfg(ipc)]
+    async fn from_read_ipc(mut data: Pin<&mut (dyn futures_lite::AsyncRead + Send)>) -> io::Result<Self> {
+        let mut buf = vec![0u8; Self::INLINE_MAX + 1];
+        let mut len = 0;
+
+        // INLINE_MAX read
+        loop {
+            match data.read(&mut buf[len..]).await {
+                Ok(l) => {
+                    if l == 0 {
+                        // is <= INLINE_MAX
+                        buf.truncate(len);
+                        return Ok(Self(Arc::new(IpcBytesData::Heap(buf))));
+                    } else {
+                        len += l;
+                        if len == Self::INLINE_MAX + 1 {
+                            // goto UNNAMED_MAX read
+                            break;
+                        }
+                    }
+                }
+                Err(e) => match e.kind() {
+                    io::ErrorKind::WouldBlock => continue,
+                    _ => return Err(e),
+                },
+            }
+        }
+
+        // UNNAMED_MAX read
+        buf.resize(Self::UNNAMED_MAX + 1, 0);
+        loop {
+            match data.read(&mut buf[len..]).await {
+                Ok(l) => {
+                    if l == 0 {
+                        // is <= UNNAMED_MAX
+                        return Ok(Self(Arc::new(IpcBytesData::AnonMemMap(IpcSharedMemory::from_bytes(&buf[..len])))));
+                    } else {
+                        len += l;
+                        if len == Self::UNNAMED_MAX + 1 {
+                            // goto named file loop
+                            break;
+                        }
+                    }
+                }
+                Err(e) => match e.kind() {
+                    io::ErrorKind::WouldBlock => continue,
+                    _ => return Err(e),
+                },
+            }
+        }
+
+        // named file copy
+        Self::new_memmap(async |m| {
+            use futures_lite::AsyncWriteExt as _;
+
+            m.write_all(&buf).await?;
+            crate::io::copy(data, m).await?;
+            Ok(())
+        })
+        .await
+    }
+
+    /// Read `file` into shared memory.
+    pub async fn from_file(file: PathBuf) -> io::Result<Self> {
+        crate::wait(move || Self::from_file_blocking(&file)).await
+    }
+
+    /// Create a memory mapped file.
+    ///
+    /// Note that the `from_` functions select optimized backing storage depending on data length, this function
+    /// always selects the slowest options, a file backed memory map.
+    #[cfg(ipc)]
+    pub async fn new_memmap(write: impl AsyncFnOnce(&mut crate::fs::File) -> io::Result<()>) -> io::Result<Self> {
+        let (name, file) = crate::wait(Self::create_memmap).await?;
+        let mut file = crate::fs::File::from(file);
+        write(&mut file).await?;
+
+        let mut permissions = file.metadata().await?.permissions();
+        permissions.set_readonly(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            permissions.set_mode(0o400);
+        }
+        file.set_permissions(permissions).await?;
+
+        crate::wait(move || {
+            drop(file);
+            let map = IpcMemMap::read(name, None)?;
+            Ok(Self(Arc::new(IpcBytesData::MemMap(map))))
+        })
+        .await
+    }
+
+    /// Memory map an existing file.
+    ///
+    /// The `range` defines the slice of the `file` that will be mapped. Returns [`io::ErrorKind::UnexpectedEof`] if the file does not have enough bytes.
+    ///
+    /// # Safety
+    ///
+    /// Caller must ensure the `file` is not modified while all clones of the `IpcBytes` exists in the current process and others.
+    ///
+    /// Note that the safe [`new_memmap`] function assures safety by retaining a read lock (Windows) and restricting access rights (Unix)
+    /// so that the file data is as read-only as the static data in the current executable file.
+    ///
+    /// [`new_memmap`]: Self::new_memmap
+    #[cfg(ipc)]
+    pub async unsafe fn open_memmap(file: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
+        crate::wait(move || {
+            // SAFETY: up to the caller
+            unsafe { Self::open_memmap_blocking(file, range) }
+        })
+        .await
+    }
+
+    /// Gets if both point to the same memory.
+    pub fn ptr_eq(&self, other: &Self) -> bool {
+        let a = &self[..];
+        let b = &other[..];
+        (std::ptr::eq(a, b) && a.len() == b.len()) || (a.is_empty() && b.is_empty())
+    }
+
+    #[cfg(ipc)]
+    const INLINE_MAX: usize = 64 * 1024; // 64KB
+    #[cfg(ipc)]
+    const UNNAMED_MAX: usize = 128 * 1024 * 1024; // 128MB
+}
+
+/// Blocking API
+impl IpcBytes {
     /// Copy data from slice.
-    pub fn from_slice(data: &[u8]) -> io::Result<Self> {
+    pub fn from_slice_blocking(data: &[u8]) -> io::Result<Self> {
         #[cfg(ipc)]
         {
             if data.len() <= Self::INLINE_MAX {
@@ -88,7 +239,7 @@ impl IpcBytes {
             } else if data.len() <= Self::UNNAMED_MAX {
                 Ok(Self(Arc::new(IpcBytesData::AnonMemMap(IpcSharedMemory::from_bytes(data)))))
             } else {
-                Self::new_memmap(|m| m.write_all(data))
+                Self::new_memmap_blocking(|m| m.write_all(data))
             }
         }
         #[cfg(not(ipc))]
@@ -98,13 +249,13 @@ impl IpcBytes {
     }
 
     /// Copy or move data from vector.
-    pub fn from_vec(data: Vec<u8>) -> io::Result<Self> {
+    pub fn from_vec_blocking(data: Vec<u8>) -> io::Result<Self> {
         #[cfg(ipc)]
         {
             if data.len() <= Self::INLINE_MAX {
                 Ok(Self(Arc::new(IpcBytesData::Heap(data))))
             } else {
-                Self::from_slice(&data)
+                Self::from_slice_blocking(&data)
             }
         }
         #[cfg(not(ipc))]
@@ -114,20 +265,20 @@ impl IpcBytes {
     }
 
     /// Read `data` into shared memory.
-    pub fn from_read(data: &mut dyn io::Read) -> io::Result<Self> {
+    pub fn from_read_blocking(data: &mut dyn io::Read) -> io::Result<Self> {
         #[cfg(ipc)]
         {
-            Self::from_read_ipc(data)
+            Self::from_read_blocking_ipc(data)
         }
         #[cfg(not(ipc))]
         {
             let mut buf = vec![];
             data.read_to_end(&mut buf)?;
-            Self::from_vec(buf)
+            Self::from_vec_blocking(buf)
         }
     }
     #[cfg(ipc)]
-    fn from_read_ipc(data: &mut dyn io::Read) -> io::Result<Self> {
+    fn from_read_blocking_ipc(data: &mut dyn io::Read) -> io::Result<Self> {
         let mut buf = vec![0u8; Self::INLINE_MAX + 1];
         let mut len = 0;
 
@@ -178,7 +329,7 @@ impl IpcBytes {
         }
 
         // named file copy
-        Self::new_memmap(|m| {
+        Self::new_memmap_blocking(|m| {
             m.write_all(&buf)?;
             io::copy(data, m)?;
             Ok(())
@@ -186,7 +337,7 @@ impl IpcBytes {
     }
 
     /// Read `file` into shared memory.
-    pub fn from_file(file: &Path) -> io::Result<Self> {
+    pub fn from_file_blocking(file: &Path) -> io::Result<Self> {
         #[cfg(ipc)]
         {
             let mut file = fs::File::open(file)?;
@@ -194,9 +345,9 @@ impl IpcBytes {
             if len <= Self::UNNAMED_MAX as u64 {
                 let mut buf = vec![0u8; len as usize];
                 file.read_exact(&mut buf)?;
-                Self::from_vec(buf)
+                Self::from_vec_blocking(buf)
             } else {
-                Self::new_memmap(|m| {
+                Self::new_memmap_blocking(|m| {
                     io::copy(&mut file, m)?;
                     Ok(())
                 })
@@ -207,7 +358,7 @@ impl IpcBytes {
             let mut file = fs::File::open(file)?;
             let mut buf = vec![];
             file.read_to_end(&mut buf)?;
-            Self::from_vec(buf)
+            Self::from_vec_blocking(buf)
         }
     }
 
@@ -216,10 +367,9 @@ impl IpcBytes {
     /// Note that the `from_` functions select optimized backing storage depending on data length, this function
     /// always selects the slowest options, a file backed memory map.
     #[cfg(ipc)]
-    pub fn new_memmap(write: impl FnOnce(&mut fs::File) -> io::Result<()>) -> io::Result<Self> {
+    pub fn new_memmap_blocking(write: impl FnOnce(&mut fs::File) -> io::Result<()>) -> io::Result<Self> {
         let (name, mut file) = Self::create_memmap()?;
         write(&mut file)?;
-
         let mut permissions = file.metadata()?.permissions();
         permissions.set_readonly(true);
         #[cfg(unix)]
@@ -290,7 +440,7 @@ impl IpcBytes {
     ///
     /// [`new_memmap`]: Self::new_memmap
     #[cfg(ipc)]
-    pub unsafe fn open_memmap(file: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
+    pub unsafe fn open_memmap_blocking(file: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
         let read_handle = fs::File::open(&file)?;
         read_handle.lock_shared()?;
         let len = read_handle.metadata()?.len();
@@ -312,18 +462,12 @@ impl IpcBytes {
             map: Some(map),
         }))))
     }
+}
 
-    /// Gets if both point to the same memory.
-    pub fn ptr_eq(&self, other: &Self) -> bool {
-        let a = &self[..];
-        let b = &other[..];
-        (std::ptr::eq(a, b) && a.len() == b.len()) || (a.is_empty() && b.is_empty())
+impl AsRef<[u8]> for IpcBytes {
+    fn as_ref(&self) -> &[u8] {
+        &self[..]
     }
-
-    #[cfg(ipc)]
-    const INLINE_MAX: usize = 64 * 1024; // 64KB
-    #[cfg(ipc)]
-    const UNNAMED_MAX: usize = 128 * 1024 * 1024; // 128MB
 }
 impl Default for IpcBytes {
     fn default() -> Self {
@@ -476,21 +620,21 @@ impl<'de> Deserialize<'de> for IpcBytes {
             where
                 E: serde::de::Error,
             {
-                IpcBytes::from_slice(v).map_err(serde::de::Error::custom)
+                IpcBytes::from_slice_blocking(v).map_err(serde::de::Error::custom)
             }
 
             fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                IpcBytes::from_slice(v).map_err(serde::de::Error::custom)
+                IpcBytes::from_slice_blocking(v).map_err(serde::de::Error::custom)
             }
 
             fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                IpcBytes::from_vec(v).map_err(serde::de::Error::custom)
+                IpcBytes::from_vec_blocking(v).map_err(serde::de::Error::custom)
             }
         }
         impl<'de> serde::de::DeserializeSeed<'de> for ByteSliceVisitor {

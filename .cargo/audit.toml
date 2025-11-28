@@ -13,16 +13,4 @@ ignore = [
     #
     # remove this ignore when all dependencies are fixes
     "RUSTSEC-2024-0436",
-
-    # `instant` is unmaintained
-    #
-    # crate only used in wasm builds that we currently don't fully support
-    #
-    # └── fastrand 1.9.0
-    # └── futures-lite 1.13.0
-    #     └── isahc 1.7.2
-    #         └── zng-task 0.6.2
-    #
-    # `isahc` looks unmaintained too (no advisory so far), replacing it is a breaking change.
-    "RUSTSEC-2024-0384",
 ]

@@ -102,6 +102,16 @@ http = [
     "zng-ext-image?/http",
     "zng-ext-window?/http",
 ]
+# Enables HTTP cookies option in client requests.
+#
+# Note that cookies must still be enabled in the request.
+http-cookie = [
+    "zng-task/http-cookie"
+]
+# Enables HTTP compression option in client requests.
+http-compression = [
+    "zng-task/http-compression"
+]
 
 # Enable SVG image rendering, SVG emoji support.
 svg = ["dep:zng-ext-svg", "zng-ext-font/svg"]

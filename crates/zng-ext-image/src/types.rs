@@ -961,11 +961,11 @@ impl_from_and_into_var! {
     /// [`Download`]: ImageSource::Download
     /// [`Read`]: ImageSource::Read
     fn from(s: &str) -> ImageSource {
-        use crate::task::http::uri::*;
+        use crate::task::http::*;
         if let Ok(uri) = Uri::try_from(s)
             && let Some(scheme) = uri.scheme()
         {
-            if scheme == &Scheme::HTTPS || scheme == &Scheme::HTTP {
+            if scheme == &uri::Scheme::HTTPS || scheme == &uri::Scheme::HTTP {
                 return ImageSource::Download(uri, None);
             } else if scheme.as_str() == "file" {
                 return PathBuf::from(uri.path()).into();

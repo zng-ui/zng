@@ -141,7 +141,7 @@
 //!
 //! # Full API
 //!
-//! This module fully re-exports [`zng_task`].
+//! See [`zng_task`] for the full API.
 
 pub use zng_task::{
     DeadlineError, McWaker, ParallelIteratorExt, ParallelIteratorWithCtx, Progress, ScopeCtx, SignalOnce, TaskPanicError, UiTask, all,
@@ -152,8 +152,42 @@ pub use zng_task::{
 #[cfg(any(doc, feature = "test_util"))]
 pub use zng_task::{doc_test, spin_on};
 
+/// HTTP client.
+///
+/// This module provides an HTTP client API that is backend agnostic. By default it uses the system `curl` command
+/// line utility with a simple cache, this can be replaced using the full API.
+///
+/// # Examples
+///
+/// Get some text:
+///
+/// ```
+/// # use zng::task;
+/// # async fn demo() -> Result<(), zng::task::http::Error> {
+/// let text = task::http::get_txt("https://httpbin.org/base64/SGVsbG8gV29ybGQ=").await?;
+/// println!("{text}!");
+/// # Ok(()) }
+/// ```
+///
+/// # Full API
+///
+/// See [`zng_task::http`] for the full API.
 #[cfg(feature = "http")]
-pub use zng_task::http;
+pub mod http {
+    pub use zng_task::http::{
+        Error, Method, Request, Response, StatusCode, Uri, delete, get, get_bytes, get_json, get_txt, head, header, method, post, put,
+        send, set_request_default, uri,
+    };
+
+    /// Remove all cached entries, or just older ones if `prune` is enabled.
+    pub async fn cache_clean(prune: bool) {
+        if prune {
+            zng_task::http::http_cache().prune().await;
+        } else {
+            zng_task::http::http_cache().purge().await;
+        }
+    }
+}
 
 #[cfg(ipc)]
 pub use zng_task::process;
