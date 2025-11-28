@@ -6,7 +6,7 @@
 
 use std::{
     fmt,
-    io::ErrorKind,
+    io::{BufRead, ErrorKind, Read},
     pin::Pin,
     sync::Arc,
     task::{self, Poll},
@@ -535,32 +535,36 @@ impl From<CloneableError> for Error {
     }
 }
 
-/// Represents a future that generates an error if an `AsyncRead` exceeds a limit.
-pub struct ReadLimited<S, L> {
+/// Represents a stream reader that generates an error if the source stream exceeds a limit.
+///
+/// Note that some bytes over the limit may be read once if the source stream is buffered.
+pub struct ReadLimited<S> {
     source: S,
     limit: usize,
-    on_limit: L,
+    on_limit: fn() -> std::io::Error,
 }
-impl<S, L> ReadLimited<S, L>
-where
-    S: AsyncRead,
-    L: Fn() -> std::io::Error,
-{
+impl<S> ReadLimited<S> {
     /// Construct a limited reader.
     ///
-    /// The `on_limit` closure is called if the limit is reached.
-    pub fn new(source: S, limit: ByteLength, on_limit: L) -> Self {
+    /// The `on_limit` closure is called for every read attempt after the limit is reached.
+    pub fn new(source: S, limit: ByteLength, on_limit: fn() -> std::io::Error) -> Self {
         Self {
             source,
             limit: limit.0,
             on_limit,
         }
     }
+
+    /// New with default on limit error.
+    pub fn new_default_err(source: S, limit: ByteLength) -> Self {
+        Self::new(source, limit, || {
+            std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "source exceeded read limit")
+        })
+    }
 }
-impl<S, L> AsyncRead for ReadLimited<S, L>
+impl<S> AsyncRead for ReadLimited<S>
 where
     S: AsyncRead,
-    L: Fn() -> std::io::Error,
 {
     fn poll_read(self: Pin<&mut Self>, cx: &mut task::Context<'_>, mut buf: &mut [u8]) -> Poll<Result<usize>> {
         // SAFETY: we don't move anything.
@@ -577,17 +581,88 @@ where
 
         // SAFETY: we never move `source`.
         match unsafe { Pin::new_unchecked(&mut self_.source) }.poll_read(cx, buf) {
-            Poll::Ready(Ok(l)) => {
-                self_.limit = self_.limit.saturating_sub(l);
-                if self_.limit == 0 {
-                    let err = (self_.on_limit)();
-                    Poll::Ready(Err(err))
-                } else {
-                    Poll::Ready(Ok(l))
-                }
+            Poll::Ready(Ok(n)) => {
+                self_.limit = self_.limit.saturating_sub(n);
+                Poll::Ready(Ok(n))
             }
             r => r,
         }
+    }
+}
+impl<S> AsyncBufRead for ReadLimited<S>
+where
+    S: AsyncBufRead,
+{
+    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Result<&[u8]>> {
+        // SAFETY: we don't move anything.
+        let self_ = unsafe { self.get_unchecked_mut() };
+
+        if self_.limit == 0 {
+            let err = (self_.on_limit)();
+            return Poll::Ready(Err(err));
+        }
+
+        // SAFETY: we never move `source`.
+        match unsafe { Pin::new_unchecked(&mut self_.source) }.poll_fill_buf(cx) {
+            Poll::Ready(Ok(buf)) => {
+                self_.limit = self_.limit.saturating_sub(buf.len());
+                Poll::Ready(Ok(buf))
+            }
+            r => r,
+        }
+    }
+
+    fn consume(self: Pin<&mut Self>, amt: usize) {
+        // SAFETY: we don't move anything.
+        let self_ = unsafe { self.get_unchecked_mut() };
+        // SAFETY: we never move `source`.
+        unsafe { Pin::new_unchecked(&mut self_.source) }.consume(amt);
+    }
+}
+impl<S> Read for ReadLimited<S>
+where
+    S: Read,
+{
+    fn read(&mut self, mut buf: &mut [u8]) -> Result<usize> {
+        if self.limit == 0 {
+            let err = (self.on_limit)();
+            return Err(err);
+        }
+
+        if buf.len() > self.limit {
+            buf = &mut buf[..self.limit];
+        }
+
+        match self.source.read(buf) {
+            Ok(n) => {
+                self.limit = self.limit.saturating_sub(n);
+                Ok(n)
+            }
+            r => r,
+        }
+    }
+}
+impl<S> BufRead for ReadLimited<S>
+where
+    S: BufRead,
+{
+    fn fill_buf(&mut self) -> Result<&[u8]> {
+        if self.limit == 0 {
+            let err = (self.on_limit)();
+            return Err(err);
+        }
+
+        match self.source.fill_buf() {
+            Ok(buf) => {
+                self.limit = self.limit.saturating_sub(buf.len());
+                Ok(buf)
+            }
+            r => r,
+        }
+    }
+
+    fn consume(&mut self, amount: usize) {
+        self.source.consume(amount);
     }
 }
 

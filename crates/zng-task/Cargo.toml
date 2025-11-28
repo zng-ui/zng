@@ -21,7 +21,7 @@ deadlock_detection = ["parking_lot/deadlock_detection"]
 # Only enables in `cfg(not(any(target_os = "android", target_arch = "wasm32", target_os = "ios")))` builds.
 ipc = ["dep:ipc-channel", "dep:zng-unique-id", "dep:memmap2"]
 
-# Enables http tasks.
+# Enables HTTP client tasks.
 http = [
     "dep:serde_json",
     "dep:once_cell",
@@ -34,7 +34,14 @@ http = [
     "dep:httparse",
     "dep:mime",
     "dep:encoding_rs",
+]
+# Enables HTTP cookie storage option.
+http-cookie = [
     "dep:cookie_store",
+]
+# Enables HTTP compression option.
+http-compression = [
+    "dep:async-compression",
 ]
 
 # Enabled by doc tests.
@@ -83,6 +90,8 @@ httparse = { version = "1.10.1", default-features = false, features = ["std"], o
 mime = { version = "0.3", default-features = false, optional = true }
 encoding_rs = { version = "0.8.35", default-features = false, features = ["alloc"], optional = true }
 cookie_store = { version = "0.22.0", default-features = false, features = ["serde"], optional = true }
+flate2 = { version = "1.1.5", default-features = false, features = ["rust_backend"], optional = true }
+async-compression = { version = "0.4.34", default-features = false, features = ["futures-io", "zstd", "brotli", "gzip"], optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ipc-channel = { version = "0.20", default-features = false, optional = true }

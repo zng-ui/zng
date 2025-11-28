@@ -175,7 +175,7 @@ pub use zng_task::{doc_test, spin_on};
 pub mod http {
     pub use zng_task::http::{
         Error, Method, Request, Response, StatusCode, Uri, delete, get, get_bytes, get_json, get_txt, head, header, method, post, put,
-        send, uri,
+        send, set_request_default, uri,
     };
 
     /// Remove all cached entries, or just older ones if `prune` is enabled.

@@ -1,6 +1,9 @@
-use std::{fmt, pin::Pin, time::Duration};
+use std::{fmt, time::Duration};
 
-use crate::http::{Error, HttpClient, HttpResponseDownloader, Metrics, Request, Response};
+use crate::{
+    http::{Error, HttpClient, Metrics, Request, Response},
+    io::{BufReader, ReadLimited},
+};
 use futures_lite::{AsyncBufReadExt as _, AsyncReadExt as _, AsyncWriteExt as _};
 use http::Uri;
 use once_cell::sync::Lazy;
@@ -36,8 +39,9 @@ async fn run(request: Request) -> Result<Response, Error> {
 
     curl.arg("-X").arg(request.method.as_str());
 
+    #[cfg(feature = "http-compression")]
     if request.auto_decompress && !request.headers.contains_key(http::header::ACCEPT_ENCODING) {
-        curl.arg("-H").arg("accept-encoding").arg("br,gzip");
+        curl.arg("-H").arg("accept-encoding").arg("zstd, br, gzip");
     }
     for (name, value) in request.headers {
         if let Some(name) = name
@@ -78,7 +82,7 @@ async fn run(request: Request) -> Result<Response, Error> {
     let mut curl = curl.spawn()?;
 
     let mut stdin = curl.stdin.take().unwrap();
-    let mut stdout = crate::io::BufReader::new(curl.stdout.take().unwrap());
+    let mut stdout = BufReader::new(curl.stdout.take().unwrap());
     let stderr = curl.stderr.take().unwrap();
 
     if !request.body.is_empty() {
@@ -105,11 +109,12 @@ async fn run(request: Request) -> Result<Response, Error> {
             return run_response(
                 response,
                 effective_uri,
+                #[cfg(feature = "http-compression")]
                 request.auto_decompress,
                 request.require_length,
                 request.max_length,
                 metrics,
-                CurlDownloader::new(curl, stdout),
+                stdout,
             );
         }
 
@@ -136,11 +141,12 @@ async fn run(request: Request) -> Result<Response, Error> {
                     return run_response(
                         response,
                         effective_uri,
+                        #[cfg(feature = "http-compression")]
                         request.auto_decompress,
                         request.require_length,
                         request.max_length,
                         metrics,
-                        CurlDownloader::new(curl, stdout),
+                        stdout,
                     );
                 }
             } else {
@@ -151,7 +157,7 @@ async fn run(request: Request) -> Result<Response, Error> {
     }
 }
 fn read_metrics(metrics: Var<Metrics>, stderr: crate::process::ChildStderr) {
-    let mut stderr = crate::io::BufReader::new(stderr);
+    let mut stderr = BufReader::new(stderr);
     let mut progress_bytes = Vec::with_capacity(92);
     let mut run = async move || -> std::io::Result<()> {
         loop {
@@ -225,11 +231,11 @@ fn parse_curl_duration(s: &str) -> Duration {
 fn run_response(
     response: httparse::Response<'_, '_>,
     effective_uri: Uri,
-    auto_decompress: bool,
+    #[cfg(feature = "http-compression")] auto_decompress: bool,
     require_length: bool,
     max_length: ByteLength,
     metrics: Var<Metrics>,
-    curl: CurlDownloader,
+    reader: BufReader<crate::process::ChildStdout>,
 ) -> Result<Response, Error> {
     let code = http::StatusCode::from_u16(response.code.unwrap())?;
 
@@ -256,29 +262,26 @@ fn run_response(
         }
     }
 
-    let r = Response::from_downloader(code, header, effective_uri, metrics, Box::new(curl));
-    Ok(r)
-}
+    let reader = ReadLimited::new_default_err(reader, max_length);
 
-struct CurlDownloader {
-    _curl: crate::process::Child,
-    stdout: crate::io::BufReader<crate::process::ChildStdout>,
-}
-impl CurlDownloader {
-    fn new(curl: crate::process::Child, stdout: crate::io::BufReader<crate::process::ChildStdout>) -> Self {
-        Self { _curl: curl, stdout }
+    macro_rules! respond {
+        ($read:expr) => {
+            return Ok(Response::from_read(code, header, effective_uri, metrics, Box::new($read)))
+        };
     }
-}
-impl futures_lite::AsyncRead for CurlDownloader {
-    fn poll_read(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-        buf: &mut [u8],
-    ) -> std::task::Poll<std::io::Result<usize>> {
-        Pin::new(&mut self.stdout).poll_read(cx, buf)
+
+    #[cfg(feature = "http-compression")]
+    if auto_decompress && let Some(enc) = header.get(http::header::CONTENT_ENCODING) {
+        if enc == "zstd" {
+            respond!(async_compression::futures::bufread::ZstdDecoder::new(reader))
+        } else if enc == "br" {
+            respond!(async_compression::futures::bufread::BrotliDecoder::new(reader))
+        } else if enc == "gzip" {
+            respond!(async_compression::futures::bufread::GzipDecoder::new(reader))
+        }
     }
+    respond!(reader)
 }
-impl HttpResponseDownloader for CurlDownloader {}
 
 static CURL: Lazy<String> = Lazy::new(|| std::env::var("ZNG_CURL").unwrap_or_else(|_| "curl".to_owned()));
 

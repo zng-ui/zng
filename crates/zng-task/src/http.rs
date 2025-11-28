@@ -13,7 +13,7 @@ mod file_cache;
 mod util;
 
 pub use cache::{CacheKey, CacheMode, CachePolicy};
-pub use ctx::{HttpCache, HttpClient, http_cache, http_client, set_http_cache, set_http_client};
+pub use ctx::{HttpCache, HttpClient, http_cache, http_client, set_http_cache, set_http_client, set_request_default};
 pub use curl::CurlProcessClient;
 pub use file_cache::FileSystemCache;
 
@@ -31,7 +31,7 @@ use zng_var::{Var, const_var};
 use std::time::Duration;
 use std::{fmt, mem};
 
-use crate::{channel::IpcBytes, io::Metrics};
+use crate::{channel::IpcBytes, http::ctx::REQUEST_DEFAULT, io::Metrics};
 
 use super::io::AsyncRead;
 
@@ -91,6 +91,7 @@ pub struct Request {
     /// If enabled the "Accept-Encoding" will also be set automatically, if it was not set on the header.
     ///
     /// This is enabled by default.
+    #[cfg(feature = "http-compression")]
     pub auto_decompress: bool,
 
     /// Maximum upload speed in bytes per second.
@@ -129,6 +130,7 @@ pub struct Request {
     /// When enabled the [`http_cache`] is used to retrieve and store cookies.
     ///
     /// Is not enabled by default.
+    #[cfg(feature = "http-cookie")]
     pub cookies: bool,
 
     /// If transfer metrics should be measured.
@@ -156,24 +158,32 @@ impl Request {
     /// # Ok(()) }
     /// ```
     pub fn new(method: Method, uri: Uri) -> Self {
-        // !!: TODO static default
-        Self {
-            uri,
-            method,
-            require_length: false,
-            max_length: ByteLength::MAX,
-            headers: header::HeaderMap::new(),
-            timeout: Duration::MAX,
-            connect_timeout: 90.secs(),
-            low_speed_timeout: (Duration::MAX, 0.bytes()),
-            redirect_limit: 20,
-            auto_decompress: true,
-            max_upload_speed: ByteLength::MAX,
-            max_download_speed: ByteLength::MAX,
-            cache: CacheMode::Default,
-            cookies: false,
-            metrics: true,
-            body: IpcBytes::default(),
+        match REQUEST_DEFAULT.lock().clone() {
+            Some(mut r) => {
+                r.method = method;
+                r.uri = uri;
+                r
+            }
+            None => Self {
+                uri,
+                method,
+                require_length: false,
+                max_length: ByteLength::MAX,
+                headers: header::HeaderMap::new(),
+                timeout: Duration::MAX,
+                connect_timeout: 90.secs(),
+                low_speed_timeout: (Duration::MAX, 0.bytes()),
+                redirect_limit: 20,
+                #[cfg(feature = "http-compression")]
+                auto_decompress: true,
+                max_upload_speed: ByteLength::MAX,
+                max_download_speed: ByteLength::MAX,
+                cache: CacheMode::Default,
+                #[cfg(feature = "http-cookie")]
+                cookies: false,
+                metrics: true,
+                body: IpcBytes::default(),
+            },
         }
     }
 
@@ -316,6 +326,7 @@ impl Request {
     /// Set the [`auto_decompress`].
     ///
     /// [`auto_decompress`]: field@Request::auto_decompress
+    #[cfg(feature = "http-compression")]
     pub fn auto_decompress(mut self, enabled: bool) -> Self {
         self.auto_decompress = enabled;
         self
@@ -350,6 +361,15 @@ impl Request {
     /// [`max_download_speed`]: field@Request::max_download_speed
     pub fn max_download_speed(mut self, bytes_per_sec: ByteLength) -> Self {
         self.max_download_speed = bytes_per_sec;
+        self
+    }
+
+    /// Set the [`cookies`].
+    ///
+    /// [`cookies`]: field@Request::cookies
+    #[cfg(feature = "http-compression")]
+    pub fn cookies(mut self, enable: bool) -> Self {
+        self.cookies = enable;
         self
     }
 
@@ -417,9 +437,6 @@ impl From<http::Request<IpcBytes>> for Request {
     }
 }
 
-/// Backend reader for [`Response`].
-pub trait HttpResponseDownloader: AsyncRead + Send + 'static {}
-
 /// HTTP response.
 pub struct Response {
     status: StatusCode,
@@ -440,23 +457,23 @@ impl fmt::Debug for Response {
 }
 enum ResponseBody {
     Done { bytes: IpcBytes },
-    Read { downloader: Box<dyn HttpResponseDownloader> },
+    Read { read: Box<dyn AsyncRead + Send> },
 }
 impl Response {
     /// New with body download pending or ongoing.
-    pub fn from_downloader(
+    pub fn from_read(
         status: StatusCode,
         header: header::HeaderMap,
         effective_uri: Uri,
         metrics: Var<Metrics>,
-        downloader: Box<dyn HttpResponseDownloader>,
+        read: Box<dyn AsyncRead + Send>,
     ) -> Self {
         Self {
             status,
             headers: header,
             effective_uri,
             metrics,
-            body: ResponseBody::Read { downloader },
+            body: ResponseBody::Read { read },
         }
     }
 
@@ -532,7 +549,7 @@ impl Response {
                 bytes: IpcBytes::default(),
             },
         ) {
-            ResponseBody::Read { downloader } => downloader,
+            ResponseBody::Read { read: downloader } => downloader,
             ResponseBody::Done { .. } => unreachable!(),
         };
         let mut downloader = Box::into_pin(downloader);

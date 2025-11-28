@@ -1,5 +1,6 @@
 use std::{any::Any, fmt, mem, pin::Pin};
 
+#[cfg(feature = "http-cookie")]
 use http::{HeaderValue, Uri};
 use parking_lot::Mutex;
 
@@ -36,14 +37,17 @@ pub trait HttpCache: Send + Sync + Any {
     /// Get the Cookie value associated with the `uri`.
     ///
     /// The returned value is validated and ready for sending.
+    #[cfg(feature = "http-cookie")]
     fn cookie(&'static self, uri: Uri) -> Fut<Option<HeaderValue>>;
 
     /// Store the Set-Cookie value associated with the `uri`.
     ///
     /// The uri and cookie must be directly from the response, the cache will parse and property associate the cookie with domain.
+    #[cfg(feature = "http-cookie")]
     fn set_cookie(&'static self, uri: Uri, cookie: HeaderValue) -> Fut<()>;
 
     /// Remove the Cookie value associated with the `uri`.
+    #[cfg(feature = "http-cookie")]
     fn remove_cookie(&'static self, uri: Uri) -> Fut<()>;
 
     /// Remove all cached entries that are not locked in a `set*` operation.
@@ -179,3 +183,11 @@ where
         Ok(())
     }
 }
+
+/// Set the default values returned by [`Request::new`].
+///
+/// The method and uri are ignored in this value, the other fields are used as default in all subsequent requests.
+pub fn set_request_default(d: Request) {
+    *REQUEST_DEFAULT.lock() = Some(d);
+}
+pub(super) static REQUEST_DEFAULT: Mutex<Option<Request>> = Mutex::new(None);

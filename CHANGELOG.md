@@ -1,7 +1,12 @@
 # Unreleased
 
 * **Breaking** Refactor `zng::task::http` into a backend agnostic API.
-    - Remove unmaintained `isahc` dependency.
+    - Removed unmaintained `isahc` dependency.
+
+* **Breaking** Refactor `zng::task::io::ReadLimited`.
+    - No longer generic over the error function.
+    - Now also implements `BufRead`, `Read` and `AsyncBufRead`.
+    - Add constructor with default error.
 
 * Refactor `WhiteSpace` merging to better integrate with basic paragraph spacing.
     - `Merge` now also merges multiple line breaks into a single one.
