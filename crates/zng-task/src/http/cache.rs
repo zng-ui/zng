@@ -40,6 +40,8 @@ impl hcs::ResponseLike for Response {
 }
 
 /// Represents a serializable configuration for a cache entry in a [`HttpCache`].
+///
+/// [`HttpCache`]: crate::http::HttpCache
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CachePolicy(PolicyInner);
 impl CachePolicy {

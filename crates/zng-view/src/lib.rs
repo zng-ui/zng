@@ -2310,7 +2310,7 @@ impl Api for App {
                         size: zng_unit::PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
                         density: None,
                     },
-                    IpcBytes::from_vec(data).map_err(|e| clipboard::ClipboardError::Other(e.to_txt()))?,
+                    IpcBytes::from_vec_blocking(data).map_err(|e| clipboard::ClipboardError::Other(e.to_txt()))?,
                     u64::MAX,
                     None,
                     None,

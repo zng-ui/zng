@@ -16,24 +16,7 @@ use super::*;
 
 type Fut<O> = Pin<Box<dyn Future<Output = O> + Send>>;
 
-/// A simple [`CacheDb`] implementation that uses a local directory.
-///
-/// # Implementation Details
-///
-/// A file lock is used to control data access, read operations use a shared lock so concurrent reads can happen,
-/// the [`set`] operation uses a exclusive lock for the duration of the body download, so subsequent requests for
-/// a caching resource will await until the cache is completed to return a body that will then read the cached data.
-///
-/// The [`set`] operation returns a body as soon as the entry is created, the body will receive data as it is downloaded and cached,
-/// in case of a cache error mid-download the cache entry is removed but the returned body will still download the rest of the data.
-/// In case of an error creating the entry the original body is always returned so the [`Client`] can continue with a normal
-/// download also.
-///
-/// The cache does not pull data, only data read by the returned body is written to the cache, dropping the body without reading
-/// to end cancels the cache entry.
-///
-/// [`Client`]: crate::http::Client
-/// [`set`]: crate::http::CacheDb::set
+/// A simple [`HttpCache`] implementation that uses a local directory.
 #[derive(Clone)]
 pub struct FileSystemCache {
     dir: PathBuf,

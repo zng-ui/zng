@@ -163,11 +163,12 @@ pub use zng_task::{doc_test, spin_on};
 ///
 /// ```
 /// # use zng::task;
-/// # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+/// # async fn demo() -> Result<(), zng::task::http::Error> {
 /// let text = task::http::get_txt("https://httpbin.org/base64/SGVsbG8gV29ybGQ=").await?;
 /// println!("{text}!");
 /// # Ok(()) }
-/// ``
+/// ```
+///
 /// # Full API
 ///
 /// See [`zng_task::http`] for the full API.

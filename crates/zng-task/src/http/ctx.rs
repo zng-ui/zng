@@ -14,8 +14,6 @@ type Fut<O> = Pin<Box<dyn Future<Output = O> + Send>>;
 /// HTTP cache backend.
 ///
 /// Cache implementers must store a [`CachePolicy`] and [`IpcBytes`] body for a given [`CacheKey`].
-///
-/// [`Client`]: crate::http::Client
 pub trait HttpCache: Send + Sync + Any {
     /// Get the cache-policy for the given `key`.
     fn policy(&'static self, key: CacheKey) -> Fut<Option<CachePolicy>>;
@@ -61,11 +59,11 @@ pub trait HttpCache: Send + Sync + Any {
 
 /// HTTP client backend.
 ///
-/// See [`default_client`] for more details.
+/// See [`http_client`] for more details.
 pub trait HttpClient: Send + Sync + Any {
     /// If the client manages cache and cookie storage.
     ///
-    /// Is `false` by default. When `false` the [`default_cache`] is used before and after `send`.
+    /// Is `false` by default. When `false` the [`http_cache`] is used before and after `send`.
     fn is_cache_manager(&self) -> bool {
         true
     }

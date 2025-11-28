@@ -277,9 +277,9 @@ impl Request {
         Ok(Self::new(Method::HEAD, uri.try_into()?))
     }
 
-    /// Appends a [`header`] to this request.
+    /// Appends a header to [`headers`] to this request.
     ///
-    /// [`header`]: field@Request::header
+    /// [`headers`]: field@Request::headers
     pub fn header<K, V>(mut self, name: K, value: V) -> Result<Self, Error>
     where
         K: TryInto<header::HeaderName>,
@@ -390,6 +390,8 @@ impl Request {
     }
 
     /// Set the [`body`] to a plain text UTF-8 payload.  Also sets the `Content-Type` header if it is not set.
+    ///
+    /// [`body`]: field@Request::body
     pub fn body_text(mut self, body: &str) -> Result<Self, Error> {
         if !self.headers.contains_key("Content-Type") {
             self = self.header("Content-Type", "text/plain; charset=utf-8")?;
@@ -606,7 +608,7 @@ impl Response {
 
 /// Send a GET request to the `uri`.
 ///
-/// The [`default_client`] is used to send the request.
+/// The [`http_client`] is used to send the request.
 pub async fn get<U>(uri: U) -> Result<Response, Error>
 where
     U: TryInto<Uri>,
@@ -617,7 +619,7 @@ where
 
 /// Send a GET request to the `uri` and read the response as a string.
 ///
-/// The [`default_client`] is used to send the request.
+/// The [`http_client`] is used to send the request.
 pub async fn get_txt<U>(uri: U) -> Result<Txt, Error>
 where
     U: TryInto<Uri>,
@@ -628,7 +630,7 @@ where
 
 /// Send a GET request to the `uri` and read the response as raw bytes.
 ///
-/// The [`default_client`] is used to send the request.
+/// The [`http_client`] is used to send the request.
 pub async fn get_bytes<U>(uri: U) -> Result<IpcBytes, Error>
 where
     U: TryInto<Uri>,
@@ -639,7 +641,7 @@ where
 
 /// Send a GET request to the `uri` and de-serializes the response.
 ///
-/// The [`default_client`] is used to send the request.
+/// The [`http_client`] is used to send the request.
 pub async fn get_json<U, O>(uri: U) -> Result<O, Error>
 where
     U: TryInto<Uri>,
@@ -651,7 +653,7 @@ where
 
 /// Send a HEAD request to the `uri`.
 ///
-/// The [`default_client`] is used to send the request.
+/// The [`http_client`] is used to send the request.
 pub async fn head<U>(uri: U) -> Result<Response, Error>
 where
     U: TryInto<Uri>,
@@ -662,7 +664,7 @@ where
 
 /// Send a PUT request to the `uri` with a given request body.
 ///
-/// The [`default_client`] is used to send the request.
+/// The [`http_client`] is used to send the request.
 pub async fn put<U>(uri: U, body: IpcBytes) -> Result<Response, Error>
 where
     U: TryInto<Uri>,
@@ -673,7 +675,7 @@ where
 
 /// Send a POST request to the `uri` with a given request body.
 ///
-/// The [`default_client`] is used to send the request.
+/// The [`http_client`] is used to send the request.
 pub async fn post<U>(uri: U, body: IpcBytes) -> Result<Response, Error>
 where
     U: TryInto<Uri>,
@@ -684,7 +686,7 @@ where
 
 /// Send a DELETE request to the `uri`.
 ///
-/// The [`default_client`] is used to send the request.
+/// The [`http_client`] is used to send the request.
 pub async fn delete<U>(uri: U) -> Result<Response, Error>
 where
     U: TryInto<Uri>,
@@ -695,7 +697,7 @@ where
 
 /// Send a custom [`Request`].
 ///
-/// The [`default_client`] is used to send the request.
+/// The [`http_client`] is used to send the request.
 pub async fn send(request: Request) -> Result<Response, Error> {
     let client = http_client();
     if client.is_cache_manager() {

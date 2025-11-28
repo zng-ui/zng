@@ -289,13 +289,13 @@ impl<'de, T: IpcValue> Deserialize<'de> for IpcReceiver<T> {
 
 /// Create an unbounded IPC channel.
 ///
-/// Note that the channel endpoints can also be send over IPC, the first channel is setup by [`process::Worker`]. You
+/// Note that the channel endpoints can also be send over IPC, the first channel is setup by [`Worker`]. You
 /// can also use the [`NamedIpcReceiver`] or [`NamedIpcSender`] to create the first channel with a custom process.
 ///
 /// Note that the channel is only IPC if build with `"ipc"` crate feature, otherwise it will falls back to [`channel::unbounded`].
 ///
 /// [`channel::unbounded`]: crate::channel::unbounded
-/// [`process::Worker`]: crate::process::Worker
+/// [`Worker`]: crate::process::worker::Worker
 pub fn ipc_unbounded<T: IpcValue>() -> io::Result<(IpcSender<T>, IpcReceiver<T>)> {
     #[cfg(ipc)]
     {
