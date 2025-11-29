@@ -1,5 +1,9 @@
 # Unreleased
 
+* **Breaking** Refactor `ImageSource`.
+    - `Data` now holds `IpcBytes` directly.
+    - Removed `Static` because it is always converted to `IpcBytes` anyway.
+
 * **Breaking** Refactor `zng::task::http` into a backend agnostic API.
     - Removed unmaintained `isahc` dependency.
 

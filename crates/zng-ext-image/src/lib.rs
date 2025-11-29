@@ -12,10 +12,7 @@
 use std::{
     env, mem,
     path::{Path, PathBuf},
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 use parking_lot::Mutex;
@@ -536,7 +533,7 @@ impl ImagesService {
 
         let key = source.hash128(downscale, mask).unwrap();
         for proxy in &mut proxies {
-            if proxy.is_data_proxy() && !matches!(source, ImageSource::Data(_, _, _) | ImageSource::Static(_, _, _)) {
+            if proxy.is_data_proxy() && !matches!(source, ImageSource::Data(_, _, _)) {
                 continue;
             }
 
@@ -703,18 +700,8 @@ impl ImagesService {
                     }),
                 )
             }
-            ImageSource::Static(_, bytes, fmt) => {
-                let r = ImageData {
-                    format: fmt,
-                    r: IpcBytes::from_slice_blocking(bytes).map_err(|e| e.to_txt()),
-                };
-                self.load_task(key, mode, limits.max_decoded_len, downscale, mask, false, async { r })
-            }
             ImageSource::Data(_, bytes, fmt) => {
-                let r = ImageData {
-                    format: fmt,
-                    r: IpcBytes::from_slice_blocking(&bytes).map_err(|e| e.to_txt()),
-                };
+                let r = ImageData { format: fmt, r: Ok(bytes) };
                 self.load_task(key, mode, limits.max_decoded_len, downscale, mask, false, async { r })
             }
             ImageSource::Render(rfn, args) => {
@@ -911,7 +898,7 @@ impl IMAGES {
     /// The image key is a [`ImageHash`] of the image data. The data reference is held only until the image is decoded.
     ///
     /// The data can be any of the formats described in [`ImageDataFormat`].
-    pub fn from_data(&self, data: Arc<Vec<u8>>, format: impl Into<ImageDataFormat>) -> ImageVar {
+    pub fn from_data(&self, data: IpcBytes, format: impl Into<ImageDataFormat>) -> ImageVar {
         self.cache((data, format.into()))
     }
 

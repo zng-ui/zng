@@ -2,7 +2,6 @@ use std::{
     cmp, fmt,
     hash::{BuildHasher, Hash},
     mem, ops,
-    sync::Arc,
 };
 
 use zng_app::widget::info::InlineSegmentInfo;
@@ -2918,14 +2917,11 @@ impl ShapedTextBuilder {
                 (bgra, bgra_fmt)
             }
         };
-        self.push_glyph_img(glyphs_i, ImageSource::from_data(Arc::new(data), fmt));
+        self.push_glyph_img(glyphs_i, ImageSource::from((data, fmt)));
     }
 
     fn push_glyph_svg(&mut self, glyphs_i: u32, img: ttf_parser::svg::SvgDocument) {
-        self.push_glyph_img(
-            glyphs_i,
-            ImageSource::from_data(Arc::new(img.data.to_vec()), ImageDataFormat::from("svg")),
-        );
+        self.push_glyph_img(glyphs_i, ImageSource::from((img.data, ImageDataFormat::from("svg"))));
     }
 
     fn push_glyph_img(&mut self, glyphs_i: u32, source: ImageSource) {

@@ -9,6 +9,8 @@ use zng_app::{
 };
 use zng_layout::unit::{DipPoint, DipSize, PxPoint};
 use zng_task::channel::ChannelError;
+#[cfg(feature = "image")]
+use zng_task::channel::IpcBytes;
 use zng_unique_id::IdSet;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::window::{CursorIcon, EventCause};
@@ -328,7 +330,7 @@ impl_from_and_into_var! {
     /// From encoded data of [`Unknown`] format.
     ///
     /// [`Unknown`]: ImageDataFormat::Unknown
-    fn from(data: Arc<Vec<u8>>) -> WindowIcon {
+    fn from(data: IpcBytes) -> WindowIcon {
         ImageSource::from(data).into()
     }
     /// From encoded data of [`Unknown`] format.
@@ -338,11 +340,11 @@ impl_from_and_into_var! {
         ImageSource::from(data).into()
     }
     /// From encoded data of known format.
-    fn from<F: Into<ImageDataFormat>>((data, format): (&'static [u8], F)) -> WindowIcon {
+    fn from<F: Into<ImageDataFormat>>((data, format): (&[u8], F)) -> WindowIcon {
         ImageSource::from((data, format)).into()
     }
     /// From encoded data of known format.
-    fn from<F: Into<ImageDataFormat>, const N: usize>((data, format): (&'static [u8; N], F)) -> WindowIcon {
+    fn from<F: Into<ImageDataFormat>, const N: usize>((data, format): (&[u8; N], F)) -> WindowIcon {
         ImageSource::from((data, format)).into()
     }
     /// From encoded data of known format.
@@ -350,7 +352,7 @@ impl_from_and_into_var! {
         ImageSource::from((data, format)).into()
     }
     /// From encoded data of known format.
-    fn from<F: Into<ImageDataFormat>>((data, format): (Arc<Vec<u8>>, F)) -> WindowIcon {
+    fn from<F: Into<ImageDataFormat>>((data, format): (IpcBytes, F)) -> WindowIcon {
         ImageSource::from((data, format)).into()
     }
 }

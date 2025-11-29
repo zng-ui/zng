@@ -9,10 +9,9 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::sync::Arc;
-
 use zng_app::AppExtension;
 use zng_ext_image::*;
+use zng_task::channel::IpcBytes;
 use zng_txt::{Txt, formatx};
 use zng_unit::{Px, PxDensity2d, PxDensityUnits as _, PxSize};
 
@@ -98,7 +97,7 @@ fn load(data: SvgData, downscale: Option<ImageDownscale>) -> ImageSource {
 
             ImageSource::Data(
                 ImageHash::compute(&data),
-                Arc::new(data),
+                IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"),
                 ImageDataFormat::Bgra8 {
                     size,
                     density: Some(PxDensity2d::splat(options.dpi.ppi())),
