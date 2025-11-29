@@ -691,12 +691,12 @@ impl ImageSource {
     fn flood_impl(size: PxSize, color: Rgba, density: Option<PxDensity2d>) -> Self {
         let pixels = size.width.0 as usize * size.height.0 as usize;
         let bgra = color.to_bgra_bytes();
-        let mut data = Vec::with_capacity(pixels * 4);
-        for _ in 0..pixels {
-            data.extend_from_slice(&bgra);
+        let mut b = IpcBytes::new_mut_blocking(pixels * 4).expect("cannot allocate IpcBytes");
+        for b in b.chunks_exact_mut(4) {
+            b.copy_from_slice(&bgra);
         }
         Self::from_data(
-            IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"),
+            b.finish_blocking().expect("cannot allocate IpcBytes"),
             ImageDataFormat::Bgra8 { size, density },
         )
     }

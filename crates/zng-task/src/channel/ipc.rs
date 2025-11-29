@@ -114,7 +114,7 @@ impl<T: IpcValue> IpcReceiver<T> {
                 Some(r) => r,
                 None => return Err(ChannelError::disconnected()),
             };
-            let (recv, r) = crate::wait(move || {
+            let (recv, r) = blocking::unblock(move || {
                 let r = recv.recv();
                 (recv, r)
             })
@@ -363,7 +363,7 @@ impl<T: IpcValue> NamedIpcReceiver<T> {
 
     /// Await until other process connects.
     pub async fn connect(self) -> Result<IpcReceiver<T>, ChannelError> {
-        crate::wait(move || self.connect_blocking()).await
+        blocking::unblock(move || self.connect_blocking()).await
     }
 
     /// Await until other process connects or `deadline` elapses.
@@ -463,7 +463,7 @@ impl<T: IpcValue> NamedIpcSender<T> {
 
     /// Await until other process connects.
     pub async fn connect(self) -> Result<IpcSender<T>, ChannelError> {
-        crate::wait(move || self.connect_blocking()).await
+        blocking::unblock(move || self.connect_blocking()).await
     }
 
     /// Await until other process connects or `deadline` elapses.
