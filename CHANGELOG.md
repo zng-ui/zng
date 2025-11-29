@@ -7,6 +7,9 @@
     - No longer generic over the error function.
     - Now also implements `BufRead`, `Read` and `AsyncBufRead`.
     - Add constructor with default error.
+* **Breaking** Refactor `zng::task::io::Measure`.
+    - Now uses var to track progress.
+    - Now also implements `BufRead`, `Read`, `Write` and `AsyncBufRead`.
 
 * Refactor `WhiteSpace` merging to better integrate with basic paragraph spacing.
     - `Merge` now also merges multiple line breaks into a single one.
