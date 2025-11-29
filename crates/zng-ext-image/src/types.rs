@@ -18,7 +18,7 @@ use zng_layout::{
     context::{LAYOUT, LayoutMetrics, LayoutPassId},
     unit::{ByteLength, ByteUnits, FactorUnits as _, LayoutAxis, Px, PxDensity2d, PxLine, PxPoint, PxRect, PxSize},
 };
-use zng_task::{self as task, SignalOnce};
+use zng_task::{self as task, SignalOnce, channel::IpcBytes};
 use zng_txt::Txt;
 use zng_var::{Var, animation::Transitionable, impl_from_and_into_var};
 use zng_view_api::image::ImageTextureId;
@@ -46,7 +46,6 @@ pub trait ImageCacheProxy: Send + Sync {
         mask: Option<ImageMaskMode>,
     ) -> ProxyGetResult {
         let r = match source {
-            ImageSource::Static(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask, false),
             ImageSource::Data(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask, false),
             _ => return ProxyGetResult::None,
         };
@@ -56,7 +55,7 @@ pub trait ImageCacheProxy: Send + Sync {
         }
     }
 
-    /// Intercept a [`Data`] or [`Static`] request.
+    /// Intercept a [`Data`] request.
     ///
     /// If [`is_data_proxy`] also intercept the [`Read`] or [`Download`] data.
     ///
@@ -65,7 +64,6 @@ pub trait ImageCacheProxy: Send + Sync {
     ///
     ///
     /// [`Data`]: ImageSource::Data
-    /// [`Static`]: ImageSource::Static
     /// [`is_data_proxy`]: ImageCacheProxy::is_data_proxy
     /// [`Read`]: ImageSource::Read
     /// [`Download`]: ImageSource::Download
@@ -95,7 +93,7 @@ pub trait ImageCacheProxy: Send + Sync {
         let _ = purge;
     }
 
-    /// If this proxy only handles [`Data`] and [`Static`] sources.
+    /// If this proxy only handles [`Data`] sources.
     ///
     /// When this is `true` the [`get`] call is delayed to after [`Read`] and [`Download`] have loaded the data
     /// and is skipped for [`Render`] and [`Image`].
@@ -104,7 +102,6 @@ pub trait ImageCacheProxy: Send + Sync {
     ///
     /// [`get`]: ImageCacheProxy::get
     /// [`Data`]: ImageSource::Data
-    /// [`Static`]: ImageSource::Static
     /// [`Read`]: ImageSource::Read
     /// [`Download`]: ImageSource::Download
     /// [`Render`]: ImageSource::Render
@@ -573,10 +570,6 @@ pub enum ImageSource {
     /// Image equality is defined by the URI and ACCEPT string.
     #[cfg(feature = "http")]
     Download(crate::task::http::Uri, Option<Txt>),
-    /// Static bytes for an encoded or decoded image.
-    ///
-    /// Image equality is defined by the hash, it is usually the hash of the bytes but it does not need to be.
-    Static(ImageHash, &'static [u8], ImageDataFormat),
     /// Shared reference to bytes for an encoded or decoded image.
     ///
     /// Image equality is defined by the hash, it is usually the hash of the bytes but it does not need to be.
@@ -584,7 +577,7 @@ pub enum ImageSource {
     /// Inside [`IMAGES`] the reference to the bytes is held only until the image finishes decoding.
     ///
     /// [`IMAGES`]: super::IMAGES
-    Data(ImageHash, Arc<Vec<u8>>, ImageDataFormat),
+    Data(ImageHash, IpcBytes, ImageDataFormat),
 
     /// A boxed closure that instantiates a `WindowRoot` that draws the image.
     ///
@@ -600,19 +593,11 @@ pub enum ImageSource {
 }
 impl ImageSource {
     /// New source from data.
-    pub fn from_data(data: Arc<Vec<u8>>, format: ImageDataFormat) -> Self {
+    pub fn from_data(data: IpcBytes, format: ImageDataFormat) -> Self {
         let mut hasher = ImageHasher::default();
         hasher.update(&data[..]);
         let hash = hasher.finish();
         Self::Data(hash, data, format)
-    }
-
-    /// New source from static data.
-    pub fn from_static(data: &'static [u8], format: ImageDataFormat) -> Self {
-        let mut hasher = ImageHasher::default();
-        hasher.update(data);
-        let hash = hasher.finish();
-        Self::Static(hash, data, format)
     }
 
     /// Returns the image hash, unless the source is [`Img`].
@@ -621,16 +606,14 @@ impl ImageSource {
             ImageSource::Read(p) => Some(Self::hash128_read(p, downscale, mask)),
             #[cfg(feature = "http")]
             ImageSource::Download(u, a) => Some(Self::hash128_download(u, a, downscale, mask)),
-            ImageSource::Static(h, _, _) => Some(Self::hash128_data(*h, downscale, mask)),
             ImageSource::Data(h, _, _) => Some(Self::hash128_data(*h, downscale, mask)),
             ImageSource::Render(rfn, args) => Some(Self::hash128_render(rfn, args, downscale, mask)),
             ImageSource::Image(_) => None,
         }
     }
 
-    /// Compute hash for a borrowed [`Static`] or [`Data`] image.
+    /// Compute hash for a borrowed [`Data`] image.
     ///
-    /// [`Static`]: Self::Static
     /// [`Data`]: Self::Data
     pub fn hash128_data(data_hash: ImageHash, downscale: Option<ImageDownscale>, mask: Option<ImageMaskMode>) -> ImageHash {
         if downscale.is_some() || mask.is_some() {
@@ -712,7 +695,10 @@ impl ImageSource {
         for _ in 0..pixels {
             data.extend_from_slice(&bgra);
         }
-        Self::from_data(Arc::new(data), ImageDataFormat::Bgra8 { size, density })
+        Self::from_data(
+            IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"),
+            ImageDataFormat::Bgra8 { size, density },
+        )
     }
 
     /// New image data from vertical linear gradient.
@@ -792,7 +778,10 @@ impl ImageSource {
                     }
                 }
 
-                Self::from_data(Arc::new(data), ImageDataFormat::A8 { size })
+                Self::from_data(
+                    IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"),
+                    ImageDataFormat::A8 { size },
+                )
             }
             None => {
                 let len = size.width.0 as usize * size.height.0 as usize * 4;
@@ -805,7 +794,10 @@ impl ImageSource {
                     }
                 }
 
-                Self::from_data(Arc::new(data), ImageDataFormat::Bgra8 { size, density })
+                Self::from_data(
+                    IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"),
+                    ImageDataFormat::Bgra8 { size, density },
+                )
             }
         }
     }
@@ -885,7 +877,10 @@ impl ImageSource {
                     }
                 }
 
-                Self::from_data(Arc::new(data), ImageDataFormat::A8 { size })
+                Self::from_data(
+                    IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"),
+                    ImageDataFormat::A8 { size },
+                )
             }
             None => {
                 let len = size.width.0 as usize * size.height.0 as usize * 4;
@@ -897,7 +892,10 @@ impl ImageSource {
                     }
                 }
 
-                Self::from_data(Arc::new(data), ImageDataFormat::Bgra8 { size, density })
+                Self::from_data(
+                    IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"),
+                    ImageDataFormat::Bgra8 { size, density },
+                )
             }
         }
     }
@@ -913,12 +911,10 @@ impl PartialEq for ImageSource {
             (Self::Image(l), Self::Image(r)) => l.var_eq(r),
             (l, r) => {
                 let l_hash = match l {
-                    ImageSource::Static(h, _, _) => h,
                     ImageSource::Data(h, _, _) => h,
                     _ => return false,
                 };
                 let r_hash = match r {
-                    ImageSource::Static(h, _, _) => h,
                     ImageSource::Data(h, _, _) => h,
                     _ => return false,
                 };
@@ -937,8 +933,8 @@ impl fmt::Debug for ImageSource {
             ImageSource::Read(p) => f.debug_tuple("Read").field(p).finish(),
             #[cfg(feature = "http")]
             ImageSource::Download(u, a) => f.debug_tuple("Download").field(u).field(a).finish(),
-            ImageSource::Static(key, _, fmt) => f.debug_tuple("Static").field(key).field(fmt).finish(),
-            ImageSource::Data(key, _, fmt) => f.debug_tuple("Data").field(key).field(fmt).finish(),
+            ImageSource::Data(key, bytes, fmt) => f.debug_tuple("Data").field(key).field(bytes).field(fmt).finish(),
+
             ImageSource::Render(_, _) => write!(f, "Render(_, _)"),
             ImageSource::Image(_) => write!(f, "Image(_)"),
         }
@@ -1007,41 +1003,49 @@ impl_from_and_into_var! {
     /// From encoded data of [`Unknown`] format.
     ///
     /// [`Unknown`]: ImageDataFormat::Unknown
-    fn from(data: &'static [u8]) -> ImageSource {
-        ImageSource::Static(ImageHash::compute(data), data, ImageDataFormat::Unknown)
+    fn from(data: &[u8]) -> ImageSource {
+        ImageSource::Data(
+            ImageHash::compute(data),
+            IpcBytes::from_slice_blocking(data).expect("cannot allocate IpcBytes"),
+            ImageDataFormat::Unknown,
+        )
     }
     /// From encoded data of [`Unknown`] format.
     ///
     /// [`Unknown`]: ImageDataFormat::Unknown
-    fn from<const N: usize>(data: &'static [u8; N]) -> ImageSource {
+    fn from<const N: usize>(data: &[u8; N]) -> ImageSource {
         (&data[..]).into()
     }
     /// From encoded data of [`Unknown`] format.
     ///
     /// [`Unknown`]: ImageDataFormat::Unknown
-    fn from(data: Arc<Vec<u8>>) -> ImageSource {
+    fn from(data: IpcBytes) -> ImageSource {
         ImageSource::Data(ImageHash::compute(&data[..]), data, ImageDataFormat::Unknown)
     }
     /// From encoded data of [`Unknown`] format.
     ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from(data: Vec<u8>) -> ImageSource {
-        Arc::new(data).into()
+        IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes").into()
     }
     /// From encoded data of known format.
-    fn from<F: Into<ImageDataFormat>>((data, format): (&'static [u8], F)) -> ImageSource {
-        ImageSource::Static(ImageHash::compute(data), data, format.into())
+    fn from<F: Into<ImageDataFormat>>((data, format): (&[u8], F)) -> ImageSource {
+        ImageSource::Data(
+            ImageHash::compute(data),
+            IpcBytes::from_slice_blocking(data).expect("cannot allocate IpcBytes"),
+            format.into(),
+        )
     }
     /// From encoded data of known format.
-    fn from<F: Into<ImageDataFormat>, const N: usize>((data, format): (&'static [u8; N], F)) -> ImageSource {
+    fn from<F: Into<ImageDataFormat>, const N: usize>((data, format): (&[u8; N], F)) -> ImageSource {
         (&data[..], format).into()
     }
     /// From encoded data of known format.
     fn from<F: Into<ImageDataFormat>>((data, format): (Vec<u8>, F)) -> ImageSource {
-        (Arc::new(data), format).into()
+        (IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"), format).into()
     }
     /// From encoded data of known format.
-    fn from<F: Into<ImageDataFormat>>((data, format): (Arc<Vec<u8>>, F)) -> ImageSource {
+    fn from<F: Into<ImageDataFormat>>((data, format): (IpcBytes, F)) -> ImageSource {
         ImageSource::Data(ImageHash::compute(&data[..]), data, format.into())
     }
 }
