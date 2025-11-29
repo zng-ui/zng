@@ -6,7 +6,7 @@
 
 use std::{
     fmt,
-    io::{BufRead, ErrorKind, Read},
+    io::{BufRead, ErrorKind, Read, Write},
     pin::Pin,
     sync::Arc,
     task::{self, Poll},
@@ -25,7 +25,75 @@ use std::io::{Error, Result};
 use zng_time::{DInstant, INSTANT};
 use zng_txt::formatx;
 use zng_unit::{ByteLength, ByteUnits};
-use zng_var::impl_from_and_into_var;
+use zng_var::{Var, impl_from_and_into_var, var};
+
+struct MeasureInner {
+    metrics: Var<Metrics>,
+    start_time: DInstant,
+    last_write: DInstant,
+    last_read: DInstant,
+}
+impl MeasureInner {
+    fn new(read_progress: (ByteLength, ByteLength), write_progress: (ByteLength, ByteLength)) -> Self {
+        let now = INSTANT.now();
+        Self {
+            metrics: var(Metrics {
+                read_progress,
+                read_speed: 0.bytes(),
+                write_progress,
+                write_speed: 0.bytes(),
+                total_time: Duration::ZERO,
+            }),
+            start_time: now,
+            last_write: now,
+            last_read: now,
+        }
+    }
+
+    fn on_read(&mut self, bytes: usize) {
+        if bytes == 0 {
+            return;
+        }
+
+        let bytes = bytes.bytes();
+
+        let now = INSTANT.now();
+        let elapsed = now - self.last_read;
+
+        self.last_read = now;
+        let read_speed = bytes_per_sec(bytes, elapsed);
+
+        let total_time = now - self.start_time;
+
+        self.metrics.modify(move |m| {
+            m.read_progress.0 += bytes;
+            m.read_speed = read_speed;
+            m.total_time = total_time;
+        });
+    }
+
+    fn on_write(&mut self, bytes: usize) {
+        if bytes == 0 {
+            return;
+        }
+
+        let bytes = bytes.bytes();
+
+        let now = INSTANT.now();
+        let elapsed = now - self.last_write;
+
+        self.last_write = now;
+        let write_speed = bytes_per_sec(bytes, elapsed);
+
+        let total_time = now - self.start_time;
+
+        self.metrics.modify(move |m| {
+            m.write_progress.0 += bytes;
+            m.write_speed = write_speed;
+            m.total_time = total_time;
+        });
+    }
+}
 
 /// Measure read/write of an async task.
 ///
@@ -33,50 +101,34 @@ use zng_var::impl_from_and_into_var;
 /// the metrics will only update once.
 pub struct Measure<T> {
     task: T,
-    metrics: Metrics,
-    start_time: DInstant,
-    last_write: DInstant,
-    last_read: DInstant,
+    inner: MeasureInner,
 }
 impl<T> Measure<T> {
     /// Start measuring a new read/write task.
-    pub fn start(task: T, total_read: impl Into<ByteLength>, total_write: impl Into<ByteLength>) -> Self {
-        Self::resume(task, (0, total_read), (0, total_write))
+    pub fn new(task: T, total_read: ByteLength, total_write: ByteLength) -> Self {
+        Self::new_ongoing(task, (0.bytes(), total_read), (0.bytes(), total_write))
     }
 
     /// Continue measuring a read/write task.
-    pub fn resume(
-        task: T,
-        read_progress: (impl Into<ByteLength>, impl Into<ByteLength>),
-        write_progress: (impl Into<ByteLength>, impl Into<ByteLength>),
-    ) -> Self {
-        let now = INSTANT.now();
+    pub fn new_ongoing(task: T, read_progress: (ByteLength, ByteLength), write_progress: (ByteLength, ByteLength)) -> Self {
         Measure {
             task,
-            metrics: Metrics {
-                read_progress: (read_progress.0.into(), read_progress.1.into()),
-                read_speed: 0.bytes(),
-                write_progress: (write_progress.0.into(), write_progress.1.into()),
-                write_speed: 0.bytes(),
-                total_time: Duration::ZERO,
-            },
-            start_time: now,
-            last_write: now,
-            last_read: now,
+            inner: MeasureInner::new(read_progress, write_progress),
         }
     }
 
     /// Current metrics.
     ///
     /// This value is updated after every read/write.
-    pub fn metrics(&mut self) -> &Metrics {
-        &self.metrics
+    pub fn metrics(&mut self) -> Var<Metrics> {
+        self.inner.metrics.read_only()
     }
 
     /// Unwrap the inner task and final metrics.
-    pub fn finish(mut self) -> (T, Metrics) {
-        self.metrics.total_time = self.start_time.elapsed();
-        (self.task, self.metrics)
+    pub fn finish(self) -> (T, Metrics) {
+        let mut metrics = self.inner.metrics.get();
+        metrics.total_time = self.inner.start_time.elapsed();
+        (self.task, metrics)
     }
 }
 
@@ -85,46 +137,30 @@ fn bytes_per_sec(bytes: ByteLength, elapsed: Duration) -> ByteLength {
     ByteLength(bytes_per_sec as usize)
 }
 
-impl<T: AsyncRead + Unpin> AsyncRead for Measure<T> {
+impl<T: AsyncRead> AsyncRead for Measure<T> {
     fn poll_read(self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &mut [u8]) -> Poll<Result<usize>> {
-        let self_ = self.get_mut();
-        match Pin::new(&mut self_.task).poll_read(cx, buf) {
+        // SAFETY: we don't move anything.
+        let self_ = unsafe { self.get_unchecked_mut() };
+
+        // SAFETY: we don't move task
+        match unsafe { Pin::new_unchecked(&mut self_.task) }.poll_read(cx, buf) {
             Poll::Ready(Ok(bytes)) => {
-                if bytes > 0 {
-                    let bytes = bytes.bytes();
-                    self_.metrics.read_progress.0 += bytes;
-
-                    let now = INSTANT.now();
-                    let elapsed = now - self_.last_read;
-
-                    self_.last_read = now;
-                    self_.metrics.read_speed = bytes_per_sec(bytes, elapsed);
-
-                    self_.metrics.total_time = now - self_.start_time;
-                }
+                self_.inner.on_read(bytes);
                 Poll::Ready(Ok(bytes))
             }
             p => p,
         }
     }
 }
-impl<T: AsyncWrite + Unpin> AsyncWrite for Measure<T> {
+impl<T: AsyncWrite> AsyncWrite for Measure<T> {
     fn poll_write(self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &[u8]) -> Poll<Result<usize>> {
-        let self_ = self.get_mut();
-        match Pin::new(&mut self_.task).poll_write(cx, buf) {
+        // SAFETY: we don't move anything.
+        let self_ = unsafe { self.get_unchecked_mut() };
+
+        // SAFETY: we don't move task
+        match unsafe { Pin::new_unchecked(&mut self_.task) }.poll_write(cx, buf) {
             Poll::Ready(Ok(bytes)) => {
-                if bytes > 0 {
-                    let bytes = bytes.bytes();
-                    self_.metrics.write_progress.0 += bytes;
-
-                    let now = INSTANT.now();
-                    let elapsed = now - self_.last_write;
-
-                    self_.last_write = now;
-                    self_.metrics.write_speed = bytes_per_sec(bytes, elapsed);
-
-                    self_.metrics.total_time = now - self_.start_time;
-                }
+                self_.inner.on_write(bytes);
                 Poll::Ready(Ok(bytes))
             }
             p => p,
@@ -132,11 +168,72 @@ impl<T: AsyncWrite + Unpin> AsyncWrite for Measure<T> {
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Result<()>> {
-        Pin::new(&mut self.get_mut().task).poll_flush(cx)
+        // SAFETY: we don't move anything.
+        let self_ = unsafe { self.get_unchecked_mut() };
+
+        // SAFETY: we don't move task
+        unsafe { Pin::new_unchecked(&mut self_.task) }.poll_flush(cx)
     }
 
     fn poll_close(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Result<()>> {
-        Pin::new(&mut self.get_mut().task).poll_close(cx)
+        // SAFETY: we don't move anything.
+        let self_ = unsafe { self.get_unchecked_mut() };
+
+        // SAFETY: we don't move task
+        unsafe { Pin::new_unchecked(&mut self_.task) }.poll_flush(cx)
+    }
+}
+impl<T: AsyncBufRead> AsyncBufRead for Measure<T> {
+    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Result<&[u8]>> {
+        // SAFETY: we don't move anything.
+        let self_ = unsafe { self.get_unchecked_mut() };
+
+        // SAFETY: we don't move task
+        unsafe { Pin::new_unchecked(&mut self_.task) }.poll_fill_buf(cx)
+    }
+
+    fn consume(self: Pin<&mut Self>, amt: usize) {
+        // SAFETY: we don't move anything.
+        let self_ = unsafe { self.get_unchecked_mut() };
+        // SAFETY: we don't move task
+        unsafe { Pin::new_unchecked(&mut self_.task) }.consume(amt);
+        self_.inner.on_read(amt);
+    }
+}
+impl<T: Read> Read for Measure<T> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        match self.task.read(buf) {
+            Ok(bytes) => {
+                self.inner.on_read(bytes);
+                Ok(bytes)
+            }
+            r => r,
+        }
+    }
+}
+impl<T: Write> Write for Measure<T> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        match self.task.write(buf) {
+            Ok(bytes) => {
+                self.inner.on_write(bytes);
+                Ok(bytes)
+            }
+            r => r,
+        }
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        self.task.flush()
+    }
+}
+impl<T: BufRead> BufRead for Measure<T> {
+    fn fill_buf(&mut self) -> Result<&[u8]> {
+        self.task.fill_buf()
+    }
+
+    fn consume(&mut self, amount: usize) {
+        self.task.consume(amount);
+        self.inner.on_read(amount);
     }
 }
 
@@ -603,13 +700,7 @@ where
         }
 
         // SAFETY: we never move `source`.
-        match unsafe { Pin::new_unchecked(&mut self_.source) }.poll_fill_buf(cx) {
-            Poll::Ready(Ok(buf)) => {
-                self_.limit = self_.limit.saturating_sub(buf.len());
-                Poll::Ready(Ok(buf))
-            }
-            r => r,
-        }
+        unsafe { Pin::new_unchecked(&mut self_.source) }.poll_fill_buf(cx)
     }
 
     fn consume(self: Pin<&mut Self>, amt: usize) {
@@ -617,6 +708,7 @@ where
         let self_ = unsafe { self.get_unchecked_mut() };
         // SAFETY: we never move `source`.
         unsafe { Pin::new_unchecked(&mut self_.source) }.consume(amt);
+        self_.limit = self_.limit.saturating_sub(amt);
     }
 }
 impl<S> Read for ReadLimited<S>
@@ -652,17 +744,12 @@ where
             return Err(err);
         }
 
-        match self.source.fill_buf() {
-            Ok(buf) => {
-                self.limit = self.limit.saturating_sub(buf.len());
-                Ok(buf)
-            }
-            r => r,
-        }
+        self.source.fill_buf()
     }
 
     fn consume(&mut self, amount: usize) {
         self.source.consume(amount);
+        self.limit = self.limit.saturating_sub(amount);
     }
 }
 
