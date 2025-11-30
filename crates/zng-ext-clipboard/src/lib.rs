@@ -236,8 +236,8 @@ impl CLIPBOARD {
             match img {
                 Ok(img) => {
                     let mut hash = ImageHasher::new();
-                    hash.update("zng_ext_clipboard::CLIPBOARD");
-                    hash.update(img.id().unwrap().get().to_be_bytes());
+                    hash.update("zng_ext_clipboard::CLIPBOARD".as_bytes());
+                    hash.update(&img.id().unwrap().get().to_be_bytes());
                     match IMAGES.register(hash.finish(), img) {
                         Ok(r) => Ok(Ok(r)),
                         Err((_, r)) => Ok(Ok(r)),

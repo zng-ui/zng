@@ -89,6 +89,7 @@ impl IpcBytes {
         IpcBytesWriter {
             inner: blocking::Unblock::new(IpcBytesWriterBlocking {
                 heap_buf: vec![],
+                #[cfg(ipc)]
                 memmap: None,
             }),
         }
@@ -96,6 +97,7 @@ impl IpcBytes {
 
     /// Allocate zeroed mutable memory that can be written to and then converted to `IpcBytes` fast.
     pub async fn new_mut(len: usize) -> io::Result<IpcBytesMut> {
+        #[cfg(ipc)]
         if len <= Self::INLINE_MAX {
             Ok(IpcBytesMut {
                 inner: IpcBytesMutInner::Heap(vec![0; len]),
@@ -106,6 +108,13 @@ impl IpcBytes {
             })
         } else {
             blocking::unblock(move || Self::new_mut_blocking(len)).await
+        }
+
+        #[cfg(not(ipc))]
+        {
+            Ok(IpcBytesMut {
+                inner: IpcBytesMutInner::Heap(vec![0; len]),
+            })
         }
     }
 
@@ -284,12 +293,14 @@ impl IpcBytes {
     pub fn new_writer_blocking() -> IpcBytesWriterBlocking {
         IpcBytesWriterBlocking {
             heap_buf: vec![],
+            #[cfg(ipc)]
             memmap: None,
         }
     }
 
     /// Allocate zeroed mutable memory that can be written to and then converted to `IpcBytes` fast.
     pub fn new_mut_blocking(len: usize) -> io::Result<IpcBytesMut> {
+        #[cfg(ipc)]
         if len <= Self::INLINE_MAX {
             Ok(IpcBytesMut {
                 inner: IpcBytesMutInner::Heap(vec![0; len]),
@@ -317,6 +328,12 @@ impl IpcBytes {
                     map,
                     write_handle: file,
                 },
+            })
+        }
+        #[cfg(not(ipc))]
+        {
+            Ok(IpcBytesMut {
+                inner: IpcBytesMutInner::Heap(vec![0; len]),
             })
         }
     }
@@ -842,6 +859,7 @@ impl crate::io::AsyncWrite for IpcBytesWriter {
 /// Use [`IpcBytes::new_writer_blocking`] to start writing.
 pub struct IpcBytesWriterBlocking {
     heap_buf: Vec<u8>,
+    #[cfg(ipc)]
     memmap: Option<(PathBuf, std::fs::File)>,
 }
 impl IpcBytesWriterBlocking {
@@ -854,25 +872,34 @@ impl IpcBytesWriterBlocking {
     /// Mode data to an exclusive mutable [`IpcBytes`] that can be further modified, but not resized.
     pub fn finish_mut(mut self) -> std::io::Result<IpcBytesMut> {
         self.flush()?;
-        let inner = match self.memmap {
-            Some((name, write_handle)) => {
-                // SAFETY: we hold write lock
-                let map = unsafe { memmap2::MmapMut::map_mut(&write_handle) }?;
-                IpcBytesMutInner::MemMap { name, map, write_handle }
-            }
-            None => {
-                if self.heap_buf.len() > IpcBytes::INLINE_MAX {
-                    IpcBytesMutInner::AnonMemMap(IpcSharedMemory::from_bytes(&self.heap_buf))
-                } else {
-                    IpcBytesMutInner::Heap(self.heap_buf)
+        #[cfg(ipc)]
+        {
+            let inner = match self.memmap {
+                Some((name, write_handle)) => {
+                    // SAFETY: we hold write lock
+                    let map = unsafe { memmap2::MmapMut::map_mut(&write_handle) }?;
+                    IpcBytesMutInner::MemMap { name, map, write_handle }
                 }
-            }
-        };
-        Ok(IpcBytesMut { inner })
+                None => {
+                    if self.heap_buf.len() > IpcBytes::INLINE_MAX {
+                        IpcBytesMutInner::AnonMemMap(IpcSharedMemory::from_bytes(&self.heap_buf))
+                    } else {
+                        IpcBytesMutInner::Heap(self.heap_buf)
+                    }
+                }
+            };
+            Ok(IpcBytesMut { inner })
+        }
+        #[cfg(not(ipc))]
+        {
+            let inner = IpcBytesMutInner::Heap(self.heap_buf);
+            Ok(IpcBytesMut { inner })
+        }
     }
 }
 impl std::io::Write for IpcBytesWriterBlocking {
     fn write(&mut self, write_buf: &[u8]) -> io::Result<usize> {
+        #[cfg(ipc)]
         if self.heap_buf.len() + write_buf.len() > IpcBytes::UNNAMED_MAX {
             // write exceed heap buffer, convert to memmap or flush to existing memmap
 
@@ -908,10 +935,17 @@ impl std::io::Write for IpcBytesWriterBlocking {
             }
             self.heap_buf.extend_from_slice(write_buf);
         }
+
+        #[cfg(not(ipc))]
+        {
+            self.heap_buf.extend_from_slice(write_buf);
+        }
+
         Ok(write_buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
+        #[cfg(ipc)]
         if let Some((_, file)) = &mut self.memmap
             && !self.heap_buf.is_empty()
         {
@@ -924,7 +958,9 @@ impl std::io::Write for IpcBytesWriterBlocking {
 
 enum IpcBytesMutInner {
     Heap(Vec<u8>),
+    #[cfg(ipc)]
     AnonMemMap(IpcSharedMemory),
+    #[cfg(ipc)]
     MemMap {
         name: PathBuf,
         map: memmap2::MmapMut,
@@ -943,7 +979,9 @@ impl ops::Deref for IpcBytesMut {
     fn deref(&self) -> &Self::Target {
         match &self.inner {
             IpcBytesMutInner::Heap(v) => &v[..],
+            #[cfg(ipc)]
             IpcBytesMutInner::AnonMemMap(m) => &m[..],
+            #[cfg(ipc)]
             IpcBytesMutInner::MemMap { map, .. } => &map[..],
         }
     }
@@ -952,10 +990,12 @@ impl ops::DerefMut for IpcBytesMut {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match &mut self.inner {
             IpcBytesMutInner::Heap(v) => &mut v[..],
+            #[cfg(ipc)]
             IpcBytesMutInner::AnonMemMap(m) => {
                 // SAFETY: we are the only reference to the map
                 unsafe { m.deref_mut() }
             }
+            #[cfg(ipc)]
             IpcBytesMutInner::MemMap { map, .. } => &mut map[..],
         }
     }
@@ -970,7 +1010,9 @@ impl IpcBytesMut {
     pub async fn finish(self) -> io::Result<IpcBytes> {
         let data = match self.inner {
             IpcBytesMutInner::Heap(v) => IpcBytesData::Heap(v),
+            #[cfg(ipc)]
             IpcBytesMutInner::AnonMemMap(m) => IpcBytesData::AnonMemMap(m),
+            #[cfg(ipc)]
             IpcBytesMutInner::MemMap { name, map, write_handle } => {
                 blocking::unblock(move || Self::finish_memmap(name, map, write_handle)).await?
             }
@@ -982,12 +1024,15 @@ impl IpcBytesMut {
     pub fn finish_blocking(self) -> io::Result<IpcBytes> {
         let data = match self.inner {
             IpcBytesMutInner::Heap(v) => IpcBytesData::Heap(v),
+            #[cfg(ipc)]
             IpcBytesMutInner::AnonMemMap(m) => IpcBytesData::AnonMemMap(m),
+            #[cfg(ipc)]
             IpcBytesMutInner::MemMap { name, map, write_handle } => Self::finish_memmap(name, map, write_handle)?,
         };
         Ok(IpcBytes(Arc::new(data)))
     }
 
+    #[cfg(ipc)]
     fn finish_memmap(name: PathBuf, map: memmap2::MmapMut, write_handle: fs::File) -> Result<IpcBytesData, io::Error> {
         let len = map.len();
         write_handle.unlock()?;
