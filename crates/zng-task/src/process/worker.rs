@@ -158,7 +158,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
             .env(WORKER_SERVER, chan_sender.name())
             .env(WORKER_NAME, worker_name)
             .env("RUST_BACKTRACE", "full");
-        let mut worker = crate::wait(move || worker.spawn()).await?;
+        let mut worker = blocking::unblock(move || worker.spawn()).await?;
 
         let timeout = match std::env::var(WORKER_TIMEOUT) {
             Ok(t) if !t.is_empty() => match t.parse::<u64>() {
@@ -174,7 +174,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
         let (request_sender, mut response_receiver) = match Self::connect_worker(chan_sender, timeout).await {
             Ok(r) => r,
             Err(ce) => {
-                let cleanup = crate::wait(move || {
+                let cleanup = blocking::unblock(move || {
                     worker.kill()?;
                     worker.wait()
                 });
@@ -256,9 +256,9 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
             while !self.requests.lock().is_empty() {
                 crate::deadline(100.ms()).await;
             }
-            let r = crate::wait(move || process.kill()).await;
+            let r = blocking::unblock(move || process.kill()).await;
 
-            match crate::with_deadline(crate::wait(move || receiver.join()), 1.secs()).await {
+            match crate::with_deadline(blocking::unblock(move || receiver.join()), 1.secs()).await {
                 Ok(r) => {
                     if let Err(p) = r {
                         tracing::error!(
@@ -297,7 +297,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
         let requests = self.requests.clone();
         requests.lock().insert(id, sx);
         let mut sender = self.sender.clone();
-        let send_r = crate::wait(move || sender.send_blocking((id, request)));
+        let send_r = blocking::unblock(move || sender.send_blocking((id, request)));
 
         Box::pin(async move {
             if let Err(e) = send_r.await {

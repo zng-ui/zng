@@ -507,9 +507,32 @@ impl ImageHasher {
     }
 
     /// Process data, updating the internal state.
-    pub fn update(&mut self, data: impl AsRef<[u8]>) {
+    pub fn update(&mut self, data: &[u8]) {
         use sha2::Digest;
-        self.0.update(data);
+
+        // some gigantic images can take to long to hash, we just
+        // need the hash for identification so we sample the data
+        const NUM_SAMPLES: usize = 1000;
+        const SAMPLE_CHUNK_SIZE: usize = 1024;
+
+        let total_size = data.len();
+        if total_size == 0 {
+            return;
+        }
+        if total_size < 1000 * 1000 * 4 {
+            return self.0.update(data);
+        }
+
+        let step_size = total_size.checked_div(NUM_SAMPLES).unwrap_or(total_size);
+        for n in 0..NUM_SAMPLES {
+            let start_index = n * step_size;
+            if start_index >= total_size {
+                break;
+            }
+            let end_index = (start_index + SAMPLE_CHUNK_SIZE).min(total_size);
+            let s = &data[start_index..end_index];
+            self.0.update(s);
+        }
     }
 
     /// Finish computing the hash.
@@ -691,12 +714,12 @@ impl ImageSource {
     fn flood_impl(size: PxSize, color: Rgba, density: Option<PxDensity2d>) -> Self {
         let pixels = size.width.0 as usize * size.height.0 as usize;
         let bgra = color.to_bgra_bytes();
-        let mut data = Vec::with_capacity(pixels * 4);
-        for _ in 0..pixels {
-            data.extend_from_slice(&bgra);
+        let mut b = IpcBytes::new_mut_blocking(pixels * 4).expect("cannot allocate IpcBytes");
+        for b in b.chunks_exact_mut(4) {
+            b.copy_from_slice(&bgra);
         }
         Self::from_data(
-            IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"),
+            b.finish_blocking().expect("cannot allocate IpcBytes"),
             ImageDataFormat::Bgra8 { size, density },
         )
     }
