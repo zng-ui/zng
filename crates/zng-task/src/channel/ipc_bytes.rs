@@ -853,14 +853,23 @@ impl crate::io::AsyncWrite for IpcBytesWriter {
         crate::io::AsyncWrite::poll_close(Pin::new(&mut Pin::get_mut(self).inner), cx)
     }
 }
+impl crate::io::AsyncSeek for IpcBytesWriter {
+    fn poll_seek(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>, pos: io::SeekFrom) -> std::task::Poll<io::Result<u64>> {
+        crate::io::AsyncSeek::poll_seek(Pin::new(&mut Pin::get_mut(self).inner), cx, pos)
+    }
+}
 
 /// Represents a blocking [`IpcBytes`] writer.
 ///
 /// Use [`IpcBytes::new_writer_blocking`] to start writing.
 pub struct IpcBytesWriterBlocking {
+    #[cfg(ipc)]
     heap_buf: Vec<u8>,
     #[cfg(ipc)]
     memmap: Option<(PathBuf, std::fs::File)>,
+
+    #[cfg(not(ipc))]
+    heap_buf: std::io::Cursor<Vec<u8>>,
 }
 impl IpcBytesWriterBlocking {
     /// Finish writing and move data to a shareable [`IpcBytes`].
@@ -896,63 +905,89 @@ impl IpcBytesWriterBlocking {
             Ok(IpcBytesMut { inner })
         }
     }
+
+    #[cfg(ipc)]
+    fn alloc_memmap_file(&mut self) -> io::Result<()> {
+        if self.memmap.is_none() {
+            let (name, file) = IpcBytes::create_memmap()?;
+            file.lock()?;
+            #[cfg(unix)]
+            {
+                let mut permissions = file.metadata()?.permissions();
+                use std::os::unix::fs::PermissionsExt;
+                permissions.set_mode(0o600);
+                file.set_permissions(permissions)?;
+            }
+            self.memmap = Some((name, file));
+        }
+        let file = &mut self.memmap.as_mut().unwrap().1;
+
+        file.write_all(&self.heap_buf)?;
+        // already allocated UNNAMED_MAX, continue using it as a large buffer
+        self.heap_buf.clear();
+        Ok(())
+    }
 }
 impl std::io::Write for IpcBytesWriterBlocking {
     fn write(&mut self, write_buf: &[u8]) -> io::Result<usize> {
         #[cfg(ipc)]
-        if self.heap_buf.len() + write_buf.len() > IpcBytes::UNNAMED_MAX {
-            // write exceed heap buffer, convert to memmap or flush to existing memmap
+        {
+            if self.heap_buf.len() + write_buf.len() > IpcBytes::UNNAMED_MAX {
+                // write exceed heap buffer, convert to memmap or flush to existing memmap
+                self.alloc_memmap_file()?;
 
-            if self.memmap.is_none() {
-                let (name, file) = IpcBytes::create_memmap()?;
-                file.lock()?;
-                #[cfg(unix)]
-                {
-                    let mut permissions = file.metadata()?.permissions();
-                    use std::os::unix::fs::PermissionsExt;
-                    permissions.set_mode(0o600);
-                    file.set_permissions(permissions)?;
+                if write_buf.len() > IpcBytes::UNNAMED_MAX {
+                    // writing massive payload, skip buffer
+                    self.memmap.as_mut().unwrap().1.write_all(write_buf)?;
+                } else {
+                    self.heap_buf.extend_from_slice(write_buf);
                 }
-                self.memmap = Some((name, file));
-            }
-            let file = &mut self.memmap.as_mut().unwrap().1;
-
-            file.write_all(&self.heap_buf)?;
-            // already allocated UNNAMED_MAX, continue using it as a large buffer
-            self.heap_buf.clear();
-
-            if write_buf.len() > IpcBytes::UNNAMED_MAX {
-                // writing massive payload, skip buffer
-                file.write_all(write_buf)?;
             } else {
+                if self.memmap.is_none() {
+                    // heap buffer not fully allocated yet, ensure we only allocate up to UNNAMED_MAX
+                    self.heap_buf
+                        .reserve_exact((self.heap_buf.capacity().max(1024) * 2).min(IpcBytes::UNNAMED_MAX));
+                }
                 self.heap_buf.extend_from_slice(write_buf);
             }
-        } else {
-            if self.memmap.is_none() {
-                // heap buffer not fully allocated yet, ensure we only allocate up to UNNAMED_MAX
-                self.heap_buf
-                    .reserve_exact((self.heap_buf.capacity().max(1024) * 2).min(IpcBytes::UNNAMED_MAX));
-            }
-            self.heap_buf.extend_from_slice(write_buf);
+
+            Ok(write_buf.len())
         }
 
         #[cfg(not(ipc))]
         {
-            self.heap_buf.extend_from_slice(write_buf);
+            std::io::Write::write(&mut self.heap_buf, buf)
         }
-
-        Ok(write_buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
         #[cfg(ipc)]
-        if let Some((_, file)) = &mut self.memmap
-            && !self.heap_buf.is_empty()
-        {
-            file.write_all(&self.heap_buf)?;
-            self.heap_buf.clear();
+        if let Some((_, file)) = &mut self.memmap {
+            if !self.heap_buf.is_empty() {
+                file.write_all(&self.heap_buf)?;
+                self.heap_buf.clear();
+            }
+            file.flush()?;
         }
         Ok(())
+    }
+}
+impl std::io::Seek for IpcBytesWriterBlocking {
+    fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64> {
+        #[cfg(ipc)]
+        {
+            self.alloc_memmap_file()?;
+            let (_, file) = self.memmap.as_mut().unwrap();
+            if !self.heap_buf.is_empty() {
+                file.write_all(&self.heap_buf)?;
+                self.heap_buf.clear();
+            }
+            file.seek(pos)
+        }
+        #[cfg(not(ipc))]
+        {
+            std::io::Seek::seek(&mut self.heap_buf, pos)
+        }
     }
 }
 

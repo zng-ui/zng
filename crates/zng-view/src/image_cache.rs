@@ -1100,9 +1100,9 @@ impl ImageCache {
             let img = img.clone();
             let sender = self.app_sender.clone();
             rayon::spawn(move || {
-                let mut data = vec![];
+                let mut data = IpcBytes::new_writer_blocking();
                 match img.encode(fmt, &mut data) {
-                    Ok(_) => match IpcBytes::from_vec_blocking(data) {
+                    Ok(_) => match data.finish() {
                         Ok(data) => {
                             let _ = sender.send(AppEvent::Notify(Event::ImageEncoded { image: id, format, data }));
                         }
@@ -1272,7 +1272,7 @@ impl Image {
         }
     }
 
-    pub fn encode(&self, format: image::ImageFormat, buffer: &mut Vec<u8>) -> image::ImageResult<()> {
+    pub fn encode(&self, format: image::ImageFormat, buffer: &mut (impl std::io::Write + std::io::Seek)) -> image::ImageResult<()> {
         let (size, pixels, density) = match &*self.0 {
             ImageData::RawData { size, pixels, density, .. } => (size, pixels, density),
             ImageData::NativeTexture { .. } => unreachable!(),
@@ -1295,7 +1295,7 @@ impl Image {
             if is_opaque {
                 img = image::DynamicImage::ImageRgb8(img.to_rgb8());
             }
-            img.write_to(&mut std::io::Cursor::new(buffer), format)?;
+            img.write_to(buffer, format)?;
 
             return Ok(());
         }
@@ -1354,7 +1354,7 @@ impl Image {
 
                     png.encoder().write_to(buffer)?;
                 } else {
-                    img.write_to(&mut std::io::Cursor::new(buffer), image::ImageFormat::Png)?;
+                    img.write_to(buffer, image::ImageFormat::Png)?;
                 }
             }
             _ => {
@@ -1366,7 +1366,7 @@ impl Image {
                 if is_opaque {
                     img = image::DynamicImage::ImageRgb8(img.to_rgb8());
                 }
-                img.write_to(&mut std::io::Cursor::new(buffer), format)?;
+                img.write_to(buffer, format)?;
             }
         }
 

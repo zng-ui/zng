@@ -2268,7 +2268,7 @@ impl Api for App {
 
                 if let Some(img) = self.image_cache.get(id) {
                     let mut bmp = vec![];
-                    img.encode(::image::ImageFormat::Bmp, &mut bmp)
+                    img.encode(::image::ImageFormat::Bmp, &mut std::io::Cursor::new(&mut bmp))
                         .map_err(|e| clipboard::ClipboardError::Other(formatx!("{e:?}")))?;
                     clipboard_win::set(clipboard_win::formats::Bitmap, bmp).map_err(util::clipboard_win_to_clip)
                 } else {
