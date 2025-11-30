@@ -87,11 +87,7 @@ impl IpcBytes {
     /// Start a memory efficient async writer for creating a `IpcBytes` with unknown length.
     pub async fn new_writer() -> IpcBytesWriter {
         IpcBytesWriter {
-            inner: blocking::Unblock::new(IpcBytesWriterBlocking {
-                heap_buf: vec![],
-                #[cfg(ipc)]
-                memmap: None,
-            }),
+            inner: blocking::Unblock::new(Self::new_writer_blocking()),
         }
     }
 
@@ -292,9 +288,13 @@ impl IpcBytes {
     /// Start a memory efficient blocking writer for creating a `IpcBytes` with unknown length.
     pub fn new_writer_blocking() -> IpcBytesWriterBlocking {
         IpcBytesWriterBlocking {
+            #[cfg(ipc)]
             heap_buf: vec![],
             #[cfg(ipc)]
             memmap: None,
+
+            #[cfg(not(ipc))]
+            heap_buf: std::io::Cursor::new(vec![]),
         }
     }
 
@@ -901,7 +901,7 @@ impl IpcBytesWriterBlocking {
         }
         #[cfg(not(ipc))]
         {
-            let inner = IpcBytesMutInner::Heap(self.heap_buf);
+            let inner = IpcBytesMutInner::Heap(self.heap_buf.into_inner());
             Ok(IpcBytesMut { inner })
         }
     }
@@ -956,7 +956,7 @@ impl std::io::Write for IpcBytesWriterBlocking {
 
         #[cfg(not(ipc))]
         {
-            std::io::Write::write(&mut self.heap_buf, buf)
+            std::io::Write::write(&mut self.heap_buf, write_buf)
         }
     }
 
