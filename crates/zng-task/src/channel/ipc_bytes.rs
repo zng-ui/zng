@@ -1006,6 +1006,29 @@ impl fmt::Debug for IpcBytesMut {
     }
 }
 impl IpcBytesMut {
+    /// Uses `buf` or copies it to exclusive mutable memory.
+    pub async fn from_vec(buf: Vec<u8>) -> io::Result<Self> {
+        #[cfg(ipc)]
+        if buf.len() <= IpcBytes::INLINE_MAX {
+            Ok(Self {
+                inner: IpcBytesMutInner::Heap(buf),
+            })
+        } else {
+            blocking::unblock(move || {
+                let mut b = IpcBytes::new_mut_blocking(buf.len())?;
+                b[..].copy_from_slice(&buf);
+                Ok(b)
+            })
+            .await
+        }
+        #[cfg(not(ipc))]
+        {
+            Ok(Self {
+                inner: IpcBytesMutInner::Heap(buf),
+            })
+        }
+    }
+
     /// Convert to immutable shareable [`IpcBytes`].
     pub async fn finish(self) -> io::Result<IpcBytes> {
         let data = match self.inner {
@@ -1016,18 +1039,6 @@ impl IpcBytesMut {
             IpcBytesMutInner::MemMap { name, map, write_handle } => {
                 blocking::unblock(move || Self::finish_memmap(name, map, write_handle)).await?
             }
-        };
-        Ok(IpcBytes(Arc::new(data)))
-    }
-
-    /// Convert to immutable shareable [`IpcBytes`].
-    pub fn finish_blocking(self) -> io::Result<IpcBytes> {
-        let data = match self.inner {
-            IpcBytesMutInner::Heap(v) => IpcBytesData::Heap(v),
-            #[cfg(ipc)]
-            IpcBytesMutInner::AnonMemMap(m) => IpcBytesData::AnonMemMap(m),
-            #[cfg(ipc)]
-            IpcBytesMutInner::MemMap { name, map, write_handle } => Self::finish_memmap(name, map, write_handle)?,
         };
         Ok(IpcBytes(Arc::new(data)))
     }
@@ -1055,5 +1066,38 @@ impl IpcBytesMut {
             map: Some(map),
             read_handle: Some(read_handle),
         }))
+    }
+}
+impl IpcBytesMut {
+    /// Uses `buf` or copies it to exclusive mutable memory.
+    pub fn from_vec_blocking(buf: Vec<u8>) -> io::Result<Self> {
+        #[cfg(ipc)]
+        if buf.len() <= IpcBytes::INLINE_MAX {
+            Ok(Self {
+                inner: IpcBytesMutInner::Heap(buf),
+            })
+        } else {
+            let mut b = IpcBytes::new_mut_blocking(buf.len())?;
+            b[..].copy_from_slice(&buf);
+            Ok(b)
+        }
+        #[cfg(not(ipc))]
+        {
+            Ok(Self {
+                inner: IpcBytesMutInner::Heap(buf),
+            })
+        }
+    }
+
+    /// Convert to immutable shareable [`IpcBytes`].
+    pub fn finish_blocking(self) -> io::Result<IpcBytes> {
+        let data = match self.inner {
+            IpcBytesMutInner::Heap(v) => IpcBytesData::Heap(v),
+            #[cfg(ipc)]
+            IpcBytesMutInner::AnonMemMap(m) => IpcBytesData::AnonMemMap(m),
+            #[cfg(ipc)]
+            IpcBytesMutInner::MemMap { name, map, write_handle } => Self::finish_memmap(name, map, write_handle)?,
+        };
+        Ok(IpcBytes(Arc::new(data)))
     }
 }
