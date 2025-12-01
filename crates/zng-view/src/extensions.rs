@@ -550,6 +550,7 @@ impl ExternalImages {
     pub fn register_image(&mut self, descriptor: webrender::api::ImageDescriptor, pixels: IpcBytes) -> ExternalImageId {
         self.register(crate::image_cache::ImageData::RawData {
             size: descriptor.size.cast().cast_unit(), // not used
+            range: 0..pixels.len(),
             pixels,
             descriptor,
             density: None,

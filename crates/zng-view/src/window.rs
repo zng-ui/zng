@@ -1375,8 +1375,9 @@ impl Window {
         self.image_use.new_use(image, self.document_id, &mut self.api)
     }
 
-    pub fn update_image(&mut self, texture_id: ImageTextureId, image: &Image) {
-        self.image_use.update_use(texture_id, image, self.document_id, &mut self.api);
+    pub fn update_image(&mut self, texture_id: ImageTextureId, image: &Image, dirty_rect: Option<PxRect>) -> bool {
+        self.image_use
+            .update_use(texture_id, image, dirty_rect, self.document_id, &mut self.api)
     }
 
     pub fn delete_image(&mut self, texture_id: ImageTextureId) {
@@ -1479,6 +1480,7 @@ impl Window {
                 api: &mut self.api,
                 external_images: &mut self.external_images,
             },
+            &self.image_use,
             &mut self.display_list_cache,
         );
 
@@ -1529,6 +1531,7 @@ impl Window {
                 api: &mut self.api,
                 external_images: &mut self.external_images,
             },
+            &self.image_use,
             frame.transforms,
             frame.floats,
             frame.colors,

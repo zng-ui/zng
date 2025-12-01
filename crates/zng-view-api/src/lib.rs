@@ -408,8 +408,14 @@ declare_api! {
 
     /// Replace the image resource in the window renderer.
     ///
+    /// The new `image_id` must represent an image with same dimensions and format as the previous. If the
+    /// image cannot be updated an error is logged and `false` is returned.
+    ///
+    /// The `dirty_rect` can be set to optimize texture upload to the GPU, if not set the entire image region updates.
+    ///
     /// The [`ImageTextureId`] will be associated with the new [`ImageId`].
-    pub fn update_image_use(&mut self, id: WindowId, texture_id: ImageTextureId, image_id: ImageId);
+    pub fn update_image_use(&mut self, id: WindowId, texture_id: ImageTextureId, image_id: ImageId, dirty_rect: Option<PxRect>)
+    -> bool;
 
     /// Delete the image resource in the window renderer.
     pub fn delete_image_use(&mut self, id: WindowId, texture_id: ImageTextureId);

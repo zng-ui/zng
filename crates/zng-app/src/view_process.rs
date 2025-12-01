@@ -1086,11 +1086,16 @@ impl ViewRenderer {
     }
 
     /// Replace the image resource in the window renderer.
-    pub fn update_image_use(&mut self, tex_id: ImageTextureId, image: &ViewImage) -> Result<()> {
+    ///
+    /// The new `image_id` must represent an image with same dimensions and format as the previous. If the
+    /// image cannot be updated an error is logged and `false` is returned.
+    ///
+    /// The `dirty_rect` can be set to optimize texture upload to the GPU, if not set the entire image region updates.
+    pub fn update_image_use(&mut self, tex_id: ImageTextureId, image: &ViewImage, dirty_rect: Option<PxRect>) -> Result<bool> {
         self.call(|id, p| {
             let image = image.0.read();
             if p.generation() == image.generation {
-                p.update_image_use(id, tex_id, image.id.unwrap_or(ImageId::INVALID))
+                p.update_image_use(id, tex_id, image.id.unwrap_or(ImageId::INVALID), dirty_rect)
             } else {
                 Err(ChannelError::disconnected())
             }

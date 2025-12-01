@@ -2106,9 +2106,11 @@ impl Api for App {
         }
     }
 
-    fn update_image_use(&mut self, id: WindowId, texture_id: ImageTextureId, image_id: ImageId) {
+    fn update_image_use(&mut self, id: WindowId, texture_id: ImageTextureId, image_id: ImageId, dirty_rect: Option<PxRect>) -> bool {
         if let Some(img) = self.image_cache.get(image_id) {
-            with_window_or_surface!(self, id, |w| w.update_image(texture_id, img), || ())
+            with_window_or_surface!(self, id, |w| w.update_image(texture_id, img, dirty_rect), || false)
+        } else {
+            false
         }
     }
 

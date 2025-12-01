@@ -78,6 +78,7 @@ impl ImageCache {
             data.id,
             Image(Arc::new(ImageData::RawData {
                 size: data.size,
+                range: 0..data.pixels.len(),
                 pixels: data.pixels.clone(),
                 descriptor: ImageDescriptor::new(
                     data.size.width.0,

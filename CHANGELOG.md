@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add support for gigapixel images (decoded bgra length > i32::MAX). !!: TODO
+
 * **Breaking** Refactor `ImageSource`.
     - `Data` now holds `IpcBytes` directly.
     - Removed `Static` because it is always converted to `IpcBytes` anyway.

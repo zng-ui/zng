@@ -408,6 +408,7 @@ impl ImageCache {
             data.id,
             Image(Arc::new(ImageData::RawData {
                 size: data.size,
+                range: 0..data.pixels.len(),
                 pixels: data.pixels.clone(),
                 descriptor: ImageDescriptor::new(
                     data.size.width.0,
@@ -446,6 +447,7 @@ pub(crate) enum ImageData {
         pixels: IpcBytes,
         descriptor: ImageDescriptor,
         density: Option<PxDensity2d>,
+        range: std::ops::Range<usize>,
     },
     NativeTexture {
         uv: webrender::api::units::TexelRect,
@@ -478,12 +480,13 @@ impl fmt::Debug for Image {
                 pixels,
                 descriptor,
                 density,
+                range,
             } => f
                 .debug_struct("Image")
                 .field("size", size)
                 .field("descriptor", descriptor)
                 .field("density", density)
-                .field("pixels", &format_args!("<{} shared bytes>", pixels.len()))
+                .field("pixels", &format_args!("<{} of {} shared bytes>", range.len(), pixels.len()))
                 .finish(),
             ImageData::NativeTexture { .. } => unreachable!(),
         }
@@ -510,6 +513,22 @@ impl Image {
         match &*self.0 {
             ImageData::RawData { pixels, .. } => pixels,
             ImageData::NativeTexture { .. } => unreachable!(),
+        }
+    }
+
+    #[allow(unused)]
+    pub fn density(&self) -> Option<PxDensity2d> {
+        match &*self.0 {
+            ImageData::RawData { density, .. } => *density,
+            _ => unreachable!(),
+        }
+    }
+
+    #[allow(unused)]
+    pub fn range(&self) -> std::ops::Range<usize> {
+        match &*self.0 {
+            ImageData::RawData { range, .. } => range.clone(),
+            _ => unreachable!(),
         }
     }
 }
