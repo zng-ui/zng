@@ -685,41 +685,18 @@ fn display_item_to_webrender(
             tile_size,
             tile_spacing,
         } => {
-            let bounds = clip_rect.to_wr();
-            let clip = sc.clip_chain_id(wr_list);
-            let props = wr::CommonItemProperties {
-                clip_rect: bounds,
-                clip_chain_id: clip,
-                spatial_id: sc.spatial_id(),
-                flags: sc.primitive_flags(),
-            };
-
-            // images.
-            // !!: TODO get if image needs stripes to render, generate multiple push_image if it does
-            // ImageUseMap::new_use inserts the webrender::api::ImageData with the ExternalImageId
-            // It also contains the ImageTextureId with pixel size
-
-            if tile_spacing.is_empty() && tile_size == image_size {
-                wr_list.push_image(
-                    &props,
-                    PxRect::from_size(*image_size).to_wr(),
-                    rendering.to_wr(),
-                    alpha_type.to_wr(),
-                    wr::ImageKey(cache.id_namespace(), image_id.get()),
-                    wr::ColorF::WHITE,
-                );
-            } else {
-                wr_list.push_repeating_image(
-                    &props,
-                    PxRect::from_size(*image_size).to_wr(),
-                    tile_size.to_wr(),
-                    tile_spacing.to_wr(),
-                    rendering.to_wr(),
-                    alpha_type.to_wr(),
-                    wr::ImageKey(cache.id_namespace(), image_id.get()),
-                    wr::ColorF::WHITE,
-                );
-            }
+            images.push_display_list_img(
+                wr_list,
+                sc,
+                cache,
+                *clip_rect,
+                *image_id,
+                *image_size,
+                *rendering,
+                *alpha_type,
+                *tile_size,
+                *tile_spacing,
+            );
         }
 
         DisplayItem::LinearGradient {

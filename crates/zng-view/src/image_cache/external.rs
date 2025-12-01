@@ -4,13 +4,18 @@ use rustc_hash::FxHashMap;
 use webrender::{
     RenderApi,
     api::{
-        DocumentId, ExternalImage, ExternalImageData, ExternalImageHandler, ExternalImageId, ExternalImageSource, ExternalImageType,
-        ImageKey,
+        self as wr, DocumentId, ExternalImage, ExternalImageData, ExternalImageHandler, ExternalImageId, ExternalImageSource,
+        ExternalImageType, ImageKey,
         units::{ImageDirtyRect, TexelRect},
     },
 };
-use zng_unit::{Px, PxRect, euclid};
-use zng_view_api::image::ImageTextureId;
+use zng_unit::{Px, PxPoint, PxRect, PxSize, euclid};
+use zng_view_api::{AlphaType, ImageRendering, image::ImageTextureId};
+
+use crate::{
+    display_list::{DisplayListCache, SpaceAndClip},
+    px_wr::PxToWr as _,
+};
 
 use super::{Image, ImageData};
 
@@ -85,12 +90,14 @@ pub(crate) struct ImageUseMap {
     tex_id: FxHashMap<ImageTextureId, ExternalImageId>,
 }
 impl ImageUseMap {
+    const MAX_LEN: usize = i32::MAX as usize;
+
     pub fn new_use(&mut self, image: &Image, document_id: DocumentId, api: &mut RenderApi) -> ImageTextureId {
         let id = image.external_id();
         match self.id_tex.entry(id) {
             Entry::Occupied(e) => e.get()[0].0,
             Entry::Vacant(e) => {
-                if image.pixels().len() <= i32::MAX as usize {
+                if image.pixels().len() <= Self::MAX_LEN {
                     let key = api.generate_image_key();
                     let tex_id = ImageTextureId::from_raw(key.1);
                     e.insert(Box::new([(tex_id, image.clone())])); // keep the image Arc alive, we expect this in `WrImageCache`.
@@ -103,19 +110,19 @@ impl ImageUseMap {
                     tex_id
                 } else {
                     // Webrender uses i32 offsets for manipulating images, to support gigapixel images
-                    // we split the image into "stripes" that fit <=i32::MAX bytes
+                    // we split the image into "stripes" that fit <=MAX_LEN bytes
 
                     let full_size = image.size();
                     let w = full_size.width.0 as usize * 4;
-                    if w > i32::MAX as usize {
-                        tracing::error!("renderer does not support images with width * 4 > i32::MAX");
+                    if w > Self::MAX_LEN {
+                        tracing::error!("renderer does not support images with width * 4 > {}", Self::MAX_LEN);
                         return ImageTextureId::INVALID;
                     }
 
                     // find proportional split that fits, to avoid having the last stripe be to thin
                     let full_height = full_size.height.0 as usize;
                     let mut stripe_height = full_height / 2;
-                    while w * stripe_height > i32::MAX as usize {
+                    while w * stripe_height > Self::MAX_LEN {
                         stripe_height /= 2;
                     }
                     let stripe_len = w * stripe_height;
@@ -142,7 +149,7 @@ impl ImageUseMap {
                         descriptor.size = euclid::size2(size.width.0, size.height.0);
 
                         let offset = stripe_len * i;
-                        let range = offset..(stripe_len.min(image.pixels().len() - offset));
+                        let range = offset..((offset + stripe_len).min(image.pixels().len()));
 
                         let stripe = Image(Arc::new(ImageData::RawData {
                             size,
@@ -260,6 +267,123 @@ impl ImageUseMap {
                 }
             }
             api.send_transaction(document_id, txn);
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn push_display_list_img(
+        &self,
+        wr_list: &mut wr::DisplayListBuilder,
+        sc: &mut SpaceAndClip,
+        cache: &DisplayListCache,
+        clip_rect: PxRect,
+        image_id: ImageTextureId,
+        image_size: PxSize,
+        rendering: ImageRendering,
+        alpha_type: AlphaType,
+        tile_size: PxSize,
+        tile_spacing: PxSize,
+    ) {
+        let img = match self.tex_id.get(&image_id) {
+            Some(id) => self.id_tex.get(id).unwrap(),
+            None => return,
+        };
+
+        if tile_spacing.is_empty() && tile_size == image_size {
+            if img.len() == 1 {
+                // normal sized image
+                let bounds = clip_rect.to_wr();
+                let clip = sc.clip_chain_id(wr_list);
+                let props = wr::CommonItemProperties {
+                    clip_rect: bounds,
+                    clip_chain_id: clip,
+                    spatial_id: sc.spatial_id(),
+                    flags: sc.primitive_flags(),
+                };
+                wr_list.push_image(
+                    &props,
+                    PxRect::from_size(image_size).to_wr(),
+                    rendering.to_wr(),
+                    alpha_type.to_wr(),
+                    wr::ImageKey(cache.id_namespace(), image_id.get()),
+                    wr::ColorF::WHITE,
+                );
+            } else {
+                // gigantic image split into stripes
+                let full_size = img[0].1.size();
+                let scale_x = full_size.width.0 as f32 / image_size.width.0 as f32;
+                let scale_y = full_size.height.0 as f32 / image_size.height.0 as f32;
+
+                let mut scaled_y = Px(0);
+                for (stripe_id, img) in &img[1..] {
+                    let scaled_stripe = {
+                        let mut r = img.size();
+                        r.width /= scale_x;
+                        r.height /= scale_y;
+                        r
+                    };
+                    if scaled_y != Px(0) {
+                        let spatial_id = wr_list.push_reference_frame(
+                            PxPoint::zero().to_wr(),
+                            sc.spatial_id(),
+                            wr::TransformStyle::Flat,
+                            wr::PropertyBinding::Value(wr::units::LayoutTransform::translation(0.0, scaled_y.0 as f32, 0.0)),
+                            wr::ReferenceFrameKind::Transform {
+                                is_2d_scale_translation: true,
+                                should_snap: false,
+                                paired_with_perspective: false,
+                            },
+                            sc.next_view_process_frame_id().to_wr(),
+                        );
+                        sc.push_spatial(spatial_id);
+                    }
+                    let mut clip_rect = clip_rect;
+                    clip_rect.origin.y -= scaled_y;
+                    let clip = sc.clip_chain_id(wr_list);
+                    let props = wr::CommonItemProperties {
+                        clip_rect: clip_rect.to_wr(),
+                        clip_chain_id: clip,
+                        spatial_id: sc.spatial_id(),
+                        flags: sc.primitive_flags(),
+                    };
+                    wr_list.push_image(
+                        &props,
+                        PxRect::from_size(scaled_stripe).to_wr(),
+                        rendering.to_wr(),
+                        alpha_type.to_wr(),
+                        wr::ImageKey(cache.id_namespace(), stripe_id.get()),
+                        wr::ColorF::WHITE,
+                    );
+                    if scaled_y != Px(0) {
+                        wr_list.pop_reference_frame();
+                        sc.pop_spatial();
+                    }
+                    scaled_y += scaled_stripe.height;
+                }
+            }
+        } else {
+            if img.len() > 1 {
+                tracing::error!("tiling or repeating images cannot have len > {}", Self::MAX_LEN);
+                return;
+            }
+            let bounds = clip_rect.to_wr();
+            let clip = sc.clip_chain_id(wr_list);
+            let props = wr::CommonItemProperties {
+                clip_rect: bounds,
+                clip_chain_id: clip,
+                spatial_id: sc.spatial_id(),
+                flags: sc.primitive_flags(),
+            };
+            wr_list.push_repeating_image(
+                &props,
+                PxRect::from_size(image_size).to_wr(),
+                tile_size.to_wr(),
+                tile_spacing.to_wr(),
+                rendering.to_wr(),
+                alpha_type.to_wr(),
+                wr::ImageKey(cache.id_namespace(), image_id.get()),
+                wr::ColorF::WHITE,
+            );
         }
     }
 }
