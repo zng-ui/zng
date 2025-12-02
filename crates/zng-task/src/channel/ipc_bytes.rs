@@ -1002,6 +1002,7 @@ enum IpcBytesMutInner {
         write_handle: std::fs::File,
     },
 }
+
 /// Represents preallocated exclusive mutable memory for a new [`IpcBytes`].
 ///
 /// Use [`IpcBytes::new_mut`] or [`IpcBytes::new_mut_blocking`] to allocate.
@@ -1065,8 +1066,8 @@ impl IpcBytesMut {
     }
 
     /// Convert to immutable shareable [`IpcBytes`].
-    pub async fn finish(self) -> io::Result<IpcBytes> {
-        let data = match self.inner {
+    pub async fn finish(mut self) -> io::Result<IpcBytes> {
+        let data = match std::mem::replace(&mut self.inner, IpcBytesMutInner::Heap(vec![])) {
             IpcBytesMutInner::Heap(v) => IpcBytesData::Heap(v),
             #[cfg(ipc)]
             IpcBytesMutInner::AnonMemMap(m) => IpcBytesData::AnonMemMap(m),
@@ -1125,8 +1126,8 @@ impl IpcBytesMut {
     }
 
     /// Convert to immutable shareable [`IpcBytes`].
-    pub fn finish_blocking(self) -> io::Result<IpcBytes> {
-        let data = match self.inner {
+    pub fn finish_blocking(mut self) -> io::Result<IpcBytes> {
+        let data = match std::mem::replace(&mut self.inner, IpcBytesMutInner::Heap(vec![])) {
             IpcBytesMutInner::Heap(v) => IpcBytesData::Heap(v),
             #[cfg(ipc)]
             IpcBytesMutInner::AnonMemMap(m) => IpcBytesData::AnonMemMap(m),
@@ -1134,5 +1135,15 @@ impl IpcBytesMut {
             IpcBytesMutInner::MemMap { name, map, write_handle } => Self::finish_memmap(name, map, write_handle)?,
         };
         Ok(IpcBytes(Arc::new(data)))
+    }
+}
+#[cfg(ipc)]
+impl Drop for IpcBytesMut {
+    fn drop(&mut self) {
+        if let IpcBytesMutInner::MemMap { name, map, write_handle } = std::mem::replace(&mut self.inner, IpcBytesMutInner::Heap(vec![])) {
+            drop(map);
+            drop(write_handle);
+            std::fs::remove_file(name).ok();
+        }
     }
 }
