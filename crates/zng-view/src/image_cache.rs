@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "image_any"), allow(unused))]
+
 #[cfg(feature = "image_any")]
 use image::ImageDecoder as _;
 use std::{fmt, sync::Arc};
@@ -25,7 +27,7 @@ mod external;
 pub(crate) use external::{ImageUseMap, WrImageCache};
 
 #[cfg(not(feature = "image_any"))]
-mod lcms2 {
+pub(crate) mod lcms2 {
     pub struct Profile {}
 }
 

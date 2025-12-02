@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "image_any"), allow(unused))]
 
+#[cfg(feature = "image_any")]
 use crate::image_cache::ImageHeader;
 use crate::image_cache::{ImageCache, RawLoadedImg};
 use image::{GenericImageView as _, ImageDecoder as _};
@@ -10,6 +11,9 @@ use zng_unit::PxDensityUnits as _;
 use zng_unit::{Px, PxDensity2d, PxSize};
 use zng_view_api::image::ImageDataFormat;
 use zng_view_api::image::ImageMaskMode;
+
+#[cfg(not(feature = "image_any"))]
+use crate::image_cache::lcms2;
 
 impl ImageCache {
     #[cfg(feature = "image_any")]
