@@ -2,6 +2,7 @@
 
 #[cfg(feature = "image_any")]
 use crate::image_cache::ImageHeader;
+use crate::image_cache::ResizerCache;
 use crate::image_cache::{ImageCache, RawLoadedImg};
 use image::{GenericImageView as _, ImageDecoder as _};
 use zng_task::channel::{IpcBytes, IpcBytesMut};
@@ -217,33 +218,16 @@ impl ImageCache {
     ) -> image::ImageResult<image::DynamicImage> {
         let buf = std::io::Cursor::new(buf);
 
+        // Some JPEG decoders can downscale to an approximation of this size
+        // but that is not implemented by image crate
+        let _ = downscale;
+
         let mut reader = image::ImageReader::new(buf);
         reader.set_format(format);
         reader.no_limits();
         let mut image = reader.decode()?;
 
         image.apply_orientation(orientation);
-
-        if let Some(s) = downscale {
-            let (img_w, img_h) = (image.width(), image.height());
-            use zng_view_api::image::ImageDownscale::*;
-            match s {
-                Fit(s) => {
-                    let w = img_w.min(s.width.0 as u32);
-                    let h = img_h.min(s.height.0 as u32);
-                    if w != img_w || h != img_h {
-                        image = image.resize(w, h, image::imageops::FilterType::Triangle);
-                    }
-                }
-                Fill(s) => {
-                    let w = img_w.min(s.width.0 as u32);
-                    let h = img_h.min(s.height.0 as u32);
-                    if w != img_w && h != img_h {
-                        image = image.resize_to_fill(w, h, image::imageops::FilterType::Triangle);
-                    }
-                }
-            }
-        }
 
         Ok(image)
     }
@@ -253,6 +237,8 @@ impl ImageCache {
         mask: Option<ImageMaskMode>,
         density: Option<PxDensity2d>,
         icc_profile: Option<lcms2::Profile>,
+        downscale: Option<zng_view_api::image::ImageDownscale>,
+        resizer_cache: &ResizerCache,
     ) -> std::io::Result<RawLoadedImg> {
         use image::DynamicImage::*;
 
@@ -669,9 +655,41 @@ impl ImageCache {
         #[cfg(not(feature = "image_any"))]
         let _ = (icc_profile, &mut pixels);
 
+        let mut size = PxSize::new(Px(size.0 as _), Px(size.1 as _));
+        if let Some(s) = downscale {
+            let source_size = size;
+            let dest_size = s.resize_dimensions(source_size);
+            if source_size.min(dest_size) != source_size {
+                use fast_image_resize as fr;
+
+                let px_type = if mask.is_none() { fr::PixelType::U8x4 } else { fr::PixelType::U8 };
+                let source = fr::images::Image::from_slice_u8(size.width.0 as _, size.height.0 as _, &mut pixels, px_type).unwrap();
+                let mut dest_buf = IpcBytes::new_mut_blocking(dest_size.width.0 as usize * dest_size.height.0 as usize * px_type.size())?;
+                let mut dest =
+                    fr::images::Image::from_slice_u8(dest_size.width.0 as _, dest_size.height.0 as _, &mut dest_buf[..], px_type).unwrap();
+
+                let mut resize_opt = fr::ResizeOptions::new();
+                // is already pre multiplied
+                resize_opt.mul_div_alpha = false;
+                // default, best quality
+                resize_opt.algorithm = fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3);
+                if let zng_view_api::image::ImageDownscale::Fill(_) = s {
+                    resize_opt = resize_opt.fit_into_destination(Some((0.5, 0.5)));
+                }
+                // try to reuse cache
+                match resizer_cache.try_lock() {
+                    Some(mut r) => r.resize(&source, &mut dest, Some(&resize_opt)),
+                    None => fr::Resizer::new().resize(&source, &mut dest, Some(&resize_opt)),
+                }
+                .unwrap();
+                pixels = dest_buf;
+                size = dest_size;
+            }
+        }
+
         Ok((
             pixels.finish_blocking()?,
-            PxSize::new(Px(size.0 as i32), Px(size.1 as i32)),
+            size,
             density,
             is_opaque,
             mask.is_some(), // is_mask

@@ -401,10 +401,10 @@ declare_api! {
 
     /// Add an image resource to the window renderer.
     ///
-    /// Returns the new image texture ID. If the `image_id` is not loaded returns the [`INVALID`] image ID.
+    /// Returns the new image texture ID. If the `image_id` is not loaded returns the [`INVALID`] texture ID.
     ///
     /// [`INVALID`]: ImageTextureId::INVALID
-    pub fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageTextureId;
+    pub fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageTextureId; // !!: TODO size hints?
 
     /// Replace the image resource in the window renderer.
     ///

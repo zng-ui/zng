@@ -64,8 +64,7 @@ pub struct ImageRequest<D> {
     /// View-process will avoid decoding and return an error if the image decoded to BGRA (4 bytes) exceeds this size.
     /// This limit applies to the image before the `resize_to_fit`.
     pub max_decoded_len: u64,
-    /// A size constraints to apply after the image is decoded. The image is resized so both dimensions fit inside
-    /// the constraints, the image aspect ratio is preserved.
+    /// A size constraints to apply after the image is decoded. The image is resized to fit or fill the given size.
     pub downscale: Option<ImageDownscale>,
     /// Convert or decode the image into a single channel mask (R8).
     pub mask: Option<ImageMaskMode>,
@@ -97,7 +96,7 @@ impl<D> ImageRequest<D> {
 pub enum ImageDownscale {
     /// Image is downscaled so that both dimensions fit inside the size.
     Fit(PxSize),
-    /// Image is downscaled so that at least one dimension fits inside the size.
+    /// Image is downscaled so that at least one dimension fits inside the size. The larger side is clipped.
     Fill(PxSize),
 }
 impl From<PxSize> for ImageDownscale {

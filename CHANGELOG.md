@@ -2,8 +2,11 @@
 
 * Add support for gigapixel images.
     - Now decoded image length can exceed i32::MAX.
-    - Now is only limited by the encoding formats (~4 gigapixels for JPEG).
-    - Updated image example to not downscale the Large Image sample.
+    - Now is only limited by the codecs (~4 gigapixels for JPEG).
+
+* Improve view-process image downscaling implementation.
+    - Higher quality and faster using specialized resizer.
+    - Implemented downscaling for already decoded image buffers. !!: TODO
 
 * **Breaking** Refactor `ImageSource`.
     - `Data` now holds `IpcBytes` directly.

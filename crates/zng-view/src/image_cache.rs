@@ -3,6 +3,7 @@
 #[cfg(feature = "image_any")]
 use image::ImageDecoder as _;
 use std::{fmt, sync::Arc};
+use zng_task::parking_lot::Mutex;
 
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use zng_txt::ToTxt as _;
@@ -96,11 +97,14 @@ pub(crate) const DECODERS: &[&str] = &[
     "dds",
 ];
 
+type ResizerCache = Mutex<fast_image_resize::Resizer>;
+
 /// Decode and cache image resources.
 pub(crate) struct ImageCache {
     app_sender: AppEventSender,
     images: FxHashMap<ImageId, Image>,
     image_id_gen: ImageId,
+    resizer: Arc<ResizerCache>,
 }
 impl ImageCache {
     pub fn new(app_sender: AppEventSender) -> Self {
@@ -108,6 +112,7 @@ impl ImageCache {
             app_sender,
             images: FxHashMap::default(),
             image_id_gen: ImageId::first(),
+            resizer: Arc::new(Mutex::new(fast_image_resize::Resizer::new())),
         }
     }
 
@@ -125,6 +130,7 @@ impl ImageCache {
         let id = self.image_id_gen.incr();
 
         let app_sender = self.app_sender.clone();
+        let resizer = self.resizer.clone();
         rayon::spawn(move || {
             let r = match format {
                 ImageDataFormat::Bgra8 { size, density } => {
@@ -135,6 +141,7 @@ impl ImageCache {
                             data.len()
                         ))
                     } else if mask.is_some() {
+                        // !!: TODO this is not right? Its Bgra8
                         let r = Self::convert_decoded(
                             image::DynamicImage::ImageLuma8(
                                 image::ImageBuffer::from_raw(size.width.0 as _, size.height.0 as _, data.to_vec()).unwrap(),
@@ -142,12 +149,15 @@ impl ImageCache {
                             mask,
                             density,
                             None,
+                            downscale,
+                            &resizer,
                         );
                         match r {
                             Ok((pixels, size, _, is_opaque, _)) => Ok((pixels, size, density, is_opaque, true)),
                             Err(e) => Err(e.to_txt()),
                         }
                     } else {
+                        // !!: TODO downscale
                         let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
                         Ok((data, size, density, is_opaque, false))
                     }
@@ -167,6 +177,8 @@ impl ImageCache {
                             None,
                             None,
                             None,
+                            downscale,
+                            &resizer,
                         );
                         match r {
                             Ok((pixels, size, _, is_opaque, _)) => Ok((pixels, size, None, is_opaque, false)),
@@ -204,7 +216,7 @@ impl ImageCache {
                                     is_mask: false,
                                 }));
                                 match Self::image_decode(&data[..], h.format, downscale, h.orientation) {
-                                    Ok(img) => match Self::convert_decoded(img, mask, h.density, h.icc_profile) {
+                                    Ok(img) => match Self::convert_decoded(img, mask, h.density, h.icc_profile, downscale, &resizer) {
                                         Ok(r) => Ok(r),
                                         Err(e) => Err(e.to_txt()),
                                     },
@@ -245,6 +257,7 @@ impl ImageCache {
     ) -> ImageId {
         let id = self.image_id_gen.incr();
         let app_sender = self.app_sender.clone();
+        let resizer = self.resizer.clone();
         rayon::spawn(move || {
             // crate `images` does not do progressive decode.
             let mut full = vec![];
@@ -341,7 +354,7 @@ impl ImageCache {
 
                 #[cfg(feature = "image_any")]
                 match Self::image_decode(&full[..], fmt, downscale, orientation) {
-                    Ok(img) => match Self::convert_decoded(img, mask, density, icc_profile) {
+                    Ok(img) => match Self::convert_decoded(img, mask, density, icc_profile, downscale, &resizer) {
                         Ok((pixels, size, density, is_opaque, is_mask)) => {
                             let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
                                 id, size, density, is_opaque, is_mask, pixels,
@@ -426,7 +439,9 @@ impl ImageCache {
     }
 
     pub(crate) fn on_low_memory(&mut self) {
-        // app-process controls this cache
+        // app-process controls what images are dropped so hopefully it will respond the
+        // memory pressure event
+        self.resizer.lock().reset_internal_buffers();
     }
 
     pub(crate) fn clear(&mut self) {

@@ -290,6 +290,15 @@ impl ImageUseMap {
         };
 
         if tile_spacing.is_empty() && tile_size == image_size {
+            let full_size = img[0].1.size();
+            if full_size.width > image_size.width * Px(2)
+                && full_size.height > image_size.height * Px(2)
+                && full_size.width > Px(2_048)
+                && full_size.height > Px(2_048)
+            {
+                tracing::warn!("!!: rendering large amount of texture quads scaled down +2x");
+            }
+
             if img.len() == 1 {
                 // normal sized image
                 let bounds = clip_rect.to_wr();
@@ -310,7 +319,6 @@ impl ImageUseMap {
                 );
             } else {
                 // gigantic image split into stripes
-                let full_size = img[0].1.size();
                 let scale_x = full_size.width.0 as f32 / image_size.width.0 as f32;
                 let scale_y = full_size.height.0 as f32 / image_size.height.0 as f32;
 
