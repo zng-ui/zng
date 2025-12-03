@@ -2,6 +2,7 @@ use std::any::Any;
 use std::backtrace::Backtrace;
 use std::cell::RefCell;
 use std::marker::PhantomData;
+use std::sync::LazyLock;
 use std::{cell::Cell, sync::Arc};
 use std::{fmt, ops};
 
@@ -1126,12 +1127,22 @@ pub mod taskbar_com {
 }
 
 pub(crate) fn wr_workers() -> Arc<rayon::ThreadPool> {
-    // see: webrender/src/renderer/init.rs#L547
-    //
-    // we need the workers instance before renderer init for the extensions, but this
+    // We need the workers instance before renderer init for the extensions, but this
     // means that we removed some Webrender profiler instrumentation.
-    let worker = ThreadPoolBuilder::new().thread_name(|idx| format!("WRWorker#{idx}")).build();
-    Arc::new(worker.unwrap())
+    //
+    // see: webrender/src/renderer/init.rs
+    //
+    // We also share the thread-pool with all renderers
+    static POOL: LazyLock<Arc<rayon::ThreadPool>> = LazyLock::new(|| {
+        let worker = ThreadPoolBuilder::new().thread_name(|idx| format!("WRWorker#{idx}")).build();
+        Arc::new(worker.unwrap())
+    });
+    POOL.clone()
+}
+
+pub(crate) fn wr_chunk_pool() -> Arc<webrender::ChunkPool> {
+    static POOL: LazyLock<Arc<webrender::ChunkPool>> = LazyLock::new(|| Arc::new(webrender::ChunkPool::new()));
+    POOL.clone()
 }
 
 #[cfg(not(any(windows, target_os = "android")))]

@@ -366,6 +366,8 @@ impl Window {
 
             // extensions expect this to be set.
             workers: Some(crate::util::wr_workers()),
+            // optimize memory usage
+            chunk_pool: Some(crate::util::wr_chunk_pool()),
 
             // rendering is broken on Android emulators with unoptimized shaders.
             // see: https://github.com/servo/servo/pull/31727
