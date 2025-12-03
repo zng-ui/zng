@@ -11,14 +11,15 @@ use zng_view_api::{
     window::FrameId,
 };
 
-use crate::px_wr::PxToWr;
+use crate::{image_cache::ImageUseMap, px_wr::PxToWr};
 
 pub fn display_list_to_webrender(
     list: DisplayList,
     ext: &mut dyn DisplayListExtension,
+    images: &ImageUseMap,
     cache: &mut DisplayListCache,
 ) -> wr::BuiltDisplayList {
-    let r = display_list_build(&list, cache, ext, false);
+    let r = display_list_build(&list, cache, ext, images, false);
     cache.insert(list);
 
     r
@@ -286,6 +287,7 @@ impl DisplayListCache {
         mut end: usize,
         wr_list: &mut wr::DisplayListBuilder,
         ext: &mut dyn DisplayListExtension,
+        images: &ImageUseMap,
         sc: &mut SpaceAndClip,
     ) {
         if let Some(l) = self.lists.get(&frame_id) {
@@ -307,7 +309,7 @@ impl DisplayListCache {
                 &[]
             });
             for item in range {
-                display_item_to_webrender(item, wr_list, ext, sc, self, true);
+                display_item_to_webrender(item, wr_list, ext, images, sc, self, true);
             }
         } else {
             tracing::error!("did not find reuse frame {frame_id:?}");
@@ -347,9 +349,11 @@ impl DisplayListCache {
     /// Apply updates, returns the webrender update if the renderer can also be updated and there are any updates,
     /// or returns a new frame if a new frame must be rendered.
     #[expect(clippy::result_large_err)] // both are large
+    #[allow(clippy::too_many_arguments)]
     pub fn update(
         &mut self,
         ext: &mut dyn DisplayListExtension,
+        images: &ImageUseMap,
         transforms: Vec<FrameValueUpdate<PxTransform>>,
         floats: Vec<FrameValueUpdate<f32>>,
         colors: Vec<FrameValueUpdate<Rgba>>,
@@ -390,7 +394,7 @@ impl DisplayListCache {
         if new_frame {
             let list = self.lists.get_mut(&self.latest_frame).expect("no frame to update");
             let list = mem::take(&mut list.list);
-            let r = display_list_build(&list, self, ext, true);
+            let r = display_list_build(&list, self, ext, images, true);
             self.lists.get_mut(&self.latest_frame).unwrap().list = list;
 
             Err(r)
@@ -412,6 +416,7 @@ fn display_list_build(
     list: &[DisplayItem],
     cache: &mut DisplayListCache,
     ext: &mut dyn DisplayListExtension,
+    images: &ImageUseMap,
     is_reuse: bool,
 ) -> wr::BuiltDisplayList {
     let _s = tracing::trace_span!("DisplayList::build").entered();
@@ -424,7 +429,7 @@ fn display_list_build(
     });
 
     for item in list {
-        display_item_to_webrender(item, &mut wr_list, ext, &mut sc, cache, is_reuse);
+        display_item_to_webrender(item, &mut wr_list, ext, images, &mut sc, cache, is_reuse);
     }
 
     ext.display_list_end(&mut DisplayExtensionArgs {
@@ -439,6 +444,7 @@ fn display_item_to_webrender(
     item: &DisplayItem,
     wr_list: &mut wr::DisplayListBuilder,
     ext: &mut dyn DisplayListExtension,
+    images: &ImageUseMap,
     sc: &mut SpaceAndClip,
     cache: &DisplayListCache,
     is_reuse: bool,
@@ -449,7 +455,7 @@ fn display_item_to_webrender(
             seg_id,
             start,
             end,
-        } => cache.reuse(*frame_id, *seg_id, *start, *end, wr_list, ext, sc),
+        } => cache.reuse(*frame_id, *seg_id, *start, *end, wr_list, ext, images, sc),
 
         DisplayItem::PushReferenceFrame {
             id,
@@ -679,36 +685,18 @@ fn display_item_to_webrender(
             tile_size,
             tile_spacing,
         } => {
-            let bounds = clip_rect.to_wr();
-            let clip = sc.clip_chain_id(wr_list);
-            let props = wr::CommonItemProperties {
-                clip_rect: bounds,
-                clip_chain_id: clip,
-                spatial_id: sc.spatial_id(),
-                flags: sc.primitive_flags(),
-            };
-
-            if tile_spacing.is_empty() && tile_size == image_size {
-                wr_list.push_image(
-                    &props,
-                    PxRect::from_size(*image_size).to_wr(),
-                    rendering.to_wr(),
-                    alpha_type.to_wr(),
-                    wr::ImageKey(cache.id_namespace(), image_id.get()),
-                    wr::ColorF::WHITE,
-                );
-            } else {
-                wr_list.push_repeating_image(
-                    &props,
-                    PxRect::from_size(*image_size).to_wr(),
-                    tile_size.to_wr(),
-                    tile_spacing.to_wr(),
-                    rendering.to_wr(),
-                    alpha_type.to_wr(),
-                    wr::ImageKey(cache.id_namespace(), image_id.get()),
-                    wr::ColorF::WHITE,
-                );
-            }
+            images.push_display_list_img(
+                wr_list,
+                sc,
+                cache,
+                *clip_rect,
+                *image_id,
+                *image_size,
+                *rendering,
+                *alpha_type,
+                *tile_size,
+                *tile_spacing,
+            );
         }
 
         DisplayItem::LinearGradient {

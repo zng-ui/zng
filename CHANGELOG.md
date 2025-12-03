@@ -1,5 +1,10 @@
 # Unreleased
 
+* Add support for gigapixel images.
+    - Now decoded image length can exceed i32::MAX.
+    - Now is only limited by the encoding formats (~4 gigapixels for JPEG).
+    - Updated image example to not downscale the Large Image sample.
+
 * **Breaking** Refactor `ImageSource`.
     - `Data` now holds `IpcBytes` directly.
     - Removed `Static` because it is always converted to `IpcBytes` anyway.
@@ -12,7 +17,7 @@
     - Now also implements `BufRead`, `Read` and `AsyncBufRead`.
     - Add constructor with default error.
 * **Breaking** Refactor `zng::task::io::Measure`.
-    - Now uses var to track progress.
+    - Now uses `Var<Metrics>` to track and notify progress.
     - Now also implements `BufRead`, `Read`, `Write` and `AsyncBufRead`.
 
 * Refactor `WhiteSpace` merging to better integrate with basic paragraph spacing.

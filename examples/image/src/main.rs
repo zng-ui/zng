@@ -10,7 +10,7 @@ use zng::{
         filter::{Filter, drop_shadow, filter, mix_blend},
         gradient::stops,
     },
-    image::{self, IMAGES, ImageDownscale, ImageFit, ImageLimits, ImgErrorArgs, img_error_fn, img_loading_fn, mask::mask_image},
+    image::{self, IMAGES, ImageFit, ImageLimits, ImgErrorArgs, img_error_fn, img_loading_fn, mask::mask_image},
     layout::{align, margin, padding, size},
     mouse,
     prelude::*,
@@ -299,7 +299,7 @@ fn sprite() -> UiNode {
 }
 
 fn large_image() -> UiNode {
-    let title = "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB, downscale to fit 8,000 × 8,000";
+    let title = "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB";
     let source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
     let thumbnail_source = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/757px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
     Button! {
@@ -322,7 +322,6 @@ fn large_image() -> UiNode {
                                     .with_max_encoded_len(300.megabytes())
                                     .with_max_decoded_len(3.gigabytes()),
                             );
-                            img_downscale = ImageDownscale::from(layout::Px(8000));
 
                             on_error = hn!(|args| {
                                 tracing::error!(target: "unexpected", "{}", args.error);

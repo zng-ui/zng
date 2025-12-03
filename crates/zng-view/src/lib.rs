@@ -2106,9 +2106,11 @@ impl Api for App {
         }
     }
 
-    fn update_image_use(&mut self, id: WindowId, texture_id: ImageTextureId, image_id: ImageId) {
+    fn update_image_use(&mut self, id: WindowId, texture_id: ImageTextureId, image_id: ImageId, dirty_rect: Option<PxRect>) -> bool {
         if let Some(img) = self.image_cache.get(image_id) {
-            with_window_or_surface!(self, id, |w| w.update_image(texture_id, img), || ())
+            with_window_or_surface!(self, id, |w| w.update_image(texture_id, img, dirty_rect), || false)
+        } else {
+            false
         }
     }
 
@@ -2268,7 +2270,7 @@ impl Api for App {
 
                 if let Some(img) = self.image_cache.get(id) {
                     let mut bmp = vec![];
-                    img.encode(::image::ImageFormat::Bmp, &mut bmp)
+                    img.encode(::image::ImageFormat::Bmp, &mut std::io::Cursor::new(&mut bmp))
                         .map_err(|e| clipboard::ClipboardError::Other(formatx!("{e:?}")))?;
                     clipboard_win::set(clipboard_win::formats::Bitmap, bmp).map_err(util::clipboard_win_to_clip)
                 } else {
