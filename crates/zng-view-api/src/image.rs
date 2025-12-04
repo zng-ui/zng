@@ -62,7 +62,7 @@ pub struct ImageRequest<D> {
     /// Maximum allowed decoded size.
     ///
     /// View-process will avoid decoding and return an error if the image decoded to BGRA (4 bytes) exceeds this size.
-    /// This limit applies to the image before the `resize_to_fit`.
+    /// This limit applies to the image before the `downscale`.
     pub max_decoded_len: u64,
     /// A size constraints to apply after the image is decoded. The image is resized to fit or fill the given size.
     pub downscale: Option<ImageDownscale>,
@@ -96,7 +96,7 @@ impl<D> ImageRequest<D> {
 pub enum ImageDownscale {
     /// Image is downscaled so that both dimensions fit inside the size.
     Fit(PxSize),
-    /// Image is downscaled so that at least one dimension fits inside the size. The larger side is clipped.
+    /// Image is downscaled so that at least one dimension fits inside the size. The image is not clipped.
     Fill(PxSize),
 }
 impl From<PxSize> for ImageDownscale {
@@ -120,50 +120,36 @@ zng_var::impl_from_and_into_var! {
 impl ImageDownscale {
     /// Compute the expected final size if the downscale is applied on an image of `source_size`.
     pub fn resize_dimensions(self, source_size: PxSize) -> PxSize {
-        // code from image crate
-        fn resize_dimensions(width: u32, height: u32, n_width: u32, n_height: u32, fill: bool) -> (u32, u32) {
-            use std::cmp::max;
-
-            let w_ratio = n_width as f64 / width as f64;
-            let h_ratio = n_height as f64 / height as f64;
-
-            let ratio = if fill {
-                f64::max(w_ratio, h_ratio)
-            } else {
-                f64::min(w_ratio, h_ratio)
-            };
-
-            let nw = max((width as f64 * ratio).round() as u64, 1);
-            let nh = max((height as f64 * ratio).round() as u64, 1);
-
-            if nw > u64::from(u32::MAX) {
-                let ratio = u32::MAX as f64 / width as f64;
-                (u32::MAX, max((height as f64 * ratio).round() as u32, 1))
-            } else if nh > u64::from(u32::MAX) {
-                let ratio = u32::MAX as f64 / height as f64;
-                (max((width as f64 * ratio).round() as u32, 1), u32::MAX)
-            } else {
-                (nw as u32, nh as u32)
-            }
-        }
-
-        let (x, y) = match self {
-            ImageDownscale::Fit(s) => resize_dimensions(
-                source_size.width.0.max(0) as _,
-                source_size.height.0.max(0) as _,
-                s.width.0.max(0) as _,
-                s.height.0.max(0) as _,
-                false,
-            ),
-            ImageDownscale::Fill(s) => resize_dimensions(
-                source_size.width.0.max(0) as _,
-                source_size.height.0.max(0) as _,
-                s.width.0.max(0) as _,
-                s.height.0.max(0) as _,
-                true,
-            ),
+        let (new_size, fill) = match self {
+            ImageDownscale::Fill(s) => (s, true),
+            ImageDownscale::Fit(s) => (s, false),
         };
-        PxSize::new(Px(x as _), Px(y as _))
+        let source_size = source_size.cast::<f64>();
+        let new_size = new_size.cast::<f64>();
+
+        let w_ratio = new_size.width / source_size.width;
+        let h_ratio = new_size.height / source_size.height;
+
+        let ratio = if fill {
+            f64::max(w_ratio, h_ratio)
+        } else {
+            f64::min(w_ratio, h_ratio)
+        };
+
+        let nw = u64::max((source_size.width * ratio).round() as _, 1);
+        let nh = u64::max((source_size.height * ratio).round() as _, 1);
+
+        const MAX: u64 = Px::MAX.0 as _;
+
+        if nw > MAX {
+            let ratio = MAX as f64 / source_size.width;
+            (Px::MAX, Px(i32::max((source_size.height * ratio).round() as _, 1))).into()
+        } else if nh > MAX {
+            let ratio = MAX as f64 / source_size.height;
+            (Px(i32::max((source_size.width * ratio).round() as _, 1)), Px::MAX).into()
+        } else {
+            (Px(nw as _), Px(nh as _)).into()
+        }
     }
 }
 

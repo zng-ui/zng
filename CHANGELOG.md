@@ -6,7 +6,7 @@
 
 * Improve view-process image downscaling implementation.
     - Higher quality and faster using specialized resizer.
-    - Implemented downscaling for already decoded image buffers. !!: TODO
+    - Implemented downscaling for already decoded image buffers.
 
 * **Breaking** Refactor `ImageSource`.
     - `Data` now holds `IpcBytes` directly.

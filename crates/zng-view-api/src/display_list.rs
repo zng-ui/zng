@@ -314,6 +314,7 @@ impl DisplayListBuilder {
         rendering: ImageRendering,
         alpha_type: AlphaType,
     ) {
+        // !!: TODO size hints? So we can cache the image at different sizes
         self.list.push(DisplayItem::Image {
             clip_rect,
             image_id,
