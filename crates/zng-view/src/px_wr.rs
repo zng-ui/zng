@@ -4,7 +4,7 @@ use webrender::{
 };
 use zng_unit::{Px, PxBox, PxCornerRadius, PxPoint, PxRect, PxSideOffsets, PxSize, PxTransform, PxVector, Rgba};
 use zng_view_api::{
-    AlphaType, BorderSide, BorderStyle, ExtendMode, ImageRendering, LineOrientation, LineStyle, MixBlendMode, ReferenceFrameId, RepeatMode,
+    BorderSide, BorderStyle, ExtendMode, ImageRendering, LineOrientation, LineStyle, MixBlendMode, ReferenceFrameId, RepeatMode,
     TransformStyle,
     config::FontAntiAliasing,
     display_list::{FilterOp, FrameValue, FrameValueId, FrameValueUpdate},
@@ -632,27 +632,6 @@ impl PxToWr for ImageRendering {
             ImageRendering::CrispEdges => CrispEdges,
             ImageRendering::Pixelated => Pixelated,
             _ => Auto,
-        }
-    }
-}
-
-impl PxToWr for AlphaType {
-    type AsDevice = ();
-    type AsWorld = ();
-    type AsLayout = wr::AlphaType;
-
-    fn to_wr_device(self) -> Self::AsDevice {
-        unimplemented!()
-    }
-
-    fn to_wr_world(self) -> Self::AsWorld {
-        unimplemented!()
-    }
-
-    fn to_wr(self) -> Self::AsLayout {
-        match self {
-            AlphaType::Alpha => wr::AlphaType::Alpha,
-            AlphaType::PremultipliedAlpha => wr::AlphaType::PremultipliedAlpha,
         }
     }
 }

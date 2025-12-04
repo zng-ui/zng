@@ -67,13 +67,6 @@ pub trait Img {
     /// be loaded yet when the key is returned.
     fn renderer_id(&self, renderer: &ViewRenderer) -> zng_view_api::image::ImageTextureId;
 
-    /// Returns a value that indicates if the image is already pre-multiplied.
-    ///
-    /// The faster option is pre-multiplied, that is also the default return value.
-    fn alpha_type(&self) -> zng_view_api::AlphaType {
-        zng_view_api::AlphaType::PremultipliedAlpha
-    }
-
     /// Image pixel size.
     fn size(&self) -> PxSize;
 }
@@ -1561,14 +1554,23 @@ impl FrameBuilder {
     }
 
     /// Push an image.
+    /// 
+    /// The image is resized to `tile_size` and them tiled to fill the `image_size`. The `clip_rect` is applied to the `image_size` area.
+    /// 
+    /// The `rendering` value defines the real time scaling algorithm used to resize the image. The renderer may also generate high quality
+    /// downscaled samples at a fixed interval (like mipmaps, but generated on demand), in that case the `rendering` is used to downscale from the nearest sample size. 
+    /// These high quality samples are slower to generate the `image_size_hints` may be set to a list of other sizes the image is expected to be rendered in the future to start the background
+    /// scaling tasks immediately so that the high quality sample is not missed on the first frame that needs it.
+    #[allow(clippy::too_many_arguments)]
     pub fn push_image(
         &mut self,
         clip_rect: PxRect,
-        img_size: PxSize,
+        image_size: PxSize,
         tile_size: PxSize,
         tile_spacing: PxSize,
         image: &impl Img,
         rendering: ImageRendering,
+        image_size_hints: Vec<PxSize>,
     ) {
         expect_inner!(self.push_image);
         warn_empty!(self.push_image(clip_rect));
@@ -1580,11 +1582,11 @@ impl FrameBuilder {
             self.display_list.push_image(
                 clip_rect,
                 image_key,
-                img_size,
+                image_size,
                 tile_size,
                 tile_spacing,
                 rendering,
-                image.alpha_type(),
+                image_size_hints,
             );
         }
 

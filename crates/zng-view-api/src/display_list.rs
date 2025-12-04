@@ -8,7 +8,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AlphaType, BorderSide, ExtendMode, GradientStop, ImageRendering, LineOrientation, LineStyle, MixBlendMode, ReferenceFrameId,
+    BorderSide, ExtendMode, GradientStop, ImageRendering, LineOrientation, LineStyle, MixBlendMode, ReferenceFrameId,
     RepeatMode, TransformStyle,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     font::{FontId, GlyphInstance, GlyphOptions},
@@ -312,7 +312,7 @@ impl DisplayListBuilder {
         tile_size: PxSize,
         tile_spacing: PxSize,
         rendering: ImageRendering,
-        alpha_type: AlphaType,
+        image_size_hints: Vec<PxSize>,
     ) {
         // !!: TODO size hints? So we can cache the image at different sizes
         self.list.push(DisplayItem::Image {
@@ -320,7 +320,7 @@ impl DisplayListBuilder {
             image_id,
             image_size,
             rendering,
-            alpha_type,
+            image_size_hints,
             tile_size,
             tile_spacing,
         })
@@ -864,7 +864,7 @@ pub enum DisplayItem {
         image_id: ImageTextureId,
         image_size: PxSize,
         rendering: ImageRendering,
-        alpha_type: AlphaType,
+        image_size_hints: Vec<PxSize>,
         tile_size: PxSize,
         tile_spacing: PxSize,
     },

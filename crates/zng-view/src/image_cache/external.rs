@@ -10,7 +10,7 @@ use webrender::{
     },
 };
 use zng_unit::{Px, PxPoint, PxRect, PxSize, euclid};
-use zng_view_api::{AlphaType, ImageRendering, image::ImageTextureId};
+use zng_view_api::{ImageRendering, image::ImageTextureId};
 
 use crate::{
     display_list::{DisplayListCache, SpaceAndClip},
@@ -280,7 +280,6 @@ impl ImageUseMap {
         image_id: ImageTextureId,
         image_size: PxSize,
         rendering: ImageRendering,
-        alpha_type: AlphaType,
         tile_size: PxSize,
         tile_spacing: PxSize,
     ) {
@@ -313,7 +312,7 @@ impl ImageUseMap {
                     &props,
                     PxRect::from_size(image_size).to_wr(),
                     rendering.to_wr(),
-                    alpha_type.to_wr(),
+                    wr::AlphaType::PremultipliedAlpha,
                     wr::ImageKey(cache.id_namespace(), image_id.get()),
                     wr::ColorF::WHITE,
                 );
@@ -358,7 +357,7 @@ impl ImageUseMap {
                         &props,
                         PxRect::from_size(scaled_stripe).to_wr(),
                         rendering.to_wr(),
-                        alpha_type.to_wr(),
+                        wr::AlphaType::PremultipliedAlpha,
                         wr::ImageKey(cache.id_namespace(), stripe_id.get()),
                         wr::ColorF::WHITE,
                     );
@@ -388,7 +387,7 @@ impl ImageUseMap {
                 tile_size.to_wr(),
                 tile_spacing.to_wr(),
                 rendering.to_wr(),
-                alpha_type.to_wr(),
+                wr::AlphaType::PremultipliedAlpha,
                 wr::ImageKey(cache.id_namespace(), image_id.get()),
                 wr::ColorF::WHITE,
             );

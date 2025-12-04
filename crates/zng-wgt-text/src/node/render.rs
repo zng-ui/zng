@@ -336,6 +336,7 @@ pub fn render_text() -> UiNode {
                                                 PxSize::zero(),
                                                 i,
                                                 zng_view_api::ImageRendering::Pixelated,
+                                                vec![],
                                             );
                                         },
                                     );
