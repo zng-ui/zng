@@ -3,6 +3,7 @@
 #[cfg(feature = "image_any")]
 use image::ImageDecoder as _;
 use std::{fmt, sync::Arc};
+use zng_task::parking_lot::Mutex;
 
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use zng_txt::ToTxt as _;
@@ -96,11 +97,14 @@ pub(crate) const DECODERS: &[&str] = &[
     "dds",
 ];
 
+type ResizerCache = Mutex<fast_image_resize::Resizer>;
+
 /// Decode and cache image resources.
 pub(crate) struct ImageCache {
     app_sender: AppEventSender,
     images: FxHashMap<ImageId, Image>,
     image_id_gen: ImageId,
+    resizer: Arc<ResizerCache>,
 }
 impl ImageCache {
     pub fn new(app_sender: AppEventSender) -> Self {
@@ -108,6 +112,7 @@ impl ImageCache {
             app_sender,
             images: FxHashMap::default(),
             image_id_gen: ImageId::first(),
+            resizer: Arc::new(Mutex::new(fast_image_resize::Resizer::new())),
         }
     }
 
@@ -125,34 +130,45 @@ impl ImageCache {
         let id = self.image_id_gen.incr();
 
         let app_sender = self.app_sender.clone();
+        let resizer = self.resizer.clone();
         rayon::spawn(move || {
             let r = match format {
                 ImageDataFormat::Bgra8 { size, density } => {
+                    // is already decoded bgra8
+
                     let expected_len = size.width.0 as usize * size.height.0 as usize * 4;
                     if data.len() != expected_len {
                         Err(formatx!(
                             "pixels.len() is not width * height * 4, expected {expected_len}, found {}",
                             data.len()
                         ))
-                    } else if mask.is_some() {
-                        let r = Self::convert_decoded(
-                            image::DynamicImage::ImageLuma8(
-                                image::ImageBuffer::from_raw(size.width.0 as _, size.height.0 as _, data.to_vec()).unwrap(),
-                            ),
-                            mask,
-                            density,
-                            None,
-                        );
-                        match r {
-                            Ok((pixels, size, _, is_opaque, _)) => Ok((pixels, size, density, is_opaque, true)),
+                    } else if let Some(mask) = mask {
+                        // but is used as mask, convert to a8
+
+                        Self::convert_bgra8_to_mask(size, &data, mask, density, downscale, &resizer).map_err(|e| e.to_txt())
+                    } else {
+                        // and is used as bgra8, downscale if needed
+                        match Self::downscale_decoded(mask, downscale, &resizer, size, &data) {
+                            Ok(downscaled) => match downscaled {
+                                Some((size, data_mut)) => match data_mut.finish_blocking() {
+                                    Ok(data) => {
+                                        let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
+                                        Ok((data, size, None, is_opaque, true))
+                                    }
+                                    Err(e) => Err(e.to_txt()),
+                                },
+                                None => {
+                                    let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
+                                    Ok((data, size, None, is_opaque, true))
+                                }
+                            },
                             Err(e) => Err(e.to_txt()),
                         }
-                    } else {
-                        let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
-                        Ok((data, size, density, is_opaque, false))
                     }
                 }
                 ImageDataFormat::A8 { size } => {
+                    // is already decoded mask
+
                     let expected_len = size.width.0 as usize * size.height.0 as usize;
                     if data.len() != expected_len {
                         Err(formatx!(
@@ -160,6 +176,7 @@ impl ImageCache {
                             data.len()
                         ))
                     } else if mask.is_none() {
+                        // but is used as mask, convert to bgra8
                         let r = Self::convert_decoded(
                             image::DynamicImage::ImageLuma8(
                                 image::ImageBuffer::from_raw(size.width.0 as _, size.height.0 as _, data.to_vec()).unwrap(),
@@ -167,23 +184,43 @@ impl ImageCache {
                             None,
                             None,
                             None,
+                            downscale,
+                            &resizer,
                         );
                         match r {
                             Ok((pixels, size, _, is_opaque, _)) => Ok((pixels, size, None, is_opaque, false)),
                             Err(e) => Err(e.to_txt()),
                         }
                     } else {
-                        let is_opaque = data.iter().all(|&c| c == 255);
-                        Ok((data, size, None, is_opaque, true))
+                        // and is used as mask, downscale if needed
+                        match Self::downscale_decoded(mask, downscale, &resizer, size, &data) {
+                            Ok(downscaled) => match downscaled {
+                                Some((size, data_mut)) => match data_mut.finish_blocking() {
+                                    Ok(data) => {
+                                        let is_opaque = data.iter().all(|&c| c == 255);
+                                        Ok((data, size, None, is_opaque, true))
+                                    }
+                                    Err(e) => Err(e.to_txt()),
+                                },
+                                None => {
+                                    let is_opaque = data.iter().all(|&c| c == 255);
+                                    Ok((data, size, None, is_opaque, true))
+                                }
+                            },
+                            Err(e) => Err(e.to_txt()),
+                        }
                     }
                 }
                 fmt => {
+                    // needs decoding
+
                     #[cfg(not(feature = "image_any"))]
                     {
                         let _ = (max_decoded_len, downscale);
                         Err(zng_txt::formatx!("no decoder for {fmt:?}"))
                     }
 
+                    // identify codec and parse header metadata
                     #[cfg(feature = "image_any")]
                     match Self::header_decode(&fmt, &data[..]) {
                         Ok(h) => {
@@ -194,6 +231,7 @@ impl ImageCache {
                                     "image {size:?} needs to allocate {decoded_len} bytes, but max allowed size is {max_decoded_len} bytes",
                                 ))
                             } else {
+                                // notify metadata already
                                 if let Some(d) = downscale {
                                     size = d.resize_dimensions(size);
                                 }
@@ -203,8 +241,11 @@ impl ImageCache {
                                     density: h.density,
                                     is_mask: false,
                                 }));
+
+                                // decode
                                 match Self::image_decode(&data[..], h.format, downscale, h.orientation) {
-                                    Ok(img) => match Self::convert_decoded(img, mask, h.density, h.icc_profile) {
+                                    // convert to bgra8 and downscale
+                                    Ok(img) => match Self::convert_decoded(img, mask, h.density, h.icc_profile, downscale, &resizer) {
                                         Ok(r) => Ok(r),
                                         Err(e) => Err(e.to_txt()),
                                     },
@@ -245,6 +286,7 @@ impl ImageCache {
     ) -> ImageId {
         let id = self.image_id_gen.incr();
         let app_sender = self.app_sender.clone();
+        let resizer = self.resizer.clone();
         rayon::spawn(move || {
             // crate `images` does not do progressive decode.
             let mut full = vec![];
@@ -341,7 +383,7 @@ impl ImageCache {
 
                 #[cfg(feature = "image_any")]
                 match Self::image_decode(&full[..], fmt, downscale, orientation) {
-                    Ok(img) => match Self::convert_decoded(img, mask, density, icc_profile) {
+                    Ok(img) => match Self::convert_decoded(img, mask, density, icc_profile, downscale, &resizer) {
                         Ok((pixels, size, density, is_opaque, is_mask)) => {
                             let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
                                 id, size, density, is_opaque, is_mask, pixels,
@@ -426,7 +468,9 @@ impl ImageCache {
     }
 
     pub(crate) fn on_low_memory(&mut self) {
-        // app-process controls this cache
+        // app-process controls what images are dropped so hopefully it will respond the
+        // memory pressure event
+        self.resizer.lock().reset_internal_buffers();
     }
 
     pub(crate) fn clear(&mut self) {

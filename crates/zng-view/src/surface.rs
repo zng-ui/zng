@@ -110,6 +110,8 @@ impl Surface {
 
             // extensions expect this to be set.
             workers: Some(crate::util::wr_workers()),
+            // optimize memory usage
+            chunk_pool: Some(crate::util::wr_chunk_pool()),
 
             //panic_on_gl_error: true,
             ..Default::default()

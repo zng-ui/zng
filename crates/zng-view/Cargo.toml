@@ -136,6 +136,7 @@ winit = { version = "0.30", default-features = false, features = [
 glutin = { version = "0.32", default-features = false, features = ["egl", "glx", "wayland", "wgl", "x11" ], optional = true }
 raw-window-handle = { version = "0.6", default-features = false } # matches glutin
 image = { version = "0.25", default-features = false, features = ["rayon"] } # on upgrade review audit.toml
+fast_image_resize = { version = "5.4.0", default-features = false, features = ["rayon", "image"] }
 img-parts = { version = "0.4", default-features = false, features = ["std"] }
 byteorder = { version = "1.5", default-features = false }
 rustc-hash = { version = "2.0", default-features = false }

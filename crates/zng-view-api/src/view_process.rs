@@ -1,4 +1,4 @@
-use std::{env, mem, time::Duration};
+use std::{env, mem, path::PathBuf, time::Duration};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
@@ -164,6 +164,10 @@ fn same_process() -> &'static Mutex<SameProcess> {
 pub struct StaticPatch {
     same_process: *const Mutex<SameProcess>,
     tracing: tracing_shared::SharedLogger,
+
+    env_res: PathBuf,
+    env_config: PathBuf,
+    env_cache: PathBuf,
 }
 impl StaticPatch {
     /// Called in the main executable.
@@ -171,6 +175,9 @@ impl StaticPatch {
         Self {
             same_process: same_process(),
             tracing: tracing_shared::SharedLogger::new(),
+            env_res: zng_env::res(""),
+            env_config: zng_env::config(""),
+            env_cache: zng_env::cache(""),
         }
     }
 
@@ -185,5 +192,8 @@ impl StaticPatch {
             *std::ptr::addr_of_mut!(SAME_PROCESS) = &*self.same_process;
         }
         self.tracing.install();
+        zng_env::init_res(self.env_res.clone());
+        zng_env::init_config(self.env_config.clone());
+        zng_env::init_cache(self.env_cache.clone());
     }
 }

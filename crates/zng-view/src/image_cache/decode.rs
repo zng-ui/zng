@@ -2,6 +2,7 @@
 
 #[cfg(feature = "image_any")]
 use crate::image_cache::ImageHeader;
+use crate::image_cache::ResizerCache;
 use crate::image_cache::{ImageCache, RawLoadedImg};
 use image::{GenericImageView as _, ImageDecoder as _};
 use zng_task::channel::{IpcBytes, IpcBytesMut};
@@ -217,33 +218,16 @@ impl ImageCache {
     ) -> image::ImageResult<image::DynamicImage> {
         let buf = std::io::Cursor::new(buf);
 
+        // Some JPEG decoders can downscale to an approximation of this size
+        // but that is not implemented by image crate
+        let _ = downscale;
+
         let mut reader = image::ImageReader::new(buf);
         reader.set_format(format);
         reader.no_limits();
         let mut image = reader.decode()?;
 
         image.apply_orientation(orientation);
-
-        if let Some(s) = downscale {
-            let (img_w, img_h) = (image.width(), image.height());
-            use zng_view_api::image::ImageDownscale::*;
-            match s {
-                Fit(s) => {
-                    let w = img_w.min(s.width.0 as u32);
-                    let h = img_h.min(s.height.0 as u32);
-                    if w != img_w || h != img_h {
-                        image = image.resize(w, h, image::imageops::FilterType::Triangle);
-                    }
-                }
-                Fill(s) => {
-                    let w = img_w.min(s.width.0 as u32);
-                    let h = img_h.min(s.height.0 as u32);
-                    if w != img_w && h != img_h {
-                        image = image.resize_to_fill(w, h, image::imageops::FilterType::Triangle);
-                    }
-                }
-            }
-        }
 
         Ok(image)
     }
@@ -253,6 +237,8 @@ impl ImageCache {
         mask: Option<ImageMaskMode>,
         density: Option<PxDensity2d>,
         icc_profile: Option<lcms2::Profile>,
+        downscale: Option<zng_view_api::image::ImageDownscale>,
+        resizer_cache: &ResizerCache,
     ) -> std::io::Result<RawLoadedImg> {
         use image::DynamicImage::*;
 
@@ -669,13 +655,109 @@ impl ImageCache {
         #[cfg(not(feature = "image_any"))]
         let _ = (icc_profile, &mut pixels);
 
+        let mut size = PxSize::new(Px(size.0 as _), Px(size.1 as _));
+        if let Some((s, px)) = Self::downscale_decoded(mask, downscale, resizer_cache, size, &pixels)? {
+            size = s;
+            pixels = px;
+        }
+
         Ok((
             pixels.finish_blocking()?,
-            PxSize::new(Px(size.0 as i32), Px(size.1 as i32)),
+            size,
             density,
             is_opaque,
             mask.is_some(), // is_mask
         ))
+    }
+
+    pub(super) fn convert_bgra8_to_mask(
+        size: PxSize,
+        bgra8: &[u8],
+        mask: ImageMaskMode,
+        density: Option<PxDensity2d>,
+        downscale: Option<zng_view_api::image::ImageDownscale>,
+        resizer_cache: &ResizerCache,
+    ) -> std::io::Result<RawLoadedImg> {
+        let mut a = IpcBytes::new_mut_blocking(bgra8.len() / 4)?;
+        let mut is_opaque = true;
+        match mask {
+            ImageMaskMode::Luminance => {
+                for (p, bgra) in a.iter_mut().zip(bgra8.chunks_exact(4)) {
+                    let c = luminance_bgr(&bgra[..3]);
+                    if c < 255 {
+                        is_opaque = false;
+                    }
+                    *p = c;
+                }
+            }
+            mask => {
+                let channel = match mask {
+                    ImageMaskMode::A => 3,
+                    ImageMaskMode::B => 0,
+                    ImageMaskMode::G => 1,
+                    ImageMaskMode::R => 2,
+                    _ => unreachable!(),
+                };
+                for (p, bgra) in a.iter_mut().zip(bgra8.chunks_exact(4)) {
+                    let c = bgra[channel];
+                    if c < 255 {
+                        is_opaque = false;
+                    }
+                    *p = c;
+                }
+            }
+        }
+
+        let mut size = size;
+        if let Some((s, px)) = Self::downscale_decoded(Some(mask), downscale, resizer_cache, size, &a)? {
+            size = s;
+            a = px;
+        }
+
+        Ok((
+            a.finish_blocking()?,
+            size,
+            density,
+            is_opaque,
+            true, // is_mask
+        ))
+    }
+
+    pub(super) fn downscale_decoded(
+        mask: Option<ImageMaskMode>,
+        downscale: Option<zng_view_api::image::ImageDownscale>,
+        resizer_cache: &ResizerCache,
+        source_size: PxSize,
+        pixels: &[u8],
+    ) -> std::io::Result<Option<(PxSize, IpcBytesMut)>> {
+        if let Some(downscale) = downscale {
+            let dest_size = downscale.resize_dimensions(source_size);
+            if source_size.min(dest_size) != source_size {
+                use fast_image_resize as fr;
+
+                let px_type = if mask.is_none() { fr::PixelType::U8x4 } else { fr::PixelType::U8 };
+                let source = fr::images::ImageRef::new(source_size.width.0 as _, source_size.height.0 as _, pixels, px_type).unwrap();
+                let mut dest_buf = IpcBytes::new_mut_blocking(dest_size.width.0 as usize * dest_size.height.0 as usize * px_type.size())?;
+                let mut dest =
+                    fr::images::Image::from_slice_u8(dest_size.width.0 as _, dest_size.height.0 as _, &mut dest_buf[..], px_type).unwrap();
+
+                let mut resize_opt = fr::ResizeOptions::new();
+                // is already pre multiplied
+                resize_opt.mul_div_alpha = false;
+                // default, best quality
+                resize_opt.algorithm = fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3);
+                // try to reuse cache
+                match resizer_cache.try_lock() {
+                    Some(mut r) => r.resize(&source, &mut dest, Some(&resize_opt)),
+                    None => fr::Resizer::new().resize(&source, &mut dest, Some(&resize_opt)),
+                }
+                .unwrap();
+
+                return Ok(Some((dest_size, dest_buf)));
+            }
+        }
+
+        Ok(None)
     }
 }
 
@@ -683,6 +765,15 @@ fn luminance(rgb: &[u8]) -> u8 {
     let r = rgb[0] as f32 / 255.0;
     let g = rgb[1] as f32 / 255.0;
     let b = rgb[2] as f32 / 255.0;
+
+    let l = r * 0.2126 + g * 0.7152 + b * 0.0722;
+    (l * 255.0) as u8
+}
+
+fn luminance_bgr(bgr: &[u8]) -> u8 {
+    let r = bgr[2] as f32 / 255.0;
+    let g = bgr[1] as f32 / 255.0;
+    let b = bgr[0] as f32 / 255.0;
 
     let l = r * 0.2126 + g * 0.7152 + b * 0.0722;
     (l * 255.0) as u8

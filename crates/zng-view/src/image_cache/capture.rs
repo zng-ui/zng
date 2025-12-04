@@ -135,6 +135,8 @@ impl ImageCache {
                 Some(mask),
                 density,
                 None,
+                None,
+                &self.resizer,
             )
             .unwrap(); // frame size is not large enough to trigger an memmap that can fail
 
