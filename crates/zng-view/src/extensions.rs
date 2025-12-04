@@ -544,15 +544,25 @@ impl ExternalImages {
     ///
     /// Returns an `ExternalImageId` that can be used in display lists.
     ///
-    /// The `pixels` are held in memory until [`unregister`] or the window is closed.
+    /// The `pixels` are held in memory until [`unregister`] or the window is closed. They must be premultiplied BGRA8
+    /// or a mask A8.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `pixels` length is not equal expected BGRA8 or A8 length.
     ///
     /// [`unregister`]: Self::unregister
-    pub fn register_image(&mut self, descriptor: webrender::api::ImageDescriptor, pixels: IpcBytes) -> ExternalImageId {
+    pub fn register_image(&mut self, size: PxSize, is_opaque: bool, pixels: IpcBytes) -> ExternalImageId {
+        let expected_len = size.width.0 as usize * size.height.0 as usize;
+        assert!(
+            pixels.len() == expected_len || pixels.len() == expected_len * 4,
+            "pixels must be BGRA8 or A8"
+        );
         self.register(crate::image_cache::ImageData::RawData {
-            size: descriptor.size.cast().cast_unit(), // not used
+            size,
             range: 0..pixels.len(),
             pixels,
-            descriptor,
+            is_opaque,
             density: None,
         })
     }

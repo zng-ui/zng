@@ -9,7 +9,7 @@ use webrender::{
         units::{ImageDirtyRect, TexelRect},
     },
 };
-use zng_unit::{Px, PxPoint, PxRect, PxSize, euclid};
+use zng_unit::{Px, PxPoint, PxRect, PxSize};
 use zng_view_api::{ImageRendering, image::ImageTextureId};
 
 use crate::{
@@ -145,8 +145,6 @@ impl ImageUseMap {
                         let y = stripe_height * Px(i as _);
                         let mut size = full_size;
                         size.height = stripe_height.min(full_size.height - y);
-                        let mut descriptor = image.descriptor();
-                        descriptor.size = euclid::size2(size.width.0, size.height.0);
 
                         let offset = stripe_len * i;
                         let range = offset..((offset + stripe_len).min(image.pixels().len()));
@@ -154,7 +152,7 @@ impl ImageUseMap {
                         let stripe = Image(Arc::new(ImageData::RawData {
                             size,
                             pixels: image.pixels().clone(),
-                            descriptor,
+                            is_opaque: image.is_opaque(),
                             density: image.density(),
                             range,
                         }));
@@ -217,7 +215,7 @@ impl ImageUseMap {
                         let img = ImageData::RawData {
                             size: stripe.1.size(),
                             pixels: image.pixels().clone(),
-                            descriptor: stripe.1.descriptor(),
+                            is_opaque: image.is_opaque(),
                             density: image.density(),
                             range: stripe.1.range(),
                         };

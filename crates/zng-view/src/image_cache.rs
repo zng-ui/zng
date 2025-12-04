@@ -5,7 +5,7 @@ use image::ImageDecoder as _;
 use std::{fmt, sync::Arc};
 use zng_task::parking_lot::Mutex;
 
-use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
+use webrender::api::ImageDescriptor;
 use zng_txt::ToTxt as _;
 use zng_txt::{Txt, formatx};
 
@@ -443,23 +443,13 @@ impl ImageCache {
 
     /// Called after receive and decode completes correctly.
     pub(crate) fn loaded(&mut self, data: ImageLoadedData) {
-        let mut flags = ImageDescriptorFlags::empty(); //ImageDescriptorFlags::ALLOW_MIPMAPS;
-        if data.is_opaque {
-            flags |= ImageDescriptorFlags::IS_OPAQUE
-        }
-
         self.images.insert(
             data.id,
             Image(Arc::new(ImageData::RawData {
                 size: data.size,
                 range: 0..data.pixels.len(),
                 pixels: data.pixels.clone(),
-                descriptor: ImageDescriptor::new(
-                    data.size.width.0,
-                    data.size.height.0,
-                    if data.is_mask { ImageFormat::R8 } else { ImageFormat::BGRA8 },
-                    flags,
-                ),
+                is_opaque: data.is_opaque,
                 density: data.density,
             })),
         );
@@ -491,7 +481,7 @@ pub(crate) enum ImageData {
     RawData {
         size: PxSize,
         pixels: IpcBytes,
-        descriptor: ImageDescriptor,
+        is_opaque: bool,
         density: Option<PxDensity2d>,
         range: std::ops::Range<usize>,
     },
@@ -503,14 +493,14 @@ pub(crate) enum ImageData {
 impl ImageData {
     pub fn is_opaque(&self) -> bool {
         match self {
-            ImageData::RawData { descriptor, .. } => descriptor.flags.contains(ImageDescriptorFlags::IS_OPAQUE),
+            ImageData::RawData { is_opaque, .. } => *is_opaque,
             ImageData::NativeTexture { .. } => false,
         }
     }
 
     pub fn is_mask(&self) -> bool {
         match self {
-            ImageData::RawData { descriptor, .. } => descriptor.format == ImageFormat::R8,
+            ImageData::RawData { size, range, .. } => size.width.0 as usize * size.height.0 as usize == range.len(),
             ImageData::NativeTexture { .. } => false,
         }
     }
@@ -524,13 +514,13 @@ impl fmt::Debug for Image {
             ImageData::RawData {
                 size,
                 pixels,
-                descriptor,
+                is_opaque,
                 density,
                 range,
             } => f
                 .debug_struct("Image")
                 .field("size", size)
-                .field("descriptor", descriptor)
+                .field("is_opaque", is_opaque)
                 .field("density", density)
                 .field("pixels", &format_args!("<{} of {} shared bytes>", range.len(), pixels.len()))
                 .finish(),
@@ -541,7 +531,36 @@ impl fmt::Debug for Image {
 impl Image {
     pub fn descriptor(&self) -> ImageDescriptor {
         match &*self.0 {
-            ImageData::RawData { descriptor, .. } => *descriptor,
+            ImageData::RawData {
+                size, is_opaque, range, ..
+            } => {
+                // no Webrender mipmaps here, thats only for the GPU, 
+                // it does not help with performance rendering gigapixel images scaled to fit
+                let mut flags = webrender::api::ImageDescriptorFlags::empty();
+                if *is_opaque {
+                    flags |= webrender::api::ImageDescriptorFlags::IS_OPAQUE;
+                }
+                let is_mask = size.width.0 as usize * size.height.0 as usize == range.len();
+                ImageDescriptor {
+                    format: if is_mask {
+                        webrender::api::ImageFormat::R8
+                    } else {
+                        webrender::api::ImageFormat::BGRA8
+                    },
+                    size: size.cast().cast_unit(),
+                    stride: None,
+                    offset: 0,
+                    flags,
+                }
+            }
+            ImageData::NativeTexture { .. } => unreachable!(),
+        }
+    }
+
+    #[allow(unused)]
+    pub fn is_opaque(&self) -> bool {
+        match &*self.0 {
+            ImageData::RawData { is_opaque, .. } => *is_opaque,
             ImageData::NativeTexture { .. } => unreachable!(),
         }
     }

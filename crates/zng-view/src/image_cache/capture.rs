@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use zng_task::channel::IpcBytes;
 use zng_txt::formatx;
 use zng_unit::{Factor, PxDensity2d, PxDensityUnits as _, PxRect};
@@ -68,24 +67,13 @@ impl ImageCache {
     ) -> ImageLoadedData {
         let data = self.frame_image_data_impl(gl, rect, scale_factor, mask);
 
-        let flags = if data.is_opaque {
-            ImageDescriptorFlags::IS_OPAQUE
-        } else {
-            ImageDescriptorFlags::empty()
-        };
-
         self.images.insert(
             data.id,
             Image(Arc::new(ImageData::RawData {
                 size: data.size,
                 range: 0..data.pixels.len(),
                 pixels: data.pixels.clone(),
-                descriptor: ImageDescriptor::new(
-                    data.size.width.0,
-                    data.size.height.0,
-                    if data.is_mask { ImageFormat::R8 } else { ImageFormat::BGRA8 },
-                    flags,
-                ),
+                is_opaque: data.is_opaque,
                 density: data.density,
             })),
         );

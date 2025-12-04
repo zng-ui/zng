@@ -8,8 +8,8 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BorderSide, ExtendMode, GradientStop, ImageRendering, LineOrientation, LineStyle, MixBlendMode, ReferenceFrameId,
-    RepeatMode, TransformStyle,
+    BorderSide, ExtendMode, GradientStop, ImageRendering, LineOrientation, LineStyle, MixBlendMode, ReferenceFrameId, RepeatMode,
+    TransformStyle,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     font::{FontId, GlyphInstance, GlyphOptions},
     image::ImageTextureId,
@@ -303,7 +303,6 @@ impl DisplayListBuilder {
     }
 
     /// Push an image.
-    #[expect(clippy::too_many_arguments)]
     pub fn push_image(
         &mut self,
         clip_rect: PxRect,
@@ -312,15 +311,12 @@ impl DisplayListBuilder {
         tile_size: PxSize,
         tile_spacing: PxSize,
         rendering: ImageRendering,
-        image_size_hints: Vec<PxSize>,
     ) {
-        // !!: TODO size hints? So we can cache the image at different sizes
         self.list.push(DisplayItem::Image {
             clip_rect,
             image_id,
             image_size,
             rendering,
-            image_size_hints,
             tile_size,
             tile_spacing,
         })
@@ -864,7 +860,6 @@ pub enum DisplayItem {
         image_id: ImageTextureId,
         image_size: PxSize,
         rendering: ImageRendering,
-        image_size_hints: Vec<PxSize>,
         tile_size: PxSize,
         tile_spacing: PxSize,
     },

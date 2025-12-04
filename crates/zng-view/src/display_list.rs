@@ -681,11 +681,9 @@ fn display_item_to_webrender(
             image_id,
             image_size,
             rendering,
-            image_size_hints,
             tile_size,
             tile_spacing,
         } => {
-            // !!: TODO try get alt downscaled image from cache
             images.push_display_list_img(
                 wr_list,
                 sc,

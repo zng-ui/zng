@@ -414,7 +414,6 @@ pub fn image_presenter() -> UiNode {
                                 render_tile_spacing,
                                 img,
                                 IMAGE_RENDERING_VAR.get(),
-                                vec![]
                             )
                         });
                     } else {
@@ -425,7 +424,6 @@ pub fn image_presenter() -> UiNode {
                             render_tile_spacing,
                             img,
                             IMAGE_RENDERING_VAR.get(),
-                            vec![]
                         );
                     }
                 }

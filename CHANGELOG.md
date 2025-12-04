@@ -14,7 +14,6 @@
 
 * **Breaking** Refactor view-process API image display item.
     - Removed `AlphaType` and relates items. Images are always premultiplied BGRA8.
-    - Display item can now hint future sizes for the image.
 
 * **Breaking** Refactor `zng::task::http` into a backend agnostic API.
     - Removed unmaintained `isahc` dependency.
