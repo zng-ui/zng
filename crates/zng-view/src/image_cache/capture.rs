@@ -76,6 +76,7 @@ impl ImageCache {
                 is_opaque: data.is_opaque,
                 density: data.density,
                 mipmap: Mutex::new(Box::new([])),
+                stripes: Mutex::new(Box::new([])),
             })),
         );
 

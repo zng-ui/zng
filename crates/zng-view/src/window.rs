@@ -398,7 +398,7 @@ impl Window {
 
         let (mut renderer, sender) =
             webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender.clone()), opts, None).unwrap();
-        renderer.set_external_image_handler(WrImageCache::new_boxed(resizer_cache));
+        renderer.set_external_image_handler(WrImageCache::new_boxed());
 
         let mut external_images = extensions::ExternalImages::default();
 
@@ -438,7 +438,7 @@ impl Window {
 
         let mut win = Self {
             id,
-            image_use: ImageUseMap::default(),
+            image_use: ImageUseMap::new(resizer_cache),
             prev_pos: winit_window.inner_position().unwrap_or_default().to_px(),
             prev_size: winit_window.inner_size().to_px().to_dip(Factor(winit_window.scale_factor() as _)),
             prev_monitor: winit_window.current_monitor(),
@@ -1479,11 +1479,12 @@ impl Window {
                 frame_id: frame.id,
                 extensions: &mut self.renderer_exts,
                 transaction: &mut txn,
+                document_id: self.document_id,
                 renderer: self.renderer.as_mut().unwrap(),
                 api: &mut self.api,
                 external_images: &mut self.external_images,
             },
-            &self.image_use,
+            &mut self.image_use,
             &mut self.display_list_cache,
         );
 
@@ -1530,11 +1531,12 @@ impl Window {
                 frame_id: self.frame_id(),
                 extensions: &mut self.renderer_exts,
                 transaction: &mut txn,
+                document_id: self.document_id,
                 renderer: self.renderer.as_mut().unwrap(),
                 api: &mut self.api,
                 external_images: &mut self.external_images,
             },
-            &self.image_use,
+            &mut self.image_use,
             frame.transforms,
             frame.floats,
             frame.colors,
@@ -1819,6 +1821,7 @@ impl Window {
                     renderer: self.renderer.as_mut().unwrap(),
                     api: &mut self.api,
                     request,
+                    document_id: self.document_id,
                     window: Some(&self.window),
                     context: &mut self.context,
                     redraw: &mut redraw,

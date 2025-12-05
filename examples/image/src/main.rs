@@ -342,6 +342,14 @@ fn large_image() -> UiNode {
                                     ];
                                 }
                             });
+
+                            // actually change the size of image, better performance when
+                            // showing entire image as it does not need to render a full size
+                            // texture just to transform
+                            zng::scroll::zoom_size_only = true;
+
+                            // better for photo viewers
+                            img_auto_scale = false;
                         };
                     };
                 }

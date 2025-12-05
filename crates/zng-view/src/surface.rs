@@ -23,7 +23,7 @@ use crate::{
         RendererDeinitedArgs, RendererExtension, RendererInitedArgs, WindowConfigArgs, WindowExtension,
     },
     gl::{GlContext, GlContextManager},
-    image_cache::{Image, ImageCache, ImageUseMap, WrImageCache, ResizerCache},
+    image_cache::{Image, ImageCache, ImageUseMap, ResizerCache, WrImageCache},
     px_wr::PxToWr as _,
     util::{PxToWinit, frame_render_reasons, frame_update_render_reasons},
 };
@@ -139,7 +139,7 @@ impl Surface {
 
         let (mut renderer, sender) =
             webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
-        renderer.set_external_image_handler(WrImageCache::new_boxed(resizer_cache));
+        renderer.set_external_image_handler(WrImageCache::new_boxed());
 
         let mut external_images = extensions::ExternalImages::default();
 
@@ -174,7 +174,7 @@ impl Surface {
             renderer: Some(renderer),
             renderer_exts,
             external_images,
-            image_use: ImageUseMap::default(),
+            image_use: ImageUseMap::new(resizer_cache),
 
             clear_color: None,
 
@@ -319,11 +319,12 @@ impl Surface {
                 frame_id: frame.id,
                 extensions: &mut self.renderer_exts,
                 transaction: &mut txn,
+                document_id: self.document_id,
                 renderer: self.renderer.as_mut().unwrap(),
                 api: &mut self.api,
                 external_images: &mut self.external_images,
             },
-            &self.image_use,
+            &mut self.image_use,
             &mut self.display_list_cache,
         );
 
@@ -367,11 +368,12 @@ impl Surface {
                 frame_id: self.frame_id(),
                 extensions: &mut self.renderer_exts,
                 transaction: &mut txn,
+                document_id: self.document_id,
                 renderer: self.renderer.as_mut().unwrap(),
                 api: &mut self.api,
                 external_images: &mut self.external_images,
             },
-            &self.image_use,
+            &mut self.image_use,
             frame.transforms,
             frame.floats,
             frame.colors,
@@ -488,6 +490,7 @@ impl Surface {
                 r = Some(ext.command(&mut RendererCommandArgs {
                     renderer: self.renderer.as_mut().unwrap(),
                     api: &mut self.api,
+                    document_id: self.document_id,
                     request,
                     window: None,
                     redraw: &mut redraw,

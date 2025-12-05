@@ -2,7 +2,6 @@
 
 #[cfg(feature = "image_any")]
 use image::ImageDecoder as _;
-use std::ops;
 use std::{fmt, sync::Arc};
 use zng_task::parking_lot::Mutex;
 
@@ -457,6 +456,7 @@ impl ImageCache {
                 is_opaque: data.is_opaque,
                 density: data.density,
                 mipmap: Mutex::new(Box::new([])),
+                stripes: Mutex::new(Box::new([])),
             })),
         );
 
@@ -497,6 +497,7 @@ pub(crate) enum ImageData {
         range: std::ops::Range<usize>,
         // each entry is half size of the previous
         mipmap: Mutex<Box<[MipImage]>>,
+        stripes: Mutex<Box<[Image]>>,
     },
     NativeTexture {
         uv: webrender::api::units::TexelRect,
@@ -615,8 +616,14 @@ impl Image {
     pub fn mip(&self, image_size: PxSize, resizer: &Arc<ResizerCache>) -> Image {
         match &*self.0 {
             ImageData::RawData { size, mipmap, .. } => {
+                const MIN_MIP: Px = Px(256);
+
                 let mip0_size = *size / Px(2);
-                if image_size.width > mip0_size.width || image_size.height > mip0_size.height {
+                if image_size.width > mip0_size.width
+                    || image_size.height > mip0_size.height
+                    || mip0_size.width < MIN_MIP
+                    || mip0_size.height < MIN_MIP
+                {
                     // cannot downscale from first mip to target size
                     return self.clone();
                 }
@@ -624,7 +631,7 @@ impl Image {
                 fn iter_mips(mut size: PxSize) -> impl Iterator<Item = PxSize> {
                     std::iter::from_fn(move || {
                         size /= Px(2);
-                        if size.width < Px(256) || size.height < Px(256) {
+                        if size.width < MIN_MIP || size.height < MIN_MIP {
                             None
                         } else {
                             Some(size)
@@ -669,7 +676,6 @@ impl Image {
             _ => unreachable!(),
         }
     }
-
     fn generate_mip(self, source_img: Image, mip_size: PxSize, mip_i: usize, resizer: Arc<ResizerCache>) {
         if let Err(e) = self.try_generate_mip(source_img, mip_size, mip_i, resizer) {
             tracing::error!("cannot generate resized image, {e}");
@@ -681,7 +687,6 @@ impl Image {
             }
         }
     }
-
     fn try_generate_mip(&self, source_img: Image, mip_size: PxSize, mip_i: usize, resizer: Arc<ResizerCache>) -> std::io::Result<()> {
         use fast_image_resize as fr;
 
@@ -717,15 +722,95 @@ impl Image {
             is_opaque: self.is_opaque(),
             density: None,
             mipmap: Mutex::new(Box::new([])),
+            stripes: Mutex::new(Box::new([])),
         }));
 
         match &*self.0 {
             ImageData::RawData { mipmap, .. } => {
                 mipmap.lock()[mip_i] = MipImage::Generated(mip);
             }
-            _ => unreachable!()
+            _ => unreachable!(),
         }
 
         Ok(())
+    }
+
+    /// If this is `true` needs to replace with `wr_stripes`
+    pub fn overflows_wr(&self) -> bool {
+        self.pixels().len() > Self::MAX_LEN
+    }
+
+    /// Returns the image split in "stripes" that fit the Webrender buffer length constraints.
+    ///
+    /// If the image cannot be split into stripes returns an empty list. This only happens if the image width is absurdly wide.
+    pub fn wr_stripes(&self) -> Box<[Image]> {
+        if !self.overflows_wr() {
+            return Box::new([self.clone()]);
+        }
+
+        match &*self.0 {
+            ImageData::RawData {
+                size,
+                pixels,
+                is_opaque,
+                density,
+                range,
+                stripes,
+                ..
+            } => {
+                debug_assert_eq!(range.len(), pixels.len());
+
+                let mut stripes = stripes.lock();
+                if stripes.is_empty() {
+                    *stripes = self.generate_stripes(*size, pixels, *is_opaque, *density);
+                }
+                (*stripes).clone()
+            }
+            _ => unreachable!(),
+        }
+    }
+    const MAX_LEN: usize = i32::MAX as usize;
+    fn generate_stripes(&self, full_size: PxSize, pixels: &IpcBytes, is_opaque: bool, density: Option<PxDensity2d>) -> Box<[Image]> {
+        let w = full_size.width.0 as usize * 4;
+        if w > Self::MAX_LEN {
+            tracing::error!("renderer does not support images with width * 4 > {}", Self::MAX_LEN);
+            return Box::new([]);
+        }
+
+        // find proportional split that fits, to avoid having the last stripe be to thin
+        let full_height = full_size.height.0 as usize;
+        let mut stripe_height = full_height / 2;
+        while w * stripe_height > Self::MAX_LEN {
+            stripe_height /= 2;
+        }
+        let stripe_len = w * stripe_height;
+        let stripes_len = full_height.div_ceil(stripe_height);
+        let stripe_height = Px(stripe_height as _);
+
+        let mut stripes = Vec::with_capacity(stripes_len);
+
+        for i in 0..stripes_len {
+            let y = stripe_height * Px(i as _);
+            let mut size = full_size;
+            size.height = stripe_height.min(full_size.height - y);
+
+            let offset = stripe_len * i;
+            let range = offset..((offset + stripe_len).min(pixels.len()));
+
+            let stripe = Image(Arc::new(ImageData::RawData {
+                size,
+                pixels: pixels.clone(),
+                is_opaque,
+                density,
+                range,
+                // always empty
+                mipmap: Mutex::new(Box::new([])),
+                stripes: Mutex::new(Box::new([])),
+            }));
+
+            stripes.push(stripe);
+        }
+
+        stripes.into_boxed_slice()
     }
 }

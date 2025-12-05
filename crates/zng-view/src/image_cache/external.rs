@@ -9,12 +9,13 @@ use webrender::{
         units::{ImageDirtyRect, TexelRect},
     },
 };
-use zng_task::parking_lot::lock_api::Mutex;
 use zng_unit::{Px, PxPoint, PxRect, PxSize};
 use zng_view_api::{ImageRendering, image::ImageTextureId};
 
 use crate::{
-    display_list::{DisplayListCache, SpaceAndClip}, image_cache::ResizerCache, px_wr::PxToWr as _
+    display_list::{DisplayListCache, SpaceAndClip},
+    image_cache::ResizerCache,
+    px_wr::PxToWr as _,
 };
 
 use super::{Image, ImageData};
@@ -25,12 +26,11 @@ use super::{Image, ImageData};
 ///
 /// This is only safe if use with [`ImageUseMap`].
 pub(crate) struct WrImageCache {
-    resizer_cache: Arc<ResizerCache>,
     locked: Vec<Arc<ImageData>>,
 }
 impl WrImageCache {
-    pub fn new_boxed(resizer_cache: Arc<ResizerCache>) -> Box<dyn ExternalImageHandler> {
-        Box::new(WrImageCache { resizer_cache, locked: vec![] })
+    pub fn new_boxed() -> Box<dyn ExternalImageHandler> {
+        Box::new(WrImageCache { locked: vec![] })
     }
 }
 impl ExternalImageHandler for WrImageCache {
@@ -82,97 +82,53 @@ impl Image {
     }
 }
 
+struct ImageUse {
+    image: Image,
+    texture_id: ImageTextureId,
+    stripes: Box<[ImageTextureId]>,
+    mipmap: Vec<ImageUse>,
+}
+
 /// Track and manage images used in a renderer.
 ///
 /// The renderer must use [`WrImageCache`] as the external image source.
-#[derive(Default)]
 pub(crate) struct ImageUseMap {
-    id_tex: FxHashMap<ExternalImageId, Box<[(ImageTextureId, Image)]>>,
+    id_tex: FxHashMap<ExternalImageId, ImageUse>,
     tex_id: FxHashMap<ImageTextureId, ExternalImageId>,
+    resizer_cache: Arc<ResizerCache>,
 }
 impl ImageUseMap {
-    const MAX_LEN: usize = i32::MAX as usize;
-
+    pub fn new(resizer_cache: Arc<ResizerCache>) -> Self {
+        Self {
+            id_tex: FxHashMap::default(),
+            tex_id: FxHashMap::default(),
+            resizer_cache,
+        }
+    }
     pub fn new_use(&mut self, image: &Image, document_id: DocumentId, api: &mut RenderApi) -> ImageTextureId {
         let id = image.external_id();
         match self.id_tex.entry(id) {
-            Entry::Occupied(e) => e.get()[0].0,
+            Entry::Occupied(e) => e.get().texture_id,
             Entry::Vacant(e) => {
-                if image.pixels().len() <= Self::MAX_LEN {
-                    let key = api.generate_image_key();
-                    let tex_id = ImageTextureId::from_raw(key.1);
-                    e.insert(Box::new([(tex_id, image.clone())])); // keep the image Arc alive, we expect this in `WrImageCache`.
-                    self.tex_id.insert(tex_id, id);
+                let key = api.generate_image_key();
+                let tex_id = ImageTextureId::from_raw(key.1);
+                e.insert(ImageUse {
+                    // keep the image Arc alive, we expect this in `WrImageCache`.
+                    image: image.clone(),
+                    texture_id: tex_id,
+                    stripes: Box::new([]),
+                    mipmap: vec![],
+                });
+                self.tex_id.insert(tex_id, id);
 
-                    let mut txn = webrender::Transaction::new();
-                    txn.add_image(key, image.descriptor(), image.data(), None);
-                    api.send_transaction(document_id, txn);
+                // register the top image, most common usage and it is cheap, but
+                // during `push_display_list_img` may register other derived images
+                // like gigapixel stripes or resized images.
+                let mut txn = webrender::Transaction::new();
+                txn.add_image(key, image.descriptor(), image.data(), None);
+                api.send_transaction(document_id, txn);
 
-                    tex_id
-                } else {
-                    // Webrender uses i32 offsets for manipulating images, to support gigapixel images
-                    // we split the image into "stripes" that fit <=MAX_LEN bytes
-
-                    let full_size = image.size();
-                    let w = full_size.width.0 as usize * 4;
-                    if w > Self::MAX_LEN {
-                        tracing::error!("renderer does not support images with width * 4 > {}", Self::MAX_LEN);
-                        return ImageTextureId::INVALID;
-                    }
-
-                    // find proportional split that fits, to avoid having the last stripe be to thin
-                    let full_height = full_size.height.0 as usize;
-                    let mut stripe_height = full_height / 2;
-                    while w * stripe_height > Self::MAX_LEN {
-                        stripe_height /= 2;
-                    }
-                    let stripe_len = w * stripe_height;
-                    let stripes_len = full_height.div_ceil(stripe_height);
-                    let stripe_height = Px(stripe_height as _);
-
-                    // generate ImageTextureId for each stripe, we use the first stripe ID to identify in
-                    // the display list, when converted to Webrender display list the other stripes are injected
-                    let mut txn = webrender::Transaction::new();
-                    let mut stripes = Vec::with_capacity(stripes_len + 1);
-
-                    // we store the full image reference for `update_use`
-                    stripes.push((ImageTextureId::INVALID, image.clone()));
-
-                    // generate stripe images and transaction that associates each with a ImageTextureId
-                    for i in 0..stripes_len {
-                        let key = api.generate_image_key();
-                        let tex_id = ImageTextureId::from_raw(key.1);
-
-                        let y = stripe_height * Px(i as _);
-                        let mut size = full_size;
-                        size.height = stripe_height.min(full_size.height - y);
-
-                        let offset = stripe_len * i;
-                        let range = offset..((offset + stripe_len).min(image.pixels().len()));
-
-                        let stripe = Image(Arc::new(ImageData::RawData {
-                            size,
-                            pixels: image.pixels().clone(),
-                            is_opaque: image.is_opaque(),
-                            density: image.density(),
-                            range,
-                            mipmap: Mutex::new(Box::new([])), // always empty
-                        }));
-
-                        txn.add_image(key, stripe.descriptor(), stripe.data(), None);
-
-                        stripes.push((tex_id, stripe));
-                    }
-
-                    let tex_id = stripes[1].0;
-
-                    e.insert(stripes.into_boxed_slice());
-                    self.tex_id.insert(tex_id, id);
-
-                    api.send_transaction(document_id, txn);
-
-                    tex_id
-                }
+                tex_id
             }
         }
     }
@@ -189,63 +145,46 @@ impl ImageUseMap {
             let id = image.external_id();
             if *e.get() != id {
                 let prev_image = self.id_tex.get(&id).unwrap();
-                if prev_image[0].1.descriptor() != image.descriptor() {
+                if prev_image.image.descriptor() != image.descriptor() {
                     tracing::error!("cannot update image use {texture_id:?}, new image has different dimensions");
                     return false;
                 }
 
                 let prev_id = e.insert(id);
-                let mut prev_image = self.id_tex.remove(&prev_id).unwrap();
+                let prev_image = self.id_tex.remove(&prev_id).unwrap();
                 let mut txn = webrender::Transaction::new();
 
-                if prev_image.len() == 1 {
-                    prev_image[0] = (texture_id, image.clone());
+                // update only the straight forward usage
+                txn.update_image(
+                    ImageKey(api.get_namespace_id(), texture_id.get()),
+                    image.descriptor(),
+                    image.data(),
+                    &match dirty_rect {
+                        Some(r) => ImageDirtyRect::Partial(r.to_box2d().cast().cast_unit()),
+                        None => ImageDirtyRect::All,
+                    },
+                );
 
-                    txn.update_image(
-                        ImageKey(api.get_namespace_id(), texture_id.get()),
-                        image.descriptor(),
-                        image.data(),
-                        &match dirty_rect {
-                            Some(r) => ImageDirtyRect::Partial(r.to_box2d().cast().cast_unit()),
-                            None => ImageDirtyRect::All,
-                        },
-                    );
-                } else {
-                    prev_image[0].1 = image.clone();
-                    let mut y = Px(0);
-                    for stripe in &mut prev_image[1..] {
-                        let img = ImageData::RawData {
-                            size: stripe.1.size(),
-                            pixels: image.pixels().clone(),
-                            is_opaque: image.is_opaque(),
-                            density: image.density(),
-                            range: stripe.1.range(),
-                            mipmap: Mutex::new(Box::new([])), // always empty
-                        };
-                        stripe.1 = Image(Arc::new(img));
-
-                        txn.update_image(
-                            ImageKey(api.get_namespace_id(), stripe.0.get()),
-                            stripe.1.descriptor(),
-                            stripe.1.data(),
-                            &match dirty_rect {
-                                Some(mut r) => {
-                                    r.origin.y -= y;
-                                    let mut r = r.to_box2d();
-                                    r.min.y = r.min.y.max(Px(0));
-                                    r.max.y = r.max.y.min(stripe.1.size().height);
-
-                                    ImageDirtyRect::Partial(r.cast().cast_unit())
-                                }
-                                None => ImageDirtyRect::All,
-                            },
-                        );
-
-                        y += stripe.1.size().height;
+                // remove derived usages
+                for stripe in prev_image.stripes {
+                    txn.delete_image(ImageKey(api.get_namespace_id(), stripe.get()));
+                }
+                for mip in prev_image.mipmap {
+                    txn.delete_image(ImageKey(api.get_namespace_id(), mip.texture_id.get()));
+                    for stripe in mip.stripes {
+                        txn.delete_image(ImageKey(api.get_namespace_id(), stripe.get()));
                     }
                 }
 
-                self.id_tex.insert(id, prev_image);
+                self.id_tex.insert(
+                    id,
+                    ImageUse {
+                        image: image.clone(),
+                        texture_id,
+                        stripes: Box::new([]),
+                        mipmap: vec![],
+                    },
+                );
                 api.send_transaction(document_id, txn);
             }
 
@@ -260,20 +199,27 @@ impl ImageUseMap {
         if let Some(id) = self.tex_id.remove(&texture_id) {
             let image = self.id_tex.remove(&id).unwrap(); // remove but keep alive until the transaction is done.
             let mut txn = webrender::Transaction::new();
-            if image.len() == 1 {
-                txn.delete_image(ImageKey(api.get_namespace_id(), image[0].0.get()));
-            } else {
-                for (texture_id, _) in &image[1..] {
-                    txn.delete_image(ImageKey(api.get_namespace_id(), texture_id.get()));
+
+            txn.delete_image(ImageKey(api.get_namespace_id(), image.texture_id.get()));
+            for stripe in image.stripes {
+                txn.delete_image(ImageKey(api.get_namespace_id(), stripe.get()));
+            }
+            for mip in image.mipmap {
+                txn.delete_image(ImageKey(api.get_namespace_id(), mip.texture_id.get()));
+                for stripe in mip.stripes {
+                    txn.delete_image(ImageKey(api.get_namespace_id(), stripe.get()));
                 }
             }
+
             api.send_transaction(document_id, txn);
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn push_display_list_img(
-        &self,
+        &mut self,
+        document_id: DocumentId,
+        api: &mut RenderApi,
         wr_list: &mut wr::DisplayListBuilder,
         sc: &mut SpaceAndClip,
         cache: &DisplayListCache,
@@ -284,22 +230,36 @@ impl ImageUseMap {
         tile_size: PxSize,
         tile_spacing: PxSize,
     ) {
-        let img = match self.tex_id.get(&image_id) {
-            Some(id) => self.id_tex.get(id).unwrap(),
+        let mut img = match self.tex_id.get(&image_id) {
+            Some(id) => self.id_tex.get_mut(id).unwrap(),
             None => return,
         };
 
-        if tile_spacing.is_empty() && tile_size == image_size {
-            let full_size = img[0].1.size();
-            if full_size.width > image_size.width * Px(2)
-                && full_size.height > image_size.height * Px(2)
-                && full_size.width > Px(2_048)
-                && full_size.height > Px(2_048)
-            {
-                tracing::warn!("!!: rendering large amount of texture quads scaled down +2x");
+        // replace if high-quality downscaled, if available
+        let mip = img.image.mip(tile_size, &self.resizer_cache);
+        if img.image.external_id() != mip.external_id() {
+            if let Some(i) = img.mipmap.iter().position(|i| i.image.external_id() == mip.external_id()) {
+                img = &mut img.mipmap[i];
+            } else {
+                // register main texture ID for the downscaled replacement
+                let key = api.generate_image_key();
+                let mut txn = webrender::Transaction::new();
+                txn.add_image(key, mip.descriptor(), mip.data(), None);
+                api.send_transaction(document_id, txn);
+                img.mipmap.push(ImageUse {
+                    image: mip,
+                    texture_id: ImageTextureId::from_raw(key.1),
+                    stripes: Box::new([]),
+                    mipmap: vec![],
+                });
+                img = img.mipmap.last_mut().unwrap();
             }
+        }
 
-            if img.len() == 1 {
+        if tile_spacing.is_empty() && tile_size == image_size {
+            let full_size = img.image.size();
+
+            if !img.image.overflows_wr() {
                 // normal sized image
                 let bounds = clip_rect.to_wr();
                 let clip = sc.clip_chain_id(wr_list);
@@ -314,16 +274,36 @@ impl ImageUseMap {
                     PxRect::from_size(image_size).to_wr(),
                     rendering.to_wr(),
                     wr::AlphaType::PremultipliedAlpha,
-                    wr::ImageKey(cache.id_namespace(), image_id.get()),
+                    wr::ImageKey(cache.id_namespace(), img.texture_id.get()),
                     wr::ColorF::WHITE,
                 );
             } else {
+                if img.stripes.is_empty() {
+                    let stripes = img.image.wr_stripes();
+                    if stripes.is_empty() {
+                        // error returns empty
+                        return;
+                    }
+
+                    // register texture IDs for the stripes
+                    let mut stripe_ids = Vec::with_capacity(stripes.len());
+                    let mut txn = webrender::Transaction::new();
+                    for stripe in stripes {
+                        let key = api.generate_image_key();
+                        let tex_id = ImageTextureId::from_raw(key.1);
+                        stripe_ids.push(tex_id);
+                        txn.add_image(key, stripe.descriptor(), stripe.data(), None);
+                    }
+                    api.send_transaction(document_id, txn);
+                    img.stripes = stripe_ids.into_boxed_slice();
+                }
+
                 // gigantic image split into stripes
                 let scale_x = full_size.width.0 as f32 / image_size.width.0 as f32;
                 let scale_y = full_size.height.0 as f32 / image_size.height.0 as f32;
 
                 let mut scaled_y = Px(0);
-                for (stripe_id, img) in &img[1..] {
+                for (stripe_id, img) in img.stripes.iter().zip(img.image.wr_stripes()) {
                     let scaled_stripe = {
                         let mut r = img.size();
                         r.width /= scale_x;
@@ -370,10 +350,11 @@ impl ImageUseMap {
                 }
             }
         } else {
-            if img.len() > 1 {
-                tracing::error!("tiling or repeating images cannot have len > {}", Self::MAX_LEN);
+            if img.image.overflows_wr() {
+                tracing::error!("cannot tile or repeat image, too large");
                 return;
             }
+
             let bounds = clip_rect.to_wr();
             let clip = sc.clip_chain_id(wr_list);
             let props = wr::CommonItemProperties {
@@ -389,7 +370,7 @@ impl ImageUseMap {
                 tile_spacing.to_wr(),
                 rendering.to_wr(),
                 wr::AlphaType::PremultipliedAlpha,
-                wr::ImageKey(cache.id_namespace(), image_id.get()),
+                wr::ImageKey(cache.id_namespace(), img.texture_id.get()),
                 wr::ColorF::WHITE,
             );
         }

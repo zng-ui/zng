@@ -15,8 +15,8 @@ use crate::{image_cache::ImageUseMap, px_wr::PxToWr};
 
 pub fn display_list_to_webrender(
     list: DisplayList,
-    ext: &mut dyn DisplayListExtension,
-    images: &ImageUseMap,
+    ext: &mut crate::extensions::DisplayListExtAdapter,
+    images: &mut ImageUseMap,
     cache: &mut DisplayListCache,
 ) -> wr::BuiltDisplayList {
     let r = display_list_build(&list, cache, ext, images, false);
@@ -286,8 +286,8 @@ impl DisplayListCache {
         mut start: usize,
         mut end: usize,
         wr_list: &mut wr::DisplayListBuilder,
-        ext: &mut dyn DisplayListExtension,
-        images: &ImageUseMap,
+        ext: &mut crate::extensions::DisplayListExtAdapter,
+        images: &mut ImageUseMap,
         sc: &mut SpaceAndClip,
     ) {
         if let Some(l) = self.lists.get(&frame_id) {
@@ -352,8 +352,8 @@ impl DisplayListCache {
     #[allow(clippy::too_many_arguments)]
     pub fn update(
         &mut self,
-        ext: &mut dyn DisplayListExtension,
-        images: &ImageUseMap,
+        ext: &mut crate::extensions::DisplayListExtAdapter,
+        images: &mut ImageUseMap,
         transforms: Vec<FrameValueUpdate<PxTransform>>,
         floats: Vec<FrameValueUpdate<f32>>,
         colors: Vec<FrameValueUpdate<Rgba>>,
@@ -415,8 +415,8 @@ impl DisplayListCache {
 fn display_list_build(
     list: &[DisplayItem],
     cache: &mut DisplayListCache,
-    ext: &mut dyn DisplayListExtension,
-    images: &ImageUseMap,
+    ext: &mut crate::extensions::DisplayListExtAdapter,
+    images: &mut ImageUseMap,
     is_reuse: bool,
 ) -> wr::BuiltDisplayList {
     let _s = tracing::trace_span!("DisplayList::build").entered();
@@ -443,8 +443,8 @@ fn display_list_build(
 fn display_item_to_webrender(
     item: &DisplayItem,
     wr_list: &mut wr::DisplayListBuilder,
-    ext: &mut dyn DisplayListExtension,
-    images: &ImageUseMap,
+    ext: &mut crate::extensions::DisplayListExtAdapter,
+    images: &mut ImageUseMap,
     sc: &mut SpaceAndClip,
     cache: &DisplayListCache,
     is_reuse: bool,
@@ -685,6 +685,8 @@ fn display_item_to_webrender(
             tile_spacing,
         } => {
             images.push_display_list_img(
+                ext.document_id,
+                ext.api,
                 wr_list,
                 sc,
                 cache,
