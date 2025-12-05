@@ -20,7 +20,7 @@ embedded = []
 [dependencies]
 zng-view-api = { path = "../zng-view-api", version = "0.17.2", default-features = false }
 zng-env = { path = "../zng-env", version = "0.8.0", default-features = false }
-libloading = { version = "0.8", default-features = false }
+libloading = { version = "0.9", default-features = false, features = ["std"] }
 dunce = { version = "1.0", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
 
