@@ -75,6 +75,8 @@ macro_rules! zng_hot_entry {
 
 #[doc(hidden)]
 pub mod zng_hot_entry {
+    pub use linkme as __linkme;
+
     pub use crate::node::{HotNode, HotNodeArgs, HotNodeHost};
     use crate::{HotEntryExchange, StaticPatch};
     pub use zng_app_context::LocalContext;

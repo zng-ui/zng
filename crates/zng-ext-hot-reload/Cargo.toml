@@ -27,7 +27,7 @@ zng-task = { path = "../zng-task", version = "0.10.2", default-features = false 
 zng-txt = { path = "../zng-txt", version = "0.5.0", default-features = false }
 
 libloading = { version = "0.9", default-features = false, features = ["std"] }
-linkme = { version =  "=0.3.33", default-features = false } # locked to zng-env version
+linkme = { version = "0.3.35", default-features = false }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 tracing-shared = { version = "0.2", default-features = false, features = ["log"] }
 glob = { version = "0.3", default-features = false }
