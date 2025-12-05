@@ -14,6 +14,14 @@ error[E0433]: failed to resolve: unresolved import
   |
   = note: this error originates in the attribute macro `hot_node` (in Nightly builds, run with -Z macro-backtrace for more info)
 
+error: cannot find attribute `linkme` in this scope
+ --> cases/hot_node/missing_hot_entry.rs:5:1
+  |
+5 | #[hot_node]
+  | ^^^^^^^^^^^ help: a built-in attribute with a similar name exists: `link`
+  |
+  = note: this error originates in the attribute macro `hot_node` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error[E0433]: failed to resolve: unresolved import
  --> cases/hot_node/missing_hot_entry.rs:5:1
   |

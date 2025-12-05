@@ -6,6 +6,7 @@ use std::{
 use parking_lot::Mutex;
 
 #[doc(hidden)]
+#[cfg(not(target_arch = "wasm32"))]
 pub use linkme as __linkme;
 
 /// Register a `FnOnce(&ProcessStartArgs)` closure to be called on [`init!`].
