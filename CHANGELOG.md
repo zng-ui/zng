@@ -7,16 +7,18 @@
 * Improve view-process image downscaling implementation.
     - Higher quality and faster using specialized resizer.
     - Implemented downscaling for already decoded image buffers.
+    - Renderer now also generates a lazy loaded mipmap when rendering downscaled images.
 
 * **Breaking** Refactor `ImageSource`.
     - `Data` now holds `IpcBytes` directly.
     - Removed `Static` because it is always converted to `IpcBytes` anyway.
 
 * **Breaking** Refactor view-process API image display item.
-    - Removed `AlphaType` and relates items. Images are always premultiplied BGRA8.
+    - Removed `AlphaType` and relates items. Images are always premultiplied BGRA8 or A8 masks.
 
 * **Breaking** Refactor `zng::task::http` into a backend agnostic API.
     - Removed unmaintained `isahc` dependency.
+    - Most of the surface API remains the same, the `Request` type is its own builder now.
 
 * **Breaking** Refactor `zng::task::io::ReadLimited`.
     - No longer generic over the error function.

@@ -1557,7 +1557,8 @@ impl FrameBuilder {
     ///
     /// The image is resized to `tile_size` and them tiled to fill the `image_size`. The `clip_rect` is applied to the `image_size` area.
     ///
-    /// The `rendering` value defines the real time scaling algorithm used to resize the image.
+    /// The `rendering` value defines the real time scaling algorithm used to resize the image on the GPU. Note that the renderer may
+    /// also generate high quality downscaled images on the CPU, that is not affected by `rendering`.
     #[allow(clippy::too_many_arguments)]
     pub fn push_image(
         &mut self,
