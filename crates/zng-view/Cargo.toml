@@ -152,11 +152,11 @@ tiff = { version = "0.10.3", default-features = false, optional = true }
 # rfd
 ## cfg(not(linux, android, ios))
 [target.'cfg(not(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd", target_os = "android", target_os = "ios")))'.dependencies.rfd]
-version = "0.15"
+version = "0.16"
 default-features = false
 ## cfg(linux)
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies.rfd]
-version = "0.15"
+version = "0.16"
 default-features = false
 features = ["xdg-portal", "async-std"]
 
