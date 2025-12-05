@@ -161,7 +161,7 @@ default-features = false
 features = ["xdg-portal", "async-std"]
 
 [target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.52.0" # matches winit, glutin, other crates
+version = "0.61.2"
 default-features = false
 features = [
     "Win32_UI_Shell",    
@@ -179,7 +179,7 @@ features = [
     "Win32_System_Shutdown",
 ]
 [target.'cfg(windows)'.dependencies.windows]
-version = "0.58.0"
+version = "0.62.2"
 default-features = false
 features = [
     "std",

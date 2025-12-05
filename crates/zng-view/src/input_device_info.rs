@@ -1,6 +1,6 @@
 use windows::Win32::Devices::DeviceAndDriverInstallation::*;
 use windows::Win32::Devices::HumanInterfaceDevice::GUID_DEVINTERFACE_HID;
-use windows::Win32::Foundation::{ERROR_INSUFFICIENT_BUFFER, GetLastError, HANDLE, HWND};
+use windows::Win32::Foundation::{ERROR_INSUFFICIENT_BUFFER, GetLastError, HANDLE};
 use windows::Win32::UI::Input::*;
 use zng_txt::{Txt, formatx};
 use zng_view_api::raw_input::{InputDeviceCapability, InputDeviceInfo};
@@ -10,11 +10,11 @@ fn device_name(h_device: HANDLE) -> Option<String> {
 
     let mut size = 0u32;
     // SAFETY: Function is called according to the documentation.
-    let r = unsafe { GetRawInputDeviceInfoW(h_device, RIDI_DEVICENAME, None, &mut size) };
+    let r = unsafe { GetRawInputDeviceInfoW(Some(h_device), RIDI_DEVICENAME, None, &mut size) };
     if r == 0 && size > 0 {
         let mut buffer: Vec<u16> = vec![0; size as usize];
         // SAFETY: Function is called according to the documentation.
-        let r = unsafe { GetRawInputDeviceInfoW(h_device, RIDI_DEVICENAME, Some(buffer.as_mut_ptr() as *mut _), &mut size) };
+        let r = unsafe { GetRawInputDeviceInfoW(Some(h_device), RIDI_DEVICENAME, Some(buffer.as_mut_ptr() as *mut _), &mut size) };
         if r > 0 {
             if let Some(pos) = buffer.iter().position(|&c| c == 0) {
                 buffer.truncate(pos);
@@ -34,7 +34,14 @@ fn device_info_by_handle(h_device: HANDLE) -> Option<RID_DEVICE_INFO> {
     };
     let mut cb_size = device_info.cbSize;
     // SAFETY: Function is called according to the documentation.
-    let r = unsafe { GetRawInputDeviceInfoW(h_device, RIDI_DEVICEINFO, Some(&mut device_info as *mut _ as *mut _), &mut cb_size) };
+    let r = unsafe {
+        GetRawInputDeviceInfoW(
+            Some(h_device),
+            RIDI_DEVICEINFO,
+            Some(&mut device_info as *mut _ as *mut _),
+            &mut cb_size,
+        )
+    };
     if r > 0 { Some(device_info) } else { None }
 }
 
@@ -152,14 +159,8 @@ pub fn get(device_path: &str) -> InputDeviceInfo {
 fn hid_description(device_path: &str) -> Option<Txt> {
     // https://learn.microsoft.com/en-us/windows/win32/api/setupapi/nf-setupapi-setupdigetclassdevsw
     // SAFETY: Function is called according to the docs, the list is destroyed later with no early returns in between.
-    let h_dev_info = match unsafe {
-        SetupDiGetClassDevsW(
-            Some(&GUID_DEVINTERFACE_HID),
-            None,
-            HWND::default(),
-            DIGCF_DEVICEINTERFACE | DIGCF_PRESENT,
-        )
-    } {
+    let h_dev_info = match unsafe { SetupDiGetClassDevsW(Some(&GUID_DEVINTERFACE_HID), None, None, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT) }
+    {
         Ok(h) => h,
         Err(e) => {
             tracing::error!("`SetupDiGetClassDevsW` error, {e}");

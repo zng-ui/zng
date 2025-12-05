@@ -2,9 +2,12 @@
 
 #[cfg(windows)]
 mod windows {
-    use windows::Win32::{
-        Foundation::{BOOL, CloseHandle, HANDLE},
-        System::Memory::*,
+    use windows::{
+        Win32::{
+            Foundation::{CloseHandle, HANDLE},
+            System::Memory::*,
+        },
+        core::BOOL,
     };
 
     pub struct LowMemoryWatcher {

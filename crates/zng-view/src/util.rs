@@ -1073,9 +1073,10 @@ pub mod taskbar_com {
 
     use std::ffi::c_void;
 
+    use windows::core::IUnknown;
     use windows_sys::{
-        Win32::Foundation::{BOOL, HWND},
-        core::{GUID, HRESULT, IUnknown},
+        Win32::Foundation::HWND,
+        core::{BOOL, GUID, HRESULT},
     };
 
     #[repr(C)]

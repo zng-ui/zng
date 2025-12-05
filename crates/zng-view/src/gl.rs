@@ -785,9 +785,9 @@ pub(crate) fn warmup() {
         .stack_size(3 * 64 * 1024)
         .spawn(|| unsafe {
             let _span = tracing::trace_span!("open-gl-init").entered();
-            let hdc = GetDC(0);
+            let hdc = GetDC(std::ptr::null_mut());
             let _ = OpenGL::DescribePixelFormat(hdc, 0, 0, std::ptr::null_mut());
-            ReleaseDC(0, hdc);
+            ReleaseDC(std::ptr::null_mut(), hdc);
         });
 }
 

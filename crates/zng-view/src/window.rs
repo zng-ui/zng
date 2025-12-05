@@ -282,8 +282,8 @@ impl Window {
 
             let window_id = winit_window.id();
             let hwnd = crate::util::winit_to_hwnd(&winit_window);
-            crate::util::set_raw_windows_event_handler(hwnd, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
-                if !first_focus && unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() } == hwnd {
+            crate::util::set_raw_windows_event_handler(hwnd as _, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
+                if !first_focus && unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() } == hwnd as _ {
                     // Windows sends a `WM_SETFOCUS` when the window open, even if the user changed focus to something
                     // else before the process opens the window so that the window title bar shows the unfocused visual and
                     // we are not actually keyboard focused. We block this in `focused_changed` but then become out-of-sync
@@ -318,17 +318,11 @@ impl Window {
                         let mut reason = [0u16; 256];
                         let mut reason_size = reason.len() as u32;
                         let ok = unsafe {
-                            windows_sys::Win32::System::Shutdown::ShutdownBlockReasonQuery(hwnd, reason.as_mut_ptr(), &mut reason_size)
+                            windows_sys::Win32::System::Shutdown::ShutdownBlockReasonQuery(hwnd as _, reason.as_mut_ptr(), &mut reason_size)
                         };
                         if ok != 0 {
-                            match windows::core::HSTRING::from_wide(&reason) {
-                                Ok(s) => {
-                                    tracing::warn!("blocked system shutdown, reason: {}", s);
-                                }
-                                Err(e) => {
-                                    tracing::error!("blocked system shutdown, error retrieving reason: {e}");
-                                }
-                            }
+                            let s = windows::core::HSTRING::from_wide(&reason);
+                            tracing::warn!("blocked system shutdown, reason: {}", s);
                             // send a close requested to hopefully cause the normal close/cancel dialog to appear.
                             let _ = event_sender.send(AppEvent::Notify(Event::WindowCloseRequested(id)));
                             return Some(0);
@@ -609,7 +603,7 @@ impl Window {
     #[cfg(windows)]
     fn windows_is_foreground(&self) -> bool {
         let foreground = unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() };
-        foreground == crate::util::winit_to_hwnd(&self.window)
+        foreground == crate::util::winit_to_hwnd(&self.window) as _
     }
 
     pub fn is_focused(&self) -> bool {
@@ -667,7 +661,7 @@ impl Window {
             if let raw_window_handle::RawWindowHandle::Win32(h) = handle.as_raw() {
                 let hwnd = h.hwnd.get();
                 // SAFETY: function can be called at any time
-                unsafe { GetCapture() == hwnd }
+                unsafe { GetCapture() == hwnd as _ }
             } else {
                 false
             }
@@ -2122,7 +2116,7 @@ impl Window {
             let hwnd = crate::util::winit_to_hwnd(&self.window);
             let reason = windows::core::HSTRING::from(reason.as_str());
             // SAFETY: function return handled.
-            let created = unsafe { windows_sys::Win32::System::Shutdown::ShutdownBlockReasonCreate(hwnd, reason.as_ptr()) } != 0;
+            let created = unsafe { windows_sys::Win32::System::Shutdown::ShutdownBlockReasonCreate(hwnd as _, reason.as_ptr()) } != 0;
             if !created {
                 let error = unsafe { windows_sys::Win32::Foundation::GetLastError() };
                 tracing::error!("failed to set system shutdown warn ({error:#X}), requested warn reason was: {reason}");
@@ -2130,7 +2124,7 @@ impl Window {
         } else if mem::take(&mut self.has_shutdown_warn) {
             let hwnd = crate::util::winit_to_hwnd(&self.window);
             // SAFETY: function return handled.
-            let destroyed = unsafe { windows_sys::Win32::System::Shutdown::ShutdownBlockReasonDestroy(hwnd) } != 0;
+            let destroyed = unsafe { windows_sys::Win32::System::Shutdown::ShutdownBlockReasonDestroy(hwnd as _) } != 0;
             if !destroyed {
                 let error = unsafe { windows_sys::Win32::Foundation::GetLastError() };
                 tracing::error!("failed to unset system shutdown warn ({error:#X})");
