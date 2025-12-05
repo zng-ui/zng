@@ -46,7 +46,7 @@ use crate::{
         WindowExtension, WindowInitedArgs,
     },
     gl::{GlContext, GlContextManager},
-    image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
+    image_cache::{Image, ImageCache, ImageUseMap, ResizerCache, WrImageCache},
     px_wr::PxToWr as _,
     util::{
         CursorToWinit, DipToWinit, PxToWinit, ResizeDirectionToWinit as _, WindowButtonsToWinit as _, WinitToDip, WinitToPx,
@@ -150,6 +150,7 @@ impl Window {
         mut window_exts: Vec<(ApiExtensionId, Box<dyn WindowExtension>)>,
         mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
+        resizer_cache: Arc<ResizerCache>,
     ) -> Self {
         let id = cfg.id;
 
@@ -397,7 +398,7 @@ impl Window {
 
         let (mut renderer, sender) =
             webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender.clone()), opts, None).unwrap();
-        renderer.set_external_image_handler(WrImageCache::new_boxed());
+        renderer.set_external_image_handler(WrImageCache::new_boxed(resizer_cache));
 
         let mut external_images = extensions::ExternalImages::default();
 

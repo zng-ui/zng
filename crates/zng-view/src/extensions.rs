@@ -14,6 +14,7 @@ use webrender::api::{
 };
 use webrender::{DebugFlags, RenderApi};
 use zng_task::channel::{ChannelError, IpcBytes};
+use zng_task::parking_lot::Mutex;
 use zng_unit::{Factor, PxSize};
 use zng_view_api::window::RenderMode;
 use zng_view_api::{
@@ -564,6 +565,7 @@ impl ExternalImages {
             pixels,
             is_opaque,
             density: None,
+            mipmap: Mutex::new(Box::new([])),
         })
     }
 

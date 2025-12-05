@@ -9,12 +9,12 @@ use webrender::{
         units::{ImageDirtyRect, TexelRect},
     },
 };
+use zng_task::parking_lot::lock_api::Mutex;
 use zng_unit::{Px, PxPoint, PxRect, PxSize};
 use zng_view_api::{ImageRendering, image::ImageTextureId};
 
 use crate::{
-    display_list::{DisplayListCache, SpaceAndClip},
-    px_wr::PxToWr as _,
+    display_list::{DisplayListCache, SpaceAndClip}, image_cache::ResizerCache, px_wr::PxToWr as _
 };
 
 use super::{Image, ImageData};
@@ -25,11 +25,12 @@ use super::{Image, ImageData};
 ///
 /// This is only safe if use with [`ImageUseMap`].
 pub(crate) struct WrImageCache {
+    resizer_cache: Arc<ResizerCache>,
     locked: Vec<Arc<ImageData>>,
 }
 impl WrImageCache {
-    pub fn new_boxed() -> Box<dyn ExternalImageHandler> {
-        Box::new(WrImageCache { locked: vec![] })
+    pub fn new_boxed(resizer_cache: Arc<ResizerCache>) -> Box<dyn ExternalImageHandler> {
+        Box::new(WrImageCache { resizer_cache, locked: vec![] })
     }
 }
 impl ExternalImageHandler for WrImageCache {
@@ -155,6 +156,7 @@ impl ImageUseMap {
                             is_opaque: image.is_opaque(),
                             density: image.density(),
                             range,
+                            mipmap: Mutex::new(Box::new([])), // always empty
                         }));
 
                         txn.add_image(key, stripe.descriptor(), stripe.data(), None);
@@ -218,6 +220,7 @@ impl ImageUseMap {
                             is_opaque: image.is_opaque(),
                             density: image.density(),
                             range: stripe.1.range(),
+                            mipmap: Mutex::new(Box::new([])), // always empty
                         };
                         stripe.1 = Image(Arc::new(img));
 

@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, fmt};
+use std::{collections::VecDeque, fmt, sync::Arc};
 
 use tracing::span::EnteredSpan;
 use webrender::{
@@ -23,7 +23,7 @@ use crate::{
         RendererDeinitedArgs, RendererExtension, RendererInitedArgs, WindowConfigArgs, WindowExtension,
     },
     gl::{GlContext, GlContextManager},
-    image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
+    image_cache::{Image, ImageCache, ImageUseMap, WrImageCache, ResizerCache},
     px_wr::PxToWr as _,
     util::{PxToWinit, frame_render_reasons, frame_update_render_reasons},
 };
@@ -61,6 +61,7 @@ impl fmt::Debug for Surface {
     }
 }
 impl Surface {
+    #[expect(clippy::too_many_arguments)]
     pub fn open(
         vp_gen: ViewProcessGen,
         cfg: HeadlessRequest,
@@ -69,6 +70,7 @@ impl Surface {
         mut window_exts: Vec<(ApiExtensionId, Box<dyn WindowExtension>)>,
         mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
+        resizer_cache: Arc<ResizerCache>,
     ) -> Self {
         let id = cfg.id;
 
@@ -137,7 +139,7 @@ impl Surface {
 
         let (mut renderer, sender) =
             webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
-        renderer.set_external_image_handler(WrImageCache::new_boxed());
+        renderer.set_external_image_handler(WrImageCache::new_boxed(resizer_cache));
 
         let mut external_images = extensions::ExternalImages::default();
 

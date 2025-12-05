@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use zng_task::channel::IpcBytes;
+use zng_task::{channel::IpcBytes, parking_lot::Mutex};
 use zng_txt::formatx;
 use zng_unit::{Factor, PxDensity2d, PxDensityUnits as _, PxRect};
 use zng_view_api::{
@@ -75,6 +75,7 @@ impl ImageCache {
                 pixels: data.pixels.clone(),
                 is_opaque: data.is_opaque,
                 density: data.density,
+                mipmap: Mutex::new(Box::new([])),
             })),
         );
 

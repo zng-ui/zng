@@ -1775,6 +1775,7 @@ impl App {
             self.exts.new_window(),
             self.exts.new_renderer(),
             self.app_sender.clone(),
+            self.image_cache.resizer_cache(),
         );
         let render_mode = surf.render_mode();
 
@@ -1920,6 +1921,7 @@ impl Api for App {
                 self.exts.new_window(),
                 self.exts.new_renderer(),
                 self.app_sender.clone(),
+                self.image_cache.resizer_cache(),
             );
 
             let msg = WindowOpenData::new(
