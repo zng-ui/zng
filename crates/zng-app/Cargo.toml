@@ -105,7 +105,7 @@ serde = { version = "1.0", default-features = false, features = ["std", "derive"
 bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
 atomic = { version = "0.6", default-features = false, features = ["fallback"] }
 bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
-pastey = { version = "0.1", default-features = false }
+pastey = { version = "0.2", default-features = false }
 once_cell = { version = "1.19", features = ["std", "parking_lot"], default-features = false }
 unic-langid = { version = "0.9", default-features = false, features = ["serde"] }
 unicase = { version = "2.7", default-features = false }

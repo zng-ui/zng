@@ -18,5 +18,5 @@ zng-app-context = { path = "../zng-app-context", version = "0.10.0", default-fea
 zng-var = { path = "../zng-var", version = "0.11.2", default-features = false }
 zng-view-api = { path = "../zng-view-api", version = "0.17.2", default-features = false }
 
-pastey = { version = "0.1", default-features = false }
+pastey = { version = "0.2", default-features = false }
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
