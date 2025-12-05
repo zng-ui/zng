@@ -14,6 +14,7 @@ use webrender::api::{
 };
 use webrender::{DebugFlags, RenderApi};
 use zng_task::channel::{ChannelError, IpcBytes};
+use zng_task::parking_lot::Mutex;
 use zng_unit::{Factor, PxSize};
 use zng_view_api::window::RenderMode;
 use zng_view_api::{
@@ -208,6 +209,8 @@ pub struct RenderArgs<'a> {
 
     /// The window or surface renderer.
     pub renderer: &'a mut webrender::Renderer,
+    /// The document ID of the main content.
+    pub document_id: DocumentId,
     /// The window or surface render API.
     pub api: &'a mut RenderApi,
     /// External images registry for the `renderer`.
@@ -237,7 +240,9 @@ pub struct RenderItemArgs<'a> {
 
     /// The window or surface renderer.
     pub renderer: &'a mut webrender::Renderer,
-    /// The window or surface render API.
+    /// The target document ID in the renderer.
+    pub document_id: DocumentId,
+    /// The document ID of the main content.
     pub api: &'a mut RenderApi,
     /// External images registry for the `renderer`.
     pub external_images: &'a mut ExternalImages,
@@ -268,6 +273,8 @@ pub struct RenderUpdateArgs<'a> {
 
     /// The window or surface renderer.
     pub renderer: &'a mut webrender::Renderer,
+    /// The document ID of the main content.
+    pub document_id: DocumentId,
     /// The window or surface render API.
     pub api: &'a mut RenderApi,
     /// External images registry for the `renderer`.
@@ -544,16 +551,28 @@ impl ExternalImages {
     ///
     /// Returns an `ExternalImageId` that can be used in display lists.
     ///
-    /// The `pixels` are held in memory until [`unregister`] or the window is closed.
+    /// The `pixels` are held in memory until [`unregister`] or the window is closed. They must be premultiplied BGRA8
+    /// or a mask A8.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `pixels` length is not equal expected BGRA8 or A8 length.
     ///
     /// [`unregister`]: Self::unregister
-    pub fn register_image(&mut self, descriptor: webrender::api::ImageDescriptor, pixels: IpcBytes) -> ExternalImageId {
+    pub fn register_image(&mut self, size: PxSize, is_opaque: bool, pixels: IpcBytes) -> ExternalImageId {
+        let expected_len = size.width.0 as usize * size.height.0 as usize;
+        assert!(
+            pixels.len() == expected_len || pixels.len() == expected_len * 4,
+            "pixels must be BGRA8 or A8"
+        );
         self.register(crate::image_cache::ImageData::RawData {
-            size: descriptor.size.cast().cast_unit(), // not used
+            size,
             range: 0..pixels.len(),
             pixels,
-            descriptor,
+            is_opaque,
             density: None,
+            mipmap: Mutex::new(Box::new([])),
+            stripes: Mutex::new(Box::new([])),
         })
     }
 
@@ -701,6 +720,9 @@ pub struct RendererCommandArgs<'a> {
 
     /// The render API used by the window or surface.
     pub api: &'a mut RenderApi,
+
+    /// The document ID of the main content.
+    pub document_id: DocumentId,
 
     /// The command request.
     pub request: ApiExtensionPayload,
@@ -1000,6 +1022,7 @@ pub(crate) struct DisplayListExtAdapter<'a> {
     pub extensions: &'a mut Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
     pub transaction: &'a mut webrender::Transaction,
     pub renderer: &'a mut webrender::Renderer,
+    pub document_id: DocumentId,
     pub api: &'a mut RenderApi,
     pub external_images: &'a mut ExternalImages,
     pub frame_id: zng_view_api::window::FrameId,
@@ -1014,6 +1037,7 @@ impl DisplayListExtension for DisplayListExtAdapter<'_> {
                 sc: args.sc,
                 transaction: self.transaction,
                 renderer: self.renderer,
+                document_id: self.document_id,
                 api: self.api,
                 external_images: self.external_images,
             });
@@ -1031,6 +1055,7 @@ impl DisplayListExtension for DisplayListExtAdapter<'_> {
                     sc: args.sc,
                     transaction: self.transaction,
                     renderer: self.renderer,
+                    document_id: self.document_id,
                     api: self.api,
                     external_images: self.external_images,
                 });
@@ -1050,6 +1075,7 @@ impl DisplayListExtension for DisplayListExtAdapter<'_> {
                     sc: args.sc,
                     transaction: self.transaction,
                     renderer: self.renderer,
+                    document_id: self.document_id,
                     api: self.api,
                     external_images: self.external_images,
                 });
@@ -1066,6 +1092,7 @@ impl DisplayListExtension for DisplayListExtAdapter<'_> {
                 sc: args.sc,
                 transaction: self.transaction,
                 renderer: self.renderer,
+                document_id: self.document_id,
                 api: self.api,
                 external_images: self.external_images,
             });
@@ -1080,6 +1107,7 @@ impl DisplayListExtension for DisplayListExtAdapter<'_> {
                     payload: args.payload,
                     new_frame: args.new_frame,
                     properties: args.properties,
+                    document_id: self.document_id,
                     transaction: self.transaction,
                     renderer: self.renderer,
                     api: self.api,

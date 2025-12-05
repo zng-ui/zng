@@ -41,6 +41,7 @@ use zng_app_context::RunOnDrop;
 ///
 /// [`IpcSender`]: super::IpcSender
 #[derive(Clone)]
+#[repr(transparent)]
 pub struct IpcBytes(Arc<IpcBytesData>);
 enum IpcBytesData {
     Heap(Vec<u8>),

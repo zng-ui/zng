@@ -342,6 +342,14 @@ fn large_image() -> UiNode {
                                     ];
                                 }
                             });
+
+                            // let actual image scale, better performance when
+                            // showing entire image as it does not need to render a full size
+                            // texture just to downscale. Renderer implements mipmaps only for images.
+                            zng::scroll::zoom_size_only = true;
+
+                            // better for photo viewers
+                            img_auto_scale = false;
                         };
                     };
                 }

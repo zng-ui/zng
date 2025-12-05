@@ -1010,16 +1010,6 @@ pub enum ImageRendering {
     Pixelated = 2,
 }
 
-/// Pixel color alpha type.
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub enum AlphaType {
-    /// Components are not pre-multiplied by alpha.
-    Alpha = 0,
-    /// Components are pre-multiplied by alpha.
-    PremultipliedAlpha = 1,
-}
-
 /// Gradient extend mode.
 #[allow(missing_docs)]
 #[repr(u8)]

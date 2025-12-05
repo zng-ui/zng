@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, fmt};
+use std::{collections::VecDeque, fmt, sync::Arc};
 
 use tracing::span::EnteredSpan;
 use webrender::{
@@ -23,7 +23,7 @@ use crate::{
         RendererDeinitedArgs, RendererExtension, RendererInitedArgs, WindowConfigArgs, WindowExtension,
     },
     gl::{GlContext, GlContextManager},
-    image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
+    image_cache::{Image, ImageCache, ImageUseMap, ResizerCache, WrImageCache},
     px_wr::PxToWr as _,
     util::{PxToWinit, frame_render_reasons, frame_update_render_reasons},
 };
@@ -61,6 +61,7 @@ impl fmt::Debug for Surface {
     }
 }
 impl Surface {
+    #[expect(clippy::too_many_arguments)]
     pub fn open(
         vp_gen: ViewProcessGen,
         cfg: HeadlessRequest,
@@ -69,6 +70,7 @@ impl Surface {
         mut window_exts: Vec<(ApiExtensionId, Box<dyn WindowExtension>)>,
         mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
+        resizer_cache: Arc<ResizerCache>,
     ) -> Self {
         let id = cfg.id;
 
@@ -172,7 +174,7 @@ impl Surface {
             renderer: Some(renderer),
             renderer_exts,
             external_images,
-            image_use: ImageUseMap::default(),
+            image_use: ImageUseMap::new(resizer_cache),
 
             clear_color: None,
 
@@ -317,11 +319,12 @@ impl Surface {
                 frame_id: frame.id,
                 extensions: &mut self.renderer_exts,
                 transaction: &mut txn,
+                document_id: self.document_id,
                 renderer: self.renderer.as_mut().unwrap(),
                 api: &mut self.api,
                 external_images: &mut self.external_images,
             },
-            &self.image_use,
+            &mut self.image_use,
             &mut self.display_list_cache,
         );
 
@@ -365,11 +368,12 @@ impl Surface {
                 frame_id: self.frame_id(),
                 extensions: &mut self.renderer_exts,
                 transaction: &mut txn,
+                document_id: self.document_id,
                 renderer: self.renderer.as_mut().unwrap(),
                 api: &mut self.api,
                 external_images: &mut self.external_images,
             },
-            &self.image_use,
+            &mut self.image_use,
             frame.transforms,
             frame.floats,
             frame.colors,
@@ -486,6 +490,7 @@ impl Surface {
                 r = Some(ext.command(&mut RendererCommandArgs {
                     renderer: self.renderer.as_mut().unwrap(),
                     api: &mut self.api,
+                    document_id: self.document_id,
                     request,
                     window: None,
                     redraw: &mut redraw,

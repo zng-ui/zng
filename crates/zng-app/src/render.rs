@@ -67,13 +67,6 @@ pub trait Img {
     /// be loaded yet when the key is returned.
     fn renderer_id(&self, renderer: &ViewRenderer) -> zng_view_api::image::ImageTextureId;
 
-    /// Returns a value that indicates if the image is already pre-multiplied.
-    ///
-    /// The faster option is pre-multiplied, that is also the default return value.
-    fn alpha_type(&self) -> zng_view_api::AlphaType {
-        zng_view_api::AlphaType::PremultipliedAlpha
-    }
-
     /// Image pixel size.
     fn size(&self) -> PxSize;
 }
@@ -1561,10 +1554,16 @@ impl FrameBuilder {
     }
 
     /// Push an image.
+    ///
+    /// The image is resized to `tile_size` and them tiled to fill the `image_size`. The `clip_rect` is applied to the `image_size` area.
+    ///
+    /// The `rendering` value defines the real time scaling algorithm used to resize the image on the GPU. Note that the renderer may
+    /// also generate high quality downscaled images on the CPU, that is not affected by `rendering`.
+    #[allow(clippy::too_many_arguments)]
     pub fn push_image(
         &mut self,
         clip_rect: PxRect,
-        img_size: PxSize,
+        image_size: PxSize,
         tile_size: PxSize,
         tile_spacing: PxSize,
         image: &impl Img,
@@ -1577,15 +1576,8 @@ impl FrameBuilder {
             && self.visible
         {
             let image_key = image.renderer_id(r);
-            self.display_list.push_image(
-                clip_rect,
-                image_key,
-                img_size,
-                tile_size,
-                tile_spacing,
-                rendering,
-                image.alpha_type(),
-            );
+            self.display_list
+                .push_image(clip_rect, image_key, image_size, tile_size, tile_spacing, rendering);
         }
 
         if self.auto_hit_test {

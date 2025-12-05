@@ -5,7 +5,7 @@ use image::ImageDecoder as _;
 use std::{fmt, sync::Arc};
 use zng_task::parking_lot::Mutex;
 
-use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
+use webrender::api::ImageDescriptor;
 use zng_txt::ToTxt as _;
 use zng_txt::{Txt, formatx};
 
@@ -97,7 +97,7 @@ pub(crate) const DECODERS: &[&str] = &[
     "dds",
 ];
 
-type ResizerCache = Mutex<fast_image_resize::Resizer>;
+pub(crate) type ResizerCache = Mutex<fast_image_resize::Resizer>;
 
 /// Decode and cache image resources.
 pub(crate) struct ImageCache {
@@ -114,6 +114,10 @@ impl ImageCache {
             image_id_gen: ImageId::first(),
             resizer: Arc::new(Mutex::new(fast_image_resize::Resizer::new())),
         }
+    }
+
+    pub fn resizer_cache(&self) -> Arc<ResizerCache> {
+        self.resizer.clone()
     }
 
     pub fn add(
@@ -443,24 +447,16 @@ impl ImageCache {
 
     /// Called after receive and decode completes correctly.
     pub(crate) fn loaded(&mut self, data: ImageLoadedData) {
-        let mut flags = ImageDescriptorFlags::empty(); //ImageDescriptorFlags::ALLOW_MIPMAPS;
-        if data.is_opaque {
-            flags |= ImageDescriptorFlags::IS_OPAQUE
-        }
-
         self.images.insert(
             data.id,
             Image(Arc::new(ImageData::RawData {
                 size: data.size,
                 range: 0..data.pixels.len(),
                 pixels: data.pixels.clone(),
-                descriptor: ImageDescriptor::new(
-                    data.size.width.0,
-                    data.size.height.0,
-                    if data.is_mask { ImageFormat::R8 } else { ImageFormat::BGRA8 },
-                    flags,
-                ),
+                is_opaque: data.is_opaque,
                 density: data.density,
+                mipmap: Mutex::new(Box::new([])),
+                stripes: Mutex::new(Box::new([])),
             })),
         );
 
@@ -487,13 +483,21 @@ struct ImageHeader {
 }
 /// (pixels, size, density, is_opaque, is_mask)
 type RawLoadedImg = (IpcBytes, PxSize, Option<PxDensity2d>, bool, bool);
+pub(crate) enum MipImage {
+    None(PxSize),
+    Generating,
+    Generated(Image),
+}
 pub(crate) enum ImageData {
     RawData {
         size: PxSize,
         pixels: IpcBytes,
-        descriptor: ImageDescriptor,
+        is_opaque: bool,
         density: Option<PxDensity2d>,
         range: std::ops::Range<usize>,
+        // each entry is half size of the previous
+        mipmap: Mutex<Box<[MipImage]>>,
+        stripes: Mutex<Box<[Image]>>,
     },
     NativeTexture {
         uv: webrender::api::units::TexelRect,
@@ -503,14 +507,14 @@ pub(crate) enum ImageData {
 impl ImageData {
     pub fn is_opaque(&self) -> bool {
         match self {
-            ImageData::RawData { descriptor, .. } => descriptor.flags.contains(ImageDescriptorFlags::IS_OPAQUE),
+            ImageData::RawData { is_opaque, .. } => *is_opaque,
             ImageData::NativeTexture { .. } => false,
         }
     }
 
     pub fn is_mask(&self) -> bool {
         match self {
-            ImageData::RawData { descriptor, .. } => descriptor.format == ImageFormat::R8,
+            ImageData::RawData { size, range, .. } => size.width.0 as usize * size.height.0 as usize == range.len(),
             ImageData::NativeTexture { .. } => false,
         }
     }
@@ -524,13 +528,14 @@ impl fmt::Debug for Image {
             ImageData::RawData {
                 size,
                 pixels,
-                descriptor,
+                is_opaque,
                 density,
                 range,
+                ..
             } => f
                 .debug_struct("Image")
                 .field("size", size)
-                .field("descriptor", descriptor)
+                .field("is_opaque", is_opaque)
                 .field("density", density)
                 .field("pixels", &format_args!("<{} of {} shared bytes>", range.len(), pixels.len()))
                 .finish(),
@@ -541,7 +546,36 @@ impl fmt::Debug for Image {
 impl Image {
     pub fn descriptor(&self) -> ImageDescriptor {
         match &*self.0 {
-            ImageData::RawData { descriptor, .. } => *descriptor,
+            ImageData::RawData {
+                size, is_opaque, range, ..
+            } => {
+                // no Webrender mipmaps here, thats only for the GPU,
+                // it does not help with performance rendering gigapixel images scaled to fit
+                let mut flags = webrender::api::ImageDescriptorFlags::empty();
+                if *is_opaque {
+                    flags |= webrender::api::ImageDescriptorFlags::IS_OPAQUE;
+                }
+                let is_mask = size.width.0 as usize * size.height.0 as usize == range.len();
+                ImageDescriptor {
+                    format: if is_mask {
+                        webrender::api::ImageFormat::R8
+                    } else {
+                        webrender::api::ImageFormat::BGRA8
+                    },
+                    size: size.cast().cast_unit(),
+                    stride: None,
+                    offset: 0,
+                    flags,
+                }
+            }
+            ImageData::NativeTexture { .. } => unreachable!(),
+        }
+    }
+
+    #[allow(unused)]
+    pub fn is_opaque(&self) -> bool {
+        match &*self.0 {
+            ImageData::RawData { is_opaque, .. } => *is_opaque,
             ImageData::NativeTexture { .. } => unreachable!(),
         }
     }
@@ -576,5 +610,207 @@ impl Image {
             ImageData::RawData { range, .. } => range.clone(),
             _ => unreachable!(),
         }
+    }
+
+    /// Mipmap query and generation. Returns the best downscaled image that is greater than `image_size`.
+    pub fn mip(&self, image_size: PxSize, resizer: &Arc<ResizerCache>) -> Image {
+        match &*self.0 {
+            ImageData::RawData { size, mipmap, .. } => {
+                const MIN_MIP: Px = Px(256);
+
+                let mip0_size = *size / Px(2);
+                if image_size.width > mip0_size.width
+                    || image_size.height > mip0_size.height
+                    || mip0_size.width < MIN_MIP
+                    || mip0_size.height < MIN_MIP
+                {
+                    // cannot downscale from first mip to target size
+                    return self.clone();
+                }
+
+                fn iter_mips(mut size: PxSize) -> impl Iterator<Item = PxSize> {
+                    std::iter::from_fn(move || {
+                        size /= Px(2);
+                        if size.width < MIN_MIP || size.height < MIN_MIP {
+                            None
+                        } else {
+                            Some(size)
+                        }
+                    })
+                }
+
+                let mut mipmap = mipmap.lock();
+                if mipmap.is_empty() {
+                    *mipmap = iter_mips(*size).map(MipImage::None).collect();
+                }
+
+                let mut best_mip_i = 0;
+                for (i, mip_size) in iter_mips(*size).enumerate() {
+                    if image_size.width <= mip_size.width && image_size.height <= mip_size.height {
+                        best_mip_i = i;
+                    } else {
+                        break;
+                    }
+                }
+
+                let mut best_img = self;
+                for mip in mipmap[..=best_mip_i].iter().rev() {
+                    if let MipImage::Generated(img) = mip {
+                        best_img = img;
+                        break;
+                    }
+                }
+                let best_img = best_img.clone();
+
+                if let MipImage::None(best_mip_size) = &mipmap[best_mip_i] {
+                    let best_mip_size = *best_mip_size;
+                    let self_ = self.clone();
+                    let source_img = best_img.clone();
+                    let resizer = resizer.clone();
+                    zng_task::spawn_wait(move || self_.generate_mip(source_img, best_mip_size, best_mip_i, resizer));
+                    mipmap[best_mip_i] = MipImage::Generating;
+                }
+
+                best_img
+            }
+            _ => unreachable!(),
+        }
+    }
+    fn generate_mip(self, source_img: Image, mip_size: PxSize, mip_i: usize, resizer: Arc<ResizerCache>) {
+        if let Err(e) = self.try_generate_mip(source_img, mip_size, mip_i, resizer) {
+            tracing::error!("cannot generate resized image, {e}");
+            match &*self.0 {
+                ImageData::RawData { mipmap, .. } => {
+                    mipmap.lock()[mip_i] = MipImage::None(mip_size);
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+    fn try_generate_mip(&self, source_img: Image, mip_size: PxSize, mip_i: usize, resizer: Arc<ResizerCache>) -> std::io::Result<()> {
+        use fast_image_resize as fr;
+
+        let px_type = if source_img.0.is_mask() {
+            fr::PixelType::U8
+        } else {
+            fr::PixelType::U8x4
+        };
+        let source_size = source_img.size();
+        let source_pixels = source_img.pixels();
+        let source = fr::images::ImageRef::new(source_size.width.0 as _, source_size.height.0 as _, source_pixels, px_type).unwrap();
+
+        let mut dest_buf = IpcBytes::new_mut_blocking(mip_size.width.0 as usize * mip_size.height.0 as usize * px_type.size())?;
+        let mut dest = fr::images::Image::from_slice_u8(mip_size.width.0 as _, mip_size.height.0 as _, &mut dest_buf[..], px_type).unwrap();
+
+        let mut resize_opt = fr::ResizeOptions::new();
+        // is already pre multiplied
+        resize_opt.mul_div_alpha = false;
+        // default, best quality
+        resize_opt.algorithm = fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3);
+        // try to reuse cache
+        match resizer.try_lock() {
+            Some(mut r) => r.resize(&source, &mut dest, Some(&resize_opt)),
+            None => fr::Resizer::new().resize(&source, &mut dest, Some(&resize_opt)),
+        }
+        .unwrap();
+
+        let pixels = dest_buf.finish_blocking()?;
+        let mip = Image(Arc::new(ImageData::RawData {
+            size: mip_size,
+            range: 0..pixels.len(),
+            pixels,
+            is_opaque: self.is_opaque(),
+            density: None,
+            mipmap: Mutex::new(Box::new([])),
+            stripes: Mutex::new(Box::new([])),
+        }));
+
+        match &*self.0 {
+            ImageData::RawData { mipmap, .. } => {
+                mipmap.lock()[mip_i] = MipImage::Generated(mip);
+            }
+            _ => unreachable!(),
+        }
+
+        Ok(())
+    }
+
+    /// If this is `true` needs to replace with `wr_stripes`
+    pub fn overflows_wr(&self) -> bool {
+        self.pixels().len() > Self::MAX_LEN
+    }
+
+    /// Returns the image split in "stripes" that fit the Webrender buffer length constraints.
+    ///
+    /// If the image cannot be split into stripes returns an empty list. This only happens if the image width is absurdly wide.
+    pub fn wr_stripes(&self) -> Box<[Image]> {
+        if !self.overflows_wr() {
+            return Box::new([self.clone()]);
+        }
+
+        match &*self.0 {
+            ImageData::RawData {
+                size,
+                pixels,
+                is_opaque,
+                density,
+                range,
+                stripes,
+                ..
+            } => {
+                debug_assert_eq!(range.len(), pixels.len());
+
+                let mut stripes = stripes.lock();
+                if stripes.is_empty() {
+                    *stripes = self.generate_stripes(*size, pixels, *is_opaque, *density);
+                }
+                (*stripes).clone()
+            }
+            _ => unreachable!(),
+        }
+    }
+    const MAX_LEN: usize = i32::MAX as usize;
+    fn generate_stripes(&self, full_size: PxSize, pixels: &IpcBytes, is_opaque: bool, density: Option<PxDensity2d>) -> Box<[Image]> {
+        let w = full_size.width.0 as usize * 4;
+        if w > Self::MAX_LEN {
+            tracing::error!("renderer does not support images with width * 4 > {}", Self::MAX_LEN);
+            return Box::new([]);
+        }
+
+        // find proportional split that fits, to avoid having the last stripe be to thin
+        let full_height = full_size.height.0 as usize;
+        let mut stripe_height = full_height / 2;
+        while w * stripe_height > Self::MAX_LEN {
+            stripe_height /= 2;
+        }
+        let stripe_len = w * stripe_height;
+        let stripes_len = full_height.div_ceil(stripe_height);
+        let stripe_height = Px(stripe_height as _);
+
+        let mut stripes = Vec::with_capacity(stripes_len);
+
+        for i in 0..stripes_len {
+            let y = stripe_height * Px(i as _);
+            let mut size = full_size;
+            size.height = stripe_height.min(full_size.height - y);
+
+            let offset = stripe_len * i;
+            let range = offset..((offset + stripe_len).min(pixels.len()));
+
+            let stripe = Image(Arc::new(ImageData::RawData {
+                size,
+                pixels: pixels.clone(),
+                is_opaque,
+                density,
+                range,
+                // always empty
+                mipmap: Mutex::new(Box::new([])),
+                stripes: Mutex::new(Box::new([])),
+            }));
+
+            stripes.push(stripe);
+        }
+
+        stripes.into_boxed_slice()
     }
 }
