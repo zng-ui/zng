@@ -40,7 +40,7 @@ zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.10.2", default-feature
 zng-wgt-button = { path = "../zng-wgt-button", version = "0.11.2", default-features = false }
 
 serde = { version = "1.0", default-features = false, features = ["derive"] }
-pastey = { version = "0.1", default-features = false }
+pastey = { version = "0.2", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
 euclid = { version = "0.22", default-features = false }
 tracing = { version = "0.1", default-features = false }

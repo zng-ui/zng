@@ -75,6 +75,8 @@ macro_rules! zng_hot_entry {
 
 #[doc(hidden)]
 pub mod zng_hot_entry {
+    pub use linkme as __linkme;
+
     pub use crate::node::{HotNode, HotNodeArgs, HotNodeHost};
     use crate::{HotEntryExchange, StaticPatch};
     pub use zng_app_context::LocalContext;
@@ -684,7 +686,7 @@ impl HotLib {
             //
             // If the hot lib developer add some "ctor/dtor" stuff and that fails they will probably
             // know why, hot reloading should only run in dev machines.
-            let lib = libloading::Library::new(lib)?;
+            let lib = libloading::Library::new(lib.as_ref())?;
 
             // SAFETY: thats the signature.
             let init: unsafe extern "C" fn(&StaticPatch) = *lib.get(b"zng_hot_entry_init")?;

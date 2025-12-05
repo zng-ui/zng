@@ -86,8 +86,12 @@ const DIALOG_PROCESS: &str = "ZNG_CRASH_HANDLER_DIALOG";
 const DUMP_CHANNEL: &str = "ZNG_MINIDUMP_CHANNEL";
 const RESPONSE_PREFIX: &str = "zng_crash_response: ";
 
+#[doc(hidden)]
 #[linkme::distributed_slice]
-static CRASH_CONFIG: [fn(&mut CrashConfig)];
+pub static CRASH_CONFIG: [fn(&mut CrashConfig)];
+
+#[doc(hidden)]
+pub use linkme as __linkme;
 
 /// <span data-del-macro-root></span> Register a `FnOnce(&mut CrashConfig)` closure to be
 /// called on process init to configure the crash handler.
@@ -97,33 +101,8 @@ static CRASH_CONFIG: [fn(&mut CrashConfig)];
 macro_rules! crash_handler_config {
     ($closure:expr) => {
         // expanded from:
-        // #[linkme::distributed_slice(CRASH_CONFIG)]
-        // static _CRASH_CONFIG: fn(&FooArgs) = _foo;
-        // so that users don't need to depend on linkme just to call this macro.
-        #[used]
-        #[cfg_attr(
-            any(
-                target_os = "none",
-                target_os = "linux",
-                target_os = "android",
-                target_os = "fuchsia",
-                target_os = "psp"
-            ),
-            unsafe(link_section = "linkme_CRASH_CONFIG")
-        )]
-        #[cfg_attr(
-            any(target_os = "macos", target_os = "ios", target_os = "tvos"),
-            unsafe(link_section = "__DATA,__linkmeK3uV0Fq0,regular,no_dead_strip")
-        )]
-        #[cfg_attr(
-            any(target_os = "uefi", target_os = "windows"),
-            unsafe(link_section = ".linkme_CRASH_CONFIG$b")
-        )]
-        #[cfg_attr(target_os = "illumos", unsafe(link_section = "set_linkme_CRASH_CONFIG"))]
-        #[cfg_attr(
-            any(target_os = "freebsd", target_os = "openbsd"),
-            unsafe(link_section = "linkme_CRASH_CONFIG")
-        )]
+        #[$crate::crash_handler::__linkme::distributed_slice($crate::crash_handler::CRASH_CONFIG)]
+        #[linkme(crate = $crate::crash_handler::__linkme)]
         #[doc(hidden)]
         static _CRASH_CONFIG: fn(&mut $crate::crash_handler::CrashConfig) = _crash_config;
         #[doc(hidden)]

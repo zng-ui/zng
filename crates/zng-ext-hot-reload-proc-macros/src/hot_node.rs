@@ -109,17 +109,16 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         // to get a better error message
         use crate::zng_hot_entry as _;
 
-        // don't use `linkme::distributed_slice` because it requires direct dependency to `linkme`.
-        crate::zng_hot_entry::HOT_NODES! {
-            #[doc(hidden)]
-            static #slice_ident: crate::zng_hot_entry::HotNodeEntry = {
-                crate::zng_hot_entry::HotNodeEntry {
-                    manifest_dir: env!("CARGO_MANIFEST_DIR"),
-                    hot_node_name: #name,
-                    hot_node_fn: #builder_ident,
-                }
-            };
-        }
+        #[doc(hidden)]
+        #[crate::zng_hot_entry::__linkme::distributed_slice(crate::zng_hot_entry::HOT_NODES)]
+        #[linkme(crate = crate::zng_hot_entry::__linkme)]
+        static #slice_ident: crate::zng_hot_entry::HotNodeEntry = {
+            crate::zng_hot_entry::HotNodeEntry {
+                manifest_dir: env!("CARGO_MANIFEST_DIR"),
+                hot_node_name: #name,
+                hot_node_fn: #builder_ident,
+            }
+        };
 
         #[doc(hidden)]
         fn #builder_ident(mut __args__: crate::zng_hot_entry::HotNodeArgs) -> crate::zng_hot_entry::HotNode {

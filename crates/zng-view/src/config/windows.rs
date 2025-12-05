@@ -37,7 +37,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
             lpfnWndProc: Some(util::minimal_wndproc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance: util::get_instance_handle(),
+            hInstance: util::get_instance_handle() as _,
             hIcon: Default::default(),
             hCursor: Default::default(), // must be null in order for cursor state to work properly
             hbrBackground: Default::default(),
@@ -62,12 +62,12 @@ fn config_listener(event_loop: crate::AppEventSender) {
             0,
             0,
             0,
-            0,
-            0,
-            util::get_instance_handle(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            util::get_instance_handle() as _,
             std::ptr::null(),
         );
-        if r == 0 {
+        if r.is_null() {
             panic!("error 0x{:x}", GetLastError())
         }
         r
@@ -313,7 +313,7 @@ pub fn colors_config() -> ColorsConfig {
 
         let module = unsafe { LoadLibraryA(c"uxtheme.dll".as_ptr().cast()) };
 
-        if module == 0 {
+        if module.is_null() {
             return false;
         }
 

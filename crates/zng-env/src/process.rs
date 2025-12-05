@@ -5,6 +5,10 @@ use std::{
 
 use parking_lot::Mutex;
 
+#[doc(hidden)]
+#[cfg(not(target_arch = "wasm32"))]
+pub use linkme as __linkme;
+
 /// Register a `FnOnce(&ProcessStartArgs)` closure to be called on [`init!`].
 ///
 /// Components that spawn special process instances implemented on the same executable
@@ -88,36 +92,11 @@ macro_rules! on_process_start {
 #[macro_export]
 macro_rules! __on_process_start {
     ($closure:expr) => {
-        // expanded from:
-        // #[linkme::distributed_slice(ZNG_ENV_ON_PROCESS_START)]
-        // static _ON_PROCESS_START: fn(&FooArgs) = _foo;
-        // so that users don't need to depend on linkme just to call this macro.
-        #[used]
-        #[cfg_attr(
-            any(
-                target_os = "none",
-                target_os = "linux",
-                target_os = "android",
-                target_os = "fuchsia",
-                target_os = "psp"
-            ),
-            unsafe(link_section = "linkme_ZNG_ENV_ON_PROCESS_START")
-        )]
-        #[cfg_attr(
-            any(target_os = "macos", target_os = "ios", target_os = "tvos"),
-            unsafe(link_section = "__DATA,__linkme7nCnSSdn,regular,no_dead_strip")
-        )]
-        #[cfg_attr(
-            any(target_os = "uefi", target_os = "windows"),
-            unsafe(link_section = ".linkme_ZNG_ENV_ON_PROCESS_START$b")
-        )]
-        #[cfg_attr(target_os = "illumos", unsafe(link_section = "set_linkme_ZNG_ENV_ON_PROCESS_START"))]
-        #[cfg_attr(
-            any(target_os = "freebsd", target_os = "openbsd"),
-            unsafe(link_section = "linkme_ZNG_ENV_ON_PROCESS_START")
-        )]
+        #[$crate::__linkme::distributed_slice($crate::ZNG_ENV_ON_PROCESS_START)]
+        #[linkme(crate = $crate::__linkme)]
         #[doc(hidden)]
         static _ON_PROCESS_START: fn(&$crate::ProcessStartArgs) = _on_process_start;
+        #[doc(hidden)]
         fn _on_process_start(args: &$crate::ProcessStartArgs) {
             fn on_process_start(args: &$crate::ProcessStartArgs, handler: impl FnOnce(&$crate::ProcessStartArgs)) {
                 handler(args)

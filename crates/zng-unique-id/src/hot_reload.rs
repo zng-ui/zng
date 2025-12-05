@@ -70,27 +70,8 @@ macro_rules! hot_static_patchable {
             }
 
             // expanded from:
-            // #[linkme::distributed_slice(HOT_STATICS)]
-            // static _HOT_STATICS: fn(&FooArgs) = _foo;
-            // so that users don't need to depend on linkme just to call this macro.
-            #[used]
-            #[cfg_attr(
-                any(
-                    target_os = "none",
-                    target_os = "linux",
-                    target_os = "android",
-                    target_os = "fuchsia",
-                    target_os = "psp"
-                ),
-                unsafe(link_section = "linkme_HOT_STATICS")
-            )]
-            #[cfg_attr(
-                any(target_os = "macos", target_os = "ios", target_os = "tvos"),
-                unsafe(link_section = "__DATA,__linkmeAGDMMOwP,regular,no_dead_strip")
-            )]
-            #[cfg_attr(any(target_os = "uefi", target_os = "windows"), unsafe(link_section = ".linkme_HOT_STATICS$b"))]
-            #[cfg_attr(target_os = "illumos", unsafe(link_section = "set_linkme_HOT_STATICS"))]
-            #[cfg_attr(any(target_os = "freebsd", target_os = "openbsd"), unsafe(link_section = "linkme_HOT_STATICS"))]
+            #[$crate::hot_reload::__linkme::distributed_slice($crate::hot_reload::HOT_STATICS)]
+            #[linkme(crate=$crate::hot_reload::__linkme)]
             #[doc(hidden)]
             static [<$IDENT _REGISTER>]: (&'static dyn $crate::hot_reload::PatchKey, unsafe fn(*const ()) -> *const ()) = (
                 &[<_K $IDENT:camel>],
@@ -112,6 +93,10 @@ pub unsafe fn init_static<T>(s: &mut &'static T, static_ptr: *const ()) -> *cons
 }
 
 use std::{any::Any, fmt, ops};
+
+#[doc(hidden)]
+#[cfg(feature = "hot_reload")]
+pub use linkme as __linkme;
 
 #[doc(hidden)]
 #[cfg(not(feature = "hot_reload"))]

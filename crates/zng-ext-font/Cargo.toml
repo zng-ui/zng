@@ -48,7 +48,7 @@ byteorder = { version = "1.5", default-features = false, features = ["std"] }
 icu_properties = { version = "2.0", default-features = false, features = ["compiled_data"] }
 bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
-pastey = { version = "0.1", default-features = false }
+pastey = { version = "0.2", default-features = false }
 num_enum = { version = "0.7", default-features = false, features = ["std"] }
 hyphenation = { version = "0.8", default-features = false }
 regex = { version = "1.10", default-features = false, features = ["perf", "std", "unicode" ] }
@@ -65,7 +65,7 @@ dunce = { version = "1.0", default-features = false }
 font-kit = { version = "0.14", default-features = false, features = ["source"] }
 
 [target.'cfg(windows)'.dependencies.windows]
-version = "0.58.0"
+version = "0.62.2"
 default-features = false
 features = [
     "Win32_System_SystemInformation"
