@@ -37,6 +37,8 @@ async fn run(request: Request) -> Result<Response, Error> {
         .stderr(std::process::Stdio::piped());
     curl.arg("--include"); // print header
 
+    curl.arg("--http1.1");
+
     curl.arg("-X").arg(request.method.as_str());
 
     #[cfg(feature = "http-compression")]
