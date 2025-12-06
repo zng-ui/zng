@@ -5,9 +5,13 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 <!--do doc --readme features-->
 ## Cargo Features
 
- This crate provides 1 feature flag, not enabled by default.
+This crate provides 2 feature flags, 0 enabled by default.
+
 #### `"image"`
 Enable image related properties, frame image.
+
+#### `"config"`
+Enable config properties.
 
 <!--do doc --readme #SECTION-END-->
 

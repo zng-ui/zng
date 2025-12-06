@@ -1,6 +1,6 @@
 [package]
 name = "zng-env"
-version = "0.8.0"
+version = "0.9.0"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -26,7 +26,7 @@ toml = { version = "0.9", default-features = false, features = ["parse", "std", 
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 semver = { version = "1.0", default-features = false, features = ["std", "serde"] }
 
-zng-unique-id = { path = "../zng-unique-id", version = "0.9.0", default-features = false }
+zng-unique-id = { path = "../zng-unique-id", version = "0.10.0", default-features = false }
 zng-txt = { path = "../zng-txt", version = "0.5.0", default-features = false }
 
 [target.'cfg(target_os = "android")'.dependencies]

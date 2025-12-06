@@ -10,7 +10,7 @@ First add `zng` to your `Cargo.toml`, or call `cargo add zng -F view_prebuilt`:
 
 ```toml
 [dependencies]
-zng = { version = "0.19.2", features = ["view_prebuilt"] }
+zng = { version = "0.20.0", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:
@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 82 feature flags, 1 enabled by default.
+This crate provides 84 feature flags, 1 enabled by default.
 
 #### `"dev"`
 Defaults recommended for the dev profile (debug builds).
@@ -105,6 +105,14 @@ Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_o
 
 #### `"http"`
 Enables HTTP tasks and web features of widgets and services.
+
+#### `"http_cookie"`
+Enables HTTP cookies option in client requests.
+
+Note that cookies must still be enabled in the request.
+
+#### `"http_compression"`
+Enables HTTP compression option in client requests.
 
 #### `"svg"`
 Enable SVG image rendering, SVG emoji support.
