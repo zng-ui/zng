@@ -91,7 +91,7 @@ pub struct Request {
     /// If enabled the "Accept-Encoding" will also be set automatically, if it was not set on the header.
     ///
     /// This is enabled by default.
-    #[cfg(feature = "http-compression")]
+    #[cfg(feature = "http_compression")]
     pub auto_decompress: bool,
 
     /// Maximum upload speed in bytes per second.
@@ -130,7 +130,7 @@ pub struct Request {
     /// When enabled the [`http_cache`] is used to retrieve and store cookies.
     ///
     /// Is not enabled by default.
-    #[cfg(feature = "http-cookie")]
+    #[cfg(feature = "http_cookie")]
     pub cookies: bool,
 
     /// If transfer metrics should be measured.
@@ -174,12 +174,12 @@ impl Request {
                 connect_timeout: 90.secs(),
                 low_speed_timeout: (Duration::MAX, 0.bytes()),
                 redirect_limit: 20,
-                #[cfg(feature = "http-compression")]
+                #[cfg(feature = "http_compression")]
                 auto_decompress: true,
                 max_upload_speed: ByteLength::MAX,
                 max_download_speed: ByteLength::MAX,
                 cache: CacheMode::Default,
-                #[cfg(feature = "http-cookie")]
+                #[cfg(feature = "http_cookie")]
                 cookies: false,
                 metrics: true,
                 body: IpcBytes::default(),
@@ -326,7 +326,7 @@ impl Request {
     /// Set the [`auto_decompress`].
     ///
     /// [`auto_decompress`]: field@Request::auto_decompress
-    #[cfg(feature = "http-compression")]
+    #[cfg(feature = "http_compression")]
     pub fn auto_decompress(mut self, enabled: bool) -> Self {
         self.auto_decompress = enabled;
         self
@@ -367,7 +367,7 @@ impl Request {
     /// Set the [`cookies`].
     ///
     /// [`cookies`]: field@Request::cookies
-    #[cfg(feature = "http-compression")]
+    #[cfg(feature = "http_compression")]
     pub fn cookies(mut self, enable: bool) -> Self {
         self.cookies = enable;
         self

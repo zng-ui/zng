@@ -36,11 +36,11 @@ http = [
     "dep:encoding_rs",
 ]
 # Enables HTTP cookie storage option.
-http-cookie = [
+http_cookie = [
     "dep:cookie_store",
 ]
 # Enables HTTP compression option.
-http-compression = [
+http_compression = [
     "dep:async-compression",
 ]
 
