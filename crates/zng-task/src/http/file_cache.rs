@@ -35,7 +35,7 @@ impl FileSystemCache {
         task::wait(move || CacheEntry::open(dir.join(key), write)).await
     }
 
-    #[cfg(feature = "http-cookie")]
+    #[cfg(feature = "http_cookie")]
     async fn cookie_jar(&self) -> cookie_store::CookieStore {
         let s = match crate::fs::read_to_string(self.dir.join(Self::COOKIE_JAR)).await {
             Ok(s) => s,
@@ -55,7 +55,7 @@ impl FileSystemCache {
         }
     }
 
-    #[cfg(feature = "http-cookie")]
+    #[cfg(feature = "http_cookie")]
     async fn set_cookie_jar(&self, jar: cookie_store::CookieStore) {
         let s = serde_json::to_string(&jar).unwrap();
         if let Err(e) = crate::fs::write(self.dir.join(Self::COOKIE_JAR), s.as_bytes()).await {
@@ -63,7 +63,7 @@ impl FileSystemCache {
         }
     }
 
-    #[cfg(feature = "http-cookie")]
+    #[cfg(feature = "http_cookie")]
     const COOKIE_JAR: &str = "cookie_jar.json";
 }
 impl HttpCache for FileSystemCache {
@@ -109,7 +109,7 @@ impl HttpCache for FileSystemCache {
         })
     }
 
-    #[cfg(feature = "http-cookie")]
+    #[cfg(feature = "http_cookie")]
     fn cookie(&'static self, uri: Uri) -> Fut<Option<http::HeaderValue>> {
         Box::pin(async move {
             let jar = self.cookie_jar().await;
@@ -136,7 +136,7 @@ impl HttpCache for FileSystemCache {
             }
         })
     }
-    #[cfg(feature = "http-cookie")]
+    #[cfg(feature = "http_cookie")]
     fn set_cookie(&'static self, uri: Uri, cookie: http::HeaderValue) -> Fut<()> {
         Box::pin(async move {
             let cookie = match cookie.to_str() {
@@ -156,7 +156,7 @@ impl HttpCache for FileSystemCache {
             self.set_cookie_jar(jar).await;
         })
     }
-    #[cfg(feature = "http-cookie")]
+    #[cfg(feature = "http_cookie")]
     fn remove_cookie(&'static self, uri: Uri) -> Fut<()> {
         Box::pin(async move {
             let mut jar = self.cookie_jar().await;

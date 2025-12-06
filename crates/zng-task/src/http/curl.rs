@@ -41,7 +41,7 @@ async fn run(request: Request) -> Result<Response, Error> {
 
     curl.arg("-X").arg(request.method.as_str());
 
-    #[cfg(feature = "http-compression")]
+    #[cfg(feature = "http_compression")]
     if request.auto_decompress && !request.headers.contains_key(http::header::ACCEPT_ENCODING) {
         curl.arg("-H").arg("accept-encoding").arg("zstd, br, gzip");
     }
@@ -111,7 +111,7 @@ async fn run(request: Request) -> Result<Response, Error> {
             return run_response(
                 response,
                 effective_uri,
-                #[cfg(feature = "http-compression")]
+                #[cfg(feature = "http_compression")]
                 request.auto_decompress,
                 request.require_length,
                 request.max_length,
@@ -143,7 +143,7 @@ async fn run(request: Request) -> Result<Response, Error> {
                     return run_response(
                         response,
                         effective_uri,
-                        #[cfg(feature = "http-compression")]
+                        #[cfg(feature = "http_compression")]
                         request.auto_decompress,
                         request.require_length,
                         request.max_length,
@@ -233,7 +233,7 @@ fn parse_curl_duration(s: &str) -> Duration {
 fn run_response(
     response: httparse::Response<'_, '_>,
     effective_uri: Uri,
-    #[cfg(feature = "http-compression")] auto_decompress: bool,
+    #[cfg(feature = "http_compression")] auto_decompress: bool,
     require_length: bool,
     max_length: ByteLength,
     metrics: Var<Metrics>,
@@ -272,7 +272,7 @@ fn run_response(
         };
     }
 
-    #[cfg(feature = "http-compression")]
+    #[cfg(feature = "http_compression")]
     if auto_decompress && let Some(enc) = header.get(http::header::CONTENT_ENCODING) {
         if enc == "zstd" {
             respond!(async_compression::futures::bufread::ZstdDecoder::new(reader))

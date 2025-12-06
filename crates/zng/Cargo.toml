@@ -105,12 +105,12 @@ http = [
 # Enables HTTP cookies option in client requests.
 #
 # Note that cookies must still be enabled in the request.
-http-cookie = [
-    "zng-task/http-cookie"
+http_cookie = [
+    "zng-task/http_cookie"
 ]
 # Enables HTTP compression option in client requests.
-http-compression = [
-    "zng-task/http-compression"
+http_compression = [
+    "zng-task/http_compression"
 ]
 
 # Enable SVG image rendering, SVG emoji support.
