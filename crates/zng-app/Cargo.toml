@@ -1,6 +1,6 @@
 [package]
 name = "zng-app"
-version = "0.20.2"
+version = "0.21.0"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -80,22 +80,22 @@ memory_profiler = ["dep:dhat"]
 [dependencies]
 zng-app-proc-macros = { path = "../zng-app-proc-macros", version = "0.8.0", default-features = false }
 
-zng-unique-id = { path = "../zng-unique-id", version = "0.9.0", default-features = false }
-zng-env = { path = "../zng-env", version = "0.8.0", default-features = false }
+zng-unique-id = { path = "../zng-unique-id", version = "0.10.0", default-features = false }
+zng-env = { path = "../zng-env", version = "0.9.0", default-features = false }
 zng-handle = { path = "../zng-handle", version = "0.4.0", default-features = false }
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.7.0", default-features = false }
 zng-clone-move = { path = "../zng-clone-move", version = "0.4.0", default-features = false }
-zng-app-context = { path = "../zng-app-context", version = "0.10.0", default-features = false }
-zng-time = { path = "../zng-time", version = "0.7.0", default-features = false }
-zng-var = { path = "../zng-var", version = "0.11.2", default-features = false }
+zng-app-context = { path = "../zng-app-context", version = "0.11.0", default-features = false }
+zng-time = { path = "../zng-time", version = "0.8.0", default-features = false }
+zng-var = { path = "../zng-var", version = "0.12.0", default-features = false }
 zng-txt = { path = "../zng-txt", version = "0.5.0", default-features = false }
-zng-task = { path = "../zng-task", version = "0.10.2", default-features = false }
-zng-view-api = { path = "../zng-view-api", version = "0.17.2", features = [
+zng-task = { path = "../zng-task", version = "0.11.0", default-features = false }
+zng-view-api = { path = "../zng-view-api", version = "0.18.0", features = [
     "var",
 ], default-features = false }
-zng-state-map = { path = "../zng-state-map", version = "0.8.0", default-features = false }
-zng-layout = { path = "../zng-layout", version = "0.8.2", default-features = false }
-zng-color = { path = "../zng-color", version = "0.10.2", default-features = false }
+zng-state-map = { path = "../zng-state-map", version = "0.9.0", default-features = false }
+zng-layout = { path = "../zng-layout", version = "0.9.0", default-features = false }
+zng-color = { path = "../zng-color", version = "0.11.0", default-features = false }
 
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "ansi", "smallvec", "tracing-log", "env-filter"] }

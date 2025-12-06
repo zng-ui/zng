@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.20.0
+
 * Add support for gigapixel images.
     - Now decoded image length can exceed i32::MAX.
     - Now is only limited by the codecs (~4 gigapixels for JPEG).
