@@ -83,10 +83,10 @@ context_var! {
     /// Latest computed viewport size of the parent scroll.
     pub(super) static SCROLL_VIEWPORT_SIZE_VAR: PxSize = PxSize::zero();
 
-    /// Latest computed content size of the parent scroll.
+    /// Latest computed content size of the parent scroll, not scaled by zoom.
     ///
-    /// The size is scaled if zoom is set.
-    pub(super) static SCROLL_CONTENT_SIZE_VAR: PxSize = PxSize::zero();
+    /// Multiply by `SCROLL_SCALE_VAR` to get the content size.
+    pub(super) static SCROLL_CONTENT_ORIGINAL_SIZE_VAR: PxSize = PxSize::zero();
 
     /// Zoom scaling of the parent scroll.
     pub(super) static SCROLL_SCALE_VAR: Factor = 1.fct();
@@ -312,8 +312,17 @@ impl SCROLL {
     }
 
     /// Latest computed content size of the parent scroll.
+    ///
+    /// The size is scaled by the zoom scale.
     pub fn content_size(&self) -> Var<PxSize> {
-        SCROLL_CONTENT_SIZE_VAR.read_only()
+        expr_var! {
+            *#{SCROLL_CONTENT_ORIGINAL_SIZE_VAR} * *#{SCROLL_SCALE_VAR}
+        }
+    }
+
+    /// Latest layout content size of the parent scroll. Not scaled by zoom.
+    pub fn content_original_size(&self) -> Var<PxSize> {
+        SCROLL_CONTENT_ORIGINAL_SIZE_VAR.read_only()
     }
 
     /// Applies the `delta` to the vertical offset.
@@ -345,7 +354,7 @@ impl SCROLL {
     }
     fn scroll_clamp(&self, vertical: bool, scroll_offset_var: ContextVar<Factor>, delta: ScrollFrom, min: f32, max: f32) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().to_array()[vertical as usize];
-        let content = SCROLL_CONTENT_SIZE_VAR.get().to_array()[vertical as usize];
+        let content = (SCROLL_CONTENT_ORIGINAL_SIZE_VAR.get() * SCROLL_SCALE_VAR.get()).to_array()[vertical as usize];
 
         let max_scroll = content - viewport;
 
@@ -374,7 +383,7 @@ impl SCROLL {
     /// Animate scroll at the direction and velocity (in DIPs per second).
     pub fn auto_scroll(&self, velocity: DipVector) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
-        let content = SCROLL_CONTENT_SIZE_VAR.get();
+        let content = SCROLL_CONTENT_ORIGINAL_SIZE_VAR.get() * SCROLL_SCALE_VAR.get();
         let max_scroll = content - viewport;
 
         let velocity = velocity.to_px(WINDOW.info().scale_factor());
@@ -419,7 +428,7 @@ impl SCROLL {
 
     fn scroll_touch(&self, vertical: bool, scroll_offset_var: ContextVar<Factor>, overscroll_offset_var: ContextVar<Factor>, delta: Px) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().to_array()[vertical as usize];
-        let content = SCROLL_CONTENT_SIZE_VAR.get().to_array()[vertical as usize];
+        let content = (SCROLL_CONTENT_ORIGINAL_SIZE_VAR.get() * SCROLL_SCALE_VAR.get()).to_array()[vertical as usize];
 
         let max_scroll = content - viewport;
         if max_scroll <= 0 {
@@ -532,7 +541,7 @@ impl SCROLL {
         duration: Duration,
     ) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().to_array()[vertical as usize];
-        let content = SCROLL_CONTENT_SIZE_VAR.get().to_array()[vertical as usize];
+        let content = (SCROLL_CONTENT_ORIGINAL_SIZE_VAR.get() * SCROLL_SCALE_VAR.get()).to_array()[vertical as usize];
 
         let max_scroll = content - viewport;
         if max_scroll <= 0 {
@@ -650,7 +659,7 @@ impl SCROLL {
         let config = SCROLL_CONFIG.get();
         let mut zoom = config.zoom.lock();
 
-        let min = super::MIN_ZOOM_VAR.get();
+        let min = SCROLL.actual_min_zoom();
         let max = super::MAX_ZOOM_VAR.get();
 
         match &mut *zoom {
@@ -761,19 +770,20 @@ impl SCROLL {
             unreachable!()
         };
 
-        let scale = start_scale + (scale - 1.0.fct());
-
-        let min = super::MIN_ZOOM_VAR.get();
-        let max = super::MAX_ZOOM_VAR.get();
-        let scale = scale.clamp(min, max);
-
         let translate_offset = start_center - center_in_viewport;
         let translate_delta = translate_offset - *applied_offset;
         *applied_offset = translate_offset;
 
-        let content = WIDGET.info().scroll_info().unwrap().content();
+        let scroll_info = WIDGET.info().scroll_info().unwrap();
+        let content = scroll_info.content();
         let mut center_in_content = -content.origin.cast::<f32>() + center_in_viewport.to_vector();
         let mut content_size = content.size.cast::<f32>();
+
+        let scale = start_scale + (scale - 1.0.fct());
+
+        let min = SCROLL.actual_min_zoom();
+        let max = super::MAX_ZOOM_VAR.get();
+        let scale = scale.clamp(min, max);
 
         let scale_transform = scale / rendered_scale;
 
@@ -801,7 +811,12 @@ impl SCROLL {
     }
 
     fn can_scroll(&self, predicate: impl Fn(PxSize, PxSize) -> bool + Send + Sync + 'static) -> Var<bool> {
-        merge_var!(SCROLL_VIEWPORT_SIZE_VAR, SCROLL_CONTENT_SIZE_VAR, move |&vp, &ct| predicate(vp, ct))
+        expr_var! {
+            predicate(
+                *#{SCROLL_VIEWPORT_SIZE_VAR},
+                *#{SCROLL_CONTENT_ORIGINAL_SIZE_VAR} * *#{SCROLL_SCALE_VAR},
+            )
+        }
     }
 
     /// Gets a var that is `true` when the content height is greater then the viewport height.
@@ -815,12 +830,13 @@ impl SCROLL {
     }
 
     fn can_scroll_v(&self, predicate: impl Fn(PxSize, PxSize, Factor) -> bool + Send + Sync + 'static) -> Var<bool> {
-        merge_var!(
-            SCROLL_VIEWPORT_SIZE_VAR,
-            SCROLL_CONTENT_SIZE_VAR,
-            SCROLL_VERTICAL_OFFSET_VAR,
-            move |&vp, &ct, &vo| predicate(vp, ct, vo)
-        )
+        expr_var! {
+            predicate(
+                *#{SCROLL_VIEWPORT_SIZE_VAR},
+                *#{SCROLL_CONTENT_ORIGINAL_SIZE_VAR} * *#{SCROLL_SCALE_VAR},
+                *#{SCROLL_VERTICAL_OFFSET_VAR},
+            )
+        }
     }
 
     /// Gets a var that is `true` when the content height is greater then the viewport height and the vertical offset
@@ -836,12 +852,13 @@ impl SCROLL {
     }
 
     fn can_scroll_h(&self, predicate: impl Fn(PxSize, PxSize, Factor) -> bool + Send + Sync + 'static) -> Var<bool> {
-        merge_var!(
-            SCROLL_VIEWPORT_SIZE_VAR,
-            SCROLL_CONTENT_SIZE_VAR,
-            SCROLL_HORIZONTAL_OFFSET_VAR,
-            move |&vp, &ct, &ho| predicate(vp, ct, ho)
-        )
+        expr_var! {
+            predicate(
+                *#{SCROLL_VIEWPORT_SIZE_VAR},
+                *#{SCROLL_CONTENT_ORIGINAL_SIZE_VAR} * *#{SCROLL_SCALE_VAR},
+                *#{SCROLL_HORIZONTAL_OFFSET_VAR},
+            )
+        }
     }
 
     /// Gets a var that is `true` when the content width is greater then the viewport width and the horizontal offset
@@ -877,7 +894,42 @@ impl SCROLL {
 
     /// Returns `true` if the content can be scaled and the current scale is more than the min.
     pub fn can_zoom_out(&self) -> bool {
-        SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) && SCROLL_SCALE_VAR.get() > super::MIN_ZOOM_VAR.get()
+        SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) && SCROLL_SCALE_VAR.get() > self.actual_min_zoom()
+    }
+
+    /// Compute the minimum scale allowed.
+    ///
+    /// This is the [`MIN_ZOOM_VAR`] unless it is set to < 0.01%, in that case it is the fit scale or 100% if
+    /// the content is smaller than the viewport.
+    ///
+    /// [`MIN_ZOOM_VAR`]: crate::MIN_ZOOM_VAR
+    pub fn actual_min_zoom(&self) -> Factor {
+        let min = super::MIN_ZOOM_VAR.get();
+        if min >= 0.01.pct().fct() {
+            return min;
+        }
+
+        let content;
+        let viewport;
+
+        if let Some(info) = WIDGET.try_info()
+            && let Some(info) = info.scroll_info()
+        {
+            // use more up-to-date values
+            content = info.content_original_size().cast::<f32>();
+            viewport = (info.viewport().size - info.joiner_size()).cast::<f32>();
+        } else {
+            content = SCROLL_CONTENT_ORIGINAL_SIZE_VAR.get().cast::<f32>();
+            viewport = SCROLL_VIEWPORT_SIZE_VAR.get().cast::<f32>(); // TODO missing JOINER_SIZE
+        }
+
+        if content.width < 0.1 || content.height < 0.1 {
+            return min;
+        }
+        (viewport.width / content.width)
+            .min(viewport.height / content.height)
+            .min(1.0)
+            .fct()
     }
 }
 
@@ -924,8 +976,9 @@ struct ScrollData {
     viewport_transform: PxTransform,
     viewport_size: PxSize,
     joiner_size: PxSize,
-    content: PxRect,
+    content_offset: PxPoint,
     zoom_scale: Factor,
+    content_original_size: PxSize,
 }
 impl Default for ScrollData {
     fn default() -> Self {
@@ -933,8 +986,9 @@ impl Default for ScrollData {
             viewport_transform: Default::default(),
             viewport_size: Default::default(),
             joiner_size: Default::default(),
-            content: Default::default(),
+            content_offset: Default::default(),
             zoom_scale: 1.fct(),
+            content_original_size: Default::default(),
         }
     }
 }
@@ -973,7 +1027,15 @@ impl ScrollInfo {
     ///
     /// This is the content bounds, scaled and in the viewport space.
     pub fn content(&self) -> PxRect {
-        self.0.lock().content
+        let m = self.0.lock();
+        PxRect::new(m.content_offset, m.content_original_size * m.zoom_scale)
+    }
+
+    /// Latest content size before it was scaled by the zoom scale.
+    ///
+    /// This value multiplied by `zoom_scale` is the same as the `content` size.
+    pub fn content_original_size(&self) -> PxSize {
+        self.0.lock().content_original_size
     }
 
     /// Latest zoom scale.
@@ -993,10 +1055,11 @@ impl ScrollInfo {
         self.0.lock().joiner_size = size;
     }
 
-    pub(super) fn set_content(&self, content: PxRect, scale: Factor) {
+    pub(super) fn set_content(&self, content_offset: PxPoint, scale: Factor, content_original_size: PxSize) {
         let mut m = self.0.lock();
-        m.content = content;
+        m.content_offset = content_offset;
         m.zoom_scale = scale;
+        m.content_original_size = content_original_size;
     }
 }
 

@@ -143,6 +143,7 @@ pub fn viewport(child: impl IntoUiNode, mode: impl IntoVar<ScrollMode>, child_al
                     }
                 },
             );
+            let content_original_size = content_size;
             if mode.contains(ScrollMode::ZOOM) {
                 content_scale = SCROLL_SCALE_VAR.get();
                 content_size.width *= content_scale;
@@ -150,6 +151,8 @@ pub fn viewport(child: impl IntoUiNode, mode: impl IntoVar<ScrollMode>, child_al
             } else {
                 content_scale = 1.fct();
             }
+            let content_size = content_size;
+            let content_scale = content_scale;
 
             let vp_size = constraints.fill_size_or(content_size);
             if viewport_size != vp_size {
@@ -219,7 +222,7 @@ pub fn viewport(child: impl IntoUiNode, mode: impl IntoVar<ScrollMode>, child_al
 
             SCROLL_VERTICAL_RATIO_VAR.set(v_ratio.fct());
             SCROLL_HORIZONTAL_RATIO_VAR.set(h_ratio.fct());
-            SCROLL_CONTENT_SIZE_VAR.set(content_size);
+            SCROLL_CONTENT_ORIGINAL_SIZE_VAR.set(content_original_size);
 
             let full_size = viewport_size + joiner_size;
 
@@ -228,7 +231,7 @@ pub fn viewport(child: impl IntoUiNode, mode: impl IntoVar<ScrollMode>, child_al
 
             *final_size = viewport_size;
 
-            scroll_info().set_content(PxRect::new(content_offset.to_point(), content_size), content_scale);
+            scroll_info().set_content(content_offset.to_point(), content_scale, content_original_size);
         }
         UiNodeOp::Render { frame } => {
             scroll_info().set_viewport_transform(*frame.transform());
@@ -594,7 +597,7 @@ pub fn zoom_commands_node(child: impl IntoUiNode) -> UiNode {
     fn fit_scale() -> Factor {
         let scroll = WIDGET.info().scroll_info().unwrap();
         let viewport = (scroll.viewport_size() + scroll.joiner_size()).to_f32(); // viewport without scrollbars
-        let content = scroll.content().size.max(PxSize::splat(Px(1))).to_f32() / scroll.zoom_scale();
+        let content = scroll.content_original_size().max(PxSize::splat(Px(1))).to_f32();
         let scale = (viewport.width / content.width).min(viewport.height / content.height).fct();
         match ZOOM_TO_FIT_MODE_VAR.get() {
             ZoomToFitMode::Contain => scale,
@@ -830,7 +833,7 @@ pub fn scroll_to_node(child: impl IntoUiNode) -> UiNode {
 
                 if let Some(scroll_info) = us.scroll_info() {
                     if let Some(s) = &mut zoom {
-                        *s = (*s).clamp(MIN_ZOOM_VAR.get(), MAX_ZOOM_VAR.get());
+                        *s = (*s).clamp(SCROLL.actual_min_zoom(), MAX_ZOOM_VAR.get());
                     }
 
                     let rendered_content = scroll_info.content();
@@ -1620,7 +1623,8 @@ pub fn default_auto_scroll_indicator() -> UiNode {
                 // vars used by SCROLL.can_scroll_*.
                 WIDGET
                     .sub_var_render(&SCROLL_VIEWPORT_SIZE_VAR)
-                    .sub_var_render(&SCROLL_CONTENT_SIZE_VAR)
+                    .sub_var_render(&SCROLL_CONTENT_ORIGINAL_SIZE_VAR)
+                    .sub_var_render(&SCROLL_SCALE_VAR)
                     .sub_var_render(&SCROLL_VERTICAL_OFFSET_VAR)
                     .sub_var_render(&SCROLL_HORIZONTAL_OFFSET_VAR);
             }

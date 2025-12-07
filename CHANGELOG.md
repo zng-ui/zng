@@ -1,5 +1,11 @@
 # Unreleased
 
+* Improve `Scroll::min_zoom`.
+    - Now minimum possible scale is `0.01.pct()`.
+    - A value under `0.01.pct()` indicates the scale needed to fit the content in the viewport.
+    - New default value is `0.fct()`.
+
+* Add `WINDOW.try_info` and `WIDGET.try_info` to get contextual info without panic if widget has not built info yet.
 
 # 0.20.0
 

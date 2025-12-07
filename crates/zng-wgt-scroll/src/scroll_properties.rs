@@ -100,7 +100,9 @@ context_var! {
     pub static OVERSCROLL_COLOR_VAR: Rgba = colors::GRAY.with_alpha(50.pct());
 
     /// Minimum scale allowed when [`ScrollMode::ZOOM`] is enabled.
-    pub static MIN_ZOOM_VAR: Factor = 10.pct();
+    ///
+    /// `< 0.01.pct()` means the minimum required to fit the content in the viewport.
+    pub static MIN_ZOOM_VAR: Factor = 0.fct();
 
     /// Maximum scale allowed when [`ScrollMode::ZOOM`] is enabled.
     pub static MAX_ZOOM_VAR: Factor = 500.pct();
@@ -401,6 +403,9 @@ pub fn overscroll_color(child: impl IntoUiNode, color: impl IntoVar<Rgba>) -> Ui
 }
 
 /// Minimum scale allowed when [`ScrollMode::ZOOM`] is enabled.
+///
+/// The actual minimum scale possible is `0.01.pct()`. A value under `0.01.pct()` means
+/// the minimum required to fit the content in the viewport.
 ///
 /// This property sets the [`MIN_ZOOM_VAR`].
 #[property(CONTEXT, default(MIN_ZOOM_VAR), widget_impl(Scroll))]

@@ -123,6 +123,14 @@ impl WINDOW {
         if WINDOW_CTX.is_default() { None } else { Some(WINDOW_CTX.get().id) }
     }
 
+    /// Gets the window info tree if called in a window context and the window has already inited.
+    pub fn try_info(&self) -> Option<WidgetInfoTree> {
+        if !WINDOW_CTX.is_default() {
+            return WINDOW_CTX.get().widget_tree.read().clone();
+        }
+        None
+    }
+
     /// Gets the window ID.
     pub fn id(&self) -> WindowId {
         WINDOW_CTX.get().id
