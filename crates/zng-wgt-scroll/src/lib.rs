@@ -156,7 +156,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
 
     wgt.push_intrinsic(NestGroup::CONTEXT, "context", move |child| {
         let child = with_context_var(child, SCROLL_VIEWPORT_SIZE_VAR, var(PxSize::zero()));
-        let child = with_context_var(child, SCROLL_CONTENT_SIZE_VAR, var(PxSize::zero()));
+        let child = with_context_var(child, SCROLL_CONTENT_ORIGINAL_SIZE_VAR, var(PxSize::zero()));
 
         let child = with_context_var(child, SCROLL_VERTICAL_RATIO_VAR, var(0.fct()));
         let child = with_context_var(child, SCROLL_HORIZONTAL_RATIO_VAR, var(0.fct()));

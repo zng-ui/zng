@@ -674,6 +674,16 @@ impl WIDGET {
         if self.is_in_widget() { Some(WIDGET_CTX.get().id) } else { None }
     }
 
+    /// Get the widget info, if called inside a widget and the widget has already inited info.
+    pub fn try_info(&self) -> Option<WidgetInfo> {
+        if let Some(id) = self.try_id()
+            && let Some(info) = WINDOW.try_info()
+        {
+            return info.get(id);
+        }
+        None
+    }
+
     /// Gets a text with detailed path to the current widget.
     ///
     /// This can be used to quickly identify the current widget during debug, the path printout will contain
