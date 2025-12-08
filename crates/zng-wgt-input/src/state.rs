@@ -47,7 +47,7 @@ pub fn is_hovered(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     })
 }
 
-/// If the mouse pointer is over the widget, or a descendant, or is captured by the it.
+/// If the mouse pointer is over the widget, or a descendant, or is captured by it.
 ///
 /// The value is always `false` when the widget is not [`ENABLED`].
 ///
@@ -163,8 +163,6 @@ pub fn is_mouse_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> Ui
 }
 
 /// If the mouse pointer is pressed or captured by the widget and it is enabled.
-///
-/// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
 pub fn is_cap_mouse_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     event_state2(
