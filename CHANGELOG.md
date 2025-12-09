@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.20.1
+
 * `UiNode::init_widget` and `into_widget` anonymous widget now uses detailed hit-test mode.
     - Fix issues with `LAYERS.insert_node` blocking all interaction with window.
 
