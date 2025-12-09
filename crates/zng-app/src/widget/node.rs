@@ -28,7 +28,7 @@ use zng_var::{BoxAnyVarValue, ContextInitHandle, ResponseVar, response_done_var,
 use crate::{
     render::{FrameBuilder, FrameUpdate},
     update::{EventUpdate, WidgetUpdates},
-    widget::builder::WidgetBuilding,
+    widget::builder::{NestGroup, WidgetBuilding},
 };
 
 use super::{
@@ -1199,7 +1199,51 @@ fn child(wgt: &mut WidgetBuilding, child: impl IntoUiNode) {
     wgt.set_child(child);
 }
 impl into_widget {
-    fn widget_intrinsic(&mut self) {}
+    fn widget_intrinsic(&mut self) {
+        self.widget_builder().push_build_action(|b| {
+            b.push_intrinsic(NestGroup::CONTEXT, "detailed_hit_test", detailed_hit_test);
+        });
+    }
+}
+// Use detailed hit-test for `into_widget!`, this is a better default because
+// the widget can easily end-up filling the available area while the child node
+// is aligned to a side.
+fn detailed_hit_test(child: UiNode) -> UiNode {
+    // this code is equivalent to setting the hit_test_mode property that
+    // is unfortunately declared in "crates\zng-wgt\src\hit_test_props.rs"
+    use super::base::*;
+    let mut mode = None;
+    let ctx = ContextInitHandle::new();
+    match_node(child, move |c, op| {
+        if mode.is_none() {
+            mode = Some(std::sync::Arc::new(
+                HIT_TEST_MODE_VAR
+                    .map(|m| match m {
+                        HitTestMode::Disabled => HitTestMode::Disabled,
+                        _ => HitTestMode::Detailed,
+                    })
+                    .current_context()
+                    .into(),
+            ));
+        }
+        HIT_TEST_MODE_VAR.with_context(ctx.clone(), &mut mode, || {
+            match op {
+                UiNodeOp::Init => {
+                    WIDGET.sub_var_render(&HIT_TEST_MODE_VAR);
+                }
+                UiNodeOp::Render { frame } => {
+                    match HIT_TEST_MODE_VAR.get() {
+                        HitTestMode::Disabled => {}
+                        _ => {
+                            // HitTestMode::Detailed
+                            frame.with_auto_hit_test(true, |frame| c.render(frame));
+                        }
+                    }
+                }
+                _ => (),
+            }
+        })
+    })
 }
 
 struct NilUiNode;

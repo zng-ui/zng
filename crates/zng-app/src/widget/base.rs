@@ -567,7 +567,7 @@ pub mod node {
     ///
     /// This node renders the inner transform and implements the [`HitTestMode`] for the widget.
     ///
-    /// This node must be intrinsic at [`NestGroup::BORDER`], the [`WidgetBase`] default intrinsic inserts it.
+    /// This node must be intrinsic at [`NestGroup::WIDGET_INNER`], the [`WidgetBase`] default intrinsic inserts it.
     ///
     /// [`WidgetBase`]: struct@WidgetBase
     pub fn widget_inner(child: impl IntoUiNode) -> UiNode {
