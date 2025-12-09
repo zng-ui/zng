@@ -1,6 +1,7 @@
 # Unreleased
 
 * `UiNode::init_widget` and `into_widget` anonymous widget now uses detailed hit-test mode.
+    - Fix issues with `LAYERS.insert_node` blocking all interaction with window.
 
 * Improve `Scroll::min_zoom`.
     - Now minimum possible scale is `0.01.pct()`.

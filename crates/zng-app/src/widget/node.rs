@@ -1209,6 +1209,8 @@ impl into_widget {
 // the widget can easily end-up filling the available area while the child node
 // is aligned to a side.
 fn detailed_hit_test(child: UiNode) -> UiNode {
+    // this code is equivalent to setting the hit_test_mode property that
+    // is unfortunately declared in "crates\zng-wgt\src\hit_test_props.rs"
     use super::base::*;
     let mut mode = None;
     let ctx = ContextInitHandle::new();
