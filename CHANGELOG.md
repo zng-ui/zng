@@ -1,5 +1,7 @@
 # Unreleased
 
+* `UiNode::init_widget` and `into_widget` anonymous widget now uses detailed hit-test mode.
+
 * Improve `Scroll::min_zoom`.
     - Now minimum possible scale is `0.01.pct()`.
     - A value under `0.01.pct()` indicates the scale needed to fit the content in the viewport.
