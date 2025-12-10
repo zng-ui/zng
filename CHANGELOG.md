@@ -1,6 +1,8 @@
 # Unreleased
 
-* Add `IpcBytes::cast` and `IpcBytesMut::cast` for owned bytemuck safe casting.
+* Add `IpcBytesMut::reduce_in_place` for reusing allocation for chunked conversion when output chunks are smaller.
+* Add `IpcBytesMut::truncate` for lazy truncation on finish.
+* Add `IpcBytes::cast` and `IpcBytesMut::cast` for bytemuck safe casting.
 * Fix missing image formats in the view-process encoder and decoder lists.
 
 # 0.20.1
