@@ -4,6 +4,7 @@ use std::{
     cell::Cell,
     fmt, fs,
     io::{self, Read, Write},
+    marker::PhantomData,
     ops,
     path::{Path, PathBuf},
     pin::Pin,
@@ -1146,5 +1147,133 @@ impl Drop for IpcBytesMut {
             drop(write_handle);
             std::fs::remove_file(name).ok();
         }
+    }
+}
+
+/// Safe bytemuck casting wrapper for [`IpcBytesMut`].
+///
+/// Use [`IpcBytesMut::cast`] to cast.
+pub struct IpcBytesMutCast<T: bytemuck::AnyBitPattern> {
+    bytes: IpcBytesMut,
+    _t: PhantomData<T>,
+}
+impl<T: bytemuck::AnyBitPattern> ops::Deref for IpcBytesMutCast<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        bytemuck::cast_slice::<u8, T>(&self.bytes)
+    }
+}
+impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> ops::DerefMut for IpcBytesMutCast<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        bytemuck::cast_slice_mut::<u8, T>(&mut self.bytes)
+    }
+}
+impl<T: bytemuck::AnyBitPattern> IpcBytesMutCast<T> {
+    /// Convert back to [`IpcBytesMut`].
+    pub fn into_inner(self) -> IpcBytesMut {
+        self.bytes
+    }
+}
+impl<T: bytemuck::AnyBitPattern> From<IpcBytesMutCast<T>> for IpcBytesMut {
+    fn from(value: IpcBytesMutCast<T>) -> Self {
+        value.bytes
+    }
+}
+impl IpcBytesMut {
+    /// Safe bytemuck casting wrapper.
+    ///
+    /// The wrapper will deref to `[T]` and can be converted back to `IpcBytesMust`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cannot cast, se [bytemuck docs] for details.
+    ///
+    /// [bytemuck docs]: https://docs.rs/bytemuck/1.24.0/bytemuck/fn.try_cast_slice.html
+    pub fn cast<T: bytemuck::AnyBitPattern>(self) -> IpcBytesMutCast<T> {
+        let r = IpcBytesMutCast {
+            bytes: self,
+            _t: PhantomData,
+        };
+        let _assert = &r[..];
+        r
+    }
+
+    /// Safe bytemuck cast to slice.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cannot cast, se [bytemuck docs] for details.
+    ///
+    /// [bytemuck docs]: https://docs.rs/bytemuck/1.24.0/bytemuck/fn.try_cast_slice.html
+    pub fn cast_deref<T: bytemuck::AnyBitPattern>(&self) -> &[T] {
+        bytemuck::cast_slice(self)
+    }
+
+    /// Safe bytemuck cast to mutable slice.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cannot cast, se [bytemuck docs] for details.
+    ///
+    /// [bytemuck docs]: https://docs.rs/bytemuck/1.24.0/bytemuck/fn.try_cast_slice.html
+    pub fn cast_deref_mut<T: bytemuck::AnyBitPattern + bytemuck::NoUninit>(&mut self) -> &mut [T] {
+        bytemuck::cast_slice_mut(self)
+    }
+}
+
+/// Safe bytemuck casting wrapper for [`IpcBytes`].
+///
+/// Use [`IpcBytes::cast`] to cast.
+pub struct IpcBytesCast<T: bytemuck::AnyBitPattern> {
+    bytes: IpcBytes,
+    _t: PhantomData<T>,
+}
+impl<T: bytemuck::AnyBitPattern> ops::Deref for IpcBytesCast<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        bytemuck::cast_slice::<u8, T>(&self.bytes)
+    }
+}
+impl<T: bytemuck::AnyBitPattern> IpcBytesCast<T> {
+    /// Convert back to [`IpcBytes`].
+    pub fn into_inner(self) -> IpcBytes {
+        self.bytes
+    }
+}
+impl<T: bytemuck::AnyBitPattern> From<IpcBytesCast<T>> for IpcBytes {
+    fn from(value: IpcBytesCast<T>) -> Self {
+        value.bytes
+    }
+}
+impl IpcBytes {
+    /// Safe bytemuck casting wrapper.
+    ///
+    /// The wrapper will deref to `[T]` and can be converted back to `IpcBytes`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cannot cast, se [bytemuck docs] for details.
+    ///
+    /// [bytemuck docs]: https://docs.rs/bytemuck/1.24.0/bytemuck/fn.try_cast_slice.html
+    pub fn cast<T: bytemuck::AnyBitPattern>(self) -> IpcBytesCast<T> {
+        let r = IpcBytesCast {
+            bytes: self,
+            _t: PhantomData,
+        };
+        let _assert = &r[..];
+        r
+    }
+
+    /// Safe bytemuck cast to slice.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cannot cast, se [bytemuck docs] for details.
+    ///
+    /// [bytemuck docs]: https://docs.rs/bytemuck/1.24.0/bytemuck/fn.try_cast_slice.html
+    pub fn cast_deref<T: bytemuck::AnyBitPattern>(&self) -> &[T] {
+        bytemuck::cast_slice(self)
     }
 }

@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `IpcBytes::cast` and `IpcBytesMut::cast` for owned bytemuck safe casting.
 * Fix missing image formats in the view-process encoder and decoder lists.
 
 # 0.20.1
