@@ -4,6 +4,7 @@
 use image::ImageDecoder as _;
 use std::{fmt, sync::Arc};
 use zng_task::parking_lot::Mutex;
+use zng_view_api::image::ImageFormat;
 
 use webrender::api::ImageDescriptor;
 use zng_txt::ToTxt as _;
@@ -32,69 +33,38 @@ pub(crate) mod lcms2 {
     pub struct Profile {}
 }
 
-pub(crate) const ENCODERS: &[&str] = &[
-    #[cfg(feature = "image_png")]
-    "png",
-    #[cfg(feature = "image_jpeg")]
-    "jpg",
-    #[cfg(feature = "image_jpeg")]
-    "jpeg",
-    #[cfg(feature = "image_webp")]
-    "webp",
+pub(crate) const FORMATS: &[ImageFormat] = &[
     #[cfg(any(feature = "image_avif", zng_view_image_has_avif))]
-    "avif",
-    #[cfg(feature = "image_gif")]
-    "gif",
-    #[cfg(feature = "image_ico")]
-    "ico",
+    ImageFormat::from_static("AVIF", "avif", "avif", false),
     #[cfg(feature = "image_bmp")]
-    "bmp",
-    #[cfg(feature = "image_jpeg")]
-    "jfif",
-    #[cfg(feature = "image_exr")]
-    "exr",
-    #[cfg(feature = "image_hdr")]
-    "hdr",
-    #[cfg(feature = "image_pnm")]
-    "pnm",
-    #[cfg(feature = "image_qoi")]
-    "qoi",
-    #[cfg(feature = "image_ff")]
-    "ff",
-    #[cfg(feature = "image_ff")]
-    "farbfeld",
-];
-pub(crate) const DECODERS: &[&str] = &[
-    #[cfg(feature = "image_png")]
-    "png",
-    #[cfg(feature = "image_jpeg")]
-    "jpg",
-    #[cfg(feature = "image_jpeg")]
-    "jpeg",
-    #[cfg(feature = "image_webp")]
-    "webp",
-    #[cfg(any(feature = "image_avif", zng_view_image_has_avif))]
-    "avif",
-    #[cfg(feature = "image_gif")]
-    "gif",
-    #[cfg(feature = "image_ico")]
-    "ico",
-    #[cfg(feature = "image_bmp")]
-    "bmp",
-    #[cfg(feature = "image_jpeg")]
-    "jfif",
-    #[cfg(feature = "image_exr")]
-    "exr",
-    #[cfg(feature = "image_pnm")]
-    "pnm",
-    #[cfg(feature = "image_qoi")]
-    "qoi",
-    #[cfg(feature = "image_ff")]
-    "ff",
-    #[cfg(feature = "image_ff")]
-    "farbfeld",
+    ImageFormat::from_static("BMP", "bmp", "bmp,dib", true),
     #[cfg(feature = "image_dds")]
-    "dds",
+    ImageFormat::from_static("DirectDraw Surface", "x-direct-draw-surface", "dds", false),
+    #[cfg(feature = "image_exr")]
+    ImageFormat::from_static("OpenEXR", "x-exr", "exr", false),
+    #[cfg(feature = "image_ff")]
+    ImageFormat::from_static("Farbfeld", "farbfeld", "ff,farbfeld", false),
+    #[cfg(feature = "image_gif")]
+    ImageFormat::from_static("GIF", "gif", "gif", false),
+    #[cfg(feature = "image_hdr")]
+    ImageFormat::from_static("Radiance HDR", "vnd.radiance", "hdr", false),
+    #[cfg(feature = "image_ico")]
+    ImageFormat::from_static("ICO", "x-icon", "ico", true),
+    #[cfg(feature = "image_jpeg")]
+    ImageFormat::from_static("JPEG", "jpeg", "jpg,jpeg", true),
+    #[cfg(feature = "image_png")]
+    ImageFormat::from_static("PNG", "png", "png", true),
+    #[cfg(feature = "image_pnm")]
+    ImageFormat::from_static("PNM", "x-portable-bitmap", "pbm,pgm,ppm,pam", false),
+    // https://github.com/phoboslab/qoi/issues/167
+    #[cfg(feature = "image_qoi")]
+    ImageFormat::from_static("QOI", "x-qoi", "qoi", true),
+    #[cfg(feature = "image_tga")]
+    ImageFormat::from_static("TGA", "x-tga", "tga,icb,vda,vst", false),
+    #[cfg(feature = "image_tiff")]
+    ImageFormat::from_static("TIFF", "tiff", "tif,tiff", true),
+    #[cfg(feature = "image_tiff")]
+    ImageFormat::from_static("WebP", "webp", "webp", true),
 ];
 
 pub(crate) type ResizerCache = Mutex<fast_image_resize::Resizer>;

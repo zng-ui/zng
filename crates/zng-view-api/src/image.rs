@@ -4,7 +4,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use zng_task::channel::IpcBytes;
-use zng_txt::Txt;
+use zng_txt::{Txt, formatx};
 
 use zng_unit::{Px, PxDensity2d, PxSize};
 
@@ -296,5 +296,64 @@ impl fmt::Debug for ImageLoadedData {
             .field("is_mask", &self.is_mask)
             .field("pixels", &format_args!("<{} bytes shared memory>", self.pixels.len()))
             .finish()
+    }
+}
+
+/// Represents an image codec capability.
+///
+/// This type will be used in the next breaking release of the view API.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct ImageFormat {
+    /// Display name of the format.
+    pub display_name: Txt,
+
+    /// Media type without the `"image/"` prefix.
+    pub mime_suffix: Txt,
+
+    /// Common file extensions associated with the format.
+    ///
+    /// Lowercase, without dot, comma separates if there is more than one.
+    pub file_extensions: Txt,
+
+    /// If the view-process implementation can encode images in this format.
+    ///
+    /// Note that the view-process can always decode formats.
+    pub can_encode: bool,
+}
+impl ImageFormat {
+    /// From static str.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `mime_tree` is empty or is not ASCII.
+    pub const fn from_static(display_name: &'static str, mime_tree: &'static str, file_extensions: &'static str, can_encode: bool) -> Self {
+        assert!(!mime_tree.is_empty());
+        assert!(mime_tree.is_ascii());
+        Self {
+            display_name: Txt::from_static(display_name),
+            mime_suffix: Txt::from_static(mime_tree),
+            file_extensions: Txt::from_static(file_extensions),
+            can_encode,
+        }
+    }
+
+    /// Full mime type, with the `"image/` prefix.
+    pub fn mime_type(&self) -> Txt {
+        formatx!("image/{}", self.mime_suffix)
+    }
+
+    /// Iterate over extensions.
+    pub fn file_extensions_iter(&self) -> impl Iterator<Item = &str> {
+        self.file_extensions.split(',')
+    }
+
+    /// Checks if `f` matches the mime type, mime suffix or any of the file extensions.
+    ///
+    /// File extensions comparison ignores dot and ASCII case.
+    pub fn matches(&self, f: &str) -> bool {
+        let f = f.strip_prefix('.').unwrap_or(f);
+        let f = f.strip_prefix("image/").unwrap_or(f);
+        self.mime_suffix.as_str() == f || self.file_extensions_iter().any(|e| e.eq_ignore_ascii_case(f))
     }
 }

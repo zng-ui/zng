@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix missing image formats in the view-process encoder and decoder lists.
 
 # 0.20.1
 

@@ -2077,11 +2077,18 @@ impl Api for App {
     }
 
     fn image_decoders(&mut self) -> Vec<Txt> {
-        image_cache::DECODERS.iter().map(|&s| Txt::from_static(s)).collect()
+        image_cache::FORMATS
+            .iter()
+            .flat_map(|f| f.file_extensions_iter().map(Txt::from_str))
+            .collect()
     }
 
     fn image_encoders(&mut self) -> Vec<Txt> {
-        image_cache::ENCODERS.iter().map(|&s| Txt::from_static(s)).collect()
+        image_cache::FORMATS
+            .iter()
+            .filter(|f| f.can_encode)
+            .flat_map(|f| f.file_extensions_iter().map(Txt::from_str))
+            .collect()
     }
 
     fn add_image(&mut self, request: ImageRequest<IpcBytes>) -> ImageId {

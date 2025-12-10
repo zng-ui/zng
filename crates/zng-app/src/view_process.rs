@@ -245,6 +245,7 @@ impl VIEW_PROCESS {
     ///
     /// Each text is the lower-case file extension, without the dot.
     pub fn image_encoders(&self) -> Result<Vec<Txt>> {
+        // TODO(breaking) change to a struct ImageFormat { mime: Txt, extensions: Box<[Txt]> }
         self.write().process.image_encoders()
     }
 
