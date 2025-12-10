@@ -4,7 +4,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use zng_task::channel::IpcBytes;
-use zng_txt::{Txt, formatx};
+use zng_txt::Txt;
 
 use zng_unit::{Px, PxDensity2d, PxSize};
 
@@ -308,12 +308,14 @@ pub struct ImageFormat {
     /// Display name of the format.
     pub display_name: Txt,
 
-    /// Media type without the `"image/"` prefix.
-    pub mime_suffix: Txt,
+    /// Media types (MIME) associated with the format.
+    ///
+    /// Lowercase, without `"image/"` prefix, comma separated if there is more than one.
+    pub media_type_suffixes: Txt,
 
     /// Common file extensions associated with the format.
     ///
-    /// Lowercase, without dot, comma separates if there is more than one.
+    /// Lowercase, without dot, comma separated if there is more than one.
     pub file_extensions: Txt,
 
     /// If the view-process implementation can encode images in this format.
@@ -326,34 +328,43 @@ impl ImageFormat {
     ///
     /// # Panics
     ///
-    /// Panics if `mime_tree` is empty or is not ASCII.
-    pub const fn from_static(display_name: &'static str, mime_tree: &'static str, file_extensions: &'static str, can_encode: bool) -> Self {
-        assert!(!mime_tree.is_empty());
-        assert!(mime_tree.is_ascii());
+    /// Panics if `media_type_suffixes` not ASCII.
+    pub const fn from_static(
+        display_name: &'static str,
+        media_type_suffixes: &'static str,
+        file_extensions: &'static str,
+        can_encode: bool,
+    ) -> Self {
+        assert!(media_type_suffixes.is_ascii());
         Self {
             display_name: Txt::from_static(display_name),
-            mime_suffix: Txt::from_static(mime_tree),
+            media_type_suffixes: Txt::from_static(media_type_suffixes),
             file_extensions: Txt::from_static(file_extensions),
             can_encode,
         }
     }
 
-    /// Full mime type, with the `"image/` prefix.
-    pub fn mime_type(&self) -> Txt {
-        formatx!("image/{}", self.mime_suffix)
+    /// Iterate over media type suffixes.
+    pub fn media_type_suffixes_iter(&self) -> impl Iterator<Item = &str> {
+        self.media_type_suffixes.split(',').map(|e| e.trim())
+    }
+
+    /// Iterate over full media types, with `"image/"` prefix.
+    pub fn media_types(&self) -> impl Iterator<Item = Txt> {
+        self.media_type_suffixes_iter().map(Txt::from_str)
     }
 
     /// Iterate over extensions.
     pub fn file_extensions_iter(&self) -> impl Iterator<Item = &str> {
-        self.file_extensions.split(',')
+        self.file_extensions.split(',').map(|e| e.trim())
     }
 
-    /// Checks if `f` matches the mime type, mime suffix or any of the file extensions.
+    /// Checks if `f` matches any of the mime types or any of the file extensions.
     ///
     /// File extensions comparison ignores dot and ASCII case.
     pub fn matches(&self, f: &str) -> bool {
         let f = f.strip_prefix('.').unwrap_or(f);
         let f = f.strip_prefix("image/").unwrap_or(f);
-        self.mime_suffix.as_str() == f || self.file_extensions_iter().any(|e| e.eq_ignore_ascii_case(f))
+        self.media_type_suffixes_iter().any(|e| e.eq_ignore_ascii_case(f)) || self.file_extensions_iter().any(|e| e.eq_ignore_ascii_case(f))
     }
 }
