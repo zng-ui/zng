@@ -9,21 +9,36 @@ use zng_view_api::{Event, image::ImageId};
 
 use crate::{
     AppEvent,
-    image_cache::{ENCODERS, Image, ImageCache, ImageData},
+    image_cache::{FORMATS, Image, ImageCache, ImageData},
 };
 
 impl ImageCache {
     pub fn encode(&self, id: ImageId, format: Txt) {
-        if !ENCODERS.contains(&format.as_str()) {
-            let error = formatx!("cannot encode `{id:?}` to `{format}`, unknown format");
-            let _ = self
-                .app_sender
-                .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
-            return;
-        }
+        let fmt = match FORMATS.iter().find(|f| f.matches(format.as_str())) {
+            Some(f) => {
+                if !f.can_encode {
+                    let error = formatx!(
+                        "cannot encode `{id:?}` to `{} ({format})`, encoding not implemented",
+                        f.display_name
+                    );
+                    let _ = self
+                        .app_sender
+                        .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
+                    return;
+                }
+                f
+            }
+            None => {
+                let error = formatx!("cannot encode `{id:?}` to `{format}`, unknown format");
+                let _ = self
+                    .app_sender
+                    .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
+                return;
+            }
+        };
 
         if let Some(img) = self.get(id) {
-            let fmt = image::ImageFormat::from_extension(format.as_str()).unwrap();
+            let fmt = image::ImageFormat::from_extension(fmt.file_extensions_iter().next().unwrap()).unwrap();
             debug_assert!(fmt.can_write());
 
             let img = img.clone();
@@ -50,7 +65,7 @@ impl ImageCache {
                 }
             })
         } else {
-            let error = formatx!("cannot encode `{id:?}` to `{format}`, image not found");
+            let error = formatx!("cannot encode `{id:?}` to `{}`, image not found", fmt.display_name);
             let _ = self
                 .app_sender
                 .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
