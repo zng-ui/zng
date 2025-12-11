@@ -657,7 +657,7 @@ impl ImageCache {
                 let out_w = height;
                 let out_h = width;
                 let bpp = if is_mask { 1 } else { 4 };
-                
+
                 const TILE: usize = 32;
                 macro_rules! tiled_rotation {
                     (|$x:ident, $y:ident| $map_coords:expr) => {
