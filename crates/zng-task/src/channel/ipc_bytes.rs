@@ -1164,7 +1164,7 @@ impl IpcBytesMut {
         #[cfg(not(ipc))]
         {
             Ok(Self {
-                len: self.len,
+                len: buf.len(),
                 inner: IpcBytesMutInner::Heap(buf),
             })
         }
