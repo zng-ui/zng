@@ -646,58 +646,56 @@ impl ImageCache {
                 Ok((size, pixels))
             }
             alloc_needed => {
-                let out_size = PxSize::new(size.height, size.width);
                 let mut out = IpcBytes::new_mut_blocking(pixels.len())?;
                 let out_slice = &mut out[..];
-                let bpp = if is_mask { 1 } else { 4 };
-                let out_w = out_size.width.0 as usize;
-                let out_h = out_size.height.0 as usize;
 
+                // iterate using loop tiling for better CPU cache perf
+                // map_coords is (x, y) -> (out_x, out_y).
+
+                let width = size.width.0 as usize;
+                let height = size.height.0 as usize;
+                let out_w = height;
+                let out_h = width;
+                let bpp = if is_mask { 1 } else { 4 };
+                
+                const TILE: usize = 32;
+                macro_rules! tiled_rotation {
+                    (|$x:ident, $y:ident| $map_coords:expr) => {
+                        for y_base in (0..height).step_by(TILE) {
+                            for x_base in (0..width).step_by(TILE) {
+                                let y_max = (y_base + TILE).min(height);
+                                let x_max = (x_base + TILE).min(width);
+
+                                for y in y_base..y_max {
+                                    let src_row_start = y * width * bpp;
+                                    let src_row = &pixels[src_row_start..src_row_start + width * bpp];
+
+                                    for x in x_base..x_max {
+                                        let (out_x, out_y) = {
+                                            let $x = x;
+                                            let $y = y;
+                                            $map_coords
+                                        };
+
+                                        let src_offset = x * bpp;
+                                        let dst_offset = (out_y * out_w + out_x) * bpp;
+
+                                        out_slice[dst_offset..dst_offset + bpp].copy_from_slice(&src_row[src_offset..src_offset + bpp]);
+                                    }
+                                }
+                            }
+                        }
+                    };
+                }
                 match alloc_needed {
-                    Rotate90 => {
-                        for (y, row) in pixels.chunks_exact(size.width.0 as usize * bpp).enumerate() {
-                            for (x, p) in row.chunks_exact(bpp).enumerate() {
-                                let out_x = out_w - 1 - y;
-                                let out_y = x;
-                                let start = (out_y * out_w + out_x) * bpp;
-                                out_slice[start..start + bpp].copy_from_slice(p);
-                            }
-                        }
-                    }
-                    Rotate270 => {
-                        for (y, row) in pixels.chunks_exact(size.width.0 as usize * bpp).enumerate() {
-                            for (x, p) in row.chunks_exact(bpp).enumerate() {
-                                let out_x = y;
-                                let out_y = out_h - 1 - x;
-                                let start = (out_y * out_w + out_x) * bpp;
-                                out_slice[start..start + bpp].copy_from_slice(p);
-                            }
-                        }
-                    }
-                    Rotate90FlipH => {
-                        for (y, row) in pixels.chunks_exact(size.width.0 as usize * bpp).enumerate() {
-                            for (x, p) in row.chunks_exact(bpp).enumerate() {
-                                let out_x = y;
-                                let out_y = x;
-                                let start = (out_y * out_w + out_x) * bpp;
-                                out_slice[start..start + bpp].copy_from_slice(p);
-                            }
-                        }
-                    }
-                    Rotate270FlipH => {
-                        for (y, row) in pixels.chunks_exact(size.width.0 as usize * bpp).enumerate() {
-                            for (x, p) in row.chunks_exact(bpp).enumerate() {
-                                let out_x = out_w - 1 - y;
-                                let out_y = out_h - 1 - x;
-                                let start = (out_y * out_w + out_x) * bpp;
-                                out_slice[start..start + bpp].copy_from_slice(p);
-                            }
-                        }
-                    }
+                    Rotate90 => tiled_rotation!(|x, y| (out_w - 1 - y, x)),
+                    Rotate270 => tiled_rotation!(|x, y| (y, out_h - 1 - x)),
+                    Rotate90FlipH => tiled_rotation!(|x, y| (y, x)),
+                    Rotate270FlipH => tiled_rotation!(|x, y| (out_w - 1 - y, out_h - 1 - x)),
                     _ => unreachable!(),
                 }
 
-                Ok((out_size, out))
+                Ok((PxSize::new(size.height, size.width), out))
             }
         }
     }
