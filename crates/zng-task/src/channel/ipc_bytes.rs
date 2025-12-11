@@ -4,6 +4,8 @@ use std::{
     cell::Cell,
     fmt, fs,
     io::{self, Read, Write},
+    marker::PhantomData,
+    mem::MaybeUninit,
     ops,
     path::{Path, PathBuf},
     pin::Pin,
@@ -97,10 +99,12 @@ impl IpcBytes {
         #[cfg(ipc)]
         if len <= Self::INLINE_MAX {
             Ok(IpcBytesMut {
+                len,
                 inner: IpcBytesMutInner::Heap(vec![0; len]),
             })
         } else if len <= Self::UNNAMED_MAX {
             Ok(IpcBytesMut {
+                len,
                 inner: IpcBytesMutInner::AnonMemMap(IpcSharedMemory::from_byte(0, len)),
             })
         } else {
@@ -110,6 +114,7 @@ impl IpcBytes {
         #[cfg(not(ipc))]
         {
             Ok(IpcBytesMut {
+                len,
                 inner: IpcBytesMutInner::Heap(vec![0; len]),
             })
         }
@@ -304,10 +309,12 @@ impl IpcBytes {
         #[cfg(ipc)]
         if len <= Self::INLINE_MAX {
             Ok(IpcBytesMut {
+                len,
                 inner: IpcBytesMutInner::Heap(vec![0; len]),
             })
         } else if len <= Self::UNNAMED_MAX {
             Ok(IpcBytesMut {
+                len,
                 inner: IpcBytesMutInner::AnonMemMap(IpcSharedMemory::from_byte(0, len)),
             })
         } else {
@@ -324,6 +331,7 @@ impl IpcBytes {
             // SAFETY: we hold write lock
             let map = unsafe { memmap2::MmapMut::map_mut(&file) }?;
             Ok(IpcBytesMut {
+                len,
                 inner: IpcBytesMutInner::MemMap {
                     name,
                     map,
@@ -334,6 +342,7 @@ impl IpcBytes {
         #[cfg(not(ipc))]
         {
             Ok(IpcBytesMut {
+                len,
                 inner: IpcBytesMutInner::Heap(vec![0; len]),
             })
         }
@@ -884,26 +893,31 @@ impl IpcBytesWriterBlocking {
         self.flush()?;
         #[cfg(ipc)]
         {
-            let inner = match self.memmap {
+            let (len, inner) = match self.memmap {
                 Some((name, write_handle)) => {
                     // SAFETY: we hold write lock
                     let map = unsafe { memmap2::MmapMut::map_mut(&write_handle) }?;
-                    IpcBytesMutInner::MemMap { name, map, write_handle }
+                    let len = map.len();
+                    (len, IpcBytesMutInner::MemMap { name, map, write_handle })
                 }
                 None => {
-                    if self.heap_buf.len() > IpcBytes::INLINE_MAX {
+                    let len = self.heap_buf.len();
+                    let i = if self.heap_buf.len() > IpcBytes::INLINE_MAX {
                         IpcBytesMutInner::AnonMemMap(IpcSharedMemory::from_bytes(&self.heap_buf))
                     } else {
                         IpcBytesMutInner::Heap(self.heap_buf)
-                    }
+                    };
+                    (len, i)
                 }
             };
-            Ok(IpcBytesMut { inner })
+            Ok(IpcBytesMut { len, inner })
         }
         #[cfg(not(ipc))]
         {
-            let inner = IpcBytesMutInner::Heap(self.heap_buf.into_inner());
-            Ok(IpcBytesMut { inner })
+            let heap_buf = self.heap_buf.into_inner();
+            let len = heap_buf.len();
+            let inner = IpcBytesMutInner::Heap(heap_buf);
+            Ok(IpcBytesMut { len, inner })
         }
     }
 
@@ -1009,31 +1023,34 @@ enum IpcBytesMutInner {
 /// Use [`IpcBytes::new_mut`] or [`IpcBytes::new_mut_blocking`] to allocate.
 pub struct IpcBytesMut {
     inner: IpcBytesMutInner,
+    len: usize,
 }
 impl ops::Deref for IpcBytesMut {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
+        let len = self.len;
         match &self.inner {
-            IpcBytesMutInner::Heap(v) => &v[..],
+            IpcBytesMutInner::Heap(v) => &v[..len],
             #[cfg(ipc)]
-            IpcBytesMutInner::AnonMemMap(m) => &m[..],
+            IpcBytesMutInner::AnonMemMap(m) => &m[..len],
             #[cfg(ipc)]
-            IpcBytesMutInner::MemMap { map, .. } => &map[..],
+            IpcBytesMutInner::MemMap { map, .. } => &map[..len],
         }
     }
 }
 impl ops::DerefMut for IpcBytesMut {
     fn deref_mut(&mut self) -> &mut Self::Target {
+        let len = self.len;
         match &mut self.inner {
-            IpcBytesMutInner::Heap(v) => &mut v[..],
+            IpcBytesMutInner::Heap(v) => &mut v[..len],
             #[cfg(ipc)]
             IpcBytesMutInner::AnonMemMap(m) => {
                 // SAFETY: we are the only reference to the map
                 unsafe { m.deref_mut() }
             }
             #[cfg(ipc)]
-            IpcBytesMutInner::MemMap { map, .. } => &mut map[..],
+            IpcBytesMutInner::MemMap { map, .. } => &mut map[..len],
         }
     }
 }
@@ -1048,6 +1065,7 @@ impl IpcBytesMut {
         #[cfg(ipc)]
         if buf.len() <= IpcBytes::INLINE_MAX {
             Ok(Self {
+                len: buf.len(),
                 inner: IpcBytesMutInner::Heap(buf),
             })
         } else {
@@ -1061,6 +1079,7 @@ impl IpcBytesMut {
         #[cfg(not(ipc))]
         {
             Ok(Self {
+                len: buf.len(),
                 inner: IpcBytesMutInner::Heap(buf),
             })
         }
@@ -1068,23 +1087,46 @@ impl IpcBytesMut {
 
     /// Convert to immutable shareable [`IpcBytes`].
     pub async fn finish(mut self) -> io::Result<IpcBytes> {
+        let len = self.len;
         let data = match std::mem::replace(&mut self.inner, IpcBytesMutInner::Heap(vec![])) {
-            IpcBytesMutInner::Heap(v) => IpcBytesData::Heap(v),
+            IpcBytesMutInner::Heap(mut v) => {
+                v.truncate(len);
+                v.shrink_to_fit();
+                IpcBytesData::Heap(v)
+            }
             #[cfg(ipc)]
-            IpcBytesMutInner::AnonMemMap(m) => IpcBytesData::AnonMemMap(m),
+            IpcBytesMutInner::AnonMemMap(m) => {
+                if len < IpcBytes::INLINE_MAX {
+                    IpcBytesData::Heap(m[..len].to_vec())
+                } else if len < m.len() {
+                    IpcBytesData::AnonMemMap(IpcSharedMemory::from_bytes(&m[..len]))
+                } else {
+                    IpcBytesData::AnonMemMap(m)
+                }
+            }
             #[cfg(ipc)]
             IpcBytesMutInner::MemMap { name, map, write_handle } => {
-                blocking::unblock(move || Self::finish_memmap(name, map, write_handle)).await?
+                let len = self.len;
+                blocking::unblock(move || Self::finish_memmap(name, map, write_handle, len)).await?
             }
         };
         Ok(IpcBytes(Arc::new(data)))
     }
 
     #[cfg(ipc)]
-    fn finish_memmap(name: PathBuf, map: memmap2::MmapMut, write_handle: fs::File) -> Result<IpcBytesData, io::Error> {
-        let len = map.len();
+    fn finish_memmap(name: PathBuf, map: memmap2::MmapMut, write_handle: fs::File, len: usize) -> Result<IpcBytesData, io::Error> {
+        let alloc_len = map.len();
+        if alloc_len != len {
+            write_handle.set_len(len as u64)?;
+        }
         write_handle.unlock()?;
-        let map = map.make_read_only()?;
+        let map = if alloc_len != len {
+            drop(map);
+            // SAFETY: we have write access to the file still
+            unsafe { memmap2::Mmap::map(&write_handle) }?
+        } else {
+            map.make_read_only()?
+        };
         let mut permissions = write_handle.metadata()?.permissions();
         permissions.set_readonly(true);
         #[cfg(unix)]
@@ -1111,6 +1153,7 @@ impl IpcBytesMut {
         #[cfg(ipc)]
         if buf.len() <= IpcBytes::INLINE_MAX {
             Ok(Self {
+                len: buf.len(),
                 inner: IpcBytesMutInner::Heap(buf),
             })
         } else {
@@ -1121,6 +1164,7 @@ impl IpcBytesMut {
         #[cfg(not(ipc))]
         {
             Ok(Self {
+                len: buf.len(),
                 inner: IpcBytesMutInner::Heap(buf),
             })
         }
@@ -1128,12 +1172,24 @@ impl IpcBytesMut {
 
     /// Convert to immutable shareable [`IpcBytes`].
     pub fn finish_blocking(mut self) -> io::Result<IpcBytes> {
+        let len = self.len;
         let data = match std::mem::replace(&mut self.inner, IpcBytesMutInner::Heap(vec![])) {
-            IpcBytesMutInner::Heap(v) => IpcBytesData::Heap(v),
+            IpcBytesMutInner::Heap(mut v) => {
+                v.truncate(len);
+                IpcBytesData::Heap(v)
+            }
             #[cfg(ipc)]
-            IpcBytesMutInner::AnonMemMap(m) => IpcBytesData::AnonMemMap(m),
+            IpcBytesMutInner::AnonMemMap(m) => {
+                if len < IpcBytes::INLINE_MAX {
+                    IpcBytesData::Heap(m[..len].to_vec())
+                } else if len < m.len() {
+                    IpcBytesData::AnonMemMap(IpcSharedMemory::from_bytes(&m[..len]))
+                } else {
+                    IpcBytesData::AnonMemMap(m)
+                }
+            }
             #[cfg(ipc)]
-            IpcBytesMutInner::MemMap { name, map, write_handle } => Self::finish_memmap(name, map, write_handle)?,
+            IpcBytesMutInner::MemMap { name, map, write_handle } => Self::finish_memmap(name, map, write_handle, len)?,
         };
         Ok(IpcBytes(Arc::new(data)))
     }
@@ -1145,6 +1201,386 @@ impl Drop for IpcBytesMut {
             drop(map);
             drop(write_handle);
             std::fs::remove_file(name).ok();
+        }
+    }
+}
+
+/// Safe bytemuck casting wrapper for [`IpcBytesMut`].
+///
+/// Use [`IpcBytesMut::cast`] to cast.
+pub struct IpcBytesMutCast<T: bytemuck::AnyBitPattern> {
+    bytes: IpcBytesMut,
+    _t: PhantomData<T>,
+}
+impl<T: bytemuck::AnyBitPattern> ops::Deref for IpcBytesMutCast<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        bytemuck::cast_slice::<u8, T>(&self.bytes)
+    }
+}
+impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> ops::DerefMut for IpcBytesMutCast<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        bytemuck::cast_slice_mut::<u8, T>(&mut self.bytes)
+    }
+}
+impl<T: bytemuck::AnyBitPattern> IpcBytesMutCast<T> {
+    /// Convert back to [`IpcBytesMut`].
+    pub fn into_inner(self) -> IpcBytesMut {
+        self.bytes
+    }
+}
+impl<T: bytemuck::AnyBitPattern> From<IpcBytesMutCast<T>> for IpcBytesMut {
+    fn from(value: IpcBytesMutCast<T>) -> Self {
+        value.bytes
+    }
+}
+impl IpcBytesMut {
+    /// Safe bytemuck casting wrapper.
+    ///
+    /// The wrapper will deref to `[T]` and can be converted back to `IpcBytesMust`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cannot cast, se [bytemuck docs] for details.
+    ///
+    /// [bytemuck docs]: https://docs.rs/bytemuck/1.24.0/bytemuck/fn.try_cast_slice.html
+    pub fn cast<T: bytemuck::AnyBitPattern>(self) -> IpcBytesMutCast<T> {
+        let r = IpcBytesMutCast {
+            bytes: self,
+            _t: PhantomData,
+        };
+        let _assert = &r[..];
+        r
+    }
+
+    /// Safe bytemuck cast to slice.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cannot cast, se [bytemuck docs] for details.
+    ///
+    /// [bytemuck docs]: https://docs.rs/bytemuck/1.24.0/bytemuck/fn.try_cast_slice.html
+    pub fn cast_deref<T: bytemuck::AnyBitPattern>(&self) -> &[T] {
+        bytemuck::cast_slice(self)
+    }
+
+    /// Safe bytemuck cast to mutable slice.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cannot cast, se [bytemuck docs] for details.
+    ///
+    /// [bytemuck docs]: https://docs.rs/bytemuck/1.24.0/bytemuck/fn.try_cast_slice.html
+    pub fn cast_deref_mut<T: bytemuck::AnyBitPattern + bytemuck::NoUninit>(&mut self) -> &mut [T] {
+        bytemuck::cast_slice_mut(self)
+    }
+}
+
+/// Safe bytemuck casting wrapper for [`IpcBytes`].
+///
+/// Use [`IpcBytes::cast`] to cast.
+pub struct IpcBytesCast<T: bytemuck::AnyBitPattern> {
+    bytes: IpcBytes,
+    _t: PhantomData<T>,
+}
+impl<T: bytemuck::AnyBitPattern> ops::Deref for IpcBytesCast<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        bytemuck::cast_slice::<u8, T>(&self.bytes)
+    }
+}
+impl<T: bytemuck::AnyBitPattern> IpcBytesCast<T> {
+    /// Convert back to [`IpcBytes`].
+    pub fn into_inner(self) -> IpcBytes {
+        self.bytes
+    }
+}
+impl<T: bytemuck::AnyBitPattern> From<IpcBytesCast<T>> for IpcBytes {
+    fn from(value: IpcBytesCast<T>) -> Self {
+        value.bytes
+    }
+}
+impl IpcBytes {
+    /// Safe bytemuck casting wrapper.
+    ///
+    /// The wrapper will deref to `[T]` and can be converted back to `IpcBytes`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cannot cast, se [bytemuck docs] for details.
+    ///
+    /// [bytemuck docs]: https://docs.rs/bytemuck/1.24.0/bytemuck/fn.try_cast_slice.html
+    pub fn cast<T: bytemuck::AnyBitPattern>(self) -> IpcBytesCast<T> {
+        let r = IpcBytesCast {
+            bytes: self,
+            _t: PhantomData,
+        };
+        let _assert = &r[..];
+        r
+    }
+
+    /// Safe bytemuck cast to slice.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cannot cast, se [bytemuck docs] for details.
+    ///
+    /// [bytemuck docs]: https://docs.rs/bytemuck/1.24.0/bytemuck/fn.try_cast_slice.html
+    pub fn cast_deref<T: bytemuck::AnyBitPattern>(&self) -> &[T] {
+        bytemuck::cast_slice(self)
+    }
+}
+
+impl IpcBytesMut {
+    /// Shorten the bytes length.
+    ///
+    /// If `new_len` is greater or equal to current length does nothing.
+    ///
+    /// Note that this does not affect memory allocation, the extra bytes are only dropped on finish.
+    pub fn truncate(&mut self, new_len: usize) {
+        self.len = self.len.min(new_len);
+    }
+
+    /// Convert chunks of length `L0` to chunks of length `L1` where `L1 <= L0`.
+    ///
+    /// Reuses the same allocation for the new data, replacing in place. Truncates the final buffer to the new length.
+    ///
+    /// Note that no memory is released by this call as truncated is lazy and applied on finish.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `L1 > L0` or if bytes length is not multiple of `L0`.
+    pub fn reduce_in_place<const L0: usize, const L1: usize>(&mut self, mut reduce: impl FnMut([u8; L0]) -> [u8; L1]) {
+        assert!(L1 <= L0);
+
+        let self_ = &mut self[..];
+
+        let len = self_.len();
+        if len == 0 {
+            return;
+        }
+        assert!(len.is_multiple_of(L0), "length must be multiple of L0");
+
+        let ptr = self_.as_mut_ptr();
+        let mut write = 0usize;
+        let mut read = 0usize;
+
+        // SAFETY: pointers stay inside slice, in_chunk and out_chunk copy never overlaps with slice.
+        unsafe {
+            while read < len {
+                let mut in_chunk = MaybeUninit::<[u8; L0]>::uninit();
+                std::ptr::copy_nonoverlapping(ptr.add(read), (*in_chunk.as_mut_ptr()).as_mut_ptr(), L0);
+                read += L0;
+
+                let out_chunk = reduce(in_chunk.assume_init());
+
+                std::ptr::copy_nonoverlapping(out_chunk.as_ptr(), ptr.add(write), L1);
+                write += L1;
+            }
+        }
+
+        self.truncate(write);
+    }
+
+    /// Convert chunks of `in_chunk_len` to chunks of `out_chunk_buf.len()` where `out_chunk_buf.len() <= in_chunk_len`.
+    ///
+    /// Reuses the same allocation for the new data, replacing in place. Truncates the final buffer to the new length.
+    ///
+    /// Note that no memory is released by this call as truncated is lazy and applied on finish.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `out_chunk_buf.len() > in_chunk_len` or if bytes length is not multiple of `in_chunk_len`.
+    pub fn reduce_in_place_dyn(&mut self, in_chunk_len: usize, out_chunk_buf: &mut [u8], mut reduce: impl FnMut(&[u8], &mut [u8])) {
+        assert!(out_chunk_buf.len() < in_chunk_len);
+
+        let self_ = &mut self[..];
+
+        let len = self_.len();
+        if len == 0 {
+            return;
+        }
+        assert!(len.is_multiple_of(in_chunk_len), "length must be multiple of in_chunk_len");
+
+        let ptr = self_.as_mut_ptr();
+        let mut write = 0usize;
+        let mut read = 0usize;
+
+        // SAFETY: pointers stay inside slice, in_chunk and out_chunk copy never overlaps with slice.
+        unsafe {
+            while read < len {
+                reduce(std::slice::from_raw_parts(ptr.add(read), in_chunk_len), &mut *out_chunk_buf);
+                read += in_chunk_len;
+
+                std::ptr::copy_nonoverlapping(out_chunk_buf.as_ptr(), ptr.add(write), out_chunk_buf.len());
+                write += out_chunk_buf.len();
+            }
+        }
+
+        self.truncate(write);
+    }
+
+    /// Convert chunks of length `L0` to chunks of length `L1` where `size_of::<T1>() * L1 <= size_of::<T0>() * L0`.
+    ///
+    /// Reuses the same allocation for the new data, replacing in place. Truncates the final buffer to the new length.
+    ///
+    /// Note that no memory is released by this call as truncated is lazy and applied on finish.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `size_of::<T1>() * L1 > size_of::<T0>() * L0` or if bytes length is not multiple of `size_of::<T0>() * L0`.
+    pub fn cast_reduce_in_place<T0, const L0: usize, T1, const L1: usize>(&mut self, mut reduce: impl FnMut([T0; L0]) -> [T1; L1])
+    where
+        T0: bytemuck::AnyBitPattern,
+    {
+        let l0 = std::mem::size_of::<T0>() * L0;
+        let l1 = std::mem::size_of::<T1>() * L1;
+        assert!(l1 <= l0);
+
+        let self_ = &mut self[..];
+
+        let len = self_.len();
+        if len == 0 {
+            return;
+        }
+        assert!(len.is_multiple_of(l0), "length must be multiple of size_of::<T0>() * L0");
+
+        let ptr = self_.as_mut_ptr();
+        let mut write = 0usize;
+        let mut read = 0usize;
+
+        // SAFETY:
+        // Pointers stay inside slice, in_chunk and out_chunk copy never overlaps with slice.
+        // Reading [T0; L0] from raw bytes is safe because T0: AnyBitPattern
+        unsafe {
+            while read < len {
+                let mut in_chunk = MaybeUninit::<[T0; L0]>::uninit();
+                std::ptr::copy_nonoverlapping(ptr.add(read), (*in_chunk.as_mut_ptr()).as_mut_ptr() as _, l0);
+                read += l0;
+
+                let out_chunk = reduce(in_chunk.assume_init());
+
+                std::ptr::copy_nonoverlapping(out_chunk.as_ptr() as _, ptr.add(write), l1);
+                write += l1;
+            }
+        }
+
+        self.truncate(write);
+    }
+
+    /// Convert chunks of `size_of::<T0>() * in_chunk_len` to chunks of `size_of::<T1>() * out_chunk_buf.len()`
+    /// where `size_of::<T1>() * out_chunk_buf.len() <= size_of::<T0>() * in_chunk_len`.
+    ///
+    /// Reuses the same allocation for the new data, replacing in place. Truncates the final buffer to the new length.
+    ///
+    /// Note that no memory is released by this call as truncated is lazy and applied on finish.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `size_of::<T1>() * out_chunk_buf.len() > size_of::<T0>() * in_chunk_len` or if bytes
+    /// length is not multiple of `size_of::<T0>() * in_chunk_len`.
+    pub fn cast_reduce_in_place_dyn<T0, T1>(
+        &mut self,
+        in_chunk_len: usize,
+        out_chunk_buf: &mut [T1],
+        mut reduce: impl FnMut(&[T0], &mut [T1]),
+    ) where
+        T0: bytemuck::AnyBitPattern,
+    {
+        let l0 = std::mem::size_of::<T0>() * in_chunk_len;
+        let l1 = std::mem::size_of_val(out_chunk_buf);
+
+        assert!(l1 <= l0);
+
+        let self_ = &mut self[..];
+
+        let len = self_.len();
+        if len == 0 {
+            return;
+        }
+        assert!(len.is_multiple_of(l0), "length must be multiple of size_of::<T0>() * in_chunk_len");
+
+        let ptr = self_.as_mut_ptr();
+        let mut write = 0usize;
+        let mut read = 0usize;
+
+        // SAFETY: pointers stay inside slice, in_chunk and out_chunk copy never overlaps with slice.
+        unsafe {
+            while read < len {
+                reduce(
+                    bytemuck::cast_slice(std::slice::from_raw_parts(ptr.add(read), l0)),
+                    &mut *out_chunk_buf,
+                );
+                read += l0;
+
+                std::ptr::copy_nonoverlapping(out_chunk_buf.as_ptr() as _, ptr.add(write), l1);
+                write += l1;
+            }
+        }
+
+        self.truncate(write);
+    }
+
+    /// Reverses the order of chunks in the slice, in place.
+    ///
+    /// Chunk length is const L.
+    ///
+    /// # Panics
+    ///
+    /// Panics if length is not multiple of `L`.
+    pub fn reverse_chunks<const L: usize>(&mut self) {
+        let self_ = &mut self[..];
+
+        let len = self_.len();
+
+        if len == 0 || L == 0 {
+            return;
+        }
+
+        if L == 1 {
+            return self_.reverse();
+        }
+
+        assert!(len.is_multiple_of(L), "length must be multiple of L");
+
+        // SAFETY: already verified is multiple and already handled L=0
+        unsafe { self_.as_chunks_unchecked_mut::<L>() }.reverse();
+    }
+
+    /// Reverses the order of chunks in the slice, in place.
+    ///
+    /// # Panics
+    ///
+    /// Panics if length is not multiple of `chunk_len`.
+    pub fn reverse_chunks_dyn(&mut self, chunk_len: usize) {
+        let self_ = &mut self[..];
+
+        let len = self_.len();
+
+        if len == 0 || chunk_len == 0 {
+            return;
+        }
+
+        if chunk_len == 1 {
+            return self_.reverse();
+        }
+
+        assert!(len.is_multiple_of(chunk_len), "length must be multiple of chunk_len");
+
+        let mut a = 0;
+        let mut b = len - chunk_len;
+
+        let ptr = self_.as_mut_ptr();
+
+        // SAFETY: chunks are not overlapping and loop stops before at mid, chunk_len > 1
+        unsafe {
+            while a < b {
+                std::ptr::swap_nonoverlapping(ptr.add(a), ptr.add(b), chunk_len);
+                a += chunk_len;
+                b -= chunk_len;
+            }
         }
     }
 }

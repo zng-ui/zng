@@ -26,6 +26,7 @@ mod capture;
 mod decode;
 mod encode;
 mod external;
+mod ipc_dyn_image;
 pub(crate) use external::{ImageUseMap, WrImageCache};
 
 #[cfg(not(feature = "image_any"))]
@@ -39,28 +40,34 @@ pub(crate) const FORMATS: &[ImageFormat] = &[
     #[cfg(feature = "image_bmp")]
     ImageFormat::from_static("BMP", "bmp", "bmp,dib", true),
     #[cfg(feature = "image_dds")]
-    ImageFormat::from_static("DirectDraw Surface", "x-direct-draw-surface", "dds", false),
+    ImageFormat::from_static("DirectDraw Surface", "vnd-ms.dds,x-direct-draw-surface", "dds", false),
     #[cfg(feature = "image_exr")]
     ImageFormat::from_static("OpenEXR", "x-exr", "exr", false),
+    // https://www.wikidata.org/wiki/Q28206109
     #[cfg(feature = "image_ff")]
-    ImageFormat::from_static("Farbfeld", "farbfeld", "ff,farbfeld", false),
+    ImageFormat::from_static("Farbfeld", "x-farbfeld", "ff,ff.bz2", false),
     #[cfg(feature = "image_gif")]
     ImageFormat::from_static("GIF", "gif", "gif", false),
     #[cfg(feature = "image_hdr")]
     ImageFormat::from_static("Radiance HDR", "vnd.radiance", "hdr", false),
     #[cfg(feature = "image_ico")]
-    ImageFormat::from_static("ICO", "x-icon", "ico", true),
+    ImageFormat::from_static("ICO", "x-icon,vnd.microsoft.icon", "ico", true),
     #[cfg(feature = "image_jpeg")]
     ImageFormat::from_static("JPEG", "jpeg", "jpg,jpeg", true),
     #[cfg(feature = "image_png")]
     ImageFormat::from_static("PNG", "png", "png", true),
     #[cfg(feature = "image_pnm")]
-    ImageFormat::from_static("PNM", "x-portable-bitmap", "pbm,pgm,ppm,pam", false),
+    ImageFormat::from_static(
+        "PNM",
+        "x-portable-bitmap,x-portable-graymap,x-portable-pixmap,x-portable-anymap",
+        "pbm,pgm,ppm,pam",
+        false,
+    ),
     // https://github.com/phoboslab/qoi/issues/167
     #[cfg(feature = "image_qoi")]
     ImageFormat::from_static("QOI", "x-qoi", "qoi", true),
     #[cfg(feature = "image_tga")]
-    ImageFormat::from_static("TGA", "x-tga", "tga,icb,vda,vst", false),
+    ImageFormat::from_static("TGA", "x-tga,x-targa", "tga,icb,vda,vst", false),
     #[cfg(feature = "image_tiff")]
     ImageFormat::from_static("TIFF", "tiff", "tif,tiff", true),
     #[cfg(feature = "image_tiff")]
@@ -151,20 +158,7 @@ impl ImageCache {
                         ))
                     } else if mask.is_none() {
                         // but is used as mask, convert to bgra8
-                        let r = Self::convert_decoded(
-                            image::DynamicImage::ImageLuma8(
-                                image::ImageBuffer::from_raw(size.width.0 as _, size.height.0 as _, data.to_vec()).unwrap(),
-                            ),
-                            None,
-                            None,
-                            None,
-                            downscale,
-                            &resizer,
-                        );
-                        match r {
-                            Ok((pixels, size, _, is_opaque, _)) => Ok((pixels, size, None, is_opaque, false)),
-                            Err(e) => Err(e.to_txt()),
-                        }
+                        Self::convert_a8_to_bgra8(size, &data, None, downscale, &resizer).map_err(|e| e.to_txt())
                     } else {
                         // and is used as mask, downscale if needed
                         match Self::downscale_decoded(mask, downscale, &resizer, size, &data) {
@@ -217,12 +211,15 @@ impl ImageCache {
                                 }));
 
                                 // decode
-                                match Self::image_decode(&data[..], h.format, downscale, h.orientation) {
-                                    // convert to bgra8 and downscale
-                                    Ok(img) => match Self::convert_decoded(img, mask, h.density, h.icc_profile, downscale, &resizer) {
-                                        Ok(r) => Ok(r),
-                                        Err(e) => Err(e.to_txt()),
-                                    },
+                                match Self::image_decode(&data[..], h.format, downscale) {
+                                    // convert to bgra8, downscale and rotate
+                                    Ok(img) => {
+                                        match Self::convert_decoded(img, mask, h.density, h.icc_profile, downscale, h.orientation, &resizer)
+                                        {
+                                            Ok(r) => Ok(r),
+                                            Err(e) => Err(e.to_txt()),
+                                        }
+                                    }
                                     Err(e) => Err(e.to_txt()),
                                 }
                             }
@@ -356,8 +353,8 @@ impl ImageCache {
                 );
 
                 #[cfg(feature = "image_any")]
-                match Self::image_decode(&full[..], fmt, downscale, orientation) {
-                    Ok(img) => match Self::convert_decoded(img, mask, density, icc_profile, downscale, &resizer) {
+                match Self::image_decode(&full[..], fmt, downscale) {
+                    Ok(img) => match Self::convert_decoded(img, mask, density, icc_profile, downscale, orientation, &resizer) {
                         Ok((pixels, size, density, is_opaque, is_mask)) => {
                             let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
                                 id, size, density, is_opaque, is_mask, pixels,

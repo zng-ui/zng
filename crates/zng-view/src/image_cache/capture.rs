@@ -11,7 +11,7 @@ use zng_view_api::{
 
 use crate::{
     AppEvent,
-    image_cache::{Image, ImageData},
+    image_cache::{Image, ImageData, ipc_dyn_image::IpcDynamicImage},
 };
 
 use super::ImageCache;
@@ -102,7 +102,7 @@ impl ImageCache {
             format,
             gleam::gl::UNSIGNED_BYTE,
         );
-        let mut buf = vec![0u8; pixels_flipped.len()];
+        let mut buf = IpcBytes::new_mut_blocking(pixels_flipped.len()).unwrap();
         assert_eq!(rect.size.width.0 as usize * rect.size.height.0 as usize * 4, buf.len());
         let stride = 4 * rect.size.width.0 as usize;
         for (px, buf) in pixels_flipped.chunks_exact(stride).rev().zip(buf.chunks_exact_mut(stride)) {
@@ -119,13 +119,14 @@ impl ImageCache {
             let density = Some(PxDensity2d::splat(density.ppi()));
 
             let (pixels, size, density, is_opaque, is_mask) = Self::convert_decoded(
-                image::DynamicImage::ImageRgba8(
+                IpcDynamicImage::ImageRgba8(
                     image::ImageBuffer::from_raw(rect.size.width.0 as u32, rect.size.height.0 as u32, buf).unwrap(),
                 ),
                 Some(mask),
                 density,
                 None,
                 None,
+                image::metadata::Orientation::NoTransforms,
                 &self.resizer,
             )
             .unwrap(); // frame size is not large enough to trigger an memmap that can fail
@@ -148,7 +149,7 @@ impl ImageCache {
 
             let is_opaque = buf.chunks_exact(4).all(|bgra| bgra[3] == 255);
 
-            let data = IpcBytes::from_vec_blocking(buf).unwrap(); // frame size is not large enough to trigger an memmap that can fail
+            let data = buf.finish_blocking().unwrap(); // frame size is not large enough to trigger an memmap that can fail
             let density = 96.0 * scale_factor.0;
             let density = Some(PxDensity2d::splat(density.ppi()));
             let size = rect.size;
