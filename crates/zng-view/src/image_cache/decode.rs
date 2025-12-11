@@ -3,7 +3,6 @@
 #[cfg(feature = "image_any")]
 use crate::image_cache::ImageHeader;
 use crate::image_cache::ResizerCache;
-#[cfg(feature = "image_any")]
 use crate::image_cache::ipc_dyn_image::IpcDynamicImage;
 use crate::image_cache::{ImageCache, RawLoadedImg};
 use image::ImageDecoder as _;
