@@ -762,7 +762,7 @@ const DOC_TEST_BLOCK_ON_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[cfg(test)]
 mod tests {
-    use crate::handler::{Handler, async_hn, async_hn_once, hn, hn_once};
+    use crate::handler::Handler;
 
     #[test]
     fn hn_return() {

@@ -312,7 +312,6 @@ pub extern "C" fn extern_run_same_process(patch: &StaticPatch, run_app: extern "
         patch.install();
     }
 
-    #[expect(clippy::redundant_closure)] // false positive
     run_same_process(move || run_app())
 }
 #[cfg(ipc)]
