@@ -1354,13 +1354,16 @@ impl IpcBytesMut {
     /// Panics if `L1 > L0` or if bytes length is not multiple of `L0`.
     pub fn reduce_in_place<const L0: usize, const L1: usize>(&mut self, mut reduce: impl FnMut([u8; L0]) -> [u8; L1]) {
         assert!(L1 <= L0);
-        let len = self.len();
+
+        let self_ = &mut self[..];
+
+        let len = self_.len();
         if len == 0 {
             return;
         }
         assert!(len.is_multiple_of(L0), "length must be multiple of L0");
 
-        let ptr = self.as_mut_ptr();
+        let ptr = self_.as_mut_ptr();
         let mut write = 0usize;
         let mut read = 0usize;
 
@@ -1392,13 +1395,16 @@ impl IpcBytesMut {
     /// Panics if `out_chunk_buf.len() > in_chunk_len` or if bytes length is not multiple of `in_chunk_len`.
     pub fn reduce_in_place_dyn(&mut self, in_chunk_len: usize, out_chunk_buf: &mut [u8], mut reduce: impl FnMut(&[u8], &mut [u8])) {
         assert!(out_chunk_buf.len() < in_chunk_len);
-        let len = self.len();
+
+        let self_ = &mut self[..];
+
+        let len = self_.len();
         if len == 0 {
             return;
         }
         assert!(len.is_multiple_of(in_chunk_len), "length must be multiple of in_chunk_len");
 
-        let ptr = self.as_mut_ptr();
+        let ptr = self_.as_mut_ptr();
         let mut write = 0usize;
         let mut read = 0usize;
 
@@ -1431,15 +1437,17 @@ impl IpcBytesMut {
     {
         let l0 = std::mem::size_of::<T0>() * L0;
         let l1 = std::mem::size_of::<T1>() * L1;
-
         assert!(l1 <= l0);
-        let len = self.len();
+
+        let self_ = &mut self[..];
+
+        let len = self_.len();
         if len == 0 {
             return;
         }
         assert!(len.is_multiple_of(l0), "length must be multiple of size_of::<T0>() * L0");
 
-        let ptr = self.as_mut_ptr();
+        let ptr = self_.as_mut_ptr();
         let mut write = 0usize;
         let mut read = 0usize;
 
@@ -1485,13 +1493,16 @@ impl IpcBytesMut {
         let l1 = std::mem::size_of_val(out_chunk_buf);
 
         assert!(l1 <= l0);
-        let len = self.len();
+
+        let self_ = &mut self[..];
+
+        let len = self_.len();
         if len == 0 {
             return;
         }
-        assert!(len.is_multiple_of(l0), "length must be multiple of size_of::<T0>() * L0");
+        assert!(len.is_multiple_of(l0), "length must be multiple of size_of::<T0>() * in_chunk_len");
 
-        let ptr = self.as_mut_ptr();
+        let ptr = self_.as_mut_ptr();
         let mut write = 0usize;
         let mut read = 0usize;
 
@@ -1510,5 +1521,66 @@ impl IpcBytesMut {
         }
 
         self.truncate(write);
+    }
+
+    /// Reverses the order of chunks in the slice, in place.
+    ///
+    /// Chunk length is const L.
+    ///
+    /// # Panics
+    ///
+    /// Panics if length is not multiple of `L`.
+    pub fn reverse_chunks<const L: usize>(&mut self) {
+        let self_ = &mut self[..];
+
+        let len = self_.len();
+
+        if len == 0 || L == 0 {
+            return;
+        }
+
+        if L == 1 {
+            return self_.reverse();
+        }
+
+        assert!(len.is_multiple_of(L), "length must be multiple of L");
+
+        // SAFETY: already verified is multiple and already handled L=0
+        unsafe { self_.as_chunks_unchecked_mut::<L>() }.reverse();
+    }
+
+    /// Reverses the order of chunks in the slice, in place.
+    ///
+    /// # Panics
+    ///
+    /// Panics if length is not multiple of `chunk_len`.
+    pub fn reverse_chunks_dyn(&mut self, chunk_len: usize) {
+        let self_ = &mut self[..];
+
+        let len = self_.len();
+
+        if len == 0 || chunk_len == 0 {
+            return;
+        }
+
+        if chunk_len == 1 {
+            return self_.reverse();
+        }
+
+        assert!(len.is_multiple_of(chunk_len), "length must be multiple of chunk_len");
+
+        let mut a = 0;
+        let mut b = len - chunk_len;
+
+        let ptr = self_.as_mut_ptr();
+
+        // SAFETY: chunks are not overlapping and loop stops before at mid, chunk_len > 1
+        unsafe {
+            while a < b {
+                std::ptr::swap_nonoverlapping(ptr.add(a), ptr.add(b), chunk_len);
+                a += chunk_len;
+                b -= chunk_len;
+            }
+        }
     }
 }

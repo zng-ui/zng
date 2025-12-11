@@ -1,7 +1,8 @@
 # Unreleased
 
-* Add `IpcBytesMut::reduce_in_place` for reusing allocation for chunked conversion when output chunks are smaller.
-* Add `IpcBytesMut::truncate` for lazy truncation on finish.
+* Add `IpcBytesMut::reverse_chunks` and related methods for reversing chunks.
+* Add `IpcBytesMut::reduce_in_place` and related methods for reusing allocation for chunked conversion when output chunks are smaller.
+* Add `IpcBytesMut::truncate` for truncation and shrinking on finish.
 * Add `IpcBytes::cast` and `IpcBytesMut::cast` for bytemuck safe casting.
 * Fix missing image formats in the view-process encoder and decoder lists.
 
