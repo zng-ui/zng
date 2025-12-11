@@ -1,5 +1,6 @@
 # Unreleased
 
+* Optimize image decoding, faster and less memory use.
 * Add `IpcBytesMut::reverse_chunks` and related methods for reversing chunks.
 * Add `IpcBytesMut::reduce_in_place` and related methods for reusing allocation for chunked conversion when output chunks are smaller.
 * Add `IpcBytesMut::truncate` for truncation and shrinking on finish.

@@ -3,8 +3,10 @@
 #[cfg(feature = "image_any")]
 use crate::image_cache::ImageHeader;
 use crate::image_cache::ResizerCache;
+#[cfg(feature = "image_any")]
+use crate::image_cache::ipc_dyn_image::IpcDynamicImage;
 use crate::image_cache::{ImageCache, RawLoadedImg};
-use image::{GenericImageView as _, ImageDecoder as _};
+use image::ImageDecoder as _;
 use zng_task::channel::{IpcBytes, IpcBytesMut};
 use zng_txt::ToTxt as _;
 use zng_txt::Txt;
@@ -214,8 +216,7 @@ impl ImageCache {
         buf: &[u8],
         format: image::ImageFormat,
         downscale: Option<zng_view_api::image::ImageDownscale>,
-        orientation: image::metadata::Orientation,
-    ) -> image::ImageResult<image::DynamicImage> {
+    ) -> image::ImageResult<IpcDynamicImage> {
         let buf = std::io::Cursor::new(buf);
 
         // Some JPEG decoders can downscale to an approximation of this size
@@ -225,22 +226,20 @@ impl ImageCache {
         let mut reader = image::ImageReader::new(buf);
         reader.set_format(format);
         reader.no_limits();
-        let mut image = reader.decode()?;
 
-        image.apply_orientation(orientation);
-
-        Ok(image)
+        IpcDynamicImage::decode(reader)
     }
 
     pub(super) fn convert_decoded(
-        image: image::DynamicImage,
+        image: IpcDynamicImage,
         mask: Option<ImageMaskMode>,
         density: Option<PxDensity2d>,
         icc_profile: Option<lcms2::Profile>,
         downscale: Option<zng_view_api::image::ImageDownscale>,
+        orientation: image::metadata::Orientation,
         resizer_cache: &ResizerCache,
     ) -> std::io::Result<RawLoadedImg> {
-        use image::DynamicImage::*;
+        use IpcDynamicImage::*;
 
         let mut is_opaque = true;
         let size = image.dimensions();
@@ -251,68 +250,58 @@ impl ImageCache {
                 let raw = img.into_raw();
                 if mask.is_some() {
                     is_opaque = !raw.iter().any(|&a| a < 255);
-                    IpcBytesMut::from_vec_blocking(raw)?
+                    raw
                 } else {
                     let mut bgra = IpcBytes::new_mut_blocking(pixels_len * 4)?;
-                    for (p, l) in bgra.chunks_exact_mut(4).zip(raw) {
+                    for (p, l) in bgra.chunks_exact_mut(4).zip(raw.iter().copied()) {
                         p.copy_from_slice(&[l, l, l, 255])
                     }
                     bgra
                 }
             }
             ImageLumaA8(img) => {
-                let raw = img.into_raw();
+                let mut raw = img.into_raw();
                 if let Some(mask) = mask {
-                    let mut a = IpcBytes::new_mut_blocking(pixels_len)?;
                     match mask {
                         ImageMaskMode::A => {
-                            for (p, la) in a.iter_mut().zip(raw.chunks_exact(2)) {
-                                if la[1] < 255 {
-                                    is_opaque = false;
-                                }
-                                *p = la[1];
-                            }
+                            raw.reduce_in_place(|[_, a]| {
+                                is_opaque &= a == 255;
+                                [a]
+                            });
                         }
                         ImageMaskMode::B | ImageMaskMode::G | ImageMaskMode::R | ImageMaskMode::Luminance => {
-                            for (p, la) in a.iter_mut().zip(raw.chunks_exact(2)) {
-                                if la[0] < 255 {
-                                    is_opaque = false;
-                                }
-                                *p = la[0];
-                            }
+                            raw.reduce_in_place(|[l, _]| {
+                                is_opaque &= l == 255;
+                                [l]
+                            });
                         }
                         _ => unimplemented!(),
                     }
-                    a
+                    raw
                 } else {
                     let mut bgra = IpcBytes::new_mut_blocking(pixels_len * 4)?;
                     for (p, la) in bgra.chunks_exact_mut(4).zip(raw.chunks_exact(2)) {
-                        p.copy_from_slice(&if la[1] < 255 {
-                            is_opaque = false;
-                            let l = la[0] as f32 * la[1] as f32 / 255.0;
-                            let l = l as u8;
-                            [l, l, l, la[1]]
-                        } else {
-                            let l = la[0];
-                            [l, l, l, la[1]]
-                        });
+                        let a = la[1];
+                        is_opaque &= a == 255;
+
+                        let l = la[0] as f32 * a as f32 / 255.0;
+                        let l = l as u8;
+
+                        p.copy_from_slice(&[l, l, l, a]);
                     }
                     bgra
                 }
             }
             ImageRgb8(img) => {
-                let raw = img.into_raw();
+                let mut raw = img.into_raw();
                 if let Some(mask) = mask {
-                    let mut a = IpcBytes::new_mut_blocking(pixels_len)?;
                     match mask {
                         ImageMaskMode::Luminance | ImageMaskMode::A => {
-                            for (p, rgb) in a.iter_mut().zip(raw.chunks(3)) {
-                                let l = luminance(rgb);
-                                if l < 255 {
-                                    is_opaque = false;
-                                }
-                                *p = l;
-                            }
+                            raw.reduce_in_place(|[r, g, b]| {
+                                let l = luminance(r, g, b);
+                                is_opaque &= l == 255;
+                                [l]
+                            });
                         }
                         mask => {
                             let channel = match mask {
@@ -321,16 +310,14 @@ impl ImageCache {
                                 ImageMaskMode::R => 0,
                                 _ => unreachable!(),
                             };
-                            for (p, rgb) in a.iter_mut().zip(raw.chunks(3)) {
+                            raw.reduce_in_place(|rgb: [u8; 3]| {
                                 let c = rgb[channel];
-                                if c < 255 {
-                                    is_opaque = false;
-                                }
-                                *p = c;
-                            }
+                                is_opaque &= c == 255;
+                                [c]
+                            });
                         }
                     }
-                    a
+                    raw
                 } else {
                     let mut bgra = IpcBytes::new_mut_blocking(pixels_len * 4)?;
                     for (p, rgb) in bgra.chunks_exact_mut(4).zip(raw.chunks_exact(3)) {
@@ -340,18 +327,15 @@ impl ImageCache {
                 }
             }
             ImageRgba8(img) => {
-                let raw = img.into_raw();
+                let mut raw = img.into_raw();
                 if let Some(mask) = mask {
-                    let mut a = IpcBytes::new_mut_blocking(pixels_len)?;
                     match mask {
                         ImageMaskMode::Luminance => {
-                            for (p, rgba) in a.iter_mut().zip(raw.chunks_exact(4)) {
-                                let c = luminance(&rgba[..3]);
-                                if c < 255 {
-                                    is_opaque = false;
-                                }
-                                *p = c;
-                            }
+                            raw.reduce_in_place(|[r, g, b, _]| {
+                                let l = luminance(r, g, b);
+                                is_opaque &= l == 255;
+                                [l]
+                            });
                         }
                         mask => {
                             let channel = match mask {
@@ -361,44 +345,42 @@ impl ImageCache {
                                 ImageMaskMode::R => 0,
                                 _ => unreachable!(),
                             };
-                            for (p, rgba) in a.iter_mut().zip(raw.chunks_exact(4)) {
+                            raw.reduce_in_place(|rgba: [u8; 4]| {
                                 let c = rgba[channel];
-                                if c < 255 {
-                                    is_opaque = false;
-                                }
-                                *p = c;
-                            }
+                                is_opaque &= c == 255;
+                                [c]
+                            });
                         }
                     }
-                    a
+                    raw
                 } else {
-                    let mut buf = raw;
-                    buf.chunks_mut(4).for_each(|c| {
-                        if c[3] < 255 {
-                            is_opaque = false;
-                            let a = c[3] as f32 / 255.0;
-                            c[0..3].iter_mut().for_each(|c| *c = (*c as f32 * a) as u8);
-                        }
+                    raw.chunks_mut(4).for_each(|c| {
+                        let a = c[3];
+                        is_opaque &= a == 255;
+
+                        // pre multiply
+                        let a = a as f32 / 255.0;
+                        c[0..3].iter_mut().for_each(|c| *c = (*c as f32 * a) as u8);
+
+                        // to bgra
                         c.swap(0, 2);
                     });
-                    IpcBytesMut::from_vec_blocking(buf)?
+                    raw
                 }
             }
             ImageLuma16(img) => {
                 let raw = img.into_raw();
                 if mask.is_some() {
-                    let mut a = IpcBytes::new_mut_blocking(pixels_len)?;
-                    for (p, l) in a.iter_mut().zip(raw) {
+                    let mut raw = raw.into_inner();
+                    raw.cast_reduce_in_place(|[l]: [u16; 1]| {
                         let l = (l as f32 / u16::MAX as f32 * 255.0) as u8;
-                        if l < 255 {
-                            is_opaque = false;
-                        }
-                        *p = l;
-                    }
-                    a
+                        is_opaque &= l == 255;
+                        [l]
+                    });
+                    raw
                 } else {
                     let mut bgra = IpcBytes::new_mut_blocking(pixels_len * 4)?;
-                    for (p, l) in bgra.chunks_exact_mut(4).zip(raw) {
+                    for (p, l) in bgra.chunks_exact_mut(4).zip(raw.iter().copied()) {
                         let l = (l as f32 / u16::MAX as f32 * 255.0) as u8;
                         p.copy_from_slice(&[l, l, l, 255]);
                     }
@@ -406,65 +388,50 @@ impl ImageCache {
                 }
             }
             ImageLumaA16(img) => {
-                let raw = img.into_raw();
+                let mut raw = img.into_raw().into_inner();
                 if let Some(mask) = mask {
-                    let mut a = IpcBytes::new_mut_blocking(pixels_len)?;
                     match mask {
                         ImageMaskMode::A => {
-                            for (p, la) in a.iter_mut().zip(raw.chunks_exact(2)) {
-                                if la[1] < u16::MAX {
-                                    is_opaque = false;
-                                }
+                            raw.cast_reduce_in_place(|[_, a]: [u16; 2]| {
+                                is_opaque &= a == u16::MAX;
                                 let max = u16::MAX as f32;
-                                let l = la[1] as f32 / max * 255.0;
-                                *p = l as u8;
-                            }
+                                let l = a as f32 / max * 255.0;
+                                [l as u8]
+                            });
                         }
                         ImageMaskMode::B | ImageMaskMode::G | ImageMaskMode::R | ImageMaskMode::Luminance => {
-                            for (p, la) in a.iter_mut().zip(raw.chunks_exact(2)) {
-                                if la[0] < u16::MAX {
-                                    is_opaque = false;
-                                }
+                            raw.cast_reduce_in_place(|[l, _]: [u16; 2]| {
+                                is_opaque &= l == u16::MAX;
                                 let max = u16::MAX as f32;
-                                let l = la[0] as f32 / max * 255.0;
-                                *p = l as u8;
-                            }
+                                let l = l as f32 / max * 255.0;
+                                [l as u8]
+                            });
                         }
                         _ => unimplemented!(),
                     }
-                    a
                 } else {
-                    let mut bgra = IpcBytes::new_mut_blocking(pixels_len * 4)?;
-                    for (p, la) in bgra.chunks_exact_mut(4).zip(raw.chunks_exact(2)) {
+                    raw.cast_reduce_in_place(|[l, a]: [u16; 2]| {
                         let max = u16::MAX as f32;
-                        let l = la[0] as f32 / max;
-                        let a = la[1] as f32 / max * 255.0;
-
-                        p.copy_from_slice(&if la[1] < u16::MAX {
-                            is_opaque = false;
-                            let l = (l * a) as u8;
-                            [l, l, l, a as u8]
-                        } else {
-                            let l = (l * 255.0) as u8;
-                            [l, l, l, a as u8]
-                        });
-                    }
-                    bgra
+                        let l = l as f32 / max;
+                        let a = a as f32 / max * 255.0;
+                        let l = (l * a) as u8;
+                        let a = a as u8;
+                        is_opaque &= a == 255;
+                        [l, l, l, a]
+                    });
                 }
+                raw
             }
             ImageRgb16(img) => {
-                let raw = img.into_raw();
+                let mut raw = img.into_raw().into_inner();
                 if let Some(mask) = mask {
-                    let mut a = IpcBytes::new_mut_blocking(pixels_len)?;
                     match mask {
                         ImageMaskMode::Luminance | ImageMaskMode::A => {
-                            for (p, rgb) in a.iter_mut().zip(raw.chunks_exact(3)) {
-                                let c = luminance_16(rgb);
-                                if c < 255 {
-                                    is_opaque = false;
-                                }
-                                *p = c;
-                            }
+                            raw.cast_reduce_in_place(|[r, g, b]: [u16; 3]| {
+                                let c = luminance_16(r, g, b);
+                                is_opaque &= c == 255;
+                                [c]
+                            });
                         }
                         mask => {
                             let channel = match mask {
@@ -473,43 +440,32 @@ impl ImageCache {
                                 ImageMaskMode::R => 0,
                                 _ => unreachable!(),
                             };
-                            for (p, rgb) in a.iter_mut().zip(raw.chunks_exact(3)) {
+                            raw.cast_reduce_in_place(|rgb: [u16; 3]| {
                                 let c = rgb[channel];
-                                if c < u16::MAX {
-                                    is_opaque = false;
-                                }
-                                *p = (c as f32 / u16::MAX as f32 * 255.0) as u8;
-                            }
+                                let c = (c as f32 / u16::MAX as f32 * 255.0) as u8;
+                                is_opaque &= c == 255;
+                                [c]
+                            });
                         }
                     }
-                    a
                 } else {
-                    let mut bgra = IpcBytes::new_mut_blocking(pixels_len * 4)?;
-                    for (p, rgb) in bgra.chunks_exact_mut(4).zip(raw.chunks_exact(3)) {
-                        let to_u8 = 255.0 / u16::MAX as f32;
-                        p.copy_from_slice(&[
-                            (rgb[2] as f32 * to_u8) as u8,
-                            (rgb[1] as f32 * to_u8) as u8,
-                            (rgb[0] as f32 * to_u8) as u8,
-                            255,
-                        ]);
-                    }
-                    bgra
+                    let to_u8 = 255.0 / u16::MAX as f32;
+                    raw.cast_reduce_in_place(|[r, g, b]: [u16; 3]| {
+                        [(b as f32 * to_u8) as u8, (g as f32 * to_u8) as u8, (r as f32 * to_u8) as u8, 255]
+                    });
                 }
+                raw
             }
             ImageRgba16(img) => {
-                let raw = img.into_raw();
+                let mut raw = img.into_raw().into_inner();
                 if let Some(mask) = mask {
-                    let mut a = IpcBytes::new_mut_blocking(pixels_len)?;
                     match mask {
                         ImageMaskMode::Luminance => {
-                            for (p, rgba) in a.iter_mut().zip(raw.chunks_exact(4)) {
-                                let c = luminance_16(&rgba[..3]);
-                                if c < 255 {
-                                    is_opaque = false;
-                                }
-                                *p = c;
-                            }
+                            raw.cast_reduce_in_place(|[r, g, b, _]: [u16; 4]| {
+                                let c = luminance_16(r, g, b);
+                                is_opaque &= c == 255;
+                                [c]
+                            });
                         }
                         mask => {
                             let channel = match mask {
@@ -519,56 +475,40 @@ impl ImageCache {
                                 ImageMaskMode::R => 0,
                                 _ => unreachable!(),
                             };
-                            for (p, rgba) in a.iter_mut().zip(raw.chunks_exact(4)) {
-                                let c = rgba[channel];
-                                if c < 255 {
-                                    is_opaque = false;
-                                }
-                                *p = (c as f32 / u16::MAX as f32 * 255.0) as u8;
-                            }
+                            raw.cast_reduce_in_place(|rgb: [u16; 3]| {
+                                let c = rgb[channel];
+                                let c = (c as f32 / u16::MAX as f32 * 255.0) as u8;
+                                is_opaque &= c == 255;
+                                [c]
+                            });
                         }
                     }
-                    a
                 } else {
-                    let mut bgra = IpcBytes::new_mut_blocking(pixels_len * 4)?;
-                    for (p, rgba) in bgra.chunks_exact_mut(4).zip(raw.chunks_exact(4)) {
-                        let c = if rgba[3] < u16::MAX {
-                            is_opaque = false;
-                            let max = u16::MAX as f32;
-                            let a = rgba[3] as f32 / max * 255.0;
-                            [
-                                (rgba[2] as f32 / max * a) as u8,
-                                (rgba[1] as f32 / max * a) as u8,
-                                (rgba[0] as f32 / max * a) as u8,
-                                a as u8,
-                            ]
-                        } else {
-                            let to_u8 = 255.0 / u16::MAX as f32;
-                            [
-                                (rgba[2] as f32 * to_u8) as u8,
-                                (rgba[1] as f32 * to_u8) as u8,
-                                (rgba[0] as f32 * to_u8) as u8,
-                                255,
-                            ]
-                        };
-                        p.copy_from_slice(&c);
-                    }
-                    bgra
+                    raw.cast_reduce_in_place(|[r, g, b, a]: [u16; 4]| {
+                        let max = u16::MAX as f32;
+                        let af = a as f32 / max * 255.0;
+                        let a = af as u8;
+                        is_opaque &= a == 255;
+                        [
+                            (b as f32 / max * af) as u8,
+                            (g as f32 / max * af) as u8,
+                            (r as f32 / max * af) as u8,
+                            a,
+                        ]
+                    });
                 }
+                raw
             }
             ImageRgb32F(img) => {
-                let raw = img.into_raw();
+                let mut raw = img.into_raw().into_inner();
                 if let Some(mask) = mask {
-                    let mut a = IpcBytes::new_mut_blocking(pixels_len)?;
                     match mask {
                         ImageMaskMode::Luminance | ImageMaskMode::A => {
-                            for (p, rgb) in a.iter_mut().zip(raw.chunks_exact(3)) {
-                                let c = luminance_f32(rgb);
-                                if c < 255 {
-                                    is_opaque = false;
-                                }
-                                *p = c;
-                            }
+                            raw.cast_reduce_in_place(|[r, g, b]: [f32; 3]| {
+                                let c = luminance_f32(r, g, b);
+                                is_opaque &= c == 255;
+                                [c]
+                            });
                         }
                         mask => {
                             let channel = match mask {
@@ -577,38 +517,33 @@ impl ImageCache {
                                 ImageMaskMode::R => 0,
                                 _ => unreachable!(),
                             };
-                            for (p, rgb) in a.iter_mut().zip(raw.chunks_exact(3)) {
-                                let c = (rgb[channel] * 255.0) as u8;
-                                if c < 255 {
-                                    is_opaque = false;
-                                }
-                                *p = c;
-                            }
+                            raw.cast_reduce_in_place(|rgb: [f32; 3]| {
+                                let c = (rgb[channel] * 255.0).clamp(0.0, 255.0) as u8;
+                                is_opaque &= c == 255;
+                                [c]
+                            })
                         }
                     }
-                    a
                 } else {
-                    let mut bgra = IpcBytes::new_mut_blocking(pixels_len * 4)?;
-                    for (p, rgb) in bgra.chunks_exact_mut(4).zip(raw.chunks_exact(3)) {
-                        p.copy_from_slice(&[(rgb[2] * 255.0) as u8, (rgb[1] * 255.0) as u8, (rgb[0] * 255.0) as u8, 255]);
-                    }
-                    bgra
+                    raw.cast_reduce_in_place(|[r, g, b]: [f32; 3]| {
+                        [
+                            (b * 255.0).clamp(0.0, 255.0) as u8,
+                            (g * 255.0).clamp(0.0, 255.0) as u8,
+                            (r * 255.0).clamp(0.0, 255.0) as u8,
+                        ]
+                    });
                 }
+                raw
             }
             ImageRgba32F(img) => {
-                let raw = img.into_raw();
+                let mut raw = img.into_raw().into_inner();
                 if let Some(mask) = mask {
-                    let mut a = IpcBytes::new_mut_blocking(pixels_len)?;
                     match mask {
-                        ImageMaskMode::Luminance => {
-                            for (p, rgba) in a.iter_mut().zip(raw.chunks_exact(4)) {
-                                let c = luminance_f32(&rgba[..3]);
-                                if c < 255 {
-                                    is_opaque = false;
-                                }
-                                *p = c;
-                            }
-                        }
+                        ImageMaskMode::Luminance => raw.cast_reduce_in_place(|[r, g, b, _]: [f32; 4]| {
+                            let c = luminance_f32(r, g, b);
+                            is_opaque &= c == 255;
+                            [c]
+                        }),
                         mask => {
                             let channel = match mask {
                                 ImageMaskMode::A => 3,
@@ -617,32 +552,28 @@ impl ImageCache {
                                 ImageMaskMode::R => 0,
                                 _ => unreachable!(),
                             };
-                            for (p, rgba) in a.iter_mut().zip(raw.chunks_exact(4)) {
-                                let c = (rgba[channel] * 255.0) as u8;
-                                if c < 255 {
-                                    is_opaque = false;
-                                }
-                                *p = c;
-                            }
+                            raw.cast_reduce_in_place(|rgba: [f32; 4]| {
+                                let c = (rgba[channel] * 255.0).clamp(0.0, 255.0) as u8;
+                                is_opaque &= c == 255;
+                                [c]
+                            })
                         }
                     }
-                    a
                 } else {
-                    let mut bgra = IpcBytes::new_mut_blocking(pixels_len * 4)?;
-                    for (p, rgba) in bgra.chunks_exact_mut(4).zip(raw.chunks_exact(4)) {
-                        let c = if rgba[3] < 1.0 {
-                            is_opaque = false;
-                            let a = rgba[3] * 255.0;
-                            [(rgba[2] * a) as u8, (rgba[1] * a) as u8, (rgba[0] * a) as u8, a as u8]
-                        } else {
-                            [(rgba[2] * 255.0) as u8, (rgba[1] * 255.0) as u8, (rgba[0] * 255.0) as u8, 255]
-                        };
-                        p.copy_from_slice(&c);
-                    }
-                    bgra
+                    raw.cast_reduce_in_place(|[r, g, b, a]: [f32; 4]| {
+                        let af = a * 255.0;
+                        let a = a.clamp(0.0, 255.0) as u8;
+                        is_opaque &= a == 255;
+                        [
+                            (b * af).clamp(0.0, 255.0) as u8,
+                            (g * af).clamp(0.0, 255.0) as u8,
+                            (r * af).clamp(0.0, 255.0) as u8,
+                            a,
+                        ]
+                    });
                 }
+                raw
             }
-            _ => unreachable!(),
         };
 
         #[cfg(feature = "image_any")]
@@ -655,7 +586,8 @@ impl ImageCache {
         #[cfg(not(feature = "image_any"))]
         let _ = (icc_profile, &mut pixels);
 
-        let mut size = PxSize::new(Px(size.0 as _), Px(size.1 as _));
+        let (mut size, mut pixels) = Self::apply_orientation(orientation, size, mask.is_some(), pixels)?;
+
         if let Some((s, px)) = Self::downscale_decoded(mask, downscale, resizer_cache, size, &pixels)? {
             size = s;
             pixels = px;
@@ -668,6 +600,106 @@ impl ImageCache {
             is_opaque,
             mask.is_some(), // is_mask
         ))
+    }
+
+    fn apply_orientation(
+        orientation: image::metadata::Orientation,
+        size: (u32, u32),
+        is_mask: bool,
+        mut pixels: IpcBytesMut,
+    ) -> std::io::Result<(PxSize, IpcBytesMut)> {
+        use image::metadata::Orientation::*;
+        let size = PxSize::new(Px(size.0 as _), Px(size.1 as _));
+
+        match orientation {
+            NoTransforms => Ok((size, pixels)),
+            Rotate180 => {
+                if is_mask {
+                    pixels.reverse();
+                } else {
+                    pixels.reverse_chunks::<4>();
+                }
+
+                Ok((size, pixels))
+            }
+            FlipHorizontal => {
+                if is_mask {
+                    let row_len = size.width.0 as usize;
+                    for row in pixels.chunks_exact_mut(row_len) {
+                        row.reverse();
+                    }
+                } else {
+                    let row_len = size.width.0 as usize * 4;
+                    for row in pixels.chunks_exact_mut(row_len) {
+                        row.as_chunks_mut::<4>().0.reverse();
+                    }
+                }
+                Ok((size, pixels))
+            }
+            FlipVertical => {
+                let row_len = if is_mask {
+                    size.width.0 as usize
+                } else {
+                    size.width.0 as usize * 4
+                };
+                pixels.reverse_chunks_dyn(row_len);
+                Ok((size, pixels))
+            }
+            alloc_needed => {
+                let out_size = PxSize::new(size.height, size.width);
+                let mut out = IpcBytes::new_mut_blocking(pixels.len())?;
+                let out_slice = &mut out[..];
+                let bpp = if is_mask { 1 } else { 4 };
+                let out_w = out_size.width.0 as usize;
+                let out_h = out_size.height.0 as usize;
+
+                match alloc_needed {
+                    Rotate90 => {
+                        for (y, row) in pixels.chunks_exact(size.width.0 as usize * bpp).enumerate() {
+                            for (x, p) in row.chunks_exact(bpp).enumerate() {
+                                let out_x = out_w - 1 - y;
+                                let out_y = x;
+                                let start = (out_y * out_w + out_x) * bpp;
+                                out_slice[start..start + bpp].copy_from_slice(p);
+                            }
+                        }
+                    }
+                    Rotate270 => {
+                        for (y, row) in pixels.chunks_exact(size.width.0 as usize * bpp).enumerate() {
+                            for (x, p) in row.chunks_exact(bpp).enumerate() {
+                                let out_x = y;
+                                let out_y = out_h - 1 - x;
+                                let start = (out_y * out_w + out_x) * bpp;
+                                out_slice[start..start + bpp].copy_from_slice(p);
+                            }
+                        }
+                    }
+                    Rotate90FlipH => {
+                        for (y, row) in pixels.chunks_exact(size.width.0 as usize * bpp).enumerate() {
+                            for (x, p) in row.chunks_exact(bpp).enumerate() {
+                                let out_x = y;
+                                let out_y = x;
+                                let start = (out_y * out_w + out_x) * bpp;
+                                out_slice[start..start + bpp].copy_from_slice(p);
+                            }
+                        }
+                    }
+                    Rotate270FlipH => {
+                        for (y, row) in pixels.chunks_exact(size.width.0 as usize * bpp).enumerate() {
+                            for (x, p) in row.chunks_exact(bpp).enumerate() {
+                                let out_x = out_w - 1 - y;
+                                let out_y = out_h - 1 - x;
+                                let start = (out_y * out_w + out_x) * bpp;
+                                out_slice[start..start + bpp].copy_from_slice(p);
+                            }
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+
+                Ok((out_size, out))
+            }
+        }
     }
 
     pub(super) fn convert_bgra8_to_mask(
@@ -683,10 +715,8 @@ impl ImageCache {
         match mask {
             ImageMaskMode::Luminance => {
                 for (p, bgra) in a.iter_mut().zip(bgra8.chunks_exact(4)) {
-                    let c = luminance_bgr(&bgra[..3]);
-                    if c < 255 {
-                        is_opaque = false;
-                    }
+                    let c = luminance(bgra[2], bgra[1], bgra[0]);
+                    is_opaque &= c == 255;
                     *p = c;
                 }
             }
@@ -700,9 +730,7 @@ impl ImageCache {
                 };
                 for (p, bgra) in a.iter_mut().zip(bgra8.chunks_exact(4)) {
                     let c = bgra[channel];
-                    if c < 255 {
-                        is_opaque = false;
-                    }
+                    is_opaque &= c == 255;
                     *p = c;
                 }
             }
@@ -720,6 +748,33 @@ impl ImageCache {
             density,
             is_opaque,
             true, // is_mask
+        ))
+    }
+
+    pub(super) fn convert_a8_to_bgra8(
+        size: PxSize,
+        a8: &[u8],
+        density: Option<PxDensity2d>,
+        downscale: Option<zng_view_api::image::ImageDownscale>,
+        resizer_cache: &ResizerCache,
+    ) -> std::io::Result<RawLoadedImg> {
+        let mut bgra = IpcBytes::new_mut_blocking(a8.len() * 4)?;
+        for (p, &l) in bgra.chunks_exact_mut(4).zip(a8) {
+            p.copy_from_slice(&[l, l, l, 255])
+        }
+
+        let mut size = size;
+        if let Some((s, px)) = Self::downscale_decoded(None, downscale, resizer_cache, size, &bgra)? {
+            size = s;
+            bgra = px;
+        }
+
+        Ok((
+            bgra.finish_blocking()?,
+            size,
+            density,
+            true,  // is_opaque
+            false, // is_mask
         ))
     }
 
@@ -761,39 +816,26 @@ impl ImageCache {
     }
 }
 
-fn luminance(rgb: &[u8]) -> u8 {
-    let r = rgb[0] as f32 / 255.0;
-    let g = rgb[1] as f32 / 255.0;
-    let b = rgb[2] as f32 / 255.0;
+fn luminance(r: u8, g: u8, b: u8) -> u8 {
+    let r = r as f32 / 255.0;
+    let g = g as f32 / 255.0;
+    let b = b as f32 / 255.0;
 
     let l = r * 0.2126 + g * 0.7152 + b * 0.0722;
     (l * 255.0) as u8
 }
 
-fn luminance_bgr(bgr: &[u8]) -> u8 {
-    let r = bgr[2] as f32 / 255.0;
-    let g = bgr[1] as f32 / 255.0;
-    let b = bgr[0] as f32 / 255.0;
-
-    let l = r * 0.2126 + g * 0.7152 + b * 0.0722;
-    (l * 255.0) as u8
-}
-
-fn luminance_16(rgb: &[u16]) -> u8 {
+fn luminance_16(r: u16, g: u16, b: u16) -> u8 {
     let max = u16::MAX as f32;
-    let r = rgb[0] as f32 / max;
-    let g = rgb[1] as f32 / max;
-    let b = rgb[2] as f32 / max;
+    let r = r as f32 / max;
+    let g = g as f32 / max;
+    let b = b as f32 / max;
 
     let l = r * 0.2126 + g * 0.7152 + b * 0.0722;
     (l * 255.0) as u8
 }
 
-fn luminance_f32(rgb: &[f32]) -> u8 {
-    let r = rgb[0];
-    let g = rgb[1];
-    let b = rgb[2];
-
+fn luminance_f32(r: f32, g: f32, b: f32) -> u8 {
     let l = r * 0.2126 + g * 0.7152 + b * 0.0722;
-    (l * 255.0) as u8
+    (l * 255.0).clamp(0.0, 255.0) as u8
 }

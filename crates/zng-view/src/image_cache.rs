@@ -26,6 +26,7 @@ mod capture;
 mod decode;
 mod encode;
 mod external;
+mod ipc_dyn_image;
 pub(crate) use external::{ImageUseMap, WrImageCache};
 
 #[cfg(not(feature = "image_any"))]
@@ -157,20 +158,7 @@ impl ImageCache {
                         ))
                     } else if mask.is_none() {
                         // but is used as mask, convert to bgra8
-                        let r = Self::convert_decoded(
-                            image::DynamicImage::ImageLuma8(
-                                image::ImageBuffer::from_raw(size.width.0 as _, size.height.0 as _, data.to_vec()).unwrap(),
-                            ),
-                            None,
-                            None,
-                            None,
-                            downscale,
-                            &resizer,
-                        );
-                        match r {
-                            Ok((pixels, size, _, is_opaque, _)) => Ok((pixels, size, None, is_opaque, false)),
-                            Err(e) => Err(e.to_txt()),
-                        }
+                        Self::convert_a8_to_bgra8(size, &data, None, downscale, &resizer).map_err(|e| e.to_txt())
                     } else {
                         // and is used as mask, downscale if needed
                         match Self::downscale_decoded(mask, downscale, &resizer, size, &data) {
@@ -223,12 +211,15 @@ impl ImageCache {
                                 }));
 
                                 // decode
-                                match Self::image_decode(&data[..], h.format, downscale, h.orientation) {
-                                    // convert to bgra8 and downscale
-                                    Ok(img) => match Self::convert_decoded(img, mask, h.density, h.icc_profile, downscale, &resizer) {
-                                        Ok(r) => Ok(r),
-                                        Err(e) => Err(e.to_txt()),
-                                    },
+                                match Self::image_decode(&data[..], h.format, downscale) {
+                                    // convert to bgra8, downscale and rotate
+                                    Ok(img) => {
+                                        match Self::convert_decoded(img, mask, h.density, h.icc_profile, downscale, h.orientation, &resizer)
+                                        {
+                                            Ok(r) => Ok(r),
+                                            Err(e) => Err(e.to_txt()),
+                                        }
+                                    }
                                     Err(e) => Err(e.to_txt()),
                                 }
                             }
@@ -362,8 +353,8 @@ impl ImageCache {
                 );
 
                 #[cfg(feature = "image_any")]
-                match Self::image_decode(&full[..], fmt, downscale, orientation) {
-                    Ok(img) => match Self::convert_decoded(img, mask, density, icc_profile, downscale, &resizer) {
+                match Self::image_decode(&full[..], fmt, downscale) {
+                    Ok(img) => match Self::convert_decoded(img, mask, density, icc_profile, downscale, orientation, &resizer) {
                         Ok((pixels, size, density, is_opaque, is_mask)) => {
                             let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
                                 id, size, density, is_opaque, is_mask, pixels,
