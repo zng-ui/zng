@@ -15,8 +15,8 @@ run-name: on ${{ github.event.inputs.runs-on }} do ${{ github.event.inputs.cargo
 
 env:
   RUST_BACKTRACE: 1
-  RUSTFLAGS: '--codegen=debuginfo=0 --deny=warnings'
-  RUSTDOCFLAGS: '--deny=warnings'
+  RUSTFLAGS: '--codegen=debuginfo=0 --deny=warnings -A unused_assignments'
+  RUSTDOCFLAGS: '--deny=warnings -A unused_assignments'
   CARGO_TERM_COLOR: always
   ZNG_TP_LICENSES: false
 
