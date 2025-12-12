@@ -53,6 +53,8 @@ impl ImageCache {
                         return Err(e.to_txt());
                     }
                 };
+                let og_color_type = decoder.original_color_type();
+
                 let (mut w, mut h) = decoder.dimensions();
                 let orientation = decoder.orientation().unwrap_or(NoTransforms);
                 if matches!(orientation, Rotate90 | Rotate270 | Rotate90FlipH | Rotate270FlipH) {
@@ -204,6 +206,7 @@ impl ImageCache {
                     orientation,
                     density,
                     icc_profile,
+                    og_color_type,
                 })
             }
             None => Err(Txt::from_static("unknown format")),

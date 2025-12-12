@@ -5,7 +5,7 @@ use zng_txt::formatx;
 use zng_unit::{Factor, PxDensity2d, PxDensityUnits as _, PxRect};
 use zng_view_api::{
     Event,
-    image::{ImageDataFormat, ImageDecoded, ImageId, ImageMaskMode, ImageMetadata, ImageRequest},
+    image::{ColorType, ImageDataFormat, ImageDecoded, ImageId, ImageMaskMode, ImageMetadata, ImageRequest},
     window::{FrameId, WindowId},
 };
 
@@ -90,9 +90,9 @@ impl ImageCache {
         scale_factor: Factor,
         mask: Option<ImageMaskMode>,
     ) -> ImageDecoded {
-        let format = match gl.get_type() {
-            gleam::gl::GlType::Gl => gleam::gl::BGRA,
-            gleam::gl::GlType::Gles => gleam::gl::RGBA,
+        let (format, og_color_type) = match gl.get_type() {
+            gleam::gl::GlType::Gl => (gleam::gl::BGRA, ColorType::BGRA8),
+            gleam::gl::GlType::Gles => (gleam::gl::RGBA, ColorType::RGBA8),
         };
         let pixels_flipped = gl.read_pixels(
             rect.origin.x.0,
@@ -139,7 +139,7 @@ impl ImageCache {
                 None,
                 Some(mask),
             ));
-            let mut meta = ImageMetadata::new(id, size, is_mask);
+            let mut meta = ImageMetadata::new(id, size, is_mask, og_color_type);
             meta.density = density;
             ImageDecoded::new(meta, pixels, is_opaque)
         } else {
@@ -164,7 +164,7 @@ impl ImageCache {
                 mask,
             ));
 
-            let mut meta = ImageMetadata::new(id, size, false);
+            let mut meta = ImageMetadata::new(id, size, false, og_color_type);
             meta.density = density;
             ImageDecoded::new(meta, data, is_opaque)
         }

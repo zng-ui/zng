@@ -47,6 +47,37 @@ pub enum ImageMaskMode {
     Luminance,
 }
 
+/// Mode of operation when decoding image container formats that have more than one image.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum ImageEntryMode {
+    /// Only decodes the *best* image.
+    ///
+    /// The best image heuristic is:
+    ///
+    /// * Exact match to [`mask`] that is larger and nearest to [`downscale`].
+    /// * Of all with color type greater or equal to BGRA8, the largest and nearest to [`downscale`].
+    /// * The image with greater bits-per-pixel.
+    ///
+    /// When [`downscale`] is not set, just selects the largest.
+    ///
+    /// [`downscale`]: ImageRequest::downscale
+    /// [`mask`]: ImageRequest::mask
+    #[default]
+    Best,
+    /// Decodes `Best` and all reduced alternates of it.
+    BestAndReduced,
+    /// Decodes all full sized images, ignore reduced alternates and other images.
+    ///
+    /// Returns the first page as the primary image followed by the other pages.
+    Pages,
+    /// Decodes all the contained images.
+    ///
+    /// Returns the first page as the primary image, followed by the reduced alternates of the first page,
+    /// followed by the other pages. In the other pages returns the reduced alternates of that page.
+    All,
+}
+
 /// Represent a image load/decode request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -68,6 +99,9 @@ pub struct ImageRequest<D> {
     pub downscale: Option<ImageDownscale>,
     /// Convert or decode the image into a single channel mask (R8).
     pub mask: Option<ImageMaskMode>,
+
+    /// Defines how multi image container formats are decoded.
+    pub entry_selection: ImageEntryMode,
 }
 impl<D> ImageRequest<D> {
     /// New request.
@@ -84,6 +118,7 @@ impl<D> ImageRequest<D> {
             max_decoded_len,
             downscale,
             mask,
+            entry_selection: ImageEntryMode::default(),
         }
     }
 }
@@ -166,6 +201,7 @@ pub enum ImageDataFormat {
         size: PxSize,
         /// Pixel density of the image.
         density: Option<PxDensity2d>,
+        // TODO(breaking) add original_color_type
     },
 
     /// Decoded A8.
@@ -264,17 +300,68 @@ pub struct ImageMetadata {
     pub density: Option<PxDensity2d>,
     /// If the `pixels` are in a single channel (A8).
     pub is_mask: bool,
+    /// Image color type before it was converted to BGRA8 or A8.
+    pub original_color_type: ColorType,
+
+    /// Kind of image container entry this image was decoded from.
+    ///
+    /// If the kind is `Page` and the `entry_parent` is `None` the image represents the
+    /// first page in the container and will list any other pages in `entries`.
+    ///
+    /// If the kind is `Page` and the `entry_parent` is set, the parent will list the pages,
+    /// this image will only list other entries directly related to it.
+    ///
+    /// If the kind is `Reduced` the `entry_parent` must be set.
+    pub entry_kind: ImageEntryKind,
+
+    /// Image this one belongs too.
+    ///
+    /// This image will be listed on the parent `entries`.
+    pub entry_parent: Option<ImageId>,
+
+    /// Other images from the same container.
+    ///
+    /// The other images will reference this image back as a parent in `entry_parent`.
+    ///
+    /// The other images are always referenced first here before the first decoded event targeting each.
+    pub entries: Vec<ImageId>,
 }
 impl ImageMetadata {
     /// New.
-    pub fn new(id: ImageId, size: PxSize, is_mask: bool) -> Self {
+    pub fn new(id: ImageId, size: PxSize, is_mask: bool, original_color_type: ColorType) -> Self {
         Self {
             id,
             size,
             density: None,
             is_mask,
+            original_color_type,
+            entry_kind: ImageEntryKind::Page,
+            entry_parent: None,
+            entries: vec![],
         }
     }
+}
+
+/// Kind of image container entry an image was decoded from.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ImageEntryKind {
+    /// Full sized image in the container.
+    Page,
+    /// Reduced resolution alternate of the other image.
+    ///
+    /// Can be mip levels, a thumbnail or a smaller symbolic alternative designed to be more readable at smaller scale.
+    Reduced {
+        /// If reduced image was generated, not part of the image container file.
+        synthetic: bool,
+    },
+    /// Custom kind identifier.
+    Other {
+        /// Custom identifier.
+        ///
+        /// This is an implementation specific value that can be parsed.
+        kind: Txt,
+    },
 }
 
 /// Represents a partial or fully decoded image.
@@ -430,4 +517,41 @@ impl ImageFormat {
         let f = f.strip_prefix("image/").unwrap_or(f);
         self.media_type_suffixes_iter().any(|e| e.eq_ignore_ascii_case(f)) || self.file_extensions_iter().any(|e| e.eq_ignore_ascii_case(f))
     }
+}
+
+/// Basic info about a color model.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct ColorType {
+    /// Color model name.
+    pub name: Txt,
+    /// Bits per channel.
+    pub bits: u8,
+    /// Channels per pixel.
+    pub channels: u8,
+}
+impl ColorType {
+    /// New.
+    pub const fn new(name: Txt, bits: u8, channels: u8) -> Self {
+        Self { name, bits, channels }
+    }
+
+    /// Bit length of a pixel.
+    pub fn bits_per_pixel(&self) -> u16 {
+        self.bits as u16 * self.channels as u16
+    }
+
+    /// Byte length of a pixel.
+    pub fn bytes_per_pixel(&self) -> u16 {
+        self.bits_per_pixel() / 8
+    }
+}
+impl ColorType {
+    /// BGRA8
+    pub const BGRA8: ColorType = ColorType::new(Txt::from_static("BGRA8"), 8, 4);
+    /// RGBA8
+    pub const RGBA8: ColorType = ColorType::new(Txt::from_static("RGBA8"), 8, 4);
+
+    /// A8
+    pub const A8: ColorType = ColorType::new(Txt::from_static("A8"), 8, 4);
 }

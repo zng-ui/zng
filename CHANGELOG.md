@@ -1,6 +1,8 @@
 # Unreleased
 
 * Add support for multi image containers. !!: TODO
+    - Add `Img::entries` and related methods.
+* Add `Img::original_color_type` metadata.
 * Optimize image decoding, faster and less memory use.
     - Decodes directly to the IPC memory map.
     - Optimized EXIF orientation transforms.

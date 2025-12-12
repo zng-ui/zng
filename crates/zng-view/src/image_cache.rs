@@ -4,6 +4,8 @@
 use image::ImageDecoder as _;
 use std::{fmt, sync::Arc};
 use zng_task::parking_lot::Mutex;
+#[cfg(feature = "image_any")]
+use zng_view_api::image::ColorType;
 use zng_view_api::image::ImageFormat;
 
 use webrender::api::ImageDescriptor;
@@ -113,6 +115,7 @@ impl ImageCache {
         let app_sender = self.app_sender.clone();
         let resizer = self.resizer.clone();
         rayon::spawn(move || {
+            let mut original_color_type = ColorType::BGRA8;
             let r = match format {
                 ImageDataFormat::Bgra8 { size, density } => {
                     // is already decoded bgra8
@@ -149,7 +152,7 @@ impl ImageCache {
                 }
                 ImageDataFormat::A8 { size } => {
                     // is already decoded mask
-
+                    original_color_type = ColorType::A8;
                     let expected_len = size.width.0 as usize * size.height.0 as usize;
                     if data.len() != expected_len {
                         Err(formatx!(
@@ -204,7 +207,8 @@ impl ImageCache {
                                 if let Some(d) = downscale {
                                     size = d.resize_dimensions(size);
                                 }
-                                let mut meta = ImageMetadata::new(id, size, false);
+                                original_color_type = image_color_type_to_vp(h.og_color_type);
+                                let mut meta = ImageMetadata::new(id, size, false, original_color_type.clone());
                                 meta.density = h.density;
                                 let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataDecoded(meta)));
 
@@ -229,7 +233,7 @@ impl ImageCache {
 
             match r {
                 Ok((pixels, size, density, is_opaque, is_mask)) => {
-                    let mut meta = ImageMetadata::new(id, size, is_mask);
+                    let mut meta = ImageMetadata::new(id, size, is_mask, original_color_type);
                     meta.density = density;
                     let _ = app_sender.send(AppEvent::ImageDecoded(ImageDecoded::new(meta, pixels, is_opaque)));
                 }
@@ -264,6 +268,7 @@ impl ImageCache {
             let mut icc_profile = None::<lcms2::Profile>;
             let mut is_encoded = true;
             let mut orientation = image::metadata::Orientation::NoTransforms;
+            let mut og_color_type = ColorType::BGRA8;
 
             let mut format: Option<image::ImageFormat> = match &request_fmt {
                 ImageDataFormat::Bgra8 { size: s, density: p } => {
@@ -275,6 +280,7 @@ impl ImageCache {
                 ImageDataFormat::A8 { size: s } => {
                     is_encoded = false;
                     size = Some(*s);
+                    og_color_type = ColorType::A8;
                     None
                 }
                 #[cfg(feature = "image_any")]
@@ -312,6 +318,8 @@ impl ImageCache {
                                     if matches!(orientation, Rotate90 | Rotate270 | Rotate90FlipH | Rotate270FlipH) {
                                         std::mem::swap(&mut w, &mut h)
                                     }
+
+                                    og_color_type = image_color_type_to_vp(d.original_color_type());
 
                                     size = Some(PxSize::new(Px(w as i32), Px(h as i32)));
                                 }
@@ -354,7 +362,7 @@ impl ImageCache {
                 match Self::image_decode(&full[..], fmt, downscale) {
                     Ok(img) => match Self::convert_decoded(img, mask, density, icc_profile, downscale, orientation, &resizer) {
                         Ok((pixels, size, density, is_opaque, is_mask)) => {
-                            let mut meta = ImageMetadata::new(id, size, is_mask);
+                            let mut meta = ImageMetadata::new(id, size, is_mask, og_color_type);
                             meta.density = density;
 
                             let _ = app_sender.send(AppEvent::ImageDecoded(ImageDecoded::new(meta, pixels, is_opaque)));
@@ -385,7 +393,7 @@ impl ImageCache {
                     }
                 };
                 let is_opaque = pixels.chunks_exact(4).all(|c| c[3] == 255);
-                let mut meta = ImageMetadata::new(id, size.unwrap(), false);
+                let mut meta = ImageMetadata::new(id, size.unwrap(), false, og_color_type);
                 meta.density = density;
                 let _ = app_sender.send(AppEvent::ImageDecoded(ImageDecoded::new(meta, pixels, is_opaque)));
             } else {
@@ -441,7 +449,18 @@ struct ImageHeader {
     orientation: image::metadata::Orientation,
     density: Option<PxDensity2d>,
     icc_profile: Option<lcms2::Profile>,
+    og_color_type: image::ExtendedColorType,
 }
+
+fn image_color_type_to_vp(color_type: image::ExtendedColorType) -> ColorType {
+    let channels = color_type.channel_count();
+    ColorType::new(
+        format!("{color_type:?}").to_uppercase().into(),
+        (color_type.bits_per_pixel() / channels as u16) as u8,
+        channels,
+    )
+}
+
 /// (pixels, size, density, is_opaque, is_mask)
 type RawLoadedImg = (IpcBytes, PxSize, Option<PxDensity2d>, bool, bool);
 pub(crate) enum MipImage {

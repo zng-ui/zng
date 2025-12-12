@@ -20,12 +20,12 @@ use zng_layout::{
 };
 use zng_task::{self as task, SignalOnce, channel::IpcBytes};
 use zng_txt::Txt;
-use zng_var::{Var, animation::Transitionable, impl_from_and_into_var};
+use zng_var::{Var, animation::Transitionable, impl_from_and_into_var, var};
 use zng_view_api::image::ImageTextureId;
 
 use crate::render::ImageRenderWindowRoot;
 
-pub use zng_view_api::image::{ImageDataFormat, ImageDownscale, ImageMaskMode};
+pub use zng_view_api::image::{ColorType, ImageDataFormat, ImageDownscale, ImageEntryKind, ImageMaskMode};
 
 /// A custom proxy in [`IMAGES`].
 ///
@@ -61,7 +61,6 @@ pub trait ImageCacheProxy: Send + Sync {
     ///
     /// If `is_loaded` is `true` the data was read or downloaded and the return var will be bound to an existing var that may already be cached.
     /// If it is `false` the data was already loaded on the source and the return var will be returned directly, without caching.
-    ///
     ///
     /// [`Data`]: ImageSource::Data
     /// [`is_data_proxy`]: ImageCacheProxy::is_data_proxy
@@ -154,6 +153,7 @@ pub struct Img {
     render_ids: Arc<Mutex<Vec<RenderImage>>>,
     pub(super) done_signal: SignalOnce,
     pub(super) cache_key: Option<ImageHash>,
+    pub(super) entries: Vec<ImageVar>,
 }
 impl PartialEq for Img {
     fn eq(&self, other: &Self) -> bool {
@@ -167,11 +167,13 @@ impl Img {
             render_ids: Arc::default(),
             done_signal: SignalOnce::new(),
             cache_key,
+            entries: vec![],
         }
     }
 
     /// New from existing `ViewImage`.
     pub fn new(view: ViewImage) -> Self {
+        let entries = view.entries().into_iter().map(|v| var(Self::new(v))).collect();
         let sig = view.awaiter();
         let v = OnceCell::new();
         let _ = v.set(view);
@@ -180,6 +182,7 @@ impl Img {
             render_ids: Arc::default(),
             done_signal: sig,
             cache_key: None,
+            entries,
         }
     }
 
@@ -225,15 +228,50 @@ impl Img {
         self.done_signal.clone()
     }
 
-    /// Returns the image size in pixels, or zero if it is not loaded.
+    /// Pixel size of the image after it finishes loading.
+    ///
+    /// Note that this value is set as soon as the header finishes decoding, but the [`pixels`] will
+    /// only be set after it the entire image decodes.
+    ///
+    /// If the view-process implements progressive decoding you can use [`partial_size`] and [`partial_pixels`]
+    /// to use the partially decoded image top rows as it decodes.
+    ///
+    /// [`pixels`]: Self::pixels
+    /// [`partial_size`]: Self::partial_size
+    /// [`partial_pixels`]: Self::partial_pixels
     pub fn size(&self) -> PxSize {
         self.view.get().map(|v| v.size()).unwrap_or_else(PxSize::zero)
+    }
+
+    /// Size of [`partial_pixels`].
+    ///
+    /// Can be different from [`size`] if the image is progressively decoding.
+    ///
+    /// [`size`]: Self::size
+    /// [`partial_pixels`]: Self::partial_pixels
+    pub fn partial_size(&self) -> Option<PxSize> {
+        self.view
+            .get()
+            .and_then(|v| if v.is_partially_loaded() { Some(v.partial_size()) } else { None })
     }
 
     /// Returns the image pixel density metadata if the image is loaded and the
     /// metadata was retrieved.
     pub fn density(&self) -> Option<PxDensity2d> {
         self.view.get().and_then(|v| v.density())
+    }
+
+    /// Image color type before it was converted to BGRA8 or A8.
+    pub fn original_color_type(&self) -> ColorType {
+        self.view
+            .get()
+            .map(|v| v.original_color_type())
+            .unwrap_or(ColorType::new(Txt::from_static(""), 0, 0))
+    }
+
+    /// Gets A8 for masks and BGRA8 for others.
+    pub fn color_type(&self) -> ColorType {
+        if self.is_mask() { ColorType::A8 } else { ColorType::BGRA8 }
     }
 
     /// Returns `true` if the image is fully opaque or it is not loaded.
@@ -246,9 +284,19 @@ impl Img {
         self.view.get().map(|v| v.is_mask()).unwrap_or(false)
     }
 
-    /// Connection to the image resource, if it is loaded.
+    /// Other images from the same container that reference back to this image as parent.
+    pub fn entries(&self) -> Vec<ImageVar> {
+        self.entries.iter().map(|v| v.read_only()).collect()
+    }
+
+    /// Kind of image container entry this image was decoded from.
+    pub fn entry_kind(&self) -> ImageEntryKind {
+        self.view.get().map(|v| v.entry_kind()).unwrap_or(ImageEntryKind::Page)
+    }
+
+    /// Connection to the image resource.
     pub fn view(&self) -> Option<&ViewImage> {
-        self.view.get().filter(|&v| v.is_loaded())
+        self.view.get()
     }
 
     /// Calculate an *ideal* layout size for the image.
@@ -291,11 +339,28 @@ impl Img {
     /// Reference the decoded pre-multiplied BGRA8 pixel buffer or A8 if [`is_mask`].
     ///
     /// [`is_mask`]: Self::is_mask
-    pub fn pixels(&self) -> Option<zng_task::channel::IpcBytes> {
+    pub fn pixels(&self) -> Option<IpcBytes> {
         self.view.get().and_then(|v| v.pixels())
     }
 
-    /// Copy the `rect` selection from `pixels`.
+    /// Reference the partially decoded pixels if the image is progressively decoding
+    /// and has not finished decoding.
+    ///
+    /// Format is BGRA8 for normal images or A8 if [`is_mask`].
+    ///
+    /// [`is_mask`]: Self::is_mask
+    pub fn partial_pixels(&self) -> Option<IpcBytes> {
+        self.view.get().and_then(|v| v.partial_pixels2())
+    }
+
+    fn actual_pixels_and_size(&self) -> Option<(PxSize, IpcBytes)> {
+        match (self.partial_pixels(), self.partial_size()) {
+            (Some(b), Some(s)) => Some((s, b)),
+            _ => Some((self.size(), self.pixels()?)),
+        }
+    }
+
+    /// Copy the `rect` selection from `pixels` or `partial_pixels`.
     ///
     /// The `rect` is in pixels, with the origin (0, 0) at the top-left of the image.
     ///
@@ -303,8 +368,9 @@ impl Img {
     ///
     /// Note that the selection can change if `rect` is not fully contained by the image area.
     pub fn copy_pixels(&self, rect: PxRect) -> Option<(PxRect, Vec<u8>)> {
-        self.pixels().map(|pixels| {
-            let area = PxRect::from_size(self.size()).intersection(&rect).unwrap_or_default();
+        // TODO(breaking) IpcBytes
+        self.actual_pixels_and_size().map(|(size, pixels)| {
+            let area = PxRect::from_size(size).intersection(&rect).unwrap_or_default();
             if area.size.width.0 == 0 || area.size.height.0 == 0 {
                 (area, vec![])
             } else {
@@ -327,7 +393,7 @@ impl Img {
     }
 
     /// Encode the image to the format.
-    pub async fn encode(&self, format: Txt) -> std::result::Result<zng_task::channel::IpcBytes, EncodeError> {
+    pub async fn encode(&self, format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
         self.done_signal.clone().await;
         if let Some(e) = self.error() {
             Err(EncodeError::Encode(e))
@@ -378,6 +444,7 @@ impl Img {
                 // this can happen on reload
                 let cache_key = self.cache_key;
                 *self = Self {
+                    entries: img.entries().into_iter().map(|v| var(Self::new(v))).collect(),
                     view: OnceCell::with_value(img),
                     render_ids: Arc::default(),
                     done_signal: if done { SignalOnce::new_set() } else { SignalOnce::new() },
@@ -385,6 +452,20 @@ impl Img {
                 };
             }
         }
+    }
+
+    pub(crate) fn find_entry(&self, id: zng_view_api::image::ImageId) -> Option<ImageVar> {
+        self.entries.iter().find_map(|v| {
+            if v.with(|i| i.view().map(|i| i.id() == Some(id))).unwrap_or(false) {
+                Some(v.clone())
+            } else {
+                v.with(|i| i.find_entry(id))
+            }
+        })
+    }
+
+    pub(crate) fn has_loading_entries(&self) -> bool {
+        self.entries.iter().any(|e| e.with(|e| e.is_loading() || e.has_loading_entries()))
     }
 }
 impl zng_app::render::Img for Img {

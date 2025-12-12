@@ -31,7 +31,7 @@ use zng_view_api::{
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::{FontOptions, IpcFontBytes},
-    image::{ImageDecoded, ImageMaskMode, ImageMetadata, ImageRequest, ImageTextureId},
+    image::{ColorType, ImageDecoded, ImageEntryKind, ImageMaskMode, ImageMetadata, ImageRequest, ImageTextureId},
     window::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, RenderMode, ResizeDirection,
         VideoMode, WindowButton, WindowRequest, WindowStateAll,
@@ -180,11 +180,15 @@ impl VIEW_PROCESS {
         let id = app.process.add_image(request)?;
         let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
             id: Some(id),
+            entry_kind: ImageEntryKind::Page,
+            entry_parent: None,
+            entries: vec![],
             app_id: APP.id(),
             generation: app.process.generation(),
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
             density: None,
+            original_color_type: ColorType::new(Txt::from(""), 0, 0),
             is_opaque: false,
             partial_pixels: None,
             pixels: None,
@@ -210,11 +214,15 @@ impl VIEW_PROCESS {
         let id = app.process.add_image_pro(request)?;
         let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
             id: Some(id),
+            entry_kind: ImageEntryKind::Page,
+            entry_parent: None,
+            entries: vec![],
             app_id: APP.id(),
             generation: app.process.generation(),
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
             density: None,
+            original_color_type: ColorType::new(Txt::from(""), 0, 0),
             is_opaque: false,
             partial_pixels: None,
             pixels: None,
@@ -400,6 +408,49 @@ impl VIEW_PROCESS {
         app.loading_images.iter().position(|i| i.upgrade().unwrap().read().id == Some(id))
     }
 
+    fn update_image_entries(&self, img: &mut ViewImageData, mut entries: Vec<ImageId>) {
+        entries.retain(|&id| Some(id) != img.id && !img.entries.iter().any(|img| img.id() == Some(id)));
+
+        if entries.is_empty() {
+            return;
+        }
+
+        let mut app = self.write();
+
+        for id in entries {
+            if let Some(i) = app
+                .loading_images
+                .iter()
+                .map(|i| i.upgrade().unwrap())
+                .find(|i| i.read().id == Some(id))
+            {
+                img.entries.push(ViewImage(i));
+            } else {
+                // sub images are introduced in entries first, followed by events targeting it
+
+                let i = ViewImage(Arc::new(RwLock::new(ViewImageData {
+                    id: Some(id),
+                    entry_kind: ImageEntryKind::Page,
+                    entry_parent: None,
+                    entries: vec![],
+                    app_id: APP.id(),
+                    generation: app.process.generation(),
+                    size: PxSize::zero(),
+                    partial_size: PxSize::zero(),
+                    density: None,
+                    original_color_type: ColorType::new(Txt::from(""), 0, 0),
+                    is_opaque: false,
+                    partial_pixels: None,
+                    pixels: None,
+                    is_mask: false,
+                    done_signal: SignalOnce::new(),
+                })));
+                app.loading_images.push(Arc::downgrade(&i.0));
+                img.entries.push(i)
+            }
+        }
+    }
+
     pub(super) fn on_image_metadata(&self, meta: ImageMetadata) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(meta.id) {
             let img = self.read().loading_images[i].upgrade().unwrap();
@@ -407,7 +458,11 @@ impl VIEW_PROCESS {
                 let mut img = img.write();
                 img.size = meta.size;
                 img.density = meta.density;
+                img.original_color_type = meta.original_color_type;
                 img.is_mask = meta.is_mask;
+                img.entry_kind = meta.entry_kind;
+                img.entry_parent = meta.entry_parent;
+                self.update_image_entries(&mut img, meta.entries);
             }
             Some(ViewImage(img))
         } else {
@@ -422,9 +477,13 @@ impl VIEW_PROCESS {
                 let mut img = img.write();
                 img.partial_size = data.meta.size;
                 img.density = data.meta.density;
+                img.original_color_type = data.meta.original_color_type;
                 img.is_opaque = data.is_opaque;
                 img.partial_pixels = Some(data.pixels);
                 img.is_mask = data.meta.is_mask;
+                img.entry_kind = data.meta.entry_kind;
+                img.entry_parent = data.meta.entry_parent;
+                self.update_image_entries(&mut img, data.meta.entries);
             }
             Some(ViewImage(img))
         } else {
@@ -440,10 +499,14 @@ impl VIEW_PROCESS {
                 img.size = data.meta.size;
                 img.partial_size = data.meta.size;
                 img.density = data.meta.density;
+                img.original_color_type = data.meta.original_color_type;
                 img.is_opaque = data.is_opaque;
                 img.pixels = Some(Ok(data.pixels));
                 img.partial_pixels = None;
                 img.is_mask = data.meta.is_mask;
+                img.entry_kind = data.meta.entry_kind;
+                img.entry_parent = data.meta.entry_parent;
+                self.update_image_entries(&mut img, data.meta.entries);
                 img.done_signal.set();
             }
             Some(ViewImage(img))
@@ -475,10 +538,14 @@ impl VIEW_PROCESS {
         ViewImage(Arc::new(RwLock::new(ViewImageData {
             app_id: APP.id(),
             id: Some(data.id),
+            entry_kind: ImageEntryKind::Page,
+            entry_parent: None,
+            entries: vec![],
             generation: self.generation(),
             size: data.size,
             partial_size: data.size,
             density: data.density,
+            original_color_type: ColorType::BGRA8, // TODO(breaking)
             is_opaque: data.is_opaque,
             partial_pixels: None,
             pixels: Some(Ok(data.pixels)),
@@ -1152,10 +1219,14 @@ impl ViewRenderer {
             let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
                 app_id: Some(app_id),
                 id: Some(id),
+                entry_kind: ImageEntryKind::Page,
+                entry_parent: None,
+                entries: vec![],
                 generation: app.process.generation(),
                 size: PxSize::zero(),
                 partial_size: PxSize::zero(),
                 density: None,
+                original_color_type: ColorType::new(Txt::from(""), 0, 0),
                 is_opaque: false,
                 partial_pixels: None,
                 pixels: None,
@@ -1241,6 +1312,7 @@ impl fmt::Debug for ViewImage {
             .field("error", &self.error())
             .field("size", &self.size())
             .field("density", &self.density())
+            .field("original_color_type", &self.original_color_type())
             .field("is_opaque", &self.is_opaque())
             .field("is_mask", &self.is_mask())
             .field("generation", &self.generation())
@@ -1256,11 +1328,16 @@ struct ViewImageData {
     size: PxSize,
     partial_size: PxSize,
     density: Option<PxDensity2d>,
-    is_opaque: bool,
+    is_mask: bool,
+    original_color_type: ColorType,
 
     partial_pixels: Option<IpcBytes>,
     pixels: Option<std::result::Result<IpcBytes, Txt>>,
-    is_mask: bool,
+    is_opaque: bool,
+
+    entry_kind: ImageEntryKind,
+    entry_parent: Option<ImageId>,
+    entries: Vec<ViewImage>,
 
     done_signal: SignalOnce,
 }
@@ -1285,6 +1362,25 @@ impl ViewImage {
     /// Image id.
     pub fn id(&self) -> Option<ImageId> {
         self.0.read().id
+    }
+
+    /// Kind of image container entry this image was decoded from.
+    pub fn entry_kind(&self) -> ImageEntryKind {
+        self.0.read().entry_kind.clone()
+    }
+
+    /// Image this one belongs too.
+    ///
+    /// This image will be listed on the parent `entries`.
+    pub fn entry_parent(&self) -> Option<ImageId> {
+        self.0.read().entry_parent
+    }
+
+    /// Other images from the same container.
+    ///
+    /// The other images will reference this image back as a parent in `entry_parent`.
+    pub fn entries(&self) -> Vec<ViewImage> {
+        self.0.read().entries.clone()
     }
 
     /// If the image does not actually exists in the view-process.
@@ -1314,17 +1410,29 @@ impl ViewImage {
         self.0.read().pixels.as_ref().and_then(|s| s.as_ref().err().cloned())
     }
 
-    /// Returns the pixel size, or zero if is not loaded or error.
+    /// Pixel size of the image after it finishes loading.
+    ///
+    /// Note that this value is set as soon as the header finishes decoding, but the [`pixels`] will
+    /// only be set after it the entire image decodes.
+    ///
+    /// If the view-process implements progressive decoding you can use [`partial_size`] and [`partial_pixels`]
+    /// to use the partially decoded image top rows as it decodes.
+    ///
+    /// [`pixels`]: Self::pixels
+    /// [`partial_size`]: Self::partial_size
+    /// [`partial_pixels`]: Self::partial_pixels
     pub fn size(&self) -> PxSize {
         self.0.read().size
     }
 
-    /// Actual size of the current pixels.
+    /// Size of [`partial_pixels`].
     ///
     /// Can be different from [`size`] if the image is progressively decoding.
     ///
     /// [`size`]: Self::size
+    /// [`partial_pixels`]: Self::partial_pixels
     pub fn partial_size(&self) -> PxSize {
+        // TODO(breaking) Option<PxSize>
         self.0.read().partial_size
     }
 
@@ -1332,6 +1440,11 @@ impl ViewImage {
     /// metadata provided by decoder.
     pub fn density(&self) -> Option<PxDensity2d> {
         self.0.read().density
+    }
+
+    /// Image color type before it was converted to BGRA8 or A8.
+    pub fn original_color_type(&self) -> ColorType {
+        self.0.read().original_color_type.clone()
     }
 
     /// Returns if the image is fully opaque.
@@ -1344,14 +1457,20 @@ impl ViewImage {
         self.0.read().is_mask
     }
 
-    /// Copy the partially decoded pixels if the image is progressively decoding
+    /// Deprecated
+    #[deprecated = "use partial_pixels2"]
+    pub fn partial_pixels(&self) -> Option<Vec<u8>> {
+        self.0.read().partial_pixels.as_ref().map(|r| r[..].to_vec())
+    }
+
+    /// Reference the partially decoded pixels if the image is progressively decoding
     /// and has not finished decoding.
     ///
     /// Format is BGRA8 for normal images or A8 if [`is_mask`].
     ///
     /// [`is_mask`]: Self::is_mask
-    pub fn partial_pixels(&self) -> Option<Vec<u8>> {
-        self.0.read().partial_pixels.as_ref().map(|r| r[..].to_vec())
+    pub fn partial_pixels2(&self) -> Option<IpcBytes> {
+        self.0.read().partial_pixels.clone()
     }
 
     /// Reference the decoded pixels of image.
@@ -1389,9 +1508,13 @@ impl ViewImage {
             app_id: None,
             id: None,
             generation: ViewProcessGen::INVALID,
+            entry_kind: ImageEntryKind::Page,
+            entry_parent: None,
+            entries: vec![],
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
             density: None,
+            original_color_type: ColorType::new(Txt::from(""), 0, 0),
             is_opaque: true,
             partial_pixels: None,
             pixels: if let Some(e) = error {
@@ -1541,11 +1664,15 @@ impl ViewClipboard {
                 } else {
                     let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
                         id: Some(id),
+                        entry_kind: ImageEntryKind::Page,
+                        entry_parent: None,
+                        entries: vec![],
                         app_id: APP.id(),
                         generation: app.process.generation(),
                         size: PxSize::zero(),
                         partial_size: PxSize::zero(),
                         density: None,
+                        original_color_type: ColorType::new(Txt::from(""), 0, 0),
                         is_opaque: false,
                         partial_pixels: None,
                         pixels: None,

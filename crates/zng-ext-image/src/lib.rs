@@ -22,7 +22,10 @@ use zng_app::{
     update::EventUpdate,
     view_process::{
         VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewImage,
-        raw_events::{LOW_MEMORY_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_METADATA_LOADED_EVENT},
+        raw_events::{
+            LOW_MEMORY_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_METADATA_LOADED_EVENT,
+            RAW_IMAGE_PARTIALLY_LOADED_EVENT,
+        },
     },
     widget::UiTaskWidget,
 };
@@ -55,58 +58,58 @@ use zng_view_api::image::ImageRequest;
 pub struct ImageManager {}
 impl AppExtension for ImageManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = RAW_IMAGE_METADATA_LOADED_EVENT.on(update) {
+        if let Some(args) = RAW_IMAGE_METADATA_LOADED_EVENT
+            .on(update)
+            .or_else(|| RAW_IMAGE_PARTIALLY_LOADED_EVENT.on(update))
+            .or_else(|| RAW_IMAGE_LOADED_EVENT.on(update))
+            .or_else(|| RAW_IMAGE_LOAD_ERROR_EVENT.on(update))
+        {
             let images = IMAGES_SV.read();
 
-            if let Some(var) = images
-                .decoding
-                .iter()
-                .map(|t| &t.image)
-                .find(|v| v.with(|img| img.view.get().unwrap() == &args.image))
+            let mut found_key = None;
+
+            if let Some(id) = args.image.id()
+                && let Some(var) = images.find_decoding(id)
             {
+                // ViewImage updates with internal mutation, notify this
                 var.update();
-            }
-        } else if let Some(args) = RAW_IMAGE_LOADED_EVENT.on(update) {
-            let image = &args.image;
-
-            // image finished decoding, remove from `decoding`
-            // and notify image var value update.
-            let mut images = IMAGES_SV.write();
-
-            if let Some(i) = images
-                .decoding
-                .iter()
-                .position(|t| t.image.with(|img| img.view.get().unwrap() == image))
+                found_key = var.with(|i| i.cache_key);
+            } else if let Some(parent) = args.image.entry_parent()
+                && let Some(parent) = images.find_decoding(parent)
             {
-                let ImageDecodingTask { image, .. } = images.decoding.swap_remove(i);
-                image.update();
-                image.with(|img| img.done_signal.set());
+                // entry image first update, generate var for it and siblings in parent image
+                parent.modify(|p| {
+                    let entries = p.view().unwrap().entries();
+                    let ev = entries
+                        .into_iter()
+                        .map(|v| {
+                            if let Some(existing) = p.entries.iter().find(|e| e.with(|e| e.view().and_then(|d| d.id())) == v.id()) {
+                                existing.clone()
+                            } else {
+                                var(Img::new(v))
+                            }
+                        })
+                        .collect();
+                    p.entries = ev;
+                });
             }
-        } else if let Some(args) = RAW_IMAGE_LOAD_ERROR_EVENT.on(update) {
-            let image = &args.image;
 
-            // image failed to decode, remove from `decoding`
-            // and notify image var value update.
-            let mut images = IMAGES_SV.write();
+            if args.image.is_loaded() || args.image.is_error() {
+                // finished loading, cleanup 'decoding' strong references
+                drop(images);
+                let mut images = IMAGES_SV.write();
+                images
+                    .decoding
+                    .retain(|i| i.image.with(|i| i.is_loading() || i.has_loading_entries()));
 
-            if let Some(i) = images
-                .decoding
-                .iter()
-                .position(|t| t.image.with(|img| img.view.get().unwrap() == image))
-            {
-                let ImageDecodingTask { image, .. } = images.decoding.swap_remove(i);
-                image.update();
-                image.with(|img| {
-                    img.done_signal.set();
-
-                    if let Some(k) = &img.cache_key
-                        && let Some(e) = images.cache.get(k)
-                    {
+                if let Some(key) = found_key
+                    && args.image.is_error()
+                {
+                    if let Some(e) = images.cache.get(&key) {
                         e.error.store(true, Ordering::Relaxed);
                     }
-
-                    tracing::error!("decode error: {:?}", img.error().unwrap());
-                });
+                    tracing::error!("decode error: {:?}", args.image.error().unwrap());
+                }
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let mut images = IMAGES_SV.write();
@@ -812,6 +815,16 @@ impl ImagesService {
         zng_app::update::UPDATES.update(None);
 
         r
+    }
+
+    fn find_decoding(&self, id: zng_view_api::image::ImageId) -> Option<ImageVar> {
+        self.decoding.iter().find_map(|i| {
+            if i.image.with(|i| i.view().map(|v| v.id() == Some(id))).unwrap_or(false) {
+                Some(i.image.clone())
+            } else {
+                i.image.with(|i| i.find_entry(id))
+            }
+        })
     }
 }
 
