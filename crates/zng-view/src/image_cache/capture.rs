@@ -110,27 +110,27 @@ impl ImageCache {
         }
 
         if let Some(mask) = mask {
-            if format == gleam::gl::BGRA {
-                // !!: TODO Self::convert_bgra8_to_mask(size, bgra8, mask, density, downscale, resizer_cache)
-                for bgra in buf.chunks_exact_mut(4) {
-                    bgra.swap(0, 3);
-                }
-            }
             let density = 96.0 * scale_factor.0;
             let density = Some(PxDensity2d::splat(density.ppi()));
 
-            let (pixels, size, density, is_opaque, is_mask) = Self::convert_decoded(
-                IpcDynamicImage::ImageRgba8(
-                    image::ImageBuffer::from_raw(rect.size.width.0 as u32, rect.size.height.0 as u32, buf).unwrap(),
-                ),
-                Some(mask),
-                density,
-                None,
-                None,
-                image::metadata::Orientation::NoTransforms,
-                &self.resizer,
-            )
-            .unwrap(); // frame size is not large enough to trigger an memmap that can fail
+            let r = if format == gleam::gl::BGRA {
+                Self::convert_bgra8_to_mask_in_place(rect.size, buf, mask, density, None, &self.resizer)
+            } else {
+                Self::convert_decoded(
+                    IpcDynamicImage::ImageRgba8(
+                        image::ImageBuffer::from_raw(rect.size.width.0 as u32, rect.size.height.0 as u32, buf).unwrap(),
+                    ),
+                    Some(mask),
+                    density,
+                    None,
+                    None,
+                    image::metadata::Orientation::NoTransforms,
+                    &self.resizer,
+                )
+            };
+
+            // frame size is not large enough to trigger a memmap that can fail;
+            let (pixels, size, density, is_opaque, is_mask) = r.unwrap();
 
             let id = self.add(ImageRequest::new(
                 ImageDataFormat::A8 { size },

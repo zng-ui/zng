@@ -701,7 +701,7 @@ impl ImageCache {
 
     pub(super) fn convert_bgra8_to_mask(
         size: PxSize,
-        bgra8: &[u8], // !!: TODO reduce_in_place if possible?
+        bgra8: &[u8],
         mask: ImageMaskMode,
         density: Option<PxDensity2d>,
         downscale: Option<zng_view_api::image::ImageDownscale>,
@@ -741,6 +741,53 @@ impl ImageCache {
 
         Ok((
             a.finish_blocking()?,
+            size,
+            density,
+            is_opaque,
+            true, // is_mask
+        ))
+    }
+    pub(super) fn convert_bgra8_to_mask_in_place(
+        size: PxSize,
+        mut raw: IpcBytesMut,
+        mask: ImageMaskMode,
+        density: Option<PxDensity2d>,
+        downscale: Option<zng_view_api::image::ImageDownscale>,
+        resizer_cache: &ResizerCache,
+    ) -> std::io::Result<RawLoadedImg> {
+        let mut is_opaque = true;
+        match mask {
+            ImageMaskMode::Luminance => {
+                raw.reduce_in_place(|[b, g, r, _]: [u8; 4]| {
+                    let c = luminance(r, g, b);
+                    is_opaque &= c == 255;
+                    [c]
+                });
+            }
+            mask => {
+                let channel = match mask {
+                    ImageMaskMode::A => 3,
+                    ImageMaskMode::B => 0,
+                    ImageMaskMode::G => 1,
+                    ImageMaskMode::R => 2,
+                    _ => unreachable!(),
+                };
+                raw.reduce_in_place(|bgra: [u8; 4]| {
+                    let c = bgra[channel];
+                    is_opaque &= c == 255;
+                    [c]
+                });
+            }
+        }
+
+        let mut size = size;
+        if let Some((s, px)) = Self::downscale_decoded(Some(mask), downscale, resizer_cache, size, &raw)? {
+            size = s;
+            raw = px;
+        }
+
+        Ok((
+            raw.finish_blocking()?,
             size,
             density,
             is_opaque,
