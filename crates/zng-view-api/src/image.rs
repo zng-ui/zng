@@ -252,6 +252,56 @@ fn density_key(density: Option<PxDensity2d>) -> Option<(u16, u16)> {
     density.map(|s| ((s.width.ppcm() * 3.0) as u16, (s.height.ppcm() * 3.0) as u16))
 }
 
+/// Represents decoded header metadata about an image.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct ImageMetadata {
+    /// Image ID.
+    pub id: ImageId,
+    /// Pixel size.
+    pub size: PxSize,
+    /// Pixel density metadata.
+    pub density: Option<PxDensity2d>,
+    /// If the `pixels` are in a single channel (A8).
+    pub is_mask: bool,
+}
+impl ImageMetadata {
+    /// New.
+    pub fn new(id: ImageId, size: PxSize, is_mask: bool) -> Self {
+        Self {
+            id,
+            size,
+            density: None,
+            is_mask,
+        }
+    }
+}
+
+/// Represents a partial or fully decoded image.
+///
+/// See [`Event::ImageDecoded`] and [`ImagePartiallyDecoded`] for more details.
+///
+/// [`Event::ImageDecoded`]: crate::Event::ImageDecoded
+/// [`ImagePartiallyDecoded`]: crate::Event::ImagePartiallyDecoded
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct ImageDecoded {
+    /// Image metadata.
+    pub meta: ImageMetadata,
+    /// Decoded pixels.
+    ///
+    /// Is BGRA8 pre-multiplied if `!is_mask` or is `A8` if `is_mask`.
+    pub pixels: IpcBytes,
+    /// If all pixels have an alpha value of 255.
+    pub is_opaque: bool,
+}
+impl ImageDecoded {
+    /// New.
+    pub fn new(meta: ImageMetadata, pixels: IpcBytes, is_opaque: bool) -> Self {
+        Self { meta, pixels, is_opaque }
+    }
+}
+
 /// Represents a successfully decoded image.
 ///
 /// See [`Event::ImageLoaded`].
@@ -260,6 +310,7 @@ fn density_key(density: Option<PxDensity2d>) -> Option<(u16, u16)> {
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ImageLoadedData {
+    // TODO(breaking) remove, replace with ImageData
     /// Image ID.
     pub id: ImageId,
     /// Pixel size.
@@ -296,6 +347,18 @@ impl fmt::Debug for ImageLoadedData {
             .field("is_mask", &self.is_mask)
             .field("pixels", &format_args!("<{} bytes shared memory>", self.pixels.len()))
             .finish()
+    }
+}
+impl From<ImageDecoded> for ImageLoadedData {
+    fn from(value: ImageDecoded) -> Self {
+        ImageLoadedData {
+            id: value.meta.id,
+            size: value.meta.size,
+            density: value.meta.density,
+            is_opaque: value.is_opaque,
+            is_mask: value.meta.is_mask,
+            pixels: value.pixels,
+        }
     }
 }
 

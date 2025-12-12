@@ -5,7 +5,7 @@ use zng_txt::formatx;
 use zng_unit::{Factor, PxDensity2d, PxDensityUnits as _, PxRect};
 use zng_view_api::{
     Event,
-    image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImageRequest},
+    image::{ImageDataFormat, ImageDecoded, ImageId, ImageMaskMode, ImageMetadata, ImageRequest},
     window::{FrameId, WindowId},
 };
 
@@ -44,9 +44,9 @@ impl ImageCache {
 
         let data = self.frame_image_data(gl, rect, scale_factor, mask);
 
-        let id = data.id;
+        let id = data.meta.id;
 
-        let _ = self.app_sender.send(AppEvent::ImageLoaded(data));
+        let _ = self.app_sender.send(AppEvent::ImageDecoded(data));
         let _ = self.app_sender.send(AppEvent::Notify(Event::FrameImageReady {
             window: window_id,
             frame: frame_id,
@@ -64,17 +64,17 @@ impl ImageCache {
         rect: PxRect,
         scale_factor: Factor,
         mask: Option<ImageMaskMode>,
-    ) -> ImageLoadedData {
+    ) -> ImageDecoded {
         let data = self.frame_image_data_impl(gl, rect, scale_factor, mask);
 
         self.images.insert(
-            data.id,
+            data.meta.id,
             Image(Arc::new(ImageData::RawData {
-                size: data.size,
+                size: data.meta.size,
                 range: 0..data.pixels.len(),
                 pixels: data.pixels.clone(),
                 is_opaque: data.is_opaque,
-                density: data.density,
+                density: data.meta.density,
                 mipmap: Mutex::new(Box::new([])),
                 stripes: Mutex::new(Box::new([])),
             })),
@@ -89,7 +89,7 @@ impl ImageCache {
         rect: PxRect,
         scale_factor: Factor,
         mask: Option<ImageMaskMode>,
-    ) -> ImageLoadedData {
+    ) -> ImageDecoded {
         let format = match gl.get_type() {
             gleam::gl::GlType::Gl => gleam::gl::BGRA,
             gleam::gl::GlType::Gles => gleam::gl::RGBA,
@@ -111,6 +111,7 @@ impl ImageCache {
 
         if let Some(mask) = mask {
             if format == gleam::gl::BGRA {
+                // !!: TODO Self::convert_bgra8_to_mask(size, bgra8, mask, density, downscale, resizer_cache)
                 for bgra in buf.chunks_exact_mut(4) {
                     bgra.swap(0, 3);
                 }
@@ -138,8 +139,9 @@ impl ImageCache {
                 None,
                 Some(mask),
             ));
-
-            ImageLoadedData::new(id, size, density, is_opaque, is_mask, pixels)
+            let mut meta = ImageMetadata::new(id, size, is_mask);
+            meta.density = density;
+            ImageDecoded::new(meta, pixels, is_opaque)
         } else {
             if format == gleam::gl::RGBA {
                 for rgba in buf.chunks_exact_mut(4) {
@@ -162,7 +164,9 @@ impl ImageCache {
                 mask,
             ));
 
-            ImageLoadedData::new(id, size, density, is_opaque, false, data)
+            let mut meta = ImageMetadata::new(id, size, false);
+            meta.density = density;
+            ImageDecoded::new(meta, data, is_opaque)
         }
     }
 }

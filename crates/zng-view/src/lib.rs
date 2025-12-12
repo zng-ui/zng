@@ -151,7 +151,7 @@ use zng_view_api::{
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
     drag_drop::*,
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
-    image::{ImageId, ImageLoadedData, ImageMaskMode, ImageRequest, ImageTextureId},
+    image::{ImageDecoded, ImageId, ImageMaskMode, ImageRequest, ImageTextureId},
     keyboard::{Key, KeyCode, KeyState},
     mouse::ButtonId,
     raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
@@ -1003,7 +1003,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 self.exited = true;
                 self.winit_loop.exit();
             }
-            AppEvent::ImageLoaded(data) => {
+            AppEvent::ImageDecoded(data) => {
                 self.image_cache.loaded(data);
             }
             AppEvent::MonitorPowerChanged => {
@@ -1283,7 +1283,11 @@ impl App {
                                                 None
                                             };
                                             if let Some((frame_id, image)) = r {
-                                                self.app.notify(Event::FrameRendered(EventFrameRendered::new(id, frame_id, image)));
+                                                self.app.notify(Event::FrameRendered(EventFrameRendered::new(
+                                                    id,
+                                                    frame_id,
+                                                    image.map(Into::into),
+                                                )));
                                             }
                                         }
                                     }
@@ -1305,7 +1309,7 @@ impl App {
                                 self.app.exited = true;
                                 break 'app_loop;
                             }
-                            AppEvent::ImageLoaded(data) => {
+                            AppEvent::ImageDecoded(data) => {
                                 self.app.image_cache.loaded(data);
                             }
                             AppEvent::MonitorPowerChanged => {} // headless
@@ -1559,9 +1563,11 @@ impl App {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
             let r = w.on_frame_ready(msg, &mut self.image_cache);
 
-            let _ = self
-                .event_sender
-                .send(Event::FrameRendered(EventFrameRendered::new(window_id, r.frame_id, r.image)));
+            let _ = self.event_sender.send(Event::FrameRendered(EventFrameRendered::new(
+                window_id,
+                r.frame_id,
+                r.image.map(Into::into),
+            )));
 
             if r.first_frame {
                 let size = w.size();
@@ -1570,7 +1576,11 @@ impl App {
         } else if let Some(s) = self.surfaces.iter_mut().find(|w| w.id() == window_id) {
             let (frame_id, image) = s.on_frame_ready(msg, &mut self.image_cache);
 
-            self.notify(Event::FrameRendered(EventFrameRendered::new(window_id, frame_id, image)))
+            self.notify(Event::FrameRendered(EventFrameRendered::new(
+                window_id,
+                frame_id,
+                image.map(Into::into),
+            )))
         }
     }
 
@@ -2470,7 +2480,7 @@ pub(crate) enum AppEvent {
     ParentProcessExited,
 
     /// Image finished decoding, must call [`ImageCache::loaded`].
-    ImageLoaded(ImageLoadedData),
+    ImageDecoded(ImageDecoded),
 
     /// Enable disable winit device events.
     SetDeviceEventsFilter(DeviceEventsFilter),

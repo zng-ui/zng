@@ -14,7 +14,7 @@ use zng_task::channel::{IpcBytes, IpcReceiver};
 use zng_unit::{Px, PxDensity2d, PxSize};
 use zng_view_api::{
     Event,
-    image::{ImageDataFormat, ImageId, ImageLoadedData, ImageRequest},
+    image::{ImageDataFormat, ImageDecoded, ImageId, ImageMetadata, ImageRequest},
 };
 
 use crate::{AppEvent, AppEventSender};
@@ -200,15 +200,13 @@ impl ImageCache {
                                 ))
                             } else {
                                 // notify metadata already
+
                                 if let Some(d) = downscale {
                                     size = d.resize_dimensions(size);
                                 }
-                                let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataLoaded {
-                                    image: id,
-                                    size,
-                                    density: h.density,
-                                    is_mask: false,
-                                }));
+                                let mut meta = ImageMetadata::new(id, size, false);
+                                meta.density = h.density;
+                                let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataDecoded(meta)));
 
                                 // decode
                                 match Self::image_decode(&data[..], h.format, downscale) {
@@ -231,9 +229,9 @@ impl ImageCache {
 
             match r {
                 Ok((pixels, size, density, is_opaque, is_mask)) => {
-                    let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
-                        id, size, density, is_opaque, is_mask, pixels,
-                    )));
+                    let mut meta = ImageMetadata::new(id, size, is_mask);
+                    meta.density = density;
+                    let _ = app_sender.send(AppEvent::ImageDecoded(ImageDecoded::new(meta, pixels, is_opaque)));
                 }
                 Err(e) => {
                     let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError { image: id, error: e }));
@@ -356,9 +354,10 @@ impl ImageCache {
                 match Self::image_decode(&full[..], fmt, downscale) {
                     Ok(img) => match Self::convert_decoded(img, mask, density, icc_profile, downscale, orientation, &resizer) {
                         Ok((pixels, size, density, is_opaque, is_mask)) => {
-                            let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
-                                id, size, density, is_opaque, is_mask, pixels,
-                            )));
+                            let mut meta = ImageMetadata::new(id, size, is_mask);
+                            meta.density = density;
+
+                            let _ = app_sender.send(AppEvent::ImageDecoded(ImageDecoded::new(meta, pixels, is_opaque)));
                         }
                         Err(e) => {
                             let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
@@ -386,14 +385,9 @@ impl ImageCache {
                     }
                 };
                 let is_opaque = pixels.chunks_exact(4).all(|c| c[3] == 255);
-                let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
-                    id,
-                    size.unwrap(),
-                    density,
-                    is_opaque,
-                    false,
-                    pixels,
-                )));
+                let mut meta = ImageMetadata::new(id, size.unwrap(), false);
+                meta.density = density;
+                let _ = app_sender.send(AppEvent::ImageDecoded(ImageDecoded::new(meta, pixels, is_opaque)));
             } else {
                 let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
                     image: id,
@@ -413,21 +407,21 @@ impl ImageCache {
     }
 
     /// Called after receive and decode completes correctly.
-    pub(crate) fn loaded(&mut self, data: ImageLoadedData) {
+    pub(crate) fn loaded(&mut self, data: ImageDecoded) {
         self.images.insert(
-            data.id,
+            data.meta.id,
             Image(Arc::new(ImageData::RawData {
-                size: data.size,
+                size: data.meta.size,
                 range: 0..data.pixels.len(),
                 pixels: data.pixels.clone(),
                 is_opaque: data.is_opaque,
-                density: data.density,
+                density: data.meta.density,
                 mipmap: Mutex::new(Box::new([])),
                 stripes: Mutex::new(Box::new([])),
             })),
         );
 
-        let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoaded(data)));
+        let _ = self.app_sender.send(AppEvent::Notify(Event::ImageDecoded(data)));
     }
 
     pub(crate) fn on_low_memory(&mut self) {

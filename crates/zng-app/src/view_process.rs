@@ -31,7 +31,7 @@ use zng_view_api::{
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::{FontOptions, IpcFontBytes},
-    image::{ImageMaskMode, ImageRequest, ImageTextureId},
+    image::{ImageDecoded, ImageMaskMode, ImageMetadata, ImageRequest, ImageTextureId},
     window::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, RenderMode, ResizeDirection,
         VideoMode, WindowButton, WindowRequest, WindowStateAll,
@@ -400,20 +400,14 @@ impl VIEW_PROCESS {
         app.loading_images.iter().position(|i| i.upgrade().unwrap().read().id == Some(id))
     }
 
-    pub(super) fn on_image_metadata_loaded(
-        &self,
-        id: ImageId,
-        size: PxSize,
-        density: Option<PxDensity2d>,
-        is_mask: bool,
-    ) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(id) {
+    pub(super) fn on_image_metadata(&self, meta: ImageMetadata) -> Option<ViewImage> {
+        if let Some(i) = self.loading_image_index(meta.id) {
             let img = self.read().loading_images[i].upgrade().unwrap();
             {
                 let mut img = img.write();
-                img.size = size;
-                img.density = density;
-                img.is_mask = is_mask;
+                img.size = meta.size;
+                img.density = meta.density;
+                img.is_mask = meta.is_mask;
             }
             Some(ViewImage(img))
         } else {
@@ -421,24 +415,16 @@ impl VIEW_PROCESS {
         }
     }
 
-    pub(super) fn on_image_partially_loaded(
-        &self,
-        id: ImageId,
-        partial_size: PxSize,
-        density: Option<PxDensity2d>,
-        is_opaque: bool,
-        is_mask: bool,
-        partial_pixels: IpcBytes,
-    ) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(id) {
+    pub(super) fn on_image_partially_decoded(&self, data: ImageDecoded) -> Option<ViewImage> {
+        if let Some(i) = self.loading_image_index(data.meta.id) {
             let img = self.read().loading_images[i].upgrade().unwrap();
             {
                 let mut img = img.write();
-                img.partial_size = partial_size;
-                img.density = density;
-                img.is_opaque = is_opaque;
-                img.partial_pixels = Some(partial_pixels);
-                img.is_mask = is_mask;
+                img.partial_size = data.meta.size;
+                img.density = data.meta.density;
+                img.is_opaque = data.is_opaque;
+                img.partial_pixels = Some(data.pixels);
+                img.is_mask = data.meta.is_mask;
             }
             Some(ViewImage(img))
         } else {
@@ -446,18 +432,18 @@ impl VIEW_PROCESS {
         }
     }
 
-    pub(super) fn on_image_loaded(&self, data: ImageLoadedData) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(data.id) {
+    pub(super) fn on_image_decoded(&self, data: ImageDecoded) -> Option<ViewImage> {
+        if let Some(i) = self.loading_image_index(data.meta.id) {
             let img = self.write().loading_images.swap_remove(i).upgrade().unwrap();
             {
                 let mut img = img.write();
-                img.size = data.size;
-                img.partial_size = data.size;
-                img.density = data.density;
+                img.size = data.meta.size;
+                img.partial_size = data.meta.size;
+                img.density = data.meta.density;
                 img.is_opaque = data.is_opaque;
                 img.pixels = Some(Ok(data.pixels));
                 img.partial_pixels = None;
-                img.is_mask = data.is_mask;
+                img.is_mask = data.meta.is_mask;
                 img.done_signal.set();
             }
             Some(ViewImage(img))

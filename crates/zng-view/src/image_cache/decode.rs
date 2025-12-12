@@ -701,7 +701,7 @@ impl ImageCache {
 
     pub(super) fn convert_bgra8_to_mask(
         size: PxSize,
-        bgra8: &[u8],
+        bgra8: &[u8], // !!: TODO reduce_in_place if possible?
         mask: ImageMaskMode,
         density: Option<PxDensity2d>,
         downscale: Option<zng_view_api::image::ImageDownscale>,

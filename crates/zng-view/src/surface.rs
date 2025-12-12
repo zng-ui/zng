@@ -11,7 +11,7 @@ use zng_view_api::{
     ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     font::{FontFaceId, FontId, FontOptions, FontVariationName, IpcFontBytes},
-    image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
+    image::{ImageDecoded, ImageId, ImageMaskMode, ImageTextureId},
     window::{FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, RenderMode, WindowId},
 };
 
@@ -407,7 +407,7 @@ impl Surface {
         self.api.send_transaction(self.document_id, txn);
     }
 
-    pub fn on_frame_ready(&mut self, msg: FrameReadyMsg, images: &mut ImageCache) -> (FrameId, Option<ImageLoadedData>) {
+    pub fn on_frame_ready(&mut self, msg: FrameReadyMsg, images: &mut ImageCache) -> (FrameId, Option<ImageDecoded>) {
         let (frame_id, capture, _) = self
             .pending_frames
             .pop_front()

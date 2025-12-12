@@ -9,13 +9,17 @@ use crate::{
     },
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect},
-    image::{ImageId, ImageLoadedData},
+    image::{ImageDecoded, ImageId, ImageMetadata},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
     touch::{TouchPhase, TouchUpdate},
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
+
+#[allow(deprecated)]
+use crate::image::ImageLoadedData;
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use zng_task::channel::{ChannelError, IpcBytes};
@@ -408,7 +412,8 @@ pub enum Event {
     /// The window has closed.
     WindowClosed(WindowId),
 
-    /// An image resource already decoded size and density metadata.
+    /// Deprecated.
+    #[deprecated = "use `ImageMetadataDecoded`"]
     ImageMetadataLoaded {
         /// The image that started loading.
         image: ImageId,
@@ -419,9 +424,16 @@ pub enum Event {
         /// The image is a single channel R8.
         is_mask: bool,
     },
-    /// An image resource finished decoding.
+    /// An image resource already decoded header metadata.
+    ImageMetadataDecoded(ImageMetadata),
+    /// Deprecated.
+    #[deprecated = "use `ImageData`"]
+    #[allow(deprecated)]
     ImageLoaded(ImageLoadedData),
-    /// An image resource, progressively decoded has decoded more bytes.
+    /// An image resource finished decoding.
+    ImageDecoded(ImageDecoded),
+    /// Deprecated.
+    #[deprecated = "use `ImagePartiallyDecoded`"]
     ImagePartiallyLoaded {
         /// The image that has decoded more pixels.
         image: ImageId,
@@ -438,8 +450,13 @@ pub enum Event {
         /// decoded so-far.
         partial_pixels: IpcBytes,
     },
+    /// An image resource, progressively decoded has decoded more rows.
+    ///
+    /// The data size and pixels reflects the partial height of the image that has decoded only.
+    ImagePartiallyDecoded(ImageDecoded),
     /// An image resource failed to decode, the image ID is not valid.
     ImageLoadError {
+        // TODO(breaking) rename ImageDecodeError
         /// The image that failed to decode.
         image: ImageId,
         /// The error message.

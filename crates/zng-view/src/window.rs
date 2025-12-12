@@ -24,7 +24,7 @@ use zng_view_api::{
     Event, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     font::{FontFaceId, FontId, FontOptions, FontVariationName, IpcFontBytes},
-    image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
+    image::{ImageDecoded, ImageId, ImageMaskMode, ImageTextureId},
     raw_input::InputDeviceId,
     window::{
         CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, ResizeDirection, VideoMode,
@@ -2189,7 +2189,7 @@ impl Drop for Window {
 
 pub(crate) struct FrameReadyResult {
     pub frame_id: FrameId,
-    pub image: Option<ImageLoadedData>,
+    pub image: Option<ImageDecoded>,
     pub first_frame: bool,
 }
 
