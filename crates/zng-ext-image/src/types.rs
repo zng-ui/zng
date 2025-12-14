@@ -25,7 +25,7 @@ use zng_view_api::image::ImageTextureId;
 
 use crate::render::ImageRenderWindowRoot;
 
-pub use zng_view_api::image::{ColorType, ImageDataFormat, ImageDownscale, ImageEntryKind, ImageMaskMode};
+pub use zng_view_api::image::{ColorType, ImageDataFormat, ImageDownscale, ImageEntriesMode, ImageEntryKind, ImageMaskMode};
 
 /// A custom proxy in [`IMAGES`].
 ///
@@ -43,7 +43,7 @@ pub trait ImageCacheProxy: Send + Sync {
         source: &ImageSource,
         mode: ImageCacheMode,
         downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskMode>,
+        mask: Option<ImageMaskMode>, // TODO(breaking) add ImageEntriesMode
     ) -> ProxyGetResult {
         let r = match source {
             ImageSource::Data(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask, false),
@@ -1181,6 +1181,11 @@ impl fmt::Debug for ImageCacheMode {
             Self::Retry => write!(f, "Retry"),
             Self::Reload => write!(f, "Reload"),
         }
+    }
+}
+impl_from_and_into_var! {
+    fn from(cache: bool) -> ImageCacheMode {
+        if cache { ImageCacheMode::Cache } else { ImageCacheMode::Ignore }
     }
 }
 

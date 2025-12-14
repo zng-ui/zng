@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use zng_task::channel::IpcBytes;
 use zng_txt::Txt;
@@ -47,35 +48,40 @@ pub enum ImageMaskMode {
     Luminance,
 }
 
-/// Mode of operation when decoding image container formats that have more than one image.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-#[non_exhaustive]
-pub enum ImageEntryMode {
-    /// Only decodes the *best* image.
+bitflags! {
+    /// Defines what images are decoded from multi image containers.
     ///
-    /// The best image heuristic is:
-    ///
-    /// * Exact match to [`mask`] that is larger and nearest to [`downscale`].
-    /// * Of all with color type greater or equal to BGRA8, the largest and nearest to [`downscale`].
-    /// * The image with greater bits-per-pixel.
-    ///
-    /// When [`downscale`] is not set, just selects the largest.
-    ///
-    /// [`downscale`]: ImageRequest::downscale
-    /// [`mask`]: ImageRequest::mask
-    #[default]
-    Best,
-    /// Decodes `Best` and all reduced alternates of it.
-    BestAndReduced,
-    /// Decodes all full sized images, ignore reduced alternates and other images.
-    ///
-    /// Returns the first page as the primary image followed by the other pages.
-    Pages,
-    /// Decodes all the contained images.
-    ///
-    /// Returns the first page as the primary image, followed by the reduced alternates of the first page,
-    /// followed by the other pages. In the other pages returns the reduced alternates of that page.
-    All,
+    /// These flags represent the different [`ImageEntryKind`].
+    #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+    pub struct ImageEntriesMode: u8 {
+        /// Decodes all pages.
+        const PAGES = 0b0001;
+        /// Decodes reduced alternates of the selected pages.
+        const REDUCED = 0b0010;
+        /// Decodes only the first page, or the page explicitly marked as primary by the container format.
+        ///
+        /// Note that this is 0, empty.
+        const PRIMARY = 0;
+
+        /// Decodes any other images that are not considered pages nor reduced alternates.
+        const OTHER = 0b1000;
+    }
+}
+#[cfg(feature = "var")]
+zng_var::impl_from_and_into_var! {
+    fn from(kind: ImageEntryKind) -> ImageEntriesMode {
+        match kind {
+            ImageEntryKind::Page => ImageEntriesMode::PAGES,
+            ImageEntryKind::Reduced { synthetic } => {
+                if synthetic {
+                    ImageEntriesMode::PRIMARY | ImageEntriesMode::REDUCED
+                } else {
+                    ImageEntriesMode::REDUCED
+                }
+            }
+            ImageEntryKind::Other { .. } => ImageEntriesMode::OTHER,
+        }
+    }
 }
 
 /// Represent a image load/decode request.
@@ -95,16 +101,28 @@ pub struct ImageRequest<D> {
     /// View-process will avoid decoding and return an error if the image decoded to BGRA (4 bytes) exceeds this size.
     /// This limit applies to the image before the `downscale`.
     pub max_decoded_len: u64,
-    /// A size constraints to apply after the image is decoded. The image is resized to fit or fill the given size.
+
+    /// Deprecated.
+    #[deprecated = "use `downscale2`"]
+    #[allow(deprecated)]
     pub downscale: Option<ImageDownscale>,
+    /// A size constraints to apply after the image is decoded. The image is resized to fit or fill the given size.
+    /// Optionally generate multiple reduced entries.
+    ///
+    /// If the image contains multiple images selects the nearest *reduced alternate* that can be downscaled.
+    ///
+    /// If `entries` requests `REDUCED` only the alternates smaller than the requested downscale are included.
+    pub downscale2: Option<ImageDownscaleMode>,
+
     /// Convert or decode the image into a single channel mask (R8).
     pub mask: Option<ImageMaskMode>,
 
-    /// Defines how multi image container formats are decoded.
-    pub entry_selection: ImageEntryMode,
+    /// Defines what images are decoded from multi image containers.
+    pub entries: ImageEntriesMode,
 }
 impl<D> ImageRequest<D> {
     /// New request.
+    #[allow(deprecated)]
     pub fn new(
         format: ImageDataFormat,
         data: D,
@@ -117,73 +135,180 @@ impl<D> ImageRequest<D> {
             data,
             max_decoded_len,
             downscale,
+            downscale2: downscale.map(|d| match d {
+                ImageDownscale::Fit(s) => ImageDownscaleMode::Fit(s),
+                ImageDownscale::Fill(s) => ImageDownscaleMode::Fill(s),
+            }),
             mask,
-            entry_selection: ImageEntryMode::default(),
+            entries: ImageEntriesMode::PRIMARY,
         }
     }
 }
 
 /// Defines how an image is downscaled after decoding.
 ///
-/// The image aspect ratio is preserved in both modes, the image is not upscaled, if it already fits the size
-/// constraints if will not be resized.
+/// The image aspect ratio is preserved in all modes. The image is never upscaled.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum ImageDownscaleMode {
+    /// Image is downscaled so that both dimensions fit inside the size.
+    Fit(PxSize),
+    /// Image is downscaled so that at least one dimension fits inside the size. The image is not clipped.
+    Fill(PxSize),
+    /// Image is downscaled to `Fit`, but can be a slightly larger size if downscaling to the larger size is faster.
+    LooseFit(PxSize),
+    /// Image is downscaled to `Fill`, but can be a slightly larger size if downscaling to the larger size is faster.
+    LooseFill(PxSize),
+    /// Generate synthetic [`ImageEntryKind::Reduced`] entries each half the size of the image until the sample that is
+    /// nearest `min_size` and greater or equal to it.
+    MipMap {
+        /// Minimum sample size.
+        min_size: PxSize,
+        /// `LooseFill` maximum size.
+        max_size: PxSize,
+    },
+    /// Applies the first to image and generate synthetic [`ImageEntryKind::Reduced`] for the others.
+    Entries(Vec<ImageDownscaleMode>),
+}
+impl From<PxSize> for ImageDownscaleMode {
+    /// Fit
+    fn from(fit: PxSize) -> Self {
+        ImageDownscaleMode::Fit(fit)
+    }
+}
+impl From<Px> for ImageDownscaleMode {
+    /// Fit splat
+    fn from(fit: Px) -> Self {
+        ImageDownscaleMode::Fit(PxSize::splat(fit))
+    }
+}
+#[cfg(feature = "var")]
+zng_var::impl_from_and_into_var! {
+    fn from(fit: PxSize) -> ImageDownscaleMode;
+    fn from(fit: Px) -> ImageDownscaleMode;
+    fn from(some: ImageDownscaleMode) -> Option<ImageDownscaleMode>;
+}
+impl ImageDownscaleMode {
+    /// Append entry downscale request.
+    pub fn with_entry(self, other: impl Into<ImageDownscaleMode>) -> Self {
+        self.with_impl(other.into())
+    }
+    fn with_impl(self, other: Self) -> Self {
+        let mut v = match self {
+            Self::Entries(e) => e,
+            s => vec![s],
+        };
+        match other {
+            Self::Entries(o) => v.extend(o),
+            o => v.push(o),
+        }
+        Self::Entries(v)
+    }
+
+    /// Compute the expected final sizes if the downscale is applied on an image of `source_size`.
+    /// 
+    /// The values are `(loose, target_size)` where if loose is `true` any approximation of the size 
+    /// that is larger or equal to it is enough.
+    pub fn target_sizes(&self, source_size: PxSize, sizes: &mut Vec<(bool, PxSize)>) {
+        let (new_size, fill, loose) = match self {
+            Self::Fit(s) => (*s, false, false),
+            Self::Fill(s) => (*s, true, false),
+            Self::LooseFit(s) => (*s, false, true),
+            Self::LooseFill(s) => (*s, true, true),
+            Self::MipMap { min_size, max_size } => {
+                let mut max = fit_fill(source_size, *max_size, true);
+                if sizes.is_empty() {
+                    sizes.push((true, max));
+                    max /= Px(2);
+                }
+                while max.width >= min_size.width && max.height >= min_size.height {
+                    sizes.push((true, max));
+                    max /= Px(2);
+                }
+                return;
+            },
+            Self::Entries(e) => {
+                for e in e {
+                    e.target_sizes(source_size, sizes);
+                }
+                return;
+            }
+        };
+
+        sizes.push((loose, fit_fill(source_size, new_size, fill)));
+    }
+}
+
+fn fit_fill(source_size: PxSize, new_size: PxSize, fill: bool) -> PxSize {
+    let source_size = source_size.cast::<f64>();
+    let new_size = new_size.cast::<f64>();
+
+    let w_ratio = new_size.width / source_size.width;
+    let h_ratio = new_size.height / source_size.height;
+
+    let ratio = if fill {
+        f64::max(w_ratio, h_ratio)
+    } else {
+        f64::min(w_ratio, h_ratio)
+    };
+
+    let nw = u64::max((source_size.width * ratio).round() as _, 1);
+    let nh = u64::max((source_size.height * ratio).round() as _, 1);
+
+    const MAX: u64 = Px::MAX.0 as _;
+
+    if nw > MAX {
+        let ratio = MAX as f64 / source_size.width;
+        (Px::MAX, Px(i32::max((source_size.height * ratio).round() as _, 1)))
+    } else if nh > MAX {
+        let ratio = MAX as f64 / source_size.height;
+        (Px(i32::max((source_size.width * ratio).round() as _, 1)), Px::MAX)
+    } else {
+        (Px(nw as _), Px(nh as _))
+    }.into()
+    
+}
+
+/// Deprecated
+#[deprecated = "use `ImageDownscaleMode`"]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ImageDownscale {
+    // TODO(breaking) remove
     /// Image is downscaled so that both dimensions fit inside the size.
     Fit(PxSize),
     /// Image is downscaled so that at least one dimension fits inside the size. The image is not clipped.
     Fill(PxSize),
 }
-impl From<PxSize> for ImageDownscale {
-    /// Fit
-    fn from(fit: PxSize) -> Self {
-        ImageDownscale::Fit(fit)
+#[allow(deprecated)]
+mod _old_impl {
+    use super::*;
+
+    impl From<PxSize> for ImageDownscale {
+        /// Fit
+        fn from(fit: PxSize) -> Self {
+            ImageDownscale::Fit(fit)
+        }
     }
-}
-impl From<Px> for ImageDownscale {
-    /// Fit splat
-    fn from(fit: Px) -> Self {
-        ImageDownscale::Fit(PxSize::splat(fit))
+    impl From<Px> for ImageDownscale {
+        /// Fit splat
+        fn from(fit: Px) -> Self {
+            ImageDownscale::Fit(PxSize::splat(fit))
+        }
     }
-}
-#[cfg(feature = "var")]
-zng_var::impl_from_and_into_var! {
-    fn from(fit: PxSize) -> ImageDownscale;
-    fn from(fit: Px) -> ImageDownscale;
-    fn from(some: ImageDownscale) -> Option<ImageDownscale>;
-}
-impl ImageDownscale {
-    /// Compute the expected final size if the downscale is applied on an image of `source_size`.
-    pub fn resize_dimensions(self, source_size: PxSize) -> PxSize {
-        let (new_size, fill) = match self {
-            ImageDownscale::Fill(s) => (s, true),
-            ImageDownscale::Fit(s) => (s, false),
-        };
-        let source_size = source_size.cast::<f64>();
-        let new_size = new_size.cast::<f64>();
-
-        let w_ratio = new_size.width / source_size.width;
-        let h_ratio = new_size.height / source_size.height;
-
-        let ratio = if fill {
-            f64::max(w_ratio, h_ratio)
-        } else {
-            f64::min(w_ratio, h_ratio)
-        };
-
-        let nw = u64::max((source_size.width * ratio).round() as _, 1);
-        let nh = u64::max((source_size.height * ratio).round() as _, 1);
-
-        const MAX: u64 = Px::MAX.0 as _;
-
-        if nw > MAX {
-            let ratio = MAX as f64 / source_size.width;
-            (Px::MAX, Px(i32::max((source_size.height * ratio).round() as _, 1))).into()
-        } else if nh > MAX {
-            let ratio = MAX as f64 / source_size.height;
-            (Px(i32::max((source_size.width * ratio).round() as _, 1)), Px::MAX).into()
-        } else {
-            (Px(nw as _), Px(nh as _)).into()
+    #[cfg(feature = "var")]
+    zng_var::impl_from_and_into_var! {
+        fn from(fit: PxSize) -> ImageDownscale;
+        fn from(fit: Px) -> ImageDownscale;
+        fn from(some: ImageDownscale) -> Option<ImageDownscale>;
+    }
+    impl ImageDownscale {
+        /// Compute the expected final size if the downscale is applied on an image of `source_size`.
+        pub fn resize_dimensions(self, source_size: PxSize) -> PxSize {
+            let (new_size, fill) = match self {
+                ImageDownscale::Fill(s) => (s, true),
+                ImageDownscale::Fit(s) => (s, false),
+            };
+            fit_fill(source_size, new_size, fill)
         }
     }
 }

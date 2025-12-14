@@ -54,7 +54,15 @@ impl ImageCacheProxy for SvgRenderCache {
         } else {
             Some(*key)
         };
-        Some(IMAGES.image_task(async move { load(data, downscale) }, mode, key, None, None, mask))
+        Some(IMAGES.image_task2(
+            async move { load(data, downscale) },
+            mode,
+            key,
+            None,
+            None,
+            mask,
+            ImageEntriesMode::PRIMARY,
+        ))
     }
 
     fn is_data_proxy(&self) -> bool {

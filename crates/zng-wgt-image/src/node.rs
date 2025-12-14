@@ -40,7 +40,11 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&source).sub_var(&IMAGE_CACHE_VAR).sub_var(&IMAGE_DOWNSCALE_VAR);
+            WIDGET
+                .sub_var(&source)
+                .sub_var(&IMAGE_CACHE_VAR)
+                .sub_var(&IMAGE_DOWNSCALE_VAR)
+                .sub_var(&IMAGE_ENTRIES_MODE_VAR);
 
             let mode = if IMAGE_CACHE_VAR.get() {
                 ImageCacheMode::Cache
@@ -54,7 +58,7 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
             if let ImageSource::Render(_, args) = &mut source {
                 *args = Some(ImageRenderArgs::new(WINDOW.id()));
             }
-            img = IMAGES.image(source, mode, limits, downscale, None);
+            img = IMAGES.image2(source, mode, limits, downscale, None, IMAGE_ENTRIES_MODE_VAR.get());
 
             ctx_img.set_from(&img);
             _ctx_binding = Some(img.bind(&ctx_img));
@@ -67,7 +71,7 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
             _ctx_binding = None;
         }
         UiNodeOp::Update { .. } => {
-            if source.is_new() || IMAGE_DOWNSCALE_VAR.is_new() {
+            if source.is_new() || IMAGE_DOWNSCALE_VAR.is_new() || IMAGE_ENTRIES_MODE_VAR.is_new() {
                 // source update:
 
                 let mut source = source.get();
@@ -84,7 +88,7 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                 let limits = IMAGE_LIMITS_VAR.get();
                 let downscale = IMAGE_DOWNSCALE_VAR.get();
 
-                img = IMAGES.image(source, mode, limits, downscale, None);
+                img = IMAGES.image2(source, mode, limits, downscale, None, IMAGE_ENTRIES_MODE_VAR.get());
 
                 ctx_img.set_from(&img);
                 _ctx_binding = Some(img.bind(&ctx_img));
@@ -103,7 +107,7 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                         let source = source.get();
                         let limits = IMAGE_LIMITS_VAR.get();
                         let downscale = IMAGE_DOWNSCALE_VAR.get();
-                        IMAGES.image(source, ImageCacheMode::Cache, limits, downscale, None)
+                        IMAGES.image2(source, ImageCacheMode::Cache, limits, downscale, None, IMAGE_ENTRIES_MODE_VAR.get())
                     };
 
                     ctx_img.set_from(&img);
@@ -211,7 +215,7 @@ pub fn image_presenter() -> UiNode {
                 .sub_var_layout(&IMAGE_REPEAT_SPACING_VAR)
                 .sub_var_render(&IMAGE_RENDERING_VAR);
 
-            img_size = CONTEXT_IMAGE_VAR.with(Img::size);
+            img_size = CONTEXT_IMAGE_VAR.with(Img::size); // !!: TODO replace with better size alternate
         }
         UiNodeOp::Update { .. } => {
             if let Some(img) = CONTEXT_IMAGE_VAR.get_new() {

@@ -476,7 +476,7 @@ pub(crate) enum ImageData {
         density: Option<PxDensity2d>,
         range: std::ops::Range<usize>,
         // each entry is half size of the previous
-        mipmap: Mutex<Box<[MipImage]>>,
+        mipmap: Mutex<Box<[MipImage]>>, // !!: TODO remove this, move impl to `Image!` widget with new image container API.
         stripes: Mutex<Box<[Image]>>,
     },
     NativeTexture {

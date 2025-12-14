@@ -3,7 +3,7 @@
 use std::mem;
 
 use zng_app::render::RepeatMode;
-use zng_ext_image::{IMAGES, ImageCacheMode, ImageRenderArgs, ImageSource, Img};
+use zng_ext_image::{IMAGES, ImageCacheMode, ImageEntriesMode, ImageRenderArgs, ImageSource, Img};
 use zng_wgt::prelude::*;
 
 use crate::{IMAGE_CACHE_VAR, IMAGE_LIMITS_VAR, IMAGE_RENDERING_VAR};
@@ -56,7 +56,8 @@ pub fn border_img(
                 if let ImageSource::Render(_, args) = &mut source {
                     *args = Some(ImageRenderArgs::new(WINDOW.id()));
                 }
-                img = IMAGES.image(source, mode, limits, None, None);
+
+                img = IMAGES.image2(source, mode, limits, None, None, ImageEntriesMode::PRIMARY);
                 _img_sub = img.subscribe(UpdateOp::Update, WIDGET.id());
 
                 let img = img.get();
@@ -85,7 +86,7 @@ pub fn border_img(
                     };
                     let limits = IMAGE_LIMITS_VAR.get();
 
-                    img = IMAGES.image(source, mode, limits, None, None);
+                    img = IMAGES.image2(source, mode, limits, None, None, ImageEntriesMode::PRIMARY);
                 } else if let Some(enabled) = IMAGE_CACHE_VAR.get_new() {
                     // cache-mode update:
                     let is_cached = img.with(|img| IMAGES.is_cached(img));
@@ -100,7 +101,7 @@ pub fn border_img(
 
                             let source = source.get();
                             let limits = IMAGE_LIMITS_VAR.get();
-                            IMAGES.image(source, ImageCacheMode::Cache, limits, None, None)
+                            IMAGES.image2(source, ImageCacheMode::Cache, limits, None, None, ImageEntriesMode::PRIMARY)
                         };
                     }
                 }
