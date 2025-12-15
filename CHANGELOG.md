@@ -1,6 +1,6 @@
 # Unreleased
 
-* Add support for multi image containers.
+* Add support for multi entry image containers.
     - Add `Img::entries` and related methods.
     - Add `ImageEntryKind` and `ImageEntriesMode`.
     - **Breaking** Advanced image request functions now also take entries mode.

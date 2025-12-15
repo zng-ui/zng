@@ -230,7 +230,9 @@ pub fn image_presenter() -> UiNode {
                 .sub_var_layout(&IMAGE_REPEAT_SPACING_VAR)
                 .sub_var_render(&IMAGE_RENDERING_VAR);
 
-            img_size = CONTEXT_IMAGE_VAR.with(Img::size); // !!: TODO replace with better size alternate
+            // !!: TODO replace with better size alternate?
+            // Or not, could just replace on render?
+            img_size = CONTEXT_IMAGE_VAR.with(Img::size);
         }
         UiNodeOp::Update { .. } => {
             if let Some(img) = CONTEXT_IMAGE_VAR.get_new() {
