@@ -516,11 +516,17 @@ pub fn on_error(child: impl IntoUiNode, handler: Handler<ImgErrorArgs>) -> UiNod
 ///
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
 ///
+/// # Layout
+///
+/// Note that the handler is called on update before the new image is layout, use [`on_load_layout`] to handle after
+/// the new image is layout.
+///
 /// [`Handler`]: zng_wgt::prelude::Handler
 /// [`hn!`]: zng_wgt::prelude::hn!
 /// [`hn_once!`]: zng_wgt::prelude::hn_once!
 /// [`async_hn!`]: zng_wgt::prelude::async_hn!
 /// [`async_hn_once!`]: zng_wgt::prelude::async_hn_once!
+/// [`on_load_layout`]: fn@on_load_layout
 #[property(EVENT, widget_impl(Image))]
 pub fn on_load(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> UiNode {
     let mut handler = handler.into_wgt_runner();
@@ -549,6 +555,61 @@ pub fn on_load(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> UiNode 
             }
 
             handler.update();
+        }
+        _ => {}
+    })
+}
+
+/// Image loaded and layout event.
+///
+/// This property calls `handler` every first layout after [`on_load`].
+///
+/// # Handlers
+///
+/// This property accepts any [`Handler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
+///
+/// # Route
+///
+/// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
+///
+/// [`Handler`]: zng_wgt::prelude::Handler
+/// [`hn!`]: zng_wgt::prelude::hn!
+/// [`hn_once!`]: zng_wgt::prelude::hn_once!
+/// [`async_hn!`]: zng_wgt::prelude::async_hn!
+/// [`async_hn_once!`]: zng_wgt::prelude::async_hn_once!
+/// [`on_load`]: fn@on_load
+#[property(EVENT, widget_impl(Image))]
+pub fn on_load_layout(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> UiNode {
+    let mut handler = handler.into_wgt_runner();
+    let mut update = false;
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
+
+            update = CONTEXT_IMAGE_VAR.with(Img::is_loaded);
+            if update {
+                WIDGET.layout();
+            }
+        }
+        UiNodeOp::Deinit => {
+            handler.deinit();
+        }
+        UiNodeOp::Update { .. } => {
+            if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
+                update = new_img.is_loaded();
+                if update {
+                    WIDGET.layout();
+                }
+            }
+
+            handler.update();
+        }
+        UiNodeOp::Layout { .. } => {
+            if std::mem::take(&mut update) && CONTEXT_IMAGE_VAR.with(Img::is_loaded) {
+                handler.event(&ImgLoadArgs {});
+            }
         }
         _ => {}
     })
