@@ -255,12 +255,6 @@ impl Animation {
         me.restarted_count += 1;
     }
 
-    #[doc(hidden)]
-    #[deprecated = "use  `count`"]
-    pub fn restart_count(&self) -> usize {
-        self.0.lock().restarted_count
-    }
-
     /// Number of times the animation time restarted.
     pub fn count(&self) -> usize {
         self.0.lock().restarted_count

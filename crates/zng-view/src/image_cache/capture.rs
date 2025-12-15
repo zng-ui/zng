@@ -29,7 +29,7 @@ impl ImageCache {
     ) -> ImageId {
         if frame_id == FrameId::INVALID {
             let id = self.image_id_gen.incr();
-            let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoadError {
+            let _ = self.app_sender.send(AppEvent::Notify(Event::ImageDecodeError {
                 image: id,
                 error: formatx!("no frame rendered in window `{window_id:?}`"),
             }));
@@ -157,7 +157,11 @@ impl ImageCache {
             let size = rect.size;
 
             let id = self.add(ImageRequest::new(
-                ImageDataFormat::Bgra8 { size, density },
+                ImageDataFormat::Bgra8 {
+                    size,
+                    density,
+                    original_color_type: og_color_type.clone(),
+                },
                 data.clone(),
                 u64::MAX,
                 None,

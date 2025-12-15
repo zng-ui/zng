@@ -44,7 +44,7 @@ pub(crate) use zng_view_api::{
 use zng_view_api::{
     clipboard::{ClipboardData, ClipboardError, ClipboardType},
     font::{FontFaceId, FontId, FontVariationName},
-    image::{ImageId, ImageLoadedData},
+    image::ImageId,
 };
 
 use self::raw_device_events::InputDeviceId;
@@ -534,22 +534,22 @@ impl VIEW_PROCESS {
         vp.pending_frames = vp.pending_frames.saturating_sub(1);
     }
 
-    pub(crate) fn on_frame_image(&self, data: ImageLoadedData) -> ViewImage {
+    pub(crate) fn on_frame_image(&self, data: ImageDecoded) -> ViewImage {
         ViewImage(Arc::new(RwLock::new(ViewImageData {
             app_id: APP.id(),
-            id: Some(data.id),
+            id: Some(data.meta.id),
             entry_kind: ImageEntryKind::Page,
             entry_parent: None,
             entries: vec![],
             generation: self.generation(),
-            size: data.size,
-            partial_size: data.size,
-            density: data.density,
-            original_color_type: ColorType::BGRA8, // TODO(breaking)
+            size: data.meta.size,
+            partial_size: data.meta.size,
+            density: data.meta.density,
+            original_color_type: data.meta.original_color_type,
             is_opaque: data.is_opaque,
             partial_pixels: None,
             pixels: Some(Ok(data.pixels)),
-            is_mask: data.is_mask,
+            is_mask: data.meta.is_mask,
             done_signal: SignalOnce::new_set(),
         })))
     }
@@ -1431,9 +1431,9 @@ impl ViewImage {
     ///
     /// [`size`]: Self::size
     /// [`partial_pixels`]: Self::partial_pixels
-    pub fn partial_size(&self) -> PxSize {
-        // TODO(breaking) Option<PxSize>
-        self.0.read().partial_size
+    pub fn partial_size(&self) -> Option<PxSize> {
+        let r = self.0.read();
+        if r.partial_pixels.is_some() { Some(r.partial_size) } else { None }
     }
 
     /// Returns the pixel density metadata associated with the image, or `None` if not loaded or error or no
@@ -1457,19 +1457,13 @@ impl ViewImage {
         self.0.read().is_mask
     }
 
-    /// Deprecated
-    #[deprecated = "use partial_pixels2"]
-    pub fn partial_pixels(&self) -> Option<Vec<u8>> {
-        self.0.read().partial_pixels.as_ref().map(|r| r[..].to_vec())
-    }
-
     /// Reference the partially decoded pixels if the image is progressively decoding
     /// and has not finished decoding.
     ///
     /// Format is BGRA8 for normal images or A8 if [`is_mask`].
     ///
     /// [`is_mask`]: Self::is_mask
-    pub fn partial_pixels2(&self) -> Option<IpcBytes> {
+    pub fn partial_pixels(&self) -> Option<IpcBytes> {
         self.0.read().partial_pixels.clone()
     }
 

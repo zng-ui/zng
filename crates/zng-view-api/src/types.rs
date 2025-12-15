@@ -17,14 +17,11 @@ use crate::{
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
 
-#[allow(deprecated)]
-use crate::image::ImageLoadedData;
-
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use zng_task::channel::{ChannelError, IpcBytes};
 use zng_txt::Txt;
-use zng_unit::{DipPoint, PxDensity2d, PxRect, PxSize, Rgba};
+use zng_unit::{DipPoint, PxRect, Rgba};
 
 macro_rules! declare_id {
     ($(
@@ -412,51 +409,16 @@ pub enum Event {
     /// The window has closed.
     WindowClosed(WindowId),
 
-    /// Deprecated.
-    #[deprecated = "use `ImageMetadataDecoded`"]
-    ImageMetadataLoaded {
-        /// The image that started loading.
-        image: ImageId,
-        /// The image pixel size.
-        size: PxSize,
-        /// The image density metadata.
-        density: Option<PxDensity2d>,
-        /// The image is a single channel R8.
-        is_mask: bool,
-    },
     /// An image resource already decoded header metadata.
     ImageMetadataDecoded(ImageMetadata),
-    /// Deprecated.
-    #[deprecated = "use `ImageData`"]
-    #[allow(deprecated)]
-    ImageLoaded(ImageLoadedData),
     /// An image resource finished decoding.
     ImageDecoded(ImageDecoded),
-    /// Deprecated.
-    #[deprecated = "use `ImagePartiallyDecoded`"]
-    ImagePartiallyLoaded {
-        /// The image that has decoded more pixels.
-        image: ImageId,
-        /// The size of the decoded pixels, can be different then the image size if the
-        /// image is not *interlaced*.
-        partial_size: PxSize,
-        /// The image density metadata.
-        density: Option<PxDensity2d>,
-        /// If the decoded pixels so-far are all opaque (255 alpha).
-        is_opaque: bool,
-        /// If the decoded pixels so-far are a single channel.
-        is_mask: bool,
-        /// Updated BGRA8 pre-multiplied pixel buffer or R8 if `is_mask`. This includes all the pixels
-        /// decoded so-far.
-        partial_pixels: IpcBytes,
-    },
     /// An image resource, progressively decoded has decoded more rows.
     ///
     /// The data size and pixels reflects the partial height of the image that has decoded only.
     ImagePartiallyDecoded(ImageDecoded),
     /// An image resource failed to decode, the image ID is not valid.
-    ImageLoadError {
-        // TODO(breaking) rename ImageDecodeError
+    ImageDecodeError {
         /// The image that failed to decode.
         image: ImageId,
         /// The error message.

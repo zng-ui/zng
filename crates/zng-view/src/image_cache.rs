@@ -115,10 +115,16 @@ impl ImageCache {
         let app_sender = self.app_sender.clone();
         let resizer = self.resizer.clone();
         rayon::spawn(move || {
-            let mut original_color_type = ColorType::BGRA8;
+            let mut og_color_size = ColorType::BGRA8;
             let r = match format {
-                ImageDataFormat::Bgra8 { size, density } => {
+                ImageDataFormat::Bgra8 {
+                    size,
+                    density,
+                    original_color_type,
+                } => {
                     // is already decoded bgra8
+
+                    og_color_size = original_color_type;
 
                     let expected_len = size.width.0 as usize * size.height.0 as usize * 4;
                     if data.len() != expected_len {
@@ -129,10 +135,10 @@ impl ImageCache {
                     } else if let Some(mask) = mask {
                         // but is used as mask, convert to a8
 
-                        Self::convert_bgra8_to_mask(size, &data, mask, density, downscale, &resizer).map_err(|e| e.to_txt())
+                        Self::convert_bgra8_to_mask(size, &data, mask, density, downscale.as_ref(), &resizer).map_err(|e| e.to_txt())
                     } else {
                         // and is used as bgra8, downscale if needed
-                        match Self::downscale_decoded(mask, downscale, &resizer, size, &data) {
+                        match Self::downscale_decoded(mask, downscale.as_ref(), &resizer, size, &data) {
                             Ok(downscaled) => match downscaled {
                                 Some((size, data_mut)) => match data_mut.finish_blocking() {
                                     Ok(data) => {
@@ -152,7 +158,7 @@ impl ImageCache {
                 }
                 ImageDataFormat::A8 { size } => {
                     // is already decoded mask
-                    original_color_type = ColorType::A8;
+                    og_color_size = ColorType::A8;
                     let expected_len = size.width.0 as usize * size.height.0 as usize;
                     if data.len() != expected_len {
                         Err(formatx!(
@@ -161,10 +167,10 @@ impl ImageCache {
                         ))
                     } else if mask.is_none() {
                         // but is used as mask, convert to bgra8
-                        Self::convert_a8_to_bgra8(size, &data, None, downscale, &resizer).map_err(|e| e.to_txt())
+                        Self::convert_a8_to_bgra8(size, &data, None, downscale.as_ref(), &resizer).map_err(|e| e.to_txt())
                     } else {
                         // and is used as mask, downscale if needed
-                        match Self::downscale_decoded(mask, downscale, &resizer, size, &data) {
+                        match Self::downscale_decoded(mask, downscale.as_ref(), &resizer, size, &data) {
                             Ok(downscaled) => match downscaled {
                                 Some((size, data_mut)) => match data_mut.finish_blocking() {
                                     Ok(data) => {
@@ -204,20 +210,30 @@ impl ImageCache {
                             } else {
                                 // notify metadata already
 
-                                if let Some(d) = downscale {
-                                    size = d.resize_dimensions(size);
+                                if let Some(d) = &downscale {
+                                    // !!: TODO
+                                    let mut sizes = vec![];
+                                    d.target_sizes(size, &mut sizes);
+                                    size = sizes[0].1;
                                 }
-                                original_color_type = image_color_type_to_vp(h.og_color_type);
-                                let mut meta = ImageMetadata::new(id, size, false, original_color_type.clone());
+                                og_color_size = image_color_type_to_vp(h.og_color_type);
+                                let mut meta = ImageMetadata::new(id, size, false, og_color_size.clone());
                                 meta.density = h.density;
                                 let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataDecoded(meta)));
 
                                 // decode
-                                match Self::image_decode(&data[..], h.format, downscale) {
+                                match Self::image_decode(&data[..], h.format, downscale.as_ref()) {
                                     // convert to bgra8, downscale and rotate
                                     Ok(img) => {
-                                        match Self::convert_decoded(img, mask, h.density, h.icc_profile, downscale, h.orientation, &resizer)
-                                        {
+                                        match Self::convert_decoded(
+                                            img,
+                                            mask,
+                                            h.density,
+                                            h.icc_profile,
+                                            downscale.as_ref(),
+                                            h.orientation,
+                                            &resizer,
+                                        ) {
                                             Ok(r) => Ok(r),
                                             Err(e) => Err(e.to_txt()),
                                         }
@@ -233,12 +249,12 @@ impl ImageCache {
 
             match r {
                 Ok((pixels, size, density, is_opaque, is_mask)) => {
-                    let mut meta = ImageMetadata::new(id, size, is_mask, original_color_type);
+                    let mut meta = ImageMetadata::new(id, size, is_mask, og_color_size);
                     meta.density = density;
                     let _ = app_sender.send(AppEvent::ImageDecoded(ImageDecoded::new(meta, pixels, is_opaque)));
                 }
                 Err(e) => {
-                    let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError { image: id, error: e }));
+                    let _ = app_sender.send(AppEvent::Notify(Event::ImageDecodeError { image: id, error: e }));
                 }
             }
         });
@@ -271,10 +287,15 @@ impl ImageCache {
             let mut og_color_type = ColorType::BGRA8;
 
             let mut format: Option<image::ImageFormat> = match &request_fmt {
-                ImageDataFormat::Bgra8 { size: s, density: p } => {
+                ImageDataFormat::Bgra8 {
+                    size: s,
+                    density: p,
+                    original_color_type: c,
+                } => {
                     is_encoded = false;
                     size = Some(*s);
                     density = *p;
+                    og_color_type = c.clone();
                     None
                 }
                 ImageDataFormat::A8 { size: s } => {
@@ -330,7 +351,7 @@ impl ImageCache {
                                         let error = formatx!(
                                             "image {size:?} needs to allocate {decoded_len} bytes, but max allowed size is {max_decoded_len} bytes",
                                         );
-                                        let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError { image: id, error }));
+                                        let _ = app_sender.send(AppEvent::Notify(Event::ImageDecodeError { image: id, error }));
                                         return;
                                     }
                                 }
@@ -359,8 +380,8 @@ impl ImageCache {
                 );
 
                 #[cfg(feature = "image_any")]
-                match Self::image_decode(&full[..], fmt, downscale) {
-                    Ok(img) => match Self::convert_decoded(img, mask, density, icc_profile, downscale, orientation, &resizer) {
+                match Self::image_decode(&full[..], fmt, downscale.as_ref()) {
+                    Ok(img) => match Self::convert_decoded(img, mask, density, icc_profile, downscale.as_ref(), orientation, &resizer) {
                         Ok((pixels, size, density, is_opaque, is_mask)) => {
                             let mut meta = ImageMetadata::new(id, size, is_mask, og_color_type);
                             meta.density = density;
@@ -368,14 +389,14 @@ impl ImageCache {
                             let _ = app_sender.send(AppEvent::ImageDecoded(ImageDecoded::new(meta, pixels, is_opaque)));
                         }
                         Err(e) => {
-                            let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
+                            let _ = app_sender.send(AppEvent::Notify(Event::ImageDecodeError {
                                 image: id,
                                 error: e.to_txt(),
                             }));
                         }
                     },
                     Err(e) => {
-                        let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
+                        let _ = app_sender.send(AppEvent::Notify(Event::ImageDecodeError {
                             image: id,
                             error: e.to_txt(),
                         }));
@@ -385,7 +406,7 @@ impl ImageCache {
                 let pixels = match IpcBytes::from_vec_blocking(full) {
                     Ok(p) => p,
                     Err(e) => {
-                        let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
+                        let _ = app_sender.send(AppEvent::Notify(Event::ImageDecodeError {
                             image: id,
                             error: e.to_txt(),
                         }));
@@ -397,7 +418,7 @@ impl ImageCache {
                 meta.density = density;
                 let _ = app_sender.send(AppEvent::ImageDecoded(ImageDecoded::new(meta, pixels, is_opaque)));
             } else {
-                let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
+                let _ = app_sender.send(AppEvent::Notify(Event::ImageDecodeError {
                     image: id,
                     error: Txt::from_static("unknown format"),
                 }));

@@ -217,7 +217,7 @@ impl ImageCache {
     pub(super) fn image_decode(
         buf: &[u8],
         format: image::ImageFormat,
-        downscale: Option<zng_view_api::image::ImageDownscale>,
+        downscale: Option<&zng_view_api::image::ImageDownscaleMode>,
     ) -> image::ImageResult<IpcDynamicImage> {
         let buf = std::io::Cursor::new(buf);
 
@@ -237,7 +237,7 @@ impl ImageCache {
         mask: Option<ImageMaskMode>,
         density: Option<PxDensity2d>,
         icc_profile: Option<lcms2::Profile>,
-        downscale: Option<zng_view_api::image::ImageDownscale>,
+        downscale: Option<&zng_view_api::image::ImageDownscaleMode>,
         orientation: image::metadata::Orientation,
         resizer_cache: &ResizerCache,
     ) -> std::io::Result<RawLoadedImg> {
@@ -707,7 +707,7 @@ impl ImageCache {
         bgra8: &[u8],
         mask: ImageMaskMode,
         density: Option<PxDensity2d>,
-        downscale: Option<zng_view_api::image::ImageDownscale>,
+        downscale: Option<&zng_view_api::image::ImageDownscaleMode>,
         resizer_cache: &ResizerCache,
     ) -> std::io::Result<RawLoadedImg> {
         let mut a = IpcBytes::new_mut_blocking(bgra8.len() / 4)?;
@@ -755,7 +755,7 @@ impl ImageCache {
         mut raw: IpcBytesMut,
         mask: ImageMaskMode,
         density: Option<PxDensity2d>,
-        downscale: Option<zng_view_api::image::ImageDownscale>,
+        downscale: Option<&zng_view_api::image::ImageDownscaleMode>,
         resizer_cache: &ResizerCache,
     ) -> std::io::Result<RawLoadedImg> {
         let mut is_opaque = true;
@@ -802,7 +802,7 @@ impl ImageCache {
         size: PxSize,
         a8: &[u8],
         density: Option<PxDensity2d>,
-        downscale: Option<zng_view_api::image::ImageDownscale>,
+        downscale: Option<&zng_view_api::image::ImageDownscaleMode>,
         resizer_cache: &ResizerCache,
     ) -> std::io::Result<RawLoadedImg> {
         let mut bgra = IpcBytes::new_mut_blocking(a8.len() * 4)?;
@@ -827,13 +827,16 @@ impl ImageCache {
 
     pub(super) fn downscale_decoded(
         mask: Option<ImageMaskMode>,
-        downscale: Option<zng_view_api::image::ImageDownscale>,
+        downscale: Option<&zng_view_api::image::ImageDownscaleMode>,
         resizer_cache: &ResizerCache,
         source_size: PxSize,
         pixels: &[u8],
     ) -> std::io::Result<Option<(PxSize, IpcBytesMut)>> {
         if let Some(downscale) = downscale {
-            let dest_size = downscale.resize_dimensions(source_size);
+            // !!: TODO
+            let mut sizes = vec![];
+            downscale.target_sizes(source_size, &mut sizes);
+            let dest_size = sizes[0].1;
             if source_size.min(dest_size) != source_size {
                 use fast_image_resize as fr;
 

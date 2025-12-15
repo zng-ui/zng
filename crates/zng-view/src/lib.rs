@@ -1283,11 +1283,7 @@ impl App {
                                                 None
                                             };
                                             if let Some((frame_id, image)) = r {
-                                                self.app.notify(Event::FrameRendered(EventFrameRendered::new(
-                                                    id,
-                                                    frame_id,
-                                                    image.map(Into::into),
-                                                )));
+                                                self.app.notify(Event::FrameRendered(EventFrameRendered::new(id, frame_id, image)));
                                             }
                                         }
                                     }
@@ -1563,11 +1559,9 @@ impl App {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
             let r = w.on_frame_ready(msg, &mut self.image_cache);
 
-            let _ = self.event_sender.send(Event::FrameRendered(EventFrameRendered::new(
-                window_id,
-                r.frame_id,
-                r.image.map(Into::into),
-            )));
+            let _ = self
+                .event_sender
+                .send(Event::FrameRendered(EventFrameRendered::new(window_id, r.frame_id, r.image)));
 
             if r.first_frame {
                 let size = w.size();
@@ -1576,11 +1570,7 @@ impl App {
         } else if let Some(s) = self.surfaces.iter_mut().find(|w| w.id() == window_id) {
             let (frame_id, image) = s.on_frame_ready(msg, &mut self.image_cache);
 
-            self.notify(Event::FrameRendered(EventFrameRendered::new(
-                window_id,
-                frame_id,
-                image.map(Into::into),
-            )))
+            self.notify(Event::FrameRendered(EventFrameRendered::new(window_id, frame_id, image)))
         }
     }
 

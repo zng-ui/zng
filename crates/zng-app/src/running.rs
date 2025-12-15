@@ -376,7 +376,7 @@ impl<E: AppExtension> RunningApp<E> {
                     self.notify_event(RAW_IMAGE_LOADED_EVENT.new_update(args), observer);
                 }
             }
-            Event::ImageLoadError { image: id, error } => {
+            Event::ImageDecodeError { image: id, error } => {
                 if let Some(img) = VIEW_PROCESS.on_image_error(id, error) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RAW_IMAGE_LOAD_ERROR_EVENT.new_update(args), observer);

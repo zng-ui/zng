@@ -72,7 +72,7 @@
 //! See [`zng_ext_image`] for the full image API and [`zng_wgt_image`] for the full widget API.
 
 pub use zng_ext_image::{
-    IMAGE_RENDER, IMAGES, ImageCacheMode, ImageDataFormat, ImageDownscale, ImageEntriesMode, ImageEntryKind, ImageHash, ImageHasher,
+    IMAGE_RENDER, IMAGES, ImageCacheMode, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageHash, ImageHasher,
     ImageLimits, ImageRenderArgs, ImageSource, ImageSourceFilter, ImageVar, Img, PathFilter, render_retain,
 };
 

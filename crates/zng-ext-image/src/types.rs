@@ -18,14 +18,17 @@ use zng_layout::{
     context::{LAYOUT, LayoutMetrics, LayoutPassId},
     unit::{ByteLength, ByteUnits, FactorUnits as _, LayoutAxis, Px, PxDensity2d, PxLine, PxPoint, PxRect, PxSize},
 };
-use zng_task::{self as task, SignalOnce, channel::IpcBytes};
+use zng_task::{
+    self as task, SignalOnce,
+    channel::{IpcBytes, IpcBytesMut},
+};
 use zng_txt::Txt;
 use zng_var::{Var, animation::Transitionable, impl_from_and_into_var, var};
 use zng_view_api::image::ImageTextureId;
 
 use crate::render::ImageRenderWindowRoot;
 
-pub use zng_view_api::image::{ColorType, ImageDataFormat, ImageDownscale, ImageEntriesMode, ImageEntryKind, ImageMaskMode};
+pub use zng_view_api::image::{ColorType, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageMaskMode};
 
 /// A custom proxy in [`IMAGES`].
 ///
@@ -42,11 +45,12 @@ pub trait ImageCacheProxy: Send + Sync {
         key: &ImageHash,
         source: &ImageSource,
         mode: ImageCacheMode,
-        downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskMode>, // TODO(breaking) add ImageEntriesMode
+        downscale: Option<&ImageDownscaleMode>,
+        mask: Option<ImageMaskMode>,
+        entries: ImageEntriesMode,
     ) -> ProxyGetResult {
         let r = match source {
-            ImageSource::Data(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask, false),
+            ImageSource::Data(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask, entries, false),
             _ => return ProxyGetResult::None,
         };
         match r {
@@ -73,11 +77,12 @@ pub trait ImageCacheProxy: Send + Sync {
         data: &[u8],
         image_format: &ImageDataFormat,
         mode: ImageCacheMode,
-        downscale: Option<ImageDownscale>,
+        downscale: Option<&ImageDownscaleMode>,
         mask: Option<ImageMaskMode>,
+        entries: ImageEntriesMode,
         is_loaded: bool,
     ) -> Option<ImageVar> {
-        let _ = (key, data, image_format, mode, downscale, mask, is_loaded);
+        let _ = (key, data, image_format, mode, downscale, mask, entries, is_loaded);
         None
     }
 
@@ -117,7 +122,13 @@ pub enum ProxyGetResult {
     /// The cache checks other proxies and fulfills the request if no proxy intercepts.
     None,
     /// Load and cache using the replacement source.
-    Cache(ImageSource, ImageCacheMode, Option<ImageDownscale>, Option<ImageMaskMode>),
+    Cache(
+        ImageSource,
+        ImageCacheMode,
+        Option<ImageDownscaleMode>,
+        Option<ImageMaskMode>,
+        ImageEntriesMode,
+    ),
     /// Return the image instead of hitting the cache.
     Image(ImageVar),
 }
@@ -250,9 +261,7 @@ impl Img {
     /// [`size`]: Self::size
     /// [`partial_pixels`]: Self::partial_pixels
     pub fn partial_size(&self) -> Option<PxSize> {
-        self.view
-            .get()
-            .and_then(|v| if v.is_partially_loaded() { Some(v.partial_size()) } else { None })
+        self.view.get().and_then(|v| v.partial_size())
     }
 
     /// Returns the image pixel density metadata if the image is loaded and the
@@ -350,7 +359,7 @@ impl Img {
     ///
     /// [`is_mask`]: Self::is_mask
     pub fn partial_pixels(&self) -> Option<IpcBytes> {
-        self.view.get().and_then(|v| v.partial_pixels2())
+        self.view.get().and_then(|v| v.partial_pixels())
     }
 
     fn actual_pixels_and_size(&self) -> Option<(PxSize, IpcBytes)> {
@@ -367,27 +376,28 @@ impl Img {
     /// Returns the copied selection and the pixel buffer.
     ///
     /// Note that the selection can change if `rect` is not fully contained by the image area.
-    pub fn copy_pixels(&self, rect: PxRect) -> Option<(PxRect, Vec<u8>)> {
-        // TODO(breaking) IpcBytes
-        self.actual_pixels_and_size().map(|(size, pixels)| {
+    pub fn copy_pixels(&self, rect: PxRect) -> Option<(PxRect, IpcBytesMut)> {
+        self.actual_pixels_and_size().and_then(|(size, pixels)| {
             let area = PxRect::from_size(size).intersection(&rect).unwrap_or_default();
             if area.size.width.0 == 0 || area.size.height.0 == 0 {
-                (area, vec![])
+                Some((area, IpcBytes::new_mut_blocking(0).unwrap()))
             } else {
                 let x = area.origin.x.0 as usize;
                 let y = area.origin.y.0 as usize;
                 let width = area.size.width.0 as usize;
                 let height = area.size.height.0 as usize;
                 let pixel = if self.is_mask() { 1 } else { 4 };
-                let mut bytes = Vec::with_capacity(width * height * pixel);
+                let mut bytes = IpcBytes::new_mut_blocking(width * height * pixel).ok()?;
+                let mut write = &mut bytes[..];
                 let row_stride = self.size().width.0 as usize * pixel;
                 for l in y..y + height {
                     let line_start = l * row_stride + x * pixel;
                     let line_end = line_start + width * pixel;
                     let line = &pixels[line_start..line_end];
-                    bytes.extend_from_slice(line);
+                    write[..line.len()].copy_from_slice(line);
+                    write = &mut write[line.len()..];
                 }
-                (area, bytes)
+                Some((area, bytes))
             }
         })
     }
@@ -622,7 +632,6 @@ impl ImageHasher {
         // dependencies `sha2 -> digest` need to upgrade
         // https://github.com/RustCrypto/traits/issues/2036
         // https://github.com/fizyk20/generic-array/issues/158
-        #[allow(deprecated)]
         ImageHash(self.0.finalize().as_slice().try_into().unwrap())
     }
 }
@@ -705,13 +714,18 @@ impl ImageSource {
     }
 
     /// Returns the image hash, unless the source is [`Img`].
-    pub fn hash128(&self, downscale: Option<ImageDownscale>, mask: Option<ImageMaskMode>) -> Option<ImageHash> {
+    pub fn hash128(
+        &self,
+        downscale: Option<&ImageDownscaleMode>,
+        mask: Option<ImageMaskMode>,
+        entries: ImageEntriesMode,
+    ) -> Option<ImageHash> {
         match self {
-            ImageSource::Read(p) => Some(Self::hash128_read(p, downscale, mask)),
+            ImageSource::Read(p) => Some(Self::hash128_read(p, downscale, mask, entries)),
             #[cfg(feature = "http")]
-            ImageSource::Download(u, a) => Some(Self::hash128_download(u, a, downscale, mask)),
-            ImageSource::Data(h, _, _) => Some(Self::hash128_data(*h, downscale, mask)),
-            ImageSource::Render(rfn, args) => Some(Self::hash128_render(rfn, args, downscale, mask)),
+            ImageSource::Download(u, a) => Some(Self::hash128_download(u, a, downscale, mask, entries)),
+            ImageSource::Data(h, _, _) => Some(Self::hash128_data(*h, downscale, mask, entries)),
+            ImageSource::Render(rfn, args) => Some(Self::hash128_render(rfn, args, downscale, mask, entries)),
             ImageSource::Image(_) => None,
         }
     }
@@ -719,13 +733,19 @@ impl ImageSource {
     /// Compute hash for a borrowed [`Data`] image.
     ///
     /// [`Data`]: Self::Data
-    pub fn hash128_data(data_hash: ImageHash, downscale: Option<ImageDownscale>, mask: Option<ImageMaskMode>) -> ImageHash {
+    pub fn hash128_data(
+        data_hash: ImageHash,
+        downscale: Option<&ImageDownscaleMode>,
+        mask: Option<ImageMaskMode>,
+        entries: ImageEntriesMode,
+    ) -> ImageHash {
         if downscale.is_some() || mask.is_some() {
             use std::hash::Hash;
             let mut h = ImageHash::hasher();
             data_hash.0.hash(&mut h);
             downscale.hash(&mut h);
             mask.hash(&mut h);
+            entries.hash(&mut h);
             h.finish()
         } else {
             data_hash
@@ -735,13 +755,19 @@ impl ImageSource {
     /// Compute hash for a borrowed [`Read`] path.
     ///
     /// [`Read`]: Self::Read
-    pub fn hash128_read(path: &Path, downscale: Option<ImageDownscale>, mask: Option<ImageMaskMode>) -> ImageHash {
+    pub fn hash128_read(
+        path: &Path,
+        downscale: Option<&ImageDownscaleMode>,
+        mask: Option<ImageMaskMode>,
+        entries: ImageEntriesMode,
+    ) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         0u8.hash(&mut h);
         path.hash(&mut h);
         downscale.hash(&mut h);
         mask.hash(&mut h);
+        entries.hash(&mut h);
         h.finish()
     }
 
@@ -752,8 +778,9 @@ impl ImageSource {
     pub fn hash128_download(
         uri: &crate::task::http::Uri,
         accept: &Option<Txt>,
-        downscale: Option<ImageDownscale>,
+        downscale: Option<&ImageDownscaleMode>,
         mask: Option<ImageMaskMode>,
+        entries: ImageEntriesMode,
     ) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
@@ -762,6 +789,7 @@ impl ImageSource {
         accept.hash(&mut h);
         downscale.hash(&mut h);
         mask.hash(&mut h);
+        entries.hash(&mut h);
         h.finish()
     }
 
@@ -773,8 +801,9 @@ impl ImageSource {
     pub fn hash128_render(
         rfn: &RenderFn,
         args: &Option<ImageRenderArgs>,
-        downscale: Option<ImageDownscale>,
+        downscale: Option<&ImageDownscaleMode>,
         mask: Option<ImageMaskMode>,
+        entries: ImageEntriesMode,
     ) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
@@ -783,6 +812,7 @@ impl ImageSource {
         args.hash(&mut h);
         downscale.hash(&mut h);
         mask.hash(&mut h);
+        entries.hash(&mut h);
         h.finish()
     }
 }
@@ -801,7 +831,11 @@ impl ImageSource {
         }
         Self::from_data(
             b.finish_blocking().expect("cannot allocate IpcBytes"),
-            ImageDataFormat::Bgra8 { size, density },
+            ImageDataFormat::Bgra8 {
+                size,
+                density,
+                original_color_type: ColorType::RGBA8,
+            },
         )
     }
 
@@ -900,7 +934,11 @@ impl ImageSource {
 
                 Self::from_data(
                     IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"),
-                    ImageDataFormat::Bgra8 { size, density },
+                    ImageDataFormat::Bgra8 {
+                        size,
+                        density,
+                        original_color_type: ColorType::RGBA8,
+                    },
                 )
             }
         }
@@ -998,7 +1036,11 @@ impl ImageSource {
 
                 Self::from_data(
                     IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"),
-                    ImageDataFormat::Bgra8 { size, density },
+                    ImageDataFormat::Bgra8 {
+                        size,
+                        density,
+                        original_color_type: ColorType::RGBA8,
+                    },
                 )
             }
         }

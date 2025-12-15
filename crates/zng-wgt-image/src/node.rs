@@ -51,14 +51,19 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
             } else {
                 ImageCacheMode::Ignore
             };
-            let limits = IMAGE_LIMITS_VAR.get();
-            let downscale = IMAGE_DOWNSCALE_VAR.get();
 
             let mut source = source.get();
             if let ImageSource::Render(_, args) = &mut source {
                 *args = Some(ImageRenderArgs::new(WINDOW.id()));
             }
-            img = IMAGES.image2(source, mode, limits, downscale, None, IMAGE_ENTRIES_MODE_VAR.get());
+            img = IMAGES.image(
+                source,
+                mode,
+                IMAGE_LIMITS_VAR.get(),
+                IMAGE_DOWNSCALE_VAR.get(),
+                None,
+                IMAGE_ENTRIES_MODE_VAR.get(),
+            );
 
             ctx_img.set_from(&img);
             _ctx_binding = Some(img.bind(&ctx_img));
@@ -85,10 +90,15 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                 } else {
                     ImageCacheMode::Ignore
                 };
-                let limits = IMAGE_LIMITS_VAR.get();
-                let downscale = IMAGE_DOWNSCALE_VAR.get();
 
-                img = IMAGES.image2(source, mode, limits, downscale, None, IMAGE_ENTRIES_MODE_VAR.get());
+                img = IMAGES.image(
+                    source,
+                    mode,
+                    IMAGE_LIMITS_VAR.get(),
+                    IMAGE_DOWNSCALE_VAR.get(),
+                    None,
+                    IMAGE_ENTRIES_MODE_VAR.get(),
+                );
 
                 ctx_img.set_from(&img);
                 _ctx_binding = Some(img.bind(&ctx_img));
@@ -105,9 +115,14 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                         // must cache, but image is not cached, get source again.
 
                         let source = source.get();
-                        let limits = IMAGE_LIMITS_VAR.get();
-                        let downscale = IMAGE_DOWNSCALE_VAR.get();
-                        IMAGES.image2(source, ImageCacheMode::Cache, limits, downscale, None, IMAGE_ENTRIES_MODE_VAR.get())
+                        IMAGES.image(
+                            source,
+                            ImageCacheMode::Cache,
+                            IMAGE_LIMITS_VAR.get(),
+                            IMAGE_DOWNSCALE_VAR.get(),
+                            None,
+                            IMAGE_ENTRIES_MODE_VAR.get(),
+                        )
                     };
 
                     ctx_img.set_from(&img);

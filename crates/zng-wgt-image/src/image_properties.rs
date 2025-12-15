@@ -3,7 +3,7 @@ use std::fmt;
 
 use node::CONTEXT_IMAGE_VAR;
 use zng_app::render::ImageRendering;
-use zng_ext_image::{ImageDownscale, ImageEntriesMode, ImageLimits};
+use zng_ext_image::{ImageDownscaleMode, ImageEntriesMode, ImageLimits};
 use zng_ext_window::WINDOW_Ext as _;
 use zng_wgt_window::BlockWindowLoad;
 
@@ -143,7 +143,7 @@ context_var! {
     /// Custom resize applied during image decode.
     ///
     /// Is `None` by default.
-    pub static IMAGE_DOWNSCALE_VAR: Option<ImageDownscale> = None;
+    pub static IMAGE_DOWNSCALE_VAR: Option<ImageDownscaleMode> = None;
 
     /// Defines what images are decoded from multi image containers.
     pub static IMAGE_ENTRIES_MODE_VAR: ImageEntriesMode = ImageEntriesMode::PRIMARY;
@@ -359,13 +359,6 @@ pub fn img_limits(child: impl IntoUiNode, limits: impl IntoVar<Option<ImageLimit
     with_context_var(child, IMAGE_LIMITS_VAR, limits)
 }
 
-/// Deprecated
-#[deprecated  = "use `img_downscale2`"]
-#[property(CONTEXT, default(IMAGE_DOWNSCALE_VAR), widget_impl(Image))]
-pub fn img_downscale(child: impl IntoUiNode, downscale: impl IntoVar<Option<ImageDownscale>>) -> UiNode {
-    with_context_var(child, IMAGE_DOWNSCALE_VAR, downscale)
-}
-
 /// Custom pixel resize applied during image load/decode.
 ///
 /// Note that this resize affects the image actual pixel size directly when it is loading to force the image pixels to be within an expected size.
@@ -387,7 +380,7 @@ pub fn img_downscale(child: impl IntoUiNode, downscale: impl IntoVar<Option<Imag
 /// [`IMAGES.limits`]: zng_ext_image::IMAGES::limits
 /// [`img_limits`]: fn@img_limits
 #[property(CONTEXT, default(IMAGE_DOWNSCALE_VAR), widget_impl(Image))]
-pub fn img_downscale2(child: impl IntoUiNode, downscale: impl IntoVar<Option<ImageDownscale2>>) -> UiNode {
+pub fn img_downscale(child: impl IntoUiNode, downscale: impl IntoVar<Option<ImageDownscaleMode>>) -> UiNode {
     with_context_var(child, IMAGE_DOWNSCALE_VAR, downscale)
 }
 

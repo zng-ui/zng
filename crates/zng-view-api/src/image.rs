@@ -1,7 +1,5 @@
 //! Image types.
 
-use std::fmt;
-
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use zng_task::channel::IpcBytes;
@@ -52,7 +50,7 @@ bitflags! {
     /// Defines what images are decoded from multi image containers.
     ///
     /// These flags represent the different [`ImageEntryKind`].
-    #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+    #[derive(Copy, Debug, PartialEq, Eq, Clone, Hash, Serialize, Deserialize)]
     pub struct ImageEntriesMode: u8 {
         /// Decodes all pages.
         const PAGES = 0b0001;
@@ -102,17 +100,13 @@ pub struct ImageRequest<D> {
     /// This limit applies to the image before the `downscale`.
     pub max_decoded_len: u64,
 
-    /// Deprecated.
-    #[deprecated = "use `downscale2`"]
-    #[allow(deprecated)]
-    pub downscale: Option<ImageDownscale>,
     /// A size constraints to apply after the image is decoded. The image is resized to fit or fill the given size.
     /// Optionally generate multiple reduced entries.
     ///
     /// If the image contains multiple images selects the nearest *reduced alternate* that can be downscaled.
     ///
     /// If `entries` requests `REDUCED` only the alternates smaller than the requested downscale are included.
-    pub downscale2: Option<ImageDownscaleMode>,
+    pub downscale: Option<ImageDownscaleMode>,
 
     /// Convert or decode the image into a single channel mask (R8).
     pub mask: Option<ImageMaskMode>,
@@ -122,12 +116,11 @@ pub struct ImageRequest<D> {
 }
 impl<D> ImageRequest<D> {
     /// New request.
-    #[allow(deprecated)]
     pub fn new(
         format: ImageDataFormat,
         data: D,
         max_decoded_len: u64,
-        downscale: Option<ImageDownscale>,
+        downscale: Option<ImageDownscaleMode>,
         mask: Option<ImageMaskMode>,
     ) -> Self {
         Self {
@@ -135,10 +128,6 @@ impl<D> ImageRequest<D> {
             data,
             max_decoded_len,
             downscale,
-            downscale2: downscale.map(|d| match d {
-                ImageDownscale::Fit(s) => ImageDownscaleMode::Fit(s),
-                ImageDownscale::Fill(s) => ImageDownscaleMode::Fill(s),
-            }),
             mask,
             entries: ImageEntriesMode::PRIMARY,
         }
@@ -148,7 +137,7 @@ impl<D> ImageRequest<D> {
 /// Defines how an image is downscaled after decoding.
 ///
 /// The image aspect ratio is preserved in all modes. The image is never upscaled.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum ImageDownscaleMode {
     /// Image is downscaled so that both dimensions fit inside the size.
@@ -206,8 +195,8 @@ impl ImageDownscaleMode {
     }
 
     /// Compute the expected final sizes if the downscale is applied on an image of `source_size`.
-    /// 
-    /// The values are `(loose, target_size)` where if loose is `true` any approximation of the size 
+    ///
+    /// The values are `(loose, target_size)` where if loose is `true` any approximation of the size
     /// that is larger or equal to it is enough.
     pub fn target_sizes(&self, source_size: PxSize, sizes: &mut Vec<(bool, PxSize)>) {
         let (new_size, fill, loose) = match self {
@@ -226,7 +215,7 @@ impl ImageDownscaleMode {
                     max /= Px(2);
                 }
                 return;
-            },
+            }
             Self::Entries(e) => {
                 for e in e {
                     e.target_sizes(source_size, sizes);
@@ -265,52 +254,8 @@ fn fit_fill(source_size: PxSize, new_size: PxSize, fill: bool) -> PxSize {
         (Px(i32::max((source_size.width * ratio).round() as _, 1)), Px::MAX)
     } else {
         (Px(nw as _), Px(nh as _))
-    }.into()
-    
-}
-
-/// Deprecated
-#[deprecated = "use `ImageDownscaleMode`"]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub enum ImageDownscale {
-    // TODO(breaking) remove
-    /// Image is downscaled so that both dimensions fit inside the size.
-    Fit(PxSize),
-    /// Image is downscaled so that at least one dimension fits inside the size. The image is not clipped.
-    Fill(PxSize),
-}
-#[allow(deprecated)]
-mod _old_impl {
-    use super::*;
-
-    impl From<PxSize> for ImageDownscale {
-        /// Fit
-        fn from(fit: PxSize) -> Self {
-            ImageDownscale::Fit(fit)
-        }
     }
-    impl From<Px> for ImageDownscale {
-        /// Fit splat
-        fn from(fit: Px) -> Self {
-            ImageDownscale::Fit(PxSize::splat(fit))
-        }
-    }
-    #[cfg(feature = "var")]
-    zng_var::impl_from_and_into_var! {
-        fn from(fit: PxSize) -> ImageDownscale;
-        fn from(fit: Px) -> ImageDownscale;
-        fn from(some: ImageDownscale) -> Option<ImageDownscale>;
-    }
-    impl ImageDownscale {
-        /// Compute the expected final size if the downscale is applied on an image of `source_size`.
-        pub fn resize_dimensions(self, source_size: PxSize) -> PxSize {
-            let (new_size, fill) = match self {
-                ImageDownscale::Fill(s) => (s, true),
-                ImageDownscale::Fit(s) => (s, false),
-            };
-            fit_fill(source_size, new_size, fill)
-        }
-    }
+    .into()
 }
 
 /// Format of the image bytes.
@@ -326,7 +271,8 @@ pub enum ImageDataFormat {
         size: PxSize,
         /// Pixel density of the image.
         density: Option<PxDensity2d>,
-        // TODO(breaking) add original_color_type
+        /// Original color type of the image.
+        original_color_type: ColorType,
     },
 
     /// Decoded A8.
@@ -374,6 +320,7 @@ impl From<PxSize> for ImageDataFormat {
         ImageDataFormat::Bgra8 {
             size: bgra8_size,
             density: None,
+            original_color_type: ColorType::BGRA8,
         }
     }
 }
@@ -382,9 +329,18 @@ impl PartialEq for ImageDataFormat {
         match (self, other) {
             (Self::FileExtension(l0), Self::FileExtension(r0)) => l0 == r0,
             (Self::MimeType(l0), Self::MimeType(r0)) => l0 == r0,
-            (Self::Bgra8 { size: s0, density: p0 }, Self::Bgra8 { size: s1, density: p1 }) => {
-                s0 == s1 && density_key(*p0) == density_key(*p1)
-            }
+            (
+                Self::Bgra8 {
+                    size: s0,
+                    density: p0,
+                    original_color_type: oc0,
+                },
+                Self::Bgra8 {
+                    size: s1,
+                    density: p1,
+                    original_color_type: oc1,
+                },
+            ) => s0 == s1 && density_key(*p0) == density_key(*p1) && oc0 == oc1,
             (Self::Unknown, Self::Unknown) => true,
             _ => false,
         }
@@ -395,9 +351,14 @@ impl std::hash::Hash for ImageDataFormat {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
         match self {
-            ImageDataFormat::Bgra8 { size, density } => {
+            ImageDataFormat::Bgra8 {
+                size,
+                density,
+                original_color_type,
+            } => {
                 size.hash(state);
                 density_key(*density).hash(state);
+                original_color_type.hash(state)
             }
             ImageDataFormat::A8 { size } => {
                 size.hash(state);
@@ -514,66 +475,6 @@ impl ImageDecoded {
     }
 }
 
-/// Represents a successfully decoded image.
-///
-/// See [`Event::ImageLoaded`].
-///
-/// [`Event::ImageLoaded`]: crate::Event::ImageLoaded
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
-#[non_exhaustive]
-pub struct ImageLoadedData {
-    // TODO(breaking) remove, replace with ImageData
-    /// Image ID.
-    pub id: ImageId,
-    /// Pixel size.
-    pub size: PxSize,
-    /// Pixel density metadata.
-    pub density: Option<PxDensity2d>,
-    /// If all pixels have an alpha value of 255.
-    pub is_opaque: bool,
-    /// If the `pixels` are in a single channel (A8).
-    pub is_mask: bool,
-    /// Reference to the BGRA8 pre-multiplied image pixels or the A8 pixels if `is_mask`.
-    pub pixels: IpcBytes,
-}
-impl ImageLoadedData {
-    /// New response.
-    pub fn new(id: ImageId, size: PxSize, density: Option<PxDensity2d>, is_opaque: bool, is_mask: bool, pixels: IpcBytes) -> Self {
-        Self {
-            id,
-            size,
-            density,
-            is_opaque,
-            is_mask,
-            pixels,
-        }
-    }
-}
-impl fmt::Debug for ImageLoadedData {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ImageLoadedData")
-            .field("id", &self.id)
-            .field("size", &self.size)
-            .field("density", &self.density)
-            .field("is_opaque", &self.is_opaque)
-            .field("is_mask", &self.is_mask)
-            .field("pixels", &format_args!("<{} bytes shared memory>", self.pixels.len()))
-            .finish()
-    }
-}
-impl From<ImageDecoded> for ImageLoadedData {
-    fn from(value: ImageDecoded) -> Self {
-        ImageLoadedData {
-            id: value.meta.id,
-            size: value.meta.size,
-            density: value.meta.density,
-            is_opaque: value.is_opaque,
-            is_mask: value.meta.is_mask,
-            pixels: value.pixels,
-        }
-    }
-}
-
 /// Represents an image codec capability.
 ///
 /// This type will be used in the next breaking release of the view API.
@@ -645,7 +546,7 @@ impl ImageFormat {
 }
 
 /// Basic info about a color model.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ColorType {
     /// Color model name.

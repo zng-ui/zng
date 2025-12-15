@@ -1,10 +1,12 @@
 # Unreleased
 
-* Add support for multi image containers. !!: TODO
+* Add support for multi image containers.
     - Add `Img::entries` and related methods.
     - Add `ImageEntryKind` and `ImageEntriesMode`.
-    - **Deprecated** Advanced image request functions now also take entries mode.
+    - **Breaking** Advanced image request functions now also take entries mode.
+    - **Breaking** Replaced `ImageDownscale` with `ImageDownscaleMode`.
 * Add `Img::original_color_type` metadata.
+
 * Optimize image decoding, faster and less memory use.
     - Decodes directly to the IPC memory map.
     - Optimized EXIF orientation transforms.
