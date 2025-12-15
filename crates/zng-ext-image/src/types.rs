@@ -303,6 +303,62 @@ impl Img {
         self.view.get().map(|v| v.entry_kind()).unwrap_or(ImageEntryKind::Page)
     }
 
+    /// Calls `visit` with the image or [`ImageEntryKind::Reduced`] entry that is nearest to `size` and greater or equal to it.
+    ///
+    /// Does not call `visit` if none of the images are loaded, returns `None` in that case.
+    pub fn with_best_reduce<R>(&self, size: PxSize, visit: impl FnOnce(&Img) -> R) -> Option<R> {
+        let ratio = size.width.0 as f32 / size.height.0 as f32;
+
+        let score = move |s: PxSize| -> i32 {
+            let dist = s - size;
+            if dist.width < Px(0) || dist.height < Px(0) {
+                return i32::MIN;
+            }
+
+            // minimize texture size
+            let d = dist.width.0 + dist.height.0;
+            // minimize distortion
+            let s_ratio = s.width.0 as f32 / s.height.0 as f32;
+            let ratio_err = ((s_ratio / ratio).ln()).abs();
+
+            // distortion is much more important
+            const RATIO_WEIGHT: f32 = 50_000.0;
+            let ratio_pen = (ratio_err * RATIO_WEIGHT).round() as i32;
+
+            // higher is better
+            i32::MAX - d - ratio_pen
+        };
+
+        let mut best_i = usize::MAX;
+        let mut best_score = i32::MIN;
+        if self.is_loaded() {
+            let self_score = score(self.size());
+            if self_score > best_score {
+                best_i = self.entries.len();
+                best_score = self_score;
+            }
+        }
+        for (i, entry) in self.entries.iter().enumerate() {
+            entry.with(|e| {
+                if e.is_loaded() {
+                    let entry_score = score(e.size());
+                    if entry_score > best_score {
+                        best_i = i;
+                        best_score = entry_score;
+                    }
+                }
+            })
+        }
+
+        if best_i == usize::MAX {
+            None
+        } else if best_i == self.entries.len() {
+            Some(visit(self))
+        } else {
+            Some(self.entries[best_i].with(visit))
+        }
+    }
+
     /// Connection to the image resource.
     pub fn view(&self) -> Option<&ViewImage> {
         self.view.get()

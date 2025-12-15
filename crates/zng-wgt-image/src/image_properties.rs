@@ -361,9 +361,7 @@ pub fn img_limits(child: impl IntoUiNode, limits: impl IntoVar<Option<ImageLimit
 
 /// Custom pixel resize applied during image load/decode.
 ///
-/// Note that this resize affects the image actual pixel size directly when it is loading to force the image pixels to be within an expected size.
-/// This property primary use is as error recover before the [`img_limits`] error happens, you set the limits to the size that should not even
-/// be processed and set this property to the maximum size expected.
+/// Note that this resize affects the image actual pixel size directly when it is loading, it can also generate multiple image entries.
 ///
 /// If the image is smaller than the requested size it is not upscaled. If multiple downscale samples are requested they are generated as
 /// synthetic [`ImageEntryKind::Reduced`].
@@ -379,6 +377,7 @@ pub fn img_limits(child: impl IntoUiNode, limits: impl IntoVar<Option<ImageLimit
 ///
 /// [`IMAGES.limits`]: zng_ext_image::IMAGES::limits
 /// [`img_limits`]: fn@img_limits
+/// [`ImageEntryKind::Reduced`]: zng_ext_image::ImageEntryKind
 #[property(CONTEXT, default(IMAGE_DOWNSCALE_VAR), widget_impl(Image))]
 pub fn img_downscale(child: impl IntoUiNode, downscale: impl IntoVar<Option<ImageDownscaleMode>>) -> UiNode {
     with_context_var(child, IMAGE_DOWNSCALE_VAR, downscale)
@@ -400,10 +399,9 @@ pub fn img_downscale(child: impl IntoUiNode, downscale: impl IntoVar<Option<Imag
 /// This property sets the [`IMAGE_ENTRIES_MODE_VAR`].
 ///
 /// [`Reduced`]: zng_ext_image::ImageEntryKind::Reduced
-/// [`GENERATE_REDUCED`]: zng_ext_image::ImageEntryKind::GENERATE_REDUCED
 /// [`img_downscale`]: fn@[`img_downscale`]
 #[property(CONTEXT, default(IMAGE_ENTRIES_MODE_VAR), widget_impl(Image))]
-fn img_entries_mode(child: impl IntoUiNode, mode: impl IntoVar<ImageEntriesMode>) -> UiNode {
+pub fn img_entries_mode(child: impl IntoUiNode, mode: impl IntoVar<ImageEntriesMode>) -> UiNode {
     with_context_var(child, IMAGE_ENTRIES_MODE_VAR, mode)
 }
 

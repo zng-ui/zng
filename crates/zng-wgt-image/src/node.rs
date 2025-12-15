@@ -230,8 +230,6 @@ pub fn image_presenter() -> UiNode {
                 .sub_var_layout(&IMAGE_REPEAT_SPACING_VAR)
                 .sub_var_render(&IMAGE_RENDERING_VAR);
 
-            // !!: TODO replace with better size alternate?
-            // Or not, could just replace on render?
             img_size = CONTEXT_IMAGE_VAR.with(Img::size);
         }
         UiNodeOp::Update { .. } => {
@@ -423,8 +421,11 @@ pub fn image_presenter() -> UiNode {
             *final_size = wgt_size;
         }
         UiNodeOp::Render { frame } => {
+            if render_clip.is_empty() {
+                return;
+            }
             CONTEXT_IMAGE_VAR.with(|img| {
-                if img.is_loaded() && !img_size.is_empty() && !render_clip.is_empty() {
+                img.with_best_reduce(render_tile_size, |img| {
                     if render_offset != PxVector::zero() {
                         let transform = PxTransform::from(render_offset);
                         frame.push_reference_frame(spatial_id.into(), FrameValue::Value(transform), true, false, |frame| {
@@ -447,7 +448,7 @@ pub fn image_presenter() -> UiNode {
                             IMAGE_RENDERING_VAR.get(),
                         );
                     }
-                }
+                })
             });
         }
         _ => {}

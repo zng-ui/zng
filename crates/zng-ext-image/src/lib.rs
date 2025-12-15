@@ -267,8 +267,7 @@ impl AppExtension for ImageManager {
                                 match VIEW_PROCESS.add_image(request) {
                                     Ok(img) => {
                                         // request sent, add to `decoding` will receive
-                                        // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
-                                        // when done.
+                                        // image decoded events
                                         t.image.modify(move |v| {
                                             v.inner_set_or_replace(img, false);
                                         });

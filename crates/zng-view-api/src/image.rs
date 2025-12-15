@@ -178,6 +178,14 @@ zng_var::impl_from_and_into_var! {
     fn from(some: ImageDownscaleMode) -> Option<ImageDownscaleMode>;
 }
 impl ImageDownscaleMode {
+    /// Default mipmap min/max when the objective of the mipmap is optimizing dynamically resizing massive images.
+    pub fn mip_map() -> Self {
+        Self::MipMap {
+            min_size: PxSize::splat(Px(512)),
+            max_size: PxSize::splat(Px::MAX),
+        }
+    }
+
     /// Append entry downscale request.
     pub fn with_entry(self, other: impl Into<ImageDownscaleMode>) -> Self {
         self.with_impl(other.into())

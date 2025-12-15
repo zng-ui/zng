@@ -170,11 +170,11 @@ impl VIEW_PROCESS {
     /// Send an image for decoding.
     ///
     /// This function returns immediately, the [`ViewImage`] will update when
-    /// [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
+    /// [`Event::ImageMetadataDecoded`], [`Event::ImageDecoded`] and [`Event::ImageDecodeError`] events are received.
     ///
-    /// [`Event::ImageMetadataLoaded`]: zng_view_api::Event::ImageMetadataLoaded
-    /// [`Event::ImageLoaded`]: zng_view_api::Event::ImageLoaded
-    /// [`Event::ImageLoadError`]: zng_view_api::Event::ImageLoadError
+    /// [`Event::ImageMetadataDecoded`]: zng_view_api::Event::ImageMetadataDecoded
+    /// [`Event::ImageDecoded`]: zng_view_api::Event::ImageDecoded
+    /// [`Event::ImageDecodeError`]: zng_view_api::Event::ImageDecodeError
     pub fn add_image(&self, request: ImageRequest<IpcBytes>) -> Result<ViewImage> {
         let mut app = self.write();
         let id = app.process.add_image(request)?;
@@ -202,13 +202,13 @@ impl VIEW_PROCESS {
     /// Starts sending an image for *progressive* decoding.
     ///
     /// This function returns immediately, the [`ViewImage`] will update when
-    /// [`Event::ImageMetadataLoaded`], [`Event::ImagePartiallyLoaded`],
-    /// [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
+    /// [`Event::ImageMetadataDecoded`], [`Event::ImagePartiallyDecoded`],
+    /// [`Event::ImageDecoded`] and [`Event::ImageDecodeError`] events are received.
     ///
-    /// [`Event::ImageMetadataLoaded`]: zng_view_api::Event::ImageMetadataLoaded
-    /// [`Event::ImageLoaded`]: zng_view_api::Event::ImageLoaded
-    /// [`Event::ImageLoadError`]: zng_view_api::Event::ImageLoadError
-    /// [`Event::ImagePartiallyLoaded`]: zng_view_api::Event::ImagePartiallyLoaded
+    /// [`Event::ImageMetadataDecoded`]: zng_view_api::Event::ImageMetadataDecoded
+    /// [`Event::ImageDecoded`]: zng_view_api::Event::ImageDecoded
+    /// [`Event::ImageDecodeError`]: zng_view_api::Event::ImageDecodeError
+    /// [`Event::ImagePartiallyDecoded`]: zng_view_api::Event::ImagePartiallyDecoded
     pub fn add_image_pro(&self, request: ImageRequest<IpcReceiver<IpcBytes>>) -> Result<ViewImage> {
         let mut app = self.write();
         let id = app.process.add_image_pro(request)?;

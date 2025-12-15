@@ -343,9 +343,11 @@ fn large_image() -> UiNode {
                                 }
                             });
 
-                            // let actual image scale, better performance when
-                            // showing entire image as it does not need to render a full size
-                            // texture just to downscale. Renderer implements mipmaps only for images.
+                            // Generate mipmap pre-downscaled images to reduce GPU memory use
+                            img_downscale = Some(zng::image::ImageDownscaleMode::mip_map());
+                            // "scale" by adjusting the Image actual size, otherwise the mipmap
+                            // will not be used as the Scroll zoom transform applies on the full
+                            // content texture
                             zng::scroll::zoom_size_only = true;
 
                             // better for photo viewers

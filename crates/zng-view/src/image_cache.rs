@@ -4,9 +4,7 @@
 use image::ImageDecoder as _;
 use std::{fmt, sync::Arc};
 use zng_task::parking_lot::Mutex;
-#[cfg(feature = "image_any")]
-use zng_view_api::image::ColorType;
-use zng_view_api::image::ImageFormat;
+use zng_view_api::image::{ColorType, ImageFormat};
 
 use webrender::api::ImageDescriptor;
 use zng_txt::ToTxt as _;

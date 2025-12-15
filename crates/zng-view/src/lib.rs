@@ -2319,6 +2319,7 @@ impl Api for App {
                     image::ImageDataFormat::Bgra8 {
                         size: zng_unit::PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
                         density: None,
+                        original_color_type: zng_view_api::image::ColorType::RGBA8,
                     },
                     IpcBytes::from_vec_blocking(data).map_err(|e| clipboard::ClipboardError::Other(e.to_txt()))?,
                     u64::MAX,

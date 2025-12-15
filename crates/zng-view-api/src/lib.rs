@@ -368,8 +368,8 @@ declare_api! {
 
     /// Cache an image resource.
     ///
-    /// The image is decoded asynchronously, the events [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`]
-    /// or [`Event::ImageLoadError`] will be send when the image is ready for use or failed.
+    /// The image is decoded asynchronously, the events [`Event::ImageMetadataDecoded`], [`Event::ImageDecoded`]
+    /// or [`Event::ImageDecodeError`] will be send when the image is ready for use or failed.
     ///
     /// The [`ImageRequest::data`] handle must contain the full image data already, it will be dropped after the image finishes decoding.
     ///
@@ -385,7 +385,7 @@ declare_api! {
     /// as more data is received, otherwise it will collect all data first and then [`add_image`]. Each
     /// [`ImageRequest::`data`] package is the continuation of the previous call, send an empty package to indicate finish.
     ///
-    /// The events [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`] or [`Event::ImageLoadError`] will
+    /// The events [`Event::ImageMetadataDecoded`], [`Event::ImageDecoded`] or [`Event::ImageDecodeError`] will
     /// be send while decoding.
     ///
     /// [`add_image`]: Api::add_image
