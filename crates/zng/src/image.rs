@@ -82,7 +82,7 @@ pub use zng_ext_image::UriFilter;
 pub use zng_wgt_image::{
     Image, ImageAutoScale, ImageFit, ImageRepeat, ImgErrorArgs, ImgLoadArgs, ImgLoadingArgs, img_align, img_auto_scale, img_cache,
     img_crop, img_downscale, img_error_fn, img_fit, img_limits, img_loading_fn, img_offset, img_rendering, img_repeat, img_repeat_spacing,
-    img_scale, is_error, is_loaded, on_error, on_load,
+    img_scale, is_error, is_loaded, on_error, on_load, on_load_layout,
 };
 
 /// Mask image properties.
