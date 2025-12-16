@@ -97,7 +97,7 @@ macro_rules! dynamic_map(
 );
 
 impl IpcDynamicImage {
-    pub fn decode<R: BufRead + Seek>(reader: ImageReader<R>) -> image::ImageResult<Self> {
+    pub fn decode<R: BufRead + Seek>(reader: ImageReader<R>, entry: usize) -> image::ImageResult<Self> {
         let decoder = reader.into_decoder()?;
         let (w, h) = decoder.dimensions();
         let color_type = decoder.color_type();

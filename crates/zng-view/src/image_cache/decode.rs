@@ -214,22 +214,14 @@ impl ImageCache {
     }
 
     #[cfg(feature = "image_any")]
-    pub(super) fn image_decode(
-        buf: &[u8],
-        format: image::ImageFormat,
-        downscale: Option<&zng_view_api::image::ImageDownscaleMode>,
-    ) -> image::ImageResult<IpcDynamicImage> {
+    pub(super) fn image_decode(buf: &[u8], format: image::ImageFormat, entry: usize) -> image::ImageResult<IpcDynamicImage> {
         let buf = std::io::Cursor::new(buf);
-
-        // Some JPEG decoders can downscale to an approximation of this size
-        // but that is not implemented by image crate
-        let _ = downscale;
 
         let mut reader = image::ImageReader::new(buf);
         reader.set_format(format);
         reader.no_limits();
 
-        IpcDynamicImage::decode(reader)
+        IpcDynamicImage::decode(reader, entry)
     }
 
     pub(super) fn convert_decoded(
@@ -237,7 +229,7 @@ impl ImageCache {
         mask: Option<ImageMaskMode>,
         density: Option<PxDensity2d>,
         icc_profile: Option<lcms2::Profile>,
-        downscale: Option<&zng_view_api::image::ImageDownscaleMode>,
+        downscale: Option<PxSize>,
         orientation: image::metadata::Orientation,
         resizer_cache: &ResizerCache,
     ) -> std::io::Result<RawLoadedImg> {
@@ -707,7 +699,7 @@ impl ImageCache {
         bgra8: &[u8],
         mask: ImageMaskMode,
         density: Option<PxDensity2d>,
-        downscale: Option<&zng_view_api::image::ImageDownscaleMode>,
+        downscale: Option<PxSize>,
         resizer_cache: &ResizerCache,
     ) -> std::io::Result<RawLoadedImg> {
         let mut a = IpcBytes::new_mut_blocking(bgra8.len() / 4)?;
@@ -755,7 +747,7 @@ impl ImageCache {
         mut raw: IpcBytesMut,
         mask: ImageMaskMode,
         density: Option<PxDensity2d>,
-        downscale: Option<&zng_view_api::image::ImageDownscaleMode>,
+        downscale: Option<PxSize>,
         resizer_cache: &ResizerCache,
     ) -> std::io::Result<RawLoadedImg> {
         let mut is_opaque = true;
@@ -802,7 +794,7 @@ impl ImageCache {
         size: PxSize,
         a8: &[u8],
         density: Option<PxDensity2d>,
-        downscale: Option<&zng_view_api::image::ImageDownscaleMode>,
+        downscale: Option<PxSize>,
         resizer_cache: &ResizerCache,
     ) -> std::io::Result<RawLoadedImg> {
         let mut bgra = IpcBytes::new_mut_blocking(a8.len() * 4)?;
@@ -827,39 +819,35 @@ impl ImageCache {
 
     pub(super) fn downscale_decoded(
         mask: Option<ImageMaskMode>,
-        downscale: Option<&zng_view_api::image::ImageDownscaleMode>,
+        downscale: Option<PxSize>,
         resizer_cache: &ResizerCache,
         source_size: PxSize,
         pixels: &[u8],
     ) -> std::io::Result<Option<(PxSize, IpcBytesMut)>> {
-        if let Some(downscale) = downscale {
-            // !!: TODO
-            let mut sizes = vec![];
-            downscale.target_sizes(source_size, &mut sizes);
-            let dest_size = sizes[0].1;
-            if source_size.min(dest_size) != source_size {
-                use fast_image_resize as fr;
+        if let Some(dest_size) = downscale
+            && source_size.min(dest_size) != source_size
+        {
+            use fast_image_resize as fr;
 
-                let px_type = if mask.is_none() { fr::PixelType::U8x4 } else { fr::PixelType::U8 };
-                let source = fr::images::ImageRef::new(source_size.width.0 as _, source_size.height.0 as _, pixels, px_type).unwrap();
-                let mut dest_buf = IpcBytes::new_mut_blocking(dest_size.width.0 as usize * dest_size.height.0 as usize * px_type.size())?;
-                let mut dest =
-                    fr::images::Image::from_slice_u8(dest_size.width.0 as _, dest_size.height.0 as _, &mut dest_buf[..], px_type).unwrap();
+            let px_type = if mask.is_none() { fr::PixelType::U8x4 } else { fr::PixelType::U8 };
+            let source = fr::images::ImageRef::new(source_size.width.0 as _, source_size.height.0 as _, pixels, px_type).unwrap();
+            let mut dest_buf = IpcBytes::new_mut_blocking(dest_size.width.0 as usize * dest_size.height.0 as usize * px_type.size())?;
+            let mut dest =
+                fr::images::Image::from_slice_u8(dest_size.width.0 as _, dest_size.height.0 as _, &mut dest_buf[..], px_type).unwrap();
 
-                let mut resize_opt = fr::ResizeOptions::new();
-                // is already pre multiplied
-                resize_opt.mul_div_alpha = false;
-                // default, best quality
-                resize_opt.algorithm = fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3);
-                // try to reuse cache
-                match resizer_cache.try_lock() {
-                    Some(mut r) => r.resize(&source, &mut dest, Some(&resize_opt)),
-                    None => fr::Resizer::new().resize(&source, &mut dest, Some(&resize_opt)),
-                }
-                .unwrap();
-
-                return Ok(Some((dest_size, dest_buf)));
+            let mut resize_opt = fr::ResizeOptions::new();
+            // is already pre multiplied
+            resize_opt.mul_div_alpha = false;
+            // default, best quality
+            resize_opt.algorithm = fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3);
+            // try to reuse cache
+            match resizer_cache.try_lock() {
+                Some(mut r) => r.resize(&source, &mut dest, Some(&resize_opt)),
+                None => fr::Resizer::new().resize(&source, &mut dest, Some(&resize_opt)),
             }
+            .unwrap();
+
+            return Ok(Some((dest_size, dest_buf)));
         }
 
         Ok(None)

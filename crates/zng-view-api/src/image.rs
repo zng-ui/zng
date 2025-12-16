@@ -140,7 +140,8 @@ impl<D> ImageRequest<D> {
 
 /// Defines how an image is downscaled after decoding.
 ///
-/// The image aspect ratio is preserved in all modes. The image is never upscaled.
+/// The image aspect ratio is preserved in all modes. The image is never upscaled. If the image container
+/// contains reduced alternative the nearest to the requested size is used as source.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum ImageDownscaleMode {
@@ -148,19 +149,18 @@ pub enum ImageDownscaleMode {
     Fit(PxSize),
     /// Image is downscaled so that at least one dimension fits inside the size. The image is not clipped.
     Fill(PxSize),
-    /// Image is downscaled to `Fit`, but can be a slightly larger size if downscaling to the larger size is faster.
-    LooseFit(PxSize),
-    /// Image is downscaled to `Fill`, but can be a slightly larger size if downscaling to the larger size is faster.
-    LooseFill(PxSize),
     /// Generate synthetic [`ImageEntryKind::Reduced`] entries each half the size of the image until the sample that is
-    /// nearest `min_size` and greater or equal to it.
+    /// nearest `min_size` and greater or equal to it. If the image container already has alternates that are equal to
+    /// or *near* a mip size that size is used instead.
     MipMap {
         /// Minimum sample size.
         min_size: PxSize,
-        /// `LooseFill` maximum size.
+        /// Maximum `Fill` size.
         max_size: PxSize,
     },
-    /// Applies the first to image and generate synthetic [`ImageEntryKind::Reduced`] for the others.
+    /// Generate multiple synthetic [`ImageEntryKind::Reduced`] entries. The entry sizes are sorted by largest first,
+    /// if the image full size already fits in the largest downscale requested the full image is returned and any
+    /// downscale actually smaller becomes a synthetic entry. If the image is larger than all requested sizes it is downscaled as well.
     Entries(Vec<ImageDownscaleMode>),
 }
 impl From<PxSize> for ImageDownscaleMode {
@@ -206,41 +206,98 @@ impl ImageDownscaleMode {
         Self::Entries(v)
     }
 
-    /// Compute the expected final sizes if the downscale is applied on an image of `source_size`.
+    /// Get downscale sizes that need to be generated.
     ///
-    /// The values are `(loose, target_size)` where if loose is `true` any approximation of the size
-    /// that is larger or equal to it is enough.
-    pub fn target_sizes(&self, source_size: PxSize, sizes: &mut Vec<(bool, PxSize)>) {
-        let (new_size, fill, loose) = match self {
-            Self::Fit(s) => (*s, false, false),
-            Self::Fill(s) => (*s, true, false),
-            Self::LooseFit(s) => (*s, false, true),
-            Self::LooseFill(s) => (*s, true, true),
-            Self::MipMap { min_size, max_size } => {
-                let mut max = fit_fill(source_size, *max_size, true);
-                if sizes.is_empty() {
-                    sizes.push((true, max));
-                    max /= Px(2);
+    /// The `page_size` is the image full size, the `reduced_sizes` are
+    /// sizes of reduced alternates that are already provided by the image  container.
+    ///
+    /// Returns the downscale for the image full size, if needed and a list of reduced entries that must be synthesized.
+    pub fn sizes(&self, page_size: PxSize, reduced_sizes: &[PxSize]) -> (Option<PxSize>, Vec<PxSize>) {
+        match self {
+            ImageDownscaleMode::Fit(s) => (fit_fill(page_size, *s, false), vec![]),
+            ImageDownscaleMode::Fill(s) => (fit_fill(page_size, *s, true), vec![]),
+            ImageDownscaleMode::MipMap { min_size, max_size } => Self::collect_mip_map(page_size, reduced_sizes, &[], *min_size, *max_size),
+            ImageDownscaleMode::Entries(modes) => {
+                let mut include_full_size = false;
+                let mut sizes = vec![];
+                let mut mip_map = None;
+                for m in modes {
+                    m.collect_entries(page_size, &mut sizes, &mut mip_map, &mut include_full_size);
                 }
-                while max.width >= min_size.width && max.height >= min_size.height {
-                    sizes.push((true, max));
-                    max /= Px(2);
+                if let Some([min_size, max_size]) = mip_map {
+                    let (first, mips) = Self::collect_mip_map(page_size, reduced_sizes, &sizes, min_size, max_size);
+                    include_full_size |= first.is_some();
+                    sizes.extend(first);
+                    sizes.extend(mips);
                 }
-                return;
-            }
-            Self::Entries(e) => {
-                for e in e {
-                    e.target_sizes(source_size, sizes);
-                }
-                return;
-            }
-        };
 
-        sizes.push((loose, fit_fill(source_size, new_size, fill)));
+                sizes.sort_by_key(|s| s.width.0 * s.height.0);
+                sizes.dedup();
+
+                let full_downscale = if include_full_size { None } else { sizes.pop() };
+                sizes.reverse();
+
+                (full_downscale, sizes)
+            }
+        }
+    }
+
+    fn collect_mip_map(
+        page_size: PxSize,
+        reduced_sizes: &[PxSize],
+        entry_sizes: &[PxSize],
+        min_size: PxSize,
+        max_size: PxSize,
+    ) -> (Option<PxSize>, Vec<PxSize>) {
+        let page_downscale = fit_fill(page_size, max_size, true);
+        let mut size = page_downscale.unwrap_or(page_size) / Px(2);
+        let mut entries = vec![];
+        while min_size.width >= size.width && min_size.height >= size.height {
+            if let Some(entry) = fit_fill(page_size, size, true)
+                && !reduced_sizes.iter().any(|s| Self::near(entry, *s))
+                && !entry_sizes.iter().any(|s| Self::near(entry, *s))
+            {
+                entries.push(entry);
+            }
+            size /= Px(2);
+        }
+        (page_downscale, entries)
+    }
+
+    fn collect_entries(&self, page_size: PxSize, sizes: &mut Vec<PxSize>, mip_map: &mut Option<[PxSize; 2]>, include_full_size: &mut bool) {
+        match self {
+            ImageDownscaleMode::Fit(s) => match fit_fill(page_size, *s, false) {
+                Some(s) => sizes.push(s),
+                None => *include_full_size = true,
+            },
+            ImageDownscaleMode::Fill(s) => match fit_fill(page_size, *s, true) {
+                Some(s) => sizes.push(s),
+                None => *include_full_size = true,
+            },
+            ImageDownscaleMode::MipMap { min_size, max_size } => {
+                *include_full_size = true;
+                if let Some([min, max]) = mip_map {
+                    *min = min.min(*min_size);
+                    *max = max.min(*min_size);
+                } else {
+                    *mip_map = Some([*min_size, *max_size]);
+                }
+            }
+            ImageDownscaleMode::Entries(modes) => {
+                for m in modes {
+                    m.collect_entries(page_size, sizes, mip_map, include_full_size);
+                }
+            }
+        }
+    }
+
+    fn near(candidate: PxSize, existing: PxSize) -> bool {
+        // !!: TODO
+        candidate == existing
     }
 }
 
-fn fit_fill(source_size: PxSize, new_size: PxSize, fill: bool) -> PxSize {
+fn fit_fill(source_size: PxSize, new_size: PxSize, fill: bool) -> Option<PxSize> {
     let source_size = source_size.cast::<f64>();
     let new_size = new_size.cast::<f64>();
 
@@ -253,12 +310,16 @@ fn fit_fill(source_size: PxSize, new_size: PxSize, fill: bool) -> PxSize {
         f64::min(w_ratio, h_ratio)
     };
 
+    if ratio >= 1.0 {
+        return None;
+    }
+
     let nw = u64::max((source_size.width * ratio).round() as _, 1);
     let nh = u64::max((source_size.height * ratio).round() as _, 1);
 
     const MAX: u64 = Px::MAX.0 as _;
 
-    if nw > MAX {
+    let r = if nw > MAX {
         let ratio = MAX as f64 / source_size.width;
         (Px::MAX, Px(i32::max((source_size.height * ratio).round() as _, 1)))
     } else if nh > MAX {
@@ -267,7 +328,9 @@ fn fit_fill(source_size: PxSize, new_size: PxSize, fill: bool) -> PxSize {
     } else {
         (Px(nw as _), Px(nh as _))
     }
-    .into()
+    .into();
+
+    Some(r)
 }
 
 /// Format of the image bytes.

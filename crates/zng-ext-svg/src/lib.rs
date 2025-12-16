@@ -79,10 +79,11 @@ fn load(data: SvgData, downscale: Option<ImageDownscaleMode>) -> ImageSource {
         Ok(tree) => {
             let mut size = tree.size().to_int_size();
             if let Some(d) = downscale {
-                let mut sizes = Vec::with_capacity(1);
-                d.target_sizes(PxSize::new(Px(size.width() as _), Px(size.height() as _)), &mut sizes);
-                let s = sizes.iter().map(|s| s.1).max_by_key(|s| s.width + s.height).unwrap();
-                match resvg::tiny_skia::IntSize::from_wh(s.width.0 as _, s.height.0 as _) {
+                let size_px = PxSize::new(Px(size.width() as _), Px(size.height() as _));
+                let (full_size, entries) = d.sizes(size_px, &[]);
+                let full_size = full_size.unwrap_or(size_px);
+
+                match resvg::tiny_skia::IntSize::from_wh(full_size.width.0 as _, full_size.height.0 as _) {
                     Some(s) => size = s,
                     None => tracing::error!("cannot resize svg to zero size"),
                 }
