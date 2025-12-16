@@ -113,6 +113,9 @@ pub struct ImageRequest<D> {
 
     /// Defines what images are decoded from multi image containers.
     pub entries: ImageEntriesMode,
+
+    /// Image is an entry (or subtree) of this other image.
+    pub parent: Option<(ImageId, ImageEntryKind)>,
 }
 impl<D> ImageRequest<D> {
     /// New request.
@@ -130,6 +133,7 @@ impl<D> ImageRequest<D> {
             downscale,
             mask,
             entries: ImageEntriesMode::PRIMARY,
+            parent: None,
         }
     }
 }
