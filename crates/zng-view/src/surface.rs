@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, fmt, sync::Arc};
+use std::{collections::VecDeque, fmt};
 
 use tracing::span::EnteredSpan;
 use webrender::{
@@ -23,7 +23,7 @@ use crate::{
         RendererDeinitedArgs, RendererExtension, RendererInitedArgs, WindowConfigArgs, WindowExtension,
     },
     gl::{GlContext, GlContextManager},
-    image_cache::{Image, ImageCache, ImageUseMap, ResizerCache, WrImageCache},
+    image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     px_wr::PxToWr as _,
     util::{PxToWinit, frame_render_reasons, frame_update_render_reasons},
 };
@@ -61,7 +61,6 @@ impl fmt::Debug for Surface {
     }
 }
 impl Surface {
-    #[expect(clippy::too_many_arguments)]
     pub fn open(
         vp_gen: ViewProcessGen,
         cfg: HeadlessRequest,
@@ -70,7 +69,6 @@ impl Surface {
         mut window_exts: Vec<(ApiExtensionId, Box<dyn WindowExtension>)>,
         mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
-        resizer_cache: Arc<ResizerCache>,
     ) -> Self {
         let id = cfg.id;
 
@@ -174,7 +172,7 @@ impl Surface {
             renderer: Some(renderer),
             renderer_exts,
             external_images,
-            image_use: ImageUseMap::new(resizer_cache),
+            image_use: ImageUseMap::new(),
 
             clear_color: None,
 

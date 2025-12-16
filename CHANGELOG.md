@@ -1,8 +1,8 @@
 # Unreleased
 
 * Add support for multi entry image containers.
-    - Add `Img::entries` and related methods.
-    - Add `ImageEntryKind` and `ImageEntriesMode`.
+    - Added `Img::entries` and related methods.
+    - Added `ImageEntryKind` and `ImageEntriesMode`.
     - **Breaking** Advanced image request functions now also take entries mode.
     - **Breaking** Replaced `ImageDownscale` with `ImageDownscaleMode`.
 * Add `Img::original_color_type` metadata.
