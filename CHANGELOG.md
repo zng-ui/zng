@@ -7,6 +7,8 @@
     - **Breaking** Replaced `ImageDownscale` with `ImageDownscaleMode`.
 * Add `Img::original_color_type` metadata.
 
+# 0.20.2
+
 * Add `Image::on_load_layout` event fired after new image is loaded and layout.
 * Optimize image decoding, faster and less memory use.
     - Decodes directly to the IPC memory map.
