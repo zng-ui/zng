@@ -16,7 +16,7 @@ use zng_color::{
 };
 use zng_layout::{
     context::{LAYOUT, LayoutMetrics, LayoutPassId},
-    unit::{ByteLength, ByteUnits, FactorUnits as _, LayoutAxis, Px, PxDensity2d, PxLine, PxPoint, PxRect, PxSize},
+    unit::{ByteLength, ByteUnits, FactorUnits as _, LayoutAxis, Px, PxDensity2d, PxLine, PxPoint, PxRect, PxSize, about_eq},
 };
 use zng_task::{
     self as task, SignalOnce,
@@ -307,50 +307,61 @@ impl Img {
     ///
     /// Does not call `visit` if none of the images are loaded, returns `None` in that case.
     pub fn with_best_reduce<R>(&self, size: PxSize, visit: impl FnOnce(&Img) -> R) -> Option<R> {
-        let ratio = size.width.0 as f32 / size.height.0 as f32;
+        fn cmp(target_size: PxSize, a: PxSize, b: PxSize) -> std::cmp::Ordering {
+            let target_ratio = target_size.width.0 as f32 / target_size.height.0 as f32;
+            let a_ratio = a.width.0 as f32 / b.height.0 as f32;
+            let b_ratio = b.width.0 as f32 / b.height.0 as f32;
 
-        let score = move |s: PxSize| -> i32 {
-            let dist = s - size;
-            if dist.width < Px(0) || dist.height < Px(0) {
-                return i32::MIN;
+            let a_distortion = (target_ratio - a_ratio).abs();
+            let b_distortion = (target_ratio - b_ratio).abs();
+
+            if !about_eq(a_distortion, b_distortion, 0.01) && a_distortion < b_distortion {
+                // prefer a, has less distortion
+                return std::cmp::Ordering::Less;
             }
 
-            // minimize texture size
-            let d = dist.width.0 + dist.height.0;
-            // minimize distortion
-            let s_ratio = s.width.0 as f32 / s.height.0 as f32;
-            let ratio_err = ((s_ratio / ratio).ln()).abs();
+            let a_dist = a - target_size;
+            let b_dist = b - target_size;
 
-            // distortion is much more important
-            const RATIO_WEIGHT: f32 = 50_000.0;
-            let ratio_pen = (ratio_err * RATIO_WEIGHT).round() as i32;
-
-            // higher is better
-            i32::MAX - d - ratio_pen
-        };
-
-        let mut best_i = usize::MAX;
-        let mut best_score = i32::MIN;
-        if self.is_loaded() {
-            let self_score = score(self.size());
-            if self_score > best_score {
-                best_i = self.entries.len();
-                best_score = self_score;
+            if a_dist.width < Px(0) || a_dist.height < Px(0) {
+                if b_dist.width < Px(0) || b_dist.height < Px(0) {
+                    // a and b need upscaling, prefer near target_size
+                    a_dist.width.abs().cmp(&b_dist.width.abs())
+                } else {
+                    // prefer b, a needs upscaling
+                    std::cmp::Ordering::Greater
+                }
+            } else if b_dist.width < Px(0) || b_dist.height < Px(0) {
+                // prefer a, b needs upscaling
+                std::cmp::Ordering::Less
+            } else {
+                // a and b need downscaling, prefer near target_size
+                a_dist.width.cmp(&b_dist.width)
             }
         }
+
+        let mut best_i = usize::MAX;
+        let mut best_size = PxSize::zero();
+
+        if self.is_loaded() {
+            best_i = self.entries.len();
+            best_size = self.size();
+        }
+
         for (i, entry) in self.entries.iter().enumerate() {
             entry.with(|e| {
                 if e.is_loaded() {
-                    let entry_score = score(e.size());
-                    if entry_score > best_score {
+                    let entry_size = e.size();
+                    if cmp(size, entry_size, best_size).is_lt() {
                         best_i = i;
-                        best_score = entry_score;
+                        best_size = entry_size;
                     }
                 }
             })
         }
 
         if best_i == usize::MAX {
+            // image and all reduced are smaller than `size`, return the largest to reduce upscaling
             None
         } else if best_i == self.entries.len() {
             Some(visit(self))

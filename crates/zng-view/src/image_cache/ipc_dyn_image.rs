@@ -180,22 +180,13 @@ impl IpcDynamicImage {
             tiff::ColorType::RGB(32) => ColorType::Rgb32F,
             tiff::ColorType::RGBA(32) => ColorType::Rgba32F,
 
-            tiff::ColorType::Palette(n) | tiff::ColorType::Gray(n) => {
-                return Err(err_unknown_color_type(n))
-            }
+            tiff::ColorType::Palette(n) | tiff::ColorType::Gray(n) => return Err(err_unknown_color_type(n)),
             tiff::ColorType::GrayA(n) => return Err(err_unknown_color_type(n.saturating_mul(2))),
             tiff::ColorType::RGB(n) => return Err(err_unknown_color_type(n.saturating_mul(3))),
             tiff::ColorType::YCbCr(n) => return Err(err_unknown_color_type(n.saturating_mul(3))),
-            tiff::ColorType::RGBA(n) | tiff::ColorType::CMYK(n) => {
-                return Err(err_unknown_color_type(n.saturating_mul(4)))
-            }
-            tiff::ColorType::Multiband {
-                bit_depth,
-                num_samples,
-            } => {
-                return Err(err_unknown_color_type(
-                    bit_depth.saturating_mul(num_samples.min(255) as u8),
-                ))
+            tiff::ColorType::RGBA(n) | tiff::ColorType::CMYK(n) => return Err(err_unknown_color_type(n.saturating_mul(4))),
+            tiff::ColorType::Multiband { bit_depth, num_samples } => {
+                return Err(err_unknown_color_type(bit_depth.saturating_mul(num_samples.min(255) as u8)));
             }
             _ => return Err(err_unknown_color_type(0)),
         };
@@ -206,7 +197,7 @@ impl IpcDynamicImage {
         let mut buf = Self::alloc_buf(total_bytes as u64)?;
 
         tiff.read_image_bytes(&mut buf[..]).map_err(e)?;
-        
+
         Self::from_decoded(buf, color_type, w, h)
     }
 
