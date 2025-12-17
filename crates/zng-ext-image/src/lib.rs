@@ -79,19 +79,10 @@ impl AppExtension for ImageManager {
                 && let Some(parent) = images.find_decoding(parent)
             {
                 // entry image first update, generate var for it and siblings in parent image
+                let image = args.image.clone();
                 parent.modify(|p| {
-                    let entries = p.view().unwrap().entries();
-                    let ev = entries
-                        .into_iter()
-                        .map(|v| {
-                            if let Some(existing) = p.entries.iter().find(|e| e.with(|e| e.view().and_then(|d| d.id())) == v.id()) {
-                                existing.clone()
-                            } else {
-                                var(Img::new(v))
-                            }
-                        })
-                        .collect();
-                    p.entries = ev;
+                    p.update();
+                    p.value().insert_entry(image);
                 });
             }
 
@@ -423,16 +414,6 @@ impl ImagesService {
                         original_color_type: image.original_color_type(),
                     }
                 };
-                fn guess_entries_mode(view: &ViewImage) -> ImageEntriesMode {
-                    let mut entries = ImageEntriesMode::empty();
-                    for entry in view.entries() {
-                        entries |= entry.entry_kind().into();
-                        entries |= guess_entries_mode(&entry);
-                    }
-                    entries
-                }
-                let entries = guess_entries_mode(&image);
-
                 let img_var = var(Img::new(image));
                 if is_loading {
                     self.decoding.push(ImageDecodingTask {
@@ -448,7 +429,7 @@ impl ImagesService {
                     max_decoded_len: limits.max_decoded_len,
                     downscale: None,
                     mask: if is_mask { Some(ImageMaskMode::A) } else { None },
-                    entries,
+                    entries: ImageEntriesMode::PRIMARY,
                 })
                 .image
                 .read_only())

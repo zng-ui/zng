@@ -31,7 +31,7 @@ use zng_view_api::{
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::{FontOptions, IpcFontBytes},
-    image::{ColorType, ImageDecoded, ImageEntryKind, ImageMaskMode, ImageMetadata, ImageRequest, ImageTextureId},
+    image::{ColorType, ImageDecoded, ImageEntryKind, ImageEntryMetadata, ImageMaskMode, ImageMetadata, ImageRequest, ImageTextureId},
     window::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, RenderMode, ResizeDirection,
         VideoMode, WindowButton, WindowRequest, WindowStateAll,
@@ -180,9 +180,7 @@ impl VIEW_PROCESS {
         let id = app.process.add_image(request)?;
         let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
             id: Some(id),
-            entry_kind: ImageEntryKind::Page,
-            entry_parent: None,
-            entries: vec![],
+            parent: None,
             app_id: APP.id(),
             generation: app.process.generation(),
             size: PxSize::zero(),
@@ -214,9 +212,7 @@ impl VIEW_PROCESS {
         let id = app.process.add_image_pro(request)?;
         let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
             id: Some(id),
-            entry_kind: ImageEntryKind::Page,
-            entry_parent: None,
-            entries: vec![],
+            parent: None,
             app_id: APP.id(),
             generation: app.process.generation(),
             size: PxSize::zero(),
@@ -399,80 +395,67 @@ impl VIEW_PROCESS {
         (surf, data)
     }
 
-    fn loading_image_index(&self, id: ImageId) -> Option<usize> {
-        let mut app = self.write();
-
-        // cleanup
-        app.loading_images.retain(|i| i.strong_count() > 0);
-
-        app.loading_images.iter().position(|i| i.upgrade().unwrap().read().id == Some(id))
-    }
-
-    fn update_image_entries(&self, img: &mut ViewImageData, mut entries: Vec<ImageId>) {
-        entries.retain(|&id| Some(id) != img.id && !img.entries.iter().any(|img| img.id() == Some(id)));
-
-        if entries.is_empty() {
-            return;
-        }
-
-        let mut app = self.write();
-
-        for id in entries {
-            if let Some(i) = app
-                .loading_images
-                .iter()
-                .map(|i| i.upgrade().unwrap())
-                .find(|i| i.read().id == Some(id))
-            {
-                img.entries.push(ViewImage(i));
-            } else {
-                // sub images are introduced in entries first, followed by events targeting it
-
-                let i = ViewImage(Arc::new(RwLock::new(ViewImageData {
-                    id: Some(id),
-                    entry_kind: ImageEntryKind::Page,
-                    entry_parent: None,
-                    entries: vec![],
-                    app_id: APP.id(),
-                    generation: app.process.generation(),
-                    size: PxSize::zero(),
-                    partial_size: PxSize::zero(),
-                    density: None,
-                    original_color_type: ColorType::new(Txt::from(""), 0, 0),
-                    is_opaque: false,
-                    partial_pixels: None,
-                    pixels: None,
-                    is_mask: false,
-                    done_signal: SignalOnce::new(),
-                })));
-                app.loading_images.push(Arc::downgrade(&i.0));
-                img.entries.push(i)
-            }
-        }
-    }
-
     pub(super) fn on_image_metadata(&self, meta: ImageMetadata) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(meta.id) {
-            let img = self.read().loading_images[i].upgrade().unwrap();
+        let mut app = self.write();
+
+        let mut found = None;
+        app.loading_images.retain(|i| {
+            if let Some(img) = i.upgrade() {
+                if found.is_none() && img.read().id == Some(meta.id) {
+                    found = Some(img);
+                }
+                // retain
+                true
+            } else {
+                false
+            }
+        });
+
+        if let Some(found) = found {
             {
-                let mut img = img.write();
+                let mut img = found.write();
                 img.size = meta.size;
                 img.density = meta.density;
                 img.original_color_type = meta.original_color_type;
                 img.is_mask = meta.is_mask;
-                img.entry_kind = meta.entry_kind;
-                img.entry_parent = meta.entry_parent;
-                self.update_image_entries(&mut img, meta.entries);
+                img.parent = meta.parent;
             }
-            Some(ViewImage(img))
+            Some(ViewImage(found))
+        } else if let Some(m) = meta.parent {
+            // assume parent is still in use and start tracking this ViewImage
+
+            let i = ViewImage(Arc::new(RwLock::new(ViewImageData {
+                id: Some(meta.id),
+                parent: Some(m),
+                app_id: APP.id(),
+                generation: app.process.generation(),
+                size: meta.size,
+                partial_size: PxSize::zero(),
+                density: meta.density,
+                original_color_type: meta.original_color_type,
+                is_opaque: false,
+                partial_pixels: None,
+                pixels: None,
+                is_mask: meta.is_mask,
+                done_signal: SignalOnce::new(),
+            })));
+            app.loading_images.push(Arc::downgrade(&i.0));
+
+            Some(i)
         } else {
+            // image discarded or unknown
             None
         }
     }
 
     pub(super) fn on_image_partially_decoded(&self, data: ImageDecoded) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(data.meta.id) {
-            let img = self.read().loading_images[i].upgrade().unwrap();
+        if let Some(img) = self
+            .read()
+            .loading_images
+            .iter()
+            .filter_map(|i| i.upgrade())
+            .find(|i| i.read().id == Some(data.meta.id))
+        {
             {
                 let mut img = img.write();
                 img.partial_size = data.meta.size;
@@ -481,9 +464,7 @@ impl VIEW_PROCESS {
                 img.is_opaque = data.is_opaque;
                 img.partial_pixels = Some(data.pixels);
                 img.is_mask = data.meta.is_mask;
-                img.entry_kind = data.meta.entry_kind;
-                img.entry_parent = data.meta.entry_parent;
-                self.update_image_entries(&mut img, data.meta.entries);
+                img.parent = data.meta.parent
             }
             Some(ViewImage(img))
         } else {
@@ -492,8 +473,22 @@ impl VIEW_PROCESS {
     }
 
     pub(super) fn on_image_decoded(&self, data: ImageDecoded) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(data.meta.id) {
-            let img = self.write().loading_images.swap_remove(i).upgrade().unwrap();
+        let mut app = self.write();
+
+        let mut found = None;
+        app.loading_images.retain(|i| {
+            if let Some(img) = i.upgrade() {
+                if found.is_none() && img.read().id == Some(data.meta.id) {
+                    found = Some(img);
+                    return false;
+                }
+                true
+            } else {
+                false
+            }
+        });
+
+        if let Some(img) = found {
             {
                 let mut img = img.write();
                 img.size = data.meta.size;
@@ -504,9 +499,7 @@ impl VIEW_PROCESS {
                 img.pixels = Some(Ok(data.pixels));
                 img.partial_pixels = None;
                 img.is_mask = data.meta.is_mask;
-                img.entry_kind = data.meta.entry_kind;
-                img.entry_parent = data.meta.entry_parent;
-                self.update_image_entries(&mut img, data.meta.entries);
+                img.parent = data.meta.parent;
                 img.done_signal.set();
             }
             Some(ViewImage(img))
@@ -516,8 +509,22 @@ impl VIEW_PROCESS {
     }
 
     pub(super) fn on_image_error(&self, id: ImageId, error: Txt) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(id) {
-            let img = self.write().loading_images.swap_remove(i).upgrade().unwrap();
+        let mut app = self.write();
+
+        let mut found = None;
+        app.loading_images.retain(|i| {
+            if let Some(img) = i.upgrade() {
+                if found.is_none() && img.read().id == Some(id) {
+                    found = Some(img);
+                    return false;
+                }
+                true
+            } else {
+                false
+            }
+        });
+
+        if let Some(img) = found {
             {
                 let mut img = img.write();
                 img.pixels = Some(Err(error));
@@ -538,9 +545,7 @@ impl VIEW_PROCESS {
         ViewImage(Arc::new(RwLock::new(ViewImageData {
             app_id: APP.id(),
             id: Some(data.meta.id),
-            entry_kind: ImageEntryKind::Page,
-            entry_parent: None,
-            entries: vec![],
+            parent: data.meta.parent,
             generation: self.generation(),
             size: data.meta.size,
             partial_size: data.meta.size,
@@ -1219,9 +1224,7 @@ impl ViewRenderer {
             let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
                 app_id: Some(app_id),
                 id: Some(id),
-                entry_kind: ImageEntryKind::Page,
-                entry_parent: None,
-                entries: vec![],
+                parent: None,
                 generation: app.process.generation(),
                 size: PxSize::zero(),
                 partial_size: PxSize::zero(),
@@ -1335,9 +1338,7 @@ struct ViewImageData {
     pixels: Option<std::result::Result<IpcBytes, Txt>>,
     is_opaque: bool,
 
-    entry_kind: ImageEntryKind,
-    entry_parent: Option<ImageId>,
-    entries: Vec<ViewImage>,
+    parent: Option<ImageEntryMetadata>,
 
     done_signal: SignalOnce,
 }
@@ -1366,21 +1367,26 @@ impl ViewImage {
 
     /// Kind of image container entry this image was decoded from.
     pub fn entry_kind(&self) -> ImageEntryKind {
-        self.0.read().entry_kind.clone()
+        self.0
+            .read()
+            .parent
+            .as_ref()
+            .map(|p| p.kind.clone())
+            .unwrap_or(ImageEntryKind::Page)
     }
 
     /// Image this one belongs too.
     ///
     /// This image will be listed on the parent `entries`.
     pub fn entry_parent(&self) -> Option<ImageId> {
-        self.0.read().entry_parent
+        self.0.read().parent.as_ref().map(|p| p.parent)
     }
 
-    /// Other images from the same container.
+    /// Position of this image as an entry in [`entry_parent`].
     ///
-    /// The other images will reference this image back as a parent in `entry_parent`.
-    pub fn entries(&self) -> Vec<ViewImage> {
-        self.0.read().entries.clone()
+    /// [`entry_parent`]: Self::entry_parent
+    pub fn entry_index(&self) -> usize {
+        self.0.read().parent.as_ref().map(|p| p.index).unwrap_or(0)
     }
 
     /// If the image does not actually exists in the view-process.
@@ -1502,9 +1508,7 @@ impl ViewImage {
             app_id: None,
             id: None,
             generation: ViewProcessGen::INVALID,
-            entry_kind: ImageEntryKind::Page,
-            entry_parent: None,
-            entries: vec![],
+            parent: None,
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
             density: None,
@@ -1658,9 +1662,7 @@ impl ViewClipboard {
                 } else {
                     let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
                         id: Some(id),
-                        entry_kind: ImageEntryKind::Page,
-                        entry_parent: None,
-                        entries: vec![],
+                        parent: None,
                         app_id: APP.id(),
                         generation: app.process.generation(),
                         size: PxSize::zero(),

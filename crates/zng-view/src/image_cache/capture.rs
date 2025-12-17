@@ -11,7 +11,7 @@ use zng_view_api::{
 
 use crate::{
     AppEvent,
-    image_cache::{Image, ImageData, ipc_dyn_image::IpcDynamicImage},
+    image_cache::{Image, ImageData, dyn_image::IpcDynamicImage},
 };
 
 use super::ImageCache;

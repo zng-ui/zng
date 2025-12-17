@@ -115,7 +115,7 @@ pub struct ImageRequest<D> {
     pub entries: ImageEntriesMode,
 
     /// Image is an entry (or subtree) of this other image.
-    pub parent: Option<(ImageId, ImageEntryKind)>,
+    pub parent: Option<ImageEntryMetadata>,
 }
 impl<D> ImageRequest<D> {
     /// New request.
@@ -452,6 +452,26 @@ fn density_key(density: Option<PxDensity2d>) -> Option<(u16, u16)> {
 /// Represents decoded header metadata about an image.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
+pub struct ImageEntryMetadata {
+    /// Image this one belongs too.
+    ///
+    /// The view-process always sends the parent image metadata first, so this id should be known by the app-process.
+    pub parent: ImageId,
+    /// Sort index of the image in the list of entries.
+    pub index: usize,
+    /// Kind of entry.
+    pub kind: ImageEntryKind,
+}
+impl ImageEntryMetadata {
+    /// New.
+    pub fn new(parent: ImageId, index: usize, kind: ImageEntryKind) -> Self {
+        Self { parent, index, kind }
+    }
+}
+
+/// Represents decoded header metadata about an image.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ImageMetadata {
     /// Image ID.
     pub id: ImageId,
@@ -463,29 +483,10 @@ pub struct ImageMetadata {
     pub is_mask: bool,
     /// Image color type before it was converted to BGRA8 or A8.
     pub original_color_type: ColorType,
-
-    /// Kind of image container entry this image was decoded from.
+    /// Extra metadata if this image is an entry in another image.
     ///
-    /// If the kind is `Page` and the `entry_parent` is `None` the image represents the
-    /// first page in the container and will list any other pages in `entries`.
-    ///
-    /// If the kind is `Page` and the `entry_parent` is set, the parent will list the pages,
-    /// this image will only list other entries directly related to it.
-    ///
-    /// If the kind is `Reduced` the `entry_parent` must be set.
-    pub entry_kind: ImageEntryKind,
-
-    /// Image this one belongs too.
-    ///
-    /// This image will be listed on the parent `entries`.
-    pub entry_parent: Option<ImageId>,
-
-    /// Other images from the same container.
-    ///
-    /// The other images will reference this image back as a parent in `entry_parent`.
-    ///
-    /// The other images are always referenced first here before the first decoded event targeting each.
-    pub entries: Vec<ImageId>,
+    /// When this is `None` the is the first [`ImageEntryKind::Page`] in the container, usually the only page.
+    pub parent: Option<ImageEntryMetadata>,
 }
 impl ImageMetadata {
     /// New.
@@ -496,9 +497,7 @@ impl ImageMetadata {
             density: None,
             is_mask,
             original_color_type,
-            entry_kind: ImageEntryKind::Page,
-            entry_parent: None,
-            entries: vec![],
+            parent: None,
         }
     }
 }

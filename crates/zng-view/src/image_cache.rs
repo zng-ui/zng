@@ -2,10 +2,9 @@
 
 use std::{fmt, sync::Arc};
 use zng_task::parking_lot::Mutex;
-use zng_view_api::image::{ColorType, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageFormat, ImageMaskMode};
+use zng_view_api::image::{ColorType, ImageDownscaleMode, ImageEntriesMode, ImageEntryMetadata, ImageFormat, ImageMaskMode};
 
 use webrender::api::ImageDescriptor;
-use zng_txt::ToTxt as _;
 use zng_txt::formatx;
 
 use zng_task::channel::{IpcBytes, IpcReceiver};
@@ -22,9 +21,9 @@ use rustc_hash::FxHashMap;
 // The `ExternalImageId` is the Arc pointer to ImageData.
 mod capture;
 mod decode;
+mod dyn_image;
 mod encode;
 mod external;
-mod ipc_dyn_image;
 pub(crate) use external::{ImageUseMap, WrImageCache};
 
 #[cfg(not(feature = "image_any"))]
@@ -162,7 +161,8 @@ impl ImageCache {
                 // try parse header early at least
                 #[cfg(feature = "image_any")]
                 if let ImageDataFormat::FileExtension(_) | ImageDataFormat::MimeType(_) | ImageDataFormat::Unknown = &format
-                    && let Ok(h) = Self::header_decode(&format, &all_data[..])
+                    && let Ok((fmt, _)) = Self::decode_container(&format, &all_data[..])
+                    && let Ok(h) = Self::decode_metadata(&all_data[..], fmt, 0)
                 {
                     let mut size = h.size;
                     let decoded_len = size.width.0 as u64 * size.height.0 as u64 * 4;
@@ -240,152 +240,147 @@ impl ImageCache {
         downscale: Option<ImageDownscaleMode>,
         mask: Option<ImageMaskMode>,
         entries: ImageEntriesMode,
-        parent: Option<(ImageId, ImageEntryKind)>,
+        parent: Option<ImageEntryMetadata>,
     ) {
-        let mut og_color_size = ColorType::BGRA8;
-        let mut downscale_sizes = (None, vec![]);
-        let r = match format {
+        let data_ref = &data[..];
+        macro_rules! error {
+            ($($tt:tt)*) => {
+                {
+                    let _ = app_sender.send(AppEvent::Notify(Event::ImageDecodeError { image: id, error: formatx!($($tt)*) }));
+                }
+            };
+        }
+        macro_rules! decoded {
+            ($r:tt, $og_color_type:expr) => {{
+                let (pixels, size, density, is_opaque, is_mask) = $r;
+                let mut meta = ImageMetadata::new(id, size, is_mask, $og_color_type);
+                meta.density = density;
+                meta.parent = parent;
+                let _ = app_sender.send(AppEvent::ImageDecoded(ImageDecoded::new(meta, pixels, is_opaque)));
+            }};
+        }
+
+        match format {
             ImageDataFormat::Bgra8 {
                 size,
                 density,
                 original_color_type,
             } => {
-                // is already decoded bgra8
-
-                downscale_sizes = self::downscale_sizes(downscale.as_ref(), size, &[]);
-                og_color_size = original_color_type;
+                let downscale_sizes = self::downscale_sizes(downscale.as_ref(), size, &[]);
 
                 let expected_len = size.width.0 as usize * size.height.0 as usize * 4;
-                if data.len() != expected_len {
-                    Err(formatx!(
+                if data_ref.len() != expected_len {
+                    return error!(
                         "pixels.len() is not width * height * 4, expected {expected_len}, found {}",
-                        data.len()
-                    ))
-                } else if let Some(mask) = mask {
-                    // but is used as mask, convert to a8
+                        data_ref.len()
+                    );
+                }
 
-                    Self::convert_bgra8_to_mask(size, &data, mask, density, downscale_sizes.0, &resizer).map_err(|e| e.to_txt())
-                } else {
-                    // and is used as bgra8, downscale if needed
-                    match Self::downscale_decoded(mask, downscale_sizes.0, &resizer, size, &data) {
-                        Ok(downscaled) => match downscaled {
-                            Some((size, data_mut)) => match data_mut.finish_blocking() {
-                                Ok(data) => {
-                                    let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
-                                    Ok((data, size, None, is_opaque, true))
-                                }
-                                Err(e) => Err(e.to_txt()),
-                            },
-                            None => {
-                                let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
-                                Ok((data, size, None, is_opaque, true))
-                            }
-                        },
-                        Err(e) => Err(e.to_txt()),
+                if let Some(mask) = mask {
+                    match Self::convert_bgra8_to_mask(size, data_ref, mask, density, downscale_sizes.0, &resizer) {
+                        Ok(r) => decoded!(r, original_color_type),
+                        Err(e) => return error!("{e}"),
                     }
+                } else {
+                    match Self::downscale_decoded(mask, downscale_sizes.0, &resizer, size, data_ref) {
+                        Ok(Some((size, data_mut))) => match data_mut.finish_blocking() {
+                            Ok(data) => {
+                                let is_opaque = data_ref.chunks_exact(4).all(|c| c[3] == 255);
+                                decoded!((data, size, None, is_opaque, true), original_color_type)
+                            }
+                            Err(e) => return error!("{e}"),
+                        },
+                        Ok(None) => {
+                            let is_opaque = data_ref.chunks_exact(4).all(|c| c[3] == 255);
+                            decoded!((data, size, None, is_opaque, true), original_color_type)
+                        }
+                        Err(e) => return error!("{e}"),
+                    }
+                }
+
+                for downscale in downscale_sizes.1 {
+                    // !!: TODO
                 }
             }
             ImageDataFormat::A8 { size } => {
-                // is already decoded mask
-
-                downscale_sizes = self::downscale_sizes(downscale.as_ref(), size, &[]);
-                og_color_size = ColorType::A8;
+                let downscale_sizes = self::downscale_sizes(downscale.as_ref(), size, &[]);
 
                 let expected_len = size.width.0 as usize * size.height.0 as usize;
                 if data.len() != expected_len {
-                    Err(formatx!(
-                        "pixels.len() is not width * height, expected {expected_len}, found {}",
-                        data.len()
-                    ))
-                } else if mask.is_none() {
-                    // but is used as mask, convert to bgra8
-                    Self::convert_a8_to_bgra8(size, &data, None, downscale_sizes.0, &resizer).map_err(|e| e.to_txt())
+                    return error!("pixels.len() is not width * height, expected {expected_len}, found {}", data.len());
+                }
+
+                if mask.is_none() {
+                    match Self::convert_a8_to_bgra8(size, &data, None, downscale_sizes.0, &resizer) {
+                        Ok(r) => decoded!(r, ColorType::A8),
+                        Err(e) => return error!("{e}"),
+                    }
                 } else {
-                    // and is used as mask, downscale if needed
                     match Self::downscale_decoded(mask, downscale_sizes.0, &resizer, size, &data) {
-                        Ok(downscaled) => match downscaled {
-                            Some((size, data_mut)) => match data_mut.finish_blocking() {
-                                Ok(data) => {
-                                    let is_opaque = data.iter().all(|&c| c == 255);
-                                    Ok((data, size, None, is_opaque, true))
-                                }
-                                Err(e) => Err(e.to_txt()),
-                            },
-                            None => {
+                        Ok(Some((size, data_mut))) => match data_mut.finish_blocking() {
+                            Ok(data) => {
                                 let is_opaque = data.iter().all(|&c| c == 255);
-                                Ok((data, size, None, is_opaque, true))
+                                decoded!((data, size, None, is_opaque, true), ColorType::A8);
                             }
+                            Err(e) => return error!("{e}"),
                         },
-                        Err(e) => Err(e.to_txt()),
-                    }
-                }
-            }
-            fmt => {
-                // needs decoding
-
-                #[cfg(not(feature = "image_any"))]
-                {
-                    let _ = (max_decoded_len, downscale);
-                    Err(zng_txt::formatx!("no decoder for {fmt:?}"))
-                }
-
-                // identify codec and parse header metadata
-                #[cfg(feature = "image_any")]
-                match Self::header_decode(&fmt, &data[..]) {
-                    Ok(h) => {
-                        let mut size = h.size;
-                        let decoded_len = size.width.0 as u64 * size.height.0 as u64 * 4;
-                        if decoded_len > max_decoded_len {
-                            Err(formatx!(
-                                "image {size:?} needs to allocate {decoded_len} bytes, but max allowed size is {max_decoded_len} bytes",
-                            ))
-                        } else {
-                            // notify metadata already
-
-                            downscale_sizes = self::downscale_sizes(downscale.as_ref(), h.size, &[]);
-                            size = downscale_sizes.0.unwrap_or(h.size);
-                            og_color_size = image_color_type_to_vp(h.og_color_type);
-                            let mut meta = ImageMetadata::new(id, size, mask.is_some(), og_color_size.clone());
-                            meta.density = h.density;
-
-                            if !notified_meta {
-                                let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataDecoded(meta)));
-                            }
-
-                            // decode
-                            match Self::image_decode(&data[..], h.format, 0) {
-                                // convert to bgra8, downscale and rotate
-                                Ok(img) => {
-                                    match Self::convert_decoded(
-                                        img,
-                                        mask,
-                                        h.density,
-                                        h.icc_profile,
-                                        downscale_sizes.0,
-                                        h.orientation,
-                                        &resizer,
-                                    ) {
-                                        Ok(r) => Ok(r),
-                                        Err(e) => Err(e.to_txt()),
-                                    }
-                                }
-                                Err(e) => Err(e.to_txt()),
-                            }
+                        Ok(None) => {
+                            let is_opaque = data.iter().all(|&c| c == 255);
+                            decoded!((data, size, None, is_opaque, true), ColorType::A8);
                         }
+                        Err(e) => return error!("{e}"),
                     }
-                    Err(e) => Err(e),
+                }
+
+                for downscale in downscale_sizes.1 {
+                    // !!: TODO
                 }
             }
-        };
-
-        match r {
-            Ok((pixels, size, density, is_opaque, is_mask)) => {
-                let mut meta = ImageMetadata::new(id, size, is_mask, og_color_size);
-                meta.density = density;
-                let _ = app_sender.send(AppEvent::ImageDecoded(ImageDecoded::new(meta, pixels, is_opaque)));
+            // needs decoding
+            #[cfg(not(feature = "image_any"))]
+            fmt => {
+                let _ = (max_decoded_len, downscale);
+                return error!("no decoder for {fmt:?}");
             }
-            Err(e) => {
-                let _ = app_sender.send(AppEvent::Notify(Event::ImageDecodeError { image: id, error: e }));
+            #[cfg(feature = "image_any")]
+            fmt => {
+                let (fmt, entries_len) = match Self::decode_container(&fmt, data_ref) {
+                    Ok(r) => r,
+                    Err(e) => return error!("{e}"),
+                };
+                let h = match Self::decode_metadata(data_ref, fmt, 0) {
+                    Ok(h) => h,
+                    Err(e) => return error!("{e}"),
+                };
+
+                let mut size = h.size;
+                let decoded_len = size.width.0 as u64 * size.height.0 as u64 * 4;
+                if decoded_len > max_decoded_len {
+                    return error!("image {size:?} needs to allocate {decoded_len} bytes, but max allowed size is {max_decoded_len} bytes",);
+                }
+
+                let downscale_sizes = self::downscale_sizes(downscale.as_ref(), h.size, &[]);
+                let og_color_size = image_color_type_to_vp(h.og_color_type);
+                if !notified_meta {
+                    size = downscale_sizes.0.unwrap_or(h.size);
+                    let mut meta = ImageMetadata::new(id, size, mask.is_some(), og_color_size.clone());
+                    meta.density = h.density;
+
+                    let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataDecoded(meta)));
+                }
+
+                match Self::decode_image(&data, fmt, 0) {
+                    Ok(img) => match Self::convert_decoded(img, mask, h.density, h.icc_profile, downscale_sizes.0, h.orientation, &resizer)
+                    {
+                        Ok(r) => decoded!(r, og_color_size),
+                        Err(e) => return error!("{e}"),
+                    },
+                    Err(e) => return error!("{e}"),
+                }
+
+                for entry in 1..entries_len {
+                    // !!: TODO
+                }
             }
         }
     }
@@ -427,7 +422,6 @@ impl ImageCache {
 }
 #[cfg(feature = "image_any")]
 struct ImageHeader {
-    format: image::ImageFormat,
     size: PxSize,
     orientation: image::metadata::Orientation,
     density: Option<PxDensity2d>,

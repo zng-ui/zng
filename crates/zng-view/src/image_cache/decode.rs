@@ -3,7 +3,7 @@
 #[cfg(feature = "image_any")]
 use crate::image_cache::ImageHeader;
 use crate::image_cache::ResizerCache;
-use crate::image_cache::ipc_dyn_image::IpcDynamicImage;
+use crate::image_cache::dyn_image::IpcDynamicImage;
 use crate::image_cache::{ImageCache, RawLoadedImg};
 use image::ImageDecoder as _;
 use zng_task::channel::{IpcBytes, IpcBytesMut};
@@ -18,8 +18,9 @@ use zng_view_api::image::ImageMaskMode;
 use crate::image_cache::lcms2;
 
 impl ImageCache {
+    /// Guess and verify the image format and get a count of entries.
     #[cfg(feature = "image_any")]
-    pub(super) fn header_decode(fmt: &ImageDataFormat, data: &[u8]) -> Result<ImageHeader, Txt> {
+    pub(super) fn decode_container(fmt: &ImageDataFormat, data: &[u8]) -> Result<(image::ImageFormat, usize), Txt> {
         let maybe_fmt = match fmt {
             ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext.as_str()),
             ImageDataFormat::MimeType(t) => t.strip_prefix("image/").and_then(image::ImageFormat::from_extension),
@@ -36,185 +37,217 @@ impl ImageCache {
                 .map_err(|e| e.to_txt())?,
         };
 
-        match reader.format() {
-            Some(fmt) => {
-                use image::metadata::Orientation::*;
+        let fmt = match reader.format() {
+            Some(f) => f,
+            None => return Err(Txt::from_static("unknown format")),
+        };
 
-                let mut decoder = match reader.into_decoder() {
-                    Ok(d) => d,
-                    Err(e) => {
-                        // decoder error, try fallback to Unknown
-                        if let image::ImageError::Decoding(_) = &e
-                            && maybe_fmt.is_some()
-                            && let Ok(r) = Self::header_decode(&ImageDataFormat::Unknown, data)
-                        {
-                            return Ok(r);
-                        }
-                        return Err(e.to_txt());
-                    }
-                };
-                let og_color_type = decoder.original_color_type();
+        if let Err(e) = reader.into_decoder() {
+            // decoder error, try fallback to Unknown
+            if let image::ImageError::Decoding(_) = &e
+                && maybe_fmt.is_some()
+                && let Ok(r) = Self::decode_container(&ImageDataFormat::Unknown, data)
+            {
+                return Ok(r);
+            }
+            return Err(e.to_txt());
+        }
 
-                let (mut w, mut h) = decoder.dimensions();
-                let orientation = decoder.orientation().unwrap_or(NoTransforms);
-                if matches!(orientation, Rotate90 | Rotate270 | Rotate90FlipH | Rotate270FlipH) {
-                    std::mem::swap(&mut w, &mut h)
+        match fmt {
+            #[cfg(feature = "image_ico")]
+            image::ImageFormat::Ico => {
+                if let Ok(ico) = ico::IconDir::read(std::io::Cursor::new(data)) {
+                    return Ok((fmt, ico.entries().len()));
                 }
+            }
+            #[cfg(feature = "image_tiff")]
+            image::ImageFormat::Tiff => {
+                if let Ok(mut tiff) = tiff::decoder::Decoder::new(std::io::Cursor::new(data)) {
+                    let mut count = 1;
+                    while tiff.next_image().is_ok() {
+                        count += 1;
+                    }
+                    return Ok((fmt, count));
+                }
+            }
+            _ => (),
+        }
 
-                let mut density = None;
-                #[cfg(feature = "image_png")]
-                let mut png_gamma = None;
-                #[cfg(feature = "image_png")]
-                let mut png_chromaticities = None;
+        Ok((fmt, 1))
+    }
 
-                match fmt {
-                    #[cfg(feature = "image_jpeg")]
-                    image::ImageFormat::Jpeg => {
-                        // `image` uses `zune-jpeg`, that decoder does not parse density correctly,
-                        // so we do it manually here
-                        fn parse_density(data: &[u8]) -> Option<(u8, u16, u16)> {
-                            let mut i = 0;
-                            while i + 4 < data.len() {
-                                // APP0
-                                if data[i] == 0xFF && data[i + 1] == 0xE0 {
-                                    let len = u16::from_be_bytes([data[i + 2], data[i + 3]]) as usize;
-                                    if i + 2 + len > data.len() {
-                                        break;
-                                    }
+    #[cfg(feature = "image_any")]
+    pub(super) fn decode_metadata(data: &[u8], fmt: image::ImageFormat, entry: usize) -> Result<ImageHeader, Txt> {
+        // multi entry containers
+        match fmt {
+            #[cfg(feature = "image_ico")]
+            image::ImageFormat::Ico => return Self::decode_metadata_ico(data, entry),
+            #[cfg(feature = "image_tiff")]
+            image::ImageFormat::Tiff => return Self::decode_metadata_tiff(data, entry),
+            _ => {}
+        }
 
-                                    // APP0 payload starts at i+4, identifier is 5 bytes: "JFIF\0"
-                                    let p = i + 4;
-                                    if &data[p..p + 5] == b"JFIF\0" && p + 14 <= data.len() {
-                                        let unit = data[p + 7];
-                                        let x = u16::from_be_bytes([data[p + 8], data[p + 9]]);
-                                        let y = u16::from_be_bytes([data[p + 10], data[p + 11]]);
-                                        return Some((unit, x, y));
-                                    }
+        // single entry containers
 
-                                    i += 2 + len;
-                                } else if data[i] == 0xFF && data[i + 1] == 0xDA {
-                                    // Start of Scan
-                                    break;
-                                } else {
-                                    i += 1;
-                                }
-                            }
-                            None
-                        }
-                        if let Some((unit, x, y)) = parse_density(data) {
-                            match unit {
-                                // inches
-                                1 => {
-                                    density = Some(PxDensity2d::new((x as f32).ppi(), (y as f32).ppi()));
-                                }
-                                // centimeters
-                                2 => {
-                                    density = Some(PxDensity2d::new((x as f32).ppcm(), (y as f32).ppcm()));
-                                }
-                                _ => {}
-                            }
+        let mut decoder = image::ImageReader::with_format(std::io::Cursor::new(data), fmt)
+            .into_decoder()
+            .unwrap();
+
+        // metadata generalized by image crate
+        let og_color_type = decoder.original_color_type();
+        let (mut w, mut h) = decoder.dimensions();
+        let mut orientation = decoder.orientation().unwrap_or(NoTransforms);
+        let mut density = None;
+        let mut icc_profile = None;
+
+        // metadata patches
+        #[cfg(feature = "image_png")]
+        let mut png_gamma = None;
+        #[cfg(feature = "image_png")]
+        let mut png_chromaticities = None;
+        match fmt {
+            #[cfg(feature = "image_jpeg")]
+            image::ImageFormat::Jpeg => {
+                // jpeg built-in density
+                density = crate::image_cache::dyn_image::jpeg_density(data);
+            }
+            #[cfg(feature = "image_png")]
+            image::ImageFormat::Png => {
+                // png built-in density and color management
+                let d = png::Decoder::new_with_limits(std::io::Cursor::new(data), png::Limits { bytes: usize::MAX });
+                let d = d.read_info().map_err(|e| e.to_txt())?;
+                let info = d.info();
+                if let Some(d) = info.pixel_dims {
+                    match d.unit {
+                        png::Unit::Unspecified => {}
+                        png::Unit::Meter => {
+                            use zng_unit::PxDensity;
+
+                            density = Some(PxDensity2d::new(
+                                PxDensity::new_ppm(d.xppu as f32),
+                                PxDensity::new_ppm(d.yppu as f32),
+                            ));
                         }
                     }
-                    #[cfg(feature = "image_png")]
-                    image::ImageFormat::Png => {
-                        let d = png::Decoder::new_with_limits(std::io::Cursor::new(data), png::Limits { bytes: usize::MAX });
-                        let d = d.read_info().map_err(|e| e.to_txt())?;
-                        let info = d.info();
-                        if let Some(d) = info.pixel_dims {
-                            match d.unit {
-                                png::Unit::Unspecified => {}
-                                png::Unit::Meter => {
-                                    use zng_unit::PxDensity;
+                }
+                png_gamma = info.gama_chunk;
+                png_chromaticities = info.chrm_chunk;
+            }
+            _ => {}
+        }
 
-                                    density = Some(PxDensity2d::new(
-                                        PxDensity::new_ppm(d.xppu as f32),
-                                        PxDensity::new_ppm(d.yppu as f32),
-                                    ));
-                                }
-                            }
-                        }
-                        png_gamma = info.gama_chunk;
-                        png_chromaticities = info.chrm_chunk;
-                    }
-                    #[cfg(feature = "image_tiff")]
-                    image::ImageFormat::Tiff => {
-                        use tiff::{decoder::ifd::Value, tags::Tag};
-                        let mut d = tiff::decoder::Decoder::new(std::io::Cursor::new(data))
-                            .map_err(|e| e.to_txt())?
-                            .with_limits(tiff::decoder::Limits::unlimited());
-                        let res_unit = d.get_tag(Tag::ResolutionUnit).ok().and_then(|t| t.into_u16().ok()).unwrap_or(2);
-                        if let Ok(Value::Rational(x_num, x_denom)) = d.get_tag(Tag::XResolution)
-                            && let Ok(Value::Rational(y_num, y_denom)) = d.get_tag(Tag::YResolution)
-                        {
-                            let x = x_num as f32 / x_denom as f32;
-                            let y = y_num as f32 / y_denom as f32;
-                            match res_unit {
-                                // inches
-                                2 => {
-                                    density = Some(PxDensity2d::new(x.ppi(), y.ppi()));
-                                }
-                                // centimeters
-                                3 => {
-                                    density = Some(PxDensity2d::new(x.ppcm(), y.ppcm()));
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
+        // exif fallback
+        if (density.is_none() || matches!(orientation, NoTransforms))
+            && let Ok(Some(exif)) = decoder.exif_metadata()
+        {
+            Self::decode_exif_metadata(exif, &mut orientation, &mut density);
+        }
+
+        // color profile
+        if let Ok(Some(icc)) = decoder.icc_profile() {
+            icc_profile = Self::parse_icc(icc);
+        }
+        #[cfg(feature = "image_png")]
+        if icc_profile.is_none() {
+            // PNG has some color management metadata, convert to standard
+            icc_profile = crate::util::png_color_metadata_to_icc(png_gamma, png_chromaticities);
+        }
+
+        use image::metadata::Orientation::*;
+        if matches!(orientation, Rotate90 | Rotate270 | Rotate90FlipH | Rotate270FlipH) {
+            std::mem::swap(&mut w, &mut h)
+        }
+
+        Ok(ImageHeader {
+            size: PxSize::new(Px(w as i32), Px(h as i32)),
+            orientation,
+            density,
+            icc_profile,
+            og_color_type,
+        })
+    }
+
+    #[cfg(feature = "image_ico")]
+    fn decode_metadata_ico(data: &[u8], entry: usize) -> Result<ImageHeader, Txt> {
+        let ico = ico::IconDir::read(std::io::Cursor::new(data)).map_err(|e| e.to_txt())?;
+
+        let entry = &ico.entries()[entry];
+        if entry.is_png() {
+            Self::decode_metadata(entry.data(), image::ImageFormat::Png, 0)
+        } else {
+            Ok(ImageHeader {
+                size: PxSize::new(Px(entry.width() as _), Px(entry.height() as _)),
+                orientation: image::metadata::Orientation::NoTransforms,
+                density: None,
+                icc_profile: None,
+                og_color_type: image::ExtendedColorType::Rgba8,
+            })
+        }
+    }
+    #[cfg(feature = "image_tiff")]
+    fn decode_metadata_tiff(data: &[u8], entry: usize) -> Result<ImageHeader, Txt> {
+        let mut tiff = tiff::decoder::Decoder::new(std::io::Cursor::new(data)).map_err(|e| e.to_txt())?;
+        tiff.seek_to_image(entry).map_err(|e| e.to_txt())?;
+        let (w, h) = tiff.dimensions().map_err(|e| e.to_txt())?;
+        let color_type = crate::image_cache::dyn_image::tiff_color_type(&mut tiff).map_err(|e| e.to_txt())?;
+        let orientation = crate::image_cache::dyn_image::tiff_orientation(&mut tiff).map_err(|e| e.to_txt())?;
+        let density = crate::image_cache::dyn_image::tiff_density(&mut tiff);
+        let icc_profile = crate::image_cache::dyn_image::tiff_icc_profile(&mut tiff).and_then(Self::parse_icc);
+        Ok(ImageHeader {
+            size: PxSize::new(Px(w as _), Px(h as _)),
+            orientation,
+            density,
+            icc_profile,
+            og_color_type: color_type.into(),
+        })
+    }
+
+    /// Replace non-default orientation and density with exif values
+    #[cfg(feature = "image_any")]
+    fn decode_exif_metadata(exif: Vec<u8>, orientation: &mut image::metadata::Orientation, density: &mut Option<PxDensity2d>) {
+        use exif::Tag;
+        if let Ok(exif) = exif::Reader::new().read_raw(exif) {
+            if matches!(*orientation, image::metadata::Orientation::NoTransforms)
+                && let Some(o) = exif.get_field(Tag::Orientation, exif::In::PRIMARY)
+                && let Some(o) = o.value.get_uint(0)
+                && let Some(o) = image::metadata::Orientation::from_exif(o.min(255) as u8)
+            {
+                *orientation = o;
+            }
+
+            if density.is_none()
+                && let Some(unit) = exif.get_field(Tag::ResolutionUnit, exif::In::PRIMARY)
+                && let Some(x) = exif.get_field(Tag::XResolution, exif::In::PRIMARY)
+                && let Some(y) = exif.get_field(Tag::YResolution, exif::In::PRIMARY)
+                && let exif::Value::Rational(x) = &x.value
+                && let exif::Value::Rational(y) = &y.value
+            {
+                let x = x[0].to_f32();
+                let y = y[0].to_f32();
+                match unit.value.get_uint(0) {
+                    // inches
+                    Some(2) => *density = Some(PxDensity2d::new(x.ppi(), y.ppi())),
+                    // centimeters
+                    Some(3) => *density = Some(PxDensity2d::new(x.ppcm(), y.ppcm())),
                     _ => {}
                 }
-
-                if density.is_none()
-                    && let Ok(Some(exif)) = decoder.exif_metadata()
-                    && let Ok(exif) = exif::Reader::new().read_raw(exif)
-                {
-                    use exif::Tag;
-                    if let Some(unit) = exif.get_field(Tag::ResolutionUnit, exif::In::PRIMARY)
-                        && let Some(x) = exif.get_field(Tag::XResolution, exif::In::PRIMARY)
-                        && let Some(y) = exif.get_field(Tag::YResolution, exif::In::PRIMARY)
-                        && let exif::Value::Rational(x) = &x.value
-                        && let exif::Value::Rational(y) = &y.value
-                    {
-                        let x = x[0].to_f32();
-                        let y = y[0].to_f32();
-                        match unit.value.get_uint(0) {
-                            // inches
-                            Some(2) => density = Some(PxDensity2d::new(x.ppi(), y.ppi())),
-                            // centimeters
-                            Some(3) => density = Some(PxDensity2d::new(x.ppcm(), y.ppcm())),
-                            _ => {}
-                        }
-                    }
-                }
-
-                let mut icc_profile = None;
-                if let Ok(Some(icc)) = decoder.icc_profile() {
-                    match lcms2::Profile::new_icc(&icc) {
-                        Ok(p) => icc_profile = Some(p),
-                        Err(e) => tracing::error!("error parsing ICC profile, {e}"),
-                    }
-                }
-                #[cfg(feature = "image_png")]
-                if icc_profile.is_none() {
-                    // PNG has some color management metadata, convert to standard
-                    icc_profile = crate::util::png_color_metadata_to_icc(png_gamma, png_chromaticities);
-                }
-
-                Ok(ImageHeader {
-                    format: fmt,
-                    size: PxSize::new(Px(w as i32), Px(h as i32)),
-                    orientation,
-                    density,
-                    icc_profile,
-                    og_color_type,
-                })
             }
-            None => Err(Txt::from_static("unknown format")),
         }
     }
 
     #[cfg(feature = "image_any")]
-    pub(super) fn image_decode(buf: &[u8], format: image::ImageFormat, entry: usize) -> image::ImageResult<IpcDynamicImage> {
+    fn parse_icc(icc: Vec<u8>) -> Option<lcms2::Profile> {
+        match lcms2::Profile::new_icc(&icc) {
+            Ok(p) => Some(p),
+            Err(e) => {
+                tracing::error!("error parsing ICC profile, {e}");
+                None
+            }
+        }
+    }
+
+    #[cfg(feature = "image_any")]
+    pub(super) fn decode_image(buf: &[u8], format: image::ImageFormat, entry: usize) -> image::ImageResult<IpcDynamicImage> {
         IpcDynamicImage::decode(buf, format, entry)
     }
 

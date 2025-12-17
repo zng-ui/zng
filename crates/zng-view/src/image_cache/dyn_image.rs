@@ -137,66 +137,18 @@ impl IpcDynamicImage {
 
     #[cfg(feature = "image_tiff")]
     fn decode_tiff(buf: &[u8], entry: usize) -> image::ImageResult<Self> {
-        fn e(e: tiff::TiffError) -> image::ImageError {
-            // https://docs.rs/image/0.25.9/src/image/codecs/tiff.rs.html#190
-            match e {
-                tiff::TiffError::IoError(err) => image::ImageError::IoError(err),
-                err @ (tiff::TiffError::FormatError(_) | tiff::TiffError::IntSizeError | tiff::TiffError::UsageError(_)) => {
-                    image::ImageError::Decoding(DecodingError::new(ImageFormat::Tiff.into(), err))
-                }
-                tiff::TiffError::UnsupportedError(desc) => image::ImageError::Unsupported(UnsupportedError::from_format_and_kind(
-                    ImageFormat::Tiff.into(),
-                    UnsupportedErrorKind::GenericFeature(desc.to_string()),
-                )),
-                tiff::TiffError::LimitsExceeded => image::ImageError::Limits(LimitError::from_kind(LimitErrorKind::InsufficientMemory)),
-            }
-        }
-
         let buf = std::io::Cursor::new(buf);
 
-        let mut tiff = tiff::decoder::Decoder::new(buf).map_err(e)?;
-        tiff.seek_to_image(entry).map_err(e)?;
+        let mut tiff = tiff::decoder::Decoder::new(buf).map_err(tiff_error)?;
+        tiff.seek_to_image(entry).map_err(tiff_error)?;
 
-        // https://docs.rs/image/0.25.9/src/image/codecs/tiff.rs.html#182
-        fn err_unknown_color_type(value: u8) -> ImageError {
-            ImageError::Unsupported(UnsupportedError::from_format_and_kind(
-                ImageFormat::Tiff.into(),
-                UnsupportedErrorKind::Color(ExtendedColorType::Unknown(value)),
-            ))
-        }
-        // https://docs.rs/image/0.25.9/src/image/codecs/tiff.rs.html#74
-        let color_type = match tiff.colortype().map_err(e)? {
-            tiff::ColorType::Gray(1) => ColorType::L8,
-            tiff::ColorType::Gray(8) => ColorType::L8,
-            tiff::ColorType::Gray(16) => ColorType::L16,
-            tiff::ColorType::GrayA(8) => ColorType::La8,
-            tiff::ColorType::GrayA(16) => ColorType::La16,
-            tiff::ColorType::RGB(8) => ColorType::Rgb8,
-            tiff::ColorType::RGB(16) => ColorType::Rgb16,
-            tiff::ColorType::RGBA(8) => ColorType::Rgba8,
-            tiff::ColorType::RGBA(16) => ColorType::Rgba16,
-            tiff::ColorType::CMYK(8) => ColorType::Rgb8,
-            tiff::ColorType::CMYK(16) => ColorType::Rgb16,
-            tiff::ColorType::RGB(32) => ColorType::Rgb32F,
-            tiff::ColorType::RGBA(32) => ColorType::Rgba32F,
+        let (w, h) = tiff.dimensions().map_err(tiff_error)?;
+        let color_type = tiff_color_type(&mut tiff)?;
 
-            tiff::ColorType::Palette(n) | tiff::ColorType::Gray(n) => return Err(err_unknown_color_type(n)),
-            tiff::ColorType::GrayA(n) => return Err(err_unknown_color_type(n.saturating_mul(2))),
-            tiff::ColorType::RGB(n) => return Err(err_unknown_color_type(n.saturating_mul(3))),
-            tiff::ColorType::YCbCr(n) => return Err(err_unknown_color_type(n.saturating_mul(3))),
-            tiff::ColorType::RGBA(n) | tiff::ColorType::CMYK(n) => return Err(err_unknown_color_type(n.saturating_mul(4))),
-            tiff::ColorType::Multiband { bit_depth, num_samples } => {
-                return Err(err_unknown_color_type(bit_depth.saturating_mul(num_samples.min(255) as u8)));
-            }
-            _ => return Err(err_unknown_color_type(0)),
-        };
-
-        let (w, h) = tiff.dimensions().map_err(e)?;
-
-        let total_bytes = tiff.image_buffer_layout().map_err(e)?.len;
+        let total_bytes = tiff.image_buffer_layout().map_err(tiff_error)?.len;
         let mut buf = Self::alloc_buf(total_bytes as u64)?;
 
-        tiff.read_image_bytes(&mut buf[..]).map_err(e)?;
+        tiff.read_image_bytes(&mut buf[..]).map_err(tiff_error)?;
 
         Self::from_decoded(buf, color_type, w, h)
     }
@@ -231,4 +183,150 @@ impl IpcDynamicImage {
     pub fn dimensions(&self) -> (u32, u32) {
         dynamic_map!(*self, ref p, p.dimensions())
     }
+}
+
+#[cfg(feature = "image_tiff")]
+fn tiff_error(e: tiff::TiffError) -> image::ImageError {
+    // https://docs.rs/image/0.25.9/src/image/codecs/tiff.rs.html#190
+    match e {
+        tiff::TiffError::IoError(err) => image::ImageError::IoError(err),
+        err @ (tiff::TiffError::FormatError(_) | tiff::TiffError::IntSizeError | tiff::TiffError::UsageError(_)) => {
+            image::ImageError::Decoding(DecodingError::new(ImageFormat::Tiff.into(), err))
+        }
+        tiff::TiffError::UnsupportedError(desc) => image::ImageError::Unsupported(UnsupportedError::from_format_and_kind(
+            ImageFormat::Tiff.into(),
+            UnsupportedErrorKind::GenericFeature(desc.to_string()),
+        )),
+        tiff::TiffError::LimitsExceeded => image::ImageError::Limits(LimitError::from_kind(LimitErrorKind::InsufficientMemory)),
+    }
+}
+#[cfg(feature = "image_tiff")]
+pub(crate) fn tiff_color_type<R: std::io::Read + std::io::Seek>(tiff: &mut tiff::decoder::Decoder<R>) -> image::ImageResult<ColorType> {
+    // https://docs.rs/image/0.25.9/src/image/codecs/tiff.rs.html#182
+    fn err_unknown_color_type(value: u8) -> ImageError {
+        ImageError::Unsupported(UnsupportedError::from_format_and_kind(
+            ImageFormat::Tiff.into(),
+            UnsupportedErrorKind::Color(ExtendedColorType::Unknown(value)),
+        ))
+    }
+    // https://docs.rs/image/0.25.9/src/image/codecs/tiff.rs.html#74
+    let color_type = match tiff.colortype().map_err(tiff_error)? {
+        tiff::ColorType::Gray(1) => ColorType::L8,
+        tiff::ColorType::Gray(8) => ColorType::L8,
+        tiff::ColorType::Gray(16) => ColorType::L16,
+        tiff::ColorType::GrayA(8) => ColorType::La8,
+        tiff::ColorType::GrayA(16) => ColorType::La16,
+        tiff::ColorType::RGB(8) => ColorType::Rgb8,
+        tiff::ColorType::RGB(16) => ColorType::Rgb16,
+        tiff::ColorType::RGBA(8) => ColorType::Rgba8,
+        tiff::ColorType::RGBA(16) => ColorType::Rgba16,
+        tiff::ColorType::CMYK(8) => ColorType::Rgb8,
+        tiff::ColorType::CMYK(16) => ColorType::Rgb16,
+        tiff::ColorType::RGB(32) => ColorType::Rgb32F,
+        tiff::ColorType::RGBA(32) => ColorType::Rgba32F,
+
+        tiff::ColorType::Palette(n) | tiff::ColorType::Gray(n) => return Err(err_unknown_color_type(n)),
+        tiff::ColorType::GrayA(n) => return Err(err_unknown_color_type(n.saturating_mul(2))),
+        tiff::ColorType::RGB(n) => return Err(err_unknown_color_type(n.saturating_mul(3))),
+        tiff::ColorType::YCbCr(n) => return Err(err_unknown_color_type(n.saturating_mul(3))),
+        tiff::ColorType::RGBA(n) | tiff::ColorType::CMYK(n) => return Err(err_unknown_color_type(n.saturating_mul(4))),
+        tiff::ColorType::Multiband { bit_depth, num_samples } => {
+            return Err(err_unknown_color_type(bit_depth.saturating_mul(num_samples.min(255) as u8)));
+        }
+        _ => return Err(err_unknown_color_type(0)),
+    };
+
+    Ok(color_type)
+}
+#[cfg(feature = "image_tiff")]
+pub(crate) fn tiff_orientation<R: std::io::Read + std::io::Seek>(
+    tiff: &mut tiff::decoder::Decoder<R>,
+) -> image::ImageResult<image::metadata::Orientation> {
+    // https://docs.rs/image/latest/src/image/codecs/tiff.rs.html#290
+    let orientation = tiff.find_tag(tiff::tags::Tag::Orientation).map_err(tiff_error)?;
+    let orientation = orientation.and_then(|v| image::metadata::Orientation::from_exif(v.into_u16().ok()?.min(255) as u8));
+    Ok(orientation.unwrap_or(image::metadata::Orientation::NoTransforms))
+}
+#[cfg(feature = "image_tiff")]
+pub(crate) fn tiff_density<R: std::io::Read + std::io::Seek>(tiff: &mut tiff::decoder::Decoder<R>) -> Option<zng_unit::PxDensity2d> {
+    use zng_unit::PxDensity2d;
+    use zng_unit::PxDensityUnits as _;
+
+    use tiff::{decoder::ifd::Value, tags::Tag};
+    let res_unit = tiff.get_tag(Tag::ResolutionUnit).ok().and_then(|t| t.into_u16().ok()).unwrap_or(2);
+    if let Ok(Value::Rational(x_num, x_denom)) = tiff.get_tag(Tag::XResolution)
+        && let Ok(Value::Rational(y_num, y_denom)) = tiff.get_tag(Tag::YResolution)
+    {
+        let x = x_num as f32 / x_denom as f32;
+        let y = y_num as f32 / y_denom as f32;
+        match res_unit {
+            // inches
+            2 => {
+                return Some(PxDensity2d::new(x.ppi(), y.ppi()));
+            }
+            // centimeters
+            3 => {
+                return Some(PxDensity2d::new(x.ppcm(), y.ppcm()));
+            }
+            _ => {}
+        }
+    }
+    None
+}
+#[cfg(feature = "image_tiff")]
+pub(crate) fn tiff_icc_profile<R: std::io::Read + std::io::Seek>(tiff: &mut tiff::decoder::Decoder<R>) -> Option<Vec<u8>> {
+    // https://docs.rs/image/latest/src/image/codecs/tiff.rs.html#264
+    tiff.get_tag_u8_vec(tiff::tags::Tag::Unknown(34675)).ok()
+}
+
+#[cfg(feature = "image_jpeg")]
+pub(crate) fn jpeg_density(data: &[u8]) -> Option<zng_unit::PxDensity2d> {
+    use zng_unit::PxDensity2d;
+    use zng_unit::PxDensityUnits as _;
+
+    // `image` uses `zune-jpeg`, that decoder does not parse density correctly,
+    // so we do it manually here
+    fn parse_density(data: &[u8]) -> Option<(u8, u16, u16)> {
+        let mut i = 0;
+        while i + 4 < data.len() {
+            // APP0
+            if data[i] == 0xFF && data[i + 1] == 0xE0 {
+                let len = u16::from_be_bytes([data[i + 2], data[i + 3]]) as usize;
+                if i + 2 + len > data.len() {
+                    break;
+                }
+
+                // APP0 payload starts at i+4, identifier is 5 bytes: "JFIF\0"
+                let p = i + 4;
+                if &data[p..p + 5] == b"JFIF\0" && p + 14 <= data.len() {
+                    let unit = data[p + 7];
+                    let x = u16::from_be_bytes([data[p + 8], data[p + 9]]);
+                    let y = u16::from_be_bytes([data[p + 10], data[p + 11]]);
+                    return Some((unit, x, y));
+                }
+
+                i += 2 + len;
+            } else if data[i] == 0xFF && data[i + 1] == 0xDA {
+                // Start of Scan
+                break;
+            } else {
+                i += 1;
+            }
+        }
+        None
+    }
+    if let Some((unit, x, y)) = parse_density(data) {
+        match unit {
+            // inches
+            1 => {
+                return Some(PxDensity2d::new((x as f32).ppi(), (y as f32).ppi()));
+            }
+            // centimeters
+            2 => {
+                return Some(PxDensity2d::new((x as f32).ppcm(), (y as f32).ppcm()));
+            }
+            _ => {}
+        }
+    }
+    None
 }

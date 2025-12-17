@@ -23,7 +23,7 @@ use zng_task::{
     channel::{IpcBytes, IpcBytesMut},
 };
 use zng_txt::Txt;
-use zng_var::{Var, animation::Transitionable, impl_from_and_into_var, var};
+use zng_var::{Var, animation::Transitionable, impl_from_and_into_var};
 use zng_view_api::image::ImageTextureId;
 
 use crate::render::ImageRenderWindowRoot;
@@ -154,6 +154,12 @@ pub enum ProxyRemoveResult {
 /// [`IMAGES`]: super::IMAGES
 pub type ImageVar = Var<Img>;
 
+#[derive(Default, Debug)]
+struct ImgMut {
+    render_ids: Vec<RenderImage>,
+    entries: Vec<ImageVar>,
+}
+
 /// State of an [`ImageVar`].
 ///
 /// Each instance of this struct represent a single state,
@@ -161,10 +167,10 @@ pub type ImageVar = Var<Img>;
 pub struct Img {
     // use inner_set_or_replace to set
     pub(super) view: OnceCell<ViewImage>,
-    render_ids: Arc<Mutex<Vec<RenderImage>>>,
     pub(super) done_signal: SignalOnce,
     pub(super) cache_key: Option<ImageHash>,
-    pub(super) entries: Vec<ImageVar>,
+
+    img_mut: Arc<Mutex<ImgMut>>,
 }
 impl PartialEq for Img {
     fn eq(&self, other: &Self) -> bool {
@@ -175,25 +181,22 @@ impl Img {
     pub(super) fn new_none(cache_key: Option<ImageHash>) -> Self {
         Img {
             view: OnceCell::new(),
-            render_ids: Arc::default(),
             done_signal: SignalOnce::new(),
             cache_key,
-            entries: vec![],
+            img_mut: Arc::default(),
         }
     }
 
     /// New from existing `ViewImage`.
     pub fn new(view: ViewImage) -> Self {
-        let entries = view.entries().into_iter().map(|v| var(Self::new(v))).collect();
         let sig = view.awaiter();
         let v = OnceCell::new();
         let _ = v.set(view);
         Img {
             view: v,
-            render_ids: Arc::default(),
             done_signal: sig,
             cache_key: None,
-            entries,
+            img_mut: Arc::default(),
         }
     }
 
@@ -295,7 +298,7 @@ impl Img {
 
     /// Other images from the same container that reference back to this image as parent.
     pub fn entries(&self) -> Vec<ImageVar> {
-        self.entries.iter().map(|v| v.read_only()).collect()
+        self.img_mut.lock().entries.iter().map(|e| e.read_only()).collect()
     }
 
     /// Kind of image container entry this image was decoded from.
@@ -343,12 +346,14 @@ impl Img {
         let mut best_i = usize::MAX;
         let mut best_size = PxSize::zero();
 
+        let img = self.img_mut.lock();
+
         if self.is_loaded() {
-            best_i = self.entries.len();
+            best_i = img.entries.len();
             best_size = self.size();
         }
 
-        for (i, entry) in self.entries.iter().enumerate() {
+        for (i, entry) in img.entries.iter().enumerate() {
             entry.with(|e| {
                 if e.is_loaded() {
                     let entry_size = e.size();
@@ -363,10 +368,10 @@ impl Img {
         if best_i == usize::MAX {
             // image and all reduced are smaller than `size`, return the largest to reduce upscaling
             None
-        } else if best_i == self.entries.len() {
+        } else if best_i == img.entries.len() {
             Some(visit(self))
         } else {
-            Some(self.entries[best_i].with(visit))
+            Some(img.entries[best_i].with(visit))
         }
     }
 
@@ -521,18 +526,17 @@ impl Img {
                 // this can happen on reload
                 let cache_key = self.cache_key;
                 *self = Self {
-                    entries: img.entries().into_iter().map(|v| var(Self::new(v))).collect(),
                     view: OnceCell::with_value(img),
-                    render_ids: Arc::default(),
                     done_signal: if done { SignalOnce::new_set() } else { SignalOnce::new() },
                     cache_key,
+                    img_mut: Arc::default(),
                 };
             }
         }
     }
 
     pub(crate) fn find_entry(&self, id: zng_view_api::image::ImageId) -> Option<ImageVar> {
-        self.entries.iter().find_map(|v| {
+        self.img_mut.lock().entries.iter().find_map(|v| {
             if v.with(|i| i.view().map(|i| i.id() == Some(id))).unwrap_or(false) {
                 Some(v.clone())
             } else {
@@ -542,13 +546,32 @@ impl Img {
     }
 
     pub(crate) fn has_loading_entries(&self) -> bool {
-        self.entries.iter().any(|e| e.with(|e| e.is_loading() || e.has_loading_entries()))
+        self.img_mut
+            .lock()
+            .entries
+            .iter()
+            .any(|e| e.with(|e| e.is_loading() || e.has_loading_entries()))
+    }
+
+    pub(crate) fn insert_entry(&self, entry: ViewImage) {
+        let mut self_ = self.img_mut.lock();
+        let i = entry.entry_index();
+        let i = self_
+            .entries
+            .iter()
+            .position(|v| {
+                let entry_i = v.with(|i| i.view().map(|v| v.entry_index())).unwrap_or(0);
+                entry_i > i
+            })
+            .unwrap_or(self_.entries.len());
+        self_.entries.insert(i, zng_var::var(Self::new(entry)));
     }
 }
 impl zng_app::render::Img for Img {
     fn renderer_id(&self, renderer: &ViewRenderer) -> ImageTextureId {
         if self.is_loaded() {
-            let mut rms = self.render_ids.lock();
+            let mut img = self.img_mut.lock();
+            let rms = &mut img.render_ids;
             if let Some(rm) = rms.iter().find(|k| &k.renderer == renderer) {
                 return rm.image_id;
             }
