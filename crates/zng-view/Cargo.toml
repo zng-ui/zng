@@ -69,7 +69,7 @@ image_gif = ["image_any", "image/gif"]
 # Enable Radiance HDR image decoder and encoder.
 image_hdr = ["image_any", "image/hdr"]
 # Enable ICO image decoder and encoder.
-image_ico = ["image_any", "image/ico"]
+image_ico = ["image_any", "image/ico", "dep:ico"]
 # Enable JPEG image decoder and encoder.
 image_jpeg = ["image_any", "image/jpeg"]
 # Enable PNG image decoder and encoder.
@@ -135,6 +135,7 @@ winit = { version = "0.30", default-features = false, features = [
 glutin = { version = "0.32", default-features = false, features = ["egl", "glx", "wayland", "wgl", "x11" ], optional = true }
 raw-window-handle = { version = "0.6", default-features = false } # matches glutin
 image = { version = "0.25", default-features = false, features = ["rayon"] } # on upgrade review audit.toml
+ico = { version = "0.5.0", default-features = false, optional = true }
 fast_image_resize = { version = "5.4.0", default-features = false, features = ["rayon", "image"] }
 img-parts = { version = "0.4", default-features = false, features = ["std"] }
 byteorder = { version = "1.5", default-features = false }

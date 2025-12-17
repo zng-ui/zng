@@ -215,13 +215,7 @@ impl ImageCache {
 
     #[cfg(feature = "image_any")]
     pub(super) fn image_decode(buf: &[u8], format: image::ImageFormat, entry: usize) -> image::ImageResult<IpcDynamicImage> {
-        let buf = std::io::Cursor::new(buf);
-
-        let mut reader = image::ImageReader::new(buf);
-        reader.set_format(format);
-        reader.no_limits();
-
-        IpcDynamicImage::decode(reader, entry)
+        IpcDynamicImage::decode(buf, format, entry)
     }
 
     pub(super) fn convert_decoded(
