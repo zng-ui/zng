@@ -346,14 +346,14 @@ impl Img {
         let mut best_i = usize::MAX;
         let mut best_size = PxSize::zero();
 
-        let img = self.img_mut.lock();
+        let img_mut = self.img_mut.lock();
 
         if self.is_loaded() {
-            best_i = img.entries.len();
+            best_i = img_mut.entries.len();
             best_size = self.size();
         }
 
-        for (i, entry) in img.entries.iter().enumerate() {
+        for (i, entry) in img_mut.entries.iter().enumerate() {
             entry.with(|e| {
                 if e.is_loaded() {
                     let entry_size = e.size();
@@ -368,10 +368,13 @@ impl Img {
         if best_i == usize::MAX {
             // image and all reduced are smaller than `size`, return the largest to reduce upscaling
             None
-        } else if best_i == img.entries.len() {
+        } else if best_i == img_mut.entries.len() {
+            drop(img_mut);
             Some(visit(self))
         } else {
-            Some(img.entries[best_i].with(visit))
+            let entry = img_mut.entries[best_i].clone();
+            drop(img_mut);
+            Some(entry.with(visit))
         }
     }
 
