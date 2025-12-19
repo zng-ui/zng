@@ -12,15 +12,16 @@ use zng_txt::Txt;
 use zng_unit::PxDensityUnits as _;
 use zng_unit::{Px, PxDensity2d, PxSize};
 use zng_view_api::image::ImageDataFormat;
+use zng_view_api::image::ImageEntryKind;
 use zng_view_api::image::ImageMaskMode;
 
 #[cfg(not(feature = "image_any"))]
 use crate::image_cache::lcms2;
 
 impl ImageCache {
-    /// Guess and verify the image format and get a count of entries.
+    /// Guess and verify the image format and get entries sorted by kind and size.
     #[cfg(feature = "image_any")]
-    pub(super) fn decode_container(fmt: &ImageDataFormat, data: &[u8]) -> Result<(image::ImageFormat, usize), Txt> {
+    pub(super) fn decode_container(fmt: &ImageDataFormat, data: &[u8]) -> Result<(image::ImageFormat, Vec<(usize, ImageEntryKind)>), Txt> {
         let maybe_fmt = match fmt {
             ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext.as_str()),
             ImageDataFormat::MimeType(t) => t.strip_prefix("image/").and_then(image::ImageFormat::from_extension),
@@ -57,23 +58,81 @@ impl ImageCache {
             #[cfg(feature = "image_ico")]
             image::ImageFormat::Ico => {
                 if let Ok(ico) = ico::IconDir::read(std::io::Cursor::new(data)) {
-                    return Ok((fmt, ico.entries().len()));
+                    // largest entry is the `Page` others are `Reduced`.
+                    let mut entry_sizes: Vec<_> = ico.entries().iter().enumerate().map(|(i, e)| (i, e.width() * e.height())).collect();
+                    entry_sizes.sort_by_key(|t| t.1);
+                    entry_sizes.reverse();
+                    let entries = entry_sizes
+                        .into_iter()
+                        .map(|(i, _)| {
+                            (
+                                i,
+                                if i == 0 {
+                                    ImageEntryKind::Page
+                                } else {
+                                    ImageEntryKind::Reduced { synthetic: false }
+                                },
+                            )
+                        })
+                        .collect();
+                    return Ok((fmt, entries));
                 }
             }
             #[cfg(feature = "image_tiff")]
             image::ImageFormat::Tiff => {
                 if let Ok(mut tiff) = tiff::decoder::Decoder::new(std::io::Cursor::new(data)) {
-                    let mut count = 1;
-                    while tiff.next_image().is_ok() {
-                        count += 1;
+                    let mut r = vec![];
+
+                    let mut index = 0usize;
+                    let mut page_count = 0u16;
+                    loop {
+                        let new_subfile_type = tiff.get_tag_u32(tiff::tags::Tag::NewSubfileType).unwrap_or(0);
+                        let kind = if (new_subfile_type & 0x1) != 0 {
+                            ImageEntryKind::Reduced { synthetic: false }
+                        } else {
+                            ImageEntryKind::Page
+                        };
+                        let page_number = match tiff.get_tag_u16_vec(tiff::tags::Tag::Unknown(297)) {
+                            Ok(v) => v[0], // value is (page_n, total_pages)
+                            _ => page_count,
+                        };
+                        if let ImageEntryKind::Page = &kind {
+                            page_count += 1;
+                        }
+
+                        let area = tiff.dimensions().map(|(w, h)| w * h).unwrap_or(0);
+
+                        r.push((index, page_number, kind, area));
+
+                        if tiff.next_image().is_err() {
+                            break;
+                        }
+
+                        index += 1;
                     }
-                    return Ok((fmt, count));
+
+                    r.sort_by(|a, b| {
+                        // page_number
+                        a.1.cmp(&b.1)
+                            .then_with(|| {
+                                // entry kind, page first
+                                a.2.cmp(&b.2)
+                            })
+                            .then_with(|| {
+                                // area size, larger first
+                                b.2.cmp(&a.2)
+                            })
+                    });
+
+                    let r = r.into_iter().map(|(i, _, k, _)| (i, k)).collect();
+
+                    return Ok((fmt, r));
                 }
             }
             _ => (),
         }
 
-        Ok((fmt, 1))
+        Ok((fmt, vec![(0, ImageEntryKind::Page)]))
     }
 
     #[cfg(feature = "image_any")]

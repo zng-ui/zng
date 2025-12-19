@@ -28,7 +28,7 @@ impl ImageCache {
         mask: Option<ImageMaskMode>,
     ) -> ImageId {
         if frame_id == FrameId::INVALID {
-            let id = self.image_id_gen.incr();
+            let id = self.image_id_gen.lock().incr();
             let _ = self.app_sender.send(AppEvent::Notify(Event::ImageDecodeError {
                 image: id,
                 error: formatx!("no frame rendered in window `{window_id:?}`"),

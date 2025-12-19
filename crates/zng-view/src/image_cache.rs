@@ -2,6 +2,8 @@
 
 use std::{fmt, sync::Arc};
 use zng_task::parking_lot::Mutex;
+#[cfg(feature = "image_any")]
+use zng_view_api::image::ImageEntryKind;
 use zng_view_api::image::{ColorType, ImageDownscaleMode, ImageEntriesMode, ImageEntryMetadata, ImageFormat, ImageMaskMode};
 
 use webrender::api::ImageDescriptor;
@@ -77,7 +79,7 @@ pub(crate) type ResizerCache = Mutex<fast_image_resize::Resizer>;
 pub(crate) struct ImageCache {
     app_sender: AppEventSender,
     images: FxHashMap<ImageId, Image>,
-    image_id_gen: ImageId,
+    image_id_gen: Arc<Mutex<ImageId>>,
     resizer: Arc<ResizerCache>,
 }
 impl ImageCache {
@@ -85,7 +87,7 @@ impl ImageCache {
         Self {
             app_sender,
             images: FxHashMap::default(),
-            image_id_gen: ImageId::first(),
+            image_id_gen: Arc::new(Mutex::new(ImageId::first())),
             resizer: Arc::new(Mutex::new(fast_image_resize::Resizer::new())),
         }
     }
@@ -103,16 +105,17 @@ impl ImageCache {
             ..
         }: ImageRequest<IpcBytes>,
     ) -> ImageId {
-        let id = self.image_id_gen.incr();
-
+        let id = self.image_id_gen.lock().incr();
+        let id_gen = self.image_id_gen.clone();
         let app_sender = self.app_sender.clone();
         let resizer = self.resizer.clone();
         rayon::spawn(move || {
             Self::add_impl(
+                id_gen,
                 app_sender,
                 resizer,
-                id,
                 false,
+                id,
                 format,
                 data,
                 max_decoded_len,
@@ -139,7 +142,8 @@ impl ImageCache {
             ..
         }: ImageRequest<IpcReceiver<IpcBytes>>,
     ) -> ImageId {
-        let id = self.image_id_gen.incr();
+        let id = self.image_id_gen.lock().incr();
+        let id_gen = self.image_id_gen.clone();
         let app_sender = self.app_sender.clone();
         let resizer = self.resizer.clone();
         rayon::spawn(move || {
@@ -161,7 +165,8 @@ impl ImageCache {
                 // try parse header early at least
                 #[cfg(feature = "image_any")]
                 if let ImageDataFormat::FileExtension(_) | ImageDataFormat::MimeType(_) | ImageDataFormat::Unknown = &format
-                    && let Ok((fmt, _)) = Self::decode_container(&format, &all_data[..])
+                    && let Ok((fmt, entries)) = Self::decode_container(&format, &all_data[..])
+                    && entries.first() == Some(&(0, ImageEntryKind::Page))
                     && let Ok(h) = Self::decode_metadata(&all_data[..], fmt, 0)
                 {
                     let mut size = h.size;
@@ -211,10 +216,11 @@ impl ImageCache {
             }
 
             Self::add_impl(
+                id_gen,
                 app_sender,
                 resizer,
-                id,
                 notified_header,
+                id,
                 format,
                 all_data,
                 max_decoded_len,
@@ -229,11 +235,12 @@ impl ImageCache {
 
     #[allow(clippy::too_many_arguments)]
     fn add_impl(
+        id_gen: Arc<Mutex<ImageId>>,
         app_sender: AppEventSender,
         resizer: Arc<ResizerCache>,
-        id: ImageId,
         notified_meta: bool,
 
+        id: ImageId,
         format: ImageDataFormat,
         data: IpcBytes,
         max_decoded_len: u64,
@@ -244,19 +251,22 @@ impl ImageCache {
     ) {
         let data_ref = &data[..];
         macro_rules! error {
-            ($($tt:tt)*) => {
-                {
-                    let _ = app_sender.send(AppEvent::Notify(Event::ImageDecodeError { image: id, error: formatx!($($tt)*) }));
-                }
-            };
+            ($($tt:tt)*) => {{
+                let _ = app_sender.send(AppEvent::Notify(Event::ImageDecodeError { image: id, error: formatx!($($tt)*) }));
+            }};
         }
         macro_rules! decoded {
-            ($r:tt, $og_color_type:expr) => {{
+            ($r:tt, $og_color_type:expr, $return_data:expr) => {{
                 let (pixels, size, density, is_opaque, is_mask) = $r;
                 let mut meta = ImageMetadata::new(id, size, is_mask, $og_color_type);
                 meta.density = density;
                 meta.parent = parent;
-                let _ = app_sender.send(AppEvent::ImageDecoded(ImageDecoded::new(meta, pixels, is_opaque)));
+                let decoded = ImageDecoded::new(meta, pixels, is_opaque);
+                let mut out = if $return_data { Some(decoded.clone()) } else { None };
+                if app_sender.send(AppEvent::ImageDecoded(decoded)).is_err() {
+                    out = None;
+                }
+                out
             }};
         }
 
@@ -278,28 +288,40 @@ impl ImageCache {
 
                 if let Some(mask) = mask {
                     match Self::convert_bgra8_to_mask(size, data_ref, mask, density, downscale_sizes.0, &resizer) {
-                        Ok(r) => decoded!(r, original_color_type),
-                        Err(e) => return error!("{e}"),
+                        Ok(r) => {
+                            if let Some(d) = decoded!(r, original_color_type, !downscale_sizes.1.is_empty()) {
+                                Self::add_downscale_entries(id_gen, app_sender, resizer, d, downscale_sizes.1);
+                            }
+                        }
+                        Err(e) => error!("{e}"),
                     }
                 } else {
                     match Self::downscale_decoded(mask, downscale_sizes.0, &resizer, size, data_ref) {
                         Ok(Some((size, data_mut))) => match data_mut.finish_blocking() {
                             Ok(data) => {
                                 let is_opaque = data_ref.chunks_exact(4).all(|c| c[3] == 255);
-                                decoded!((data, size, None, is_opaque, true), original_color_type)
+                                if let Some(d) = decoded!(
+                                    (data, size, None, is_opaque, true),
+                                    original_color_type,
+                                    !downscale_sizes.1.is_empty()
+                                ) {
+                                    Self::add_downscale_entries(id_gen, app_sender, resizer, d, downscale_sizes.1);
+                                }
                             }
-                            Err(e) => return error!("{e}"),
+                            Err(e) => error!("{e}"),
                         },
                         Ok(None) => {
                             let is_opaque = data_ref.chunks_exact(4).all(|c| c[3] == 255);
-                            decoded!((data, size, None, is_opaque, true), original_color_type)
+                            if let Some(d) = decoded!(
+                                (data, size, None, is_opaque, true),
+                                original_color_type,
+                                !downscale_sizes.1.is_empty()
+                            ) {
+                                Self::add_downscale_entries(id_gen, app_sender, resizer, d, downscale_sizes.1);
+                            }
                         }
-                        Err(e) => return error!("{e}"),
+                        Err(e) => error!("{e}"),
                     }
-                }
-
-                for downscale in downscale_sizes.1 {
-                    // !!: TODO
                 }
             }
             ImageDataFormat::A8 { size } => {
@@ -312,28 +334,33 @@ impl ImageCache {
 
                 if mask.is_none() {
                     match Self::convert_a8_to_bgra8(size, &data, None, downscale_sizes.0, &resizer) {
-                        Ok(r) => decoded!(r, ColorType::A8),
-                        Err(e) => return error!("{e}"),
+                        Ok(r) => {
+                            if let Some(d) = decoded!(r, ColorType::A8, downscale_sizes.1.is_empty()) {
+                                Self::add_downscale_entries(id_gen, app_sender, resizer, d, downscale_sizes.1);
+                            }
+                        }
+                        Err(e) => error!("{e}"),
                     }
                 } else {
                     match Self::downscale_decoded(mask, downscale_sizes.0, &resizer, size, &data) {
                         Ok(Some((size, data_mut))) => match data_mut.finish_blocking() {
                             Ok(data) => {
                                 let is_opaque = data.iter().all(|&c| c == 255);
-                                decoded!((data, size, None, is_opaque, true), ColorType::A8);
+                                if let Some(d) = decoded!((data, size, None, is_opaque, true), ColorType::A8, !downscale_sizes.1.is_empty())
+                                {
+                                    Self::add_downscale_entries(id_gen, app_sender, resizer, d, downscale_sizes.1);
+                                }
                             }
-                            Err(e) => return error!("{e}"),
+                            Err(e) => error!("{e}"),
                         },
                         Ok(None) => {
                             let is_opaque = data.iter().all(|&c| c == 255);
-                            decoded!((data, size, None, is_opaque, true), ColorType::A8);
+                            if let Some(d) = decoded!((data, size, None, is_opaque, true), ColorType::A8, !downscale_sizes.1.is_empty()) {
+                                Self::add_downscale_entries(id_gen, app_sender, resizer, d, downscale_sizes.1);
+                            }
                         }
-                        Err(e) => return error!("{e}"),
+                        Err(e) => error!("{e}"),
                     }
-                }
-
-                for downscale in downscale_sizes.1 {
-                    // !!: TODO
                 }
             }
             // needs decoding
@@ -344,45 +371,382 @@ impl ImageCache {
             }
             #[cfg(feature = "image_any")]
             fmt => {
-                let (fmt, entries_len) = match Self::decode_container(&fmt, data_ref) {
+                let (fmt, entries_kind) = match Self::decode_container(&fmt, data_ref) {
                     Ok(r) => r,
                     Err(e) => return error!("{e}"),
                 };
-                let h = match Self::decode_metadata(data_ref, fmt, 0) {
-                    Ok(h) => h,
-                    Err(e) => return error!("{e}"),
-                };
-
-                let mut size = h.size;
-                let decoded_len = size.width.0 as u64 * size.height.0 as u64 * 4;
-                if decoded_len > max_decoded_len {
-                    return error!("image {size:?} needs to allocate {decoded_len} bytes, but max allowed size is {max_decoded_len} bytes",);
+                if entries_kind.is_empty() {
+                    return error!("empty container");
                 }
 
-                let downscale_sizes = self::downscale_sizes(downscale.as_ref(), h.size, &[]);
-                let og_color_size = image_color_type_to_vp(h.og_color_type);
-                if !notified_meta {
-                    size = downscale_sizes.0.unwrap_or(h.size);
-                    let mut meta = ImageMetadata::new(id, size, mask.is_some(), og_color_size.clone());
-                    meta.density = h.density;
-
-                    let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataDecoded(meta)));
-                }
-
-                match Self::decode_image(&data, fmt, 0) {
-                    Ok(img) => match Self::convert_decoded(img, mask, h.density, h.icc_profile, downscale_sizes.0, h.orientation, &resizer)
-                    {
-                        Ok(r) => decoded!(r, og_color_size),
+                let mut headers = Vec::with_capacity(entries_kind.len());
+                for (i, kind) in entries_kind {
+                    let h = match Self::decode_metadata(data_ref, fmt, i) {
+                        Ok(h) => h,
                         Err(e) => return error!("{e}"),
-                    },
-                    Err(e) => return error!("{e}"),
+                    };
+                    headers.push((i, h, kind));
+                }
+                headers.retain(|h| {
+                    let decoded_len = h.1.size.width.0 as u64 * h.1.size.height.0 as u64 * 4;
+                    decoded_len <= max_decoded_len
+                });
+                if headers.is_empty() {
+                    return error!("cannot decode image within the allowed {max_decoded_len} bytes");
+                }
+                let mut page_count = 0;
+                headers.retain(|h| match &h.2 {
+                    ImageEntryKind::Page => {
+                        // always includes the first page
+                        let retain = page_count == 0 || entries.contains(ImageEntriesMode::PAGES);
+                        page_count += 1;
+                        retain
+                    }
+                    ImageEntryKind::Reduced { .. } => {
+                        // reduced requested AND including all pages or is reduced for first page
+                        entries.contains(ImageEntriesMode::REDUCED) && entries.contains(ImageEntriesMode::PAGES) || page_count == 1
+                    }
+                    ImageEntryKind::Other { .. } => entries.contains(ImageEntriesMode::OTHER),
+                    _ => unreachable!(),
+                });
+                if headers.is_empty() {
+                    return error!("image container has no page entries");
                 }
 
-                for entry in 1..entries_len {
-                    // !!: TODO
+                // group entries by page
+                let mut pages: Vec<(_, Vec<_>)> = vec![];
+                let mut others = vec![];
+                for entry in headers {
+                    match &entry.2 {
+                        ImageEntryKind::Page => {
+                            pages.push((entry, vec![]));
+                        }
+                        ImageEntryKind::Reduced { .. } => {
+                            if let Some(p) = pages.last_mut() {
+                                p.1.push(entry);
+                            } else if entries.contains(ImageEntriesMode::OTHER) {
+                                others.push(entry);
+                            }
+                        }
+                        ImageEntryKind::Other { .. } => {
+                            others.push(entry);
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+
+                // collect work, so that metadata events can be send first, before decode/downscale starts
+                enum Task {
+                    Decode {
+                        entry_index: usize,
+                        entry_header: ImageHeader,
+                        id: ImageId,
+                        parent: Option<ImageEntryMetadata>,
+                        notify_meta: bool,
+                        downscale: Option<PxSize>,
+                    },
+                    SynthReduced {
+                        // source: previous task pixels
+                        size: PxSize,
+                        id: ImageId,
+                        parent: ImageEntryMetadata,
+                    },
+                }
+                let mut tasks = vec![];
+                let mut root_entries = 0;
+                for (page, entries) in pages.into_iter() {
+                    let page_size = page.1.size;
+                    let entry_sizes: Vec<_> = entries.iter().map(|e| e.1.size).collect();
+                    let downscale_sizes = self::downscale_sizes(downscale.as_ref(), page_size, &entry_sizes);
+
+                    let notify_meta = !tasks.is_empty() || !notified_meta;
+                    let parent = if tasks.is_empty() {
+                        parent.clone()
+                    } else {
+                        root_entries += 1;
+                        Some(ImageEntryMetadata::new(id, root_entries, page.2))
+                    };
+                    let id = if tasks.is_empty() { id } else { id_gen.lock().incr() };
+                    let mut page_entries = 0;
+                    let page_entries = if tasks.is_empty() { &mut root_entries } else { &mut page_entries };
+
+                    tasks.push(Task::Decode {
+                        entry_index: page.0,
+                        entry_header: page.1,
+                        id,
+                        parent,
+                        notify_meta,
+                        downscale: downscale_sizes.0,
+                    });
+
+                    // downscale are generated from the nearest larger entry, or previous downscale
+                    let mut entries_downscale = vec![vec![]; entries.len()];
+                    for synth in downscale_sizes.1 {
+                        let mut best_i = usize::MAX;
+                        let mut best_dist = Px::MAX;
+                        let page_dist = page_size.width - synth.width;
+                        if page_dist > Px(0) {
+                            best_i = entries.len();
+                            best_dist = page_dist;
+                        }
+                        for (i, entry) in entry_sizes.iter().enumerate() {
+                            let entry_dist = entry.width - synth.width;
+                            if entry_dist > Px(0) && entry_dist < best_dist {
+                                best_i = i;
+                                best_dist = entry_dist;
+                            }
+                        }
+
+                        if let Some(entry) = entries_downscale.get_mut(best_i) {
+                            entry.push(synth);
+                        } else {
+                            debug_assert_ne!(best_i, usize::MAX, "downscale_sizes did not filter correctly");
+                            *page_entries += 1;
+                            tasks.push(Task::SynthReduced {
+                                size: synth,
+                                id: id_gen.lock().incr(),
+                                parent: ImageEntryMetadata::new(id, *page_entries, ImageEntryKind::Reduced { synthetic: true }),
+                            });
+                        }
+                    }
+
+                    for (entry, downscale) in entries.into_iter().zip(entries_downscale) {
+                        *page_entries += 1;
+                        tasks.push(Task::Decode {
+                            entry_index: entry.0,
+                            entry_header: entry.1,
+                            id,
+                            parent: Some(ImageEntryMetadata::new(id, *page_entries, entry.2)),
+                            notify_meta,
+                            downscale: None,
+                        });
+                        for synth in downscale {
+                            *page_entries += 1;
+                            tasks.push(Task::SynthReduced {
+                                size: synth,
+                                id: id_gen.lock().incr(),
+                                parent: ImageEntryMetadata::new(id, *page_entries, ImageEntryKind::Reduced { synthetic: true }),
+                            });
+                        }
+                    }
+                }
+
+                // notify all metadata ahead of decode/downscale
+                let mut tasks_meta = vec![];
+                for task in &tasks {
+                    match task {
+                        Task::Decode {
+                            entry_header,
+                            id,
+                            parent,
+                            notify_meta,
+                            downscale,
+                            ..
+                        } => {
+                            let size = downscale.unwrap_or(entry_header.size);
+                            let og_color_type = image_color_type_to_vp(entry_header.og_color_type);
+                            let mut meta = ImageMetadata::new(*id, size, mask.is_some(), og_color_type);
+                            meta.density = entry_header.density;
+                            meta.parent = parent.clone();
+
+                            if *notify_meta
+                                && app_sender
+                                    .send(AppEvent::Notify(Event::ImageMetadataDecoded(meta.clone())))
+                                    .is_err()
+                            {
+                                return;
+                            }
+
+                            tasks_meta.push(meta);
+                        }
+                        Task::SynthReduced { size, id, parent } => {
+                            let mut meta = tasks_meta.last().cloned().unwrap();
+                            meta.id = *id;
+                            meta.size = *size;
+                            meta.parent = Some(parent.clone());
+
+                            if app_sender
+                                .send(AppEvent::Notify(Event::ImageMetadataDecoded(meta.clone())))
+                                .is_err()
+                            {
+                                return;
+                            }
+
+                            tasks_meta.push(meta);
+                        }
+                    }
+                }
+                let mut others_meta = vec![];
+                for entry in others {
+                    let og_color_type = image_color_type_to_vp(entry.1.og_color_type);
+                    let mut meta = ImageMetadata::new(id_gen.lock().incr(), entry.1.size, mask.is_some(), og_color_type);
+                    meta.density = entry.1.density;
+                    root_entries += 1;
+                    let kind = match entry.2 {
+                        ImageEntryKind::Reduced { .. } => ImageEntryKind::Other {
+                            kind: formatx!("unlinked reduced"),
+                        },
+                        ImageEntryKind::Page => unreachable!(),
+                        other => other,
+                    };
+                    meta.parent = Some(ImageEntryMetadata::new(id, root_entries, kind));
+
+                    if app_sender
+                        .send(AppEvent::Notify(Event::ImageMetadataDecoded(meta.clone())))
+                        .is_err()
+                    {
+                        return;
+                    }
+                    others_meta.push(meta);
+                }
+
+                let data = &data[..];
+                let mut prev_size = PxSize::zero();
+                let mut prev_pixels = IpcBytes::default();
+                let mut prev_is_opaque = false;
+                for (task, mut meta) in tasks.into_iter().zip(tasks_meta) {
+                    match task {
+                        Task::Decode {
+                            entry_index,
+                            entry_header,
+                            downscale,
+                            ..
+                        } => match Self::decode_image(data, fmt, entry_index) {
+                            Ok(img) => match Self::convert_decoded(
+                                img,
+                                mask,
+                                entry_header.density,
+                                entry_header.icc_profile,
+                                downscale,
+                                entry_header.orientation,
+                                &resizer,
+                            ) {
+                                Ok((pixels, size, density, is_opaque, is_mask)) => {
+                                    meta.size = size;
+                                    meta.density = density;
+                                    meta.is_mask = is_mask;
+                                    let decoded = ImageDecoded::new(meta, pixels.clone(), is_opaque);
+                                    if app_sender.send(AppEvent::ImageDecoded(decoded)).is_err() {
+                                        return;
+                                    }
+                                    prev_pixels = pixels;
+                                    prev_size = size;
+                                    prev_is_opaque = is_opaque;
+                                }
+                                Err(e) => {
+                                    return error!("{e}");
+                                }
+                            },
+                            Err(e) => return error!("{e}"),
+                        },
+                        Task::SynthReduced { size, .. } => {
+                            match Self::downscale_decoded(mask, Some(size), &resizer, prev_size, &prev_pixels) {
+                                Ok(r) => {
+                                    let (size, pixels_mut) = r.unwrap();
+                                    match pixels_mut.finish_blocking() {
+                                        Ok(pixels) => {
+                                            meta.size = size;
+                                            let decoded = ImageDecoded::new(meta, pixels.clone(), prev_is_opaque);
+                                            if app_sender.send(AppEvent::ImageDecoded(decoded)).is_err() {
+                                                return;
+                                            }
+                                            prev_pixels = pixels;
+                                            prev_size = size;
+                                        }
+                                        Err(e) => return error!("{e}"),
+                                    }
+                                }
+                                Err(e) => return error!("{e}"),
+                            }
+                        }
+                    }
                 }
             }
         }
+    }
+    fn add_downscale_entries(
+        id_gen: Arc<Mutex<ImageId>>,
+        app_sender: AppEventSender,
+        resizer: Arc<ResizerCache>,
+        source: ImageDecoded,
+        entries: Vec<PxSize>,
+    ) {
+        if entries.is_empty() {
+            return;
+        }
+        let mut metas = Vec::with_capacity(entries.len());
+        for (i, entry) in entries.iter().enumerate() {
+            let id = id_gen.lock().incr();
+            let mut meta = source.meta.clone();
+            meta.id = id;
+            meta.size = *entry;
+            meta.parent = Some(ImageEntryMetadata::new(
+                source.meta.id,
+                i,
+                ImageEntryKind::Reduced { synthetic: true },
+            ));
+
+            metas.push(meta.clone());
+            if app_sender.send(AppEvent::Notify(Event::ImageMetadataDecoded(meta))).is_err() {
+                return;
+            }
+        }
+
+        let mut source = source;
+        for meta in metas {
+            let size = meta.size;
+            match Self::add_downscale_entry(&app_sender, &resizer, &source, meta) {
+                Some(downscaled) => {
+                    source.meta.size = size;
+                    source.pixels = downscaled;
+                }
+                None => return,
+            }
+        }
+    }
+    fn add_downscale_entry(
+        app_sender: &AppEventSender,
+        resizer: &ResizerCache,
+        source: &ImageDecoded,
+        entry: ImageMetadata,
+    ) -> Option<IpcBytes> {
+        use fast_image_resize as fr;
+
+        let px_type = if entry.is_mask { fr::PixelType::U8x4 } else { fr::PixelType::U8 };
+        let source_img = fr::images::ImageRef::new(
+            source.meta.size.width.0 as _,
+            source.meta.size.height.0 as _,
+            &source.pixels,
+            px_type,
+        )
+        .unwrap();
+        let mut dest_buf = IpcBytes::new_mut_blocking(entry.size.width.0 as usize * entry.size.height.0 as usize * px_type.size()).ok()?;
+        let mut dest_img =
+            fr::images::Image::from_slice_u8(entry.size.width.0 as _, entry.size.height.0 as _, &mut dest_buf[..], px_type).unwrap();
+
+        let mut resize_opt = fr::ResizeOptions::new();
+        // is already pre multiplied
+        resize_opt.mul_div_alpha = false;
+        // default, best quality
+        resize_opt.algorithm = fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3);
+        // try to reuse cache
+        match resizer.try_lock() {
+            Some(mut r) => r.resize(&source_img, &mut dest_img, Some(&resize_opt)),
+            None => fr::Resizer::new().resize(&source_img, &mut dest_img, Some(&resize_opt)),
+        }
+        .unwrap();
+
+        let pixels = dest_buf.finish_blocking().ok()?;
+
+        app_sender
+            .send(AppEvent::Notify(Event::ImageDecoded(ImageDecoded::new(
+                entry,
+                pixels.clone(),
+                source.is_opaque,
+            ))))
+            .ok()?;
+
+        Some(pixels)
     }
 
     pub fn forget(&mut self, id: ImageId) {

@@ -70,13 +70,7 @@ zng_var::impl_from_and_into_var! {
     fn from(kind: ImageEntryKind) -> ImageEntriesMode {
         match kind {
             ImageEntryKind::Page => ImageEntriesMode::PAGES,
-            ImageEntryKind::Reduced { synthetic } => {
-                if synthetic {
-                    ImageEntriesMode::PRIMARY | ImageEntriesMode::REDUCED
-                } else {
-                    ImageEntriesMode::REDUCED
-                }
-            }
+            ImageEntryKind::Reduced { .. } => ImageEntriesMode::REDUCED,
             ImageEntryKind::Other { .. } => ImageEntriesMode::OTHER,
         }
     }
@@ -211,7 +205,8 @@ impl ImageDownscaleMode {
     /// The `page_size` is the image full size, the `reduced_sizes` are
     /// sizes of reduced alternates that are already provided by the image  container.
     ///
-    /// Returns the downscale for the image full size, if needed and a list of reduced entries that must be synthesized.
+    /// Returns the downscale for the image full size, if needed and a list of reduced entries that must be synthesized,
+    /// sorted largest to smallest.
     pub fn sizes(&self, page_size: PxSize, reduced_sizes: &[PxSize]) -> (Option<PxSize>, Vec<PxSize>) {
         match self {
             ImageDownscaleMode::Fit(s) => (fit_fill(page_size, *s, false), vec![]),
@@ -263,6 +258,10 @@ impl ImageDownscaleMode {
         }
         (page_downscale, entries)
     }
+    fn near(candidate: PxSize, existing: PxSize) -> bool {
+        let dist = (candidate - existing).abs();
+        dist.width < Px(10) && dist.height <= Px(10)
+    }
 
     fn collect_entries(&self, page_size: PxSize, sizes: &mut Vec<PxSize>, mip_map: &mut Option<[PxSize; 2]>, include_full_size: &mut bool) {
         match self {
@@ -289,11 +288,6 @@ impl ImageDownscaleMode {
                 }
             }
         }
-    }
-
-    fn near(candidate: PxSize, existing: PxSize) -> bool {
-        // !!: TODO
-        candidate == existing
     }
 }
 
@@ -522,6 +516,25 @@ pub enum ImageEntryKind {
         /// This is an implementation specific value that can be parsed.
         kind: Txt,
     },
+}
+impl ImageEntryKind {
+    fn discriminant(&self) -> u8 {
+        match self {
+            ImageEntryKind::Page => 0,
+            ImageEntryKind::Reduced { .. } => 1,
+            ImageEntryKind::Other { .. } => 2,
+        }
+    }
+}
+impl std::cmp::Ord for ImageEntryKind {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.discriminant().cmp(&other.discriminant())
+    }
+}
+impl std::cmp::PartialOrd for ImageEntryKind {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 /// Represents a partial or fully decoded image.
