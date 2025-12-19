@@ -7,6 +7,8 @@
     - **Breaking** Replaced `ImageDownscale` with `ImageDownscaleMode`.
 * Add `Img::original_color_type` metadata.
 
+* Fix panic on view-process respawn when a window is initing.
+
 # 0.20.2
 
 * Add `Image::on_load_layout` event fired after new image is loaded and layout.
