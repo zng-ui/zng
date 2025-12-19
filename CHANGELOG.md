@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `Scroll!` child alignment fill. Remove non standard layout, now only applies in dimensions without scrolling.
 * Fix panic on view-process respawn when a window is initing.
 
 # 0.20.2
