@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix panic on view-process respawn when a window is initing.
 
 # 0.20.2
 

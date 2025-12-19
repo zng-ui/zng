@@ -1235,11 +1235,17 @@ impl HeadedCtrl {
 
     /// Layout for already open window.
     fn layout_update(&mut self, layout_widgets: Arc<LayoutUpdates>) {
+        let mut state = match self.state.clone() {
+            Some(s) => s,
+            None => {
+                tracing::warn!("layout update ignored due to respawn");
+                return;
+            }
+        };
+
         let m = self.monitor.as_ref().unwrap();
         let scale_factor = m.scale_factor().get();
         let screen_density = m.density().get();
-
-        let mut state = self.state.clone().unwrap();
 
         let current_size = self.vars.0.actual_size.get().to_px(scale_factor);
         let mut size = current_size;
