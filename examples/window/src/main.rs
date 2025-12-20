@@ -123,7 +123,7 @@ fn theme_example(style_fn: Var<Txt>) -> UiNode {
     fn theme_btn(t: Txt) -> UiNode {
         Toggle! {
             value::<Txt> = t.clone();
-            child = Text!(t);
+            zng::text::txt = t;
         }
     }
     select(
