@@ -64,7 +64,13 @@ pub fn viewport(child: impl IntoUiNode, mode: impl IntoVar<ScrollMode>, child_al
             }
 
             let mode = mode.get();
-            let child_align = child_align.get();
+            let mut child_align = child_align.get();
+            if mode.contains(ScrollMode::VERTICAL) && child_align.is_fill_y() {
+                child_align.y = 0.fct();
+            }
+            if mode.contains(ScrollMode::HORIZONTAL) && child_align.is_fill_x() {
+                child_align.x = 0.fct();
+            }
 
             let vp_unit = constraints.fill_size();
             let has_fill_size = !vp_unit.is_empty() && constraints.max_size() == Some(vp_unit);
@@ -74,10 +80,10 @@ pub fn viewport(child: impl IntoUiNode, mode: impl IntoVar<ScrollMode>, child_al
                 {
                     let mut c = constraints;
                     if mode.contains(ScrollMode::VERTICAL) {
-                        c = c.with_unbounded_y().with_new_min_y(vp_unit.height);
+                        c = c.with_unbounded_y();
                     }
                     if mode.contains(ScrollMode::HORIZONTAL) {
-                        c = c.with_unbounded_x().with_new_min_x(vp_unit.width);
+                        c = c.with_unbounded_x();
                     }
 
                     child_align.child_constraints(c)
@@ -101,7 +107,13 @@ pub fn viewport(child: impl IntoUiNode, mode: impl IntoVar<ScrollMode>, child_al
         }
         UiNodeOp::Layout { wl, final_size } => {
             let mode = mode.get();
-            let child_align = child_align.get();
+            let mut child_align = child_align.get();
+            if mode.contains(ScrollMode::VERTICAL) && child_align.is_fill_y() {
+                child_align.y = 0.fct();
+            }
+            if mode.contains(ScrollMode::HORIZONTAL) && child_align.is_fill_x() {
+                child_align.x = 0.fct();
+            }
 
             let constraints = LAYOUT.constraints();
             let vp_unit = constraints.fill_size();
@@ -115,8 +127,7 @@ pub fn viewport(child: impl IntoUiNode, mode: impl IntoVar<ScrollMode>, child_al
                 {
                     let mut c = constraints;
                     if mode.contains(ScrollMode::VERTICAL) {
-                        // Align::FILL forces the min-size, because we have infinite space in scrollable dimensions.
-                        c = c.with_unbounded_y().with_new_min_y(vp_unit.height);
+                        c = c.with_unbounded_y();
                     } else {
                         // If not scrollable Align::FILL works like normal `Container!` widgets.
                         // c = c.with_new_min_y(Px(0));
@@ -125,7 +136,7 @@ pub fn viewport(child: impl IntoUiNode, mode: impl IntoVar<ScrollMode>, child_al
                         }
                     }
                     if mode.contains(ScrollMode::HORIZONTAL) {
-                        c = c.with_unbounded_x().with_new_min_x(vp_unit.width);
+                        c = c.with_unbounded_x();
                     } else {
                         // c = c.with_new_min_x(Px(0));
                         if has_fill_size {
