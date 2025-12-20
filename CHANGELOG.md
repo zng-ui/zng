@@ -1,6 +1,7 @@
 # Unreleased
 
 * Change `presenter` and `presenter_opt` nodes to become the inner node if it is an widget.
+* Fix `force_size` layout causing an error log.
 * Fix `Scroll!` child alignment fill. Remove non standard layout, now only applies in dimensions without scrolling.
 * Fix panic on view-process respawn when a window is initing.
 
