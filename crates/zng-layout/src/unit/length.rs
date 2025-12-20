@@ -133,7 +133,7 @@ impl<L: Into<Length>> ops::Sub<L> for Length {
     fn sub(mut self, rhs: L) -> Self::Output {
         let mut rhs = rhs.into();
 
-        if self.try_add(&mut rhs) {
+        if self.try_sub(&mut rhs) {
             self
         } else {
             LengthExpr::Sub(self, rhs).to_length_checked()
@@ -641,10 +641,10 @@ impl Length {
         // TODO(breaking) take `self`
         let mut self_ = self.clone();
         let mut other = other.into();
-        if self_.try_max(&mut other) {
+        if self_.try_min(&mut other) {
             self_
         } else {
-            LengthExpr::Max(self_, other).to_length_checked()
+            LengthExpr::Min(self_, other).to_length_checked()
         }
     }
     pub(crate) fn try_min(&mut self, other: &mut Self) -> bool {
