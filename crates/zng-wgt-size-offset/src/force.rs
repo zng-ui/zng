@@ -38,6 +38,7 @@ pub fn force_size(child: impl IntoUiNode, size: impl IntoVar<Size>) -> UiNode {
             *desired_size = ForceSizeLayout::new(&size, || child.node().measure(wm)).measure(child.node(), wm);
         }
         UiNodeOp::Layout { wl, final_size } => {
+            child.delegated();
             *final_size = ForceSizeLayout::new(&size, || child.node().measure(&mut wl.to_measure(None))).layout(child.node(), wl);
         }
         _ => {}
