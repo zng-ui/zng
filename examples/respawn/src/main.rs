@@ -63,6 +63,14 @@ fn main() {
                     },
                 ];
             };
+            // widget::on_init = {
+            //     let respawn_on_init = true;
+            //     hn!(|_| {
+            //         if std::mem::take(&mut respawn_on_init) {
+            //             VIEW_PROCESS.respawn();
+            //         }
+            //     })
+            // };
         }
     });
 }
