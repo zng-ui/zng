@@ -790,30 +790,50 @@ fn multi_image_container() -> UiNode {
                     ImageEntriesMode::REDUCED,
                 );
                 let entries = ico.map(|i| {
-                    println!("!!: {i:#?}");
                     let mut entries: Vec<_> = i.entries().into_iter().map(VarEq).collect();
                     entries.insert(0, VarEq(i.clone().into_var()));
                     entries
                 });
+                let show_entries = var(true);
                 Window! {
                     title = "Multi Image Container";
-                    child_top = Text! {
-                        txt = "Single ICO file, with images 16, 20, 24, 32, 40, 48, 64, 96, 128, 256";
-                        txt_align = Align::CENTER;
-                        margin = 20;
-                    };
-                    auto_size = true;
+                    size = (521, 281);
                     padding = 10;
-                    child = Stack! {
-                        direction = StackDirection::left_to_right();
+                    child_top = Stack! {
+                        direction = StackDirection::top_to_bottom();
                         spacing = 5;
-                        children = entries.present_list_from_iter(wgt_fn!(|entry: VarEq<image::Img>| {
-                            Image! {
-                                layout::size = entry.0.map(|e| e.size().into());
-                                source = entry.0;
-                            }
-                        }));
+                        children_align = Align::CENTER;
+                        children = ui_vec![
+                            Text! {
+                                txt = "Single ICO file, with images 256, 128, 96, 64, 48, 40, 32, 24, 20, 16";
+                                txt_align = Align::CENTER;
+                                margin = 20;
+                            },
+                            Toggle! {
+                                style_fn = toggle::CheckStyle!();
+                                checked = show_entries.clone();
+                                child = Text!("Show entries");
+                            },
+                        ];
                     };
+                    child_align = Align::CENTER;
+                    child_spacing = 10;
+                    child = show_entries.present(wgt_fn!(|show| if show {
+                        Stack! {
+                            direction = StackDirection::left_to_right();
+                            spacing = 2;
+                            children = entries.present_list_from_iter(wgt_fn!(|entry: VarEq<image::Img>| {
+                                Image! {
+                                    layout::force_size = entry.0.map(|e| e.size().into());
+                                    source = entry.0;
+                                }
+                            }));
+                        }
+                    } else {
+                        Image! {
+                            source = ico.clone();
+                        }
+                    }));
                 }
             });
         });
