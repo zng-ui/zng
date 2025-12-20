@@ -80,7 +80,8 @@ fn load(data: SvgData, downscale: Option<ImageDownscaleMode>) -> ImageSource {
             let mut size = tree.size().to_int_size();
             if let Some(d) = downscale {
                 let size_px = PxSize::new(Px(size.width() as _), Px(size.height() as _));
-                let (full_size, entries) = d.sizes(size_px, &[]);
+                // TODO generate downscaled images
+                let (full_size, _) = d.sizes(size_px, &[]);
                 let full_size = full_size.unwrap_or(size_px);
 
                 match resvg::tiny_skia::IntSize::from_wh(full_size.width.0 as _, full_size.height.0 as _) {

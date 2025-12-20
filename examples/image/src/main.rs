@@ -10,12 +10,15 @@ use zng::{
         filter::{Filter, drop_shadow, filter, mix_blend},
         gradient::stops,
     },
-    image::{self, IMAGES, ImageFit, ImageLimits, ImgErrorArgs, img_error_fn, img_loading_fn, mask::mask_image},
+    image::{
+        self, IMAGES, ImageCacheMode, ImageEntriesMode, ImageFit, ImageLimits, ImgErrorArgs, img_error_fn, img_loading_fn, mask::mask_image,
+    },
     layout::{align, margin, padding, size},
     mouse,
     prelude::*,
     scroll::ScrollMode,
     task::http,
+    var::VarEq,
     widget::{BorderSides, background_color, border},
     window::{RenderMode, WindowState},
 };
@@ -188,7 +191,7 @@ fn main() {
                                 ui_vec![sprite()]
                             ),
                             section(
-                                "Window",
+                                "More",
                                 ui_vec![
                                     panorama_image(),
                                     block_window_load_image(),
@@ -198,6 +201,7 @@ fn main() {
                                     exif_rotated(),
                                     ppi_scaled(),
                                     color_profiles(),
+                                    multi_image_container(),
                                 ]
                             )
                         ];
@@ -765,6 +769,52 @@ fn color_profiles() -> UiNode {
                                 source = zng::env::res("color_profiles/rec709.jpg");
                             },
                         ];
+                    };
+                }
+            });
+        });
+    }
+}
+
+fn multi_image_container() -> UiNode {
+    Button! {
+        child = Text!("Multi Image Container");
+        on_click = hn!(|_| {
+            WINDOWS.open(async {
+                let ico = IMAGES.image(
+                    zng::env::res("test-icon.ico"),
+                    ImageCacheMode::Cache,
+                    None,
+                    None,
+                    None,
+                    ImageEntriesMode::REDUCED,
+                );
+                let entries = ico.map(|i| {
+                    println!("!!: {i:#?}");
+                    let mut entries: Vec<_> = i.entries().into_iter().map(VarEq).collect();
+                    entries.insert(0, VarEq(i.clone().into_var()));
+                    entries
+                });
+                Window! {
+                    title = "Multi Image Container";
+                    child_top = Text! {
+                        txt = "Single ICO file, with images 16, 20, 24, 32, 40, 48, 64, 96, 128, 256";
+                        txt_align = Align::CENTER;
+                        margin = 20;
+                    };
+                    auto_size = true;
+                    padding = 10;
+                    child = Stack! {
+                        spacing = 5;
+                        children = entries.present_list_from_iter(wgt_fn!(|entry: VarEq<image::Img>| {
+                            Image! {
+                                zng::container::child_out_top = Text! {
+                                    txt = entry.0.map(|e| formatx!("{:?} {:?}", e.entry_kind(), e.size()));
+                                };
+                                layout::size = entry.0.map(|e| e.size().into());
+                                source = entry.0;
+                            }
+                        }));
                     };
                 }
             });
