@@ -2226,7 +2226,7 @@ pub fn with_index_len_node(
 /// Node that presents `data` using `wgt_fn`.
 ///
 /// The node's child is always the result of `wgt_fn` called for the `data` value, it is reinited every time
-/// either variable changes.
+/// either variable changes. If the child is an widget the node becomes it.
 ///
 /// See also [`presenter_opt`] for a presenter that is nil with the data is `None`.
 ///
@@ -2236,7 +2236,7 @@ pub fn presenter<D: VarValue>(data: impl IntoVar<D>, wgt_fn: impl IntoVar<Widget
     let data = data.into_var();
     let wgt_fn = wgt_fn.into_var();
 
-    match_node(UiNode::nil(), move |c, op| match op {
+    match_widget(UiNode::nil(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&data).sub_var(&wgt_fn);
             *c.node() = wgt_fn.get()(data.get());
@@ -2267,7 +2267,7 @@ pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, wgt_fn: impl In
     let data = data.into_var();
     let wgt_fn = wgt_fn.into_var();
 
-    match_node(UiNode::nil(), move |c, op| match op {
+    match_widget(UiNode::nil(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&data).sub_var(&wgt_fn);
             if let Some(data) = data.get() {
