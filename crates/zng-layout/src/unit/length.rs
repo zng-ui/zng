@@ -73,18 +73,34 @@ pub enum Length {
 impl<L: Into<Length>> ops::Add<L> for Length {
     type Output = Length;
 
-    fn add(self, rhs: L) -> Self::Output {
+    fn add(mut self, rhs: L) -> Self::Output {
+        let mut rhs = rhs.into();
+
+        if self.try_add(&mut rhs) {
+            self
+        } else {
+            LengthExpr::Add(self, rhs).to_length_checked()
+        }
+    }
+}
+impl<L: Into<Length>> ops::AddAssign<L> for Length {
+    fn add_assign(&mut self, rhs: L) {
+        let lhs = mem::take(self);
+        *self = lhs + rhs.into();
+    }
+}
+impl Length {
+    pub(crate) fn try_add(&mut self, rhs: &mut Self) -> bool {
         use Length::*;
-
-        let rhs = rhs.into();
-
         if self.is_zero() == Some(true) {
-            return rhs; // 0 + rhs
-        } else if rhs.is_zero() == Some(true) {
-            return self; // self + 0
+            *self = mem::take(rhs);
+            return true; // 0 + rhs
+        }
+        if rhs.is_zero() == Some(true) {
+            return true; // self + 0
         }
 
-        match (self, rhs) {
+        let ok = match (mem::take(self), mem::take(rhs)) {
             (Dip(a), Dip(b)) => Dip(a + b),
             (Px(a), Px(b)) => Px(a + b),
             (Pt(a), Pt(b)) => Pt(a + b),
@@ -100,31 +116,48 @@ impl<L: Into<Length>> ops::Add<L> for Length {
             (DipF32(a), DipF32(b)) => DipF32(a + b),
             (Px(a), PxF32(b)) | (PxF32(b), Px(a)) => PxF32(a.0 as f32 + b),
             (Dip(a), DipF32(b)) | (DipF32(b), Dip(a)) => DipF32(a.to_f32() + b),
-            (a, b) => LengthExpr::Add(a, b).to_length_checked(),
-        }
-    }
-}
-impl<L: Into<Length>> ops::AddAssign<L> for Length {
-    fn add_assign(&mut self, rhs: L) {
-        let lhs = mem::take(self);
-        *self = lhs + rhs.into();
+            (a, b) => {
+                *self = a;
+                *rhs = b;
+                return false;
+            }
+        };
+
+        *self = ok;
+        true
     }
 }
 impl<L: Into<Length>> ops::Sub<L> for Length {
     type Output = Length;
 
-    fn sub(self, rhs: L) -> Self::Output {
+    fn sub(mut self, rhs: L) -> Self::Output {
+        let mut rhs = rhs.into();
+
+        if self.try_add(&mut rhs) {
+            self
+        } else {
+            LengthExpr::Sub(self, rhs).to_length_checked()
+        }
+    }
+}
+impl<L: Into<Length>> ops::SubAssign<L> for Length {
+    fn sub_assign(&mut self, rhs: L) {
+        let lhs = mem::take(self);
+        *self = lhs - rhs.into();
+    }
+}
+impl Length {
+    pub(crate) fn try_sub(&mut self, rhs: &mut Self) -> bool {
         use Length::*;
 
-        let rhs = rhs.into();
-
         if rhs.is_zero() == Some(true) {
-            return self; // self - 0
+            return true; // self - 0
         } else if self.is_zero() == Some(true) {
-            return -rhs; // 0 - rhs
+            *self = -mem::take(rhs);
+            return true; // 0 - rhs
         }
 
-        match (self, rhs) {
+        let ok = match (mem::take(self), mem::take(rhs)) {
             (Dip(a), Dip(b)) => Dip(a - b),
             (Px(a), Px(b)) => Px(a - b),
             (Pt(a), Pt(b)) => Pt(a - b),
@@ -142,30 +175,47 @@ impl<L: Into<Length>> ops::Sub<L> for Length {
             (PxF32(a), Px(b)) => PxF32(a - b.0 as f32),
             (Dip(a), DipF32(b)) => DipF32(a.to_f32() - b),
             (DipF32(a), Dip(b)) => DipF32(a - b.to_f32()),
-            (a, b) => LengthExpr::Sub(a, b).to_length_checked(),
-        }
-    }
-}
-impl<L: Into<Length>> ops::SubAssign<L> for Length {
-    fn sub_assign(&mut self, rhs: L) {
-        let lhs = mem::take(self);
-        *self = lhs - rhs.into();
+            (a, b) => {
+                *self = a;
+                *rhs = b;
+                return false;
+            }
+        };
+
+        *self = ok;
+        true
     }
 }
 impl<F: Into<Factor>> ops::Mul<F> for Length {
     type Output = Length;
 
-    fn mul(self, rhs: F) -> Self::Output {
-        use Length::*;
+    fn mul(mut self, rhs: F) -> Self::Output {
         let rhs = rhs.into();
+        if self.try_mul(rhs) {
+            self
+        } else {
+            LengthExpr::Mul(self, rhs).to_length_checked()
+        }
+    }
+}
+impl<F: Into<Factor>> ops::MulAssign<F> for Length {
+    fn mul_assign(&mut self, rhs: F) {
+        let lhs = mem::take(self);
+        *self = lhs * rhs.into();
+    }
+}
+impl Length {
+    pub(crate) fn try_mul(&mut self, rhs: Factor) -> bool {
+        use Length::*;
 
         if self.is_zero() == Some(true) || rhs == 1.fct() {
-            return self; // 0 * fct || len * 1.0
+            return true; // 0 * fct || len * 1.0
         } else if rhs == 0.fct() {
-            return Self::zero(); // len * 0.0
+            *self = Self::zero();
+            return true; // len * 0.0
         }
 
-        match self {
+        let ok = match mem::take(self) {
             Dip(e) => DipF32(e.to_f32() * rhs.0),
             Px(e) => PxF32(e.0 as f32 * rhs.0),
             Pt(e) => Pt(e * rhs.0),
@@ -179,29 +229,44 @@ impl<F: Into<Factor>> ops::Mul<F> for Length {
             ViewportMax(m) => ViewportMax(m * rhs),
             DipF32(e) => DipF32(e * rhs.0),
             PxF32(e) => PxF32(e * rhs.0),
-            e => LengthExpr::Mul(e, rhs).to_length_checked(),
-        }
+            e => {
+                *self = e;
+                return false;
+            }
+        };
+
+        *self = ok;
+        true
     }
 }
-impl<F: Into<Factor>> ops::MulAssign<F> for Length {
-    fn mul_assign(&mut self, rhs: F) {
-        let lhs = mem::take(self);
-        *self = lhs * rhs.into();
-    }
-}
+
 impl<F: Into<Factor>> ops::Div<F> for Length {
     type Output = Length;
 
-    fn div(self, rhs: F) -> Self::Output {
+    fn div(mut self, rhs: F) -> Self::Output {
+        let rhs = rhs.into();
+        if self.try_div(rhs) {
+            self
+        } else {
+            LengthExpr::Div(self, rhs).to_length_checked()
+        }
+    }
+}
+impl<F: Into<Factor>> ops::DivAssign<F> for Length {
+    fn div_assign(&mut self, rhs: F) {
+        let lhs = mem::take(self);
+        *self = lhs / rhs.into();
+    }
+}
+impl Length {
+    pub(crate) fn try_div(&mut self, rhs: Factor) -> bool {
         use Length::*;
 
-        let rhs = rhs.into();
-
         if self.is_zero() == Some(true) && rhs != 0.fct() {
-            return self; // 0 / fct
+            return true; // 0 / fct
         }
 
-        match self {
+        let ok = match mem::take(self) {
             Dip(e) => DipF32(e.to_f32() / rhs.0),
             Px(e) => PxF32(e.0 as f32 / rhs.0),
             Pt(e) => Pt(e / rhs.0),
@@ -215,28 +280,41 @@ impl<F: Into<Factor>> ops::Div<F> for Length {
             ViewportMax(m) => ViewportMax(m / rhs),
             DipF32(e) => DipF32(e / rhs.0),
             PxF32(e) => PxF32(e / rhs.0),
-            e => LengthExpr::Div(e, rhs).to_length_checked(),
-        }
-    }
-}
-impl<F: Into<Factor>> ops::DivAssign<F> for Length {
-    fn div_assign(&mut self, rhs: F) {
-        let lhs = mem::take(self);
-        *self = lhs / rhs.into();
+            e => {
+                *self = e;
+                return false;
+            }
+        };
+
+        *self = ok;
+        true
     }
 }
 impl Transitionable for Length {
-    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+    fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
+        if self.try_lerp(to, step) {
+            self
+        } else {
+            LengthExpr::Lerp(self, to.clone(), step).to_length_checked()
+        }
+    }
+}
+impl Length {
+    pub(crate) fn try_lerp(&mut self, to: &Self, step: EasingStep) -> bool {
         use Length::*;
 
         if step == 0.fct() {
-            return self;
+            return true;
         }
         if step == 1.fct() {
-            return to.clone();
+            *self = to.clone();
+            return true;
+        }
+        if self == to || self.is_zero().unwrap_or(false) && to.is_zero().unwrap_or(false) {
+            return true;
         }
 
-        match (self, to) {
+        let ok = match (mem::take(self), to) {
             (Dip(a), Dip(b)) => Dip(a.lerp(b, step)),
             (Px(a), Px(b)) => Px(a.lerp(b, step)),
             (Pt(a), Pt(b)) => Pt(a.lerp(b, step)),
@@ -254,8 +332,14 @@ impl Transitionable for Length {
             (PxF32(a), Px(b)) => PxF32(a.lerp(&(b.0 as f32), step)),
             (Dip(a), DipF32(b)) => DipF32(a.to_f32().lerp(b, step)),
             (DipF32(a), Dip(b)) => DipF32(a.lerp(&b.to_f32(), step)),
-            (a, b) => LengthExpr::Lerp(a, b.clone(), step).to_length_checked(),
-        }
+            (a, _) => {
+                *self = a;
+                return false;
+            }
+        };
+
+        *self = ok;
+        true
     }
 }
 impl ops::Neg for Length {
@@ -409,47 +493,49 @@ impl std::str::FromStr for Length {
     type Err = ParseCompositeError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == "default" || s == "Default" {
-            Ok(Self::Default)
+        let mut r = if s == "default" || s == "Default" {
+            Self::Default
         } else if let Some(dip) = s.strip_suffix("dip").or_else(|| s.strip_suffix(".dip()")) {
             if dip.contains('.') {
-                Ok(Self::DipF32(dip.parse()?))
+                Self::DipF32(dip.parse()?)
             } else {
-                Ok(Self::Dip(Dip::new_f32(dip.parse()?)))
+                Self::Dip(Dip::new_f32(dip.parse()?))
             }
         } else if let Some(px) = s.strip_suffix("px").or_else(|| s.strip_suffix(".px()")) {
             if px.contains('.') {
-                Ok(Self::PxF32(px.parse()?))
+                Self::PxF32(px.parse()?)
             } else {
-                Ok(Self::Px(Px(px.parse()?)))
+                Self::Px(Px(px.parse()?))
             }
         } else if let Some(pt) = s.strip_suffix("pt").or_else(|| s.strip_suffix(".pt()")) {
-            Ok(Self::Pt(pt.parse()?))
+            Self::Pt(pt.parse()?)
         } else if let Some(fct) = s.strip_suffix("fct").or_else(|| s.strip_suffix(".fct()")) {
-            Ok(Self::Factor(Factor(fct.parse()?)))
+            Self::Factor(Factor(fct.parse()?))
         } else if let Some(fct) = s.strip_suffix("%").or_else(|| s.strip_suffix(".pct()")) {
-            Ok(Self::Factor(FactorPercent(fct.parse()?).fct()))
+            Self::Factor(FactorPercent(fct.parse()?).fct())
         } else if let Some(lft) = s.strip_suffix("lft").or_else(|| s.strip_suffix(".lft()")) {
-            Ok(Self::Leftover(Factor(lft.parse()?)))
+            Self::Leftover(Factor(lft.parse()?))
         } else if let Some(em) = s.strip_suffix("em").or_else(|| s.strip_suffix(".em()")) {
-            Ok(Self::Em(Factor(em.parse()?)))
+            Self::Em(Factor(em.parse()?))
         } else if let Some(root_em) = s.strip_suffix("rem").or_else(|| s.strip_suffix(".rem()")) {
-            Ok(Self::RootEm(Factor(root_em.parse()?)))
+            Self::RootEm(Factor(root_em.parse()?))
         } else if let Some(vw) = s.strip_suffix("vw").or_else(|| s.strip_suffix(".vw()")) {
-            Ok(Self::ViewportWidth(Factor(vw.parse()?)))
+            Self::ViewportWidth(Factor(vw.parse()?))
         } else if let Some(vh) = s.strip_suffix("vh").or_else(|| s.strip_suffix(".vh()")) {
-            Ok(Self::ViewportHeight(Factor(vh.parse()?)))
+            Self::ViewportHeight(Factor(vh.parse()?))
         } else if let Some(v_min) = s.strip_suffix("vmin").or_else(|| s.strip_suffix(".vmin()")) {
-            Ok(Self::ViewportMin(Factor(v_min.parse()?)))
+            Self::ViewportMin(Factor(v_min.parse()?))
         } else if let Some(v_max) = s.strip_suffix("vmax").or_else(|| s.strip_suffix(".vmax()")) {
-            Ok(Self::ViewportMax(Factor(v_max.parse()?)))
+            Self::ViewportMax(Factor(v_max.parse()?))
         } else if let Ok(int) = s.parse::<i32>() {
-            Ok(Self::Dip(Dip::new(int)))
+            Self::Dip(Dip::new(int))
         } else if let Ok(float) = s.parse::<f32>() {
-            Ok(Self::DipF32(float))
+            Self::DipF32(float)
         } else {
-            Ok(Self::Expr(Box::new(s.parse()?)))
-        }
+            Self::Expr(Box::new(s.parse()?))
+        };
+        r.simplify();
+        Ok(r)
     }
 }
 impl_from_and_into_var! {
@@ -486,6 +572,13 @@ impl_from_and_into_var! {
     fn from(expr: LengthExpr) -> Length {
         Length::Expr(Box::new(expr))
     }
+
+    fn from(length: Length) -> LengthExpr {
+        match length {
+            Length::Expr(e) => *e,
+            l => LengthExpr::Unit(l),
+        }
+    }
 }
 impl Length {
     /// Length of exact zero.
@@ -505,8 +598,18 @@ impl Length {
 
     /// Returns a length that resolves to the maximum layout length between `self` and `other`.
     pub fn max(&self, other: impl Into<Length>) -> Length {
+        // TODO(breaking) take `self`
+        let mut self_ = self.clone();
+        let mut other = other.into();
+        if self_.try_max(&mut other) {
+            self_
+        } else {
+            LengthExpr::Max(self_, other).to_length_checked()
+        }
+    }
+    pub(crate) fn try_max(&mut self, other: &mut Self) -> bool {
         use Length::*;
-        match (self.clone(), other.into()) {
+        let ok = match (mem::take(self), mem::take(other)) {
             (Default, Default) => Default,
             (Dip(a), Dip(b)) => Dip(a.max(b)),
             (Px(a), Px(b)) => Px(a.max(b)),
@@ -523,14 +626,30 @@ impl Length {
             (PxF32(a), PxF32(b)) => PxF32(a.max(b)),
             (DipF32(a), Dip(b)) | (Dip(b), DipF32(a)) => DipF32(a.max(b.to_f32())),
             (PxF32(a), Px(b)) | (Px(b), PxF32(a)) => PxF32(a.max(b.0 as f32)),
-            (a, b) => LengthExpr::Max(a, b).to_length_checked(),
-        }
+            (a, b) => {
+                *self = a;
+                *other = b;
+                return false;
+            }
+        };
+        *self = ok;
+        true
     }
 
     /// Returns a length that resolves to the minimum layout length between `self` and `other`.
     pub fn min(&self, other: impl Into<Length>) -> Length {
+        // TODO(breaking) take `self`
+        let mut self_ = self.clone();
+        let mut other = other.into();
+        if self_.try_max(&mut other) {
+            self_
+        } else {
+            LengthExpr::Max(self_, other).to_length_checked()
+        }
+    }
+    pub(crate) fn try_min(&mut self, other: &mut Self) -> bool {
         use Length::*;
-        match (self.clone(), other.into()) {
+        let ok = match (mem::take(self), mem::take(other)) {
             (Default, Default) => Default,
             (Dip(a), Dip(b)) => Dip(a.min(b)),
             (Px(a), Px(b)) => Px(a.min(b)),
@@ -547,17 +666,25 @@ impl Length {
             (PxF32(a), PxF32(b)) => PxF32(a.min(b)),
             (DipF32(a), Dip(b)) | (Dip(b), DipF32(a)) => DipF32(a.min(b.to_f32())),
             (PxF32(a), Px(b)) | (Px(b), PxF32(a)) => PxF32(a.min(b.0 as f32)),
-            (a, b) => LengthExpr::Min(a, b).to_length_checked(),
-        }
+            (a, b) => {
+                *self = a;
+                *other = b;
+                return false;
+            }
+        };
+        *self = ok;
+        true
     }
 
     /// Returns a length that constraints the computed layout length between `min` and `max`.
     pub fn clamp(&self, min: impl Into<Length>, max: impl Into<Length>) -> Length {
+        // TODO(breaking) take `self`
         self.max(min).min(max)
     }
 
     /// Returns a length that computes the absolute layout length of `self`.
     pub fn abs(&self) -> Length {
+        // TODO(breaking) take `self`
         use Length::*;
         match self {
             Default => LengthExpr::Abs(Length::Default).to_length_checked(),
@@ -593,6 +720,25 @@ impl Length {
             }
             DipF32(l) => Some(about_eq(*l, 0.0, EQ_GRANULARITY_100)),
             PxF32(l) => Some(about_eq(*l, 0.0, EQ_GRANULARITY_100)),
+            Expr(_) => None,
+        }
+    }
+
+    /// If this length is a negative value in any finite layout context.
+    ///
+    /// Returns `None` if the value depends on the default value or is an expression.
+    pub fn is_sign_negative(&self) -> Option<bool> {
+        use Length::*;
+        match self {
+            Default => None,
+            Dip(l) => Some(*l < self::Dip::new(0)),
+            Px(l) => Some(*l < self::Px(0)),
+            Pt(l) => Some(about_eq(*l, 0.0, EQ_GRANULARITY)),
+            Factor(f) | Leftover(f) | Em(f) | RootEm(f) | ViewportWidth(f) | ViewportHeight(f) | ViewportMin(f) | ViewportMax(f) => {
+                Some(*f < 0.fct())
+            }
+            DipF32(l) => Some(l.is_sign_negative()),
+            PxF32(l) => Some(l.is_sign_negative()),
             Expr(_) => None,
         }
     }
@@ -659,6 +805,19 @@ impl Length {
             Length::DipF32(l) => *self = Length::Dip(Dip::new_f32(*l)),
             Length::Expr(e) => e.round_exact(),
             _ => {}
+        }
+    }
+
+    /// Evaluate expressions that don't need layout context to compute.
+    pub fn simplify(&mut self) {
+        if let Length::Expr(e) = self {
+            e.simplify();
+            if let LengthExpr::Unit(u) = &mut **e {
+                *self = mem::take(u);
+            }
+        }
+        if self.is_zero().unwrap_or(false) {
+            *self = Length::Px(Px(0));
         }
     }
 

@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, mem};
 
 use zng_unit::{ByteLength, ByteUnits as _, Factor, Px};
 use zng_var::animation::Transitionable as _;
@@ -30,6 +30,8 @@ pub enum LengthExpr {
     Neg(Length),
     /// Linear interpolate between lengths by factor.
     Lerp(Length, Length, Factor),
+    /// Single length, often the result of simplify.
+    Unit(Length),
 }
 impl LengthExpr {
     /// Gets the total memory allocated by this length expression.
@@ -39,15 +41,8 @@ impl LengthExpr {
         use LengthExpr::*;
         std::mem::size_of::<LengthExpr>().bytes()
             + match self {
-                Add(a, b) => a.heap_memory_used() + b.heap_memory_used(),
-                Sub(a, b) => a.heap_memory_used() + b.heap_memory_used(),
-                Mul(a, _) => a.heap_memory_used(),
-                Div(a, _) => a.heap_memory_used(),
-                Max(a, b) => a.heap_memory_used() + b.heap_memory_used(),
-                Min(a, b) => a.heap_memory_used() + b.heap_memory_used(),
-                Abs(a) => a.heap_memory_used(),
-                Neg(a) => a.heap_memory_used(),
-                Lerp(a, b, _) => a.heap_memory_used() + b.heap_memory_used(),
+                Add(a, b) | Sub(a, b) | Max(a, b) | Min(a, b) | Lerp(a, b, _) => a.heap_memory_used() + b.heap_memory_used(),
+                Mul(a, _) | Div(a, _) | Abs(a) | Neg(a) | Unit(a) => a.heap_memory_used(),
             }
     }
 
@@ -67,22 +62,22 @@ impl LengthExpr {
 
     /// If contains a [`Length::Default`] value.
     pub fn has_default(&self) -> bool {
+        use LengthExpr::*;
         match self {
-            LengthExpr::Add(a, b) | LengthExpr::Sub(a, b) | LengthExpr::Max(a, b) | LengthExpr::Min(a, b) | LengthExpr::Lerp(a, b, _) => {
-                a.has_default() || b.has_default()
-            }
-            LengthExpr::Mul(a, _) | LengthExpr::Div(a, _) | LengthExpr::Abs(a) | LengthExpr::Neg(a) => a.has_default(),
+            Add(a, b) | Sub(a, b) | Max(a, b) | Min(a, b) | Lerp(a, b, _) => a.has_default() || b.has_default(),
+            Mul(a, _) | Div(a, _) | Abs(a) | Neg(a) | Unit(a) => a.has_default(),
         }
     }
 
     /// Replace all [`Length::Default`] values with `overwrite`.
     pub fn replace_default(&mut self, overwrite: &Length) {
+        use LengthExpr::*;
         match self {
-            LengthExpr::Add(a, b) | LengthExpr::Sub(a, b) | LengthExpr::Max(a, b) | LengthExpr::Min(a, b) | LengthExpr::Lerp(a, b, _) => {
+            Add(a, b) | Sub(a, b) | Max(a, b) | Min(a, b) | Lerp(a, b, _) => {
                 a.replace_default(overwrite);
                 b.replace_default(overwrite);
             }
-            LengthExpr::Mul(a, _) | LengthExpr::Div(a, _) | LengthExpr::Abs(a) | LengthExpr::Neg(a) => a.replace_default(overwrite),
+            Mul(a, _) | Div(a, _) | Abs(a) | Neg(a) | Unit(a) => a.replace_default(overwrite),
         }
     }
 
@@ -93,12 +88,79 @@ impl LengthExpr {
     /// [`DipF32`]: Length::DipF32
     /// [`Dip`]: Length::Dip
     pub fn round_exact(&mut self) {
+        use LengthExpr::*;
         match self {
-            LengthExpr::Add(a, b) | LengthExpr::Sub(a, b) | LengthExpr::Max(a, b) | LengthExpr::Min(a, b) | LengthExpr::Lerp(a, b, _) => {
+            Add(a, b) | Sub(a, b) | Max(a, b) | Min(a, b) | Lerp(a, b, _) => {
                 a.round_exact();
                 b.round_exact();
             }
-            LengthExpr::Mul(a, _) | LengthExpr::Div(a, _) | LengthExpr::Abs(a) | LengthExpr::Neg(a) => a.round_exact(),
+            Mul(a, _) | Div(a, _) | Abs(a) | Neg(a) | Unit(a) => a.round_exact(),
+        }
+    }
+
+    /// Evaluate expressions that don't need layout context to compute.
+    pub fn simplify(&mut self) {
+        match self {
+            LengthExpr::Add(a, b) => {
+                a.simplify();
+                b.simplify();
+                if a.try_add(b) {
+                    *self = LengthExpr::Unit(mem::take(a));
+                }
+            }
+            LengthExpr::Sub(a, b) => {
+                a.simplify();
+                b.simplify();
+                if a.try_sub(b) {
+                    *self = LengthExpr::Unit(mem::take(a));
+                }
+            }
+            LengthExpr::Mul(a, f) => {
+                a.simplify();
+                if a.try_mul(*f) {
+                    *self = LengthExpr::Unit(mem::take(a));
+                }
+            }
+            LengthExpr::Div(a, f) => {
+                a.simplify();
+                if a.try_div(*f) {
+                    *self = LengthExpr::Unit(mem::take(a));
+                }
+            }
+            LengthExpr::Max(a, b) => {
+                a.simplify();
+                b.simplify();
+                if a.try_max(b) {
+                    *self = LengthExpr::Unit(mem::take(a));
+                }
+            }
+            LengthExpr::Min(a, b) => {
+                a.simplify();
+                b.simplify();
+                if a.try_min(b) {
+                    *self = LengthExpr::Unit(mem::take(a));
+                }
+            }
+            LengthExpr::Abs(a) => {
+                a.simplify();
+                if !a.is_sign_negative().unwrap_or(false) {
+                    *self = LengthExpr::Unit(mem::take(a));
+                }
+            }
+            LengthExpr::Neg(a) => {
+                a.simplify();
+                if a.is_zero().unwrap_or(false) {
+                    *self = LengthExpr::Unit(Length::Px(Px(0)));
+                }
+            }
+            LengthExpr::Lerp(a, b, f) => {
+                a.simplify();
+                b.simplify();
+                if a.try_lerp(b, *f) {
+                    *self = LengthExpr::Unit(mem::take(a));
+                }
+            }
+            LengthExpr::Unit(u) => u.simplify(),
         }
     }
 }
@@ -128,21 +190,15 @@ impl Layout1d for LengthExpr {
             Abs(e) => e.layout_f32_dft(axis, default).abs(),
             Neg(e) => -e.layout_f32_dft(axis, default),
             Lerp(a, b, f) => a.layout_f32_dft(axis, default).lerp(&b.layout_f32_dft(axis, default), *f),
+            Unit(a) => a.layout_f32_dft(axis, default),
         }
     }
 
     fn affect_mask(&self) -> LayoutMask {
         use LengthExpr::*;
         match self {
-            Add(a, b) => a.affect_mask() | b.affect_mask(),
-            Sub(a, b) => a.affect_mask() | b.affect_mask(),
-            Mul(a, _) => a.affect_mask(),
-            Div(a, _) => a.affect_mask(),
-            Max(a, b) => a.affect_mask() | b.affect_mask(),
-            Min(a, b) => a.affect_mask() | b.affect_mask(),
-            Abs(a) => a.affect_mask(),
-            Neg(a) => a.affect_mask(),
-            Lerp(a, b, _) => a.affect_mask() | b.affect_mask(),
+            Add(a, b) | Sub(a, b) | Max(a, b) | Min(a, b) | Lerp(a, b, _) => a.affect_mask() | b.affect_mask(),
+            Div(a, _) | Abs(a) | Mul(a, _) | Neg(a) | Unit(a) => a.affect_mask(),
         }
     }
 }
@@ -160,6 +216,7 @@ impl fmt::Debug for LengthExpr {
                 Abs(e) => f.debug_tuple("LengthExpr::Abs").field(e).finish(),
                 Neg(e) => f.debug_tuple("LengthExpr::Neg").field(e).finish(),
                 Lerp(a, b, n) => f.debug_tuple("LengthExpr::Lerp").field(a).field(b).field(n).finish(),
+                Unit(e) => f.debug_tuple("LengthExpr::Unit").field(e).finish(),
             }
         } else {
             match self {
@@ -172,6 +229,7 @@ impl fmt::Debug for LengthExpr {
                 Abs(e) => write!(f, "abs({e:.p$?})", p = f.precision().unwrap_or(0)),
                 Neg(e) => write!(f, "-({e:.p$?})", p = f.precision().unwrap_or(0)),
                 Lerp(a, b, n) => write!(f, "lerp({a:.p$?}, {b:.p$?}, {n:.p$?})", p = f.precision().unwrap_or(0)),
+                Unit(a) => fmt::Debug::fmt(a, f),
             }
         }
     }
@@ -189,6 +247,7 @@ impl fmt::Display for LengthExpr {
             Abs(e) => write!(f, "abs({e:.p$})", p = f.precision().unwrap_or(0)),
             Neg(e) => write!(f, "-({e:.p$})", p = f.precision().unwrap_or(0)),
             Lerp(a, b, n) => write!(f, "lerp({a:.p$}, {b:.p$}, {n:.p$})", p = f.precision().unwrap_or(0)),
+            Unit(a) => fmt::Display::fmt(a, f),
         }
     }
 }
@@ -208,7 +267,7 @@ impl<'a> TryFrom<Expr<'a>> for Length {
     type Error = ParseCompositeError;
 
     fn try_from(value: Expr) -> Result<Self, Self::Error> {
-        match value {
+        let r = match value {
             Expr::Value(l) => l.parse(),
             Expr::UnaryOp { op, rhs } => match op {
                 '-' => Ok(LengthExpr::Neg(Length::try_from(*rhs)?).into()),
@@ -243,7 +302,10 @@ impl<'a> TryFrom<Expr<'a>> for Length {
                 }
                 _ => Err(ParseCompositeError::UnknownFormat),
             },
-        }
+        };
+        let mut r = r?;
+        r.simplify();
+        Ok(r)
     }
 }
 fn try_into_scale(rhs: Expr) -> Result<Factor, ParseCompositeError> {
@@ -269,21 +331,10 @@ fn try_args<const N: usize>(args: Vec<Expr>) -> Result<[Length; N], ParseComposi
 /// Basic string representation of `lengthExpr`, without validating functions and Length values.
 #[derive(Debug, PartialEq)]
 enum Expr<'a> {
-    #[allow(unused)]
     Value(&'a str),
-    UnaryOp {
-        op: char,
-        rhs: Box<Expr<'a>>,
-    },
-    BinaryOp {
-        op: char,
-        lhs: Box<Expr<'a>>,
-        rhs: Box<Expr<'a>>,
-    },
-    Call {
-        name: &'a str,
-        args: Vec<Expr<'a>>,
-    },
+    UnaryOp { op: char, rhs: Box<Expr<'a>> },
+    BinaryOp { op: char, lhs: Box<Expr<'a>>, rhs: Box<Expr<'a>> },
+    Call { name: &'a str, args: Vec<Expr<'a>> },
 }
 
 struct Parser<'a> {
