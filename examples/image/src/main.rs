@@ -805,12 +805,10 @@ fn multi_image_container() -> UiNode {
                     auto_size = true;
                     padding = 10;
                     child = Stack! {
+                        direction = StackDirection::left_to_right();
                         spacing = 5;
                         children = entries.present_list_from_iter(wgt_fn!(|entry: VarEq<image::Img>| {
                             Image! {
-                                zng::container::child_out_top = Text! {
-                                    txt = entry.0.map(|e| formatx!("{:?} {:?}", e.entry_kind(), e.size()));
-                                };
                                 layout::size = entry.0.map(|e| e.size().into());
                                 source = entry.0;
                             }

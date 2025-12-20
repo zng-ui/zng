@@ -62,12 +62,13 @@ impl ImageCache {
                     let mut entry_sizes: Vec<_> = ico.entries().iter().enumerate().map(|(i, e)| (i, e.width() * e.height())).collect();
                     entry_sizes.sort_by_key(|t| t.1);
                     entry_sizes.reverse();
+                    let mut first = true;
                     let entries = entry_sizes
                         .into_iter()
                         .map(|(i, _)| {
                             (
                                 i,
-                                if i == 0 {
+                                if std::mem::take(&mut first) {
                                     ImageEntryKind::Page
                                 } else {
                                     ImageEntryKind::Reduced { synthetic: false }

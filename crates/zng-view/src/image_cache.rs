@@ -404,7 +404,7 @@ impl ImageCache {
                     }
                     ImageEntryKind::Reduced { .. } => {
                         // reduced requested AND including all pages or is reduced for first page
-                        entries.contains(ImageEntriesMode::REDUCED) && entries.contains(ImageEntriesMode::PAGES) || page_count == 1
+                        entries.contains(ImageEntriesMode::REDUCED) && (entries.contains(ImageEntriesMode::PAGES) || page_count == 1)
                     }
                     ImageEntryKind::Other { .. } => entries.contains(ImageEntriesMode::OTHER),
                     _ => unreachable!(),
@@ -515,7 +515,7 @@ impl ImageCache {
                         tasks.push(Task::Decode {
                             entry_index: entry.0,
                             entry_header: entry.1,
-                            id,
+                            id: id_gen.lock().incr(),
                             parent: Some(ImageEntryMetadata::new(id, *page_entries, entry.2)),
                             notify_meta,
                             downscale: None,
