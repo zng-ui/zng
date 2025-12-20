@@ -38,6 +38,7 @@ fn main() {
         ImgWindow!(
             "Image Example",
             Stack! {
+                align = Align::CENTER;
                 direction = StackDirection::left_to_right();
                 spacing = 30;
                 children = ui_vec![
@@ -458,6 +459,7 @@ fn repeat_image() -> UiNode {
                     title,
                     Scroll! {
                         mode = ScrollMode::HORIZONTAL;
+                        child_align = Align::FILL;
                         // demo `background_img`
                         child = Wgt! {
                             widget::background_img = source;
@@ -824,8 +826,6 @@ impl ImgWindow {
             };
 
             // render_mode = RenderMode::Software;
-
-            child_align = Align::CENTER;
 
             state = WindowState::Maximized;
             size = (1140, 770); // restore size
