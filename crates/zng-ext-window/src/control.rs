@@ -212,8 +212,6 @@ impl HeadedCtrl {
             }
         }
         if let Some(prev_state) = self.state.clone() {
-            debug_assert!(self.window.is_some() || self.waiting_view || self.respawned);
-
             let mut new_state = prev_state.clone();
 
             if self.vars.chrome().is_new() || WINDOWS.system_chrome().is_new() {
@@ -1227,25 +1225,21 @@ impl HeadedCtrl {
             WINDOWS.take_view_extensions_init(window_id),
         );
 
-        if let Ok(()) = VIEW_PROCESS.open_window(request) {
-            self.state = Some(state);
-            self.waiting_view = true;
-        } // else respawn
+        self.state = Some(state);
+        if VIEW_PROCESS.open_window(request).is_err() {
+            tracing::warn!("respawn on layout init");
+            // layout_respawn will request the window
+        }
+        self.waiting_view = true;
     }
 
     /// Layout for already open window.
     fn layout_update(&mut self, layout_widgets: Arc<LayoutUpdates>) {
-        let mut state = match self.state.clone() {
-            Some(s) => s,
-            None => {
-                tracing::warn!("layout update ignored due to respawn");
-                return;
-            }
-        };
-
         let m = self.monitor.as_ref().unwrap();
         let scale_factor = m.scale_factor().get();
         let screen_density = m.density().get();
+
+        let mut state = self.state.clone().unwrap();
 
         let current_size = self.vars.0.actual_size.get().to_px(scale_factor);
         let mut size = current_size;
