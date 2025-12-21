@@ -188,9 +188,13 @@ fn editor_state() -> Var<Option<SettingsEditorState>> {
 }
 
 fn settings_view_fn() -> UiNode {
-    let search = SETTINGS_SEARCH_FN_VAR.get()(SettingsSearchArgs {});
-
     let editor_state = SETTINGS.editor_state().current_context();
+
+    let has_results = editor_state.map(|r| !r.as_ref().unwrap().categories.is_empty());
+
+    let search = SETTINGS_SEARCH_FN_VAR.get()(SettingsSearchArgs {
+        has_results: has_results.clone(),
+    });
 
     let categories = editor_state
         .map(|r| r.as_ref().unwrap().categories.clone())
@@ -235,6 +239,7 @@ fn settings_view_fn() -> UiNode {
         search,
         categories,
         settings,
+        has_results,
     })
 }
 
