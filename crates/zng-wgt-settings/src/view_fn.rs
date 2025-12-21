@@ -280,7 +280,7 @@ pub fn default_panel_fn(args: PanelArgs) -> UiNode {
                 txt = l10n!("search.no_results", "No settings found");
                 txt_align = Align::TOP;
                 zng_wgt::margin = 10;
-            }
+            };
         }
     }
 }
