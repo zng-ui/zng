@@ -300,7 +300,7 @@ impl ImageCache {
                             Ok(data) => {
                                 let is_opaque = data_ref.chunks_exact(4).all(|c| c[3] == 255);
                                 if let Some(d) = decoded!(
-                                    (data, size, None, is_opaque, true),
+                                    (data, size, None, is_opaque, false),
                                     original_color_type,
                                     !downscale_sizes.1.is_empty()
                                 ) {
@@ -312,7 +312,7 @@ impl ImageCache {
                         Ok(None) => {
                             let is_opaque = data_ref.chunks_exact(4).all(|c| c[3] == 255);
                             if let Some(d) = decoded!(
-                                (data, size, None, is_opaque, true),
+                                (data, size, None, is_opaque, false),
                                 original_color_type,
                                 !downscale_sizes.1.is_empty()
                             ) {
