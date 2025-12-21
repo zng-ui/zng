@@ -142,11 +142,10 @@ impl Text {
 
 /// The text string.
 ///
-/// Set to an empty string (`""`) by default.
+/// In a text widget this property is captured, in other widgets sets the child node to a text widget.
 #[property(CHILD, default(""), widget_impl(Text))]
 pub fn txt(wgt: &mut WidgetBuilding, txt: impl IntoVar<Txt>) {
-    let _ = txt;
-    wgt.expect_property_capture();
+    wgt.set_child(Text!(txt));
 }
 
 /// Value that is parsed from the text and displayed as the text.
