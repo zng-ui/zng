@@ -134,13 +134,13 @@ impl ImageCache {
                                 Some((size, data_mut)) => match data_mut.finish_blocking() {
                                     Ok(data) => {
                                         let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
-                                        Ok((data, size, None, is_opaque, true))
+                                        Ok((data, size, None, is_opaque, false))
                                     }
                                     Err(e) => Err(e.to_txt()),
                                 },
                                 None => {
                                     let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
-                                    Ok((data, size, None, is_opaque, true))
+                                    Ok((data, size, None, is_opaque, false))
                                 }
                             },
                             Err(e) => Err(e.to_txt()),
