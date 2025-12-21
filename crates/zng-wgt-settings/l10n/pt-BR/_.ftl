@@ -1,4 +1,5 @@
 search =
+    .no_results = Nenhuma configuração encontrada
     .placeholder = procurar configurações ({$shortcut})
 
 window =
