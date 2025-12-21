@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix BGRA image tagged as mask.
 * Add `Length::simplify` and automatically apply it to parsed expressions.
 * Add `zng::text::txt` standalone property. It sets the child node of the widget to `Text!`.
 * Better `SettingsEditor!` screen when no item matches search.
