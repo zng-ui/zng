@@ -2,7 +2,6 @@
 
 use std::{fmt, sync::Arc};
 use zng_task::parking_lot::Mutex;
-#[cfg(feature = "image_any")]
 use zng_view_api::image::ImageEntryKind;
 use zng_view_api::image::{ColorType, ImageDownscaleMode, ImageEntriesMode, ImageEntryMetadata, ImageFormat, ImageMaskMode};
 
