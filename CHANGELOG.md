@@ -1,6 +1,7 @@
 # Unreleased
 
 * Add `zng::text::txt` standalone property. It sets the child node of the widget to `Text!`.
+* Better `SettingsEditor!` screen when no item matches search.
 * Change `presenter` and `presenter_opt` nodes to become the inner node if it is an widget.
 * Fix `force_size` layout causing an error log.
 * Fix `Scroll!` child alignment fill. Remove non standard layout, now only applies in dimensions without scrolling.

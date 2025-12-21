@@ -275,6 +275,13 @@ pub fn default_panel_fn(args: PanelArgs) -> UiNode {
             child_start = args.categories;
             child = args.settings;
         };
+        when !*#{args.has_results} {
+            child = Text! {
+                txt = l10n!("search.no_results", "No settings found");
+                txt_align = Align::TOP;
+                zng_wgt::margin = 10;
+            };
+        }
     }
 }
 
@@ -367,9 +374,18 @@ impl SettingsArgs {
 /// Arguments for a search box widget.
 ///
 /// The search variable is in [`SETTINGS.editor_search`](SettingsCtxExt::editor_search).
-#[derive(Default)]
 #[non_exhaustive]
-pub struct SettingsSearchArgs {}
+pub struct SettingsSearchArgs {
+    /// If any settings matched the current search.
+    pub has_results: Var<bool>,
+}
+impl Default for SettingsSearchArgs {
+    fn default() -> Self {
+        Self {
+            has_results: true.into_var(),
+        }
+    }
+}
 
 /// Arguments for the entire settings editor layout.
 #[non_exhaustive]
@@ -380,6 +396,9 @@ pub struct PanelArgs {
     pub categories: UiNode,
     /// Settings widget.
     pub settings: UiNode,
+
+    /// If any settings matched the current search.
+    pub has_results: Var<bool>,
 }
 impl PanelArgs {
     /// New args.
@@ -388,6 +407,7 @@ impl PanelArgs {
             search,
             categories,
             settings,
+            has_results: true.into_var(),
         }
     }
 }
