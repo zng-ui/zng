@@ -556,7 +556,7 @@ impl Img {
             .any(|e| e.with(|e| e.is_loading() || e.has_loading_entries()))
     }
 
-    pub(crate) fn insert_entry(&self, entry: ViewImage) {
+    pub(crate) fn insert_entry(&self, entry: ViewImage) -> Var<Img> {
         let mut self_ = self.img_mut.lock();
         let i = entry.entry_index();
         let i = self_
@@ -567,7 +567,9 @@ impl Img {
                 entry_i > i
             })
             .unwrap_or(self_.entries.len());
-        self_.entries.insert(i, zng_var::var(Self::new(entry)));
+        let entry = zng_var::var(Self::new(entry));
+        self_.entries.insert(i, entry.clone());
+        entry
     }
 }
 impl zng_app::render::Img for Img {

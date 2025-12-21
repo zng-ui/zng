@@ -45,7 +45,7 @@ use zng_task::{UiTask, channel::IpcBytes};
 use zng_txt::{ToTxt, Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap};
 use zng_var::{Var, WeakVar, var};
-use zng_view_api::image::ImageRequest;
+use zng_view_api::image::{ImageEntryMetadata, ImageRequest};
 
 /// Application extension that provides an image cache.
 ///
@@ -168,16 +168,54 @@ impl AppExtension for ImageManager {
                             }
                         };
 
+                        let entries = img.entries();
+
                         let data = view.pixels().unwrap();
-                        let mut request =
-                            ImageRequest::new(img_format.clone(), data.clone(), max_decoded_len.0 as u64, downscale.clone(), mask);
-                        request.entries = entries;
+                        let request = ImageRequest::new(img_format.clone(), data.clone(), max_decoded_len.0 as u64, None, mask);
                         let img = match VIEW_PROCESS.add_image(request) {
                             Ok(img) => img,
                             Err(_) => return, // we will receive another event.
                         };
+                        let img = Img::new(img);
 
-                        img_var.set(Img::new(img));
+                        fn add_entries(max_decoded_len: ByteLength, mask: Option<ImageMaskMode>, entries: Vec<ImageVar>, img: &Img) {
+                            for (i, entry) in entries.into_iter().enumerate() {
+                                let entry = entry.get();
+                                if let Some(view) = entry.view() {
+                                    if entry.is_loaded() {
+                                        let img_format = if view.is_mask() {
+                                            ImageDataFormat::A8 { size: view.size() }
+                                        } else {
+                                            ImageDataFormat::Bgra8 {
+                                                size: view.size(),
+                                                density: view.density(),
+                                                original_color_type: view.original_color_type(),
+                                            }
+                                        };
+                                        let data = view.pixels().unwrap();
+                                        let mut request =
+                                            ImageRequest::new(img_format.clone(), data.clone(), max_decoded_len.0 as u64, None, mask);
+                                        request.parent =
+                                            Some(ImageEntryMetadata::new(img.view().unwrap().id().unwrap(), i, entry.entry_kind()));
+                                        let entry_img = match VIEW_PROCESS.add_image(request) {
+                                            Ok(img) => img,
+                                            Err(_) => return, // we will receive another event.
+                                        };
+                                        let entry_img = img.insert_entry(entry_img);
+
+                                        add_entries(max_decoded_len, mask, entry.entries(), &entry_img.get());
+                                        continue;
+                                    } else if entry.is_error() {
+                                        img.insert_entry(view.clone());
+                                        continue;
+                                    }
+                                }
+                                tracing::warn!("respawn not implemented for multi entry image partially decoded on crash");
+                            }
+                        }
+                        add_entries(max_decoded_len, mask, entries, &img);
+
+                        img_var.set(img);
 
                         images.decoding.push(ImageDecodingTask {
                             format: img_format,

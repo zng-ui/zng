@@ -177,10 +177,12 @@ impl VIEW_PROCESS {
     /// [`Event::ImageDecodeError`]: zng_view_api::Event::ImageDecodeError
     pub fn add_image(&self, request: ImageRequest<IpcBytes>) -> Result<ViewImage> {
         let mut app = self.write();
-        let id = app.process.add_image(request)?;
-        let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
-            id: Some(id),
-            parent: None,
+
+        // decoded events will override this, but we try to set some metadata in advance,
+        // in particular `parent` can be used immediately by the IMAGES service.
+        let mut view_data = ViewImageData {
+            id: None,
+            parent: request.parent.clone(),
             app_id: APP.id(),
             generation: app.process.generation(),
             size: PxSize::zero(),
@@ -190,10 +192,37 @@ impl VIEW_PROCESS {
             is_opaque: false,
             partial_pixels: None,
             pixels: None,
-            is_mask: false,
+            is_mask: request.mask.is_some(),
             done_signal: SignalOnce::new(),
-        })));
+        };
+        match &request.format {
+            zng_view_api::image::ImageDataFormat::Bgra8 {
+                size,
+                density,
+                original_color_type,
+            } => {
+                view_data.density = *density;
+                view_data.original_color_type = original_color_type.clone();
+                if request.downscale.is_none() && request.data.len() == size.width.0 as usize * size.height.0 as usize * 4 {
+                    view_data.size = *size;
+                    view_data.pixels = Some(Ok(request.data.clone()));
+                }
+            }
+            zng_view_api::image::ImageDataFormat::A8 { size } => {
+                if request.downscale.is_none() && request.data.len() == size.width.0 as usize * size.height.0 as usize {
+                    view_data.size = *size;
+                    view_data.pixels = Some(Ok(request.data.clone()));
+                }
+            }
+            _ => {}
+        }
+
+        let id = app.process.add_image(request)?;
+
+        view_data.id = Some(id);
+        let img = ViewImage(Arc::new(RwLock::new(view_data)));
         app.loading_images.push(Arc::downgrade(&img.0));
+
         Ok(img)
     }
 
@@ -209,10 +238,12 @@ impl VIEW_PROCESS {
     /// [`Event::ImagePartiallyDecoded`]: zng_view_api::Event::ImagePartiallyDecoded
     pub fn add_image_pro(&self, request: ImageRequest<IpcReceiver<IpcBytes>>) -> Result<ViewImage> {
         let mut app = self.write();
-        let id = app.process.add_image_pro(request)?;
-        let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
-            id: Some(id),
-            parent: None,
+
+        // decoded events will override this, but we try to set some metadata in advance,
+        // in particular `parent` can be used immediately by the IMAGES service.
+        let mut view_data = ViewImageData {
+            id: None,
+            parent: request.parent.clone(),
             app_id: APP.id(),
             generation: app.process.generation(),
             size: PxSize::zero(),
@@ -224,8 +255,23 @@ impl VIEW_PROCESS {
             pixels: None,
             is_mask: false,
             done_signal: SignalOnce::new(),
-        })));
+        };
+        if let zng_view_api::image::ImageDataFormat::Bgra8 {
+            density,
+            original_color_type,
+            ..
+        } = &request.format
+        {
+            view_data.density = *density;
+            view_data.original_color_type = original_color_type.clone();
+        }
+
+        let id = app.process.add_image_pro(request)?;
+
+        view_data.id = Some(id);
+        let img = ViewImage(Arc::new(RwLock::new(view_data)));
         app.loading_images.push(Arc::downgrade(&img.0));
+
         Ok(img)
     }
 
