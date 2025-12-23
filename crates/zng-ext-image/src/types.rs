@@ -479,11 +479,12 @@ impl Img {
 
     /// Encode the image to the format.
     pub async fn encode(&self, format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
+        let entries = "!!: TODO";
         self.done_signal.clone().await;
         if let Some(e) = self.error() {
             Err(EncodeError::Encode(e))
         } else {
-            self.view.get().unwrap().encode(format).await
+            self.view.get().unwrap().encode(vec![], format).await
         }
     }
 
@@ -512,7 +513,7 @@ impl Img {
     async fn save_impl(&self, format: Txt, path: PathBuf) -> io::Result<()> {
         let view = self.view.get().unwrap();
         let data = view
-            .encode(format)
+            .encode(vec![], format)
             .await
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         task::wait(move || fs::write(path, &data[..])).await
@@ -556,7 +557,14 @@ impl Img {
             .any(|e| e.with(|e| e.is_loading() || e.has_loading_entries()))
     }
 
-    pub(crate) fn insert_entry(&self, entry: ViewImage) -> Var<Img> {
+    /// Insert `entry` in [`entries`].
+    ///
+    /// Note that `Img` is a shared reference, the new entry will be inserted for all clones, this method is
+    /// `&mut self` to ensure variable updates when set in a [`ImageVar`], the most common way of handling images.
+    ///
+    /// [`entries`]: Self::entries
+    pub fn register_entry(&mut self, entry: ViewImage) -> Var<Img> {
+        // takes &mut self to force ImageVar updates
         let mut self_ = self.img_mut.lock();
         let i = entry.entry_index();
         let i = self_

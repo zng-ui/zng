@@ -2,8 +2,6 @@
 
 use std::{fmt, sync::Arc};
 use zng_task::parking_lot::Mutex;
-use zng_view_api::image::ImageEntryKind;
-use zng_view_api::image::{ColorType, ImageDownscaleMode, ImageEntriesMode, ImageEntryMetadata, ImageFormat, ImageMaskMode};
 
 use webrender::api::ImageDescriptor;
 use zng_txt::formatx;
@@ -12,7 +10,10 @@ use zng_task::channel::{IpcBytes, IpcReceiver};
 use zng_unit::{Px, PxDensity2d, PxSize};
 use zng_view_api::{
     Event,
-    image::{ImageDataFormat, ImageDecoded, ImageId, ImageMetadata, ImageRequest},
+    image::{
+        ColorType, ImageDataFormat, ImageDecoded, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageEntryMetadata, ImageFormat,
+        ImageFormatCapability as Cap, ImageId, ImageMaskMode, ImageMetadata, ImageRequest,
+    },
 };
 
 use crate::{AppEvent, AppEventSender};
@@ -34,42 +35,42 @@ pub(crate) mod lcms2 {
 
 pub(crate) const FORMATS: &[ImageFormat] = &[
     #[cfg(any(feature = "image_avif", zng_view_image_has_avif))]
-    ImageFormat::from_static("AVIF", "avif", "avif", false),
+    ImageFormat::from_static("AVIF", "avif", "avif", Cap::empty()),
     #[cfg(feature = "image_bmp")]
-    ImageFormat::from_static("BMP", "bmp", "bmp,dib", true),
+    ImageFormat::from_static("BMP", "bmp", "bmp,dib", Cap::ENCODE),
     #[cfg(feature = "image_dds")]
-    ImageFormat::from_static("DirectDraw Surface", "vnd-ms.dds,x-direct-draw-surface", "dds", false),
+    ImageFormat::from_static("DirectDraw Surface", "vnd-ms.dds,x-direct-draw-surface", "dds", Cap::empty()),
     #[cfg(feature = "image_exr")]
-    ImageFormat::from_static("OpenEXR", "x-exr", "exr", false),
+    ImageFormat::from_static("OpenEXR", "x-exr", "exr", Cap::empty()),
     // https://www.wikidata.org/wiki/Q28206109
     #[cfg(feature = "image_ff")]
-    ImageFormat::from_static("Farbfeld", "x-farbfeld", "ff,ff.bz2", false),
+    ImageFormat::from_static("Farbfeld", "x-farbfeld", "ff", Cap::empty()),
     #[cfg(feature = "image_gif")]
-    ImageFormat::from_static("GIF", "gif", "gif", false),
+    ImageFormat::from_static("GIF", "gif", "gif", Cap::empty()),
     #[cfg(feature = "image_hdr")]
-    ImageFormat::from_static("Radiance HDR", "vnd.radiance", "hdr", false),
+    ImageFormat::from_static("Radiance HDR", "vnd.radiance", "hdr", Cap::empty()),
     #[cfg(feature = "image_ico")]
-    ImageFormat::from_static("ICO", "x-icon,vnd.microsoft.icon", "ico", true),
+    ImageFormat::from_static("ICO", "x-icon,vnd.microsoft.icon", "ico", Cap::ENCODE_ENTRIES),
     #[cfg(feature = "image_jpeg")]
-    ImageFormat::from_static("JPEG", "jpeg", "jpg,jpeg", true),
+    ImageFormat::from_static("JPEG", "jpeg", "jpg,jpeg", Cap::ENCODE),
     #[cfg(feature = "image_png")]
-    ImageFormat::from_static("PNG", "png", "png", true),
+    ImageFormat::from_static("PNG", "png", "png", Cap::ENCODE),
     #[cfg(feature = "image_pnm")]
     ImageFormat::from_static(
         "PNM",
         "x-portable-bitmap,x-portable-graymap,x-portable-pixmap,x-portable-anymap",
         "pbm,pgm,ppm,pam",
-        false,
+        Cap::empty(),
     ),
     // https://github.com/phoboslab/qoi/issues/167
     #[cfg(feature = "image_qoi")]
-    ImageFormat::from_static("QOI", "x-qoi", "qoi", true),
+    ImageFormat::from_static("QOI", "x-qoi", "qoi", Cap::ENCODE),
     #[cfg(feature = "image_tga")]
-    ImageFormat::from_static("TGA", "x-tga,x-targa", "tga,icb,vda,vst", false),
+    ImageFormat::from_static("TGA", "x-tga,x-targa", "tga,icb,vda,vst", Cap::empty()),
     #[cfg(feature = "image_tiff")]
-    ImageFormat::from_static("TIFF", "tiff", "tif,tiff", true),
+    ImageFormat::from_static("TIFF", "tiff", "tif,tiff", Cap::ENCODE_ENTRIES),
     #[cfg(feature = "image_tiff")]
-    ImageFormat::from_static("WebP", "webp", "webp", true),
+    ImageFormat::from_static("WebP", "webp", "webp", Cap::ENCODE),
 ];
 
 pub(crate) type ResizerCache = Mutex<fast_image_resize::Resizer>;

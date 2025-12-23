@@ -434,11 +434,14 @@ declare_api! {
     ///
     /// The format must be one of the values returned by [`image_encoders`].
     ///
+    /// If `entries` is set and the format supports multiple images encodes the `id` as the first *page* followed by each
+    /// entry in the order given.
+    ///
     /// Returns immediately. The encoded data will be send as the event
     /// [`Event::ImageEncoded`] or [`Event::ImageEncodeError`].
     ///
     /// [`image_encoders`]: Api::image_encoders
-    pub fn encode_image(&mut self, id: ImageId, format: Txt);
+    pub fn encode_image(&mut self, id: ImageId, entries: Vec<(ImageId, image::ImageEntryKind)>, format: Txt); // TODO(breaking) args struct
 
     /// Cache an audio resource.
     ///

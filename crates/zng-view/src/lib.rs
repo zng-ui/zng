@@ -2083,7 +2083,7 @@ impl Api for App {
     fn image_encoders(&mut self) -> Vec<Txt> {
         image_cache::FORMATS
             .iter()
-            .filter(|f| f.can_encode)
+            .filter(|f| f.capabilities.contains(image::ImageFormatCapability::ENCODE))
             .flat_map(|f| f.file_extensions_iter().map(Txt::from_str))
             .collect()
     }
@@ -2100,8 +2100,8 @@ impl Api for App {
         self.image_cache.forget(id)
     }
 
-    fn encode_image(&mut self, id: ImageId, format: Txt) {
-        self.image_cache.encode(id, format)
+    fn encode_image(&mut self, id: ImageId, entries: Vec<(ImageId, image::ImageEntryKind)>, format: Txt) {
+        self.image_cache.encode(id, entries, format)
     }
 
     fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageTextureId {
@@ -2276,7 +2276,7 @@ impl Api for App {
 
                 if let Some(img) = self.image_cache.get(id) {
                     let mut bmp = vec![];
-                    img.encode(::image::ImageFormat::Bmp, &mut std::io::Cursor::new(&mut bmp))
+                    img.encode(vec![], ::image::ImageFormat::Bmp, &mut std::io::Cursor::new(&mut bmp))
                         .map_err(|e| clipboard::ClipboardError::Other(formatx!("{e:?}")))?;
                     clipboard_win::set(clipboard_win::formats::Bitmap, bmp).map_err(util::clipboard_win_to_clip)
                 } else {

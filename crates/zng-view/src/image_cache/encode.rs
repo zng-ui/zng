@@ -4,8 +4,11 @@ use winit::{
 };
 use zng_task::channel::IpcBytes;
 use zng_txt::{ToTxt as _, Txt, formatx};
-use zng_unit::PxPoint;
-use zng_view_api::{Event, image::ImageId};
+use zng_unit::{PxPoint, PxSize};
+use zng_view_api::{
+    Event,
+    image::{ImageEntryKind, ImageFormatCapability, ImageId},
+};
 
 use crate::{
     AppEvent,
@@ -13,23 +16,23 @@ use crate::{
 };
 
 impl ImageCache {
-    pub fn encode(&self, id: ImageId, format: Txt) {
+    pub fn encode(&self, id: ImageId, entries: Vec<(ImageId, ImageEntryKind)>, format: Txt) {
         let fmt = match FORMATS.iter().find(|f| f.matches(format.as_str())) {
             Some(f) => {
-                if !f.can_encode {
-                    let error = formatx!(
-                        "cannot encode `{id:?}` to `{} ({format})`, encoding not implemented",
-                        f.display_name
-                    );
-                    let _ = self
-                        .app_sender
-                        .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
-                    return;
+                if !f.capabilities.contains(ImageFormatCapability::ENCODE) {
+                    Err("encoding not implemented")
+                } else if !entries.is_empty() && !f.capabilities.contains(ImageFormatCapability::ENCODE_ENTRIES) {
+                    Err("multi entry encoding not implemented")
+                } else {
+                    Ok(f)
                 }
-                f
             }
-            None => {
-                let error = formatx!("cannot encode `{id:?}` to `{format}`, unknown format");
+            None => Err("unknown format"),
+        };
+        let fmt = match fmt {
+            Ok(f) => f,
+            Err(e) => {
+                let error = formatx!("cannot encode `{id:?}` to `{format}`, {e}");
                 let _ = self
                     .app_sender
                     .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
@@ -38,6 +41,25 @@ impl ImageCache {
         };
 
         if let Some(img) = self.get(id) {
+            let mut entry_imgs = Vec::with_capacity(entries.len());
+            for (entry_id, kind) in entries {
+                match self.get(entry_id) {
+                    Some(img) => {
+                        entry_imgs.push((img.clone(), kind));
+                    }
+                    None => {
+                        let error = formatx!(
+                            "cannot encode `{id:?}` to `{}`, entry image ({entry_id:?}) not found",
+                            fmt.display_name
+                        );
+                        let _ = self
+                            .app_sender
+                            .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
+                        return;
+                    }
+                }
+            }
+
             let fmt = image::ImageFormat::from_extension(fmt.file_extensions_iter().next().unwrap()).unwrap();
             debug_assert!(fmt.can_write());
 
@@ -45,7 +67,7 @@ impl ImageCache {
             let sender = self.app_sender.clone();
             rayon::spawn(move || {
                 let mut data = IpcBytes::new_writer_blocking();
-                match img.encode(fmt, &mut data) {
+                match img.encode(entry_imgs, fmt, &mut data) {
                     Ok(_) => match data.finish() {
                         Ok(data) => {
                             let _ = sender.send(AppEvent::Notify(Event::ImageEncoded { image: id, format, data }));
@@ -143,7 +165,12 @@ impl Image {
         }
     }
 
-    pub fn encode(&self, format: image::ImageFormat, buffer: &mut (impl std::io::Write + std::io::Seek)) -> image::ImageResult<()> {
+    pub fn encode(
+        &self,
+        entries: Vec<(Image, ImageEntryKind)>,
+        format: image::ImageFormat,
+        buffer: &mut dyn EncodeBuffer,
+    ) -> image::ImageResult<()> {
         let (size, pixels, density) = match &*self.0 {
             ImageData::RawData { size, pixels, density, .. } => (size, pixels, density),
             ImageData::NativeTexture { .. } => unreachable!(),
@@ -154,6 +181,24 @@ impl Image {
                 std::io::ErrorKind::InvalidInput,
                 "cannot encode zero sized image",
             )));
+        }
+
+        if !entries.is_empty() {
+            match format {
+                #[cfg(feature = "image_ico")]
+                image::ImageFormat::Ico => {
+                    Self::encode_ico(*size, self.0.is_mask(), pixels, self.0.is_opaque(), entries, buffer).map_err(|e| {
+                        image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
+                    })?;
+                }
+                #[cfg(feature = "image_tiff")]
+                image::ImageFormat::Tiff => {
+                    Self::encode_tiff(*size, self.0.is_mask(), pixels, self.0.is_opaque(), entries, buffer).map_err(|e| {
+                        image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
+                    })?;
+                }
+                _ => unreachable!(), // caller validated capabilities
+            }
         }
 
         if self.0.is_mask() {
@@ -172,9 +217,9 @@ impl Image {
         }
 
         // invert rows, `image` only supports top-to-bottom buffers.
-        let mut buf = pixels[..].to_vec();
-        // BGRA to RGBA
-        buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
+        let mut buf = pixels[..].to_vec(); // TODO use IpcDynamicImage
+        // BGRA to RGBA and remove pre mul
+        bgra_pre_mul_to_rgba(&mut buf, self.0.is_opaque());
         let rgba = buf;
 
         let width = size.width.0 as u32;
@@ -242,5 +287,155 @@ impl Image {
         }
 
         Ok(())
+    }
+
+    #[cfg(feature = "image_ico")]
+    fn encode_ico(
+        size: PxSize,
+        is_mask: bool,
+        pixels: &IpcBytes,
+        is_opaque: bool,
+        entries: Vec<(Image, ImageEntryKind)>,
+        buffer: &mut dyn EncodeBuffer,
+    ) -> std::io::Result<()> {
+        let mut ico = ico::IconDir::new(ico::ResourceType::Icon);
+
+        fn to_ico_img(size: PxSize, pixels: &IpcBytes, is_mask: bool, is_opaque: bool) -> ico::IconImage {
+            let rgba = if is_mask {
+                let mut v = Vec::with_capacity(pixels.len() * 4);
+                for &p in pixels.iter() {
+                    v.extend_from_slice(&[p, p, p, 255]);
+                }
+                v
+            } else {
+                let mut p = pixels.to_vec();
+                bgra_pre_mul_to_rgba(&mut p, is_opaque);
+                p
+            };
+            ico::IconImage::from_rgba_data(size.width.0 as _, size.height.0 as _, rgba)
+        }
+
+        ico.add_entry(ico::IconDirEntry::encode(&to_ico_img(size, pixels, is_mask, is_opaque))?);
+
+        for (entry, kind) in entries {
+            if !matches!(kind, ImageEntryKind::Reduced { .. }) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "cannot encode `Reduced` image entries",
+                ));
+            }
+
+            let (size, pixels, is_opaque) = match &*entry.0 {
+                ImageData::RawData {
+                    size, pixels, is_opaque, ..
+                } => (size, pixels, is_opaque),
+                ImageData::NativeTexture { .. } => unreachable!(),
+            };
+
+            if size.width <= 0 || size.height <= 0 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "cannot encode zero sized image entry",
+                ));
+            }
+
+            ico.add_entry(ico::IconDirEntry::encode(&to_ico_img(*size, pixels, is_mask, *is_opaque))?);
+        }
+
+        ico.write(buffer)
+    }
+
+    #[cfg(feature = "image_tiff")]
+    fn encode_tiff(
+        size: PxSize,
+        is_mask: bool,
+        pixels: &IpcBytes,
+        is_opaque: bool,
+        entries: Vec<(Image, ImageEntryKind)>,
+        buffer: &mut dyn EncodeBuffer,
+    ) -> tiff::TiffResult<()> {
+        let mut tiff = tiff::encoder::TiffEncoder::new(buffer)?
+            .with_compression(tiff::encoder::Compression::Lzw)
+            .with_predictor(tiff::encoder::Predictor::Horizontal);
+
+        let total_pages = (1 + entries.iter().filter(|t| matches!(t.1, ImageEntryKind::Page)).count()) as u16;
+
+        if is_mask {
+            let mut img = tiff.new_image::<tiff::encoder::colortype::Gray8>(size.width.0 as _, size.height.0 as _)?;
+            img.encoder().write_tag(tiff::tags::Tag::NewSubfileType, 0x0u32)?;
+            img.encoder().write_tag(tiff::tags::Tag::Unknown(297), &[0, total_pages][..])?;
+            img.write_data(&pixels[..])?;
+        } else {
+            let mut buf = pixels.to_vec();
+            bgra_pre_mul_to_rgba(&mut buf, is_opaque);
+
+            let mut img = tiff.new_image::<tiff::encoder::colortype::RGBA8>(size.width.0 as _, size.height.0 as _)?;
+            img.encoder().write_tag(tiff::tags::Tag::NewSubfileType, 0x0u32)?;
+            img.encoder().write_tag(tiff::tags::Tag::Unknown(297), &[0, total_pages][..])?;
+            img.write_data(&buf[..])?;
+        }
+
+        let mut page_n = 0;
+        for (entry, kind) in entries {
+            let (size, pixels, is_opaque) = match &*entry.0 {
+                ImageData::RawData {
+                    size, pixels, is_opaque, ..
+                } => (size, pixels, is_opaque),
+                ImageData::NativeTexture { .. } => unreachable!(),
+            };
+            let is_mask = entry.0.is_mask();
+
+            let subfile_type = match kind {
+                ImageEntryKind::Page => {
+                    page_n += 1;
+                    0x02u32
+                }
+                ImageEntryKind::Reduced { .. } => 0x01,
+                _ => 0x0u32,
+            };
+
+            if is_mask {
+                let mut img = tiff.new_image::<tiff::encoder::colortype::Gray8>(size.width.0 as _, size.height.0 as _)?;
+                img.encoder().write_tag(tiff::tags::Tag::NewSubfileType, subfile_type)?;
+                img.encoder().write_tag(tiff::tags::Tag::Unknown(297), &[page_n, total_pages][..])?;
+                img.write_data(&pixels[..])?;
+            } else {
+                let mut buf = pixels.to_vec();
+                bgra_pre_mul_to_rgba(&mut buf, *is_opaque);
+
+                let mut img = tiff.new_image::<tiff::encoder::colortype::RGBA8>(size.width.0 as _, size.height.0 as _)?;
+                img.encoder().write_tag(tiff::tags::Tag::NewSubfileType, subfile_type)?;
+                img.encoder().write_tag(tiff::tags::Tag::Unknown(297), &[page_n, total_pages][..])?;
+                img.write_data(&buf[..])?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+pub(crate) trait EncodeBuffer: std::io::Write + std::io::Seek {}
+impl<W: std::io::Write + std::io::Seek> EncodeBuffer for W {}
+
+fn bgra_pre_mul_to_rgba(buf: &mut [u8], is_opaque: bool) {
+    if is_opaque {
+        buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
+    } else {
+        buf.chunks_exact_mut(4).for_each(|c| {
+            let alpha = c[3];
+
+            // idea here is to avoid div by zero, without introducing an if branch
+            let is_not_zero = (alpha > 0) as u8 as f32;
+            let divisor = (alpha as f32) + (1.0 - is_not_zero);
+            let scale = (255.0 / divisor) * is_not_zero;
+
+            let b = c[0] as f32 * scale;
+            let g = c[1] as f32 * scale;
+            let r = c[2] as f32 * scale;
+
+            c[0] = r.min(255.0).round() as u8;
+            c[1] = g.min(255.0).round() as u8;
+            c[2] = b.min(255.0).round() as u8;
+        });
     }
 }

@@ -1580,8 +1580,11 @@ impl ViewImage {
     ///
     /// The `format` must be one of the [`image_encoders`] supported by the view-process backend.
     ///
+    /// If `entries` is set and the format supports multiple images encodes the `id` as the first *page* followed by each
+    /// entry in the order given.
+    ///
     /// [`image_encoders`]: VIEW_PROCESS::image_encoders
-    pub async fn encode(&self, format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
+    pub async fn encode(&self, entries: Vec<(ImageId, ImageEntryKind)>, format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
         self.awaiter().await;
 
         if let Some(e) = self.error() {
@@ -1593,7 +1596,7 @@ impl ViewImage {
             if let Some(id) = img.id {
                 let mut app = VIEW_PROCESS.handle_write(img.app_id.unwrap());
 
-                app.process.encode_image(id, format.clone())?;
+                app.process.encode_image(id, entries, format.clone())?;
 
                 let (sender, receiver) = channel::bounded(1);
                 if let Some(entry) = app.encoding_images.iter_mut().find(|r| r.image_id == id && r.format == format) {

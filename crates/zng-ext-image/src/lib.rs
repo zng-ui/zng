@@ -81,8 +81,7 @@ impl AppExtension for ImageManager {
                 // entry image first update, generate var for it and siblings in parent image
                 let image = args.image.clone();
                 parent.modify(|p| {
-                    p.update();
-                    p.value().insert_entry(image);
+                    p.register_entry(image);
                 });
             }
 
@@ -176,9 +175,9 @@ impl AppExtension for ImageManager {
                             Ok(img) => img,
                             Err(_) => return, // we will receive another event.
                         };
-                        let img = Img::new(img);
+                        let mut img = Img::new(img);
 
-                        fn add_entries(max_decoded_len: ByteLength, mask: Option<ImageMaskMode>, entries: Vec<ImageVar>, img: &Img) {
+                        fn add_entries(max_decoded_len: ByteLength, mask: Option<ImageMaskMode>, entries: Vec<ImageVar>, img: &mut Img) {
                             for (i, entry) in entries.into_iter().enumerate() {
                                 let entry = entry.get();
                                 if let Some(view) = entry.view() {
@@ -201,19 +200,19 @@ impl AppExtension for ImageManager {
                                             Ok(img) => img,
                                             Err(_) => return, // we will receive another event.
                                         };
-                                        let entry_img = img.insert_entry(entry_img);
+                                        let entry_img = img.register_entry(entry_img);
 
-                                        add_entries(max_decoded_len, mask, entry.entries(), &entry_img.get());
+                                        add_entries(max_decoded_len, mask, entry.entries(), &mut entry_img.get());
                                         continue;
                                     } else if entry.is_error() {
-                                        img.insert_entry(view.clone());
+                                        img.register_entry(view.clone());
                                         continue;
                                     }
                                 }
                                 tracing::warn!("respawn not implemented for multi entry image partially decoded on crash");
                             }
                         }
-                        add_entries(max_decoded_len, mask, entries, &img);
+                        add_entries(max_decoded_len, mask, entries, &mut img);
 
                         img_var.set(img);
 
@@ -1090,6 +1089,8 @@ impl IMAGES {
     ///
     /// Returns `Ok(ImageVar)` with the new image var that tracks `image`, or `Err(ViewImage, ImageVar)`
     /// that returns the `image` and a clone of the var already associated with the `key`.
+    ///
+    /// Note that you can register entries on the returned [`Img::register_entry`].
     pub fn register(&self, key: ImageHash, image: ViewImage) -> std::result::Result<ImageVar, (ViewImage, ImageVar)> {
         IMAGES_SV.write().register(key, image)
     }

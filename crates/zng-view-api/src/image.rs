@@ -562,6 +562,26 @@ impl ImageDecoded {
     }
 }
 
+bitflags! {
+    /// Capabilities of an [`ImageFormat`] implementation.
+    ///
+    /// Note that `DECODE` capability is omitted because the view-process can always decode formats.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub struct ImageFormatCapability: u8 {
+        /// View-process can encode images in this format.
+        const ENCODE = 0b_0000_0001;
+        /// View-process can decode multiple containers of the format with multiple image entries.
+        const DECODE_ENTRIES = 0b_0000_0010;
+        /// View-process can encode multiple images into a single container of the format.
+        const ENCODE_ENTRIES = 0b_0000_0101;
+        /// View-process can decode pixels as they are received.
+        ///
+        /// Note that the view-process can always handle progressive data by accumulating it and then decoding.
+        /// The decoder can also decode the metadata before receiving all data, that does not count as progressive decoding either.
+        const DECODE_PROGRESSIVE = 0b_0000_1000;
+    }
+}
+
 /// Represents an image codec capability.
 ///
 /// This type will be used in the next breaking release of the view API.
@@ -581,10 +601,8 @@ pub struct ImageFormat {
     /// Lowercase, without dot, comma separated if there is more than one.
     pub file_extensions: Txt,
 
-    /// If the view-process implementation can encode images in this format.
-    ///
-    /// Note that the view-process can always decode formats.
-    pub can_encode: bool,
+    /// Capabilities of this format.
+    pub capabilities: ImageFormatCapability,
 }
 impl ImageFormat {
     /// From static str.
@@ -596,14 +614,14 @@ impl ImageFormat {
         display_name: &'static str,
         media_type_suffixes: &'static str,
         file_extensions: &'static str,
-        can_encode: bool,
+        capabilities: ImageFormatCapability,
     ) -> Self {
         assert!(media_type_suffixes.is_ascii());
         Self {
             display_name: Txt::from_static(display_name),
             media_type_suffixes: Txt::from_static(media_type_suffixes),
             file_extensions: Txt::from_static(file_extensions),
-            can_encode,
+            capabilities,
         }
     }
 
