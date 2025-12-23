@@ -89,8 +89,7 @@ impl Image {
             let r = if width > 255 || height > 255 {
                 // resize to max 255
                 let mut buf = pixels[..].to_vec();
-                // BGRA to RGBA
-                buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
+                bgra_pre_mul_to_rgba(&mut buf, self.is_opaque());
                 let img = image::ImageBuffer::from_raw(width, height, buf).unwrap();
                 let img = image::DynamicImage::ImageRgba8(img);
                 let img = img.resize(255, 255, image::imageops::FilterType::Lanczos3);
@@ -101,8 +100,7 @@ impl Image {
                 winit::window::Icon::from_rgba(buf, width, height)
             } else {
                 let mut buf = pixels[..].to_vec();
-                // BGRA to RGBA
-                buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
+                bgra_pre_mul_to_rgba(&mut buf, self.is_opaque());
                 winit::window::Icon::from_rgba(buf, width, height)
             };
             match r {
@@ -131,8 +129,7 @@ impl Image {
             None
         } else {
             let mut buf = pixels[..].to_vec();
-            // BGRA to RGBA
-            buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
+            bgra_pre_mul_to_rgba(&mut buf, self.is_opaque());
             match CustomCursor::from_rgba(buf, width, height, hotspot_x, hotspot_y) {
                 Ok(c) => Some(event_loop.create_custom_cursor(c)),
                 Err(e) => {
@@ -171,10 +168,8 @@ impl Image {
             return Ok(());
         }
 
-        // invert rows, `image` only supports top-to-bottom buffers.
         let mut buf = pixels[..].to_vec();
-        // BGRA to RGBA
-        buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
+        bgra_pre_mul_to_rgba(&mut buf, self.0.is_opaque());
         let rgba = buf;
 
         let width = size.width.0 as u32;
@@ -242,5 +237,28 @@ impl Image {
         }
 
         Ok(())
+    }
+}
+
+fn bgra_pre_mul_to_rgba(buf: &mut [u8], is_opaque: bool) {
+    if is_opaque {
+        buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
+    } else {
+        buf.chunks_exact_mut(4).for_each(|c| {
+            let alpha = c[3];
+
+            // idea here is to avoid div by zero, without introducing an if branch
+            let is_not_zero = (alpha > 0) as u8 as f32;
+            let divisor = (alpha as f32) + (1.0 - is_not_zero);
+            let scale = (255.0 / divisor) * is_not_zero;
+
+            let b = c[0] as f32 * scale;
+            let g = c[1] as f32 * scale;
+            let r = c[2] as f32 * scale;
+
+            c[0] = r.min(255.0).round() as u8;
+            c[1] = g.min(255.0).round() as u8;
+            c[2] = b.min(255.0).round() as u8;
+        });
     }
 }
