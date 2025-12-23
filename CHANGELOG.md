@@ -8,6 +8,8 @@
     - Added `Img::encode_with_entries` and related methods.
 * Add `Img::original_color_type` metadata.
 
+# 0.20.3
+
 * Fix image encoding with premultiplied alpha.
 * Fix BGRA image tagged as mask.
 * Add `Length::simplify` and automatically apply it to parsed expressions.
