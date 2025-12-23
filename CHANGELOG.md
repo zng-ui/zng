@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.20.3
+
 * Fix image encoding with premultiplied alpha.
 * Fix BGRA image tagged as mask.
 * Add `Length::simplify` and automatically apply it to parsed expressions.
