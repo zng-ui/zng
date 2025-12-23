@@ -491,7 +491,7 @@ impl Img {
     /// Encode the images to the format.
     ///
     /// This image is the first *page* followed by the `entries` in the given order.
-    pub async fn encode_with_entries(&self, entries: &[(&Img, ImageEntryKind)], format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
+    pub async fn encode_with_entries(&self, entries: &[(Img, ImageEntryKind)], format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
         self.done_signal.clone().await;
         if let Some(e) = self.error().or_else(|| entries.iter().filter_map(|i| i.0.error()).next()) {
             Err(EncodeError::Encode(e))
@@ -535,8 +535,8 @@ impl Img {
     ///
     /// [`entries`]: Self::entries
     /// [`save_with_entries`]: Self::save_with_entries
-    pub async fn save_with_format(&self, format: Txt, path: impl Into<PathBuf>) -> io::Result<()> {
-        self.save_impl(&[], format, path.into()).await
+    pub async fn save_with_format(&self, format: impl Into<Txt>, path: impl Into<PathBuf>) -> io::Result<()> {
+        self.save_impl(&[], format.into(), path.into()).await
     }
 
     /// Encode and write the image to `path`.
@@ -544,11 +544,16 @@ impl Img {
     /// The image is encoded to the `format`, the file extension can be anything.
     ///
     /// This image is the first *page* followed by the `entries` in the given order.
-    pub async fn save_with_entries(&self, entries: &[(&Img, ImageEntryKind)], format: Txt, path: impl Into<PathBuf>) -> io::Result<()> {
-        self.save_impl(entries, format, path.into()).await
+    pub async fn save_with_entries(
+        &self,
+        entries: &[(Img, ImageEntryKind)],
+        format: impl Into<Txt>,
+        path: impl Into<PathBuf>,
+    ) -> io::Result<()> {
+        self.save_impl(entries, format.into(), path.into()).await
     }
 
-    async fn save_impl(&self, entries: &[(&Img, ImageEntryKind)], format: Txt, path: PathBuf) -> io::Result<()> {
+    async fn save_impl(&self, entries: &[(Img, ImageEntryKind)], format: Txt, path: PathBuf) -> io::Result<()> {
         let data = self.encode_with_entries(entries, format).await.map_err(io::Error::other)?;
         task::wait(move || fs::write(path, &data[..])).await
     }

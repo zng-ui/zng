@@ -24,13 +24,19 @@ use zng::{
 };
 use zng_wgt_webrender_debug as wr;
 
+mod encoding;
+
 fn main() {
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::env::init!();
 
+    if std::env::args().any(|a| a == "--render-test-icon") {
+        return encoding::render_test_icon();
+    }
+
     APP.defaults().run_window(async {
         // by default all "ImageSource::Download" requests are blocked and "ImageSource::Read"
-        // is limited to only the `zng::env::res`. The limits can be set globally in here and overridden 
+        // is limited to only the `zng::env::res`. The limits can be set globally in here and overridden
         // for each image with the "img_limits" property.
         IMAGES.limits().modify(|l| {
             let l = l.value_mut();
@@ -45,76 +51,7 @@ fn main() {
                 direction = StackDirection::left_to_right();
                 spacing = 30;
                 children = ui_vec![
-                    section(
-                        "Sources",
-                        ui_vec![
-                            sub_title("File"),
-                            Grid! {
-                                columns = ui_vec![grid::Column!(1.lft()); 4];
-                                auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
-                                spacing = 2;
-                                align = Align::CENTER;
-                                cells = {
-                                    fn img(source: &str) -> UiNode {
-                                        Image! {
-                                            grid::cell::at = grid::cell::AT_AUTO;
-                                            source = zng::env::res(source);
-                                        }
-                                    }
-                                    ui_vec![
-                                        img("Luma8.png"),
-                                        img("Luma16.png"),
-                                        img("LumaA8.png"),
-                                        img("LumaA16.png"),
-                                        img("RGB8.png"),
-                                        img("RGB16.png"),
-                                        img("RGBA8.png"),
-                                        img("RGBA16.png"),
-                                    ]
-                                }
-                            },
-
-                            sub_title("Web"),
-                            Image! {
-                                source = "https://httpbin.org/image";
-                                size = (200, 150);
-                            },
-
-                            sub_title("Web With Format"),
-                            Image! {
-                                source = (http::Uri::from_static("https://httpbin.org/image"), "image/png");
-                                size = (200, 150);
-                            },
-                            sub_title("Render"),
-                            Image! {
-                                size = (180, 120);
-                                source = ImageSource::render_node(RenderMode::Software, |_| Container! {
-                                    size = (180, 120);
-                                    widget::background_gradient = layout::Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
-                                    text::font_size = 24;
-                                    child_align = Align::CENTER;
-                                    child = Text!("Rendered!");
-                                })
-                            },
-                            sub_title("Render Mask"),
-                            Image! {
-                                source = zng::env::res("zdenek-machacek-unsplash.jpg");
-                                size = (200, 120);
-                                mask_image = ImageSource::render_node(RenderMode::Software, |_| Text! {
-                                    txt = "Mask";
-                                    txt_align = Align::CENTER;
-                                    font_size = 78;
-                                    font_weight = FontWeight::BOLD;
-                                    size = (200, 120);
-                                });
-                            },
-                            sub_title("SVG"),
-                            Image! {
-                                source = zng::env::res("Ghostscript_Tiger.svg");
-                                size = (200, 150);
-                            },
-                        ]
-                    ),
+                    sources_example(),
 
                     Stack! {
                         direction = StackDirection::top_to_bottom();
@@ -210,6 +147,93 @@ fn main() {
             },
         )
     })
+}
+
+// images can be loaded from files, bytes, http. Can also be rendered from widgets and SVG.
+fn sources_example() -> UiNode {
+    section(
+        "Sources",
+        ui_vec![
+            // Images from a file
+            sub_title("File"),
+            Grid! {
+                columns = ui_vec![grid::Column!(1.lft()); 4];
+                auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
+                spacing = 2;
+                align = Align::CENTER;
+                cells = {
+                    fn img(source: &str) -> UiNode {
+                        Image! {
+                            // loaded from the res folder
+                            source = zng::env::res(source);
+
+                            grid::cell::at = grid::cell::AT_AUTO;
+                        }
+                    }
+                    ui_vec![
+                        img("Luma8.png"),
+                        img("Luma16.png"),
+                        img("LumaA8.png"),
+                        img("LumaA16.png"),
+                        img("RGB8.png"),
+                        img("RGB16.png"),
+                        img("RGBA8.png"),
+                        img("RGBA16.png"),
+                    ]
+                };
+            },
+            // Images from HTTP
+            sub_title("Web"),
+            Image! {
+                // requests any image format supported by the view-process
+                source = "https://httpbin.org/image";
+                size = (200, 150);
+            },
+            sub_title("Web With Format"),
+            Image! {
+                // requests a specific format
+                source = (http::Uri::from_static("https://httpbin.org/image"), "image/png");
+                size = (200, 150);
+            },
+            // Rendered images
+            sub_title("Render"),
+            Image! {
+                size = (180, 120);
+                // render a Container! using the Software renderer
+                source = ImageSource::render_node(RenderMode::Software, |_| {
+                    Container! {
+                        size = (180, 120);
+                        widget::background_gradient = layout::Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
+                        text::font_size = 24;
+                        child_align = Align::CENTER;
+                        child = Text!("Rendered!");
+                    }
+                });
+            },
+            sub_title("Render Mask"),
+            // image/widget that is masked
+            Image! {
+                source = zng::env::res("zdenek-machacek-unsplash.jpg");
+                size = (200, 120);
+                // render a mask image, rendered alpha is applied to the image
+                mask_image = ImageSource::render_node(RenderMode::Software, |_| {
+                    Text! {
+                        txt = "Mask";
+                        txt_align = Align::CENTER;
+                        font_size = 78;
+                        font_weight = FontWeight::BOLD;
+                        size = (200, 120);
+                    }
+                });
+            },
+            // render SVG
+            sub_title("SVG"),
+            Image! {
+                source = zng::env::res("Ghostscript_Tiger.svg");
+                size = (200, 150);
+            },
+        ],
+    )
 }
 
 fn img_fit(fit: impl IntoVar<ImageFit>) -> UiNode {
