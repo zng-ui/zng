@@ -478,23 +478,46 @@ impl Img {
     }
 
     /// Encode the image to the format.
+    ///
+    /// Note that [`entries`] are ignored, only this image is encoded. Use [`encode_with_entries`] to encode
+    /// multiple images in the same container.
+    ///
+    /// [`entries`]: Self::entries
+    /// [`encode_with_entries`]: Self::encode_with_entries
     pub async fn encode(&self, format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
-        let entries = "!!: TODO";
+        self.encode_with_entries(&[], format).await
+    }
+
+    /// Encode the images to the format.
+    ///
+    /// This image is the first *page* followed by the `entries` in the given order.
+    pub async fn encode_with_entries(&self, entries: &[(&Img, ImageEntryKind)], format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
         self.done_signal.clone().await;
-        if let Some(e) = self.error() {
+        if let Some(e) = self.error().or_else(|| entries.iter().filter_map(|i| i.0.error()).next()) {
             Err(EncodeError::Encode(e))
         } else {
-            self.view.get().unwrap().encode(vec![], format).await
+            if self.view().is_none() || entries.iter().any(|v| v.0.view().is_none()) {
+                return Err(EncodeError::Dummy);
+            }
+            let entries = entries.iter().map(|(img, kind)| (img.view().unwrap().id().unwrap(), kind.clone()));
+            self.view().unwrap().encode(entries.collect(), format).await
         }
     }
 
     /// Encode and write the image to `path`.
     ///
-    /// The image format is guessed from the file extension.
+    /// The image format is guessed from the file extension. Use [`save_with_format`] to specify the format.
+    ///
+    /// Note that [`entries`] are ignored, only this image is encoded. Use [`save_with_entries`] to encode
+    /// multiple images in the same container.
+    ///
+    /// [`entries`]: Self::entries
+    /// [`save_with_format`]: Self::save_with_format
+    /// [`save_with_entries`]: Self::save_with_entries
     pub async fn save(&self, path: impl Into<PathBuf>) -> io::Result<()> {
         let path = path.into();
         if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-            self.save_impl(Txt::from_str(ext), path).await
+            self.save_impl(&[], Txt::from_str(ext), path).await
         } else {
             Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -506,16 +529,27 @@ impl Img {
     /// Encode and write the image to `path`.
     ///
     /// The image is encoded to the `format`, the file extension can be anything.
+    ///
+    /// Note that [`entries`] are ignored, only this image is encoded. Use [`save_with_entries`] to encode
+    /// multiple images in the same container.
+    ///
+    /// [`entries`]: Self::entries
+    /// [`save_with_entries`]: Self::save_with_entries
     pub async fn save_with_format(&self, format: Txt, path: impl Into<PathBuf>) -> io::Result<()> {
-        self.save_impl(format, path.into()).await
+        self.save_impl(&[], format, path.into()).await
     }
 
-    async fn save_impl(&self, format: Txt, path: PathBuf) -> io::Result<()> {
-        let view = self.view.get().unwrap();
-        let data = view
-            .encode(vec![], format)
-            .await
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    /// Encode and write the image to `path`.
+    ///
+    /// The image is encoded to the `format`, the file extension can be anything.
+    ///
+    /// This image is the first *page* followed by the `entries` in the given order.
+    pub async fn save_with_entries(&self, entries: &[(&Img, ImageEntryKind)], format: Txt, path: impl Into<PathBuf>) -> io::Result<()> {
+        self.save_impl(entries, format, path.into()).await
+    }
+
+    async fn save_impl(&self, entries: &[(&Img, ImageEntryKind)], format: Txt, path: PathBuf) -> io::Result<()> {
+        let data = self.encode_with_entries(entries, format).await.map_err(io::Error::other)?;
         task::wait(move || fs::write(path, &data[..])).await
     }
 

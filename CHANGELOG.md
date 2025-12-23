@@ -5,6 +5,7 @@
     - Added `ImageEntryKind` and `ImageEntriesMode`.
     - **Breaking** Advanced image request functions now also take entries mode.
     - **Breaking** Replaced `ImageDownscale` with `ImageDownscaleMode`.
+    - Added `Img::encode_with_entries` and related methods.
 * Add `Img::original_color_type` metadata.
 
 * Fix image encoding with premultiplied alpha.
