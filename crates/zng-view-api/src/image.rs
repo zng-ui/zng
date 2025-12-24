@@ -247,7 +247,7 @@ impl ImageDownscaleMode {
         let page_downscale = fit_fill(page_size, max_size, true);
         let mut size = page_downscale.unwrap_or(page_size) / Px(2);
         let mut entries = vec![];
-        while min_size.width >= size.width && min_size.height >= size.height {
+        while min_size.width < size.width && min_size.height < size.height {
             if let Some(entry) = fit_fill(page_size, size, true)
                 && !reduced_sizes.iter().any(|s| Self::near(entry, *s))
                 && !entry_sizes.iter().any(|s| Self::near(entry, *s))
