@@ -23,7 +23,7 @@ use zng_task::{
     channel::{IpcBytes, IpcBytesMut},
 };
 use zng_txt::Txt;
-use zng_var::{Var, animation::Transitionable, impl_from_and_into_var};
+use zng_var::{Var, VarEq, animation::Transitionable, impl_from_and_into_var};
 use zng_view_api::image::ImageTextureId;
 
 use crate::render::ImageRenderWindowRoot;
@@ -296,9 +296,84 @@ impl Img {
         self.view.get().map(|v| v.is_mask()).unwrap_or(false)
     }
 
-    /// Other images from the same container that reference back to this image as parent.
+    /// If [`entries`] is not empty.
+    ///
+    /// [`entries`]: Self::entries
+    pub fn has_entries(&self) -> bool {
+        !self.img_mut.lock().entries.is_empty()
+    }
+
+    /// Other images from the same container that are a *child* of this image.
     pub fn entries(&self) -> Vec<ImageVar> {
         self.img_mut.lock().entries.iter().map(|e| e.read_only()).collect()
+    }
+
+    /// All other images from the same container that are a *descendant* of this image.
+    ///
+    /// The values are a tuple of each entry and the length of descendants entries that follow it.
+    ///
+    /// The returned variable will update every time any entry descendant var updates.
+    ///
+    /// [`entries`]: Self::entries
+    pub fn flat_entries(&self) -> Var<Vec<(VarEq<Img>, usize)>> {
+        // idea here is to just rebuild the flat list on any update,
+        // assuming the image variables don't update much and tha there are not many entries
+        // this is more simple than some sort of recursive Var::flat_map_vec setup
+
+        // each entry updates this var on update
+        let update_signal = zng_var::var(());
+
+        // init value and update bindings
+        let mut out = vec![];
+        let mut update_handles = vec![];
+        self.flat_entries_init(&mut out, update_signal.clone(), &mut update_handles);
+        let out = zng_var::var(out);
+
+        // bind signal to rebuild list on update and rebind update signal
+        let self_ = self.clone();
+        let signal_weak = update_signal.downgrade();
+        update_signal
+            .bind_modify(&out, move |_, out| {
+                out.clear();
+                update_handles.clear();
+                self_.flat_entries_init(&mut *out, signal_weak.upgrade().unwrap(), &mut update_handles);
+            })
+            .perm();
+        out.hold(update_signal).perm();
+        out.read_only()
+    }
+    fn flat_entries_init(&self, out: &mut Vec<(VarEq<Img>, usize)>, update_signal: Var<()>, handles: &mut Vec<zng_var::VarHandle>) {
+        match self.img_mut.try_lock() {
+            Some(img_mut) => {
+                for entry in img_mut.entries.iter() {
+                    Self::flat_entries_recursive_init(VarEq(entry.clone()), out, update_signal.clone(), handles);
+                }
+            }
+            None => tracing::error!("cannot `flat_entries`, deadlock"),
+        }
+    }
+    fn flat_entries_recursive_init(
+        img: VarEq<Img>,
+        out: &mut Vec<(VarEq<Img>, usize)>,
+        signal: Var<()>,
+        handles: &mut Vec<zng_var::VarHandle>,
+    ) {
+        handles.push(img.hook(zng_clone_move::clmv!(signal, |_| {
+            signal.update();
+            true
+        })));
+        let i = out.len();
+        out.push((img.clone(), 0));
+        img.with(move |img| match img.img_mut.try_lock() {
+            Some(img_mut) => {
+                for entry in img_mut.entries.iter() {
+                    Self::flat_entries_recursive_init(VarEq(entry.clone()), out, signal.clone(), handles);
+                }
+                let len = out.len() - i;
+                out[i].1 = len;
+            }
+            None => tracing::error!("cannot fully `flat_entries`, cycle detected"),
+        });
     }
 
     /// Kind of image container entry this image was decoded from.
