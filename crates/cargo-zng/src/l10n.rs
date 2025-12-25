@@ -13,7 +13,7 @@ use std::{
 
 use clap::*;
 
-use crate::util;
+use crate::{l10n::scraper::FluentTemplate, util};
 
 mod pseudo;
 mod scraper;
@@ -97,10 +97,7 @@ pub struct L10nArgs {
     verbose: bool,
 }
 
-pub fn run(args: L10nArgs) {
-    run_impl(args, false);
-}
-fn run_impl(mut args: L10nArgs, is_local_scrap_recursion: bool) {
+pub fn run(mut args: L10nArgs) {
     if !args.package.is_empty() && !args.manifest_path.is_empty() {
         fatal!("only one of --package --manifest-path must be set")
     }
@@ -149,276 +146,296 @@ fn run_impl(mut args: L10nArgs, is_local_scrap_recursion: bool) {
         args.clean_template = true;
     }
 
-    if args.verbose && !is_local_scrap_recursion {
+    if args.verbose {
         println!(
             "input: `{input}`\noutput: `{output}`\nclean_deps: {}\nclean_template: {}",
             args.clean_deps, args.clean_template
         );
     }
 
-    if !input.is_empty() {
-        if output.is_empty() {
-            fatal!("--output is required for --input")
+    if input.is_empty() {
+        return run_pseudo(args);
+    }
+
+    if output.is_empty() {
+        fatal!("--output is required for --input")
+    }
+
+    let input = input;
+    let output = Path::new(&output);
+
+    let mut template = FluentTemplate::default();
+
+    check_scrap_package(&args, &input, output, &mut template);
+
+    if !template.entries.is_empty() || !template.notes.is_empty() {
+        if let Err(e) = util::check_or_create_dir_all(args.check, output) {
+            fatal!("cannot create dir `{}`, {e}", output.display());
         }
 
-        // scrap the target package
-        if !args.no_pkg {
-            if args.check {
-                println!(r#"checking "{input}".."#);
-            } else {
-                println!(r#"scraping "{input}".."#);
+        let output = output.join("template");
+        if args.clean_template {
+            debug_assert!(!args.check);
+            if args.verbose {
+                println!("removing `{}` to clean template", output.display());
             }
-
-            let custom_macro_names: Vec<&str> = args.macros.split(',').map(|n| n.trim()).collect();
-            // let args = ();
-
-            let mut template = scraper::scrape_fluent_text(&input, &custom_macro_names);
-            if !args.check {
-                match template.entries.len() {
-                    0 => println!("did not find any entry"),
-                    1 => println!("found 1 entry"),
-                    n => println!("found {n} entries"),
-                }
-            }
-
-            if !template.entries.is_empty() || !template.notes.is_empty() {
-                if let Err(e) = util::check_or_create_dir_all(args.check, &output) {
-                    fatal!("cannot create dir `{output}`, {e}");
-                }
-
-                template.sort();
-
-                let r = template.write(|file, contents| {
-                    let mut output = PathBuf::from(&output);
-                    output.push("template");
-
-                    if args.clean_template {
-                        debug_assert!(!args.check);
-                        if args.verbose {
-                            println!("removing `{}` to clean template", output.display());
-                        }
-                        if let Err(e) = fs::remove_dir_all(&output)
-                            && !matches!(e.kind(), io::ErrorKind::NotFound)
-                        {
-                            error!("cannot remove `{}`, {e}", output.display());
-                        }
-                    }
-                    util::check_or_create_dir_all(args.check, &output)?;
-                    output.push(format!("{}.ftl", if file.is_empty() { "_" } else { file }));
-                    util::check_or_write(args.check, output, contents, args.verbose)
-                });
-                if let Err(e) = r {
-                    fatal!("error writing template files, {e}");
-                }
-            }
-        }
-
-        // cleanup dependencies
-        let l10n_dir = Path::new(&output);
-        if args.clean_deps {
-            for entry in glob::glob(&format!("{}/*/deps", l10n_dir.display()))
-                .unwrap_or_else(|e| fatal!("cannot cleanup deps in `{}`, {e}", l10n_dir.display()))
+            if let Err(e) = fs::remove_dir_all(&output)
+                && !matches!(e.kind(), io::ErrorKind::NotFound)
             {
-                let dir = entry.unwrap_or_else(|e| fatal!("cannot cleanup deps, {e}"));
-                if args.verbose {
-                    println!("removing `{}` to clean deps", dir.display());
-                }
-                if let Err(e) = std::fs::remove_dir_all(&dir)
-                    && !matches!(e.kind(), io::ErrorKind::NotFound)
-                {
-                    error!("cannot remove `{}`, {e}", dir.display());
-                }
+                error!("cannot remove `{}`, {e}", output.display());
             }
         }
-
-        // collect dependencies
-        let mut local = vec![];
-        if !args.no_deps {
-            let mut count = 0;
-            let (workspace_root, deps) = util::dependencies(&args.manifest_path);
-            for dep in deps {
-                if dep.version.pre.as_str() == "local" && dep.manifest_path.starts_with(&workspace_root) {
-                    local.push(dep);
-                    continue;
-                }
-
-                let dep_l10n = dep.manifest_path.with_file_name("l10n");
-                let dep_l10n_reader = match fs::read_dir(&dep_l10n) {
-                    Ok(d) => d,
-                    Err(e) => {
-                        if !matches!(e.kind(), io::ErrorKind::NotFound) {
-                            error!("cannot read `{}`, {e}", dep_l10n.display());
-                        }
-                        continue;
-                    }
-                };
-
-                let mut any = false;
-
-                // get l10n_dir/{lang}/deps/dep.name/dep.version/
-                let mut l10n_dir = |lang: Option<&std::ffi::OsStr>| {
-                    any = true;
-                    let dir = l10n_dir.join(lang.unwrap()).join("deps");
-
-                    let ignore_file = dir.join(".gitignore");
-
-                    if !ignore_file.exists() {
-                        // create dir and .gitignore file
-                        (|| -> io::Result<()> {
-                            util::check_or_create_dir_all(args.check, &dir)?;
-
-                            let mut ignore = "# Dependency localization files\n".to_owned();
-
-                            let output = Path::new(&output);
-                            let custom_output = if output != Path::new(&args.manifest_path).with_file_name("l10n") {
-                                format!(
-                                    " --output \"{}\"",
-                                    output.strip_prefix(std::env::current_dir().unwrap()).unwrap_or(output).display()
-                                )
-                                .replace('\\', "/")
-                            } else {
-                                String::new()
-                            };
-                            if !args.package.is_empty() {
-                                writeln!(
-                                    &mut ignore,
-                                    "# Call `cargo zng l10n --package {}{custom_output} --no-pkg --no-local --clean-deps` to update",
-                                    args.package
-                                )
-                                .unwrap();
-                            } else {
-                                let path = Path::new(&args.manifest_path);
-                                let path = path.strip_prefix(std::env::current_dir().unwrap()).unwrap_or(path);
-                                writeln!(
-                                    &mut ignore,
-                                    "# Call `cargo zng l10n --manifest-path \"{}\" --no-pkg --no-local --clean-deps` to update",
-                                    path.display()
-                                )
-                                .unwrap();
-                            }
-                            writeln!(&mut ignore).unwrap();
-                            writeln!(&mut ignore, "*").unwrap();
-                            writeln!(&mut ignore, "!.gitignore").unwrap();
-
-                            if let Err(e) = fs::write(&ignore_file, ignore.as_bytes()) {
-                                fatal!("cannot write `{}`, {e}", ignore_file.display())
-                            }
-
-                            Ok(())
-                        })()
-                        .unwrap_or_else(|e| fatal!("cannot create `{}`, {e}", l10n_dir.display()));
-                    }
-
-                    let dir = dir.join(&dep.name).join(dep.version.to_string());
-                    let _ = util::check_or_create_dir_all(args.check, &dir);
-
-                    dir
-                };
-
-                // [(exporter_dep, ".../{lang}?/deps")]
-                let mut reexport_deps = vec![];
-
-                for dep_l10n_entry in dep_l10n_reader {
-                    let dep_l10n_entry = match dep_l10n_entry {
-                        Ok(e) => e.path(),
-                        Err(e) => {
-                            error!("cannot read `{}` entry, {e}", dep_l10n.display());
-                            continue;
-                        }
-                    };
-                    if dep_l10n_entry.is_dir() {
-                        // l10n/{lang}/deps/{dep.name}/{dep.version}
-                        let output_dir = l10n_dir(dep_l10n_entry.file_name());
-                        let _ = util::check_or_create_dir_all(args.check, &output_dir);
-
-                        let lang_dir_reader = match fs::read_dir(&dep_l10n_entry) {
-                            Ok(d) => d,
-                            Err(e) => {
-                                error!("cannot read `{}`, {e}", dep_l10n_entry.display());
-                                continue;
-                            }
-                        };
-
-                        for lang_entry in lang_dir_reader {
-                            let lang_entry = match lang_entry {
-                                Ok(e) => e.path(),
-                                Err(e) => {
-                                    error!("cannot read `{}` entry, {e}", dep_l10n_entry.display());
-                                    continue;
-                                }
-                            };
-
-                            if lang_entry.is_dir() {
-                                if lang_entry.file_name().map(|n| n == "deps").unwrap_or(false) {
-                                    reexport_deps.push((&dep, lang_entry));
-                                }
-                            } else if lang_entry.is_file() && lang_entry.extension().map(|e| e == "ftl").unwrap_or(false) {
-                                let _ = util::check_or_create_dir_all(args.check, &output_dir);
-                                let to = output_dir.join(lang_entry.file_name().unwrap());
-                                if let Err(e) = util::check_or_copy(args.check, &lang_entry, &to, args.verbose) {
-                                    error!("cannot copy `{}` to `{}`, {e}", lang_entry.display(), to.display());
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                reexport_deps.sort_by(|a, b| match a.0.name.cmp(&b.0.name) {
-                    Ordering::Equal => b.0.version.cmp(&a.0.version),
-                    o => o,
-                });
-
-                for (_, deps) in reexport_deps {
-                    // dep/l10n/lang/deps/
-                    let target = l10n_dir(deps.parent().and_then(|p| p.file_name()));
-
-                    // deps/pkg-name/pkg-version/*.ftl
-                    for entry in glob::glob(&deps.join("*/*/*.ftl").display().to_string()).unwrap() {
-                        let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{}` entry, {e}", deps.display()));
-                        let target = target.join(entry.strip_prefix(&deps).unwrap());
-                        if !target.exists()
-                            && entry.is_file()
-                            && let Err(e) = util::check_or_copy(args.check, &entry, &target, args.verbose)
-                        {
-                            error!("cannot copy `{}` to `{}`, {e}", entry.display(), target.display());
-                        }
-                    }
-                }
-
-                count += any as u32;
-            }
-            println!("found {count} dependencies with localization");
+        if let Err(e) = util::check_or_create_dir_all(args.check, &output) {
+            fatal!("cannot create dir `{}`, {e}", output.display());
         }
 
-        // scrap local dependencies
-        if !args.no_local {
-            for dep in local {
-                run_impl(
-                    L10nArgs {
-                        input: String::new(),
-                        output: output.clone(),
-                        package: String::new(),
-                        manifest_path: dep.manifest_path.display().to_string(),
-                        no_deps: true,
-                        no_local: true,
-                        no_pkg: false,
-                        clean_deps: false,
-                        clean_template: false,
-                        clean: false,
-                        macros: args.macros.clone(),
-                        pseudo: String::new(),
-                        pseudo_m: String::new(),
-                        pseudo_w: String::new(),
-                        check: args.check,
-                        verbose: args.verbose,
-                    },
-                    true,
-                )
+        template.sort();
+
+        let r = template.write(|file, contents| {
+            let output = output.join(format!("{}.ftl", if file.is_empty() { "_" } else { file }));
+            util::check_or_write(args.check, output, contents, args.verbose)
+        });
+        if let Err(e) = r {
+            fatal!("error writing template files, {e}");
+        }
+    }
+
+    run_pseudo(args);
+}
+
+fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &mut FluentTemplate) {
+    // scrap the target package
+    if !args.no_pkg {
+        if args.check {
+            println!(r#"checking "{input}".."#);
+        } else {
+            println!(r#"scraping "{input}".."#);
+        }
+
+        let custom_macro_names: Vec<&str> = args.macros.split(',').map(|n| n.trim()).collect();
+        let t = scraper::scrape_fluent_text(input, &custom_macro_names);
+        if !args.check {
+            match t.entries.len() {
+                0 => println!("  did not find any entry"),
+                1 => println!("  found 1 entry"),
+                n => println!("  found {n} entries"),
+            }
+        }
+        template.extend(t);
+    }
+
+    // cleanup dependencies
+    if args.clean_deps {
+        for entry in glob::glob(&format!("{}/*/deps", output.display()))
+            .unwrap_or_else(|e| fatal!("cannot cleanup deps in `{}`, {e}", output.display()))
+        {
+            let dir = entry.unwrap_or_else(|e| fatal!("cannot cleanup deps, {e}"));
+            if args.verbose {
+                println!("removing `{}` to clean deps", dir.display());
+            }
+            if let Err(e) = std::fs::remove_dir_all(&dir)
+                && !matches!(e.kind(), io::ErrorKind::NotFound)
+            {
+                error!("cannot remove `{}`, {e}", dir.display());
             }
         }
     }
 
+    // collect dependencies
+    let mut local = vec![];
+    if !args.no_deps {
+        let mut count = 0;
+        let (workspace_root, deps) = util::dependencies(&args.manifest_path);
+        for dep in deps {
+            if dep.version.pre.as_str() == "local" && dep.manifest_path.starts_with(&workspace_root) {
+                local.push(dep);
+                continue;
+            }
+
+            let dep_l10n = dep.manifest_path.with_file_name("l10n");
+            let dep_l10n_reader = match fs::read_dir(&dep_l10n) {
+                Ok(d) => d,
+                Err(e) => {
+                    if !matches!(e.kind(), io::ErrorKind::NotFound) {
+                        error!("cannot read `{}`, {e}", dep_l10n.display());
+                    }
+                    continue;
+                }
+            };
+
+            let mut any = false;
+
+            // get l10n_dir/{lang}/deps/dep.name/dep.version/
+            let mut l10n_dir = |lang: Option<&std::ffi::OsStr>| {
+                any = true;
+                let dir = output.join(lang.unwrap()).join("deps");
+
+                let ignore_file = dir.join(".gitignore");
+
+                if !ignore_file.exists() {
+                    // create dir and .gitignore file
+                    (|| -> io::Result<()> {
+                        util::check_or_create_dir_all(args.check, &dir)?;
+
+                        let mut ignore = "# Dependency localization files\n".to_owned();
+
+                        let output = Path::new(&output);
+                        let custom_output = if output != Path::new(&args.manifest_path).with_file_name("l10n") {
+                            format!(
+                                " --output \"{}\"",
+                                output.strip_prefix(std::env::current_dir().unwrap()).unwrap_or(output).display()
+                            )
+                            .replace('\\', "/")
+                        } else {
+                            String::new()
+                        };
+                        if !args.package.is_empty() {
+                            writeln!(
+                                &mut ignore,
+                                "# Call `cargo zng l10n --package {}{custom_output} --no-pkg --no-local --clean-deps` to update",
+                                args.package
+                            )
+                            .unwrap();
+                        } else {
+                            let path = Path::new(&args.manifest_path);
+                            let path = path.strip_prefix(std::env::current_dir().unwrap()).unwrap_or(path);
+                            writeln!(
+                                &mut ignore,
+                                "# Call `cargo zng l10n --manifest-path \"{}\" --no-pkg --no-local --clean-deps` to update",
+                                path.display()
+                            )
+                            .unwrap();
+                        }
+                        writeln!(&mut ignore).unwrap();
+                        writeln!(&mut ignore, "*").unwrap();
+                        writeln!(&mut ignore, "!.gitignore").unwrap();
+
+                        if let Err(e) = fs::write(&ignore_file, ignore.as_bytes()) {
+                            fatal!("cannot write `{}`, {e}", ignore_file.display())
+                        }
+
+                        Ok(())
+                    })()
+                    .unwrap_or_else(|e| fatal!("cannot create `{}`, {e}", output.display()));
+                }
+
+                let dir = dir.join(&dep.name).join(dep.version.to_string());
+                let _ = util::check_or_create_dir_all(args.check, &dir);
+
+                dir
+            };
+
+            // [(exporter_dep, ".../{lang}?/deps")]
+            let mut reexport_deps = vec![];
+
+            for dep_l10n_entry in dep_l10n_reader {
+                let dep_l10n_entry = match dep_l10n_entry {
+                    Ok(e) => e.path(),
+                    Err(e) => {
+                        error!("cannot read `{}` entry, {e}", dep_l10n.display());
+                        continue;
+                    }
+                };
+                if dep_l10n_entry.is_dir() {
+                    // l10n/{lang}/deps/{dep.name}/{dep.version}
+                    let output_dir = l10n_dir(dep_l10n_entry.file_name());
+                    let _ = util::check_or_create_dir_all(args.check, &output_dir);
+
+                    let lang_dir_reader = match fs::read_dir(&dep_l10n_entry) {
+                        Ok(d) => d,
+                        Err(e) => {
+                            error!("cannot read `{}`, {e}", dep_l10n_entry.display());
+                            continue;
+                        }
+                    };
+
+                    for lang_entry in lang_dir_reader {
+                        let lang_entry = match lang_entry {
+                            Ok(e) => e.path(),
+                            Err(e) => {
+                                error!("cannot read `{}` entry, {e}", dep_l10n_entry.display());
+                                continue;
+                            }
+                        };
+
+                        if lang_entry.is_dir() {
+                            if lang_entry.file_name().map(|n| n == "deps").unwrap_or(false) {
+                                reexport_deps.push((&dep, lang_entry));
+                            }
+                        } else if lang_entry.is_file() && lang_entry.extension().map(|e| e == "ftl").unwrap_or(false) {
+                            let _ = util::check_or_create_dir_all(args.check, &output_dir);
+                            let to = output_dir.join(lang_entry.file_name().unwrap());
+                            if let Err(e) = util::check_or_copy(args.check, &lang_entry, &to, args.verbose) {
+                                error!("cannot copy `{}` to `{}`, {e}", lang_entry.display(), to.display());
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            reexport_deps.sort_by(|a, b| match a.0.name.cmp(&b.0.name) {
+                Ordering::Equal => b.0.version.cmp(&a.0.version),
+                o => o,
+            });
+
+            for (_, deps) in reexport_deps {
+                // dep/l10n/lang/deps/
+                let target = l10n_dir(deps.parent().and_then(|p| p.file_name()));
+
+                // deps/pkg-name/pkg-version/*.ftl
+                for entry in glob::glob(&deps.join("*/*/*.ftl").display().to_string()).unwrap() {
+                    let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{}` entry, {e}", deps.display()));
+                    let target = target.join(entry.strip_prefix(&deps).unwrap());
+                    if !target.exists()
+                        && entry.is_file()
+                        && let Err(e) = util::check_or_copy(args.check, &entry, &target, args.verbose)
+                    {
+                        error!("cannot copy `{}` to `{}`, {e}", entry.display(), target.display());
+                    }
+                }
+            }
+
+            count += any as u32;
+        }
+        println!("found {count} dependencies with localization");
+    }
+
+    // scrap local dependencies
+    if !args.no_local {
+        for dep in local {
+            let manifest_path = dep.manifest_path.display().to_string();
+            let input = manifest_path.replace('\\', "/");
+            let input = input.strip_suffix("/Cargo.toml").unwrap();
+            let input = format!("{input}/src/**/*.rs");
+            check_scrap_package(
+                &L10nArgs {
+                    input: String::new(),
+                    output: String::new(),
+                    package: String::new(),
+                    manifest_path,
+                    no_deps: true,
+                    no_local: true,
+                    no_pkg: false,
+                    clean_deps: false,
+                    clean_template: false,
+                    clean: false,
+                    macros: args.macros.clone(),
+                    pseudo: String::new(),
+                    pseudo_m: String::new(),
+                    pseudo_w: String::new(),
+                    check: args.check,
+                    verbose: args.verbose,
+                },
+                &input,
+                output,
+                template,
+            )
+        }
+    }
+}
+
+fn run_pseudo(args: L10nArgs) {
     if !args.pseudo.is_empty() {
         pseudo::pseudo(&args.pseudo, args.check, args.verbose);
     }
