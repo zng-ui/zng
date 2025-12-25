@@ -6,8 +6,10 @@
 
 use std::{
     cmp::Ordering,
+    collections::HashSet,
     fmt::Write as _,
-    fs, io,
+    fs,
+    io::{self, BufRead},
     path::{Path, PathBuf},
 };
 
@@ -174,29 +176,49 @@ pub fn run(mut args: L10nArgs) {
         }
 
         let output = output.join("template");
-        if args.clean_template {
-            debug_assert!(!args.check);
-            if args.verbose {
-                println!("removing `{}` to clean template", output.display());
-            }
-            if let Err(e) = fs::remove_dir_all(&output)
-                && !matches!(e.kind(), io::ErrorKind::NotFound)
-            {
-                error!("cannot remove `{}`, {e}", output.display());
-            }
-        }
+
         if let Err(e) = util::check_or_create_dir_all(args.check, &output) {
             fatal!("cannot create dir `{}`, {e}", output.display());
         }
 
         template.sort();
 
+        let mut clean_files = HashSet::new();
+
         let r = template.write(|file, contents| {
-            let output = output.join(format!("{}.ftl", if file.is_empty() { "_" } else { file }));
+            let file = format!("{}.ftl", if file.is_empty() { "_" } else { file });
+            let output = output.join(&file);
+            clean_files.insert(file);
             util::check_or_write(args.check, output, contents, args.verbose)
         });
         if let Err(e) = r {
             fatal!("error writing template files, {e}");
+        }
+
+        if args.clean_template {
+            debug_assert!(!args.check);
+
+            let cleanup = || -> std::io::Result<()> {
+                for entry in std::fs::read_dir(&output)? {
+                    let entry = entry?.path();
+                    if entry.is_file() {
+                        let name = entry.file_prefix().unwrap().to_string_lossy();
+                        if name.ends_with(".ftl") && !clean_files.contains(&*name) {
+                            let mut entry_file = std::fs::File::open(&entry)?;
+                            if let Some(first_line) = std::io::BufReader::new(&mut entry_file).lines().next()
+                                && first_line?.starts_with(FluentTemplate::AUTO_GENERATED_HEADER)
+                            {
+                                drop(entry_file);
+                                std::fs::remove_file(entry)?;
+                            }
+                        }
+                    }
+                }
+                Ok(())
+            };
+            if let Err(e) = cleanup() {
+                error!("failed template cleanup, {e}");
+            }
         }
     }
 
@@ -231,7 +253,7 @@ fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &m
         {
             let dir = entry.unwrap_or_else(|e| fatal!("cannot cleanup deps, {e}"));
             if args.verbose {
-                println!("removing `{}` to clean deps", dir.display());
+                println!("removing `{}` to clean dependencies", dir.display());
             }
             if let Err(e) = std::fs::remove_dir_all(&dir)
                 && !matches!(e.kind(), io::ErrorKind::NotFound)
