@@ -5,7 +5,7 @@ use std::{
 };
 
 use zng_app::widget::info::InlineSegmentInfo;
-use zng_ext_image::{IMAGES, ImageDataFormat, ImageSource, ImageVar};
+use zng_ext_image::{ColorType, IMAGES, ImageDataFormat, ImageSource, ImageVar};
 use zng_ext_l10n::{Lang, lang};
 use zng_layout::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection, TextSegmentKind},
@@ -754,35 +754,6 @@ impl ShapedText {
         self.mid_clear
     }
 
-    /// Deprecated, use [`ShapedText::reshape_lines2`].
-    ///
-    /// In Zng 0.20 this function will be removed and `reshape_lines2` renamed to `reshape_lines2`.
-    #[expect(clippy::too_many_arguments)]
-    #[deprecated = "use `reshape_lines2`"]
-    pub fn reshape_lines(
-        &mut self,
-        constraints: PxConstraints2d,
-        inline_constraints: Option<InlineConstraintsLayout>,
-        align: Align,
-        overflow_align: Align,
-        line_height: Px,
-        line_spacing: Px,
-        direction: LayoutDirection,
-    ) {
-        self.reshape_lines2(&TextReshapingArgs {
-            constraints,
-            inline_constraints,
-            align,
-            overflow_align,
-            direction,
-            line_height,
-            line_spacing,
-            paragraph_spacing: Px(0),
-            paragraph_indent: (Px(0), false),
-            paragraph_break: ParagraphBreak::None,
-        });
-    }
-
     /// Reshape text lines.
     ///
     /// Reshape text lines without re-wrapping, this is more efficient then fully reshaping every glyph, but may
@@ -794,7 +765,7 @@ impl ShapedText {
     /// Note that this method clears justify fill, of `align` is fill X you must call [`reshape_lines_justify`] after to refill.
     ///
     /// [`reshape_lines_justify`]: Self::reshape_lines_justify
-    pub fn reshape_lines2(&mut self, args: &TextReshapingArgs) {
+    pub fn reshape_lines(&mut self, args: &TextReshapingArgs) {
         self.clear_justify_impl(args.align.is_fill_x());
         self.reshape_line_height_and_spacing(args.line_height, args.line_spacing);
 
@@ -1052,7 +1023,7 @@ impl ShapedText {
 
     /// Restore text to initial shape.
     pub fn clear_reshape(&mut self) {
-        self.reshape_lines2(&TextReshapingArgs::default());
+        self.reshape_lines(&TextReshapingArgs::default());
     }
 
     fn justify_lines_range(&self) -> ops::Range<usize> {
@@ -2781,7 +2752,11 @@ impl ShapedTextBuilder {
     fn push_glyph_raster(&mut self, glyphs_i: u32, img: ttf_parser::RasterGlyphImage) {
         use ttf_parser::RasterImageFormat;
         let size = PxSize::new(Px(img.width as _), Px(img.height as _));
-        let bgra_fmt = ImageDataFormat::Bgra8 { size, density: None };
+        let bgra_fmt = ImageDataFormat::Bgra8 {
+            size,
+            density: None,
+            original_color_type: ColorType::BGRA8,
+        };
         let bgra_len = img.width as usize * img.height as usize * 4;
         let (data, fmt) = match img.format {
             RasterImageFormat::PNG => (img.data.to_vec(), ImageDataFormat::from("png")),
@@ -4820,7 +4795,7 @@ mod tests {
         let expected = font.shape_text(&text, &config);
 
         assert_eq!(from, test.line_spacing());
-        test.reshape_lines2(&TextReshapingArgs {
+        test.reshape_lines(&TextReshapingArgs {
             constraints: PxConstraints2d::new_fill_size(test.align_size()),
             inline_constraints: None,
             align: test.align(),
@@ -4866,7 +4841,7 @@ mod tests {
         let expected = font.shape_text(&text, &config);
 
         assert_eq!(from, test.line_height());
-        test.reshape_lines2(&TextReshapingArgs {
+        test.reshape_lines(&TextReshapingArgs {
             constraints: PxConstraints2d::new_fill_size(test.align_size()),
             inline_constraints: None,
             align: test.align(),

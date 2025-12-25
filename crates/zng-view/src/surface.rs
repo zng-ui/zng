@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, fmt, sync::Arc};
+use std::{collections::VecDeque, fmt};
 
 use tracing::span::EnteredSpan;
 use webrender::{
@@ -11,7 +11,7 @@ use zng_view_api::{
     ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     font::{FontFaceId, FontId, FontOptions, FontVariationName, IpcFontBytes},
-    image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
+    image::{ImageDecoded, ImageId, ImageMaskMode, ImageTextureId},
     window::{FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, RenderMode, WindowId},
 };
 
@@ -23,7 +23,7 @@ use crate::{
         RendererDeinitedArgs, RendererExtension, RendererInitedArgs, WindowConfigArgs, WindowExtension,
     },
     gl::{GlContext, GlContextManager},
-    image_cache::{Image, ImageCache, ImageUseMap, ResizerCache, WrImageCache},
+    image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     px_wr::PxToWr as _,
     util::{PxToWinit, frame_render_reasons, frame_update_render_reasons},
 };
@@ -61,7 +61,6 @@ impl fmt::Debug for Surface {
     }
 }
 impl Surface {
-    #[expect(clippy::too_many_arguments)]
     pub fn open(
         vp_gen: ViewProcessGen,
         cfg: HeadlessRequest,
@@ -70,7 +69,6 @@ impl Surface {
         mut window_exts: Vec<(ApiExtensionId, Box<dyn WindowExtension>)>,
         mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
-        resizer_cache: Arc<ResizerCache>,
     ) -> Self {
         let id = cfg.id;
 
@@ -174,7 +172,7 @@ impl Surface {
             renderer: Some(renderer),
             renderer_exts,
             external_images,
-            image_use: ImageUseMap::new(resizer_cache),
+            image_use: ImageUseMap::new(),
 
             clear_color: None,
 
@@ -407,7 +405,7 @@ impl Surface {
         self.api.send_transaction(self.document_id, txn);
     }
 
-    pub fn on_frame_ready(&mut self, msg: FrameReadyMsg, images: &mut ImageCache) -> (FrameId, Option<ImageLoadedData>) {
+    pub fn on_frame_ready(&mut self, msg: FrameReadyMsg, images: &mut ImageCache) -> (FrameId, Option<ImageDecoded>) {
         let (frame_id, capture, _) = self
             .pending_frames
             .pop_front()

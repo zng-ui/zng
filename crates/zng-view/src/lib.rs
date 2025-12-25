@@ -151,7 +151,7 @@ use zng_view_api::{
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
     drag_drop::*,
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
-    image::{ImageId, ImageLoadedData, ImageMaskMode, ImageRequest, ImageTextureId},
+    image::{ImageDecoded, ImageId, ImageMaskMode, ImageRequest, ImageTextureId},
     keyboard::{Key, KeyCode, KeyState},
     mouse::ButtonId,
     raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
@@ -1003,7 +1003,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 self.exited = true;
                 self.winit_loop.exit();
             }
-            AppEvent::ImageLoaded(data) => {
+            AppEvent::ImageDecoded(data) => {
                 self.image_cache.loaded(data);
             }
             AppEvent::MonitorPowerChanged => {
@@ -1305,7 +1305,7 @@ impl App {
                                 self.app.exited = true;
                                 break 'app_loop;
                             }
-                            AppEvent::ImageLoaded(data) => {
+                            AppEvent::ImageDecoded(data) => {
                                 self.app.image_cache.loaded(data);
                             }
                             AppEvent::MonitorPowerChanged => {} // headless
@@ -1774,7 +1774,6 @@ impl App {
             self.exts.new_window(),
             self.exts.new_renderer(),
             self.app_sender.clone(),
-            self.image_cache.resizer_cache(),
         );
         let render_mode = surf.render_mode();
 
@@ -1920,7 +1919,6 @@ impl Api for App {
                 self.exts.new_window(),
                 self.exts.new_renderer(),
                 self.app_sender.clone(),
-                self.image_cache.resizer_cache(),
             );
 
             let msg = WindowOpenData::new(
@@ -2085,7 +2083,7 @@ impl Api for App {
     fn image_encoders(&mut self) -> Vec<Txt> {
         image_cache::FORMATS
             .iter()
-            .filter(|f| f.can_encode)
+            .filter(|f| f.capabilities.contains(image::ImageFormatCapability::ENCODE))
             .flat_map(|f| f.file_extensions_iter().map(Txt::from_str))
             .collect()
     }
@@ -2102,8 +2100,8 @@ impl Api for App {
         self.image_cache.forget(id)
     }
 
-    fn encode_image(&mut self, id: ImageId, format: Txt) {
-        self.image_cache.encode(id, format)
+    fn encode_image(&mut self, id: ImageId, entries: Vec<(ImageId, image::ImageEntryKind)>, format: Txt) {
+        self.image_cache.encode(id, entries, format)
     }
 
     fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageTextureId {
@@ -2278,7 +2276,7 @@ impl Api for App {
 
                 if let Some(img) = self.image_cache.get(id) {
                     let mut bmp = vec![];
-                    img.encode(::image::ImageFormat::Bmp, &mut std::io::Cursor::new(&mut bmp))
+                    img.encode(vec![], ::image::ImageFormat::Bmp, &mut std::io::Cursor::new(&mut bmp))
                         .map_err(|e| clipboard::ClipboardError::Other(formatx!("{e:?}")))?;
                     clipboard_win::set(clipboard_win::formats::Bitmap, bmp).map_err(util::clipboard_win_to_clip)
                 } else {
@@ -2319,6 +2317,7 @@ impl Api for App {
                     image::ImageDataFormat::Bgra8 {
                         size: zng_unit::PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
                         density: None,
+                        original_color_type: zng_view_api::image::ColorType::RGBA8,
                     },
                     IpcBytes::from_vec_blocking(data).map_err(|e| clipboard::ClipboardError::Other(e.to_txt()))?,
                     u64::MAX,
@@ -2470,7 +2469,7 @@ pub(crate) enum AppEvent {
     ParentProcessExited,
 
     /// Image finished decoding, must call [`ImageCache::loaded`].
-    ImageLoaded(ImageLoadedData),
+    ImageDecoded(ImageDecoded),
 
     /// Enable disable winit device events.
     SetDeviceEventsFilter(DeviceEventsFilter),

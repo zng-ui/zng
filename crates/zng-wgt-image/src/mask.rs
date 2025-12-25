@@ -3,7 +3,9 @@
 //! [`mask_image`]: fn@mask_image
 //! [`mask_mode`]: fn@mask_mode
 
-use zng_ext_image::{IMAGES, ImageCacheMode, ImageDownscale, ImageLimits, ImageMaskMode, ImageRenderArgs, ImageSource};
+use zng_ext_image::{
+    IMAGES, ImageCacheMode, ImageDownscaleMode, ImageEntriesMode, ImageLimits, ImageMaskMode, ImageRenderArgs, ImageSource,
+};
 use zng_wgt::prelude::*;
 
 use crate::ImageFit;
@@ -44,7 +46,7 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
             if let ImageSource::Render(_, args) = &mut source {
                 *args = Some(ImageRenderArgs::new(WINDOW.id()));
             }
-            let i = IMAGES.image(source, mode, limits, downscale, Some(mask_mode));
+            let i = IMAGES.image(source, mode, limits, downscale, Some(mask_mode), ImageEntriesMode::PRIMARY);
             let s = i.subscribe(UpdateOp::Update, WIDGET.id());
             img = Some((i, s));
 
@@ -77,7 +79,7 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
                 let downscale = MASK_IMAGE_DOWNSCALE_VAR.get();
                 let mask_mode = MASK_MODE_VAR.get();
 
-                let i = IMAGES.image(source, mode, limits, downscale, Some(mask_mode));
+                let i = IMAGES.image(source, mode, limits, downscale, Some(mask_mode), ImageEntriesMode::PRIMARY);
                 let s = i.subscribe(UpdateOp::Layout, WIDGET.id());
                 img = Some((i, s));
 
@@ -98,7 +100,14 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
                         let limits = MASK_IMAGE_LIMITS_VAR.get();
                         let downscale = MASK_IMAGE_DOWNSCALE_VAR.get();
                         let mask_mode = MASK_MODE_VAR.get();
-                        IMAGES.image(source, ImageCacheMode::Cache, limits, downscale, Some(mask_mode))
+                        IMAGES.image(
+                            source,
+                            ImageCacheMode::Cache,
+                            limits,
+                            downscale,
+                            Some(mask_mode),
+                            ImageEntriesMode::PRIMARY,
+                        )
                     };
 
                     let s = i.subscribe(UpdateOp::Update, WIDGET.id());
@@ -182,10 +191,13 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
             });
         }
         UiNodeOp::Render { frame } => {
+            if rect.size.is_empty() {
+                return;
+            }
             img.as_ref().unwrap().0.with(|img| {
-                if img.is_loaded() && !rect.size.is_empty() {
+                img.with_best_reduce(rect.size, |img| {
                     frame.push_mask(img, rect, |frame| c.render(frame));
-                }
+                });
             });
         }
         _ => {}
@@ -207,7 +219,10 @@ context_var! {
     /// Custom resize applied during mask image decode.
     ///
     /// Is `None` by default.
-    pub static MASK_IMAGE_DOWNSCALE_VAR: Option<ImageDownscale> = None;
+    pub static MASK_IMAGE_DOWNSCALE_VAR: Option<ImageDownscaleMode> = None;
+
+    /// Defines what mask images are decoded from multi image containers.
+    pub static MASK_IMAGE_ENTRIES_MODE_VAR: ImageEntriesMode = ImageEntriesMode::PRIMARY;
 
     /// Defines how the mask image fits the widget bounds.
     pub static MASK_FIT_VAR: ImageFit = ImageFit::Fill;
@@ -247,6 +262,8 @@ pub fn mask_image_cache(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> 
 ///
 /// If not set or set to `None` the [`IMAGES.limits`] is used.
 ///
+/// This property sets the [`MASK_IMAGE_LIMITS_VAR`].
+///
 /// [`IMAGES.limits`]: zng_ext_image::IMAGES::limits
 #[property(CONTEXT, default(MASK_IMAGE_LIMITS_VAR))]
 pub fn mask_image_limits(child: impl IntoUiNode, limits: impl IntoVar<Option<ImageLimits>>) -> UiNode {
@@ -255,20 +272,41 @@ pub fn mask_image_limits(child: impl IntoUiNode, limits: impl IntoVar<Option<Ima
 
 /// Custom pixel resize applied during mask image load/decode.
 ///
-/// Note that this resize affects the image actual pixel size directly when it is loading to force the image pixels to
-/// be within an expected size.
-/// This property primary use is as error recover before the [`mask_image_limits`] error happens, you set the limits to
-/// the size that should not even be processed and set this property to the maximum size expected.
+/// Note that this resize affects the image actual pixel size directly when it is loading, it can also generate multiple image entries.
 ///
-/// Changing this value after an image is already loaded or loading will cause the image to reload, image cache allocates different
-/// entries for different downscale values, this means that this property should never be used for responsive resize,use the widget
-/// size and other properties to efficiently resize an image on screen.
+/// If the image is smaller than the requested size it is not upscaled. If multiple downscale samples are requested they are generated as
+/// synthetic [`ImageEntryKind::Reduced`].
+///
+/// Changing this value after an image is already loaded or loading will cause the mask image to reload, image cache allocates different
+/// entries for different downscale values, prefer setting samples of all possible sizes at once to
+/// avoid generating multiple image entries in the cache.
+///
+/// This property sets the [`MASK_IMAGE_DOWNSCALE_VAR`].
 ///
 /// [`IMAGES.limits`]: zng_ext_image::IMAGES::limits
-/// [`mask_image_limits`]: fn@mask_image_limits
+/// [`img_limits`]: fn@crate::img_limits
+/// [`ImageEntryKind::Reduced`]: zng_ext_image::ImageEntryKind
 #[property(CONTEXT, default(MASK_IMAGE_DOWNSCALE_VAR))]
-pub fn mask_image_downscale(child: impl IntoUiNode, downscale: impl IntoVar<Option<ImageDownscale>>) -> UiNode {
+pub fn mask_image_downscale(child: impl IntoUiNode, downscale: impl IntoVar<Option<ImageDownscaleMode>>) -> UiNode {
     with_context_var(child, MASK_IMAGE_DOWNSCALE_VAR, downscale)
+}
+
+/// Defines what mask images are decoded from multi image containers.
+///
+/// By default container types like TIFF or ICO only decode the first/largest image, this property
+/// defines if other contained images are also requested.
+///
+/// If the image contains a [`Reduced`] alternate the best size is used during rendering, this is particularly
+/// useful for displaying icon files that have symbolic alternates that are more readable at a smaller size.
+///
+///
+/// This property sets the [`MASK_IMAGE_ENTRIES_MODE_VAR`].
+///
+/// [`Reduced`]: zng_ext_image::ImageEntryKind::Reduced
+/// [`img_downscale`]: fn@[`img_downscale`]
+#[property(CONTEXT, default(MASK_IMAGE_ENTRIES_MODE_VAR))]
+pub fn mask_image_entries_mode(child: impl IntoUiNode, mode: impl IntoVar<ImageEntriesMode>) -> UiNode {
+    with_context_var(child, MASK_IMAGE_ENTRIES_MODE_VAR, mode)
 }
 
 /// Defines how the mask image fits the widget bounds in all [`mask_image`] inside

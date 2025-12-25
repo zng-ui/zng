@@ -39,8 +39,9 @@ impl ImageCacheProxy for SvgRenderCache {
         data: &[u8],
         format: &ImageDataFormat,
         mode: ImageCacheMode,
-        downscale: Option<ImageDownscale>,
+        downscale: Option<&ImageDownscaleMode>,
         mask: Option<ImageMaskMode>,
+        entries: ImageEntriesMode,
         is_loaded: bool,
     ) -> Option<ImageVar> {
         let data = match format {
@@ -54,7 +55,8 @@ impl ImageCacheProxy for SvgRenderCache {
         } else {
             Some(*key)
         };
-        Some(IMAGES.image_task(async move { load(data, downscale) }, mode, key, None, None, mask))
+        let downscale = downscale.cloned();
+        Some(IMAGES.image_task(async move { load(data, downscale) }, mode, key, None, None, mask, entries))
     }
 
     fn is_data_proxy(&self) -> bool {
@@ -66,7 +68,7 @@ enum SvgData {
     Raw(Vec<u8>),
     Str(String),
 }
-fn load(data: SvgData, downscale: Option<ImageDownscale>) -> ImageSource {
+fn load(data: SvgData, downscale: Option<ImageDownscaleMode>) -> ImageSource {
     let options = resvg::usvg::Options::default();
 
     let tree = match data {
@@ -77,30 +79,42 @@ fn load(data: SvgData, downscale: Option<ImageDownscale>) -> ImageSource {
         Ok(tree) => {
             let mut size = tree.size().to_int_size();
             if let Some(d) = downscale {
-                let s = d.resize_dimensions(PxSize::new(Px(size.width() as _), Px(size.height() as _)));
-                match resvg::tiny_skia::IntSize::from_wh(s.width.0 as _, s.height.0 as _) {
+                let size_px = PxSize::new(Px(size.width() as _), Px(size.height() as _));
+                // TODO generate downscaled images
+                let (full_size, _) = d.sizes(size_px, &[]);
+                let full_size = full_size.unwrap_or(size_px);
+
+                match resvg::tiny_skia::IntSize::from_wh(full_size.width.0 as _, full_size.height.0 as _) {
                     Some(s) => size = s,
                     None => tracing::error!("cannot resize svg to zero size"),
                 }
             }
-            let mut pixmap = match resvg::tiny_skia::Pixmap::new(size.width(), size.height()) {
+            let mut data = match IpcBytes::new_mut_blocking(size.width() as usize * size.height() as usize * 4) {
+                Ok(b) => b,
+                Err(e) => return error(formatx!("can't allocate bytes for {size:?} svg, {e}")),
+            };
+            let mut pixmap = match resvg::tiny_skia::PixmapMut::from_bytes(&mut data, size.width(), size.height()) {
                 Some(p) => p,
                 None => return error(formatx!("can't allocate pixmap for {:?} svg", size)),
             };
-            resvg::render(&tree, resvg::tiny_skia::Transform::identity(), &mut pixmap.as_mut());
+            resvg::render(&tree, resvg::tiny_skia::Transform::identity(), &mut pixmap);
             let size = PxSize::new(Px(pixmap.width() as _), Px(pixmap.height() as _));
 
-            let mut data = pixmap.take();
-            for pixel in data.chunks_exact_mut(4) {
-                pixel.swap(0, 2);
+            for rgba in data.chunks_exact_mut(4) {
+                // rgba to bgra
+                rgba.swap(0, 2);
             }
 
             ImageSource::Data(
                 ImageHash::compute(&data),
-                IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"),
+                match data.finish_blocking() {
+                    Ok(b) => b,
+                    Err(e) => return error(formatx!("cannot finish ipc bytes allocation, {e}")),
+                },
                 ImageDataFormat::Bgra8 {
                     size,
                     density: Some(PxDensity2d::splat(options.dpi.ppi())),
+                    original_color_type: ColorType::RGBA8,
                 },
             )
         }

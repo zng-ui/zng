@@ -3,7 +3,7 @@ use std::fmt;
 
 use node::CONTEXT_IMAGE_VAR;
 use zng_app::render::ImageRendering;
-use zng_ext_image::{ImageDownscale, ImageLimits};
+use zng_ext_image::{ImageDownscaleMode, ImageEntriesMode, ImageLimits};
 use zng_ext_window::WINDOW_Ext as _;
 use zng_wgt_window::BlockWindowLoad;
 
@@ -143,7 +143,10 @@ context_var! {
     /// Custom resize applied during image decode.
     ///
     /// Is `None` by default.
-    pub static IMAGE_DOWNSCALE_VAR: Option<ImageDownscale> = None;
+    pub static IMAGE_DOWNSCALE_VAR: Option<ImageDownscaleMode> = None;
+
+    /// Defines what images are decoded from multi image containers.
+    pub static IMAGE_ENTRIES_MODE_VAR: ImageEntriesMode = ImageEntriesMode::PRIMARY;
 
     /// The image layout mode.
     ///
@@ -200,6 +203,8 @@ pub fn img_fit(child: impl IntoUiNode, fit: impl IntoVar<ImageFit>) -> UiNode {
 /// Set to `false` to display the original pixel size.
 ///
 /// Set to [`ImageAutoScale::Density`] to display the *print size* in a calibrated screen.
+///
+/// This property sets the [`IMAGE_AUTO_SCALE_VAR`].
 #[property(CONTEXT, default(IMAGE_AUTO_SCALE_VAR), widget_impl(Image))]
 pub fn img_auto_scale(child: impl IntoUiNode, scale: impl IntoVar<ImageAutoScale>) -> UiNode {
     with_context_var(child, IMAGE_AUTO_SCALE_VAR, scale)
@@ -208,6 +213,8 @@ pub fn img_auto_scale(child: impl IntoUiNode, scale: impl IntoVar<ImageAutoScale
 /// Custom scale applied to all inner images.
 ///
 /// By default only [`img_auto_scale`] is done. If this is set it multiplies the auto scale.
+///
+/// This property sets the [`IMAGE_SCALE_VAR`].
 ///
 /// [`img_auto_scale`]: fn@img_auto_scale
 #[property(CONTEXT, default(IMAGE_SCALE_VAR), widget_impl(Image))]
@@ -222,6 +229,8 @@ pub fn img_scale(child: impl IntoUiNode, scale: impl IntoVar<Factor2d>) -> UiNod
 /// a larger image bottom-right fill the widget, clipping the rest.
 ///
 /// By default the alignment is [`CENTER`]. The [`BASELINE`] alignment is treaded the same as [`BOTTOM`].
+///
+/// This property sets the [`IMAGE_ALIGN_VAR`].
 ///
 /// [`BOTTOM_RIGHT`]: zng_wgt::prelude::Align::BOTTOM_RIGHT
 /// [`CENTER`]: zng_wgt::prelude::Align::CENTER
@@ -255,6 +264,8 @@ pub fn img_offset(child: impl IntoUiNode, offset: impl IntoVar<Vector>) -> UiNod
 /// render selections of a [texture atlas].
 ///
 /// By default no cropping is done.
+///
+/// This property sets the [`IMAGE_CROP_VAR`].
 ///
 /// [`img_scale_density`]: #fn@img_scale_density
 /// [texture atlas]: https://en.wikipedia.org/wiki/Texture_atlas
@@ -305,6 +316,8 @@ pub fn img_repeat_spacing(child: impl IntoUiNode, spacing: impl IntoVar<Size>) -
 ///
 /// This is [`ImageRendering::Auto`] by default.
 ///
+/// This property sets the [`IMAGE_RENDERING_VAR`].
+///
 /// [`ImageRendering`]: zng_app::render::ImageRendering
 /// [`ImageRendering::Auto`]: zng_app::render::ImageRendering::Auto
 #[property(CONTEXT, default(IMAGE_RENDERING_VAR), widget_impl(Image))]
@@ -322,6 +335,8 @@ pub fn img_rendering(child: impl IntoUiNode, rendering: impl IntoVar<ImageRender
 /// If set to `false` the image is always loaded and decoded on init or when [`source`] updates and is dropped when
 /// the widget is deinited or dropped.
 ///
+/// This property sets the [`IMAGE_CACHE_VAR`].
+///
 /// [`source`]: fn@crate::source
 /// [`IMAGES`]: zng_ext_image::IMAGES
 #[property(CONTEXT, default(IMAGE_CACHE_VAR), widget_impl(Image))]
@@ -335,6 +350,8 @@ pub fn img_cache(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode 
 ///
 /// See also [`img_downscale`] for a way to still display unexpected large images.
 ///
+/// This property sets the [`IMAGE_LIMITS_VAR`].
+///
 /// [`IMAGES.limits`]: zng_ext_image::IMAGES::limits
 /// [`img_downscale`]: fn@img_downscale
 #[property(CONTEXT, default(IMAGE_LIMITS_VAR), widget_impl(Image))]
@@ -344,19 +361,48 @@ pub fn img_limits(child: impl IntoUiNode, limits: impl IntoVar<Option<ImageLimit
 
 /// Custom pixel resize applied during image load/decode.
 ///
-/// Note that this resize affects the image actual pixel size directly when it is loading to force the image pixels to be within an expected size.
-/// This property primary use is as error recover before the [`img_limits`] error happens, you set the limits to the size that should not even
-/// be processed and set this property to the maximum size expected.
+/// Note that this resize affects the image actual pixel size directly when it is loading, it can also generate multiple image entries.
+///
+/// If the image is smaller than the requested size it is not upscaled. If multiple downscale samples are requested they are generated as
+/// synthetic [`ImageEntryKind::Reduced`].
 ///
 /// Changing this value after an image is already loaded or loading will cause the image to reload, image cache allocates different
-/// entries for different downscale values, this means that this property should never be used for responsive resize,use the widget
-/// size and other properties to efficiently resize an image on screen.
+/// entries for different downscale values, prefer setting samples of all possible sizes at once to
+/// avoid generating multiple image entries in the cache.
+///
+/// Rendering large (gigapixel) images can become slow if the image is scaled to fit as render
+/// scaling is GPU optimized, generating mipmap alternates here is a good optimization for large image viewers.
+///
+/// This property sets the [`IMAGE_DOWNSCALE_VAR`].
 ///
 /// [`IMAGES.limits`]: zng_ext_image::IMAGES::limits
 /// [`img_limits`]: fn@img_limits
+/// [`ImageEntryKind::Reduced`]: zng_ext_image::ImageEntryKind
 #[property(CONTEXT, default(IMAGE_DOWNSCALE_VAR), widget_impl(Image))]
-pub fn img_downscale(child: impl IntoUiNode, downscale: impl IntoVar<Option<ImageDownscale>>) -> UiNode {
+pub fn img_downscale(child: impl IntoUiNode, downscale: impl IntoVar<Option<ImageDownscaleMode>>) -> UiNode {
     with_context_var(child, IMAGE_DOWNSCALE_VAR, downscale)
+}
+
+/// Defines what images are decoded from multi image containers.
+///
+/// By default container types like TIFF or ICO only decode the first/largest image, this property
+/// defines if other contained images are also requested.
+///
+/// If the image contains a [`Reduced`] alternate the best size is used during rendering, this is particularly
+/// useful for displaying icon files that have symbolic alternates that are more readable at a smaller size.
+///
+/// You can also configure [`img_downscale`] to generate a mipmap as an optimization for displaying very large images.
+///
+/// Note that although it is possible to request multi pages here the widget does not support pages, it always displays the
+/// first/primary page. The image pages are decoded if requested and you can access the image variable to get the pages.
+///
+/// This property sets the [`IMAGE_ENTRIES_MODE_VAR`].
+///
+/// [`Reduced`]: zng_ext_image::ImageEntryKind::Reduced
+/// [`img_downscale`]: fn@[`img_downscale`]
+#[property(CONTEXT, default(IMAGE_ENTRIES_MODE_VAR), widget_impl(Image))]
+pub fn img_entries_mode(child: impl IntoUiNode, mode: impl IntoVar<ImageEntriesMode>) -> UiNode {
+    with_context_var(child, IMAGE_ENTRIES_MODE_VAR, mode)
 }
 
 /// If the [`CONTEXT_IMAGE_VAR`] is an error.

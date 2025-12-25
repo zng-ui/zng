@@ -24,7 +24,7 @@ use zng_view_api::{
     Event, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     font::{FontFaceId, FontId, FontOptions, FontVariationName, IpcFontBytes},
-    image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
+    image::{ImageDecoded, ImageId, ImageMaskMode, ImageTextureId},
     raw_input::InputDeviceId,
     window::{
         CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, ResizeDirection, VideoMode,
@@ -46,7 +46,7 @@ use crate::{
         WindowExtension, WindowInitedArgs,
     },
     gl::{GlContext, GlContextManager},
-    image_cache::{Image, ImageCache, ImageUseMap, ResizerCache, WrImageCache},
+    image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     px_wr::PxToWr as _,
     util::{
         CursorToWinit, DipToWinit, PxToWinit, ResizeDirectionToWinit as _, WindowButtonsToWinit as _, WinitToDip, WinitToPx,
@@ -150,7 +150,6 @@ impl Window {
         mut window_exts: Vec<(ApiExtensionId, Box<dyn WindowExtension>)>,
         mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
-        resizer_cache: Arc<ResizerCache>,
     ) -> Self {
         let id = cfg.id;
 
@@ -432,7 +431,7 @@ impl Window {
 
         let mut win = Self {
             id,
-            image_use: ImageUseMap::new(resizer_cache),
+            image_use: ImageUseMap::new(),
             prev_pos: winit_window.inner_position().unwrap_or_default().to_px(),
             prev_size: winit_window.inner_size().to_px().to_dip(Factor(winit_window.scale_factor() as _)),
             prev_monitor: winit_window.current_monitor(),
@@ -2189,7 +2188,7 @@ impl Drop for Window {
 
 pub(crate) struct FrameReadyResult {
     pub frame_id: FrameId,
-    pub image: Option<ImageLoadedData>,
+    pub image: Option<ImageDecoded>,
     pub first_frame: bool,
 }
 

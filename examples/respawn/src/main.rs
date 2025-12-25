@@ -59,7 +59,7 @@ fn main() {
                     },
                     Wrap! {
                         spacing = 5;
-                        children = ui_vec![click_counter(), image(), click_counter(),];
+                        children = ui_vec![click_counter(), image(), image_multi_entries()];
                     },
                 ];
             };
@@ -200,6 +200,15 @@ fn image() -> UiNode {
         source = include_bytes!("../../window/res/icon-bytes.png");
         size = (32, 32);
         tooltip = Tip!(Text!("Image reloads after respawn"));
+    }
+}
+
+fn image_multi_entries() -> UiNode {
+    Image! {
+        source = include_bytes!("../../image/res/test-icon.ico");
+        img_entries_mode = zng::image::ImageEntriesMode::REDUCED;
+        size = (32, 32);
+        tooltip = Tip!(Text!("Multi entry image\nMust reload as same number after respawn"));
     }
 }
 

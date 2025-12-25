@@ -8,7 +8,7 @@ use zng_txt::Txt;
 use crate::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     display_list::{DisplayList, FrameValueUpdate},
-    image::{ImageId, ImageLoadedData, ImageMaskMode},
+    image::{ImageDecoded, ImageId, ImageMaskMode},
 };
 use zng_unit::{Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx as _, Factor, Px, PxPoint, PxSize, PxToDip, PxTransform, Rgba};
 
@@ -1050,11 +1050,11 @@ pub struct EventFrameRendered {
     /// Frame that was rendered.
     pub frame: FrameId,
     /// Frame image, if one was requested with the frame request.
-    pub frame_image: Option<ImageLoadedData>,
+    pub frame_image: Option<ImageDecoded>,
 }
 impl EventFrameRendered {
     /// New response.
-    pub fn new(window: WindowId, frame: FrameId, frame_image: Option<ImageLoadedData>) -> Self {
+    pub fn new(window: WindowId, frame: FrameId, frame_image: Option<ImageDecoded>) -> Self {
         Self {
             window,
             frame,

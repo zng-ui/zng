@@ -40,21 +40,30 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&source).sub_var(&IMAGE_CACHE_VAR).sub_var(&IMAGE_DOWNSCALE_VAR);
+            WIDGET
+                .sub_var(&source)
+                .sub_var(&IMAGE_CACHE_VAR)
+                .sub_var(&IMAGE_DOWNSCALE_VAR)
+                .sub_var(&IMAGE_ENTRIES_MODE_VAR);
 
             let mode = if IMAGE_CACHE_VAR.get() {
                 ImageCacheMode::Cache
             } else {
                 ImageCacheMode::Ignore
             };
-            let limits = IMAGE_LIMITS_VAR.get();
-            let downscale = IMAGE_DOWNSCALE_VAR.get();
 
             let mut source = source.get();
             if let ImageSource::Render(_, args) = &mut source {
                 *args = Some(ImageRenderArgs::new(WINDOW.id()));
             }
-            img = IMAGES.image(source, mode, limits, downscale, None);
+            img = IMAGES.image(
+                source,
+                mode,
+                IMAGE_LIMITS_VAR.get(),
+                IMAGE_DOWNSCALE_VAR.get(),
+                None,
+                IMAGE_ENTRIES_MODE_VAR.get(),
+            );
 
             ctx_img.set_from(&img);
             _ctx_binding = Some(img.bind(&ctx_img));
@@ -67,7 +76,7 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
             _ctx_binding = None;
         }
         UiNodeOp::Update { .. } => {
-            if source.is_new() || IMAGE_DOWNSCALE_VAR.is_new() {
+            if source.is_new() || IMAGE_DOWNSCALE_VAR.is_new() || IMAGE_ENTRIES_MODE_VAR.is_new() {
                 // source update:
 
                 let mut source = source.get();
@@ -81,10 +90,15 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                 } else {
                     ImageCacheMode::Ignore
                 };
-                let limits = IMAGE_LIMITS_VAR.get();
-                let downscale = IMAGE_DOWNSCALE_VAR.get();
 
-                img = IMAGES.image(source, mode, limits, downscale, None);
+                img = IMAGES.image(
+                    source,
+                    mode,
+                    IMAGE_LIMITS_VAR.get(),
+                    IMAGE_DOWNSCALE_VAR.get(),
+                    None,
+                    IMAGE_ENTRIES_MODE_VAR.get(),
+                );
 
                 ctx_img.set_from(&img);
                 _ctx_binding = Some(img.bind(&ctx_img));
@@ -101,9 +115,14 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                         // must cache, but image is not cached, get source again.
 
                         let source = source.get();
-                        let limits = IMAGE_LIMITS_VAR.get();
-                        let downscale = IMAGE_DOWNSCALE_VAR.get();
-                        IMAGES.image(source, ImageCacheMode::Cache, limits, downscale, None)
+                        IMAGES.image(
+                            source,
+                            ImageCacheMode::Cache,
+                            IMAGE_LIMITS_VAR.get(),
+                            IMAGE_DOWNSCALE_VAR.get(),
+                            None,
+                            IMAGE_ENTRIES_MODE_VAR.get(),
+                        )
                     };
 
                     ctx_img.set_from(&img);
@@ -402,8 +421,11 @@ pub fn image_presenter() -> UiNode {
             *final_size = wgt_size;
         }
         UiNodeOp::Render { frame } => {
+            if render_clip.is_empty() {
+                return;
+            }
             CONTEXT_IMAGE_VAR.with(|img| {
-                if img.is_loaded() && !img_size.is_empty() && !render_clip.is_empty() {
+                img.with_best_reduce(render_tile_size, |img| {
                     if render_offset != PxVector::zero() {
                         let transform = PxTransform::from(render_offset);
                         frame.push_reference_frame(spatial_id.into(), FrameValue::Value(transform), true, false, |frame| {
@@ -426,7 +448,7 @@ pub fn image_presenter() -> UiNode {
                             IMAGE_RENDERING_VAR.get(),
                         );
                     }
-                }
+                })
             });
         }
         _ => {}

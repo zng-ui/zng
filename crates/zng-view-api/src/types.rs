@@ -9,18 +9,19 @@ use crate::{
     },
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect},
-    image::{ImageId, ImageLoadedData},
+    image::{ImageDecoded, ImageId, ImageMetadata},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
     touch::{TouchPhase, TouchUpdate},
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use zng_task::channel::{ChannelError, IpcBytes};
 use zng_txt::Txt;
-use zng_unit::{DipPoint, PxDensity2d, PxRect, PxSize, Rgba};
+use zng_unit::{DipPoint, PxRect, Rgba};
 
 macro_rules! declare_id {
     ($(
@@ -408,38 +409,16 @@ pub enum Event {
     /// The window has closed.
     WindowClosed(WindowId),
 
-    /// An image resource already decoded size and density metadata.
-    ImageMetadataLoaded {
-        /// The image that started loading.
-        image: ImageId,
-        /// The image pixel size.
-        size: PxSize,
-        /// The image density metadata.
-        density: Option<PxDensity2d>,
-        /// The image is a single channel R8.
-        is_mask: bool,
-    },
+    /// An image resource already decoded header metadata.
+    ImageMetadataDecoded(ImageMetadata),
     /// An image resource finished decoding.
-    ImageLoaded(ImageLoadedData),
-    /// An image resource, progressively decoded has decoded more bytes.
-    ImagePartiallyLoaded {
-        /// The image that has decoded more pixels.
-        image: ImageId,
-        /// The size of the decoded pixels, can be different then the image size if the
-        /// image is not *interlaced*.
-        partial_size: PxSize,
-        /// The image density metadata.
-        density: Option<PxDensity2d>,
-        /// If the decoded pixels so-far are all opaque (255 alpha).
-        is_opaque: bool,
-        /// If the decoded pixels so-far are a single channel.
-        is_mask: bool,
-        /// Updated BGRA8 pre-multiplied pixel buffer or R8 if `is_mask`. This includes all the pixels
-        /// decoded so-far.
-        partial_pixels: IpcBytes,
-    },
+    ImageDecoded(ImageDecoded),
+    /// An image resource, progressively decoded has decoded more rows.
+    ///
+    /// The data size and pixels reflects the partial height of the image that has decoded only.
+    ImagePartiallyDecoded(ImageDecoded),
     /// An image resource failed to decode, the image ID is not valid.
-    ImageLoadError {
+    ImageDecodeError {
         /// The image that failed to decode.
         image: ImageId,
         /// The error message.

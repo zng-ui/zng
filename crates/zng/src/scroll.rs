@@ -24,7 +24,6 @@
 //!         // content is a large image
 //!         source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
 //!         img_limits = zng::image::ImageLimits::none();
-//!         img_downscale = zng::image::ImageDownscale::from(layout::Px(8000));
 //!     };
 //! }
 //! # ; }

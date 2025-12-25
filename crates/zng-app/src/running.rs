@@ -358,37 +358,25 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawWindowCloseArgs::now(window_id(w_id));
                 self.notify_event(RAW_WINDOW_CLOSE_EVENT.new_update(args), observer);
             }
-            Event::ImageMetadataLoaded {
-                image: id,
-                size,
-                density,
-                is_mask,
-            } => {
-                if let Some(img) = VIEW_PROCESS.on_image_metadata_loaded(id, size, density, is_mask) {
+            Event::ImageMetadataDecoded(meta) => {
+                if let Some(img) = VIEW_PROCESS.on_image_metadata(meta) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RAW_IMAGE_METADATA_LOADED_EVENT.new_update(args), observer);
                 }
             }
-            Event::ImagePartiallyLoaded {
-                image: id,
-                partial_size,
-                density,
-                is_opaque,
-                is_mask,
-                partial_pixels: partial_bgra8,
-            } => {
-                if let Some(img) = VIEW_PROCESS.on_image_partially_loaded(id, partial_size, density, is_opaque, is_mask, partial_bgra8) {
+            Event::ImagePartiallyDecoded(img) => {
+                if let Some(img) = VIEW_PROCESS.on_image_partially_decoded(img) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RAW_IMAGE_PARTIALLY_LOADED_EVENT.new_update(args), observer);
                 }
             }
-            Event::ImageLoaded(image) => {
-                if let Some(img) = VIEW_PROCESS.on_image_loaded(image) {
+            Event::ImageDecoded(img) => {
+                if let Some(img) = VIEW_PROCESS.on_image_decoded(img) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RAW_IMAGE_LOADED_EVENT.new_update(args), observer);
                 }
             }
-            Event::ImageLoadError { image: id, error } => {
+            Event::ImageDecodeError { image: id, error } => {
                 if let Some(img) = VIEW_PROCESS.on_image_error(id, error) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RAW_IMAGE_LOAD_ERROR_EVENT.new_update(args), observer);

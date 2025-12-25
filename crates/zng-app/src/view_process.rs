@@ -31,7 +31,7 @@ use zng_view_api::{
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::{FontOptions, IpcFontBytes},
-    image::{ImageMaskMode, ImageRequest, ImageTextureId},
+    image::{ColorType, ImageDecoded, ImageEntryKind, ImageEntryMetadata, ImageMaskMode, ImageMetadata, ImageRequest, ImageTextureId},
     window::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, RenderMode, ResizeDirection,
         VideoMode, WindowButton, WindowRequest, WindowStateAll,
@@ -44,7 +44,7 @@ pub(crate) use zng_view_api::{
 use zng_view_api::{
     clipboard::{ClipboardData, ClipboardError, ClipboardType},
     font::{FontFaceId, FontId, FontVariationName},
-    image::{ImageId, ImageLoadedData},
+    image::ImageId,
 };
 
 use self::raw_device_events::InputDeviceId;
@@ -170,58 +170,108 @@ impl VIEW_PROCESS {
     /// Send an image for decoding.
     ///
     /// This function returns immediately, the [`ViewImage`] will update when
-    /// [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
+    /// [`Event::ImageMetadataDecoded`], [`Event::ImageDecoded`] and [`Event::ImageDecodeError`] events are received.
     ///
-    /// [`Event::ImageMetadataLoaded`]: zng_view_api::Event::ImageMetadataLoaded
-    /// [`Event::ImageLoaded`]: zng_view_api::Event::ImageLoaded
-    /// [`Event::ImageLoadError`]: zng_view_api::Event::ImageLoadError
+    /// [`Event::ImageMetadataDecoded`]: zng_view_api::Event::ImageMetadataDecoded
+    /// [`Event::ImageDecoded`]: zng_view_api::Event::ImageDecoded
+    /// [`Event::ImageDecodeError`]: zng_view_api::Event::ImageDecodeError
     pub fn add_image(&self, request: ImageRequest<IpcBytes>) -> Result<ViewImage> {
         let mut app = self.write();
-        let id = app.process.add_image(request)?;
-        let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
-            id: Some(id),
+
+        // decoded events will override this, but we try to set some metadata in advance,
+        // in particular `parent` can be used immediately by the IMAGES service.
+        let mut view_data = ViewImageData {
+            id: None,
+            parent: request.parent.clone(),
             app_id: APP.id(),
             generation: app.process.generation(),
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
             density: None,
+            original_color_type: ColorType::new(Txt::from(""), 0, 0),
             is_opaque: false,
             partial_pixels: None,
             pixels: None,
-            is_mask: false,
+            is_mask: request.mask.is_some(),
             done_signal: SignalOnce::new(),
-        })));
+        };
+        match &request.format {
+            zng_view_api::image::ImageDataFormat::Bgra8 {
+                size,
+                density,
+                original_color_type,
+            } => {
+                view_data.density = *density;
+                view_data.original_color_type = original_color_type.clone();
+                if request.downscale.is_none() && request.data.len() == size.width.0 as usize * size.height.0 as usize * 4 {
+                    view_data.size = *size;
+                    view_data.pixels = Some(Ok(request.data.clone()));
+                }
+            }
+            zng_view_api::image::ImageDataFormat::A8 { size } => {
+                if request.downscale.is_none() && request.data.len() == size.width.0 as usize * size.height.0 as usize {
+                    view_data.size = *size;
+                    view_data.pixels = Some(Ok(request.data.clone()));
+                }
+            }
+            _ => {}
+        }
+
+        let id = app.process.add_image(request)?;
+
+        view_data.id = Some(id);
+        let img = ViewImage(Arc::new(RwLock::new(view_data)));
         app.loading_images.push(Arc::downgrade(&img.0));
+
         Ok(img)
     }
 
     /// Starts sending an image for *progressive* decoding.
     ///
     /// This function returns immediately, the [`ViewImage`] will update when
-    /// [`Event::ImageMetadataLoaded`], [`Event::ImagePartiallyLoaded`],
-    /// [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
+    /// [`Event::ImageMetadataDecoded`], [`Event::ImagePartiallyDecoded`],
+    /// [`Event::ImageDecoded`] and [`Event::ImageDecodeError`] events are received.
     ///
-    /// [`Event::ImageMetadataLoaded`]: zng_view_api::Event::ImageMetadataLoaded
-    /// [`Event::ImageLoaded`]: zng_view_api::Event::ImageLoaded
-    /// [`Event::ImageLoadError`]: zng_view_api::Event::ImageLoadError
-    /// [`Event::ImagePartiallyLoaded`]: zng_view_api::Event::ImagePartiallyLoaded
+    /// [`Event::ImageMetadataDecoded`]: zng_view_api::Event::ImageMetadataDecoded
+    /// [`Event::ImageDecoded`]: zng_view_api::Event::ImageDecoded
+    /// [`Event::ImageDecodeError`]: zng_view_api::Event::ImageDecodeError
+    /// [`Event::ImagePartiallyDecoded`]: zng_view_api::Event::ImagePartiallyDecoded
     pub fn add_image_pro(&self, request: ImageRequest<IpcReceiver<IpcBytes>>) -> Result<ViewImage> {
         let mut app = self.write();
-        let id = app.process.add_image_pro(request)?;
-        let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
-            id: Some(id),
+
+        // decoded events will override this, but we try to set some metadata in advance,
+        // in particular `parent` can be used immediately by the IMAGES service.
+        let mut view_data = ViewImageData {
+            id: None,
+            parent: request.parent.clone(),
             app_id: APP.id(),
             generation: app.process.generation(),
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
             density: None,
+            original_color_type: ColorType::new(Txt::from(""), 0, 0),
             is_opaque: false,
             partial_pixels: None,
             pixels: None,
             is_mask: false,
             done_signal: SignalOnce::new(),
-        })));
+        };
+        if let zng_view_api::image::ImageDataFormat::Bgra8 {
+            density,
+            original_color_type,
+            ..
+        } = &request.format
+        {
+            view_data.density = *density;
+            view_data.original_color_type = original_color_type.clone();
+        }
+
+        let id = app.process.add_image_pro(request)?;
+
+        view_data.id = Some(id);
+        let img = ViewImage(Arc::new(RwLock::new(view_data)));
         app.loading_images.push(Arc::downgrade(&img.0));
+
         Ok(img)
     }
 
@@ -391,29 +441,76 @@ impl VIEW_PROCESS {
         (surf, data)
     }
 
-    fn loading_image_index(&self, id: ImageId) -> Option<usize> {
+    pub(super) fn on_image_metadata(&self, meta: ImageMetadata) -> Option<ViewImage> {
         let mut app = self.write();
 
-        // cleanup
-        app.loading_images.retain(|i| i.strong_count() > 0);
+        let mut found = None;
+        app.loading_images.retain(|i| {
+            if let Some(img) = i.upgrade() {
+                if found.is_none() && img.read().id == Some(meta.id) {
+                    found = Some(img);
+                }
+                // retain
+                true
+            } else {
+                false
+            }
+        });
 
-        app.loading_images.iter().position(|i| i.upgrade().unwrap().read().id == Some(id))
+        if let Some(found) = found {
+            {
+                let mut img = found.write();
+                img.size = meta.size;
+                img.density = meta.density;
+                img.original_color_type = meta.original_color_type;
+                img.is_mask = meta.is_mask;
+                img.parent = meta.parent;
+            }
+            Some(ViewImage(found))
+        } else if let Some(m) = meta.parent {
+            // assume parent is still in use and start tracking this ViewImage
+
+            let i = ViewImage(Arc::new(RwLock::new(ViewImageData {
+                id: Some(meta.id),
+                parent: Some(m),
+                app_id: APP.id(),
+                generation: app.process.generation(),
+                size: meta.size,
+                partial_size: PxSize::zero(),
+                density: meta.density,
+                original_color_type: meta.original_color_type,
+                is_opaque: false,
+                partial_pixels: None,
+                pixels: None,
+                is_mask: meta.is_mask,
+                done_signal: SignalOnce::new(),
+            })));
+            app.loading_images.push(Arc::downgrade(&i.0));
+
+            Some(i)
+        } else {
+            // image discarded or unknown
+            None
+        }
     }
 
-    pub(super) fn on_image_metadata_loaded(
-        &self,
-        id: ImageId,
-        size: PxSize,
-        density: Option<PxDensity2d>,
-        is_mask: bool,
-    ) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(id) {
-            let img = self.read().loading_images[i].upgrade().unwrap();
+    pub(super) fn on_image_partially_decoded(&self, data: ImageDecoded) -> Option<ViewImage> {
+        if let Some(img) = self
+            .read()
+            .loading_images
+            .iter()
+            .filter_map(|i| i.upgrade())
+            .find(|i| i.read().id == Some(data.meta.id))
+        {
             {
                 let mut img = img.write();
-                img.size = size;
-                img.density = density;
-                img.is_mask = is_mask;
+                img.partial_size = data.meta.size;
+                img.density = data.meta.density;
+                img.original_color_type = data.meta.original_color_type;
+                img.is_opaque = data.is_opaque;
+                img.partial_pixels = Some(data.pixels);
+                img.is_mask = data.meta.is_mask;
+                img.parent = data.meta.parent
             }
             Some(ViewImage(img))
         } else {
@@ -421,43 +518,34 @@ impl VIEW_PROCESS {
         }
     }
 
-    pub(super) fn on_image_partially_loaded(
-        &self,
-        id: ImageId,
-        partial_size: PxSize,
-        density: Option<PxDensity2d>,
-        is_opaque: bool,
-        is_mask: bool,
-        partial_pixels: IpcBytes,
-    ) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(id) {
-            let img = self.read().loading_images[i].upgrade().unwrap();
-            {
-                let mut img = img.write();
-                img.partial_size = partial_size;
-                img.density = density;
-                img.is_opaque = is_opaque;
-                img.partial_pixels = Some(partial_pixels);
-                img.is_mask = is_mask;
-            }
-            Some(ViewImage(img))
-        } else {
-            None
-        }
-    }
+    pub(super) fn on_image_decoded(&self, data: ImageDecoded) -> Option<ViewImage> {
+        let mut app = self.write();
 
-    pub(super) fn on_image_loaded(&self, data: ImageLoadedData) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(data.id) {
-            let img = self.write().loading_images.swap_remove(i).upgrade().unwrap();
+        let mut found = None;
+        app.loading_images.retain(|i| {
+            if let Some(img) = i.upgrade() {
+                if found.is_none() && img.read().id == Some(data.meta.id) {
+                    found = Some(img);
+                    return false;
+                }
+                true
+            } else {
+                false
+            }
+        });
+
+        if let Some(img) = found {
             {
                 let mut img = img.write();
-                img.size = data.size;
-                img.partial_size = data.size;
-                img.density = data.density;
+                img.size = data.meta.size;
+                img.partial_size = data.meta.size;
+                img.density = data.meta.density;
+                img.original_color_type = data.meta.original_color_type;
                 img.is_opaque = data.is_opaque;
                 img.pixels = Some(Ok(data.pixels));
                 img.partial_pixels = None;
-                img.is_mask = data.is_mask;
+                img.is_mask = data.meta.is_mask;
+                img.parent = data.meta.parent;
                 img.done_signal.set();
             }
             Some(ViewImage(img))
@@ -467,8 +555,22 @@ impl VIEW_PROCESS {
     }
 
     pub(super) fn on_image_error(&self, id: ImageId, error: Txt) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(id) {
-            let img = self.write().loading_images.swap_remove(i).upgrade().unwrap();
+        let mut app = self.write();
+
+        let mut found = None;
+        app.loading_images.retain(|i| {
+            if let Some(img) = i.upgrade() {
+                if found.is_none() && img.read().id == Some(id) {
+                    found = Some(img);
+                    return false;
+                }
+                true
+            } else {
+                false
+            }
+        });
+
+        if let Some(img) = found {
             {
                 let mut img = img.write();
                 img.pixels = Some(Err(error));
@@ -485,18 +587,20 @@ impl VIEW_PROCESS {
         vp.pending_frames = vp.pending_frames.saturating_sub(1);
     }
 
-    pub(crate) fn on_frame_image(&self, data: ImageLoadedData) -> ViewImage {
+    pub(crate) fn on_frame_image(&self, data: ImageDecoded) -> ViewImage {
         ViewImage(Arc::new(RwLock::new(ViewImageData {
             app_id: APP.id(),
-            id: Some(data.id),
+            id: Some(data.meta.id),
+            parent: data.meta.parent,
             generation: self.generation(),
-            size: data.size,
-            partial_size: data.size,
-            density: data.density,
+            size: data.meta.size,
+            partial_size: data.meta.size,
+            density: data.meta.density,
+            original_color_type: data.meta.original_color_type,
             is_opaque: data.is_opaque,
             partial_pixels: None,
             pixels: Some(Ok(data.pixels)),
-            is_mask: data.is_mask,
+            is_mask: data.meta.is_mask,
             done_signal: SignalOnce::new_set(),
         })))
     }
@@ -1166,10 +1270,12 @@ impl ViewRenderer {
             let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
                 app_id: Some(app_id),
                 id: Some(id),
+                parent: None,
                 generation: app.process.generation(),
                 size: PxSize::zero(),
                 partial_size: PxSize::zero(),
                 density: None,
+                original_color_type: ColorType::new(Txt::from(""), 0, 0),
                 is_opaque: false,
                 partial_pixels: None,
                 pixels: None,
@@ -1255,6 +1361,7 @@ impl fmt::Debug for ViewImage {
             .field("error", &self.error())
             .field("size", &self.size())
             .field("density", &self.density())
+            .field("original_color_type", &self.original_color_type())
             .field("is_opaque", &self.is_opaque())
             .field("is_mask", &self.is_mask())
             .field("generation", &self.generation())
@@ -1270,11 +1377,14 @@ struct ViewImageData {
     size: PxSize,
     partial_size: PxSize,
     density: Option<PxDensity2d>,
-    is_opaque: bool,
+    is_mask: bool,
+    original_color_type: ColorType,
 
     partial_pixels: Option<IpcBytes>,
     pixels: Option<std::result::Result<IpcBytes, Txt>>,
-    is_mask: bool,
+    is_opaque: bool,
+
+    parent: Option<ImageEntryMetadata>,
 
     done_signal: SignalOnce,
 }
@@ -1299,6 +1409,30 @@ impl ViewImage {
     /// Image id.
     pub fn id(&self) -> Option<ImageId> {
         self.0.read().id
+    }
+
+    /// Kind of image container entry this image was decoded from.
+    pub fn entry_kind(&self) -> ImageEntryKind {
+        self.0
+            .read()
+            .parent
+            .as_ref()
+            .map(|p| p.kind.clone())
+            .unwrap_or(ImageEntryKind::Page)
+    }
+
+    /// Image this one belongs too.
+    ///
+    /// This image will be listed on the parent `entries`.
+    pub fn entry_parent(&self) -> Option<ImageId> {
+        self.0.read().parent.as_ref().map(|p| p.parent)
+    }
+
+    /// Position of this image as an entry in [`entry_parent`].
+    ///
+    /// [`entry_parent`]: Self::entry_parent
+    pub fn entry_index(&self) -> usize {
+        self.0.read().parent.as_ref().map(|p| p.index).unwrap_or(0)
     }
 
     /// If the image does not actually exists in the view-process.
@@ -1328,24 +1462,41 @@ impl ViewImage {
         self.0.read().pixels.as_ref().and_then(|s| s.as_ref().err().cloned())
     }
 
-    /// Returns the pixel size, or zero if is not loaded or error.
+    /// Pixel size of the image after it finishes loading.
+    ///
+    /// Note that this value is set as soon as the header finishes decoding, but the [`pixels`] will
+    /// only be set after it the entire image decodes.
+    ///
+    /// If the view-process implements progressive decoding you can use [`partial_size`] and [`partial_pixels`]
+    /// to use the partially decoded image top rows as it decodes.
+    ///
+    /// [`pixels`]: Self::pixels
+    /// [`partial_size`]: Self::partial_size
+    /// [`partial_pixels`]: Self::partial_pixels
     pub fn size(&self) -> PxSize {
         self.0.read().size
     }
 
-    /// Actual size of the current pixels.
+    /// Size of [`partial_pixels`].
     ///
     /// Can be different from [`size`] if the image is progressively decoding.
     ///
     /// [`size`]: Self::size
-    pub fn partial_size(&self) -> PxSize {
-        self.0.read().partial_size
+    /// [`partial_pixels`]: Self::partial_pixels
+    pub fn partial_size(&self) -> Option<PxSize> {
+        let r = self.0.read();
+        if r.partial_pixels.is_some() { Some(r.partial_size) } else { None }
     }
 
     /// Returns the pixel density metadata associated with the image, or `None` if not loaded or error or no
     /// metadata provided by decoder.
     pub fn density(&self) -> Option<PxDensity2d> {
         self.0.read().density
+    }
+
+    /// Image color type before it was converted to BGRA8 or A8.
+    pub fn original_color_type(&self) -> ColorType {
+        self.0.read().original_color_type.clone()
     }
 
     /// Returns if the image is fully opaque.
@@ -1358,14 +1509,14 @@ impl ViewImage {
         self.0.read().is_mask
     }
 
-    /// Copy the partially decoded pixels if the image is progressively decoding
+    /// Reference the partially decoded pixels if the image is progressively decoding
     /// and has not finished decoding.
     ///
     /// Format is BGRA8 for normal images or A8 if [`is_mask`].
     ///
     /// [`is_mask`]: Self::is_mask
-    pub fn partial_pixels(&self) -> Option<Vec<u8>> {
-        self.0.read().partial_pixels.as_ref().map(|r| r[..].to_vec())
+    pub fn partial_pixels(&self) -> Option<IpcBytes> {
+        self.0.read().partial_pixels.clone()
     }
 
     /// Reference the decoded pixels of image.
@@ -1403,9 +1554,11 @@ impl ViewImage {
             app_id: None,
             id: None,
             generation: ViewProcessGen::INVALID,
+            parent: None,
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
             density: None,
+            original_color_type: ColorType::new(Txt::from(""), 0, 0),
             is_opaque: true,
             partial_pixels: None,
             pixels: if let Some(e) = error {
@@ -1427,8 +1580,11 @@ impl ViewImage {
     ///
     /// The `format` must be one of the [`image_encoders`] supported by the view-process backend.
     ///
+    /// If `entries` is set and the format supports multiple images encodes the `id` as the first *page* followed by each
+    /// entry in the order given.
+    ///
     /// [`image_encoders`]: VIEW_PROCESS::image_encoders
-    pub async fn encode(&self, format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
+    pub async fn encode(&self, entries: Vec<(ImageId, ImageEntryKind)>, format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
         self.awaiter().await;
 
         if let Some(e) = self.error() {
@@ -1440,7 +1596,7 @@ impl ViewImage {
             if let Some(id) = img.id {
                 let mut app = VIEW_PROCESS.handle_write(img.app_id.unwrap());
 
-                app.process.encode_image(id, format.clone())?;
+                app.process.encode_image(id, entries, format.clone())?;
 
                 let (sender, receiver) = channel::bounded(1);
                 if let Some(entry) = app.encoding_images.iter_mut().find(|r| r.image_id == id && r.format == format) {
@@ -1555,11 +1711,13 @@ impl ViewClipboard {
                 } else {
                     let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
                         id: Some(id),
+                        parent: None,
                         app_id: APP.id(),
                         generation: app.process.generation(),
                         size: PxSize::zero(),
                         partial_size: PxSize::zero(),
                         density: None,
+                        original_color_type: ColorType::new(Txt::from(""), 0, 0),
                         is_opaque: false,
                         partial_pixels: None,
                         pixels: None,

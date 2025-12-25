@@ -571,7 +571,6 @@ impl ExternalImages {
             pixels,
             is_opaque,
             density: None,
-            mipmap: Mutex::new(Box::new([])),
             stripes: Mutex::new(Box::new([])),
         })
     }

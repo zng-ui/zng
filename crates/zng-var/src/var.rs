@@ -623,7 +623,7 @@ impl<T: VarValue> Var<Vec<T>> {
                             out_value.value_mut()[i] = item_value.clone();
                         }
                     })
-                    .perm();
+                    .perm(); // TODO(breaking) this is a leak if map returns a variable that lives longer than flat_map
             }
             out_var.hold(item_vars).perm();
 

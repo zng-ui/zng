@@ -10,24 +10,33 @@ use zng::{
         filter::{Filter, drop_shadow, filter, mix_blend},
         gradient::stops,
     },
-    image::{self, IMAGES, ImageFit, ImageLimits, ImgErrorArgs, img_error_fn, img_loading_fn, mask::mask_image},
+    image::{
+        self, IMAGES, ImageCacheMode, ImageEntriesMode, ImageFit, ImageLimits, ImgErrorArgs, img_error_fn, img_loading_fn, mask::mask_image,
+    },
     layout::{align, margin, padding, size},
     mouse,
     prelude::*,
     scroll::ScrollMode,
     task::http,
+    var::VarEq,
     widget::{BorderSides, background_color, border},
     window::{RenderMode, WindowState},
 };
 use zng_wgt_webrender_debug as wr;
 
+mod encoding;
+
 fn main() {
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::env::init!();
 
+    if std::env::args().any(|a| a == "--render-test-icon") {
+        return encoding::render_test_icon();
+    }
+
     APP.defaults().run_window(async {
         // by default all "ImageSource::Download" requests are blocked and "ImageSource::Read"
-        // is limited to only the `zng::env::res`. The limits can be set globally in here and overridden 
+        // is limited to only the `zng::env::res`. The limits can be set globally in here and overridden
         // for each image with the "img_limits" property.
         IMAGES.limits().modify(|l| {
             let l = l.value_mut();
@@ -42,76 +51,7 @@ fn main() {
                 direction = StackDirection::left_to_right();
                 spacing = 30;
                 children = ui_vec![
-                    section(
-                        "Sources",
-                        ui_vec![
-                            sub_title("File"),
-                            Grid! {
-                                columns = ui_vec![grid::Column!(1.lft()); 4];
-                                auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
-                                spacing = 2;
-                                align = Align::CENTER;
-                                cells = {
-                                    fn img(source: &str) -> UiNode {
-                                        Image! {
-                                            grid::cell::at = grid::cell::AT_AUTO;
-                                            source = zng::env::res(source);
-                                        }
-                                    }
-                                    ui_vec![
-                                        img("Luma8.png"),
-                                        img("Luma16.png"),
-                                        img("LumaA8.png"),
-                                        img("LumaA16.png"),
-                                        img("RGB8.png"),
-                                        img("RGB16.png"),
-                                        img("RGBA8.png"),
-                                        img("RGBA16.png"),
-                                    ]
-                                }
-                            },
-
-                            sub_title("Web"),
-                            Image! {
-                                source = "https://httpbin.org/image";
-                                size = (200, 150);
-                            },
-
-                            sub_title("Web With Format"),
-                            Image! {
-                                source = (http::Uri::from_static("https://httpbin.org/image"), "image/png");
-                                size = (200, 150);
-                            },
-                            sub_title("Render"),
-                            Image! {
-                                size = (180, 120);
-                                source = ImageSource::render_node(RenderMode::Software, |_| Container! {
-                                    size = (180, 120);
-                                    widget::background_gradient = layout::Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
-                                    text::font_size = 24;
-                                    child_align = Align::CENTER;
-                                    child = Text!("Rendered!");
-                                })
-                            },
-                            sub_title("Render Mask"),
-                            Image! {
-                                source = zng::env::res("zdenek-machacek-unsplash.jpg");
-                                size = (200, 120);
-                                mask_image = ImageSource::render_node(RenderMode::Software, |_| Text! {
-                                    txt = "Mask";
-                                    txt_align = Align::CENTER;
-                                    font_size = 78;
-                                    font_weight = FontWeight::BOLD;
-                                    size = (200, 120);
-                                });
-                            },
-                            sub_title("SVG"),
-                            Image! {
-                                source = zng::env::res("Ghostscript_Tiger.svg");
-                                size = (200, 150);
-                            },
-                        ]
-                    ),
+                    sources_example(),
 
                     Stack! {
                         direction = StackDirection::top_to_bottom();
@@ -188,7 +128,7 @@ fn main() {
                                 ui_vec![sprite()]
                             ),
                             section(
-                                "Window",
+                                "More",
                                 ui_vec![
                                     panorama_image(),
                                     block_window_load_image(),
@@ -198,6 +138,7 @@ fn main() {
                                     exif_rotated(),
                                     ppi_scaled(),
                                     color_profiles(),
+                                    multi_image_container(),
                                 ]
                             )
                         ];
@@ -206,6 +147,93 @@ fn main() {
             },
         )
     })
+}
+
+// images can be loaded from files, bytes, http. Can also be rendered from widgets and SVG.
+fn sources_example() -> UiNode {
+    section(
+        "Sources",
+        ui_vec![
+            // Images from a file
+            sub_title("File"),
+            Grid! {
+                columns = ui_vec![grid::Column!(1.lft()); 4];
+                auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
+                spacing = 2;
+                align = Align::CENTER;
+                cells = {
+                    fn img(source: &str) -> UiNode {
+                        Image! {
+                            // loaded from the res folder
+                            source = zng::env::res(source);
+
+                            grid::cell::at = grid::cell::AT_AUTO;
+                        }
+                    }
+                    ui_vec![
+                        img("Luma8.png"),
+                        img("Luma16.png"),
+                        img("LumaA8.png"),
+                        img("LumaA16.png"),
+                        img("RGB8.png"),
+                        img("RGB16.png"),
+                        img("RGBA8.png"),
+                        img("RGBA16.png"),
+                    ]
+                };
+            },
+            // Images from HTTP
+            sub_title("Web"),
+            Image! {
+                // requests any image format supported by the view-process
+                source = "https://httpbin.org/image";
+                size = (200, 150);
+            },
+            sub_title("Web With Format"),
+            Image! {
+                // requests a specific format
+                source = (http::Uri::from_static("https://httpbin.org/image"), "image/png");
+                size = (200, 150);
+            },
+            // Rendered images
+            sub_title("Render"),
+            Image! {
+                size = (180, 120);
+                // render a Container! using the Software renderer
+                source = ImageSource::render_node(RenderMode::Software, |_| {
+                    Container! {
+                        size = (180, 120);
+                        widget::background_gradient = layout::Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
+                        text::font_size = 24;
+                        child_align = Align::CENTER;
+                        child = Text!("Rendered!");
+                    }
+                });
+            },
+            sub_title("Render Mask"),
+            // image/widget that is masked
+            Image! {
+                source = zng::env::res("zdenek-machacek-unsplash.jpg");
+                size = (200, 120);
+                // render a mask image, rendered alpha is applied to the image
+                mask_image = ImageSource::render_node(RenderMode::Software, |_| {
+                    Text! {
+                        txt = "Mask";
+                        txt_align = Align::CENTER;
+                        font_size = 78;
+                        font_weight = FontWeight::BOLD;
+                        size = (200, 120);
+                    }
+                });
+            },
+            // render SVG
+            sub_title("SVG"),
+            Image! {
+                source = zng::env::res("Ghostscript_Tiger.svg");
+                size = (200, 150);
+            },
+        ],
+    )
 }
 
 fn img_fit(fit: impl IntoVar<ImageFit>) -> UiNode {
@@ -344,9 +372,11 @@ fn large_image() -> UiNode {
                                 }
                             });
 
-                            // let actual image scale, better performance when
-                            // showing entire image as it does not need to render a full size
-                            // texture just to downscale. Renderer implements mipmaps only for images.
+                            // Generate mipmap pre-downscaled images to reduce GPU memory use
+                            img_downscale = Some(zng::image::ImageDownscaleMode::mip_map());
+                            // "scale" by adjusting the Image actual size, otherwise the mipmap
+                            // will not be used as the Scroll zoom transform applies on the full
+                            // content texture
                             zng::scroll::zoom_size_only = true;
 
                             // better for photo viewers
@@ -764,6 +794,70 @@ fn color_profiles() -> UiNode {
                             },
                         ];
                     };
+                }
+            });
+        });
+    }
+}
+
+fn multi_image_container() -> UiNode {
+    Button! {
+        child = Text!("Multi Image Container");
+        on_click = hn!(|_| {
+            WINDOWS.open(async {
+                let ico = IMAGES.image(
+                    zng::env::res("test-icon.ico"),
+                    ImageCacheMode::Cache,
+                    None,
+                    None,
+                    None,
+                    ImageEntriesMode::REDUCED,
+                );
+                let entries = ico.map(|i| {
+                    let mut entries: Vec<_> = i.entries().into_iter().map(VarEq).collect();
+                    entries.insert(0, VarEq(i.clone().into_var()));
+                    entries
+                });
+                let show_entries = var(true);
+                Window! {
+                    title = "Multi Image Container";
+                    size = (521, 281);
+                    padding = 10;
+                    child_top = Stack! {
+                        direction = StackDirection::top_to_bottom();
+                        spacing = 5;
+                        children_align = Align::CENTER;
+                        children = ui_vec![
+                            Text! {
+                                txt = "Single ICO file, with images 256, 128, 96, 64, 48, 40, 32, 24, 20, 16";
+                                txt_align = Align::CENTER;
+                                margin = 20;
+                            },
+                            Toggle! {
+                                style_fn = toggle::CheckStyle!();
+                                checked = show_entries.clone();
+                                child = Text!("Show entries");
+                            },
+                        ];
+                    };
+                    child_align = Align::CENTER;
+                    child_spacing = 10;
+                    child = show_entries.present(wgt_fn!(|show| if show {
+                        Stack! {
+                            direction = StackDirection::left_to_right();
+                            spacing = 2;
+                            children = entries.present_list_from_iter(wgt_fn!(|entry: VarEq<image::Img>| {
+                                Image! {
+                                    layout::force_size = entry.0.map(|e| e.size().into());
+                                    source = entry.0;
+                                }
+                            }));
+                        }
+                    } else {
+                        Image! {
+                            source = ico.clone();
+                        }
+                    }));
                 }
             });
         });
