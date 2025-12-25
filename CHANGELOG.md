@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `ImageVar` updates not propagating in some complex bindings.
 * Add support for multi entry image containers.
     - Added `Img::entries` and related methods.
     - Added `ImageEntryKind` and `ImageEntriesMode`.

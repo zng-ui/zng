@@ -73,7 +73,7 @@ impl AppExtension for ImageManager {
                 && let Some(var) = images.find_decoding(id)
             {
                 // ViewImage updates with internal mutation, notify this
-                var.update();
+                var.modify(|i| i.update());
                 found_key = var.with(|i| i.cache_key);
             } else if let Some(parent) = args.image.entry_parent()
                 && let Some(parent) = images.find_decoding(parent)

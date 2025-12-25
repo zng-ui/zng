@@ -162,7 +162,10 @@ struct ImgMut {
 
 /// State of an [`ImageVar`].
 ///
-/// Each instance of this struct represent a single state,
+/// This value is a shared reference to the image, on view-process updates the image data is mutated immediately.
+/// To ensure that variable updates propagate the new value the [`IMAGES`] service calls [`Img::update`] on the value.
+/// 
+/// [`IMAGES`]: crate::IMAGES
 #[derive(Debug, Clone)]
 pub struct Img {
     // use inner_set_or_replace to set
@@ -171,10 +174,11 @@ pub struct Img {
     pub(super) cache_key: Option<ImageHash>,
 
     img_mut: Arc<Mutex<ImgMut>>,
+    update: u8,
 }
 impl PartialEq for Img {
     fn eq(&self, other: &Self) -> bool {
-        self.view == other.view
+        self.view == other.view && self.update == other.update
     }
 }
 impl Img {
@@ -184,6 +188,7 @@ impl Img {
             done_signal: SignalOnce::new(),
             cache_key,
             img_mut: Arc::default(),
+            update: 0,
         }
     }
 
@@ -197,12 +202,24 @@ impl Img {
             done_signal: sig,
             cache_key: None,
             img_mut: Arc::default(),
+            update: 0,
         }
     }
 
     /// Create a dummy image in the loaded or error state.
     pub fn dummy(error: Option<Txt>) -> Self {
         Self::new(ViewImage::dummy(error))
+    }
+
+    /// Ensure this value is not equal to previous update, to propagate variable notification.
+    /// 
+    /// This value is mostly a wrapper of [`ViewImage`], and that is a shared reference with interior mutability the image
+    /// data will update immediately without notifying variables. The [`IMAGES`] service uses this method to manually pump
+    /// the variable observers.
+    /// 
+    /// [`IMAGES`]: crate::IMAGES
+    pub fn update(&mut self) {
+        self.update =  self.update.wrapping_add(1);
     }
 
     /// Returns `true` if the is still acquiring or decoding the image bytes.
@@ -648,6 +665,7 @@ impl Img {
                     done_signal: if done { SignalOnce::new_set() } else { SignalOnce::new() },
                     cache_key,
                     img_mut: Arc::default(),
+                    update: self.update.wrapping_add(1),
                 };
             }
         }
@@ -678,7 +696,7 @@ impl Img {
     ///
     /// [`entries`]: Self::entries
     pub fn register_entry(&mut self, entry: ViewImage) -> Var<Img> {
-        // takes &mut self to force ImageVar updates
+        self.update();
         let mut self_ = self.img_mut.lock();
         let i = entry.entry_index();
         let i = self_
