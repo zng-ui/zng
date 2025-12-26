@@ -1851,6 +1851,9 @@ impl Api for App {
 
     fn capabilities(&mut self) -> ViewProcessCapability {
         let mut c = ViewProcessCapability::default();
+        if !self.headless {
+            c.device_events = InputDeviceCapability::all();
+        }
         c.image = crate::image_cache::FORMATS.to_vec();
         c
     }
@@ -2123,10 +2126,6 @@ impl Api for App {
         unimplemented!()
     }
 
-    fn audio_decoders(&mut self) -> Vec<Txt> {
-        unimplemented!()
-    }
-
     fn forget_audio(&mut self, _id: audio::AudioId) {
         unimplemented!()
     }
@@ -2137,6 +2136,10 @@ impl Api for App {
 
     fn playback_update(&mut self, _id: audio::PlaybackId, _request: audio::PlaybackUpdateRequest) {
         unimplemented!()
+    }
+
+    fn encode_audio(&mut self, _request: audio::AudioEncodeRequest) -> audio::AudioEncodeId {
+        audio::AudioEncodeId::INVALID
     }
 
     fn add_font_face(&mut self, id: WindowId, bytes: font::IpcFontBytes, index: u32) -> FontFaceId {

@@ -1128,12 +1128,20 @@ pub struct ViewProcessCapability {
     /// Input device events that can be enabled.
     pub device_events: InputDeviceCapability,
 
+    // TODO window_capabilities
     /// Image decode and encode capabilities.
     pub image: Vec<crate::image::ImageFormat>,
+
+    /// Audio decode capabilities.
+    pub audio: Vec<crate::audio::AudioFormat>,
 }
 impl Default for ViewProcessCapability {
     fn default() -> Self {
-        Self { device_events: InputDeviceCapability::empty(), image: Default::default() }
+        Self {
+            device_events: InputDeviceCapability::empty(),
+            image: vec![],
+            audio: vec![],
+        }
     }
 }
 
