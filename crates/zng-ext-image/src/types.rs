@@ -7,7 +7,7 @@ use std::{
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 use zng_app::{
-    view_process::{EncodeError, ViewImage, ViewRenderer, ImageEncodeRequest},
+    view_process::{EncodeError, ImageEncodeRequest, ViewImage, ViewRenderer},
     window::WindowId,
 };
 use zng_color::{
@@ -28,7 +28,9 @@ use zng_view_api::image::ImageTextureId;
 
 use crate::render::ImageRenderWindowRoot;
 
-pub use zng_view_api::image::{ColorType, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageMaskMode};
+pub use zng_view_api::image::{
+    ColorType, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageFormat, ImageMaskMode,
+};
 
 /// A custom proxy in [`IMAGES`].
 ///

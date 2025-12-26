@@ -1,6 +1,15 @@
 # Unreleased
 
+* **Breaking** `FileDialogFilters::push_filter` now accepts any `IntoIterator<Item=str>`.
+
+* Better runtime info about supported image formats.
+    - **Breaking** Removed `IMAGES.available_encoders/decoders`.
+    - Added `IMAGES.available_formats` with `ImageFormat`.
+    - Format info includes capabilities (encode, entries), display name and a list of file extensions and media types.
+    - **Breaking** Unified view-process API capabilities info into a single struct.
+
 * Fix `ImageVar` updates not propagating in some complex bindings.
+
 * Add support for multi entry image containers.
     - Added `Img::entries` and related methods.
     - Added `ImageEntryKind` and `ImageEntriesMode`.

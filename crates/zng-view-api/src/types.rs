@@ -1118,6 +1118,17 @@ impl Default for DeviceEventsFilter {
     }
 }
 
+/// View-process implementation capabilities.
+///
+/// View-process implementers can provide different/limited capabilities for some API depending on the operating system and
+/// build configuration.
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub struct ViewProcessCapability {
+    /// Image decode and encode capabilities.
+    pub image: Vec<crate::image::ImageFormat>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

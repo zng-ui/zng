@@ -634,8 +634,8 @@ fn native() -> UiNode {
                     };
 
                     let mut filters = dialog::FileDialogFilters::new();
-                    filters.push_filter("Text", &["*.txt", "*.md"]);
-                    filters.push_filter("All", &["*.*"]);
+                    filters.push_filter("Text", ["*.txt", "*.md"]);
+                    filters.push_filter("All", ["*.*"]);
 
                     let res = DIALOG.open_files("Open Files", dir, "", filters.clone()).wait_rsp().await;
                     let first_file = match res {

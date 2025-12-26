@@ -35,7 +35,7 @@ pub async fn bw_rgb(render_mode: RenderMode, scale_factor: Factor) {
                 img.with(Img::is_loading),
                 APP.is_running(),
                 zng_app::view_process::VIEW_PROCESS.is_connected(),
-                zng_app::view_process::VIEW_PROCESS.image_decoders().is_ok(),
+                zng_app::view_process::VIEW_PROCESS.capabilities().is_ok(),
             );
         }
     }

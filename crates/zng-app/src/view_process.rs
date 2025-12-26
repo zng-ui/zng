@@ -26,7 +26,7 @@ use zng_task::{
 use zng_txt::Txt;
 use zng_var::ResponderVar;
 use zng_view_api::{
-    self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen,
+    self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessCapability, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
@@ -136,6 +136,14 @@ impl VIEW_PROCESS {
     /// Gets the current view-process generation.
     pub fn generation(&self) -> ViewProcessGen {
         self.read().process.generation()
+    }
+
+    /// View-process implementation capabilities.
+    ///
+    /// View-process implementers can provide different/limited capabilities for some API depending on the operating system and
+    /// build configuration.
+    pub fn capabilities(&self) -> Result<ViewProcessCapability> {
+        self.write().process.capabilities()
     }
 
     /// Enable/disable global device events.
@@ -286,21 +294,6 @@ impl VIEW_PROCESS {
         } else {
             Err(ChannelError::disconnected())
         }
-    }
-
-    /// Returns a list of image decoders supported by the view-process backend.
-    ///
-    /// Each text is the lower-case file extension, without the dot.
-    pub fn image_decoders(&self) -> Result<Vec<Txt>> {
-        self.write().process.image_decoders()
-    }
-
-    /// Returns a list of image encoders supported by the view-process backend.
-    ///
-    /// Each text is the lower-case file extension, without the dot.
-    pub fn image_encoders(&self) -> Result<Vec<Txt>> {
-        // TODO(breaking) change to a struct ImageFormat { mime: Txt, extensions: Box<[Txt]> }
-        self.write().process.image_encoders()
     }
 
     /// Number of frame send that have not finished rendering.

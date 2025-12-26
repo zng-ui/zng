@@ -1849,6 +1849,12 @@ impl Api for App {
         }
     }
 
+    fn capabilities(&mut self) -> ViewProcessCapability {
+        let mut c = ViewProcessCapability::default();
+        c.image = crate::image_cache::FORMATS.to_vec();
+        c
+    }
+
     fn exit(&mut self) {
         self.assert_resumed();
         self.exited = true;
@@ -2071,21 +2077,6 @@ impl Api for App {
 
     fn set_ime_area(&mut self, id: WindowId, area: Option<DipRect>) {
         self.with_window(id, |w| w.set_ime_area(area), || ())
-    }
-
-    fn image_decoders(&mut self) -> Vec<Txt> {
-        image_cache::FORMATS
-            .iter()
-            .flat_map(|f| f.file_extensions_iter().map(Txt::from_str))
-            .collect()
-    }
-
-    fn image_encoders(&mut self) -> Vec<Txt> {
-        image_cache::FORMATS
-            .iter()
-            .filter(|f| f.capabilities.contains(image::ImageFormatCapability::ENCODE))
-            .flat_map(|f| f.file_extensions_iter().map(Txt::from_str))
-            .collect()
     }
 
     fn add_image(&mut self, request: ImageRequest<IpcBytes>) -> ImageId {
