@@ -430,8 +430,6 @@ declare_api! {
     ///
     /// Returns immediately. The encoded data will be send as the event
     /// [`Event::ImageEncoded`] or [`Event::ImageEncodeError`]. The returned ID identifies this request.
-    ///
-    /// [`image_encoders`]: Api::image_encoders
     pub fn encode_image(&mut self, request: image::ImageEncodeRequest) -> image::ImageEncodeId;
 
     /// Cache an audio resource.

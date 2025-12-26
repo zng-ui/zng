@@ -1780,6 +1780,8 @@ pub struct ImageEncodeRequest {
     pub entries: Vec<(ImageId, ImageEntryKind)>,
 
     /// Format query, view-process uses [`ImageFormat::matches`] to find the format.
+    ///
+    /// [`ImageFormat::matches`]: zng_view_api::image::ImageFormat::matches
     pub format: Txt,
 }
 impl ImageEncodeRequest {
