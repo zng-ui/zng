@@ -106,32 +106,40 @@ pub struct AxisId(pub u32);
 #[serde(transparent)]
 pub struct DragDropId(pub u32);
 
+/// View-process implementation info.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// View process is connected and ready.
-///
-/// The [`ViewProcessGen`] is the generation of the new view-process, it must be passed to
-/// [`Controller::handle_inited`].
-///
-/// [`Controller::handle_inited`]: crate::Controller::handle_inited
 #[non_exhaustive]
-pub struct Inited {
+pub struct ViewProcessInfo {
     /// View-process generation, changes after respawns and is never zero.
     pub generation: ViewProcessGen,
     /// If the view-process is a respawn from a previous crashed process.
     pub is_respawn: bool,
+
+    /// Input device events implemented by the view-process.
+    pub input_device: InputDeviceCapability,
+
+    // !!: TODO more
+    /// Image decode and encode capabilities implemented by the view-process.
+    pub image: Vec<crate::image::ImageFormat>,
+
+    /// Audio decode and encode capabilities implemented by the view-process.
+    pub audio: Vec<crate::audio::AudioFormat>,
+
     /// API extensions implemented by the view-process.
     ///
     /// The extension IDs will stay valid for the duration of the view-process.
     pub extensions: ApiExtensions,
 }
-impl Inited {
+impl ViewProcessInfo {
     /// New response.
-    #[allow(clippy::too_many_arguments)] // already grouping stuff.
-    pub fn new(generation: ViewProcessGen, is_respawn: bool, extensions: ApiExtensions) -> Self {
+    pub fn new(generation: ViewProcessGen, is_respawn: bool) -> Self {
         Self {
             generation,
             is_respawn,
-            extensions,
+            input_device: InputDeviceCapability::empty(),
+            image: vec![],
+            audio: vec![],
+            extensions: ApiExtensions::new(),
         }
     }
 }
@@ -157,7 +165,7 @@ pub enum Ime {
 #[non_exhaustive]
 pub enum Event {
     /// View-process inited.
-    Inited(Inited),
+    Inited(ViewProcessInfo),
     /// View-process suspended.
     Suspended,
 
@@ -1115,33 +1123,6 @@ impl DeviceEventsFilter {
 impl Default for DeviceEventsFilter {
     fn default() -> Self {
         Self::empty()
-    }
-}
-
-/// View-process implementation capabilities.
-///
-/// View-process implementers can provide different/limited capabilities for some API depending on the operating system and
-/// build configuration.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[non_exhaustive]
-pub struct ViewProcessCapability {
-    /// Input device events that can be enabled.
-    pub device_events: InputDeviceCapability,
-
-    // TODO window_capabilities
-    /// Image decode and encode capabilities.
-    pub image: Vec<crate::image::ImageFormat>,
-
-    /// Audio decode capabilities.
-    pub audio: Vec<crate::audio::AudioFormat>,
-}
-impl Default for ViewProcessCapability {
-    fn default() -> Self {
-        Self {
-            device_events: InputDeviceCapability::empty(),
-            image: vec![],
-            audio: vec![],
-        }
     }
 }
 

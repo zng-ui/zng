@@ -5,11 +5,12 @@
 
 * **Breaking** `FileDialogFilters::push_filter` now accepts any `IntoIterator<Item=str>`.
 
-* Better runtime info about supported image formats.
+* Unify view-process capabilities info.
     - **Breaking** Removed `IMAGES.available_encoders/decoders`.
     - Added `IMAGES.available_formats` with `ImageFormat`.
-    - Format info includes capabilities (encode, entries), display name and a list of file extensions and media types.
-    - **Breaking** Unified view-process API capabilities info into a single struct.
+    - **Breaking** View-process API event inited now has an `ViewProcessInfo` that contains implementation details.
+    - **Breaking** Added `VIEW_PROCESS.info` and removed methods for specific capabilities.
+    - **Breaking** 
 
 * Fix `ImageVar` updates not propagating in some complex bindings.
 

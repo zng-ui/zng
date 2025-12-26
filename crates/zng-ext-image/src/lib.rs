@@ -767,7 +767,7 @@ impl ImagesService {
             if VIEW_PROCESS.is_available() {
                 let mut r = String::new();
                 let mut sep = "";
-                for fmt in VIEW_PROCESS.capabilities().map(|c| c.image).unwrap_or_default() {
+                for fmt in VIEW_PROCESS.info().image.iter() {
                     for t in fmt.media_type_suffixes_iter() {
                         r.push_str(sep);
                         r.push_str("image/");
@@ -1170,7 +1170,7 @@ impl IMAGES {
 
     /// Image formats implemented by the current view-process.
     pub fn available_formats(&self) -> Vec<ImageFormat> {
-        VIEW_PROCESS.capabilities().map(|c| c.image).unwrap_or_default()
+        VIEW_PROCESS.info().image.clone()
     }
 }
 struct ImageData {
