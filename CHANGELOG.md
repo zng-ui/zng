@@ -1,5 +1,8 @@
 # Unreleased
 
+* Fix `cargo zng l10n --clean-template` removing custom template localization files.
+* Fix `cargo zng l10n` not including entries of local dependencies targeting the same localization file.
+
 * Add support for multi entry image containers.
     - Added `Img::entries` and related methods.
     - Added `ImageEntryKind` and `ImageEntriesMode`.
