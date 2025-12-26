@@ -457,15 +457,6 @@ declare_api! {
     /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
     pub fn forget_audio(&mut self, id: audio::AudioId);
 
-    /// Returns a list of image decoders supported by this implementation.
-    ///
-    /// Each text is the lower-case file extension, without the dot.
-    ///
-    /// # Unimplemented
-    ///
-    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
-    pub fn audio_decoders(&mut self) -> Vec<Txt>;
-
     /// Start playing audio.
     ///
     /// # Unimplemented
@@ -479,6 +470,13 @@ declare_api! {
     ///
     /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
     pub fn playback_update(&mut self, id: audio::PlaybackId, request: audio::PlaybackUpdateRequest);
+
+    /// Encode the audio.
+    ///
+    /// # Unimplemented
+    ///
+    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
+    pub fn encode_audio(&mut self, request: audio::AudioEncodeRequest) -> audio::AudioEncodeId;
 
     /// Add a raw font resource to the window renderer.
     ///
