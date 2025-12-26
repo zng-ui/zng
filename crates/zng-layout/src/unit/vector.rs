@@ -91,7 +91,7 @@ impl Vector {
     }
 
     /// Returns a vector that computes the absolute layout vector of `self`.
-    pub fn abs(&self) -> Vector {
+    pub fn abs(self) -> Vector {
         Vector {
             x: self.x.abs(),
             y: self.y.abs(),

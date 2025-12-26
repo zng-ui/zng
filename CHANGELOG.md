@@ -1,5 +1,7 @@
 # Unreleased
 
+* **Breaking** Length units `max`, `min` and `abs` now take by value.
+
 * **Breaking** `FileDialogFilters::push_filter` now accepts any `IntoIterator<Item=str>`.
 
 * Better runtime info about supported image formats.
