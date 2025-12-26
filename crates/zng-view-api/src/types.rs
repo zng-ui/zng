@@ -9,7 +9,7 @@ use crate::{
     },
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect},
-    image::{ImageDecoded, ImageId, ImageMetadata},
+    image::{ImageDecoded, ImageEncodeId, ImageId, ImageMetadata},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
@@ -426,19 +426,15 @@ pub enum Event {
     },
     /// An image finished encoding.
     ImageEncoded {
-        /// The image that finished encoding.
-        image: ImageId,
-        /// The format of the encoded data.
-        format: Txt,
+        /// Id of the encode task.
+        task: ImageEncodeId,
         /// The encoded image data.
         data: IpcBytes,
     },
     /// An image failed to encode.
     ImageEncodeError {
-        /// The image that failed to encode.
-        image: ImageId,
-        /// The encoded format that was requested.
-        format: Txt,
+        /// Id of the encode task.
+        task: ImageEncodeId,
         /// The error message.
         error: Txt,
     },
@@ -1120,6 +1116,17 @@ impl Default for DeviceEventsFilter {
     fn default() -> Self {
         Self::empty()
     }
+}
+
+/// View-process implementation capabilities.
+///
+/// View-process implementers can provide different/limited capabilities for some API depending on the operating system and
+/// build configuration.
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub struct ViewProcessCapability {
+    /// Image decode and encode capabilities.
+    pub image: Vec<crate::image::ImageFormat>,
 }
 
 #[cfg(test)]

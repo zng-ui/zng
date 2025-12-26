@@ -868,8 +868,11 @@ async fn open_dialog() -> Option<PathBuf> {
     DIALOG
         .open_file("Open Image", std::env::current_dir().unwrap_or_default(), "", {
             let mut f = dialog::FileDialogFilters::default();
-            f.push_filter("Image Files", &IMAGES.available_decoders());
-            f.push_filter("All Files", &["*"]);
+            f.push_filter(
+                "Image Files",
+                IMAGES.available_formats().iter().flat_map(|i| i.file_extensions_iter()),
+            );
+            f.push_filter("All Files", ["*"]);
             f
         })
         .wait_rsp()

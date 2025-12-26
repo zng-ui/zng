@@ -62,10 +62,10 @@
 //!
 //! # async fn _demo() {
 //! let mut f = dialog::FileDialogFilters::default();
-//! f.push_filter("Text Files", &["txt", "md"]);
-//! f.push_filter("Text File", &["txt"]);
-//! f.push_filter("Markdown File", &["md"]);
-//! f.push_filter("All Files", &["*"]);
+//! f.push_filter("Text Files", ["txt", "md"]);
+//! f.push_filter("Text File", ["txt"]);
+//! f.push_filter("Markdown File", ["md"]);
+//! f.push_filter("All Files", ["*"]);
 //! let filters = f;
 //!
 //! let r = DIALOG

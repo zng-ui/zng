@@ -73,7 +73,7 @@ impl AppExtension for ImageManager {
                 && let Some(var) = images.find_decoding(id)
             {
                 // ViewImage updates with internal mutation, notify this
-                var.update();
+                var.modify(|i| i.update());
                 found_key = var.with(|i| i.cache_key);
             } else if let Some(parent) = args.image.entry_parent()
                 && let Some(parent) = images.find_decoding(parent)
@@ -767,11 +767,13 @@ impl ImagesService {
             if VIEW_PROCESS.is_available() {
                 let mut r = String::new();
                 let mut sep = "";
-                for fmt in VIEW_PROCESS.image_decoders().unwrap_or_default() {
-                    r.push_str(sep);
-                    r.push_str("image/");
-                    r.push_str(&fmt);
-                    sep = ",";
+                for fmt in VIEW_PROCESS.capabilities().map(|c| c.image).unwrap_or_default() {
+                    for t in fmt.media_type_suffixes_iter() {
+                        r.push_str(sep);
+                        r.push_str("image/");
+                        r.push_str(t);
+                        sep = ",";
+                    }
                 }
             }
             if self.download_accept.is_empty() {
@@ -1166,18 +1168,9 @@ impl IMAGES {
         IMAGES_SV.write().proxies.push(proxy);
     }
 
-    /// Image format decoders implemented by the current view-process.
-    ///
-    /// Each text is the lower-case file extension, without the dot.
-    pub fn available_decoders(&self) -> Vec<Txt> {
-        VIEW_PROCESS.image_decoders().unwrap_or_default()
-    }
-
-    /// Image format encoders implemented by the current view-process.
-    ///
-    /// Each text is the lower-case file extension, without the dot.
-    pub fn available_encoders(&self) -> Vec<Txt> {
-        VIEW_PROCESS.image_encoders().unwrap_or_default()
+    /// Image formats implemented by the current view-process.
+    pub fn available_formats(&self) -> Vec<ImageFormat> {
+        VIEW_PROCESS.capabilities().map(|c| c.image).unwrap_or_default()
     }
 }
 struct ImageData {

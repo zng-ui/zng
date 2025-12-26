@@ -382,9 +382,9 @@ impl<E: AppExtension> RunningApp<E> {
                     self.notify_event(RAW_IMAGE_LOAD_ERROR_EVENT.new_update(args), observer);
                 }
             }
-            Event::ImageEncoded { image: id, format, data } => VIEW_PROCESS.on_image_encoded(id, format, data),
-            Event::ImageEncodeError { image: id, format, error } => {
-                VIEW_PROCESS.on_image_encode_error(id, format, error);
+            Event::ImageEncoded { task, data } => VIEW_PROCESS.on_image_encoded(task, data),
+            Event::ImageEncodeError { task, error } => {
+                VIEW_PROCESS.on_image_encode_error(task, error);
             }
             Event::FrameImageReady {
                 window: w_id,

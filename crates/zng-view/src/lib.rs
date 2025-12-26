@@ -151,7 +151,7 @@ use zng_view_api::{
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
     drag_drop::*,
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
-    image::{ImageDecoded, ImageId, ImageMaskMode, ImageRequest, ImageTextureId},
+    image::{ImageDecoded, ImageEncodeId, ImageEncodeRequest, ImageId, ImageMaskMode, ImageRequest, ImageTextureId},
     keyboard::{Key, KeyCode, KeyState},
     mouse::ButtonId,
     raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
@@ -1849,6 +1849,12 @@ impl Api for App {
         }
     }
 
+    fn capabilities(&mut self) -> ViewProcessCapability {
+        let mut c = ViewProcessCapability::default();
+        c.image = crate::image_cache::FORMATS.to_vec();
+        c
+    }
+
     fn exit(&mut self) {
         self.assert_resumed();
         self.exited = true;
@@ -2073,21 +2079,6 @@ impl Api for App {
         self.with_window(id, |w| w.set_ime_area(area), || ())
     }
 
-    fn image_decoders(&mut self) -> Vec<Txt> {
-        image_cache::FORMATS
-            .iter()
-            .flat_map(|f| f.file_extensions_iter().map(Txt::from_str))
-            .collect()
-    }
-
-    fn image_encoders(&mut self) -> Vec<Txt> {
-        image_cache::FORMATS
-            .iter()
-            .filter(|f| f.capabilities.contains(image::ImageFormatCapability::ENCODE))
-            .flat_map(|f| f.file_extensions_iter().map(Txt::from_str))
-            .collect()
-    }
-
     fn add_image(&mut self, request: ImageRequest<IpcBytes>) -> ImageId {
         self.image_cache.add(request)
     }
@@ -2100,8 +2091,8 @@ impl Api for App {
         self.image_cache.forget(id)
     }
 
-    fn encode_image(&mut self, id: ImageId, entries: Vec<(ImageId, image::ImageEntryKind)>, format: Txt) {
-        self.image_cache.encode(id, entries, format)
+    fn encode_image(&mut self, request: ImageEncodeRequest) -> ImageEncodeId {
+        self.image_cache.encode(request)
     }
 
     fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageTextureId {

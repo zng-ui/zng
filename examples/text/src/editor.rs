@@ -385,10 +385,10 @@ impl TextEditor {
         }
 
         let mut f = dialog::FileDialogFilters::default();
-        f.push_filter("Text Files", &["txt", "md"]);
-        f.push_filter("Text File", &["txt"]);
-        f.push_filter("Markdown File", &["md"]);
-        f.push_filter("All Files", &["*"]);
+        f.push_filter("Text Files", ["txt", "md"]);
+        f.push_filter("Text File", ["txt"]);
+        f.push_filter("Markdown File", ["md"]);
+        f.push_filter("All Files", ["*"]);
 
         (dlg_dir, dlg_name, f)
     }

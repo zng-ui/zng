@@ -274,6 +274,12 @@ declare_api! {
     /// Called once after exit, if running in a managed external process it will be killed after this call.
     fn exit(&mut self);
 
+    /// View-process implementation capabilities.
+    ///
+    /// View-process implementers can provide different/limited capabilities for some API depending on the operating system and
+    /// build configuration.
+    pub fn capabilities(&mut self) -> ViewProcessCapability;
+
     /// Enable/disable global device events.
     ///
     /// This filter affects device events not targeted at windows, such as mouse move outside windows or
@@ -420,28 +426,11 @@ declare_api! {
     /// Delete the image resource in the window renderer.
     pub fn delete_image_use(&mut self, id: WindowId, texture_id: ImageTextureId);
 
-    /// Returns a list of image decoders supported by this implementation.
-    ///
-    /// Each text is the lower-case file extension, without the dot.
-    pub fn image_decoders(&mut self) -> Vec<Txt>;
-
-    /// Returns a list of image encoders supported by this implementation.
-    ///
-    /// Each text is the lower-case file extension, without the dot.
-    pub fn image_encoders(&mut self) -> Vec<Txt>;
-
-    /// Encode the image into the `format`.
-    ///
-    /// The format must be one of the values returned by [`image_encoders`].
-    ///
-    /// If `entries` is set and the format supports multiple images encodes the `id` as the first *page* followed by each
-    /// entry in the order given.
+    /// Encode the image.
     ///
     /// Returns immediately. The encoded data will be send as the event
-    /// [`Event::ImageEncoded`] or [`Event::ImageEncodeError`].
-    ///
-    /// [`image_encoders`]: Api::image_encoders
-    pub fn encode_image(&mut self, id: ImageId, entries: Vec<(ImageId, image::ImageEntryKind)>, format: Txt); // TODO(breaking) args struct
+    /// [`Event::ImageEncoded`] or [`Event::ImageEncodeError`]. The returned ID identifies this request.
+    pub fn encode_image(&mut self, request: image::ImageEncodeRequest) -> image::ImageEncodeId;
 
     /// Cache an audio resource.
     ///

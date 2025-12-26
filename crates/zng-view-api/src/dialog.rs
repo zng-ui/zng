@@ -117,16 +117,16 @@ impl FileDialogFilters {
     }
 
     /// Push a filter entry.
-    pub fn push_filter<S: AsRef<str>>(&mut self, display_name: &str, extensions: &[S]) -> &mut Self {
+    pub fn push_filter<'a>(&mut self, display_name: &str, extensions: impl IntoIterator<Item = &'a str>) -> &mut Self {
         if !self.0.is_empty() && !self.0.ends_with('|') {
             self.0.push('|');
         }
 
-        let mut extensions: Vec<_> = extensions
-            .iter()
-            .map(|s| s.as_ref())
-            .filter(|&s| !s.contains('|') && !s.contains(';'))
-            .collect();
+        let extensions: Vec<_> = extensions.into_iter().filter(|s| !s.contains('|') && !s.contains(';')).collect();
+        self.push_filter_impl(display_name, extensions)
+    }
+
+    fn push_filter_impl(&mut self, display_name: &str, mut extensions: Vec<&str>) -> &mut FileDialogFilters {
         if extensions.is_empty() {
             extensions = vec!["*"];
         }
@@ -287,7 +287,7 @@ impl FileDialog {
     }
 
     /// Push a filter entry.
-    pub fn push_filter<S: AsRef<str>>(&mut self, display_name: &str, extensions: &[S]) -> &mut Self {
+    pub fn push_filter<'a>(&mut self, display_name: &str, extensions: impl IntoIterator<Item = &'a str>) -> &mut Self {
         let mut f = FileDialogFilters(mem::take(&mut self.filters));
         f.push_filter(display_name, extensions);
         self.filters = f.build();
@@ -375,7 +375,7 @@ mod tests {
 
         let expected = "Display Name (*.abc, *.bca)|abc;bca|All Files (*.*)|*";
 
-        dlg.push_filter("Display Name", &["abc", "bca"]).push_filter("All Files", &["*"]);
+        dlg.push_filter("Display Name", ["abc", "bca"]).push_filter("All Files", ["*"]);
         assert_eq!(expected, dlg.filters);
 
         let expected = vec![("Display Name (*.abc, *.bca)", vec!["abc", "bca"]), ("All Files (*.*)", vec!["*"])];
