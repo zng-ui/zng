@@ -473,8 +473,9 @@ declare_api! {
 
     /// Encode the audio.
     ///
-    /// Returns immediately. The encoded data will be send as the event
-    /// [`Event::AudioEncoded`] or [`Event::AudioEncodeError`]. The returned ID identifies this request.
+    /// # Unimplemented
+    ///
+    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
     pub fn encode_audio(&mut self, request: audio::AudioEncodeRequest) -> audio::AudioEncodeId;
 
     /// Add a raw font resource to the window renderer.
