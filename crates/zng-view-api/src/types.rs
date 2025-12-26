@@ -1122,11 +1122,19 @@ impl Default for DeviceEventsFilter {
 ///
 /// View-process implementers can provide different/limited capabilities for some API depending on the operating system and
 /// build configuration.
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
 pub struct ViewProcessCapability {
+    /// Input device events that can be enabled.
+    pub device_events: InputDeviceCapability,
+
     /// Image decode and encode capabilities.
     pub image: Vec<crate::image::ImageFormat>,
+}
+impl Default for ViewProcessCapability {
+    fn default() -> Self {
+        Self { device_events: InputDeviceCapability::empty(), image: Default::default() }
+    }
 }
 
 #[cfg(test)]
