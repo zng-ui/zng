@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Breaking** Length units `max`, `min` and `abs` now take by value.
 * Fix memory leak in `Var::flat_map_vec` when the returned item var is a retained clone.
 
 * **Breaking** `FileDialogFilters::push_filter` now accepts any `IntoIterator<Item=str>`.

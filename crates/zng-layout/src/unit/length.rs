@@ -597,14 +597,12 @@ impl Length {
     }
 
     /// Returns a length that resolves to the maximum layout length between `self` and `other`.
-    pub fn max(&self, other: impl Into<Length>) -> Length {
-        // TODO(breaking) take `self`
-        let mut self_ = self.clone();
+    pub fn max(mut self, other: impl Into<Length>) -> Length {
         let mut other = other.into();
-        if self_.try_max(&mut other) {
-            self_
+        if self.try_max(&mut other) {
+            self
         } else {
-            LengthExpr::Max(self_, other).to_length_checked()
+            LengthExpr::Max(self, other).to_length_checked()
         }
     }
     pub(crate) fn try_max(&mut self, other: &mut Self) -> bool {
@@ -637,14 +635,12 @@ impl Length {
     }
 
     /// Returns a length that resolves to the minimum layout length between `self` and `other`.
-    pub fn min(&self, other: impl Into<Length>) -> Length {
-        // TODO(breaking) take `self`
-        let mut self_ = self.clone();
+    pub fn min(mut self, other: impl Into<Length>) -> Length {
         let mut other = other.into();
-        if self_.try_min(&mut other) {
-            self_
+        if self.try_min(&mut other) {
+            self
         } else {
-            LengthExpr::Min(self_, other).to_length_checked()
+            LengthExpr::Min(self, other).to_length_checked()
         }
     }
     pub(crate) fn try_min(&mut self, other: &mut Self) -> bool {
@@ -677,14 +673,12 @@ impl Length {
     }
 
     /// Returns a length that constraints the computed layout length between `min` and `max`.
-    pub fn clamp(&self, min: impl Into<Length>, max: impl Into<Length>) -> Length {
-        // TODO(breaking) take `self`
+    pub fn clamp(self, min: impl Into<Length>, max: impl Into<Length>) -> Length {
         self.max(min).min(max)
     }
 
     /// Returns a length that computes the absolute layout length of `self`.
-    pub fn abs(&self) -> Length {
-        // TODO(breaking) take `self`
+    pub fn abs(self) -> Length {
         use Length::*;
         match self {
             Default => LengthExpr::Abs(Length::Default).to_length_checked(),
@@ -701,7 +695,7 @@ impl Length {
             ViewportMax(m) => ViewportMax(m.abs()),
             DipF32(e) => DipF32(e.abs()),
             PxF32(e) => PxF32(e.abs()),
-            Expr(e) => LengthExpr::Abs(Length::Expr(e.clone())).to_length_checked(),
+            Expr(e) => LengthExpr::Abs(Length::Expr(e)).to_length_checked(),
         }
     }
 
