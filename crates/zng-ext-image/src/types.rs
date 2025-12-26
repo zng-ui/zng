@@ -7,7 +7,7 @@ use std::{
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 use zng_app::{
-    view_process::{EncodeError, ViewImage, ViewRenderer},
+    view_process::{EncodeError, ViewImage, ViewRenderer, ImageEncodeRequest},
     window::WindowId,
 };
 use zng_color::{
@@ -164,7 +164,7 @@ struct ImgMut {
 ///
 /// This value is a shared reference to the image, on view-process updates the image data is mutated immediately.
 /// To ensure that variable updates propagate the new value the [`IMAGES`] service calls [`Img::update`] on the value.
-/// 
+///
 /// [`IMAGES`]: crate::IMAGES
 #[derive(Debug, Clone)]
 pub struct Img {
@@ -212,14 +212,14 @@ impl Img {
     }
 
     /// Ensure this value is not equal to previous update, to propagate variable notification.
-    /// 
+    ///
     /// This value is mostly a wrapper of [`ViewImage`], and that is a shared reference with interior mutability the image
     /// data will update immediately without notifying variables. The [`IMAGES`] service uses this method to manually pump
     /// the variable observers.
-    /// 
+    ///
     /// [`IMAGES`]: crate::IMAGES
     pub fn update(&mut self) {
-        self.update =  self.update.wrapping_add(1);
+        self.update = self.update.wrapping_add(1);
     }
 
     /// Returns `true` if the is still acquiring or decoding the image bytes.
@@ -591,8 +591,12 @@ impl Img {
             if self.view().is_none() || entries.iter().any(|v| v.0.view().is_none()) {
                 return Err(EncodeError::Dummy);
             }
-            let entries = entries.iter().map(|(img, kind)| (img.view().unwrap().id().unwrap(), kind.clone()));
-            self.view().unwrap().encode(entries.collect(), format).await
+            let mut r = ImageEncodeRequest::new(format);
+            r.entries = entries
+                .iter()
+                .map(|(img, kind)| (img.view().unwrap().id().unwrap(), kind.clone()))
+                .collect();
+            self.view().unwrap().encode(r).await
         }
     }
 

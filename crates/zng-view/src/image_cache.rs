@@ -11,8 +11,8 @@ use zng_unit::{Px, PxDensity2d, PxSize};
 use zng_view_api::{
     Event,
     image::{
-        ColorType, ImageDataFormat, ImageDecoded, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageEntryMetadata, ImageFormat,
-        ImageFormatCapability as Cap, ImageId, ImageMaskMode, ImageMetadata, ImageRequest,
+        ColorType, ImageDataFormat, ImageDecoded, ImageDownscaleMode, ImageEncodeId, ImageEntriesMode, ImageEntryKind, ImageEntryMetadata,
+        ImageFormat, ImageFormatCapability as Cap, ImageId, ImageMaskMode, ImageMetadata, ImageRequest,
     },
 };
 
@@ -80,6 +80,7 @@ pub(crate) struct ImageCache {
     app_sender: AppEventSender,
     images: FxHashMap<ImageId, Image>,
     image_id_gen: Arc<Mutex<ImageId>>,
+    encode_id_gen: ImageEncodeId,
     resizer: Arc<ResizerCache>,
 }
 impl ImageCache {
@@ -88,6 +89,7 @@ impl ImageCache {
             app_sender,
             images: FxHashMap::default(),
             image_id_gen: Arc::new(Mutex::new(ImageId::first())),
+            encode_id_gen: ImageEncodeId::first(),
             resizer: Arc::new(Mutex::new(fast_image_resize::Resizer::new())),
         }
     }

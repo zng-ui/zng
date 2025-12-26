@@ -17,6 +17,11 @@ crate::declare_id! {
     ///
     /// The View Process defines the ID.
     pub struct ImageTextureId(_);
+
+    /// Id of an image encode task.
+    ///
+    /// The View Process defines the ID.
+    pub struct ImageEncodeId(_);
 }
 
 /// Defines how the A8 image mask pixels are to be derived from a source mask image.
@@ -685,4 +690,30 @@ impl ColorType {
 
     /// A8
     pub const A8: ColorType = ColorType::new(Txt::from_static("A8"), 8, 4);
+}
+
+/// Represent a image encode request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct ImageEncodeRequest {
+    /// Image to encode.
+    pub id: ImageId,
+
+    /// Optional entries to also encode.
+    ///
+    /// If set encodes the `id` as the first *page* followed by each entry in the order given.
+    pub entries: Vec<(ImageId, ImageEntryKind)>,
+
+    /// Format query, view-process uses [`ImageFormat::matches`] to find the format.
+    pub format: Txt,
+}
+impl ImageEncodeRequest {
+    /// New.
+    pub fn new(id: ImageId, format: Txt) -> Self {
+        Self {
+            id,
+            entries: vec![],
+            format,
+        }
+    }
 }

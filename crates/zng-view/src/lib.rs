@@ -151,7 +151,7 @@ use zng_view_api::{
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
     drag_drop::*,
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
-    image::{ImageDecoded, ImageId, ImageMaskMode, ImageRequest, ImageTextureId},
+    image::{ImageDecoded, ImageEncodeId, ImageEncodeRequest, ImageId, ImageMaskMode, ImageRequest, ImageTextureId},
     keyboard::{Key, KeyCode, KeyState},
     mouse::ButtonId,
     raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
@@ -2100,8 +2100,8 @@ impl Api for App {
         self.image_cache.forget(id)
     }
 
-    fn encode_image(&mut self, id: ImageId, entries: Vec<(ImageId, image::ImageEntryKind)>, format: Txt) {
-        self.image_cache.encode(id, entries, format)
+    fn encode_image(&mut self, request: ImageEncodeRequest) -> ImageEncodeId {
+        self.image_cache.encode(request)
     }
 
     fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageTextureId {

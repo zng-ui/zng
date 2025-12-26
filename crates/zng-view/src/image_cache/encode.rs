@@ -3,20 +3,38 @@ use winit::{
     window::{CustomCursor, Icon},
 };
 use zng_task::channel::IpcBytes;
-use zng_txt::{ToTxt as _, Txt, formatx};
+use zng_txt::{ToTxt as _, formatx};
 use zng_unit::{PxPoint, PxSize};
 use zng_view_api::{
     Event,
-    image::{ImageEntryKind, ImageFormatCapability, ImageId},
+    image::{ImageEncodeId, ImageEncodeRequest, ImageEntryKind, ImageFormatCapability, ImageId},
 };
 
 use crate::{
-    AppEvent,
+    AppEvent, AppEventSender,
     image_cache::{FORMATS, Image, ImageCache, ImageData},
 };
 
 impl ImageCache {
-    pub fn encode(&self, id: ImageId, entries: Vec<(ImageId, ImageEntryKind)>, format: Txt) {
+    pub fn encode(&mut self, ImageEncodeRequest { id, entries, format, .. }: ImageEncodeRequest) -> ImageEncodeId {
+        let task_id = self.encode_id_gen.incr();
+        let app_sender = self.app_sender.clone();
+        let img = self.get(id).cloned();
+        let entries: Vec<_> = entries.into_iter().map(|(id, kind)| (id, self.get(id).cloned(), kind)).collect();
+
+        zng_task::spawn_wait(move || Self::encode_impl(app_sender, format, task_id, id, img, entries));
+
+        task_id
+    }
+
+    fn encode_impl(
+        app_sender: AppEventSender,
+        format: zng_txt::Txt,
+        task_id: ImageEncodeId,
+        id: ImageId,
+        img: Option<Image>,
+        entries: Vec<(ImageId, Option<Image>, ImageEntryKind)>,
+    ) {
         let fmt = match FORMATS.iter().find(|f| f.matches(format.as_str())) {
             Some(f) => {
                 if !f.capabilities.contains(ImageFormatCapability::ENCODE) {
@@ -33,17 +51,15 @@ impl ImageCache {
             Ok(f) => f,
             Err(e) => {
                 let error = formatx!("cannot encode `{id:?}` to `{format}`, {e}");
-                let _ = self
-                    .app_sender
-                    .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
+                let _ = app_sender.send(AppEvent::Notify(Event::ImageEncodeError { task: task_id, error }));
                 return;
             }
         };
 
-        if let Some(img) = self.get(id) {
+        if let Some(img) = img {
             let mut entry_imgs = Vec::with_capacity(entries.len());
-            for (entry_id, kind) in entries {
-                match self.get(entry_id) {
+            for (entry_id, img, kind) in entries {
+                match img {
                     Some(img) => {
                         entry_imgs.push((img.clone(), kind));
                     }
@@ -52,9 +68,7 @@ impl ImageCache {
                             "cannot encode `{id:?}` to `{}`, entry image ({entry_id:?}) not found",
                             fmt.display_name
                         );
-                        let _ = self
-                            .app_sender
-                            .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
+                        let _ = app_sender.send(AppEvent::Notify(Event::ImageEncodeError { task: task_id, error }));
                         return;
                     }
                 }
@@ -64,33 +78,28 @@ impl ImageCache {
             debug_assert!(fmt.can_write());
 
             let img = img.clone();
-            let sender = self.app_sender.clone();
-            rayon::spawn(move || {
-                let mut data = IpcBytes::new_writer_blocking();
-                match img.encode(entry_imgs, fmt, &mut data) {
-                    Ok(_) => match data.finish() {
-                        Ok(data) => {
-                            let _ = sender.send(AppEvent::Notify(Event::ImageEncoded { image: id, format, data }));
-                        }
-                        Err(e) => {
-                            let _ = sender.send(AppEvent::Notify(Event::ImageEncodeError {
-                                image: id,
-                                format,
-                                error: e.to_txt(),
-                            }));
-                        }
-                    },
-                    Err(e) => {
-                        let error = formatx!("failed to encode `{id:?}` to `{format}`, {e}");
-                        let _ = sender.send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
+
+            let mut data = IpcBytes::new_writer_blocking();
+            match img.encode(entry_imgs, fmt, &mut data) {
+                Ok(_) => match data.finish() {
+                    Ok(data) => {
+                        let _ = app_sender.send(AppEvent::Notify(Event::ImageEncoded { task: task_id, data }));
                     }
+                    Err(e) => {
+                        let _ = app_sender.send(AppEvent::Notify(Event::ImageEncodeError {
+                            task: task_id,
+                            error: e.to_txt(),
+                        }));
+                    }
+                },
+                Err(e) => {
+                    let error = formatx!("failed to encode `{id:?}` to `{format}`, {e}");
+                    let _ = app_sender.send(AppEvent::Notify(Event::ImageEncodeError { task: task_id, error }));
                 }
-            })
+            }
         } else {
             let error = formatx!("cannot encode `{id:?}` to `{}`, image not found", fmt.display_name);
-            let _ = self
-                .app_sender
-                .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
+            let _ = app_sender.send(AppEvent::Notify(Event::ImageEncodeError { task: task_id, error }));
         }
     }
 }

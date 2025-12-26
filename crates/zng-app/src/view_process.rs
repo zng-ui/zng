@@ -31,7 +31,10 @@ use zng_view_api::{
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::{FontOptions, IpcFontBytes},
-    image::{ColorType, ImageDecoded, ImageEntryKind, ImageEntryMetadata, ImageMaskMode, ImageMetadata, ImageRequest, ImageTextureId},
+    image::{
+        ColorType, ImageDecoded, ImageEncodeId, ImageEntryKind, ImageEntryMetadata, ImageMaskMode, ImageMetadata, ImageRequest,
+        ImageTextureId,
+    },
     window::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, RenderMode, ResizeDirection,
         VideoMode, WindowButton, WindowRequest, WindowStateAll,
@@ -39,7 +42,8 @@ use zng_view_api::{
 };
 
 pub(crate) use zng_view_api::{
-    Controller, raw_input::InputDeviceId as ApiDeviceId, window::MonitorId as ApiMonitorId, window::WindowId as ApiWindowId,
+    Controller, image::ImageEncodeRequest as ApiImageEncodeRequest, raw_input::InputDeviceId as ApiDeviceId,
+    window::MonitorId as ApiMonitorId, window::WindowId as ApiWindowId,
 };
 use zng_view_api::{
     clipboard::{ClipboardData, ClipboardError, ClipboardType},
@@ -616,20 +620,18 @@ impl VIEW_PROCESS {
         i.map(|i| ViewImage(app.frame_images.swap_remove(i).upgrade().unwrap()))
     }
 
-    pub(super) fn on_image_encoded(&self, id: ImageId, format: Txt, data: IpcBytes) {
-        self.on_image_encode_result(id, format, Ok(data));
+    pub(super) fn on_image_encoded(&self, task_id: ImageEncodeId, data: IpcBytes) {
+        self.on_image_encode_result(task_id, Ok(data));
     }
-    pub(super) fn on_image_encode_error(&self, id: ImageId, format: Txt, error: Txt) {
-        self.on_image_encode_result(id, format, Err(EncodeError::Encode(error)));
+    pub(super) fn on_image_encode_error(&self, task_id: ImageEncodeId, error: Txt) {
+        self.on_image_encode_result(task_id, Err(EncodeError::Encode(error)));
     }
-    fn on_image_encode_result(&self, id: ImageId, format: Txt, result: std::result::Result<IpcBytes, EncodeError>) {
+    fn on_image_encode_result(&self, task_id: ImageEncodeId, result: std::result::Result<IpcBytes, EncodeError>) {
         let mut app = self.write();
         app.encoding_images.retain(move |r| {
-            let done = r.image_id == id && r.format == format;
+            let done = r.task_id == task_id;
             if done {
-                for sender in &r.listeners {
-                    let _ = sender.send_blocking(result.clone());
-                }
+                let _ = r.listener.send_blocking(result.clone());
             }
             !done
         })
@@ -1576,15 +1578,8 @@ impl ViewImage {
         self.0.read().done_signal.clone()
     }
 
-    /// Tries to encode the image to the format.
-    ///
-    /// The `format` must be one of the [`image_encoders`] supported by the view-process backend.
-    ///
-    /// If `entries` is set and the format supports multiple images encodes the `id` as the first *page* followed by each
-    /// entry in the order given.
-    ///
-    /// [`image_encoders`]: VIEW_PROCESS::image_encoders
-    pub async fn encode(&self, entries: Vec<(ImageId, ImageEntryKind)>, format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
+    /// Tries to encode the image.
+    pub async fn encode(&self, request: ImageEncodeRequest) -> std::result::Result<IpcBytes, EncodeError> {
         self.awaiter().await;
 
         if let Some(e) = self.error() {
@@ -1594,20 +1589,14 @@ impl ViewImage {
         let receiver = {
             let img = self.0.read();
             if let Some(id) = img.id {
+                let mut r = ApiImageEncodeRequest::new(id, request.format);
+                r.entries = request.entries;
                 let mut app = VIEW_PROCESS.handle_write(img.app_id.unwrap());
 
-                app.process.encode_image(id, entries, format.clone())?;
+                let task_id = app.process.encode_image(r)?;
 
                 let (sender, receiver) = channel::bounded(1);
-                if let Some(entry) = app.encoding_images.iter_mut().find(|r| r.image_id == id && r.format == format) {
-                    entry.listeners.push(sender);
-                } else {
-                    app.encoding_images.push(EncodeRequest {
-                        image_id: id,
-                        format,
-                        listeners: vec![sender],
-                    });
-                }
+                app.encoding_images.push(EncodeRequest { task_id, listener: sender });
                 receiver
             } else {
                 return Err(EncodeError::Dummy);
@@ -1670,9 +1659,8 @@ impl WeakViewImage {
 }
 
 struct EncodeRequest {
-    image_id: ImageId,
-    format: Txt,
-    listeners: Vec<channel::Sender<std::result::Result<IpcBytes, EncodeError>>>,
+    task_id: ImageEncodeId,
+    listener: channel::Sender<std::result::Result<IpcBytes, EncodeError>>,
 }
 
 type ClipboardResult<T> = std::result::Result<T, ClipboardError>;
@@ -1786,5 +1774,24 @@ impl ViewClipboard {
             .try_write()?
             .process
             .write_clipboard(ClipboardData::Extension { data_type, data })
+    }
+}
+
+/// Represent a image encode request.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct ImageEncodeRequest {
+    /// Optional entries to also encode.
+    ///
+    /// If set encodes the `id` as the first *page* followed by each entry in the order given.
+    pub entries: Vec<(ImageId, ImageEntryKind)>,
+
+    /// Format query, view-process uses [`ImageFormat::matches`] to find the format.
+    pub format: Txt,
+}
+impl ImageEncodeRequest {
+    /// New.
+    pub fn new(format: Txt) -> Self {
+        Self { entries: vec![], format }
     }
 }

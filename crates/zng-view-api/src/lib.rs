@@ -430,18 +430,13 @@ declare_api! {
     /// Each text is the lower-case file extension, without the dot.
     pub fn image_encoders(&mut self) -> Vec<Txt>;
 
-    /// Encode the image into the `format`.
-    ///
-    /// The format must be one of the values returned by [`image_encoders`].
-    ///
-    /// If `entries` is set and the format supports multiple images encodes the `id` as the first *page* followed by each
-    /// entry in the order given.
+    /// Encode the image.
     ///
     /// Returns immediately. The encoded data will be send as the event
-    /// [`Event::ImageEncoded`] or [`Event::ImageEncodeError`].
+    /// [`Event::ImageEncoded`] or [`Event::ImageEncodeError`]. The returned ID identifies this request.
     ///
     /// [`image_encoders`]: Api::image_encoders
-    pub fn encode_image(&mut self, id: ImageId, entries: Vec<(ImageId, image::ImageEntryKind)>, format: Txt); // TODO(breaking) args struct
+    pub fn encode_image(&mut self, request: image::ImageEncodeRequest) -> image::ImageEncodeId;
 
     /// Cache an audio resource.
     ///
