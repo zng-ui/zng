@@ -266,7 +266,7 @@ pub fn parse_cargo_about(json: &str) -> Result<Vec<LicenseUsed>, serde_json::Err
 /// Panics in case of any error.
 #[cfg(feature = "build")]
 pub fn encode_licenses(licenses: &[LicenseUsed]) -> Vec<u8> {
-    deflate::deflate_bytes(&bincode::serde::encode_to_vec(licenses, bincode::config::standard()).expect("bincode error"))
+    deflate::deflate_bytes(&bincode::serialize(licenses).expect("bincode error"))
 }
 
 /// Encode licenses and write to the output file that is included by [`include_bundle!`].
@@ -297,7 +297,5 @@ macro_rules! include_bundle {
 #[cfg(feature = "bundle")]
 pub fn decode_licenses(bin: &[u8]) -> Vec<LicenseUsed> {
     let bin = inflate::inflate_bytes(bin).expect("invalid bundle deflate binary");
-    bincode::serde::decode_from_slice(&bin, bincode::config::standard())
-        .expect("invalid bundle bincode binary")
-        .0
+    bincode::deserialize(&bin).expect("invalid bundle bincode binary")
 }

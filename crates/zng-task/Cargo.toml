@@ -62,7 +62,7 @@ zng-unique-id = { path = "../zng-unique-id", version = "0.10.0", default-feature
 
 tracing = { version = "0.1", default-features = false }
 pretty-type-name = { version = "1.0", default-features = false }
-flume = { version = "0.11", default-features = false, features = ["async"] }
+flume = { version = "0.12", default-features = false, features = ["async"] }
 rayon = { version = "1.10", default-features = false }
 blocking = { version = "1.5", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
