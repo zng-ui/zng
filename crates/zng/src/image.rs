@@ -73,7 +73,8 @@
 
 pub use zng_ext_image::{
     ColorType, IMAGE_RENDER, IMAGES, ImageCacheMode, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageFormat,
-    ImageHash, ImageHasher, ImageLimits, ImageRenderArgs, ImageSource, ImageSourceFilter, ImageVar, Img, PathFilter, render_retain,
+    ImageFormatCapability, ImageHash, ImageHasher, ImageLimits, ImageRenderArgs, ImageSource, ImageSourceFilter, ImageVar, Img, PathFilter,
+    render_retain,
 };
 
 #[cfg(feature = "http")]

@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     env, fmt, fs, io, mem, ops,
     path::{Path, PathBuf},
     sync::Arc,
@@ -29,124 +30,94 @@ use zng_view_api::image::ImageTextureId;
 use crate::render::ImageRenderWindowRoot;
 
 pub use zng_view_api::image::{
-    ColorType, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageFormat, ImageMaskMode,
+    ColorType, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageFormat, ImageFormatCapability, ImageMaskMode,
 };
 
-/// A custom proxy in [`IMAGES`].
+/// A custom extension for the [`IMAGES`] service.
 ///
-/// Implementers can intercept cache requests and redirect to another cache request or returns an image directly.
+/// Extensions can intercept and modify requests.
 ///
-/// The methods on this API are synchronous, implementers that do any potential slow processing must output
-/// a *loading* [`ImageVar`] immediately and update it with the finished pixels when ready.
-///
-/// [`IMAGES`]: super::IMAGES
-pub trait ImageCacheProxy: Send + Sync {
-    /// Intercept a get request.
-    fn get(
+/// [`IMAGES`]: crate::IMAGES
+pub trait ImagesExtension: Send + Sync + Any {
+    /// Modify a [`IMAGES.image`] request.
+    ///
+    /// Note that all other request methods are shorthand helpers so this will be called for every request.
+    ///
+    /// Note that the [`IMAGES`] service can be used in extensions and [`ImageSource::Image`] is returned directly by the service.
+    /// This can be used to fully replace a request here.
+    ///
+    /// [`IMAGES.image`]: crate::IMAGES::image
+    /// [`IMAGES`]: crate::IMAGES
+    fn image(
         &mut self,
-        key: &ImageHash,
-        source: &ImageSource,
-        mode: ImageCacheMode,
-        downscale: Option<&ImageDownscaleMode>,
-        mask: Option<ImageMaskMode>,
-        entries: ImageEntriesMode,
-    ) -> ProxyGetResult {
-        let r = match source {
-            ImageSource::Data(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask, entries, false),
-            _ => return ProxyGetResult::None,
-        };
-        match r {
-            Some(img) => ProxyGetResult::Image(img),
-            None => ProxyGetResult::None,
-        }
+        limits: &ImageLimits,
+        source: &mut ImageSource,
+        mode: &mut ImageCacheMode,
+        downscale: &mut Option<ImageDownscaleMode>,
+        mask: &mut Option<ImageMaskMode>,
+        entries: &mut ImageEntriesMode,
+    ) {
+        let _ = (limits, source, mode, downscale, mask, entries);
     }
 
-    /// Intercept a [`Data`] request.
+    /// Image data loaded.
     ///
-    /// If [`is_data_proxy`] also intercept the [`Read`] or [`Download`] data.
+    /// This is called for [`ImageSource::Read`], [`ImageSource::Download`] and [`ImageSource::Data`] after the data is loaded and before
+    /// decoding starts.
     ///
-    /// If `is_loaded` is `true` the data was read or downloaded and the return var will be bound to an existing var that may already be cached.
-    /// If it is `false` the data was already loaded on the source and the return var will be returned directly, without caching.
+    /// Return a replacement variable to skip decoding or redirect to a different image. Note that by the time this is called the service
+    /// has already returned a variable in loading state, that variable will be cached according to `mode`. The replacement variable
+    /// is bound to the return variable and lives as long as it does.
     ///
-    /// [`Data`]: ImageSource::Data
-    /// [`is_data_proxy`]: ImageCacheProxy::is_data_proxy
-    /// [`Read`]: ImageSource::Read
-    /// [`Download`]: ImageSource::Download
+    /// Note that the [`IMAGES`] service can be used in extensions.
+    ///
+    /// [`IMAGES`]: crate::IMAGES
     #[allow(clippy::too_many_arguments)]
-    fn data(
+    fn image_data(
         &mut self,
+        max_decoded_len: ByteLength,
         key: &ImageHash,
-        data: &[u8],
-        image_format: &ImageDataFormat,
+        data: &IpcBytes,
+        format: &ImageDataFormat,
         mode: ImageCacheMode,
         downscale: Option<&ImageDownscaleMode>,
         mask: Option<ImageMaskMode>,
         entries: ImageEntriesMode,
-        is_loaded: bool,
     ) -> Option<ImageVar> {
-        let _ = (key, data, image_format, mode, downscale, mask, entries, is_loaded);
+        let _ = (max_decoded_len, key, data, format, mode, downscale, mask, entries);
         None
     }
 
-    /// Intercept a remove request.
-    fn remove(&mut self, key: &ImageHash, purge: bool) -> ProxyRemoveResult {
+    /// Modify a [`IMAGES.clean`] or [`IMAGES.purge`] request.
+    ///
+    /// Return `false` to cancel the removal.
+    ///
+    /// [`IMAGES.clean`]: crate::IMAGES::clean
+    /// [`IMAGES.purge`]: crate::IMAGES::purge
+    fn remove(&mut self, key: &mut ImageHash, purge: &mut bool) -> bool {
         let _ = (key, purge);
-        ProxyRemoveResult::None
+        true
     }
 
-    /// Called when the cache is cleaned or purged.
+    /// Called on [`IMAGES.clean_all`] and [`IMAGES.purge_all`].
+    ///
+    /// These operations cannot be intercepted, the service cache will be cleaned after this call.
+    ///
+    /// [`IMAGES.clean_all`]: crate::IMAGES::clean_all
+    /// [`IMAGES.purge_all`]: crate::IMAGES::purge_all
     fn clear(&mut self, purge: bool) {
         let _ = purge;
     }
 
-    /// If this proxy only handles [`Data`] sources.
+    /// Add or remove formats this extension affects.
     ///
-    /// When this is `true` the [`get`] call is delayed to after [`Read`] and [`Download`] have loaded the data
-    /// and is skipped for [`Render`] and [`Image`].
+    /// The `formats` value starts with all formats implemented by the current view-process and will be returned
+    /// by [`IMAGES.available_formats`] after all proxies edit it.
     ///
-    /// This is `false` by default.
-    ///
-    /// [`get`]: ImageCacheProxy::get
-    /// [`Data`]: ImageSource::Data
-    /// [`Read`]: ImageSource::Read
-    /// [`Download`]: ImageSource::Download
-    /// [`Render`]: ImageSource::Render
-    /// [`Image`]: ImageSource::Image
-    fn is_data_proxy(&self) -> bool {
-        false
+    /// [`IMAGES.available_formats`]: crate::IMAGES::available_formats
+    fn available_formats(&self, formats: &mut Vec<ImageFormat>) {
+        let _ = formats;
     }
-}
-
-/// Result of an [`ImageCacheProxy`] *get* redirect.
-pub enum ProxyGetResult {
-    /// Proxy does not intercept the request.
-    ///
-    /// The cache checks other proxies and fulfills the request if no proxy intercepts.
-    None,
-    /// Load and cache using the replacement source.
-    Cache(
-        ImageSource,
-        ImageCacheMode,
-        Option<ImageDownscaleMode>,
-        Option<ImageMaskMode>,
-        ImageEntriesMode,
-    ),
-    /// Return the image instead of hitting the cache.
-    Image(ImageVar),
-}
-
-/// Result of an [`ImageCacheProxy`] *remove* redirect.
-pub enum ProxyRemoveResult {
-    /// Proxy does not intercept the request.
-    ///
-    /// The cache checks other proxies and fulfills the request if no proxy intercepts.
-    None,
-    /// Removes another cached entry.
-    ///
-    /// The `bool` indicates if the entry should be purged.
-    Remove(ImageHash, bool),
-    /// Consider the request fulfilled.
-    Removed,
 }
 
 /// Represents an [`Img`] tracked by the [`IMAGES`] cache.
@@ -1703,16 +1674,16 @@ impl ImageLimits {
     /// Set the [`max_encoded_len`].
     ///
     /// [`max_encoded_len`]: Self::max_encoded_len
-    pub fn with_max_encoded_len(mut self, max_encoded_size: impl Into<ByteLength>) -> Self {
-        self.max_encoded_len = max_encoded_size.into();
+    pub fn with_max_encoded_len(mut self, max_encoded_len: impl Into<ByteLength>) -> Self {
+        self.max_encoded_len = max_encoded_len.into();
         self
     }
 
     /// Set the [`max_decoded_len`].
     ///
     /// [`max_decoded_len`]: Self::max_encoded_len
-    pub fn with_max_decoded_len(mut self, max_decoded_size: impl Into<ByteLength>) -> Self {
-        self.max_decoded_len = max_decoded_size.into();
+    pub fn with_max_decoded_len(mut self, max_decoded_len: impl Into<ByteLength>) -> Self {
+        self.max_decoded_len = max_decoded_len.into();
         self
     }
 

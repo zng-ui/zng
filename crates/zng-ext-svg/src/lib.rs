@@ -13,36 +13,36 @@ use zng_app::AppExtension;
 use zng_ext_image::*;
 use zng_task::channel::IpcBytes;
 use zng_txt::{Txt, formatx};
-use zng_unit::{Px, PxDensity2d, PxDensityUnits as _, PxSize};
+use zng_unit::{ByteLength, Px, PxDensity2d, PxDensityUnits as _, PxSize};
 
 /// Application extension that installs SVG handling.
 ///
-/// This extension installs the [`SvgRenderCache`] in [`IMAGES`] on init.
+/// This extension installs a [`IMAGES`] extension on init that handles SVG rendering.
 #[derive(Default)]
 #[non_exhaustive]
 pub struct SvgManager {}
 
 impl AppExtension for SvgManager {
     fn init(&mut self) {
-        IMAGES.install_proxy(Box::new(SvgRenderCache::default()));
+        IMAGES.extend(Box::new(SvgRenderExtension::default()));
     }
 }
 
-/// Image cache proxy that handlers SVG requests.
+/// Image service extension that handlers SVG requests.
 #[derive(Default)]
 #[non_exhaustive]
-pub struct SvgRenderCache {}
-impl ImageCacheProxy for SvgRenderCache {
-    fn data(
+pub struct SvgRenderExtension {}
+impl ImagesExtension for SvgRenderExtension {
+    fn image_data(
         &mut self,
-        key: &ImageHash,
-        data: &[u8],
+        max_decoded_len: zng_unit::ByteLength,
+        _key: &ImageHash,
+        data: &IpcBytes,
         format: &ImageDataFormat,
-        mode: ImageCacheMode,
+        _mode: ImageCacheMode,
         downscale: Option<&ImageDownscaleMode>,
         mask: Option<ImageMaskMode>,
         entries: ImageEntriesMode,
-        is_loaded: bool,
     ) -> Option<ImageVar> {
         let data = match format {
             ImageDataFormat::FileExtension(txt) if txt == "svg" || txt == "svgz" => SvgData::Raw(data.to_vec()),
@@ -50,17 +50,22 @@ impl ImageCacheProxy for SvgRenderCache {
             ImageDataFormat::Unknown => SvgData::Str(svg_data_from_unknown(data)?),
             _ => return None,
         };
-        let key = if is_loaded {
-            None // already cached, return image is internal
-        } else {
-            Some(*key)
-        };
         let downscale = downscale.cloned();
-        Some(IMAGES.image_task(async move { load(data, downscale) }, mode, key, None, None, mask, entries))
+        let limits = ImageLimits::none().with_max_decoded_len(max_decoded_len);
+        Some(IMAGES.image_task(
+            async move { load(max_decoded_len, data, downscale) },
+            ImageCacheMode::Ignore,
+            None,
+            Some(limits),
+            None,
+            mask,
+            entries,
+        ))
     }
 
-    fn is_data_proxy(&self) -> bool {
-        true
+    fn available_formats(&self, formats: &mut Vec<ImageFormat>) {
+        let svg = ImageFormat::from_static("SVG", "svg+xml", "svg", ImageFormatCapability::empty());
+        formats.push(svg);
     }
 }
 
@@ -68,7 +73,7 @@ enum SvgData {
     Raw(Vec<u8>),
     Str(String),
 }
-fn load(data: SvgData, downscale: Option<ImageDownscaleMode>) -> ImageSource {
+fn load(max_decoded_len: ByteLength, data: SvgData, downscale: Option<ImageDownscaleMode>) -> ImageSource {
     let options = resvg::usvg::Options::default();
 
     let tree = match data {
@@ -78,6 +83,7 @@ fn load(data: SvgData, downscale: Option<ImageDownscaleMode>) -> ImageSource {
     match tree {
         Ok(tree) => {
             let mut size = tree.size().to_int_size();
+
             if let Some(d) = downscale {
                 let size_px = PxSize::new(Px(size.width() as _), Px(size.height() as _));
                 // TODO generate downscaled images
@@ -89,6 +95,12 @@ fn load(data: SvgData, downscale: Option<ImageDownscaleMode>) -> ImageSource {
                     None => tracing::error!("cannot resize svg to zero size"),
                 }
             }
+
+            if size.width() as usize * size.height() as usize * 4 > max_decoded_len.bytes() {
+                let img = Img::dummy(Some(formatx!("cannot render svg, would exceed max {max_decoded_len} allowed")));
+                return ImageSource::Image(zng_var::const_var(img));
+            }
+
             let mut data = match IpcBytes::new_mut_blocking(size.width() as usize * size.height() as usize * 4) {
                 Ok(b) => b,
                 Err(e) => return error(formatx!("can't allocate bytes for {size:?} svg, {e}")),
