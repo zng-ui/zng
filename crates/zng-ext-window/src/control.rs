@@ -373,12 +373,15 @@ impl HeadedCtrl {
         let mut send_icon = false;
         #[cfg(feature = "image")]
         if let Some(ico) = self.vars.icon().get_new() {
+            use zng_ext_image::ImageOptions;
             self.img_res.icon_var = match ico {
                 WindowIcon::Default => None,
-                WindowIcon::Image(ImageSource::Render(ico, _)) => {
-                    Some(IMAGES.cache(ImageSource::Render(ico.clone(), Some(ImageRenderArgs::new(WINDOW.id())))))
-                }
-                WindowIcon::Image(source) => Some(IMAGES.cache(source)),
+                WindowIcon::Image(ImageSource::Render(ico, _)) => Some(IMAGES.image(
+                    ImageSource::Render(ico.clone(), Some(ImageRenderArgs::new(WINDOW.id()))),
+                    ImageOptions::cache(),
+                    None,
+                )),
+                WindowIcon::Image(source) => Some(IMAGES.image(source, ImageOptions::cache(), None)),
             };
 
             if let Some(ico) = &self.img_res.icon_var {
@@ -420,11 +423,14 @@ impl HeadedCtrl {
                 }
                 #[cfg(feature = "image")]
                 crate::CursorSource::Img(img) => {
+                    use zng_ext_image::ImageOptions;
                     self.img_res.cursor_var = Some(match img.source {
-                        ImageSource::Render(cur, _) => {
-                            IMAGES.cache(ImageSource::Render(cur.clone(), Some(ImageRenderArgs::new(WINDOW.id()))))
-                        }
-                        source => IMAGES.cache(source),
+                        ImageSource::Render(cur, _) => IMAGES.image(
+                            ImageSource::Render(cur.clone(), Some(ImageRenderArgs::new(WINDOW.id()))),
+                            ImageOptions::cache(),
+                            None,
+                        ),
+                        source => IMAGES.image(source, ImageOptions::cache(), None),
                     });
 
                     self.update_gen(move |view| {

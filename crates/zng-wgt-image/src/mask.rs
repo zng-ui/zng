@@ -4,7 +4,7 @@
 //! [`mask_mode`]: fn@mask_mode
 
 use zng_ext_image::{
-    IMAGES, ImageCacheMode, ImageDownscaleMode, ImageEntriesMode, ImageLimits, ImageMaskMode, ImageRenderArgs, ImageSource,
+    IMAGES, ImageCacheMode, ImageDownscaleMode, ImageEntriesMode, ImageLimits, ImageMaskMode, ImageOptions, ImageRenderArgs, ImageSource,
 };
 use zng_wgt::prelude::*;
 
@@ -46,7 +46,8 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
             if let ImageSource::Render(_, args) = &mut source {
                 *args = Some(ImageRenderArgs::new(WINDOW.id()));
             }
-            let i = IMAGES.image(source, mode, limits, downscale, Some(mask_mode), ImageEntriesMode::PRIMARY);
+            let opt = ImageOptions::new(mode, downscale, Some(mask_mode), ImageEntriesMode::PRIMARY);
+            let i = IMAGES.image(source, opt, limits);
             let s = i.subscribe(UpdateOp::Update, WIDGET.id());
             img = Some((i, s));
 
@@ -78,8 +79,8 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
                 let limits = MASK_IMAGE_LIMITS_VAR.get();
                 let downscale = MASK_IMAGE_DOWNSCALE_VAR.get();
                 let mask_mode = MASK_MODE_VAR.get();
-
-                let i = IMAGES.image(source, mode, limits, downscale, Some(mask_mode), ImageEntriesMode::PRIMARY);
+                let opt = ImageOptions::new(mode, downscale, Some(mask_mode), ImageEntriesMode::PRIMARY);
+                let i = IMAGES.image(source, opt, limits);
                 let s = i.subscribe(UpdateOp::Layout, WIDGET.id());
                 img = Some((i, s));
 
@@ -100,14 +101,8 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
                         let limits = MASK_IMAGE_LIMITS_VAR.get();
                         let downscale = MASK_IMAGE_DOWNSCALE_VAR.get();
                         let mask_mode = MASK_MODE_VAR.get();
-                        IMAGES.image(
-                            source,
-                            ImageCacheMode::Cache,
-                            limits,
-                            downscale,
-                            Some(mask_mode),
-                            ImageEntriesMode::PRIMARY,
-                        )
+                        let opt = ImageOptions::new(ImageCacheMode::Cache, downscale, Some(mask_mode), ImageEntriesMode::PRIMARY);
+                        IMAGES.image(source, opt, limits)
                     };
 
                     let s = i.subscribe(UpdateOp::Update, WIDGET.id());

@@ -39,10 +39,7 @@ impl ImagesExtension for SvgRenderExtension {
         _key: &ImageHash,
         data: &IpcBytes,
         format: &ImageDataFormat,
-        _mode: ImageCacheMode,
-        downscale: Option<&ImageDownscaleMode>,
-        mask: Option<ImageMaskMode>,
-        entries: ImageEntriesMode,
+        options: &ImageOptions,
     ) -> Option<ImageVar> {
         let data = match format {
             ImageDataFormat::FileExtension(txt) if txt == "svg" || txt == "svgz" => SvgData::Raw(data.to_vec()),
@@ -50,17 +47,11 @@ impl ImagesExtension for SvgRenderExtension {
             ImageDataFormat::Unknown => SvgData::Str(svg_data_from_unknown(data)?),
             _ => return None,
         };
-        let downscale = downscale.cloned();
+        let mut options = options.clone();
+        let downscale = options.downscale.take();
+        options.cache_mode = ImageCacheMode::Ignore;
         let limits = ImageLimits::none().with_max_decoded_len(max_decoded_len);
-        Some(IMAGES.image_task(
-            async move { load(max_decoded_len, data, downscale) },
-            ImageCacheMode::Ignore,
-            None,
-            Some(limits),
-            None,
-            mask,
-            entries,
-        ))
+        Some(IMAGES.image_task(async move { load(max_decoded_len, data, downscale) }, options, Some(limits)))
     }
 
     fn available_formats(&self, formats: &mut Vec<ImageFormat>) {

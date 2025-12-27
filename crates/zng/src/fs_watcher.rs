@@ -82,29 +82,15 @@ mod images_ext {
         /// Like [`IMAGES.image`] with automatic cache reload when the file at `path` is modified.
         ///
         /// [`IMAGES.image`]: IMAGES::image
-        fn watch_image(
-            &self,
-            path: impl Into<PathBuf>,
-            limits: Option<ImageLimits>,
-            downscale: Option<ImageDownscaleMode>,
-            mask: Option<ImageMaskMode>,
-            entries: ImageEntriesMode,
-        ) -> ImageVar;
+        fn watch_image(&self, path: impl Into<PathBuf>, options: ImageOptions, limits: Option<ImageLimits>) -> ImageVar;
     }
     impl IMAGES_Ext for IMAGES {
         fn watch(&self, path: impl Into<PathBuf>) -> ImageVar {
             watch(path.into())
         }
 
-        fn watch_image(
-            &self,
-            path: impl Into<PathBuf>,
-            limits: Option<ImageLimits>,
-            downscale: Option<ImageDownscaleMode>,
-            mask: Option<ImageMaskMode>,
-            entries: ImageEntriesMode,
-        ) -> ImageVar {
-            watch_image(path.into(), limits, downscale, mask, entries)
+        fn watch_image(&self, path: impl Into<PathBuf>, options: ImageOptions, limits: Option<ImageLimits>) -> ImageVar {
+            watch_image(path.into(), options, limits)
         }
     }
 
@@ -113,39 +99,23 @@ mod images_ext {
         let handle = WATCHER.on_file_changed(
             path.clone(),
             hn!(|_| {
-                let _ = IMAGES.reload(path.clone());
+                let mut opt = ImageOptions::cache();
+                opt.cache_mode = ImageCacheMode::Reload;
+                let _ = IMAGES.image(path.clone(), opt, None);
             }),
         );
         img.hold(handle).perm();
         img
     }
 
-    fn watch_image(
-        path: PathBuf,
-        limits: Option<ImageLimits>,
-        downscale: Option<ImageDownscaleMode>,
-        mask: Option<ImageMaskMode>,
-        entries: ImageEntriesMode,
-    ) -> ImageVar {
-        let img = IMAGES.image(
-            ImageSource::Read(path.clone()),
-            ImageCacheMode::Cache,
-            limits.clone(),
-            downscale.clone(),
-            mask,
-            entries,
-        );
+    fn watch_image(path: PathBuf, option: ImageOptions, limits: Option<ImageLimits>) -> ImageVar {
+        let img = IMAGES.image(ImageSource::Read(path.clone()), option.clone(), limits.clone());
         let handle = WATCHER.on_file_changed(
             path.clone(),
             hn!(|_| {
-                let _ = IMAGES.image(
-                    ImageSource::Read(path.clone()),
-                    ImageCacheMode::Reload,
-                    limits.clone(),
-                    downscale.clone(),
-                    mask,
-                    entries,
-                );
+                let mut opt = option.clone();
+                opt.cache_mode = ImageCacheMode::Reload;
+                let _ = IMAGES.image(ImageSource::Read(path.clone()), opt, limits.clone());
             }),
         );
         img.hold(handle).perm();
