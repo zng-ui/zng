@@ -10,9 +10,7 @@ use zng::{
         filter::{Filter, drop_shadow, filter, mix_blend},
         gradient::stops,
     },
-    image::{
-        self, IMAGES, ImageEntriesMode, ImageFit, ImageLimits, ImgErrorArgs, img_error_fn, img_loading_fn, mask::mask_image,
-    },
+    image::{self, IMAGES, ImageEntriesMode, ImageFit, ImageLimits, ImgErrorArgs, img_error_fn, img_loading_fn, mask::mask_image},
     layout::{align, margin, padding, size},
     mouse,
     prelude::*,
