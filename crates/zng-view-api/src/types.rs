@@ -118,7 +118,7 @@ pub struct ViewProcessInfo {
     /// Input device events implemented by the view-process.
     pub input_device: InputDeviceCapability,
 
-    // !!: TODO more
+    // TODO more
     /// Image decode and encode capabilities implemented by the view-process.
     pub image: Vec<crate::image::ImageFormat>,
 

@@ -62,6 +62,11 @@ impl ImageCacheProxy for SvgRenderCache {
     fn is_data_proxy(&self) -> bool {
         true
     }
+
+    fn available_formats(&self, formats: &mut Vec<ImageFormat>) {
+        let svg = ImageFormat::from_static("SVG", "svg+xml", "svg", ImageFormatCapability::empty());
+        formats.push(svg);
+    }
 }
 
 enum SvgData {

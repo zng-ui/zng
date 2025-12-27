@@ -29,7 +29,7 @@ use zng_view_api::image::ImageTextureId;
 use crate::render::ImageRenderWindowRoot;
 
 pub use zng_view_api::image::{
-    ColorType, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageFormat, ImageMaskMode,
+    ColorType, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageFormat, ImageFormatCapability, ImageMaskMode,
 };
 
 /// A custom proxy in [`IMAGES`].
@@ -41,6 +41,7 @@ pub use zng_view_api::image::{
 ///
 /// [`IMAGES`]: super::IMAGES
 pub trait ImageCacheProxy: Send + Sync {
+    // TODO(breaking) simplify, rename to ImagesServiceExtension
     /// Intercept a get request.
     fn get(
         &mut self,
@@ -114,6 +115,16 @@ pub trait ImageCacheProxy: Send + Sync {
     /// [`Image`]: ImageSource::Image
     fn is_data_proxy(&self) -> bool {
         false
+    }
+
+    /// Add or remove formats this proxy affects.
+    ///
+    /// The `formats` value starts with all formats implemented by the current view-process and will be returned
+    /// by [`IMAGES.available_formats`] after all proxies edit it.
+    ///
+    /// [`IMAGES.available_formats`]: IMAGES::available_formats
+    fn available_formats(&self, formats: &mut Vec<ImageFormat>) {
+        let _ = formats;
     }
 }
 

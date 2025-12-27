@@ -767,7 +767,7 @@ impl ImagesService {
             if VIEW_PROCESS.is_available() {
                 let mut r = String::new();
                 let mut sep = "";
-                for fmt in VIEW_PROCESS.info().image.iter() {
+                for fmt in self.available_formats() {
                     for t in fmt.media_type_suffixes_iter() {
                         r.push_str(sep);
                         r.push_str("image/");
@@ -781,6 +781,14 @@ impl ImagesService {
             }
         }
         self.download_accept.clone()
+    }
+
+    fn available_formats(&self) -> Vec<ImageFormat> {
+        let mut formats = VIEW_PROCESS.info().image.clone();
+        for proxy in &self.proxies {
+            proxy.available_formats(&mut formats);
+        }
+        formats
     }
 
     fn cleanup_not_cached(&mut self, force: bool) {
@@ -1168,9 +1176,9 @@ impl IMAGES {
         IMAGES_SV.write().proxies.push(proxy);
     }
 
-    /// Image formats implemented by the current view-process.
+    /// Image formats implemented by the current view-process and extensions.
     pub fn available_formats(&self) -> Vec<ImageFormat> {
-        VIEW_PROCESS.info().image.clone()
+        IMAGES_SV.read().available_formats()
     }
 }
 struct ImageData {
