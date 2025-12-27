@@ -146,7 +146,7 @@ use window::Window;
 use zng_txt::Txt;
 use zng_unit::{Dip, DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
 use zng_view_api::{
-    Inited,
+    ViewProcessInfo,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
     drag_drop::*,
@@ -1803,7 +1803,14 @@ impl Api for App {
         self.generation = vp_gen;
         self.headless = headless;
 
-        self.notify(Event::Inited(Inited::new(vp_gen, is_respawn, self.exts.api_extensions())));
+        let mut inited = ViewProcessInfo::new(vp_gen, is_respawn);
+        if !headless {
+            inited.input_device = InputDeviceCapability::all();
+        }
+        inited.image = crate::image_cache::FORMATS.to_vec();
+        inited.extensions = self.exts.api_extensions();
+
+        self.notify(Event::Inited(inited));
 
         let available_monitors = self.available_monitors();
         self.notify(Event::MonitorsChanged(available_monitors));
@@ -1847,15 +1854,6 @@ impl Api for App {
         if is_respawn || cfg != zng_view_api::config::ChromeConfig::default() {
             self.notify(Event::ChromeConfigChanged(cfg));
         }
-    }
-
-    fn capabilities(&mut self) -> ViewProcessCapability {
-        let mut c = ViewProcessCapability::default();
-        if !self.headless {
-            c.device_events = InputDeviceCapability::all();
-        }
-        c.image = crate::image_cache::FORMATS.to_vec();
-        c
     }
 
     fn exit(&mut self) {

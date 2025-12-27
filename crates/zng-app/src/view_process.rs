@@ -26,8 +26,8 @@ use zng_task::{
 use zng_txt::Txt;
 use zng_var::ResponderVar;
 use zng_view_api::{
-    self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessCapability, ViewProcessGen,
-    api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
+    self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen, ViewProcessInfo,
+    api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::{FontOptions, IpcFontBytes},
@@ -65,7 +65,7 @@ struct ViewProcessService {
 
     data_generation: ViewProcessGen,
 
-    extensions: ApiExtensions,
+    info: ViewProcessInfo,
 
     loading_images: Vec<sync::Weak<RwLock<ViewImageData>>>,
     frame_images: Vec<sync::Weak<RwLock<ViewImageData>>>,
@@ -133,17 +133,16 @@ impl VIEW_PROCESS {
         self.read().process.same_process()
     }
 
+    /// Read lock view-process and reference current generation info.
+    ///
+    /// Strongly recommend to clone/copy the info required, the entire service is locked until the return value is dropped.
+    pub fn info(&self) -> impl std::ops::Deref<Target = ViewProcessInfo> {
+        MappedRwLockReadGuard::map(self.read(), |p| &p.info)
+    }
+
     /// Gets the current view-process generation.
     pub fn generation(&self) -> ViewProcessGen {
         self.read().process.generation()
-    }
-
-    /// View-process implementation capabilities.
-    ///
-    /// View-process implementers can provide different/limited capabilities for some API depending on the operating system and
-    /// build configuration.
-    pub fn capabilities(&self) -> Result<ViewProcessCapability> {
-        self.write().process.capabilities()
     }
 
     /// Enable/disable global device events.
@@ -318,7 +317,7 @@ impl VIEW_PROCESS {
     pub fn extension_id(&self, extension_name: impl Into<ApiExtensionName>) -> Result<Option<ApiExtensionId>> {
         let me = self.read();
         if me.process.is_connected() {
-            Ok(me.extensions.id(&extension_name.into()))
+            Ok(me.info.extensions.id(&extension_name.into()))
         } else {
             Err(ChannelError::disconnected())
         }
@@ -376,7 +375,7 @@ impl VIEW_PROCESS {
             pending_frames: 0,
             message_dialogs: vec![],
             file_dialogs: vec![],
-            extensions: ApiExtensions::default(),
+            info: ViewProcessInfo::new(ViewProcessGen::INVALID, false),
             ping_count: 0,
         });
     }
@@ -411,10 +410,10 @@ impl VIEW_PROCESS {
     /// The view-process becomes "connected" only after this call.
     ///
     /// [`Event::Inited`]: zng_view_api::Event::Inited
-    pub(super) fn handle_inited(&self, vp_gen: ViewProcessGen, extensions: ApiExtensions) {
+    pub(super) fn handle_inited(&self, inited: &zng_view_api::ViewProcessInfo) {
         let mut me = self.write();
-        me.extensions = extensions;
-        me.process.handle_inited(vp_gen);
+        me.info = inited.clone();
+        me.process.handle_inited(inited.generation);
     }
 
     pub(super) fn handle_suspended(&self) {
@@ -694,19 +693,8 @@ impl ViewProcessService {
 event_args! {
     /// Arguments for the [`VIEW_PROCESS_INITED_EVENT`].
     pub struct ViewProcessInitedArgs {
-        /// View-process generation.
-        pub generation: ViewProcessGen,
-
-        /// If this is not the first time a view-process was inited. If `true`
-        /// all resources created in a previous generation must be rebuilt.
-        ///
-        /// This can happen after a view-process crash or app suspension.
-        pub is_respawn: bool,
-
-        /// API extensions implemented by the view-process.
-        ///
-        /// The extension IDs will stay valid for the duration of the view-process.
-        pub extensions: ApiExtensions,
+        /// View-process implementation info.
+        pub info: zng_view_api::ViewProcessInfo,
 
         ..
 
@@ -725,6 +713,13 @@ event_args! {
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
             list.search_all()
         }
+    }
+}
+impl std::ops::Deref for ViewProcessInitedArgs {
+    type Target = zng_view_api::ViewProcessInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.info
     }
 }
 

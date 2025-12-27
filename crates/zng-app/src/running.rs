@@ -512,7 +512,7 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             // Others
-            Event::Inited(zng_view_api::Inited { .. }) | Event::Suspended | Event::Disconnected(_) | Event::FrameRendered(_) => {
+            Event::Inited(zng_view_api::ViewProcessInfo { .. }) | Event::Suspended | Event::Disconnected(_) | Event::FrameRendered(_) => {
                 unreachable!()
             } // handled before coalesce.
 
@@ -573,21 +573,16 @@ impl<E: AppExtension> RunningApp<E> {
                     self.pending_view_frame_events.push(ev);
                 }
                 zng_view_api::Event::Pong(count) => VIEW_PROCESS.on_pong(count),
-                zng_view_api::Event::Inited(zng_view_api::Inited {
-                    generation,
-                    is_respawn,
-                    extensions,
-                    ..
-                }) => {
+                zng_view_api::Event::Inited(inited) => {
                     // notify immediately.
-                    if is_respawn {
-                        VIEW_PROCESS.on_respawned(generation);
+                    if inited.is_respawn {
+                        VIEW_PROCESS.on_respawned(inited.generation);
                         APP_PROCESS_SV.read().is_suspended.set(false);
                     }
 
-                    VIEW_PROCESS.handle_inited(generation, extensions.clone());
+                    VIEW_PROCESS.handle_inited(&inited);
 
-                    let args = crate::view_process::ViewProcessInitedArgs::now(generation, is_respawn, extensions);
+                    let args = crate::view_process::ViewProcessInitedArgs::now(inited);
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
                 }
                 zng_view_api::Event::Suspended => {

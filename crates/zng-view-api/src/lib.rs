@@ -267,18 +267,14 @@ macro_rules! declare_api {
 declare_api! {
     /// Called once on init.
     ///
-    /// Sends an [`Event::Inited`] once the view is completely connected.
+    /// Sends an [`Event::Inited`] once the view is completely connected, the event details what API features
+    /// are implemented by the view-process.
+    ///
     /// Other methods may only be called after this event.
     fn init(&mut self, vp_gen: ViewProcessGen, is_respawn: bool, headless: bool);
 
     /// Called once after exit, if running in a managed external process it will be killed after this call.
     fn exit(&mut self);
-
-    /// View-process implementation capabilities.
-    ///
-    /// View-process implementers can provide different/limited capabilities for some API depending on the operating system and
-    /// build configuration.
-    pub fn capabilities(&mut self) -> ViewProcessCapability;
 
     /// Enable/disable global device events.
     ///
