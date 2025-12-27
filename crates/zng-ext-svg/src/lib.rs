@@ -17,7 +17,7 @@ use zng_unit::{ByteLength, Px, PxDensity2d, PxDensityUnits as _, PxSize};
 
 /// Application extension that installs SVG handling.
 ///
-/// This extension installs the [`SvgRenderCache`] in [`IMAGES`] on init.
+/// This extension installs a [`IMAGES`] extension on init that handles SVG rendering.
 #[derive(Default)]
 #[non_exhaustive]
 pub struct SvgManager {}
@@ -28,7 +28,7 @@ impl AppExtension for SvgManager {
     }
 }
 
-/// Image cache proxy that handlers SVG requests.
+/// Image service extension that handlers SVG requests.
 #[derive(Default)]
 #[non_exhaustive]
 pub struct SvgRenderExtension {}

@@ -36,6 +36,8 @@ pub use zng_view_api::image::{
 /// A custom extension for the [`IMAGES`] service.
 ///
 /// Extensions can intercept and modify requests.
+///
+/// [`IMAGES`]: crate::IMAGES
 pub trait ImagesExtension: Send + Sync + Any {
     /// Modify a [`IMAGES.image`] request.
     ///
@@ -68,6 +70,8 @@ pub trait ImagesExtension: Send + Sync + Any {
     /// is bound to the return variable and lives as long as it does.
     ///
     /// Note that the [`IMAGES`] service can be used in extensions.
+    ///
+    /// [`IMAGES`]: crate::IMAGES
     #[allow(clippy::too_many_arguments)]
     fn image_data(
         &mut self,
@@ -105,12 +109,12 @@ pub trait ImagesExtension: Send + Sync + Any {
         let _ = purge;
     }
 
-    /// Add or remove formats this proxy affects.
+    /// Add or remove formats this extension affects.
     ///
     /// The `formats` value starts with all formats implemented by the current view-process and will be returned
     /// by [`IMAGES.available_formats`] after all proxies edit it.
     ///
-    /// [`IMAGES.available_formats`]: IMAGES::available_formats
+    /// [`IMAGES.available_formats`]: crate::IMAGES::available_formats
     fn available_formats(&self, formats: &mut Vec<ImageFormat>) {
         let _ = formats;
     }
