@@ -1264,7 +1264,7 @@ bitflags::bitflags! {
 bitflags::bitflags! {
     /// Window operations the view-process implements.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-    pub struct WindowCapability: u32 {
+    pub struct WindowCapability: u64 {
         /// Can set title text.
         const SET_TITLE = 1 << 0;
         /// Can set window visible.
@@ -1328,5 +1328,11 @@ bitflags::bitflags! {
         const DISABLE_MINIMIZE_BUTTON = (1 << 25);
         /// Can disable maximize button.
         const DISABLE_MAXIMIZE_BUTTON = (1 << 26);
+
+        /// Can set a system shutdown warning/blocker associated with the window.
+        const SET_SYSTEM_SHUTDOWN_WARN = (1 << 27);
+
+        /// Can set the IME area, show virtual keyboard.
+        const SET_IME_AREA = (1 << 28);
     }
 }

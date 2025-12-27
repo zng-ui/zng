@@ -1838,6 +1838,7 @@ impl Api for App {
             inited.window |= WindowCapability::SET_ICON;
             inited.window |= WindowCapability::SET_TASKBAR_VISIBLE;
             inited.window |= WindowCapability::OPEN_TITLE_BAR_CONTEXT_MENU;
+            inited.window |= WindowCapability::SET_SYSTEM_SHUTDOWN_WARN;
         }
         if !headless && !cfg!(target_os = "android") && !cfg!(target_os = "macos") {
             inited.window |= WindowCapability::DRAG_RESIZE;
@@ -1850,12 +1851,13 @@ impl Api for App {
             inited.window |= WindowCapability::EXCLUSIVE;
             inited.window |= WindowCapability::SET_POSITION;
         }
-        if !headless & cfg!(windows) || cfg!(target_os = "macos") {
+        if !headless & (cfg!(windows) || cfg!(target_os = "macos")) {
             // Winit says "not implemented" for Wayland/x11 so may be in the future?
             inited.window |= WindowCapability::DISABLE_CLOSE_BUTTON;
             inited.window |= WindowCapability::DISABLE_MINIMIZE_BUTTON;
             inited.window |= WindowCapability::DISABLE_MAXIMIZE_BUTTON;
         }
+        inited.window |= WindowCapability::SET_IME_AREA;
         // TODO, this is not implemented (could make this true when SET_POSITION, and reset position when disabled)
         // inited.window |= WindowCapability::SET_MOVABLE;
 
