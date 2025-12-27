@@ -359,6 +359,25 @@ impl FileDialogResponse {
     }
 }
 
+bitflags::bitflags! {
+    /// Dialog operations the view-process implements.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    pub struct DialogCapability: u32 {
+        /// View-process can show message dialogs.
+        const MESSAGE = 1 << 0;
+        /// View-process can show single file picker.
+        const OPEN_FILE = 1 << 1;
+        /// View-process can show multi file picker.
+        const OPEN_FILES = 1 << 2;
+        /// View-process can show save single file picker.
+        const SAVE_FILE = 1 << 3;
+        /// View-process can show single directory picker.
+        const SELECT_FOLDER = 1 << 4;
+        /// View-process chan show multi directory picker.
+        const SELECT_FOLDERS = 1 << 5;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

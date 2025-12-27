@@ -125,6 +125,9 @@ pub struct ViewProcessInfo {
     /// Window operations implemented by the view-process.
     pub window: crate::window::WindowCapability,
 
+    /// Dialog operations implemented by the view-process.
+    pub dialog: crate::dialog::DialogCapability,
+
     /// Image decode and encode capabilities implemented by the view-process.
     pub image: Vec<crate::image::ImageFormat>,
 
@@ -144,6 +147,7 @@ impl ViewProcessInfo {
             is_respawn,
             input_device: InputDeviceCapability::empty(),
             window: crate::window::WindowCapability::empty(),
+            dialog: crate::dialog::DialogCapability::empty(),
             image: vec![],
             audio: vec![],
             extensions: ApiExtensions::new(),

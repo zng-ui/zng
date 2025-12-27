@@ -1805,7 +1805,12 @@ impl Api for App {
 
         let mut inited = ViewProcessInfo::new(vp_gen, is_respawn);
         if !headless {
-            inited.input_device = InputDeviceCapability::all();
+            // winit supports all these
+            inited.input_device |= InputDeviceCapability::KEY;
+            inited.input_device |= InputDeviceCapability::BUTTON;
+            inited.input_device |= InputDeviceCapability::SCROLL_MOTION;
+            inited.input_device |= InputDeviceCapability::AXIS_MOTION;
+            inited.input_device |= InputDeviceCapability::POINTER_MOTION;
         }
         inited.image = crate::image_cache::FORMATS.to_vec();
         inited.extensions = self.exts.api_extensions();
@@ -1845,16 +1850,25 @@ impl Api for App {
             inited.window |= WindowCapability::EXCLUSIVE;
             inited.window |= WindowCapability::SET_POSITION;
         }
-
         if !headless & cfg!(windows) || cfg!(target_os = "macos") {
             // Winit says "not implemented" for Wayland/x11 so may be in the future?
             inited.window |= WindowCapability::DISABLE_CLOSE_BUTTON;
             inited.window |= WindowCapability::DISABLE_MINIMIZE_BUTTON;
             inited.window |= WindowCapability::DISABLE_MAXIMIZE_BUTTON;
         }
-
         // TODO, this is not implemented (could make this true when SET_POSITION, and reset position when disabled)
         // inited.window |= WindowCapability::SET_MOVABLE;
+
+        use zng_view_api::dialog::DialogCapability;
+        if !headless && !cfg!(target_os = "android") {
+            // rfd crate supports all these
+            inited.dialog |= DialogCapability::MESSAGE;
+            inited.dialog |= DialogCapability::OPEN_FILE;
+            inited.dialog |= DialogCapability::OPEN_FILES;
+            inited.dialog |= DialogCapability::SAVE_FILE;
+            inited.dialog |= DialogCapability::SELECT_FOLDER;
+            inited.dialog |= DialogCapability::SELECT_FOLDERS;
+        }
 
         self.notify(Event::Inited(inited));
 
