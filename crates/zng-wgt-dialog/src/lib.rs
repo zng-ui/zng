@@ -15,6 +15,7 @@ use std::{fmt, ops, path::PathBuf, sync::Arc};
 
 use bitflags::bitflags;
 use parking_lot::Mutex;
+use zng_app::view_process::VIEW_PROCESS;
 use zng_ext_l10n::l10n;
 use zng_ext_window::{WINDOW_CLOSE_REQUESTED_EVENT, WINDOWS};
 use zng_var::{ContextInitHandle, animation::easing};
@@ -35,7 +36,7 @@ use zng_wgt_wrap::Wrap;
 
 pub mod backdrop;
 
-pub use zng_view_api::dialog::{FileDialogFilters, FileDialogResponse};
+pub use zng_view_api::dialog::{DialogCapability as NativeDialogCapacity, FileDialogFilters, FileDialogResponse};
 
 /// A modal dialog overlay container.
 #[widget($crate::Dialog)]
@@ -779,6 +780,11 @@ impl DIALOG {
     /// Note that some dialogs only have the native implementation as of this release.
     pub fn native_dialogs(&self) -> Var<DialogKind> {
         DIALOG_SV.read().native_dialogs.clone()
+    }
+
+    /// Native dialogs implemented by the current view-process.
+    pub fn available_native_dialogs(&self) -> NativeDialogCapacity {
+        VIEW_PROCESS.info().dialog
     }
 }
 bitflags! {

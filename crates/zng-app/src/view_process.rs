@@ -1661,8 +1661,13 @@ impl ViewClipboard {
     ///
     /// [`ClipboardType::Text`]: zng_view_api::clipboard::ClipboardType::Text
     pub fn read_text(&self) -> Result<ClipboardResult<Txt>> {
-        match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::Text)? {
-            Ok(ClipboardData::Text(t)) => Ok(Ok(t)),
+        match VIEW_PROCESS
+            .try_write()?
+            .process
+            .read_clipboard(vec![ClipboardType::Text], true)?
+            .map(|mut r| r.pop())
+        {
+            Ok(Some(ClipboardData::Text(t))) => Ok(Ok(t)),
             Err(e) => Ok(Err(e)),
             _ => Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned incorrect type")))),
         }
@@ -1672,7 +1677,11 @@ impl ViewClipboard {
     ///
     /// [`ClipboardType::Text`]: zng_view_api::clipboard::ClipboardType::Text
     pub fn write_text(&self, txt: Txt) -> Result<ClipboardResult<()>> {
-        VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::Text(txt))
+        VIEW_PROCESS
+            .try_write()?
+            .process
+            .write_clipboard(vec![ClipboardData::Text(txt)])
+            .map(|r| r.map(|_| ()))
     }
 
     /// Read [`ClipboardType::Image`].
@@ -1680,8 +1689,8 @@ impl ViewClipboard {
     /// [`ClipboardType::Image`]: zng_view_api::clipboard::ClipboardType::Image
     pub fn read_image(&self) -> Result<ClipboardResult<ViewImage>> {
         let mut app = VIEW_PROCESS.try_write()?;
-        match app.process.read_clipboard(ClipboardType::Image)? {
-            Ok(ClipboardData::Image(id)) => {
+        match app.process.read_clipboard(vec![ClipboardType::Image], true)?.map(|mut r| r.pop()) {
+            Ok(Some(ClipboardData::Image(id))) => {
                 if id == ImageId::INVALID {
                     Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned invalid image"))))
                 } else {
@@ -1716,7 +1725,11 @@ impl ViewClipboard {
         if img.is_loaded()
             && let Some(id) = img.id()
         {
-            return VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::Image(id));
+            return VIEW_PROCESS
+                .try_write()?
+                .process
+                .write_clipboard(vec![ClipboardData::Image(id)])
+                .map(|r| r.map(|_| ()));
         }
         Ok(Err(ClipboardError::Other(Txt::from_static("image not loaded"))))
     }
@@ -1725,8 +1738,13 @@ impl ViewClipboard {
     ///
     /// [`ClipboardType::FileList`]: zng_view_api::clipboard::ClipboardType::FileList
     pub fn read_file_list(&self) -> Result<ClipboardResult<Vec<PathBuf>>> {
-        match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::FileList)? {
-            Ok(ClipboardData::FileList(f)) => Ok(Ok(f)),
+        match VIEW_PROCESS
+            .try_write()?
+            .process
+            .read_clipboard(vec![ClipboardType::FileList], true)?
+            .map(|mut r| r.pop())
+        {
+            Ok(Some(ClipboardData::FileList(f))) => Ok(Ok(f)),
             Err(e) => Ok(Err(e)),
             _ => Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned incorrect type")))),
         }
@@ -1736,7 +1754,11 @@ impl ViewClipboard {
     ///
     /// [`ClipboardType::FileList`]: zng_view_api::clipboard::ClipboardType::FileList
     pub fn write_file_list(&self, list: Vec<PathBuf>) -> Result<ClipboardResult<()>> {
-        VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::FileList(list))
+        VIEW_PROCESS
+            .try_write()?
+            .process
+            .write_clipboard(vec![ClipboardData::FileList(list)])
+            .map(|r| r.map(|_| ()))
     }
 
     /// Read [`ClipboardType::Extension`].
@@ -1746,9 +1768,10 @@ impl ViewClipboard {
         match VIEW_PROCESS
             .try_write()?
             .process
-            .read_clipboard(ClipboardType::Extension(data_type.clone()))?
+            .read_clipboard(vec![ClipboardType::Extension(data_type.clone())], true)?
+            .map(|mut r| r.pop())
         {
-            Ok(ClipboardData::Extension { data_type: rt, data }) if rt == data_type => Ok(Ok(data)),
+            Ok(Some(ClipboardData::Extension { data_type: rt, data })) if rt == data_type => Ok(Ok(data)),
             Err(e) => Ok(Err(e)),
             _ => Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned incorrect type")))),
         }
@@ -1761,7 +1784,8 @@ impl ViewClipboard {
         VIEW_PROCESS
             .try_write()?
             .process
-            .write_clipboard(ClipboardData::Extension { data_type, data })
+            .write_clipboard(vec![ClipboardData::Extension { data_type, data }])
+            .map(|r| r.map(|_| ()))
     }
 }
 

@@ -107,6 +107,10 @@ pub struct AxisId(pub u32);
 pub struct DragDropId(pub u32);
 
 /// View-process implementation info.
+///
+/// The view-process implementation may not cover the full API, depending on operating system, build, headless mode.
+/// When the view-process does not implement something it just logs an error and ignores the request, this struct contains
+/// detailed info about what operations are available in the view-process instance.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ViewProcessInfo {
@@ -118,7 +122,15 @@ pub struct ViewProcessInfo {
     /// Input device events implemented by the view-process.
     pub input_device: InputDeviceCapability,
 
-    // TODO more
+    /// Window operations implemented by the view-process.
+    pub window: crate::window::WindowCapability,
+
+    /// Dialog operations implemented by the view-process.
+    pub dialog: crate::dialog::DialogCapability,
+
+    /// Clipboard data types and operations implemented by the view-process.
+    pub clipboard: crate::clipboard::ClipboardTypes,
+
     /// Image decode and encode capabilities implemented by the view-process.
     pub image: Vec<crate::image::ImageFormat>,
 
@@ -137,6 +149,9 @@ impl ViewProcessInfo {
             generation,
             is_respawn,
             input_device: InputDeviceCapability::empty(),
+            window: crate::window::WindowCapability::empty(),
+            dialog: crate::dialog::DialogCapability::empty(),
+            clipboard: crate::clipboard::ClipboardTypes::new(vec![], vec![], false),
             image: vec![],
             audio: vec![],
             extensions: ApiExtensions::new(),

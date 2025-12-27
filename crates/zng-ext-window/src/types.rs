@@ -15,7 +15,7 @@ use zng_unique_id::IdSet;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::window::{CursorIcon, EventCause};
 
-pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState};
+pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowButton, WindowCapability, WindowState};
 use zng_wgt::prelude::IntoUiNode;
 
 use crate::{HeadlessMonitor, WINDOWS};

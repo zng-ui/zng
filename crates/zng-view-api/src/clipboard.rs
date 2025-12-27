@@ -34,7 +34,7 @@ pub enum ClipboardData {
 }
 
 /// Clipboard data type.
-#[derive(Debug, Clone, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
 pub enum ClipboardType {
     /// A [`ClipboardData::Text`].
@@ -70,3 +70,22 @@ impl fmt::Display for ClipboardError {
     }
 }
 impl std::error::Error for ClipboardError {}
+
+/// Clipboard types and operations implemented by the view-process.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub struct ClipboardTypes {
+    /// Data formats that the implementation can read.
+    pub read: Vec<ClipboardType>,
+
+    /// Data formats that the implementation can write.
+    pub write: Vec<ClipboardType>,
+    /// Implementation can put multiple data on the clipboard at the same time.
+    pub write_multi: bool,
+}
+impl ClipboardTypes {
+    /// New.
+    pub fn new(read: Vec<ClipboardType>, write: Vec<ClipboardType>, write_multi: bool) -> Self {
+        Self { read, write, write_multi }
+    }
+}

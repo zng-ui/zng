@@ -1260,3 +1260,79 @@ bitflags::bitflags! {
         const MAXIMIZE = 1 << 2;
     }
 }
+
+bitflags::bitflags! {
+    /// Window operations the view-process implements.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub struct WindowCapability: u64 {
+        /// Can set title text.
+        const SET_TITLE = 1 << 0;
+        /// Can set window visible.
+        const SET_VISIBLE = 1 << 1;
+        /// Can make window "topmost".
+        const SET_ALWAYS_ON_TOP = 1 << 2;
+        /// Can change if window can be dragged by the user.
+        const SET_MOVABLE = 1 << 3;
+        /// Can change if window can be resized by the user.
+        const SET_RESIZABLE = 1 << 4;
+        /// Can make window icon not appear on the taskbar while the window remains visible.
+        const SET_TASKBAR_VISIBLE = 1 << 5;
+        /// Can force window to appear in front of other apps, without focusing input.
+        const BRING_TO_TOP = 1 << 6;
+        /// Can set the window icon.
+        ///
+        /// When this is not possible the system specific application metadata icon is used for all windows of the app.
+        const SET_ICON = 1 << 7;
+        /// Can set the window cursor to one of the named [`CursorIcon`].
+        const SET_CURSOR = 1 << 8;
+        /// Can set the window cursor to a custom image.
+        const SET_CURSOR_IMAGE = 1 << 9;
+        /// Can set attention indicator for the window.
+        const SET_FOCUS_INDICATOR = 1 << 10;
+        /// Can focus input on the window.
+        ///
+        /// This is also true if can the system only shows an attention indicator for the window some times.
+        const FOCUS = 1 << 11;
+        /// Can initiate a window move operation from a mouse press in the content area.
+        const DRAG_MOVE = 1 << 12;
+        /// Can initiate a window resize operation from a mouse press in the content area.
+        const DRAG_RESIZE = 1 << 13;
+        /// Can open the system context menu that usually shows on right click on the title bar.
+        const OPEN_TITLE_BAR_CONTEXT_MENU = 1 << 14;
+
+        /// If operating system or view-process implementation provides a default window chrome (title bar, resize borders).
+        const SYSTEM_CHROME = 1 << 15;
+
+        /// Can minimize window.
+        const MINIMIZE = (1 << 16);
+        /// Can restore window to *normal*.
+        const RESTORE = (1 << 17);
+        /// Can maximize window.
+        const MAXIMIZE = (1 << 18);
+        /// Can make window fullscreen.
+        const FULLSCREEN = (1 << 19);
+        /// Can takeover video output to show only the window content.
+        const EXCLUSIVE = (1 << 20);
+
+        /// Can toggle if the system chrome (title bar, resize border) is visible.
+        const SET_CHROME = (1 << 21) | Self::SYSTEM_CHROME.bits();
+        /// Can programmatically move window after it is open.
+        const SET_POSITION = (1 << 22);
+
+        /// Can programmatically resize window after it is open.
+        const SET_SIZE = (1 << 23);
+
+        /// Can disable close button.
+        const DISABLE_CLOSE_BUTTON = (1 << 24);
+        /// Can disable minimize button.
+        const DISABLE_MINIMIZE_BUTTON = (1 << 25);
+        /// Can disable maximize button.
+        const DISABLE_MAXIMIZE_BUTTON = (1 << 26);
+
+        /// Can set a system shutdown warning/blocker associated with the window.
+        const SET_SYSTEM_SHUTDOWN_WARN = (1 << 27);
+
+        /// Can set the IME area, show virtual keyboard.
+        const SET_IME_AREA = (1 << 28);
+    }
+}

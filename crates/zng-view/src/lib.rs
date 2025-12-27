@@ -1805,10 +1805,86 @@ impl Api for App {
 
         let mut inited = ViewProcessInfo::new(vp_gen, is_respawn);
         if !headless {
-            inited.input_device = InputDeviceCapability::all();
+            // winit supports all these
+            inited.input_device |= InputDeviceCapability::KEY;
+            inited.input_device |= InputDeviceCapability::BUTTON;
+            inited.input_device |= InputDeviceCapability::SCROLL_MOTION;
+            inited.input_device |= InputDeviceCapability::AXIS_MOTION;
+            inited.input_device |= InputDeviceCapability::POINTER_MOTION;
         }
         inited.image = crate::image_cache::FORMATS.to_vec();
         inited.extensions = self.exts.api_extensions();
+
+        use zng_view_api::window::WindowCapability;
+        if !headless && !cfg!(target_os = "android") {
+            inited.window |= WindowCapability::SET_TITLE;
+            inited.window |= WindowCapability::SET_VISIBLE;
+            inited.window |= WindowCapability::SET_ALWAYS_ON_TOP;
+            inited.window |= WindowCapability::SET_RESIZABLE;
+            inited.window |= WindowCapability::BRING_TO_TOP;
+            inited.window |= WindowCapability::SET_CURSOR;
+            inited.window |= WindowCapability::SET_CURSOR_IMAGE;
+            inited.window |= WindowCapability::SET_FOCUS_INDICATOR;
+            inited.window |= WindowCapability::FOCUS;
+            inited.window |= WindowCapability::DRAG_MOVE;
+            inited.window |= WindowCapability::SYSTEM_CHROME;
+            inited.window |= WindowCapability::SET_CHROME;
+            inited.window |= WindowCapability::MINIMIZE;
+            inited.window |= WindowCapability::MAXIMIZE;
+            inited.window |= WindowCapability::FULLSCREEN;
+            inited.window |= WindowCapability::SET_SIZE;
+        }
+        if !headless & cfg!(windows) {
+            inited.window |= WindowCapability::SET_ICON;
+            inited.window |= WindowCapability::SET_TASKBAR_VISIBLE;
+            inited.window |= WindowCapability::OPEN_TITLE_BAR_CONTEXT_MENU;
+            inited.window |= WindowCapability::SET_SYSTEM_SHUTDOWN_WARN;
+        }
+        if !headless && !cfg!(target_os = "android") && !cfg!(target_os = "macos") {
+            inited.window |= WindowCapability::DRAG_RESIZE;
+        }
+        // not headless, not Android and not Wayland
+        if !headless && !cfg!(target_os = "android") && (!cfg!(unix) || std::env::var("WAYLAND_DISPLAY").is_err()) {
+            // Wayland can't restore from minimized.
+            inited.window |= WindowCapability::RESTORE;
+            // Wayland does not give video access.
+            inited.window |= WindowCapability::EXCLUSIVE;
+            inited.window |= WindowCapability::SET_POSITION;
+        }
+        if !headless & (cfg!(windows) || cfg!(target_os = "macos")) {
+            // Winit says "not implemented" for Wayland/x11 so may be in the future?
+            inited.window |= WindowCapability::DISABLE_CLOSE_BUTTON;
+            inited.window |= WindowCapability::DISABLE_MINIMIZE_BUTTON;
+            inited.window |= WindowCapability::DISABLE_MAXIMIZE_BUTTON;
+        }
+        inited.window |= WindowCapability::SET_IME_AREA;
+        // TODO, this is not implemented (could make this true when SET_POSITION, and reset position when disabled)
+        // inited.window |= WindowCapability::SET_MOVABLE;
+
+        use zng_view_api::dialog::DialogCapability;
+        if !headless && !cfg!(target_os = "android") {
+            // rfd crate supports all these
+            inited.dialog |= DialogCapability::MESSAGE;
+            inited.dialog |= DialogCapability::OPEN_FILE;
+            inited.dialog |= DialogCapability::OPEN_FILES;
+            inited.dialog |= DialogCapability::SAVE_FILE;
+            inited.dialog |= DialogCapability::SELECT_FOLDER;
+            inited.dialog |= DialogCapability::SELECT_FOLDERS;
+        }
+
+        use zng_view_api::clipboard::ClipboardType;
+
+        if !cfg!(target_os = "android") {
+            inited.clipboard.read.push(ClipboardType::Text);
+            inited.clipboard.read.push(ClipboardType::Image);
+            inited.clipboard.read.push(ClipboardType::FileList);
+
+            inited.clipboard.write.push(ClipboardType::Text);
+            inited.clipboard.write.push(ClipboardType::Image);
+            if cfg!(windows) {
+                inited.clipboard.write.push(ClipboardType::FileList);
+            }
+        }
 
         self.notify(Event::Inited(inited));
 
@@ -2216,8 +2292,18 @@ impl Api for App {
     }
 
     #[cfg(windows)]
-    fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
-        match data_type {
+    fn read_clipboard(
+        &mut self,
+        mut data_type: Vec<clipboard::ClipboardType>,
+        _first: bool,
+    ) -> Result<Vec<clipboard::ClipboardData>, clipboard::ClipboardError> {
+        if data_type.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // TODO implement multi data read
+
+        let single = match data_type.remove(0) {
             clipboard::ClipboardType::Text => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
@@ -2250,14 +2336,21 @@ impl Api for App {
             }
             clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
-        }
+        };
+        single.map(|d| vec![d])
     }
 
     #[cfg(windows)]
-    fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
+    fn write_clipboard(&mut self, mut data: Vec<clipboard::ClipboardData>) -> Result<usize, clipboard::ClipboardError> {
         use zng_txt::formatx;
 
-        match data {
+        if data.is_empty() {
+            return Ok(0);
+        }
+
+        // TODO implement multi data write
+
+        let r = match data.remove(0) {
             clipboard::ClipboardData::Text(t) => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
@@ -2287,13 +2380,23 @@ impl Api for App {
             }
             clipboard::ClipboardData::Extension { .. } => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
-        }
+        };
+
+        r.map(|()| 1)
     }
 
     #[cfg(not(any(windows, target_os = "android")))]
-    fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
+    fn read_clipboard(
+        &mut self,
+        mut data_type: Vec<clipboard::ClipboardType>,
+        _first: bool,
+    ) -> Result<Vec<clipboard::ClipboardData>, clipboard::ClipboardError> {
+        if data_type.is_empty() {
+            return Ok(vec![]);
+        }
+
         use zng_txt::ToTxt as _;
-        match data_type {
+        let single = match data_type.remove(0) {
             clipboard::ClipboardType::Text => self
                 .arboard()?
                 .get_text()
@@ -2326,12 +2429,18 @@ impl Api for App {
                 .map(clipboard::ClipboardData::FileList),
             clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
-        }
+        };
+
+        single.map(|e| vec![e])
     }
 
     #[cfg(not(any(windows, target_os = "android")))]
-    fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
-        match data {
+    fn write_clipboard(&mut self, mut data: Vec<clipboard::ClipboardData>) -> Result<usize, clipboard::ClipboardError> {
+        if data.is_empty() {
+            return Ok(0);
+        }
+
+        let r = match data.remove(0) {
             clipboard::ClipboardData::Text(t) => self.arboard()?.set_text(t).map_err(util::arboard_to_clip),
             clipboard::ClipboardData::Image(id) => {
                 self.arboard()?;
@@ -2355,11 +2464,21 @@ impl Api for App {
             clipboard::ClipboardData::FileList(_) => Err(clipboard::ClipboardError::NotSupported),
             clipboard::ClipboardData::Extension { .. } => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
-        }
+        };
+
+        r.map(|()| 1)
     }
 
     #[cfg(target_os = "android")]
-    fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
+    fn read_clipboard(
+        &mut self,
+        data_type: Vec<clipboard::ClipboardType>,
+        _first: bool,
+    ) -> Result<Vec<clipboard::ClipboardData>, clipboard::ClipboardError> {
+        if data_type.is_empty() {
+            return Ok(vec![]);
+        }
+
         let _ = data_type;
         Err(clipboard::ClipboardError::Other(Txt::from_static(
             "clipboard not implemented for Android",
@@ -2367,7 +2486,11 @@ impl Api for App {
     }
 
     #[cfg(target_os = "android")]
-    fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
+    fn write_clipboard(&mut self, data: Vec<clipboard::ClipboardData>) -> Result<usize, clipboard::ClipboardError> {
+        if data.is_empty() {
+            return Ok(0);
+        }
+
         let _ = data;
         Err(clipboard::ClipboardError::Other(Txt::from_static(
             "clipboard not implemented for Android",

@@ -940,6 +940,14 @@ impl WINDOWS {
         }
     }
 
+    /// Window operations supported by the current view-process instance for headed windows.
+    ///
+    /// Not all window operations may be available, depending on the operating system and build. When an operation
+    /// is not available an error is logged and otherwise ignored.
+    pub fn available_operations(&self) -> crate::WindowCapability {
+        VIEW_PROCESS.info().window
+    }
+
     /// Update the reference to view window the renderer associated with the window.
     pub(super) fn set_view(&self, id: WindowId, view: ViewWindowOrHeadless) {
         if let Some(info) = WINDOWS_SV.write().windows_info.get_mut(&id) {
