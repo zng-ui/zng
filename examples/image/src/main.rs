@@ -10,9 +10,7 @@ use zng::{
         filter::{Filter, drop_shadow, filter, mix_blend},
         gradient::stops,
     },
-    image::{
-        self, IMAGES, ImageCacheMode, ImageEntriesMode, ImageFit, ImageLimits, ImgErrorArgs, img_error_fn, img_loading_fn, mask::mask_image,
-    },
+    image::{self, IMAGES, ImageEntriesMode, ImageFit, ImageLimits, ImgErrorArgs, img_error_fn, img_loading_fn, mask::mask_image},
     layout::{align, margin, padding, size},
     mouse,
     prelude::*,
@@ -805,14 +803,9 @@ fn multi_image_container() -> UiNode {
         child = Text!("Multi Image Container");
         on_click = hn!(|_| {
             WINDOWS.open(async {
-                let ico = IMAGES.image(
-                    zng::env::res("test-icon.ico"),
-                    ImageCacheMode::Cache,
-                    None,
-                    None,
-                    None,
-                    ImageEntriesMode::REDUCED,
-                );
+                let mut opt = zng::image::ImageOptions::cache();
+                opt.entries = ImageEntriesMode::REDUCED;
+                let ico = IMAGES.image(zng::env::res("test-icon.ico"), opt, None);
                 let entries = ico.map(|i| {
                     let mut entries: Vec<_> = i.entries().into_iter().map(VarEq).collect();
                     entries.insert(0, VarEq(i.clone().into_var()));

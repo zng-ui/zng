@@ -27,7 +27,7 @@ use zng_txt::Txt;
 use zng_var::{Var, VarEq, animation::Transitionable, impl_from_and_into_var};
 use zng_view_api::image::ImageTextureId;
 
-use crate::render::ImageRenderWindowRoot;
+use crate::{ImageOptions, render::ImageRenderWindowRoot};
 
 pub use zng_view_api::image::{
     ColorType, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageFormat, ImageFormatCapability, ImageMaskMode,
@@ -48,16 +48,8 @@ pub trait ImagesExtension: Send + Sync + Any {
     ///
     /// [`IMAGES.image`]: crate::IMAGES::image
     /// [`IMAGES`]: crate::IMAGES
-    fn image(
-        &mut self,
-        limits: &ImageLimits,
-        source: &mut ImageSource,
-        mode: &mut ImageCacheMode,
-        downscale: &mut Option<ImageDownscaleMode>,
-        mask: &mut Option<ImageMaskMode>,
-        entries: &mut ImageEntriesMode,
-    ) {
-        let _ = (limits, source, mode, downscale, mask, entries);
+    fn image(&mut self, limits: &ImageLimits, source: &mut ImageSource, options: &mut ImageOptions) {
+        let _ = (limits, source, options);
     }
 
     /// Image data loaded.
@@ -79,12 +71,9 @@ pub trait ImagesExtension: Send + Sync + Any {
         key: &ImageHash,
         data: &IpcBytes,
         format: &ImageDataFormat,
-        mode: ImageCacheMode,
-        downscale: Option<&ImageDownscaleMode>,
-        mask: Option<ImageMaskMode>,
-        entries: ImageEntriesMode,
+        options: &ImageOptions,
     ) -> Option<ImageVar> {
-        let _ = (max_decoded_len, key, data, format, mode, downscale, mask, entries);
+        let _ = (max_decoded_len, key, data, format, options);
         None
     }
 
@@ -926,18 +915,13 @@ impl ImageSource {
     }
 
     /// Returns the image hash, unless the source is [`Img`].
-    pub fn hash128(
-        &self,
-        downscale: Option<&ImageDownscaleMode>,
-        mask: Option<ImageMaskMode>,
-        entries: ImageEntriesMode,
-    ) -> Option<ImageHash> {
+    pub fn hash128(&self, options: &ImageOptions) -> Option<ImageHash> {
         match self {
-            ImageSource::Read(p) => Some(Self::hash128_read(p, downscale, mask, entries)),
+            ImageSource::Read(p) => Some(Self::hash128_read(p, options)),
             #[cfg(feature = "http")]
-            ImageSource::Download(u, a) => Some(Self::hash128_download(u, a, downscale, mask, entries)),
-            ImageSource::Data(h, _, _) => Some(Self::hash128_data(*h, downscale, mask, entries)),
-            ImageSource::Render(rfn, args) => Some(Self::hash128_render(rfn, args, downscale, mask, entries)),
+            ImageSource::Download(u, a) => Some(Self::hash128_download(u, a, options)),
+            ImageSource::Data(h, _, _) => Some(Self::hash128_data(*h, options)),
+            ImageSource::Render(rfn, args) => Some(Self::hash128_render(rfn, args, options)),
             ImageSource::Image(_) => None,
         }
     }
@@ -945,19 +929,14 @@ impl ImageSource {
     /// Compute hash for a borrowed [`Data`] image.
     ///
     /// [`Data`]: Self::Data
-    pub fn hash128_data(
-        data_hash: ImageHash,
-        downscale: Option<&ImageDownscaleMode>,
-        mask: Option<ImageMaskMode>,
-        entries: ImageEntriesMode,
-    ) -> ImageHash {
-        if downscale.is_some() || mask.is_some() {
+    pub fn hash128_data(data_hash: ImageHash, options: &ImageOptions) -> ImageHash {
+        if options.downscale.is_some() || options.mask.is_some() || !options.entries.is_empty() {
             use std::hash::Hash;
             let mut h = ImageHash::hasher();
             data_hash.0.hash(&mut h);
-            downscale.hash(&mut h);
-            mask.hash(&mut h);
-            entries.hash(&mut h);
+            options.downscale.hash(&mut h);
+            options.mask.hash(&mut h);
+            options.entries.hash(&mut h);
             h.finish()
         } else {
             data_hash
@@ -967,19 +946,14 @@ impl ImageSource {
     /// Compute hash for a borrowed [`Read`] path.
     ///
     /// [`Read`]: Self::Read
-    pub fn hash128_read(
-        path: &Path,
-        downscale: Option<&ImageDownscaleMode>,
-        mask: Option<ImageMaskMode>,
-        entries: ImageEntriesMode,
-    ) -> ImageHash {
+    pub fn hash128_read(path: &Path, options: &ImageOptions) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         0u8.hash(&mut h);
         path.hash(&mut h);
-        downscale.hash(&mut h);
-        mask.hash(&mut h);
-        entries.hash(&mut h);
+        options.downscale.hash(&mut h);
+        options.mask.hash(&mut h);
+        options.entries.hash(&mut h);
         h.finish()
     }
 
@@ -987,21 +961,15 @@ impl ImageSource {
     ///
     /// [`Download`]: Self::Download
     #[cfg(feature = "http")]
-    pub fn hash128_download(
-        uri: &crate::task::http::Uri,
-        accept: &Option<Txt>,
-        downscale: Option<&ImageDownscaleMode>,
-        mask: Option<ImageMaskMode>,
-        entries: ImageEntriesMode,
-    ) -> ImageHash {
+    pub fn hash128_download(uri: &crate::task::http::Uri, accept: &Option<Txt>, options: &ImageOptions) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         1u8.hash(&mut h);
         uri.hash(&mut h);
         accept.hash(&mut h);
-        downscale.hash(&mut h);
-        mask.hash(&mut h);
-        entries.hash(&mut h);
+        options.downscale.hash(&mut h);
+        options.mask.hash(&mut h);
+        options.entries.hash(&mut h);
         h.finish()
     }
 
@@ -1010,21 +978,15 @@ impl ImageSource {
     /// Pointer equality is used to identify the node closure.
     ///
     /// [`Render`]: Self::Render
-    pub fn hash128_render(
-        rfn: &RenderFn,
-        args: &Option<ImageRenderArgs>,
-        downscale: Option<&ImageDownscaleMode>,
-        mask: Option<ImageMaskMode>,
-        entries: ImageEntriesMode,
-    ) -> ImageHash {
+    pub fn hash128_render(rfn: &RenderFn, args: &Option<ImageRenderArgs>, options: &ImageOptions) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         2u8.hash(&mut h);
         (Arc::as_ptr(rfn) as usize).hash(&mut h);
         args.hash(&mut h);
-        downscale.hash(&mut h);
-        mask.hash(&mut h);
-        entries.hash(&mut h);
+        options.downscale.hash(&mut h);
+        options.mask.hash(&mut h);
+        options.entries.hash(&mut h);
         h.finish()
     }
 }

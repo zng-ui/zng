@@ -1,10 +1,11 @@
 # Unreleased
 
 * Refactor `IMAGES` service extending.
-    - Removed `ImageCacheProxy` API.
+    - **Breaking** Removed `ImageCacheProxy` API.
     - Added similar `ImagesExtension` API.
     - All *proxy* behavior can be easy converted to new API.
     - SVG image extension now fully integrated.
+    - **Breaking** Grouped image config into a struct.
 
 * **Breaking** Length units `max`, `min` and `abs` now take by value.
 * Fix memory leak in `Var::flat_map_vec` when the returned item var is a retained clone.

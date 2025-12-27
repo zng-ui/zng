@@ -5,7 +5,7 @@ use std::{
 };
 
 use zng_app::widget::info::InlineSegmentInfo;
-use zng_ext_image::{ColorType, IMAGES, ImageDataFormat, ImageSource, ImageVar};
+use zng_ext_image::{ColorType, IMAGES, ImageDataFormat, ImageOptions, ImageSource, ImageVar};
 use zng_ext_l10n::{Lang, lang};
 use zng_layout::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection, TextSegmentKind},
@@ -2900,7 +2900,7 @@ impl ShapedTextBuilder {
     }
 
     fn push_glyph_img(&mut self, glyphs_i: u32, source: ImageSource) {
-        let img = IMAGES.cache(source);
+        let img = IMAGES.image(source, ImageOptions::cache(), None);
 
         self.out.images.push((glyphs_i, GlyphImage(img)));
     }
