@@ -1810,6 +1810,52 @@ impl Api for App {
         inited.image = crate::image_cache::FORMATS.to_vec();
         inited.extensions = self.exts.api_extensions();
 
+        use zng_view_api::window::WindowCapability;
+        if !headless && !cfg!(target_os = "android") {
+            inited.window |= WindowCapability::SET_TITLE;
+            inited.window |= WindowCapability::SET_VISIBLE;
+            inited.window |= WindowCapability::SET_ALWAYS_ON_TOP;
+            inited.window |= WindowCapability::SET_RESIZABLE;
+            inited.window |= WindowCapability::BRING_TO_TOP;
+            inited.window |= WindowCapability::SET_CURSOR;
+            inited.window |= WindowCapability::SET_CURSOR_IMAGE;
+            inited.window |= WindowCapability::SET_FOCUS_INDICATOR;
+            inited.window |= WindowCapability::FOCUS;
+            inited.window |= WindowCapability::DRAG_MOVE;
+            inited.window |= WindowCapability::SYSTEM_CHROME;
+            inited.window |= WindowCapability::SET_CHROME;
+            inited.window |= WindowCapability::MINIMIZE;
+            inited.window |= WindowCapability::MAXIMIZE;
+            inited.window |= WindowCapability::FULLSCREEN;
+            inited.window |= WindowCapability::SET_SIZE;
+        }
+        if !headless & cfg!(windows) {
+            inited.window |= WindowCapability::SET_ICON;
+            inited.window |= WindowCapability::SET_TASKBAR_VISIBLE;
+            inited.window |= WindowCapability::OPEN_TITLE_BAR_CONTEXT_MENU;
+        }
+        if !headless && !cfg!(target_os = "android") && !cfg!(target_os = "macos") {
+            inited.window |= WindowCapability::DRAG_RESIZE;
+        }
+        // not headless, not Android and not Wayland
+        if !headless && !cfg!(target_os = "android") && (!cfg!(unix) || std::env::var("WAYLAND_DISPLAY").is_err()) {
+            // Wayland can't restore from minimized.
+            inited.window |= WindowCapability::RESTORE;
+            // Wayland does not give video access.
+            inited.window |= WindowCapability::EXCLUSIVE;
+            inited.window |= WindowCapability::SET_POSITION;
+        }
+
+        if !headless & cfg!(windows) || cfg!(target_os = "macos") {
+            // Winit says "not implemented" for Wayland/x11 so may be in the future?
+            inited.window |= WindowCapability::DISABLE_CLOSE_BUTTON;
+            inited.window |= WindowCapability::DISABLE_MINIMIZE_BUTTON;
+            inited.window |= WindowCapability::DISABLE_MAXIMIZE_BUTTON;
+        }
+
+        // TODO, this is not implemented (could make this true when SET_POSITION, and reset position when disabled)
+        // inited.window |= WindowCapability::SET_MOVABLE;
+
         self.notify(Event::Inited(inited));
 
         let available_monitors = self.available_monitors();

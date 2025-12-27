@@ -15,7 +15,7 @@
     - Added `IMAGES.available_formats` with `ImageFormat`.
     - **Breaking** View-process API event inited now has an `ViewProcessInfo` that contains implementation details.
     - **Breaking** Added `VIEW_PROCESS.info` and removed methods for specific capabilities.
-    - **Breaking** 
+    - Added `WINDOWS.available_operations` to probe what window operations are supported by the current view-process.
 
 * Fix `ImageVar` updates not propagating in some complex bindings.
 

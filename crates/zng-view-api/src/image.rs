@@ -572,18 +572,18 @@ bitflags! {
     ///
     /// Note that `DECODE` capability is omitted because the view-process can always decode formats.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-    pub struct ImageFormatCapability: u8 {
+    pub struct ImageFormatCapability: u32 {
         /// View-process can encode images in this format.
-        const ENCODE = 0b_0000_0001;
+        const ENCODE = 1 << 0;
         /// View-process can decode multiple containers of the format with multiple image entries.
-        const DECODE_ENTRIES = 0b_0000_0010;
+        const DECODE_ENTRIES = 1 << 1;
         /// View-process can encode multiple images into a single container of the format.
-        const ENCODE_ENTRIES = 0b_0000_0101;
+        const ENCODE_ENTRIES = (1 << 2) | ImageFormatCapability::ENCODE.bits();
         /// View-process can decode pixels as they are received.
         ///
         /// Note that the view-process can always handle progressive data by accumulating it and then decoding.
         /// The decoder can also decode the metadata before receiving all data, that does not count as progressive decoding either.
-        const DECODE_PROGRESSIVE = 0b_0000_1000;
+        const DECODE_PROGRESSIVE = 1 << 3;
     }
 }
 
