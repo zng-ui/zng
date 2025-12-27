@@ -2476,7 +2476,7 @@ impl Api for App {
         _first: bool,
     ) -> Result<Vec<clipboard::ClipboardData>, clipboard::ClipboardError> {
         if data_type.is_empty() {
-            return vec![];
+            return Ok(vec![]);
         }
 
         let _ = data_type;
