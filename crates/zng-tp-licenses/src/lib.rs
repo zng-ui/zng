@@ -297,7 +297,5 @@ macro_rules! include_bundle {
 #[cfg(feature = "bundle")]
 pub fn decode_licenses(bin: &[u8]) -> Vec<LicenseUsed> {
     let bin = inflate::inflate_bytes(bin).expect("invalid bundle deflate binary");
-    bincode::serde::decode_from_slice(&bin, bincode::config::standard())
-        .expect("invalid bundle bincode binary")
-        .0
+    bincode::deserialize(&bin).expect("invalid bundle bincode binary")
 }
