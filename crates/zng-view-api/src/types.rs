@@ -128,6 +128,9 @@ pub struct ViewProcessInfo {
     /// Dialog operations implemented by the view-process.
     pub dialog: crate::dialog::DialogCapability,
 
+    /// Clipboard data types and operations implemented by the view-process.
+    pub clipboard: crate::clipboard::ClipboardTypes,
+
     /// Image decode and encode capabilities implemented by the view-process.
     pub image: Vec<crate::image::ImageFormat>,
 
@@ -148,6 +151,7 @@ impl ViewProcessInfo {
             input_device: InputDeviceCapability::empty(),
             window: crate::window::WindowCapability::empty(),
             dialog: crate::dialog::DialogCapability::empty(),
+            clipboard: crate::clipboard::ClipboardTypes::new(vec![], vec![], false),
             image: vec![],
             audio: vec![],
             extensions: ApiExtensions::new(),

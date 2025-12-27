@@ -25,7 +25,9 @@ use zng_txt::{ToTxt, Txt};
 use zng_var::{ResponderVar, ResponseVar, response_var};
 use zng_wgt::{CommandIconExt as _, ICONS, wgt_fn};
 
-use zng_view_api::clipboard as clipboard_api;
+use zng_view_api::clipboard::{self as clipboard_api};
+
+pub use zng_view_api::clipboard::{ClipboardType, ClipboardTypes};
 
 /// Clipboard app extension.
 ///
@@ -284,6 +286,11 @@ impl CLIPBOARD {
     /// `Ok(false)` if another request made on the same update pass replaces this one or `Err(ClipboardError)`.
     pub fn set_extension(&self, data_type: impl Into<Txt>, data: IpcBytes) -> ResponseVar<Result<bool, ClipboardError>> {
         CLIPBOARD_SV.write().ext.request((data_type.into(), data))
+    }
+
+    /// Get what clipboard types and operations the current view-process implements.
+    pub fn available_types(&self) -> ClipboardTypes {
+        VIEW_PROCESS.info().clipboard.clone()
     }
 }
 

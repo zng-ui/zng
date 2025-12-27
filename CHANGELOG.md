@@ -10,13 +10,17 @@
 
 * **Breaking** `FileDialogFilters::push_filter` now accepts any `IntoIterator<Item=str>`.
 
+* Add support for multi data clipboards read and write.
+    - **Breaking** View-process API updated to take and return vectors of data.
+
 * Unify view-process capabilities info.
     - **Breaking** Removed `IMAGES.available_encoders/decoders`.
     - Added `IMAGES.available_formats` with `ImageFormat`.
     - **Breaking** View-process API event inited now has an `ViewProcessInfo` that contains implementation details.
     - **Breaking** Added `VIEW_PROCESS.info` and removed methods for specific capabilities.
-    - Added `WINDOWS.available_operations` to probe what window operations the view-process implements.
-    - Added `DIALOG.available_native_dialogs` to prove what native dialogs the view-process implements.
+    - Added `WINDOWS.available_operations` with what window operations the view-process implements.
+    - Added `DIALOG.available_native_dialogs` with what native dialogs the view-process implements.
+    - Added `CLIPBOARD.available_types` with what data types can be read/write by the view-process implementation.
 
 * Fix `ImageVar` updates not propagating in some complex bindings.
 

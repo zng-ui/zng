@@ -1870,6 +1870,20 @@ impl Api for App {
             inited.dialog |= DialogCapability::SELECT_FOLDERS;
         }
 
+        use zng_view_api::clipboard::ClipboardType;
+
+        if !cfg!(target_os = "android") {
+            inited.clipboard.read.push(ClipboardType::Text);
+            inited.clipboard.read.push(ClipboardType::Image);
+            inited.clipboard.read.push(ClipboardType::FileList);
+
+            inited.clipboard.write.push(ClipboardType::Text);
+            inited.clipboard.write.push(ClipboardType::Image);
+            if cfg!(windows) {
+                inited.clipboard.write.push(ClipboardType::FileList);
+            }
+        }
+
         self.notify(Event::Inited(inited));
 
         let available_monitors = self.available_monitors();
@@ -2276,8 +2290,18 @@ impl Api for App {
     }
 
     #[cfg(windows)]
-    fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
-        match data_type {
+    fn read_clipboard(
+        &mut self,
+        mut data_type: Vec<clipboard::ClipboardType>,
+        _first: bool,
+    ) -> Result<Vec<clipboard::ClipboardData>, clipboard::ClipboardError> {
+        if data_type.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // TODO implement multi data read
+
+        let single = match data_type.remove(0) {
             clipboard::ClipboardType::Text => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
@@ -2310,14 +2334,21 @@ impl Api for App {
             }
             clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
-        }
+        };
+        single.map(|d| vec![d])
     }
 
     #[cfg(windows)]
-    fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
+    fn write_clipboard(&mut self, mut data: Vec<clipboard::ClipboardData>) -> Result<usize, clipboard::ClipboardError> {
         use zng_txt::formatx;
 
-        match data {
+        if data.is_empty() {
+            return Ok(0);
+        }
+
+        // TODO implement multi data write
+
+        let r = match data.remove(0) {
             clipboard::ClipboardData::Text(t) => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
@@ -2347,13 +2378,23 @@ impl Api for App {
             }
             clipboard::ClipboardData::Extension { .. } => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
-        }
+        };
+
+        r.map(|()| 1)
     }
 
     #[cfg(not(any(windows, target_os = "android")))]
-    fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
+    fn read_clipboard(
+        &mut self,
+        mut data_type: Vec<clipboard::ClipboardType>,
+        _first: bool,
+    ) -> Result<Vec<clipboard::ClipboardData>, clipboard::ClipboardError> {
+        if data_type.is_empty() {
+            return Ok(vec![]);
+        }
+
         use zng_txt::ToTxt as _;
-        match data_type {
+        let single = match data_type.remove(0) {
             clipboard::ClipboardType::Text => self
                 .arboard()?
                 .get_text()
@@ -2386,12 +2427,18 @@ impl Api for App {
                 .map(clipboard::ClipboardData::FileList),
             clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
-        }
+        };
+
+        single.map(|e| vec![e])
     }
 
     #[cfg(not(any(windows, target_os = "android")))]
-    fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
-        match data {
+    fn write_clipboard(&mut self, mut data: Vec<clipboard::ClipboardData>) -> Result<usize, clipboard::ClipboardError> {
+        if data.is_empty() {
+            return Ok(0);
+        }
+
+        let r = match data.remove(0) {
             clipboard::ClipboardData::Text(t) => self.arboard()?.set_text(t).map_err(util::arboard_to_clip),
             clipboard::ClipboardData::Image(id) => {
                 self.arboard()?;
@@ -2415,11 +2462,21 @@ impl Api for App {
             clipboard::ClipboardData::FileList(_) => Err(clipboard::ClipboardError::NotSupported),
             clipboard::ClipboardData::Extension { .. } => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
-        }
+        };
+
+        r.map(|()| 1)
     }
 
     #[cfg(target_os = "android")]
-    fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
+    fn read_clipboard(
+        &mut self,
+        data_type: Vec<clipboard::ClipboardType>,
+        _first: bool,
+    ) -> Result<Vec<clipboard::ClipboardData>, clipboard::ClipboardError> {
+        if data_type.is_empty() {
+            return vec![];
+        }
+
         let _ = data_type;
         Err(clipboard::ClipboardError::Other(Txt::from_static(
             "clipboard not implemented for Android",
@@ -2427,7 +2484,11 @@ impl Api for App {
     }
 
     #[cfg(target_os = "android")]
-    fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
+    fn write_clipboard(&mut self, data: Vec<clipboard::ClipboardData>) -> Result<usize, clipboard::ClipboardError> {
+        if data.is_empty() {
+            return Ok(0);
+        }
+
         let _ = data;
         Err(clipboard::ClipboardError::Other(Txt::from_static(
             "clipboard not implemented for Android",

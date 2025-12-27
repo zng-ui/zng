@@ -112,5 +112,5 @@
 //!
 //! See [`zng_ext_clipboard`] for the full clipboard API.
 
-pub use zng_ext_clipboard::{CLIPBOARD, COPY_CMD, CUT_CMD, ClipboardError, PASTE_CMD};
+pub use zng_ext_clipboard::{CLIPBOARD, COPY_CMD, CUT_CMD, ClipboardError, ClipboardType, ClipboardTypes, PASTE_CMD};
 pub use zng_wgt_input::cmd::{can_copy, can_cut, can_paste, on_copy, on_cut, on_paste, on_pre_copy, on_pre_cut, on_pre_paste};

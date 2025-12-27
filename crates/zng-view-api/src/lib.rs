@@ -541,11 +541,21 @@ declare_api! {
     /// Returns the ID that identifies the response event.
     pub fn file_dialog(&mut self, id: WindowId, dialog: dialog::FileDialog) -> DialogId;
 
-    /// Get the clipboard content that matches the `data_type`.
-    pub fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<ClipboardData, ClipboardError>;
+    /// Get the clipboard content that matches the `data_types`.
+    ///
+    /// If `first` is true tries to read all data types requested and returns the first ok. If is false returns all requested data types ok.
+    pub fn read_clipboard(
+        &mut self,
+        data_types: Vec<clipboard::ClipboardType>,
+        first: bool,
+    ) -> Result<Vec<ClipboardData>, ClipboardError>;
 
     /// Set the clipboard content.
-    pub fn write_clipboard(&mut self, data: ClipboardData) -> Result<(), ClipboardError>;
+    ///
+    /// Returns the count of data types that where set, if at least one `data` is supported by the implementation
+    /// the operation is considered a success. If the implementation only support a single data entry the first
+    /// compatible entry is written.
+    pub fn write_clipboard(&mut self, data: Vec<ClipboardData>) -> Result<usize, ClipboardError>;
 
     /// Start a drag and drop operation, if the window is pressed.
     pub fn start_drag_drop(
