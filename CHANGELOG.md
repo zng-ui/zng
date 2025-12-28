@@ -1,5 +1,11 @@
 # Unreleased
 
+* Implemented local notifications.
+    - Added `DIALOG.notification`.
+    - **Breaking** Added to the view API.
+
+* Fix file dialog tasks never responding if the view-process crashes while the dialog is showing.
+
 * Refactor `IMAGES` service extending.
     - **Breaking** Removed `ImageCacheProxy` API.
     - Added similar `ImagesExtension` API.

@@ -1,6 +1,6 @@
 #![cfg(feature = "dialog")]
 
-//! Modal dialog overlay widget and service.
+//! Message dialogs, file and folder dialogs, notifications.
 //!
 //! The [`DIALOG`] service provides custom and modal native dialogs.
 //!
@@ -80,6 +80,46 @@
 //! # }
 //! ```
 //!
+//! # Local Notifications
+//!
+//! The service can also insert notifications in the system notification list.
+//!
+//! ```
+//! use zng::prelude::*:
+//!
+//! # async fn _demo(){
+//! let mut note = dialog::Notification::new("Test", "Test notification.");
+//! // optional *dismiss actions*
+//! note.push_action("action-1", "Action 1");
+//! note.push_action("action-2", "Action 2");
+//! // optional system cleanup timeout suggestion.
+//! note.timeout = Some(3.hours());
+//!
+//! // as explicit var to support updates
+//! let note = var(note);
+//!
+//! // insert the notification
+//! let r = DIALOG.notification(note.clone());
+//!
+//! // set a handler in case the notification is responded.
+//! r.on_rsp(hn!(|response| {
+//!     println!("Notification response: {response:?}");
+//! })).perm();
+//!
+//! // await for an explicit response up to 10 minutes.
+//! task::with_deadline(r.wait_done(), 10.minutes()).await;
+//! if r.is_waiting() {
+//!     // update the notification with a close request.
+//!     note.set(dialog::Notification::close());
+//! }
+//! # }
+//! ```
+//!
+//! The example above inserts a notification with two dismiss actions and sets a handler in case the notification is ever responded.
+//!
+//! Note that the notification is a variable, it can be updated and closed. Also note that care is taken to not keep awaiting for a response
+//! forever, notifications are not intrusive like other dialogs, users may never respond, the operating system may also ignore the timeout suggestion.
+//!
 //! [`Dialog!`]: struct@Dialog
 //!
 //! # Full API
@@ -88,8 +128,8 @@
 
 pub use zng_wgt_dialog::{
     AskStyle, ConfirmStyle, DIALOG, DefaultStyle, Dialog, DialogButtonArgs, DialogKind, ErrorStyle, FileDialogFilters, FileDialogResponse,
-    InfoStyle, Response, Responses, WarnStyle, ask_style_fn, confirm_style_fn, error_style_fn, info_style_fn, native_dialogs,
-    warn_style_fn,
+    InfoStyle, Notification, NotificationAction, NotificationResponse, Response, Responses, WarnStyle, ask_style_fn, confirm_style_fn,
+    error_style_fn, info_style_fn, native_dialogs, warn_style_fn,
 };
 
 /// Modal dialog parent widget that fills the window.

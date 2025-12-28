@@ -24,11 +24,11 @@ use zng_task::{
     channel::{self, ChannelError, IpcBytes, IpcReceiver},
 };
 use zng_txt::Txt;
-use zng_var::ResponderVar;
+use zng_var::{ResponderVar, Var, VarHandle};
 use zng_view_api::{
     self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen, ViewProcessInfo,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError},
-    dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
+    dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse, Notification, NotificationResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::{FontOptions, IpcFontBytes},
     image::{
@@ -75,6 +75,7 @@ struct ViewProcessService {
 
     message_dialogs: Vec<(zng_view_api::dialog::DialogId, ResponderVar<MsgDialogResponse>)>,
     file_dialogs: Vec<(zng_view_api::dialog::DialogId, ResponderVar<FileDialogResponse>)>,
+    notifications: Vec<(zng_view_api::dialog::DialogId, VarHandle, ResponderVar<NotificationResponse>)>,
 
     ping_count: u16,
 }
@@ -295,6 +296,26 @@ impl VIEW_PROCESS {
         }
     }
 
+    /// Register a native notification, either a popup or an entry in the system notifications list.
+    ///
+    /// If the `notification` var updates the notification content updates or closes.
+    ///
+    /// If the notification is responded the `responder` variable is set.
+    pub fn notification_dialog(&self, notification: Var<Notification>, responder: ResponderVar<NotificationResponse>) -> Result<()> {
+        let mut app = self.write();
+        let dlg_id = app.process.notification_dialog(notification.get())?;
+        let handle = notification.hook(move |n| {
+            let mut app = VIEW_PROCESS.write();
+            let retain = app.notifications.iter().any(|(id, _, _)| *id == dlg_id);
+            if retain {
+                app.process.update_notification(dlg_id, n.value().clone()).ok();
+            }
+            retain
+        });
+        app.notifications.push((dlg_id, handle, responder));
+        Ok(())
+    }
+
     /// Number of frame send that have not finished rendering.
     ///
     /// This is the sum of pending frames for all renderers.
@@ -375,6 +396,7 @@ impl VIEW_PROCESS {
             pending_frames: 0,
             message_dialogs: vec![],
             file_dialogs: vec![],
+            notifications: vec![],
             info: ViewProcessInfo::new(ViewProcessGen::INVALID, false),
             ping_count: 0,
         });
@@ -645,11 +667,25 @@ impl VIEW_PROCESS {
         }
     }
 
+    pub(crate) fn on_notification_dlg_response(&self, id: zng_view_api::dialog::DialogId, response: NotificationResponse) {
+        let mut app = self.write();
+        if let Some(i) = app.notifications.iter().position(|(i, _, _)| *i == id) {
+            let (_, _, r) = app.notifications.swap_remove(i);
+            r.respond(response);
+        }
+    }
+
     pub(super) fn on_respawned(&self, _gen: ViewProcessGen) {
         let mut app = self.write();
         app.pending_frames = 0;
         for (_, r) in app.message_dialogs.drain(..) {
             r.respond(MsgDialogResponse::Error(Txt::from_static("respawn")));
+        }
+        for (_, r) in app.file_dialogs.drain(..) {
+            r.respond(FileDialogResponse::Error(Txt::from_static("respawn")));
+        }
+        for (_, _, r) in app.notifications.drain(..) {
+            r.respond(NotificationResponse::Error(Txt::from_static("respawn")));
         }
     }
 

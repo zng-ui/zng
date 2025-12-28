@@ -421,6 +421,9 @@ impl<E: AppExtension> RunningApp<E> {
             Event::FileDialogResponse(id, response) => {
                 VIEW_PROCESS.on_file_dlg_response(id, response);
             }
+            Event::NotificationResponse(id, response) => {
+                VIEW_PROCESS.on_notification_dlg_response(id, response);
+            }
 
             // custom
             Event::ExtensionEvent(id, payload) => {

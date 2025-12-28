@@ -1,6 +1,6 @@
 //! Native dialog types.
 
-use std::{mem, path::PathBuf};
+use std::{mem, path::PathBuf, time::Duration};
 
 use zng_txt::Txt;
 
@@ -90,7 +90,7 @@ pub enum MsgDialogResponse {
     Cancel,
     /// Failed to show the message.
     ///
-    /// The associated string may contain debug information, caller should assume that native file dialogs
+    /// The associated text may contain debug information, caller should assume that native file dialogs
     /// are not available for the given window ID at the current view-process instance.
     Error(Txt),
 }
@@ -339,7 +339,7 @@ pub enum FileDialogResponse {
     Cancel,
     /// Failed to show the dialog.
     ///
-    /// The associated string may contain debug information, caller should assume that native file dialogs
+    /// The associated text may contain debug information, caller should assume that native file dialogs
     /// are not available for the given window ID at the current view-process instance.
     Error(Txt),
 }
@@ -359,6 +359,85 @@ impl FileDialogResponse {
     }
 }
 
+/// Defines a local notification item.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub struct Notification {
+    /// Single line to summarize the content.
+    pub summary: Txt,
+    /// The full notification content.
+    pub body: Txt,
+    /// Response buttons.
+    pub actions: Vec<NotificationAction>,
+    /// Maximum time to keep the notification on the list.
+    pub timeout: Option<Duration>,
+}
+impl Notification {
+    /// New.
+    pub fn new(summary: impl Into<Txt>, body: impl Into<Txt>) -> Self {
+        Self {
+            summary: summary.into(),
+            body: body.into(),
+            actions: vec![],
+            timeout: None,
+        }
+    }
+
+    /// New empty notification with immediate timeout.
+    ///
+    /// This is a special value that indicates the notification must be closed.
+    pub const fn close() -> Self {
+        Self {
+            summary: Txt::from_static(""),
+            body: Txt::from_static(""),
+            actions: vec![],
+            timeout: Some(Duration::ZERO),
+        }
+    }
+
+    /// Push a response action.
+    pub fn push_action(&mut self, id: impl Into<Txt>, label: impl Into<Txt>) {
+        self.actions.push(NotificationAction::new(id, label))
+    }
+}
+
+/// Define a response of a [`NotificationDialog`].
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub struct NotificationAction {
+    /// Unique identifier of the action.
+    pub id: Txt,
+    /// Display text of the action button.
+    pub label: Txt,
+}
+impl NotificationAction {
+    /// New.
+    pub fn new(id: impl Into<Txt>, label: impl Into<Txt>) -> Self {
+        Self {
+            id: id.into(),
+            label: label.into(),
+        }
+    }
+}
+
+/// Response to a notification dialog.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub enum NotificationResponse {
+    /// User dismissed the notification by requesting an action.
+    ///
+    /// The associated text is the [`NotificationAction::id`].
+    Action(Txt),
+    /// User dismissed the notification without requesting an action.
+    Dismissed,
+    /// Removed without user action. Can be due to timeout.
+    Removed,
+    /// Failed to show the notification.
+    ///
+    /// The associated text may contain debug information.
+    Error(Txt),
+}
+
 bitflags::bitflags! {
     /// Dialog operations the view-process implements.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -373,8 +452,16 @@ bitflags::bitflags! {
         const SAVE_FILE = 1 << 3;
         /// View-process can show single directory picker.
         const SELECT_FOLDER = 1 << 4;
-        /// View-process chan show multi directory picker.
+        /// View-process can show multi directory picker.
         const SELECT_FOLDERS = 1 << 5;
+        /// View-process can insert notifications in the system list.
+        const NOTIFICATION = 1 << 6;
+        /// View-process can show custom actions for dismissing the notification.
+        const NOTIFICATION_ACTIONS = (1 << 7) | Self::NOTIFICATION.bits();
+        /// View-process can handle the special close notification update that removes the notification.
+        const CLOSE_NOTIFICATION = (1 << 8) | Self::NOTIFICATION.bits();
+        /// View-process can update notification content.
+        const UPDATE_NOTIFICATION = (1 << 9) | Self::NOTIFICATION.bits();
     }
 }
 

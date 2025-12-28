@@ -2291,6 +2291,16 @@ impl Api for App {
         r_id
     }
 
+    fn notification_dialog(&mut self, dialog: dialog::Notification) -> DialogId {
+        let r_id = self.dialog_id_gen.incr();
+        // !!: TODO
+        r_id
+    }
+
+    fn update_notification(&mut self, id: DialogId, notification: dialog::Notification) {
+        // !!: TODO
+    }
+
     #[cfg(windows)]
     fn read_clipboard(
         &mut self,
