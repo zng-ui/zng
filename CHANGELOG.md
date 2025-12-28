@@ -1,5 +1,8 @@
 # Unreleased
 
+* Optimized `Txt`, now it is 24 bytes.
+    - **Breaking** `Txt::from_string` is no longer const.
+
 * Refactor `IMAGES` service extending.
     - **Breaking** Removed `ImageCacheProxy` API.
     - Added similar `ImagesExtension` API.
