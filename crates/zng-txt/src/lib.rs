@@ -11,7 +11,7 @@
 
 use std::{borrow::Cow, fmt, hash::Hash, mem, ops::Deref, sync::Arc};
 
-const INLINE_MAX: usize = mem::size_of::<usize>() * 3;
+const INLINE_MAX: usize = (mem::size_of::<usize>() * 3) - 1;
 
 fn inline_to_str(d: &[u8; INLINE_MAX]) -> &str {
     let utf8 = if let Some(i) = d.iter().position(|&b| b == b'\0') {
@@ -28,11 +28,14 @@ fn str_to_inline(s: &str) -> [u8; INLINE_MAX] {
 }
 
 #[derive(Clone)]
+#[repr(u8)]
 enum TxtData {
     Static(&'static str),
     Inline([u8; INLINE_MAX]),
-    String(String),
     Arc(Arc<str>),
+    // TxtData is 24 bytes
+    #[allow(clippy::box_collection)]
+    String(Box<String>),
 }
 impl fmt::Debug for TxtData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -71,7 +74,7 @@ impl Deref for TxtData {
         match self {
             TxtData::Static(s) => s,
             TxtData::Inline(d) => inline_to_str(d),
-            TxtData::String(s) => s,
+            TxtData::String(s) => s.as_str(),
             TxtData::Arc(s) => s,
         }
     }
@@ -128,8 +131,8 @@ impl Txt {
     /// If you don't plan to edit the text after this call consider using [`from_str`] instead.
     ///
     /// [`from_str`]: Self::from_str
-    pub const fn from_string(s: String) -> Txt {
-        Txt(TxtData::String(s))
+    pub fn from_string(s: String) -> Txt {
+        Txt(TxtData::String(Box::new(s)))
     }
 
     /// New cloned from `s`.
@@ -211,9 +214,9 @@ impl Txt {
     pub fn to_mut(&mut self) -> &mut String {
         self.0 = match mem::replace(&mut self.0, TxtData::Static("")) {
             TxtData::String(s) => TxtData::String(s),
-            TxtData::Static(s) => TxtData::String(s.to_owned()),
-            TxtData::Inline(d) => TxtData::String(inline_to_str(&d).to_owned()),
-            TxtData::Arc(s) => TxtData::String((*s).to_owned()),
+            TxtData::Static(s) => TxtData::String(Box::new(s.to_owned())),
+            TxtData::Inline(d) => TxtData::String(Box::new(inline_to_str(&d).to_owned())),
+            TxtData::Arc(s) => TxtData::String(Box::new((*s).to_owned())),
         };
 
         if let TxtData::String(s) = &mut self.0 { s } else { unreachable!() }
@@ -235,7 +238,7 @@ impl Txt {
     /// Turns the text to owned if it was borrowed.
     pub fn into_owned(self) -> String {
         match self.0 {
-            TxtData::String(s) => s,
+            TxtData::String(s) => *s,
             TxtData::Static(s) => s.to_owned(),
             TxtData::Inline(d) => inline_to_str(&d).to_owned(),
             TxtData::Arc(s) => (*s).to_owned(),
@@ -471,14 +474,14 @@ impl From<&'static str> for Txt {
 }
 impl From<String> for Txt {
     fn from(value: String) -> Self {
-        Txt(TxtData::String(value))
+        Txt(TxtData::String(Box::new(value)))
     }
 }
 impl From<Cow<'static, str>> for Txt {
     fn from(value: Cow<'static, str>) -> Self {
         match value {
             Cow::Borrowed(s) => Txt(TxtData::Static(s)),
-            Cow::Owned(s) => Txt(TxtData::String(s)),
+            Cow::Owned(s) => Txt(TxtData::String(Box::new(s))),
         }
     }
 }
@@ -496,7 +499,7 @@ impl From<Txt> for Cow<'static, str> {
     fn from(value: Txt) -> Self {
         match value.0 {
             TxtData::Static(s) => Cow::Borrowed(s),
-            TxtData::String(s) => Cow::Owned(s),
+            TxtData::String(s) => Cow::Owned(*s),
             TxtData::Inline(d) => Cow::Owned(inline_to_str(&d).to_owned()),
             TxtData::Arc(s) => Cow::Owned((*s).to_owned()),
         }

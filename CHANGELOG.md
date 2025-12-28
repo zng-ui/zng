@@ -5,6 +5,8 @@
     - **Breaking** Added to the view API.
 
 * Fix file dialog tasks never responding if the view-process crashes while the dialog is showing.
+* Optimized `Txt`, now it is 24 bytes.
+    - **Breaking** `Txt::from_string` is no longer const.
 
 * Refactor `IMAGES` service extending.
     - **Breaking** Removed `ImageCacheProxy` API.
