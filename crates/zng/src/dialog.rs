@@ -85,7 +85,7 @@
 //! The service can also insert notifications in the system notification list.
 //!
 //! ```
-//! use zng::prelude::*:
+//! use zng::prelude::*;
 //!
 //! # async fn _demo(){
 //! let mut note = dialog::Notification::new("Test", "Test notification.");

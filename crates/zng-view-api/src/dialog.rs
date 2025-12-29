@@ -401,7 +401,7 @@ impl Notification {
     }
 }
 
-/// Define a response of a [`NotificationDialog`].
+/// Define a response of a [`Notification`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
 pub struct NotificationAction {
