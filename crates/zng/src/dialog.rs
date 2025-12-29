@@ -104,7 +104,8 @@
 //! // set a handler in case the notification is responded.
 //! r.on_rsp(hn!(|response| {
 //!     println!("Notification response: {response:?}");
-//! })).perm();
+//! }))
+//! .perm();
 //!
 //! // await for an explicit response up to 10 minutes.
 //! task::with_deadline(r.wait_done(), 10.minutes()).await;
