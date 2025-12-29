@@ -689,7 +689,7 @@ fn dialogs() -> UiNode {
                     async_hn!(n, |_| {
                         let n = n.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-                        let mut note = zng::dialog::Notification::new(format!("Example {n}"), "Example notification with two actions.");
+                        let mut note = zng::dialog::Notification::new(format!("Example #{n}"), "Example notification with two actions.");
                         note.push_action("a-1", "Action 1");
                         note.push_action("a-2", "Action 2");
                         let note_var = var(note.clone());
@@ -711,10 +711,10 @@ fn dialogs() -> UiNode {
 
                         use zng::dialog::NotificationResponse as R;
                         match r.wait_rsp().await {
-                            R::Action(a) => tracing::info!("Notification {n} requested {a}"),
-                            R::Dismissed => tracing::info!("Notification {n} dismissed"),
-                            R::Removed => tracing::warn!("Notification {n} removed"),
-                            R::Error(e) => tracing::error!("Notification {n} error, {e}"),
+                            R::Action(a) => tracing::info!("Notification #{n} requested {a}"),
+                            R::Dismissed => tracing::info!("Notification #{n} dismissed"),
+                            R::Removed => tracing::warn!("Notification #{n} removed"),
+                            R::Error(e) => tracing::error!("Notification #{n} error, {e}"),
                             _ => unreachable!(),
                         }
                     })
