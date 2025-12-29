@@ -232,6 +232,7 @@ jni = { version = "0.21", default-features = false }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 softbuffer = { version = "0.4", default-features = false, features = ["kms", "wayland", "wayland-dlopen", "x11", "x11-dlopen"], optional = true }
+notify-rust = { version = "4.11.7", default-features = false, features = ["zbus", "serde"] }
 
 [build-dependencies]
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.7.0", default-features = false, features = [

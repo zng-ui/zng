@@ -390,6 +390,9 @@ pub(crate) struct App {
 
     config_listener_exit: Option<Box<dyn FnOnce()>>,
 
+    #[cfg(all(unix, not(target_os = "macos"), not(target_os = "android")))]
+    notifications: Vec<(DialogId, notify_rust::NotificationHandle)>,
+
     app_state: AppState,
     drag_drop_hovered: Option<(WindowId, DipPoint)>,
     drag_drop_next_move: Option<(Instant, PathBuf)>,
@@ -1419,6 +1422,8 @@ impl App {
             drag_drop_next_move: None,
             #[cfg(not(any(windows, target_os = "android")))]
             arboard: None,
+            #[cfg(all(unix, not(target_os = "macos"), not(target_os = "android")))]
+            notifications: vec![],
             low_memory_watcher: low_memory::LowMemoryWatcher::new(),
         }
     }
@@ -1871,9 +1876,18 @@ impl Api for App {
             inited.dialog |= DialogCapability::SELECT_FOLDER;
             inited.dialog |= DialogCapability::SELECT_FOLDERS;
         }
+        if !cfg!(target_os = "android") {
+            // current limited support of notify-rust
+            inited.dialog |= DialogCapability::NOTIFICATION;
+            if !cfg!(target_os = "macos") && !cfg!(windows) {
+                inited.dialog |= DialogCapability::NOTIFICATION_ACTIONS;
+                inited.dialog |= DialogCapability::UPDATE_NOTIFICATION;
+                // docs says the macOS NotificationHandle holds a connection but it does not.
+                inited.dialog |= DialogCapability::CLOSE_NOTIFICATION;
+            }
+        }
 
         use zng_view_api::clipboard::ClipboardType;
-
         if !cfg!(target_os = "android") {
             inited.clipboard.read.push(ClipboardType::Text);
             inited.clipboard.read.push(ClipboardType::Image);
@@ -2292,13 +2306,87 @@ impl Api for App {
     }
 
     fn notification_dialog(&mut self, dialog: dialog::Notification) -> DialogId {
-        let r_id = self.dialog_id_gen.incr();
-        // !!: TODO
-        r_id
+        let id = self.dialog_id_gen.incr();
+
+        #[cfg(target_os = "android")]
+        {
+            self.app_sender.send(AppEvent::Notify(Event::NotificationResponse(
+                id,
+                dialog::NotificationResponse::Error("notification_dialog not implemented for Android".into()),
+            )));
+            tracing::error!("notification_dialog not implemented for Android");
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            let mut n = notify_rust::Notification::new();
+            n.summary(&dialog.summary).body(&dialog.body);
+            if let Some(t) = dialog.timeout {
+                n.timeout(t);
+            }
+            for a in &dialog.actions {
+                n.action(&a.id, &a.label);
+            }
+            match n.show() {
+                #[cfg(windows)]
+                Ok(()) => {
+                    if !dialog.actions.is_empty() {
+                        tracing::warn!("notification actions not implemented for Windows");
+                    } else {
+                        tracing::warn!("notification dismiss signal not implemented for Windows");
+                    }
+                }
+                #[cfg(target_os = "macos")]
+                Ok(_handle) => {
+                    // Docs says something about holding connection, but it only holds the builder
+                }
+                #[cfg(all(unix, not(target_os = "macos")))] // not(android) too
+                Ok(handle) => {
+                    if !dialog.actions.is_empty() {}
+                    self.notifications.push((id, handle));
+                }
+                Err(e) => {
+                    use zng_txt::ToTxt as _;
+
+                    tracing::error!("failed to show notification, {e}");
+                    let _ = self.app_sender.send(AppEvent::Notify(Event::NotificationResponse(
+                        id,
+                        dialog::NotificationResponse::Error(e.to_txt()),
+                    )));
+                }
+            }
+        }
+
+        id
     }
 
-    fn update_notification(&mut self, id: DialogId, notification: dialog::Notification) {
-        // !!: TODO
+    fn update_notification(&mut self, id: DialogId, dialog: dialog::Notification) {
+        #[cfg(all(unix, not(target_os = "macos"), not(target_os = "android")))]
+        if let Some(i) = self.notifications.iter().position(|(id, _)| id == id) {
+            if let Some(t) = dialog.timeout {
+                if t == std::time::Duration::ZERO {
+                    self.notifications.swap_remove(i).1.close();
+                    return;
+                }
+            }
+            let mut n = &mut self.notifications[i].1;
+            n.summary(&dialog.summary).body(&dialog.body);
+            if let Some(t) = dialog.timeout {
+                n.timeout(t);
+            }
+            for a in &dialog.actions {
+                n.action(&a.id, &a.label);
+            }
+            n.update();
+        } else {
+            // user can have dismissed it
+            tracing::warn!("did not find notification {id:?} to update");
+        }
+
+        #[cfg(not(all(unix, not(target_os = "macos"), not(target_os = "android"))))]
+        {
+            let _ = (id, dialog);
+            tracing::error!("update_notification not implemented for {}", std::env::consts::OS);
+        }
     }
 
     #[cfg(windows)]
