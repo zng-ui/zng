@@ -1,5 +1,9 @@
 # Unreleased
 
+* Refactor `zng::env::About`.
+    - Added non-default feature `"parse"` for `zng-env` crate.
+    - **Breaking** The `parse_manifest` function is now optional.
+
 * Prebuilt view-process not has access to the `zng::env::about`.
 
 * Implemented local notifications.

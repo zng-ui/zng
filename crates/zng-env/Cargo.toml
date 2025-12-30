@@ -16,13 +16,15 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 #
 # Enabled by default in debug builds, ignored in Android and Wasm.
 built_res = []
+# Enable manifest metadata parsing.
+parse = ["toml"]
 
 [dependencies]
 zng-env-proc-macros = { path = "../zng-env-proc-macros", version = "0.5.0", default-features = false }
 directories = { version = "6.0", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
-toml = { version = "0.9", default-features = false, features = ["parse", "std", "serde"] }
+toml = { version = "0.9", default-features = false, features = ["parse", "std", "serde"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 semver = { version = "1.0", default-features = false, features = ["std", "serde"] }
 

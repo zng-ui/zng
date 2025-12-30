@@ -167,6 +167,7 @@ impl About {
     }
 
     /// Parse a Cargo.toml string.
+    #[cfg(feature = "parse")]
     pub fn parse_manifest(cargo_toml: &str) -> Result<Self, toml::de::Error> {
         let m: Manifest = toml::from_str(cargo_toml)?;
         let mut about = About {
