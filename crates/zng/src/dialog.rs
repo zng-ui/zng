@@ -102,8 +102,8 @@
 //! let r = DIALOG.notification(note.clone());
 //!
 //! // set a handler in case the notification is responded.
-//! r.on_rsp(hn!(|response| {
-//!     println!("Notification response: {response:?}");
+//! r.on_rsp(hn!(|a| {
+//!     println!("Notification response: {:?}", a.value);
 //! }))
 //! .perm();
 //!
