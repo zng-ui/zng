@@ -122,6 +122,7 @@ mod image_cache;
 #[cfg(windows)]
 mod input_device_info;
 mod low_memory;
+mod notification;
 mod px_wr;
 mod surface;
 mod util;
@@ -165,6 +166,8 @@ use zng_view_api::{
 };
 
 use rustc_hash::FxHashMap;
+
+use crate::notification::NotificationService;
 
 #[cfg(ipc)]
 zng_env::on_process_start!(|args| {
@@ -389,6 +392,8 @@ pub(crate) struct App {
     low_memory_watcher: Option<low_memory::LowMemoryWatcher>,
 
     config_listener_exit: Option<Box<dyn FnOnce()>>,
+
+    notifications: NotificationService,
 
     app_state: AppState,
     drag_drop_hovered: Option<(WindowId, DipPoint)>,
@@ -1419,6 +1424,7 @@ impl App {
             drag_drop_next_move: None,
             #[cfg(not(any(windows, target_os = "android")))]
             arboard: None,
+            notifications: NotificationService::default(),
             low_memory_watcher: low_memory::LowMemoryWatcher::new(),
         }
     }
@@ -1871,9 +1877,9 @@ impl Api for App {
             inited.dialog |= DialogCapability::SELECT_FOLDER;
             inited.dialog |= DialogCapability::SELECT_FOLDERS;
         }
+        inited.dialog |= self.notifications.capabilities();
 
         use zng_view_api::clipboard::ClipboardType;
-
         if !cfg!(target_os = "android") {
             inited.clipboard.read.push(ClipboardType::Text);
             inited.clipboard.read.push(ClipboardType::Image);
@@ -2289,6 +2295,16 @@ impl Api for App {
             let _ = self.app_sender.send(AppEvent::Notify(Event::MsgDialogResponse(r_id, r)));
         };
         r_id
+    }
+
+    fn notification_dialog(&mut self, dialog: dialog::Notification) -> DialogId {
+        let id = self.dialog_id_gen.incr();
+        self.notifications.notification_dialog(&self.app_sender, id, dialog);
+        id
+    }
+
+    fn update_notification(&mut self, id: DialogId, dialog: dialog::Notification) {
+        self.notifications.update_notification(&self.app_sender, id, dialog);
     }
 
     #[cfg(windows)]

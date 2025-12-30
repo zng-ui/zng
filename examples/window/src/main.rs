@@ -76,7 +76,7 @@ async fn main_window() -> window::WindowRoot {
                 Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_vec![screenshot(), misc(), native()];
+                    children = ui_vec![screenshot(), misc(), dialogs()];
                 },
             ];
         };
@@ -586,7 +586,7 @@ fn misc() -> UiNode {
     )
 }
 
-fn native() -> UiNode {
+fn dialogs() -> UiNode {
     let use_native = var(true);
     section(
         "Dialogs",
@@ -680,6 +680,45 @@ fn native() -> UiNode {
                     };
                     tracing::info!("save {}", save_file.display());
                 });
+            },
+            Button! {
+                child = Text!("Notification");
+                tooltip = Tip!(Text!(r#"Insert a local notification in the system notifications list"#));
+                on_click = {
+                    let n = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+                    async_hn!(n, |_| {
+                        let n = n.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+                        let mut note = zng::dialog::Notification::new(format!("Example #{n}"), "Example notification with two actions.");
+                        note.push_action("a-1", "Action 1");
+                        note.push_action("a-2", "Action 2");
+                        let note_var = var(note.clone());
+
+                        let r = DIALOG.notification(note_var.clone());
+
+                        task::with_deadline(r.wait_done(), 5.secs()).await.ok();
+                        if !r.is_done() {
+                            // example content update.
+                            note.message.push_str(" Will auto dismiss in 5 seconds");
+                            note_var.set(note);
+
+                            // example close.
+                            task::with_deadline(r.wait_done(), 5.secs()).await.ok();
+                            if !r.is_done() {
+                                note_var.set(zng::dialog::Notification::close());
+                            }
+                        }
+
+                        use zng::dialog::NotificationResponse as R;
+                        match r.wait_rsp().await {
+                            R::Action(a) => tracing::info!("Notification #{n} requested {a}"),
+                            R::Dismissed => tracing::info!("Notification #{n} dismissed"),
+                            R::Removed => tracing::warn!("Notification #{n} removed"),
+                            R::Error(e) => tracing::error!("Notification #{n} error, {e}"),
+                            _ => unreachable!(),
+                        }
+                    })
+                };
             }
         ],
     )

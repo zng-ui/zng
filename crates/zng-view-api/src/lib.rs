@@ -541,6 +541,14 @@ declare_api! {
     /// Returns the ID that identifies the response event.
     pub fn file_dialog(&mut self, id: WindowId, dialog: dialog::FileDialog) -> DialogId;
 
+    /// Register a native notification, either a popup or an entry in the system notifications list.
+    ///
+    /// Returns an ID that identifies the response event.
+    pub fn notification_dialog(&mut self, notification: dialog::Notification) -> DialogId;
+
+    /// Update the notification content.
+    pub fn update_notification(&mut self, id: DialogId, notification: dialog::Notification);
+
     /// Get the clipboard content that matches the `data_types`.
     ///
     /// If `first` is true tries to read all data types requested and returns the first ok. If is false returns all requested data types ok.

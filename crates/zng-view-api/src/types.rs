@@ -7,7 +7,7 @@ use crate::{
     config::{
         AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
     },
-    dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
+    dialog::{DialogId, FileDialogResponse, MsgDialogResponse, NotificationResponse},
     drag_drop::{DragDropData, DragDropEffect},
     image::{ImageDecoded, ImageEncodeId, ImageId, ImageMetadata},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
@@ -506,6 +506,8 @@ pub enum Event {
     MsgDialogResponse(DialogId, MsgDialogResponse),
     /// User responded to a native file dialog.
     FileDialogResponse(DialogId, FileDialogResponse),
+    /// User dismissed a notification dialog.
+    NotificationResponse(DialogId, NotificationResponse),
 
     /// Accessibility info tree is now required for the window.
     AccessInit {

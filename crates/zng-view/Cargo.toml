@@ -193,15 +193,19 @@ features = [
     "Win32_Devices_HumanInterfaceDevice",
     "Win32_System",
     "Win32_System_Memory",
+    "ApplicationModel",
 ]
 
 [target.'cfg(windows)'.dependencies]
 clipboard-win = { version = "5.0", default-features = false, features = ["std"] }
+win32_notif = { version = "0.10", default-features = false, features = ["registration"] }
 
 [target.'cfg(not(any(windows, target_os = "android")))'.dependencies]
-arboard = "3.6"
+arboard = { version = "3.6", default-features = false, features = ["image-data"] }
+notify-rust = { version = "4.11.7", default-features = false, features = ["zbus", "serde"] }
+
 [target.'cfg(not(windows))'.dependencies]
-sys-locale = "0.3"
+sys-locale = { version = "0.3", default-features = false }
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
 wayland-client = { version = "0.31", default-features = false } # matches winit
