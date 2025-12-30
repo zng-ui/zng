@@ -30,7 +30,7 @@ impl NotificationService {
 
     pub fn notification_dialog(&mut self, app_sender: &AppEventSender, id: DialogId, dialog: Notification) {
         let mut n = notify_rust::Notification::new();
-        n.summary(&dialog.summary).body(&dialog.body);
+        n.summary(&dialog.title).body(&dialog.message);
         if let Some(t) = dialog.timeout {
             n.timeout(t);
         }
@@ -99,7 +99,7 @@ impl NotificationService {
         //         return;
         //     }
         //     let n = &mut self.handles[i].1;
-        //     n.summary(&dialog.summary).body(&dialog.body);
+        //     n.summary(&dialog.title).body(&dialog.message);
         //     if let Some(t) = dialog.timeout {
         //         n.timeout(t);
         //     }

@@ -364,9 +364,9 @@ impl FileDialogResponse {
 #[non_exhaustive]
 pub struct Notification {
     /// Single line to summarize the content.
-    pub summary: Txt,
+    pub title: Txt,
     /// The full notification content.
-    pub body: Txt,
+    pub message: Txt,
     /// Response buttons.
     pub actions: Vec<NotificationAction>,
     /// Maximum time to keep the notification on the list.
@@ -376,8 +376,8 @@ impl Notification {
     /// New.
     pub fn new(summary: impl Into<Txt>, body: impl Into<Txt>) -> Self {
         Self {
-            summary: summary.into(),
-            body: body.into(),
+            title: summary.into(),
+            message: body.into(),
             actions: vec![],
             timeout: None,
         }
@@ -388,8 +388,8 @@ impl Notification {
     /// This is a special value that indicates the notification must be closed.
     pub const fn close() -> Self {
         Self {
-            summary: Txt::from_static(""),
-            body: Txt::from_static(""),
+            title: Txt::from_static(""),
+            message: Txt::from_static(""),
             actions: vec![],
             timeout: Some(Duration::ZERO),
         }
@@ -424,13 +424,16 @@ impl NotificationAction {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
 pub enum NotificationResponse {
-    /// User dismissed the notification by requesting an action.
+    /// User requested an action.
     ///
     /// The associated text is the [`NotificationAction::id`].
+    ///
+    /// The associated text can be empty indicating the user requested general action,
+    /// usually by tapping the message directly and not another an action button.
     Action(Txt),
     /// User dismissed the notification without requesting an action.
     Dismissed,
-    /// Removed without user action. Can be due to timeout.
+    /// Programmatically removed. Can be due to timeout or any other reason.
     Removed,
     /// Failed to show the notification.
     ///

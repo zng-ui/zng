@@ -699,7 +699,7 @@ fn dialogs() -> UiNode {
                         task::with_deadline(r.wait_done(), 5.secs()).await.ok();
                         if !r.is_done() {
                             // example content update.
-                            note.body.push_str(" Will auto dismiss in 5 seconds");
+                            note.message.push_str(" Will auto dismiss in 5 seconds");
                             note_var.set(note);
 
                             // example close.
