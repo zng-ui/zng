@@ -1,5 +1,7 @@
 # Unreleased
 
+* Prebuilt view-process not has access to the `zng::env::about`.
+
 * Implemented local notifications.
     - Added `DIALOG.notification`.
     - **Breaking** Added to the view API.
