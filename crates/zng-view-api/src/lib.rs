@@ -41,6 +41,7 @@ pub mod font;
 pub mod image;
 pub mod ipc;
 pub mod keyboard;
+pub mod menu;
 pub mod mouse;
 pub mod raw_input;
 pub mod touch;
@@ -595,6 +596,18 @@ declare_api! {
     ///
     /// Set to an empty text to remove the warning.
     pub fn set_system_shutdown_warn(&mut self, id: WindowId, reason: Txt);
+
+    /// Set the custom menu items for the system application menu.
+    ///
+    /// The application menu is shown outside the app windows, usually at the top of the main screen in macOS and Gnome desktops.
+    ///
+    /// Set to empty to remove the menu.
+    pub fn set_app_menu(&mut self, menu: menu::AppMenu);
+
+    /// Set the tray icon indicator for the app.
+    ///
+    /// This is a small status indicator icon displayed near the notifications area.
+    pub fn set_tray_icon(&mut self, indicator: menu::TrayIcon);
 
     /// Licenses that may be required to be displayed in the app about screen.
     ///

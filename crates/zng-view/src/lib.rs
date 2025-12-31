@@ -2529,6 +2529,14 @@ impl Api for App {
         self.with_window(id, move |w| w.set_system_shutdown_warn(reason), || ())
     }
 
+    fn set_app_menu(&mut self, menu: menu::AppMenu) {
+        let _ = menu;
+    }
+
+    fn set_tray_icon(&mut self, indicator: menu::TrayIcon) {
+        let _ = indicator;
+    }
+
     fn third_party_licenses(&mut self) -> Vec<zng_tp_licenses::LicenseUsed> {
         #[cfg(feature = "bundle_licenses")]
         {

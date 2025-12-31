@@ -1,5 +1,8 @@
 # Unreleased
 
+* **Breaking** Add system tray icon and app menu to the view API.
+    - Service not implemented yet, this will happen in a future non breaking release.
+
 * Refactor `zng::env::About`.
     - Added non-default feature `"parse"` for `zng-env` crate.
     - **Breaking** The `parse_manifest` function is now optional.
