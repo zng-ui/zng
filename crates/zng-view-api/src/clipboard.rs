@@ -23,8 +23,10 @@ pub enum ClipboardData {
     /// a format compatible with the platform clipboard.
     Image(ImageId),
     /// List of paths.
-    FileList(Vec<PathBuf>),
+    Paths(Vec<PathBuf>),
     /// Any data format supported only by the specific view-process implementation.
+    ///
+    /// The view-process implementation may also pass this to the operating system as binary data.
     Extension {
         /// Type key, must be in a format defined by the view-process.
         data_type: Txt,
@@ -41,8 +43,8 @@ pub enum ClipboardType {
     Text,
     /// A [`ClipboardData::Image`].
     Image,
-    /// A [`ClipboardData::FileList`].
-    FileList,
+    /// A [`ClipboardData::Paths`].
+    Paths,
     /// A [`ClipboardData::Extension`].
     Extension(Txt),
 }

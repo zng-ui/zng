@@ -7,63 +7,34 @@ use zng_txt::Txt;
 
 use bitflags::bitflags;
 
+use crate::image::ImageId;
+
 /// Drag&drop data payload.
-#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
 pub enum DragDropData {
-    /// Text encoded data.
+    /// Text string.
     ///
-    /// This can be HTML or JSON for example.
-    Text {
-        /// MIME type of the data.
-        ///
-        /// Plain text is `"text/plain"`.
-        format: Txt,
-        /// Data.
-        data: Txt,
-    },
-    /// File or directory path.
-    Path(PathBuf),
-    /// Binary encoded data.
+    /// View-process can convert between [`String`] and the text formats of the platform.
+    Text(Txt),
+    /// Image data.
     ///
-    /// This can be an image for example.
-    Binary {
-        /// MIME type of the data.
-        format: Txt,
-        /// Data.
+    /// View-process reads from clipboard in any format supported and starts an image decode task
+    /// for the data, the [`ImageId`] may still be decoding when received. For writing the
+    /// view-process will expect the image to already be loaded, the image will be encoded in
+    /// a format compatible with the platform clipboard.
+    Image(ImageId),
+    /// List of paths.
+    Paths(Vec<PathBuf>),
+    /// Any data format specific for the view-process implementation.
+    ///
+    /// The view-process implementation may also pass this to the operating system as binary data.
+    Extension {
+        /// Type key, must be in a format defined by the view-process.
+        data_type: Txt,
+        /// The raw data.
         data: IpcBytes,
     },
-}
-impl fmt::Debug for DragDropData {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Text { format, data } => write!(f, "Text {{ format: {:?}, data: {} bytes }}", format, data.len()),
-            Self::Path(data) => write!(f, "Path({})", data.display()),
-            Self::Binary { format, data } => write!(f, "Binary {{ format: {:?}, data: {} bytes }}", format, data.len()),
-        }
-    }
-}
-
-#[cfg(feature = "var")]
-zng_var::impl_from_and_into_var! {
-    fn from(plain: Txt) -> DragDropData {
-        DragDropData::Text {
-            format: "text/plain".into(),
-            data: plain,
-        }
-    }
-
-    fn from(plain: String) -> DragDropData {
-        Txt::from(plain).into()
-    }
-
-    fn from(plain: &'static str) -> DragDropData {
-        Txt::from(plain).into()
-    }
-
-    fn from(path: PathBuf) -> DragDropData {
-        DragDropData::Path(path)
-    }
 }
 
 bitflags! {

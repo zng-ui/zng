@@ -1770,30 +1770,30 @@ impl ViewClipboard {
         Ok(Err(ClipboardError::Other(Txt::from_static("image not loaded"))))
     }
 
-    /// Read [`ClipboardType::FileList`].
+    /// Read [`ClipboardType::Paths`].
     ///
-    /// [`ClipboardType::FileList`]: zng_view_api::clipboard::ClipboardType::FileList
-    pub fn read_file_list(&self) -> Result<ClipboardResult<Vec<PathBuf>>> {
+    /// [`ClipboardType::Paths`]: zng_view_api::clipboard::ClipboardType::Paths
+    pub fn read_paths(&self) -> Result<ClipboardResult<Vec<PathBuf>>> {
         match VIEW_PROCESS
             .try_write()?
             .process
-            .read_clipboard(vec![ClipboardType::FileList], true)?
+            .read_clipboard(vec![ClipboardType::Paths], true)?
             .map(|mut r| r.pop())
         {
-            Ok(Some(ClipboardData::FileList(f))) => Ok(Ok(f)),
+            Ok(Some(ClipboardData::Paths(f))) => Ok(Ok(f)),
             Err(e) => Ok(Err(e)),
             _ => Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned incorrect type")))),
         }
     }
 
-    /// Write [`ClipboardType::FileList`].
+    /// Write [`ClipboardType::Paths`].
     ///
-    /// [`ClipboardType::FileList`]: zng_view_api::clipboard::ClipboardType::FileList
-    pub fn write_file_list(&self, list: Vec<PathBuf>) -> Result<ClipboardResult<()>> {
+    /// [`ClipboardType::Paths`]: zng_view_api::clipboard::ClipboardType::Paths
+    pub fn write_paths(&self, list: Vec<PathBuf>) -> Result<ClipboardResult<()>> {
         VIEW_PROCESS
             .try_write()?
             .process
-            .write_clipboard(vec![ClipboardData::FileList(list)])
+            .write_clipboard(vec![ClipboardData::Paths(list)])
             .map(|r| r.map(|_| ()))
     }
 

@@ -54,7 +54,7 @@ impl AppExtension for ClipboardManager {
             },
             |v, img| v.write_image(&img),
         );
-        clipboard.file_list.update(|v, list| v.write_file_list(list));
+        clipboard.paths.update(|v, list| v.write_file_list(list));
         clipboard.ext.update(|v, (data_type, data)| v.write_extension(data_type, data))
     }
 }
@@ -71,7 +71,7 @@ app_local! {
 struct ClipboardService {
     text: ClipboardData<Txt, Txt>,
     image: ClipboardData<ImageVar, Img>,
-    file_list: ClipboardData<Vec<PathBuf>, Vec<PathBuf>>,
+    paths: ClipboardData<Vec<PathBuf>, Vec<PathBuf>>,
     ext: ClipboardData<IpcBytes, (Txt, IpcBytes)>,
 }
 
@@ -258,17 +258,17 @@ impl CLIPBOARD {
         CLIPBOARD_SV.write().image.request(img)
     }
 
-    /// Gets a file list from the clipboard.
-    pub fn file_list(&self) -> Result<Option<Vec<PathBuf>>, ClipboardError> {
-        CLIPBOARD_SV.write().file_list.get(|v| v.read_file_list())
+    /// Gets a path list from the clipboard.
+    pub fn paths(&self) -> Result<Option<Vec<PathBuf>>, ClipboardError> {
+        CLIPBOARD_SV.write().paths.get(|v| v.read_file_list())
     }
 
     /// Sets the file list on the clipboard after the current update.
     ///
     /// Returns a response var that updates to `Ok(true)` is the text is put on the clipboard,
     /// `Ok(false)` if another request made on the same update pass replaces this one or `Err(ClipboardError)`.
-    pub fn set_file_list(&self, list: impl Into<Vec<PathBuf>>) -> ResponseVar<Result<bool, ClipboardError>> {
-        CLIPBOARD_SV.write().file_list.request(list.into())
+    pub fn set_paths(&self, list: impl Into<Vec<PathBuf>>) -> ResponseVar<Result<bool, ClipboardError>> {
+        CLIPBOARD_SV.write().paths.request(list.into())
     }
 
     /// Gets custom data from the clipboard.
@@ -344,10 +344,10 @@ impl ActualClipboard for ViewClipboard {
     }
 
     fn read_file_list(&self) -> ActualClipboardResult<Vec<PathBuf>> {
-        self.read_file_list()
+        self.read_paths()
     }
     fn write_file_list(&self, list: Vec<PathBuf>) -> ActualClipboardResult<()> {
-        self.write_file_list(list)
+        self.write_paths(list)
     }
 
     fn read_extension(&self, data_type: Txt) -> ActualClipboardResult<IpcBytes> {

@@ -10,7 +10,7 @@
     Note that these changes are non breaking for `cargo-zng`, projects started with the old template
     will still work with the new `cargo-zng`. New projects will not work with previous `cargo-zng`. 
 
-* Prebuilt view-process not has access to the `zng::env::about`.
+* Prebuilt view-process now has access to the `zng::env::about`.
 
 * Implemented local notifications.
     - Added `DIALOG.notification`.
@@ -32,9 +32,11 @@
 
 * **Breaking** `FileDialogFilters::push_filter` now accepts any `IntoIterator<Item=str>`.
 
-* Add support for multi data clipboards in the view process API.
+* Refactor clipboard service and view-process API.
+    - **Breaking** Renamed `file_list` with `paths`.
+    - Add support for multi data clipboards in the view process API.
     - **Breaking** View process API updated to take and return vectors of data.
-    - Not implemented in the surface API, this will happen in a future non breaking release.
+        - Not implemented in the service yet, this will happen in a future non breaking release.
 
 * Unify view-process capabilities info.
     - **Breaking** Removed `IMAGES.available_encoders/decoders`.
