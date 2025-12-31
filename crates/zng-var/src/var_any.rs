@@ -35,7 +35,6 @@ impl fmt::Debug for AnyVar {
 impl AnyVar {
     /// Visit a reference to the current value.
     pub fn with<O>(&self, visitor: impl FnOnce(&dyn AnyVarValue) -> O) -> O {
-        // TODO try a ArcSwap based read
         let mut once = Some(visitor);
         let mut output = None;
         self.0.with(&mut |v| {

@@ -920,7 +920,7 @@ impl SCROLL {
             viewport = (info.viewport().size - info.joiner_size()).cast::<f32>();
         } else {
             content = SCROLL_CONTENT_ORIGINAL_SIZE_VAR.get().cast::<f32>();
-            viewport = SCROLL_VIEWPORT_SIZE_VAR.get().cast::<f32>(); // TODO missing JOINER_SIZE
+            viewport = SCROLL_VIEWPORT_SIZE_VAR.get().cast::<f32>();
         }
 
         if content.width < 0.1 || content.height < 0.1 {

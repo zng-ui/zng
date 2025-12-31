@@ -104,8 +104,6 @@ impl<S: AnyConfig, F: AnyConfig> FallbackConfigData<S, F> {
             return output;
         }
 
-        // TODO how can the var API be changed to support this? Something like a read-write merge_var!?
-
         let fallback = self.fallback.get(key.clone(), default, false);
         let source = self.source.get(key.clone(), fallback.get(), insert);
         let source_contains = self.source.contains_key(key.clone());

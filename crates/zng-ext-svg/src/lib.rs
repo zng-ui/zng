@@ -77,7 +77,7 @@ fn load(max_decoded_len: ByteLength, data: SvgData, downscale: Option<ImageDowns
 
             if let Some(d) = downscale {
                 let size_px = PxSize::new(Px(size.width() as _), Px(size.height() as _));
-                // TODO generate downscaled images
+
                 let (full_size, _) = d.sizes(size_px, &[]);
                 let full_size = full_size.unwrap_or(size_px);
 

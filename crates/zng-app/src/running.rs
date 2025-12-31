@@ -330,9 +330,7 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawMonitorsChangedArgs::now(monitors);
                 self.notify_event(RAW_MONITORS_CHANGED_EVENT.new_update(args), observer);
             }
-            Event::AudioDevicesChanged(_audio_devices) => {
-                // TODO
-            }
+            Event::AudioDevicesChanged(_audio_devices) => {}
             Event::WindowCloseRequested(w_id) => {
                 let args = RawWindowCloseRequestedArgs::now(window_id(w_id));
                 self.notify_event(RAW_WINDOW_CLOSE_REQUESTED_EVENT.new_update(args), observer);

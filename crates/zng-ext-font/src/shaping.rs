@@ -368,7 +368,6 @@ pub struct ShapedText {
     paragraph_spacing: Px,
     paragraph_break: ParagraphBreak,
 
-    // TODO review this, why is it needed?
     orig_line_height: Px,
     orig_line_spacing: Px,
     orig_first_line: PxSize,

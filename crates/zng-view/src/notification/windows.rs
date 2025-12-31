@@ -17,45 +17,15 @@ use zng_view_api::{
 
 use crate::{AppEvent, AppEventSender};
 
+#[derive(Default)]
 pub struct NotificationService {
     // SAFETY: not actually 'static, depends on `notifier` lifetime.
     notifications: Vec<(DialogId, Txt, win32_notif::Notification<'static>)>,
 
     notifier: Option<win32_notif::ToastsNotifier>,
+    inited: bool,
     tag_gen: usize,
 }
-impl Default for NotificationService {
-    fn default() -> Self {
-        let about = zng_env::about();
-        let id = about.app_id.as_str();
-
-        // The windows ToastNotificationManager does not return an error for invalid ID, so we validate it here.
-        //
-        // Have observed 0xc0000005 (Access Violation) crashes some times, others a COM error,
-        // no idea why its inconsistent, in isolated test without an app running it never returns an error
-        // but also does not show the notifications.
-        let notifier = if is_registered_app_id(id) {
-            win32_notif::ToastsNotifier::new(id)
-        } else {
-            const FALLBACK_ID: &str = "Microsoft.Windows.Explorer";
-            tracing::warn!("{id:?} is not a registered AppUserModelID, will use {FALLBACK_ID:?}");
-            win32_notif::ToastsNotifier::new(FALLBACK_ID)
-        };
-        let notifier = match notifier {
-            Ok(n) => Some(n),
-            Err(e) => {
-                tracing::error!("cannot init notifier service, {e}");
-                None
-            }
-        };
-        Self {
-            notifications: vec![],
-            notifier,
-            tag_gen: 0,
-        }
-    }
-}
-
 fn is_registered_app_id(app_id: &str) -> bool {
     let h_id = windows::core::HSTRING::from(app_id);
     windows::ApplicationModel::AppInfo::GetFromAppUserModelId(&h_id).is_ok()
@@ -72,7 +42,39 @@ impl NotificationService {
             | DialogCapability::CLOSE_NOTIFICATION
     }
 
+    fn init(&mut self) {
+        if self.inited {
+            return;
+        }
+        self.inited = true;
+
+        let about = zng_env::about();
+        let id = about.app_id.as_str();
+
+        // The windows ToastNotificationManager does not return an error for invalid ID, so we validate it here.
+        //
+        // Have observed 0xc0000005 (Access Violation) crashes some times, others a COM error,
+        // no idea why its inconsistent, in isolated test without an app running it never returns an error
+        // but also does not show the notifications.
+        let notifier = if is_registered_app_id(id) {
+            win32_notif::ToastsNotifier::new(id)
+        } else {
+            const FALLBACK_ID: &str = "Microsoft.Windows.Explorer";
+            tracing::warn!("{id:?} is not a registered AppUserModelID, will use {FALLBACK_ID:?}");
+            win32_notif::ToastsNotifier::new(FALLBACK_ID)
+        };
+        self.notifier = match notifier {
+            Ok(n) => Some(n),
+            Err(e) => {
+                tracing::error!("cannot init notifier service, {e}");
+                None
+            }
+        };
+    }
+
     pub fn notification_dialog(&mut self, app_sender: &AppEventSender, id: DialogId, dialog: Notification) {
+        self.init();
+
         if let Some(notifier) = &self.notifier {
             let mut note = win32_notif::NotificationBuilder::new()
                 .with_use_button_style(true)
