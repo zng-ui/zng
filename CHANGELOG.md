@@ -3,6 +3,12 @@
 * Refactor `zng::env::About`.
     - Added non-default feature `"parse"` for `zng-env` crate.
     - **Breaking** The `parse_manifest` function is now optional.
+    - **Breaking** Replaced `qualifier` and `crate_name` fields with methods.
+    - Added `app_id` field, for fully qualified unique name.
+    - Added `meta` map field with any other custom metadata.
+    
+    Note that these changes are non breaking for `cargo-zng`, projects started with the old template
+    will still work with the new `cargo-zng`. New projects will not work with previous `cargo-zng`. 
 
 * Prebuilt view-process not has access to the `zng::env::about`.
 

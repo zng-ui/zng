@@ -17,7 +17,7 @@ use std::{
 };
 
 use semver::Version;
-use zng_txt::Txt;
+use zng_txt::{ToTxt, Txt};
 use zng_unique_id::{lazy_static, lazy_static_init};
 mod process;
 pub use process::*;
@@ -120,27 +120,52 @@ pub fn init(about: About) -> impl Drop {
 #[non_exhaustive]
 pub struct About {
     /// package.name
+    ///
+    /// Cargo crate name for the entry crate.
     pub pkg_name: Txt,
     /// package.authors
-    pub pkg_authors: Box<[Txt]>,
-    /// package.name in snake_case
-    pub crate_name: Txt,
-    /// package.version
-    pub version: Version,
-    /// package.metadata.zng.about.app or `pkg_name`
-    pub app: Txt,
-    /// package.metadata.zng.about.org or the first `pkg_authors`
-    pub org: Txt,
-    /// package.metadata.zng.about.qualifier
     ///
-    /// Reverse domain name notation, excluding the name of the application.
-    pub qualifier: Txt,
+    /// Cargo crate authors for the entry crate.
+    pub pkg_authors: Box<[Txt]>,
+
+    /// package.version
+    ///
+    /// Cargo crate version for the entry crate.
+    pub version: Version,
+
+    /// package.metadata.zng.about.app_id
+    ///
+    /// Fully qualified unique name for the application. Is a list of one or more dot-separated identifiers,
+    /// each identifier starts with letter, identifiers contains only letters, digits and underscore.
+    /// A reverse DNS name is recommended.
+    ///
+    /// If the metadata is not set an id is derived from `"qualifier"`, `org` and `app` values.
+    pub app_id: Txt,
+    /// package.metadata.zng.about.app
+    ///
+    /// App display name.
+    ///
+    /// If the metadata is not set the `pkg_name` is used.
+    pub app: Txt,
+    /// package.metadata.zng.about.org
+    ///
+    /// Organization display name.
+    ///
+    /// If the metadata is not set the first `pkg_authors` is used.
+    pub org: Txt,
+
     /// package.description
+    ///
+    /// Short description of the app.
     pub description: Txt,
     /// package.homepage
+    ///
+    /// Valid website about the app.
     pub homepage: Txt,
 
     /// package.license
+    ///
+    /// License title of the app.
     pub license: Txt,
 
     /// If package.metadata.zng.about is set on the Cargo.toml manifest.
@@ -148,6 +173,70 @@ pub struct About {
     /// The presence of this section is used by `cargo zng res` to find the main
     /// crate if the workspace has multiple bin crates.
     pub has_about: bool,
+
+    /// package.metadata.zng.about.*
+    ///
+    /// Any other unknown string metadata.
+    pub meta: Vec<(Txt, Txt)>,
+}
+impl About {
+    /// The `pkg_name` in snake_case.
+    pub fn crate_name(&self) -> Txt {
+        self.pkg_name.replace('-', "_").into()
+    }
+
+    /// The first components of `app_id` except the last two.
+    ///
+    /// For app id `"br.com.company.product"` the qualifier is `"br.com"`. For id `"company.product"` the qualifier is empty.
+    pub fn qualifier(&self) -> Txt {
+        if let Some((_, v)) = self.meta.iter().find(|(k, _)| k == "qualifier") {
+            return v.clone();
+        }
+        self.try_qualifier().map(Txt::from_str).unwrap_or_default()
+    }
+    fn try_qualifier(&self) -> Option<&str> {
+        let last_dot = self.app_id.rfind('.')?;
+        let len = self.app_id[..last_dot].rfind('.')?;
+        Some(&self.app_id[..len])
+    }
+
+    /// Get the value.
+    ///
+    /// The `key` can be an entry of [`meta`], the name of a field or the name of a value method.
+    ///
+    /// [`meta`]: Self::meta
+    pub fn get(&self, key: &str) -> Option<Txt> {
+        match key {
+            "pkg_name" => Some(self.pkg_name.clone()),
+            "pkg_authors" => {
+                let mut r = String::new();
+                let mut sep = "";
+                for a in &self.pkg_authors {
+                    r.push_str(sep);
+                    r.push_str(a);
+                    sep = ", ";
+                }
+                Some(r.into())
+            }
+            "version" => Some(self.version.to_txt()),
+            "app_id" => Some(self.app_id.clone()),
+            "app" => Some(self.app.clone()),
+            "org" => Some(self.org.clone()),
+            "description" => Some(self.description.clone()),
+            "homepage" => Some(self.homepage.clone()),
+            "license" => Some(self.license.clone()),
+            "crate_name" => Some(self.crate_name()),
+            "qualifier" => Some(self.qualifier()),
+            _ => {
+                for (k, v) in self.meta.iter() {
+                    if k == key {
+                        return Some(v.clone());
+                    }
+                }
+                None
+            }
+        }
+    }
 }
 impl About {
     fn fallback_name() -> Self {
@@ -156,22 +245,44 @@ impl About {
             pkg_authors: Box::new([]),
             version: Version::new(0, 0, 0),
             app: fallback_name(),
-            crate_name: Txt::from_static(""),
             org: Txt::from_static(""),
-            qualifier: Txt::from_static(""),
             description: Txt::from_static(""),
             homepage: Txt::from_static(""),
             license: Txt::from_static(""),
             has_about: false,
+            app_id: fallback_id(),
+            meta: vec![],
         }
     }
 
     /// Parse a Cargo.toml string.
     #[cfg(feature = "parse")]
     pub fn parse_manifest(cargo_toml: &str) -> Result<Self, toml::de::Error> {
+        #[derive(serde::Deserialize)]
+        struct Manifest {
+            package: Package,
+        }
+        #[derive(serde::Deserialize)]
+        struct Package {
+            name: Txt,
+            version: Version,
+            description: Option<Txt>,
+            homepage: Option<Txt>,
+            license: Option<Txt>,
+            authors: Option<Box<[Txt]>>,
+            metadata: Option<Metadata>,
+        }
+        #[derive(serde::Deserialize)]
+        struct Metadata {
+            zng: Option<Zng>,
+        }
+        #[derive(serde::Deserialize)]
+        struct Zng {
+            about: toml::Table,
+        }
+
         let m: Manifest = toml::from_str(cargo_toml)?;
         let mut about = About {
-            crate_name: m.package.name.replace('-', "_").into(),
             pkg_name: m.package.name,
             pkg_authors: m.package.authors.unwrap_or_default(),
             version: m.package.version,
@@ -180,20 +291,42 @@ impl About {
             license: m.package.license.unwrap_or_default(),
             app: Txt::from_static(""),
             org: Txt::from_static(""),
-            qualifier: Txt::from_static(""),
+            app_id: Txt::from_static(""),
             has_about: false,
+            meta: vec![],
         };
-        if let Some(m) = m.package.metadata.and_then(|m| m.zng).and_then(|z| z.about) {
+        if let Some(zng) = m.package.metadata.and_then(|m| m.zng)
+            && !zng.about.is_empty()
+        {
+            let s = |key: &str| match zng.about.get(key) {
+                Some(toml::Value::String(s)) => Txt::from_str(s.as_str()),
+                _ => Txt::from_static(""),
+            };
             about.has_about = true;
-            about.app = m.app.unwrap_or_default();
-            about.org = m.org.unwrap_or_default();
-            about.qualifier = m.qualifier.unwrap_or_default();
+            about.app = s("app");
+            about.org = s("org");
+            about.app_id = clean_id(&s("app_id"));
+            for (k, v) in zng.about {
+                if let toml::Value::String(v) = v
+                    && !["app", "org", "app_id"].contains(&k.as_str())
+                {
+                    about.meta.push((k.into(), v.into()));
+                }
+            }
         }
         if about.app.is_empty() {
             about.app = about.pkg_name.clone();
         }
         if about.org.is_empty() {
             about.org = about.pkg_authors.first().cloned().unwrap_or_default();
+        }
+        if about.app_id.is_empty() {
+            about.app_id = clean_id(&format!(
+                "{}.{}.{}",
+                about.get("qualifier").unwrap_or_default(),
+                about.org,
+                about.app
+            ));
         }
         Ok(about)
     }
@@ -203,63 +336,35 @@ impl About {
     pub fn macro_new(
         pkg_name: &'static str,
         pkg_authors: &[&'static str],
-        crate_name: &'static str,
         (major, minor, patch, pre, build): (u64, u64, u64, &'static str, &'static str),
+        app_id: &'static str,
         app: &'static str,
         org: &'static str,
-        qualifier: &'static str,
         description: &'static str,
         homepage: &'static str,
         license: &'static str,
         has_about: bool,
+        meta: &[(&'static str, &'static str)],
     ) -> Self {
         Self {
             pkg_name: Txt::from_static(pkg_name),
             pkg_authors: pkg_authors.iter().copied().map(Txt::from_static).collect(),
-            crate_name: Txt::from_static(crate_name),
             version: {
                 let mut v = Version::new(major, minor, patch);
                 v.pre = semver::Prerelease::from_str(pre).unwrap();
                 v.build = semver::BuildMetadata::from_str(build).unwrap();
                 v
             },
+            app_id: Txt::from_static(app_id),
             app: Txt::from_static(app),
             org: Txt::from_static(org),
-            qualifier: Txt::from_static(qualifier),
+            meta: meta.iter().map(|(k, v)| (Txt::from_static(k), Txt::from_static(v))).collect(),
             description: Txt::from_static(description),
             homepage: Txt::from_static(homepage),
             license: Txt::from_static(license),
             has_about,
         }
     }
-}
-#[derive(serde::Deserialize)]
-struct Manifest {
-    package: Package,
-}
-#[derive(serde::Deserialize)]
-struct Package {
-    name: Txt,
-    version: Version,
-    description: Option<Txt>,
-    homepage: Option<Txt>,
-    license: Option<Txt>,
-    authors: Option<Box<[Txt]>>,
-    metadata: Option<Metadata>,
-}
-#[derive(serde::Deserialize)]
-struct Metadata {
-    zng: Option<Zng>,
-}
-#[derive(serde::Deserialize)]
-struct Zng {
-    about: Option<MetadataAbout>,
-}
-#[derive(serde::Deserialize)]
-struct MetadataAbout {
-    app: Option<Txt>,
-    org: Option<Txt>,
-    qualifier: Option<Txt>,
 }
 
 /// Gets metadata about the application.
@@ -280,6 +385,43 @@ fn fallback_name() -> Txt {
     let exe_name = exe.file_name().unwrap().to_string_lossy();
     let name = exe_name.split('.').find(|p| !p.is_empty()).unwrap();
     Txt::from_str(name)
+}
+
+fn fallback_id() -> Txt {
+    let exe = current_exe();
+    let exe_name = exe.file_name().unwrap().to_string_lossy();
+    clean_id(&exe_name)
+}
+
+/// * At least one identifier, dot-separated.
+/// * Each identifier must contain ASCII letters, ASCII digits and underscore only.
+/// * Each identifier must start with a letter.
+/// * All lowercase.
+fn clean_id(raw: &str) -> Txt {
+    let mut r = String::new();
+    let mut sep = "";
+    for i in raw.split('.') {
+        let i = i.trim();
+        if i.is_empty() {
+            continue;
+        }
+        r.push_str(sep);
+        for (i, c) in i.trim().char_indices() {
+            if i == 0 {
+                if !c.is_ascii_alphabetic() {
+                    r.push('i');
+                } else {
+                    r.push(c.to_ascii_lowercase());
+                }
+            } else if c.is_ascii_alphanumeric() || c == '_' {
+                r.push(c.to_ascii_lowercase());
+            } else {
+                r.push('_');
+            }
+        }
+        sep = ".";
+    }
+    r.into()
 }
 
 /// Gets a path relative to the package binaries.
@@ -616,7 +758,7 @@ fn find_config() -> PathBuf {
     }
 
     let a = about();
-    if let Some(dirs) = directories::ProjectDirs::from(&a.qualifier, &a.org, &a.app) {
+    if let Some(dirs) = directories::ProjectDirs::from(&a.qualifier(), &a.org, &a.app) {
         dirs.config_dir().to_owned()
     } else {
         panic!(
@@ -868,7 +1010,7 @@ fn find_cache() -> PathBuf {
     }
 
     let a = about();
-    if let Some(dirs) = directories::ProjectDirs::from(&a.qualifier, &a.org, &a.app) {
+    if let Some(dirs) = directories::ProjectDirs::from(&a.qualifier(), &a.org, &a.app) {
         dirs.cache_dir().to_owned()
     } else {
         panic!(

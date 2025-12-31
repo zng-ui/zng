@@ -45,6 +45,8 @@ pub const ZR_FINAL: &str = "ZR_FINAL";
 /// Env var set when it needs the tool print the help text shown in `cargo zng res --tools`.
 pub const ZR_HELP: &str = "ZR_HELP";
 
+/// Env var set to package.metadata.zng.about.app_id or "qualifier.org.app" in snake_case
+pub const ZR_APP_ID: &str = "ZR_APP_ID";
 /// Env var set to package.metadata.zng.about.app or package.name
 pub const ZR_APP: &str = "ZR_APP";
 /// Env var set to package.metadata.zng.about.org or the first package.authors
@@ -63,7 +65,7 @@ pub const ZR_PKG_NAME: &str = "ZR_PKG_NAME";
 pub const ZR_PKG_AUTHORS: &str = "ZR_PKG_AUTHORS";
 /// Env var set to package.name in snake_case
 pub const ZR_CRATE_NAME: &str = "ZR_CRATE_NAME";
-/// Env var set to package.metadata.zng.about.qualifier
+/// Env var set to package.metadata.zng.about.qualifier or the first components `ZR_APP_ID` except the last two
 pub const ZR_QUALIFIER: &str = "ZR_QUALIFIER";
 
 /// Print the help and exit if is help request.
@@ -267,7 +269,7 @@ fn glob() {
     }
 }
 
-const RP_HELP: &str = "
+const RP_HELP: &str = r#"
 Replace ${VAR|<file|!cmd} occurrences in the content
 
 The request file:
@@ -327,6 +329,7 @@ Variables:
 
 All env variables can be used, of particular use with this tool are:
 
+ZR_APP_ID — package.metadata.zng.about.app_id or "qualifier.org.app" in snake_case
 ZR_APP — package.metadata.zng.about.app or package.name
 ZR_ORG — package.metadata.zng.about.org or the first package.authors
 ZR_VERSION — package.version
@@ -336,12 +339,13 @@ ZR_LICENSE — package.license
 ZR_PKG_NAME — package.name
 ZR_PKG_AUTHORS — package.authors
 ZR_CRATE_NAME — package.name in snake_case
-ZR_QUALIFIER — package.metadata.zng.about.qualifier
+ZR_QUALIFIER — package.metadata.zng.about.qualifier or the first components `ZR_APP_ID` except the last two
+ZR_META_*` — any other custom string value in package.metadata.zng.about.*
 
 See `zng::env::about` for more details about metadata vars.
 See the cargo-zng crate docs for a full list of ZR vars.
 
-";
+"#;
 fn rp() {
     help(RP_HELP);
 
@@ -556,6 +560,7 @@ ZR_FINAL — Set if the script previously printed `zng-res::on-final={args}`.
 
 In a Cargo workspace the `zng::env::about` metadata is also set:
 
+ZR_APP_ID — package.metadata.zng.about.app_id or "qualifier.org.app" in snake_case
 ZR_APP — package.metadata.zng.about.app or package.name
 ZR_ORG — package.metadata.zng.about.org or the first package.authors
 ZR_VERSION — package.version
@@ -565,7 +570,8 @@ ZR_LICENSE — package.license
 ZR_PKG_NAME — package.name
 ZR_PKG_AUTHORS — package.authors
 ZR_CRATE_NAME — package.name in snake_case
-ZR_QUALIFIER — package.metadata.zng.about.qualifier
+ZR_QUALIFIER — package.metadata.zng.about.qualifier or the first components `ZR_APP_ID` except the last two
+ZR_META_* — any other custom string value in package.metadata.zng.about.*
 
 Script can make requests to the resource builder by printing to stdout.
 Current supported requests:
