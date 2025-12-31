@@ -10,7 +10,7 @@ use is_executable::IsExecutable as _;
 use parking_lot::Mutex;
 use zng_env::About;
 
-use crate::res_tool_util::*;
+use crate::{res::built_in::ZR_APP_ID, res_tool_util::*};
 
 /// Visit in the `ToolKind` order.
 pub fn visit_tools(local: &Path, mut tool: impl FnMut(Tool) -> anyhow::Result<ControlFlow<()>>) -> anyhow::Result<()> {
@@ -99,16 +99,22 @@ pub fn visit_tools(local: &Path, mut tool: impl FnMut(Tool) -> anyhow::Result<Co
 }
 
 pub fn visit_about_vars(about: &About, mut visit: impl FnMut(&str, &str)) {
+    visit(ZR_APP_ID, &about.app_id);
     visit(ZR_APP, &about.app);
-    visit(ZR_CRATE_NAME, &about.crate_name);
+    visit(ZR_CRATE_NAME, &about.crate_name());
     visit(ZR_HOMEPAGE, &about.homepage);
     visit(ZR_LICENSE, &about.license);
     visit(ZR_ORG, &about.org);
     visit(ZR_PKG_AUTHORS, &about.pkg_authors.clone().join(","));
     visit(ZR_PKG_NAME, &about.pkg_name);
-    visit(ZR_QUALIFIER, &about.qualifier);
+    visit(ZR_QUALIFIER, &about.qualifier());
     visit(ZR_VERSION, &about.version.to_string());
     visit(ZR_DESCRIPTION, &about.description);
+    for (key, value) in &about.meta {
+        if !value.is_empty() && !key.is_empty() {
+            visit(&format!("ZR_META_{}", key.to_uppercase().replace('-', "_")), value);
+        }
+    }
 }
 
 pub struct Tool {

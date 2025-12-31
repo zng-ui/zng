@@ -27,14 +27,14 @@ pub struct NotificationService {
 impl Default for NotificationService {
     fn default() -> Self {
         let about = zng_env::about();
-        let id = format!("{}.{}", about.qualifier, about.pkg_name);
+        let id = about.app_id.as_str();
 
         // The windows ToastNotificationManager does not return an error for invalid ID, so we validate it here.
         //
         // Have observed 0xc0000005 (Access Violation) crashes some times, others a COM error,
         // no idea why its inconsistent, in isolated test without an app running it never returns an error
         // but also does not show the notifications.
-        let notifier = if is_registered_app_id(&id) {
+        let notifier = if is_registered_app_id(id) {
             win32_notif::ToastsNotifier::new(id)
         } else {
             const FALLBACK_ID: &str = "Microsoft.Windows.Explorer";

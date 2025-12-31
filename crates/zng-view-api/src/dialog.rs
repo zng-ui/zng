@@ -374,9 +374,9 @@ pub struct Notification {
 }
 impl Notification {
     /// New.
-    pub fn new(summary: impl Into<Txt>, body: impl Into<Txt>) -> Self {
+    pub fn new(title: impl Into<Txt>, body: impl Into<Txt>) -> Self {
         Self {
-            title: summary.into(),
+            title: title.into(),
             message: body.into(),
             actions: vec![],
             timeout: None,

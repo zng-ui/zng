@@ -53,73 +53,119 @@ pub fn init_parse(crate_: TokenStream) -> TokenStream {
             .into();
         }
     };
-    let p_name = m.package.name;
-    let c_name = p_name.replace('-', "_");
-    let p_authors = m.package.authors.unwrap_or_default();
-    let major = m.package.version.major;
-    let minor = m.package.version.minor;
-    let patch = m.package.version.patch;
-    let pre = m.package.version.pre.to_string();
-    let build = m.package.version.build.to_string();
-    let desc = m.package.description.unwrap_or_default();
-    let home = m.package.homepage.unwrap_or_default();
+
+    let pkg_name = m.package.name;
+    let pkg_authors = m.package.authors.unwrap_or_default();
+    let (major, minor, patch, pre, build) = {
+        let p = m.package.version;
+        (p.major, p.minor, p.patch, p.pre.to_string(), p.build.to_string())
+    };
+    let description = m.package.description.unwrap_or_default();
+    let homepage = m.package.homepage.unwrap_or_default();
     let license = m.package.license.unwrap_or_default();
     let mut app = "";
     let mut org = "";
-    let mut qualifier = "";
+    let mut app_id = String::new();
     let mut has_about = false;
-
-    if let Some(m) = m
-        .package
-        .metadata
-        .as_ref()
-        .and_then(|m| m.zng.as_ref())
-        .and_then(|z| z.about.as_ref())
+    let mut meta_keys = vec![];
+    let mut meta_values = vec![];
+    if let Some(zng) = m.package.metadata.as_ref().and_then(|m| m.zng.as_ref())
+        && !zng.about.is_empty()
     {
+        let s = |key: &str| match zng.about.get(key) {
+            Some(toml::Value::String(s)) => s.as_str(),
+            _ => "",
+        };
         has_about = true;
-        app = m.app.as_deref().unwrap_or_default();
-        org = m.org.as_deref().unwrap_or_default();
-        qualifier = m.qualifier.as_deref().unwrap_or_default();
+        app = s("app");
+        org = s("org");
+        app_id = clean_id(s("app_id"));
+        for (k, v) in &zng.about {
+            if let toml::Value::String(v) = v
+                && !["app", "org", "app_id"].contains(&k.as_str())
+            {
+                meta_keys.push(k);
+                meta_values.push(v);
+            }
+        }
     }
     if app.is_empty() {
-        app = &p_name;
+        app = &pkg_name;
     }
     if org.is_empty() {
-        org = p_authors.first().map(|s| s.as_str()).unwrap_or_default();
+        org = pkg_authors.first().map(|s| s.as_str()).unwrap_or_default();
+    }
+    if app_id.is_empty() {
+        let qualifier = meta_keys
+            .iter()
+            .position(|k| k.as_str() == "qualifier")
+            .map(|i| meta_values[i].as_str())
+            .unwrap_or_default();
+        app_id = clean_id(&format!("{}.{}.{}", qualifier, org, app));
     }
 
     /*
     pub fn macro_new(
         pkg_name: &'static str,
         pkg_authors: &[&'static str],
-        cargo_pkg_name: &'static str,
-        cargo_pkg_authors: &[&'static str],
-        crate_name: &'static str,
         (major, minor, patch, pre, build): (u64, u64, u64, &'static str, &'static str),
+        app_id: &'static str,
         app: &'static str,
         org: &'static str,
-        qualifier: &'static str,
         description: &'static str,
         homepage: &'static str,
         license: &'static str,
+        has_about: bool,
+        meta: &[(&'static str, &'static str)],
     )
      */
     quote! {
         #crate_::init(#crate_::About::macro_new(
-            #p_name,
-            &[#(#p_authors),*],
-            #c_name,
+            #pkg_name,
+            &[#(#pkg_authors),*],
             (#major, #minor, #patch, #pre, #build),
+            #app_id,
             #app,
             #org,
-            #qualifier,
-            #desc,
-            #home,
+            #description,
+            #homepage,
             #license,
             #has_about,
+            &[#( (#meta_keys, #meta_values) ),*],
         ))
     }
     .into()
+}
+
+/// * At least one identifier, dot-separated.
+/// * Each identifier must contain ASCII letters, ASCII digits and underscore only.
+/// * Each identifier must start with a letter.
+/// * All lowercase.
+fn clean_id(raw: &str) -> String {
+    let mut r = String::new();
+    let mut sep = "";
+    for i in raw.split('.') {
+        let i = i.trim();
+        if i.is_empty() {
+            continue;
+        }
+        r.push_str(sep);
+        for (i, c) in i.trim().char_indices() {
+            if i == 0 {
+                if !c.is_ascii_alphabetic() {
+                    r.push('i');
+                } else {
+                    r.push(c.to_ascii_lowercase());
+                }
+            } else if c.is_ascii_alphanumeric() || c == '_' {
+                r.push(c.to_ascii_lowercase());
+            } else {
+                r.push('_');
+            }
+        }
+        sep = ".";
+    }
+    r
 }
 
 #[derive(serde::Deserialize)]
@@ -142,13 +188,7 @@ struct Metadata {
 }
 #[derive(serde::Deserialize)]
 struct Zng {
-    about: Option<MetadataAbout>,
-}
-#[derive(serde::Deserialize)]
-struct MetadataAbout {
-    app: Option<String>,
-    org: Option<String>,
-    qualifier: Option<String>,
+    about: toml::Table,
 }
 
 #[doc(hidden)]
