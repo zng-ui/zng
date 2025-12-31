@@ -223,7 +223,7 @@ impl Image {
         }
 
         // invert rows, `image` only supports top-to-bottom buffers.
-        let mut buf = pixels[..].to_vec(); // TODO use IpcDynamicImage
+        let mut buf = pixels[..].to_vec();
         // BGRA to RGBA and remove pre mul
         bgra_pre_mul_to_rgba(&mut buf, self.0.is_opaque());
         let rgba = buf;

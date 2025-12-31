@@ -1864,8 +1864,6 @@ impl Api for App {
             inited.window |= WindowCapability::DISABLE_MAXIMIZE_BUTTON;
         }
         inited.window |= WindowCapability::SET_IME_AREA;
-        // TODO, this is not implemented (could make this true when SET_POSITION, and reset position when disabled)
-        // inited.window |= WindowCapability::SET_MOVABLE;
 
         use zng_view_api::dialog::DialogCapability;
         if !headless && !cfg!(target_os = "android") {
@@ -2317,8 +2315,6 @@ impl Api for App {
             return Ok(vec![]);
         }
 
-        // TODO implement multi data read
-
         let single = match data_type.remove(0) {
             clipboard::ClipboardType::Text => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
@@ -2363,8 +2359,6 @@ impl Api for App {
         if data.is_empty() {
             return Ok(0);
         }
-
-        // TODO implement multi data write
 
         let r = match data.remove(0) {
             clipboard::ClipboardData::Text(t) => {
@@ -2519,7 +2513,7 @@ impl Api for App {
         data: Vec<DragDropData>,
         allowed_effects: DragDropEffect,
     ) -> Result<DragDropId, DragDropError> {
-        let _ = (id, data, allowed_effects); // TODO, wait winit
+        let _ = (id, data, allowed_effects);
         Err(DragDropError::NotSupported)
     }
 
@@ -2528,7 +2522,7 @@ impl Api for App {
     }
 
     fn drag_dropped(&mut self, id: WindowId, drop_id: DragDropId, applied: DragDropEffect) {
-        let _ = (id, drop_id, applied); // TODO, wait winit
+        let _ = (id, drop_id, applied);
     }
 
     fn set_system_shutdown_warn(&mut self, id: WindowId, reason: Txt) {
