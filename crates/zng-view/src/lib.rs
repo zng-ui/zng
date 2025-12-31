@@ -641,7 +641,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 self.drag_drop_hovered = Some((id, DipPoint::splat(Dip::new(-1000))));
                 self.notify(Event::DragHovered {
                     window: id,
-                    data: vec![DragDropData::Path(file)],
+                    data: vec![DragDropData::Paths(vec![file])],
                     allowed: DragDropEffect::all(),
                 });
             }
@@ -671,7 +671,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 } else {
                     self.notify(Event::DragDropped {
                         window: id,
-                        data: vec![DragDropData::Path(file)],
+                        data: vec![DragDropData::Paths(vec![file])],
                         allowed: DragDropEffect::all(),
                         drop_id: DragDropId(0),
                     });
@@ -809,7 +809,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     });
                     self.notify(Event::DragDropped {
                         window: window_id,
-                        data: vec![DragDropData::Path(file)],
+                        data: vec![DragDropData::Paths(vec![file])],
                         allowed: DragDropEffect::all(),
                         drop_id: DragDropId(0),
                     });
@@ -1881,12 +1881,12 @@ impl Api for App {
         if !cfg!(target_os = "android") {
             inited.clipboard.read.push(ClipboardType::Text);
             inited.clipboard.read.push(ClipboardType::Image);
-            inited.clipboard.read.push(ClipboardType::FileList);
+            inited.clipboard.read.push(ClipboardType::Paths);
 
             inited.clipboard.write.push(ClipboardType::Text);
             inited.clipboard.write.push(ClipboardType::Image);
             if cfg!(windows) {
-                inited.clipboard.write.push(ClipboardType::FileList);
+                inited.clipboard.write.push(ClipboardType::Paths);
             }
         }
 
@@ -2339,12 +2339,12 @@ impl Api for App {
                 ));
                 Ok(clipboard::ClipboardData::Image(id))
             }
-            clipboard::ClipboardType::FileList => {
+            clipboard::ClipboardType::Paths => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
                 clipboard_win::get(clipboard_win::formats::FileList)
                     .map_err(util::clipboard_win_to_clip)
-                    .map(clipboard::ClipboardData::FileList)
+                    .map(clipboard::ClipboardData::Paths)
             }
             clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
@@ -2378,7 +2378,7 @@ impl Api for App {
                     Err(clipboard::ClipboardError::Other(Txt::from_str("image not found")))
                 }
             }
-            clipboard::ClipboardData::FileList(l) => {
+            clipboard::ClipboardData::Paths(l) => {
                 use clipboard_win::Setter;
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
@@ -2431,12 +2431,12 @@ impl Api for App {
                 ));
                 Ok(clipboard::ClipboardData::Image(id))
             }
-            clipboard::ClipboardType::FileList => self
+            clipboard::ClipboardType::Paths => self
                 .arboard()?
                 .get()
                 .file_list()
                 .map_err(util::arboard_to_clip)
-                .map(clipboard::ClipboardData::FileList),
+                .map(clipboard::ClipboardData::Paths),
             clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
         };
@@ -2471,7 +2471,7 @@ impl Api for App {
                     Err(clipboard::ClipboardError::Other(zng_txt::Txt::from_static("image not found")))
                 }
             }
-            clipboard::ClipboardData::FileList(_) => Err(clipboard::ClipboardError::NotSupported),
+            clipboard::ClipboardData::Paths(_) => Err(clipboard::ClipboardError::NotSupported),
             clipboard::ClipboardData::Extension { .. } => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
         };

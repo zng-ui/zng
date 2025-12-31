@@ -67,7 +67,7 @@
 //! Button! {
 //!     child = Text!("Paste");
 //!     on_click = hn!(|_| {
-//!         if let Ok(Some(f)) = zng::clipboard::CLIPBOARD.file_list() {
+//!         if let Ok(Some(f)) = zng::clipboard::CLIPBOARD.paths() {
 //!             txt.modify(move |txt| {
 //!                 let txt = txt.to_mut();
 //!                 txt.clear();
