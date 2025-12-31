@@ -128,6 +128,9 @@ pub struct ViewProcessInfo {
     /// Dialog operations implemented by the view-process.
     pub dialog: crate::dialog::DialogCapability,
 
+    /// System menu capabilities.
+    pub menu: crate::menu::MenuCapability,
+
     /// Clipboard data types and operations implemented by the view-process.
     pub clipboard: crate::clipboard::ClipboardTypes,
 
@@ -151,6 +154,7 @@ impl ViewProcessInfo {
             input_device: InputDeviceCapability::empty(),
             window: crate::window::WindowCapability::empty(),
             dialog: crate::dialog::DialogCapability::empty(),
+            menu: crate::menu::MenuCapability::empty(),
             clipboard: crate::clipboard::ClipboardTypes::new(vec![], vec![], false),
             image: vec![],
             audio: vec![],
@@ -508,6 +512,14 @@ pub enum Event {
     FileDialogResponse(DialogId, FileDialogResponse),
     /// User dismissed a notification dialog.
     NotificationResponse(DialogId, NotificationResponse),
+
+    /// A system menu command was requested.
+    ///
+    /// The menu item can be from the application menu or tray icon.
+    MenuCommand {
+        /// Menu command ID.
+        id: Txt,
+    },
 
     /// Accessibility info tree is now required for the window.
     AccessInit {

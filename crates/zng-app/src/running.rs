@@ -423,6 +423,10 @@ impl<E: AppExtension> RunningApp<E> {
                 VIEW_PROCESS.on_notification_dlg_response(id, response);
             }
 
+            Event::MenuCommand { id } => {
+                let _ = id;
+            }
+
             // custom
             Event::ExtensionEvent(id, payload) => {
                 let args = RawExtensionEventArgs::now(id, payload);
