@@ -76,6 +76,7 @@ dev = [
     "wrap",
     "shortcut_text",
     "image_all",
+    "audio_all",
     "button",
     "ansi_text",
     "dyn_app_extension",
@@ -427,8 +428,22 @@ image_tiff = ["zng-view?/image_tiff"]
 # Enable WEBP image decoder with "view" feature.
 image_webp = ["zng-view?/image_webp"]
 
-# Enable all encoders and decoders.
+# Enable all image encoders and decoders with "view" feature.
 image_all = ["zng-view?/image_all"]
+
+# Enable MP3 audio decoder and encoder with "view" feature.
+audio_mp3 = ["zng-view?/audio_mp3"]
+# Enable MP4 audio decoder and encoder with "view" feature.
+audio_mp4 = ["zng-view?/audio_mp4"]
+# Enable FLAC audio decoder and encoder with "view" feature.
+audio_flac = ["zng-view?/audio_flac"]
+# Enable MP3 audio decoder and encoder with "view" feature.
+audio_vorbis = ["zng-view?/audio_vorbis"]
+# Enable WAV audio decoder and encoder with "view" feature.
+audio_wav = ["zng-view?/audio_wav"]
+
+# Enable all audio decoders and encoders with "view" feature.
+audio_all = ["zng-view?/audio_all"]
 
 [dependencies]
 # foundation

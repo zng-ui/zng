@@ -103,8 +103,48 @@ pub enum BufferSize {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct AudioRequest<D> {
+    /// Audio data format.
+    pub format: AudioDataFormat,
+
     /// Audio data.
     pub data: D,
+}
+impl<D> AudioRequest<D> {
+    /// New.
+    pub fn new(format: AudioDataFormat, data: D) -> Self {
+        Self { format, data }
+    }
+}
+
+/// Format of the audio bytes.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum AudioDataFormat {
+    /// The audio is encoded.
+    ///
+    /// This file extension maybe identifies the format. Fallback to `Unknown` handling if the file extension
+    /// is unknown or the file header does not match.
+    FileExtension(Txt),
+
+    /// The audio is encoded.
+    ///
+    /// This MIME type maybe identifies the format. Fallback to `Unknown` handling if the file extension
+    /// is unknown or the file header does not match.
+    MimeType(Txt),
+
+    /// The image is encoded.
+    ///
+    /// A decoder will be selected using the "magic number" at the start of the bytes buffer.
+    Unknown,
+}
+impl From<Txt> for AudioDataFormat {
+    fn from(ext_or_mime: Txt) -> Self {
+        if ext_or_mime.contains('/') {
+            AudioDataFormat::MimeType(ext_or_mime)
+        } else {
+            AudioDataFormat::FileExtension(ext_or_mime)
+        }
+    }
 }
 
 /// Represents an audio playback request.
@@ -224,4 +264,25 @@ impl AudioEncodeRequest {
     pub fn new(id: AudioId, format: Txt) -> Self {
         Self { id, format }
     }
+}
+
+/// Represents decoded header metadata about an audio.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct AudioMetadata {
+    /// Image ID.
+    pub id: AudioId,
+}
+
+/// Represents a partial or fully decoded audio.
+///
+/// See [`Event::AudioDecoded`] and [`AudioPartiallyDecoded`] for more details.
+///
+/// [`Event::AudioDecoded`]: crate::Event::AudioDecoded
+/// [`AudioPartiallyDecoded`]: crate::Event::AudioPartiallyDecoded
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct AudioDecoded {
+    /// Image metadata.
+    pub meta: AudioMetadata,
 }

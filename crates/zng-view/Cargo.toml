@@ -106,6 +106,29 @@ image_all = [
     "image_webp",
 ]
 
+# Enable MP3 audio decoder and encoder.
+audio_mp3 = ["audio_any", "rodio/mp3"]
+# Enable MP4 audio decoder and encoder.
+audio_mp4 = ["audio_any", "rodio/mp4"]
+# Enable FLAC audio decoder and encoder.
+audio_flac = ["audio_any", "rodio/flac"]
+# Enable MP3 audio decoder and encoder.
+audio_vorbis = ["audio_any", "rodio/vorbis"]
+# Enable WAV audio decoder and encoder.
+audio_wav = ["audio_any", "rodio/wav"]
+
+# If any audio format feature is enabled.
+audio_any = ["dep:rodio", "dep:symphonia"]
+
+# Enable all audio decoders and encoders.
+audio_all = [
+    "audio_mp3",
+    "audio_mp4",
+    "audio_flac",
+    "audio_vorbis",
+    "audio_wav",
+]
+
 [lib]
 crate-type = ["lib", "cdylib"]
 
@@ -125,6 +148,9 @@ zng-task = { path = "../zng-task", version = "0.11.1", default-features = false 
 linkme = { version = "0.3.35", default-features = false }
 
 tracing = { version = "0.1", default-features = false }
+serde = { version = "1.0", default-features = false }
+rayon = { version = "1.10", default-features = false }
+
 gleam = { version = "0.15.1", default-features = false } # matches webrender
 winit = { version = "0.30", default-features = false, features = [
     "x11",
@@ -134,21 +160,25 @@ winit = { version = "0.30", default-features = false, features = [
 ] }
 glutin = { version = "0.32", default-features = false, features = ["egl", "glx", "wayland", "wgl", "x11" ], optional = true }
 raw-window-handle = { version = "0.6", default-features = false } # matches glutin
+
 image = { version = "0.25", default-features = false, features = ["rayon"] } # on upgrade review audit.toml
 ico = { version = "0.5.0", default-features = false, optional = true }
 fast_image_resize = { version = "5.4.0", default-features = false, features = ["rayon", "image"] }
 img-parts = { version = "0.4", default-features = false, features = ["std"] }
 byteorder = { version = "1.5", default-features = false }
 rustc-hash = { version = "2.0", default-features = false }
-rayon = { version = "1.10", default-features = false }
-serde = { version = "1.0", default-features = false }
-accesskit = { version = "0.21", default-features = false }
-accesskit_winit = { version = "0.29", default-features = false, features = ["rwh_06", "accesskit_unix", "async-io"] }
 kamadak-exif = { version = "0.6.1", default-features = false, optional = true }
 lcms2 = { version = "6.1.1", default-features = false, features = ["static"], optional = true }
 # matches `image` dependency version
 png = { version = "0.18.0", default-features = false, optional = true }
 tiff = { version = "0.10.3", default-features = false, optional = true }
+
+rodio = { version = "0.21", default-features = false, features = ["playback", "tracing"], optional = true } 
+symphonia = { version = "0.5", default-features = false, optional = true }
+
+accesskit = { version = "0.21", default-features = false }
+accesskit_winit = { version = "0.29", default-features = false, features = ["rwh_06", "accesskit_unix", "async-io"] }
+
 # rfd
 ## cfg(not(linux, android, ios))
 [target.'cfg(not(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd", target_os = "android", target_os = "ios")))'.dependencies.rfd]
