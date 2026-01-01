@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 #[cfg(feature = "image")]
 use zng_app::window::WINDOW;
 #[cfg(feature = "image")]
-use zng_ext_image::{ImageSource, ImageVar, Img};
+use zng_ext_image::{ImageSource, ImageVar};
 #[cfg(feature = "image")]
 use zng_layout::unit::Point;
 #[cfg(feature = "image")]
@@ -588,7 +588,7 @@ event_args! {
         /// See [`WindowVars::frame_capture_mode`] for more details.
         ///
         /// [`WindowVars::frame_capture_mode`]: crate::WindowVars::frame_capture_mode
-        pub frame_image: Option<Img>,
+        pub frame_image: Option<ImageVar>,
 
         ..
 

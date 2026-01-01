@@ -33,12 +33,6 @@ impl ImageCache {
                 image: id,
                 error: formatx!("no frame rendered in window `{window_id:?}`"),
             }));
-            let _ = self.app_sender.send(AppEvent::Notify(Event::FrameImageReady {
-                window: window_id,
-                frame: frame_id,
-                image: id,
-                selection: rect,
-            }));
             return id;
         }
 
@@ -47,12 +41,6 @@ impl ImageCache {
         let id = data.meta.id;
 
         let _ = self.app_sender.send(AppEvent::ImageDecoded(data));
-        let _ = self.app_sender.send(AppEvent::Notify(Event::FrameImageReady {
-            window: window_id,
-            frame: frame_id,
-            image: id,
-            selection: rect,
-        }));
 
         id
     }

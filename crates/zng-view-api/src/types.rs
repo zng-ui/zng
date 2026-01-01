@@ -14,14 +14,14 @@ use crate::{
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
     touch::{TouchPhase, TouchUpdate},
-    window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
+    window::{EventFrameRendered, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use zng_task::channel::{ChannelError, IpcBytes};
 use zng_txt::Txt;
-use zng_unit::{DipPoint, PxRect, Rgba};
+use zng_unit::{DipPoint, Rgba};
 
 macro_rules! declare_id {
     ($(
@@ -211,8 +211,6 @@ pub enum Event {
     },
 
     /// A frame finished rendering.
-    ///
-    /// `EventsCleared` is not send after this event.
     FrameRendered(EventFrameRendered),
 
     /// Window moved, resized, or minimized/maximized etc.
@@ -438,12 +436,8 @@ pub enum Event {
 
     /// An image resource already decoded header metadata.
     ImageMetadataDecoded(ImageMetadata),
-    /// An image resource finished decoding.
+    /// An image resource has partially or fully decoded.
     ImageDecoded(ImageDecoded),
-    /// An image resource, progressively decoded has decoded more rows.
-    ///
-    /// The data size and pixels reflects the partial height of the image that has decoded only.
-    ImagePartiallyDecoded(ImageDecoded),
     /// An image resource failed to decode, the image ID is not valid.
     ImageDecodeError {
         /// The image that failed to decode.
@@ -464,18 +458,6 @@ pub enum Event {
         task: ImageEncodeId,
         /// The error message.
         error: Txt,
-    },
-
-    /// An image generated from a rendered frame is ready.
-    FrameImageReady {
-        /// Window that had pixels copied.
-        window: WindowId,
-        /// The frame that was rendered when the pixels where copied.
-        frame: FrameId,
-        /// The frame image.
-        image: ImageId,
-        /// The pixel selection relative to the top-left.
-        selection: PxRect,
     },
 
     /* Config events */
