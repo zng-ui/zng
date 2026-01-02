@@ -556,10 +556,9 @@ impl std::cmp::PartialOrd for ImageEntryKind {
 
 /// Represents a partial or fully decoded image.
 ///
-/// See [`Event::ImageDecoded`] and [`ImagePartiallyDecoded`] for more details.
+/// See [`Event::ImageDecoded`] for more details.
 ///
 /// [`Event::ImageDecoded`]: crate::Event::ImageDecoded
-/// [`ImagePartiallyDecoded`]: crate::Event::ImagePartiallyDecoded
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ImageDecoded {

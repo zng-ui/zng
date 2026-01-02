@@ -123,9 +123,6 @@ struct ImgMut {
 
 /// State of an [`ImageVar`].
 ///
-/// This value is a shared reference to the image, on view-process updates the image data is mutated immediately.
-/// To ensure that variable updates propagate the new value the [`IMAGES`] service calls [`Img::update`] on the value.
-///
 /// [`IMAGES`]: crate::IMAGES
 #[derive(Debug, Clone)]
 pub struct Img {

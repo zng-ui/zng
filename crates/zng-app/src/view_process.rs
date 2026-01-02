@@ -1284,7 +1284,7 @@ impl Drop for ViewImageHandle {
     }
 }
 
-/// Error returned by [`ViewImage::encode`].
+/// Error returned by [`VIEW_PROCESS::encode_image`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EncodeError {
@@ -1334,7 +1334,7 @@ pub struct WeakViewImageHandle(sync::Weak<ViewImageHandleData>);
 impl WeakViewImageHandle {
     /// Attempt to upgrade the weak pointer to the image to a full image.
     ///
-    /// Returns `Some` if the is at least another [`ViewImage`] holding the image alive.
+    /// Returns `Some` if the is at least another [`ViewImageHandle`] holding the image alive.
     pub fn upgrade(&self) -> Option<ViewImageHandle> {
         self.0.upgrade().map(|h| ViewImageHandle(Some(h)))
     }
