@@ -342,9 +342,9 @@ pub struct FrameRequest {
 
     /// Create an image or mask from this rendered frame.
     ///
-    /// The [`Event::FrameImageReady`] is sent with the image.
+    /// The [`Event::FrameRendered`] will have the frame image.
     ///
-    /// [`Event::FrameImageReady`]: crate::Event::FrameImageReady
+    /// [`Event::FrameRendered`]: crate::Event::FrameRendered
     pub capture: FrameCapture,
 
     /// Identifies this frame as the response to the [`WindowChanged`] resized frame request.
@@ -382,9 +382,9 @@ pub struct FrameUpdateRequest {
 
     /// Create an image or mask from this rendered frame.
     ///
-    /// The [`Event::FrameImageReady`] is send with the image.
+    /// The [`Event::FrameRendered`] will have the image.
     ///
-    /// [`Event::FrameImageReady`]: crate::Event::FrameImageReady
+    /// [`Event::FrameRendered`]: crate::Event::FrameRendered
     pub capture: FrameCapture,
 
     /// Identifies this frame as the response to the [`WindowChanged`] resized frame request.

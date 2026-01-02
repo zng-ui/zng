@@ -38,7 +38,7 @@ pub fn run() {
 
             // this event will fire every time a frame is rendered.
             on_frame_image_ready = async_hn!(temp, frame, |args| {
-                let img = args.frame_image.unwrap();
+                let img = args.frame_image.unwrap().get();
 
                 let frame_i = frame.get();
                 frame.set(frame_i + 1);

@@ -450,12 +450,14 @@ impl Surface {
                 _ => None,
             };
             if let Some(mask) = capture {
-                captured_data = Some(images.frame_image_data(
-                    &**self.context.gl(),
-                    PxRect::from_size(self.size.to_px(self.scale_factor)),
-                    self.scale_factor,
-                    mask,
-                ));
+                captured_data = images
+                    .frame_image_data(
+                        &**self.context.gl(),
+                        PxRect::from_size(self.size.to_px(self.scale_factor)),
+                        self.scale_factor,
+                        mask,
+                    )
+                    .ok();
             }
         }
         (frame_id, captured_data)

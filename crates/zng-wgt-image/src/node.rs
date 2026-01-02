@@ -18,7 +18,7 @@ context_var! {
     pub static CONTEXT_IMAGE_VAR: Img = no_context_image();
 }
 fn no_context_image() -> Img {
-    Img::dummy(Some(Txt::from_static("no image source in context")))
+    Img::new_empty(Txt::from_static("no image source in context"))
 }
 
 /// Requests an image from [`IMAGES`] and sets [`CONTEXT_IMAGE_VAR`].
@@ -33,9 +33,9 @@ fn no_context_image() -> Img {
 /// [`IMAGES`]: zng_ext_image::IMAGES
 pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> UiNode {
     let source = source.into_var();
-    let ctx_img = var(Img::dummy(None));
+    let ctx_img = var(Img::new_empty(Txt::default()));
     let child = with_context_var(child, CONTEXT_IMAGE_VAR, ctx_img.read_only());
-    let mut img = var(Img::dummy(None)).read_only();
+    let mut img = var(Img::new_empty(Txt::default())).read_only();
     let mut _ctx_binding = None;
 
     match_node(child, move |child, op| match op {
@@ -96,7 +96,7 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                     img = if is_cached {
                         // must not cache, but is cached, detach from cache.
 
-                        let img = mem::replace(&mut img, var(Img::dummy(None)).read_only());
+                        let img = mem::replace(&mut img, var(Img::new_empty(Txt::default())).read_only());
                         IMAGES.detach(img)
                     } else {
                         // must cache, but image is not cached, get source again.

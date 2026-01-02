@@ -16,16 +16,19 @@ use zng_app::{
     APP, AppExtension,
     event::{CommandInfoExt as _, CommandNameExt as _, command},
     shortcut::{CommandShortcutExt as _, ShortcutFilter, shortcut},
-    view_process::{VIEW_PROCESS, ViewClipboard, ViewImage},
+    view_process::{VIEW_PROCESS, ViewClipboard, ViewImageHandle},
 };
 use zng_app_context::app_local;
-use zng_ext_image::{IMAGES, ImageHasher, ImageVar, Img};
+use zng_ext_image::{IMAGES, ImageVar, Img};
 use zng_task::channel::{ChannelError, IpcBytes};
 use zng_txt::{ToTxt, Txt};
 use zng_var::{ResponderVar, ResponseVar, response_var};
 use zng_wgt::{CommandIconExt as _, ICONS, wgt_fn};
 
-use zng_view_api::clipboard::{self as clipboard_api};
+use zng_view_api::{
+    clipboard::{self as clipboard_api},
+    image::ImageDecoded,
+};
 
 pub use zng_view_api::clipboard::{ClipboardType, ClipboardTypes};
 
@@ -46,8 +49,12 @@ impl AppExtension for ClipboardManager {
         clipboard.text.update(|v, txt| v.write_text(txt));
         clipboard.image.map_update(
             |img| {
-                if let Some(img) = img.view() {
-                    Ok(img.clone())
+                if img.is_loaded() {
+                    if let Some(e) = img.error() {
+                        Err(ClipboardError::Other(e))
+                    } else {
+                        Ok(img.view_handle())
+                    }
                 } else {
                     Err(ClipboardError::ImageNotLoaded)
                 }
@@ -229,22 +236,17 @@ impl CLIPBOARD {
 
     /// Gets an image from the clipboard.
     ///
-    /// The image is loaded in parallel and cached by the [`IMAGES`] service.
+    /// The image is loaded in parallel by the [`IMAGES`] service, it is not cached.
     ///
     /// [`IMAGES`]: zng_ext_image::IMAGES
     pub fn image(&self) -> Result<Option<ImageVar>, ClipboardError> {
         CLIPBOARD_SV.write().image.get(|v| {
             let img = v.read_image()?;
             match img {
-                Ok(img) => {
-                    let mut hash = ImageHasher::new();
-                    hash.update("zng_ext_clipboard::CLIPBOARD".as_bytes());
-                    hash.update(&img.id().unwrap().get().to_be_bytes());
-                    match IMAGES.register(hash.finish(), img) {
-                        Ok(r) => Ok(Ok(r)),
-                        Err((_, r)) => Ok(Ok(r)),
-                    }
-                }
+                Ok(handle) => match IMAGES.register(None, (handle, ImageDecoded::default())) {
+                    Ok(r) => Ok(Ok(r)),
+                    Err((_, r)) => Ok(Ok(r)),
+                },
                 Err(e) => Ok(Err(e)),
             }
         })
@@ -319,8 +321,8 @@ trait ActualClipboard {
     fn read_text(&self) -> ActualClipboardResult<Txt>;
     fn write_text(&self, txt: Txt) -> ActualClipboardResult<()>;
 
-    fn read_image(&self) -> ActualClipboardResult<ViewImage>;
-    fn write_image(&self, img: &ViewImage) -> ActualClipboardResult<()>;
+    fn read_image(&self) -> ActualClipboardResult<ViewImageHandle>;
+    fn write_image(&self, img: &ViewImageHandle) -> ActualClipboardResult<()>;
 
     fn read_file_list(&self) -> ActualClipboardResult<Vec<PathBuf>>;
     fn write_file_list(&self, list: Vec<PathBuf>) -> ActualClipboardResult<()>;
@@ -336,10 +338,10 @@ impl ActualClipboard for ViewClipboard {
         self.write_text(txt)
     }
 
-    fn read_image(&self) -> ActualClipboardResult<ViewImage> {
+    fn read_image(&self) -> ActualClipboardResult<ViewImageHandle> {
         self.read_image()
     }
-    fn write_image(&self, img: &ViewImage) -> ActualClipboardResult<()> {
+    fn write_image(&self, img: &ViewImageHandle) -> ActualClipboardResult<()> {
         self.write_image(img)
     }
 
@@ -381,10 +383,10 @@ impl ActualClipboard for CLIPBOARD {
     fn write_text(&self, txt: Txt) -> ActualClipboardResult<()> {
         self.headless_clipboard_set(txt)
     }
-    fn read_image(&self) -> ActualClipboardResult<ViewImage> {
+    fn read_image(&self) -> ActualClipboardResult<ViewImageHandle> {
         self.headless_clipboard_get()
     }
-    fn write_image(&self, img: &ViewImage) -> ActualClipboardResult<()> {
+    fn write_image(&self, img: &ViewImageHandle) -> ActualClipboardResult<()> {
         self.headless_clipboard_set(img.clone())
     }
 
@@ -420,10 +422,10 @@ impl ActualClipboard for ChannelError {
         Err(self.clone())
     }
 
-    fn read_image(&self) -> ActualClipboardResult<ViewImage> {
+    fn read_image(&self) -> ActualClipboardResult<ViewImageHandle> {
         Err(self.clone())
     }
-    fn write_image(&self, _: &ViewImage) -> ActualClipboardResult<()> {
+    fn write_image(&self, _: &ViewImageHandle) -> ActualClipboardResult<()> {
         Err(self.clone())
     }
 
