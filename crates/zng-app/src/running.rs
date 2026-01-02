@@ -368,7 +368,7 @@ impl<E: AppExtension> RunningApp<E> {
                 if let Some(handle) = VIEW_PROCESS.on_image_decoded(&img) {
                     let args = RawImageDecodedArgs::now(handle, img);
                     self.notify_event(RAW_IMAGE_DECODED_EVENT.new_update(args), observer);
-                 }else {
+                } else {
                     tracing::warn!("received unknown image metadata {:?} ({:?}), ignoring", img.meta.id, img.meta.size);
                 }
             }

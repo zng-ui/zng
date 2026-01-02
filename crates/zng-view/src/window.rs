@@ -1637,12 +1637,14 @@ impl Window {
             if ext_args.redraw || msg.composite_needed {
                 self.redraw();
             }
-            Some(images.frame_image_data(
-                &**self.context.gl(),
-                PxRect::from_size(self.window.inner_size().to_px()),
-                scale_factor,
-                mask,
-            ))
+            images
+                .frame_image_data(
+                    &**self.context.gl(),
+                    PxRect::from_size(self.window.inner_size().to_px()),
+                    scale_factor,
+                    mask,
+                )
+                .ok()
         } else {
             None
         };
