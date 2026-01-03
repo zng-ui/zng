@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{pin::Pin, time::Duration};
 
 use win32_notif::{
     ManageNotification, NotifError, NotificationActivatedEventHandler, NotificationDataSet, NotificationDismissedEventHandler,
@@ -22,7 +22,7 @@ pub struct NotificationService {
     // SAFETY: not actually 'static, depends on `notifier` lifetime.
     notifications: Vec<(DialogId, Txt, win32_notif::Notification<'static>)>,
 
-    notifier: Option<win32_notif::ToastsNotifier>,
+    notifier: Option<Pin<Box<win32_notif::ToastsNotifier>>>,
     inited: bool,
     tag_gen: usize,
 }
@@ -64,7 +64,7 @@ impl NotificationService {
             win32_notif::ToastsNotifier::new(FALLBACK_ID)
         };
         self.notifier = match notifier {
-            Ok(n) => Some(n),
+            Ok(n) => Some(Box::pin(n)),
             Err(e) => {
                 tracing::error!("cannot init notifier service, {e}");
                 None
