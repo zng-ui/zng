@@ -628,7 +628,7 @@ impl ImageCache {
                                     meta.density = density;
                                     meta.is_mask = is_mask;
                                     let decoded = ImageDecoded::new(meta, pixels.clone(), is_opaque);
-                                    if app_sender.send(AppEvent::ImageDecoded(decoded)).is_err() {
+                                    if app_sender.send(AppEvent::ImageLoaded(decoded)).is_err() {
                                         return;
                                     }
                                     prev_pixels = pixels;
@@ -649,7 +649,7 @@ impl ImageCache {
                                         Ok(pixels) => {
                                             meta.size = size;
                                             let decoded = ImageDecoded::new(meta, pixels.clone(), prev_is_opaque);
-                                            if app_sender.send(AppEvent::ImageDecoded(decoded)).is_err() {
+                                            if app_sender.send(AppEvent::ImageLoaded(decoded)).is_err() {
                                                 return;
                                             }
                                             prev_pixels = pixels;

@@ -1,9 +1,10 @@
 //! Audio device types.
 
-use std::num::NonZeroU16;
+use std::{num::NonZeroU16, time::Duration};
 
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
+use zng_task::channel::IpcBytesCast;
 use zng_txt::Txt;
 
 crate::declare_id! {
@@ -253,7 +254,7 @@ bitflags! {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct AudioEncodeRequest {
-    /// Image to encode.
+    /// Audio to encode.
     pub id: AudioId,
 
     /// Format query, view-process uses [`AudioFormat::matches`] to find the format.
@@ -270,19 +271,69 @@ impl AudioEncodeRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct AudioMetadata {
-    /// Image ID.
+    /// Audio ID.
     pub id: AudioId,
+
+    /// Tracks in the audio.
+    /// 
+    /// Always at least one entry. The first track is the default one.
+    pub tracks: Vec<TrackMetadata>,
+}
+impl AudioMetadata {
+    /// New.
+    pub fn new(id: AudioId, tracks: Vec<TrackMetadata>) -> Self {
+        Self { id, tracks }
+    }
+}
+
+/// Represents metadata about a track in the audio.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct TrackMetadata {
+    /// Number of channels interleaved in the track.
+    pub channel_count: u16,
+    /// Samples per second.
+    /// 
+    /// A sample is a single sequence of `channel_count`.
+    pub sample_rate: u32,
+    /// Total duration of the tack.
+    /// 
+    /// If [`Duration::ZERO`] value indicates an unknown duration.
+    pub total_duration: Duration,
+}
+impl TrackMetadata {
+    /// New.
+    pub fn new(channel_count: u16, sample_rate: u32) -> Self {
+        Self { channel_count, sample_rate, total_duration: Duration::ZERO }
+    }
 }
 
 /// Represents a partial or fully decoded audio.
 ///
-/// See [`Event::AudioDecoded`] and [`AudioPartiallyDecoded`] for more details.
+/// See [`Event::AudioDecoded`] for more details.
 ///
 /// [`Event::AudioDecoded`]: crate::Event::AudioDecoded
 /// [`AudioPartiallyDecoded`]: crate::Event::AudioPartiallyDecoded
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct AudioDecoded {
-    /// Image metadata.
-    pub meta: AudioMetadata,
+    /// The audio ID.
+    /// 
+    /// An [`AudioMetadata`] for this ID was already notified before this event.
+    pub id: AudioId,
+
+    /// Index of the track in the audio.
+    pub track_index: u16,
+
+    /// Offset of the `chunk` on the track.
+    /// 
+    /// This is a count in samples before the first in this chunk, a sample is a sequence of [`channel_count`].
+    /// 
+    /// To convert offset to bytes `offset * channel_count * size_of::<f32>()`.
+    /// 
+    /// [`channel_count`]: TrackMetadata::channel_count
+    pub offset: usize,
+
+    /// Interleaved `f32` samples.
+    pub chunk: IpcBytesCast<f32>,
 }

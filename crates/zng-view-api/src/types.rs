@@ -462,10 +462,8 @@ pub enum Event {
 
     /// An audio resource decoded header metadata.
     AudioMetadataDecoded(AudioMetadata),
-    /// An audio resource finished decoding.
+    /// An audio resource decoded chunk or finished decoding.
     AudioDecoded(AudioDecoded),
-    /// Another chunk of an audio resource has decoded.
-    AudioChunkDecoded(AudioDecoded),
     /// An audio resource failed to decode, the audio ID is not valid.
     AudioDecodeError {
         /// The audio that failed to decode.

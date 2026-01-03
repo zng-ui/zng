@@ -603,6 +603,7 @@ impl PartialEq for IpcBytes {
         self.ptr_eq(other) || self[..] == other[..]
     }
 }
+impl Eq for IpcBytes { }
 #[cfg(ipc)]
 impl IpcMemMap {
     fn read(name: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
@@ -1302,6 +1303,39 @@ impl<T: bytemuck::AnyBitPattern> From<IpcBytesCast<T>> for IpcBytes {
         value.bytes
     }
 }
+impl<T: bytemuck::AnyBitPattern> Clone for IpcBytesCast<T> {
+    fn clone(&self) -> Self {
+        Self { bytes: self.bytes.clone(), _t: PhantomData }
+    }
+}
+impl<T: bytemuck::AnyBitPattern> fmt::Debug for IpcBytesCast<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "IpcBytesCast<{}>(<{} items>)", std::any::type_name::<T>(), self.len())
+    }
+}
+impl<T: bytemuck::AnyBitPattern> serde::Serialize for IpcBytesCast<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+        self.bytes.serialize(serializer)
+    }
+}
+impl<'de, T: bytemuck::AnyBitPattern> serde::Deserialize<'de> for IpcBytesCast<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+        let bytes = IpcBytes::deserialize(deserializer)?;
+        Ok(bytes.cast())
+    }
+}
+impl<T: bytemuck::AnyBitPattern> PartialEq for IpcBytesCast<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.bytes == other.bytes
+    }
+}
+impl<T: bytemuck::AnyBitPattern> Eq for IpcBytesCast<T> {
+}
+
 impl IpcBytes {
     /// Safe bytemuck casting wrapper.
     ///
