@@ -500,6 +500,18 @@ impl ImageMetadata {
         }
     }
 }
+impl Default for ImageMetadata {
+    fn default() -> Self {
+        Self {
+            id: ImageId::INVALID,
+            size: Default::default(),
+            density: Default::default(),
+            is_mask: Default::default(),
+            original_color_type: ColorType::BGRA8,
+            parent: Default::default(),
+        }
+    }
+}
 
 /// Kind of image container entry an image was decoded from.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -544,15 +556,22 @@ impl std::cmp::PartialOrd for ImageEntryKind {
 
 /// Represents a partial or fully decoded image.
 ///
-/// See [`Event::ImageDecoded`] and [`ImagePartiallyDecoded`] for more details.
+/// See [`Event::ImageDecoded`] for more details.
 ///
 /// [`Event::ImageDecoded`]: crate::Event::ImageDecoded
-/// [`ImagePartiallyDecoded`]: crate::Event::ImagePartiallyDecoded
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ImageDecoded {
     /// Image metadata.
     pub meta: ImageMetadata,
+
+    /// If the [`pixels`] only represent a partial image.
+    ///
+    /// When this is `None` the image has fully loaded.
+    ///
+    /// [`pixels`]: Self::pixels
+    pub partial: Option<PartialImageKind>,
+
     /// Decoded pixels.
     ///
     /// Is BGRA8 pre-multiplied if `!is_mask` or is `A8` if `is_mask`.
@@ -560,11 +579,50 @@ pub struct ImageDecoded {
     /// If all pixels have an alpha value of 255.
     pub is_opaque: bool,
 }
+impl Default for ImageDecoded {
+    fn default() -> Self {
+        Self {
+            meta: Default::default(),
+            partial: Default::default(),
+            pixels: Default::default(),
+            is_opaque: true,
+        }
+    }
+}
 impl ImageDecoded {
     /// New.
     pub fn new(meta: ImageMetadata, pixels: IpcBytes, is_opaque: bool) -> Self {
-        Self { meta, pixels, is_opaque }
+        Self {
+            meta,
+            partial: None,
+            pixels,
+            is_opaque,
+        }
     }
+}
+
+/// Represents what kind of partial data was decoded.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum PartialImageKind {
+    /// The [`pixels`] are a placeholder image that must fill the actual image size.
+    ///
+    /// [`pixels`]: ImageDecoded::pixels
+    Placeholder {
+        /// The placeholder size.
+        pixel_size: PxSize,
+    },
+    /// The [`pixels`] is an image with the image full width but with only `height`.
+    ///
+    /// [`pixels`]: ImageDecoded::pixels
+    Rows {
+        /// Offset of the decoded rows.
+        ///
+        /// This is 0 if the image decodes from top to bottom or is `actual_height - height` if it decodes bottom to top.
+        y: Px,
+        /// The actual height of the pixels.
+        height: Px,
+    },
 }
 
 bitflags! {

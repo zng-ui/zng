@@ -31,7 +31,7 @@ pub fn run() {
             // this event will fire every time a frame is rendered (just once in this case).
             on_frame_image_ready = async_hn_once!(|args: &FrameImageReadyArgs| {
                 // in this case a `frame_image` was already captured.
-                let img = args.frame_image.unwrap();
+                let img = args.frame_image.unwrap().get();
 
                 // we save it...
                 print!("saving ./screenshot.png ... ");

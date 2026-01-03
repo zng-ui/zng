@@ -88,7 +88,7 @@ fn load(max_decoded_len: ByteLength, data: SvgData, downscale: Option<ImageDowns
             }
 
             if size.width() as usize * size.height() as usize * 4 > max_decoded_len.bytes() {
-                let img = Img::dummy(Some(formatx!("cannot render svg, would exceed max {max_decoded_len} allowed")));
+                let img = Img::new_empty(formatx!("cannot render svg, would exceed max {max_decoded_len} allowed"));
                 return ImageSource::Image(zng_var::const_var(img));
             }
 

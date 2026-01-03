@@ -508,16 +508,18 @@ declare_api! {
     ///
     /// If `mask` is set captures an A8 mask, otherwise captures a full BGRA8 image.
     ///
-    /// Returns immediately if an [`Event::FrameImageReady`] will be send when the image is ready.
-    /// Returns `0` if the window is not found.
+    /// Returns immediately, an [`Event::ImageDecoded`] will be send when the image is ready.
+    ///
+    /// Returns [`ImageId::INVALID`] if the window is not found.
     pub fn frame_image(&mut self, id: WindowId, mask: Option<ImageMaskMode>) -> ImageId;
 
     /// Create a new image from a selection of the current rendered frame.
     ///
     /// If `mask` is set captures an A8 mask, otherwise captures a full BGRA8 image.
     ///
-    /// Returns immediately if an [`Event::FrameImageReady`] will be send when the image is ready.
-    /// Returns `0` if the window is not found.
+    /// Returns immediately, an [`Event::ImageDecoded`] will be send when the image is ready.
+    ///
+    /// Returns [`ImageId::INVALID`] if the window is not found.
     pub fn frame_image_rect(&mut self, id: WindowId, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageId;
 
     /// Set the video mode used when the window is in exclusive fullscreen.

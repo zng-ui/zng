@@ -22,11 +22,8 @@ use zng_app::{
     APP, AppExtension,
     update::EventUpdate,
     view_process::{
-        VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewImage,
-        raw_events::{
-            LOW_MEMORY_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_METADATA_LOADED_EVENT,
-            RAW_IMAGE_PARTIALLY_LOADED_EVENT,
-        },
+        VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewImageHandle,
+        raw_events::{LOW_MEMORY_EVENT, RAW_IMAGE_DECODE_ERROR_EVENT, RAW_IMAGE_DECODED_EVENT, RAW_IMAGE_METADATA_DECODED_EVENT},
     },
     widget::UiTaskWidget,
 };
@@ -40,12 +37,12 @@ pub use types::*;
 mod render;
 #[doc(inline)]
 pub use render::{IMAGE_RENDER, IMAGES_WINDOW, ImageRenderWindowRoot, ImageRenderWindowsService, render_retain};
-use zng_layout::unit::{ByteLength, ByteUnits};
+use zng_layout::unit::{ByteLength, ByteUnits, Px, PxSize};
 use zng_task::{UiTask, channel::IpcBytes};
 use zng_txt::{ToTxt, Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap};
-use zng_var::{Var, WeakVar, var};
-use zng_view_api::image::{ImageEntryMetadata, ImageRequest};
+use zng_var::{Var, WeakVar, const_var, var};
+use zng_view_api::image::{ImageDecoded, ImageEntryMetadata, ImageId, ImageMetadata, ImageRequest};
 
 /// Application extension that provides an image cache.
 ///
@@ -59,50 +56,48 @@ use zng_view_api::image::{ImageEntryMetadata, ImageRequest};
 pub struct ImageManager {}
 impl AppExtension for ImageManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = RAW_IMAGE_METADATA_LOADED_EVENT
-            .on(update)
-            .or_else(|| RAW_IMAGE_PARTIALLY_LOADED_EVENT.on(update))
-            .or_else(|| RAW_IMAGE_LOADED_EVENT.on(update))
-            .or_else(|| RAW_IMAGE_LOAD_ERROR_EVENT.on(update))
-        {
+        let mut img = None;
+        // handle any ok decode
+        if let Some(args) = RAW_IMAGE_METADATA_DECODED_EVENT.on(update) {
+            img = Some((args.handle.clone(), ImageDecoded::new(args.meta.clone(), IpcBytes::default(), true)));
+        } else if let Some(args) = RAW_IMAGE_DECODED_EVENT.on(update) {
+            img = Some((args.handle.clone(), args.image.clone()));
+        }
+
+        if let Some((handle, data)) = img {
             let images = IMAGES_SV.read();
 
-            let mut found_key = None;
-
-            if let Some(id) = args.image.id()
-                && let Some(var) = images.find_decoding(id)
+            if let Some(var) = images.find_decoding(handle.image_id()) {
+                // image is registered already, or is entry of registered
+                var.modify(move |i| i.set_data(data));
+            } else if let Some(p) = &data.meta.parent
+                && let Some(var) = images.find_decoding(p.parent)
             {
-                // ViewImage updates with internal mutation, notify this
-                var.modify(|i| i.update());
-                found_key = var.with(|i| i.cache_key);
-            } else if let Some(parent) = args.image.entry_parent()
-                && let Some(parent) = images.find_decoding(parent)
-            {
-                // entry image first update, generate var for it and siblings in parent image
-                let image = args.image.clone();
-                parent.modify(|p| {
-                    p.register_entry(image);
+                // image is not registered, but is entry of image that is, insert it
+                let entry = Img::new(handle, data);
+                var.modify(move |i| {
+                    i.insert_entry(entry);
                 });
             }
+        } else if let Some(args) = RAW_IMAGE_DECODE_ERROR_EVENT.on(update) {
+            let images = IMAGES_SV.read();
 
-            if args.image.is_loaded() || args.image.is_error() {
-                // finished loading, cleanup 'decoding' strong references
-                drop(images);
-                let mut images = IMAGES_SV.write();
-                images
-                    .decoding
-                    .retain(|i| i.image.with(|i| i.is_loading() || i.has_loading_entries()));
+            if let Some(var) = images.find_decoding(args.handle.image_id()) {
+                // image registered, update to error.
 
-                if let Some(key) = found_key
-                    && args.image.is_error()
+                let error = args.error.clone();
+                var.modify(move |i| i.set_error(error));
+
+                if let Some(key) = var.with(|i| i.cache_key)
+                    && let Some(entry) = images.cache.get(&key)
                 {
-                    if let Some(e) = images.cache.get(&key) {
-                        e.error.store(true, Ordering::Relaxed);
-                    }
-                    tracing::error!("decode error: {:?}", args.image.error().unwrap());
+                    entry.error.store(true, Ordering::Relaxed);
                 }
+                // else is loading will flag on the pos update pass
             }
-        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
+        }
+
+        if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let mut images = IMAGES_SV.write();
             let images = &mut *images;
             images.cleanup_not_cached(true);
@@ -121,17 +116,18 @@ impl AppExtension for ImageManager {
                 )
             {
                 let img = img_var.get();
+                let old_handle = img.view_handle();
 
-                if let Some(view) = img.view.get() {
-                    if view.generation() == args.generation {
+                if !old_handle.is_dummy() {
+                    if old_handle.view_process_gen() == args.generation {
                         continue; // already recovered, can this happen?
                     }
-                    if let Some(e) = view.error() {
+                    if let Some(e) = img.error() {
                         // respawned, but image was an error.
-                        img_var.set(Img::dummy(Some(e.to_owned())));
+                        img_var.set(Img::new_empty(e));
                     } else if let Some(task_i) = decoding_interrupted
                         .iter()
-                        .position(|e| e.image.with(|img| img.view() == Some(view)))
+                        .position(|e| e.image.with(|img| img.view_handle() == old_handle))
                     {
                         let task = decoding_interrupted.swap_remove(task_i);
                         // respawned, but image was decoding, need to restart decode.
@@ -145,7 +141,7 @@ impl AppExtension for ImageManager {
                         request.entries = entries;
                         match VIEW_PROCESS.add_image(request) {
                             Ok(img) => {
-                                img_var.set(Img::new(img));
+                                img_var.set(Img::new_loading(img));
                             }
                             Err(_) => { /*will receive another event.*/ }
                         }
@@ -157,55 +153,55 @@ impl AppExtension for ImageManager {
                     } else {
                         // respawned and image was loaded.
 
-                        let img_format = if view.is_mask() {
-                            ImageDataFormat::A8 { size: view.size() }
+                        let img_format = if img.is_mask() {
+                            ImageDataFormat::A8 { size: img.size() }
                         } else {
                             ImageDataFormat::Bgra8 {
-                                size: view.size(),
-                                density: view.density(),
-                                original_color_type: view.original_color_type(),
+                                size: img.size(),
+                                density: img.density(),
+                                original_color_type: img.original_color_type(),
                             }
                         };
 
                         let entries = img.entries();
 
-                        let data = view.pixels().unwrap();
+                        let data = img.pixels().unwrap();
                         let request = ImageRequest::new(img_format.clone(), data.clone(), max_decoded_len.0 as u64, None, mask);
                         let img = match VIEW_PROCESS.add_image(request) {
                             Ok(img) => img,
                             Err(_) => return, // we will receive another event.
                         };
-                        let mut img = Img::new(img);
+                        let mut img = Img::new_loading(img);
 
                         fn add_entries(max_decoded_len: ByteLength, mask: Option<ImageMaskMode>, entries: Vec<ImageVar>, img: &mut Img) {
                             for (i, entry) in entries.into_iter().enumerate() {
                                 let entry = entry.get();
-                                if let Some(view) = entry.view() {
+                                let entry_handle = entry.view_handle();
+                                if !entry_handle.is_dummy() {
                                     if entry.is_loaded() {
-                                        let img_format = if view.is_mask() {
-                                            ImageDataFormat::A8 { size: view.size() }
+                                        let img_format = if img.is_mask() {
+                                            ImageDataFormat::A8 { size: entry.size() }
                                         } else {
                                             ImageDataFormat::Bgra8 {
-                                                size: view.size(),
-                                                density: view.density(),
-                                                original_color_type: view.original_color_type(),
+                                                size: entry.size(),
+                                                density: entry.density(),
+                                                original_color_type: entry.original_color_type(),
                                             }
                                         };
-                                        let data = view.pixels().unwrap();
+                                        let data = entry.pixels().unwrap();
                                         let mut request =
                                             ImageRequest::new(img_format.clone(), data.clone(), max_decoded_len.0 as u64, None, mask);
-                                        request.parent =
-                                            Some(ImageEntryMetadata::new(img.view().unwrap().id().unwrap(), i, entry.entry_kind()));
+                                        request.parent = Some(ImageEntryMetadata::new(img.view_handle().image_id(), i, entry.entry_kind()));
                                         let entry_img = match VIEW_PROCESS.add_image(request) {
                                             Ok(img) => img,
                                             Err(_) => return, // we will receive another event.
                                         };
-                                        let entry_img = img.register_entry(entry_img);
+                                        let entry_img = img.insert_entry(Img::new_loading(entry_img));
 
                                         add_entries(max_decoded_len, mask, entry.entries(), &mut entry_img.get());
                                         continue;
                                     } else if entry.is_error() {
-                                        img.register_entry(view.clone());
+                                        img.insert_entry(entry);
                                         continue;
                                     }
                                 }
@@ -235,7 +231,7 @@ impl AppExtension for ImageManager {
                     request.entries = entries;
                     match VIEW_PROCESS.add_image(request) {
                         Ok(img) => {
-                            img_var.set(Img::new(img));
+                            img_var.set(Img::new_loading(img));
                         }
                         Err(_) => { /*will receive another event.*/ }
                     }
@@ -250,7 +246,7 @@ impl AppExtension for ImageManager {
         } else if LOW_MEMORY_EVENT.on(update).is_some() {
             IMAGES.clean_all();
         } else {
-            self.event_preview_render(update);
+            IMAGES_SV.write().event_preview_render(update);
         }
     }
 
@@ -292,7 +288,7 @@ impl AppExtension for ImageManager {
                                         // request sent, add to `decoding` will receive
                                         // image decoded events
                                         t.image.modify(move |v| {
-                                            v.inner_set_or_replace(img, false);
+                                            v.set_handle(img);
                                         });
                                     }
                                     Err(_) => {
@@ -306,18 +302,21 @@ impl AppExtension for ImageManager {
                                 });
                             } else {
                                 // success, but we are only doing `load_in_headless` validation.
-                                let img = ViewImage::dummy(None);
                                 t.image.modify(move |v| {
-                                    v.inner_set_or_replace(img, true);
+                                    let data = ImageDecoded::new(
+                                        ImageMetadata::new(ImageId::INVALID, PxSize::splat(Px(1)), false, ColorType::BGRA8),
+                                        IpcBytes::from_vec_blocking(vec![0, 0, 0, 0]).unwrap(),
+                                        false,
+                                    );
+                                    v.set_data(data);
                                 });
                             }
                         }
                         Err(e) => {
                             tracing::error!("load error: {e:?}");
                             // load error.
-                            let img = ViewImage::dummy(Some(e));
                             t.image.modify(move |v| {
-                                v.inner_set_or_replace(img, true);
+                                v.set_error(e);
                             });
 
                             // flag error for user retry
@@ -346,7 +345,26 @@ impl AppExtension for ImageManager {
     }
 
     fn update(&mut self) {
-        self.update_render();
+        let mut images = IMAGES_SV.write();
+        let images = &mut *images;
+
+        images.decoding.retain(|t| {
+            t.image.with(|i| {
+                let retain = i.is_loading() || i.has_loading_entries();
+
+                if !retain
+                    && i.is_error()
+                    && let Some(key) = i.cache_key
+                    && let Some(entry) = images.cache.get_mut(&key)
+                {
+                    *entry.error.get_mut() = true;
+                }
+
+                retain
+            })
+        });
+
+        images.update_render();
     }
 }
 
@@ -417,51 +435,76 @@ impl ImagesService {
         }
     }
 
-    fn register(&mut self, key: ImageHash, image: ViewImage) -> std::result::Result<ImageVar, (ViewImage, ImageVar)> {
+    /// Associate the `handle` with the `key` or return it with the already existing image if the `key` already has an entry.
+    #[allow(clippy::result_large_err)]
+    fn register(
+        &mut self,
+        key: Option<ImageHash>,
+        image: (ViewImageHandle, ImageDecoded),
+        error: Txt,
+    ) -> std::result::Result<ImageVar, ((ViewImageHandle, ImageDecoded), ImageVar)> {
         let limits = self.limits.get();
         let limits = ImageLimits {
             max_encoded_len: limits.max_encoded_len,
-            max_decoded_len: limits.max_decoded_len.max(image.pixels().map(|b| b.len()).unwrap_or(0).bytes()),
+            max_decoded_len: limits.max_decoded_len.max(image.1.pixels.len().bytes()),
             allow_path: PathFilter::BlockAll,
             #[cfg(feature = "http")]
             allow_uri: UriFilter::BlockAll,
         };
 
-        match self.cache.entry(key) {
-            IdEntry::Occupied(e) => Err((image, e.get().image.read_only())),
-            IdEntry::Vacant(e) => {
-                let is_error = image.is_error();
-                let is_loading = !is_error && !image.is_loaded();
-                let is_mask = image.is_mask();
-                let format = if is_mask {
-                    ImageDataFormat::A8 { size: image.size() }
-                } else {
-                    ImageDataFormat::Bgra8 {
-                        size: image.size(),
-                        density: image.density(),
-                        original_color_type: image.original_color_type(),
-                    }
-                };
-                let img_var = var(Img::new(image));
-                if is_loading {
-                    self.decoding.push(ImageDecodingTask {
-                        format,
-                        data: IpcBytes::default(),
-                        image: img_var.clone(),
-                    });
-                }
+        let (handle, image) = image;
+        let is_error = !error.is_empty();
+        let is_loading = !is_error && (image.partial.is_some() || image.pixels.is_empty());
 
-                Ok(e.insert(CacheEntry {
-                    error: AtomicBool::new(is_error),
-                    image: img_var,
-                    max_decoded_len: limits.max_decoded_len,
-                    downscale: None,
-                    mask: if is_mask { Some(ImageMaskMode::A) } else { None },
-                    entries: ImageEntriesMode::PRIMARY,
-                })
-                .image
-                .read_only())
+        if let Some(key) = key {
+            match self.cache.entry(key) {
+                IdEntry::Occupied(e) => Err(((handle, image), e.get().image.read_only())),
+                IdEntry::Vacant(e) => {
+                    let is_mask = image.meta.is_mask;
+                    let format = if is_mask {
+                        ImageDataFormat::A8 { size: image.meta.size }
+                    } else {
+                        ImageDataFormat::Bgra8 {
+                            size: image.meta.size,
+                            density: image.meta.density,
+                            original_color_type: image.meta.original_color_type.clone(),
+                        }
+                    };
+                    let img_var = var(Img::new(handle, image));
+                    if is_loading {
+                        self.decoding.push(ImageDecodingTask {
+                            format,
+                            data: IpcBytes::default(),
+                            image: img_var.clone(),
+                        });
+                    }
+
+                    Ok(e.insert(CacheEntry {
+                        error: AtomicBool::new(is_error),
+                        image: img_var,
+                        max_decoded_len: limits.max_decoded_len,
+                        downscale: None,
+                        mask: if is_mask { Some(ImageMaskMode::A) } else { None },
+                        entries: ImageEntriesMode::PRIMARY,
+                    })
+                    .image
+                    .read_only())
+                }
             }
+        } else if is_loading {
+            let is_mask = image.meta.is_mask;
+            let image = var(Img::new(handle, image));
+            self.not_cached.push(NotCachedEntry {
+                image: image.downgrade(),
+                max_decoded_len: limits.max_decoded_len,
+                downscale: None,
+                mask: if is_mask { Some(ImageMaskMode::A) } else { None },
+                entries: ImageEntriesMode::PRIMARY,
+            });
+            todo!()
+        } else {
+            // not cached and already loaded
+            Ok(const_var(Img::new(handle, image)))
         }
     }
 
@@ -545,7 +588,7 @@ impl ImagesService {
                     let error = formatx!("limits filter blocked `{}`", path.display());
                     tracing::error!("{error}");
                     IMAGES_SV.write().restore_extensions(extensions);
-                    return var(Img::dummy(Some(error))).read_only();
+                    return var(Img::new_empty(error)).read_only();
                 }
                 ImageSource::Read(path)
             }
@@ -556,7 +599,7 @@ impl ImagesService {
                     let error = formatx!("limits filter blocked `{uri}`");
                     tracing::error!("{error}");
                     IMAGES_SV.write().restore_extensions(extensions);
-                    return var(Img::dummy(Some(error))).read_only();
+                    return var(Img::new_empty(error)).read_only();
                 }
                 ImageSource::Download(uri, accepts)
             }
@@ -597,7 +640,7 @@ impl ImagesService {
         if !VIEW_PROCESS.is_available() && !self.load_in_headless.get() {
             tracing::warn!("loading dummy image, set `load_in_headless=true` to actually load without renderer");
 
-            let dummy = var(Img::new(ViewImage::dummy(None)));
+            let dummy = var(Img::new_empty(Txt::from_static("")));
             self.cache.insert(
                 key,
                 CacheEntry {
@@ -759,7 +802,7 @@ impl ImagesService {
             self.cache
                 .entry(key)
                 .or_insert_with(|| CacheEntry {
-                    image: var(Img::new_none(Some(key))),
+                    image: var(Img::new_cached(key)),
                     error: AtomicBool::new(false),
                     max_decoded_len,
                     downscale: options.downscale,
@@ -769,7 +812,7 @@ impl ImagesService {
                 .image
                 .clone()
         } else if let ImageCacheMode::Ignore = options.cache_mode {
-            let img = var(Img::new_none(None));
+            let img = var(Img::new_loading(ViewImageHandle::dummy()));
             self.not_cached.push(NotCachedEntry {
                 image: img.downgrade(),
                 max_decoded_len,
@@ -779,7 +822,7 @@ impl ImagesService {
             });
             img
         } else {
-            let img = var(Img::new_none(Some(key)));
+            let img = var(Img::new_cached(key));
             self.cache.insert(
                 key,
                 CacheEntry {
@@ -821,7 +864,7 @@ impl ImagesService {
 
     fn find_decoding(&self, id: zng_view_api::image::ImageId) -> Option<ImageVar> {
         self.decoding.iter().find_map(|i| {
-            if i.image.with(|i| i.view().map(|v| v.id() == Some(id))).unwrap_or(false) {
+            if i.image.with(|i| i.handle.image_id() == id) {
                 Some(i.image.clone())
             } else {
                 i.image.with(|i| i.find_entry(id))
@@ -864,7 +907,7 @@ impl IMAGES {
 
     /// Returns a dummy image that reports it is loaded or an error.
     pub fn dummy(&self, error: Option<Txt>) -> ImageVar {
-        var(Img::dummy(error)).read_only()
+        var(Img::new_empty(error.unwrap_or_default())).read_only()
     }
 
     /// Cache or load an image file from a file system `path`.
@@ -954,7 +997,7 @@ impl IMAGES {
         options: ImageOptions,
         limits: Option<ImageLimits>,
     ) -> ImageVar {
-        let img = var(Img::new_none(None));
+        let img = var(Img::new_empty(Txt::from_static("")));
         task::spawn(async_clmv!(img, {
             let source = source.await;
             let actual_img = IMAGES.image_impl(source, options, limits);
@@ -964,14 +1007,21 @@ impl IMAGES {
         img.read_only()
     }
 
-    /// Associate the `image` with the `key` in the cache.
+    /// Associate the `image` produced by direct interaction with the view-process with the `key` in the cache.
     ///
-    /// Returns `Ok(ImageVar)` with the new image var that tracks `image`, or `Err(ViewImage, ImageVar)`
+    /// If the `key` is not set the image is not cached, the service only manages it until it is loaded.
+    ///
+    /// Returns `Ok(ImageVar)` with the new image var that tracks `image`, or `Err(image, ImageVar)`
     /// that returns the `image` and a clone of the var already associated with the `key`.
     ///
-    /// Note that you can register entries on the returned [`Img::register_entry`].
-    pub fn register(&self, key: ImageHash, image: ViewImage) -> std::result::Result<ImageVar, (ViewImage, ImageVar)> {
-        IMAGES_SV.write().register(key, image)
+    /// Note that you can register entries on the returned [`Img::insert_entry`].
+    #[allow(clippy::result_large_err)] // boxing here does not really help performance
+    pub fn register(
+        &self,
+        key: Option<ImageHash>,
+        image: (ViewImageHandle, ImageDecoded),
+    ) -> std::result::Result<ImageVar, ((ViewImageHandle, ImageDecoded), ImageVar)> {
+        IMAGES_SV.write().register(key, image, Txt::from_static(""))
     }
 
     /// Remove the image from the cache, if it is only held by the cache.

@@ -1,5 +1,11 @@
 # Unreleased
 
+* Refactor `Img`, it is now a normal value.
+    - Fixes `ImageVar` sometimes not updating correctly in complex bindings.
+    - **Breaking** Replaced advanced `ViewImage` with `ViewImageHandle`.
+    - **Breaking** Multiple changes in the `Img` methods.
+    - All image loading now is managed by the `IMAGES` service in the app-process.
+
 * **Breaking** Add system tray icon and app menu to the view API.
     - Service not implemented yet, this will happen in a future non breaking release.
 
@@ -49,8 +55,6 @@
     - Added `WINDOWS.available_operations` with what window operations the view-process implements.
     - Added `DIALOG.available_native_dialogs` with what native dialogs the view-process implements.
     - Added `CLIPBOARD.available_types` with what data types can be read/write by the view-process implementation.
-
-* Fix `ImageVar` updates not propagating in some complex bindings.
 
 * Fix `cargo zng l10n --clean-template` removing custom template localization files.
 * Fix `cargo zng l10n` not including entries of local dependencies targeting the same localization file.
