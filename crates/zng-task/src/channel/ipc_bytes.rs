@@ -4,6 +4,7 @@ use std::{
     cell::Cell,
     fmt, fs,
     io::{self, Read, Write},
+    iter::FusedIterator,
     marker::PhantomData,
     mem::MaybeUninit,
     ops,
@@ -12,7 +13,7 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use futures_lite::AsyncReadExt;
+use futures_lite::{AsyncReadExt, AsyncWriteExt as _};
 #[cfg(ipc)]
 use ipc_channel::ipc::IpcSharedMemory;
 use parking_lot::Mutex;
@@ -96,33 +97,42 @@ impl IpcBytes {
 
     /// Allocate zeroed mutable memory that can be written to and then converted to `IpcBytes` fast.
     pub async fn new_mut(len: usize) -> io::Result<IpcBytesMut> {
-        #[cfg(ipc)]
-        if len <= Self::INLINE_MAX {
-            Ok(IpcBytesMut {
-                len,
-                inner: IpcBytesMutInner::Heap(vec![0; len]),
-            })
-        } else if len <= Self::UNNAMED_MAX {
-            Ok(IpcBytesMut {
-                len,
-                inner: IpcBytesMutInner::AnonMemMap(IpcSharedMemory::from_byte(0, len)),
-            })
-        } else {
-            blocking::unblock(move || Self::new_mut_blocking(len)).await
-        }
-
-        #[cfg(not(ipc))]
-        {
-            Ok(IpcBytesMut {
-                len,
-                inner: IpcBytesMutInner::Heap(vec![0; len]),
-            })
-        }
+        IpcBytesMut::new(len).await
     }
 
     /// Copy or move data from vector.
     pub async fn from_vec(data: Vec<u8>) -> io::Result<Self> {
         blocking::unblock(move || Self::from_vec_blocking(data)).await
+    }
+
+    /// Copy data from the iterator.
+    pub async fn from_iter(iter: impl Iterator<Item = u8>) -> io::Result<Self> {
+        #[cfg(ipc)]
+        {
+            let (min, max) = iter.size_hint();
+            if let Some(max) = max {
+                if max <= Self::INLINE_MAX {
+                    return Ok(Self(Arc::new(IpcBytesData::Heap(iter.collect()))));
+                } else if max == min {
+                    let mut r = IpcBytes::new_mut(max).await?;
+                    for (i, b) in r.iter_mut().zip(iter) {
+                        *i = b;
+                    }
+                    return r.finish().await;
+                }
+            }
+
+            let mut writer = Self::new_writer().await;
+            for b in iter {
+                writer.write_all(&[b]).await?;
+            }
+            writer.finish().await
+        }
+
+        #[cfg(not(ipc))]
+        {
+            Ok(Self(Arc::new(IpcBytesData::Heap(iter.collect()))))
+        }
     }
 
     /// Read `data` into shared memory.
@@ -306,46 +316,7 @@ impl IpcBytes {
 
     /// Allocate zeroed mutable memory that can be written to and then converted to `IpcBytes` fast.
     pub fn new_mut_blocking(len: usize) -> io::Result<IpcBytesMut> {
-        #[cfg(ipc)]
-        if len <= Self::INLINE_MAX {
-            Ok(IpcBytesMut {
-                len,
-                inner: IpcBytesMutInner::Heap(vec![0; len]),
-            })
-        } else if len <= Self::UNNAMED_MAX {
-            Ok(IpcBytesMut {
-                len,
-                inner: IpcBytesMutInner::AnonMemMap(IpcSharedMemory::from_byte(0, len)),
-            })
-        } else {
-            let (name, file) = Self::create_memmap()?;
-            file.lock()?;
-            #[cfg(unix)]
-            {
-                let mut permissions = file.metadata()?.permissions();
-                use std::os::unix::fs::PermissionsExt;
-                permissions.set_mode(0o600);
-                file.set_permissions(permissions)?;
-            }
-            file.set_len(len as u64)?;
-            // SAFETY: we hold write lock
-            let map = unsafe { memmap2::MmapMut::map_mut(&file) }?;
-            Ok(IpcBytesMut {
-                len,
-                inner: IpcBytesMutInner::MemMap {
-                    name,
-                    map,
-                    write_handle: file,
-                },
-            })
-        }
-        #[cfg(not(ipc))]
-        {
-            Ok(IpcBytesMut {
-                len,
-                inner: IpcBytesMutInner::Heap(vec![0; len]),
-            })
-        }
+        IpcBytesMut::new_blocking(len)
     }
 
     /// Copy data from slice.
@@ -379,6 +350,35 @@ impl IpcBytes {
         #[cfg(not(ipc))]
         {
             Ok(Self(Arc::new(IpcBytesData::Heap(data))))
+        }
+    }
+
+    /// Copy data from the iterator.
+    pub fn from_iter_blocking(iter: impl Iterator<Item = u8>) -> io::Result<Self> {
+        #[cfg(ipc)]
+        {
+            let (min, max) = iter.size_hint();
+            if let Some(max) = max {
+                if max <= Self::INLINE_MAX {
+                    return Ok(Self(Arc::new(IpcBytesData::Heap(iter.collect()))));
+                } else if max == min {
+                    let mut r = IpcBytes::new_mut_blocking(max)?;
+                    for (i, b) in r.iter_mut().zip(iter) {
+                        *i = b;
+                    }
+                    return r.finish_blocking();
+                }
+            }
+
+            let mut writer = Self::new_writer_blocking();
+            for b in iter {
+                writer.write_all(&[b])?;
+            }
+            writer.finish()
+        }
+        #[cfg(not(ipc))]
+        {
+            Ok(Self(Arc::new(IpcBytesData::Heap(iter.collect()))))
         }
     }
 
@@ -603,7 +603,7 @@ impl PartialEq for IpcBytes {
         self.ptr_eq(other) || self[..] == other[..]
     }
 }
-impl Eq for IpcBytes { }
+impl Eq for IpcBytes {}
 #[cfg(ipc)]
 impl IpcMemMap {
     fn read(name: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
@@ -1061,6 +1061,76 @@ impl fmt::Debug for IpcBytesMut {
     }
 }
 impl IpcBytesMut {
+    /// Allocate zeroed mutable memory that can be written to and then converted to `IpcBytes` fast.
+    pub async fn new(len: usize) -> io::Result<IpcBytesMut> {
+        #[cfg(ipc)]
+        if len <= IpcBytes::INLINE_MAX {
+            Ok(IpcBytesMut {
+                len,
+                inner: IpcBytesMutInner::Heap(vec![0; len]),
+            })
+        } else if len <= IpcBytes::UNNAMED_MAX {
+            Ok(IpcBytesMut {
+                len,
+                inner: IpcBytesMutInner::AnonMemMap(IpcSharedMemory::from_byte(0, len)),
+            })
+        } else {
+            blocking::unblock(move || Self::new_blocking(len)).await
+        }
+
+        #[cfg(not(ipc))]
+        {
+            Ok(IpcBytesMut {
+                len,
+                inner: IpcBytesMutInner::Heap(vec![0; len]),
+            })
+        }
+    }
+
+    /// Allocate zeroed mutable memory that can be written to and then converted to `IpcBytes` fast.
+    pub fn new_blocking(len: usize) -> io::Result<IpcBytesMut> {
+        #[cfg(ipc)]
+        if len <= IpcBytes::INLINE_MAX {
+            Ok(IpcBytesMut {
+                len,
+                inner: IpcBytesMutInner::Heap(vec![0; len]),
+            })
+        } else if len <= IpcBytes::UNNAMED_MAX {
+            Ok(IpcBytesMut {
+                len,
+                inner: IpcBytesMutInner::AnonMemMap(IpcSharedMemory::from_byte(0, len)),
+            })
+        } else {
+            let (name, file) = IpcBytes::create_memmap()?;
+            file.lock()?;
+            #[cfg(unix)]
+            {
+                let mut permissions = file.metadata()?.permissions();
+                use std::os::unix::fs::PermissionsExt;
+                permissions.set_mode(0o600);
+                file.set_permissions(permissions)?;
+            }
+            file.set_len(len as u64)?;
+            // SAFETY: we hold write lock
+            let map = unsafe { memmap2::MmapMut::map_mut(&file) }?;
+            Ok(IpcBytesMut {
+                len,
+                inner: IpcBytesMutInner::MemMap {
+                    name,
+                    map,
+                    write_handle: file,
+                },
+            })
+        }
+        #[cfg(not(ipc))]
+        {
+            Ok(IpcBytesMut {
+                len,
+                inner: IpcBytesMutInner::Heap(vec![0; len]),
+            })
+        }
+    }
+
     /// Uses `buf` or copies it to exclusive mutable memory.
     pub async fn from_vec(buf: Vec<u8>) -> io::Result<Self> {
         #[cfg(ipc)]
@@ -1236,6 +1306,18 @@ impl<T: bytemuck::AnyBitPattern> From<IpcBytesMutCast<T>> for IpcBytesMut {
         value.bytes
     }
 }
+impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesMutCast<T> {
+    /// Uses `buf` or copies it to exclusive mutable memory.
+    pub async fn from_vec(data: Vec<T>) -> io::Result<Self> {
+        IpcBytesMut::from_vec(bytemuck::cast_vec(data)).await.map(IpcBytesMut::cast)
+    }
+
+    /// Uses `buf` or copies it to exclusive mutable memory.
+    pub fn from_vec_blocking(data: Vec<T>) -> io::Result<Self> {
+        IpcBytesMut::from_vec_blocking(bytemuck::cast_vec(data)).map(IpcBytesMut::cast)
+    }
+}
+
 impl IpcBytesMut {
     /// Safe bytemuck casting wrapper.
     ///
@@ -1285,6 +1367,14 @@ pub struct IpcBytesCast<T: bytemuck::AnyBitPattern> {
     bytes: IpcBytes,
     _t: PhantomData<T>,
 }
+impl<T: bytemuck::AnyBitPattern> Default for IpcBytesCast<T> {
+    fn default() -> Self {
+        Self {
+            bytes: Default::default(),
+            _t: PhantomData,
+        }
+    }
+}
 impl<T: bytemuck::AnyBitPattern> ops::Deref for IpcBytesCast<T> {
     type Target = [T];
 
@@ -1305,7 +1395,10 @@ impl<T: bytemuck::AnyBitPattern> From<IpcBytesCast<T>> for IpcBytes {
 }
 impl<T: bytemuck::AnyBitPattern> Clone for IpcBytesCast<T> {
     fn clone(&self) -> Self {
-        Self { bytes: self.bytes.clone(), _t: PhantomData }
+        Self {
+            bytes: self.bytes.clone(),
+            _t: PhantomData,
+        }
     }
 }
 impl<T: bytemuck::AnyBitPattern> fmt::Debug for IpcBytesCast<T> {
@@ -1316,14 +1409,16 @@ impl<T: bytemuck::AnyBitPattern> fmt::Debug for IpcBytesCast<T> {
 impl<T: bytemuck::AnyBitPattern> serde::Serialize for IpcBytesCast<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer {
+        S: serde::Serializer,
+    {
         self.bytes.serialize(serializer)
     }
 }
 impl<'de, T: bytemuck::AnyBitPattern> serde::Deserialize<'de> for IpcBytesCast<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de> {
+        D: serde::Deserializer<'de>,
+    {
         let bytes = IpcBytes::deserialize(deserializer)?;
         Ok(bytes.cast())
     }
@@ -1333,7 +1428,37 @@ impl<T: bytemuck::AnyBitPattern> PartialEq for IpcBytesCast<T> {
         self.bytes == other.bytes
     }
 }
-impl<T: bytemuck::AnyBitPattern> Eq for IpcBytesCast<T> {
+impl<T: bytemuck::AnyBitPattern> Eq for IpcBytesCast<T> {}
+impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesCast<T> {
+    /// Copy or move data from vector.
+    pub async fn from_vec(data: Vec<T>) -> io::Result<Self> {
+        IpcBytes::from_vec(bytemuck::cast_vec(data)).await.map(IpcBytes::cast)
+    }
+
+    /// Copy data from the iterator.
+    pub async fn from_iter(iter: impl Iterator<Item = T>) -> io::Result<Self> {
+        IpcBytes::from_iter(iter.map(bytemuck::cast)).await.map(IpcBytes::cast)
+    }
+
+    /// Copy or move data from vector.
+    pub fn from_vec_blocking(data: Vec<T>) -> io::Result<Self> {
+        IpcBytes::from_vec_blocking(bytemuck::cast_vec(data)).map(IpcBytes::cast)
+    }
+
+    /// Copy data from slice.
+    pub fn from_slice_blocking(data: &[T]) -> io::Result<Self> {
+        IpcBytes::from_slice_blocking(bytemuck::cast_slice(data)).map(IpcBytes::cast)
+    }
+
+    /// Copy data from the iterator.
+    pub fn from_iter_blocking(iter: impl Iterator<Item = T>) -> io::Result<Self> {
+        IpcBytes::from_iter_blocking(iter.map(bytemuck::cast)).map(IpcBytes::cast)
+    }
+
+    /// Reference the underlying raw bytes.
+    pub fn as_bytes(&self) -> &IpcBytes {
+        &self.bytes
+    }
 }
 
 impl IpcBytes {
@@ -1616,5 +1741,154 @@ impl IpcBytesMut {
                 b -= chunk_len;
             }
         }
+    }
+}
+
+// Slice iterator is very efficient, but it hold a reference, so we hold a self reference.
+// The alternative to this is copying the unsafe code from std and adapting it or implementing
+// a much slower index based iterator.
+type SliceIter<'a> = std::slice::Iter<'a, u8>;
+self_cell::self_cell! {
+    struct IpcBytesIntoIterInner {
+        owner: IpcBytes,
+        #[covariant]
+        dependent: SliceIter,
+    }
+}
+
+/// An [`IpcBytes`] iterator that holds a strong reference to it.
+pub struct IpcBytesIntoIter(IpcBytesIntoIterInner);
+impl IpcBytesIntoIter {
+    fn new(bytes: IpcBytes) -> Self {
+        Self(IpcBytesIntoIterInner::new(bytes, |b| b.iter()))
+    }
+
+    /// The source bytes.
+    pub fn source(&self) -> &IpcBytes {
+        self.0.borrow_owner()
+    }
+}
+impl Iterator for IpcBytesIntoIter {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<u8> {
+        self.0.with_dependent_mut(|_, d| d.next().copied())
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.borrow_dependent().size_hint()
+    }
+
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.0.borrow_dependent().as_slice().len()
+    }
+
+    fn nth(&mut self, n: usize) -> Option<u8> {
+        self.0.with_dependent_mut(|_, d| d.nth(n).copied())
+    }
+
+    fn last(mut self) -> Option<Self::Item>
+    where
+        Self: Sized,
+    {
+        self.next_back()
+    }
+}
+impl DoubleEndedIterator for IpcBytesIntoIter {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.with_dependent_mut(|_, d| d.next_back().copied())
+    }
+
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        self.0.with_dependent_mut(|_, d| d.nth_back(n).copied())
+    }
+}
+impl FusedIterator for IpcBytesIntoIter {}
+impl Default for IpcBytesIntoIter {
+    fn default() -> Self {
+        IpcBytes::empty().into_iter()
+    }
+}
+impl IntoIterator for IpcBytes {
+    type Item = u8;
+
+    type IntoIter = IpcBytesIntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IpcBytesIntoIter::new(self)
+    }
+}
+
+type ChunkSliceIter<'a> = std::slice::ChunksExact<'a, u8>;
+self_cell::self_cell! {
+    struct IpcBytesCastIntoIterInner {
+        owner: IpcBytes,
+        #[covariant]
+        dependent: ChunkSliceIter,
+    }
+}
+
+/// An [`IpcBytesCast`] iterator that holds a strong reference to it.
+pub struct IpcBytesCastIntoIter<T: bytemuck::AnyBitPattern>(IpcBytesCastIntoIterInner, IpcBytesCast<T>);
+impl<T: bytemuck::AnyBitPattern> IpcBytesCastIntoIter<T> {
+    fn new(bytes: IpcBytesCast<T>) -> Self {
+        Self(
+            IpcBytesCastIntoIterInner::new(bytes.bytes.clone(), |b| b[..].chunks_exact(size_of::<T>())),
+            bytes,
+        )
+    }
+
+    /// The source bytes.
+    pub fn source(&self) -> &IpcBytesCast<T> {
+        &self.1
+    }
+}
+impl<T: bytemuck::AnyBitPattern> Iterator for IpcBytesCastIntoIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
+        self.0.with_dependent_mut(|_, d| d.next().map(bytemuck::from_bytes).copied())
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.borrow_dependent().size_hint()
+    }
+
+    fn nth(&mut self, n: usize) -> Option<T> {
+        self.0.with_dependent_mut(|_, d| d.nth(n).map(bytemuck::from_bytes).copied())
+    }
+
+    fn last(mut self) -> Option<Self::Item>
+    where
+        Self: Sized,
+    {
+        self.next_back()
+    }
+}
+impl<T: bytemuck::AnyBitPattern> DoubleEndedIterator for IpcBytesCastIntoIter<T> {
+    fn next_back(&mut self) -> Option<T> {
+        self.0.with_dependent_mut(|_, d| d.next_back().map(bytemuck::from_bytes).copied())
+    }
+
+    fn nth_back(&mut self, n: usize) -> Option<T> {
+        self.0.with_dependent_mut(|_, d| d.nth_back(n).map(bytemuck::from_bytes).copied())
+    }
+}
+impl<T: bytemuck::AnyBitPattern> FusedIterator for IpcBytesCastIntoIter<T> {}
+impl<T: bytemuck::AnyBitPattern> Default for IpcBytesCastIntoIter<T> {
+    fn default() -> Self {
+        IpcBytes::empty().cast::<T>().into_iter()
+    }
+}
+impl<T: bytemuck::AnyBitPattern> IntoIterator for IpcBytesCast<T> {
+    type Item = T;
+
+    type IntoIter = IpcBytesCastIntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IpcBytesCastIntoIter::new(self)
     }
 }
