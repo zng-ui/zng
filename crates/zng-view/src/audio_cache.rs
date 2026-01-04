@@ -1,11 +1,14 @@
-use std::{fmt, io::Cursor};
+use std::{fmt, io::Cursor, sync::Arc, time::Duration};
 
 use rodio::Source;
-use zng_task::channel::{IpcBytes, IpcBytesCast, IpcReceiver};
-use zng_txt::ToTxt;
+use rustc_hash::FxHashMap;
+use zng_task::channel::{IpcBytes, IpcBytesCast, IpcBytesCastIntoIter, IpcBytesMutCast, IpcReceiver};
+use zng_txt::{ToTxt, formatx};
 use zng_view_api::{Event, audio::*};
 
 use crate::{AppEvent, AppEventSender};
+
+mod mix;
 
 pub(crate) const FORMATS: &[AudioFormat] = &[
     #[cfg(feature = "audio_mp3")]
@@ -23,12 +26,26 @@ pub(crate) const FORMATS: &[AudioFormat] = &[
 pub(crate) struct AudioCache {
     app_sender: AppEventSender,
     id_gen: AudioId,
+    output_id_gen: AudioOutputId,
+    play_id_gen: AudioPlayId,
+    tracks: FxHashMap<AudioId, AudioTrack>,
+    device_streams: Vec<std::sync::Weak<rodio::OutputStream>>,
+    streams: FxHashMap<AudioOutputId, VpOutput>,
+}
+struct VpOutput {
+    device_stream: Arc<rodio::OutputStream>,
+    sink: rodio::Sink,
 }
 impl AudioCache {
     pub(crate) fn new(app_sender: AppEventSender) -> Self {
         Self {
             app_sender,
             id_gen: AudioId::first(),
+            output_id_gen: AudioOutputId::first(),
+            play_id_gen: AudioPlayId::first(),
+            tracks: FxHashMap::default(),
+            device_streams: vec![],
+            streams: FxHashMap::default(),
         }
     }
 
@@ -99,48 +116,173 @@ impl AudioCache {
                     error: e.to_txt(),
                 }));
                 return;
-            },
+            }
+        };
+        let total_duration = match decoder.total_duration() {
+            Some(d) => d,
+            None => {
+                let _ = app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
+                    audio: id,
+                    error: formatx!("only audio sources with known duration are currently supported"),
+                }));
+                return;
+            }
         };
 
-        let meta = AudioMetadata::new(id, vec![TrackMetadata::new(decoder.channels(), decoder.sample_rate())]);
-        let mut track = AudioTrack { decoder };
-        if app_sender.send(AppEvent::AudioLoaded(meta, track)).is_err() {
+        let mut meta = AudioMetadata::new(id, decoder.channels(), decoder.sample_rate());
+        meta.total_duration = total_duration;
+
+        let mut track = AudioTrack {
+            channel_count: meta.channel_count,
+            sample_rate: meta.sample_rate,
+            total_duration,
+            raw: IpcBytesCast::default(),
+        };
+
+        if app_sender.send(AppEvent::Notify(Event::AudioMetadataDecoded(meta))).is_err() {
             return;
         }
 
+        let decoded = (|| -> std::io::Result<IpcBytesCast<f32>> {
+            let mut raw = IpcBytesMutCast::<f32>::new_blocking(decoder.current_span_len().unwrap())?;
+            for (f, df) in raw.iter_mut().zip(decoder) {
+                *f = df;
+            }
+            raw.finish_blocking()
+        })();
+        match decoded {
+            Ok(d) => track.raw = d,
+            Err(e) => {
+                let _ = app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
+                    audio: id,
+                    error: formatx!("cannot allocate memory for decode, {e}"),
+                }));
+                return;
+            }
+        }
 
-        // will decode only a chunk by default in the future
+        let decoded = AudioDecoded::new(id, track.raw.clone());
 
+        if app_sender.send(AppEvent::AudioCanPlay(id, track)).is_err() {
+            return;
+        }
 
-
-        todo!()
+        let _ = app_sender.send(AppEvent::Notify(Event::AudioDecoded(decoded)));
     }
 
-    pub(crate) fn add_pro(&mut self, request: AudioRequest<IpcReceiver<IpcBytes>>) -> AudioId {
-        todo!()
+    pub(crate) fn add_pro(&mut self, _request: AudioRequest<IpcReceiver<IpcBytes>>) -> AudioId {
+        let id = self.id_gen.incr();
+        let _ = self.app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
+            audio: id,
+            error: "add_pro not implemented".to_txt(),
+        }));
+        id
     }
 
-    pub(crate) fn forget(&self, id: AudioId) {
-        todo!()
+    pub(crate) fn forget(&mut self, id: AudioId) {
+        self.tracks.remove(&id);
     }
 
-    pub(crate) fn playback(&self, request: PlaybackRequest) -> zng_view_api::audio::PlaybackId {
-        todo!()
+    pub(crate) fn open_output(&mut self, output: AudioOutputRequest) -> AudioOutputId {
+        let id = self.output_id_gen.incr();
+
+        // only supports the default stream for this update
+        let mut device_stream = self.device_streams.first().and_then(|w| w.upgrade());
+
+        if device_stream.is_none() {
+            self.device_streams.retain(|w| w.strong_count() > 0);
+            match rodio::OutputStreamBuilder::open_default_stream() {
+                Ok(s) => {
+                    let s = Arc::new(s);
+                    self.device_streams.push(Arc::downgrade(&s));
+                    device_stream = Some(s);
+                }
+                Err(e) => {
+                    let _ = self.app_sender.send(AppEvent::Notify(Event::AudioOutputError {
+                        output: id,
+                        error: formatx!("cannot open audio output device stream, {e}"),
+                    }));
+                    return id;
+                }
+            }
+        }
+        let device_stream = device_stream.unwrap();
+
+        let sink = rodio::Sink::connect_new(device_stream.mixer());
+        sink.set_volume(output.config.volume.0);
+        sink.set_speed(output.config.speed.0);
+        match output.config.state {
+            AudioOutputState::Pause | AudioOutputState::Stop => sink.pause(),
+            AudioOutputState::Play => {}
+            _ => unreachable!(),
+        }
+
+        self.streams.insert(id, VpOutput { device_stream, sink });
+
+        id
     }
 
-    pub(crate) fn playback_update(&self, id: PlaybackId, request: PlaybackUpdateRequest) {
-        todo!()
+    pub(crate) fn update_output(&mut self, request: AudioOutputUpdateRequest) {
+        if let Some(s) = self.streams.get(&request.id) {
+            match &request.config.state {
+                AudioOutputState::Play => {}
+                AudioOutputState::Pause => s.sink.pause(),
+                AudioOutputState::Stop => {
+                    s.sink.pause();
+                    s.sink.clear();
+                }
+                _ => unreachable!(),
+            }
+            s.sink.set_volume(request.config.volume.0);
+            s.sink.set_speed(request.config.speed.0);
+            if let AudioOutputState::Play = &request.config.state {
+                s.sink.play();
+            }
+        }
+    }
+
+    pub(crate) fn close_output(&mut self, id: AudioOutputId) {
+        if let Some(s) = self.streams.remove(&id) {
+            s.sink.stop();
+        }
+    }
+
+    pub(crate) fn play(&mut self, request: AudioPlayRequest) -> AudioPlayId {
+        let id = self.play_id_gen.incr();
+
+        if let Some(s) = self.streams.get(&request.output) {
+            match self.vp_mix_to_source(
+                request.mix,
+                s.device_stream.config().channel_count(),
+                s.device_stream.config().sample_rate(),
+            ) {
+                Ok(source) => s.sink.append(source),
+                Err(e) => {
+                    let _ = self.app_sender.send(AppEvent::Notify(Event::AudioPlayError { play: id, error: e }));
+                }
+            }
+        } else {
+            let _ = self.app_sender.send(AppEvent::Notify(Event::AudioPlayError {
+                play: id,
+                error: formatx!("output stream {:?} not found", request.output),
+            }));
+        }
+
+        id
     }
 
     /// Called after receive and first chunk decode completes correctly.
-    pub(crate) fn loaded(&mut self, meta: AudioMetadata, data: AudioTrack) {
+    pub(crate) fn on_audio_can_play(&mut self, id: AudioId, data: AudioTrack) {
+        self.tracks.insert(id, data);
     }
 
-    pub(crate) fn on_low_memory(&mut self) {
-    }
+    pub(crate) fn on_low_memory(&mut self) {}
 }
 
 pub struct AudioTrack {
+    channel_count: u16,
+    sample_rate: u32,
+    total_duration: Duration,
     raw: IpcBytesCast<f32>,
 }
 impl fmt::Debug for AudioTrack {
@@ -148,31 +290,48 @@ impl fmt::Debug for AudioTrack {
         f.debug_struct("AudioTrack").finish_non_exhaustive()
     }
 }
-impl rodio::Source for AudioTrack {
-    fn current_span_len(&self) -> Option<usize> {
-        self.decoder.current_span_len()
-    }
-
-    fn channels(&self) -> rodio::ChannelCount {
-        self.decoder.channels()
-    }
-
-    fn sample_rate(&self) -> rodio::SampleRate {
-        self.decoder.sample_rate()
-    }
-
-    fn total_duration(&self) -> Option<std::time::Duration> {
-        self.decoder.total_duration()
+impl AudioTrack {
+    fn play_source(&self) -> AudioTrackPlay {
+        AudioTrackPlay {
+            channel_count: self.channel_count,
+            sample_rate: self.sample_rate,
+            total_duration: self.total_duration,
+            track: self.raw.clone().into_iter(),
+        }
     }
 }
-impl Iterator for AudioTrack {
+
+struct AudioTrackPlay {
+    channel_count: u16,
+    sample_rate: u32,
+    total_duration: Duration,
+    track: IpcBytesCastIntoIter<f32>,
+}
+impl Iterator for AudioTrackPlay {
     type Item = f32;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.decoder.next()
+        self.track.next()
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.decoder.size_hint()
+        self.track.size_hint()
+    }
+}
+impl rodio::Source for AudioTrackPlay {
+    fn current_span_len(&self) -> Option<usize> {
+        todo!()
+    }
+
+    fn channels(&self) -> rodio::ChannelCount {
+        self.channel_count
+    }
+
+    fn sample_rate(&self) -> rodio::SampleRate {
+        self.sample_rate
+    }
+
+    fn total_duration(&self) -> Option<Duration> {
+        Some(self.total_duration)
     }
 }

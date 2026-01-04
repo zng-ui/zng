@@ -448,7 +448,7 @@ fn density_key(density: Option<PxDensity2d>) -> Option<(u16, u16)> {
     density.map(|s| ((s.width.ppcm() * 3.0) as u16, (s.height.ppcm() * 3.0) as u16))
 }
 
-/// Represents decoded header metadata about an image.
+/// Represents decoded header metadata about an image position in a container represented by another image.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ImageEntryMetadata {

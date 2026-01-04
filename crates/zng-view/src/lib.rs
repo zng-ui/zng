@@ -148,16 +148,30 @@ use window::Window;
 use zng_txt::Txt;
 use zng_unit::{Dip, DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
 use zng_view_api::{
-    ViewProcessInfo, api_extension::{ApiExtensionId, ApiExtensionPayload}, audio::AudioMetadata, dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse}, drag_drop::*, font::{FontFaceId, FontId, FontOptions, FontVariationName}, image::{ImageDecoded, ImageEncodeId, ImageEncodeRequest, ImageId, ImageMaskMode, ImageRequest, ImageTextureId}, keyboard::{Key, KeyCode, KeyState}, mouse::ButtonId, raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo}, touch::{TouchId, TouchUpdate}, window::{
+    ViewProcessInfo,
+    api_extension::{ApiExtensionId, ApiExtensionPayload},
+    dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
+    drag_drop::*,
+    font::{FontFaceId, FontId, FontOptions, FontVariationName},
+    image::{ImageDecoded, ImageEncodeId, ImageEncodeRequest, ImageId, ImageMaskMode, ImageRequest, ImageTextureId},
+    keyboard::{Key, KeyCode, KeyState},
+    mouse::ButtonId,
+    raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
+    touch::{TouchId, TouchUpdate},
+    window::{
         CursorIcon, CursorImage, EventCause, EventFrameRendered, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId,
         HeadlessOpenData, HeadlessRequest, MonitorId, MonitorInfo, VideoMode, WindowChanged, WindowId, WindowOpenData, WindowRequest,
         WindowState, WindowStateAll,
-    }, *
+    },
+    *,
 };
 
 use rustc_hash::FxHashMap;
 
-use crate::{audio_cache::{AudioCache, AudioTrack}, notification::NotificationService};
+use crate::{
+    audio_cache::{AudioCache, AudioTrack},
+    notification::NotificationService,
+};
 
 #[cfg(ipc)]
 zng_env::on_process_start!(|args| {
@@ -1000,11 +1014,11 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 self.exited = true;
                 self.winit_loop.exit();
             }
-            AppEvent::ImageLoaded(data) => {
-                self.image_cache.loaded(data);
+            AppEvent::ImageCanRender(data) => {
+                self.image_cache.on_image_can_render(data);
             }
-            AppEvent::AudioLoaded(meta, data) => {
-                self.audio_cache.loaded(meta, data);
+            AppEvent::AudioCanPlay(id, data) => {
+                self.audio_cache.on_audio_can_play(id, data);
             }
             AppEvent::MonitorPowerChanged => {
                 // if a window opens in power-off it is blank until redraw.
@@ -1166,6 +1180,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         let mut winit_loop_guard = self.winit_loop.set(winit_loop);
 
         self.image_cache.on_low_memory();
+        self.audio_cache.on_low_memory();
         for w in &mut self.windows {
             w.on_low_memory();
         }
@@ -1305,11 +1320,11 @@ impl App {
                                 self.app.exited = true;
                                 break 'app_loop;
                             }
-                            AppEvent::ImageLoaded(data) => {
-                                self.app.image_cache.loaded(data);
+                            AppEvent::ImageCanRender(data) => {
+                                self.app.image_cache.on_image_can_render(data);
                             }
-                            AppEvent::AudioLoaded(meta, data) => {
-                                self.app.audio_cache.loaded(meta, data);
+                            AppEvent::AudioCanPlay(meta, data) => {
+                                self.app.audio_cache.on_audio_can_play(meta, data);
                             }
                             AppEvent::MonitorPowerChanged => {} // headless
                             AppEvent::SetDeviceEventsFilter(filter) => {
@@ -2208,12 +2223,20 @@ impl Api for App {
         self.audio_cache.forget(id)
     }
 
-    fn playback(&mut self, request: audio::PlaybackRequest) -> audio::PlaybackId {
-        self.audio_cache.playback(request)
+    fn open_audio_output(&mut self, request: audio::AudioOutputRequest) -> audio::AudioOutputId {
+        self.audio_cache.open_output(request)
     }
 
-    fn playback_update(&mut self, id: audio::PlaybackId, request: audio::PlaybackUpdateRequest) {
-        self.audio_cache.playback_update(id, request)
+    fn update_audio_output(&mut self, request: audio::AudioOutputUpdateRequest) {
+        self.audio_cache.update_output(request)
+    }
+
+    fn close_audio_output(&mut self, id: audio::AudioOutputId) {
+        self.audio_cache.close_output(id)
+    }
+
+    fn play_audio(&mut self, request: audio::AudioPlayRequest) -> audio::AudioPlayId {
+        self.audio_cache.play(request)
     }
 
     fn encode_audio(&mut self, _request: audio::AudioEncodeRequest) -> audio::AudioEncodeId {
@@ -2601,11 +2624,11 @@ pub(crate) enum AppEvent {
     /// Lost connection with app-process.
     ParentProcessExited,
 
-    /// Image finished decoding, can now be rendered, must call [`ImageCache::loaded`].
-    ImageLoaded(ImageDecoded),
+    /// Image finished decoding, can now be rendered, must call [`ImageCache::on_image_can_render`].
+    ImageCanRender(ImageDecoded),
 
-    /// Audio header finished decoding can now be played, must call [`AudioCache::loaded`].
-    AudioLoaded(AudioMetadata, AudioTrack),
+    /// Audio header finished decoding can now be played, must call [`AudioCache::on_audio_can_play`].
+    AudioCanPlay(audio::AudioId, AudioTrack),
 
     /// Enable disable winit device events.
     SetDeviceEventsFilter(DeviceEventsFilter),

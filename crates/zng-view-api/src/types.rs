@@ -3,7 +3,7 @@
 use crate::{
     access::{AccessCmd, AccessNodeId},
     api_extension::{ApiExtensionId, ApiExtensionPayload, ApiExtensions},
-    audio::{AudioDecoded, AudioDeviceId, AudioDeviceInfo, AudioId, AudioMetadata},
+    audio::{AudioDecoded, AudioDeviceId, AudioDeviceInfo, AudioId, AudioMetadata, AudioOutputId, AudioPlayId},
     config::{
         AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
     },
@@ -468,6 +468,24 @@ pub enum Event {
     AudioDecodeError {
         /// The audio that failed to decode.
         audio: AudioId,
+        /// The error message.
+        error: Txt,
+    },
+    /// Audio playback stream failed to connect or stopped due to error.
+    AudioOutputError {
+        /// The playback ID.
+        output: AudioOutputId,
+        /// The error message.
+        error: Txt,
+    },
+    /// Audio playback failed.
+    ///
+    /// Note that if the entire output stream fails an [`AudioOutputError`] error is sent instead.
+    ///
+    /// [`AudioOutputError`]: Event::AudioOutputError
+    AudioPlayError {
+        /// The request ID.
+        play: AudioPlayId,
         /// The error message.
         error: Txt,
     },

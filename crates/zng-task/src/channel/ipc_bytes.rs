@@ -1307,6 +1307,16 @@ impl<T: bytemuck::AnyBitPattern> From<IpcBytesMutCast<T>> for IpcBytesMut {
     }
 }
 impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesMutCast<T> {
+    /// Allocate zeroed mutable memory that can be written to and then converted to `IpcBytes` fast.
+    pub async fn new(len: usize) -> io::Result<Self> {
+        IpcBytesMut::new(len * size_of::<T>()).await.map(IpcBytesMut::cast)
+    }
+
+    /// Allocate zeroed mutable memory that can be written to and then converted to `IpcBytes` fast.
+    pub fn new_blocking(len: usize) -> io::Result<Self> {
+        IpcBytesMut::new_blocking(len * size_of::<T>()).map(IpcBytesMut::cast)
+    }
+
     /// Uses `buf` or copies it to exclusive mutable memory.
     pub async fn from_vec(data: Vec<T>) -> io::Result<Self> {
         IpcBytesMut::from_vec(bytemuck::cast_vec(data)).await.map(IpcBytesMut::cast)
@@ -1315,6 +1325,21 @@ impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesMutCast<T> {
     /// Uses `buf` or copies it to exclusive mutable memory.
     pub fn from_vec_blocking(data: Vec<T>) -> io::Result<Self> {
         IpcBytesMut::from_vec_blocking(bytemuck::cast_vec(data)).map(IpcBytesMut::cast)
+    }
+
+    /// Reference the underlying raw bytes.
+    pub fn as_bytes(&mut self) -> &mut IpcBytesMut {
+        &mut self.bytes
+    }
+
+    /// Convert to immutable shareable [`IpcBytesCast`].
+    pub async fn finish(self) -> io::Result<IpcBytesCast<T>> {
+        self.bytes.finish().await.map(IpcBytes::cast)
+    }
+
+    /// Convert to immutable shareable [`IpcBytesCast`].
+    pub fn finish_blocking(self) -> io::Result<IpcBytesCast<T>> {
+        self.bytes.finish_blocking().map(IpcBytes::cast)
     }
 }
 
@@ -1430,6 +1455,16 @@ impl<T: bytemuck::AnyBitPattern> PartialEq for IpcBytesCast<T> {
 }
 impl<T: bytemuck::AnyBitPattern> Eq for IpcBytesCast<T> {}
 impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesCast<T> {
+    /// Allocate zeroed mutable memory that can be written to and then converted to `IpcBytesCast` fast.
+    pub async fn new_mut(len: usize) -> io::Result<IpcBytesMutCast<T>> {
+        IpcBytesMut::new(len * size_of::<T>()).await.map(IpcBytesMut::cast)
+    }
+
+    /// Allocate zeroed mutable memory that can be written to and then converted to `IpcBytes` fast.
+    pub fn new_mut_blocking(len: usize) -> io::Result<IpcBytesMutCast<T>> {
+        IpcBytesMut::new_blocking(len * size_of::<T>()).map(IpcBytesMut::cast)
+    }
+
     /// Copy or move data from vector.
     pub async fn from_vec(data: Vec<T>) -> io::Result<Self> {
         IpcBytes::from_vec(bytemuck::cast_vec(data)).await.map(IpcBytes::cast)
