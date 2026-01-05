@@ -452,7 +452,7 @@ declare_api! {
     /// Create a playback stream.
     ///
     /// Opens a connection with the audio device if there are no other streams connected to it.
-    pub fn open_audio_output(&mut self, request: audio::AudioOutputRequest) -> audio::AudioOutputId;
+    pub fn open_audio_output(&mut self, request: audio::AudioOutputRequest);
 
     /// Update configuration of an existing playback stream.
     pub fn update_audio_output(&mut self, request: audio::AudioOutputUpdateRequest);

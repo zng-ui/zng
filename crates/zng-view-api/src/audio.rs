@@ -25,7 +25,11 @@ crate::declare_id! {
 
     /// Audio playback stream ID.
     ///
-    /// The View Process defines the ID.
+    /// In the View Process this is mapped to a system id.
+    ///
+    /// In the App Process this is an unique id that survives View crashes.
+    ///
+    /// The App Process defines the ID.
     pub struct AudioOutputId(_);
 
     /// Audio playback request ID.
@@ -343,10 +347,13 @@ impl AudioDecoded {
     }
 }
 
-/// Represents an connection request to an audio output device.
+/// Represents a connection request to an audio output device.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct AudioOutputRequest {
+    /// ID that will identify the new output.
+    pub id: AudioOutputId,
+
     /// Initial config.
     pub config: AudioOutputConfig,
 }
@@ -355,10 +362,30 @@ pub struct AudioOutputRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct AudioOutputUpdateRequest {
-    /// The target stream.
+    /// The output stream.
     pub id: AudioOutputId,
     /// New config.
     pub config: AudioOutputConfig,
+}
+
+/// Represents an audio output stream capabilities.
+/// 
+/// Any audio played on this output is automatically converted to the channel count and sample rate.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct AudioOutputOpenData {
+    /// Number of channels interleaved supported by this output.
+    pub channel_count: u16,
+    /// Samples per second.
+    ///
+    /// A sample is a single sequence of `channel_count`.
+    pub sample_rate: u32,
+}
+impl AudioOutputOpenData {
+    /// New.
+    pub fn new(channel_count: u16, sample_rate: u32) -> Self {
+        Self { channel_count, sample_rate }
+    }
 }
 
 /// Audio playback config.

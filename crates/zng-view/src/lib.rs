@@ -2223,7 +2223,7 @@ impl Api for App {
         self.audio_cache.forget(id)
     }
 
-    fn open_audio_output(&mut self, request: audio::AudioOutputRequest) -> audio::AudioOutputId {
+    fn open_audio_output(&mut self, request: audio::AudioOutputRequest) {
         self.audio_cache.open_output(request)
     }
 

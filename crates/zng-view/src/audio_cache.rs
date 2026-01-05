@@ -26,7 +26,6 @@ pub(crate) const FORMATS: &[AudioFormat] = &[
 pub(crate) struct AudioCache {
     app_sender: AppEventSender,
     id_gen: AudioId,
-    output_id_gen: AudioOutputId,
     play_id_gen: AudioPlayId,
     tracks: FxHashMap<AudioId, AudioTrack>,
     device_streams: Vec<std::sync::Weak<rodio::OutputStream>>,
@@ -41,7 +40,6 @@ impl AudioCache {
         Self {
             app_sender,
             id_gen: AudioId::first(),
-            output_id_gen: AudioOutputId::first(),
             play_id_gen: AudioPlayId::first(),
             tracks: FxHashMap::default(),
             device_streams: vec![],
@@ -184,8 +182,8 @@ impl AudioCache {
         self.tracks.remove(&id);
     }
 
-    pub(crate) fn open_output(&mut self, output: AudioOutputRequest) -> AudioOutputId {
-        let id = self.output_id_gen.incr();
+    pub(crate) fn open_output(&mut self, output: AudioOutputRequest) {
+        let id = output.id;
 
         // only supports the default stream for this update
         let mut device_stream = self.device_streams.first().and_then(|w| w.upgrade());
@@ -199,15 +197,17 @@ impl AudioCache {
                     device_stream = Some(s);
                 }
                 Err(e) => {
-                    let _ = self.app_sender.send(AppEvent::Notify(Event::AudioOutputError {
-                        output: id,
+                    let _ = self.app_sender.send(AppEvent::Notify(Event::AudioOutputOpenError {
+                        id,
                         error: formatx!("cannot open audio output device stream, {e}"),
                     }));
-                    return id;
+                    return;
                 }
             }
         }
         let device_stream = device_stream.unwrap();
+
+        let data = AudioOutputOpenData::new(device_stream.config().channel_count(), device_stream.config().sample_rate());
 
         let sink = rodio::Sink::connect_new(device_stream.mixer());
         sink.set_volume(output.config.volume.0);
@@ -220,7 +220,7 @@ impl AudioCache {
 
         self.streams.insert(id, VpOutput { device_stream, sink });
 
-        id
+        let _ = self.app_sender.send(AppEvent::Notify(Event::AudioOutputOpened(id, data)));
     }
 
     pub(crate) fn update_output(&mut self, request: AudioOutputUpdateRequest) {

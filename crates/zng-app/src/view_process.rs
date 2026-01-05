@@ -24,7 +24,7 @@ use zng_var::{ResponderVar, Var, VarHandle};
 use zng_view_api::{
     self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen, ViewProcessInfo,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError},
-    audio::{AudioDecoded, AudioId, AudioMetadata, AudioRequest},
+    audio::{AudioDecoded, AudioId, AudioMetadata, AudioMix, AudioOutputId, AudioOutputRequest, AudioPlayId, AudioPlayRequest, AudioRequest},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse, Notification, NotificationResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::{FontOptions, IpcFontBytes},
@@ -171,6 +171,16 @@ impl VIEW_PROCESS {
     pub fn open_headless(&self, config: HeadlessRequest) -> Result<()> {
         let _s = tracing::debug_span!("VIEW_PROCESS.open_headless").entered();
         self.write().process.open_headless(config)
+    }
+    
+    /// Send a request to open a connection to an audio output device.
+    /// 
+    /// A [`RAW_AUDIO_OUTPUT_OPEN_EVENT`] or [`RAW_AUDIO_OUTPUT_ERROR_EVENT`]
+    /// 
+    /// [`RAW_AUDIO_OUTPUT_OPEN_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_OUTPUT_OPEN_EVENT
+    /// [`RAW_AUDIO_OUTPUT_ERROR_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_OUTPUT_ERROR_EVENT
+    pub fn open_audio_output(&self, request: AudioOutputRequest) -> Result<()> {
+        self.write().process.open_audio_output(request)
     }
 
     /// Send an image for decoding and caching.
@@ -1084,6 +1094,46 @@ impl From<ViewHeadless> for ViewWindowOrHeadless {
 }
 
 #[derive(Debug)]
+struct ViewAudioOutputData {
+    app_id: AppId,
+    id: AudioOutputId,
+    generation: ViewProcessGen,
+}
+impl ViewAudioOutputData {
+    fn call<R>(&self, f: impl FnOnce(AudioOutputId, &mut Controller) -> Result<R>) -> Result<R> {
+        let mut app = VIEW_PROCESS.handle_write(self.app_id);
+        if app.check_generation() {
+            Err(ChannelError::disconnected())
+        } else {
+            f(self.id, &mut app.process)
+        }
+    }
+}
+impl Drop for ViewAudioOutputData {
+    fn drop(&mut self) {
+        if VIEW_PROCESS.is_available() {
+            let mut app = VIEW_PROCESS.handle_write(self.app_id);
+            if self.generation == app.process.generation() {
+                let _ = app.process.close_audio_output(self.id);
+            }
+        }
+    }
+}
+
+/// Handle to an audio output stream in the View Process.
+///
+/// The stream is disposed when all clones of the handle are dropped.
+#[derive(Clone, Debug)]
+#[must_use = "the audio output is disposed when all clones of the handle are dropped"]
+pub struct ViewAudioOutput(Arc<ViewAudioOutputData>);
+impl ViewAudioOutput {
+    /// Play or enqueue audio.
+    pub fn play(&self, mix: AudioMix) -> Result<AudioPlayId> {
+        self.0.call(|id, p| p.play_audio(AudioPlayRequest::new(id, mix)))
+    }
+}
+
+#[derive(Debug)]
 struct ViewWindowData {
     app_id: AppId,
     id: ApiWindowId,
@@ -1109,6 +1159,7 @@ impl Drop for ViewWindowData {
         }
     }
 }
+
 type Result<T> = std::result::Result<T, ChannelError>;
 
 /// Handle to a headless surface/document open in the View Process.
