@@ -62,6 +62,7 @@ dev = [
     "fs_watcher",
     "grid",
     "image",
+    "audio",
     "markdown",
     "menu",
     "progress",
@@ -101,6 +102,7 @@ http = [
     "zng-task/http",
     "zng-wgt/http",
     "zng-ext-image?/http",
+    "zng-ext-audio?/http",
     "zng-ext-window?/http",
 ]
 # Enables HTTP cookies option in client requests.
@@ -357,6 +359,11 @@ image = [
     "zng-wgt-inspector?/image",
 ]
 
+# Enable audio service, widgets.
+audio = [
+    "dep:zng-ext-audio",
+]
+
 # Enable markdown widget.
 markdown = ["dep:zng-wgt-markdown"]
 
@@ -467,6 +474,7 @@ zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.13.3", features = [
     "tar",
 ], default-features = false }
 zng-ext-image = { path = "../zng-ext-image", version = "0.10.3", optional = true, default-features = false }
+zng-ext-audio = { path = "../zng-ext-audio", version = "0.1.0", optional = true, default-features = false }
 zng-ext-svg = { path = "../zng-ext-svg", version = "0.9.3", optional = true, default-features = false }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.10.3", optional = true, default-features = false }
 zng-ext-window = { path = "../zng-ext-window", version = "0.11.3", optional = true, default-features = false }

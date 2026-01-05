@@ -463,7 +463,7 @@ declare_api! {
     pub fn close_audio_output(&mut self, id: audio::AudioOutputId);
 
     /// Play or enqueue audio.
-    pub fn play_audio(&mut self, request: audio::AudioPlayRequest) -> audio::AudioPlayId;
+    pub fn cue_audio(&mut self, request: audio::AudioPlayRequest) -> audio::AudioPlayId;
 
     /// Encode the audio.
     pub fn encode_audio(&mut self, request: audio::AudioEncodeRequest) -> audio::AudioEncodeId;

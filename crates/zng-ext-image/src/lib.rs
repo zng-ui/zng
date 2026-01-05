@@ -905,9 +905,9 @@ impl IMAGES {
         IMAGES_SV.read().limits.clone()
     }
 
-    /// Returns a dummy image that reports it is loaded or an error.
+    /// Returns a dummy image that reports it is loading or an error.
     pub fn dummy(&self, error: Option<Txt>) -> ImageVar {
-        var(Img::new_empty(error.unwrap_or_default())).read_only()
+        const_var(Img::new_empty(error.unwrap_or_default()))
     }
 
     /// Cache or load an image file from a file system `path`.

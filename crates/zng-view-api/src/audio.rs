@@ -115,11 +115,31 @@ pub struct AudioRequest<D> {
 
     /// Audio data.
     pub data: D,
+
+    /// Maximum allowed decoded size in bytes.
+    ///
+    /// View-process will avoid decoding and return an error if the track would exceed this limit.
+    pub max_decoded_len: u64,
+
+    /// Defines what tracks are decoded from multi image containers.
+    pub tracks: AudioTracksMode,
+
+    /// Audio is a track (or subtree) of this other audio.
+    ///
+    /// This value is now used by the view-process, it is just returned with the metadata. This is useful when
+    /// an already decoded image is requested after a respawn to maintain the original container structure.
+    pub parent: Option<AudioTrackMetadata>,
 }
 impl<D> AudioRequest<D> {
     /// New.
-    pub fn new(format: AudioDataFormat, data: D) -> Self {
-        Self { format, data }
+    pub fn new(format: AudioDataFormat, data: D, max_decoded_len: u64) -> Self {
+        Self {
+            format,
+            data,
+            max_decoded_len,
+            tracks: AudioTracksMode::PRIMARY,
+            parent: None,
+        }
     }
 }
 
@@ -127,6 +147,18 @@ impl<D> AudioRequest<D> {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum AudioDataFormat {
+    /// Data is already decoded stream of interleaved `f32` samples.
+    InterleavedF32 {
+        /// Number of channels interleaved in the track.
+        channel_count: u16,
+        /// Samples per second.
+        ///
+        /// A sample is a single sequence of `channel_count`.
+        sample_rate: u32,
+        /// Total duration of the track, if it is known.
+        total_duration: Option<Duration>,
+    },
+
     /// The audio is encoded.
     ///
     /// This file extension maybe identifies the format. Fallback to `Unknown` handling if the file extension
@@ -266,13 +298,11 @@ pub struct AudioMetadata {
     ///
     /// A sample is a single sequence of `channel_count`.
     pub sample_rate: u32,
-    /// Total duration of the tack.
-    ///
-    /// If [`Duration::ZERO`] value indicates an unknown duration.
-    pub total_duration: Duration,
+    /// Total duration of the tack, if it is known.
+    pub total_duration: Option<Duration>,
 
     /// Track is an entry (or subtree) of this other track.
-    pub parent: Option<AudioEntryMetadata>,
+    pub parent: Option<AudioTrackMetadata>,
 }
 impl AudioMetadata {
     /// New.
@@ -281,7 +311,7 @@ impl AudioMetadata {
             id,
             channel_count,
             sample_rate,
-            total_duration: Duration::ZERO,
+            total_duration: None,
             parent: None,
         }
     }
@@ -290,7 +320,7 @@ impl AudioMetadata {
 /// Represents decoded header metadata about a track position in the container represented by another audio.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
-pub struct AudioEntryMetadata {
+pub struct AudioTrackMetadata {
     /// Image this one belongs too.
     ///
     /// The view-process always sends the parent image metadata first, so this id should be known by the app-process.
@@ -298,7 +328,7 @@ pub struct AudioEntryMetadata {
     /// Sort index of the track in the list of tracks.
     pub index: usize,
 }
-impl AudioEntryMetadata {
+impl AudioTrackMetadata {
     /// New.
     pub fn new(parent: AudioId, index: usize) -> Self {
         Self { parent, index }
@@ -332,10 +362,10 @@ pub struct AudioDecoded {
     pub chunk: IpcBytesCast<f32>,
 
     /// If the `chunk` is actually the full decoded audio.
-    /// 
+    ///
     /// When this is `true` no more decode events for the `id` are send, (re)playing the audio
     /// will read directly from the cache.
-    /// 
+    ///
     /// When this is `false` the `chunk` represent the last decoded chunk on demand because the audio is playing.
     /// Depending on the request the audio may never be fully cached, always decoding again on replay.
     pub is_full: bool,
@@ -343,7 +373,12 @@ pub struct AudioDecoded {
 impl AudioDecoded {
     /// New.
     pub fn new(id: AudioId, chunk: IpcBytesCast<f32>) -> Self {
-        Self { id, offset: 0, chunk, is_full: false }
+        Self {
+            id,
+            offset: 0,
+            chunk,
+            is_full: false,
+        }
     }
 }
 
@@ -369,7 +404,7 @@ pub struct AudioOutputUpdateRequest {
 }
 
 /// Represents an audio output stream capabilities.
-/// 
+///
 /// Any audio played on this output is automatically converted to the channel count and sample rate.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -384,7 +419,10 @@ pub struct AudioOutputOpenData {
 impl AudioOutputOpenData {
     /// New.
     pub fn new(channel_count: u16, sample_rate: u32) -> Self {
-        Self { channel_count, sample_rate }
+        Self {
+            channel_count,
+            sample_rate,
+        }
     }
 }
 
@@ -511,4 +549,17 @@ pub enum AudioMixLayer {
         /// Duration of the sample.
         duration: Duration,
     },
+}
+
+bitflags! {
+    /// Defines what tracks are decoded from multi track containers.
+    #[derive(Copy, Debug, PartialEq, Eq, Clone, Hash, Serialize, Deserialize)]
+    pub struct AudioTracksMode: u8 {
+        /// Decodes all tracks.
+        const TRACKS = 0b0001;
+        /// Decodes only the first track, or the track explicitly marked as primary/default by the container format.
+        ///
+        /// Note that this is 0, empty.
+        const PRIMARY = 0;
+    }
 }

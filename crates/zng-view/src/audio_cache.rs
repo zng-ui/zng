@@ -53,8 +53,72 @@ impl AudioCache {
         rayon::spawn(move || Self::add_impl(app_sender, id, request));
         id
     }
+
     fn add_impl(app_sender: AppEventSender, id: AudioId, request: AudioRequest<IpcBytes>) {
         let data = request.data;
+
+        if let AudioDataFormat::InterleavedF32 {
+            channel_count,
+            sample_rate,
+            total_duration,
+        } = request.format
+        {
+            // already decoded
+
+            if !data.len().is_multiple_of(4) {
+                let _ = app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
+                    audio: id,
+                    error: formatx!("data cannot be cast to f32, not a multiple of 4"),
+                }));
+                return;
+            }
+            let data = data.cast::<f32>();
+            if !data.len().is_multiple_of(channel_count as usize) {
+                let _ = app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
+                    audio: id,
+                    error: formatx!(
+                        "data not an interleaved sequence {0} channel samples, not not a multiple of {0}",
+                        channel_count
+                    ),
+                }));
+                return;
+            }
+
+            let d = Duration::from_secs_f64(data.len() as f64 / channel_count as f64 / sample_rate as f64);
+            if let Some(md) = total_duration
+                && (d.as_millis() != md.as_millis())
+            {
+                tracing::error!("incorrect `total_duration` {md:?}, corrected to {d:?}");
+            }
+            let total_duration = d;
+
+            let mut meta = AudioMetadata::new(id, channel_count, sample_rate);
+            meta.total_duration = Some(total_duration);
+
+            let track = AudioTrack {
+                channel_count: meta.channel_count,
+                sample_rate: meta.sample_rate,
+                total_duration,
+                raw: data,
+            };
+
+            if app_sender.send(AppEvent::Notify(Event::AudioMetadataDecoded(meta))).is_err() {
+                return;
+            }
+
+            let mut decoded = AudioDecoded::new(id, track.raw.clone());
+            decoded.is_full = true;
+
+            if app_sender.send(AppEvent::AudioCanPlay(id, track)).is_err() {
+                return;
+            }
+
+            let _ = app_sender.send(AppEvent::Notify(Event::AudioDecoded(decoded)));
+
+            return;
+        }
+
+        // decode
 
         let mss = symphonia::core::io::MediaSourceStream::new(Box::new(Cursor::new(data.clone())), Default::default());
         let mut format_hint = symphonia::core::probe::Hint::new();
@@ -128,7 +192,7 @@ impl AudioCache {
         };
 
         let mut meta = AudioMetadata::new(id, decoder.channels(), decoder.sample_rate());
-        meta.total_duration = total_duration;
+        meta.total_duration = Some(total_duration);
 
         let mut track = AudioTrack {
             channel_count: meta.channel_count,

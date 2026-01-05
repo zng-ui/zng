@@ -2235,7 +2235,7 @@ impl Api for App {
         self.audio_cache.close_output(id)
     }
 
-    fn play_audio(&mut self, request: audio::AudioPlayRequest) -> audio::AudioPlayId {
+    fn cue_audio(&mut self, request: audio::AudioPlayRequest) -> audio::AudioPlayId {
         self.audio_cache.play(request)
     }
 

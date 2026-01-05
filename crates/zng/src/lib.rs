@@ -489,6 +489,7 @@ pub use zng_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 pub mod access;
 pub mod ansi_text;
 pub mod app;
+pub mod audio;
 pub mod button;
 pub mod checkerboard;
 pub mod clipboard;

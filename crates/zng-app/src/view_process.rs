@@ -24,7 +24,9 @@ use zng_var::{ResponderVar, Var, VarHandle};
 use zng_view_api::{
     self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen, ViewProcessInfo,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError},
-    audio::{AudioDecoded, AudioId, AudioMetadata, AudioMix, AudioOutputId, AudioOutputRequest, AudioPlayId, AudioPlayRequest, AudioRequest},
+    audio::{
+        AudioDecoded, AudioId, AudioMetadata, AudioMix, AudioOutputId, AudioOutputRequest, AudioPlayId, AudioPlayRequest, AudioRequest,
+    },
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse, Notification, NotificationResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::{FontOptions, IpcFontBytes},
@@ -172,11 +174,11 @@ impl VIEW_PROCESS {
         let _s = tracing::debug_span!("VIEW_PROCESS.open_headless").entered();
         self.write().process.open_headless(config)
     }
-    
+
     /// Send a request to open a connection to an audio output device.
-    /// 
+    ///
     /// A [`RAW_AUDIO_OUTPUT_OPEN_EVENT`] or [`RAW_AUDIO_OUTPUT_ERROR_EVENT`]
-    /// 
+    ///
     /// [`RAW_AUDIO_OUTPUT_OPEN_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_OUTPUT_OPEN_EVENT
     /// [`RAW_AUDIO_OUTPUT_ERROR_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_OUTPUT_ERROR_EVENT
     pub fn open_audio_output(&self, request: AudioOutputRequest) -> Result<()> {
@@ -564,21 +566,21 @@ impl VIEW_PROCESS {
         if found.is_none() && meta.parent.is_some() {
             // start tracking entry track
 
-             let handle = Arc::new((APP.id().unwrap(), app.process.generation(), meta.id));
+            let handle = Arc::new((APP.id().unwrap(), app.process.generation(), meta.id));
             app.loading_audios.push(Arc::downgrade(&handle));
 
             return Some(ViewAudioHandle(Some(handle)));
         }
-        
-       found.map(|h| ViewAudioHandle(Some(h)))
+
+        found.map(|h| ViewAudioHandle(Some(h)))
     }
 
     pub(super) fn on_audio_decoded(&self, audio: &AudioDecoded) -> Option<ViewAudioHandle> {
         // this is very similar to `on_image_decoded`, the big difference is that
         // partial decodes represent the latest decoded chunk, not all the previous decoded data,
         // and it may never finish decoding too, the progressive source can never end or the request
-        // configured it to always decode on demand and drop the buffer as it is played. 
-        
+        // configured it to always decode on demand and drop the buffer as it is played.
+
         let mut app = self.write();
 
         let mut found = None;
@@ -598,7 +600,7 @@ impl VIEW_PROCESS {
     }
 
     pub(super) fn on_audio_error(&self, id: AudioId) -> Option<ViewAudioHandle> {
-       let mut app = self.write();
+        let mut app = self.write();
 
         let mut found = None;
         app.loading_audios.retain(|i| {
@@ -1128,8 +1130,8 @@ impl Drop for ViewAudioOutputData {
 pub struct ViewAudioOutput(Arc<ViewAudioOutputData>);
 impl ViewAudioOutput {
     /// Play or enqueue audio.
-    pub fn play(&self, mix: AudioMix) -> Result<AudioPlayId> {
-        self.0.call(|id, p| p.play_audio(AudioPlayRequest::new(id, mix)))
+    pub fn cue(&self, mix: AudioMix) -> Result<AudioPlayId> {
+        self.0.call(|id, p| p.cue_audio(AudioPlayRequest::new(id, mix)))
     }
 }
 
@@ -1667,7 +1669,7 @@ impl ViewAudioHandle {
     /// Audio ID.
     ///
     /// Is [`AudioId::INVALID`] for dummy.
-    pub fn image_id(&self) -> AudioId {
+    pub fn audio_id(&self) -> AudioId {
         self.0.as_ref().map(|h| h.2).unwrap_or(AudioId::INVALID)
     }
 

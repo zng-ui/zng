@@ -114,6 +114,9 @@ pub struct ImageRequest<D> {
     pub entries: ImageEntriesMode,
 
     /// Image is an entry (or subtree) of this other image.
+    ///
+    /// This value is now used by the view-process, it is just returned with the metadata. This is useful when
+    /// an already decoded image is requested after a respawn to maintain the original container structure.
     pub parent: Option<ImageEntryMetadata>,
 }
 impl<D> ImageRequest<D> {
