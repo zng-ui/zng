@@ -383,6 +383,29 @@ impl<E: AppExtension> RunningApp<E> {
                 VIEW_PROCESS.on_image_encode_error(task, error);
             }
 
+            Event::AudioMetadataDecoded(meta) => {
+                if let Some(handle) = VIEW_PROCESS.on_audio_metadata(&meta) {
+                    let args = RawAudioMetadataDecodedArgs::now(handle, meta);
+                    self.notify_event(RAW_AUDIO_METADATA_DECODED_EVENT.new_update(args), observer);
+                } else {
+                    tracing::warn!("received unknown audio metadata {:?}, ignoring", meta.id);
+                }
+            }
+            Event::AudioDecoded(audio) => {
+                if let Some(handle) = VIEW_PROCESS.on_audio_decoded(&audio) {
+                    let args = RawAudioDecodedArgs::now(handle, audio);
+                    self.notify_event(RAW_AUDIO_DECODED_EVENT.new_update(args), observer);
+                } else {
+                    tracing::warn!("received unknown audio metadata {:?}, ignoring", audio.id);
+                }
+            }
+            Event::AudioDecodeError { audio: id, error } => {
+                if let Some(handle) = VIEW_PROCESS.on_audio_error(id) {
+                    let args = RawAudioDecodeErrorArgs::now(handle, error);
+                    self.notify_event(RAW_AUDIO_DECODE_ERROR_EVENT.new_update(args), observer);
+                }
+            }
+
             Event::AccessInit { window: w_id } => {
                 self.notify_event(crate::access::on_access_init(window_id(w_id)), observer);
             }

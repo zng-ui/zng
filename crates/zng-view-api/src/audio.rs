@@ -326,11 +326,20 @@ pub struct AudioDecoded {
 
     /// Interleaved `f32` samples.
     pub chunk: IpcBytesCast<f32>,
+
+    /// If the `chunk` is actually the full decoded audio.
+    /// 
+    /// When this is `true` no more decode events for the `id` are send, (re)playing the audio
+    /// will read directly from the cache.
+    /// 
+    /// When this is `false` the `chunk` represent the last decoded chunk on demand because the audio is playing.
+    /// Depending on the request the audio may never be fully cached, always decoding again on replay.
+    pub is_full: bool,
 }
 impl AudioDecoded {
     /// New.
     pub fn new(id: AudioId, chunk: IpcBytesCast<f32>) -> Self {
-        Self { id, offset: 0, chunk }
+        Self { id, offset: 0, chunk, is_full: false }
     }
 }
 

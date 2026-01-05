@@ -161,7 +161,8 @@ impl AudioCache {
             }
         }
 
-        let decoded = AudioDecoded::new(id, track.raw.clone());
+        let mut decoded = AudioDecoded::new(id, track.raw.clone());
+        decoded.is_full = true;
 
         if app_sender.send(AppEvent::AudioCanPlay(id, track)).is_err() {
             return;

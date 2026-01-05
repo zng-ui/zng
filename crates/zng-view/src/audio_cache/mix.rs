@@ -7,12 +7,7 @@ use zng_view_api::audio::{AudioMix, AudioMixLayer};
 use crate::audio_cache::AudioCache;
 
 impl AudioCache {
-    pub(crate) fn vp_mix_to_source(
-        &self,
-        mix: AudioMix,
-        channels: u16,
-        sample_rate: u32,
-    ) -> Result<Box<dyn rodio::Source + Send>, Txt> {
+    pub(crate) fn vp_mix_to_source(&self, mix: AudioMix, channels: u16, sample_rate: u32) -> Result<Box<dyn rodio::Source + Send>, Txt> {
         let mut out = None::<Box<dyn rodio::Source + Send>>;
         fn box_source(source: impl rodio::Source + Send + 'static, skip: Duration, take: Duration) -> Box<dyn rodio::Source + Send> {
             if skip > Duration::ZERO {
@@ -42,12 +37,12 @@ impl AudioCache {
                         let s = s.play_source();
                         if s.channel_count != channels || s.sample_rate != sample_rate {
                             let s = rodio::source::UniformSourceIterator::new(s, channels, sample_rate);
-                           if skip != Duration::ZERO || take != Duration::MAX {
-                            let s = box_source(s, skip, take);
-                            mix_layer(&mut out, s);
-                        } else {
-                            mix_layer(&mut out, s);
-                        }
+                            if skip != Duration::ZERO || take != Duration::MAX {
+                                let s = box_source(s, skip, take);
+                                mix_layer(&mut out, s);
+                            } else {
+                                mix_layer(&mut out, s);
+                            }
                         } else if skip != Duration::ZERO || take != Duration::MAX {
                             let s = box_source(s, skip, take);
                             mix_layer(&mut out, s);
@@ -66,7 +61,9 @@ impl AudioCache {
                     mix_layer(&mut out, layer);
                 }
                 AudioMixLayer::VolumeLinear { start, end } => {
-                    if start.0 < end.0 &&  let Some(s) = out.take() {
+                    if start.0 < end.0
+                        && let Some(s) = out.take()
+                    {
                         out = Some(Box::new(s.volume_linear(start.0, end.0, start.1.0, end.1.0)));
                     }
                 }
@@ -93,7 +90,7 @@ impl AudioCache {
                 } else {
                     Ok(o)
                 }
-            },
+            }
             None => {
                 // no layers just silent for the requested range
                 let duration = match mix.total_duration {
@@ -103,7 +100,7 @@ impl AudioCache {
                 let num_samples = (duration.as_secs_f64() * sample_rate as f64) as u64 * channels as u64;
                 let silence = rodio::source::Zero::new_samples(channels, sample_rate, num_samples as usize);
                 Ok(Box::new(silence))
-            },
+            }
         }
     }
 }
