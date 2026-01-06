@@ -1,6 +1,6 @@
 [package]
 name = "zng-tp-licenses"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2024"
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
@@ -17,7 +17,7 @@ build = ["dep:serde_json", "dep:deflate", "dep:bincode"]
 bundle = ["dep:inflate", "dep:bincode"]
 
 [dependencies]
-zng-txt = { path = "../zng-txt", version = "0.5.0", default-features = false }
+zng-txt = { path = "../zng-txt", version = "0.5.1", default-features = false }
 
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
