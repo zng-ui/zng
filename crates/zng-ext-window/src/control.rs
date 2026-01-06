@@ -373,12 +373,15 @@ impl HeadedCtrl {
         let mut send_icon = false;
         #[cfg(feature = "image")]
         if let Some(ico) = self.vars.icon().get_new() {
+            use zng_ext_image::ImageOptions;
             self.img_res.icon_var = match ico {
                 WindowIcon::Default => None,
-                WindowIcon::Image(ImageSource::Render(ico, _)) => {
-                    Some(IMAGES.cache(ImageSource::Render(ico.clone(), Some(ImageRenderArgs::new(WINDOW.id())))))
-                }
-                WindowIcon::Image(source) => Some(IMAGES.cache(source)),
+                WindowIcon::Image(ImageSource::Render(ico, _)) => Some(IMAGES.image(
+                    ImageSource::Render(ico.clone(), Some(ImageRenderArgs::new(WINDOW.id()))),
+                    ImageOptions::cache(),
+                    None,
+                )),
+                WindowIcon::Image(source) => Some(IMAGES.image(source, ImageOptions::cache(), None)),
             };
 
             if let Some(ico) = &self.img_res.icon_var {
@@ -398,7 +401,7 @@ impl HeadedCtrl {
         }
         #[cfg(feature = "image")]
         if send_icon {
-            let icon = self.img_res.icon_var.as_ref().and_then(|ico| ico.get().view().cloned());
+            let icon = self.img_res.icon_var.as_ref().map(|i| i.with(|i| i.view_handle()));
             self.update_gen(move |view| {
                 let _: Ignore = view.set_icon(icon.as_ref());
             });
@@ -420,11 +423,14 @@ impl HeadedCtrl {
                 }
                 #[cfg(feature = "image")]
                 crate::CursorSource::Img(img) => {
+                    use zng_ext_image::ImageOptions;
                     self.img_res.cursor_var = Some(match img.source {
-                        ImageSource::Render(cur, _) => {
-                            IMAGES.cache(ImageSource::Render(cur.clone(), Some(ImageRenderArgs::new(WINDOW.id()))))
-                        }
-                        source => IMAGES.cache(source),
+                        ImageSource::Render(cur, _) => IMAGES.image(
+                            ImageSource::Render(cur.clone(), Some(ImageRenderArgs::new(WINDOW.id()))),
+                            ImageOptions::cache(),
+                            None,
+                        ),
+                        source => IMAGES.image(source, ImageOptions::cache(), None),
                     });
 
                     self.update_gen(move |view| {
@@ -478,7 +484,7 @@ impl HeadedCtrl {
         if let Some(img_hotspot) = self.vars.0.actual_cursor_img.get_new() {
             self.update_gen(move |view| match img_hotspot {
                 Some((img, hotspot)) => {
-                    let _: Ignore = view.set_cursor_image(img.view(), hotspot);
+                    let _: Ignore = view.set_cursor_image(Some(&img.view_handle()), hotspot);
                 }
                 None => {
                     let _: Ignore = view.set_cursor_image(None, PxPoint::zero());
@@ -1182,11 +1188,7 @@ impl HeadedCtrl {
             {
                 #[cfg(feature = "image")]
                 {
-                    self.img_res
-                        .icon_var
-                        .as_ref()
-                        .and_then(|ico| ico.get().view().map(|ico| ico.id()))
-                        .flatten()
+                    self.img_res.icon_var.as_ref().map(|ico| ico.get().view_handle().image_id())
                 }
                 #[cfg(not(feature = "image"))]
                 None
@@ -1195,10 +1197,7 @@ impl HeadedCtrl {
             {
                 #[cfg(feature = "image")]
                 {
-                    self.vars
-                        .actual_cursor_img()
-                        .get()
-                        .and_then(|(i, h)| i.view().and_then(|i| i.id()).map(|i| (i, h)))
+                    self.vars.actual_cursor_img().get().map(|i| (i.0.view_handle().image_id(), i.1))
                 }
                 #[cfg(not(feature = "image"))]
                 None
@@ -1325,11 +1324,7 @@ impl HeadedCtrl {
             {
                 #[cfg(feature = "image")]
                 {
-                    self.img_res
-                        .icon_var
-                        .as_ref()
-                        .and_then(|ico| ico.get().view().map(|ico| ico.id()))
-                        .flatten()
+                    self.img_res.icon_var.as_ref().map(|i| i.with(|i| i.view_handle().image_id()))
                 }
                 #[cfg(not(feature = "image"))]
                 None
@@ -1338,10 +1333,7 @@ impl HeadedCtrl {
             {
                 #[cfg(feature = "image")]
                 {
-                    self.vars
-                        .actual_cursor_img()
-                        .get()
-                        .and_then(|(i, h)| i.view().and_then(|i| i.id()).map(|i| (i, h)))
+                    self.vars.actual_cursor_img().get().map(|(i, h)| (i.view_handle().image_id(), h))
                 }
                 #[cfg(not(feature = "image"))]
                 None
@@ -2130,7 +2122,7 @@ impl ContentCtrl {
         #[cfg(feature = "image")]
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             if args.window_id == WINDOW.id() {
-                let image = args.frame_image.as_ref().cloned().map(Img::new);
+                let image = args.frame_image.clone().map(|img| IMAGES.register(None, img).unwrap());
 
                 let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), args.window_id, args.frame_id, image);
                 FRAME_IMAGE_READY_EVENT.notify(args);
@@ -2588,8 +2580,8 @@ impl NestedCtrl {
             {
                 let image = match mem::take(&mut c.pending_frame_capture) {
                     FrameCapture::None => None,
-                    FrameCapture::Full => Some(WINDOWS.frame_image(win, None).get()),
-                    FrameCapture::Mask(m) => Some(WINDOWS.frame_image(win, Some(m)).get()),
+                    FrameCapture::Full => Some(WINDOWS.frame_image(win, None)),
+                    FrameCapture::Mask(m) => Some(WINDOWS.frame_image(win, Some(m))),
                     _ => None,
                 };
                 let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), win, args.frame_id, image);

@@ -330,9 +330,7 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawMonitorsChangedArgs::now(monitors);
                 self.notify_event(RAW_MONITORS_CHANGED_EVENT.new_update(args), observer);
             }
-            Event::AudioDevicesChanged(_audio_devices) => {
-                // TODO
-            }
+            Event::AudioDevicesChanged(_audio_devices) => {}
             Event::WindowCloseRequested(w_id) => {
                 let args = RawWindowCloseRequestedArgs::now(window_id(w_id));
                 self.notify_event(RAW_WINDOW_CLOSE_REQUESTED_EVENT.new_update(args), observer);
@@ -358,56 +356,31 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawWindowCloseArgs::now(window_id(w_id));
                 self.notify_event(RAW_WINDOW_CLOSE_EVENT.new_update(args), observer);
             }
-            Event::ImageMetadataLoaded {
-                image: id,
-                size,
-                density,
-                is_mask,
-            } => {
-                if let Some(img) = VIEW_PROCESS.on_image_metadata_loaded(id, size, density, is_mask) {
-                    let args = RawImageArgs::now(img);
-                    self.notify_event(RAW_IMAGE_METADATA_LOADED_EVENT.new_update(args), observer);
+            Event::ImageMetadataDecoded(meta) => {
+                if let Some(handle) = VIEW_PROCESS.on_image_metadata(&meta) {
+                    let args = RawImageMetadataDecodedArgs::now(handle, meta);
+                    self.notify_event(RAW_IMAGE_METADATA_DECODED_EVENT.new_update(args), observer);
+                } else {
+                    tracing::warn!("received unknown image metadata {:?} ({:?}), ignoring", meta.id, meta.size);
                 }
             }
-            Event::ImagePartiallyLoaded {
-                image: id,
-                partial_size,
-                density,
-                is_opaque,
-                is_mask,
-                partial_pixels: partial_bgra8,
-            } => {
-                if let Some(img) = VIEW_PROCESS.on_image_partially_loaded(id, partial_size, density, is_opaque, is_mask, partial_bgra8) {
-                    let args = RawImageArgs::now(img);
-                    self.notify_event(RAW_IMAGE_PARTIALLY_LOADED_EVENT.new_update(args), observer);
+            Event::ImageDecoded(img) => {
+                if let Some(handle) = VIEW_PROCESS.on_image_decoded(&img) {
+                    let args = RawImageDecodedArgs::now(handle, img);
+                    self.notify_event(RAW_IMAGE_DECODED_EVENT.new_update(args), observer);
+                } else {
+                    tracing::warn!("received unknown image metadata {:?} ({:?}), ignoring", img.meta.id, img.meta.size);
                 }
             }
-            Event::ImageLoaded(image) => {
-                if let Some(img) = VIEW_PROCESS.on_image_loaded(image) {
-                    let args = RawImageArgs::now(img);
-                    self.notify_event(RAW_IMAGE_LOADED_EVENT.new_update(args), observer);
+            Event::ImageDecodeError { image: id, error } => {
+                if let Some(handle) = VIEW_PROCESS.on_image_error(id) {
+                    let args = RawImageDecodeErrorArgs::now(handle, error);
+                    self.notify_event(RAW_IMAGE_DECODE_ERROR_EVENT.new_update(args), observer);
                 }
             }
-            Event::ImageLoadError { image: id, error } => {
-                if let Some(img) = VIEW_PROCESS.on_image_error(id, error) {
-                    let args = RawImageArgs::now(img);
-                    self.notify_event(RAW_IMAGE_LOAD_ERROR_EVENT.new_update(args), observer);
-                }
-            }
-            Event::ImageEncoded { image: id, format, data } => VIEW_PROCESS.on_image_encoded(id, format, data),
-            Event::ImageEncodeError { image: id, format, error } => {
-                VIEW_PROCESS.on_image_encode_error(id, format, error);
-            }
-            Event::FrameImageReady {
-                window: w_id,
-                frame: frame_id,
-                image: image_id,
-                selection,
-            } => {
-                if let Some(img) = VIEW_PROCESS.on_frame_image_ready(image_id) {
-                    let args = RawFrameImageReadyArgs::now(img, window_id(w_id), frame_id, selection);
-                    self.notify_event(RAW_FRAME_IMAGE_READY_EVENT.new_update(args), observer);
-                }
+            Event::ImageEncoded { task, data } => VIEW_PROCESS.on_image_encoded(task, data),
+            Event::ImageEncodeError { task, error } => {
+                VIEW_PROCESS.on_image_encode_error(task, error);
             }
 
             Event::AccessInit { window: w_id } => {
@@ -432,6 +405,13 @@ impl<E: AppExtension> RunningApp<E> {
             }
             Event::FileDialogResponse(id, response) => {
                 VIEW_PROCESS.on_file_dlg_response(id, response);
+            }
+            Event::NotificationResponse(id, response) => {
+                VIEW_PROCESS.on_notification_dlg_response(id, response);
+            }
+
+            Event::MenuCommand { id } => {
+                let _ = id;
             }
 
             // custom
@@ -524,7 +504,7 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             // Others
-            Event::Inited(zng_view_api::Inited { .. }) | Event::Suspended | Event::Disconnected(_) | Event::FrameRendered(_) => {
+            Event::Inited(zng_view_api::ViewProcessInfo { .. }) | Event::Suspended | Event::Disconnected(_) | Event::FrameRendered(_) => {
                 unreachable!()
             } // handled before coalesce.
 
@@ -537,7 +517,7 @@ impl<E: AppExtension> RunningApp<E> {
         debug_assert!(ev.window != zng_view_api::window::WindowId::INVALID);
         let window_id = WindowId::from_raw(ev.window.get());
         // view.on_frame_rendered(window_id); // already called in push_coalesce
-        let image = ev.frame_image.map(|img| VIEW_PROCESS.on_frame_image(img));
+        let image = ev.frame_image.map(|img| (VIEW_PROCESS.on_frame_image(&img), img));
         let args = crate::view_process::raw_events::RawFrameRenderedArgs::now(window_id, ev.frame, image);
         self.notify_event(crate::view_process::raw_events::RAW_FRAME_RENDERED_EVENT.new_update(args), observer);
     }
@@ -585,21 +565,16 @@ impl<E: AppExtension> RunningApp<E> {
                     self.pending_view_frame_events.push(ev);
                 }
                 zng_view_api::Event::Pong(count) => VIEW_PROCESS.on_pong(count),
-                zng_view_api::Event::Inited(zng_view_api::Inited {
-                    generation,
-                    is_respawn,
-                    extensions,
-                    ..
-                }) => {
+                zng_view_api::Event::Inited(inited) => {
                     // notify immediately.
-                    if is_respawn {
-                        VIEW_PROCESS.on_respawned(generation);
+                    if inited.is_respawn {
+                        VIEW_PROCESS.on_respawned(inited.generation);
                         APP_PROCESS_SV.read().is_suspended.set(false);
                     }
 
-                    VIEW_PROCESS.handle_inited(generation, extensions.clone());
+                    VIEW_PROCESS.handle_inited(&inited);
 
-                    let args = crate::view_process::ViewProcessInitedArgs::now(generation, is_respawn, extensions);
+                    let args = crate::view_process::ViewProcessInitedArgs::now(inited);
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
                 }
                 zng_view_api::Event::Suspended => {

@@ -72,8 +72,9 @@
 //! See [`zng_ext_image`] for the full image API and [`zng_wgt_image`] for the full widget API.
 
 pub use zng_ext_image::{
-    IMAGE_RENDER, IMAGES, ImageCacheMode, ImageDataFormat, ImageDownscale, ImageHash, ImageHasher, ImageLimits, ImageRenderArgs,
-    ImageSource, ImageSourceFilter, ImageVar, Img, PathFilter, render_retain,
+    ColorType, IMAGE_RENDER, IMAGES, ImageCacheMode, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageFormat,
+    ImageFormatCapability, ImageHash, ImageHasher, ImageLimits, ImageOptions, ImageRenderArgs, ImageSource, ImageSourceFilter, ImageVar,
+    Img, PathFilter, render_retain,
 };
 
 #[cfg(feature = "http")]
@@ -81,8 +82,8 @@ pub use zng_ext_image::UriFilter;
 
 pub use zng_wgt_image::{
     Image, ImageAutoScale, ImageFit, ImageRepeat, ImgErrorArgs, ImgLoadArgs, ImgLoadingArgs, img_align, img_auto_scale, img_cache,
-    img_crop, img_downscale, img_error_fn, img_fit, img_limits, img_loading_fn, img_offset, img_rendering, img_repeat, img_repeat_spacing,
-    img_scale, is_error, is_loaded, on_error, on_load, on_load_layout,
+    img_crop, img_downscale, img_entries_mode, img_error_fn, img_fit, img_limits, img_loading_fn, img_offset, img_rendering, img_repeat,
+    img_repeat_spacing, img_scale, is_error, is_loaded, on_error, on_load, on_load_layout,
 };
 
 /// Mask image properties.
@@ -91,6 +92,7 @@ pub use zng_wgt_image::{
 pub mod mask {
     pub use zng_ext_image::ImageMaskMode;
     pub use zng_wgt_image::mask::{
-        mask_align, mask_fit, mask_image, mask_image_cache, mask_image_downscale, mask_image_limits, mask_mode, mask_offset,
+        mask_align, mask_fit, mask_image, mask_image_cache, mask_image_downscale, mask_image_entries_mode, mask_image_limits, mask_mode,
+        mask_offset,
     };
 }

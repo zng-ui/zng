@@ -55,10 +55,7 @@ use crate::{
 use std::any::Any;
 
 #[cfg(feature = "image")]
-use zng_app::view_process::{
-    ViewImage, ViewRenderer,
-    raw_events::{RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_LOADED_EVENT},
-};
+use zng_app::view_process::{ViewImageHandle, ViewRenderer};
 
 #[cfg(feature = "image")]
 use zng_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, Img};
@@ -68,9 +65,6 @@ use crate::{FRAME_IMAGE_READY_EVENT, FrameCaptureMode, HeadlessMonitor, StartPos
 
 #[cfg(feature = "image")]
 use zng_view_api::image::ImageMaskMode;
-
-#[cfg(feature = "image")]
-use zng_var::WeakVar;
 
 #[cfg(feature = "image")]
 use zng_layout::unit::{Factor, LengthUnits, PxRect};
@@ -104,9 +98,6 @@ pub(super) struct WindowsService {
     focus_request: Option<WindowId>,
     bring_to_top_requests: Vec<WindowId>,
 
-    #[cfg(feature = "image")]
-    frame_images: Vec<WeakVar<Img>>,
-
     loading_deadline: Option<DeadlineHandle>,
     latest_colors_cfg: ColorsConfig,
 
@@ -131,8 +122,6 @@ impl WindowsService {
             close_requests: vec![],
             focus_request: None,
             bring_to_top_requests: vec![],
-            #[cfg(feature = "image")]
-            frame_images: vec![],
             loading_deadline: None,
             latest_colors_cfg: ColorsConfig::default(),
             view_window_tasks: vec![],
@@ -201,25 +190,24 @@ impl WindowsService {
     fn frame_image_impl(
         &mut self,
         window_id: WindowId,
-        action: impl FnOnce(&ViewRenderer) -> std::result::Result<ViewImage, ChannelError>,
+        action: impl FnOnce(&ViewRenderer) -> std::result::Result<ViewImageHandle, ChannelError>,
     ) -> ImageVar {
         if let Some(w) = self.windows_info.get(&window_id) {
             if let Some(r) = &w.view {
                 match action(&r.renderer()) {
-                    Ok(img) => {
-                        let img = Img::new(img);
-                        let img = var(img);
-                        self.frame_images.retain(|i| i.strong_count() > 0);
-                        self.frame_images.push(img.downgrade());
-                        img.read_only()
+                    Ok(handle) => {
+                        use zng_ext_image::IMAGES;
+                        use zng_view_api::image::ImageDecoded;
+
+                        IMAGES.register(None, (handle, ImageDecoded::default())).unwrap()
                     }
-                    Err(_) => var(Img::dummy(Some(formatx!("{}", WindowNotFoundError::new(window_id))))).read_only(),
+                    Err(_) => const_var(Img::new_empty(formatx!("{}", WindowNotFoundError::new(window_id)))),
                 }
             } else {
-                var(Img::dummy(Some(formatx!("window `{window_id}` is headless without renderer")))).read_only()
+                const_var(Img::new_empty(formatx!("window `{window_id}` is headless without renderer")))
             }
         } else {
-            var(Img::dummy(Some(formatx!("{}", WindowNotFoundError::new(window_id))))).read_only()
+            const_var(Img::new_empty(formatx!("{}", WindowNotFoundError::new(window_id))))
         }
     }
 
@@ -940,6 +928,14 @@ impl WINDOWS {
         }
     }
 
+    /// Window operations supported by the current view-process instance for headed windows.
+    ///
+    /// Not all window operations may be available, depending on the operating system and build. When an operation
+    /// is not available an error is logged and otherwise ignored.
+    pub fn available_operations(&self) -> crate::WindowCapability {
+        VIEW_PROCESS.info().window
+    }
+
     /// Update the reference to view window the renderer associated with the window.
     pub(super) fn set_view(&self, id: WindowId, view: ViewWindowOrHeadless) {
         if let Some(info) = WINDOWS_SV.write().windows_info.get_mut(&id) {
@@ -1034,24 +1030,6 @@ impl WINDOWS {
         } else if VIEW_PROCESS_INITED_EVENT.has(update) {
             // we skipped request fulfillment until this event.
             UPDATES.update(None);
-        } else {
-            #[cfg(feature = "image")]
-            if let Some(args) = RAW_IMAGE_LOADED_EVENT.on(update).or_else(|| RAW_IMAGE_LOAD_ERROR_EVENT.on(update)) {
-                // update ready frame images.
-                let mut sv = WINDOWS_SV.write();
-                sv.frame_images.retain(|i| {
-                    if let Some(i) = i.upgrade() {
-                        if Some(&args.image) == i.get().view() {
-                            i.update();
-                            false
-                        } else {
-                            true
-                        }
-                    } else {
-                        false
-                    }
-                });
-            }
         }
 
         Self::with_detached_windows(|windows, parallel| {
@@ -1959,7 +1937,7 @@ impl ImageRenderWindowsService for WINDOWS {
         if let Some(args) = FRAME_IMAGE_READY_EVENT.on(update)
             && let Some(img) = &args.frame_image
         {
-            return Some((args.window_id, img.clone()));
+            return Some((args.window_id, img.get()));
         }
         None
     }

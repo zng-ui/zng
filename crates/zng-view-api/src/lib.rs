@@ -41,6 +41,7 @@ pub mod font;
 pub mod image;
 pub mod ipc;
 pub mod keyboard;
+pub mod menu;
 pub mod mouse;
 pub mod raw_input;
 pub mod touch;
@@ -267,7 +268,9 @@ macro_rules! declare_api {
 declare_api! {
     /// Called once on init.
     ///
-    /// Sends an [`Event::Inited`] once the view is completely connected.
+    /// Sends an [`Event::Inited`] once the view is completely connected, the event details what API features
+    /// are implemented by the view-process.
+    ///
     /// Other methods may only be called after this event.
     fn init(&mut self, vp_gen: ViewProcessGen, is_respawn: bool, headless: bool);
 
@@ -368,8 +371,8 @@ declare_api! {
 
     /// Cache an image resource.
     ///
-    /// The image is decoded asynchronously, the events [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`]
-    /// or [`Event::ImageLoadError`] will be send when the image is ready for use or failed.
+    /// The image is decoded asynchronously, the events [`Event::ImageMetadataDecoded`], [`Event::ImageDecoded`]
+    /// or [`Event::ImageDecodeError`] will be send when the image is ready for use or failed.
     ///
     /// The [`ImageRequest::data`] handle must contain the full image data already, it will be dropped after the image finishes decoding.
     ///
@@ -385,7 +388,7 @@ declare_api! {
     /// as more data is received, otherwise it will collect all data first and then [`add_image`]. Each
     /// [`ImageRequest::`data`] package is the continuation of the previous call, send an empty package to indicate finish.
     ///
-    /// The events [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`] or [`Event::ImageLoadError`] will
+    /// The events [`Event::ImageMetadataDecoded`], [`Event::ImageDecoded`] or [`Event::ImageDecodeError`] will
     /// be send while decoding.
     ///
     /// [`add_image`]: Api::add_image
@@ -420,25 +423,11 @@ declare_api! {
     /// Delete the image resource in the window renderer.
     pub fn delete_image_use(&mut self, id: WindowId, texture_id: ImageTextureId);
 
-    /// Returns a list of image decoders supported by this implementation.
-    ///
-    /// Each text is the lower-case file extension, without the dot.
-    pub fn image_decoders(&mut self) -> Vec<Txt>;
-
-    /// Returns a list of image encoders supported by this implementation.
-    ///
-    /// Each text is the lower-case file extension, without the dot.
-    pub fn image_encoders(&mut self) -> Vec<Txt>;
-
-    /// Encode the image into the `format`.
-    ///
-    /// The format must be one of the values returned by [`image_encoders`].
+    /// Encode the image.
     ///
     /// Returns immediately. The encoded data will be send as the event
-    /// [`Event::ImageEncoded`] or [`Event::ImageEncodeError`].
-    ///
-    /// [`image_encoders`]: Api::image_encoders
-    pub fn encode_image(&mut self, id: ImageId, format: Txt);
+    /// [`Event::ImageEncoded`] or [`Event::ImageEncodeError`]. The returned ID identifies this request.
+    pub fn encode_image(&mut self, request: image::ImageEncodeRequest) -> image::ImageEncodeId;
 
     /// Cache an audio resource.
     ///
@@ -465,15 +454,6 @@ declare_api! {
     /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
     pub fn forget_audio(&mut self, id: audio::AudioId);
 
-    /// Returns a list of image decoders supported by this implementation.
-    ///
-    /// Each text is the lower-case file extension, without the dot.
-    ///
-    /// # Unimplemented
-    ///
-    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
-    pub fn audio_decoders(&mut self) -> Vec<Txt>;
-
     /// Start playing audio.
     ///
     /// # Unimplemented
@@ -487,6 +467,13 @@ declare_api! {
     ///
     /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
     pub fn playback_update(&mut self, id: audio::PlaybackId, request: audio::PlaybackUpdateRequest);
+
+    /// Encode the audio.
+    ///
+    /// # Unimplemented
+    ///
+    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
+    pub fn encode_audio(&mut self, request: audio::AudioEncodeRequest) -> audio::AudioEncodeId;
 
     /// Add a raw font resource to the window renderer.
     ///
@@ -521,16 +508,18 @@ declare_api! {
     ///
     /// If `mask` is set captures an A8 mask, otherwise captures a full BGRA8 image.
     ///
-    /// Returns immediately if an [`Event::FrameImageReady`] will be send when the image is ready.
-    /// Returns `0` if the window is not found.
+    /// Returns immediately, an [`Event::ImageDecoded`] will be send when the image is ready.
+    ///
+    /// Returns [`ImageId::INVALID`] if the window is not found.
     pub fn frame_image(&mut self, id: WindowId, mask: Option<ImageMaskMode>) -> ImageId;
 
     /// Create a new image from a selection of the current rendered frame.
     ///
     /// If `mask` is set captures an A8 mask, otherwise captures a full BGRA8 image.
     ///
-    /// Returns immediately if an [`Event::FrameImageReady`] will be send when the image is ready.
-    /// Returns `0` if the window is not found.
+    /// Returns immediately, an [`Event::ImageDecoded`] will be send when the image is ready.
+    ///
+    /// Returns [`ImageId::INVALID`] if the window is not found.
     pub fn frame_image_rect(&mut self, id: WindowId, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageId;
 
     /// Set the video mode used when the window is in exclusive fullscreen.
@@ -555,11 +544,29 @@ declare_api! {
     /// Returns the ID that identifies the response event.
     pub fn file_dialog(&mut self, id: WindowId, dialog: dialog::FileDialog) -> DialogId;
 
-    /// Get the clipboard content that matches the `data_type`.
-    pub fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<ClipboardData, ClipboardError>;
+    /// Register a native notification, either a popup or an entry in the system notifications list.
+    ///
+    /// Returns an ID that identifies the response event.
+    pub fn notification_dialog(&mut self, notification: dialog::Notification) -> DialogId;
+
+    /// Update the notification content.
+    pub fn update_notification(&mut self, id: DialogId, notification: dialog::Notification);
+
+    /// Get the clipboard content that matches the `data_types`.
+    ///
+    /// If `first` is true tries to read all data types requested and returns the first ok. If is false returns all requested data types ok.
+    pub fn read_clipboard(
+        &mut self,
+        data_types: Vec<clipboard::ClipboardType>,
+        first: bool,
+    ) -> Result<Vec<ClipboardData>, ClipboardError>;
 
     /// Set the clipboard content.
-    pub fn write_clipboard(&mut self, data: ClipboardData) -> Result<(), ClipboardError>;
+    ///
+    /// Returns the count of data types that where set, if at least one `data` is supported by the implementation
+    /// the operation is considered a success. If the implementation only support a single data entry the first
+    /// compatible entry is written.
+    pub fn write_clipboard(&mut self, data: Vec<ClipboardData>) -> Result<usize, ClipboardError>;
 
     /// Start a drag and drop operation, if the window is pressed.
     pub fn start_drag_drop(
@@ -591,6 +598,18 @@ declare_api! {
     ///
     /// Set to an empty text to remove the warning.
     pub fn set_system_shutdown_warn(&mut self, id: WindowId, reason: Txt);
+
+    /// Set the custom menu items for the system application menu.
+    ///
+    /// The application menu is shown outside the app windows, usually at the top of the main screen in macOS and Gnome desktops.
+    ///
+    /// Set to empty to remove the menu.
+    pub fn set_app_menu(&mut self, menu: menu::AppMenu);
+
+    /// Set the tray icon indicator for the app.
+    ///
+    /// This is a small status indicator icon displayed near the notifications area.
+    pub fn set_tray_icon(&mut self, indicator: menu::TrayIcon);
 
     /// Licenses that may be required to be displayed in the app about screen.
     ///
@@ -634,7 +653,7 @@ declare_api! {
     ///
     /// The app-process and view-process automatically monitor message frequency to detect when the paired process
     /// is stuck. View-process implementers must only ensure the response event goes through its *main loop* to get an
-    /// accurate read of it is stuck.
+    /// accurate read of if it is stuck.
     pub fn ping(&mut self, count: u16) -> u16;
 }
 

@@ -122,6 +122,7 @@ mod image_cache;
 #[cfg(windows)]
 mod input_device_info;
 mod low_memory;
+mod notification;
 mod px_wr;
 mod surface;
 mod util;
@@ -146,12 +147,12 @@ use window::Window;
 use zng_txt::Txt;
 use zng_unit::{Dip, DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
 use zng_view_api::{
-    Inited,
+    ViewProcessInfo,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
     drag_drop::*,
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
-    image::{ImageId, ImageLoadedData, ImageMaskMode, ImageRequest, ImageTextureId},
+    image::{ImageDecoded, ImageEncodeId, ImageEncodeRequest, ImageId, ImageMaskMode, ImageRequest, ImageTextureId},
     keyboard::{Key, KeyCode, KeyState},
     mouse::ButtonId,
     raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
@@ -165,6 +166,8 @@ use zng_view_api::{
 };
 
 use rustc_hash::FxHashMap;
+
+use crate::notification::NotificationService;
 
 #[cfg(ipc)]
 zng_env::on_process_start!(|args| {
@@ -390,6 +393,8 @@ pub(crate) struct App {
     last_pull_event: Instant,
 
     config_listener_exit: Option<Box<dyn FnOnce()>>,
+
+    notifications: NotificationService,
 
     app_state: AppState,
     drag_drop_hovered: Option<(WindowId, DipPoint)>,
@@ -637,7 +642,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 self.drag_drop_hovered = Some((id, DipPoint::splat(Dip::new(-1000))));
                 self.notify(Event::DragHovered {
                     window: id,
-                    data: vec![DragDropData::Path(file)],
+                    data: vec![DragDropData::Paths(vec![file])],
                     allowed: DragDropEffect::all(),
                 });
             }
@@ -667,7 +672,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 } else {
                     self.notify(Event::DragDropped {
                         window: id,
-                        data: vec![DragDropData::Path(file)],
+                        data: vec![DragDropData::Paths(vec![file])],
                         allowed: DragDropEffect::all(),
                         drop_id: DragDropId(0),
                     });
@@ -805,7 +810,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     });
                     self.notify(Event::DragDropped {
                         window: window_id,
-                        data: vec![DragDropData::Path(file)],
+                        data: vec![DragDropData::Paths(vec![file])],
                         allowed: DragDropEffect::all(),
                         drop_id: DragDropId(0),
                     });
@@ -1006,7 +1011,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 self.exited = true;
                 self.winit_loop.exit();
             }
-            AppEvent::ImageLoaded(data) => {
+            AppEvent::ImageDecoded(data) => {
                 self.image_cache.loaded(data);
             }
             AppEvent::MonitorPowerChanged => {
@@ -1308,7 +1313,7 @@ impl App {
                                 self.app.exited = true;
                                 break 'app_loop;
                             }
-                            AppEvent::ImageLoaded(data) => {
+                            AppEvent::ImageDecoded(data) => {
                                 self.app.image_cache.loaded(data);
                             }
                             AppEvent::MonitorPowerChanged => {} // headless
@@ -1422,6 +1427,7 @@ impl App {
             drag_drop_next_move: None,
             #[cfg(not(any(windows, target_os = "android")))]
             arboard: None,
+            notifications: NotificationService::default(),
             low_memory_watcher: low_memory::LowMemoryWatcher::new(),
             last_pull_event: Instant::now(),
         }
@@ -1791,7 +1797,6 @@ impl App {
             self.exts.new_window(),
             self.exts.new_renderer(),
             self.app_sender.clone(),
-            self.image_cache.resizer_cache(),
         );
         let render_mode = surf.render_mode();
 
@@ -1821,7 +1826,88 @@ impl Api for App {
         self.generation = vp_gen;
         self.headless = headless;
 
-        self.notify(Event::Inited(Inited::new(vp_gen, is_respawn, self.exts.api_extensions())));
+        let mut inited = ViewProcessInfo::new(vp_gen, is_respawn);
+        if !headless {
+            // winit supports all these
+            inited.input_device |= InputDeviceCapability::KEY;
+            inited.input_device |= InputDeviceCapability::BUTTON;
+            inited.input_device |= InputDeviceCapability::SCROLL_MOTION;
+            inited.input_device |= InputDeviceCapability::AXIS_MOTION;
+            inited.input_device |= InputDeviceCapability::POINTER_MOTION;
+        }
+        inited.image = crate::image_cache::FORMATS.to_vec();
+        inited.extensions = self.exts.api_extensions();
+
+        use zng_view_api::window::WindowCapability;
+        if !headless && !cfg!(target_os = "android") {
+            inited.window |= WindowCapability::SET_TITLE;
+            inited.window |= WindowCapability::SET_VISIBLE;
+            inited.window |= WindowCapability::SET_ALWAYS_ON_TOP;
+            inited.window |= WindowCapability::SET_RESIZABLE;
+            inited.window |= WindowCapability::BRING_TO_TOP;
+            inited.window |= WindowCapability::SET_CURSOR;
+            inited.window |= WindowCapability::SET_CURSOR_IMAGE;
+            inited.window |= WindowCapability::SET_FOCUS_INDICATOR;
+            inited.window |= WindowCapability::FOCUS;
+            inited.window |= WindowCapability::DRAG_MOVE;
+            inited.window |= WindowCapability::SYSTEM_CHROME;
+            inited.window |= WindowCapability::SET_CHROME;
+            inited.window |= WindowCapability::MINIMIZE;
+            inited.window |= WindowCapability::MAXIMIZE;
+            inited.window |= WindowCapability::FULLSCREEN;
+            inited.window |= WindowCapability::SET_SIZE;
+        }
+        if !headless & cfg!(windows) {
+            inited.window |= WindowCapability::SET_ICON;
+            inited.window |= WindowCapability::SET_TASKBAR_VISIBLE;
+            inited.window |= WindowCapability::OPEN_TITLE_BAR_CONTEXT_MENU;
+            inited.window |= WindowCapability::SET_SYSTEM_SHUTDOWN_WARN;
+        }
+        if !headless && !cfg!(target_os = "android") && !cfg!(target_os = "macos") {
+            inited.window |= WindowCapability::DRAG_RESIZE;
+        }
+        // not headless, not Android and not Wayland
+        if !headless && !cfg!(target_os = "android") && (!cfg!(unix) || std::env::var("WAYLAND_DISPLAY").is_err()) {
+            // Wayland can't restore from minimized.
+            inited.window |= WindowCapability::RESTORE;
+            // Wayland does not give video access.
+            inited.window |= WindowCapability::EXCLUSIVE;
+            inited.window |= WindowCapability::SET_POSITION;
+        }
+        if !headless & (cfg!(windows) || cfg!(target_os = "macos")) {
+            // Winit says "not implemented" for Wayland/x11 so may be in the future?
+            inited.window |= WindowCapability::DISABLE_CLOSE_BUTTON;
+            inited.window |= WindowCapability::DISABLE_MINIMIZE_BUTTON;
+            inited.window |= WindowCapability::DISABLE_MAXIMIZE_BUTTON;
+        }
+        inited.window |= WindowCapability::SET_IME_AREA;
+
+        use zng_view_api::dialog::DialogCapability;
+        if !headless && !cfg!(target_os = "android") {
+            // rfd crate supports all these
+            inited.dialog |= DialogCapability::MESSAGE;
+            inited.dialog |= DialogCapability::OPEN_FILE;
+            inited.dialog |= DialogCapability::OPEN_FILES;
+            inited.dialog |= DialogCapability::SAVE_FILE;
+            inited.dialog |= DialogCapability::SELECT_FOLDER;
+            inited.dialog |= DialogCapability::SELECT_FOLDERS;
+        }
+        inited.dialog |= self.notifications.capabilities();
+
+        use zng_view_api::clipboard::ClipboardType;
+        if !cfg!(target_os = "android") {
+            inited.clipboard.read.push(ClipboardType::Text);
+            inited.clipboard.read.push(ClipboardType::Image);
+            inited.clipboard.read.push(ClipboardType::Paths);
+
+            inited.clipboard.write.push(ClipboardType::Text);
+            inited.clipboard.write.push(ClipboardType::Image);
+            if cfg!(windows) {
+                inited.clipboard.write.push(ClipboardType::Paths);
+            }
+        }
+
+        self.notify(Event::Inited(inited));
 
         let available_monitors = self.available_monitors();
         self.notify(Event::MonitorsChanged(available_monitors));
@@ -1937,7 +2023,6 @@ impl Api for App {
                 self.exts.new_window(),
                 self.exts.new_renderer(),
                 self.app_sender.clone(),
-                self.image_cache.resizer_cache(),
             );
 
             let msg = WindowOpenData::new(
@@ -2092,21 +2177,6 @@ impl Api for App {
         self.with_window(id, |w| w.set_ime_area(area), || ())
     }
 
-    fn image_decoders(&mut self) -> Vec<Txt> {
-        image_cache::FORMATS
-            .iter()
-            .flat_map(|f| f.file_extensions_iter().map(Txt::from_str))
-            .collect()
-    }
-
-    fn image_encoders(&mut self) -> Vec<Txt> {
-        image_cache::FORMATS
-            .iter()
-            .filter(|f| f.can_encode)
-            .flat_map(|f| f.file_extensions_iter().map(Txt::from_str))
-            .collect()
-    }
-
     fn add_image(&mut self, request: ImageRequest<IpcBytes>) -> ImageId {
         self.image_cache.add(request)
     }
@@ -2119,8 +2189,8 @@ impl Api for App {
         self.image_cache.forget(id)
     }
 
-    fn encode_image(&mut self, id: ImageId, format: Txt) {
-        self.image_cache.encode(id, format)
+    fn encode_image(&mut self, request: ImageEncodeRequest) -> ImageEncodeId {
+        self.image_cache.encode(request)
     }
 
     fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageTextureId {
@@ -2151,10 +2221,6 @@ impl Api for App {
         unimplemented!()
     }
 
-    fn audio_decoders(&mut self) -> Vec<Txt> {
-        unimplemented!()
-    }
-
     fn forget_audio(&mut self, _id: audio::AudioId) {
         unimplemented!()
     }
@@ -2165,6 +2231,10 @@ impl Api for App {
 
     fn playback_update(&mut self, _id: audio::PlaybackId, _request: audio::PlaybackUpdateRequest) {
         unimplemented!()
+    }
+
+    fn encode_audio(&mut self, _request: audio::AudioEncodeRequest) -> audio::AudioEncodeId {
+        audio::AudioEncodeId::INVALID
     }
 
     fn add_font_face(&mut self, id: WindowId, bytes: font::IpcFontBytes, index: u32) -> FontFaceId {
@@ -2242,9 +2312,27 @@ impl Api for App {
         r_id
     }
 
+    fn notification_dialog(&mut self, dialog: dialog::Notification) -> DialogId {
+        let id = self.dialog_id_gen.incr();
+        self.notifications.notification_dialog(&self.app_sender, id, dialog);
+        id
+    }
+
+    fn update_notification(&mut self, id: DialogId, dialog: dialog::Notification) {
+        self.notifications.update_notification(&self.app_sender, id, dialog);
+    }
+
     #[cfg(windows)]
-    fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
-        match data_type {
+    fn read_clipboard(
+        &mut self,
+        mut data_type: Vec<clipboard::ClipboardType>,
+        _first: bool,
+    ) -> Result<Vec<clipboard::ClipboardData>, clipboard::ClipboardError> {
+        if data_type.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let single = match data_type.remove(0) {
             clipboard::ClipboardType::Text => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
@@ -2268,23 +2356,28 @@ impl Api for App {
                 ));
                 Ok(clipboard::ClipboardData::Image(id))
             }
-            clipboard::ClipboardType::FileList => {
+            clipboard::ClipboardType::Paths => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
                 clipboard_win::get(clipboard_win::formats::FileList)
                     .map_err(util::clipboard_win_to_clip)
-                    .map(clipboard::ClipboardData::FileList)
+                    .map(clipboard::ClipboardData::Paths)
             }
             clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
-        }
+        };
+        single.map(|d| vec![d])
     }
 
     #[cfg(windows)]
-    fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
+    fn write_clipboard(&mut self, mut data: Vec<clipboard::ClipboardData>) -> Result<usize, clipboard::ClipboardError> {
         use zng_txt::formatx;
 
-        match data {
+        if data.is_empty() {
+            return Ok(0);
+        }
+
+        let r = match data.remove(0) {
             clipboard::ClipboardData::Text(t) => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
@@ -2295,14 +2388,14 @@ impl Api for App {
 
                 if let Some(img) = self.image_cache.get(id) {
                     let mut bmp = vec![];
-                    img.encode(::image::ImageFormat::Bmp, &mut std::io::Cursor::new(&mut bmp))
+                    img.encode(vec![], ::image::ImageFormat::Bmp, &mut std::io::Cursor::new(&mut bmp))
                         .map_err(|e| clipboard::ClipboardError::Other(formatx!("{e:?}")))?;
                     clipboard_win::set(clipboard_win::formats::Bitmap, bmp).map_err(util::clipboard_win_to_clip)
                 } else {
                     Err(clipboard::ClipboardError::Other(Txt::from_str("image not found")))
                 }
             }
-            clipboard::ClipboardData::FileList(l) => {
+            clipboard::ClipboardData::Paths(l) => {
                 use clipboard_win::Setter;
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
@@ -2314,13 +2407,23 @@ impl Api for App {
             }
             clipboard::ClipboardData::Extension { .. } => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
-        }
+        };
+
+        r.map(|()| 1)
     }
 
     #[cfg(not(any(windows, target_os = "android")))]
-    fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
+    fn read_clipboard(
+        &mut self,
+        mut data_type: Vec<clipboard::ClipboardType>,
+        _first: bool,
+    ) -> Result<Vec<clipboard::ClipboardData>, clipboard::ClipboardError> {
+        if data_type.is_empty() {
+            return Ok(vec![]);
+        }
+
         use zng_txt::ToTxt as _;
-        match data_type {
+        let single = match data_type.remove(0) {
             clipboard::ClipboardType::Text => self
                 .arboard()?
                 .get_text()
@@ -2336,6 +2439,7 @@ impl Api for App {
                     image::ImageDataFormat::Bgra8 {
                         size: zng_unit::PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
                         density: None,
+                        original_color_type: zng_view_api::image::ColorType::RGBA8,
                     },
                     IpcBytes::from_vec_blocking(data).map_err(|e| clipboard::ClipboardError::Other(e.to_txt()))?,
                     u64::MAX,
@@ -2344,20 +2448,26 @@ impl Api for App {
                 ));
                 Ok(clipboard::ClipboardData::Image(id))
             }
-            clipboard::ClipboardType::FileList => self
+            clipboard::ClipboardType::Paths => self
                 .arboard()?
                 .get()
                 .file_list()
                 .map_err(util::arboard_to_clip)
-                .map(clipboard::ClipboardData::FileList),
+                .map(clipboard::ClipboardData::Paths),
             clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
-        }
+        };
+
+        single.map(|e| vec![e])
     }
 
     #[cfg(not(any(windows, target_os = "android")))]
-    fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
-        match data {
+    fn write_clipboard(&mut self, mut data: Vec<clipboard::ClipboardData>) -> Result<usize, clipboard::ClipboardError> {
+        if data.is_empty() {
+            return Ok(0);
+        }
+
+        let r = match data.remove(0) {
             clipboard::ClipboardData::Text(t) => self.arboard()?.set_text(t).map_err(util::arboard_to_clip),
             clipboard::ClipboardData::Image(id) => {
                 self.arboard()?;
@@ -2378,14 +2488,24 @@ impl Api for App {
                     Err(clipboard::ClipboardError::Other(zng_txt::Txt::from_static("image not found")))
                 }
             }
-            clipboard::ClipboardData::FileList(_) => Err(clipboard::ClipboardError::NotSupported),
+            clipboard::ClipboardData::Paths(_) => Err(clipboard::ClipboardError::NotSupported),
             clipboard::ClipboardData::Extension { .. } => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
-        }
+        };
+
+        r.map(|()| 1)
     }
 
     #[cfg(target_os = "android")]
-    fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
+    fn read_clipboard(
+        &mut self,
+        data_type: Vec<clipboard::ClipboardType>,
+        _first: bool,
+    ) -> Result<Vec<clipboard::ClipboardData>, clipboard::ClipboardError> {
+        if data_type.is_empty() {
+            return Ok(vec![]);
+        }
+
         let _ = data_type;
         Err(clipboard::ClipboardError::Other(Txt::from_static(
             "clipboard not implemented for Android",
@@ -2393,7 +2513,11 @@ impl Api for App {
     }
 
     #[cfg(target_os = "android")]
-    fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
+    fn write_clipboard(&mut self, data: Vec<clipboard::ClipboardData>) -> Result<usize, clipboard::ClipboardError> {
+        if data.is_empty() {
+            return Ok(0);
+        }
+
         let _ = data;
         Err(clipboard::ClipboardError::Other(Txt::from_static(
             "clipboard not implemented for Android",
@@ -2406,7 +2530,7 @@ impl Api for App {
         data: Vec<DragDropData>,
         allowed_effects: DragDropEffect,
     ) -> Result<DragDropId, DragDropError> {
-        let _ = (id, data, allowed_effects); // TODO, wait winit
+        let _ = (id, data, allowed_effects);
         Err(DragDropError::NotSupported)
     }
 
@@ -2415,11 +2539,19 @@ impl Api for App {
     }
 
     fn drag_dropped(&mut self, id: WindowId, drop_id: DragDropId, applied: DragDropEffect) {
-        let _ = (id, drop_id, applied); // TODO, wait winit
+        let _ = (id, drop_id, applied);
     }
 
     fn set_system_shutdown_warn(&mut self, id: WindowId, reason: Txt) {
         self.with_window(id, move |w| w.set_system_shutdown_warn(reason), || ())
+    }
+
+    fn set_app_menu(&mut self, menu: menu::AppMenu) {
+        let _ = menu;
+    }
+
+    fn set_tray_icon(&mut self, indicator: menu::TrayIcon) {
+        let _ = indicator;
     }
 
     fn third_party_licenses(&mut self) -> Vec<zng_tp_licenses::LicenseUsed> {
@@ -2487,7 +2619,7 @@ pub(crate) enum AppEvent {
     ParentProcessExited,
 
     /// Image finished decoding, must call [`ImageCache::loaded`].
-    ImageLoaded(ImageLoadedData),
+    ImageDecoded(ImageDecoded),
 
     /// Enable disable winit device events.
     SetDeviceEventsFilter(DeviceEventsFilter),

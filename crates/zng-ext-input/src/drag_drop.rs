@@ -24,6 +24,7 @@ use zng_ext_window::{NestedWindowWidgetInfoExt as _, WINDOWS, WINDOWS_DRAG_DROP}
 use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_layout::unit::{DipPoint, DipToPx as _, PxToDip as _};
 use zng_state_map::StateId;
+use zng_task::channel::IpcBytes;
 use zng_txt::{Txt, formatx};
 use zng_var::{Var, var};
 use zng_view_api::{DragDropId, mouse::ButtonState, touch::TouchPhase};
@@ -766,9 +767,9 @@ impl DragEndArgs {
 
 /// Encode an widget ID for drag&drop data.
 pub fn encode_widget_id(id: WidgetId) -> DragDropData {
-    DragDropData::Text {
-        format: formatx!("zng/{}", APP_GUID.read().simple()),
-        data: formatx!("wgt-{}", id.get()),
+    DragDropData::Extension {
+        data_type: formatx!("zng/{}", APP_INSTANCE_GUID.read().simple()),
+        data: IpcBytes::from_slice_blocking(&id.get().to_le_bytes()).unwrap(),
     }
 }
 
@@ -776,17 +777,18 @@ pub fn encode_widget_id(id: WidgetId) -> DragDropData {
 ///
 /// The ID will only decode if it was encoded by the same app instance.
 pub fn decode_widget_id(data: &DragDropData) -> Option<WidgetId> {
-    if let DragDropData::Text { format, data } = data
-        && let Some(guid) = format.strip_prefix("zng/")
-        && let Some(id) = data.strip_prefix("wgt-")
-        && guid == APP_GUID.read().simple().to_string()
-        && let Ok(id) = id.parse::<u64>()
+    if let DragDropData::Extension { data_type, data } = data
+        && data.len() == 8
+        && let Some(guid) = data_type.strip_prefix("zng/")
+        && guid == APP_INSTANCE_GUID.read().simple().to_string()
     {
-        return Some(WidgetId::from_raw(id));
+        let mut id = [0u8; 8];
+        id.copy_from_slice(data);
+        return Some(WidgetId::from_raw(u64::from_le_bytes(id)));
     }
     None
 }
 
 app_local! {
-    static APP_GUID: uuid::Uuid = uuid::Uuid::new_v4();
+    static APP_INSTANCE_GUID: uuid::Uuid = uuid::Uuid::new_v4();
 }

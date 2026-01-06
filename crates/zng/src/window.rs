@@ -167,8 +167,9 @@ pub use zng_ext_window::{
     AppRunWindowExt, AutoSize, CloseWindowResult, FocusIndicator, HeadlessAppWindowExt, HeadlessMonitor, IME_EVENT, ImeArgs, MONITORS,
     MONITORS_CHANGED_EVENT, MonitorInfo, MonitorQuery, MonitorsChangedArgs, ParallelWin, RenderMode, StartPosition, VideoMode,
     WINDOW_CHANGED_EVENT, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_Ext, WINDOW_LOAD_EVENT, WINDOW_OPEN_EVENT, WINDOWS,
-    WidgetInfoBuilderImeArea, WidgetInfoImeArea, WindowButton, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs, WindowIcon,
-    WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowState, WindowStateAllowed, WindowVars,
+    WidgetInfoBuilderImeArea, WidgetInfoImeArea, WindowButton, WindowCapability, WindowChangedArgs, WindowCloseArgs,
+    WindowCloseRequestedArgs, WindowIcon, WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowState,
+    WindowStateAllowed, WindowVars,
 };
 
 #[cfg(feature = "image")]

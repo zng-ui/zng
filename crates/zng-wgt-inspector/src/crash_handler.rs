@@ -311,7 +311,7 @@ async fn save_copy(enabled: Var<bool>, path: PathBuf) {
         // l10n-# name for the minidump file type in the save file dialog
         filters.push_filter(
             l10n!("crash-handler/minidump.save-copy-filter-name", "Minidump").get().as_str(),
-            &[ext.to_string_lossy()],
+            [ext.to_string_lossy().as_ref()],
         );
     }
 

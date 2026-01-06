@@ -15,23 +15,19 @@ use crate::{
     window::{MonitorId, WindowId},
 };
 
-use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock};
+use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use zng_app_context::app_local;
-use zng_layout::unit::PxDensity2d;
-use zng_layout::unit::{DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect, PxSize};
-use zng_task::{
-    SignalOnce,
-    channel::{self, ChannelError, IpcBytes, IpcReceiver},
-};
+use zng_layout::unit::{DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect};
+use zng_task::channel::{self, ChannelError, IpcBytes, IpcReceiver, Receiver};
 use zng_txt::Txt;
-use zng_var::ResponderVar;
+use zng_var::{ResponderVar, Var, VarHandle};
 use zng_view_api::{
-    self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen,
-    api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
-    dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
+    self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen, ViewProcessInfo,
+    api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError},
+    dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse, Notification, NotificationResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::{FontOptions, IpcFontBytes},
-    image::{ImageMaskMode, ImageRequest, ImageTextureId},
+    image::{ImageDecoded, ImageEncodeId, ImageEncodeRequest, ImageMaskMode, ImageMetadata, ImageRequest, ImageTextureId},
     window::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, RenderMode, ResizeDirection,
         VideoMode, WindowButton, WindowRequest, WindowStateAll,
@@ -44,7 +40,7 @@ pub(crate) use zng_view_api::{
 use zng_view_api::{
     clipboard::{ClipboardData, ClipboardError, ClipboardType},
     font::{FontFaceId, FontId, FontVariationName},
-    image::{ImageId, ImageLoadedData},
+    image::ImageId,
 };
 
 use self::raw_device_events::InputDeviceId;
@@ -61,16 +57,16 @@ struct ViewProcessService {
 
     data_generation: ViewProcessGen,
 
-    extensions: ApiExtensions,
+    info: ViewProcessInfo,
 
-    loading_images: Vec<sync::Weak<RwLock<ViewImageData>>>,
-    frame_images: Vec<sync::Weak<RwLock<ViewImageData>>>,
+    loading_images: Vec<sync::Weak<ViewImageHandleData>>,
     encoding_images: Vec<EncodeRequest>,
 
     pending_frames: usize,
 
     message_dialogs: Vec<(zng_view_api::dialog::DialogId, ResponderVar<MsgDialogResponse>)>,
     file_dialogs: Vec<(zng_view_api::dialog::DialogId, ResponderVar<FileDialogResponse>)>,
+    notifications: Vec<(zng_view_api::dialog::DialogId, VarHandle, ResponderVar<NotificationResponse>)>,
 
     ping_count: u16,
 }
@@ -129,6 +125,13 @@ impl VIEW_PROCESS {
         self.read().process.same_process()
     }
 
+    /// Read lock view-process and reference current generation info.
+    ///
+    /// Strongly recommend to clone/copy the info required, the entire service is locked until the return value is dropped.
+    pub fn info(&self) -> impl std::ops::Deref<Target = ViewProcessInfo> {
+        MappedRwLockReadGuard::map(self.read(), |p| &p.info)
+    }
+
     /// Gets the current view-process generation.
     pub fn generation(&self) -> ViewProcessGen {
         self.read().process.generation()
@@ -169,60 +172,67 @@ impl VIEW_PROCESS {
 
     /// Send an image for decoding.
     ///
-    /// This function returns immediately, the [`ViewImage`] will update when
-    /// [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
+    /// This function returns immediately, the handle must be held and compared with the [`RAW_IMAGE_METADATA_DECODED_EVENT`],
+    /// [`RAW_IMAGE_DECODED_EVENT`] and [`RAW_IMAGE_DECODE_ERROR_EVENT`] events to receive the data.
     ///
-    /// [`Event::ImageMetadataLoaded`]: zng_view_api::Event::ImageMetadataLoaded
-    /// [`Event::ImageLoaded`]: zng_view_api::Event::ImageLoaded
-    /// [`Event::ImageLoadError`]: zng_view_api::Event::ImageLoadError
-    pub fn add_image(&self, request: ImageRequest<IpcBytes>) -> Result<ViewImage> {
+    /// [`RAW_IMAGE_METADATA_DECODED_EVENT`]: crate::view_process::raw_events::RAW_IMAGE_METADATA_DECODED_EVENT
+    /// [`RAW_IMAGE_DECODED_EVENT`]: crate::view_process::raw_events::RAW_IMAGE_DECODED_EVENT
+    /// [`RAW_IMAGE_DECODE_ERROR_EVENT`]: crate::view_process::raw_events::RAW_IMAGE_DECODE_ERROR_EVENT
+    pub fn add_image(&self, request: ImageRequest<IpcBytes>) -> Result<ViewImageHandle> {
         let mut app = self.write();
+
         let id = app.process.add_image(request)?;
-        let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
-            id: Some(id),
-            app_id: APP.id(),
-            generation: app.process.generation(),
-            size: PxSize::zero(),
-            partial_size: PxSize::zero(),
-            density: None,
-            is_opaque: false,
-            partial_pixels: None,
-            pixels: None,
-            is_mask: false,
-            done_signal: SignalOnce::new(),
-        })));
-        app.loading_images.push(Arc::downgrade(&img.0));
-        Ok(img)
+
+        let handle = Arc::new((APP.id().unwrap(), app.process.generation(), id));
+        app.loading_images.push(Arc::downgrade(&handle));
+
+        Ok(ViewImageHandle(Some(handle)))
     }
 
     /// Starts sending an image for *progressive* decoding.
     ///
-    /// This function returns immediately, the [`ViewImage`] will update when
-    /// [`Event::ImageMetadataLoaded`], [`Event::ImagePartiallyLoaded`],
-    /// [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
+    /// This function returns immediately, the handle must be held and compared with the [`RAW_IMAGE_METADATA_DECODED_EVENT`],
+    /// [`RAW_IMAGE_DECODED_EVENT`] and [`RAW_IMAGE_DECODE_ERROR_EVENT`] events to receive the data.
     ///
-    /// [`Event::ImageMetadataLoaded`]: zng_view_api::Event::ImageMetadataLoaded
-    /// [`Event::ImageLoaded`]: zng_view_api::Event::ImageLoaded
-    /// [`Event::ImageLoadError`]: zng_view_api::Event::ImageLoadError
-    /// [`Event::ImagePartiallyLoaded`]: zng_view_api::Event::ImagePartiallyLoaded
-    pub fn add_image_pro(&self, request: ImageRequest<IpcReceiver<IpcBytes>>) -> Result<ViewImage> {
+    /// [`RAW_IMAGE_METADATA_DECODED_EVENT`]: crate::view_process::raw_events::RAW_IMAGE_METADATA_DECODED_EVENT
+    /// [`RAW_IMAGE_DECODED_EVENT`]: crate::view_process::raw_events::RAW_IMAGE_DECODED_EVENT
+    /// [`RAW_IMAGE_DECODE_ERROR_EVENT`]: crate::view_process::raw_events::RAW_IMAGE_DECODE_ERROR_EVENT
+    pub fn add_image_pro(&self, request: ImageRequest<IpcReceiver<IpcBytes>>) -> Result<ViewImageHandle> {
         let mut app = self.write();
+
         let id = app.process.add_image_pro(request)?;
-        let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
-            id: Some(id),
-            app_id: APP.id(),
-            generation: app.process.generation(),
-            size: PxSize::zero(),
-            partial_size: PxSize::zero(),
-            density: None,
-            is_opaque: false,
-            partial_pixels: None,
-            pixels: None,
-            is_mask: false,
-            done_signal: SignalOnce::new(),
-        })));
-        app.loading_images.push(Arc::downgrade(&img.0));
-        Ok(img)
+
+        let handle = Arc::new((APP.id().unwrap(), app.process.generation(), id));
+        app.loading_images.push(Arc::downgrade(&handle));
+
+        Ok(ViewImageHandle(Some(handle)))
+    }
+
+    /// Starts encoding an image.
+    ///
+    /// The returned channel will update once with the result.
+    pub fn encode_image(&self, request: ImageEncodeRequest) -> Receiver<std::result::Result<IpcBytes, EncodeError>> {
+        let (sender, receiver) = channel::bounded(1);
+
+        if request.id == ImageId::INVALID {
+            let mut app = VIEW_PROCESS.write();
+
+            match app.process.encode_image(request) {
+                Ok(r) => {
+                    app.encoding_images.push(EncodeRequest {
+                        task_id: r,
+                        listener: sender,
+                    });
+                }
+                Err(_) => {
+                    let _ = sender.send_blocking(Err(EncodeError::Disconnected));
+                }
+            }
+        } else {
+            let _ = sender.send_blocking(Err(EncodeError::Dummy));
+        }
+
+        receiver
     }
 
     /// View-process clipboard methods.
@@ -234,19 +244,24 @@ impl VIEW_PROCESS {
         }
     }
 
-    /// Returns a list of image decoders supported by the view-process backend.
+    /// Register a native notification, either a popup or an entry in the system notifications list.
     ///
-    /// Each text is the lower-case file extension, without the dot.
-    pub fn image_decoders(&self) -> Result<Vec<Txt>> {
-        self.write().process.image_decoders()
-    }
-
-    /// Returns a list of image encoders supported by the view-process backend.
+    /// If the `notification` var updates the notification content updates or closes.
     ///
-    /// Each text is the lower-case file extension, without the dot.
-    pub fn image_encoders(&self) -> Result<Vec<Txt>> {
-        // TODO(breaking) change to a struct ImageFormat { mime: Txt, extensions: Box<[Txt]> }
-        self.write().process.image_encoders()
+    /// If the notification is responded the `responder` variable is set.
+    pub fn notification_dialog(&self, notification: Var<Notification>, responder: ResponderVar<NotificationResponse>) -> Result<()> {
+        let mut app = self.write();
+        let dlg_id = app.process.notification_dialog(notification.get())?;
+        let handle = notification.hook(move |n| {
+            let mut app = VIEW_PROCESS.write();
+            let retain = app.notifications.iter().any(|(id, _, _)| *id == dlg_id);
+            if retain {
+                app.process.update_notification(dlg_id, n.value().clone()).ok();
+            }
+            retain
+        });
+        app.notifications.push((dlg_id, handle, responder));
+        Ok(())
     }
 
     /// Number of frame send that have not finished rendering.
@@ -271,7 +286,7 @@ impl VIEW_PROCESS {
     pub fn extension_id(&self, extension_name: impl Into<ApiExtensionName>) -> Result<Option<ApiExtensionId>> {
         let me = self.read();
         if me.process.is_connected() {
-            Ok(me.extensions.id(&extension_name.into()))
+            Ok(me.info.extensions.id(&extension_name.into()))
         } else {
             Err(ChannelError::disconnected())
         }
@@ -325,11 +340,11 @@ impl VIEW_PROCESS {
             monitor_ids: HashMap::default(),
             loading_images: vec![],
             encoding_images: vec![],
-            frame_images: vec![],
             pending_frames: 0,
             message_dialogs: vec![],
             file_dialogs: vec![],
-            extensions: ApiExtensions::default(),
+            notifications: vec![],
+            info: ViewProcessInfo::new(ViewProcessGen::INVALID, false),
             ping_count: 0,
         });
     }
@@ -364,10 +379,10 @@ impl VIEW_PROCESS {
     /// The view-process becomes "connected" only after this call.
     ///
     /// [`Event::Inited`]: zng_view_api::Event::Inited
-    pub(super) fn handle_inited(&self, vp_gen: ViewProcessGen, extensions: ApiExtensions) {
+    pub(super) fn handle_inited(&self, inited: &zng_view_api::ViewProcessInfo) {
         let mut me = self.write();
-        me.extensions = extensions;
-        me.process.handle_inited(vp_gen);
+        me.info = inited.clone();
+        me.process.handle_inited(inited.generation);
     }
 
     pub(super) fn handle_suspended(&self) {
@@ -391,93 +406,85 @@ impl VIEW_PROCESS {
         (surf, data)
     }
 
-    fn loading_image_index(&self, id: ImageId) -> Option<usize> {
+    pub(super) fn on_image_metadata(&self, meta: &ImageMetadata) -> Option<ViewImageHandle> {
         let mut app = self.write();
 
-        // cleanup
-        app.loading_images.retain(|i| i.strong_count() > 0);
+        let mut found = None;
+        app.loading_images.retain(|i| {
+            if let Some(h) = i.upgrade() {
+                if found.is_none() && h.2 == meta.id {
+                    found = Some(h);
+                }
+                // retain
+                true
+            } else {
+                false
+            }
+        });
 
-        app.loading_images.iter().position(|i| i.upgrade().unwrap().read().id == Some(id))
+        // Best effort avoid tracking handles already dropped,
+        // the VIEW_PROCESS handles all image requests so we
+        // can track all primary requests, only entry images are send without
+        // knowing so we can skip all not found without parent.
+        //
+        // This could potentially restart tracking an entry that was dropped, but
+        // all that does is generate a no-op event and a second `forget_image` requests for the view-process.
+
+        if found.is_none() && meta.parent.is_some() {
+            // start tracking entry image
+
+            let handle = Arc::new((APP.id().unwrap(), app.process.generation(), meta.id));
+            app.loading_images.push(Arc::downgrade(&handle));
+
+            return Some(ViewImageHandle(Some(handle)));
+        }
+
+        found.map(|h| ViewImageHandle(Some(h)))
     }
 
-    pub(super) fn on_image_metadata_loaded(
-        &self,
-        id: ImageId,
-        size: PxSize,
-        density: Option<PxDensity2d>,
-        is_mask: bool,
-    ) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(id) {
-            let img = self.read().loading_images[i].upgrade().unwrap();
-            {
-                let mut img = img.write();
-                img.size = size;
-                img.density = density;
-                img.is_mask = is_mask;
+    pub(super) fn on_image_decoded(&self, data: &ImageDecoded) -> Option<ViewImageHandle> {
+        let mut app = self.write();
+
+        // retain loading handle only for partial decode, cleanup for full decode.
+        //
+        // All valid not dropped requests are already in `loading_images` because they are
+        // either primary requests or are entries (view-process always sends metadata decoded first for entries).
+
+        let mut found = None;
+        app.loading_images.retain(|i| {
+            if let Some(h) = i.upgrade() {
+                if found.is_none() && h.2 == data.meta.id {
+                    found = Some(h);
+                    return data.partial.is_some();
+                }
+                true
+            } else {
+                false
             }
-            Some(ViewImage(img))
-        } else {
-            None
-        }
+        });
+
+        found.map(|h| ViewImageHandle(Some(h)))
     }
 
-    pub(super) fn on_image_partially_loaded(
-        &self,
-        id: ImageId,
-        partial_size: PxSize,
-        density: Option<PxDensity2d>,
-        is_opaque: bool,
-        is_mask: bool,
-        partial_pixels: IpcBytes,
-    ) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(id) {
-            let img = self.read().loading_images[i].upgrade().unwrap();
-            {
-                let mut img = img.write();
-                img.partial_size = partial_size;
-                img.density = density;
-                img.is_opaque = is_opaque;
-                img.partial_pixels = Some(partial_pixels);
-                img.is_mask = is_mask;
-            }
-            Some(ViewImage(img))
-        } else {
-            None
-        }
-    }
+    pub(super) fn on_image_error(&self, id: ImageId) -> Option<ViewImageHandle> {
+        let mut app = self.write();
 
-    pub(super) fn on_image_loaded(&self, data: ImageLoadedData) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(data.id) {
-            let img = self.write().loading_images.swap_remove(i).upgrade().unwrap();
-            {
-                let mut img = img.write();
-                img.size = data.size;
-                img.partial_size = data.size;
-                img.density = data.density;
-                img.is_opaque = data.is_opaque;
-                img.pixels = Some(Ok(data.pixels));
-                img.partial_pixels = None;
-                img.is_mask = data.is_mask;
-                img.done_signal.set();
+        let mut found = None;
+        app.loading_images.retain(|i| {
+            if let Some(h) = i.upgrade() {
+                if found.is_none() && h.2 == id {
+                    found = Some(h);
+                    return false;
+                }
+                true
+            } else {
+                false
             }
-            Some(ViewImage(img))
-        } else {
-            None
-        }
-    }
+        });
 
-    pub(super) fn on_image_error(&self, id: ImageId, error: Txt) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(id) {
-            let img = self.write().loading_images.swap_remove(i).upgrade().unwrap();
-            {
-                let mut img = img.write();
-                img.pixels = Some(Err(error));
-                img.done_signal.set();
-            }
-            Some(ViewImage(img))
-        } else {
-            None
-        }
+        // error images should already be removed from view-process, handle will request a removal anyway
+
+        found.map(|h| ViewImageHandle(Some(h)))
     }
 
     pub(crate) fn on_frame_rendered(&self, _id: WindowId) {
@@ -485,47 +492,22 @@ impl VIEW_PROCESS {
         vp.pending_frames = vp.pending_frames.saturating_sub(1);
     }
 
-    pub(crate) fn on_frame_image(&self, data: ImageLoadedData) -> ViewImage {
-        ViewImage(Arc::new(RwLock::new(ViewImageData {
-            app_id: APP.id(),
-            id: Some(data.id),
-            generation: self.generation(),
-            size: data.size,
-            partial_size: data.size,
-            density: data.density,
-            is_opaque: data.is_opaque,
-            partial_pixels: None,
-            pixels: Some(Ok(data.pixels)),
-            is_mask: data.is_mask,
-            done_signal: SignalOnce::new_set(),
-        })))
+    pub(crate) fn on_frame_image(&self, data: &ImageDecoded) -> ViewImageHandle {
+        ViewImageHandle(Some(Arc::new((APP.id().unwrap(), self.generation(), data.meta.id))))
     }
 
-    pub(super) fn on_frame_image_ready(&self, id: ImageId) -> Option<ViewImage> {
-        let mut app = self.write();
-
-        // cleanup
-        app.frame_images.retain(|i| i.strong_count() > 0);
-
-        let i = app.frame_images.iter().position(|i| i.upgrade().unwrap().read().id == Some(id));
-
-        i.map(|i| ViewImage(app.frame_images.swap_remove(i).upgrade().unwrap()))
+    pub(super) fn on_image_encoded(&self, task_id: ImageEncodeId, data: IpcBytes) {
+        self.on_image_encode_result(task_id, Ok(data));
     }
-
-    pub(super) fn on_image_encoded(&self, id: ImageId, format: Txt, data: IpcBytes) {
-        self.on_image_encode_result(id, format, Ok(data));
+    pub(super) fn on_image_encode_error(&self, task_id: ImageEncodeId, error: Txt) {
+        self.on_image_encode_result(task_id, Err(EncodeError::Encode(error)));
     }
-    pub(super) fn on_image_encode_error(&self, id: ImageId, format: Txt, error: Txt) {
-        self.on_image_encode_result(id, format, Err(EncodeError::Encode(error)));
-    }
-    fn on_image_encode_result(&self, id: ImageId, format: Txt, result: std::result::Result<IpcBytes, EncodeError>) {
+    fn on_image_encode_result(&self, task_id: ImageEncodeId, result: std::result::Result<IpcBytes, EncodeError>) {
         let mut app = self.write();
         app.encoding_images.retain(move |r| {
-            let done = r.image_id == id && r.format == format;
+            let done = r.task_id == task_id;
             if done {
-                for sender in &r.listeners {
-                    let _ = sender.send_blocking(result.clone());
-                }
+                let _ = r.listener.send_blocking(result.clone());
             }
             !done
         })
@@ -547,11 +529,25 @@ impl VIEW_PROCESS {
         }
     }
 
+    pub(crate) fn on_notification_dlg_response(&self, id: zng_view_api::dialog::DialogId, response: NotificationResponse) {
+        let mut app = self.write();
+        if let Some(i) = app.notifications.iter().position(|(i, _, _)| *i == id) {
+            let (_, _, r) = app.notifications.swap_remove(i);
+            r.respond(response);
+        }
+    }
+
     pub(super) fn on_respawned(&self, _gen: ViewProcessGen) {
         let mut app = self.write();
         app.pending_frames = 0;
         for (_, r) in app.message_dialogs.drain(..) {
             r.respond(MsgDialogResponse::Error(Txt::from_static("respawn")));
+        }
+        for (_, r) in app.file_dialogs.drain(..) {
+            r.respond(FileDialogResponse::Error(Txt::from_static("respawn")));
+        }
+        for (_, _, r) in app.notifications.drain(..) {
+            r.respond(NotificationResponse::Error(Txt::from_static("respawn")));
         }
     }
 
@@ -595,19 +591,8 @@ impl ViewProcessService {
 event_args! {
     /// Arguments for the [`VIEW_PROCESS_INITED_EVENT`].
     pub struct ViewProcessInitedArgs {
-        /// View-process generation.
-        pub generation: ViewProcessGen,
-
-        /// If this is not the first time a view-process was inited. If `true`
-        /// all resources created in a previous generation must be rebuilt.
-        ///
-        /// This can happen after a view-process crash or app suspension.
-        pub is_respawn: bool,
-
-        /// API extensions implemented by the view-process.
-        ///
-        /// The extension IDs will stay valid for the duration of the view-process.
-        pub extensions: ApiExtensions,
+        /// View-process implementation info.
+        pub info: zng_view_api::ViewProcessInfo,
 
         ..
 
@@ -626,6 +611,13 @@ event_args! {
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
             list.search_all()
         }
+    }
+}
+impl std::ops::Deref for ViewProcessInitedArgs {
+    type Target = zng_view_api::ViewProcessInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.info
     }
 }
 
@@ -728,12 +720,11 @@ impl ViewWindow {
     }
 
     /// Set the window icon.
-    pub fn set_icon(&self, icon: Option<&ViewImage>) -> Result<()> {
+    pub fn set_icon(&self, icon: Option<&ViewImageHandle>) -> Result<()> {
         self.0.call(|id, p| {
-            if let Some(icon) = icon {
-                let icon = icon.0.read();
-                if p.generation() == icon.generation {
-                    p.set_icon(id, icon.id)
+            if let Some(icon) = icon.and_then(|i| i.0.as_ref()) {
+                if p.generation() == icon.1 {
+                    p.set_icon(id, Some(icon.2))
                 } else {
                     Err(ChannelError::disconnected())
                 }
@@ -754,12 +745,11 @@ impl ViewWindow {
     ///
     /// The `hotspot` value is an exact point in the image that is the mouse position. This value is only used if
     /// the image format does not contain a hotspot.
-    pub fn set_cursor_image(&self, cursor: Option<&ViewImage>, hotspot: PxPoint) -> Result<()> {
+    pub fn set_cursor_image(&self, cursor: Option<&ViewImageHandle>, hotspot: PxPoint) -> Result<()> {
         self.0.call(|id, p| {
-            if let Some(cur) = cursor {
-                let cur = cur.0.read();
-                if p.generation() == cur.generation {
-                    p.set_cursor_image(id, cur.id.map(|img| zng_view_api::window::CursorImage::new(img, hotspot)))
+            if let Some(cur) = cursor.and_then(|i| i.0.as_ref()) {
+                if p.generation() == cur.1 {
+                    p.set_cursor_image(id, Some(zng_view_api::window::CursorImage::new(cur.2, hotspot)))
                 } else {
                     Err(ChannelError::disconnected())
                 }
@@ -1075,30 +1065,36 @@ impl ViewRenderer {
     /// Use an image resource in the window renderer.
     ///
     /// Returns the image texture ID.
-    pub fn use_image(&self, image: &ViewImage) -> Result<ImageTextureId> {
+    pub fn use_image(&self, image: &ViewImageHandle) -> Result<ImageTextureId> {
         self.call(|id, p| {
-            let image = image.0.read();
-            if p.generation() == image.generation {
-                p.use_image(id, image.id.unwrap_or(ImageId::INVALID))
+            if let Some(img) = &image.0 {
+                if p.generation() == img.1 {
+                    p.use_image(id, img.2)
+                } else {
+                    Err(ChannelError::disconnected())
+                }
             } else {
-                Err(ChannelError::disconnected())
+                Ok(ImageTextureId::INVALID)
             }
         })
     }
 
     /// Replace the image resource in the window renderer.
     ///
-    /// The new `image_id` must represent an image with same dimensions and format as the previous. If the
+    /// The new `image` handle must represent an image with same dimensions and format as the previous. If the
     /// image cannot be updated an error is logged and `false` is returned.
     ///
     /// The `dirty_rect` can be set to optimize texture upload to the GPU, if not set the entire image region updates.
-    pub fn update_image_use(&mut self, tex_id: ImageTextureId, image: &ViewImage, dirty_rect: Option<PxRect>) -> Result<bool> {
+    pub fn update_image_use(&mut self, tex_id: ImageTextureId, image: &ViewImageHandle, dirty_rect: Option<PxRect>) -> Result<bool> {
         self.call(|id, p| {
-            let image = image.0.read();
-            if p.generation() == image.generation {
-                p.update_image_use(id, tex_id, image.id.unwrap_or(ImageId::INVALID), dirty_rect)
+            if let Some(img) = &image.0 {
+                if p.generation() == img.1 {
+                    p.update_image_use(id, tex_id, img.2, dirty_rect)
+                } else {
+                    Err(ChannelError::disconnected())
+                }
             } else {
-                Err(ChannelError::disconnected())
+                Ok(false)
             }
         })
     }
@@ -1139,7 +1135,7 @@ impl ViewRenderer {
     }
 
     /// Create a new image resource from the current rendered frame.
-    pub fn frame_image(&self, mask: Option<ImageMaskMode>) -> Result<ViewImage> {
+    pub fn frame_image(&self, mask: Option<ImageMaskMode>) -> Result<ViewImageHandle> {
         if let Some(c) = self.0.upgrade() {
             let id = c.call(|id, p| p.frame_image(id, mask))?;
             Ok(Self::add_frame_image(c.app_id, id))
@@ -1149,7 +1145,7 @@ impl ViewRenderer {
     }
 
     /// Create a new image resource from a selection of the current rendered frame.
-    pub fn frame_image_rect(&self, rect: PxRect, mask: Option<ImageMaskMode>) -> Result<ViewImage> {
+    pub fn frame_image_rect(&self, rect: PxRect, mask: Option<ImageMaskMode>) -> Result<ViewImageHandle> {
         if let Some(c) = self.0.upgrade() {
             let id = c.call(|id, p| p.frame_image_rect(id, rect, mask))?;
             Ok(Self::add_frame_image(c.app_id, id))
@@ -1158,29 +1154,15 @@ impl ViewRenderer {
         }
     }
 
-    fn add_frame_image(app_id: AppId, id: ImageId) -> ViewImage {
+    fn add_frame_image(app_id: AppId, id: ImageId) -> ViewImageHandle {
         if id == ImageId::INVALID {
-            ViewImage::dummy(None)
+            ViewImageHandle::dummy()
         } else {
             let mut app = VIEW_PROCESS.handle_write(app_id);
-            let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
-                app_id: Some(app_id),
-                id: Some(id),
-                generation: app.process.generation(),
-                size: PxSize::zero(),
-                partial_size: PxSize::zero(),
-                density: None,
-                is_opaque: false,
-                partial_pixels: None,
-                pixels: None,
-                is_mask: false,
-                done_signal: SignalOnce::new(),
-            })));
+            let handle = Arc::new((APP.id().unwrap(), app.process.generation(), id));
+            app.loading_images.push(Arc::downgrade(&handle));
 
-            app.loading_images.push(Arc::downgrade(&img.0));
-            app.frame_images.push(Arc::downgrade(&img.0));
-
-            img
+            ViewImageHandle(Some(handle))
         }
     }
 
@@ -1230,239 +1212,79 @@ impl ViewRenderer {
     }
 }
 
+type ViewImageHandleData = (AppId, ViewProcessGen, ImageId);
+
 /// Handle to an image loading or loaded in the View Process.
 ///
 /// The image is disposed when all clones of the handle are dropped.
 #[must_use = "the image is disposed when all clones of the handle are dropped"]
-#[derive(Clone)]
-pub struct ViewImage(Arc<RwLock<ViewImageData>>);
-impl PartialEq for ViewImage {
+#[derive(Clone, Debug)]
+pub struct ViewImageHandle(Option<Arc<ViewImageHandleData>>);
+impl PartialEq for ViewImageHandle {
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-impl Eq for ViewImage {}
-impl std::hash::Hash for ViewImage {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let ptr = Arc::as_ptr(&self.0) as usize;
-        ptr.hash(state)
-    }
-}
-impl fmt::Debug for ViewImage {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ViewImage")
-            .field("loaded", &self.is_loaded())
-            .field("error", &self.error())
-            .field("size", &self.size())
-            .field("density", &self.density())
-            .field("is_opaque", &self.is_opaque())
-            .field("is_mask", &self.is_mask())
-            .field("generation", &self.generation())
-            .finish_non_exhaustive()
-    }
-}
-
-struct ViewImageData {
-    app_id: Option<AppId>,
-    id: Option<ImageId>,
-    generation: ViewProcessGen,
-
-    size: PxSize,
-    partial_size: PxSize,
-    density: Option<PxDensity2d>,
-    is_opaque: bool,
-
-    partial_pixels: Option<IpcBytes>,
-    pixels: Option<std::result::Result<IpcBytes, Txt>>,
-    is_mask: bool,
-
-    done_signal: SignalOnce,
-}
-impl Drop for ViewImageData {
-    fn drop(&mut self) {
-        if let Some(id) = self.id {
-            let app_id = self.app_id.unwrap();
-            if let Some(app) = APP.id() {
-                if app_id != app {
-                    tracing::error!("image from app `{:?}` dropped in app `{:?}`", app_id, app);
-                }
-
-                if VIEW_PROCESS.is_available() && VIEW_PROCESS.generation() == self.generation {
-                    let _ = VIEW_PROCESS.write().process.forget_image(id);
-                }
-            }
+        match (&self.0, &other.0) {
+            (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+            (None, None) => true,
+            _ => false,
         }
     }
 }
-
-impl ViewImage {
-    /// Image id.
-    pub fn id(&self) -> Option<ImageId> {
-        self.0.read().id
+impl Eq for ViewImageHandle {}
+impl ViewImageHandle {
+    /// New handle to nothing.
+    pub fn dummy() -> Self {
+        ViewImageHandle(None)
     }
 
-    /// If the image does not actually exists in the view-process.
+    /// Is handle to nothing.
     pub fn is_dummy(&self) -> bool {
-        self.0.read().id.is_none()
+        self.0.is_none()
     }
 
-    /// Returns `true` if the image has successfully decoded.
-    pub fn is_loaded(&self) -> bool {
-        self.0.read().pixels.as_ref().map(|r| r.is_ok()).unwrap_or(false)
-    }
-
-    /// Returns `true` if the image is progressively decoding and has partially decoded.
-    pub fn is_partially_loaded(&self) -> bool {
-        self.0.read().partial_pixels.is_some()
-    }
-
-    /// if [`error`] is `Some`.
+    /// Image ID.
     ///
-    /// [`error`]: Self::error
-    pub fn is_error(&self) -> bool {
-        self.0.read().pixels.as_ref().map(|r| r.is_err()).unwrap_or(false)
+    /// Is [`ImageId::INVALID`] for dummy.
+    pub fn image_id(&self) -> ImageId {
+        self.0.as_ref().map(|h| h.2).unwrap_or(ImageId::INVALID)
     }
 
-    /// Returns the load error if one happened.
-    pub fn error(&self) -> Option<Txt> {
-        self.0.read().pixels.as_ref().and_then(|s| s.as_ref().err().cloned())
-    }
-
-    /// Returns the pixel size, or zero if is not loaded or error.
-    pub fn size(&self) -> PxSize {
-        self.0.read().size
-    }
-
-    /// Actual size of the current pixels.
+    /// Application that requested this image.
     ///
-    /// Can be different from [`size`] if the image is progressively decoding.
+    /// Images can only be used in the same app.
     ///
-    /// [`size`]: Self::size
-    pub fn partial_size(&self) -> PxSize {
-        self.0.read().partial_size
-    }
-
-    /// Returns the pixel density metadata associated with the image, or `None` if not loaded or error or no
-    /// metadata provided by decoder.
-    pub fn density(&self) -> Option<PxDensity2d> {
-        self.0.read().density
-    }
-
-    /// Returns if the image is fully opaque.
-    pub fn is_opaque(&self) -> bool {
-        self.0.read().is_opaque
-    }
-
-    /// Returns if the image is a single channel mask (A8).
-    pub fn is_mask(&self) -> bool {
-        self.0.read().is_mask
-    }
-
-    /// Copy the partially decoded pixels if the image is progressively decoding
-    /// and has not finished decoding.
-    ///
-    /// Format is BGRA8 for normal images or A8 if [`is_mask`].
-    ///
-    /// [`is_mask`]: Self::is_mask
-    pub fn partial_pixels(&self) -> Option<Vec<u8>> {
-        self.0.read().partial_pixels.as_ref().map(|r| r[..].to_vec())
-    }
-
-    /// Reference the decoded pixels of image.
-    ///
-    /// Returns `None` until the image is fully loaded. Use [`partial_pixels`] to copy
-    /// partially decoded bytes.
-    ///
-    /// Format is pre-multiplied BGRA8 for normal images or A8 if [`is_mask`].
-    ///
-    /// [`is_mask`]: Self::is_mask
-    ///
-    /// [`partial_pixels`]: Self::partial_pixels
-    pub fn pixels(&self) -> Option<IpcBytes> {
-        self.0.read().pixels.as_ref().and_then(|r| r.as_ref().ok()).cloned()
-    }
-
-    /// Returns the app that owns the view-process that is handling this image.
+    /// Is `None` for dummy.
     pub fn app_id(&self) -> Option<AppId> {
-        self.0.read().app_id
+        self.0.as_ref().map(|h| h.0)
     }
 
-    /// Returns the view-process generation on which the image is loaded.
-    pub fn generation(&self) -> ViewProcessGen {
-        self.0.read().generation
-    }
-
-    /// Creates a [`WeakViewImage`].
-    pub fn downgrade(&self) -> WeakViewImage {
-        WeakViewImage(Arc::downgrade(&self.0))
-    }
-
-    /// Create a dummy image in the loaded or error state.
-    pub fn dummy(error: Option<Txt>) -> Self {
-        ViewImage(Arc::new(RwLock::new(ViewImageData {
-            app_id: None,
-            id: None,
-            generation: ViewProcessGen::INVALID,
-            size: PxSize::zero(),
-            partial_size: PxSize::zero(),
-            density: None,
-            is_opaque: true,
-            partial_pixels: None,
-            pixels: if let Some(e) = error {
-                Some(Err(e))
-            } else {
-                Some(Ok(IpcBytes::default()))
-            },
-            is_mask: false,
-            done_signal: SignalOnce::new_set(),
-        })))
-    }
-
-    /// Returns a future that awaits until this image is loaded or encountered an error.
-    pub fn awaiter(&self) -> SignalOnce {
-        self.0.read().done_signal.clone()
-    }
-
-    /// Tries to encode the image to the format.
+    /// View-process generation that provided this image.
     ///
-    /// The `format` must be one of the [`image_encoders`] supported by the view-process backend.
+    /// Images can only be used in the same view-process instance.
     ///
-    /// [`image_encoders`]: VIEW_PROCESS::image_encoders
-    pub async fn encode(&self, format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
-        self.awaiter().await;
-
-        if let Some(e) = self.error() {
-            return Err(EncodeError::Encode(e));
-        }
-
-        let receiver = {
-            let img = self.0.read();
-            if let Some(id) = img.id {
-                let mut app = VIEW_PROCESS.handle_write(img.app_id.unwrap());
-
-                app.process.encode_image(id, format.clone())?;
-
-                let (sender, receiver) = channel::bounded(1);
-                if let Some(entry) = app.encoding_images.iter_mut().find(|r| r.image_id == id && r.format == format) {
-                    entry.listeners.push(sender);
-                } else {
-                    app.encoding_images.push(EncodeRequest {
-                        image_id: id,
-                        format,
-                        listeners: vec![sender],
-                    });
-                }
-                receiver
-            } else {
-                return Err(EncodeError::Dummy);
+    /// Is [`ViewProcessGen::INVALID`] for dummy.
+    pub fn view_process_gen(&self) -> ViewProcessGen {
+        self.0.as_ref().map(|h| h.1).unwrap_or(ViewProcessGen::INVALID)
+    }
+}
+impl Drop for ViewImageHandle {
+    fn drop(&mut self) {
+        if let Some(h) = self.0.take()
+            && Arc::strong_count(&h) == 1
+            && let Some(app) = APP.id()
+        {
+            if h.0 != app {
+                tracing::error!("image from app `{:?}` dropped in app `{:?}`", h.0, app);
+                return;
             }
-        };
 
-        receiver.recv().await?
+            if VIEW_PROCESS.is_available() && VIEW_PROCESS.generation() == h.1 {
+                let _ = VIEW_PROCESS.write().process.forget_image(h.2);
+            }
+        }
     }
 }
 
-/// Error returned by [`ViewImage::encode`].
+/// Error returned by [`VIEW_PROCESS::encode_image`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EncodeError {
@@ -1473,6 +1295,8 @@ pub enum EncodeError {
     /// In a headless-app without renderer all images are dummy because there is no
     /// view-process backend running.
     Dummy,
+    /// Image is still loading, await it first.
+    Loading,
     /// The View-Process disconnected or has not finished initializing yet, try again after [`VIEW_PROCESS_INITED_EVENT`].
     Disconnected,
 }
@@ -1491,6 +1315,7 @@ impl fmt::Display for EncodeError {
         match self {
             EncodeError::Encode(e) => write!(f, "{e}"),
             EncodeError::Dummy => write!(f, "cannot encode dummy image"),
+            EncodeError::Loading => write!(f, "cannot encode, image is still loading"),
             EncodeError::Disconnected => write!(f, "{}", ChannelError::disconnected()),
         }
     }
@@ -1499,24 +1324,25 @@ impl std::error::Error for EncodeError {}
 
 /// Connection to an image loading or loaded in the View Process.
 ///
-/// The image is removed from the View Process cache when all clones of [`ViewImage`] drops, but
+/// The image is removed from the View Process cache when all clones of [`ViewImageHandle`] drops, but
 /// if there is another image pointer holding the image, this weak pointer can be upgraded back
 /// to a strong connection to the image.
+///
+/// Dummy handles never upgrade back.
 #[derive(Clone)]
-pub struct WeakViewImage(sync::Weak<RwLock<ViewImageData>>);
-impl WeakViewImage {
+pub struct WeakViewImageHandle(sync::Weak<ViewImageHandleData>);
+impl WeakViewImageHandle {
     /// Attempt to upgrade the weak pointer to the image to a full image.
     ///
-    /// Returns `Some` if the is at least another [`ViewImage`] holding the image alive.
-    pub fn upgrade(&self) -> Option<ViewImage> {
-        self.0.upgrade().map(ViewImage)
+    /// Returns `Some` if the is at least another [`ViewImageHandle`] holding the image alive.
+    pub fn upgrade(&self) -> Option<ViewImageHandle> {
+        self.0.upgrade().map(|h| ViewImageHandle(Some(h)))
     }
 }
 
 struct EncodeRequest {
-    image_id: ImageId,
-    format: Txt,
-    listeners: Vec<channel::Sender<std::result::Result<IpcBytes, EncodeError>>>,
+    task_id: ImageEncodeId,
+    listener: channel::Sender<std::result::Result<IpcBytes, EncodeError>>,
 }
 
 type ClipboardResult<T> = std::result::Result<T, ClipboardError>;
@@ -1529,8 +1355,13 @@ impl ViewClipboard {
     ///
     /// [`ClipboardType::Text`]: zng_view_api::clipboard::ClipboardType::Text
     pub fn read_text(&self) -> Result<ClipboardResult<Txt>> {
-        match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::Text)? {
-            Ok(ClipboardData::Text(t)) => Ok(Ok(t)),
+        match VIEW_PROCESS
+            .try_write()?
+            .process
+            .read_clipboard(vec![ClipboardType::Text], true)?
+            .map(|mut r| r.pop())
+        {
+            Ok(Some(ClipboardData::Text(t))) => Ok(Ok(t)),
             Err(e) => Ok(Err(e)),
             _ => Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned incorrect type")))),
         }
@@ -1540,34 +1371,26 @@ impl ViewClipboard {
     ///
     /// [`ClipboardType::Text`]: zng_view_api::clipboard::ClipboardType::Text
     pub fn write_text(&self, txt: Txt) -> Result<ClipboardResult<()>> {
-        VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::Text(txt))
+        VIEW_PROCESS
+            .try_write()?
+            .process
+            .write_clipboard(vec![ClipboardData::Text(txt)])
+            .map(|r| r.map(|_| ()))
     }
 
     /// Read [`ClipboardType::Image`].
     ///
     /// [`ClipboardType::Image`]: zng_view_api::clipboard::ClipboardType::Image
-    pub fn read_image(&self) -> Result<ClipboardResult<ViewImage>> {
+    pub fn read_image(&self) -> Result<ClipboardResult<ViewImageHandle>> {
         let mut app = VIEW_PROCESS.try_write()?;
-        match app.process.read_clipboard(ClipboardType::Image)? {
-            Ok(ClipboardData::Image(id)) => {
+        match app.process.read_clipboard(vec![ClipboardType::Image], true)?.map(|mut r| r.pop()) {
+            Ok(Some(ClipboardData::Image(id))) => {
                 if id == ImageId::INVALID {
                     Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned invalid image"))))
                 } else {
-                    let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
-                        id: Some(id),
-                        app_id: APP.id(),
-                        generation: app.process.generation(),
-                        size: PxSize::zero(),
-                        partial_size: PxSize::zero(),
-                        density: None,
-                        is_opaque: false,
-                        partial_pixels: None,
-                        pixels: None,
-                        is_mask: false,
-                        done_signal: SignalOnce::new(),
-                    })));
-                    app.loading_images.push(Arc::downgrade(&img.0));
-                    Ok(Ok(img))
+                    let handle = Arc::new((APP.id().unwrap(), app.process.generation(), id));
+                    app.loading_images.push(Arc::downgrade(&handle));
+                    Ok(Ok(ViewImageHandle(Some(handle))))
                 }
             }
             Err(e) => Ok(Err(e)),
@@ -1578,31 +1401,39 @@ impl ViewClipboard {
     /// Write [`ClipboardType::Image`].
     ///
     /// [`ClipboardType::Image`]: zng_view_api::clipboard::ClipboardType::Image
-    pub fn write_image(&self, img: &ViewImage) -> Result<ClipboardResult<()>> {
-        if img.is_loaded()
-            && let Some(id) = img.id()
-        {
-            return VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::Image(id));
-        }
-        Ok(Err(ClipboardError::Other(Txt::from_static("image not loaded"))))
+    pub fn write_image(&self, img: &ViewImageHandle) -> Result<ClipboardResult<()>> {
+        return VIEW_PROCESS
+            .try_write()?
+            .process
+            .write_clipboard(vec![ClipboardData::Image(img.image_id())])
+            .map(|r| r.map(|_| ()));
     }
 
-    /// Read [`ClipboardType::FileList`].
+    /// Read [`ClipboardType::Paths`].
     ///
-    /// [`ClipboardType::FileList`]: zng_view_api::clipboard::ClipboardType::FileList
-    pub fn read_file_list(&self) -> Result<ClipboardResult<Vec<PathBuf>>> {
-        match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::FileList)? {
-            Ok(ClipboardData::FileList(f)) => Ok(Ok(f)),
+    /// [`ClipboardType::Paths`]: zng_view_api::clipboard::ClipboardType::Paths
+    pub fn read_paths(&self) -> Result<ClipboardResult<Vec<PathBuf>>> {
+        match VIEW_PROCESS
+            .try_write()?
+            .process
+            .read_clipboard(vec![ClipboardType::Paths], true)?
+            .map(|mut r| r.pop())
+        {
+            Ok(Some(ClipboardData::Paths(f))) => Ok(Ok(f)),
             Err(e) => Ok(Err(e)),
             _ => Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned incorrect type")))),
         }
     }
 
-    /// Write [`ClipboardType::FileList`].
+    /// Write [`ClipboardType::Paths`].
     ///
-    /// [`ClipboardType::FileList`]: zng_view_api::clipboard::ClipboardType::FileList
-    pub fn write_file_list(&self, list: Vec<PathBuf>) -> Result<ClipboardResult<()>> {
-        VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::FileList(list))
+    /// [`ClipboardType::Paths`]: zng_view_api::clipboard::ClipboardType::Paths
+    pub fn write_paths(&self, list: Vec<PathBuf>) -> Result<ClipboardResult<()>> {
+        VIEW_PROCESS
+            .try_write()?
+            .process
+            .write_clipboard(vec![ClipboardData::Paths(list)])
+            .map(|r| r.map(|_| ()))
     }
 
     /// Read [`ClipboardType::Extension`].
@@ -1612,9 +1443,10 @@ impl ViewClipboard {
         match VIEW_PROCESS
             .try_write()?
             .process
-            .read_clipboard(ClipboardType::Extension(data_type.clone()))?
+            .read_clipboard(vec![ClipboardType::Extension(data_type.clone())], true)?
+            .map(|mut r| r.pop())
         {
-            Ok(ClipboardData::Extension { data_type: rt, data }) if rt == data_type => Ok(Ok(data)),
+            Ok(Some(ClipboardData::Extension { data_type: rt, data })) if rt == data_type => Ok(Ok(data)),
             Err(e) => Ok(Err(e)),
             _ => Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned incorrect type")))),
         }
@@ -1627,6 +1459,7 @@ impl ViewClipboard {
         VIEW_PROCESS
             .try_write()?
             .process
-            .write_clipboard(ClipboardData::Extension { data_type, data })
+            .write_clipboard(vec![ClipboardData::Extension { data_type, data }])
+            .map(|r| r.map(|_| ()))
     }
 }

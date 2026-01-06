@@ -505,7 +505,6 @@ fn markdown_view_fn(md: &str) -> UiNode {
                 }))
             }
             TagEnd::HtmlBlock => {
-                // TODO
                 let _html = html_block.take().unwrap();
             }
             TagEnd::List(_) => {
@@ -713,7 +712,7 @@ fn markdown_view_fn(md: &str) -> UiNode {
             }
         }
 
-        Event::InlineMath(_) => {} // TODO
+        Event::InlineMath(_) => {}
         Event::DisplayMath(_) => {}
         Event::SoftBreak | Event::HardBreak => unreachable!(),
     });

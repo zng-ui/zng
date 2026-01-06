@@ -156,7 +156,7 @@ impl LAYERS {
     /// [`insert`]: Self::insert
     /// [`UiNode::init_widget`]: zng_wgt::prelude::UiNode::init_widget
     pub fn insert_node(&self, layer: impl IntoVar<LayerIndex>, maybe_widget: impl IntoUiNode) -> ResponseVar<WidgetId> {
-        let (widget, rsp) = maybe_widget.into_node().init_widget(); // !!: TODO anonymous widget here always fills
+        let (widget, rsp) = maybe_widget.into_node().init_widget();
         self.insert(layer, widget);
         rsp
     }

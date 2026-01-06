@@ -612,18 +612,16 @@ impl<T: VarValue> Var<Vec<T>> {
     /// [`flat_map`]: Self::flat_map
     pub fn flat_map_vec<O: VarValue>(&self, mut map: impl FnMut(usize, &T) -> Var<O> + Send + 'static) -> Var<Vec<O>> {
         self.flat_map(move |vec| {
-            let item_vars: Vec<Var<O>> = vec.iter().enumerate().map(|(i, it)| map(i, it)).collect();
-            let out_value: Vec<O> = item_vars.iter().map(|v| v.get()).collect();
+            let mut item_vars: Vec<(Var<O>, VarHandle)> = vec.iter().enumerate().map(|(i, it)| (map(i, it), VarHandle::dummy())).collect();
+            let out_value: Vec<O> = item_vars.iter().map(|v| v.0.get()).collect();
             let out_var = crate::var(out_value);
 
-            for (i, item_var) in item_vars.iter().enumerate() {
-                item_var
-                    .bind_modify(&out_var, move |item_value, out_value| {
-                        if &out_value.value()[i] != item_value {
-                            out_value.value_mut()[i] = item_value.clone();
-                        }
-                    })
-                    .perm();
+            for (i, (item_var, handle)) in item_vars.iter_mut().enumerate() {
+                *handle = item_var.bind_modify(&out_var, move |item_value, out_value| {
+                    if &out_value.value()[i] != item_value {
+                        out_value.value_mut()[i] = item_value.clone();
+                    }
+                });
             }
             out_var.hold(item_vars).perm();
 
