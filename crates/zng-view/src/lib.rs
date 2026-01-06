@@ -386,7 +386,7 @@ pub(crate) struct App {
     #[cfg(not(any(windows, target_os = "android")))]
     arboard: Option<arboard::Clipboard>,
 
-    low_memory_watcher: Option<low_memory::LowMemoryWatcher>,
+    low_memory_watcher: Option<(low_memory::LowMemoryWatcher, Instant)>,
 
     config_listener_exit: Option<Box<dyn FnOnce()>>,
 
@@ -970,7 +970,6 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
     fn new_events(&mut self, _winit_loop: &ActiveEventLoop, _cause: winit::event::StartCause) {
         self.idle.exit();
 
-        #[cfg(windows)]
         if let winit::event::StartCause::ResumeTimeReached { .. } = _cause {
             self.update_memory_watcher(_winit_loop);
         }
@@ -1419,7 +1418,7 @@ impl App {
             drag_drop_next_move: None,
             #[cfg(not(any(windows, target_os = "android")))]
             arboard: None,
-            low_memory_watcher: low_memory::LowMemoryWatcher::new(),
+            low_memory_watcher: low_memory::LowMemoryWatcher::new().map(|w| (w, Instant::now())),
         }
     }
 
@@ -1735,12 +1734,17 @@ impl App {
     }
 
     fn update_memory_watcher(&mut self, _winit_loop: &ActiveEventLoop) {
-        if let Some(m) = &mut self.low_memory_watcher {
-            if m.notify() {
-                use winit::application::ApplicationHandler as _;
-                self.memory_warning(_winit_loop);
+        if let Some((w, t)) = &mut self.low_memory_watcher {
+            const INTERVAL: Duration = Duration::from_secs(5);
+            let nt = Instant::now();
+            if nt.duration_since(*t) >= INTERVAL {
+                *t = nt;
+                if w.notify() {
+                    use winit::application::ApplicationHandler as _;
+                    self.memory_warning(_winit_loop);
+                }
             }
-            _winit_loop.set_control_flow(winit::event_loop::ControlFlow::wait_duration(Duration::from_secs(5)));
+            _winit_loop.set_control_flow(winit::event_loop::ControlFlow::wait_duration(INTERVAL));
         }
     }
 }

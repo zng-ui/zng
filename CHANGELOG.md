@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix memory pressure watcher using too many resources.
 
 # 0.20.3
 
