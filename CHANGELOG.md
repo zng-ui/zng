@@ -67,6 +67,11 @@
     - Added `Img::encode_with_entries` and related methods.
 * Add `Img::original_color_type` metadata.
 
+# 0.20.4
+
+* Fix high CPU usage when idling in Ubuntu and macOS.
+* Fix memory pressure watcher not working in Ubuntu and macOS.
+
 # 0.20.3
 
 * Fix image encoding with premultiplied alpha.

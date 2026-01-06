@@ -11,8 +11,8 @@
 //!
 //! ```toml
 //! [dependencies]
-//! zng = "0.20.3"
-//! zng-view = "0.15.2"
+//! zng = "0.20.4"
+//! zng-view = "0.15.3"
 //! ```
 //!
 //! Then call `zng::env::init` before any other code in `main` to setup a view-process that uses
@@ -396,6 +396,7 @@ pub(crate) struct App {
     arboard: Option<arboard::Clipboard>,
 
     low_memory_watcher: Option<low_memory::LowMemoryWatcher>,
+    last_pull_event: Instant,
 
     config_listener_exit: Option<Box<dyn FnOnce()>>,
 
@@ -433,7 +434,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         }
         self.app_state = AppState::Resumed;
 
-        self.update_memory_watcher(winit_loop);
+        self.update_pull_events(winit_loop);
     }
 
     fn window_event(&mut self, winit_loop: &ActiveEventLoop, window_id: winit::window::WindowId, event: WindowEvent) {
@@ -978,12 +979,14 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         winit_loop_guard.unset(&mut self.winit_loop);
     }
 
-    fn new_events(&mut self, _winit_loop: &ActiveEventLoop, _cause: winit::event::StartCause) {
+    fn new_events(&mut self, winit_loop: &ActiveEventLoop, cause: winit::event::StartCause) {
         self.idle.exit();
 
-        #[cfg(windows)]
-        if let winit::event::StartCause::ResumeTimeReached { .. } = _cause {
-            self.update_memory_watcher(_winit_loop);
+        // pull events sets a timeout, winit constantly polls if the timeout is elapsed,
+        // so in case the pull timer elapses and a normal event happens the normal event
+        // is processed first and the pull events update on the next poll.
+        if let winit::event::StartCause::ResumeTimeReached { .. } = cause {
+            self.update_pull_events(winit_loop);
         }
     }
 
@@ -1440,6 +1443,7 @@ impl App {
             arboard: None,
             notifications: NotificationService::default(),
             low_memory_watcher: low_memory::LowMemoryWatcher::new(),
+            last_pull_event: Instant::now(),
         }
     }
 
@@ -1754,14 +1758,27 @@ impl App {
             .collect()
     }
 
-    fn update_memory_watcher(&mut self, _winit_loop: &ActiveEventLoop) {
-        if let Some(m) = &mut self.low_memory_watcher {
-            if m.notify() {
+    fn update_pull_events(&mut self, _winit_loop: &ActiveEventLoop) {
+        const INTERVAL: Duration = Duration::from_secs(5);
+        let any_event_source = self.low_memory_watcher.is_some();
+        if !any_event_source {
+            _winit_loop.set_control_flow(winit::event_loop::ControlFlow::Wait);
+            return;
+        }
+
+        let now = Instant::now();
+        if now.duration_since(self.last_pull_event) >= INTERVAL {
+            // pull all events
+
+            if let Some(w) = &mut self.low_memory_watcher
+                && w.notify()
+            {
                 use winit::application::ApplicationHandler as _;
                 self.memory_warning(_winit_loop);
             }
-            _winit_loop.set_control_flow(winit::event_loop::ControlFlow::wait_duration(Duration::from_secs(5)));
         }
+
+        _winit_loop.set_control_flow(winit::event_loop::ControlFlow::WaitUntil(now + INTERVAL));
     }
 }
 macro_rules! with_window_or_surface {

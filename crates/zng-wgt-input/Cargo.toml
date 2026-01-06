@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-input"
-version = "0.10.3"
+version = "0.10.4"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -18,12 +18,12 @@ drag_drop = ["zng-ext-input/drag_drop"]
 image = ["zng-ext-window/image"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.13.3", default-features = false }
-zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.10.3", default-features = false }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.10.3", default-features = false }
-zng-ext-input = { path = "../zng-ext-input", version = "0.13.3", default-features = false }
-zng-ext-window = { path = "../zng-ext-window", version = "0.11.3", default-features = false }
-zng-app = { path = "../zng-app", version = "0.21.3", default-features = false }
-zng-view-api = { path = "../zng-view-api", version = "0.18.1", default-features = false }
-zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.10.3", default-features = false }
+zng-wgt = { path = "../zng-wgt", version = "0.13.4", default-features = false }
+zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.10.4", default-features = false }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.10.4", default-features = false }
+zng-ext-input = { path = "../zng-ext-input", version = "0.13.4", default-features = false }
+zng-ext-window = { path = "../zng-ext-window", version = "0.11.4", default-features = false }
+zng-app = { path = "../zng-app", version = "0.21.4", default-features = false }
+zng-view-api = { path = "../zng-view-api", version = "0.18.2", default-features = false }
+zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.10.4", default-features = false }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
