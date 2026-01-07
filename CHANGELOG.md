@@ -1,5 +1,7 @@
 # Unreleased
 
+* **Breaking** Rename `Img` to `ImageEntry`.
+
 * **Breaking** Variable `subscribe_when` and related methods now have access to the full `VarHookArgs`.
 
 * Refactor `Img`, it is now a normal value.

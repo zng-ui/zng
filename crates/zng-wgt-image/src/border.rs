@@ -3,7 +3,7 @@
 use std::mem;
 
 use zng_app::render::RepeatMode;
-use zng_ext_image::{IMAGES, ImageCacheMode, ImageOptions, ImageRenderArgs, ImageSource, Img};
+use zng_ext_image::{IMAGES, ImageCacheMode, ImageOptions, ImageRenderArgs, ImageSource, ImageEntry};
 use zng_wgt::prelude::*;
 
 use crate::{IMAGE_CACHE_VAR, IMAGE_LIMITS_VAR, IMAGE_RENDERING_VAR};
@@ -27,7 +27,7 @@ pub fn border_img(
     let source = source.into_var();
     let slices = slices.into_var();
 
-    let mut img = var(Img::new_empty(Txt::default())).read_only();
+    let mut img = var(ImageEntry::new_empty(Txt::default())).read_only();
     let mut _img_sub = VarHandle::dummy();
     let mut slices_img_size = PxSize::zero();
     let mut slices_px = PxSideOffsets::zero();
@@ -68,7 +68,7 @@ pub fn border_img(
                 }
             }
             UiNodeOp::Deinit => {
-                img = var(Img::new_empty(Txt::default())).read_only();
+                img = var(ImageEntry::new_empty(Txt::default())).read_only();
                 _img_sub = VarHandle::dummy();
             }
             UiNodeOp::Update { .. } => {
@@ -97,7 +97,7 @@ pub fn border_img(
                         img = if is_cached {
                             // must not cache, but is cached, detach from cache.
 
-                            let img = mem::replace(&mut img, var(Img::new_empty(Txt::default())).read_only());
+                            let img = mem::replace(&mut img, var(ImageEntry::new_empty(Txt::default())).read_only());
                             IMAGES.detach(img)
                         } else {
                             // must cache, but image is not cached, get source again.

@@ -15,7 +15,7 @@ use zng_state_map::{StateId, static_id};
 use zng_var::{IntoVar, Var, WeakVar, var};
 use zng_view_api::{image::ImageMaskMode, window::RenderMode};
 
-use crate::{IMAGES, ImageRenderArgs, ImageSource, ImageVar, Img};
+use crate::{IMAGES, ImageRenderArgs, ImageSource, ImageVar, ImageEntry};
 
 use super::{IMAGES_SV, ImagesService};
 
@@ -25,7 +25,7 @@ impl ImagesService {
         N: FnOnce() -> R + Send + Sync + 'static,
         R: ImageRenderWindowRoot,
     {
-        let result = var(Img::new_loading(ViewImageHandle::dummy()));
+        let result = var(ImageEntry::new_loading(ViewImageHandle::dummy()));
         let windows = self.render.windows();
         self.render_img(
             mask,
@@ -44,7 +44,7 @@ impl ImagesService {
         N: FnOnce() -> UiNode + Send + Sync + 'static,
     {
         let scale_factor = scale_factor.into();
-        let result = var(Img::new_loading(ViewImageHandle::dummy()));
+        let result = var(ImageEntry::new_loading(ViewImageHandle::dummy()));
         let windows = self.render.windows();
         self.render_img(
             mask,
@@ -59,7 +59,7 @@ impl ImagesService {
         result.read_only()
     }
 
-    pub(super) fn render_img<N>(&mut self, mask: Option<ImageMaskMode>, render: N, result: &Var<Img>)
+    pub(super) fn render_img<N>(&mut self, mask: Option<ImageMaskMode>, render: N, result: &Var<ImageEntry>)
     where
         N: FnOnce() -> Box<dyn ImageRenderWindowRoot> + Send + Sync + 'static,
     {
@@ -226,7 +226,7 @@ impl ImagesService {
             self.render.active.retain(|r| {
                 let mut retain = false;
                 if let Some(img) = r.image.upgrade() {
-                    retain = img.with(Img::is_loading) || r.retain.get();
+                    retain = img.with(ImageEntry::is_loading) || r.retain.get();
                 }
 
                 if !retain {
@@ -292,13 +292,13 @@ impl ImagesRender {
 
 struct ActiveRenderer {
     window_id: WindowId,
-    image: WeakVar<Img>,
+    image: WeakVar<ImageEntry>,
     retain: Var<bool>,
 }
 
 struct RenderRequest {
     render: Box<dyn FnOnce() -> Box<dyn ImageRenderWindowRoot> + Send + Sync>,
-    image: WeakVar<Img>,
+    image: WeakVar<ImageEntry>,
     mask: Option<ImageMaskMode>,
 }
 
@@ -391,7 +391,7 @@ pub trait ImageRenderWindowsService: Send + Sync + 'static {
     fn open_headless_window(&self, new_window_root: Box<dyn FnOnce() -> Box<dyn ImageRenderWindowRoot> + Send>);
 
     /// Returns the rendered frame image if it is ready for reading.
-    fn on_frame_image_ready(&self, update: &EventUpdate) -> Option<(WindowId, Img)>;
+    fn on_frame_image_ready(&self, update: &EventUpdate) -> Option<(WindowId, ImageEntry)>;
 
     /// Close the window, does nothing if the window is not found.
     fn close_window(&self, window_id: WindowId);

@@ -419,7 +419,7 @@ pub fn is_loaded(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
 
 /// Gets the [`CONTEXT_IMAGE_VAR`].
 #[property(LAYOUT, widget_impl(Image))]
-pub fn get_img(child: impl IntoUiNode, state: impl IntoVar<Option<Img>>) -> UiNode {
+pub fn get_img(child: impl IntoUiNode, state: impl IntoVar<Option<ImageEntry>>) -> UiNode {
     bind_state(child, CONTEXT_IMAGE_VAR.map_into(), state)
 }
 
@@ -514,7 +514,7 @@ pub fn on_error(child: impl IntoUiNode, handler: Handler<ImgErrorArgs>) -> UiNod
         UiNodeOp::Init => {
             WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
-            if CONTEXT_IMAGE_VAR.with(Img::is_error) {
+            if CONTEXT_IMAGE_VAR.with(ImageEntry::is_error) {
                 first_update = true;
                 WIDGET.update();
             }
@@ -582,7 +582,7 @@ pub fn on_load(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> UiNode 
         UiNodeOp::Init => {
             WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
-            if CONTEXT_IMAGE_VAR.with(Img::is_loaded) {
+            if CONTEXT_IMAGE_VAR.with(ImageEntry::is_loaded) {
                 first_update = true;
                 WIDGET.update();
             }
@@ -596,7 +596,7 @@ pub fn on_load(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> UiNode 
                 if new_img.is_loaded() {
                     handler.event(&ImgLoadArgs {});
                 }
-            } else if std::mem::take(&mut first_update) && CONTEXT_IMAGE_VAR.with(Img::is_loaded) {
+            } else if std::mem::take(&mut first_update) && CONTEXT_IMAGE_VAR.with(ImageEntry::is_loaded) {
                 handler.event(&ImgLoadArgs {});
             }
 
@@ -634,7 +634,7 @@ pub fn on_load_layout(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> 
         UiNodeOp::Init => {
             WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
-            update = CONTEXT_IMAGE_VAR.with(Img::is_loaded);
+            update = CONTEXT_IMAGE_VAR.with(ImageEntry::is_loaded);
             if update {
                 WIDGET.layout();
             }
@@ -653,7 +653,7 @@ pub fn on_load_layout(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> 
             handler.update();
         }
         UiNodeOp::Layout { .. } => {
-            if std::mem::take(&mut update) && CONTEXT_IMAGE_VAR.with(Img::is_loaded) {
+            if std::mem::take(&mut update) && CONTEXT_IMAGE_VAR.with(ImageEntry::is_loaded) {
                 handler.event(&ImgLoadArgs {});
             }
         }
@@ -681,7 +681,7 @@ pub fn img_block_window_load(child: impl IntoUiNode, enabled: impl IntoValue<Blo
             }
         }
         UiNodeOp::Update { .. } => {
-            if block.is_some() && !CONTEXT_IMAGE_VAR.with(Img::is_loading) {
+            if block.is_some() && !CONTEXT_IMAGE_VAR.with(ImageEntry::is_loading) {
                 block = None;
             }
         }

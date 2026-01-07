@@ -58,7 +58,7 @@ use std::any::Any;
 use zng_app::view_process::{ViewImageHandle, ViewRenderer};
 
 #[cfg(feature = "image")]
-use zng_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, Img};
+use zng_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, ImageEntry};
 
 #[cfg(feature = "image")]
 use crate::{FRAME_IMAGE_READY_EVENT, FrameCaptureMode, HeadlessMonitor, StartPosition};
@@ -201,13 +201,13 @@ impl WindowsService {
 
                         IMAGES.register(None, (handle, ImageDecoded::default())).unwrap()
                     }
-                    Err(_) => const_var(Img::new_empty(formatx!("{}", WindowNotFoundError::new(window_id)))),
+                    Err(_) => const_var(ImageEntry::new_empty(formatx!("{}", WindowNotFoundError::new(window_id)))),
                 }
             } else {
-                const_var(Img::new_empty(formatx!("window `{window_id}` is headless without renderer")))
+                const_var(ImageEntry::new_empty(formatx!("window `{window_id}` is headless without renderer")))
             }
         } else {
-            const_var(Img::new_empty(formatx!("{}", WindowNotFoundError::new(window_id))))
+            const_var(ImageEntry::new_empty(formatx!("{}", WindowNotFoundError::new(window_id))))
         }
     }
 
@@ -1933,7 +1933,7 @@ impl ImageRenderWindowsService for WINDOWS {
         );
     }
 
-    fn on_frame_image_ready(&self, update: &EventUpdate) -> Option<(WindowId, Img)> {
+    fn on_frame_image_ready(&self, update: &EventUpdate) -> Option<(WindowId, ImageEntry)> {
         if let Some(args) = FRAME_IMAGE_READY_EVENT.on(update)
             && let Some(img) = &args.frame_image
         {

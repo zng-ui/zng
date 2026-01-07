@@ -9,7 +9,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use zng_ext_image::{ImageSource, Img};
+use zng_ext_image::{ImageSource, ImageEntry};
 use zng_wgt::prelude::*;
 
 mod image_properties;
@@ -56,7 +56,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
     wgt.set_child(node);
 
     let source = wgt.capture_var::<ImageSource>(property_id!(source)).unwrap_or_else(|| {
-        let error = Img::new_empty(Txt::from_static("no source"));
+        let error = ImageEntry::new_empty(Txt::from_static("no source"));
         let error = ImageSource::Image(var(error).read_only());
         const_var(error)
     });

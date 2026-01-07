@@ -114,7 +114,7 @@ pub trait ImagesExtension: Send + Sync + Any {
 /// The variable updates when the image updates.
 ///
 /// [`IMAGES`]: super::IMAGES
-pub type ImageVar = Var<Img>;
+pub type ImageVar = Var<ImageEntry>;
 
 #[derive(Default, Debug)]
 struct ImgMut {
@@ -125,18 +125,18 @@ struct ImgMut {
 ///
 /// [`IMAGES`]: crate::IMAGES
 #[derive(Debug, Clone)]
-pub struct Img {
+pub struct ImageEntry {
     pub(crate) cache_key: Option<ImageHash>,
 
     pub(crate) handle: ViewImageHandle,
     data: ImageDecoded,
-    entries: Vec<VarEq<Img>>,
+    entries: Vec<VarEq<ImageEntry>>,
 
     error: Txt,
 
     img_mut: Arc<Mutex<ImgMut>>,
 }
-impl PartialEq for Img {
+impl PartialEq for ImageEntry {
     fn eq(&self, other: &Self) -> bool {
         self.handle == other.handle
             && self.cache_key == other.cache_key
@@ -145,7 +145,7 @@ impl PartialEq for Img {
             && self.entries == other.entries
     }
 }
-impl Img {
+impl ImageEntry {
     pub(super) fn new_cached(cache_key: ImageHash) -> Self {
         let mut s = Self::new_loading(ViewImageHandle::dummy());
         s.cache_key = Some(cache_key);
@@ -294,7 +294,7 @@ impl Img {
     /// The returned variable will update every time any entry descendant var updates.
     ///
     /// [`entries`]: Self::entries
-    pub fn flat_entries(&self) -> Var<Vec<(VarEq<Img>, usize)>> {
+    pub fn flat_entries(&self) -> Var<Vec<(VarEq<ImageEntry>, usize)>> {
         // idea here is to just rebuild the flat list on any update,
         // assuming the image variables don't update much and tha there are not many entries
         // this is more simple than some sort of recursive Var::flat_map_vec setup
@@ -321,14 +321,14 @@ impl Img {
         out.hold(update_signal).perm();
         out.read_only()
     }
-    fn flat_entries_init(&self, out: &mut Vec<(VarEq<Img>, usize)>, update_signal: Var<()>, handles: &mut Vec<zng_var::VarHandle>) {
+    fn flat_entries_init(&self, out: &mut Vec<(VarEq<ImageEntry>, usize)>, update_signal: Var<()>, handles: &mut Vec<zng_var::VarHandle>) {
         for entry in self.entries.iter() {
             Self::flat_entries_recursive_init(entry.clone(), out, update_signal.clone(), handles);
         }
     }
     fn flat_entries_recursive_init(
-        img: VarEq<Img>,
-        out: &mut Vec<(VarEq<Img>, usize)>,
+        img: VarEq<ImageEntry>,
+        out: &mut Vec<(VarEq<ImageEntry>, usize)>,
         signal: Var<()>,
         handles: &mut Vec<zng_var::VarHandle>,
     ) {
@@ -366,7 +366,7 @@ impl Img {
     /// Calls `visit` with the image or [`ImageEntryKind::Reduced`] entry that is nearest to `size` and greater or equal to it.
     ///
     /// Does not call `visit` if none of the images are loaded, returns `None` in that case.
-    pub fn with_best_reduce<R>(&self, size: PxSize, visit: impl FnOnce(&Img) -> R) -> Option<R> {
+    pub fn with_best_reduce<R>(&self, size: PxSize, visit: impl FnOnce(&ImageEntry) -> R) -> Option<R> {
         fn cmp(target_size: PxSize, a: PxSize, b: PxSize) -> std::cmp::Ordering {
             let target_ratio = target_size.width.0 as f32 / target_size.height.0 as f32;
             let a_ratio = a.width.0 as f32 / b.height.0 as f32;
@@ -547,7 +547,7 @@ impl Img {
     /// Encode the images to the format.
     ///
     /// This image is the first *page* followed by the `entries` in the given order.
-    pub async fn encode_with_entries(&self, entries: &[(Img, ImageEntryKind)], format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
+    pub async fn encode_with_entries(&self, entries: &[(ImageEntry, ImageEntryKind)], format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
         if self.is_loading() {
             if self.handle.is_dummy() {
                 return Err(EncodeError::Dummy);
@@ -608,14 +608,14 @@ impl Img {
     /// This image is the first *page* followed by the `entries` in the given order.
     pub async fn save_with_entries(
         &self,
-        entries: &[(Img, ImageEntryKind)],
+        entries: &[(ImageEntry, ImageEntryKind)],
         format: impl Into<Txt>,
         path: impl Into<PathBuf>,
     ) -> io::Result<()> {
         self.save_impl(entries, format.into(), path.into()).await
     }
 
-    async fn save_impl(&self, entries: &[(Img, ImageEntryKind)], format: Txt, path: PathBuf) -> io::Result<()> {
+    async fn save_impl(&self, entries: &[(ImageEntry, ImageEntryKind)], format: Txt, path: PathBuf) -> io::Result<()> {
         let data = self.encode_with_entries(entries, format).await.map_err(io::Error::other)?;
         task::wait(move || fs::write(path, &data[..])).await
     }
@@ -650,7 +650,7 @@ impl Img {
     /// Insert `entry` in [`entries`].
     ///
     /// [`entries`]: Self::entries
-    pub fn insert_entry(&mut self, image: Img) -> ImageVar {
+    pub fn insert_entry(&mut self, image: ImageEntry) -> ImageVar {
         let i = image.entry_index();
         let i = self
             .entries
@@ -665,7 +665,7 @@ impl Img {
         entry
     }
 }
-impl zng_app::render::Img for Img {
+impl zng_app::render::Img for ImageEntry {
     fn renderer_id(&self, renderer: &ViewRenderer) -> ImageTextureId {
         if self.is_loaded() {
             let mut img = self.img_mut.lock();

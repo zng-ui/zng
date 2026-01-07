@@ -40,7 +40,7 @@ struct ImageData {
 
 struct ImageLoadingTask {
     task: Mutex<UiTask<ImageData>>,
-    image: Var<Img>,
+    image: Var<ImageEntry>,
     max_decoded_len: ByteLength,
     key: ImageHash,
     options: ImageOptions,
@@ -49,11 +49,11 @@ struct ImageLoadingTask {
 struct ImageDecodingTask {
     format: ImageDataFormat,
     data: IpcBytes,
-    image: Var<Img>,
+    image: Var<ImageEntry>,
 }
 
 struct CacheEntry {
-    image: Var<Img>,
+    image: Var<ImageEntry>,
     error: AtomicBool,
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscaleMode>,
@@ -62,7 +62,7 @@ struct CacheEntry {
 }
 
 struct NotCachedEntry {
-    image: WeakVar<Img>,
+    image: WeakVar<ImageEntry>,
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscaleMode>,
     mask: Option<ImageMaskMode>,
@@ -111,7 +111,7 @@ pub(crate) fn on_app_event_preview(update: &mut EventUpdate) {
             && let Some(var) = images.find_decoding(p.parent)
         {
             // image is not registered, but is entry of image that is, insert it
-            let entry = Img::new(handle, data);
+            let entry = ImageEntry::new(handle, data);
             var.modify(move |i| {
                 i.insert_entry(entry);
             });
@@ -161,7 +161,7 @@ pub(crate) fn on_app_event_preview(update: &mut EventUpdate) {
                 }
                 if let Some(e) = img.error() {
                     // respawned, but image was an error.
-                    img_var.set(Img::new_empty(e));
+                    img_var.set(ImageEntry::new_empty(e));
                 } else if let Some(task_i) = decoding_interrupted
                     .iter()
                     .position(|e| e.image.with(|img| img.view_handle() == old_handle))
@@ -178,7 +178,7 @@ pub(crate) fn on_app_event_preview(update: &mut EventUpdate) {
                     request.entries = entries;
                     match VIEW_PROCESS.add_image(request) {
                         Ok(img) => {
-                            img_var.set(Img::new_loading(img));
+                            img_var.set(ImageEntry::new_loading(img));
                         }
                         Err(_) => { /*will receive another event.*/ }
                     }
@@ -208,9 +208,9 @@ pub(crate) fn on_app_event_preview(update: &mut EventUpdate) {
                         Ok(img) => img,
                         Err(_) => return, // we will receive another event.
                     };
-                    let mut img = Img::new_loading(img);
+                    let mut img = ImageEntry::new_loading(img);
 
-                    fn add_entries(max_decoded_len: ByteLength, mask: Option<ImageMaskMode>, entries: Vec<ImageVar>, img: &mut Img) {
+                    fn add_entries(max_decoded_len: ByteLength, mask: Option<ImageMaskMode>, entries: Vec<ImageVar>, img: &mut ImageEntry) {
                         for (i, entry) in entries.into_iter().enumerate() {
                             let entry = entry.get();
                             let entry_handle = entry.view_handle();
@@ -233,7 +233,7 @@ pub(crate) fn on_app_event_preview(update: &mut EventUpdate) {
                                         Ok(img) => img,
                                         Err(_) => return, // we will receive another event.
                                     };
-                                    let entry_img = img.insert_entry(Img::new_loading(entry_img));
+                                    let entry_img = img.insert_entry(ImageEntry::new_loading(entry_img));
 
                                     add_entries(max_decoded_len, mask, entry.entries(), &mut entry_img.get());
                                     continue;
@@ -268,7 +268,7 @@ pub(crate) fn on_app_event_preview(update: &mut EventUpdate) {
                 request.entries = entries;
                 match VIEW_PROCESS.add_image(request) {
                     Ok(img) => {
-                        img_var.set(Img::new_loading(img));
+                        img_var.set(ImageEntry::new_loading(img));
                     }
                     Err(_) => { /*will receive another event.*/ }
                 }
@@ -441,7 +441,7 @@ pub(crate) fn register(
                         original_color_type: image.meta.original_color_type.clone(),
                     }
                 };
-                let img_var = var(Img::new(handle, image));
+                let img_var = var(ImageEntry::new(handle, image));
                 if is_loading {
                     s.decoding.push(ImageDecodingTask {
                         format,
@@ -464,7 +464,7 @@ pub(crate) fn register(
         }
     } else if is_loading {
         let is_mask = image.meta.is_mask;
-        let image = var(Img::new(handle, image));
+        let image = var(ImageEntry::new(handle, image));
         s.not_cached.push(NotCachedEntry {
             image: image.downgrade(),
             max_decoded_len: limits.max_decoded_len,
@@ -475,7 +475,7 @@ pub(crate) fn register(
         Ok(image.read_only())
     } else {
         // not cached and already loaded
-        Ok(const_var(Img::new(handle, image)))
+        Ok(const_var(ImageEntry::new(handle, image)))
     }
 }
 
@@ -561,7 +561,7 @@ pub(crate) fn image(mut source: ImageSource, mut options: ImageOptions, limits: 
             if !limits.allow_path.allows(&path) {
                 let error = formatx!("limits filter blocked `{}`", path.display());
                 tracing::error!("{error}");
-                return var(Img::new_empty(error)).read_only();
+                return var(ImageEntry::new_empty(error)).read_only();
             }
             ImageSource::Read(path)
         }
@@ -571,7 +571,7 @@ pub(crate) fn image(mut source: ImageSource, mut options: ImageOptions, limits: 
             if !limits.allow_uri.allows(&uri) {
                 let error = formatx!("limits filter blocked `{uri}`");
                 tracing::error!("{error}");
-                return var(Img::new_empty(error)).read_only();
+                return var(ImageEntry::new_empty(error)).read_only();
             }
             ImageSource::Download(uri, accepts)
         }
@@ -605,7 +605,7 @@ pub(crate) fn image(mut source: ImageSource, mut options: ImageOptions, limits: 
     if !VIEW_PROCESS.is_available() && !sv.load_in_headless.get() {
         tracing::warn!("loading dummy image, set `load_in_headless=true` to actually load without renderer");
 
-        let dummy = var(Img::new_empty(Txt::from_static("")));
+        let dummy = var(ImageEntry::new_empty(Txt::from_static("")));
         sv.cache.insert(
             key,
             CacheEntry {
@@ -784,14 +784,14 @@ impl ImagesService {
         }
     }
 
-    fn new_cache_image(&mut self, key: ImageHash, max_decoded_len: ByteLength, options: ImageOptions) -> Var<Img> {
+    fn new_cache_image(&mut self, key: ImageHash, max_decoded_len: ByteLength, options: ImageOptions) -> Var<ImageEntry> {
         self.cleanup_not_cached(false);
 
         if let ImageCacheMode::Reload = options.cache_mode {
             self.cache
                 .entry(key)
                 .or_insert_with(|| CacheEntry {
-                    image: var(Img::new_cached(key)),
+                    image: var(ImageEntry::new_cached(key)),
                     error: AtomicBool::new(false),
                     max_decoded_len,
                     downscale: options.downscale,
@@ -801,7 +801,7 @@ impl ImagesService {
                 .image
                 .clone()
         } else if let ImageCacheMode::Ignore = options.cache_mode {
-            let img = var(Img::new_loading(ViewImageHandle::dummy()));
+            let img = var(ImageEntry::new_loading(ViewImageHandle::dummy()));
             self.not_cached.push(NotCachedEntry {
                 image: img.downgrade(),
                 max_decoded_len,
@@ -811,7 +811,7 @@ impl ImagesService {
             });
             img
         } else {
-            let img = var(Img::new_cached(key));
+            let img = var(ImageEntry::new_cached(key));
             self.cache.insert(
                 key,
                 CacheEntry {

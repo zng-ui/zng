@@ -19,7 +19,7 @@ use zng_app::{
     view_process::{VIEW_PROCESS, ViewClipboard, ViewImageHandle},
 };
 use zng_app_context::app_local;
-use zng_ext_image::{IMAGES, ImageVar, Img};
+use zng_ext_image::{IMAGES, ImageVar, ImageEntry};
 use zng_task::channel::{ChannelError, IpcBytes};
 use zng_txt::{ToTxt, Txt};
 use zng_var::{ResponderVar, ResponseVar, response_var};
@@ -77,7 +77,7 @@ app_local! {
 #[derive(Default)]
 struct ClipboardService {
     text: ClipboardData<Txt, Txt>,
-    image: ClipboardData<ImageVar, Img>,
+    image: ClipboardData<ImageVar, ImageEntry>,
     paths: ClipboardData<Vec<PathBuf>, Vec<PathBuf>>,
     ext: ClipboardData<IpcBytes, (Txt, IpcBytes)>,
 }
@@ -256,7 +256,7 @@ impl CLIPBOARD {
     ///
     /// Returns a response var that updates to `Ok(true)` is the text is put on the clipboard,
     /// `Ok(false)` if another request made on the same update pass replaces this one or `Err(ClipboardError)`.
-    pub fn set_image(&self, img: Img) -> ResponseVar<Result<bool, ClipboardError>> {
+    pub fn set_image(&self, img: ImageEntry) -> ResponseVar<Result<bool, ClipboardError>> {
         CLIPBOARD_SV.write().image.request(img)
     }
 

@@ -59,7 +59,7 @@ use crate::{
 use zng_app::{Deadline, view_process::raw_events::RAW_FRAME_RENDERED_EVENT};
 
 #[cfg(feature = "image")]
-use zng_ext_image::{IMAGES, ImageRenderArgs, ImageSource, ImageVar, Img};
+use zng_ext_image::{IMAGES, ImageRenderArgs, ImageSource, ImageVar, ImageEntry};
 
 #[cfg(feature = "image")]
 use crate::{FRAME_IMAGE_READY_EVENT, FrameCaptureMode, FrameImageReadyArgs};
@@ -455,7 +455,7 @@ impl HeadedCtrl {
             if let Some(cur) = &self.img_res.cursor_var {
                 let hotspot = self.vars.cursor().with(|i| i.hotspot().cloned().unwrap_or_default());
 
-                let cursor_img_to_actual = move |img: &Img| -> Option<(Img, PxPoint)> {
+                let cursor_img_to_actual = move |img: &ImageEntry| -> Option<(ImageEntry, PxPoint)> {
                     let hotspot = if img.is_loaded() {
                         let mut metrics = LayoutMetrics::new(1.fct(), img.size(), Px(16));
                         if let Some(density) = img.density() {

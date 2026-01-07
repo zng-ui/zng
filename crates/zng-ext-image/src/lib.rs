@@ -88,7 +88,7 @@ impl IMAGES {
 
     /// Returns a dummy image that reports it is loaded or an error.
     pub fn dummy(&self, error: Option<Txt>) -> ImageVar {
-        var(Img::new_empty(error.unwrap_or_default())).read_only()
+        var(ImageEntry::new_empty(error.unwrap_or_default())).read_only()
     }
 
     /// Cache or load an image file from a file system `path`.
@@ -173,7 +173,7 @@ impl IMAGES {
         options: ImageOptions,
         limits: Option<ImageLimits>,
     ) -> ImageVar {
-        let img = var(Img::new_empty(Txt::from_static("")));
+        let img = var(ImageEntry::new_empty(Txt::from_static("")));
         task::spawn(async_clmv!(img, {
             let source = source.await;
             let actual_img = service::image(source, options, limits);
@@ -221,7 +221,7 @@ impl IMAGES {
     }
 
     /// Gets the cache key of an image.
-    pub fn cache_key(&self, image: &Img) -> Option<ImageHash> {
+    pub fn cache_key(&self, image: &ImageEntry) -> Option<ImageHash> {
         if let Some(key) = &image.cache_key
             && service::contains_key(key)
         {
@@ -231,7 +231,7 @@ impl IMAGES {
     }
 
     /// If the image is cached.
-    pub fn is_cached(&self, image: &Img) -> bool {
+    pub fn is_cached(&self, image: &ImageEntry) -> bool {
         image.cache_key.as_ref().map(service::contains_key).unwrap_or(false)
     }
 

@@ -1,5 +1,5 @@
 use zng::{
-    image::{IMAGES, Img},
+    image::{IMAGES, ImageEntry},
     layout::LayoutPassId,
     prelude::*,
     prelude_wgt::*,
@@ -28,11 +28,11 @@ pub async fn bw_rgb(render_mode: RenderMode, scale_factor: Factor) {
         }),
     );
 
-    while img.with(Img::is_loading) {
+    while img.with(ImageEntry::is_loading) {
         if task::with_deadline(img.wait_update(), 20.secs()).await.is_err() {
             panic!(
                 "img wait_update timeout after 20s, img.is_loading: {}, APP.is_running: {}, VIEW_PROCESS.is_connected: {}",
-                img.with(Img::is_loading),
+                img.with(ImageEntry::is_loading),
                 APP.is_running(),
                 zng_app::view_process::VIEW_PROCESS.is_connected(),
             );

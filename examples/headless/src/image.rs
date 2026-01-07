@@ -1,5 +1,5 @@
 use std::io::Write as _;
-use zng::{image::Img, prelude::*};
+use zng::{image::ImageEntry, prelude::*};
 
 /// This example uses the `IMAGES` service to render to an image.
 pub fn run() {
@@ -13,7 +13,7 @@ pub fn run() {
     let img = zng::image::IMAGES.render_node(window::RenderMode::Integrated, 1.fct(), None, logo);
 
     app.run_task(async move {
-        while img.with(Img::is_loading) {
+        while img.with(ImageEntry::is_loading) {
             img.wait_update().await;
         }
         let img = img.get();
