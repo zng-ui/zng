@@ -218,11 +218,11 @@ impl WindowVars {
 
     /// Window icon image.
     ///
-    /// This is `None` if [`icon`] is [`WindowIcon::Default`], otherwise it is an [`Img`]
+    /// This is `None` if [`icon`] is [`WindowIcon::Default`], otherwise it is an [`ImageEntry`]
     /// reference clone.
     ///
     /// [`icon`]: Self::icon
-    /// [`Img`]: zng_ext_image::Img
+    /// [`ImageEntry`]: zng_ext_image::ImageEntry
     #[cfg(feature = "image")]
     pub fn actual_icon(&self) -> Var<Option<ImageEntry>> {
         self.0.actual_icon.read_only()
@@ -242,11 +242,11 @@ impl WindowVars {
 
     /// Window custom cursor image.
     ///
-    /// This is `None` if [`cursor`] is not set to a custom image, otherwise it is an [`Img`]
+    /// This is `None` if [`cursor`] is not set to a custom image, otherwise it is an [`ImageEntry`]
     /// reference clone with computed hotspot [`PxPoint`].
     ///
     /// [`cursor`]: Self::cursor
-    /// [`Img`]: zng_ext_image::Img
+    /// [`ImageEntry`]: zng_ext_image::ImageEntry
     /// [`PxPoint`]: zng_layout::unit::PxPoint
     #[cfg(feature = "image")]
     pub fn actual_cursor_img(&self) -> Var<Option<(ImageEntry, PxPoint)>> {

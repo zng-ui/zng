@@ -495,7 +495,7 @@ impl WINDOWS {
     ///
     /// If the window is not found the error is reported in the [image error].
     ///
-    /// [image error]: zng_ext_image::Img::error
+    /// [image error]: zng_ext_image::ImageEntry::error
     #[cfg(feature = "image")]
     pub fn frame_image(&self, window_id: impl Into<WindowId>, mask: Option<ImageMaskMode>) -> ImageVar {
         let window_id = window_id.into();
@@ -518,7 +518,7 @@ impl WINDOWS {
     ///
     /// If the window is not found the error is reported in the image error.
     ///
-    /// [image error]: zng_ext_image::Img::error
+    /// [image error]: zng_ext_image::ImageEntry::error
     #[cfg(feature = "image")]
     pub fn frame_image_rect(&self, window_id: impl Into<WindowId>, mut rect: PxRect, mask: Option<ImageMaskMode>) -> ImageVar {
         let mut window_id = window_id.into();

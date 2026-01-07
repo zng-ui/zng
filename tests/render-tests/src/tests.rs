@@ -74,7 +74,7 @@ pub async fn bw_rgb(render_mode: RenderMode, scale_factor: Factor) {
 //                 density: None,
 //             },
 //         );
-//         while img.with(Img::is_loading) {
+//         while img.with(ImageEntry::is_loading) {
 //             img.wait_update().await;
 //         }
 //         let img = img.get();

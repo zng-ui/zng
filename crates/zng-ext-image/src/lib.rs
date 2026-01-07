@@ -18,7 +18,7 @@ use zng_app::{AppExtension, update::EventUpdate, view_process::ViewImageHandle};
 use zng_clone_move::async_clmv;
 use zng_task as task;
 use zng_task::channel::IpcBytes;
-use zng_txt::{ToTxt, Txt};
+use zng_txt::*;
 use zng_var::{Var, var};
 use zng_view_api::image::ImageDecoded;
 
@@ -190,7 +190,7 @@ impl IMAGES {
     /// Returns `Ok(ImageVar)` with the new image var that tracks `image`, or `Err(image, ImageVar)`
     /// that returns the `image` and a clone of the var already associated with the `key`.
     ///
-    /// Note that you can register entries on the returned [`Img::insert_entry`].
+    /// Note that you can register entries on the returned [`ImageEntry::insert_entry`].
     #[allow(clippy::result_large_err)] // boxing here does not really help performance
     pub fn register(
         &self,

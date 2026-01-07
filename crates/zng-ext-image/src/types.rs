@@ -109,7 +109,7 @@ pub trait ImagesExtension: Send + Sync + Any {
     }
 }
 
-/// Represents an [`Img`] tracked by the [`IMAGES`] cache.
+/// Represents an [`ImageEntry`] tracked by the [`IMAGES`] cache.
 ///
 /// The variable updates when the image updates.
 ///
@@ -905,7 +905,7 @@ impl ImageSource {
         Self::Data(hash, data, format)
     }
 
-    /// Returns the image hash, unless the source is [`Img`].
+    /// Returns the image hash, unless the source is [`ImageEntry`].
     pub fn hash128(&self, options: &ImageOptions) -> Option<ImageHash> {
         match self {
             ImageSource::Read(p) => Some(Self::hash128_read(p, options)),
@@ -1677,7 +1677,7 @@ impl_from_and_into_var! {
 
 /// Options for [`IMAGES.image`].
 ///
-/// [`IMAGES.image`]: IMAGES::image
+/// [`IMAGES.image`]: crate::IMAGES::image
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct ImageOptions {
