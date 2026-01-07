@@ -26,7 +26,7 @@ use zng_txt::Txt;
 use zng_var::{Var, VarEq, animation::Transitionable, impl_from_and_into_var};
 use zng_view_api::image::{ImageDecoded, ImageEncodeRequest, ImageId, ImageMetadata, ImageTextureId};
 
-use crate::{ImageOptions, render::ImageRenderWindowRoot};
+use crate::ImageRenderWindowRoot;
 
 pub use zng_view_api::image::{
     ColorType, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageFormat, ImageFormatCapability, ImageMaskMode,
@@ -1669,4 +1669,42 @@ impl Default for ImageLimits {
 }
 impl_from_and_into_var! {
     fn from(some: ImageLimits) -> Option<ImageLimits>;
+}
+
+/// Options for [`IMAGES.image`].
+///
+/// [`IMAGES.image`]: IMAGES::image
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
+pub struct ImageOptions {
+    /// If and how the image is cached.
+    pub cache_mode: ImageCacheMode,
+    /// How the image is downscaled after decoding.
+    pub downscale: Option<ImageDownscaleMode>,
+    /// How to convert the decoded image to an alpha mask.
+    pub mask: Option<ImageMaskMode>,
+    /// How to decode containers with multiple images.
+    pub entries: ImageEntriesMode,
+}
+
+impl ImageOptions {
+    /// New.
+    pub fn new(
+        cache_mode: ImageCacheMode,
+        downscale: Option<ImageDownscaleMode>,
+        mask: Option<ImageMaskMode>,
+        entries: ImageEntriesMode,
+    ) -> Self {
+        Self {
+            cache_mode,
+            downscale,
+            mask,
+            entries,
+        }
+    }
+
+    /// New with only cache enabled.
+    pub fn cache() -> Self {
+        Self::new(ImageCacheMode::Cache, None, None, ImageEntriesMode::empty())
+    }
 }

@@ -15,7 +15,9 @@ use zng_state_map::{StateId, static_id};
 use zng_var::{IntoVar, Var, WeakVar, var};
 use zng_view_api::{image::ImageMaskMode, window::RenderMode};
 
-use crate::{IMAGES, IMAGES_SV, ImageRenderArgs, ImageSource, ImageVar, ImagesService, Img};
+use crate::{IMAGES, ImageRenderArgs, ImageSource, ImageVar, Img};
+
+use super::{IMAGES_SV, ImagesService};
 
 impl ImagesService {
     fn render<N, R>(&mut self, mask: Option<ImageMaskMode>, render: N) -> ImageVar
