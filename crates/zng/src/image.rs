@@ -72,9 +72,9 @@
 //! See [`zng_ext_image`] for the full image API and [`zng_wgt_image`] for the full widget API.
 
 pub use zng_ext_image::{
-    ColorType, IMAGE_RENDER, IMAGES, ImageCacheMode, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageFormat,
-    ImageFormatCapability, ImageHash, ImageHasher, ImageLimits, ImageOptions, ImageRenderArgs, ImageSource, ImageSourceFilter, ImageVar,
-    ImageEntry, PathFilter, render_retain,
+    ColorType, IMAGE_RENDER, IMAGES, ImageCacheMode, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntry, ImageEntryKind,
+    ImageFormat, ImageFormatCapability, ImageHash, ImageHasher, ImageLimits, ImageOptions, ImageRenderArgs, ImageSource, ImageSourceFilter,
+    ImageVar, PathFilter, render_retain,
 };
 
 #[cfg(feature = "http")]

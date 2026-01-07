@@ -547,7 +547,11 @@ impl ImageEntry {
     /// Encode the images to the format.
     ///
     /// This image is the first *page* followed by the `entries` in the given order.
-    pub async fn encode_with_entries(&self, entries: &[(ImageEntry, ImageEntryKind)], format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
+    pub async fn encode_with_entries(
+        &self,
+        entries: &[(ImageEntry, ImageEntryKind)],
+        format: Txt,
+    ) -> std::result::Result<IpcBytes, EncodeError> {
         if self.is_loading() {
             if self.handle.is_dummy() {
                 return Err(EncodeError::Dummy);

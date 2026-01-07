@@ -59,7 +59,7 @@ use crate::{
 use zng_app::{Deadline, view_process::raw_events::RAW_FRAME_RENDERED_EVENT};
 
 #[cfg(feature = "image")]
-use zng_ext_image::{IMAGES, ImageRenderArgs, ImageSource, ImageVar, ImageEntry};
+use zng_ext_image::{IMAGES, ImageEntry, ImageRenderArgs, ImageSource, ImageVar};
 
 #[cfg(feature = "image")]
 use crate::{FRAME_IMAGE_READY_EVENT, FrameCaptureMode, FrameImageReadyArgs};

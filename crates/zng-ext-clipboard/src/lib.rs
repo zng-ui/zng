@@ -19,7 +19,7 @@ use zng_app::{
     view_process::{VIEW_PROCESS, ViewClipboard, ViewImageHandle},
 };
 use zng_app_context::app_local;
-use zng_ext_image::{IMAGES, ImageVar, ImageEntry};
+use zng_ext_image::{IMAGES, ImageEntry, ImageVar};
 use zng_task::channel::{ChannelError, IpcBytes};
 use zng_txt::{ToTxt, Txt};
 use zng_var::{ResponderVar, ResponseVar, response_var};

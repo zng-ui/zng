@@ -15,7 +15,7 @@ use zng_state_map::{StateId, static_id};
 use zng_var::{IntoVar, Var, WeakVar, var};
 use zng_view_api::{image::ImageMaskMode, window::RenderMode};
 
-use crate::{IMAGES, ImageRenderArgs, ImageSource, ImageVar, ImageEntry};
+use crate::{IMAGES, ImageEntry, ImageRenderArgs, ImageSource, ImageVar};
 
 use super::{IMAGES_SV, ImagesService};
 

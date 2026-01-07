@@ -9,7 +9,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use zng_ext_image::{ImageSource, ImageEntry};
+use zng_ext_image::{ImageEntry, ImageSource};
 use zng_wgt::prelude::*;
 
 mod image_properties;

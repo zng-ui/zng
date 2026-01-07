@@ -58,7 +58,7 @@ use std::any::Any;
 use zng_app::view_process::{ViewImageHandle, ViewRenderer};
 
 #[cfg(feature = "image")]
-use zng_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, ImageEntry};
+use zng_ext_image::{ImageEntry, ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar};
 
 #[cfg(feature = "image")]
 use crate::{FRAME_IMAGE_READY_EVENT, FrameCaptureMode, HeadlessMonitor, StartPosition};

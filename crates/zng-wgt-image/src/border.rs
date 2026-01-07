@@ -3,7 +3,7 @@
 use std::mem;
 
 use zng_app::render::RepeatMode;
-use zng_ext_image::{IMAGES, ImageCacheMode, ImageOptions, ImageRenderArgs, ImageSource, ImageEntry};
+use zng_ext_image::{IMAGES, ImageCacheMode, ImageEntry, ImageOptions, ImageRenderArgs, ImageSource};
 use zng_wgt::prelude::*;
 
 use crate::{IMAGE_CACHE_VAR, IMAGE_LIMITS_VAR, IMAGE_RENDERING_VAR};

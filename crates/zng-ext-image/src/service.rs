@@ -7,7 +7,8 @@ use crate::types::*;
 use parking_lot::Mutex;
 use task::io::AsyncReadExt;
 use zng_app::{
-    APP, update::EventUpdate,
+    APP,
+    update::EventUpdate,
     view_process::{
         VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewImageHandle,
         raw_events::{LOW_MEMORY_EVENT, RAW_IMAGE_DECODE_ERROR_EVENT, RAW_IMAGE_DECODED_EVENT, RAW_IMAGE_METADATA_DECODED_EVENT},
