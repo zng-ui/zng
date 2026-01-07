@@ -839,7 +839,7 @@ fn multi_image_container() -> UiNode {
                         Stack! {
                             direction = StackDirection::left_to_right();
                             spacing = 2;
-                            children = entries.present_list_from_iter(wgt_fn!(|entry: VarEq<image::Img>| {
+                            children = entries.present_list_from_iter(wgt_fn!(|entry: VarEq<image::ImageEntry>| {
                                 Image! {
                                     layout::force_size = entry.0.map(|e| e.size().into());
                                     source = entry.0;
