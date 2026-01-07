@@ -1,5 +1,7 @@
 # Unreleased
 
+* **Breaking** Variable `subscribe_when` and related methods now have access to the full `VarHookArgs`.
+
 * Refactor `Img`, it is now a normal value.
     - Fixes `ImageVar` sometimes not updating correctly in complex bindings.
     - **Breaking** Replaced advanced `ViewImage` with `ViewImageHandle`.
