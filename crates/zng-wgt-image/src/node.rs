@@ -15,10 +15,10 @@ context_var! {
     /// Image acquired by [`image_source`], or `"no image source in context"` error by default.
     ///
     /// [`image_source`]: fn@image_source
-    pub static CONTEXT_IMAGE_VAR: Img = no_context_image();
+    pub static CONTEXT_IMAGE_VAR: ImageEntry = no_context_image();
 }
-fn no_context_image() -> Img {
-    Img::new_empty(Txt::from_static("no image source in context"))
+fn no_context_image() -> ImageEntry {
+    ImageEntry::new_empty(Txt::from_static("no image source in context"))
 }
 
 /// Requests an image from [`IMAGES`] and sets [`CONTEXT_IMAGE_VAR`].
@@ -33,9 +33,9 @@ fn no_context_image() -> Img {
 /// [`IMAGES`]: zng_ext_image::IMAGES
 pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> UiNode {
     let source = source.into_var();
-    let ctx_img = var(Img::new_empty(Txt::default()));
+    let ctx_img = var(ImageEntry::new_empty(Txt::default()));
     let child = with_context_var(child, CONTEXT_IMAGE_VAR, ctx_img.read_only());
-    let mut img = var(Img::new_empty(Txt::default())).read_only();
+    let mut img = var(ImageEntry::new_empty(Txt::default())).read_only();
     let mut _ctx_binding = None;
 
     match_node(child, move |child, op| match op {
@@ -96,7 +96,7 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                     img = if is_cached {
                         // must not cache, but is cached, detach from cache.
 
-                        let img = mem::replace(&mut img, var(Img::new_empty(Txt::default())).read_only());
+                        let img = mem::replace(&mut img, var(ImageEntry::new_empty(Txt::default())).read_only());
                         IMAGES.detach(img)
                     } else {
                         // must cache, but image is not cached, get source again.
@@ -211,7 +211,7 @@ pub fn image_presenter() -> UiNode {
                 .sub_var_layout(&IMAGE_REPEAT_SPACING_VAR)
                 .sub_var_render(&IMAGE_RENDERING_VAR);
 
-            img_size = CONTEXT_IMAGE_VAR.with(Img::size);
+            img_size = CONTEXT_IMAGE_VAR.with(ImageEntry::size);
         }
         UiNodeOp::Update { .. } => {
             if let Some(img) = CONTEXT_IMAGE_VAR.get_new() {
@@ -237,7 +237,7 @@ pub fn image_presenter() -> UiNode {
                 }
                 ImageAutoScale::Density => {
                     let screen = metrics.screen_density();
-                    let image = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(screen));
+                    let image = CONTEXT_IMAGE_VAR.with(ImageEntry::density).unwrap_or(PxDensity2d::splat(screen));
                     scale *= Factor2d::new(screen.ppcm() / image.width.ppcm(), screen.ppcm() / image.height.ppcm());
                 }
             }
@@ -269,7 +269,7 @@ pub fn image_presenter() -> UiNode {
                 }
                 ImageAutoScale::Density => {
                     let screen = metrics.screen_density();
-                    let image = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(screen));
+                    let image = CONTEXT_IMAGE_VAR.with(ImageEntry::density).unwrap_or(PxDensity2d::splat(screen));
                     scale *= Factor2d::new(screen.ppcm() / image.width.ppcm(), screen.ppcm() / image.height.ppcm());
                 }
             }
