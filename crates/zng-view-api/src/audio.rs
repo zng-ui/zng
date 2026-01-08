@@ -392,6 +392,12 @@ pub struct AudioOutputRequest {
     /// Initial config.
     pub config: AudioOutputConfig,
 }
+impl AudioOutputRequest {
+    /// New.
+    pub fn new(id: AudioOutputId, config: AudioOutputConfig) -> Self {
+        Self { id, config }
+    }
+}
 
 /// Represents an audio playback update request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -401,6 +407,12 @@ pub struct AudioOutputUpdateRequest {
     pub id: AudioOutputId,
     /// New config.
     pub config: AudioOutputConfig,
+}
+impl AudioOutputUpdateRequest {
+    /// New.
+    pub fn new(id: AudioOutputId, config: AudioOutputConfig) -> Self {
+        Self { id, config }
+    }
 }
 
 /// Represents an audio output stream capabilities.
@@ -451,11 +463,11 @@ pub struct AudioOutputConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum AudioOutputState {
-    /// Audio is sent to the device for playback as play requests are received.
+    /// Audio is sent to the device for playback as in the sequence they are cued.
     Playing,
-    /// Audio playback is paused, play requests are buffered.
+    /// Audio playback is paused, cue requests are buffered.
     Paused,
-    /// Audio playback is stopped, all current play requests are dropped, state is then changed to `Pause`.
+    /// Audio playback is paused, all current cue requests are dropped.
     Stopped,
 }
 

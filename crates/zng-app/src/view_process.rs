@@ -25,7 +25,7 @@ use zng_view_api::{
     self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen, ViewProcessInfo,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError},
     audio::{
-        AudioDecoded, AudioId, AudioMetadata, AudioMix, AudioOutputId, AudioOutputRequest, AudioPlayId, AudioPlayRequest, AudioRequest,
+        AudioDecoded, AudioId, AudioMetadata, AudioMix, AudioOutputConfig, AudioOutputId, AudioOutputRequest, AudioOutputUpdateRequest, AudioPlayId, AudioPlayRequest, AudioRequest
     },
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse, Notification, NotificationResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
@@ -1132,6 +1132,11 @@ impl ViewAudioOutput {
     /// Play or enqueue audio.
     pub fn cue(&self, mix: AudioMix) -> Result<AudioPlayId> {
         self.0.call(|id, p| p.cue_audio(AudioPlayRequest::new(id, mix)))
+    }
+
+    /// Update state, volume, speed.
+    pub fn update(&self, cfg: AudioOutputConfig) {
+        self.0.call(|id, p| p.update_audio_output(AudioOutputUpdateRequest::new(id, cfg)));
     }
 }
 
