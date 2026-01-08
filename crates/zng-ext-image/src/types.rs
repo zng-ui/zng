@@ -666,7 +666,7 @@ impl ImageEntry {
                 entry_i > i
             })
             .unwrap_or(self.entries.len());
-        let entry = zng_var::var(entry);
+        let entry = zng_var::var(image);
         self.entries.insert(i, VarEq(entry.clone()));
         entry
     }

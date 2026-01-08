@@ -277,8 +277,8 @@ impl AudioCache {
         sink.set_volume(output.config.volume.0);
         sink.set_speed(output.config.speed.0);
         match output.config.state {
-            AudioOutputState::Pause | AudioOutputState::Stop => sink.pause(),
-            AudioOutputState::Play => {}
+            AudioOutputState::Paused | AudioOutputState::Stopped => sink.pause(),
+            AudioOutputState::Playing => {}
             _ => unreachable!(),
         }
 
@@ -290,9 +290,9 @@ impl AudioCache {
     pub(crate) fn update_output(&mut self, request: AudioOutputUpdateRequest) {
         if let Some(s) = self.streams.get(&request.id) {
             match &request.config.state {
-                AudioOutputState::Play => {}
-                AudioOutputState::Pause => s.sink.pause(),
-                AudioOutputState::Stop => {
+                AudioOutputState::Playing => {}
+                AudioOutputState::Paused => s.sink.pause(),
+                AudioOutputState::Stopped => {
                     s.sink.pause();
                     s.sink.clear();
                 }
@@ -300,7 +300,7 @@ impl AudioCache {
             }
             s.sink.set_volume(request.config.volume.0);
             s.sink.set_speed(request.config.speed.0);
-            if let AudioOutputState::Play = &request.config.state {
+            if let AudioOutputState::Playing = &request.config.state {
                 s.sink.play();
             }
         }

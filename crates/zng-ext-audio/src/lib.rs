@@ -10,8 +10,11 @@
 #![warn(missing_docs)]
 
 use std::{
-    hash::Hash, mem, path::{Path, PathBuf}, pin::Pin
+    path::{Path, PathBuf},
+    pin::Pin,
 };
+
+mod service;
 
 mod types;
 pub use types::*;
@@ -19,23 +22,14 @@ pub use types::*;
 mod output;
 pub use output::*;
 
-use zng_app::{
-    APP, AppExtension,
-    event::app_local,
-    update::EventUpdate,
-    view_process::{
-        VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewAudioHandle,
-        raw_events::{LOW_MEMORY_EVENT, RAW_AUDIO_DECODE_ERROR_EVENT, RAW_AUDIO_DECODED_EVENT, RAW_AUDIO_METADATA_DECODED_EVENT},
-    },
-};
+use zng_app::{AppExtension, update::EventUpdate, view_process::ViewAudioHandle};
 use zng_clone_move::async_clmv;
 use zng_task::{self as task, channel::IpcBytes};
 #[cfg(feature = "http")]
 use zng_txt::ToTxt;
 use zng_txt::Txt;
-use zng_unique_id::IdMap;
-use zng_var::{Var, VarValue, WeakVar, const_var, var};
-use zng_view_api::audio::AudioMetadata;
+use zng_var::{Var, const_var, var};
+use zng_view_api::audio::{AudioDecoded, AudioMetadata};
 
 /// Application extension that provides an audio cache and output stream creation.
 ///
@@ -49,20 +43,16 @@ use zng_view_api::audio::AudioMetadata;
 pub struct AudioManager {}
 impl AppExtension for AudioManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = RAW_AUDIO_METADATA_DECODED_EVENT.on(update) {
-        } else if let Some(args) = RAW_AUDIO_DECODED_EVENT.on(update) {
-        } else if let Some(args) = RAW_AUDIO_DECODE_ERROR_EVENT.on(update) {
-        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-        } else if LOW_MEMORY_EVENT.on(update).is_some() {
-            AUDIOS.clean_all();
-        }
+        service::on_app_event_preview(update);
     }
 
     fn update_preview(&mut self) {
-        // update loading tasks:
+        service::on_app_update_preview();
     }
 
-    fn update(&mut self) {}
+    fn update(&mut self) {
+        service::on_app_update();
+    }
 }
 
 /// Audio loading, cache and output service.
@@ -89,12 +79,12 @@ impl AUDIOS {
     /// [`dummy`]: AUDIOS::dummy
     /// [`VIEW_PROCESS`]: zng_app::view_process::VIEW_PROCESS
     pub fn load_in_headless(&self) -> Var<bool> {
-        AUDIOS_SV.read().load_in_headless.clone()
+        service::load_in_headless()
     }
 
     /// Default loading and decoding limits for each audio.
     pub fn limits(&self) -> Var<AudioLimits> {
-        AUDIOS_SV.read().limits.clone()
+        service::limits()
     }
 
     /// Returns a dummy audio that reports it is loading or an error.
@@ -104,7 +94,7 @@ impl AUDIOS {
 
     /// Cache or load an audio file from a file system `path`.
     pub fn read(&self, path: impl Into<PathBuf>) -> AudioVar {
-        self.audio_impl(path.into().into(), AudioOptions::cache(), None)
+        service::audio(path.into().into(), AudioOptions::cache(), None)
     }
 
     /// Get a cached `uri` or download it.
@@ -118,7 +108,7 @@ impl AUDIOS {
         <U as TryInto<task::http::Uri>>::Error: ToTxt,
     {
         match uri.try_into() {
-            Ok(uri) => self.audio(AudioSource::Download(uri, accept), AudioOptions::cache(), None),
+            Ok(uri) => service::audio(AudioSource::Download(uri, accept), AudioOptions::cache(), None),
             Err(e) => self.dummy(Some(e.to_txt())),
         }
     }
@@ -140,7 +130,7 @@ impl AUDIOS {
     /// let audio_var = AUDIOS.from_static(include_bytes!("signal.wav"), "wav");
     /// # }
     pub fn from_static(&self, data: &'static [u8], format: impl Into<AudioDataFormat>) -> AudioVar {
-        self.audio_impl((data, format.into()).into(), AudioOptions::cache(), None)
+        service::audio((data, format.into()).into(), AudioOptions::cache(), None)
     }
 
     /// Get a cached audio from shared data.
@@ -150,7 +140,7 @@ impl AUDIOS {
     ///
     /// The data can be any of the formats described in [`AudioDataFormat`].
     pub fn from_data(&self, data: IpcBytes, format: impl Into<AudioDataFormat>) -> AudioVar {
-        self.audio_impl((data, format.into()).into(), AudioOptions::cache(), None)
+        service::audio((data, format.into()).into(), AudioOptions::cache(), None)
     }
 
     /// Get or load an audio with full configuration.
@@ -159,10 +149,7 @@ impl AUDIOS {
     ///
     /// [`AUDIOS.limits`]: AUDIOS::limits
     pub fn audio(&self, source: impl Into<AudioSource>, options: AudioOptions, limits: Option<AudioLimits>) -> AudioVar {
-        self.audio_impl(source.into(), options, limits)
-    }
-    fn audio_impl(&self, source: AudioSource, options: AudioOptions, limits: Option<AudioLimits>) -> AudioVar {
-        todo!()
+        service::audio(source.into(), options, limits)
     }
 
     /// Await for an audio source, then get or load the audio.
@@ -191,7 +178,7 @@ impl AUDIOS {
         let audio = var(AudioTrack::new_empty(Txt::from_static("")));
         task::spawn(async_clmv!(audio, {
             let source = source.await;
-            let actual_audio = AUDIOS.audio_impl(source, options, limits);
+            let actual_audio = service::audio(source, options, limits);
             actual_audio.set_bind(&audio).perm();
             audio.hold(actual_audio).perm();
         }));
@@ -210,8 +197,9 @@ impl AUDIOS {
     pub fn register(
         &self,
         key: Option<AudioHash>,
-        audio: (ViewAudioHandle, AudioMetadata),
-    ) -> std::result::Result<AudioVar, ((ViewAudioHandle, AudioMetadata), AudioVar)> {
+        audio: (ViewAudioHandle, AudioMetadata, AudioDecoded),
+    ) -> std::result::Result<AudioVar, ((ViewAudioHandle, AudioMetadata, AudioDecoded), AudioVar)> {
+        service::register(key, audio, Txt::from_static(""))
     }
 
     /// Remove the audio from the cache, if it is only held by the cache.
@@ -220,7 +208,9 @@ impl AUDIOS {
     /// for files or downloads.
     ///
     /// Returns `true` if the audio was removed.
-    pub fn clean(&self, key: AudioHash) -> bool {}
+    pub fn clean(&self, key: AudioHash) -> bool {
+        service::remove(key, false)
+    }
 
     /// Remove the audio from the cache, even if it is still referenced outside of the cache.
     ///
@@ -228,12 +218,14 @@ impl AUDIOS {
     /// for files or downloads.
     ///
     /// Returns `true` if the audio was removed, that is, if it was cached.
-    pub fn purge(&self, key: AudioHash) -> bool {}
+    pub fn purge(&self, key: AudioHash) -> bool {
+        service::remove(key, true)
+    }
 
     /// Gets the cache key of an audio.
     pub fn cache_key(&self, audio: &AudioTrack) -> Option<AudioHash> {
         if let Some(key) = &audio.cache_key
-            && AUDIOS_SV.read().cache.contains_key(key)
+            && service::contains_key(key)
         {
             return Some(*key);
         }
@@ -242,68 +234,40 @@ impl AUDIOS {
 
     /// If the audio is cached.
     pub fn is_cached(&self, audio: &AudioTrack) -> bool {
-        audio
-            .cache_key
-            .as_ref()
-            .map(|k| AUDIOS_SV.read().cache.contains_key(k))
-            .unwrap_or(false)
+        audio.cache_key.as_ref().map(service::contains_key).unwrap_or(false)
     }
 
     /// Returns an audio that is not cached.
     ///
     /// If the `audio` is the only reference returns it and removes it from the cache. If there are other
     /// references a new [`AudioVar`] is generated from a clone of the audio.
-    pub fn detach(&self, audio: AudioVar) -> AudioVar {}
+    pub fn detach(&self, audio: AudioVar) -> AudioVar {
+        service::detach(audio)
+    }
 
     /// Clear cached audios that are not referenced outside of the cache.
-    pub fn clean_all(&self) {}
+    pub fn clean_all(&self) {
+        service::clean_all();
+    }
 
     /// Clear all cached audios, including audios that are still referenced outside of the cache.
     ///
     /// Audio memory only drops when all strong references are removed, so if an audio is referenced
     /// outside of the cache it will merely be disconnected from the cache by this method.
     pub fn purge_all(&self) {
-        let mut img = AUDIOS_SV.write();
-        img.cache.clear();
-        img.extensions.iter_mut().for_each(|p| p.clear(true));
+        service::purge_all();
     }
 
     /// Add an audios service extension.
     ///
     /// See [`AudiosExtension`] for extension capabilities.
     pub fn extend(&self, extension: Box<dyn AudiosExtension>) {
-        AUDIOS_SV.write().extensions.push(extension);
+        service::extend(extension);
     }
 
     /// Audio formats implemented by the current view-process and extensions.
     pub fn available_formats(&self) -> Vec<AudioFormat> {
-        let mut formats = VIEW_PROCESS.info().audio.clone();
-        for ext in &AUDIOS_SV.read().extensions {
-            ext.available_formats(&mut formats);
-        }
-        formats
-    }
-}
-
-/// Options for [`AUDIOS.audio`].
-///
-/// [`AUDIOS.audio`]: AUDIOS::audio
-#[derive(Debug, Clone, PartialEq)]
-#[non_exhaustive]
-pub struct AudioOptions {
-    /// If and how the audio is cached.
-    pub cache_mode: AudioCacheMode,
-}
-
-impl AudioOptions {
-    /// New.
-    pub fn new(cache_mode: AudioCacheMode) -> Self {
-        Self { cache_mode }
-    }
-
-    /// New with only cache enabled.
-    pub fn cache() -> Self {
-        Self::new(AudioCacheMode::Cache)
+        service::available_formats()
     }
 }
 
@@ -351,40 +315,4 @@ fn normalize_path(path: &Path) -> PathBuf {
         }
     }
     ret
-}
-
-app_local! {
-    static AUDIOS_SV: AudiosService = {
-        APP.extensions().require::<crate::AudioManager>();
-        AudiosService::new()
-    };
-}
-
-pub(crate) struct AudiosService {
-    load_in_headless: Var<bool>,
-    limits: Var<AudioLimits>,
-
-    extensions: Vec<Box<dyn AudiosExtension>>,
-
-    download_accept: Txt,
-
-}
-impl AudiosService {
-    fn new() -> Self {
-        Self {
-            load_in_headless: var(false),
-            limits: var(AudioLimits::default()),
-            extensions: vec![],
-            download_accept: Txt::from_static(""),
-        }
-    }
-}
-
-struct VarCache<K: Eq + Hash + 'static,  T: VarValue> {
-    entries: IdMap<K, CacheEntry<T>>
-}
-
-enum CacheEntry<T: VarValue> {
-    Cached(Var<T>),
-    NotCached(WeakVar<T>),
 }

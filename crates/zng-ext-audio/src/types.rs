@@ -3,6 +3,7 @@ use std::{
     env, fmt, mem, ops,
     path::{Path, PathBuf},
     sync::Arc,
+    time::Duration,
 };
 
 use zng_app::view_process::ViewAudioHandle;
@@ -14,12 +15,11 @@ use zng_var::impl_from_and_into_var;
 #[cfg(not(feature = "http"))]
 use zng_var::impl_from_and_into_var;
 use zng_var::{Var, VarEq};
-use zng_view_api::audio::{AudioDecoded, AudioMetadata};
+use zng_view_api::audio::{AudioDecoded, AudioId, AudioMetadata};
 
-use crate::AudioOptions;
 use zng_task as task;
 
-pub use zng_view_api::audio::{AudioDataFormat, AudioFormat};
+pub use zng_view_api::audio::{AudioDataFormat, AudioFormat, AudioTracksMode};
 
 /// A custom extension for the [`AUDIOS`] service.
 ///
@@ -272,6 +272,23 @@ impl AudioTrack {
         self.handle.clone()
     }
 
+    /// Number of channels interleaved in the track.
+    pub fn channel_count(&self) -> u16 {
+        self.meta.channel_count
+    }
+
+    /// Samples per second.
+    ///
+    /// A sample is a single sequence of `channel_count`.
+    pub fn sample_rate(&self) -> u32 {
+        self.meta.sample_rate
+    }
+
+    /// Total duration of the tack, if it is known.
+    pub fn total_duration(&self) -> Option<Duration> {
+        self.meta.total_duration
+    }
+
     /// Reference the decoded interleaved audio chunk.
     pub fn chunk(&self) -> Option<IpcBytesCast<f32>> {
         if self.is_loaded() { Some(self.data.chunk.clone()) } else { None }
@@ -293,6 +310,36 @@ impl AudioTrack {
         let entry = zng_var::var(track);
         self.tracks.insert(i, VarEq(entry.clone()));
         entry
+    }
+
+    pub(crate) fn set_meta(&mut self, meta: AudioMetadata) {
+        self.meta = meta;
+    }
+
+    pub(crate) fn set_data(&mut self, data: AudioDecoded) {
+        self.data = data;
+    }
+
+    pub(crate) fn set_error(&mut self, error: Txt) {
+        self.error = error;
+    }
+
+    pub(crate) fn set_handle(&mut self, handle: ViewAudioHandle) {
+        self.handle = handle;
+    }
+
+    pub(crate) fn has_loading_tracks(&self) -> bool {
+        self.tracks.iter().any(|t| t.with(|t| t.is_loading() || t.has_loading_tracks()))
+    }
+
+    pub(crate) fn find_track(&self, id: AudioId) -> Option<AudioVar> {
+        self.tracks.iter().find_map(|v| {
+            if v.with(|i| i.handle.audio_id() == id) {
+                Some(v.0.clone())
+            } else {
+                v.with(|i| i.find_track(id))
+            }
+        })
     }
 }
 
@@ -956,4 +1003,32 @@ impl Default for AudioLimits {
 }
 impl_from_and_into_var! {
     fn from(some: AudioLimits) -> Option<AudioLimits>;
+}
+
+/// Options for [`AUDIOS.audio`].
+///
+/// [`AUDIOS.audio`]: AUDIOS::audio
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
+pub struct AudioOptions {
+    /// If and how the audio is cached.
+    pub cache_mode: AudioCacheMode,
+
+    /// How to decode containers with multiple tracks.
+    pub tracks: AudioTracksMode,
+}
+
+impl AudioOptions {
+    /// New.
+    pub fn new(cache_mode: AudioCacheMode) -> Self {
+        Self {
+            cache_mode,
+            tracks: AudioTracksMode::PRIMARY,
+        }
+    }
+
+    /// New with only cache enabled.
+    pub fn cache() -> Self {
+        Self::new(AudioCacheMode::Cache)
+    }
 }

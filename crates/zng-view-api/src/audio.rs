@@ -448,15 +448,15 @@ pub struct AudioOutputConfig {
 }
 
 /// Represents the playback state if an audio output stream.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum AudioOutputState {
     /// Audio is sent to the device for playback as play requests are received.
-    Play,
+    Playing,
     /// Audio playback is paused, play requests are buffered.
-    Pause,
+    Paused,
     /// Audio playback is stopped, all current play requests are dropped, state is then changed to `Pause`.
-    Stop,
+    Stopped,
 }
 
 /// Represents an audio playback request.
