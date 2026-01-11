@@ -1,8 +1,5 @@
 # Unreleased
 
-
-# 0.20.5
-
 * Upgrade dependencies to fix Linux build with `"view"` feature.
 
 # 0.20.4
