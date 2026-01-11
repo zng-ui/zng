@@ -86,7 +86,7 @@ impl IMAGES {
         service::limits()
     }
 
-    /// Returns a dummy image that reports it is loaded or an error.
+    /// Returns a dummy image that reports it is loading or an error.
     pub fn dummy(&self, error: Option<Txt>) -> ImageVar {
         var(ImageEntry::new_empty(error.unwrap_or_default())).read_only()
     }

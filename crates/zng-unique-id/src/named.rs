@@ -205,7 +205,7 @@ macro_rules! impl_unique_id_name {
             ///
             /// If the `name` is already associated with an ID, returns the `NameUsed` error.
             /// If the `name` is an empty string just returns a new ID.
-            pub fn named_new(name: impl Into<$crate::Txt>) -> Result<Self, $crate::IdNameError<Self>> {
+            pub fn named_new(name: impl Into<$crate::Txt>) -> std::result::Result<Self, $crate::IdNameError<Self>> {
                 Self::names_store().named_new(name.into(), Self::new_unique)
             }
 
@@ -219,7 +219,7 @@ macro_rules! impl_unique_id_name {
             /// If the `name` is already associated with a different ID, returns the `NameUsed` error.
             /// If the ID is already named, with a name different from `name`, returns the `AlreadyNamed` error.
             /// If the `name` is an empty string or already is the name of the ID, does nothing.
-            pub fn set_name(self, name: impl Into<$crate::Txt>) -> Result<(), $crate::IdNameError<Self>> {
+            pub fn set_name(self, name: impl Into<$crate::Txt>) -> std::result::Result<(), $crate::IdNameError<Self>> {
                 Self::names_store().set_name(name.into(), self)
             }
         }

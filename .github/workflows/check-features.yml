@@ -28,7 +28,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5
+      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5 && sudo apt install libasound2-dev -o Acquire::Retries=5
       - run: cargo do check-all-features ${{ matrix.profile }} --max ${{ github.event.inputs.max }} --clean ${{ github.event.inputs.clean }} --chunk "${{ matrix.chunk }}/12"
       - run: cargo clean
   check-macos:

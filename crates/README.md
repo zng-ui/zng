@@ -68,6 +68,7 @@ with prefix `zng-ext-`.
 - `zng-ext-hot-reload`
     - `zng-ext-hot-reload-proc-macros`
 - `zng-ext-image`
+- `zng-ext-audio`
 - `zng-ext-clipboard`
 - `zng-ext-window`
 - `zng-ext-undo`

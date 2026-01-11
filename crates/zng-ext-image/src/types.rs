@@ -196,7 +196,7 @@ impl ImageEntry {
         self.error.is_empty() && (self.data.pixels.is_empty() || self.data.partial.is_some())
     }
 
-    /// If the image is has finished loading ok or due to error.
+    /// If the image has finished loading ok or due to error.
     ///
     /// The image variable may still update after
     pub fn is_loaded(&self) -> bool {
@@ -1505,7 +1505,7 @@ impl<U> PartialEq for ImageSourceFilter<U> {
     }
 }
 
-/// Represents a [`ImageSource::Read`] path request filter.
+/// Represents an [`ImageSource::Read`] path request filter.
 ///
 /// Only absolute, normalized paths are shared with the [`Custom`] filter, there is no relative paths or `..` components.
 ///
@@ -1559,7 +1559,7 @@ impl PathFilter {
     }
 }
 
-/// Represents a [`ImageSource::Download`] path request filter.
+/// Represents an [`ImageSource::Download`] path request filter.
 ///
 /// See [`ImageLimits::allow_uri`] for more information.
 #[cfg(feature = "http")]
@@ -1600,12 +1600,10 @@ pub struct ImageLimits {
     pub max_encoded_len: ByteLength,
     /// Maximum decoded file size allowed.
     ///
-    /// An error is returned if the decoded image memory would surpass the `width * height * 4`
+    /// An error is returned if the decoded image memory (width * height * 4) would surpass this.
     pub max_decoded_len: ByteLength,
 
     /// Filter for [`ImageSource::Read`] paths.
-    ///
-    /// Only paths allowed by this filter are loaded
     pub allow_path: PathFilter,
 
     /// Filter for [`ImageSource::Download`] URIs.

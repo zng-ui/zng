@@ -36,7 +36,10 @@ mod ipc;
 pub use ipc::{IpcReceiver, IpcSender, IpcValue, NamedIpcReceiver, NamedIpcSender, ipc_unbounded};
 
 mod ipc_bytes;
-pub use ipc_bytes::{IpcBytes, IpcBytesCast, IpcBytesMut, IpcBytesMutCast, IpcBytesWriter, IpcBytesWriterBlocking, WeakIpcBytes};
+pub use ipc_bytes::{
+    IpcBytes, IpcBytesCast, IpcBytesCastIntoIter, IpcBytesIntoIter, IpcBytesMut, IpcBytesMutCast, IpcBytesWriter, IpcBytesWriterBlocking,
+    WeakIpcBytes,
+};
 
 #[cfg(ipc)]
 pub use ipc_bytes::{is_ipc_serialization, with_ipc_serialization};

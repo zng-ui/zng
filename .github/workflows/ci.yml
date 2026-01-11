@@ -27,7 +27,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5
+      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5 && sudo apt install libasound2-dev -o Acquire::Retries=5 && sudo apt install libasound2-dev -o Acquire::Retries=5
       - uses: Swatinem/rust-cache@v2
       - run: cargo do version --verbose
       - run: cargo do fmt --check --full
@@ -66,7 +66,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5
+      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5 && sudo apt install libasound2-dev -o Acquire::Retries=5
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --examples --tests --release
   check-wasm:
@@ -152,7 +152,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5
+      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5 && sudo apt install libasound2-dev -o Acquire::Retries=5
       - uses: Swatinem/rust-cache@v2
         with:
           cache-targets: false # do doc needs a clean target/doc
@@ -174,7 +174,7 @@ jobs:
       uses: taiki-e/install-action@v2
       with:
         tool: cargo-nextest
-    - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5
+    - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5 && sudo apt install libasound2-dev -o Acquire::Retries=5
     - uses: actions/checkout@v4
     - uses: Swatinem/rust-cache@v2
     - run: cargo do test --nextest
@@ -228,7 +228,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5
+      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5 && sudo apt install libasound2-dev -o Acquire::Retries=5
       - uses: Swatinem/rust-cache@v2
       - run: cargo do test --doc
   test-macro:
@@ -239,7 +239,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src, rustfmt, clippy
-      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5
+      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5 && sudo apt install libasound2-dev -o Acquire::Retries=5
       - uses: Swatinem/rust-cache@v2
       - run: cargo do test --macro --all
   test-render-ubuntu:
@@ -254,7 +254,7 @@ jobs:
              sudo apt-get update
              sudo apt install libxkbcommon-x11-0
       - uses: actions/checkout@v4
-      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5
+      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5 && sudo apt install libasound2-dev -o Acquire::Retries=5
       - uses: Swatinem/rust-cache@v2
       - name: cargo do test --render --no-prebuilt
         uses: coactions/setup-xvfb@6b00cf1889f4e1d5a48635647013c0508128ee1a

@@ -112,6 +112,8 @@ The Cargo features of each crate are documented in the README file for that crat
 
 * Packages needed to build with `"view_prebuilt"` feature:
     - `curl`
+* Packages needed to build with `"audio"` and `"view"` features:
+    - `libasound2-dev` (ALSA)
 
 ##### On macOS:
 

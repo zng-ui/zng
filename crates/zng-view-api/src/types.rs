@@ -3,7 +3,7 @@
 use crate::{
     access::{AccessCmd, AccessNodeId},
     api_extension::{ApiExtensionId, ApiExtensionPayload, ApiExtensions},
-    audio::{AudioDeviceId, AudioDeviceInfo},
+    audio::{AudioDecoded, AudioDeviceId, AudioDeviceInfo, AudioId, AudioMetadata, AudioOutputId, AudioOutputOpenData, AudioPlayId},
     config::{
         AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
     },
@@ -456,6 +456,35 @@ pub enum Event {
     ImageEncodeError {
         /// Id of the encode task.
         task: ImageEncodeId,
+        /// The error message.
+        error: Txt,
+    },
+
+    /// An audio resource decoded header metadata.
+    AudioMetadataDecoded(AudioMetadata),
+    /// An audio resource decoded chunk or finished decoding.
+    AudioDecoded(AudioDecoded),
+    /// An audio resource failed to decode, the audio ID is not valid.
+    AudioDecodeError {
+        /// The audio that failed to decode.
+        audio: AudioId,
+        /// The error message.
+        error: Txt,
+    },
+
+    /// Audio output is connected with device and ready to receive commands.
+    AudioOutputOpened(AudioOutputId, AudioOutputOpenData),
+    /// Audio playback stream failed to connect.
+    AudioOutputOpenError {
+        /// The output ID.
+        id: AudioOutputId,
+        /// The error message.
+        error: Txt,
+    },
+    /// Audio playback failed.
+    AudioPlayError {
+        /// The request ID.
+        play: AudioPlayId,
         /// The error message.
         error: Txt,
     },

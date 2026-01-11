@@ -265,7 +265,7 @@ impl ImageCache {
                 meta.parent = parent;
                 let decoded = ImageDecoded::new(meta, pixels, is_opaque);
                 let mut out = if $return_data { Some(decoded.clone()) } else { None };
-                if app_sender.send(AppEvent::ImageDecoded(decoded)).is_err() {
+                if app_sender.send(AppEvent::ImageCanRender(decoded)).is_err() {
                     out = None;
                 }
                 out
@@ -628,7 +628,7 @@ impl ImageCache {
                                     meta.density = density;
                                     meta.is_mask = is_mask;
                                     let decoded = ImageDecoded::new(meta, pixels.clone(), is_opaque);
-                                    if app_sender.send(AppEvent::ImageDecoded(decoded)).is_err() {
+                                    if app_sender.send(AppEvent::ImageCanRender(decoded)).is_err() {
                                         return;
                                     }
                                     prev_pixels = pixels;
@@ -649,7 +649,7 @@ impl ImageCache {
                                         Ok(pixels) => {
                                             meta.size = size;
                                             let decoded = ImageDecoded::new(meta, pixels.clone(), prev_is_opaque);
-                                            if app_sender.send(AppEvent::ImageDecoded(decoded)).is_err() {
+                                            if app_sender.send(AppEvent::ImageCanRender(decoded)).is_err() {
                                                 return;
                                             }
                                             prev_pixels = pixels;
@@ -760,7 +760,7 @@ impl ImageCache {
     }
 
     /// Called after receive and decode completes correctly.
-    pub(crate) fn loaded(&mut self, data: ImageDecoded) {
+    pub(crate) fn on_image_can_render(&mut self, data: ImageDecoded) {
         self.images.insert(
             data.meta.id,
             Image(Arc::new(ImageData::RawData {
