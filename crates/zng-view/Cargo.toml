@@ -141,8 +141,8 @@ byteorder = { version = "1.5", default-features = false }
 rustc-hash = { version = "2.0", default-features = false }
 rayon = { version = "1.10", default-features = false }
 serde = { version = "1.0", default-features = false }
-accesskit = { version = "0.21", default-features = false }
-accesskit_winit = { version = "0.29", default-features = false, features = ["rwh_06", "accesskit_unix", "async-io"] }
+accesskit = { version = "0.22", default-features = false }
+accesskit_winit = { version = "0.30", default-features = false, features = ["rwh_06", "accesskit_unix", "async-io"] }
 kamadak-exif = { version = "0.6.1", default-features = false, optional = true }
 lcms2 = { version = "6.1.1", default-features = false, features = ["static"], optional = true }
 # matches `image` dependency version
@@ -151,13 +151,13 @@ tiff = { version = "0.10.3", default-features = false, optional = true }
 # rfd
 ## cfg(not(linux, android, ios))
 [target.'cfg(not(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd", target_os = "android", target_os = "ios")))'.dependencies.rfd]
-version = "0.16"
+version = "0.17"
 default-features = false
 ## cfg(linux)
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies.rfd]
-version = "0.16"
+version = "0.17"
 default-features = false
-features = ["xdg-portal", "async-std"]
+features = ["xdg-portal"]
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.61.2"
