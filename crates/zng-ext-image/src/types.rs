@@ -121,8 +121,6 @@ struct ImgMut {
     render_ids: Vec<RenderImage>,
 }
 
-// !!: TODO rename to ImageEntry
-
 /// State of an [`ImageVar`].
 ///
 /// [`IMAGES`]: crate::IMAGES

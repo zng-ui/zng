@@ -2,7 +2,9 @@ use std::{fmt, io::Cursor, sync::Arc, time::Duration};
 
 use rodio::Source;
 use rustc_hash::FxHashMap;
-use zng_task::channel::{IpcBytes, IpcBytesCast, IpcBytesCastIntoIter, IpcBytesMutCast, IpcReceiver};
+#[cfg(feature = "audio_mp3")]
+use symphonia::core::probe::QueryDescriptor;
+use zng_task::channel::{IpcBytes, IpcBytesCast, IpcBytesCastIntoIter, IpcReceiver};
 use zng_txt::{ToTxt, formatx};
 use zng_view_api::{Event, audio::*};
 
@@ -22,6 +24,45 @@ pub(crate) const FORMATS: &[AudioFormat] = &[
     #[cfg(feature = "audio_wav")]
     AudioFormat::from_static("WAV", "wav,vnd.wave", "wav,wave", AudioFormatCapability::empty()),
 ];
+fn symphonia_format(buf: &[u8]) -> Option<&'static AudioFormat> {
+    let sf = std::iter::empty();
+
+    #[cfg(feature = "audio_mp3")]
+    let sf = sf.chain(symphonia::default::formats::MpaReader::query());
+    #[cfg(feature = "audio_mp4")]
+    let sf = sf.chain(symphonia::default::formats::IsoMp4Reader::query());
+    #[cfg(feature = "audio_flac")]
+    let sf = sf.chain(symphonia::default::formats::FlacReader::query());
+    #[cfg(feature = "audio_vorbis")]
+    let sf = sf.chain(symphonia::default::formats::OggReader::query());
+    #[cfg(feature = "audio_wav")]
+    let sf = sf.chain(symphonia::default::formats::WavReader::query());
+
+    let mut found_mime = &[][..];
+    'search: for f in sf {
+        for m in f.markers {
+            if buf.len() >= m.len() && buf[..m.len()] == **m {
+                found_mime = f.mime_types;
+                break 'search;
+            }
+        }
+    }
+    if !found_mime.is_empty() {
+        for f in FORMATS {
+            if found_mime.iter().any(|m| f.matches(m)) {
+                return Some(f);
+            }
+        }
+    }
+
+    #[cfg(feature = "audio_mp3")]
+    if buf.len() > 3 && &buf[..3] == b"ID3" {
+        // ID3 tag, MP3 file have an ID3 header and after the MP3
+        return Some(FORMATS.iter().find(|f| f.matches("mp3")).unwrap());
+    }
+
+    None
+}
 
 pub(crate) struct AudioCache {
     app_sender: AppEventSender,
@@ -120,47 +161,9 @@ impl AudioCache {
 
         // decode
 
-        let mss = symphonia::core::io::MediaSourceStream::new(Box::new(Cursor::new(data.clone())), Default::default());
-        let mut format_hint = symphonia::core::probe::Hint::new();
-        match request.format {
-            AudioDataFormat::FileExtension(ext) => {
-                format_hint.with_extension(&ext);
-            }
-            AudioDataFormat::MimeType(t) => {
-                format_hint.with_extension(&t);
-            }
-            _ => (),
-        }
-
-        let probe = symphonia::default::get_probe().format(
-            &format_hint,
-            mss,
-            &symphonia::core::formats::FormatOptions::default(),
-            &symphonia::core::meta::MetadataOptions::default(),
-        );
-
-        let probe = match probe {
-            Ok(p) => p,
-            Err(e) => {
-                let _ = app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
-                    audio: id,
-                    error: e.to_txt(),
-                }));
-                return;
-            }
-        };
-
-        // not sure if the container detected is available in the metadata, can't find docs for it
-        // so we
-        let mut format = None;
-        let container_name_hack = std::any::type_name_of_val(&*probe.format).to_ascii_lowercase();
-        for f in FORMATS {
-            if f.file_extensions_iter().any(|e| container_name_hack.contains(e)) {
-                format = Some(f);
-                break;
-            }
-        }
-        let format = format.unwrap_or_else(|| panic!("cannot identify format from symphonia type name {container_name_hack:?}"));
+        // symphonia does not provide the identified container type, but all it does it check
+        // the magic number, so we do it again here, with the symphonia numbers
+        let format = symphonia_format(&data[..]).expect("cannot identify format from symphonia");
 
         // will read other metadata here in the future
 
@@ -201,18 +204,31 @@ impl AudioCache {
             raw: IpcBytesCast::default(),
         };
 
+        // rodio/symphonia iterator does not provide a size_hint, because the API needs to support
+        // streaming with shifting sample rate, but we can calculate it for this use case, and this
+        // drastically improves `from_iter_blocking` performance.
+        let sample_len = (meta.channel_count as f64 * meta.sample_rate as f64 * total_duration.as_secs_f64()).ceil() as usize;
+
         if app_sender.send(AppEvent::Notify(Event::AudioMetadataDecoded(meta))).is_err() {
             return;
         }
 
-        let decoded = (|| -> std::io::Result<IpcBytesCast<f32>> {
-            let mut raw = IpcBytesMutCast::<f32>::new_blocking(decoder.current_span_len().unwrap())?;
-            for (f, df) in raw.iter_mut().zip(decoder) {
-                *f = df;
+        struct SizeHint<I> {
+            iter: I,
+            sample_len: usize,
+        }
+        impl<I: Iterator> Iterator for SizeHint<I> {
+            type Item = <I as Iterator>::Item;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                self.iter.next()
             }
-            raw.finish_blocking()
-        })();
-        match decoded {
+
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                (self.sample_len, Some(self.sample_len))
+            }
+        }
+        match IpcBytesCast::<f32>::from_iter_blocking(SizeHint { iter: decoder, sample_len }) {
             Ok(d) => track.raw = d,
             Err(e) => {
                 let _ = app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
@@ -385,7 +401,7 @@ impl Iterator for AudioTrackPlay {
 }
 impl rodio::Source for AudioTrackPlay {
     fn current_span_len(&self) -> Option<usize> {
-        todo!()
+        Some(self.track.rest().len())
     }
 
     fn channels(&self) -> rodio::ChannelCount {

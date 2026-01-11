@@ -458,6 +458,12 @@ pub struct AudioOutputConfig {
     /// * `2.fct()` halves the total duration and doubles (raises) the pitch.
     pub speed: Factor,
 }
+impl AudioOutputConfig {
+    /// New.
+    pub fn new(state: AudioOutputState, volume: Factor, speed: Factor) -> Self {
+        Self { state, volume, speed }
+    }
+}
 
 /// Represents the playback state if an audio output stream.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -469,6 +475,28 @@ pub enum AudioOutputState {
     Paused,
     /// Audio playback is paused, all current cue requests are dropped.
     Stopped,
+}
+impl AudioOutputState {
+    /// If is [`Playing`].
+    ///
+    /// [`Playing`]: Self::Playing
+    pub fn is_playing(&self) -> bool {
+        matches!(self, Self::Playing)
+    }
+
+    /// If is [`Paused`].
+    ///
+    /// [`Paused`]: Self::Paused
+    pub fn is_paused(&self) -> bool {
+        matches!(self, Self::Paused)
+    }
+
+    /// If is [`Stopped`].
+    ///
+    /// [`Stopped`]: Self::Stopped
+    pub fn is_stopped(&self) -> bool {
+        matches!(self, Self::Stopped)
+    }
 }
 
 /// Represents an audio playback request.
@@ -491,7 +519,7 @@ impl AudioPlayRequest {
 }
 
 /// Represents an audio source.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct AudioMix {
     /// Silent start padding.
@@ -507,14 +535,29 @@ pub struct AudioMix {
     /// Each layer applies to the previous.
     pub layers: Vec<AudioMixLayer>,
 }
+impl AudioMix {
+    /// New empty.
+    pub fn new() -> Self {
+        Self {
+            delay: Duration::ZERO,
+            total_duration: None,
+            layers: vec![],
+        }
+    }
+}
+impl Default for AudioMix {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// Represents an audio source component.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum AudioMixLayer {
     /// Play the cached audio.
     ///
-    /// The audio samples are adapted to the output format and added to the previous layers result.
+    /// The audio samples are adapted to the output format and added to the under layers result.
     Audio {
         /// The audio.
         audio: AudioId,
@@ -529,7 +572,7 @@ pub enum AudioMixLayer {
     },
     /// Play the mix.
     ///
-    /// This mix is sampled as a flat audio for the parent mix, its effect layers do not affect the parent mix.
+    /// This mix is sampled as an audio (computed), its effect layers do not affect the parent mix.
     AudioMix {
         /// The inner mix.
         mix: AudioMix,
@@ -545,13 +588,20 @@ pub enum AudioMixLayer {
 
     /// Linear volume transition.
     ///
-    /// When the playback is in range the volume is multiplied by the linear interpolation between start and end. The volume snaps
+    /// When the playback is in range the volume is multiplied by the linear interpolation between `start_volume` and `end_volume`. The volume snaps
     /// back to the output stream volume after the end, unless another volume control layer is in effect.
     VolumeLinear {
-        /// Start time and volume.
-        start: (Duration, Factor),
-        /// End time and volume.
-        end: (Duration, Factor),
+        /// Start time.
+        start: Duration,
+        /// Transition duration.
+        ///
+        /// The effect ends at `start + duration` time.
+        duration: Duration,
+
+        /// Volume at the start.
+        start_volume: Factor,
+        /// Volume at the end,
+        end_volume: Factor,
     },
 
     /// Generate a sine wave sound.

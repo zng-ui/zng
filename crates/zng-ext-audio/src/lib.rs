@@ -28,7 +28,7 @@ use zng_task::{self as task, channel::IpcBytes};
 #[cfg(feature = "http")]
 use zng_txt::ToTxt;
 use zng_txt::Txt;
-use zng_var::{Var, const_var, var};
+use zng_var::{IntoValue, ResponseVar, Var, const_var, var};
 use zng_view_api::audio::{AudioDecoded, AudioMetadata};
 
 /// Application extension that provides an audio cache and output stream creation.
@@ -67,6 +67,7 @@ impl AppExtension for AudioManager {
 /// [`load_in_headless`]: AUDIOS::load_in_headless
 /// [`VIEW_PROCESS`]: zng_app::view_process::VIEW_PROCESS
 pub struct AUDIOS;
+/// Audio service config.
 impl AUDIOS {
     /// If should still download/read audio bytes in headless/renderless mode.
     ///
@@ -86,7 +87,9 @@ impl AUDIOS {
     pub fn limits(&self) -> Var<AudioLimits> {
         service::limits()
     }
-
+}
+/// Audio track loading and caching.
+impl AUDIOS {
     /// Returns a dummy audio that reports it is loading or an error.
     pub fn dummy(&self, error: Option<Txt>) -> AudioVar {
         const_var(AudioTrack::new_empty(error.unwrap_or_default()))
@@ -268,6 +271,26 @@ impl AUDIOS {
     /// Audio formats implemented by the current view-process and extensions.
     pub fn available_formats(&self) -> Vec<AudioFormat> {
         service::available_formats()
+    }
+}
+
+/// Audio output.
+impl AUDIOS {
+    /// Request a new audio output stream.
+    ///
+    /// Returns a response var that updates once when the output opens.
+    pub fn open_output(&self, cache: bool) -> ResponseVar<AudioOutput> {
+        service::open_output(AudioOutputId::new_unique(), false, cache)
+    }
+
+    /// Get the audio output stream associated with the `id` or requests it.
+    ///
+    /// Returns a response var that updates once when the output opens or already contains the output if it is already open.
+    ///
+    /// The output stream will remain open as long as at least one clone of [`AudioOutput`] is held, if `cache`
+    /// is `true` the [`AUDIOS`] service also holds the output.
+    pub fn get_or_open_output(&self, id: impl IntoValue<AudioOutputId>, cache: bool) -> ResponseVar<AudioOutput> {
+        service::open_output(id.into(), true, cache)
     }
 }
 

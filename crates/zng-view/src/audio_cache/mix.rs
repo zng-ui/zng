@@ -60,11 +60,16 @@ impl AudioCache {
                     }
                     mix_layer(&mut out, layer);
                 }
-                AudioMixLayer::VolumeLinear { start, end } => {
-                    if start.0 < end.0
+                AudioMixLayer::VolumeLinear {
+                    start,
+                    duration,
+                    start_volume,
+                    end_volume,
+                } => {
+                    if duration > Duration::ZERO
                         && let Some(s) = out.take()
                     {
-                        out = Some(Box::new(s.volume_linear(start.0, end.0, start.1.0, end.1.0)));
+                        out = Some(Box::new(s.volume_linear(start, start + duration, start_volume.0, end_volume.0)));
                     }
                 }
                 AudioMixLayer::SineWave { frequency, duration } => {

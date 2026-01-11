@@ -8,4 +8,7 @@
 //!
 //! See [`zng_ext_audio`] for the full audio API and [`zng_wgt_audio`] for the full widget API.
 
-pub use zng_ext_audio::{AUDIOS, AudioCacheMode, AudioDataFormat, AudioFormat, AudioTrack, AudioVar};
+pub use zng_ext_audio::{
+    AUDIOS, AudioCacheMode, AudioDataFormat, AudioFormat, AudioHash, AudioLimits, AudioMix, AudioOptions, AudioOutput, AudioOutputId,
+    AudioOutputState, AudioSource, AudioSourceFilter, AudioTrack, AudioVar,
+};

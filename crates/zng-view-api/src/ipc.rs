@@ -85,7 +85,7 @@ impl RequestSender {
     pub fn send(&mut self, req: Request) -> IpcResult<()> {
         let r = self.0.get_mut().send_blocking(req);
         if let Err(e) = &r {
-            tracing::error!("request sender error, {e}");
+            tracing::debug!("request sender error, {e}");
         }
         r
     }
@@ -103,7 +103,7 @@ impl RequestReceiver {
     pub fn recv(&mut self) -> IpcResult<Request> {
         let r = self.0.get_mut().recv_blocking();
         if let Err(e) = &r {
-            tracing::error!("request receiver error, {e}");
+            tracing::debug!("request receiver error, {e}");
         }
         r
     }
@@ -129,7 +129,7 @@ impl ResponseSender {
         assert!(rsp.must_be_send());
         let r = self.0.get_mut().send_blocking(rsp);
         if let Err(e) = &r {
-            tracing::error!("response sender error, {e}");
+            tracing::debug!("response sender error, {e}");
         }
         r
     }
@@ -139,7 +139,7 @@ impl ResponseReceiver {
     pub fn recv(&mut self) -> IpcResult<Response> {
         let r = self.0.get_mut().recv_blocking();
         if let Err(e) = &r {
-            tracing::error!("response receiver error, {e}");
+            tracing::debug!("response receiver error, {e}");
         }
         r
     }
@@ -157,7 +157,7 @@ impl EventSender {
     pub fn send(&mut self, ev: Event) -> IpcResult<()> {
         let r = self.0.get_mut().send_blocking(ev);
         if let Err(e) = &r {
-            tracing::error!("event sender error, {e}");
+            tracing::debug!("event sender error, {e}");
         }
         r
     }
@@ -167,7 +167,7 @@ impl EventReceiver {
     pub fn recv(&mut self) -> IpcResult<Event> {
         let r = self.0.get_mut().recv_blocking();
         if let Err(e) = &r {
-            tracing::error!("event receiver error, {e}");
+            tracing::debug!("event receiver error, {e}");
         }
         r
     }
@@ -177,7 +177,7 @@ impl EventReceiver {
         if let Err(e) = &r {
             match e {
                 ChannelError::Timeout => {}
-                e => tracing::error!("event receiver error, {e}"),
+                e => tracing::debug!("event receiver error, {e}"),
             }
         }
         r

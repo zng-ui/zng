@@ -172,6 +172,9 @@ impl<E: AppExtension> RunningApp<E> {
         fn window_id(id: zng_view_api::window::WindowId) -> WindowId {
             WindowId::from_raw(id.get())
         }
+        fn audio_output_id(id: zng_view_api::audio::AudioOutputId) -> AudioOutputId {
+            AudioOutputId::from_raw(id.get())
+        }
 
         match ev {
             Event::MouseMoved {
@@ -404,6 +407,20 @@ impl<E: AppExtension> RunningApp<E> {
                     let args = RawAudioDecodeErrorArgs::now(handle, error);
                     self.notify_event(RAW_AUDIO_DECODE_ERROR_EVENT.new_update(args), observer);
                 }
+            }
+
+            Event::AudioOutputOpened(id, data) => {
+                let a_id = audio_output_id(id);
+                let output = VIEW_PROCESS.on_audio_output_opened(a_id, data);
+
+                let args = RawAudioOutputOpenArgs::now(a_id, output);
+                self.notify_event(RAW_AUDIO_OUTPUT_OPEN_EVENT.new_update(args), observer);
+            }
+            Event::AudioOutputOpenError { id, error } => {
+                let a_id = audio_output_id(id);
+
+                let args = RawAudioOutputOpenErrorArgs::now(a_id, error);
+                self.notify_event(RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT.new_update(args), observer);
             }
 
             Event::AccessInit { window: w_id } => {

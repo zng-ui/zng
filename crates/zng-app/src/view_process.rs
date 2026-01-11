@@ -25,7 +25,8 @@ use zng_view_api::{
     self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen, ViewProcessInfo,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError},
     audio::{
-        AudioDecoded, AudioId, AudioMetadata, AudioMix, AudioOutputConfig, AudioOutputId, AudioOutputRequest, AudioOutputUpdateRequest, AudioPlayId, AudioPlayRequest, AudioRequest
+        AudioDecoded, AudioId, AudioMetadata, AudioMix, AudioOutputConfig, AudioOutputId as ApiAudioOutputId, AudioOutputOpenData,
+        AudioOutputRequest, AudioOutputUpdateRequest, AudioPlayId, AudioPlayRequest, AudioRequest,
     },
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse, Notification, NotificationResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
@@ -422,6 +423,19 @@ impl VIEW_PROCESS {
 
         (win, data)
     }
+
+    pub(crate) fn on_audio_output_opened(&self, output_id: AudioOutputId, data: AudioOutputOpenData) -> ViewAudioOutput {
+        let mut app = self.write();
+        let _ = app.check_generation();
+
+        ViewAudioOutput(Arc::new(ViewAudioOutputData {
+            app_id: APP.id().unwrap(),
+            id: ApiAudioOutputId::from_raw(output_id.get()),
+            generation: app.data_generation,
+            data,
+        }))
+    }
+
     /// Translate input device ID, generates a device id if it was unknown.
     pub(super) fn input_device_id(&self, id: ApiDeviceId) -> InputDeviceId {
         *self.write().input_device_ids.entry(id).or_insert_with(InputDeviceId::new_unique)
@@ -1098,11 +1112,12 @@ impl From<ViewHeadless> for ViewWindowOrHeadless {
 #[derive(Debug)]
 struct ViewAudioOutputData {
     app_id: AppId,
-    id: AudioOutputId,
+    id: ApiAudioOutputId,
     generation: ViewProcessGen,
+    data: AudioOutputOpenData,
 }
 impl ViewAudioOutputData {
-    fn call<R>(&self, f: impl FnOnce(AudioOutputId, &mut Controller) -> Result<R>) -> Result<R> {
+    fn call<R>(&self, f: impl FnOnce(ApiAudioOutputId, &mut Controller) -> Result<R>) -> Result<R> {
         let mut app = VIEW_PROCESS.handle_write(self.app_id);
         if app.check_generation() {
             Err(ChannelError::disconnected())
@@ -1135,8 +1150,13 @@ impl ViewAudioOutput {
     }
 
     /// Update state, volume, speed.
-    pub fn update(&self, cfg: AudioOutputConfig) {
-        self.0.call(|id, p| p.update_audio_output(AudioOutputUpdateRequest::new(id, cfg)));
+    pub fn update(&self, cfg: AudioOutputConfig) -> Result<()> {
+        self.0.call(|id, p| p.update_audio_output(AudioOutputUpdateRequest::new(id, cfg)))
+    }
+
+    /// Audio output stream data.
+    pub fn data(&self) -> &AudioOutputOpenData {
+        &self.0.data
     }
 }
 
@@ -1728,5 +1748,66 @@ impl WeakViewAudioHandle {
     /// Returns `Some` if the is at least another [`ViewAudioHandle`] holding the audio alive.
     pub fn upgrade(&self) -> Option<ViewAudioHandle> {
         self.0.upgrade().map(|h| ViewAudioHandle(Some(h)))
+    }
+}
+
+zng_unique_id::unique_id_32! {
+    /// Unique identifier of an open audio output.
+    ///
+    /// # Name
+    ///
+    /// IDs are only unique for the same process.
+    /// You can associate a [`name`] with an ID to give it a persistent identifier.
+    ///
+    /// [`name`]: AudioOutputId::name
+    pub struct AudioOutputId;
+}
+zng_unique_id::impl_unique_id_name!(AudioOutputId);
+zng_unique_id::impl_unique_id_fmt!(AudioOutputId);
+zng_unique_id::impl_unique_id_bytemuck!(AudioOutputId);
+zng_var::impl_from_and_into_var! {
+    /// Calls [`AudioOutputId::named`].
+    fn from(name: &'static str) -> AudioOutputId {
+        AudioOutputId::named(name)
+    }
+    /// Calls [`AudioOutputId::named`].
+    fn from(name: String) -> AudioOutputId {
+        AudioOutputId::named(name)
+    }
+    /// Calls [`AudioOutputId::named`].
+    fn from(name: std::borrow::Cow<'static, str>) -> AudioOutputId {
+        AudioOutputId::named(name)
+    }
+    /// Calls [`AudioOutputId::named`].
+    fn from(name: char) -> AudioOutputId {
+        AudioOutputId::named(name)
+    }
+    /// Calls [`AudioOutputId::named`].
+    fn from(name: Txt) -> AudioOutputId {
+        AudioOutputId::named(name)
+    }
+
+    fn from(some: AudioOutputId) -> Option<AudioOutputId>;
+}
+impl serde::Serialize for AudioOutputId {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let name = self.name();
+        if name.is_empty() {
+            use serde::ser::Error;
+            return Err(S::Error::custom("cannot serialize unnamed `AudioOutputId`"));
+        }
+        name.serialize(serializer)
+    }
+}
+impl<'de> serde::Deserialize<'de> for AudioOutputId {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let name = Txt::deserialize(deserializer)?;
+        Ok(AudioOutputId::named(name))
     }
 }

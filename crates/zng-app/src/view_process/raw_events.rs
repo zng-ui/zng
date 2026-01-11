@@ -33,7 +33,7 @@ use zng_view_api::{
 
 use crate::{
     event::{event, event_args},
-    view_process::ViewAudioHandle,
+    view_process::{AudioOutputId, ViewAudioHandle, ViewAudioOutput},
     window::{MonitorId, WindowId},
 };
 
@@ -629,6 +629,37 @@ event_args! {
         }
     }
 
+    /// Arguments for the [`RAW_AUDIO_OUTPUT_OPEN_EVENT`].
+    pub struct RawAudioOutputOpenArgs {
+        /// Output that finished opening.
+        pub output_id: AudioOutputId,
+
+        /// Live connection to audio output stream.
+        pub output: ViewAudioOutput,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
+    /// Arguments for the [`RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT`].
+    pub struct RawAudioOutputOpenErrorArgs {
+        /// Output that failed to open.
+        pub output_id: AudioOutputId,
+        /// Error opening output.
+        pub error: Txt,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
     /// [`RAW_FONT_CHANGED_EVENT`] arguments.
     pub struct RawFontChangedArgs {
 
@@ -904,6 +935,12 @@ event! {
 
     /// Image failed to load.
     pub static RAW_AUDIO_DECODE_ERROR_EVENT: RawAudioDecodeErrorArgs;
+
+    /// Audio output stream opened.
+    pub static RAW_AUDIO_OUTPUT_OPEN_EVENT: RawAudioOutputOpenArgs;
+
+    /// Audio output stream failed to open.
+    pub static RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT: RawAudioOutputOpenErrorArgs;
 
     /// System low memory warning, some platforms may kill the app if it does not release memory.
     pub static LOW_MEMORY_EVENT: LowMemoryArgs;

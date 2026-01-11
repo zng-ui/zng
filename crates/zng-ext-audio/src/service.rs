@@ -1,17 +1,23 @@
 use std::{
     env, mem,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
-use crate::types::*;
+use crate::{AudioOutput, AudioOutputData, AudioOutputId, types::*};
 use parking_lot::Mutex;
 use task::io::AsyncReadExt;
 use zng_app::{
     APP,
-    update::EventUpdate,
+    update::{EventUpdate, UPDATES},
     view_process::{
-        VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewAudioHandle,
-        raw_events::{LOW_MEMORY_EVENT, RAW_AUDIO_DECODE_ERROR_EVENT, RAW_AUDIO_DECODED_EVENT, RAW_AUDIO_METADATA_DECODED_EVENT},
+        VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewAudioHandle, ViewAudioOutput,
+        raw_events::{
+            LOW_MEMORY_EVENT, RAW_AUDIO_DECODE_ERROR_EVENT, RAW_AUDIO_DECODED_EVENT, RAW_AUDIO_METADATA_DECODED_EVENT,
+            RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT, RAW_AUDIO_OUTPUT_OPEN_EVENT,
+        },
     },
     widget::UiTaskWidget,
 };
@@ -20,9 +26,12 @@ use zng_task::{self as task, channel::IpcBytesCast};
 use zng_task::{UiTask, channel::IpcBytes};
 use zng_txt::{ToTxt, Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap};
-use zng_unit::{ByteLength, ByteUnits};
-use zng_var::{Var, WeakVar, const_var, var};
-use zng_view_api::audio::{AudioDecoded, AudioId, AudioMetadata, AudioRequest, AudioTrackMetadata};
+use zng_unit::{ByteLength, ByteUnits as _, FactorUnits as _};
+use zng_var::{ResponderVar, ResponseVar, Var, WeakVar, const_var, response_done_var, response_var, var};
+use zng_view_api::audio::{
+    AudioDecoded, AudioId, AudioMetadata, AudioMix, AudioOutputConfig, AudioOutputId as ViewAudioOutputId, AudioOutputRequest,
+    AudioOutputState, AudioRequest, AudioTrackMetadata,
+};
 
 app_local! {
     static AUDIOS_SV: AudiosService = {
@@ -35,7 +44,6 @@ struct AudioData {
     format: AudioDataFormat,
     r: std::result::Result<IpcBytes, Txt>,
 }
-
 struct AudioLoadingTask {
     task: Mutex<UiTask<AudioData>>,
     audio: Var<AudioTrack>,
@@ -43,24 +51,31 @@ struct AudioLoadingTask {
     key: AudioHash,
     options: AudioOptions,
 }
-
 struct AudioDecodingTask {
     format: AudioDataFormat,
     data: IpcBytes,
     audio: Var<AudioTrack>,
 }
-
 struct CacheEntry {
     audio: Var<AudioTrack>,
     error: AtomicBool,
     max_decoded_len: ByteLength,
     tracks: AudioTracksMode,
 }
-
 struct NotCachedEntry {
     audio: WeakVar<AudioTrack>,
     max_decoded_len: ByteLength,
     tracks: AudioTracksMode,
+}
+struct OutputRequest {
+    r: ResponderVar<AudioOutput>,
+    cache: bool,
+}
+struct CachedOutputEntry {
+    output: AudioOutput,
+}
+struct NotCachedOutputEntry {
+    output: std::sync::Weak<AudioOutputData>,
 }
 
 struct AudiosService {
@@ -74,6 +89,12 @@ struct AudiosService {
     decoding: Vec<AudioDecodingTask>,
     cache: IdMap<AudioHash, CacheEntry>,
     not_cached: Vec<NotCachedEntry>,
+
+    output_requests: Vec<(AudioOutputId, OutputRequest)>,
+    output_opening: Vec<(AudioOutputId, OutputRequest)>,
+    outputs: IdMap<AudioOutputId, CachedOutputEntry>,
+    not_cached_outputs: IdMap<AudioOutputId, NotCachedOutputEntry>,
+    cue: Vec<(ViewAudioOutput, AudioMix)>,
 }
 
 pub(crate) fn load_in_headless() -> Var<bool> {
@@ -130,9 +151,30 @@ pub(crate) fn on_app_event_preview(update: &mut EventUpdate) {
             }
             // else is loading will flag on the pos update pass
         }
-    }
-
-    if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
+    } else if let Some(args) = RAW_AUDIO_OUTPUT_OPEN_EVENT.on(update) {
+        let mut audios = AUDIOS_SV.write();
+        if let Some(i) = audios.output_opening.iter().position(|(id, _)| *id == args.output_id) {
+            let (id, r) = audios.output_opening.swap_remove(i);
+            let output = AudioOutput::new(id, Some(args.output.clone()));
+            if r.cache {
+                audios.outputs.insert(id, CachedOutputEntry { output: output.clone() });
+            } else {
+                audios.not_cached_outputs.insert(
+                    id,
+                    NotCachedOutputEntry {
+                        output: Arc::downgrade(&output.0),
+                    },
+                );
+            }
+            r.r.respond(output);
+        }
+    } else if let Some(args) = RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT.on(update) {
+        let audios = AUDIOS_SV.write();
+        if let Some(_i) = audios.output_opening.iter().position(|(id, _)| *id == args.output_id) {
+            tracing::error!("error opening audio output, {}", args.error);
+            // it will respawn? what does windows service
+        }
+    } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
         let mut audios = AUDIOS_SV.write();
         let audios = &mut *audios;
         audios.cleanup_not_cached(true);
@@ -362,6 +404,36 @@ pub(crate) fn on_app_update() {
             retain
         })
     });
+
+    let mut respawn_requests = vec![];
+    for (id, r) in audios.output_requests.drain(..) {
+        let cfg = AudioOutputConfig::new(AudioOutputState::Playing, 1.fct(), 1.fct());
+        if VIEW_PROCESS
+            .open_audio_output(AudioOutputRequest::new(ViewAudioOutputId::from_raw(id.get()), cfg))
+            .is_ok()
+        {
+            audios.output_opening.push((id, r));
+        } else {
+            // will reopen on respawn
+            respawn_requests.push((id, r));
+        }
+    }
+    audios.output_requests.extend(respawn_requests);
+
+    for o in audios.outputs.values() {
+        o.output.update();
+    }
+    audios.not_cached_outputs.retain(|_, o| match o.output.upgrade() {
+        Some(o) => {
+            AudioOutput(o).update();
+            true
+        }
+        None => false,
+    });
+
+    for (view, mix) in audios.cue.drain(..) {
+        let _ = view.cue(mix);
+    }
 }
 
 /// Associate the `handle` with the `key` or return it with the already existing audio if the `key` already has an track.
@@ -675,6 +747,11 @@ impl AudiosService {
             download_accept: Txt::from_static(""),
             cache: IdMap::new(),
             not_cached: vec![],
+            output_requests: vec![],
+            output_opening: vec![],
+            outputs: IdMap::new(),
+            not_cached_outputs: IdMap::new(),
+            cue: vec![],
         }
     }
 
@@ -809,4 +886,33 @@ pub(crate) fn purge_all() {
 
 pub(crate) fn extend(extension: Box<dyn AudiosExtension + 'static>) {
     AUDIOS_SV.write().extensions.push(extension);
+}
+
+pub(crate) fn open_output(id: AudioOutputId, try_existing: bool, cache: bool) -> ResponseVar<AudioOutput> {
+    let mut s = AUDIOS_SV.write();
+    if try_existing {
+        if let Some(r) = s.outputs.get(&id) {
+            return response_done_var(r.output.clone());
+        }
+        if let Some(r) = s.not_cached_outputs.get(&id)
+            && let Some(r) = r.output.upgrade()
+        {
+            return response_done_var(AudioOutput(r));
+        }
+        for (i, r) in &s.output_requests {
+            if *i == id {
+                return r.r.response_var();
+            }
+        }
+    }
+
+    let (responder, r) = response_var();
+    s.output_requests.push((id, OutputRequest { r: responder, cache }));
+    UPDATES.update(None);
+    r
+}
+
+pub(crate) fn cue(view: ViewAudioOutput, audio: AudioMix) {
+    AUDIOS_SV.write().cue.push((view, audio));
+    UPDATES.update(None);
 }
