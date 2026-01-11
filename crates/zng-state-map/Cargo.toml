@@ -1,6 +1,6 @@
 [package]
 name = "zng-state-map"
-version = "0.9.1"
+version = "0.9.2"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,7 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-unique-id = { path = "../zng-unique-id", version = "0.10.1", default-features = false }
+zng-unique-id = { path = "../zng-unique-id", version = "0.10.2", default-features = false }
 
 bytemuck = { version = "1.15", default-features = false }
 pretty-type-name = { version = "1.0", default-features = false }

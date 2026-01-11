@@ -1,6 +1,6 @@
 [package]
 name = "zng-layout"
-version = "0.9.2"
+version = "0.9.3"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,9 +12,9 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-unit = { path = "../zng-unit", version = "0.5.3", default-features = false }
-zng-var = { path = "../zng-var", version = "0.12.1", default-features = false }
-zng-app-context = { path = "../zng-app-context", version = "0.11.1", default-features = false }
+zng-unit = { path = "../zng-unit", version = "0.5.4", default-features = false }
+zng-var = { path = "../zng-var", version = "0.12.2", default-features = false }
+zng-app-context = { path = "../zng-app-context", version = "0.11.2", default-features = false }
 
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
 bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
