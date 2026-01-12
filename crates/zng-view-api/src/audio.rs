@@ -254,7 +254,7 @@ impl AudioFormat {
     /// File extensions comparison ignores dot and ASCII case.
     pub fn matches(&self, f: &str) -> bool {
         let f = f.strip_prefix('.').unwrap_or(f);
-        let f = f.strip_prefix("image/").unwrap_or(f);
+        let f = f.strip_prefix("audio/").unwrap_or(f);
         self.media_type_suffixes_iter().any(|e| e.eq_ignore_ascii_case(f)) || self.file_extensions_iter().any(|e| e.eq_ignore_ascii_case(f))
     }
 }
