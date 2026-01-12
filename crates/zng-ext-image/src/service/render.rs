@@ -2,6 +2,7 @@ use std::{any::Any, sync::Arc};
 
 use zng_app::{
     update::{EventUpdate, UPDATES},
+    view_process::ViewImageHandle,
     widget::{
         WIDGET,
         node::{IntoUiNode, UiNode, UiNodeOp, match_node},
@@ -14,7 +15,9 @@ use zng_state_map::{StateId, static_id};
 use zng_var::{IntoVar, Var, WeakVar, var};
 use zng_view_api::{image::ImageMaskMode, window::RenderMode};
 
-use crate::{IMAGES, IMAGES_SV, ImageManager, ImageRenderArgs, ImageSource, ImageVar, ImagesService, Img};
+use crate::{IMAGES, ImageEntry, ImageRenderArgs, ImageSource, ImageVar};
+
+use super::{IMAGES_SV, ImagesService};
 
 impl ImagesService {
     fn render<N, R>(&mut self, mask: Option<ImageMaskMode>, render: N) -> ImageVar
@@ -22,7 +25,7 @@ impl ImagesService {
         N: FnOnce() -> R + Send + Sync + 'static,
         R: ImageRenderWindowRoot,
     {
-        let result = var(Img::new_none(None));
+        let result = var(ImageEntry::new_loading(ViewImageHandle::dummy()));
         let windows = self.render.windows();
         self.render_img(
             mask,
@@ -41,7 +44,7 @@ impl ImagesService {
         N: FnOnce() -> UiNode + Send + Sync + 'static,
     {
         let scale_factor = scale_factor.into();
-        let result = var(Img::new_none(None));
+        let result = var(ImageEntry::new_loading(ViewImageHandle::dummy()));
         let windows = self.render.windows();
         self.render_img(
             mask,
@@ -56,7 +59,7 @@ impl ImagesService {
         result.read_only()
     }
 
-    pub(super) fn render_img<N>(&mut self, mask: Option<ImageMaskMode>, render: N, result: &Var<Img>)
+    pub(super) fn render_img<N>(&mut self, mask: Option<ImageMaskMode>, render: N, result: &Var<ImageEntry>)
     where
         N: FnOnce() -> Box<dyn ImageRenderWindowRoot> + Send + Sync + 'static,
     {
@@ -213,18 +216,17 @@ impl IMAGES_WINDOW {
     }
 }
 
-impl ImageManager {
+impl ImagesService {
     /// AppExtension::update
     pub(super) fn update_render(&mut self) {
-        let mut images = IMAGES_SV.write();
+        // update render
+        if !self.render.active.is_empty() {
+            let windows = self.render.windows();
 
-        if !images.render.active.is_empty() {
-            let windows = images.render.windows();
-
-            images.render.active.retain(|r| {
+            self.render.active.retain(|r| {
                 let mut retain = false;
                 if let Some(img) = r.image.upgrade() {
-                    retain = img.with(Img::is_loading) || r.retain.get();
+                    retain = img.with(ImageEntry::is_loading) || r.retain.get();
                 }
 
                 if !retain {
@@ -234,11 +236,10 @@ impl ImageManager {
                 retain
             });
         }
+        if !self.render.requests.is_empty() {
+            let windows = self.render.windows();
 
-        if !images.render.requests.is_empty() {
-            let windows = images.render.windows();
-
-            for req in images.render.requests.drain(..) {
+            for req in self.render.requests.drain(..) {
                 if let Some(img) = req.image.upgrade() {
                     let windows_in = windows.clone_boxed();
                     windows.open_headless_window(Box::new(move || {
@@ -265,11 +266,10 @@ impl ImageManager {
     }
 
     /// AppExtension::event_preview
-    pub(super) fn event_preview_render(&mut self, update: &EventUpdate) {
-        let imgs = IMAGES_SV.read();
-        if !imgs.render.active.is_empty()
-            && let Some((id, img)) = imgs.render.windows().on_frame_image_ready(update)
-            && let Some(a) = imgs.render.active.iter().find(|a| a.window_id == id)
+    pub(super) fn event_preview_render(&self, update: &EventUpdate) {
+        if !self.render.active.is_empty()
+            && let Some((id, img)) = self.render.windows().on_frame_image_ready(update)
+            && let Some(a) = self.render.active.iter().find(|a| a.window_id == id)
             && let Some(img_var) = a.image.upgrade()
         {
             img_var.set(img.clone());
@@ -292,13 +292,13 @@ impl ImagesRender {
 
 struct ActiveRenderer {
     window_id: WindowId,
-    image: WeakVar<Img>,
+    image: WeakVar<ImageEntry>,
     retain: Var<bool>,
 }
 
 struct RenderRequest {
     render: Box<dyn FnOnce() -> Box<dyn ImageRenderWindowRoot> + Send + Sync>,
-    image: WeakVar<Img>,
+    image: WeakVar<ImageEntry>,
     mask: Option<ImageMaskMode>,
 }
 
@@ -391,7 +391,7 @@ pub trait ImageRenderWindowsService: Send + Sync + 'static {
     fn open_headless_window(&self, new_window_root: Box<dyn FnOnce() -> Box<dyn ImageRenderWindowRoot> + Send>);
 
     /// Returns the rendered frame image if it is ready for reading.
-    fn on_frame_image_ready(&self, update: &EventUpdate) -> Option<(WindowId, Img)>;
+    fn on_frame_image_ready(&self, update: &EventUpdate) -> Option<(WindowId, ImageEntry)>;
 
     /// Close the window, does nothing if the window is not found.
     fn close_window(&self, window_id: WindowId);

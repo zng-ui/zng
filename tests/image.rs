@@ -3,14 +3,14 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-use zng::{image::Img, prelude::*};
+use zng::{image::ImageEntry, prelude::*};
 
 #[test]
 fn error_view_recursion() {
     let mut app = APP.defaults().run_headless(false);
     zng_app::test_log();
 
-    let img = var(Img::dummy(Some("test error".to_txt()))).read_only();
+    let img = var(ImageEntry::new_empty("test error".to_txt())).read_only();
 
     zng::image::IMAGES.load_in_headless().set(true);
     let ok = Arc::new(AtomicBool::new(false));

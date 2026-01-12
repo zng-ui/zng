@@ -407,7 +407,7 @@ impl INSPECTOR {
                     )+};
                 }
                     w! {
-                        CONSTRAINTS, constraints; // TODO track each constraint metric
+                        CONSTRAINTS, constraints;
                         CONSTRAINTS, inline_constraints;
                         CONSTRAINTS, z_constraints;
                         FONT_SIZE, font_size;

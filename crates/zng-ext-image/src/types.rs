@@ -1,13 +1,13 @@
 use std::{
+    any::Any,
     env, fmt, fs, io, mem, ops,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
-use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 use zng_app::{
-    view_process::{EncodeError, ViewImage, ViewRenderer},
+    view_process::{EncodeError, VIEW_PROCESS, ViewImageHandle, ViewRenderer},
     window::WindowId,
 };
 use zng_color::{
@@ -16,239 +16,423 @@ use zng_color::{
 };
 use zng_layout::{
     context::{LAYOUT, LayoutMetrics, LayoutPassId},
-    unit::{ByteLength, ByteUnits, FactorUnits as _, LayoutAxis, Px, PxDensity2d, PxLine, PxPoint, PxRect, PxSize},
+    unit::{ByteLength, ByteUnits, FactorUnits as _, LayoutAxis, Px, PxDensity2d, PxLine, PxPoint, PxRect, PxSize, about_eq},
 };
-use zng_task::{self as task, SignalOnce, channel::IpcBytes};
+use zng_task::{
+    self as task,
+    channel::{IpcBytes, IpcBytesMut},
+};
 use zng_txt::Txt;
-use zng_var::{Var, animation::Transitionable, impl_from_and_into_var};
-use zng_view_api::image::ImageTextureId;
+use zng_var::{Var, VarEq, animation::Transitionable, impl_from_and_into_var};
+use zng_view_api::image::{ImageDecoded, ImageEncodeRequest, ImageId, ImageMetadata, ImageTextureId};
 
-use crate::render::ImageRenderWindowRoot;
+use crate::ImageRenderWindowRoot;
 
-pub use zng_view_api::image::{ImageDataFormat, ImageDownscale, ImageMaskMode};
+pub use zng_view_api::image::{
+    ColorType, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageFormat, ImageFormatCapability, ImageMaskMode,
+    PartialImageKind,
+};
 
-/// A custom proxy in [`IMAGES`].
+/// A custom extension for the [`IMAGES`] service.
 ///
-/// Implementers can intercept cache requests and redirect to another cache request or returns an image directly.
+/// Extensions can intercept and modify requests.
 ///
-/// The methods on this API are synchronous, implementers that do any potential slow processing must output
-/// a *loading* [`ImageVar`] immediately and update it with the finished pixels when ready.
-///
-/// [`IMAGES`]: super::IMAGES
-pub trait ImageCacheProxy: Send + Sync {
-    /// Intercept a get request.
-    fn get(
-        &mut self,
-        key: &ImageHash,
-        source: &ImageSource,
-        mode: ImageCacheMode,
-        downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskMode>,
-    ) -> ProxyGetResult {
-        let r = match source {
-            ImageSource::Data(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask, false),
-            _ => return ProxyGetResult::None,
-        };
-        match r {
-            Some(img) => ProxyGetResult::Image(img),
-            None => ProxyGetResult::None,
-        }
+/// [`IMAGES`]: crate::IMAGES
+pub trait ImagesExtension: Send + Sync + Any {
+    /// Modify a [`IMAGES.image`] request.
+    ///
+    /// Note that all other request methods are shorthand helpers so this will be called for every request.
+    ///
+    /// Note that the [`IMAGES`] service can be used in extensions and [`ImageSource::Image`] is returned directly by the service.
+    /// This can be used to fully replace a request here.
+    ///
+    /// [`IMAGES.image`]: crate::IMAGES::image
+    /// [`IMAGES`]: crate::IMAGES
+    fn image(&mut self, limits: &ImageLimits, source: &mut ImageSource, options: &mut ImageOptions) {
+        let _ = (limits, source, options);
     }
 
-    /// Intercept a [`Data`] request.
+    /// Image data loaded.
     ///
-    /// If [`is_data_proxy`] also intercept the [`Read`] or [`Download`] data.
+    /// This is called for [`ImageSource::Read`], [`ImageSource::Download`] and [`ImageSource::Data`] after the data is loaded and before
+    /// decoding starts.
     ///
-    /// If `is_loaded` is `true` the data was read or downloaded and the return var will be bound to an existing var that may already be cached.
-    /// If it is `false` the data was already loaded on the source and the return var will be returned directly, without caching.
+    /// Return a replacement variable to skip decoding or redirect to a different image. Note that by the time this is called the service
+    /// has already returned a variable in loading state, that variable will be cached according to `mode`. The replacement variable
+    /// is bound to the return variable and lives as long as it does.
     ///
+    /// Note that the [`IMAGES`] service can be used in extensions.
     ///
-    /// [`Data`]: ImageSource::Data
-    /// [`is_data_proxy`]: ImageCacheProxy::is_data_proxy
-    /// [`Read`]: ImageSource::Read
-    /// [`Download`]: ImageSource::Download
+    /// [`IMAGES`]: crate::IMAGES
     #[allow(clippy::too_many_arguments)]
-    fn data(
+    fn image_data(
         &mut self,
+        max_decoded_len: ByteLength,
         key: &ImageHash,
-        data: &[u8],
-        image_format: &ImageDataFormat,
-        mode: ImageCacheMode,
-        downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskMode>,
-        is_loaded: bool,
+        data: &IpcBytes,
+        format: &ImageDataFormat,
+        options: &ImageOptions,
     ) -> Option<ImageVar> {
-        let _ = (key, data, image_format, mode, downscale, mask, is_loaded);
+        let _ = (max_decoded_len, key, data, format, options);
         None
     }
 
-    /// Intercept a remove request.
-    fn remove(&mut self, key: &ImageHash, purge: bool) -> ProxyRemoveResult {
+    /// Modify a [`IMAGES.clean`] or [`IMAGES.purge`] request.
+    ///
+    /// Return `false` to cancel the removal.
+    ///
+    /// [`IMAGES.clean`]: crate::IMAGES::clean
+    /// [`IMAGES.purge`]: crate::IMAGES::purge
+    fn remove(&mut self, key: &mut ImageHash, purge: &mut bool) -> bool {
         let _ = (key, purge);
-        ProxyRemoveResult::None
+        true
     }
 
-    /// Called when the cache is cleaned or purged.
+    /// Called on [`IMAGES.clean_all`] and [`IMAGES.purge_all`].
+    ///
+    /// These operations cannot be intercepted, the service cache will be cleaned after this call.
+    ///
+    /// [`IMAGES.clean_all`]: crate::IMAGES::clean_all
+    /// [`IMAGES.purge_all`]: crate::IMAGES::purge_all
     fn clear(&mut self, purge: bool) {
         let _ = purge;
     }
 
-    /// If this proxy only handles [`Data`] sources.
+    /// Add or remove formats this extension affects.
     ///
-    /// When this is `true` the [`get`] call is delayed to after [`Read`] and [`Download`] have loaded the data
-    /// and is skipped for [`Render`] and [`Image`].
+    /// The `formats` value starts with all formats implemented by the current view-process and will be returned
+    /// by [`IMAGES.available_formats`] after all proxies edit it.
     ///
-    /// This is `false` by default.
-    ///
-    /// [`get`]: ImageCacheProxy::get
-    /// [`Data`]: ImageSource::Data
-    /// [`Read`]: ImageSource::Read
-    /// [`Download`]: ImageSource::Download
-    /// [`Render`]: ImageSource::Render
-    /// [`Image`]: ImageSource::Image
-    fn is_data_proxy(&self) -> bool {
-        false
+    /// [`IMAGES.available_formats`]: crate::IMAGES::available_formats
+    fn available_formats(&self, formats: &mut Vec<ImageFormat>) {
+        let _ = formats;
     }
 }
 
-/// Result of an [`ImageCacheProxy`] *get* redirect.
-pub enum ProxyGetResult {
-    /// Proxy does not intercept the request.
-    ///
-    /// The cache checks other proxies and fulfills the request if no proxy intercepts.
-    None,
-    /// Load and cache using the replacement source.
-    Cache(ImageSource, ImageCacheMode, Option<ImageDownscale>, Option<ImageMaskMode>),
-    /// Return the image instead of hitting the cache.
-    Image(ImageVar),
-}
-
-/// Result of an [`ImageCacheProxy`] *remove* redirect.
-pub enum ProxyRemoveResult {
-    /// Proxy does not intercept the request.
-    ///
-    /// The cache checks other proxies and fulfills the request if no proxy intercepts.
-    None,
-    /// Removes another cached entry.
-    ///
-    /// The `bool` indicates if the entry should be purged.
-    Remove(ImageHash, bool),
-    /// Consider the request fulfilled.
-    Removed,
-}
-
-/// Represents an [`Img`] tracked by the [`IMAGES`] cache.
+/// Represents an [`ImageEntry`] tracked by the [`IMAGES`] cache.
 ///
 /// The variable updates when the image updates.
 ///
 /// [`IMAGES`]: super::IMAGES
-pub type ImageVar = Var<Img>;
+pub type ImageVar = Var<ImageEntry>;
+
+#[derive(Default, Debug)]
+struct ImgMut {
+    render_ids: Vec<RenderImage>,
+}
 
 /// State of an [`ImageVar`].
 ///
-/// Each instance of this struct represent a single state,
+/// [`IMAGES`]: crate::IMAGES
 #[derive(Debug, Clone)]
-pub struct Img {
-    // use inner_set_or_replace to set
-    pub(super) view: OnceCell<ViewImage>,
-    render_ids: Arc<Mutex<Vec<RenderImage>>>,
-    pub(super) done_signal: SignalOnce,
-    pub(super) cache_key: Option<ImageHash>,
+pub struct ImageEntry {
+    pub(crate) cache_key: Option<ImageHash>,
+
+    pub(crate) handle: ViewImageHandle,
+    data: ImageDecoded,
+    entries: Vec<VarEq<ImageEntry>>,
+
+    error: Txt,
+
+    img_mut: Arc<Mutex<ImgMut>>,
 }
-impl PartialEq for Img {
+impl PartialEq for ImageEntry {
     fn eq(&self, other: &Self) -> bool {
-        self.view == other.view
+        self.handle == other.handle
+            && self.cache_key == other.cache_key
+            && self.error == other.error
+            && self.data == other.data
+            && self.entries == other.entries
     }
 }
-impl Img {
-    pub(super) fn new_none(cache_key: Option<ImageHash>) -> Self {
-        Img {
-            view: OnceCell::new(),
-            render_ids: Arc::default(),
-            done_signal: SignalOnce::new(),
-            cache_key,
-        }
+impl ImageEntry {
+    pub(super) fn new_cached(cache_key: ImageHash) -> Self {
+        let mut s = Self::new_loading(ViewImageHandle::dummy());
+        s.cache_key = Some(cache_key);
+        s
     }
 
-    /// New from existing `ViewImage`.
-    pub fn new(view: ViewImage) -> Self {
-        let sig = view.awaiter();
-        let v = OnceCell::new();
-        let _ = v.set(view);
-        Img {
-            view: v,
-            render_ids: Arc::default(),
-            done_signal: sig,
+    pub(super) fn new_loading(handle: ViewImageHandle) -> Self {
+        Self {
             cache_key: None,
+            handle,
+            data: ImageDecoded::new(
+                ImageMetadata::new(ImageId::INVALID, PxSize::zero(), false, ColorType::BGRA8),
+                IpcBytes::default(),
+                true,
+            ),
+            entries: vec![],
+            error: Txt::from_static(""),
+            img_mut: Arc::default(),
         }
     }
 
-    /// Create a dummy image in the loaded or error state.
-    pub fn dummy(error: Option<Txt>) -> Self {
-        Self::new(ViewImage::dummy(error))
+    /// New from existing view image.
+    pub(super) fn new(handle: ViewImageHandle, data: ImageDecoded) -> Self {
+        Self {
+            cache_key: None,
+            handle,
+            data,
+            entries: vec![],
+            error: Txt::from_static(""),
+            img_mut: Arc::default(),
+        }
+    }
+
+    /// Create a dummy image in the loading or error state.
+    ///
+    /// Note that you can use the [`IMAGES.register`] method to integrate with images from other sources. The intention
+    /// of this function is creating an initial loading image or an error message image.
+    ///
+    /// [`IMAGES.register`]: crate::IMAGES::register
+    pub fn new_empty(error: Txt) -> Self {
+        let mut s = Self::new_loading(ViewImageHandle::dummy());
+        s.error = error;
+        s
     }
 
     /// Returns `true` if the is still acquiring or decoding the image bytes.
     pub fn is_loading(&self) -> bool {
-        match self.view.get() {
-            Some(v) => !v.is_loaded() && !v.is_error(),
-            None => true,
-        }
+        self.error.is_empty() && (self.data.pixels.is_empty() || self.data.partial.is_some())
     }
 
-    /// If the image is successfully loaded in the view-process.
+    /// If the image is has finished loading ok or due to error.
+    ///
+    /// The image variable may still update after
     pub fn is_loaded(&self) -> bool {
-        match self.view.get() {
-            Some(v) => v.is_loaded(),
-            None => false,
-        }
+        !self.is_loading()
     }
 
     /// If the image failed to load.
     pub fn is_error(&self) -> bool {
-        match self.view.get() {
-            Some(v) => v.is_error(),
-            None => false,
-        }
+        !self.error.is_empty()
     }
 
     /// Returns an error message if the image failed to load.
     pub fn error(&self) -> Option<Txt> {
-        match self.view.get() {
-            Some(v) => v.error(),
-            None => None,
+        if self.error.is_empty() { None } else { Some(self.error.clone()) }
+    }
+
+    /// Pixel size of the image after it finishes loading.
+    ///
+    /// Note that this value is set as soon as the header finishes decoding, but the [`pixels`] will
+    /// only be set after it the entire image decodes.
+    ///
+    /// If the view-process implements progressive decoding you can use [`partial_size`] and [`partial_pixels`]
+    /// to use the partially decoded image top rows as it decodes.
+    ///
+    /// [`pixels`]: Self::pixels
+    /// [`partial_size`]: Self::partial_size
+    /// [`partial_pixels`]: Self::partial_pixels
+    pub fn size(&self) -> PxSize {
+        self.data.meta.size
+    }
+
+    /// Size of [`partial_pixels`].
+    ///
+    /// Can be different from [`size`] if the image is progressively decoding.
+    ///
+    /// [`size`]: Self::size
+    /// [`partial_pixels`]: Self::partial_pixels
+    pub fn partial_size(&self) -> Option<PxSize> {
+        match self.data.partial.as_ref()? {
+            PartialImageKind::Placeholder { pixel_size } => Some(*pixel_size),
+            PartialImageKind::Rows { height, .. } => Some(PxSize::new(self.data.meta.size.width, *height)),
+            _ => None,
         }
     }
 
-    /// Returns a future that awaits until this image is loaded or encountered an error.
-    pub fn wait_done(&self) -> impl Future<Output = ()> + Send + Sync + 'static {
-        self.done_signal.clone()
-    }
-
-    /// Returns the image size in pixels, or zero if it is not loaded.
-    pub fn size(&self) -> PxSize {
-        self.view.get().map(|v| v.size()).unwrap_or_else(PxSize::zero)
+    /// Kind of [`partial_pixels`].
+    ///
+    /// [`partial_pixels`]: Self::partial_pixels
+    pub fn partial_kind(&self) -> Option<PartialImageKind> {
+        self.data.partial.clone()
     }
 
     /// Returns the image pixel density metadata if the image is loaded and the
     /// metadata was retrieved.
     pub fn density(&self) -> Option<PxDensity2d> {
-        self.view.get().and_then(|v| v.density())
+        self.data.meta.density
+    }
+
+    /// Image color type before it was converted to BGRA8 or A8.
+    pub fn original_color_type(&self) -> ColorType {
+        self.data.meta.original_color_type.clone()
+    }
+
+    /// Gets A8 for masks and BGRA8 for others.
+    pub fn color_type(&self) -> ColorType {
+        if self.is_mask() { ColorType::A8 } else { ColorType::BGRA8 }
     }
 
     /// Returns `true` if the image is fully opaque or it is not loaded.
     pub fn is_opaque(&self) -> bool {
-        self.view.get().map(|v| v.is_opaque()).unwrap_or(true)
+        self.data.is_opaque
     }
 
     /// Returns `true` if the image pixels are a single channel (A8).
     pub fn is_mask(&self) -> bool {
-        self.view.get().map(|v| v.is_mask()).unwrap_or(false)
+        self.data.meta.is_mask
     }
 
-    /// Connection to the image resource, if it is loaded.
-    pub fn view(&self) -> Option<&ViewImage> {
-        self.view.get().filter(|&v| v.is_loaded())
+    /// If [`entries`] is not empty.
+    ///
+    /// [`entries`]: Self::entries
+    pub fn has_entries(&self) -> bool {
+        !self.entries.is_empty()
+    }
+
+    /// Other images from the same container that are a *child* of this image.
+    pub fn entries(&self) -> Vec<ImageVar> {
+        self.entries.iter().map(|e| e.read_only()).collect()
+    }
+
+    /// All other images from the same container that are a *descendant* of this image.
+    ///
+    /// The values are a tuple of each entry and the length of descendants entries that follow it.
+    ///
+    /// The returned variable will update every time any entry descendant var updates.
+    ///
+    /// [`entries`]: Self::entries
+    pub fn flat_entries(&self) -> Var<Vec<(VarEq<ImageEntry>, usize)>> {
+        // idea here is to just rebuild the flat list on any update,
+        // assuming the image variables don't update much and tha there are not many entries
+        // this is more simple than some sort of recursive Var::flat_map_vec setup
+
+        // each entry updates this var on update
+        let update_signal = zng_var::var(());
+
+        // init value and update bindings
+        let mut out = vec![];
+        let mut update_handles = vec![];
+        self.flat_entries_init(&mut out, update_signal.clone(), &mut update_handles);
+        let out = zng_var::var(out);
+
+        // bind signal to rebuild list on update and rebind update signal
+        let self_ = self.clone();
+        let signal_weak = update_signal.downgrade();
+        update_signal
+            .bind_modify(&out, move |_, out| {
+                out.clear();
+                update_handles.clear();
+                self_.flat_entries_init(&mut *out, signal_weak.upgrade().unwrap(), &mut update_handles);
+            })
+            .perm();
+        out.hold(update_signal).perm();
+        out.read_only()
+    }
+    fn flat_entries_init(&self, out: &mut Vec<(VarEq<ImageEntry>, usize)>, update_signal: Var<()>, handles: &mut Vec<zng_var::VarHandle>) {
+        for entry in self.entries.iter() {
+            Self::flat_entries_recursive_init(entry.clone(), out, update_signal.clone(), handles);
+        }
+    }
+    fn flat_entries_recursive_init(
+        img: VarEq<ImageEntry>,
+        out: &mut Vec<(VarEq<ImageEntry>, usize)>,
+        signal: Var<()>,
+        handles: &mut Vec<zng_var::VarHandle>,
+    ) {
+        handles.push(img.hook(zng_clone_move::clmv!(signal, |_| {
+            signal.update();
+            true
+        })));
+        let i = out.len();
+        out.push((img.clone(), 0));
+        img.with(move |img| {
+            for entry in img.entries.iter() {
+                Self::flat_entries_recursive_init(entry.clone(), out, signal.clone(), handles);
+            }
+            let len = out.len() - i;
+            out[i].1 = len;
+        });
+    }
+
+    /// Kind of image entry this image is in the source container.
+    pub fn entry_kind(&self) -> ImageEntryKind {
+        match &self.data.meta.parent {
+            Some(p) => p.kind.clone(),
+            None => ImageEntryKind::Page,
+        }
+    }
+
+    /// Sort index of the image in the list of entries of the source container.
+    pub fn entry_index(&self) -> usize {
+        match &self.data.meta.parent {
+            Some(p) => p.index,
+            None => 0,
+        }
+    }
+
+    /// Calls `visit` with the image or [`ImageEntryKind::Reduced`] entry that is nearest to `size` and greater or equal to it.
+    ///
+    /// Does not call `visit` if none of the images are loaded, returns `None` in that case.
+    pub fn with_best_reduce<R>(&self, size: PxSize, visit: impl FnOnce(&ImageEntry) -> R) -> Option<R> {
+        fn cmp(target_size: PxSize, a: PxSize, b: PxSize) -> std::cmp::Ordering {
+            let target_ratio = target_size.width.0 as f32 / target_size.height.0 as f32;
+            let a_ratio = a.width.0 as f32 / b.height.0 as f32;
+            let b_ratio = b.width.0 as f32 / b.height.0 as f32;
+
+            let a_distortion = (target_ratio - a_ratio).abs();
+            let b_distortion = (target_ratio - b_ratio).abs();
+
+            if !about_eq(a_distortion, b_distortion, 0.01) && a_distortion < b_distortion {
+                // prefer a, has less distortion
+                return std::cmp::Ordering::Less;
+            }
+
+            let a_dist = a - target_size;
+            let b_dist = b - target_size;
+
+            if a_dist.width < Px(0) || a_dist.height < Px(0) {
+                if b_dist.width < Px(0) || b_dist.height < Px(0) {
+                    // a and b need upscaling, prefer near target_size
+                    a_dist.width.abs().cmp(&b_dist.width.abs())
+                } else {
+                    // prefer b, a needs upscaling
+                    std::cmp::Ordering::Greater
+                }
+            } else if b_dist.width < Px(0) || b_dist.height < Px(0) {
+                // prefer a, b needs upscaling
+                std::cmp::Ordering::Less
+            } else {
+                // a and b need downscaling, prefer near target_size
+                a_dist.width.cmp(&b_dist.width)
+            }
+        }
+
+        let mut best_i = usize::MAX;
+        let mut best_size = PxSize::zero();
+
+        if self.is_loaded() {
+            best_i = self.entries.len();
+            best_size = self.size();
+        }
+
+        for (i, entry) in self.entries.iter().enumerate() {
+            entry.with(|e| {
+                if e.is_loaded() {
+                    let entry_size = e.size();
+                    if cmp(size, entry_size, best_size).is_lt() {
+                        best_i = i;
+                        best_size = entry_size;
+                    }
+                }
+            })
+        }
+
+        if best_i == usize::MAX {
+            // image and all reduced are smaller than `size`, return the largest to reduce upscaling
+            None
+        } else if best_i == self.entries.len() {
+            Some(visit(self))
+        } else {
+            Some(self.entries[best_i].with(visit))
+        }
+    }
+
+    /// Connection to the image resource in the view-process.
+    pub fn view_handle(&self) -> ViewImageHandle {
+        self.handle.clone()
     }
 
     /// Calculate an *ideal* layout size for the image.
@@ -291,58 +475,115 @@ impl Img {
     /// Reference the decoded pre-multiplied BGRA8 pixel buffer or A8 if [`is_mask`].
     ///
     /// [`is_mask`]: Self::is_mask
-    pub fn pixels(&self) -> Option<zng_task::channel::IpcBytes> {
-        self.view.get().and_then(|v| v.pixels())
+    pub fn pixels(&self) -> Option<IpcBytes> {
+        if self.is_loaded() { Some(self.data.pixels.clone()) } else { None }
     }
 
-    /// Copy the `rect` selection from `pixels`.
+    /// Reference the partially decoded pixels if the image is progressively decoding
+    /// and has not finished decoding.
+    ///
+    /// Format is BGRA8 for normal images or A8 if [`is_mask`].
+    ///
+    /// [`is_mask`]: Self::is_mask
+    pub fn partial_pixels(&self) -> Option<IpcBytes> {
+        if self.is_loading() && self.data.partial.is_some() {
+            Some(self.data.pixels.clone())
+        } else {
+            None
+        }
+    }
+
+    fn actual_pixels_and_size(&self) -> Option<(PxSize, IpcBytes)> {
+        match (self.partial_pixels(), self.partial_size()) {
+            (Some(b), Some(s)) => Some((s, b)),
+            _ => Some((self.size(), self.pixels()?)),
+        }
+    }
+
+    /// Copy the `rect` selection from `pixels` or `partial_pixels`.
     ///
     /// The `rect` is in pixels, with the origin (0, 0) at the top-left of the image.
     ///
     /// Returns the copied selection and the pixel buffer.
     ///
     /// Note that the selection can change if `rect` is not fully contained by the image area.
-    pub fn copy_pixels(&self, rect: PxRect) -> Option<(PxRect, Vec<u8>)> {
-        self.pixels().map(|pixels| {
-            let area = PxRect::from_size(self.size()).intersection(&rect).unwrap_or_default();
+    pub fn copy_pixels(&self, rect: PxRect) -> Option<(PxRect, IpcBytesMut)> {
+        self.actual_pixels_and_size().and_then(|(size, pixels)| {
+            let area = PxRect::from_size(size).intersection(&rect).unwrap_or_default();
             if area.size.width.0 == 0 || area.size.height.0 == 0 {
-                (area, vec![])
+                Some((area, IpcBytes::new_mut_blocking(0).unwrap()))
             } else {
                 let x = area.origin.x.0 as usize;
                 let y = area.origin.y.0 as usize;
                 let width = area.size.width.0 as usize;
                 let height = area.size.height.0 as usize;
                 let pixel = if self.is_mask() { 1 } else { 4 };
-                let mut bytes = Vec::with_capacity(width * height * pixel);
+                let mut bytes = IpcBytes::new_mut_blocking(width * height * pixel).ok()?;
+                let mut write = &mut bytes[..];
                 let row_stride = self.size().width.0 as usize * pixel;
                 for l in y..y + height {
                     let line_start = l * row_stride + x * pixel;
                     let line_end = line_start + width * pixel;
                     let line = &pixels[line_start..line_end];
-                    bytes.extend_from_slice(line);
+                    write[..line.len()].copy_from_slice(line);
+                    write = &mut write[line.len()..];
                 }
-                (area, bytes)
+                Some((area, bytes))
             }
         })
     }
 
     /// Encode the image to the format.
-    pub async fn encode(&self, format: Txt) -> std::result::Result<zng_task::channel::IpcBytes, EncodeError> {
-        self.done_signal.clone().await;
-        if let Some(e) = self.error() {
-            Err(EncodeError::Encode(e))
-        } else {
-            self.view.get().unwrap().encode(format).await
+    ///
+    /// Note that [`entries`] are ignored, only this image is encoded. Use [`encode_with_entries`] to encode
+    /// multiple images in the same container.
+    ///
+    /// [`entries`]: Self::entries
+    /// [`encode_with_entries`]: Self::encode_with_entries
+    pub async fn encode(&self, format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
+        self.encode_with_entries(&[], format).await
+    }
+
+    /// Encode the images to the format.
+    ///
+    /// This image is the first *page* followed by the `entries` in the given order.
+    pub async fn encode_with_entries(
+        &self,
+        entries: &[(ImageEntry, ImageEntryKind)],
+        format: Txt,
+    ) -> std::result::Result<IpcBytes, EncodeError> {
+        if self.is_loading() {
+            if self.handle.is_dummy() {
+                return Err(EncodeError::Dummy);
+            }
+            return Err(EncodeError::Loading);
+        } else if let Some(e) = self.error() {
+            return Err(e.into());
+        }
+
+        let mut r = ImageEncodeRequest::new(self.handle.image_id(), format);
+        r.entries = entries.iter().map(|(img, kind)| (img.handle.image_id(), kind.clone())).collect();
+
+        match VIEW_PROCESS.encode_image(r).recv().await {
+            Ok(r) => r,
+            Err(_) => Err(EncodeError::Disconnected),
         }
     }
 
     /// Encode and write the image to `path`.
     ///
-    /// The image format is guessed from the file extension.
+    /// The image format is guessed from the file extension. Use [`save_with_format`] to specify the format.
+    ///
+    /// Note that [`entries`] are ignored, only this image is encoded. Use [`save_with_entries`] to encode
+    /// multiple images in the same container.
+    ///
+    /// [`entries`]: Self::entries
+    /// [`save_with_format`]: Self::save_with_format
+    /// [`save_with_entries`]: Self::save_with_entries
     pub async fn save(&self, path: impl Into<PathBuf>) -> io::Result<()> {
         let path = path.into();
         if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-            self.save_impl(Txt::from_str(ext), path).await
+            self.save_impl(&[], Txt::from_str(ext), path).await
         } else {
             Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -354,48 +595,90 @@ impl Img {
     /// Encode and write the image to `path`.
     ///
     /// The image is encoded to the `format`, the file extension can be anything.
-    pub async fn save_with_format(&self, format: Txt, path: impl Into<PathBuf>) -> io::Result<()> {
-        self.save_impl(format, path.into()).await
+    ///
+    /// Note that [`entries`] are ignored, only this image is encoded. Use [`save_with_entries`] to encode
+    /// multiple images in the same container.
+    ///
+    /// [`entries`]: Self::entries
+    /// [`save_with_entries`]: Self::save_with_entries
+    pub async fn save_with_format(&self, format: impl Into<Txt>, path: impl Into<PathBuf>) -> io::Result<()> {
+        self.save_impl(&[], format.into(), path.into()).await
     }
 
-    async fn save_impl(&self, format: Txt, path: PathBuf) -> io::Result<()> {
-        let view = self.view.get().unwrap();
-        let data = view
-            .encode(format)
-            .await
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    /// Encode and write the image to `path`.
+    ///
+    /// The image is encoded to the `format`, the file extension can be anything.
+    ///
+    /// This image is the first *page* followed by the `entries` in the given order.
+    pub async fn save_with_entries(
+        &self,
+        entries: &[(ImageEntry, ImageEntryKind)],
+        format: impl Into<Txt>,
+        path: impl Into<PathBuf>,
+    ) -> io::Result<()> {
+        self.save_impl(entries, format.into(), path.into()).await
+    }
+
+    async fn save_impl(&self, entries: &[(ImageEntry, ImageEntryKind)], format: Txt, path: PathBuf) -> io::Result<()> {
+        let data = self.encode_with_entries(entries, format).await.map_err(io::Error::other)?;
         task::wait(move || fs::write(path, &data[..])).await
     }
 
-    pub(crate) fn inner_set_or_replace(&mut self, img: ViewImage, done: bool) {
-        match self.view.set(img) {
-            Ok(()) => {
-                if done {
-                    self.done_signal.set();
-                }
+    pub(crate) fn find_entry(&self, id: zng_view_api::image::ImageId) -> Option<ImageVar> {
+        self.entries.iter().find_map(|v| {
+            if v.with(|i| i.handle.image_id() == id) {
+                Some(v.0.clone())
+            } else {
+                v.with(|i| i.find_entry(id))
             }
-            Err(img) => {
-                // this can happen on reload
-                let cache_key = self.cache_key;
-                *self = Self {
-                    view: OnceCell::with_value(img),
-                    render_ids: Arc::default(),
-                    done_signal: if done { SignalOnce::new_set() } else { SignalOnce::new() },
-                    cache_key,
-                };
-            }
-        }
+        })
+    }
+
+    pub(crate) fn has_loading_entries(&self) -> bool {
+        self.entries.iter().any(|e| e.with(|e| e.is_loading() || e.has_loading_entries()))
+    }
+
+    pub(crate) fn set_handle(&mut self, handle: ViewImageHandle) {
+        self.handle = handle;
+    }
+
+    pub(crate) fn set_data(&mut self, data: ImageDecoded) {
+        self.data = data;
+        self.error = Txt::from_static("");
+    }
+
+    pub(crate) fn set_error(&mut self, error: Txt) {
+        self.error = error;
+    }
+
+    /// Insert `entry` in [`entries`].
+    ///
+    /// [`entries`]: Self::entries
+    pub fn insert_entry(&mut self, image: ImageEntry) -> ImageVar {
+        let i = image.entry_index();
+        let i = self
+            .entries
+            .iter()
+            .position(|v| {
+                let entry_i = v.with(|i| i.entry_index());
+                entry_i > i
+            })
+            .unwrap_or(self.entries.len());
+        let entry = zng_var::var(image);
+        self.entries.insert(i, VarEq(entry.clone()));
+        entry
     }
 }
-impl zng_app::render::Img for Img {
+impl zng_app::render::Img for ImageEntry {
     fn renderer_id(&self, renderer: &ViewRenderer) -> ImageTextureId {
         if self.is_loaded() {
-            let mut rms = self.render_ids.lock();
+            let mut img = self.img_mut.lock();
+            let rms = &mut img.render_ids;
             if let Some(rm) = rms.iter().find(|k| &k.renderer == renderer) {
                 return rm.image_id;
             }
 
-            let key = match renderer.use_image(self.view.get().unwrap()) {
+            let key = match renderer.use_image(&self.handle) {
                 Ok(k) => {
                     if k == ImageTextureId::INVALID {
                         tracing::error!("received INVALID from `use_image`");
@@ -541,7 +824,6 @@ impl ImageHasher {
         // dependencies `sha2 -> digest` need to upgrade
         // https://github.com/RustCrypto/traits/issues/2036
         // https://github.com/fizyk20/generic-array/issues/158
-        #[allow(deprecated)]
         ImageHash(self.0.finalize().as_slice().try_into().unwrap())
     }
 }
@@ -623,14 +905,14 @@ impl ImageSource {
         Self::Data(hash, data, format)
     }
 
-    /// Returns the image hash, unless the source is [`Img`].
-    pub fn hash128(&self, downscale: Option<ImageDownscale>, mask: Option<ImageMaskMode>) -> Option<ImageHash> {
+    /// Returns the image hash, unless the source is [`ImageEntry`].
+    pub fn hash128(&self, options: &ImageOptions) -> Option<ImageHash> {
         match self {
-            ImageSource::Read(p) => Some(Self::hash128_read(p, downscale, mask)),
+            ImageSource::Read(p) => Some(Self::hash128_read(p, options)),
             #[cfg(feature = "http")]
-            ImageSource::Download(u, a) => Some(Self::hash128_download(u, a, downscale, mask)),
-            ImageSource::Data(h, _, _) => Some(Self::hash128_data(*h, downscale, mask)),
-            ImageSource::Render(rfn, args) => Some(Self::hash128_render(rfn, args, downscale, mask)),
+            ImageSource::Download(u, a) => Some(Self::hash128_download(u, a, options)),
+            ImageSource::Data(h, _, _) => Some(Self::hash128_data(*h, options)),
+            ImageSource::Render(rfn, args) => Some(Self::hash128_render(rfn, args, options)),
             ImageSource::Image(_) => None,
         }
     }
@@ -638,13 +920,14 @@ impl ImageSource {
     /// Compute hash for a borrowed [`Data`] image.
     ///
     /// [`Data`]: Self::Data
-    pub fn hash128_data(data_hash: ImageHash, downscale: Option<ImageDownscale>, mask: Option<ImageMaskMode>) -> ImageHash {
-        if downscale.is_some() || mask.is_some() {
+    pub fn hash128_data(data_hash: ImageHash, options: &ImageOptions) -> ImageHash {
+        if options.downscale.is_some() || options.mask.is_some() || !options.entries.is_empty() {
             use std::hash::Hash;
             let mut h = ImageHash::hasher();
             data_hash.0.hash(&mut h);
-            downscale.hash(&mut h);
-            mask.hash(&mut h);
+            options.downscale.hash(&mut h);
+            options.mask.hash(&mut h);
+            options.entries.hash(&mut h);
             h.finish()
         } else {
             data_hash
@@ -654,13 +937,14 @@ impl ImageSource {
     /// Compute hash for a borrowed [`Read`] path.
     ///
     /// [`Read`]: Self::Read
-    pub fn hash128_read(path: &Path, downscale: Option<ImageDownscale>, mask: Option<ImageMaskMode>) -> ImageHash {
+    pub fn hash128_read(path: &Path, options: &ImageOptions) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         0u8.hash(&mut h);
         path.hash(&mut h);
-        downscale.hash(&mut h);
-        mask.hash(&mut h);
+        options.downscale.hash(&mut h);
+        options.mask.hash(&mut h);
+        options.entries.hash(&mut h);
         h.finish()
     }
 
@@ -668,19 +952,15 @@ impl ImageSource {
     ///
     /// [`Download`]: Self::Download
     #[cfg(feature = "http")]
-    pub fn hash128_download(
-        uri: &crate::task::http::Uri,
-        accept: &Option<Txt>,
-        downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskMode>,
-    ) -> ImageHash {
+    pub fn hash128_download(uri: &crate::task::http::Uri, accept: &Option<Txt>, options: &ImageOptions) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         1u8.hash(&mut h);
         uri.hash(&mut h);
         accept.hash(&mut h);
-        downscale.hash(&mut h);
-        mask.hash(&mut h);
+        options.downscale.hash(&mut h);
+        options.mask.hash(&mut h);
+        options.entries.hash(&mut h);
         h.finish()
     }
 
@@ -689,19 +969,15 @@ impl ImageSource {
     /// Pointer equality is used to identify the node closure.
     ///
     /// [`Render`]: Self::Render
-    pub fn hash128_render(
-        rfn: &RenderFn,
-        args: &Option<ImageRenderArgs>,
-        downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskMode>,
-    ) -> ImageHash {
+    pub fn hash128_render(rfn: &RenderFn, args: &Option<ImageRenderArgs>, options: &ImageOptions) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         2u8.hash(&mut h);
         (Arc::as_ptr(rfn) as usize).hash(&mut h);
         args.hash(&mut h);
-        downscale.hash(&mut h);
-        mask.hash(&mut h);
+        options.downscale.hash(&mut h);
+        options.mask.hash(&mut h);
+        options.entries.hash(&mut h);
         h.finish()
     }
 }
@@ -720,7 +996,11 @@ impl ImageSource {
         }
         Self::from_data(
             b.finish_blocking().expect("cannot allocate IpcBytes"),
-            ImageDataFormat::Bgra8 { size, density },
+            ImageDataFormat::Bgra8 {
+                size,
+                density,
+                original_color_type: ColorType::RGBA8,
+            },
         )
     }
 
@@ -819,7 +1099,11 @@ impl ImageSource {
 
                 Self::from_data(
                     IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"),
-                    ImageDataFormat::Bgra8 { size, density },
+                    ImageDataFormat::Bgra8 {
+                        size,
+                        density,
+                        original_color_type: ColorType::RGBA8,
+                    },
                 )
             }
         }
@@ -917,7 +1201,11 @@ impl ImageSource {
 
                 Self::from_data(
                     IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"),
-                    ImageDataFormat::Bgra8 { size, density },
+                    ImageDataFormat::Bgra8 {
+                        size,
+                        density,
+                        original_color_type: ColorType::RGBA8,
+                    },
                 )
             }
         }
@@ -1100,6 +1388,11 @@ impl fmt::Debug for ImageCacheMode {
             Self::Retry => write!(f, "Retry"),
             Self::Reload => write!(f, "Reload"),
         }
+    }
+}
+impl_from_and_into_var! {
+    fn from(cache: bool) -> ImageCacheMode {
+        if cache { ImageCacheMode::Cache } else { ImageCacheMode::Ignore }
     }
 }
 
@@ -1334,16 +1627,16 @@ impl ImageLimits {
     /// Set the [`max_encoded_len`].
     ///
     /// [`max_encoded_len`]: Self::max_encoded_len
-    pub fn with_max_encoded_len(mut self, max_encoded_size: impl Into<ByteLength>) -> Self {
-        self.max_encoded_len = max_encoded_size.into();
+    pub fn with_max_encoded_len(mut self, max_encoded_len: impl Into<ByteLength>) -> Self {
+        self.max_encoded_len = max_encoded_len.into();
         self
     }
 
     /// Set the [`max_decoded_len`].
     ///
     /// [`max_decoded_len`]: Self::max_encoded_len
-    pub fn with_max_decoded_len(mut self, max_decoded_size: impl Into<ByteLength>) -> Self {
-        self.max_decoded_len = max_decoded_size.into();
+    pub fn with_max_decoded_len(mut self, max_decoded_len: impl Into<ByteLength>) -> Self {
+        self.max_decoded_len = max_decoded_len.into();
         self
     }
 
@@ -1380,4 +1673,42 @@ impl Default for ImageLimits {
 }
 impl_from_and_into_var! {
     fn from(some: ImageLimits) -> Option<ImageLimits>;
+}
+
+/// Options for [`IMAGES.image`].
+///
+/// [`IMAGES.image`]: crate::IMAGES::image
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
+pub struct ImageOptions {
+    /// If and how the image is cached.
+    pub cache_mode: ImageCacheMode,
+    /// How the image is downscaled after decoding.
+    pub downscale: Option<ImageDownscaleMode>,
+    /// How to convert the decoded image to an alpha mask.
+    pub mask: Option<ImageMaskMode>,
+    /// How to decode containers with multiple images.
+    pub entries: ImageEntriesMode,
+}
+
+impl ImageOptions {
+    /// New.
+    pub fn new(
+        cache_mode: ImageCacheMode,
+        downscale: Option<ImageDownscaleMode>,
+        mask: Option<ImageMaskMode>,
+        entries: ImageEntriesMode,
+    ) -> Self {
+        Self {
+            cache_mode,
+            downscale,
+            mask,
+            entries,
+        }
+    }
+
+    /// New with only cache enabled.
+    pub fn cache() -> Self {
+        Self::new(ImageCacheMode::Cache, None, None, ImageEntriesMode::empty())
+    }
 }

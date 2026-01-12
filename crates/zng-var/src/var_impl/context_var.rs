@@ -185,7 +185,7 @@ impl<T: VarValue> From<ContextVar<T>> for AnyVar {
 pub(crate) struct ContextVarImpl(&'static ContextLocal<AnyVar>);
 impl fmt::Debug for ContextVarImpl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("ContextVar").finish_non_exhaustive() // TODO add context var name
+        f.debug_tuple("ContextVar").finish_non_exhaustive()
     }
 }
 impl PartialEq for ContextVarImpl {

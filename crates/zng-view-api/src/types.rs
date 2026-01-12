@@ -7,20 +7,21 @@ use crate::{
     config::{
         AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
     },
-    dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
+    dialog::{DialogId, FileDialogResponse, MsgDialogResponse, NotificationResponse},
     drag_drop::{DragDropData, DragDropEffect},
-    image::{ImageId, ImageLoadedData},
+    image::{ImageDecoded, ImageEncodeId, ImageId, ImageMetadata},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
     touch::{TouchPhase, TouchUpdate},
-    window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
+    window::{EventFrameRendered, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use zng_task::channel::{ChannelError, IpcBytes};
 use zng_txt::Txt;
-use zng_unit::{DipPoint, PxDensity2d, PxRect, PxSize, Rgba};
+use zng_unit::{DipPoint, Rgba};
 
 macro_rules! declare_id {
     ($(
@@ -105,32 +106,59 @@ pub struct AxisId(pub u32);
 #[serde(transparent)]
 pub struct DragDropId(pub u32);
 
+/// View-process implementation info.
+///
+/// The view-process implementation may not cover the full API, depending on operating system, build, headless mode.
+/// When the view-process does not implement something it just logs an error and ignores the request, this struct contains
+/// detailed info about what operations are available in the view-process instance.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// View process is connected and ready.
-///
-/// The [`ViewProcessGen`] is the generation of the new view-process, it must be passed to
-/// [`Controller::handle_inited`].
-///
-/// [`Controller::handle_inited`]: crate::Controller::handle_inited
 #[non_exhaustive]
-pub struct Inited {
+pub struct ViewProcessInfo {
     /// View-process generation, changes after respawns and is never zero.
     pub generation: ViewProcessGen,
     /// If the view-process is a respawn from a previous crashed process.
     pub is_respawn: bool,
+
+    /// Input device events implemented by the view-process.
+    pub input_device: InputDeviceCapability,
+
+    /// Window operations implemented by the view-process.
+    pub window: crate::window::WindowCapability,
+
+    /// Dialog operations implemented by the view-process.
+    pub dialog: crate::dialog::DialogCapability,
+
+    /// System menu capabilities.
+    pub menu: crate::menu::MenuCapability,
+
+    /// Clipboard data types and operations implemented by the view-process.
+    pub clipboard: crate::clipboard::ClipboardTypes,
+
+    /// Image decode and encode capabilities implemented by the view-process.
+    pub image: Vec<crate::image::ImageFormat>,
+
+    /// Audio decode and encode capabilities implemented by the view-process.
+    pub audio: Vec<crate::audio::AudioFormat>,
+
     /// API extensions implemented by the view-process.
     ///
     /// The extension IDs will stay valid for the duration of the view-process.
     pub extensions: ApiExtensions,
 }
-impl Inited {
+impl ViewProcessInfo {
     /// New response.
-    #[allow(clippy::too_many_arguments)] // already grouping stuff.
-    pub fn new(generation: ViewProcessGen, is_respawn: bool, extensions: ApiExtensions) -> Self {
+    pub fn new(generation: ViewProcessGen, is_respawn: bool) -> Self {
         Self {
             generation,
             is_respawn,
-            extensions,
+            input_device: InputDeviceCapability::empty(),
+            window: crate::window::WindowCapability::empty(),
+            dialog: crate::dialog::DialogCapability::empty(),
+            menu: crate::menu::MenuCapability::empty(),
+            clipboard: crate::clipboard::ClipboardTypes::new(vec![], vec![], false),
+            image: vec![],
+            audio: vec![],
+            extensions: ApiExtensions::new(),
         }
     }
 }
@@ -156,7 +184,7 @@ pub enum Ime {
 #[non_exhaustive]
 pub enum Event {
     /// View-process inited.
-    Inited(Inited),
+    Inited(ViewProcessInfo),
     /// View-process suspended.
     Suspended,
 
@@ -183,8 +211,6 @@ pub enum Event {
     },
 
     /// A frame finished rendering.
-    ///
-    /// `EventsCleared` is not send after this event.
     FrameRendered(EventFrameRendered),
 
     /// Window moved, resized, or minimized/maximized etc.
@@ -408,38 +434,12 @@ pub enum Event {
     /// The window has closed.
     WindowClosed(WindowId),
 
-    /// An image resource already decoded size and density metadata.
-    ImageMetadataLoaded {
-        /// The image that started loading.
-        image: ImageId,
-        /// The image pixel size.
-        size: PxSize,
-        /// The image density metadata.
-        density: Option<PxDensity2d>,
-        /// The image is a single channel R8.
-        is_mask: bool,
-    },
-    /// An image resource finished decoding.
-    ImageLoaded(ImageLoadedData),
-    /// An image resource, progressively decoded has decoded more bytes.
-    ImagePartiallyLoaded {
-        /// The image that has decoded more pixels.
-        image: ImageId,
-        /// The size of the decoded pixels, can be different then the image size if the
-        /// image is not *interlaced*.
-        partial_size: PxSize,
-        /// The image density metadata.
-        density: Option<PxDensity2d>,
-        /// If the decoded pixels so-far are all opaque (255 alpha).
-        is_opaque: bool,
-        /// If the decoded pixels so-far are a single channel.
-        is_mask: bool,
-        /// Updated BGRA8 pre-multiplied pixel buffer or R8 if `is_mask`. This includes all the pixels
-        /// decoded so-far.
-        partial_pixels: IpcBytes,
-    },
+    /// An image resource already decoded header metadata.
+    ImageMetadataDecoded(ImageMetadata),
+    /// An image resource has partially or fully decoded.
+    ImageDecoded(ImageDecoded),
     /// An image resource failed to decode, the image ID is not valid.
-    ImageLoadError {
+    ImageDecodeError {
         /// The image that failed to decode.
         image: ImageId,
         /// The error message.
@@ -447,33 +447,17 @@ pub enum Event {
     },
     /// An image finished encoding.
     ImageEncoded {
-        /// The image that finished encoding.
-        image: ImageId,
-        /// The format of the encoded data.
-        format: Txt,
+        /// Id of the encode task.
+        task: ImageEncodeId,
         /// The encoded image data.
         data: IpcBytes,
     },
     /// An image failed to encode.
     ImageEncodeError {
-        /// The image that failed to encode.
-        image: ImageId,
-        /// The encoded format that was requested.
-        format: Txt,
+        /// Id of the encode task.
+        task: ImageEncodeId,
         /// The error message.
         error: Txt,
-    },
-
-    /// An image generated from a rendered frame is ready.
-    FrameImageReady {
-        /// Window that had pixels copied.
-        window: WindowId,
-        /// The frame that was rendered when the pixels where copied.
-        frame: FrameId,
-        /// The frame image.
-        image: ImageId,
-        /// The pixel selection relative to the top-left.
-        selection: PxRect,
     },
 
     /* Config events */
@@ -508,6 +492,16 @@ pub enum Event {
     MsgDialogResponse(DialogId, MsgDialogResponse),
     /// User responded to a native file dialog.
     FileDialogResponse(DialogId, FileDialogResponse),
+    /// User dismissed a notification dialog.
+    NotificationResponse(DialogId, NotificationResponse),
+
+    /// A system menu command was requested.
+    ///
+    /// The menu item can be from the application menu or tray icon.
+    MenuCommand {
+        /// Menu command ID.
+        id: Txt,
+    },
 
     /// Accessibility info tree is now required for the window.
     AccessInit {

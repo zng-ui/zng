@@ -14,7 +14,7 @@
 //! [`notify`]: crate::event::Event::notify
 //! [`InputDeviceId`]: crate::view_process::raw_device_events::InputDeviceId
 
-use zng_layout::unit::{DipPoint, DipSideOffsets, DipSize, Factor, PxPoint, PxRect};
+use zng_layout::unit::{DipPoint, DipSideOffsets, DipSize, Factor, PxPoint};
 use zng_txt::Txt;
 use zng_view_api::{
     AxisId, DragDropId, Ime,
@@ -23,6 +23,7 @@ use zng_view_api::{
         AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
     },
     drag_drop::{DragDropData, DragDropEffect},
+    image::{ImageDecoded, ImageMetadata},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchPhase, TouchUpdate},
@@ -34,7 +35,7 @@ use crate::{
     window::{MonitorId, WindowId},
 };
 
-use super::{ViewHeadless, ViewImage, ViewWindow, WindowOpenData, raw_device_events::InputDeviceId};
+use super::{ViewHeadless, ViewImageHandle, ViewWindow, WindowOpenData, raw_device_events::InputDeviceId};
 
 event_args! {
     /// Arguments for the [`RAW_KEY_INPUT_EVENT`].
@@ -121,7 +122,7 @@ event_args! {
         pub frame_id: FrameId,
 
         /// The frame pixels if it was requested when the frame request was sent to the view process.
-        pub frame_image: Option<ViewImage>,
+        pub frame_image: Option<(ViewImageHandle, ImageDecoded)>,
 
         ..
 
@@ -532,10 +533,12 @@ event_args! {
         }
     }
 
-    /// Arguments for the image events.
-    pub struct RawImageArgs {
-        /// Image that changed.
-        pub image: ViewImage,
+    /// Arguments for [`RAW_IMAGE_METADATA_DECODED_EVENT`].
+    pub struct RawImageMetadataDecodedArgs {
+        /// Handle to the image in the view-process.
+        pub handle: ViewImageHandle,
+        /// Image metadata.
+        pub meta: ImageMetadata,
 
         ..
 
@@ -545,19 +548,29 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RAW_FRAME_IMAGE_READY_EVENT`].
-    pub struct RawFrameImageReadyArgs {
-        /// Frame image that is ready.
-        pub image: ViewImage,
+    /// Arguments for the [`RAW_IMAGE_DECODED_EVENT`].
+    pub struct RawImageDecodedArgs {
+        /// Handle to the image in the view-process.
+        pub handle: ViewImageHandle,
+        /// Image data.
+        pub image: ImageDecoded,
 
-        /// Window that was captured.
-        pub window_id: WindowId,
+        ..
 
-        /// Frame that was captured.
-        pub frame_id: FrameId,
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
 
-        /// Area of the frame that was captured.
-        pub area: PxRect,
+    /// Arguments for the [`RAW_IMAGE_DECODE_ERROR_EVENT`].
+    pub struct RawImageDecodeErrorArgs {
+        /// Handle that identifies the image request.
+        ///
+        /// The image data is already removed in the view-process.
+        pub handle: ViewImageHandle,
+        /// Error message.
+        pub error: Txt,
 
         ..
 
@@ -826,19 +839,13 @@ event! {
     pub static RAW_LOCALE_CONFIG_CHANGED_EVENT: RawLocaleChangedArgs;
 
     /// Image metadata loaded without errors.
-    pub static RAW_IMAGE_METADATA_LOADED_EVENT: RawImageArgs;
-
-    /// Progressively decoded image has decoded more pixels.
-    pub static RAW_IMAGE_PARTIALLY_LOADED_EVENT: RawImageArgs;
+    pub static RAW_IMAGE_METADATA_DECODED_EVENT: RawImageMetadataDecodedArgs;
 
     /// Image loaded without errors.
-    pub static RAW_IMAGE_LOADED_EVENT: RawImageArgs;
+    pub static RAW_IMAGE_DECODED_EVENT: RawImageDecodedArgs;
 
     /// Image failed to load.
-    pub static RAW_IMAGE_LOAD_ERROR_EVENT: RawImageArgs;
-
-    /// Image generated from a frame is ready for reading.
-    pub static RAW_FRAME_IMAGE_READY_EVENT: RawFrameImageReadyArgs;
+    pub static RAW_IMAGE_DECODE_ERROR_EVENT: RawImageDecodeErrorArgs;
 
     /// System low memory warning, some platforms may kill the app if it does not release memory.
     pub static LOW_MEMORY_EVENT: LowMemoryArgs;

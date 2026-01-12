@@ -584,7 +584,7 @@ mod __prelude {
         handler::{HandlerExt as _, async_hn, async_hn_once, hn, hn_once},
         shortcut::{CommandShortcutExt as _, shortcut},
         widget::{
-            AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _, WIDGET, WidgetId, easing,
+            AnyVarSubscribe as _, ResponseVarSubscribe as _, VarLayout as _, VarSubscribe as _, WIDGET, WidgetId, easing,
             node::{IntoUiNode, UiNode, UiVec, ui_vec},
         },
         window::{WINDOW, WindowId},
@@ -781,7 +781,7 @@ mod __prelude_wgt {
         timer::{DeadlineHandle, DeadlineVar, TIMERS, TimerHandle, TimerVar},
         update::{EventUpdate, UPDATES, UpdateDeliveryList, UpdateOp, WidgetUpdates},
         widget::{
-            AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _, WIDGET, WidgetId, WidgetUpdateMode,
+            AnyVarSubscribe as _, ResponseVarSubscribe as _, VarLayout as _, VarSubscribe as _, WIDGET, WidgetId, WidgetUpdateMode,
             base::{WidgetBase, WidgetImpl},
             border::{BORDER, BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle},
             builder::{NestGroup, WidgetBuilder, WidgetBuilding, property_id},

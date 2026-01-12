@@ -1,5 +1,80 @@
 # Unreleased
 
+* **Breaking** Rename `Img` to `ImageEntry`.
+
+* **Breaking** Variable `subscribe_when` and related methods now have access to the full `VarHookArgs`.
+
+* Refactor `Img`, it is now a normal value.
+    - Fixes `ImageVar` sometimes not updating correctly in complex bindings.
+    - **Breaking** Replaced advanced `ViewImage` with `ViewImageHandle`.
+    - **Breaking** Multiple changes in the `Img` methods.
+    - All image loading now is managed by the `IMAGES` service in the app-process.
+
+* **Breaking** Add system tray icon and app menu to the view API.
+    - Service not implemented yet, this will happen in a future non breaking release.
+
+* Refactor `zng::env::About`.
+    - Added non-default feature `"parse"` for `zng-env` crate.
+    - **Breaking** The `parse_manifest` function is now optional.
+    - **Breaking** Replaced `qualifier` and `crate_name` fields with methods.
+    - Added `app_id` field, for fully qualified unique name.
+    - Added `meta` map field with any other custom metadata.
+    
+    Note that these changes are non breaking for `cargo-zng`, projects started with the old template
+    will still work with the new `cargo-zng`. New projects will not work with previous `cargo-zng`. 
+
+* Prebuilt view-process now has access to the `zng::env::about`.
+
+* Implemented local notifications.
+    - Added `DIALOG.notification`.
+    - **Breaking** Added to the view API.
+
+* Fix file dialog tasks never responding if the view-process crashes while the dialog is showing.
+* Optimized `Txt`, now it is 24 bytes.
+    - **Breaking** `Txt::from_string` is no longer const.
+
+* Refactor `IMAGES` service extending.
+    - **Breaking** Removed `ImageCacheProxy` API.
+    - Added similar `ImagesExtension` API.
+    - All *proxy* behavior can be easy converted to new API.
+    - SVG image extension now fully integrated.
+    - **Breaking** Grouped image config into a struct.
+
+* **Breaking** Length units `max`, `min` and `abs` now take by value.
+* Fix memory leak in `Var::flat_map_vec` when the returned item var is a retained clone.
+
+* **Breaking** `FileDialogFilters::push_filter` now accepts any `IntoIterator<Item=str>`.
+
+* Refactor clipboard service and view-process API.
+    - **Breaking** Renamed `file_list` with `paths`.
+    - Add support for multi data clipboards in the view process API.
+    - **Breaking** View process API updated to take and return vectors of data.
+        - Not implemented in the service yet, this will happen in a future non breaking release.
+
+* Unify view-process capabilities info.
+    - **Breaking** Removed `IMAGES.available_encoders/decoders`.
+    - Added `IMAGES.available_formats` with `ImageFormat`.
+    - **Breaking** View-process API event inited now has an `ViewProcessInfo` that contains implementation details.
+    - **Breaking** Added `VIEW_PROCESS.info` and removed methods for specific capabilities.
+    - Added `WINDOWS.available_operations` with what window operations the view-process implements.
+    - Added `DIALOG.available_native_dialogs` with what native dialogs the view-process implements.
+    - Added `CLIPBOARD.available_types` with what data types can be read/write by the view-process implementation.
+
+* Fix `cargo zng l10n --clean-template` removing custom template localization files.
+* Fix `cargo zng l10n` not including entries of local dependencies targeting the same localization file.
+
+* Add support for multi entry image containers.
+    - Added `Img::entries` and related methods.
+    - Added `ImageEntryKind` and `ImageEntriesMode`.
+    - **Breaking** Advanced image request functions now also take entries mode.
+    - **Breaking** Replaced `ImageDownscale` with `ImageDownscaleMode`.
+    - Added `Img::encode_with_entries` and related methods.
+* Add `Img::original_color_type` metadata.
+
+# 0.20.4
+
+* Fix high CPU usage when idling in Ubuntu and macOS.
+* Fix memory pressure watcher not working in Ubuntu and macOS.
 
 # 0.20.5
 

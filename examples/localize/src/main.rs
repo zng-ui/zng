@@ -247,8 +247,8 @@ fn shortcut_input_dialog(output: Var<gesture::Shortcuts>) -> UiNode {
     let pressed = var(Shortcuts::new());
     let is_valid = var(true);
     Container! {
-        // l10n-# the [<ENTER>] text must not be translated, it is replaced by a localized shortcut text widget
         child_top =
+            // l10n-# the [<ENTER>] text must not be translated, it is replaced by a localized shortcut text widget
             l10n!("press-shortcut-msg", "Press the new shortcut and then press [<ENTER>]").present(wgt_fn!(|txt: Txt| {
                 let mut items = ui_vec![];
                 match txt.split_once("[<ENTER>]") {

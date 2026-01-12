@@ -28,17 +28,22 @@ use zng::prelude::*;
 fn main() {
     zng::env::init!();
     APP.defaults().run_window(async {
-        let size = var(layout::Size::new(800, 600));
+        let count = var(0u32);
+        let count_txt = count.map(|c| match *c {
+            0 => "Click Me!".to_txt(),
+            1 => "Clicked 1 time!".to_txt(),
+            n => formatx!("Clicked {n} times!"),
+        });
         Window! {
-            title = size.map(|s| formatx!("Button Example - {s}"));
-            size;
+            title = count_txt.map(|t| formatx!("Button Example - {t}"));
             child_align = Align::CENTER;
             child = Button! {
-                on_click = hn!(|_| {
-                    println!("Button clicked!");
+                on_click = hn!(|a| {
+                    count.modify(|c| **c += 1);
+                    println!("Button {} clicked!", a.target.widget_id());
                 });
                 text::font_size = 28;
-                child = Text!("Click Me!");
+                child = Text!(count_txt);
             };
         }
     })
@@ -144,9 +149,12 @@ Avif support is already included in the prebuilt view-process.
 
 ## Examples
 
-Clone this repository and call `cargo do run <example>` to run an example.
+Clone this repository and call `cargo do run <example>` to run an example. The `release` branch is recommended for running examples.
 
 See the [`./examples`] README file for a list of examples with description and screenshots.
+
+Examples should all build in the `main` branch, but you might encounter runtime errors as the code becomes incompatible with the latest
+released prebuilt binaries.
 
 [`./examples`]: https://github.com/zng-ui/zng/tree/main/examples#readme
 

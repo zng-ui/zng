@@ -93,7 +93,7 @@
 //!             if let Some(img) = args.frame_image {
 //!                 // if the app runs with `run_headless(/* with_renderer: */ true)` an image is captured
 //!                 // and saved here.
-//!                 img.save("screenshot.png").await.unwrap();
+//!                 img.get().save("screenshot.png").await.unwrap();
 //!             }
 //!
 //!             // close the window, causing the app to exit.

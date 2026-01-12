@@ -13,35 +13,33 @@ use zng_app::AppExtension;
 use zng_ext_image::*;
 use zng_task::channel::IpcBytes;
 use zng_txt::{Txt, formatx};
-use zng_unit::{Px, PxDensity2d, PxDensityUnits as _, PxSize};
+use zng_unit::{ByteLength, Px, PxDensity2d, PxDensityUnits as _, PxSize};
 
 /// Application extension that installs SVG handling.
 ///
-/// This extension installs the [`SvgRenderCache`] in [`IMAGES`] on init.
+/// This extension installs a [`IMAGES`] extension on init that handles SVG rendering.
 #[derive(Default)]
 #[non_exhaustive]
 pub struct SvgManager {}
 
 impl AppExtension for SvgManager {
     fn init(&mut self) {
-        IMAGES.install_proxy(Box::new(SvgRenderCache::default()));
+        IMAGES.extend(Box::new(SvgRenderExtension::default()));
     }
 }
 
-/// Image cache proxy that handlers SVG requests.
+/// Image service extension that handlers SVG requests.
 #[derive(Default)]
 #[non_exhaustive]
-pub struct SvgRenderCache {}
-impl ImageCacheProxy for SvgRenderCache {
-    fn data(
+pub struct SvgRenderExtension {}
+impl ImagesExtension for SvgRenderExtension {
+    fn image_data(
         &mut self,
-        key: &ImageHash,
-        data: &[u8],
+        max_decoded_len: zng_unit::ByteLength,
+        _key: &ImageHash,
+        data: &IpcBytes,
         format: &ImageDataFormat,
-        mode: ImageCacheMode,
-        downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskMode>,
-        is_loaded: bool,
+        options: &ImageOptions,
     ) -> Option<ImageVar> {
         let data = match format {
             ImageDataFormat::FileExtension(txt) if txt == "svg" || txt == "svgz" => SvgData::Raw(data.to_vec()),
@@ -49,16 +47,16 @@ impl ImageCacheProxy for SvgRenderCache {
             ImageDataFormat::Unknown => SvgData::Str(svg_data_from_unknown(data)?),
             _ => return None,
         };
-        let key = if is_loaded {
-            None // already cached, return image is internal
-        } else {
-            Some(*key)
-        };
-        Some(IMAGES.image_task(async move { load(data, downscale) }, mode, key, None, None, mask))
+        let mut options = options.clone();
+        let downscale = options.downscale.take();
+        options.cache_mode = ImageCacheMode::Ignore;
+        let limits = ImageLimits::none().with_max_decoded_len(max_decoded_len);
+        Some(IMAGES.image_task(async move { load(max_decoded_len, data, downscale) }, options, Some(limits)))
     }
 
-    fn is_data_proxy(&self) -> bool {
-        true
+    fn available_formats(&self, formats: &mut Vec<ImageFormat>) {
+        let svg = ImageFormat::from_static("SVG", "svg+xml", "svg", ImageFormatCapability::empty());
+        formats.push(svg);
     }
 }
 
@@ -66,7 +64,7 @@ enum SvgData {
     Raw(Vec<u8>),
     Str(String),
 }
-fn load(data: SvgData, downscale: Option<ImageDownscale>) -> ImageSource {
+fn load(max_decoded_len: ByteLength, data: SvgData, downscale: Option<ImageDownscaleMode>) -> ImageSource {
     let options = resvg::usvg::Options::default();
 
     let tree = match data {
@@ -76,31 +74,50 @@ fn load(data: SvgData, downscale: Option<ImageDownscale>) -> ImageSource {
     match tree {
         Ok(tree) => {
             let mut size = tree.size().to_int_size();
+
             if let Some(d) = downscale {
-                let s = d.resize_dimensions(PxSize::new(Px(size.width() as _), Px(size.height() as _)));
-                match resvg::tiny_skia::IntSize::from_wh(s.width.0 as _, s.height.0 as _) {
+                let size_px = PxSize::new(Px(size.width() as _), Px(size.height() as _));
+
+                let (full_size, _) = d.sizes(size_px, &[]);
+                let full_size = full_size.unwrap_or(size_px);
+
+                match resvg::tiny_skia::IntSize::from_wh(full_size.width.0 as _, full_size.height.0 as _) {
                     Some(s) => size = s,
                     None => tracing::error!("cannot resize svg to zero size"),
                 }
             }
-            let mut pixmap = match resvg::tiny_skia::Pixmap::new(size.width(), size.height()) {
+
+            if size.width() as usize * size.height() as usize * 4 > max_decoded_len.bytes() {
+                let img = ImageEntry::new_empty(formatx!("cannot render svg, would exceed max {max_decoded_len} allowed"));
+                return ImageSource::Image(zng_var::const_var(img));
+            }
+
+            let mut data = match IpcBytes::new_mut_blocking(size.width() as usize * size.height() as usize * 4) {
+                Ok(b) => b,
+                Err(e) => return error(formatx!("can't allocate bytes for {size:?} svg, {e}")),
+            };
+            let mut pixmap = match resvg::tiny_skia::PixmapMut::from_bytes(&mut data, size.width(), size.height()) {
                 Some(p) => p,
                 None => return error(formatx!("can't allocate pixmap for {:?} svg", size)),
             };
-            resvg::render(&tree, resvg::tiny_skia::Transform::identity(), &mut pixmap.as_mut());
+            resvg::render(&tree, resvg::tiny_skia::Transform::identity(), &mut pixmap);
             let size = PxSize::new(Px(pixmap.width() as _), Px(pixmap.height() as _));
 
-            let mut data = pixmap.take();
-            for pixel in data.chunks_exact_mut(4) {
-                pixel.swap(0, 2);
+            for rgba in data.chunks_exact_mut(4) {
+                // rgba to bgra
+                rgba.swap(0, 2);
             }
 
             ImageSource::Data(
                 ImageHash::compute(&data),
-                IpcBytes::from_vec_blocking(data).expect("cannot allocate IpcBytes"),
+                match data.finish_blocking() {
+                    Ok(b) => b,
+                    Err(e) => return error(formatx!("cannot finish ipc bytes allocation, {e}")),
+                },
                 ImageDataFormat::Bgra8 {
                     size,
                     density: Some(PxDensity2d::splat(options.dpi.ppi())),
+                    original_color_type: ColorType::RGBA8,
                 },
             )
         }

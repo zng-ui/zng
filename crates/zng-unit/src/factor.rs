@@ -382,7 +382,6 @@ impl ops::DivAssign<Factor> for DipVector {
         self.y /= rhs;
     }
 }
-// TODO, why can't we just implement for T: Mul<Factor> too?
 impl<U> ops::Mul<Factor> for euclid::Vector2D<f32, U> {
     type Output = Self;
 

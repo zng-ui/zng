@@ -76,7 +76,7 @@ async fn main_window() -> window::WindowRoot {
                 Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_vec![screenshot(), misc(), native()];
+                    children = ui_vec![screenshot(), misc(), dialogs()];
                 },
             ];
         };
@@ -165,8 +165,9 @@ fn screenshot() -> UiNode {
                 tracing::info!("taking `screenshot.png`..");
 
                 let t = INSTANT.now();
-                let img = WINDOW.frame_image(None).get();
-                img.wait_done().await;
+                let img = WINDOW.frame_image(None);
+                img.wait_match(|i| i.is_loaded()).await;
+                let img = img.get();
                 tracing::info!("taken in {:?}, saving..", t.elapsed());
 
                 let t = INSTANT.now();
@@ -211,7 +212,7 @@ fn screenshot() -> UiNode {
                             frame_capture_mode = FrameCaptureMode::Next;
                             on_frame_image_ready = async_hn_once!(|args: &FrameImageReadyArgs| {
                                 tracing::info!("saving screenshot..");
-                                match args.frame_image.unwrap().save("screenshot.png").await {
+                                match args.frame_image.unwrap().get().save("screenshot.png").await {
                                     Ok(_) => tracing::info!("saved"),
                                     Err(e) => tracing::error!("{e}"),
                                 }
@@ -586,7 +587,7 @@ fn misc() -> UiNode {
     )
 }
 
-fn native() -> UiNode {
+fn dialogs() -> UiNode {
     let use_native = var(true);
     section(
         "Dialogs",
@@ -634,8 +635,8 @@ fn native() -> UiNode {
                     };
 
                     let mut filters = dialog::FileDialogFilters::new();
-                    filters.push_filter("Text", &["*.txt", "*.md"]);
-                    filters.push_filter("All", &["*.*"]);
+                    filters.push_filter("Text", ["*.txt", "*.md"]);
+                    filters.push_filter("All", ["*.*"]);
 
                     let res = DIALOG.open_files("Open Files", dir, "", filters.clone()).wait_rsp().await;
                     let first_file = match res {
@@ -680,6 +681,45 @@ fn native() -> UiNode {
                     };
                     tracing::info!("save {}", save_file.display());
                 });
+            },
+            Button! {
+                child = Text!("Notification");
+                tooltip = Tip!(Text!(r#"Insert a local notification in the system notifications list"#));
+                on_click = {
+                    let n = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+                    async_hn!(n, |_| {
+                        let n = n.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+                        let mut note = zng::dialog::Notification::new(format!("Example #{n}"), "Example notification with two actions.");
+                        note.push_action("a-1", "Action 1");
+                        note.push_action("a-2", "Action 2");
+                        let note_var = var(note.clone());
+
+                        let r = DIALOG.notification(note_var.clone());
+
+                        task::with_deadline(r.wait_done(), 5.secs()).await.ok();
+                        if !r.is_done() {
+                            // example content update.
+                            note.message.push_str(" Will auto dismiss in 5 seconds");
+                            note_var.set(note);
+
+                            // example close.
+                            task::with_deadline(r.wait_done(), 5.secs()).await.ok();
+                            if !r.is_done() {
+                                note_var.set(zng::dialog::Notification::close());
+                            }
+                        }
+
+                        use zng::dialog::NotificationResponse as R;
+                        match r.wait_rsp().await {
+                            R::Action(a) => tracing::info!("Notification #{n} requested {a}"),
+                            R::Dismissed => tracing::info!("Notification #{n} dismissed"),
+                            R::Removed => tracing::warn!("Notification #{n} removed"),
+                            R::Error(e) => tracing::error!("Notification #{n} error, {e}"),
+                            _ => unreachable!(),
+                        }
+                    })
+                };
             }
         ],
     )

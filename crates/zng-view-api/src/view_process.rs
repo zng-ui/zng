@@ -168,6 +168,7 @@ pub struct StaticPatch {
     env_res: PathBuf,
     env_config: PathBuf,
     env_cache: PathBuf,
+    env_about: &'static zng_env::About,
 }
 impl StaticPatch {
     /// Called in the main executable.
@@ -178,6 +179,7 @@ impl StaticPatch {
             env_res: zng_env::res(""),
             env_config: zng_env::config(""),
             env_cache: zng_env::cache(""),
+            env_about: zng_env::about(),
         }
     }
 
@@ -195,5 +197,6 @@ impl StaticPatch {
         zng_env::init_res(self.env_res.clone());
         zng_env::init_config(self.env_config.clone());
         zng_env::init_cache(self.env_cache.clone());
+        zng_env::init(self.env_about.clone());
     }
 }

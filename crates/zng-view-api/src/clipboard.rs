@@ -23,8 +23,10 @@ pub enum ClipboardData {
     /// a format compatible with the platform clipboard.
     Image(ImageId),
     /// List of paths.
-    FileList(Vec<PathBuf>),
+    Paths(Vec<PathBuf>),
     /// Any data format supported only by the specific view-process implementation.
+    ///
+    /// The view-process implementation may also pass this to the operating system as binary data.
     Extension {
         /// Type key, must be in a format defined by the view-process.
         data_type: Txt,
@@ -34,15 +36,15 @@ pub enum ClipboardData {
 }
 
 /// Clipboard data type.
-#[derive(Debug, Clone, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
 pub enum ClipboardType {
     /// A [`ClipboardData::Text`].
     Text,
     /// A [`ClipboardData::Image`].
     Image,
-    /// A [`ClipboardData::FileList`].
-    FileList,
+    /// A [`ClipboardData::Paths`].
+    Paths,
     /// A [`ClipboardData::Extension`].
     Extension(Txt),
 }
@@ -70,3 +72,22 @@ impl fmt::Display for ClipboardError {
     }
 }
 impl std::error::Error for ClipboardError {}
+
+/// Clipboard types and operations implemented by the view-process.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub struct ClipboardTypes {
+    /// Data formats that the implementation can read.
+    pub read: Vec<ClipboardType>,
+
+    /// Data formats that the implementation can write.
+    pub write: Vec<ClipboardType>,
+    /// Implementation can put multiple data on the clipboard at the same time.
+    pub write_multi: bool,
+}
+impl ClipboardTypes {
+    /// New.
+    pub fn new(read: Vec<ClipboardType>, write: Vec<ClipboardType>, write_multi: bool) -> Self {
+        Self { read, write, write_multi }
+    }
+}

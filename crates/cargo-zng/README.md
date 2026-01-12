@@ -458,6 +458,7 @@ Tools are configured using environment variables:
 
 In a Cargo workspace the [`zng::env::about`] metadata is also extracted from the primary binary crate:
 
+* `ZR_APP_ID` — package.metadata.zng.about.app_id or "qualifier.org.app" in snake_case
 * `ZR_APP` — package.metadata.zng.about.app or package.name
 * `ZR_ORG` — package.metadata.zng.about.org or the first package.authors
 * `ZR_VERSION` — package.version
@@ -467,7 +468,8 @@ In a Cargo workspace the [`zng::env::about`] metadata is also extracted from the
 * `ZR_PKG_NAME` — package.name
 * `ZR_PKG_AUTHORS` — package.authors
 * `ZR_CRATE_NAME` — package.name in snake_case
-* `ZR_QUALIFIER` — package.metadata.zng.about.qualifier
+* `ZR_QUALIFIER` — package.metadata.zng.about.qualifier or the first components `ZR_APP_ID` except the last two
+* `ZR_META_*` — any other custom string value in package.metadata.zng.about.*
 
 [`zng::env::about`]: https://zng-ui.github.io/doc/zng_env/struct.About.html
 
@@ -623,7 +625,7 @@ $ cargo zng res --tool rp
                     A separate bash instance is used for each occurrence.
                     The working directory is the workspace root.
   ${!cmd:case}    — Replaces with the stdout, case converted.
-                    If the script contains ':' quote it with double quotes"
+                    If the script contains ':' quote it with double quotes\"
   $!{!cmd:?else}  — If script fails or ha no stdout, uses 'else' instead.
 
   $${VAR}         — Escapes $, replaces with '${VAR}'.
@@ -655,6 +657,7 @@ $ cargo zng res --tool rp
 
   All env variables can be used, of particular use with this tool are:
 
+  ZR_APP_ID — package.metadata.zng.about.app_id or "qualifier.org.app" in snake_case
   ZR_APP — package.metadata.zng.about.app or package.name
   ZR_ORG — package.metadata.zng.about.org or the first package.authors
   ZR_VERSION — package.version
@@ -664,7 +667,8 @@ $ cargo zng res --tool rp
   ZR_PKG_NAME — package.name
   ZR_PKG_AUTHORS — package.authors
   ZR_CRATE_NAME — package.name in snake_case
-  ZR_QUALIFIER — package.metadata.zng.about.qualifier
+  ZR_QUALIFIER — package.metadata.zng.about.qualifier or the first components `ZR_APP_ID` except the last two
+  ZR_META_*` — any other custom string value in package.metadata.zng.about.*
 
   See `zng::env::about` for more details about metadata vars.
   See the cargo-zng crate docs for a full list of ZR vars.
@@ -694,6 +698,7 @@ $ cargo zng res --tool sh
 
   In a Cargo workspace the `zng::env::about` metadata is also set:
 
+  ZR_APP_ID — package.metadata.zng.about.app_id or "qualifier.org.app" in snake_case
   ZR_APP — package.metadata.zng.about.app or package.name
   ZR_ORG — package.metadata.zng.about.org or the first package.authors
   ZR_VERSION — package.version
@@ -703,7 +708,8 @@ $ cargo zng res --tool sh
   ZR_PKG_NAME — package.name
   ZR_PKG_AUTHORS — package.authors
   ZR_CRATE_NAME — package.name in snake_case
-  ZR_QUALIFIER — package.metadata.zng.about.qualifier
+  ZR_QUALIFIER — package.metadata.zng.about.qualifier or the first components `ZR_APP_ID` except the last two
+  ZR_META_* — any other custom string value in package.metadata.zng.about.*
 
   Script can make requests to the resource builder by printing to stdout.
   Current supported requests:

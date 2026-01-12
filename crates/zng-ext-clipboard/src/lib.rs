@@ -16,16 +16,21 @@ use zng_app::{
     APP, AppExtension,
     event::{CommandInfoExt as _, CommandNameExt as _, command},
     shortcut::{CommandShortcutExt as _, ShortcutFilter, shortcut},
-    view_process::{VIEW_PROCESS, ViewClipboard, ViewImage},
+    view_process::{VIEW_PROCESS, ViewClipboard, ViewImageHandle},
 };
 use zng_app_context::app_local;
-use zng_ext_image::{IMAGES, ImageHasher, ImageVar, Img};
+use zng_ext_image::{IMAGES, ImageEntry, ImageVar};
 use zng_task::channel::{ChannelError, IpcBytes};
 use zng_txt::{ToTxt, Txt};
 use zng_var::{ResponderVar, ResponseVar, response_var};
 use zng_wgt::{CommandIconExt as _, ICONS, wgt_fn};
 
-use zng_view_api::clipboard as clipboard_api;
+use zng_view_api::{
+    clipboard::{self as clipboard_api},
+    image::ImageDecoded,
+};
+
+pub use zng_view_api::clipboard::{ClipboardType, ClipboardTypes};
 
 /// Clipboard app extension.
 ///
@@ -44,15 +49,19 @@ impl AppExtension for ClipboardManager {
         clipboard.text.update(|v, txt| v.write_text(txt));
         clipboard.image.map_update(
             |img| {
-                if let Some(img) = img.view() {
-                    Ok(img.clone())
+                if img.is_loaded() {
+                    if let Some(e) = img.error() {
+                        Err(ClipboardError::Other(e))
+                    } else {
+                        Ok(img.view_handle())
+                    }
                 } else {
                     Err(ClipboardError::ImageNotLoaded)
                 }
             },
             |v, img| v.write_image(&img),
         );
-        clipboard.file_list.update(|v, list| v.write_file_list(list));
+        clipboard.paths.update(|v, list| v.write_file_list(list));
         clipboard.ext.update(|v, (data_type, data)| v.write_extension(data_type, data))
     }
 }
@@ -68,8 +77,8 @@ app_local! {
 #[derive(Default)]
 struct ClipboardService {
     text: ClipboardData<Txt, Txt>,
-    image: ClipboardData<ImageVar, Img>,
-    file_list: ClipboardData<Vec<PathBuf>, Vec<PathBuf>>,
+    image: ClipboardData<ImageVar, ImageEntry>,
+    paths: ClipboardData<Vec<PathBuf>, Vec<PathBuf>>,
     ext: ClipboardData<IpcBytes, (Txt, IpcBytes)>,
 }
 
@@ -227,22 +236,17 @@ impl CLIPBOARD {
 
     /// Gets an image from the clipboard.
     ///
-    /// The image is loaded in parallel and cached by the [`IMAGES`] service.
+    /// The image is loaded in parallel by the [`IMAGES`] service, it is not cached.
     ///
     /// [`IMAGES`]: zng_ext_image::IMAGES
     pub fn image(&self) -> Result<Option<ImageVar>, ClipboardError> {
         CLIPBOARD_SV.write().image.get(|v| {
             let img = v.read_image()?;
             match img {
-                Ok(img) => {
-                    let mut hash = ImageHasher::new();
-                    hash.update("zng_ext_clipboard::CLIPBOARD".as_bytes());
-                    hash.update(&img.id().unwrap().get().to_be_bytes());
-                    match IMAGES.register(hash.finish(), img) {
-                        Ok(r) => Ok(Ok(r)),
-                        Err((_, r)) => Ok(Ok(r)),
-                    }
-                }
+                Ok(handle) => match IMAGES.register(None, (handle, ImageDecoded::default())) {
+                    Ok(r) => Ok(Ok(r)),
+                    Err((_, r)) => Ok(Ok(r)),
+                },
                 Err(e) => Ok(Err(e)),
             }
         })
@@ -252,21 +256,21 @@ impl CLIPBOARD {
     ///
     /// Returns a response var that updates to `Ok(true)` is the text is put on the clipboard,
     /// `Ok(false)` if another request made on the same update pass replaces this one or `Err(ClipboardError)`.
-    pub fn set_image(&self, img: Img) -> ResponseVar<Result<bool, ClipboardError>> {
+    pub fn set_image(&self, img: ImageEntry) -> ResponseVar<Result<bool, ClipboardError>> {
         CLIPBOARD_SV.write().image.request(img)
     }
 
-    /// Gets a file list from the clipboard.
-    pub fn file_list(&self) -> Result<Option<Vec<PathBuf>>, ClipboardError> {
-        CLIPBOARD_SV.write().file_list.get(|v| v.read_file_list())
+    /// Gets a path list from the clipboard.
+    pub fn paths(&self) -> Result<Option<Vec<PathBuf>>, ClipboardError> {
+        CLIPBOARD_SV.write().paths.get(|v| v.read_file_list())
     }
 
     /// Sets the file list on the clipboard after the current update.
     ///
     /// Returns a response var that updates to `Ok(true)` is the text is put on the clipboard,
     /// `Ok(false)` if another request made on the same update pass replaces this one or `Err(ClipboardError)`.
-    pub fn set_file_list(&self, list: impl Into<Vec<PathBuf>>) -> ResponseVar<Result<bool, ClipboardError>> {
-        CLIPBOARD_SV.write().file_list.request(list.into())
+    pub fn set_paths(&self, list: impl Into<Vec<PathBuf>>) -> ResponseVar<Result<bool, ClipboardError>> {
+        CLIPBOARD_SV.write().paths.request(list.into())
     }
 
     /// Gets custom data from the clipboard.
@@ -284,6 +288,11 @@ impl CLIPBOARD {
     /// `Ok(false)` if another request made on the same update pass replaces this one or `Err(ClipboardError)`.
     pub fn set_extension(&self, data_type: impl Into<Txt>, data: IpcBytes) -> ResponseVar<Result<bool, ClipboardError>> {
         CLIPBOARD_SV.write().ext.request((data_type.into(), data))
+    }
+
+    /// Get what clipboard types and operations the current view-process implements.
+    pub fn available_types(&self) -> ClipboardTypes {
+        VIEW_PROCESS.info().clipboard.clone()
     }
 }
 
@@ -312,8 +321,8 @@ trait ActualClipboard {
     fn read_text(&self) -> ActualClipboardResult<Txt>;
     fn write_text(&self, txt: Txt) -> ActualClipboardResult<()>;
 
-    fn read_image(&self) -> ActualClipboardResult<ViewImage>;
-    fn write_image(&self, img: &ViewImage) -> ActualClipboardResult<()>;
+    fn read_image(&self) -> ActualClipboardResult<ViewImageHandle>;
+    fn write_image(&self, img: &ViewImageHandle) -> ActualClipboardResult<()>;
 
     fn read_file_list(&self) -> ActualClipboardResult<Vec<PathBuf>>;
     fn write_file_list(&self, list: Vec<PathBuf>) -> ActualClipboardResult<()>;
@@ -329,18 +338,18 @@ impl ActualClipboard for ViewClipboard {
         self.write_text(txt)
     }
 
-    fn read_image(&self) -> ActualClipboardResult<ViewImage> {
+    fn read_image(&self) -> ActualClipboardResult<ViewImageHandle> {
         self.read_image()
     }
-    fn write_image(&self, img: &ViewImage) -> ActualClipboardResult<()> {
+    fn write_image(&self, img: &ViewImageHandle) -> ActualClipboardResult<()> {
         self.write_image(img)
     }
 
     fn read_file_list(&self) -> ActualClipboardResult<Vec<PathBuf>> {
-        self.read_file_list()
+        self.read_paths()
     }
     fn write_file_list(&self, list: Vec<PathBuf>) -> ActualClipboardResult<()> {
-        self.write_file_list(list)
+        self.write_paths(list)
     }
 
     fn read_extension(&self, data_type: Txt) -> ActualClipboardResult<IpcBytes> {
@@ -374,10 +383,10 @@ impl ActualClipboard for CLIPBOARD {
     fn write_text(&self, txt: Txt) -> ActualClipboardResult<()> {
         self.headless_clipboard_set(txt)
     }
-    fn read_image(&self) -> ActualClipboardResult<ViewImage> {
+    fn read_image(&self) -> ActualClipboardResult<ViewImageHandle> {
         self.headless_clipboard_get()
     }
-    fn write_image(&self, img: &ViewImage) -> ActualClipboardResult<()> {
+    fn write_image(&self, img: &ViewImageHandle) -> ActualClipboardResult<()> {
         self.headless_clipboard_set(img.clone())
     }
 
@@ -413,10 +422,10 @@ impl ActualClipboard for ChannelError {
         Err(self.clone())
     }
 
-    fn read_image(&self) -> ActualClipboardResult<ViewImage> {
+    fn read_image(&self) -> ActualClipboardResult<ViewImageHandle> {
         Err(self.clone())
     }
-    fn write_image(&self, _: &ViewImage) -> ActualClipboardResult<()> {
+    fn write_image(&self, _: &ViewImageHandle) -> ActualClipboardResult<()> {
         Err(self.clone())
     }
 

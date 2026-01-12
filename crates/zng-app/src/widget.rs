@@ -24,7 +24,7 @@ use zng_layout::unit::{DipPoint, DipToPx as _, Layout1d, Layout2d, Px, PxPoint, 
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zng_task::UiTask;
 use zng_txt::{Txt, formatx};
-use zng_var::{AnyVar, BoxAnyVarValue, ResponseVar, Var, VarHandle, VarHandles, VarValue};
+use zng_var::{AnyVar, BoxAnyVarValue, ResponseVar, Var, VarHandle, VarHandles, VarHookArgs, VarValue};
 use zng_view_api::display_list::ReuseRange;
 
 use crate::{
@@ -941,7 +941,7 @@ impl WIDGET {
         &self,
         op: UpdateOp,
         var: &Var<T>,
-        predicate: impl Fn(&T) -> bool + Send + Sync + 'static,
+        predicate: impl Fn(&VarHookArgs<'_, T>) -> bool + Send + Sync + 'static,
     ) -> &Self {
         let w = WIDGET_CTX.get();
         let s = var.subscribe_when(op, w.id, predicate);
@@ -966,7 +966,11 @@ impl WIDGET {
     /// Subscribe to receive updates when the `var` changes and the `predicate` approves the new value.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
-    pub fn sub_var_when<T: VarValue>(&self, var: &Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
+    pub fn sub_var_when<T: VarValue>(
+        &self,
+        var: &Var<T>,
+        predicate: impl Fn(&VarHookArgs<'_, T>) -> bool + Send + Sync + 'static,
+    ) -> &Self {
         self.sub_var_op_when(UpdateOp::Update, var, predicate)
     }
 
@@ -977,7 +981,11 @@ impl WIDGET {
     /// Subscribe to receive info rebuild requests when the `var` changes and the `predicate` approves the new value.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
-    pub fn sub_var_info_when<T: VarValue>(&self, var: &Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
+    pub fn sub_var_info_when<T: VarValue>(
+        &self,
+        var: &Var<T>,
+        predicate: impl Fn(&VarHookArgs<'_, T>) -> bool + Send + Sync + 'static,
+    ) -> &Self {
         self.sub_var_op_when(UpdateOp::Info, var, predicate)
     }
 
@@ -988,7 +996,11 @@ impl WIDGET {
     /// Subscribe to receive layout requests when the `var` changes and the `predicate` approves the new value.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
-    pub fn sub_var_layout_when<T: VarValue>(&self, var: &Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
+    pub fn sub_var_layout_when<T: VarValue>(
+        &self,
+        var: &Var<T>,
+        predicate: impl Fn(&VarHookArgs<'_, T>) -> bool + Send + Sync + 'static,
+    ) -> &Self {
         self.sub_var_op_when(UpdateOp::Layout, var, predicate)
     }
 
@@ -999,7 +1011,11 @@ impl WIDGET {
     /// Subscribe to receive render requests when the `var` changes and the `predicate` approves the new value.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
-    pub fn sub_var_render_when<T: VarValue>(&self, var: &Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
+    pub fn sub_var_render_when<T: VarValue>(
+        &self,
+        var: &Var<T>,
+        predicate: impl Fn(&VarHookArgs<'_, T>) -> bool + Send + Sync + 'static,
+    ) -> &Self {
         self.sub_var_op_when(UpdateOp::Render, var, predicate)
     }
 
@@ -1010,7 +1026,11 @@ impl WIDGET {
     /// Subscribe to receive render update requests when the `var` changes and the `predicate` approves the new value.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
-    pub fn sub_var_render_update_when<T: VarValue>(&self, var: &Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
+    pub fn sub_var_render_update_when<T: VarValue>(
+        &self,
+        var: &Var<T>,
+        predicate: impl Fn(&VarHookArgs<'_, T>) -> bool + Send + Sync + 'static,
+    ) -> &Self {
         self.sub_var_op_when(UpdateOp::RenderUpdate, var, predicate)
     }
 
@@ -1431,7 +1451,12 @@ pub trait VarSubscribe<T: VarValue>: AnyVarSubscribe {
     ///
     /// [`NEW`]: zng_var::VarCapability::NEW
     /// [`VarHandle::dummy`]: zng_var::VarHandle
-    fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle;
+    fn subscribe_when(
+        &self,
+        op: UpdateOp,
+        widget_id: WidgetId,
+        predicate: impl Fn(&VarHookArgs<'_, T>) -> bool + Send + Sync + 'static,
+    ) -> VarHandle;
 
     /// Add a preview `handler` that is called every time this variable updates,
     /// the handler is called before UI update.
@@ -1455,16 +1480,17 @@ impl<T: VarValue> AnyVarSubscribe for Var<T> {
     }
 }
 impl<T: VarValue> VarSubscribe<T> for Var<T> {
-    fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle {
+    fn subscribe_when(
+        &self,
+        op: UpdateOp,
+        widget_id: WidgetId,
+        predicate: impl Fn(&VarHookArgs<'_, T>) -> bool + Send + Sync + 'static,
+    ) -> VarHandle {
         self.hook(move |a| {
-            if let Some(a) = a.downcast_value::<T>() {
-                if predicate(a) {
-                    UPDATES.update_op(op, widget_id);
-                }
-                true
-            } else {
-                false
+            if predicate(a) {
+                UPDATES.update_op(op, widget_id);
             }
+            true
         })
     }
 

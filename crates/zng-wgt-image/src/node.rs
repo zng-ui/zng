@@ -2,7 +2,7 @@
 
 use std::mem;
 
-use zng_ext_image::{IMAGES, ImageCacheMode, ImageRenderArgs};
+use zng_ext_image::{IMAGES, ImageCacheMode, ImageOptions, ImageRenderArgs};
 use zng_wgt_stack::stack_nodes;
 
 use super::image_properties::{
@@ -15,10 +15,10 @@ context_var! {
     /// Image acquired by [`image_source`], or `"no image source in context"` error by default.
     ///
     /// [`image_source`]: fn@image_source
-    pub static CONTEXT_IMAGE_VAR: Img = no_context_image();
+    pub static CONTEXT_IMAGE_VAR: ImageEntry = no_context_image();
 }
-fn no_context_image() -> Img {
-    Img::dummy(Some(Txt::from_static("no image source in context")))
+fn no_context_image() -> ImageEntry {
+    ImageEntry::new_empty(Txt::from_static("no image source in context"))
 }
 
 /// Requests an image from [`IMAGES`] and sets [`CONTEXT_IMAGE_VAR`].
@@ -33,28 +33,31 @@ fn no_context_image() -> Img {
 /// [`IMAGES`]: zng_ext_image::IMAGES
 pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> UiNode {
     let source = source.into_var();
-    let ctx_img = var(Img::dummy(None));
+    let ctx_img = var(ImageEntry::new_empty(Txt::default()));
     let child = with_context_var(child, CONTEXT_IMAGE_VAR, ctx_img.read_only());
-    let mut img = var(Img::dummy(None)).read_only();
+    let mut img = var(ImageEntry::new_empty(Txt::default())).read_only();
     let mut _ctx_binding = None;
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&source).sub_var(&IMAGE_CACHE_VAR).sub_var(&IMAGE_DOWNSCALE_VAR);
+            WIDGET
+                .sub_var(&source)
+                .sub_var(&IMAGE_CACHE_VAR)
+                .sub_var(&IMAGE_DOWNSCALE_VAR)
+                .sub_var(&IMAGE_ENTRIES_MODE_VAR);
 
             let mode = if IMAGE_CACHE_VAR.get() {
                 ImageCacheMode::Cache
             } else {
                 ImageCacheMode::Ignore
             };
-            let limits = IMAGE_LIMITS_VAR.get();
-            let downscale = IMAGE_DOWNSCALE_VAR.get();
 
             let mut source = source.get();
             if let ImageSource::Render(_, args) = &mut source {
                 *args = Some(ImageRenderArgs::new(WINDOW.id()));
             }
-            img = IMAGES.image(source, mode, limits, downscale, None);
+            let opt = ImageOptions::new(mode, IMAGE_DOWNSCALE_VAR.get(), None, IMAGE_ENTRIES_MODE_VAR.get());
+            img = IMAGES.image(source, opt, IMAGE_LIMITS_VAR.get());
 
             ctx_img.set_from(&img);
             _ctx_binding = Some(img.bind(&ctx_img));
@@ -67,7 +70,7 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
             _ctx_binding = None;
         }
         UiNodeOp::Update { .. } => {
-            if source.is_new() || IMAGE_DOWNSCALE_VAR.is_new() {
+            if source.is_new() || IMAGE_DOWNSCALE_VAR.is_new() || IMAGE_ENTRIES_MODE_VAR.is_new() {
                 // source update:
 
                 let mut source = source.get();
@@ -81,10 +84,8 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                 } else {
                     ImageCacheMode::Ignore
                 };
-                let limits = IMAGE_LIMITS_VAR.get();
-                let downscale = IMAGE_DOWNSCALE_VAR.get();
-
-                img = IMAGES.image(source, mode, limits, downscale, None);
+                let opt = ImageOptions::new(mode, IMAGE_DOWNSCALE_VAR.get(), None, IMAGE_ENTRIES_MODE_VAR.get());
+                img = IMAGES.image(source, opt, IMAGE_LIMITS_VAR.get());
 
                 ctx_img.set_from(&img);
                 _ctx_binding = Some(img.bind(&ctx_img));
@@ -95,15 +96,14 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                     img = if is_cached {
                         // must not cache, but is cached, detach from cache.
 
-                        let img = mem::replace(&mut img, var(Img::dummy(None)).read_only());
+                        let img = mem::replace(&mut img, var(ImageEntry::new_empty(Txt::default())).read_only());
                         IMAGES.detach(img)
                     } else {
                         // must cache, but image is not cached, get source again.
 
                         let source = source.get();
-                        let limits = IMAGE_LIMITS_VAR.get();
-                        let downscale = IMAGE_DOWNSCALE_VAR.get();
-                        IMAGES.image(source, ImageCacheMode::Cache, limits, downscale, None)
+                        let opt = ImageOptions::new(ImageCacheMode::Cache, IMAGE_DOWNSCALE_VAR.get(), None, IMAGE_ENTRIES_MODE_VAR.get());
+                        IMAGES.image(source, opt, IMAGE_LIMITS_VAR.get())
                     };
 
                     ctx_img.set_from(&img);
@@ -211,7 +211,7 @@ pub fn image_presenter() -> UiNode {
                 .sub_var_layout(&IMAGE_REPEAT_SPACING_VAR)
                 .sub_var_render(&IMAGE_RENDERING_VAR);
 
-            img_size = CONTEXT_IMAGE_VAR.with(Img::size);
+            img_size = CONTEXT_IMAGE_VAR.with(ImageEntry::size);
         }
         UiNodeOp::Update { .. } => {
             if let Some(img) = CONTEXT_IMAGE_VAR.get_new() {
@@ -237,7 +237,7 @@ pub fn image_presenter() -> UiNode {
                 }
                 ImageAutoScale::Density => {
                     let screen = metrics.screen_density();
-                    let image = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(screen));
+                    let image = CONTEXT_IMAGE_VAR.with(ImageEntry::density).unwrap_or(PxDensity2d::splat(screen));
                     scale *= Factor2d::new(screen.ppcm() / image.width.ppcm(), screen.ppcm() / image.height.ppcm());
                 }
             }
@@ -269,7 +269,7 @@ pub fn image_presenter() -> UiNode {
                 }
                 ImageAutoScale::Density => {
                     let screen = metrics.screen_density();
-                    let image = CONTEXT_IMAGE_VAR.with(Img::density).unwrap_or(PxDensity2d::splat(screen));
+                    let image = CONTEXT_IMAGE_VAR.with(ImageEntry::density).unwrap_or(PxDensity2d::splat(screen));
                     scale *= Factor2d::new(screen.ppcm() / image.width.ppcm(), screen.ppcm() / image.height.ppcm());
                 }
             }
@@ -402,8 +402,11 @@ pub fn image_presenter() -> UiNode {
             *final_size = wgt_size;
         }
         UiNodeOp::Render { frame } => {
+            if render_clip.is_empty() {
+                return;
+            }
             CONTEXT_IMAGE_VAR.with(|img| {
-                if img.is_loaded() && !img_size.is_empty() && !render_clip.is_empty() {
+                img.with_best_reduce(render_tile_size, |img| {
                     if render_offset != PxVector::zero() {
                         let transform = PxTransform::from(render_offset);
                         frame.push_reference_frame(spatial_id.into(), FrameValue::Value(transform), true, false, |frame| {
@@ -426,7 +429,7 @@ pub fn image_presenter() -> UiNode {
                             IMAGE_RENDERING_VAR.get(),
                         );
                     }
-                }
+                })
             });
         }
         _ => {}

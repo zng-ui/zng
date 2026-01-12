@@ -15,7 +15,7 @@ use zng_unique_id::IdSet;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::window::{CursorIcon, EventCause};
 
-pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState};
+pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowButton, WindowCapability, WindowState};
 use zng_wgt::prelude::IntoUiNode;
 
 use crate::{HeadlessMonitor, WINDOWS};
@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 #[cfg(feature = "image")]
 use zng_app::window::WINDOW;
 #[cfg(feature = "image")]
-use zng_ext_image::{ImageSource, ImageVar, Img};
+use zng_ext_image::{ImageSource, ImageVar};
 #[cfg(feature = "image")]
 use zng_layout::unit::Point;
 #[cfg(feature = "image")]
@@ -588,7 +588,7 @@ event_args! {
         /// See [`WindowVars::frame_capture_mode`] for more details.
         ///
         /// [`WindowVars::frame_capture_mode`]: crate::WindowVars::frame_capture_mode
-        pub frame_image: Option<Img>,
+        pub frame_image: Option<ImageVar>,
 
         ..
 

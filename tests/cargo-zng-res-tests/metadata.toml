@@ -6,6 +6,6 @@ authors = ["The Zng Project Developers"]
 description = "Part of the zng project."
 homepage = "https://zng-ui.github.io/"
 [package.metadata.zng.about]
+app_id = "rs.zng.cargo-zng-res-tests"
 app = "Res Tests"
 org = "Zng Project"
-qualifier = "rs"

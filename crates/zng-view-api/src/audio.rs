@@ -25,6 +25,11 @@ crate::declare_id! {
     ///
     /// The View Process defines the ID.
     pub struct PlaybackId(_);
+
+    /// Id of an audio encode task.
+    ///
+    /// The View Process defines the ID.
+    pub struct AudioEncodeId(_);
 }
 
 /// Info about an input or output device.
@@ -123,4 +128,100 @@ pub struct PlaybackRequest {
 #[non_exhaustive]
 pub struct PlaybackUpdateRequest {
     // pause, stop
+}
+
+/// Represents an audio codec capability.
+///
+/// This type will be used in the next breaking release of the view API.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct AudioFormat {
+    /// Display name of the format.
+    pub display_name: Txt,
+
+    /// Media types (MIME) associated with the format.
+    ///
+    /// Lowercase, without `"audio/"` prefix, comma separated if there is more than one.
+    pub media_type_suffixes: Txt,
+
+    /// Common file extensions associated with the format.
+    ///
+    /// Lowercase, without dot, comma separated if there is more than one.
+    pub file_extensions: Txt,
+
+    /// Capabilities of this format.
+    pub capabilities: AudioFormatCapability,
+}
+impl AudioFormat {
+    /// From static str.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `media_type_suffixes` not ASCII.
+    pub const fn from_static(
+        display_name: &'static str,
+        media_type_suffixes: &'static str,
+        file_extensions: &'static str,
+        capabilities: AudioFormatCapability,
+    ) -> Self {
+        assert!(media_type_suffixes.is_ascii());
+        Self {
+            display_name: Txt::from_static(display_name),
+            media_type_suffixes: Txt::from_static(media_type_suffixes),
+            file_extensions: Txt::from_static(file_extensions),
+            capabilities,
+        }
+    }
+
+    /// Iterate over media type suffixes.
+    pub fn media_type_suffixes_iter(&self) -> impl Iterator<Item = &str> {
+        self.media_type_suffixes.split(',').map(|e| e.trim())
+    }
+
+    /// Iterate over full media types, with `"image/"` prefix.
+    pub fn media_types(&self) -> impl Iterator<Item = Txt> {
+        self.media_type_suffixes_iter().map(Txt::from_str)
+    }
+
+    /// Iterate over extensions.
+    pub fn file_extensions_iter(&self) -> impl Iterator<Item = &str> {
+        self.file_extensions.split(',').map(|e| e.trim())
+    }
+
+    /// Checks if `f` matches any of the mime types or any of the file extensions.
+    ///
+    /// File extensions comparison ignores dot and ASCII case.
+    pub fn matches(&self, f: &str) -> bool {
+        let f = f.strip_prefix('.').unwrap_or(f);
+        let f = f.strip_prefix("image/").unwrap_or(f);
+        self.media_type_suffixes_iter().any(|e| e.eq_ignore_ascii_case(f)) || self.file_extensions_iter().any(|e| e.eq_ignore_ascii_case(f))
+    }
+}
+
+bitflags! {
+    /// Capabilities of an [`AudioFormat`] implementation.
+    ///
+    /// Note that `DECODE` capability is omitted because the view-process can always decode formats.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub struct AudioFormatCapability: u8 {
+        /// View-process can encode audio in this format.
+        const ENCODE = 0b_0000_0001;
+    }
+}
+
+/// Represent a image encode request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct AudioEncodeRequest {
+    /// Image to encode.
+    pub id: AudioId,
+
+    /// Format query, view-process uses [`AudioFormat::matches`] to find the format.
+    pub format: Txt,
+}
+impl AudioEncodeRequest {
+    /// New.
+    pub fn new(id: AudioId, format: Txt) -> Self {
+        Self { id, format }
+    }
 }

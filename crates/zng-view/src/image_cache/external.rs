@@ -14,7 +14,6 @@ use zng_view_api::{ImageRendering, image::ImageTextureId};
 
 use crate::{
     display_list::{DisplayListCache, SpaceAndClip},
-    image_cache::ResizerCache,
     px_wr::PxToWr as _,
 };
 
@@ -95,14 +94,12 @@ struct ImageUse {
 pub(crate) struct ImageUseMap {
     id_tex: FxHashMap<ExternalImageId, ImageUse>,
     tex_id: FxHashMap<ImageTextureId, ExternalImageId>,
-    resizer_cache: Arc<ResizerCache>,
 }
 impl ImageUseMap {
-    pub fn new(resizer_cache: Arc<ResizerCache>) -> Self {
+    pub fn new() -> Self {
         Self {
             id_tex: FxHashMap::default(),
             tex_id: FxHashMap::default(),
-            resizer_cache,
         }
     }
     pub fn new_use(&mut self, image: &Image, document_id: DocumentId, api: &mut RenderApi) -> ImageTextureId {
@@ -230,31 +227,10 @@ impl ImageUseMap {
         tile_size: PxSize,
         tile_spacing: PxSize,
     ) {
-        let mut img = match self.tex_id.get(&image_id) {
+        let img = match self.tex_id.get(&image_id) {
             Some(id) => self.id_tex.get_mut(id).unwrap(),
             None => return,
         };
-
-        // replace if high-quality downscaled, if available
-        let mip = img.image.mip(tile_size, &self.resizer_cache);
-        if img.image.external_id() != mip.external_id() {
-            if let Some(i) = img.mipmap.iter().position(|i| i.image.external_id() == mip.external_id()) {
-                img = &mut img.mipmap[i];
-            } else {
-                // register main texture ID for the downscaled replacement
-                let key = api.generate_image_key();
-                let mut txn = webrender::Transaction::new();
-                txn.add_image(key, mip.descriptor(), mip.data(), None);
-                api.send_transaction(document_id, txn);
-                img.mipmap.push(ImageUse {
-                    image: mip,
-                    texture_id: ImageTextureId::from_raw(key.1),
-                    stripes: Box::new([]),
-                    mipmap: vec![],
-                });
-                img = img.mipmap.last_mut().unwrap();
-            }
-        }
 
         if tile_spacing.is_empty() && tile_size == image_size {
             let full_size = img.image.size();

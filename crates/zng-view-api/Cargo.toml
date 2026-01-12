@@ -43,7 +43,7 @@ rustc-hash = { version = "2.0", default-features = false, features = ["std"] }
 bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
 bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
 
-bincode = { version = "2.0", default-features = false, features = ["serde", "std"] }
+bincode = { version = "1", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
 serde_variant = { version = "0.1", default-features = false }
 

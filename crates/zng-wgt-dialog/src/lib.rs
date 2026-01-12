@@ -15,10 +15,11 @@ use std::{fmt, ops, path::PathBuf, sync::Arc};
 
 use bitflags::bitflags;
 use parking_lot::Mutex;
+use zng_app::view_process::VIEW_PROCESS;
 use zng_ext_l10n::l10n;
 use zng_ext_window::{WINDOW_CLOSE_REQUESTED_EVENT, WINDOWS};
 use zng_var::{ContextInitHandle, animation::easing};
-use zng_view_api::dialog as native_api;
+use zng_view_api::dialog::{self as native_api};
 use zng_wgt::{node::VarPresent as _, prelude::*, *};
 use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
@@ -35,7 +36,9 @@ use zng_wgt_wrap::Wrap;
 
 pub mod backdrop;
 
-pub use zng_view_api::dialog::{FileDialogFilters, FileDialogResponse};
+pub use zng_view_api::dialog::{
+    DialogCapability as NativeDialogCapacity, FileDialogFilters, FileDialogResponse, Notification, NotificationAction, NotificationResponse,
+};
 
 /// A modal dialog overlay container.
 #[widget($crate::Dialog)]
@@ -769,6 +772,16 @@ impl DIALOG {
     pub fn custom(&self, dialog: impl IntoUiNode) -> ResponseVar<Response> {
         self.show_impl(dialog.into_node())
     }
+
+    /// Insert a notification in the system notification list.
+    ///
+    /// The notification may be visible as a popup depending on the implementation. If the `notification` var updates
+    /// before a response the the notification content is updated.
+    ///
+    /// To remove the notification update to [`Notification::close`].
+    pub fn notification(&self, notification: impl IntoVar<Notification>) -> ResponseVar<NotificationResponse> {
+        self.notification_impl(notification.into_var())
+    }
 }
 
 impl DIALOG {
@@ -779,6 +792,11 @@ impl DIALOG {
     /// Note that some dialogs only have the native implementation as of this release.
     pub fn native_dialogs(&self) -> Var<DialogKind> {
         DIALOG_SV.read().native_dialogs.clone()
+    }
+
+    /// Native dialogs implemented by the current view-process.
+    pub fn available_native_dialogs(&self) -> NativeDialogCapacity {
+        VIEW_PROCESS.info().dialog
     }
 }
 bitflags! {
@@ -911,6 +929,14 @@ impl DIALOG {
             POPUP.open_config(dialog, AnchorMode::window(), ContextCapture::NoCapture)
         });
 
+        response
+    }
+
+    fn notification_impl(&self, notification: Var<Notification>) -> ResponseVar<NotificationResponse> {
+        let (responder, response) = response_var();
+        if let Err(e) = VIEW_PROCESS.notification_dialog(notification, responder.clone()) {
+            responder.respond(NotificationResponse::Error(e.to_txt()));
+        }
         response
     }
 }

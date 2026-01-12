@@ -616,7 +616,7 @@ impl LayoutTextFinal {
             args.paragraph_spacing = paragraph_spacing;
             args.paragraph_indent = paragraph_indent;
             args.paragraph_break = PARAGRAPH_BREAK_VAR.get();
-            ctx.shaped_text.reshape_lines2(&args);
+            ctx.shaped_text.reshape_lines(&args);
         }
 
         if !is_measure {
@@ -636,7 +636,7 @@ impl LayoutTextFinal {
                     args.paragraph_spacing = paragraph_spacing;
                     args.paragraph_indent = paragraph_indent;
                     args.paragraph_break = PARAGRAPH_BREAK_VAR.get();
-                    ctx.shaped_text.reshape_lines2(&args);
+                    ctx.shaped_text.reshape_lines(&args);
                 }
                 ctx.shaped_text.reshape_lines_justify(justify, &self.shaping_args.lang);
 

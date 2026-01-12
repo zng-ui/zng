@@ -5,13 +5,13 @@ use zng_txt::formatx;
 use zng_unit::{Factor, PxDensity2d, PxDensityUnits as _, PxRect};
 use zng_view_api::{
     Event,
-    image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImageRequest},
+    image::{ColorType, ImageDecoded, ImageId, ImageMaskMode, ImageMetadata},
     window::{FrameId, WindowId},
 };
 
 use crate::{
     AppEvent,
-    image_cache::{Image, ImageData, ipc_dyn_image::IpcDynamicImage},
+    image_cache::{Image, ImageData, dyn_image::IpcDynamicImage},
 };
 
 use super::ImageCache;
@@ -28,33 +28,29 @@ impl ImageCache {
         mask: Option<ImageMaskMode>,
     ) -> ImageId {
         if frame_id == FrameId::INVALID {
-            let id = self.image_id_gen.incr();
-            let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoadError {
+            let id = self.image_id_gen.lock().incr();
+            let _ = self.app_sender.send(AppEvent::Notify(Event::ImageDecodeError {
                 image: id,
                 error: formatx!("no frame rendered in window `{window_id:?}`"),
-            }));
-            let _ = self.app_sender.send(AppEvent::Notify(Event::FrameImageReady {
-                window: window_id,
-                frame: frame_id,
-                image: id,
-                selection: rect,
             }));
             return id;
         }
 
-        let data = self.frame_image_data(gl, rect, scale_factor, mask);
-
-        let id = data.id;
-
-        let _ = self.app_sender.send(AppEvent::ImageLoaded(data));
-        let _ = self.app_sender.send(AppEvent::Notify(Event::FrameImageReady {
-            window: window_id,
-            frame: frame_id,
-            image: id,
-            selection: rect,
-        }));
-
-        id
+        match self.frame_image_data(gl, rect, scale_factor, mask) {
+            Ok(data) => {
+                let id = data.meta.id;
+                let _ = self.app_sender.send(AppEvent::Notify(Event::ImageDecoded(data)));
+                id
+            }
+            Err(e) => {
+                let id = self.image_id_gen.lock().incr();
+                let _ = self.app_sender.send(AppEvent::Notify(Event::ImageDecodeError {
+                    image: id,
+                    error: formatx!("cannot create frame image for window `{window_id:?}`, {e}"),
+                }));
+                id
+            }
+        }
     }
 
     /// Create frame_image for a capture request in the FrameRequest.
@@ -64,35 +60,10 @@ impl ImageCache {
         rect: PxRect,
         scale_factor: Factor,
         mask: Option<ImageMaskMode>,
-    ) -> ImageLoadedData {
-        let data = self.frame_image_data_impl(gl, rect, scale_factor, mask);
-
-        self.images.insert(
-            data.id,
-            Image(Arc::new(ImageData::RawData {
-                size: data.size,
-                range: 0..data.pixels.len(),
-                pixels: data.pixels.clone(),
-                is_opaque: data.is_opaque,
-                density: data.density,
-                mipmap: Mutex::new(Box::new([])),
-                stripes: Mutex::new(Box::new([])),
-            })),
-        );
-
-        data
-    }
-
-    fn frame_image_data_impl(
-        &mut self,
-        gl: &dyn gleam::gl::Gl,
-        rect: PxRect,
-        scale_factor: Factor,
-        mask: Option<ImageMaskMode>,
-    ) -> ImageLoadedData {
-        let format = match gl.get_type() {
-            gleam::gl::GlType::Gl => gleam::gl::BGRA,
-            gleam::gl::GlType::Gles => gleam::gl::RGBA,
+    ) -> std::io::Result<ImageDecoded> {
+        let (format, og_color_type) = match gl.get_type() {
+            gleam::gl::GlType::Gl => (gleam::gl::BGRA, ColorType::BGRA8),
+            gleam::gl::GlType::Gles => (gleam::gl::RGBA, ColorType::RGBA8),
         };
         let pixels_flipped = gl.read_pixels(
             rect.origin.x.0,
@@ -102,7 +73,7 @@ impl ImageCache {
             format,
             gleam::gl::UNSIGNED_BYTE,
         );
-        let mut buf = IpcBytes::new_mut_blocking(pixels_flipped.len()).unwrap();
+        let mut buf = IpcBytes::new_mut_blocking(pixels_flipped.len())?;
         assert_eq!(rect.size.width.0 as usize * rect.size.height.0 as usize * 4, buf.len());
         let stride = 4 * rect.size.width.0 as usize;
         for (px, buf) in pixels_flipped.chunks_exact(stride).rev().zip(buf.chunks_exact_mut(stride)) {
@@ -110,36 +81,44 @@ impl ImageCache {
         }
 
         if let Some(mask) = mask {
-            if format == gleam::gl::BGRA {
-                for bgra in buf.chunks_exact_mut(4) {
-                    bgra.swap(0, 3);
-                }
-            }
             let density = 96.0 * scale_factor.0;
             let density = Some(PxDensity2d::splat(density.ppi()));
 
-            let (pixels, size, density, is_opaque, is_mask) = Self::convert_decoded(
-                IpcDynamicImage::ImageRgba8(
-                    image::ImageBuffer::from_raw(rect.size.width.0 as u32, rect.size.height.0 as u32, buf).unwrap(),
-                ),
-                Some(mask),
-                density,
-                None,
-                None,
-                image::metadata::Orientation::NoTransforms,
-                &self.resizer,
-            )
-            .unwrap(); // frame size is not large enough to trigger an memmap that can fail
+            let r = if format == gleam::gl::BGRA {
+                Self::convert_bgra8_to_mask_in_place(rect.size, buf, mask, density, None, &self.resizer)
+            } else {
+                Self::convert_decoded(
+                    IpcDynamicImage::ImageRgba8(
+                        image::ImageBuffer::from_raw(rect.size.width.0 as u32, rect.size.height.0 as u32, buf).unwrap(),
+                    ),
+                    Some(mask),
+                    density,
+                    None,
+                    None,
+                    image::metadata::Orientation::NoTransforms,
+                    &self.resizer,
+                )
+            };
 
-            let id = self.add(ImageRequest::new(
-                ImageDataFormat::A8 { size },
-                pixels.clone(),
-                u64::MAX,
-                None,
-                Some(mask),
-            ));
+            // frame size is not large enough to trigger a memmap that can fail;
+            let (pixels, size, density, is_opaque, is_mask) = r.unwrap();
 
-            ImageLoadedData::new(id, size, density, is_opaque, is_mask, pixels)
+            let id = self.image_id_gen.lock().incr();
+            self.images.insert(
+                id,
+                Image(Arc::new(ImageData::RawData {
+                    size,
+                    range: 0..pixels.len(),
+                    pixels: pixels.clone(),
+                    is_opaque,
+                    density,
+                    stripes: Mutex::new(Box::new([])),
+                })),
+            );
+
+            let mut meta = ImageMetadata::new(id, size, is_mask, og_color_type);
+            meta.density = density;
+            Ok(ImageDecoded::new(meta, pixels, is_opaque))
         } else {
             if format == gleam::gl::RGBA {
                 for rgba in buf.chunks_exact_mut(4) {
@@ -149,20 +128,26 @@ impl ImageCache {
 
             let is_opaque = buf.chunks_exact(4).all(|bgra| bgra[3] == 255);
 
-            let data = buf.finish_blocking().unwrap(); // frame size is not large enough to trigger an memmap that can fail
+            let data = buf.finish_blocking()?;
             let density = 96.0 * scale_factor.0;
             let density = Some(PxDensity2d::splat(density.ppi()));
             let size = rect.size;
 
-            let id = self.add(ImageRequest::new(
-                ImageDataFormat::Bgra8 { size, density },
-                data.clone(),
-                u64::MAX,
-                None,
-                mask,
-            ));
-
-            ImageLoadedData::new(id, size, density, is_opaque, false, data)
+            let id = self.image_id_gen.lock().incr();
+            self.images.insert(
+                id,
+                Image(Arc::new(ImageData::RawData {
+                    size,
+                    range: 0..data.len(),
+                    pixels: data.clone(),
+                    is_opaque,
+                    density,
+                    stripes: Mutex::new(Box::new([])),
+                })),
+            );
+            let mut meta = ImageMetadata::new(id, size, false, og_color_type);
+            meta.density = density;
+            Ok(ImageDecoded::new(meta, data, is_opaque))
         }
     }
 }
