@@ -1,12 +1,19 @@
 use std::{fmt, io::Cursor, sync::Arc, time::Duration};
 
-use rodio::Source;
+#[cfg(feature = "audio_any")]
+use rodio::Source as _;
 use rustc_hash::FxHashMap;
 #[cfg(feature = "audio_mp3")]
 use symphonia::core::probe::QueryDescriptor;
 use zng_task::channel::{IpcBytes, IpcBytesCast, IpcBytesCastIntoIter, IpcReceiver};
 use zng_txt::{ToTxt, formatx};
 use zng_view_api::{Event, audio::*};
+
+#[cfg(not(feature = "audio_any"))]
+mod rodio {
+    pub struct OutputStream;
+    pub struct Sink;
+}
 
 use crate::{AppEvent, AppEventSender};
 
@@ -95,6 +102,15 @@ impl AudioCache {
         id
     }
 
+    #[cfg(not(feature = "audio_any"))]
+    fn add_impl(app_sender: AppEventSender, id: AudioId, request: AudioRequest<IpcBytes>) {
+        app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
+            audio: id,
+            error: r#"not built with "audio_any""#,
+        }));
+    }
+
+    #[cfg(feature = "audio_any")]
     fn add_impl(app_sender: AppEventSender, id: AudioId, request: AudioRequest<IpcBytes>) {
         let data = request.data;
 
@@ -262,6 +278,15 @@ impl AudioCache {
         self.tracks.remove(&id);
     }
 
+    #[cfg(not(feature = "audio_any"))]
+    pub(crate) fn open_output(&mut self, output: AudioOutputRequest) {
+        let _ = self.app_sender.send(AppEvent::Notify(Event::AudioOutputOpenError {
+            id: output.id,
+            error: r#"cannot open audio output device stream, not built with "audio_any""#.to_txt(),
+        }));
+    }
+
+    #[cfg(feature = "audio_any")]
     pub(crate) fn open_output(&mut self, output: AudioOutputRequest) {
         let id = output.id;
 
@@ -328,6 +353,19 @@ impl AudioCache {
         }
     }
 
+    #[cfg(not(feature = "audio_any"))]
+    pub(crate) fn play(&mut self, request: AudioPlayRequest) -> AudioPlayId {
+        let id = self.play_id_gen.incr();
+
+        let _ = self.app_sender.send(AppEvent::Notify(Event::AudioPlayError {
+            play: id,
+            error: formatx!("output stream {:?} not found", request.output),
+        }));
+
+        id
+    }
+
+    #[cfg(feature = "audio_any")]
     pub(crate) fn play(&mut self, request: AudioPlayRequest) -> AudioPlayId {
         let id = self.play_id_gen.incr();
 
@@ -399,6 +437,7 @@ impl Iterator for AudioTrackPlay {
         self.track.size_hint()
     }
 }
+#[cfg(feature = "audio_any")]
 impl rodio::Source for AudioTrackPlay {
     fn current_span_len(&self) -> Option<usize> {
         Some(self.track.rest().len())

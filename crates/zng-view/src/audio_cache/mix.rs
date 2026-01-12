@@ -1,3 +1,5 @@
+#![cfg(feature = "audio_any")]
+
 use std::time::Duration;
 
 use rodio::Source as _;
