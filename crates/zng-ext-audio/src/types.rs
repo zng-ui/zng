@@ -17,8 +17,6 @@ use zng_var::impl_from_and_into_var;
 use zng_var::{Var, VarEq};
 use zng_view_api::audio::{AudioDecoded, AudioId, AudioMetadata};
 
-use zng_task as task;
-
 pub use zng_app::view_process::AudioOutputId;
 pub use zng_view_api::audio::{AudioDataFormat, AudioFormat, AudioOutputState, AudioTracksMode};
 
@@ -483,7 +481,7 @@ pub enum AudioSource {
     ///
     /// Audio equality is defined by the URI and ACCEPT string.
     #[cfg(feature = "http")]
-    Download(crate::task::http::Uri, Option<Txt>),
+    Download(zng_task::http::Uri, Option<Txt>),
     /// Shared reference to bytes for an encoded or decoded audio.
     ///
     /// Audio equality is defined by the hash, it is usually the hash of the bytes but it does not need to be.
@@ -542,7 +540,7 @@ impl AudioSource {
     ///
     /// [`Download`]: Self::Download
     #[cfg(feature = "http")]
-    pub fn hash128_download(uri: &crate::task::http::Uri, accept: &Option<Txt>, options: &AudioOptions) -> AudioHash {
+    pub fn hash128_download(uri: &zng_task::http::Uri, accept: &Option<Txt>, options: &AudioOptions) -> AudioHash {
         use std::hash::Hash;
         let mut h = AudioHash::hasher();
         1u8.hash(&mut h);
@@ -592,11 +590,11 @@ impl fmt::Debug for AudioSource {
 
 #[cfg(feature = "http")]
 impl_from_and_into_var! {
-    fn from(uri: crate::task::http::Uri) -> AudioSource {
+    fn from(uri: zng_task::http::Uri) -> AudioSource {
         AudioSource::Download(uri, None)
     }
     /// From (URI, HTTP-ACCEPT).
-    fn from((uri, accept): (crate::task::http::Uri, &'static str)) -> AudioSource {
+    fn from((uri, accept): (zng_task::http::Uri, &'static str)) -> AudioSource {
         AudioSource::Download(uri, Some(accept.into()))
     }
 
@@ -606,7 +604,7 @@ impl_from_and_into_var! {
     /// [`Download`]: AudioSource::Download
     /// [`Read`]: AudioSource::Read
     fn from(s: &str) -> AudioSource {
-        use crate::task::http::*;
+        use zng_task::http::*;
         if let Ok(uri) = Uri::try_from(s)
             && let Some(scheme) = uri.scheme()
         {
@@ -901,7 +899,7 @@ impl PathFilter {
 ///
 /// See [`AudioLimits::allow_uri`] for more information.
 #[cfg(feature = "http")]
-pub type UriFilter = AudioSourceFilter<crate::task::http::Uri>;
+pub type UriFilter = AudioSourceFilter<zng_task::http::Uri>;
 #[cfg(feature = "http")]
 impl UriFilter {
     /// Allow any file from the `host` site.
@@ -918,7 +916,7 @@ impl<F: Fn(&PathBuf) -> bool + Send + Sync + 'static> From<F> for PathFilter {
 }
 
 #[cfg(feature = "http")]
-impl<F: Fn(&task::http::Uri) -> bool + Send + Sync + 'static> From<F> for UriFilter {
+impl<F: Fn(&zng_task::http::Uri) -> bool + Send + Sync + 'static> From<F> for UriFilter {
     fn from(custom: F) -> Self {
         UriFilter::custom(custom)
     }
