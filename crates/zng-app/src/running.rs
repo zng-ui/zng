@@ -172,6 +172,9 @@ impl<E: AppExtension> RunningApp<E> {
         fn window_id(id: zng_view_api::window::WindowId) -> WindowId {
             WindowId::from_raw(id.get())
         }
+        fn audio_output_id(id: zng_view_api::audio::AudioOutputId) -> AudioOutputId {
+            AudioOutputId::from_raw(id.get())
+        }
 
         match ev {
             Event::MouseMoved {
@@ -381,6 +384,43 @@ impl<E: AppExtension> RunningApp<E> {
             Event::ImageEncoded { task, data } => VIEW_PROCESS.on_image_encoded(task, data),
             Event::ImageEncodeError { task, error } => {
                 VIEW_PROCESS.on_image_encode_error(task, error);
+            }
+
+            Event::AudioMetadataDecoded(meta) => {
+                if let Some(handle) = VIEW_PROCESS.on_audio_metadata(&meta) {
+                    let args = RawAudioMetadataDecodedArgs::now(handle, meta);
+                    self.notify_event(RAW_AUDIO_METADATA_DECODED_EVENT.new_update(args), observer);
+                } else {
+                    tracing::warn!("received unknown audio metadata {:?}, ignoring", meta.id);
+                }
+            }
+            Event::AudioDecoded(audio) => {
+                if let Some(handle) = VIEW_PROCESS.on_audio_decoded(&audio) {
+                    let args = RawAudioDecodedArgs::now(handle, audio);
+                    self.notify_event(RAW_AUDIO_DECODED_EVENT.new_update(args), observer);
+                } else {
+                    tracing::warn!("received unknown audio metadata {:?}, ignoring", audio.id);
+                }
+            }
+            Event::AudioDecodeError { audio: id, error } => {
+                if let Some(handle) = VIEW_PROCESS.on_audio_error(id) {
+                    let args = RawAudioDecodeErrorArgs::now(handle, error);
+                    self.notify_event(RAW_AUDIO_DECODE_ERROR_EVENT.new_update(args), observer);
+                }
+            }
+
+            Event::AudioOutputOpened(id, data) => {
+                let a_id = audio_output_id(id);
+                let output = VIEW_PROCESS.on_audio_output_opened(a_id, data);
+
+                let args = RawAudioOutputOpenArgs::now(a_id, output);
+                self.notify_event(RAW_AUDIO_OUTPUT_OPEN_EVENT.new_update(args), observer);
+            }
+            Event::AudioOutputOpenError { id, error } => {
+                let a_id = audio_output_id(id);
+
+                let args = RawAudioOutputOpenErrorArgs::now(a_id, error);
+                self.notify_event(RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT.new_update(args), observer);
             }
 
             Event::AccessInit { window: w_id } => {

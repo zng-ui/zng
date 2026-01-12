@@ -62,6 +62,7 @@ dev = [
     "fs_watcher",
     "grid",
     "image",
+    "audio",
     "markdown",
     "menu",
     "progress",
@@ -76,6 +77,7 @@ dev = [
     "wrap",
     "shortcut_text",
     "image_all",
+    "audio_all",
     "button",
     "ansi_text",
     "dyn_app_extension",
@@ -100,6 +102,7 @@ http = [
     "zng-task/http",
     "zng-wgt/http",
     "zng-ext-image?/http",
+    "zng-ext-audio?/http",
     "zng-ext-window?/http",
 ]
 # Enables HTTP cookies option in client requests.
@@ -356,6 +359,11 @@ image = [
     "zng-wgt-inspector?/image",
 ]
 
+# Enable audio service, widgets.
+audio = [
+    "dep:zng-ext-audio",
+]
+
 # Enable markdown widget.
 markdown = ["dep:zng-wgt-markdown"]
 
@@ -427,8 +435,22 @@ image_tiff = ["zng-view?/image_tiff"]
 # Enable WEBP image decoder with "view" feature.
 image_webp = ["zng-view?/image_webp"]
 
-# Enable all encoders and decoders.
+# Enable all image encoders and decoders with "view" feature.
 image_all = ["zng-view?/image_all"]
+
+# Enable MP3 audio decoder and encoder with "view" feature.
+audio_mp3 = ["zng-view?/audio_mp3"]
+# Enable MP4 audio decoder and encoder with "view" feature.
+audio_mp4 = ["zng-view?/audio_mp4"]
+# Enable FLAC audio decoder and encoder with "view" feature.
+audio_flac = ["zng-view?/audio_flac"]
+# Enable MP3 audio decoder and encoder with "view" feature.
+audio_vorbis = ["zng-view?/audio_vorbis"]
+# Enable WAV audio decoder and encoder with "view" feature.
+audio_wav = ["zng-view?/audio_wav"]
+
+# Enable all audio decoders and encoders with "view" feature.
+audio_all = ["zng-view?/audio_all"]
 
 [dependencies]
 # foundation
@@ -451,6 +473,8 @@ zng-ext-font = { path = "../zng-ext-font", version = "0.12.4", default-features 
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.13.4", features = [
     "tar",
 ], default-features = false }
+
+zng-ext-audio = { path = "../zng-ext-audio", version = "0.1.0", optional = true, default-features = false }
 zng-ext-image = { path = "../zng-ext-image", version = "0.10.4", optional = true, default-features = false }
 zng-ext-svg = { path = "../zng-ext-svg", version = "0.9.4", optional = true, default-features = false }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.10.4", optional = true, default-features = false }

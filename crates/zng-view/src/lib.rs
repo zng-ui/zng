@@ -115,6 +115,7 @@ use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 #[cfg(target_os = "android")]
 use winit::platform::android::EventLoopBuilderExtAndroid;
 
+mod audio_cache;
 mod config;
 mod display_list;
 mod gl;
@@ -167,7 +168,10 @@ use zng_view_api::{
 
 use rustc_hash::FxHashMap;
 
-use crate::notification::NotificationService;
+use crate::{
+    audio_cache::{AudioCache, AudioTrack},
+    notification::NotificationService,
+};
 
 #[cfg(ipc)]
 zng_env::on_process_start!(|args| {
@@ -353,7 +357,9 @@ pub(crate) struct App {
 
     response_sender: ipc::ResponseSender,
     event_sender: ipc::EventSender,
+
     image_cache: ImageCache,
+    audio_cache: AudioCache,
 
     generation: ViewProcessGen,
     device_events_filter: DeviceEventsFilter,
@@ -1011,8 +1017,11 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 self.exited = true;
                 self.winit_loop.exit();
             }
-            AppEvent::ImageDecoded(data) => {
-                self.image_cache.loaded(data);
+            AppEvent::ImageCanRender(data) => {
+                self.image_cache.on_image_can_render(data);
+            }
+            AppEvent::AudioCanPlay(id, data) => {
+                self.audio_cache.on_audio_can_play(id, data);
             }
             AppEvent::MonitorPowerChanged => {
                 // if a window opens in power-off it is blank until redraw.
@@ -1174,6 +1183,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         let mut winit_loop_guard = self.winit_loop.set(winit_loop);
 
         self.image_cache.on_low_memory();
+        self.audio_cache.on_low_memory();
         for w in &mut self.windows {
             w.on_low_memory();
         }
@@ -1313,8 +1323,11 @@ impl App {
                                 self.app.exited = true;
                                 break 'app_loop;
                             }
-                            AppEvent::ImageDecoded(data) => {
-                                self.app.image_cache.loaded(data);
+                            AppEvent::ImageCanRender(data) => {
+                                self.app.image_cache.on_image_can_render(data);
+                            }
+                            AppEvent::AudioCanPlay(meta, data) => {
+                                self.app.audio_cache.on_audio_can_play(meta, data);
                             }
                             AppEvent::MonitorPowerChanged => {} // headless
                             AppEvent::SetDeviceEventsFilter(filter) => {
@@ -1398,6 +1411,7 @@ impl App {
             idle,
             gl_manager: GlContextManager::default(),
             image_cache: ImageCache::new(app_sender.clone()),
+            audio_cache: AudioCache::new(app_sender.clone()),
             app_sender,
             request_recv,
             response_sender,
@@ -1826,88 +1840,89 @@ impl Api for App {
         self.generation = vp_gen;
         self.headless = headless;
 
-        let mut inited = ViewProcessInfo::new(vp_gen, is_respawn);
+        let mut info = ViewProcessInfo::new(vp_gen, is_respawn);
         if !headless {
             // winit supports all these
-            inited.input_device |= InputDeviceCapability::KEY;
-            inited.input_device |= InputDeviceCapability::BUTTON;
-            inited.input_device |= InputDeviceCapability::SCROLL_MOTION;
-            inited.input_device |= InputDeviceCapability::AXIS_MOTION;
-            inited.input_device |= InputDeviceCapability::POINTER_MOTION;
+            info.input_device |= InputDeviceCapability::KEY;
+            info.input_device |= InputDeviceCapability::BUTTON;
+            info.input_device |= InputDeviceCapability::SCROLL_MOTION;
+            info.input_device |= InputDeviceCapability::AXIS_MOTION;
+            info.input_device |= InputDeviceCapability::POINTER_MOTION;
         }
-        inited.image = crate::image_cache::FORMATS.to_vec();
-        inited.extensions = self.exts.api_extensions();
+        info.image = crate::image_cache::FORMATS.to_vec();
+        info.audio = crate::audio_cache::FORMATS.to_vec();
+        info.extensions = self.exts.api_extensions();
 
         use zng_view_api::window::WindowCapability;
         if !headless && !cfg!(target_os = "android") {
-            inited.window |= WindowCapability::SET_TITLE;
-            inited.window |= WindowCapability::SET_VISIBLE;
-            inited.window |= WindowCapability::SET_ALWAYS_ON_TOP;
-            inited.window |= WindowCapability::SET_RESIZABLE;
-            inited.window |= WindowCapability::BRING_TO_TOP;
-            inited.window |= WindowCapability::SET_CURSOR;
-            inited.window |= WindowCapability::SET_CURSOR_IMAGE;
-            inited.window |= WindowCapability::SET_FOCUS_INDICATOR;
-            inited.window |= WindowCapability::FOCUS;
-            inited.window |= WindowCapability::DRAG_MOVE;
-            inited.window |= WindowCapability::SYSTEM_CHROME;
-            inited.window |= WindowCapability::SET_CHROME;
-            inited.window |= WindowCapability::MINIMIZE;
-            inited.window |= WindowCapability::MAXIMIZE;
-            inited.window |= WindowCapability::FULLSCREEN;
-            inited.window |= WindowCapability::SET_SIZE;
+            info.window |= WindowCapability::SET_TITLE;
+            info.window |= WindowCapability::SET_VISIBLE;
+            info.window |= WindowCapability::SET_ALWAYS_ON_TOP;
+            info.window |= WindowCapability::SET_RESIZABLE;
+            info.window |= WindowCapability::BRING_TO_TOP;
+            info.window |= WindowCapability::SET_CURSOR;
+            info.window |= WindowCapability::SET_CURSOR_IMAGE;
+            info.window |= WindowCapability::SET_FOCUS_INDICATOR;
+            info.window |= WindowCapability::FOCUS;
+            info.window |= WindowCapability::DRAG_MOVE;
+            info.window |= WindowCapability::SYSTEM_CHROME;
+            info.window |= WindowCapability::SET_CHROME;
+            info.window |= WindowCapability::MINIMIZE;
+            info.window |= WindowCapability::MAXIMIZE;
+            info.window |= WindowCapability::FULLSCREEN;
+            info.window |= WindowCapability::SET_SIZE;
         }
         if !headless & cfg!(windows) {
-            inited.window |= WindowCapability::SET_ICON;
-            inited.window |= WindowCapability::SET_TASKBAR_VISIBLE;
-            inited.window |= WindowCapability::OPEN_TITLE_BAR_CONTEXT_MENU;
-            inited.window |= WindowCapability::SET_SYSTEM_SHUTDOWN_WARN;
+            info.window |= WindowCapability::SET_ICON;
+            info.window |= WindowCapability::SET_TASKBAR_VISIBLE;
+            info.window |= WindowCapability::OPEN_TITLE_BAR_CONTEXT_MENU;
+            info.window |= WindowCapability::SET_SYSTEM_SHUTDOWN_WARN;
         }
         if !headless && !cfg!(target_os = "android") && !cfg!(target_os = "macos") {
-            inited.window |= WindowCapability::DRAG_RESIZE;
+            info.window |= WindowCapability::DRAG_RESIZE;
         }
         // not headless, not Android and not Wayland
         if !headless && !cfg!(target_os = "android") && (!cfg!(unix) || std::env::var("WAYLAND_DISPLAY").is_err()) {
             // Wayland can't restore from minimized.
-            inited.window |= WindowCapability::RESTORE;
+            info.window |= WindowCapability::RESTORE;
             // Wayland does not give video access.
-            inited.window |= WindowCapability::EXCLUSIVE;
-            inited.window |= WindowCapability::SET_POSITION;
+            info.window |= WindowCapability::EXCLUSIVE;
+            info.window |= WindowCapability::SET_POSITION;
         }
         if !headless & (cfg!(windows) || cfg!(target_os = "macos")) {
             // Winit says "not implemented" for Wayland/x11 so may be in the future?
-            inited.window |= WindowCapability::DISABLE_CLOSE_BUTTON;
-            inited.window |= WindowCapability::DISABLE_MINIMIZE_BUTTON;
-            inited.window |= WindowCapability::DISABLE_MAXIMIZE_BUTTON;
+            info.window |= WindowCapability::DISABLE_CLOSE_BUTTON;
+            info.window |= WindowCapability::DISABLE_MINIMIZE_BUTTON;
+            info.window |= WindowCapability::DISABLE_MAXIMIZE_BUTTON;
         }
-        inited.window |= WindowCapability::SET_IME_AREA;
+        info.window |= WindowCapability::SET_IME_AREA;
 
         use zng_view_api::dialog::DialogCapability;
         if !headless && !cfg!(target_os = "android") {
             // rfd crate supports all these
-            inited.dialog |= DialogCapability::MESSAGE;
-            inited.dialog |= DialogCapability::OPEN_FILE;
-            inited.dialog |= DialogCapability::OPEN_FILES;
-            inited.dialog |= DialogCapability::SAVE_FILE;
-            inited.dialog |= DialogCapability::SELECT_FOLDER;
-            inited.dialog |= DialogCapability::SELECT_FOLDERS;
+            info.dialog |= DialogCapability::MESSAGE;
+            info.dialog |= DialogCapability::OPEN_FILE;
+            info.dialog |= DialogCapability::OPEN_FILES;
+            info.dialog |= DialogCapability::SAVE_FILE;
+            info.dialog |= DialogCapability::SELECT_FOLDER;
+            info.dialog |= DialogCapability::SELECT_FOLDERS;
         }
-        inited.dialog |= self.notifications.capabilities();
+        info.dialog |= self.notifications.capabilities();
 
         use zng_view_api::clipboard::ClipboardType;
         if !cfg!(target_os = "android") {
-            inited.clipboard.read.push(ClipboardType::Text);
-            inited.clipboard.read.push(ClipboardType::Image);
-            inited.clipboard.read.push(ClipboardType::Paths);
+            info.clipboard.read.push(ClipboardType::Text);
+            info.clipboard.read.push(ClipboardType::Image);
+            info.clipboard.read.push(ClipboardType::Paths);
 
-            inited.clipboard.write.push(ClipboardType::Text);
-            inited.clipboard.write.push(ClipboardType::Image);
+            info.clipboard.write.push(ClipboardType::Text);
+            info.clipboard.write.push(ClipboardType::Image);
             if cfg!(windows) {
-                inited.clipboard.write.push(ClipboardType::Paths);
+                info.clipboard.write.push(ClipboardType::Paths);
             }
         }
 
-        self.notify(Event::Inited(inited));
+        self.notify(Event::Inited(info));
 
         let available_monitors = self.available_monitors();
         self.notify(Event::MonitorsChanged(available_monitors));
@@ -2213,24 +2228,32 @@ impl Api for App {
         with_window_or_surface!(self, id, |w| w.delete_image(texture_id), || ())
     }
 
-    fn add_audio(&mut self, _request: audio::AudioRequest<IpcBytes>) -> audio::AudioId {
-        unimplemented!()
+    fn add_audio(&mut self, request: audio::AudioRequest<IpcBytes>) -> audio::AudioId {
+        self.audio_cache.add(request)
     }
 
-    fn add_audio_pro(&mut self, _request: audio::AudioRequest<IpcReceiver<IpcBytes>>) -> audio::AudioId {
-        unimplemented!()
+    fn add_audio_pro(&mut self, request: audio::AudioRequest<IpcReceiver<IpcBytes>>) -> audio::AudioId {
+        self.audio_cache.add_pro(request)
     }
 
-    fn forget_audio(&mut self, _id: audio::AudioId) {
-        unimplemented!()
+    fn forget_audio(&mut self, id: audio::AudioId) {
+        self.audio_cache.forget(id)
     }
 
-    fn playback(&mut self, _request: audio::PlaybackRequest) -> audio::PlaybackId {
-        unimplemented!()
+    fn open_audio_output(&mut self, request: audio::AudioOutputRequest) {
+        self.audio_cache.open_output(request)
     }
 
-    fn playback_update(&mut self, _id: audio::PlaybackId, _request: audio::PlaybackUpdateRequest) {
-        unimplemented!()
+    fn update_audio_output(&mut self, request: audio::AudioOutputUpdateRequest) {
+        self.audio_cache.update_output(request)
+    }
+
+    fn close_audio_output(&mut self, id: audio::AudioOutputId) {
+        self.audio_cache.close_output(id)
+    }
+
+    fn cue_audio(&mut self, request: audio::AudioPlayRequest) -> audio::AudioPlayId {
+        self.audio_cache.play(request)
     }
 
     fn encode_audio(&mut self, _request: audio::AudioEncodeRequest) -> audio::AudioEncodeId {
@@ -2618,8 +2641,12 @@ pub(crate) enum AppEvent {
     /// Lost connection with app-process.
     ParentProcessExited,
 
-    /// Image finished decoding, must call [`ImageCache::loaded`].
-    ImageDecoded(ImageDecoded),
+    /// Image finished decoding, can now be rendered, must call [`ImageCache::on_image_can_render`].
+    ImageCanRender(ImageDecoded),
+
+    /// Audio header finished decoding can now be played, must call [`AudioCache::on_audio_can_play`].
+    #[cfg_attr(not(feature = "audio_any"), allow(unused))]
+    AudioCanPlay(audio::AudioId, AudioTrack),
 
     /// Enable disable winit device events.
     SetDeviceEventsFilter(DeviceEventsFilter),

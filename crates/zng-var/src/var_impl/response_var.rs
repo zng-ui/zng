@@ -73,6 +73,19 @@ impl<T: VarValue> From<ResponseVar<T>> for AnyVar {
         var.0.into()
     }
 }
+impl<T: VarValue> From<Var<Response<T>>> for ResponderVar<T> {
+    fn from(var: Var<Response<T>>) -> Self {
+        if var.capabilities().is_always_read_only() {
+            tracing::error!("creating `ResponderVar` from `is_always_read_only` var");
+        }
+        ResponderVar(var)
+    }
+}
+impl<T: VarValue> From<Var<Response<T>>> for ResponseVar<T> {
+    fn from(var: Var<Response<T>>) -> Self {
+        ResponseVar(var.read_only())
+    }
+}
 
 /// Raw value in a [`ResponseVar`].
 #[derive(Clone, Copy, PartialEq)]

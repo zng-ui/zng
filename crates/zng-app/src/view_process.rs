@@ -24,6 +24,10 @@ use zng_var::{ResponderVar, Var, VarHandle};
 use zng_view_api::{
     self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen, ViewProcessInfo,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError},
+    audio::{
+        AudioDecoded, AudioId, AudioMetadata, AudioMix, AudioOutputConfig, AudioOutputId as ApiAudioOutputId, AudioOutputOpenData,
+        AudioOutputRequest, AudioOutputUpdateRequest, AudioPlayId, AudioPlayRequest, AudioRequest,
+    },
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse, Notification, NotificationResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::{FontOptions, IpcFontBytes},
@@ -61,6 +65,8 @@ struct ViewProcessService {
 
     loading_images: Vec<sync::Weak<ViewImageHandleData>>,
     encoding_images: Vec<EncodeRequest>,
+
+    loading_audios: Vec<sync::Weak<ViewAudioHandleData>>,
 
     pending_frames: usize,
 
@@ -170,7 +176,17 @@ impl VIEW_PROCESS {
         self.write().process.open_headless(config)
     }
 
-    /// Send an image for decoding.
+    /// Send a request to open a connection to an audio output device.
+    ///
+    /// A [`RAW_AUDIO_OUTPUT_OPEN_EVENT`] or [`RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT`]
+    ///
+    /// [`RAW_AUDIO_OUTPUT_OPEN_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_OUTPUT_OPEN_EVENT
+    /// [`RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT
+    pub fn open_audio_output(&self, request: AudioOutputRequest) -> Result<()> {
+        self.write().process.open_audio_output(request)
+    }
+
+    /// Send an image for decoding and caching.
     ///
     /// This function returns immediately, the handle must be held and compared with the [`RAW_IMAGE_METADATA_DECODED_EVENT`],
     /// [`RAW_IMAGE_DECODED_EVENT`] and [`RAW_IMAGE_DECODE_ERROR_EVENT`] events to receive the data.
@@ -189,7 +205,7 @@ impl VIEW_PROCESS {
         Ok(ViewImageHandle(Some(handle)))
     }
 
-    /// Starts sending an image for *progressive* decoding.
+    /// Starts sending an image for *progressive* decoding and caching.
     ///
     /// This function returns immediately, the handle must be held and compared with the [`RAW_IMAGE_METADATA_DECODED_EVENT`],
     /// [`RAW_IMAGE_DECODED_EVENT`] and [`RAW_IMAGE_DECODE_ERROR_EVENT`] events to receive the data.
@@ -233,6 +249,48 @@ impl VIEW_PROCESS {
         }
 
         receiver
+    }
+
+    /// Send an audio for decoding and caching.
+    ///
+    /// Depending on the request the audio may be decoded entirely or it may be decoded on demand.
+    ///
+    /// This function returns immediately, the handle must be held and compared with the [`RAW_AUDIO_METADATA_DECODED_EVENT`],
+    /// [`RAW_AUDIO_DECODED_EVENT`] and [`RAW_AUDIO_DECODE_ERROR_EVENT`] events to receive the metadata and data.
+    ///
+    /// [`RAW_AUDIO_METADATA_DECODED_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_METADATA_DECODED_EVENT
+    /// [`RAW_AUDIO_DECODED_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_DECODED_EVENT
+    /// [`RAW_AUDIO_DECODE_ERROR_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_DECODE_ERROR_EVENT
+    pub fn add_audio(&self, request: AudioRequest<IpcBytes>) -> Result<ViewAudioHandle> {
+        let mut app = self.write();
+
+        let id = app.process.add_audio(request)?;
+
+        let handle = Arc::new((APP.id().unwrap(), app.process.generation(), id));
+        app.loading_audios.push(Arc::downgrade(&handle));
+
+        Ok(ViewAudioHandle(Some(handle)))
+    }
+
+    /// Starts sending an audio for decoding and caching.
+    ///
+    /// Depending on the request the audio may be decoded as it is received or it may be decoded on demand.
+    ///
+    /// This function returns immediately, the handle must be held and compared with the [`RAW_AUDIO_METADATA_DECODED_EVENT`],
+    /// [`RAW_AUDIO_DECODED_EVENT`] and [`RAW_AUDIO_DECODE_ERROR_EVENT`] events to receive the metadata and data.
+    ///
+    /// [`RAW_AUDIO_METADATA_DECODED_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_METADATA_DECODED_EVENT
+    /// [`RAW_AUDIO_DECODED_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_DECODED_EVENT
+    /// [`RAW_AUDIO_DECODE_ERROR_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_DECODE_ERROR_EVENT
+    pub fn add_audio_pro(&self, request: AudioRequest<IpcReceiver<IpcBytes>>) -> Result<ViewAudioHandle> {
+        let mut app = self.write();
+
+        let id = app.process.add_audio_pro(request)?;
+
+        let handle = Arc::new((APP.id().unwrap(), app.process.generation(), id));
+        app.loading_audios.push(Arc::downgrade(&handle));
+
+        Ok(ViewAudioHandle(Some(handle)))
     }
 
     /// View-process clipboard methods.
@@ -340,6 +398,7 @@ impl VIEW_PROCESS {
             monitor_ids: HashMap::default(),
             loading_images: vec![],
             encoding_images: vec![],
+            loading_audios: vec![],
             pending_frames: 0,
             message_dialogs: vec![],
             file_dialogs: vec![],
@@ -364,6 +423,19 @@ impl VIEW_PROCESS {
 
         (win, data)
     }
+
+    pub(crate) fn on_audio_output_opened(&self, output_id: AudioOutputId, data: AudioOutputOpenData) -> ViewAudioOutput {
+        let mut app = self.write();
+        let _ = app.check_generation();
+
+        ViewAudioOutput(Arc::new(ViewAudioOutputData {
+            app_id: APP.id().unwrap(),
+            id: ApiAudioOutputId::from_raw(output_id.get()),
+            generation: app.data_generation,
+            data,
+        }))
+    }
+
     /// Translate input device ID, generates a device id if it was unknown.
     pub(super) fn input_device_id(&self, id: ApiDeviceId) -> InputDeviceId {
         *self.write().input_device_ids.entry(id).or_insert_with(InputDeviceId::new_unique)
@@ -485,6 +557,81 @@ impl VIEW_PROCESS {
         // error images should already be removed from view-process, handle will request a removal anyway
 
         found.map(|h| ViewImageHandle(Some(h)))
+    }
+
+    pub(super) fn on_audio_metadata(&self, meta: &AudioMetadata) -> Option<ViewAudioHandle> {
+        // this is very similar to `on_image_metadata`
+
+        let mut app = self.write();
+
+        let mut found = None;
+        app.loading_audios.retain(|i| {
+            if let Some(h) = i.upgrade() {
+                if found.is_none() && h.2 == meta.id {
+                    found = Some(h);
+                }
+                // retain
+                true
+            } else {
+                false
+            }
+        });
+
+        if found.is_none() && meta.parent.is_some() {
+            // start tracking entry track
+
+            let handle = Arc::new((APP.id().unwrap(), app.process.generation(), meta.id));
+            app.loading_audios.push(Arc::downgrade(&handle));
+
+            return Some(ViewAudioHandle(Some(handle)));
+        }
+
+        found.map(|h| ViewAudioHandle(Some(h)))
+    }
+
+    pub(super) fn on_audio_decoded(&self, audio: &AudioDecoded) -> Option<ViewAudioHandle> {
+        // this is very similar to `on_image_decoded`, the big difference is that
+        // partial decodes represent the latest decoded chunk, not all the previous decoded data,
+        // and it may never finish decoding too, the progressive source can never end or the request
+        // configured it to always decode on demand and drop the buffer as it is played.
+
+        let mut app = self.write();
+
+        let mut found = None;
+        app.loading_audios.retain(|i| {
+            if let Some(h) = i.upgrade() {
+                if found.is_none() && h.2 == audio.id {
+                    found = Some(h);
+                    return !audio.is_full;
+                }
+                true
+            } else {
+                false
+            }
+        });
+
+        found.map(|h| ViewAudioHandle(Some(h)))
+    }
+
+    pub(super) fn on_audio_error(&self, id: AudioId) -> Option<ViewAudioHandle> {
+        let mut app = self.write();
+
+        let mut found = None;
+        app.loading_audios.retain(|i| {
+            if let Some(h) = i.upgrade() {
+                if found.is_none() && h.2 == id {
+                    found = Some(h);
+                    return false;
+                }
+                true
+            } else {
+                false
+            }
+        });
+
+        // error audios should already be removed from view-process, handle will request a removal anyway
+
+        found.map(|h| ViewAudioHandle(Some(h)))
     }
 
     pub(crate) fn on_frame_rendered(&self, _id: WindowId) {
@@ -963,6 +1110,57 @@ impl From<ViewHeadless> for ViewWindowOrHeadless {
 }
 
 #[derive(Debug)]
+struct ViewAudioOutputData {
+    app_id: AppId,
+    id: ApiAudioOutputId,
+    generation: ViewProcessGen,
+    data: AudioOutputOpenData,
+}
+impl ViewAudioOutputData {
+    fn call<R>(&self, f: impl FnOnce(ApiAudioOutputId, &mut Controller) -> Result<R>) -> Result<R> {
+        let mut app = VIEW_PROCESS.handle_write(self.app_id);
+        if app.check_generation() {
+            Err(ChannelError::disconnected())
+        } else {
+            f(self.id, &mut app.process)
+        }
+    }
+}
+impl Drop for ViewAudioOutputData {
+    fn drop(&mut self) {
+        if VIEW_PROCESS.is_available() {
+            let mut app = VIEW_PROCESS.handle_write(self.app_id);
+            if self.generation == app.process.generation() {
+                let _ = app.process.close_audio_output(self.id);
+            }
+        }
+    }
+}
+
+/// Handle to an audio output stream in the View Process.
+///
+/// The stream is disposed when all clones of the handle are dropped.
+#[derive(Clone, Debug)]
+#[must_use = "the audio output is disposed when all clones of the handle are dropped"]
+pub struct ViewAudioOutput(Arc<ViewAudioOutputData>);
+impl ViewAudioOutput {
+    /// Play or enqueue audio.
+    pub fn cue(&self, mix: AudioMix) -> Result<AudioPlayId> {
+        self.0.call(|id, p| p.cue_audio(AudioPlayRequest::new(id, mix)))
+    }
+
+    /// Update state, volume, speed.
+    pub fn update(&self, cfg: AudioOutputConfig) -> Result<()> {
+        self.0.call(|id, p| p.update_audio_output(AudioOutputUpdateRequest::new(id, cfg)))
+    }
+
+    /// Audio output stream data.
+    pub fn data(&self) -> &AudioOutputOpenData {
+        &self.0.data
+    }
+}
+
+#[derive(Debug)]
 struct ViewWindowData {
     app_id: AppId,
     id: ApiWindowId,
@@ -988,6 +1186,7 @@ impl Drop for ViewWindowData {
         }
     }
 }
+
 type Result<T> = std::result::Result<T, ChannelError>;
 
 /// Handle to a headless surface/document open in the View Process.
@@ -1283,6 +1482,23 @@ impl Drop for ViewImageHandle {
         }
     }
 }
+/// Connection to an image loading or loaded in the View Process.
+///
+/// The image is removed from the View Process cache when all clones of [`ViewImageHandle`] drops, but
+/// if there is another image pointer holding the image, this weak pointer can be upgraded back
+/// to a strong connection to the image.
+///
+/// Dummy handles never upgrade back.
+#[derive(Clone)]
+pub struct WeakViewImageHandle(sync::Weak<ViewImageHandleData>);
+impl WeakViewImageHandle {
+    /// Attempt to upgrade the weak pointer to the image to a full image.
+    ///
+    /// Returns `Some` if the is at least another [`ViewImageHandle`] holding the image alive.
+    pub fn upgrade(&self) -> Option<ViewImageHandle> {
+        self.0.upgrade().map(|h| ViewImageHandle(Some(h)))
+    }
+}
 
 /// Error returned by [`VIEW_PROCESS::encode_image`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1321,24 +1537,6 @@ impl fmt::Display for EncodeError {
     }
 }
 impl std::error::Error for EncodeError {}
-
-/// Connection to an image loading or loaded in the View Process.
-///
-/// The image is removed from the View Process cache when all clones of [`ViewImageHandle`] drops, but
-/// if there is another image pointer holding the image, this weak pointer can be upgraded back
-/// to a strong connection to the image.
-///
-/// Dummy handles never upgrade back.
-#[derive(Clone)]
-pub struct WeakViewImageHandle(sync::Weak<ViewImageHandleData>);
-impl WeakViewImageHandle {
-    /// Attempt to upgrade the weak pointer to the image to a full image.
-    ///
-    /// Returns `Some` if the is at least another [`ViewImageHandle`] holding the image alive.
-    pub fn upgrade(&self) -> Option<ViewImageHandle> {
-        self.0.upgrade().map(|h| ViewImageHandle(Some(h)))
-    }
-}
 
 struct EncodeRequest {
     task_id: ImageEncodeId,
@@ -1461,5 +1659,155 @@ impl ViewClipboard {
             .process
             .write_clipboard(vec![ClipboardData::Extension { data_type, data }])
             .map(|r| r.map(|_| ()))
+    }
+}
+
+type ViewAudioHandleData = (AppId, ViewProcessGen, AudioId);
+
+/// Handle to an audio loading or loaded in the View Process.
+///
+/// The audio is disposed when all clones of the handle are dropped.
+#[must_use = "the audio is disposed when all clones of the handle are dropped"]
+#[derive(Clone, Debug)]
+pub struct ViewAudioHandle(Option<Arc<ViewAudioHandleData>>);
+impl PartialEq for ViewAudioHandle {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.0, &other.0) {
+            (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+            (None, None) => true,
+            _ => false,
+        }
+    }
+}
+impl Eq for ViewAudioHandle {}
+impl ViewAudioHandle {
+    /// New handle to nothing.
+    pub fn dummy() -> Self {
+        ViewAudioHandle(None)
+    }
+
+    /// Is handle to nothing.
+    pub fn is_dummy(&self) -> bool {
+        self.0.is_none()
+    }
+
+    /// Audio ID.
+    ///
+    /// Is [`AudioId::INVALID`] for dummy.
+    pub fn audio_id(&self) -> AudioId {
+        self.0.as_ref().map(|h| h.2).unwrap_or(AudioId::INVALID)
+    }
+
+    /// Application that requested this image.
+    ///
+    /// Audios can only be used in the same app.
+    ///
+    /// Is `None` for dummy.
+    pub fn app_id(&self) -> Option<AppId> {
+        self.0.as_ref().map(|h| h.0)
+    }
+
+    /// View-process generation that provided this image.
+    ///
+    /// Audios can only be used in the same view-process instance.
+    ///
+    /// Is [`ViewProcessGen::INVALID`] for dummy.
+    pub fn view_process_gen(&self) -> ViewProcessGen {
+        self.0.as_ref().map(|h| h.1).unwrap_or(ViewProcessGen::INVALID)
+    }
+}
+impl Drop for ViewAudioHandle {
+    fn drop(&mut self) {
+        if let Some(h) = self.0.take()
+            && Arc::strong_count(&h) == 1
+            && let Some(app) = APP.id()
+        {
+            if h.0 != app {
+                tracing::error!("audio from app `{:?}` dropped in app `{:?}`", h.0, app);
+                return;
+            }
+
+            if VIEW_PROCESS.is_available() && VIEW_PROCESS.generation() == h.1 {
+                let _ = VIEW_PROCESS.write().process.forget_audio(h.2);
+            }
+        }
+    }
+}
+/// Connection to an audio loading or loaded in the View Process.
+///
+/// The audio is removed from the View Process cache when all clones of [`ViewAudioHandle`] drops, but
+/// if there is another audio pointer holding it, this weak pointer can be upgraded back
+/// to a strong connection to the audio.
+///
+/// Dummy handles never upgrade back.
+#[derive(Clone)]
+pub struct WeakViewAudioHandle(sync::Weak<ViewAudioHandleData>);
+impl WeakViewAudioHandle {
+    /// Attempt to upgrade the weak pointer to the audio to a full audio.
+    ///
+    /// Returns `Some` if the is at least another [`ViewAudioHandle`] holding the audio alive.
+    pub fn upgrade(&self) -> Option<ViewAudioHandle> {
+        self.0.upgrade().map(|h| ViewAudioHandle(Some(h)))
+    }
+}
+
+zng_unique_id::unique_id_32! {
+    /// Unique identifier of an open audio output.
+    ///
+    /// # Name
+    ///
+    /// IDs are only unique for the same process.
+    /// You can associate a [`name`] with an ID to give it a persistent identifier.
+    ///
+    /// [`name`]: AudioOutputId::name
+    pub struct AudioOutputId;
+}
+zng_unique_id::impl_unique_id_name!(AudioOutputId);
+zng_unique_id::impl_unique_id_fmt!(AudioOutputId);
+zng_unique_id::impl_unique_id_bytemuck!(AudioOutputId);
+zng_var::impl_from_and_into_var! {
+    /// Calls [`AudioOutputId::named`].
+    fn from(name: &'static str) -> AudioOutputId {
+        AudioOutputId::named(name)
+    }
+    /// Calls [`AudioOutputId::named`].
+    fn from(name: String) -> AudioOutputId {
+        AudioOutputId::named(name)
+    }
+    /// Calls [`AudioOutputId::named`].
+    fn from(name: std::borrow::Cow<'static, str>) -> AudioOutputId {
+        AudioOutputId::named(name)
+    }
+    /// Calls [`AudioOutputId::named`].
+    fn from(name: char) -> AudioOutputId {
+        AudioOutputId::named(name)
+    }
+    /// Calls [`AudioOutputId::named`].
+    fn from(name: Txt) -> AudioOutputId {
+        AudioOutputId::named(name)
+    }
+
+    fn from(some: AudioOutputId) -> Option<AudioOutputId>;
+}
+impl serde::Serialize for AudioOutputId {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let name = self.name();
+        if name.is_empty() {
+            use serde::ser::Error;
+            return Err(S::Error::custom("cannot serialize unnamed `AudioOutputId`"));
+        }
+        name.serialize(serializer)
+    }
+}
+impl<'de> serde::Deserialize<'de> for AudioOutputId {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let name = Txt::deserialize(deserializer)?;
+        Ok(AudioOutputId::named(name))
     }
 }

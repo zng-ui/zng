@@ -1,0 +1,41 @@
+[package]
+name = "zng-ext-audio"
+version = "0.1.0"
+authors = ["The Zng Project Developers"]
+edition = "2024"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+description = "Part of the zng project."
+documentation = "https://zng-ui.github.io/doc/zng_ext_image"
+repository = "https://github.com/zng-ui/zng"
+categories = ["gui"]
+keywords = ["gui", "ui", "user-interface", "zng"]
+
+[features]
+# Enable web audio source.
+http = ["zng-task/http"]
+
+[dependencies]
+zng-app-context = { path = "../zng-app-context", version = "0.11.1", default-features = false }
+zng-unique-id = { path = "../zng-unique-id", version = "0.10.1", default-features = false, features = ["named"] }
+zng-clone-move = { path = "../zng-clone-move", version = "0.4.0", default-features = false }
+zng-app = { path = "../zng-app", version = "0.21.4", default-features = false }
+zng-view-api = { path = "../zng-view-api", version = "0.18.2", default-features = false }
+zng-txt = { path = "../zng-txt", version = "0.5.1", default-features = false }
+zng-var = { path = "../zng-var", version = "0.12.1", default-features = false }
+zng-task = { path = "../zng-task", version = "0.11.2", default-features = false }
+zng-unit = { path = "../zng-unit", version = "0.5.3", default-features = false }
+zng-state-map = { path = "../zng-state-map", version = "0.9.1", default-features = false }
+zng-env = { path = "../zng-env", version = "0.9.1", default-features = false }
+
+serde = { version = "1.0", default-features = false }
+once_cell = { version = "1.19", default-features = false, features = ["parking_lot"] }
+parking_lot = { version = "0.12", default-features = false }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+base64 = { version = "0.22", default-features = false, features = ["std"] }
+dunce = { version = "1.0", default-features = false }
+sha2 = { version = "0.10", default-features = false }
+bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
+
+[package.metadata.docs.rs]
+all-features = true

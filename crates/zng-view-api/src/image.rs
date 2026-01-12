@@ -114,6 +114,9 @@ pub struct ImageRequest<D> {
     pub entries: ImageEntriesMode,
 
     /// Image is an entry (or subtree) of this other image.
+    ///
+    /// This value is now used by the view-process, it is just returned with the metadata. This is useful when
+    /// an already decoded image is requested after a respawn to maintain the original container structure.
     pub parent: Option<ImageEntryMetadata>,
 }
 impl<D> ImageRequest<D> {
@@ -448,7 +451,7 @@ fn density_key(density: Option<PxDensity2d>) -> Option<(u16, u16)> {
     density.map(|s| ((s.width.ppcm() * 3.0) as u16, (s.height.ppcm() * 3.0) as u16))
 }
 
-/// Represents decoded header metadata about an image.
+/// Represents decoded header metadata about an image position in a container represented by another image.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ImageEntryMetadata {

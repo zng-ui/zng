@@ -431,48 +431,42 @@ declare_api! {
 
     /// Cache an audio resource.
     ///
-    /// # Unimplemented
+    /// The entire audio source is already loaded in the request, it may be fully decode or decoded on demand depending on the request
+    /// the returned ID can be played as soon as it starts decoding.
     ///
-    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
+    /// The events [`Event::AudioMetadataDecoded`], [`Event::AudioDecoded`] and [`Event::AudioDecodeError`] will be send while decoding.
     pub fn add_audio(&mut self, request: audio::AudioRequest<IpcBytes>) -> audio::AudioId;
 
     /// Cache an streaming audio resource.
     ///
-    /// The audio is decoded as bytes are buffered in.
+    /// The audio is decoded as bytes are buffered in. The returned ID can be played as soon as it starts decoding.
     ///
-    /// # Unimplemented
-    ///
-    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
+    /// The events [`Event::AudioMetadataDecoded`], [`Event::AudioDecoded`] and [`Event::AudioDecodeError`] will be send while decoding.
     pub fn add_audio_pro(&mut self, request: audio::AudioRequest<IpcReceiver<IpcBytes>>) -> audio::AudioId;
 
     /// Remove an audio from cache.
     ///
-    /// Note that if the audio is in use by a playback it will remain in memory until the playback ends.
-    ///
-    /// # Unimplemented
-    ///
-    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
+    /// Note that if the audio playing it will continue until the end or it is stopped.
     pub fn forget_audio(&mut self, id: audio::AudioId);
 
-    /// Start playing audio.
+    /// Create a playback stream.
     ///
-    /// # Unimplemented
-    ///
-    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
-    pub fn playback(&mut self, request: audio::PlaybackRequest) -> audio::PlaybackId;
+    /// Opens a connection with the audio device if there are no other streams connected to it.
+    pub fn open_audio_output(&mut self, request: audio::AudioOutputRequest);
 
-    /// Update an existing playback.
+    /// Update configuration of an existing playback stream.
+    pub fn update_audio_output(&mut self, request: audio::AudioOutputUpdateRequest);
+
+    /// Stop and drop a playback stream.
     ///
-    /// # Unimplemented
-    ///
-    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
-    pub fn playback_update(&mut self, id: audio::PlaybackId, request: audio::PlaybackUpdateRequest);
+    /// Note that even if this is the last connection to the device the underlying system connection may remain open as some systems expect this
+    /// resource to exist for the lifetime of the process.
+    pub fn close_audio_output(&mut self, id: audio::AudioOutputId);
+
+    /// Play or enqueue audio.
+    pub fn cue_audio(&mut self, request: audio::AudioPlayRequest) -> audio::AudioPlayId;
 
     /// Encode the audio.
-    ///
-    /// # Unimplemented
-    ///
-    /// This method is a stub for a future API, it is not implemented by app-process nor the default view-process.
     pub fn encode_audio(&mut self, request: audio::AudioEncodeRequest) -> audio::AudioEncodeId;
 
     /// Add a raw font resource to the window renderer.

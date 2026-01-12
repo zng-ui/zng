@@ -112,6 +112,8 @@ The Cargo features of each crate are documented in the README file for that crat
 
 * Packages needed to build with `"view_prebuilt"` feature:
     - `curl`
+* Packages needed to build with `"audio"` and `"view"` features:
+    - `libasound2-dev` (ALSA)
 
 ##### On macOS:
 
@@ -133,6 +135,8 @@ you only need to install some packages:
     - Install [cargo-ndk].
     - Install one or more Rust targets for Android, we test using `aarch64-linux-android`.
     - If you are using the [default template] or just want to build the example you are done.
+* To build with `"view"` and `"audio"` features:
+    - API level 26 (Android 8.0) or newer.
 
 See [Android Setup] for more help on how to setup the crate and build script.
 

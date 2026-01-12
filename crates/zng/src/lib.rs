@@ -489,6 +489,7 @@ pub use zng_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 pub mod access;
 pub mod ansi_text;
 pub mod app;
+pub mod audio;
 pub mod button;
 pub mod checkerboard;
 pub mod clipboard;
@@ -855,6 +856,8 @@ mod __prelude_wgt {
 
 mod defaults {
     use zng_app::{AppExtended, AppExtension};
+    #[cfg(feature = "audio")]
+    use zng_ext_audio::AudioManager;
     #[cfg(feature = "clipboard")]
     use zng_ext_clipboard::ClipboardManager;
     #[cfg(feature = "config")]
@@ -914,6 +917,7 @@ mod defaults {
         /// * [`FocusManager`]
         /// * [`DragDropManager`] if the `"drag_drop"` feature is enabled.
         /// * [`ImageManager`] if the `"image"` feature is enabled.
+        /// * [`AudioManager`] if the `"audio"` feature is enabled.
         /// * [`ClipboardManager`] if the `"clipboard"` feature is enabled.
         /// * [`UndoManager`]
         /// * [`SingleInstanceManager`] if the `"single_instance"` feature is enabled.
@@ -961,6 +965,9 @@ mod defaults {
 
             #[cfg(feature = "image")]
             let r = r.extend(ImageManager::default());
+
+            #[cfg(feature = "audio")]
+            let r = r.extend(AudioManager::default());
 
             #[cfg(feature = "clipboard")]
             let r = r.extend(ClipboardManager::default());

@@ -19,6 +19,7 @@ use zng_txt::Txt;
 use zng_view_api::{
     AxisId, DragDropId, Ime,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
+    audio::{AudioDecoded, AudioMetadata},
     config::{
         AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
     },
@@ -32,6 +33,7 @@ use zng_view_api::{
 
 use crate::{
     event::{event, event_args},
+    view_process::{AudioOutputId, ViewAudioHandle, ViewAudioOutput},
     window::{MonitorId, WindowId},
 };
 
@@ -580,6 +582,84 @@ event_args! {
         }
     }
 
+    /// Arguments for [`RAW_AUDIO_METADATA_DECODED_EVENT`].
+    pub struct RawAudioMetadataDecodedArgs {
+        /// Handle to the audio in the view-process.
+        pub handle: ViewAudioHandle,
+        /// Audio metadata.
+        pub meta: AudioMetadata,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
+    /// Arguments for the [`RAW_AUDIO_DECODED_EVENT`].
+    pub struct RawAudioDecodedArgs {
+        /// Handle to the audio in the view-process.
+        pub handle: ViewAudioHandle,
+        /// Audio data.
+        pub audio: AudioDecoded,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
+    /// Arguments for the [`RAW_AUDIO_DECODE_ERROR_EVENT`].
+    pub struct RawAudioDecodeErrorArgs {
+        /// Handle that identifies the audio request.
+        ///
+        /// The audio data is already removed in the view-process.
+        pub handle: ViewAudioHandle,
+        /// Error message.
+        pub error: Txt,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
+    /// Arguments for the [`RAW_AUDIO_OUTPUT_OPEN_EVENT`].
+    pub struct RawAudioOutputOpenArgs {
+        /// Output that finished opening.
+        pub output_id: AudioOutputId,
+
+        /// Live connection to audio output stream.
+        pub output: ViewAudioOutput,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
+    /// Arguments for the [`RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT`].
+    pub struct RawAudioOutputOpenErrorArgs {
+        /// Output that failed to open.
+        pub output_id: AudioOutputId,
+        /// Error opening output.
+        pub error: Txt,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
     /// [`RAW_FONT_CHANGED_EVENT`] arguments.
     pub struct RawFontChangedArgs {
 
@@ -838,7 +918,7 @@ event! {
     /// Change in system locale config.
     pub static RAW_LOCALE_CONFIG_CHANGED_EVENT: RawLocaleChangedArgs;
 
-    /// Image metadata loaded without errors.
+    /// Image metadata loaded.
     pub static RAW_IMAGE_METADATA_DECODED_EVENT: RawImageMetadataDecodedArgs;
 
     /// Image loaded without errors.
@@ -846,6 +926,21 @@ event! {
 
     /// Image failed to load.
     pub static RAW_IMAGE_DECODE_ERROR_EVENT: RawImageDecodeErrorArgs;
+
+    /// Audio metadata loaded.
+    pub static RAW_AUDIO_METADATA_DECODED_EVENT: RawAudioMetadataDecodedArgs;
+
+    /// Audio loaded without errors.
+    pub static RAW_AUDIO_DECODED_EVENT: RawAudioDecodedArgs;
+
+    /// Image failed to load.
+    pub static RAW_AUDIO_DECODE_ERROR_EVENT: RawAudioDecodeErrorArgs;
+
+    /// Audio output stream opened.
+    pub static RAW_AUDIO_OUTPUT_OPEN_EVENT: RawAudioOutputOpenArgs;
+
+    /// Audio output stream failed to open.
+    pub static RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT: RawAudioOutputOpenErrorArgs;
 
     /// System low memory warning, some platforms may kill the app if it does not release memory.
     pub static LOW_MEMORY_EVENT: LowMemoryArgs;
