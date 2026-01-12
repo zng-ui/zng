@@ -2645,6 +2645,7 @@ pub(crate) enum AppEvent {
     ImageCanRender(ImageDecoded),
 
     /// Audio header finished decoding can now be played, must call [`AudioCache::on_audio_can_play`].
+    #[cfg_attr(not(feature = "audio_any"), allow(unused))]
     AudioCanPlay(audio::AudioId, AudioTrack),
 
     /// Enable disable winit device events.

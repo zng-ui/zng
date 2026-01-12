@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "audio_any"), allow(unused))]
+
 use std::{fmt, io::Cursor, sync::Arc, time::Duration};
 
 #[cfg(feature = "audio_any")]
@@ -31,6 +33,8 @@ pub(crate) const FORMATS: &[AudioFormat] = &[
     #[cfg(feature = "audio_wav")]
     AudioFormat::from_static("WAV", "wav,vnd.wave", "wav,wave", AudioFormatCapability::empty()),
 ];
+
+#[cfg(feature = "audio_any")]
 fn symphonia_format(buf: &[u8]) -> Option<&'static AudioFormat> {
     let sf = std::iter::empty();
 
@@ -106,7 +110,7 @@ impl AudioCache {
     fn add_impl(app_sender: AppEventSender, id: AudioId, request: AudioRequest<IpcBytes>) {
         app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
             audio: id,
-            error: r#"not built with "audio_any""#,
+            error: r#"not built with "audio_any""#.to_txt(),
         }));
     }
 
@@ -328,6 +332,10 @@ impl AudioCache {
         let _ = self.app_sender.send(AppEvent::Notify(Event::AudioOutputOpened(id, data)));
     }
 
+    #[cfg(not(feature = "audio_any"))]
+    pub(crate) fn update_output(&mut self, _: AudioOutputUpdateRequest) {}
+
+    #[cfg(feature = "audio_any")]
     pub(crate) fn update_output(&mut self, request: AudioOutputUpdateRequest) {
         if let Some(s) = self.streams.get(&request.id) {
             match &request.config.state {
@@ -347,6 +355,10 @@ impl AudioCache {
         }
     }
 
+    #[cfg(not(feature = "audio_any"))]
+    pub(crate) fn close_output(&mut self, _: AudioOutputId) {}
+
+    #[cfg(feature = "audio_any")]
     pub(crate) fn close_output(&mut self, id: AudioOutputId) {
         if let Some(s) = self.streams.remove(&id) {
             s.sink.stop();
