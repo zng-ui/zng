@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "audio_any"), allow(unused))]
 
-use std::{fmt, io::Cursor, sync::Arc, time::Duration};
+use std::{fmt, io::Cursor, time::Duration};
 
 #[cfg(feature = "audio_any")]
 use rodio::Source as _;
@@ -80,12 +80,13 @@ pub(crate) struct AudioCache {
     id_gen: AudioId,
     play_id_gen: AudioPlayId,
     tracks: FxHashMap<AudioId, AudioTrack>,
-    device_streams: Vec<std::sync::Weak<rodio::OutputStream>>,
+    device_streams: Vec<rodio::OutputStream>,
     streams: FxHashMap<AudioOutputId, VpOutput>,
 }
 struct VpOutput {
-    device_stream: Arc<rodio::OutputStream>,
     sink: rodio::Sink,
+    channel_count: u16,
+    sample_rate: u32,
 }
 impl AudioCache {
     pub(crate) fn new(app_sender: AppEventSender) -> Self {
@@ -294,16 +295,11 @@ impl AudioCache {
     pub(crate) fn open_output(&mut self, output: AudioOutputRequest) {
         let id = output.id;
 
-        // only supports the default stream for this update
-        let mut device_stream = self.device_streams.first().and_then(|w| w.upgrade());
-
-        if device_stream.is_none() {
-            self.device_streams.retain(|w| w.strong_count() > 0);
+        // only supports the default stream for this release
+        if self.device_streams.is_empty() {
             match rodio::OutputStreamBuilder::open_default_stream() {
                 Ok(s) => {
-                    let s = Arc::new(s);
-                    self.device_streams.push(Arc::downgrade(&s));
-                    device_stream = Some(s);
+                    self.device_streams.push(s);
                 }
                 Err(e) => {
                     let _ = self.app_sender.send(AppEvent::Notify(Event::AudioOutputOpenError {
@@ -314,7 +310,7 @@ impl AudioCache {
                 }
             }
         }
-        let device_stream = device_stream.unwrap();
+        let device_stream = &self.device_streams[0];
 
         let data = AudioOutputOpenData::new(device_stream.config().channel_count(), device_stream.config().sample_rate());
 
@@ -327,7 +323,15 @@ impl AudioCache {
             _ => unreachable!(),
         }
 
-        self.streams.insert(id, VpOutput { device_stream, sink });
+        let c = device_stream.config();
+        self.streams.insert(
+            id,
+            VpOutput {
+                sink,
+                channel_count: c.channel_count(),
+                sample_rate: c.sample_rate(),
+            },
+        );
 
         let _ = self.app_sender.send(AppEvent::Notify(Event::AudioOutputOpened(id, data)));
     }
@@ -382,11 +386,7 @@ impl AudioCache {
         let id = self.play_id_gen.incr();
 
         if let Some(s) = self.streams.get(&request.output) {
-            match self.vp_mix_to_source(
-                request.mix,
-                s.device_stream.config().channel_count(),
-                s.device_stream.config().sample_rate(),
-            ) {
+            match self.vp_mix_to_source(request.mix, s.channel_count, s.sample_rate) {
                 Ok(source) => s.sink.append(source),
                 Err(e) => {
                     let _ = self.app_sender.send(AppEvent::Notify(Event::AudioPlayError { play: id, error: e }));

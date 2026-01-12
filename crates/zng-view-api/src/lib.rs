@@ -459,7 +459,8 @@ declare_api! {
 
     /// Stop and drop a playback stream.
     ///
-    /// If this is the last connection to the device fully disconnects from it.
+    /// Note that even if this is the last connection to the device the underlying system connection may remain open as some systems expect this
+    /// resource to exist for the lifetime of the process.
     pub fn close_audio_output(&mut self, id: audio::AudioOutputId);
 
     /// Play or enqueue audio.
