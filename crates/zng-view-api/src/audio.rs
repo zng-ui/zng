@@ -185,6 +185,11 @@ impl From<Txt> for AudioDataFormat {
         }
     }
 }
+impl From<&str> for AudioDataFormat {
+    fn from(ext_or_mime: &str) -> Self {
+        Txt::from_str(ext_or_mime).into()
+    }
+}
 
 /// Represents an audio codec capability.
 ///
@@ -340,7 +345,6 @@ impl AudioTrackMetadata {
 /// See [`Event::AudioDecoded`] for more details.
 ///
 /// [`Event::AudioDecoded`]: crate::Event::AudioDecoded
-/// [`AudioPartiallyDecoded`]: crate::Event::AudioPartiallyDecoded
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct AudioDecoded {
@@ -355,7 +359,7 @@ pub struct AudioDecoded {
     ///
     /// To convert offset to bytes `offset * channel_count * size_of::<f32>()`.
     ///
-    /// [`channel_count`]: TrackMetadata::channel_count
+    /// [`channel_count`]: AudioMetadata::channel_count
     pub offset: usize,
 
     /// Interleaved `f32` samples.
