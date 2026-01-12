@@ -29,7 +29,7 @@ pub(crate) struct AudioOutputData {
 ///
 /// You can use [`AUDIOS.open_output`] to open a new output stream.
 ///
-/// [`AUDIOS.open_output`]: AUDIOS::open_output
+/// [`AUDIOS.open_output`]: crate::AUDIOS::open_output
 #[derive(Clone)]
 pub struct AudioOutput(pub(crate) Arc<AudioOutputData>);
 impl fmt::Debug for AudioOutput {
@@ -247,7 +247,7 @@ impl AudioMix {
     ///
     /// This is similar to [`with_mix`], but only the range `skip..skip + take` is played.
     ///
-    /// [`with_audio`]: Self::with_audio
+    /// [`with_mix`]: Self::with_mix
     pub fn with_mix_clip(mut self, mix: impl Into<AudioMix>, skip: Duration, take: Duration) -> Self {
         self.view.layers.push(AudioMixLayer::AudioMix {
             mix: mix.into().view,

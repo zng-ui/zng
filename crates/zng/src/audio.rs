@@ -6,7 +6,7 @@
 //!
 //! # Full API
 //!
-//! See [`zng_ext_audio`] for the full audio API and [`zng_wgt_audio`] for the full widget API.
+//! See [`zng_ext_audio`] for the full audio API.
 
 pub use zng_ext_audio::{
     AUDIOS, AudioCacheMode, AudioDataFormat, AudioFormat, AudioHash, AudioLimits, AudioMix, AudioOptions, AudioOutput, AudioOutputId,

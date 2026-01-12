@@ -178,10 +178,10 @@ impl VIEW_PROCESS {
 
     /// Send a request to open a connection to an audio output device.
     ///
-    /// A [`RAW_AUDIO_OUTPUT_OPEN_EVENT`] or [`RAW_AUDIO_OUTPUT_ERROR_EVENT`]
+    /// A [`RAW_AUDIO_OUTPUT_OPEN_EVENT`] or [`RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT`]
     ///
     /// [`RAW_AUDIO_OUTPUT_OPEN_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_OUTPUT_OPEN_EVENT
-    /// [`RAW_AUDIO_OUTPUT_ERROR_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_OUTPUT_ERROR_EVENT
+    /// [`RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT
     pub fn open_audio_output(&self, request: AudioOutputRequest) -> Result<()> {
         self.write().process.open_audio_output(request)
     }
@@ -258,9 +258,9 @@ impl VIEW_PROCESS {
     /// This function returns immediately, the handle must be held and compared with the [`RAW_AUDIO_METADATA_DECODED_EVENT`],
     /// [`RAW_AUDIO_DECODED_EVENT`] and [`RAW_AUDIO_DECODE_ERROR_EVENT`] events to receive the metadata and data.
     ///
-    /// [`RAW_IMAGE_METADATA_DECODED_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_METADATA_DECODED_EVENT
-    /// [`RAW_IMAGE_DECODED_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_DECODED_EVENT
-    /// [`RAW_IMAGE_DECODE_ERROR_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_DECODE_ERROR_EVENT
+    /// [`RAW_AUDIO_METADATA_DECODED_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_METADATA_DECODED_EVENT
+    /// [`RAW_AUDIO_DECODED_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_DECODED_EVENT
+    /// [`RAW_AUDIO_DECODE_ERROR_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_DECODE_ERROR_EVENT
     pub fn add_audio(&self, request: AudioRequest<IpcBytes>) -> Result<ViewAudioHandle> {
         let mut app = self.write();
 
@@ -279,9 +279,9 @@ impl VIEW_PROCESS {
     /// This function returns immediately, the handle must be held and compared with the [`RAW_AUDIO_METADATA_DECODED_EVENT`],
     /// [`RAW_AUDIO_DECODED_EVENT`] and [`RAW_AUDIO_DECODE_ERROR_EVENT`] events to receive the metadata and data.
     ///
-    /// [`RAW_IMAGE_METADATA_DECODED_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_METADATA_DECODED_EVENT
-    /// [`RAW_IMAGE_DECODED_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_DECODED_EVENT
-    /// [`RAW_IMAGE_DECODE_ERROR_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_DECODE_ERROR_EVENT
+    /// [`RAW_AUDIO_METADATA_DECODED_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_METADATA_DECODED_EVENT
+    /// [`RAW_AUDIO_DECODED_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_DECODED_EVENT
+    /// [`RAW_AUDIO_DECODE_ERROR_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_DECODE_ERROR_EVENT
     pub fn add_audio_pro(&self, request: AudioRequest<IpcReceiver<IpcBytes>>) -> Result<ViewAudioHandle> {
         let mut app = self.write();
 

@@ -207,11 +207,9 @@ impl AudioTrack {
 
     /// All other audio tracks from the same container that are a *descendant* of this audio track.
     ///
-    /// The values are a tuple of each entry and the length of descendants entries that follow it.
+    /// The values are a tuple of each entry and the length of descendants tracks that follow it.
     ///
     /// The returned variable will update every time any entry descendant var updates.
-    ///
-    /// [`entries`]: Self::entries
     pub fn flat_tracks(&self) -> Var<Vec<(VarEq<AudioTrack>, usize)>> {
         // idea here is to just rebuild the flat list on any update,
         // assuming the audio variables don't update much and tha there are not many entries
@@ -1013,7 +1011,7 @@ impl_from_and_into_var! {
 
 /// Options for [`AUDIOS.audio`].
 ///
-/// [`AUDIOS.audio`]: AUDIOS::audio
+/// [`AUDIOS.audio`]: crate::AUDIOS::audio
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct AudioOptions {
