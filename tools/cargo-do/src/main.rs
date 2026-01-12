@@ -1148,7 +1148,7 @@ fn build_apk(mut args: Vec<&str>) {
 
     // cargo ndk with all installed Android targets
     let apk_lib_dir = apk_dir.join("lib").display().to_string();
-    let mut ndk_args = vec!["ndk", "-o", apk_lib_dir.as_str()];
+    let mut ndk_args = vec!["ndk", "-o", apk_lib_dir.as_str(), "-P", "26"];
     if no_strip {
         ndk_args.push("--no-strip");
     }
