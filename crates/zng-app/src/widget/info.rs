@@ -29,7 +29,7 @@ use zng_layout::{
 };
 use zng_state_map::{OwnedStateMap, StateMapRef};
 use zng_txt::{Txt, formatx};
-use zng_unique_id::{IdEntry, IdMap};
+use zng_unique_id::IdMap;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::{ViewProcessGen, display_list::FrameValueUpdate, window::FrameId};
 
@@ -302,66 +302,6 @@ impl WidgetInfoTree {
         }
         if let Some(w) = widget_count_offsets {
             frame.widget_count_offsets = w;
-        }
-
-        let mut changes = IdMap::new();
-        TRANSFORM_CHANGED_EVENT.visit_subscribers::<()>(|wid| {
-            if let Some(wgt) = self.get(wid) {
-                let transform = wgt.inner_transform();
-                match frame.transform_changed_subs.entry(wid) {
-                    IdEntry::Occupied(mut e) => {
-                        let prev = e.insert(transform);
-                        if prev != transform {
-                            changes.insert(wid, prev);
-                        }
-                    }
-                    IdEntry::Vacant(e) => {
-                        e.insert(transform);
-                    }
-                }
-            }
-            ops::ControlFlow::Continue(())
-        });
-        if !changes.is_empty() {
-            if (frame.transform_changed_subs.len() - changes.len()) > 500 {
-                frame
-                    .transform_changed_subs
-                    .retain(|k, _| TRANSFORM_CHANGED_EVENT.is_subscriber(*k));
-            }
-
-            TRANSFORM_CHANGED_EVENT.notify(TransformChangedArgs::now(self.clone(), changes));
-        }
-        drop(frame); // wgt.visibility can read frame
-
-        let mut changes = IdMap::new();
-        VISIBILITY_CHANGED_EVENT.visit_subscribers::<()>(|wid| {
-            if let Some(wgt) = self.get(wid) {
-                let visibility = wgt.visibility();
-                let mut frame = self.0.frame.write();
-                match frame.visibility_changed_subs.entry(wid) {
-                    IdEntry::Occupied(mut e) => {
-                        let prev = e.insert(visibility);
-                        if prev != visibility {
-                            changes.insert(wid, prev);
-                        }
-                    }
-                    IdEntry::Vacant(e) => {
-                        e.insert(visibility);
-                    }
-                }
-            }
-            ops::ControlFlow::Continue(())
-        });
-        if !changes.is_empty() {
-            if (self.0.frame.read().visibility_changed_subs.len() - changes.len()) > 500 {
-                self.0
-                    .frame
-                    .write()
-                    .visibility_changed_subs
-                    .retain(|k, _| VISIBILITY_CHANGED_EVENT.is_subscriber(*k));
-            }
-
-            VISIBILITY_CHANGED_EVENT.notify(VisibilityChangedArgs::now(self.clone(), changes));
         }
     }
 

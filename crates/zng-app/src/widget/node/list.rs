@@ -10,7 +10,7 @@ use std::{
 
 use crate::{
     render::{FrameBuilder, FrameUpdate, FrameValueKey},
-    update::{EventUpdate, UPDATES, WidgetUpdates},
+    update::{UPDATES, WidgetUpdates},
     widget::{
         WIDGET, WidgetUpdateMode,
         base::{PARALLEL_VAR, Parallel},
@@ -298,14 +298,6 @@ impl UiNodeImpl for UiVec {
             info.parallel_fold(b);
         } else {
             self.iter_mut().for_each(|n| n.info(info));
-        }
-    }
-
-    fn event(&mut self, update: &EventUpdate) {
-        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::EVENT) {
-            self.par_iter_mut().with_ctx().for_each(|n| n.event(update));
-        } else {
-            self.iter_mut().for_each(|n| n.event(update));
         }
     }
 
@@ -742,10 +734,6 @@ impl UiNodeImpl for ChainList {
         self.0.info(info);
     }
 
-    fn event(&mut self, update: &EventUpdate) {
-        self.0.event(update);
-    }
-
     fn update(&mut self, updates: &WidgetUpdates) {
         self.0.update(updates);
     }
@@ -1054,10 +1042,6 @@ impl UiNodeImpl for SortingList {
 
     fn info(&mut self, info: &mut WidgetInfoBuilder) {
         self.list.0.info(info);
-    }
-
-    fn event(&mut self, update: &EventUpdate) {
-        self.list.0.event(update);
     }
 
     fn update(&mut self, updates: &WidgetUpdates) {
@@ -1488,10 +1472,6 @@ impl UiNodeImpl for EditableUiVec {
 
     fn info(&mut self, info: &mut WidgetInfoBuilder) {
         self.vec.info(info);
-    }
-
-    fn event(&mut self, update: &EventUpdate) {
-        self.vec.event(update);
     }
 
     fn update(&mut self, updates: &WidgetUpdates) {
@@ -2511,10 +2491,6 @@ where
                 });
             }
         }
-    }
-
-    fn event(&mut self, update: &EventUpdate) {
-        self.list.event(update);
     }
 
     fn update(&mut self, updates: &WidgetUpdates) {

@@ -855,7 +855,7 @@ mod __prelude_wgt {
 }
 
 mod defaults {
-    use zng_app::{AppExtended, AppExtension};
+    use zng_app::{AppBuilder, AppExtension};
     #[cfg(feature = "audio")]
     use zng_ext_audio::AudioManager;
     #[cfg(feature = "clipboard")]

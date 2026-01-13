@@ -111,7 +111,7 @@ pub struct DragDropId(pub u32);
 /// The view-process implementation may not cover the full API, depending on operating system, build, headless mode.
 /// When the view-process does not implement something it just logs an error and ignores the request, this struct contains
 /// detailed info about what operations are available in the view-process instance.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ViewProcessInfo {
     /// View-process generation, changes after respawns and is never zero.
@@ -164,7 +164,7 @@ impl ViewProcessInfo {
 }
 
 /// IME preview or insert event.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Ime {
     /// Preview an IME insert at the last non-preview caret/selection.
     ///

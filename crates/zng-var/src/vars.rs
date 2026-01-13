@@ -301,6 +301,13 @@ impl VARS {
         VARS_ANIMATION_CTRL_CTX.with_context(&mut opt, animate)
     }
 
+    /// Schedule a custom closure to run as a variable modify callback.
+    ///
+    /// The closure `m` will run after the current update, any variable it modifies will be new in the next update, like a binding.
+    pub fn modify(&self, debug_name: &'static str, m: impl FnOnce() + Send + 'static) {
+        self.schedule_update(debug_name, m);
+    }
+
     pub(crate) fn schedule_update(&self, value_type_name: &'static str, apply_update: impl FnOnce() + Send + 'static) {
         let mut once = Some(apply_update);
         self.schedule_update_impl(

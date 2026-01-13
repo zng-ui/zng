@@ -743,9 +743,9 @@ event_args! {
 
         ..
 
-        /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        /// Broadcast to all.
+        fn is_in_target(&self, _id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -754,9 +754,9 @@ event_args! {
 
         ..
 
-        /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        /// Broadcast to all.
+        fn is_in_target(&self, _id: WidgetId) -> bool {
+            true
         }
     }
 }
@@ -779,7 +779,7 @@ event! {
 }
 
 /// Information about a successfully opened window.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct WindowOpenData {
     /// Window complete state.
@@ -1143,6 +1143,11 @@ impl Drop for ViewAudioOutputData {
 #[derive(Clone, Debug)]
 #[must_use = "the audio output is disposed when all clones of the handle are dropped"]
 pub struct ViewAudioOutput(Arc<ViewAudioOutputData>);
+impl PartialEq for ViewAudioOutput {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
 impl ViewAudioOutput {
     /// Play or enqueue audio.
     pub fn cue(&self, mix: AudioMix) -> Result<AudioPlayId> {

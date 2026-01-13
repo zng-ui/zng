@@ -78,8 +78,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -94,8 +94,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -110,8 +110,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -129,8 +129,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -177,8 +177,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -196,8 +196,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -215,8 +215,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -230,8 +230,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -243,8 +243,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -256,8 +256,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -274,8 +274,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -295,8 +295,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -317,8 +317,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -330,8 +330,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -351,8 +351,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -375,8 +375,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -391,8 +391,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -413,8 +413,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -435,8 +435,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -457,8 +457,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -479,8 +479,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -498,8 +498,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -517,8 +517,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -530,8 +530,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -545,8 +545,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -560,8 +560,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -577,8 +577,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -592,8 +592,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -607,8 +607,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -624,8 +624,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -640,8 +640,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -655,8 +655,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -666,8 +666,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -679,8 +679,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -692,8 +692,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -705,8 +705,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -718,8 +718,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -731,8 +731,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -744,8 +744,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -757,8 +757,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -770,8 +770,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -785,8 +785,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -796,8 +796,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 }

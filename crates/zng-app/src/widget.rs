@@ -28,7 +28,7 @@ use zng_var::{AnyVar, BoxAnyVarValue, ResponseVar, Var, VarHandle, VarHandles, V
 use zng_view_api::display_list::ReuseRange;
 
 use crate::{
-    event::{Event, EventArgs, EventHandle, EventHandles},
+    event::{AnyEvent, Event, EventArgs},
     handler::{APP_HANDLER, AppWeakHandle, Handler, HandlerExt as _, HandlerResult},
     update::{LayoutUpdates, RenderUpdates, UPDATES, UpdateFlags, UpdateOp, UpdatesTrace},
     window::WINDOW,
@@ -1034,17 +1034,17 @@ impl WIDGET {
         self.sub_var_op_when(UpdateOp::RenderUpdate, var, predicate)
     }
 
-    /// Subscribe to receive events from `event` when the event targets this widget.
-    pub fn sub_event<A: EventArgs>(&self, event: &Event<A>) -> &Self {
+    /// Subscribe to receive [`UpdateOp`] when the `event` notifies.
+    pub fn sub_event_op(&self, op: UpdateOp, event: &AnyEvent) -> &Self {
         let w = WIDGET_CTX.get();
-        let s = event.subscribe(w.id);
+        let s = event.subscribe(op, w.id);
 
         // function to avoid generics code bloat
-        fn push(w: Arc<WidgetCtxData>, s: EventHandle) {
+        fn push(w: Arc<WidgetCtxData>, s: VarHandle) {
             if WIDGET_HANDLES_CTX.is_default() {
-                w.handles.event_handles.lock().push(s);
+                w.handles.var_handles.lock().push(s);
             } else {
-                WIDGET_HANDLES_CTX.get().event_handles.lock().push(s);
+                WIDGET_HANDLES_CTX.get().var_handles.lock().push(s);
             }
         }
         push(w, s);
@@ -1052,22 +1052,88 @@ impl WIDGET {
         self
     }
 
-    /// Hold the event `handle` until the widget is deinited.
-    pub fn push_event_handle(&self, handle: EventHandle) {
-        if WIDGET_HANDLES_CTX.is_default() {
-            WIDGET_CTX.get().handles.event_handles.lock().push(handle);
-        } else {
-            WIDGET_HANDLES_CTX.get().event_handles.lock().push(handle);
+    /// Subscribe to receive [`UpdateOp`] when the `event` notifies and `predicate` approves the args.
+    ///
+    /// Note that the `predicate` does not run in the widget context, it runs on the app context.
+    pub fn sub_var_op_when<A: EventArgs>(
+        &self,
+        op: UpdateOp,
+        event: &Event<A>,
+        predicate: impl Fn(&A) -> bool + Send + Sync + 'static,
+    ) -> &Self {
+        let w = WIDGET_CTX.get();
+        let s = event.subscribe_when(op, w.id, predicate);
+
+        // function to avoid generics code bloat
+        fn push(w: Arc<WidgetCtxData>, s: VarHandle) {
+            if WIDGET_HANDLES_CTX.is_default() {
+                w.handles.var_handles.lock().push(s);
+            } else {
+                WIDGET_HANDLES_CTX.get().var_handles.lock().push(s);
+            }
         }
+        push(w, s);
+
+        self
     }
 
-    /// Hold the event `handles` until the widget is deinited.
-    pub fn push_event_handles(&self, handles: EventHandles) {
-        if WIDGET_HANDLES_CTX.is_default() {
-            WIDGET_CTX.get().handles.event_handles.lock().extend(handles);
-        } else {
-            WIDGET_HANDLES_CTX.get().event_handles.lock().extend(handles);
-        }
+    /// Subscribe to receive updates when the `event` notifies.
+    pub fn sub_event(&self, event: &AnyEvent) -> &Self {
+        self.sub_event_op(UpdateOp::Update, event)
+    }
+    /// Subscribe to receive updates when the `event` notifies and the `predicate` approves the args.
+    ///
+    /// Note that the `predicate` does not run in the widget context, it runs on the app context.
+    pub fn sub_event_when<A: EventArgs>(&self, event: &Event<A>, predicate: impl Fn(&A) -> bool + Send + Sync + 'static) -> &Self {
+        self.sub_event_op_when(UpdateOp::Update, event, predicate)
+    }
+
+    /// Subscribe to receive info rebuild requests when the `event` notifies.
+    pub fn sub_event_info(&self, event: &AnyEvent) -> &Self {
+        self.sub_event_op(UpdateOp::Info, event)
+    }
+    /// Subscribe to receive info rebuild requests when the `event` notifies and the `predicate` approves the args.
+    ///
+    /// Note that the `predicate` does not run in the widget context, it runs on the app context.
+    pub fn sub_event_info_when<A: EventArgs>(&self, event: &Event<A>, predicate: impl Fn(&A) -> bool + Send + Sync + 'static) -> &Self {
+        self.sub_event_op_when(UpdateOp::Info, event, predicate)
+    }
+
+    /// Subscribe to receive layout requests when the `event` notifies.
+    pub fn sub_event_layout(&self, event: &AnyEvent) -> &Self {
+        self.sub_event_op(UpdateOp::Layout, event)
+    }
+    /// Subscribe to receive layout requests when the `event` notifies and the `predicate` approves the args.
+    ///
+    /// Note that the `predicate` does not run in the widget context, it runs on the app context.
+    pub fn sub_event_layout_when<A: EventArgs>(&self, event: &Event<A>, predicate: impl Fn(&A) -> bool + Send + Sync + 'static) -> &Self {
+        self.sub_event_op_when(UpdateOp::Layout, event, predicate)
+    }
+
+    /// Subscribe to receive render requests when the `event` notifies.
+    pub fn sub_event_render(&self, event: &AnyEvent) -> &Self {
+        self.sub_event_op(UpdateOp::Render, event)
+    }
+    /// Subscribe to receive render requests when the `event` notifies and the `predicate` approves the args.
+    ///
+    /// Note that the `predicate` does not run in the widget context, it runs on the app context.
+    pub fn sub_event_render_when<A: EventArgs>(&self, event: &Event<A>, predicate: impl Fn(&A) -> bool + Send + Sync + 'static) -> &Self {
+        self.sub_var_op_when(UpdateOp::Render, event, predicate)
+    }
+
+    /// Subscribe to receive render update requests when the `event` notifies.
+    pub fn sub_event_render_update(&self, event: &AnyEvent) -> &Self {
+        self.sub_event_op(UpdateOp::RenderUpdate, event)
+    }
+    /// Subscribe to receive render update requests when the `event` notifies and the `predicate` approves the args.
+    ///
+    /// Note that the `predicate` does not run in the widget context, it runs on the app context.
+    pub fn sub_event_render_update_when<A: EventArgs>(
+        &self,
+        event: &Event<A>,
+        predicate: impl Fn(&A) -> bool + Send + Sync + 'static,
+    ) -> &Self {
+        self.sub_event_op_when(UpdateOp::RenderUpdate, event, predicate)
     }
 
     /// Hold the var `handle` until the widget is deinited.
@@ -1381,14 +1447,12 @@ impl WidgetCtxData {
 
 struct WidgetHandlesCtxData {
     var_handles: Mutex<VarHandles>,
-    event_handles: Mutex<EventHandles>,
 }
 
 impl WidgetHandlesCtxData {
     const fn dummy() -> Self {
         Self {
             var_handles: Mutex::new(VarHandles::dummy()),
-            event_handles: Mutex::new(EventHandles::dummy()),
         }
     }
 }

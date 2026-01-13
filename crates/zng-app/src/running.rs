@@ -7,35 +7,31 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::Deadline;
+use crate::{Deadline, event::EventArgs as _, window::WINDOWS_APP};
 use parking_lot::Mutex;
 use zng_app_context::{AppScope, app_local};
 use zng_task::DEADLINE_APP;
 use zng_task::channel::{self, ChannelError};
 use zng_time::{INSTANT_APP, InstantMode};
 use zng_txt::Txt;
-use zng_var::{ResponderVar, ResponseVar, VARS_APP, Var, response_var};
+use zng_var::{ResponderVar, ResponseVar, VARS_APP, Var, expr_var, response_var};
 use zng_view_api::{DeviceEventsFilter, raw_input::InputDeviceEvent};
 
 use crate::{
-    APP, AppControlFlow, AppEventObserver, AppExtension, AppExtensionsInfo, DInstant, INSTANT,
-    event::{AnyEventArgs, CommandHandle, CommandInfoExt, CommandNameExt, EVENTS, EventPropagationHandle, command, event},
+    APP, AppControlFlow, DInstant, INSTANT,
+    event::{CommandHandle, CommandInfoExt, CommandNameExt, EventPropagationHandle, command, event},
     event_args,
     shortcut::CommandShortcutExt,
     shortcut::shortcut,
     timer::TimersService,
-    update::{
-        ContextUpdates, EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, UpdateOp, UpdateTrace, UpdatesTrace, WidgetUpdates,
-    },
+    update::{ContextUpdates, InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, UpdateOp, UpdateTrace, UpdatesTrace, WidgetUpdates},
     view_process::{raw_device_events::InputDeviceId, *},
     widget::WidgetId,
     window::WindowId,
 };
 
 /// Represents a running app controlled by an external event loop.
-pub(crate) struct RunningApp<E: AppExtension> {
-    extensions: (AppIntrinsic, E),
-
+pub(crate) struct RunningApp {
     receiver: channel::Receiver<AppEvent>,
 
     loop_timer: LoopTimer,
@@ -51,10 +47,9 @@ pub(crate) struct RunningApp<E: AppExtension> {
     // cleans on drop
     _scope: AppScope,
 }
-impl<E: AppExtension> RunningApp<E> {
+impl RunningApp {
     pub(crate) fn start(
         scope: AppScope,
-        mut extensions: E,
         is_headed: bool,
         with_renderer: bool,
         view_process_exe: Option<PathBuf>,
@@ -74,17 +69,6 @@ impl<E: AppExtension> RunningApp<E> {
         DEADLINE_APP.init_deadline_service(crate::timer::deadline_service);
         zng_var::animation::TRANSITIONABLE_APP.init_rgba_lerp(zng_color::lerp_rgba);
 
-        let mut info = AppExtensionsInfo::start();
-        {
-            let _t = INSTANT_APP.pause_for_update();
-            extensions.register(&mut info);
-        }
-
-        {
-            let mut sv = APP_PROCESS_SV.write();
-            sv.set_extensions(info);
-        }
-
         if with_renderer && view_process_exe.is_none() {
             zng_env::assert_inited();
         }
@@ -94,12 +78,7 @@ impl<E: AppExtension> RunningApp<E> {
         #[cfg(target_arch = "wasm32")]
         let view_process_exe = std::path::PathBuf::from("<wasm>");
 
-        let process = AppIntrinsic::pre_init(is_headed, with_renderer, view_process_exe, view_process_env);
-
-        {
-            let _s = tracing::debug_span!("extensions.init").entered();
-            extensions.init();
-        }
+        APP.pre_init(is_headed, with_renderer, view_process_exe, view_process_env);
 
         let args = AppStartArgs { _private: () };
         for h in zng_unique_id::hot_static_ref!(ON_APP_START).lock().iter_mut() {
@@ -107,8 +86,6 @@ impl<E: AppExtension> RunningApp<E> {
         }
 
         RunningApp {
-            extensions: (process, extensions),
-
             receiver,
 
             loop_timer: LoopTimer::default(),
@@ -118,7 +95,6 @@ impl<E: AppExtension> RunningApp<E> {
             pending_view_events: Vec::with_capacity(100),
             pending_view_frame_events: Vec::with_capacity(5),
             pending: ContextUpdates {
-                events: Vec::with_capacity(100),
                 update: false,
                 info: false,
                 layout: false,
@@ -139,32 +115,12 @@ impl<E: AppExtension> RunningApp<E> {
         self.exited
     }
 
-    /// Notify an event directly to the app extensions.
-    pub fn notify_event<O: AppEventObserver>(&mut self, mut update: EventUpdate, observer: &mut O) {
-        let _scope = tracing::trace_span!("notify_event", event = update.event().name()).entered();
-
-        let _t = INSTANT_APP.pause_for_update();
-
-        update.event().on_update(&mut update);
-
-        self.extensions.event_preview(&mut update);
-        observer.event_preview(&mut update);
-        update.call_pre_actions();
-
-        self.extensions.event_ui(&mut update);
-        observer.event_ui(&mut update);
-
-        self.extensions.event(&mut update);
-        observer.event(&mut update);
-        update.call_pos_actions();
-    }
-
     fn input_device_id(&mut self, id: zng_view_api::raw_input::InputDeviceId) -> InputDeviceId {
         VIEW_PROCESS.input_device_id(id)
     }
 
     /// Process a View Process event.
-    fn on_view_event<O: AppEventObserver>(&mut self, ev: zng_view_api::Event, observer: &mut O) {
+    fn on_view_event(&mut self, ev: zng_view_api::Event) {
         use crate::view_process::raw_device_events::*;
         use crate::view_process::raw_events::*;
         use zng_view_api::Event;
@@ -184,21 +140,21 @@ impl<E: AppExtension> RunningApp<E> {
                 position,
             } => {
                 let args = RawMouseMovedArgs::now(window_id(w_id), self.input_device_id(d_id), coalesced_pos, position);
-                self.notify_event(RAW_MOUSE_MOVED_EVENT.new_update(args), observer);
+                RAW_MOUSE_MOVED_EVENT.notify(args);
             }
             Event::MouseEntered {
                 window: w_id,
                 device: d_id,
             } => {
                 let args = RawMouseArgs::now(window_id(w_id), self.input_device_id(d_id));
-                self.notify_event(RAW_MOUSE_ENTERED_EVENT.new_update(args), observer);
+                RAW_MOUSE_ENTERED_EVENT.notify(args);
             }
             Event::MouseLeft {
                 window: w_id,
                 device: d_id,
             } => {
                 let args = RawMouseArgs::now(window_id(w_id), self.input_device_id(d_id));
-                self.notify_event(RAW_MOUSE_LEFT_EVENT.new_update(args), observer);
+                RAW_MOUSE_LEFT_EVENT.notify(args);
             }
             Event::WindowChanged(c) => {
                 let monitor_id = c.monitor.map(|id| VIEW_PROCESS.monitor_id(id));
@@ -212,11 +168,11 @@ impl<E: AppExtension> RunningApp<E> {
                     c.cause,
                     c.frame_wait_id,
                 );
-                self.notify_event(RAW_WINDOW_CHANGED_EVENT.new_update(args), observer);
+                RAW_WINDOW_CHANGED_EVENT.notify(args);
             }
             Event::DragHovered { window, data, allowed } => {
                 let args = RawDragHoveredArgs::now(window_id(window), data, allowed);
-                self.notify_event(RAW_DRAG_HOVERED_EVENT.new_update(args), observer);
+                RAW_DRAG_HOVERED_EVENT.notify(args);
             }
             Event::DragMoved {
                 window,
@@ -224,7 +180,7 @@ impl<E: AppExtension> RunningApp<E> {
                 position,
             } => {
                 let args = RawDragMovedArgs::now(window_id(window), coalesced_pos, position);
-                self.notify_event(RAW_DRAG_MOVED_EVENT.new_update(args), observer);
+                RAW_DRAG_MOVED_EVENT.notify(args);
             }
             Event::DragDropped {
                 window,
@@ -233,19 +189,19 @@ impl<E: AppExtension> RunningApp<E> {
                 drop_id,
             } => {
                 let args = RawDragDroppedArgs::now(window_id(window), data, allowed, drop_id);
-                self.notify_event(RAW_DRAG_DROPPED_EVENT.new_update(args), observer);
+                RAW_DRAG_DROPPED_EVENT.notify(args);
             }
             Event::DragCancelled { window } => {
                 let args = RawDragCancelledArgs::now(window_id(window));
-                self.notify_event(RAW_DRAG_CANCELLED_EVENT.new_update(args), observer);
+                RAW_DRAG_CANCELLED_EVENT.notify(args);
             }
             Event::AppDragEnded { window, drag, applied } => {
                 let args = RawAppDragEndedArgs::now(window_id(window), drag, applied);
-                self.notify_event(RAW_APP_DRAG_ENDED_EVENT.new_update(args), observer);
+                RAW_APP_DRAG_ENDED_EVENT.notify(args);
             }
             Event::FocusChanged { prev, new } => {
                 let args = RawWindowFocusArgs::now(prev.map(window_id), new.map(window_id));
-                self.notify_event(RAW_WINDOW_FOCUS_EVENT.new_update(args), observer);
+                RAW_WINDOW_FOCUS_EVENT.notify(args);
             }
             Event::KeyboardInput {
                 window: w_id,
@@ -267,11 +223,11 @@ impl<E: AppExtension> RunningApp<E> {
                     key_modified,
                     text,
                 );
-                self.notify_event(RAW_KEY_INPUT_EVENT.new_update(args), observer);
+                RAW_KEY_INPUT_EVENT.notify(args);
             }
             Event::Ime { window: w_id, ime } => {
                 let args = RawImeArgs::now(window_id(w_id), ime);
-                self.notify_event(RAW_IME_EVENT.new_update(args), observer);
+                RAW_IME_EVENT.notify(args);
             }
 
             Event::MouseWheel {
@@ -281,7 +237,7 @@ impl<E: AppExtension> RunningApp<E> {
                 phase,
             } => {
                 let args = RawMouseWheelArgs::now(window_id(w_id), self.input_device_id(d_id), delta, phase);
-                self.notify_event(RAW_MOUSE_WHEEL_EVENT.new_update(args), observer);
+                RAW_MOUSE_WHEEL_EVENT.notify(args);
             }
             Event::MouseInput {
                 window: w_id,
@@ -290,7 +246,7 @@ impl<E: AppExtension> RunningApp<E> {
                 button,
             } => {
                 let args = RawMouseInputArgs::now(window_id(w_id), self.input_device_id(d_id), state, button);
-                self.notify_event(RAW_MOUSE_INPUT_EVENT.new_update(args), observer);
+                RAW_MOUSE_INPUT_EVENT.notify(args);
             }
             Event::TouchpadPressure {
                 window: w_id,
@@ -299,7 +255,7 @@ impl<E: AppExtension> RunningApp<E> {
                 stage,
             } => {
                 let args = RawTouchpadPressureArgs::now(window_id(w_id), self.input_device_id(d_id), pressure, stage);
-                self.notify_event(RAW_TOUCHPAD_PRESSURE_EVENT.new_update(args), observer);
+                RAW_TOUCHPAD_PRESSURE_EVENT.notify(args);
             }
             Event::AxisMotion {
                 window: w_id,
@@ -308,7 +264,7 @@ impl<E: AppExtension> RunningApp<E> {
                 value,
             } => {
                 let args = RawAxisMotionArgs::now(window_id(w_id), self.input_device_id(d_id), axis, value);
-                self.notify_event(RAW_AXIS_MOTION_EVENT.new_update(args), observer);
+                RAW_AXIS_MOTION_EVENT.notify(args);
             }
             Event::Touch {
                 window: w_id,
@@ -316,7 +272,7 @@ impl<E: AppExtension> RunningApp<E> {
                 touches,
             } => {
                 let args = RawTouchArgs::now(window_id(w_id), self.input_device_id(d_id), touches);
-                self.notify_event(RAW_TOUCH_EVENT.new_update(args), observer);
+                RAW_TOUCH_EVENT.notify(args);
             }
             Event::ScaleFactorChanged {
                 monitor: id,
@@ -326,43 +282,43 @@ impl<E: AppExtension> RunningApp<E> {
                 let monitor_id = VIEW_PROCESS.monitor_id(id);
                 let windows: Vec<_> = windows.into_iter().map(window_id).collect();
                 let args = RawScaleFactorChangedArgs::now(monitor_id, windows, scale_factor);
-                self.notify_event(RAW_SCALE_FACTOR_CHANGED_EVENT.new_update(args), observer);
+                RAW_SCALE_FACTOR_CHANGED_EVENT.notify(args);
             }
             Event::MonitorsChanged(monitors) => {
                 let monitors: Vec<_> = monitors.into_iter().map(|(id, info)| (VIEW_PROCESS.monitor_id(id), info)).collect();
                 let args = RawMonitorsChangedArgs::now(monitors);
-                self.notify_event(RAW_MONITORS_CHANGED_EVENT.new_update(args), observer);
+                RAW_MONITORS_CHANGED_EVENT.notify(args);
             }
             Event::AudioDevicesChanged(_audio_devices) => {}
             Event::WindowCloseRequested(w_id) => {
                 let args = RawWindowCloseRequestedArgs::now(window_id(w_id));
-                self.notify_event(RAW_WINDOW_CLOSE_REQUESTED_EVENT.new_update(args), observer);
+                RAW_WINDOW_CLOSE_REQUESTED_EVENT.notify(args);
             }
             Event::WindowOpened(w_id, data) => {
                 let w_id = window_id(w_id);
                 let (window, data) = VIEW_PROCESS.on_window_opened(w_id, data);
                 let args = RawWindowOpenArgs::now(w_id, window, data);
-                self.notify_event(RAW_WINDOW_OPEN_EVENT.new_update(args), observer);
+                RAW_WINDOW_OPEN_EVENT.notify(args);
             }
             Event::HeadlessOpened(w_id, data) => {
                 let w_id = window_id(w_id);
                 let (surface, data) = VIEW_PROCESS.on_headless_opened(w_id, data);
                 let args = RawHeadlessOpenArgs::now(w_id, surface, data);
-                self.notify_event(RAW_HEADLESS_OPEN_EVENT.new_update(args), observer);
+                RAW_HEADLESS_OPEN_EVENT.notify(args);
             }
             Event::WindowOrHeadlessOpenError { id: w_id, error } => {
                 let w_id = window_id(w_id);
                 let args = RawWindowOrHeadlessOpenErrorArgs::now(w_id, error);
-                self.notify_event(RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT.new_update(args), observer);
+                RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT.notify(args);
             }
             Event::WindowClosed(w_id) => {
                 let args = RawWindowCloseArgs::now(window_id(w_id));
-                self.notify_event(RAW_WINDOW_CLOSE_EVENT.new_update(args), observer);
+                RAW_WINDOW_CLOSE_EVENT.notify(args);
             }
             Event::ImageMetadataDecoded(meta) => {
                 if let Some(handle) = VIEW_PROCESS.on_image_metadata(&meta) {
                     let args = RawImageMetadataDecodedArgs::now(handle, meta);
-                    self.notify_event(RAW_IMAGE_METADATA_DECODED_EVENT.new_update(args), observer);
+                    RAW_IMAGE_METADATA_DECODED_EVENT.notify(args);
                 } else {
                     tracing::warn!("received unknown image metadata {:?} ({:?}), ignoring", meta.id, meta.size);
                 }
@@ -370,7 +326,7 @@ impl<E: AppExtension> RunningApp<E> {
             Event::ImageDecoded(img) => {
                 if let Some(handle) = VIEW_PROCESS.on_image_decoded(&img) {
                     let args = RawImageDecodedArgs::now(handle, img);
-                    self.notify_event(RAW_IMAGE_DECODED_EVENT.new_update(args), observer);
+                    RAW_IMAGE_DECODED_EVENT.notify(args);
                 } else {
                     tracing::warn!("received unknown image metadata {:?} ({:?}), ignoring", img.meta.id, img.meta.size);
                 }
@@ -378,7 +334,7 @@ impl<E: AppExtension> RunningApp<E> {
             Event::ImageDecodeError { image: id, error } => {
                 if let Some(handle) = VIEW_PROCESS.on_image_error(id) {
                     let args = RawImageDecodeErrorArgs::now(handle, error);
-                    self.notify_event(RAW_IMAGE_DECODE_ERROR_EVENT.new_update(args), observer);
+                    RAW_IMAGE_DECODE_ERROR_EVENT.notify(args);
                 }
             }
             Event::ImageEncoded { task, data } => VIEW_PROCESS.on_image_encoded(task, data),
@@ -389,7 +345,7 @@ impl<E: AppExtension> RunningApp<E> {
             Event::AudioMetadataDecoded(meta) => {
                 if let Some(handle) = VIEW_PROCESS.on_audio_metadata(&meta) {
                     let args = RawAudioMetadataDecodedArgs::now(handle, meta);
-                    self.notify_event(RAW_AUDIO_METADATA_DECODED_EVENT.new_update(args), observer);
+                    RAW_AUDIO_METADATA_DECODED_EVENT.notify(args);
                 } else {
                     tracing::warn!("received unknown audio metadata {:?}, ignoring", meta.id);
                 }
@@ -397,7 +353,7 @@ impl<E: AppExtension> RunningApp<E> {
             Event::AudioDecoded(audio) => {
                 if let Some(handle) = VIEW_PROCESS.on_audio_decoded(&audio) {
                     let args = RawAudioDecodedArgs::now(handle, audio);
-                    self.notify_event(RAW_AUDIO_DECODED_EVENT.new_update(args), observer);
+                    RAW_AUDIO_DECODED_EVENT.notify(args);
                 } else {
                     tracing::warn!("received unknown audio metadata {:?}, ignoring", audio.id);
                 }
@@ -405,7 +361,7 @@ impl<E: AppExtension> RunningApp<E> {
             Event::AudioDecodeError { audio: id, error } => {
                 if let Some(handle) = VIEW_PROCESS.on_audio_error(id) {
                     let args = RawAudioDecodeErrorArgs::now(handle, error);
-                    self.notify_event(RAW_AUDIO_DECODE_ERROR_EVENT.new_update(args), observer);
+                    RAW_AUDIO_DECODE_ERROR_EVENT.notify(args);
                 }
             }
 
@@ -414,29 +370,27 @@ impl<E: AppExtension> RunningApp<E> {
                 let output = VIEW_PROCESS.on_audio_output_opened(a_id, data);
 
                 let args = RawAudioOutputOpenArgs::now(a_id, output);
-                self.notify_event(RAW_AUDIO_OUTPUT_OPEN_EVENT.new_update(args), observer);
+                RAW_AUDIO_OUTPUT_OPEN_EVENT.notify(args);
             }
             Event::AudioOutputOpenError { id, error } => {
                 let a_id = audio_output_id(id);
 
                 let args = RawAudioOutputOpenErrorArgs::now(a_id, error);
-                self.notify_event(RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT.new_update(args), observer);
+                RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT.notify(args);
             }
 
             Event::AccessInit { window: w_id } => {
-                self.notify_event(crate::access::on_access_init(window_id(w_id)), observer);
+                crate::access::on_access_init(window_id(w_id));
             }
             Event::AccessCommand {
                 window: win_id,
                 target: wgt_id,
                 command,
             } => {
-                if let Some(update) = crate::access::on_access_command(window_id(win_id), WidgetId::from_raw(wgt_id.0), command) {
-                    self.notify_event(update, observer);
-                }
+                crate::access::on_access_command(window_id(win_id), WidgetId::from_raw(wgt_id.0), command);
             }
             Event::AccessDeinit { window: w_id } => {
-                self.notify_event(crate::access::on_access_deinit(window_id(w_id)), observer);
+                crate::access::on_access_deinit(window_id(w_id));
             }
 
             // native dialog responses
@@ -457,46 +411,46 @@ impl<E: AppExtension> RunningApp<E> {
             // custom
             Event::ExtensionEvent(id, payload) => {
                 let args = RawExtensionEventArgs::now(id, payload);
-                self.notify_event(RAW_EXTENSION_EVENT.new_update(args), observer);
+                RAW_EXTENSION_EVENT.notify(args);
             }
 
             // config events
             Event::FontsChanged => {
                 let args = RawFontChangedArgs::now();
-                self.notify_event(RAW_FONT_CHANGED_EVENT.new_update(args), observer);
+                RAW_FONT_CHANGED_EVENT.notify(args);
             }
             Event::FontAaChanged(aa) => {
                 let args = RawFontAaChangedArgs::now(aa);
-                self.notify_event(RAW_FONT_AA_CHANGED_EVENT.new_update(args), observer);
+                RAW_FONT_AA_CHANGED_EVENT.notify(args);
             }
             Event::MultiClickConfigChanged(cfg) => {
                 let args = RawMultiClickConfigChangedArgs::now(cfg);
-                self.notify_event(RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.new_update(args), observer);
+                RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.notify(args);
             }
             Event::AnimationsConfigChanged(cfg) => {
                 VARS_APP.set_sys_animations_enabled(cfg.enabled);
                 let args = RawAnimationsConfigChangedArgs::now(cfg);
-                self.notify_event(RAW_ANIMATIONS_CONFIG_CHANGED_EVENT.new_update(args), observer);
+                RAW_ANIMATIONS_CONFIG_CHANGED_EVENT.notify(args);
             }
             Event::KeyRepeatConfigChanged(cfg) => {
                 let args = RawKeyRepeatConfigChangedArgs::now(cfg);
-                self.notify_event(RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.new_update(args), observer);
+                RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.notify(args);
             }
             Event::TouchConfigChanged(cfg) => {
                 let args = RawTouchConfigChangedArgs::now(cfg);
-                self.notify_event(RAW_TOUCH_CONFIG_CHANGED_EVENT.new_update(args), observer);
+                RAW_TOUCH_CONFIG_CHANGED_EVENT.notify(args);
             }
             Event::LocaleChanged(cfg) => {
                 let args = RawLocaleChangedArgs::now(cfg);
-                self.notify_event(RAW_LOCALE_CONFIG_CHANGED_EVENT.new_update(args), observer);
+                RAW_LOCALE_CONFIG_CHANGED_EVENT.notify(args);
             }
             Event::ColorsConfigChanged(cfg) => {
                 let args = RawColorsConfigChangedArgs::now(cfg);
-                self.notify_event(RAW_COLORS_CONFIG_CHANGED_EVENT.new_update(args), observer);
+                RAW_COLORS_CONFIG_CHANGED_EVENT.notify(args);
             }
             Event::ChromeConfigChanged(cfg) => {
                 let args = RawChromeConfigChangedArgs::now(cfg);
-                self.notify_event(RAW_CHROME_CONFIG_CHANGED_EVENT.new_update(args), observer);
+                RAW_CHROME_CONFIG_CHANGED_EVENT.notify(args);
             }
 
             // `device_events`
@@ -504,30 +458,30 @@ impl<E: AppExtension> RunningApp<E> {
                 let devices: HashMap<_, _> = devices.into_iter().map(|(d_id, info)| (self.input_device_id(d_id), info)).collect();
                 INPUT_DEVICES.update(devices.clone());
                 let args = InputDevicesChangedArgs::now(devices);
-                self.notify_event(INPUT_DEVICES_CHANGED_EVENT.new_update(args), observer);
+                INPUT_DEVICES_CHANGED_EVENT.notify(args);
             }
             Event::InputDeviceEvent { device, event } => {
                 let d_id = self.input_device_id(device);
                 match event {
                     InputDeviceEvent::PointerMotion { delta } => {
                         let args = PointerMotionArgs::now(d_id, delta);
-                        self.notify_event(POINTER_MOTION_EVENT.new_update(args), observer);
+                        POINTER_MOTION_EVENT.notify(args);
                     }
                     InputDeviceEvent::ScrollMotion { delta } => {
                         let args = ScrollMotionArgs::now(d_id, delta);
-                        self.notify_event(SCROLL_MOTION_EVENT.new_update(args), observer);
+                        SCROLL_MOTION_EVENT.notify(args);
                     }
                     InputDeviceEvent::AxisMotion { axis, value } => {
                         let args = AxisMotionArgs::now(d_id, axis, value);
-                        self.notify_event(AXIS_MOTION_EVENT.new_update(args), observer);
+                        AXIS_MOTION_EVENT.notify(args);
                     }
                     InputDeviceEvent::Button { button, state } => {
                         let args = ButtonArgs::now(d_id, button, state);
-                        self.notify_event(BUTTON_EVENT.new_update(args), observer);
+                        BUTTON_EVENT.notify(args);
                     }
                     InputDeviceEvent::Key { key_code, state } => {
                         let args = KeyArgs::now(d_id, key_code, state);
-                        self.notify_event(KEY_EVENT.new_update(args), observer);
+                        KEY_EVENT.notify(args);
                     }
                     _ => {}
                 }
@@ -553,25 +507,20 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// Process a [`Event::FrameRendered`] event.
-    fn on_view_rendered_event<O: AppEventObserver>(&mut self, ev: zng_view_api::window::EventFrameRendered, observer: &mut O) {
+    fn on_view_rendered_event(&mut self, ev: zng_view_api::window::EventFrameRendered) {
         debug_assert!(ev.window != zng_view_api::window::WindowId::INVALID);
         let window_id = WindowId::from_raw(ev.window.get());
         // view.on_frame_rendered(window_id); // already called in push_coalesce
         let image = ev.frame_image.map(|img| (VIEW_PROCESS.on_frame_image(&img), img));
         let args = crate::view_process::raw_events::RawFrameRenderedArgs::now(window_id, ev.frame, image);
-        self.notify_event(crate::view_process::raw_events::RAW_FRAME_RENDERED_EVENT.new_update(args), observer);
+        crate::view_process::raw_events::RAW_FRAME_RENDERED_EVENT.notify(args);
     }
 
     pub(crate) fn run_headed(mut self) {
-        let mut observer = ();
-        #[cfg(feature = "dyn_app_extension")]
-        let mut observer = observer.as_dyn();
-
-        self.apply_updates(&mut observer);
-        self.apply_update_events(&mut observer);
+        self.apply_updates();
         let mut wait = false;
         loop {
-            wait = match self.poll_impl(wait, &mut observer) {
+            wait = match self.poll(wait) {
                 AppControlFlow::Poll => false,
                 AppControlFlow::Wait => true,
                 AppControlFlow::Exit => break,
@@ -579,7 +528,7 @@ impl<E: AppExtension> RunningApp<E> {
         }
     }
 
-    fn push_coalesce<O: AppEventObserver>(&mut self, ev: AppEvent, observer: &mut O) {
+    fn push_coalesce(&mut self, ev: AppEvent) {
         match ev {
             AppEvent::ViewEvent(ev) => match ev {
                 zng_view_api::Event::FrameRendered(ev) => {
@@ -615,12 +564,12 @@ impl<E: AppExtension> RunningApp<E> {
                     VIEW_PROCESS.handle_inited(&inited);
 
                     let args = crate::view_process::ViewProcessInitedArgs::now(inited);
-                    self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
+                    VIEW_PROCESS_INITED_EVENT.notify(args);
                 }
                 zng_view_api::Event::Suspended => {
                     VIEW_PROCESS.handle_suspended();
                     let args = crate::view_process::ViewProcessSuspendedArgs::now();
-                    self.notify_event(VIEW_PROCESS_SUSPENDED_EVENT.new_update(args), observer);
+                    VIEW_PROCESS_SUSPENDED_EVENT.notify(args);
                     APP_PROCESS_SV.read().is_suspended.set(true);
                 }
                 zng_view_api::Event::Disconnected(vp_gen) => {
@@ -638,7 +587,6 @@ impl<E: AppExtension> RunningApp<E> {
                     }
                 }
             },
-            AppEvent::Event(ev) => EVENTS.notify(ev.get()),
             AppEvent::Update(op, target) => {
                 UPDATES.update_op(op, target);
             }
@@ -651,14 +599,7 @@ impl<E: AppExtension> RunningApp<E> {
         !self.pending_view_events.is_empty() || self.pending.has_updates() || UPDATES.has_pending_updates() || !self.receiver.is_empty()
     }
 
-    pub(crate) fn poll<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> AppControlFlow {
-        #[cfg(feature = "dyn_app_extension")]
-        let mut observer = observer.as_dyn();
-        #[cfg(feature = "dyn_app_extension")]
-        let observer = &mut observer;
-        self.poll_impl(wait_app_event, observer)
-    }
-    fn poll_impl<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> AppControlFlow {
+    fn poll(&mut self, wait_app_event: bool) -> AppControlFlow {
         let mut disconnected = false;
 
         if self.exited {
@@ -681,7 +622,7 @@ impl<E: AppExtension> RunningApp<E> {
                     idle.record("ended_by", "event");
                     drop(idle);
                     self.last_wait_event = Instant::now();
-                    self.push_coalesce(ev, observer)
+                    self.push_coalesce(ev)
                 }
                 Err(e) => match e {
                     ChannelError::Timeout => {
@@ -704,7 +645,7 @@ impl<E: AppExtension> RunningApp<E> {
         loop {
             match self.receiver.try_recv() {
                 Ok(ev) => match ev {
-                    Some(ev) => self.push_coalesce(ev, observer),
+                    Some(ev) => self.push_coalesce(ev),
                     None => break,
                 },
                 Err(e) => match e {
@@ -731,37 +672,36 @@ impl<E: AppExtension> RunningApp<E> {
         if updated_timers {
             // tick timers and collect not elapsed timers.
             UPDATES.update_timers(&mut self.loop_timer);
-            self.apply_updates(observer);
+            self.apply_updates();
         }
 
         let mut events = mem::take(&mut self.pending_view_events);
         for ev in events.drain(..) {
-            self.on_view_event(ev, observer);
-            self.apply_updates(observer);
+            self.on_view_event(ev);
+            self.apply_updates();
         }
         debug_assert!(self.pending_view_events.is_empty());
         self.pending_view_events = events; // reuse capacity
 
         let mut events = mem::take(&mut self.pending_view_frame_events);
         for ev in events.drain(..) {
-            self.on_view_rendered_event(ev, observer);
+            self.on_view_rendered_event(ev);
         }
         self.pending_view_frame_events = events;
 
         if self.has_pending_updates() {
-            self.apply_updates(observer);
-            self.apply_update_events(observer);
+            self.apply_updates();
         }
 
         if self.view_is_busy() {
             return AppControlFlow::Wait;
         }
 
-        self.finish_frame(observer);
+        self.finish_frame();
 
         UPDATES.next_deadline(&mut self.loop_timer);
 
-        if self.extensions.0.exit() {
+        if APP_PROCESS_SV.read().exit {
             UPDATES.on_app_sleep();
             self.exited = true;
             AppControlFlow::Exit
@@ -774,7 +714,7 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// Does updates, collects pending update generated events and layout + render.
-    fn apply_updates<O: AppEventObserver>(&mut self, observer: &mut O) {
+    fn apply_updates(&mut self) {
         let _s = tracing::debug_span!("apply_updates").entered();
 
         let mut run = true;
@@ -791,14 +731,7 @@ impl<E: AppExtension> RunningApp<E> {
 
                     let _t = INSTANT_APP.pause_for_update();
 
-                    {
-                        let _s = tracing::debug_span!("ext.info").entered();
-                        self.extensions.info(&mut info_widgets);
-                    }
-                    {
-                        let _s = tracing::debug_span!("obs.info").entered();
-                        observer.info(&mut info_widgets);
-                    }
+                    WINDOWS_APP.update_info(&mut info_widgets);
                 }
 
                 self.pending |= UPDATES.apply_updates();
@@ -811,33 +744,10 @@ impl<E: AppExtension> RunningApp<E> {
 
                     let _t = INSTANT_APP.pause_for_update();
 
-                    {
-                        let _s = tracing::debug_span!("ext.update_preview").entered();
-                        self.extensions.update_preview();
-                    }
-                    {
-                        let _s = tracing::debug_span!("obs.update_preview").entered();
-                        observer.update_preview();
-                    }
                     UPDATES.on_pre_updates();
 
-                    {
-                        let _s = tracing::debug_span!("ext.update_ui").entered();
-                        self.extensions.update_ui(&mut update_widgets);
-                    }
-                    {
-                        let _s = tracing::debug_span!("obs.update_ui").entered();
-                        observer.update_ui(&mut update_widgets);
-                    }
+                    WINDOWS_APP.update_widgets(&mut update_widgets);
 
-                    {
-                        let _s = tracing::debug_span!("ext.update").entered();
-                        self.extensions.update();
-                    }
-                    {
-                        let _s = tracing::debug_span!("obs.update").entered();
-                        observer.update();
-                    }
                     UPDATES.on_updates();
                 }
 
@@ -846,61 +756,12 @@ impl<E: AppExtension> RunningApp<E> {
         }
     }
 
-    // apply the current pending update generated events.
-    fn apply_update_events<O: AppEventObserver>(&mut self, observer: &mut O) {
-        let _s = tracing::debug_span!("apply_update_events").entered();
-
-        loop {
-            let events: Vec<_> = self.pending.events.drain(..).collect();
-            if events.is_empty() {
-                break;
-            }
-            for mut update in events {
-                let _s = tracing::debug_span!("update_event", ?update).entered();
-
-                self.loop_monitor.maybe_trace(|| {
-                    let _t = INSTANT_APP.pause_for_update();
-
-                    {
-                        let _s = tracing::debug_span!("ext.event_preview").entered();
-                        self.extensions.event_preview(&mut update);
-                    }
-                    {
-                        let _s = tracing::debug_span!("obs.event_preview").entered();
-                        observer.event_preview(&mut update);
-                    }
-                    update.call_pre_actions();
-
-                    {
-                        let _s = tracing::debug_span!("ext.event_ui").entered();
-                        self.extensions.event_ui(&mut update);
-                    }
-                    {
-                        let _s = tracing::debug_span!("obs.event_ui").entered();
-                        observer.event_ui(&mut update);
-                    }
-                    {
-                        let _s = tracing::debug_span!("ext.event").entered();
-                        self.extensions.event(&mut update);
-                    }
-                    {
-                        let _s = tracing::debug_span!("obs.event").entered();
-                        observer.event(&mut update);
-                    }
-                    update.call_pos_actions();
-                });
-
-                self.apply_updates(observer);
-            }
-        }
-    }
-
     fn view_is_busy(&mut self) -> bool {
         VIEW_PROCESS.is_available() && VIEW_PROCESS.pending_frames() > 0
     }
 
     // apply pending layout & render if the view-process is not already rendering.
-    fn finish_frame<O: AppEventObserver>(&mut self, observer: &mut O) {
+    fn finish_frame(&mut self) {
         debug_assert!(!self.view_is_busy());
 
         self.pending |= UPDATES.apply_layout_render();
@@ -913,18 +774,10 @@ impl<E: AppExtension> RunningApp<E> {
             self.loop_monitor.maybe_trace(|| {
                 let _t = INSTANT_APP.pause_for_update();
 
-                {
-                    let _s = tracing::debug_span!("ext.layout").entered();
-                    self.extensions.layout(&mut layout_widgets);
-                }
-                {
-                    let _s = tracing::debug_span!("obs.layout").entered();
-                    observer.layout(&mut layout_widgets);
-                }
+                WINDOWS_APP.update_layout(&mut layout_widgets);
             });
 
-            self.apply_updates(observer);
-            self.apply_update_events(observer);
+            self.apply_updates();
             self.pending |= UPDATES.apply_layout_render();
         }
 
@@ -936,23 +789,15 @@ impl<E: AppExtension> RunningApp<E> {
 
             let _t = INSTANT_APP.pause_for_update();
 
-            {
-                let _s = tracing::debug_span!("ext.render").entered();
-                self.extensions.render(&mut render_widgets, &mut render_update_widgets);
-            }
-            {
-                let _s = tracing::debug_span!("obs.render").entered();
-                observer.render(&mut render_widgets, &mut render_update_widgets);
-            }
+            WINDOWS_APP.update_render(&mut render_widgets, &mut render_update_widgets);
         }
 
         self.loop_monitor.finish_frame();
     }
 }
-impl<E: AppExtension> Drop for RunningApp<E> {
+impl Drop for RunningApp {
     fn drop(&mut self) {
-        let _s = tracing::debug_span!("ext.deinit").entered();
-        self.extensions.deinit();
+        let _s = tracing::debug_span!("exit").entered();
         VIEW_PROCESS.exit();
     }
 }
@@ -1103,6 +948,77 @@ impl LoopMonitor {
 }
 
 impl APP {
+    /// Pre-init intrinsic services and commands, must be called before extensions init.
+    pub(super) fn pre_init(&self, is_headed: bool, with_renderer: bool, view_process_exe: PathBuf, view_process_env: HashMap<Txt, Txt>) {
+        // apply `pause_time_for_updates`
+        let s = APP_PROCESS_SV.read();
+        s.pause_time_for_updates
+            .hook(|a| {
+                if !matches!(INSTANT.mode(), zng_time::InstantMode::Manual) {
+                    if *a.value() {
+                        INSTANT_APP.set_mode(InstantMode::UpdatePaused);
+                    } else {
+                        INSTANT_APP.set_mode(InstantMode::Now);
+                    }
+                }
+                true
+            })
+            .perm();
+
+        // (re)apply `device_events_filter` on process init.
+        VIEW_PROCESS_INITED_EVENT
+            .hook(|_| {
+                let filter = APP_PROCESS_SV.read().device_events_filter.get();
+                if !filter.is_empty()
+                    && let Err(e) = VIEW_PROCESS.set_device_events_filter(filter)
+                {
+                    tracing::error!("cannot set device events on the view-process, {e}");
+                }
+                true
+            })
+            .perm();
+
+        // implement `EXIT_CMD`, let any other handler intercept it first
+        EXIT_CMD
+            .on_event(
+                true,
+                crate::hn!(|a| {
+                    if !a.propagation().is_stopped() {
+                        a.propagation().stop();
+                        APP.exit();
+                    }
+                }),
+            )
+            .perm();
+
+        // apply `device_events_filter`
+        s.device_events_filter
+            .hook(|a| {
+                if let Err(e) = VIEW_PROCESS.set_device_events_filter(*a.value()) {
+                    tracing::error!("cannot set device events on the view-process, {e}");
+                }
+                true
+            })
+            .perm();
+
+        // spawn view-process
+        if is_headed {
+            debug_assert!(with_renderer);
+
+            let view_evs_sender = UPDATES.sender();
+            VIEW_PROCESS.start(view_process_exe, view_process_env, false, move |ev| {
+                let _ = view_evs_sender.send_view_event(ev);
+            });
+        } else if with_renderer {
+            let view_evs_sender = UPDATES.sender();
+            VIEW_PROCESS.start(view_process_exe, view_process_env, true, move |ev| {
+                let _ = view_evs_sender.send_view_event(ev);
+            });
+        }
+    }
+}
+
+impl APP {
     /// Register a request for process exit with code `0` in the next update.
     ///
     /// The [`EXIT_REQUESTED_EVENT`] will notify, and if propagation is not cancelled the app process will exit.
@@ -1112,7 +1028,25 @@ impl APP {
     ///
     /// See also the [`EXIT_CMD`].
     pub fn exit(&self) -> ResponseVar<ExitCancelled> {
-        APP_PROCESS_SV.write().exit()
+        let mut s = APP_PROCESS_SV.write();
+        if let Some(r) = &s.exit_requests {
+            r.response_var()
+        } else {
+            let (responder, response) = response_var();
+            s.exit_requests = Some(responder);
+            EXIT_REQUESTED_EVENT.notify(ExitRequestedArgs::now());
+            EXIT_REQUESTED_EVENT
+                .on_event(crate::hn_once!(|args: &ExitRequestedArgs| {
+                    let mut s = APP_PROCESS_SV.write();
+                    if args.propagation().is_stopped() {
+                        s.exit = true;
+                    } else {
+                        s.exit_requests.take().unwrap().respond(ExitCancelled);
+                    }
+                }))
+                .perm();
+            response
+        }
     }
 
     /// Gets a variable that tracks if the app is suspended by the operating system.
@@ -1123,13 +1057,23 @@ impl APP {
     /// App suspension is controlled by the view-process, the [`VIEW_PROCESS_SUSPENDED_EVENT`] notifies
     /// on suspension and the [`VIEW_PROCESS_INITED_EVENT`] notifies a "respawn" on resume.
     pub fn is_suspended(&self) -> Var<bool> {
-        APP_PROCESS_SV.read().is_suspended.read_only()
+        expr_var! {
+            let inited = #{VIEW_PROCESS_INITED_EVENT.var_latest()};
+            let sus = #{VIEW_PROCESS_SUSPENDED_EVENT.var_latest()};
+
+            match (sus, inited) {
+                (_, None) => true,                               // never inited
+                (None, Some(_)) => false,                        // inited, never suspended
+                (Some(s), Some(i)) => s.timestamp > i.timestamp, // if suspended after last init
+            }
+        }
     }
 }
 
 /// App time control.
 ///
-/// The manual time methods are only recommended for headless apps.
+/// The manual time methods are only recommended for headless apps. These methods apply immediately, there are not like service methods that
+/// only apply after current update.
 impl APP {
     /// Gets a variable that configures if [`INSTANT.now`] is the same exact value during each update, info, layout or render pass.
     ///
@@ -1222,91 +1166,6 @@ struct PendingExit {
     handle: EventPropagationHandle,
     response: ResponderVar<ExitCancelled>,
 }
-impl AppIntrinsic {
-    /// Pre-init intrinsic services and commands, must be called before extensions init.
-    pub(super) fn pre_init(is_headed: bool, with_renderer: bool, view_process_exe: PathBuf, view_process_env: HashMap<Txt, Txt>) -> Self {
-        APP_PROCESS_SV
-            .read()
-            .pause_time_for_updates
-            .hook(|a| {
-                if !matches!(INSTANT.mode(), zng_time::InstantMode::Manual) {
-                    if *a.value() {
-                        INSTANT_APP.set_mode(InstantMode::UpdatePaused);
-                    } else {
-                        INSTANT_APP.set_mode(InstantMode::Now);
-                    }
-                }
-                true
-            })
-            .perm();
-
-        if is_headed {
-            debug_assert!(with_renderer);
-
-            let view_evs_sender = UPDATES.sender();
-            VIEW_PROCESS.start(view_process_exe, view_process_env, false, move |ev| {
-                let _ = view_evs_sender.send_view_event(ev);
-            });
-        } else if with_renderer {
-            let view_evs_sender = UPDATES.sender();
-            VIEW_PROCESS.start(view_process_exe, view_process_env, true, move |ev| {
-                let _ = view_evs_sender.send_view_event(ev);
-            });
-        }
-
-        AppIntrinsic {
-            exit_handle: EXIT_CMD.subscribe(true),
-            pending_exit: None,
-        }
-    }
-
-    /// Returns if exit was requested and not cancelled.
-    pub(super) fn exit(&mut self) -> bool {
-        if let Some(pending) = self.pending_exit.take() {
-            if pending.handle.is_stopped() {
-                pending.response.respond(ExitCancelled);
-                false
-            } else {
-                true
-            }
-        } else {
-            false
-        }
-    }
-}
-impl AppExtension for AppIntrinsic {
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        if VIEW_PROCESS_INITED_EVENT.has(update) {
-            let filter = APP_PROCESS_SV.read().device_events_filter.get();
-            if !filter.is_empty()
-                && let Err(e) = VIEW_PROCESS.set_device_events_filter(filter)
-            {
-                tracing::error!("cannot set device events on the view-process, {e}");
-            }
-        } else if let Some(args) = EXIT_CMD.on(update) {
-            args.handle_enabled(&self.exit_handle, |_| {
-                APP.exit();
-            });
-        }
-    }
-
-    fn update(&mut self) {
-        let mut sv = APP_PROCESS_SV.write();
-        if let Some(filter) = sv.device_events_filter.get_new()
-            && let Err(e) = VIEW_PROCESS.set_device_events_filter(filter)
-        {
-            tracing::error!("cannot set device events on the view-process, {e}");
-        }
-        if let Some(response) = sv.take_requests() {
-            let args = ExitRequestedArgs::now();
-            self.pending_exit = Some(PendingExit {
-                handle: args.propagation().clone(),
-                response,
-            });
-            EXIT_REQUESTED_EVENT.notify(args);
-        }
-    }
-}
 
 pub(crate) fn assert_not_view_process() {
     if zng_view_api::ViewConfig::from_env().is_some() {
@@ -1381,7 +1240,7 @@ pub fn spawn_deadlock_detection() {}
 app_local! {
     pub(super) static APP_PROCESS_SV: AppProcessService = AppProcessService {
         exit_requests: None,
-        extensions: None,
+        exit: false,
         device_events_filter: zng_var::var(Default::default()),
         pause_time_for_updates: zng_var::var(true),
         is_suspended: zng_var::var(false),
@@ -1390,40 +1249,10 @@ app_local! {
 
 pub(super) struct AppProcessService {
     exit_requests: Option<ResponderVar<ExitCancelled>>,
-    extensions: Option<Arc<AppExtensionsInfo>>,
+    pub(crate) exit: bool,
     pub(crate) device_events_filter: Var<DeviceEventsFilter>,
     pause_time_for_updates: Var<bool>,
     is_suspended: Var<bool>,
-}
-impl AppProcessService {
-    pub(super) fn take_requests(&mut self) -> Option<ResponderVar<ExitCancelled>> {
-        self.exit_requests.take()
-    }
-
-    fn exit(&mut self) -> ResponseVar<ExitCancelled> {
-        if let Some(r) = &self.exit_requests {
-            r.response_var()
-        } else {
-            let (responder, response) = response_var();
-            self.exit_requests = Some(responder);
-            UPDATES.update(None);
-            response
-        }
-    }
-
-    pub(super) fn extensions(&self) -> Arc<AppExtensionsInfo> {
-        self.extensions
-            .clone()
-            .unwrap_or_else(|| Arc::new(AppExtensionsInfo { infos: vec![] }))
-    }
-
-    pub(super) fn set_extensions(&mut self, info: AppExtensionsInfo) {
-        self.extensions = Some(Arc::new(info));
-    }
-
-    pub(super) fn is_running(&self) -> bool {
-        self.extensions.is_some()
-    }
 }
 
 /// App events.
@@ -1432,8 +1261,6 @@ impl AppProcessService {
 pub(crate) enum AppEvent {
     /// Event from the View Process.
     ViewEvent(zng_view_api::Event),
-    /// Notify [`Events`](crate::var::Events).
-    Event(crate::event::EventUpdateMsg),
     /// Do an update cycle.
     Update(UpdateOp, Option<WidgetId>),
     /// Resume a panic in the app main thread.
@@ -1469,11 +1296,6 @@ impl AppEventSender {
     pub fn send_update(&self, op: UpdateOp, target: impl Into<Option<WidgetId>>) -> Result<(), ChannelError> {
         UpdatesTrace::log_update();
         self.send_app_event(AppEvent::Update(op, target.into()))
-    }
-
-    /// [`EventSender`](crate::event::EventSender) util.
-    pub(crate) fn send_event(&self, event: crate::event::EventUpdateMsg) -> Result<(), ChannelError> {
-        self.send_app_event(AppEvent::Event(event))
     }
 
     /// Resume a panic in the app main loop thread.
@@ -1513,8 +1335,8 @@ event_args! {
         ..
 
         /// Broadcast to all.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, _id: WidgetId) -> bool {
+            true
         }
     }
 }

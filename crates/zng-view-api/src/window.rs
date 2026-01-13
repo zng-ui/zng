@@ -142,7 +142,7 @@ impl HeadlessRequest {
 }
 
 /// Information about a monitor screen.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct MonitorInfo {
     /// Readable name of the monitor.
@@ -291,7 +291,7 @@ impl WindowOpenData {
 }
 
 /// Information about a successfully opened headless surface.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct HeadlessOpenData {
     /// Actual render mode, can be different from the requested mode if it is not available.

@@ -1,6 +1,6 @@
 use keyboard::KeyLocation;
 use zng::{
-    app::{AppExtended, AppExtension, HeadlessApp},
+    app::{AppBuilder, AppExtension, HeadlessApp},
     data_view::DataView,
     focus::{
         DirectionalNav, FOCUS_CHANGED_EVENT, FocusChangedArgs, FocusChangedCause, RETURN_FOCUS_CHANGED_EVENT, ReturnFocusChangedArgs,
@@ -2002,7 +2002,7 @@ pub fn directional_continue_right() {
 }
 
 struct TestAppBuilder<E: AppExtension> {
-    app: AppExtended<E>,
+    app: AppBuilder<E>,
 }
 impl<E: AppExtension> TestAppBuilder<E> {
     pub fn run(self, child: impl IntoUiNode) -> TestApp {

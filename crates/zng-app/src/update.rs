@@ -15,8 +15,7 @@ use zng_unique_id::IdSet;
 use zng_var::VARS_APP;
 
 use crate::{
-    AppEventSender, AppExtension, LoopTimer, async_hn_once,
-    event::{AnyEvent, AnyEventArgs, EVENTS, EVENTS_SV},
+    AppEventSender, LoopTimer, async_hn_once,
     handler::{AppWeakHandle, Handler, HandlerExt as _},
     timer::TIMERS_SV,
     widget::{
@@ -29,8 +28,6 @@ use crate::{
 
 /// Represents all the widgets and windows marked to receive an update.
 pub struct UpdateDeliveryList {
-    subscribers: Box<dyn UpdateSubscribers>,
-
     windows: IdSet<WindowId>,
     widgets: IdSet<WidgetId>,
     search: IdSet<WidgetId>,
@@ -52,44 +49,13 @@ impl Default for UpdateDeliveryList {
 }
 impl UpdateDeliveryList {
     /// New list that only allows `subscribers`.
-    pub fn new(subscribers: Box<dyn UpdateSubscribers>) -> Self {
+    pub fn new() -> Self {
         Self {
-            subscribers,
             windows: IdSet::default(),
             widgets: IdSet::default(),
             search: IdSet::default(),
             search_root: false,
         }
-    }
-
-    /// New list that does not allow any entry.
-    pub fn new_none() -> Self {
-        struct UpdateDeliveryListNone;
-        impl UpdateSubscribers for UpdateDeliveryListNone {
-            fn contains(&self, _: WidgetId) -> bool {
-                false
-            }
-            fn to_set(&self) -> IdSet<WidgetId> {
-                IdSet::default()
-            }
-        }
-        Self::new(Box::new(UpdateDeliveryListNone))
-    }
-
-    /// New list that allows all entries.
-    ///
-    /// This is the default value.
-    pub fn new_any() -> Self {
-        struct UpdateDeliveryListAny;
-        impl UpdateSubscribers for UpdateDeliveryListAny {
-            fn contains(&self, _: WidgetId) -> bool {
-                true
-            }
-            fn to_set(&self) -> IdSet<WidgetId> {
-                IdSet::default()
-            }
-        }
-        Self::new(Box::new(UpdateDeliveryListAny))
     }
 
     pub(crate) fn insert_updates_root(&mut self, window_id: WindowId, root_id: WidgetId) {
@@ -257,121 +223,6 @@ impl WidgetPathProvider for InteractionPath {
 
     fn widget_and_ancestors(&self) -> Self::WidgetIter<'_> {
         self.widgets_path().iter().copied().rev()
-    }
-}
-
-/// Represents a set of widgets that subscribe to an event source.
-pub trait UpdateSubscribers: Send + Sync + 'static {
-    /// Returns `true` if the widget is one of the subscribers.
-    fn contains(&self, widget_id: WidgetId) -> bool;
-    /// Gets all subscribers as a set.
-    fn to_set(&self) -> IdSet<WidgetId>;
-}
-
-/// Represents a single event update.
-pub struct EventUpdate {
-    pub(crate) event: AnyEvent,
-    pub(crate) args: Box<dyn AnyEventArgs>,
-    pub(crate) delivery_list: UpdateDeliveryList,
-    // never locked, only used to get `Sync`.
-    pub(crate) pre_actions: Mutex<Vec<Box<dyn FnOnce(&EventUpdate) + Send>>>,
-    pub(crate) pos_actions: Mutex<Vec<Box<dyn FnOnce(&EventUpdate) + Send>>>,
-}
-impl EventUpdate {
-    /// The event.
-    pub fn event(&self) -> AnyEvent {
-        self.event
-    }
-
-    /// The update delivery list.
-    pub fn delivery_list(&self) -> &UpdateDeliveryList {
-        &self.delivery_list
-    }
-
-    /// Mutable reference to the update delivery list.
-    ///
-    /// Note that this is only available app-extensions, nodes don't get mutable access to the event update.
-    pub fn delivery_list_mut(&mut self) -> &mut UpdateDeliveryList {
-        &mut self.delivery_list
-    }
-
-    /// The update args.
-    pub fn args(&self) -> &dyn AnyEventArgs {
-        &*self.args
-    }
-
-    /// Calls `handle` if the event targets the [`WINDOW`].
-    pub fn with_window<H, R>(&self, handle: H) -> Option<R>
-    where
-        H: FnOnce() -> R,
-    {
-        if self.delivery_list.enter_window(WINDOW.id()) {
-            Some(handle())
-        } else {
-            None
-        }
-    }
-
-    /// Calls `handle` if the event targets the [`WIDGET`] and propagation is not stopped.
-    pub fn with_widget<H, R>(&self, handle: H) -> Option<R>
-    where
-        H: FnOnce() -> R,
-    {
-        if self.delivery_list.enter_widget(WIDGET.id()) {
-            if self.args.propagation().is_stopped() {
-                None
-            } else {
-                Some(handle())
-            }
-        } else {
-            None
-        }
-    }
-
-    /// Create an event update for the same event and args, but with a custom `delivery_list`.
-    ///
-    /// Note that the returned instance can only be used to notify app extensions or nodes that the caller can reference.
-    pub fn custom(&self, delivery_list: UpdateDeliveryList) -> Self {
-        Self {
-            event: self.event,
-            args: self.args.clone_any(),
-            delivery_list,
-            pre_actions: Mutex::new(vec![]),
-            pos_actions: Mutex::new(vec![]),
-        }
-    }
-
-    pub(crate) fn push_once_action(&mut self, action: Box<dyn FnOnce(&EventUpdate) + Send>, is_preview: bool) {
-        if is_preview {
-            self.pre_actions.get_mut().push(action);
-        } else {
-            self.pos_actions.get_mut().push(action);
-        }
-    }
-
-    pub(crate) fn call_pre_actions(&mut self) {
-        let _s = tracing::trace_span!("call_pre_actions");
-        let actions = mem::take(self.pre_actions.get_mut());
-        for action in actions {
-            action(self)
-        }
-    }
-
-    pub(crate) fn call_pos_actions(&mut self) {
-        let _s = tracing::trace_span!("call_pos_actions");
-        let actions = mem::take(self.pos_actions.get_mut());
-        for action in actions {
-            action(self)
-        }
-    }
-}
-impl fmt::Debug for EventUpdate {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("EventUpdate")
-            .field("event", &self.event)
-            .field("args", &self.args)
-            .field("delivery_list", &self.delivery_list)
-            .finish_non_exhaustive()
     }
 }
 
@@ -738,15 +589,6 @@ impl UpdatesTrace {
         UPDATES_TRACE_ENABLED.load(atomic::Ordering::Relaxed)
     }
 
-    /// Opens an app extension span.
-    pub fn extension_span<E: AppExtension>(ext_mtd: &'static str) -> tracing::span::EnteredSpan {
-        if Self::is_tracing() {
-            tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "AppExtension", name = pretty_type_name::pretty_type_name::<E>(), %ext_mtd).entered()
-        } else {
-            tracing::span::Span::none().entered()
-        }
-    }
-
     /// Opens a window span.
     pub fn window_span(id: WindowId) -> tracing::span::EnteredSpan {
         if Self::is_tracing() {
@@ -853,17 +695,6 @@ impl UpdatesTrace {
         }
     }
 
-    /// Log an event update request.
-    pub fn log_event(event: AnyEvent) {
-        if Self::is_tracing() {
-            tracing::event!(
-                target: UpdatesTrace::UPDATES_TARGET,
-                tracing::Level::TRACE,
-                { kind = "event", type_name = event.name() }
-            );
-        }
-    }
-
     /// Run `action` collecting a trace of what caused updates.
     pub fn collect_trace<R>(trace: &mut Vec<UpdateTrace>, action: impl FnOnce() -> R) -> R {
         let trace_enabled = UPDATES_TRACE_ENABLED.swap(true, atomic::Ordering::Relaxed);
@@ -954,7 +785,6 @@ enum UpdateAction {
     Layout,
     Render,
     Var { type_name: String },
-    Event { type_name: String },
     Custom { tag: String },
 }
 impl fmt::Display for UpdateAction {
@@ -964,8 +794,7 @@ impl fmt::Display for UpdateAction {
             UpdateAction::Update => write!(f, "update"),
             UpdateAction::Layout => write!(f, "layout"),
             UpdateAction::Render => write!(f, "render"),
-            UpdateAction::Var { type_name } => write!(f, "update var of type {type_name}"),
-            UpdateAction::Event { type_name } => write!(f, "update event {type_name}"),
+            UpdateAction::Var { type_name } => write!(f, "update {type_name}"),
             UpdateAction::Custom { tag } => write!(f, "{tag}"),
         }
     }
@@ -1030,13 +859,11 @@ impl UPDATES {
 
     #[must_use]
     pub(crate) fn apply_updates(&self) -> ContextUpdates {
-        let events = EVENTS.apply_updates();
         VARS_APP.apply_updates();
 
         let (update, update_widgets) = UPDATES.take_update();
 
         ContextUpdates {
-            events,
             update,
             update_widgets,
             info: false,
@@ -1053,7 +880,6 @@ impl UPDATES {
         let (info, info_widgets) = UPDATES.take_info();
 
         ContextUpdates {
-            events: vec![],
             update: false,
             update_widgets: WidgetUpdates::default(),
             info,
@@ -1071,7 +897,6 @@ impl UPDATES {
         let (render, render_widgets, render_update_widgets) = UPDATES.take_render();
 
         ContextUpdates {
-            events: vec![],
             update: false,
             update_widgets: WidgetUpdates::default(),
             info: false,
@@ -1109,7 +934,6 @@ impl UPDATES {
     pub(crate) fn has_pending_updates(&self) -> bool {
         UPDATES_SV.read().update_ext.intersects(UpdateFlags::UPDATE | UpdateFlags::INFO)
             || VARS_APP.has_pending_updates()
-            || EVENTS_SV.write().has_pending_updates()
             || TIMERS_SV.read().has_pending_updates()
     }
 
@@ -1607,11 +1431,6 @@ impl UpdatesService {
 #[non_exhaustive]
 #[derive(Default)]
 pub struct ContextUpdates {
-    /// Events to notify.
-    ///
-    /// When this is not empty [`update`](Self::update) is `true`.
-    pub events: Vec<EventUpdate>,
-
     /// Update requested.
     ///
     /// When this is `true`, [`update_widgets`](Self::update_widgets)

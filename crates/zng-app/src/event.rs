@@ -1,212 +1,274 @@
-//! App event and commands API.
-
 use std::{
-    any::Any,
     fmt,
     marker::PhantomData,
-    mem,
-    ops::{ControlFlow, Deref},
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
+    ops,
+    sync::{Arc, atomic::AtomicBool},
+};
+
+use parking_lot::MappedRwLockReadGuard;
+use zng_app_context::AppLocal;
+use zng_clone_move::clmv;
+use zng_task::channel;
+use zng_var::{AnyVar, Var, VarHandle, VarUpdateId};
+
+use crate::{
+    handler::{APP_HANDLER, AppWeakHandle as _, Handler, HandlerExt as _},
+    update::{UPDATES, UpdateOp},
+    widget::{VarSubscribe, WIDGET, WidgetId},
 };
 
 mod args;
 pub use args::*;
 
-mod command;
-pub use command::*;
-
 mod events;
 pub use events::*;
 
-use crate::{
-    AppEventSender,
-    handler::{AppWeakHandle, Handler, HandlerExt as _},
-    update::{EventUpdate, UpdateDeliveryList, UpdateSubscribers, UpdatesTrace},
-    widget::WidgetId,
-};
-use parking_lot::Mutex;
-use zng_app_context::AppLocal;
-use zng_clone_move::clmv;
-use zng_task::channel::{self, ChannelError};
-use zng_unique_id::{IdEntry, IdMap, IdSet};
+mod command;
+pub use command::*;
 
-///<span data-del-macro-root></span> Declares new [`Event<A>`] static items.
-///
-/// Event static items represent external, app or widget events. You can also use [`command!`]
-/// to declare events specialized for commanding widgets and services.
-///
-/// [`AppExtension`]: crate::AppExtension
-///
-/// # Conventions
-///
-/// Command events have the `_EVENT` suffix, for example an event representing a click is called `CLICK_EVENT`.
-///
-/// # Properties
-///
-/// If the event targets widgets you can use `event_property!` to declare properties that setup event handlers for the event.
-///
-/// # Examples
-///
-/// The example defines two events with the same arguments type.
-///
-/// ```
-/// # use zng_app::event::*;
-/// # event_args! { pub struct ClickArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// event! {
-///     /// Event docs.
-///     pub static CLICK_EVENT: ClickArgs;
-///
-///     /// Other event docs.
-///     pub static DOUBLE_CLICK_EVENT: ClickArgs;
-/// }
-/// ```
-#[macro_export]
-macro_rules! event_macro {
-    ($(
-        $(#[$attr:meta])*
-        $vis:vis static $EVENT:ident: $Args:path;
-    )+) => {
-        $(
-            $(#[$attr])*
-            $vis static $EVENT: $crate::event::Event<$Args> = {
-                $crate::event::app_local! {
-                    static LOCAL: $crate::event::EventData = const { $crate::event::EventData::new(std::stringify!($EVENT)) };
-                }
-                $crate::event::Event::new(&LOCAL)
-            };
-        )+
+/// Event notifications from the last update cycle that notified.
+#[derive(Clone, PartialEq, Debug)]
+pub struct EventUpdates<A: EventArgs> {
+    generation: VarUpdateId,
+    updates: Vec<A>,
+}
+impl<A: EventArgs> ops::Deref for EventUpdates<A> {
+    type Target = [A];
+
+    fn deref(&self) -> &Self::Target {
+        &self.updates
     }
 }
-#[doc(inline)]
-pub use crate::event_macro as event;
+impl<A: EventArgs> EventUpdates<A> {
+    /// New empty.
+    pub const fn none() -> Self {
+        Self {
+            generation: VarUpdateId::never(),
+            updates: vec![],
+        }
+    }
+
+    /// Last args in the list.
+    pub fn latest(&self) -> Option<&A> {
+        self.updates.last()
+    }
+
+    /// Call `handler` for arguments that target the `id` or a descendant of it.
+    ///
+    /// If `ignore_propagation` is `false` only calls the handler for args with [`propagation`] is not stopped.
+    ///
+    /// [`propagation`]: EventArgs::propagation
+    pub fn each_relevant(&self, id: WidgetId, ignore_propagation: bool, mut handler: impl FnMut(&A)) {
+        for args in &self.updates {
+            if args.is_in_target(id) && (ignore_propagation || !args.propagation().is_stopped()) {
+                handler(args);
+            }
+        }
+    }
+
+    /// Referent the latest args that target the `id` or a descendant of it.
+    ///
+    /// If `ignore_propagation` is `false` only calls the handler if the [`propagation`] is not stopped.
+    ///
+    /// [`propagation`]: EventArgs::propagation
+    pub fn latest_relevant(&self, id: WidgetId, ignore_propagation: bool) -> Option<&A> {
+        for args in self.updates.iter().rev() {
+            if args.is_in_target(id) {
+                if !ignore_propagation && args.propagation().is_stopped() {
+                    break;
+                }
+                return Some(args);
+            }
+        }
+        None
+    }
+
+    fn notify(&mut self, args: A) {
+        if self.updates.is_empty() {
+            self.updates.push(args);
+        } else {
+            let t = args.timestamp();
+            if let Some(i) = self.updates.iter().position(|a| a.timestamp() > t) {
+                self.updates.insert(i, args);
+            } else {
+                self.updates.push(args);
+            }
+        }
+    }
+}
 
 #[doc(hidden)]
 pub struct EventData {
-    name: &'static str,
-    widget_subs: IdMap<WidgetId, EventHandle>,
-    hooks: Vec<EventHook>,
+    var: AnyVar,
+    subscribe: fn(&AnyVar, UpdateOp, WidgetId) -> VarHandle,
 }
 impl EventData {
-    #[doc(hidden)]
-    pub const fn new(name: &'static str) -> Self {
-        EventData {
-            name,
-            widget_subs: IdMap::new(),
-            hooks: vec![],
+    pub fn new<A: EventArgs>() -> Self {
+        Self {
+            var: zng_var::var(EventUpdates::<A>::none()).into(),
+            subscribe: Self::subscribe::<A>,
         }
+    }
+
+    fn subscribe<A: EventArgs>(var: &AnyVar, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
+        var.clone()
+            .downcast::<EventUpdates<A>>()
+            .unwrap()
+            .subscribe_when(op, widget_id, move |v| v.value().latest_relevant(widget_id, true).is_some())
     }
 }
 
-/// Represents an event.
-///
-/// Use the [`event!`] macro to declare events.
-pub struct Event<A: EventArgs> {
-    local: &'static AppLocal<EventData>,
-    _args: PhantomData<fn(A)>,
-}
-impl<A: EventArgs> fmt::Debug for Event<A> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "Event({})", self.name())
-        } else {
-            write!(f, "{}", self.name())
-        }
+/// Represents a type erased event variable.
+pub struct AnyEvent(&'static AppLocal<EventData>);
+impl Clone for AnyEvent {
+    fn clone(&self) -> Self {
+        *self
     }
 }
+impl Copy for AnyEvent {}
+impl PartialEq for AnyEvent {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+impl Eq for AnyEvent {}
+impl std::hash::Hash for AnyEvent {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::ptr::from_ref(self.0).hash(state);
+    }
+}
+impl fmt::Debug for AnyEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("AnyEvent").finish_non_exhaustive()
+    }
+}
+impl AnyEvent {
+    fn read_var(&self) -> MappedRwLockReadGuard<AnyVar> {
+        self.0.read_map(|v| &v.var)
+    }
+
+    /// Subscribe the widget to receive updates when events are relevant to it.
+    pub fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
+        let s = self.0.read();
+        (s.subscribe)(&s.var, op, widget_id)
+    }
+}
+
+/// Represents an event variable.
+pub struct Event<A: EventArgs>(AnyEvent, PhantomData<fn() -> A>);
+impl<A: EventArgs> fmt::Debug for Event<A> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Event").finish_non_exhaustive()
+    }
+}
+impl<A: EventArgs> ops::Deref for Event<A> {
+    type Target = AnyEvent;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<A: EventArgs> Clone for Event<A> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl<A: EventArgs> Copy for Event<A> {}
+impl<A: EventArgs> PartialEq for Event<A> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+impl<A: EventArgs> std::hash::Hash for Event<A> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+impl<A: EventArgs> Eq for Event<A> {}
 impl<A: EventArgs> Event<A> {
     #[doc(hidden)]
     pub const fn new(local: &'static AppLocal<EventData>) -> Self {
-        Event { local, _args: PhantomData }
+        Self(AnyEvent(local), PhantomData)
     }
 
-    /// Gets the event without the args type.
-    pub fn as_any(&self) -> AnyEvent {
-        AnyEvent { local: self.local }
+    fn get_var(&self) -> Var<EventUpdates<A>> {
+        self.0.0.read().var.clone().downcast::<EventUpdates<A>>().unwrap()
     }
 
-    /// Register the widget to receive targeted events from this event.
+    /// Variable that tracks all the args notified in the last update cycle.
     ///
-    /// Widgets only receive events if they are in the delivery list generated by the event args and are
-    /// subscribers to the event. App extensions receive all events.
-    pub fn subscribe(&self, widget_id: WidgetId) -> EventHandle {
-        self.as_any().subscribe(widget_id)
+    /// Note that the event variable is only cleared when new notifications are requested.
+    pub fn var(&self) -> Var<EventUpdates<A>> {
+        self.get_var().read_only()
     }
 
-    /// Returns `true` if the widget is subscribed to this event.
-    pub fn is_subscriber(&self, widget_id: WidgetId) -> bool {
-        self.as_any().is_subscriber(widget_id)
-    }
-
-    /// Returns `true` if at least one widget is subscribed to this event.
-    pub fn has_subscribers(&self) -> bool {
-        self.as_any().has_subscribers()
-    }
-
-    /// Calls `visit` for each widget subscribed to this event.
+    /// Variable that tracks the latest update.
     ///
-    /// Note that trying to subscribe or add hook inside `visit` will deadlock. Inside `visit` you can notify the event and
-    /// generate event updates.
-    pub fn visit_subscribers<T>(&self, visit: impl FnMut(WidgetId) -> ControlFlow<T>) -> Option<T> {
-        self.as_any().visit_subscribers(visit)
+    /// Is only `None` if this event has never notified yet.
+    pub fn var_latest(&self) -> Var<Option<A>> {
+        self.get_var().map(|l| l.latest().cloned())
     }
 
-    /// Name of the event static item.
-    pub fn name(&self) -> &'static str {
-        self.local.read().name
-    }
-
-    /// Returns `true` if the update is for this event.
-    pub fn has(&self, update: &EventUpdate) -> bool {
-        *self == update.event
-    }
-
-    /// Get the event update args if the update is for this event.
-    pub fn on<'a>(&self, update: &'a EventUpdate) -> Option<&'a A> {
-        if *self == update.event {
-            update.args.as_any().downcast_ref()
-        } else {
-            None
-        }
-    }
-
-    /// Get the event update args if the update is for this event and propagation is not stopped.
-    pub fn on_unhandled<'a>(&self, update: &'a EventUpdate) -> Option<&'a A> {
-        self.on(update).filter(|a| !a.propagation().is_stopped())
-    }
-
-    /// Calls `handler` if the update is for this event and propagation is not stopped, after the handler is called propagation is stopped.
-    pub fn handle<R>(&self, update: &EventUpdate, handler: impl FnOnce(&A) -> R) -> Option<R> {
-        if let Some(args) = self.on(update) {
-            args.handle(handler)
-        } else {
-            None
-        }
-    }
-
-    /// Create an event update for this event with delivery list filtered by the event subscribers.
-    pub fn new_update(&self, args: A) -> EventUpdate {
-        self.new_update_custom(args, UpdateDeliveryList::new(Box::new(self.as_any())))
-    }
-
-    /// Create and event update for this event with a custom delivery list.
-    pub fn new_update_custom(&self, args: A, mut delivery_list: UpdateDeliveryList) -> EventUpdate {
-        args.delivery_list(&mut delivery_list);
-        EventUpdate {
-            event: self.as_any(),
-            delivery_list,
-            args: Box::new(args),
-            pre_actions: Mutex::new(vec![]),
-            pos_actions: Mutex::new(vec![]),
-        }
-    }
-
-    /// Schedule an event update.
+    /// Modify the event variable to include the `args` in the next update.
     pub fn notify(&self, args: A) {
-        let update = self.new_update(args);
-        EVENTS.notify(update);
+        self.read_var()
+            .modify(move |a| a.downcast_mut::<EventUpdates<A>>().unwrap().notify(args));
+    }
+
+    /// Visit each new update, oldest first, that target the context widget.
+    ///
+    /// If not called inside an widget visits all updates.
+    ///
+    /// If `ignore_propagation` is `false` only calls the handler if the [`propagation`] is not stopped.
+    ///
+    /// [`propagation`]: EventArgs::propagation
+    pub fn each_update(&self, ignore_propagation: bool, mut handler: impl FnMut(&A)) {
+        self.read_var().with_new(|u| {
+            let u = u.downcast_ref::<EventUpdates<A>>().unwrap();
+            if let Some(id) = WIDGET.try_id() {
+                u.each_relevant(id, ignore_propagation, handler);
+            } else {
+                for args in u.iter() {
+                    if ignore_propagation || !args.propagation().is_stopped() {
+                        handler(args);
+                    }
+                }
+            }
+        });
+    }
+
+    /// Visit the latest update that targets the context widget.
+    ///
+    /// If not called inside an widget visits the latest in general.
+    ///
+    /// If `ignore_propagation` is `false` only calls the handler if the [`propagation`] is not stopped.
+    ///
+    /// [`propagation`]: EventArgs::propagation
+    pub fn latest_update<O>(&self, ignore_propagation: bool, handler: impl FnOnce(&A) -> O) -> Option<O> {
+        self.read_var()
+            .with_new(|u| {
+                let u = u.downcast_ref::<EventUpdates<A>>().unwrap();
+                if let Some(id) = WIDGET.try_id() {
+                    if let Some(args) = u.latest_relevant(id, ignore_propagation) {
+                        return Some(handler(args));
+                    }
+                    None
+                } else if let Some(args) = u.latest()
+                    && (ignore_propagation || !args.propagation().is_stopped())
+                {
+                    Some(handler(args))
+                } else {
+                    None
+                }
+            })
+            .flatten()
+    }
+
+    /// Subscribe the widget to receive updates when events are relevant to it and the latest args passes the `predicate`.
+    pub fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&A) -> bool + Send + Sync + 'static) -> VarHandle {
+        self.get_var().subscribe_when(op, widget_id, move |v| {
+            v.value().latest_relevant(widget_id, true).map(&predicate).unwrap_or(false)
+        })
     }
 
     /// Creates a preview event handler.
@@ -249,7 +311,7 @@ impl<A: EventArgs> Event<A> {
     /// [`async_hn!`]: crate::handler::async_hn!
     /// [`hn_once!`]: crate::handler::hn_once!
     /// [`async_hn_once!`]: crate::handler::async_hn_once!
-    pub fn on_pre_event(&self, handler: Handler<A>) -> EventHandle {
+    pub fn on_pre_event(&self, handler: Handler<A>) -> VarHandle {
         self.on_event_impl(handler, true)
     }
 
@@ -293,28 +355,41 @@ impl<A: EventArgs> Event<A> {
     /// [`async_hn!`]: crate::handler::async_hn!
     /// [`hn_once!`]: crate::handler::hn_once!
     /// [`async_hn_once!`]: crate::handler::async_hn_once!
-    pub fn on_event(&self, handler: Handler<A>) -> EventHandle {
+    pub fn on_event(&self, handler: Handler<A>) -> VarHandle {
         self.on_event_impl(handler, false)
     }
 
-    fn on_event_impl(&self, handler: Handler<A>, is_preview: bool) -> EventHandle {
+    fn on_event_impl(&self, handler: Handler<A>, is_preview: bool) -> VarHandle {
+        let var = self.read_var();
+
+        if var.capabilities().is_const() {
+            return VarHandle::dummy();
+        }
+
         let handler = handler.into_arc();
         let (inner_handle_owner, inner_handle) = zng_handle::Handle::new(());
-        self.as_any().hook(move |update| {
+        var.hook(move |args| {
+            let args = args.downcast::<EventUpdates<A>>().unwrap();
             if inner_handle_owner.is_dropped() {
                 return false;
             }
 
             let handle = inner_handle.downgrade();
-            update.push_once_action(
-                Box::new(clmv!(handler, |update| {
-                    let args = update.args().as_any().downcast_ref::<A>().unwrap();
-                    if !args.propagation().is_stopped() {
-                        handler.app_event(handle.clone_boxed(), is_preview, args);
-                    }
-                })),
-                is_preview,
-            );
+
+            for args in args.value().iter() {
+                let args = args.clone();
+
+                let update_once: Handler<crate::update::UpdateArgs> = Box::new(clmv!(handler, |_| {
+                    APP_HANDLER.unsubscribe(); // once
+                    APP_HANDLER.with(handle.clone_boxed(), is_preview, || handler.call(&args))
+                }));
+
+                if is_preview {
+                    UPDATES.on_pre_update(update_once).perm();
+                } else {
+                    UPDATES.on_update(update_once).perm();
+                }
+            }
 
             true
         })
@@ -331,408 +406,119 @@ impl<A: EventArgs> Event<A> {
     {
         let (sender, receiver) = channel::unbounded();
 
-        self.as_any()
-            .hook(move |update| {
-                sender
-                    .send_blocking(update.args().as_any().downcast_ref::<A>().unwrap().clone())
-                    .is_ok()
+        self.read_var()
+            .hook(move |u| {
+                for args in u.value().downcast_ref::<EventUpdates<A>>().unwrap().iter() {
+                    if sender.send_blocking(args.clone()).is_err() {
+                        return false;
+                    }
+                }
+                true
             })
             .perm();
 
         receiver
     }
 
-    /// Creates a sender channel that can notify the event.
-    ///
-    /// Events can notify from any app thread, this sender can notify other threads too.
-    pub fn sender(&self) -> EventSender<A>
-    where
-        A: Send,
-    {
-        EVENTS_SV.write().sender(*self)
-    }
-
-    /// Returns `true` if any app level callback is registered for this event.
-    ///
-    /// This includes [`AnyEvent::hook`], [`Event::on_pre_event`], [`Event::on_event`] and [`Event::receiver`].
-    pub fn has_hooks(&self) -> bool {
-        self.as_any().has_hooks()
-    }
-}
-impl<A: EventArgs> Clone for Event<A> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl<A: EventArgs> Copy for Event<A> {}
-impl<A: EventArgs> PartialEq for Event<A> {
-    fn eq(&self, other: &Self) -> bool {
-        self.local == other.local
-    }
-}
-impl<A: EventArgs> Eq for Event<A> {}
-
-/// Represents an [`Event`] without the args type.
-#[derive(Clone, Copy)]
-pub struct AnyEvent {
-    local: &'static AppLocal<EventData>,
-}
-impl fmt::Debug for AnyEvent {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "AnyEvent({})", self.name())
-        } else {
-            write!(f, "{}", self.name())
-        }
-    }
-}
-impl AnyEvent {
-    /// Name of the event static item.
-    pub fn name(&self) -> &'static str {
-        self.local.read().name
-    }
-
-    /// Returns `true` if `self` is the type erased `event`.
-    pub fn is<A: EventArgs>(&self, event: &Event<A>) -> bool {
-        self == event
-    }
-
-    /// Returns `true` if the update is for this event.
-    pub fn has(&self, update: &EventUpdate) -> bool {
-        *self == update.event
-    }
-
-    /// Register a callback that is called just before an event begins notifying.
-    pub fn hook(&self, hook: impl Fn(&mut EventUpdate) -> bool + Send + Sync + 'static) -> EventHandle {
-        self.hook_impl(Box::new(hook))
-    }
-    fn hook_impl(&self, hook: Box<dyn Fn(&mut EventUpdate) -> bool + Send + Sync>) -> EventHandle {
-        let (handle, hook) = EventHandle::new(hook);
-        self.local.write().hooks.push(hook);
-        handle
-    }
-
-    /// Register the widget to receive targeted events from this event.
-    ///
-    /// Widgets only receive events if they are in the delivery list generated by the event args and are
-    /// subscribers to the event. App extensions receive all events.
-    pub fn subscribe(&self, widget_id: WidgetId) -> EventHandle {
-        self.local
-            .write()
-            .widget_subs
-            .entry(widget_id)
-            .or_insert_with(EventHandle::new_none)
-            .clone()
-    }
-
-    /// Returns `true` if the widget is subscribed to this event.
-    pub fn is_subscriber(&self, widget_id: WidgetId) -> bool {
-        self.local.read().widget_subs.contains_key(&widget_id)
-    }
-
-    /// Returns `true` if at least one widget is subscribed to this event.
-    pub fn has_subscribers(&self) -> bool {
-        !self.local.read().widget_subs.is_empty()
-    }
-
-    /// Calls `visit` for each widget subscribed to this event.
-    ///
-    /// Note that trying to subscribe or add hook inside `visit` will deadlock. Inside `visit` you can notify the event and
-    /// generate event updates.
-    pub fn visit_subscribers<T>(&self, mut visit: impl FnMut(WidgetId) -> ControlFlow<T>) -> Option<T> {
-        for sub in self.local.read().widget_subs.keys() {
-            match visit(*sub) {
-                ControlFlow::Continue(_) => continue,
-                ControlFlow::Break(r) => return Some(r),
-            }
-        }
-        None
-    }
-
-    /// Returns `true` if any app level callback is registered for this event.
-    ///
-    /// This includes [`AnyEvent::hook`], [`Event::on_pre_event`], [`Event::on_event`] and [`Event::receiver`].
-    pub fn has_hooks(&self) -> bool {
-        !self.local.read().hooks.is_empty()
-    }
-
-    pub(crate) fn on_update(&self, update: &mut EventUpdate) {
-        let mut hooks = mem::take(&mut self.local.write().hooks);
-        hooks.retain(|h| h.call(update));
-
-        let mut write = self.local.write();
-        hooks.append(&mut write.hooks);
-        write.hooks = hooks;
-    }
-}
-impl PartialEq for AnyEvent {
-    fn eq(&self, other: &Self) -> bool {
-        self.local == other.local
-    }
-}
-impl Eq for AnyEvent {}
-impl std::hash::Hash for AnyEvent {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::hash::Hash::hash(self.local, state)
-    }
-}
-impl<A: EventArgs> PartialEq<AnyEvent> for Event<A> {
-    fn eq(&self, other: &AnyEvent) -> bool {
-        self.local == other.local
-    }
-}
-impl<A: EventArgs> PartialEq<Event<A>> for AnyEvent {
-    fn eq(&self, other: &Event<A>) -> bool {
-        self.local == other.local
-    }
-}
-
-impl UpdateSubscribers for AnyEvent {
-    fn contains(&self, widget_id: WidgetId) -> bool {
-        if let Some(mut write) = self.local.try_write() {
-            match write.widget_subs.entry(widget_id) {
-                IdEntry::Occupied(e) => {
-                    let t = e.get().retain();
-                    if !t {
-                        let _ = e.remove();
-                    }
-                    t
-                }
-                IdEntry::Vacant(_) => false,
-            }
-        } else {
-            // fallback without cleanup
-            match self.local.read().widget_subs.get(&widget_id) {
-                Some(e) => e.retain(),
-                None => false,
-            }
-        }
-    }
-
-    fn to_set(&self) -> IdSet<WidgetId> {
-        self.local.read().widget_subs.keys().copied().collect()
-    }
-}
-
-/// Represents a collection of event handles.
-#[must_use = "the event subscriptions or handlers are dropped if the handle is dropped"]
-#[derive(Clone, Default)]
-pub struct EventHandles(Vec<EventHandle>);
-impl EventHandles {
-    /// Empty collection.
-    pub const fn dummy() -> Self {
-        EventHandles(vec![])
-    }
-
-    /// Returns `true` if empty or all handles are dummy.
-    pub fn is_dummy(&self) -> bool {
-        self.0.is_empty() || self.0.iter().all(EventHandle::is_dummy)
-    }
-
-    /// Drop all handles without stopping their behavior.
-    pub fn perm(self) {
-        for handle in self.0 {
-            handle.perm()
-        }
-    }
-
-    /// Add `other` handle to the collection.
-    pub fn push(&mut self, other: EventHandle) -> &mut Self {
-        if !other.is_dummy() {
-            self.0.push(other);
-        }
+    /// Deref as [`AnyEvent`].
+    pub fn as_any(&self) -> &AnyEvent {
         self
     }
 
-    /// Drop all handles.
-    pub fn clear(&mut self) {
-        self.0.clear();
-    }
-}
-impl FromIterator<EventHandle> for EventHandles {
-    fn from_iter<T: IntoIterator<Item = EventHandle>>(iter: T) -> Self {
-        EventHandles(iter.into_iter().filter(|h| !h.is_dummy()).collect())
-    }
-}
-impl<const N: usize> From<[EventHandle; N]> for EventHandles {
-    fn from(handles: [EventHandle; N]) -> Self {
-        handles.into_iter().filter(|h| !h.is_dummy()).collect()
-    }
-}
-impl Extend<EventHandle> for EventHandles {
-    fn extend<T: IntoIterator<Item = EventHandle>>(&mut self, iter: T) {
-        for handle in iter {
-            self.push(handle);
-        }
-    }
-}
-impl IntoIterator for EventHandles {
-    type Item = EventHandle;
-
-    type IntoIter = std::vec::IntoIter<EventHandle>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+    /// Setups a callback for just after the event notifications are listed,
+    /// the closure runs in the root app context, just like var modify and hook closures.
+    ///
+    /// The closure must return true to be retained and false to be dropped.
+    ///
+    /// Any event notification or var modification done in the `handler` will apply on the same update that notifies this event.
+    pub fn hook(&self, mut handler: impl FnMut(&A) -> bool + Send + 'static) -> VarHandle {
+        self.read_var().hook(move |a| {
+            for args in a.downcast_value::<EventUpdates<A>>().unwrap().iter() {
+                if !handler(args) {
+                    return false;
+                }
+            }
+            true
+        })
     }
 }
 
-struct EventHandleData {
-    perm: AtomicBool,
-    hook: Option<Box<dyn Fn(&mut EventUpdate) -> bool + Send + Sync>>,
-}
-
-/// Represents an event widget subscription, handler callback or hook.
-#[derive(Clone)]
-#[must_use = "the event subscription or handler is dropped if the handle is dropped"]
-pub struct EventHandle(Option<Arc<EventHandleData>>);
-impl PartialEq for EventHandle {
-    fn eq(&self, other: &Self) -> bool {
-        match (&self.0, &other.0) {
-            (None, None) => true,
-            (None, Some(_)) | (Some(_), None) => false,
-            (Some(a), Some(b)) => Arc::ptr_eq(a, b),
-        }
-    }
-}
-impl Eq for EventHandle {}
-impl std::hash::Hash for EventHandle {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let i = match &self.0 {
-            Some(rc) => Arc::as_ptr(rc) as usize,
-            None => 0,
+#[doc(hidden)]
+#[macro_export]
+macro_rules! event_macro_impl {
+    (
+        $(#[$attr:meta])*
+        $vis:vis static $EVENT:ident: $Args:path;
+    ) => {
+        $(#[$attr])*
+        $vis static $EVENT: $crate::event::Event<$Args> = {
+            $crate::event::app_local! {
+                static LOCAL: $crate::event::EventData = $crate::event::EventData::new::<$Args>();
+            }
+            $crate::event::Event::new(&LOCAL)
         };
-        state.write_usize(i);
-    }
-}
-impl fmt::Debug for EventHandle {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let i = match &self.0 {
-            Some(rc) => Arc::as_ptr(rc) as usize,
-            None => 0,
+    };
+    (
+        $(#[$attr:meta])*
+        $vis:vis static $EVENT:ident: $Args:path { $($init:tt)* };
+    ) => {
+        $(#[$attr])*
+        $vis static $EVENT: $crate::event::Event<$Args> = {
+            fn init() {
+                $($init)*
+            }
+            $crate::event::app_local! {
+                static LOCAL: $crate::event::EventData = {
+                    $crate::event::EVENTS.notify("event init", init);
+                    $crate::event::EventData::new::<$Args>()
+                };
+            }
+            $crate::event::Event::new(&LOCAL)
         };
-        f.debug_tuple("EventHandle").field(&i).finish()
-    }
-}
-/// Dummy
-impl Default for EventHandle {
-    fn default() -> Self {
-        Self::dummy()
-    }
-}
-impl EventHandle {
-    fn new(hook: Box<dyn Fn(&mut EventUpdate) -> bool + Send + Sync>) -> (Self, EventHook) {
-        let rc = Arc::new(EventHandleData {
-            perm: AtomicBool::new(false),
-            hook: Some(hook),
-        });
-        (Self(Some(rc.clone())), EventHook(rc))
-    }
-
-    fn new_none() -> Self {
-        Self(Some(Arc::new(EventHandleData {
-            perm: AtomicBool::new(false),
-            hook: None,
-        })))
-    }
-
-    /// Handle to no event.
-    pub fn dummy() -> Self {
-        EventHandle(None)
-    }
-
-    /// If the handle is not actually registered in an event.
-    pub fn is_dummy(&self) -> bool {
-        self.0.is_none()
-    }
-
-    /// Drop the handle without un-registering it, the resource it represents will remain registered in the event for the duration of
-    /// the process.
-    pub fn perm(self) {
-        if let Some(rc) = self.0 {
-            rc.perm.store(true, Ordering::Relaxed);
-        }
-    }
-
-    /// Create an [`EventHandles`] collection with `self` and `other`.
-    pub fn with(self, other: Self) -> EventHandles {
-        [self, other].into()
-    }
-
-    fn retain(&self) -> bool {
-        let rc = self.0.as_ref().unwrap();
-        Arc::strong_count(rc) > 1 || rc.perm.load(Ordering::Relaxed)
-    }
+    };
 }
 
-struct EventHook(Arc<EventHandleData>);
-impl EventHook {
-    /// Callback, returns `true` if the handle must be retained.
-    fn call(&self, update: &mut EventUpdate) -> bool {
-        (Arc::strong_count(&self.0) > 1 || self.0.perm.load(Ordering::Relaxed)) && (self.0.hook.as_ref().unwrap())(update)
-    }
-}
-
-pub(crate) struct EventUpdateMsg {
-    args: Box<dyn FnOnce() -> EventUpdate + Send>,
-}
-impl EventUpdateMsg {
-    pub(crate) fn get(self) -> EventUpdate {
-        (self.args)()
-    }
-}
-impl fmt::Debug for EventUpdateMsg {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("EventUpdateMsg").finish_non_exhaustive()
-    }
-}
-
-/// An event update sender that can be used from any thread and without access to [`EVENTS`].
+///<span data-del-macro-root></span> Declares new [`Event<A>`] static items.
 ///
-/// Use [`Event::sender`] to create a sender.
-pub struct EventSender<A>
-where
-    A: EventArgs + Send,
-{
-    pub(super) sender: AppEventSender,
-    pub(super) event: Event<A>,
-}
-impl<A> Clone for EventSender<A>
-where
-    A: EventArgs + Send,
-{
-    fn clone(&self) -> Self {
-        EventSender {
-            sender: self.sender.clone(),
-            event: self.event,
-        }
+/// Event static items represent external, app or widget events. You can also use [`command!`]
+/// to declare events specialized for commanding widgets and services.
+///
+/// # Conventions
+///
+/// Command events have the `_EVENT` suffix, for example an event representing a click is called `CLICK_EVENT`.
+///
+/// # Properties
+///
+/// If the event targets widgets you can use `event_property!` to declare properties that setup event handlers for the event.
+///
+/// # Examples
+///
+/// The example defines two events with the same arguments type.
+///
+/// ```
+/// # use zng_app::event::*;
+/// # event_args! { pub struct ClickArgs { .. fn is_in_target(&self, _id: WidgetId) -> bool { true } } }
+/// event! {
+///     /// Event docs.
+///     pub static CLICK_EVENT: ClickArgs;
+///
+///     /// Other event docs.
+///     pub static DOUBLE_CLICK_EVENT: ClickArgs;
+/// }
+/// ```
+#[macro_export]
+macro_rules! event_macro {
+    ($(
+        $(#[$attr:meta])*
+        $vis:vis static $EVENT:ident: $Args:path $({ $($init:tt)* })?;
+    )+) => {
+        $(
+            $crate::event_macro_impl! {
+                $(#[$attr])*
+                $vis static $EVENT: $Args $({ $($init)* })?;
+            }
+        )+
     }
 }
-impl<A> fmt::Debug for EventSender<A>
-where
-    A: EventArgs + Send,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "EventSender({:?})", &self.event)
-    }
-}
-impl<A> EventSender<A>
-where
-    A: EventArgs + Send,
-{
-    /// Send an event update.
-    pub fn send(&self, args: A) -> Result<(), ChannelError> {
-        UpdatesTrace::log_event(self.event.as_any());
-
-        let event = self.event;
-        let msg = EventUpdateMsg {
-            args: Box::new(move || event.new_update(args)),
-        };
-
-        self.sender.send_event(msg)
-    }
-
-    /// Event that receives from this sender.
-    pub fn event(&self) -> Event<A> {
-        self.event
-    }
-}
+#[doc(inline)]
+pub use crate::event_macro as event;

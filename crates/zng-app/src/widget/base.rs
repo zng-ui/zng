@@ -455,7 +455,7 @@ pub mod node {
 
     use crate::{
         render::{FrameBuilder, FrameUpdate, FrameValueKey},
-        update::{EventUpdate, WidgetUpdates},
+        update::WidgetUpdates,
         widget::{
             WidgetCtx, WidgetUpdateMode,
             info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
@@ -736,31 +736,6 @@ pub mod node {
                 }
             }
 
-            fn event(&mut self, update: &EventUpdate) {
-                if self.ctx.take_reinit() {
-                    self.deinit();
-                    self.init();
-                }
-
-                WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || {
-                    #[cfg(debug_assertions)]
-                    if !self.inited {
-                        tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", update.event().name(), WIDGET.id());
-                    } else if !self.info_built {
-                        tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in widget {:?} before first info build", update.event().name(), WIDGET.id());
-                    }
-
-                    update.with_widget(|| {
-                        self.child.event(update);
-                    });
-                });
-
-                if self.ctx.take_reinit() {
-                    self.deinit();
-                    self.init();
-                }
-            }
-
             fn update(&mut self, updates: &WidgetUpdates) {
                 if self.ctx.take_reinit() {
                     self.deinit();
@@ -994,8 +969,6 @@ bitflags::bitflags! {
         const INFO = 0b0001_0000;
         /// Descendants [`UiNode::deinit`] can run in parallel.
         const DEINIT = 0b0000_0010;
-        /// Descendants [`UiNode::event`] can run in parallel.
-        const EVENT = 0b0000_0100;
         /// Descendants [`UiNode::update`] can run in parallel.
         const UPDATE = 0b0000_1000;
         /// Descendants [`UiNode::measure`] and [`UiNode::layout`] can run in parallel.

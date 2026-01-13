@@ -2,7 +2,7 @@ use zng_layout::unit::PxSize;
 use zng_var::Var;
 
 use crate::{
-    update::{EventUpdate, WidgetUpdates},
+    update::WidgetUpdates,
     widget::{
         WIDGET, WidgetHandlesCtx,
         node::{IntoUiNode, UiNodeImpl},
@@ -150,10 +150,6 @@ impl UiNodeImpl for WhenUiNode {
 
     fn info(&mut self, info: &mut crate::widget::info::WidgetInfoBuilder) {
         self.with(|c| c.0.info(info));
-    }
-
-    fn event(&mut self, update: &EventUpdate) {
-        self.with(|c| c.0.event(update));
     }
 
     fn update(&mut self, updates: &WidgetUpdates) {

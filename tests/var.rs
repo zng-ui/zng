@@ -528,7 +528,7 @@ mod bindings {
 
 mod context {
     use zng::{
-        app::{AppExtended, AppExtension, HeadlessApp},
+        app::{AppBuilder, AppExtension, HeadlessApp},
         prelude::*,
         prelude_wgt::*,
         var::{AnyWhenVarBuilder, ContextInitHandle},
@@ -600,7 +600,7 @@ mod context {
         wgt.set_child(child);
     }
 
-    fn test_app(app: AppExtended<impl AppExtension>, root: impl IntoUiNode) -> HeadlessApp {
+    fn test_app(app: AppBuilder<impl AppExtension>, root: impl IntoUiNode) -> HeadlessApp {
         zng_app::test_log();
 
         let mut app = app.run_headless(false);

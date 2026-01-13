@@ -1,116 +1,34 @@
-use std::{
-    any::Any,
-    fmt,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering::Relaxed},
-    },
-};
+use std::sync::{Arc, atomic::AtomicBool};
 
-/// [`Event<A>`] arguments.
-///
-/// See [`AnyEventArgs`] for the object safe part of event arguments.
-///
-/// [`Event<A>`]: crate::event::Event
-pub trait EventArgs: AnyEventArgs + Clone {
-    /// Calls `handler` and stops propagation if propagation is still allowed.
-    ///
-    /// Returns the `handler` result if it was called.
-    fn handle<F, R>(&self, handler: F) -> Option<R>
-    where
-        F: FnOnce(&Self) -> R,
-    {
-        if self.propagation().is_stopped() {
-            None
-        } else {
-            let r = handler(self);
-            self.propagation().stop();
-            Some(r)
-        }
-    }
-}
+use zng_var::VarValue;
 
-/// Methods of [`EventArgs`] that are object safe.
-pub trait AnyEventArgs: fmt::Debug + Send + Sync + Any {
-    /// Clone the event into a type erased box.
-    fn clone_any(&self) -> Box<dyn AnyEventArgs>;
+use crate::widget::WidgetId;
+use atomic::Ordering::Relaxed;
 
-    /// Access to `dyn Any` methods.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Gets the instant this event happened.
+/// Represents an event update.
+pub trait EventArgs: VarValue {
+    /// Instant this event update happened.
     fn timestamp(&self) -> crate::DInstant;
-
-    /// Insert all targets of this event on the [`UpdateDeliveryList`].
-    fn delivery_list(&self, list: &mut UpdateDeliveryList);
 
     /// Propagation handle associated with this event instance.
     ///
     /// Cloned arguments share the same handle, some arguments may also share the handle
     /// of another event if they share the same cause.
     fn propagation(&self) -> &EventPropagationHandle;
-}
 
-/// Event propagation handle associated with one or multiple [`EventArgs`].
-///
-/// Event handlers can use this to signal subsequent handlers that the event is already handled and they should
-/// operate as if the event was not received.
-///
-/// You can get the propagation handle of any event argument by using the [`AnyEventArgs::propagation`] method.
-#[derive(Debug, Clone)]
-pub struct EventPropagationHandle(Arc<AtomicBool>);
-impl EventPropagationHandle {
-    /// New in the not stopped default state.
-    pub fn new() -> Self {
-        EventPropagationHandle(Arc::new(AtomicBool::new(false)))
-    }
-
-    /// Signal subsequent handlers that the event is already handled.
-    pub fn stop(&self) {
-        // Is `Arc` to make `EventArgs` send, but stop handle is only useful in the UI thread, so
-        // we don't need any ordering.
-        self.0.store(true, Relaxed);
-    }
-
-    /// If the handler must skip this event instance.
-    ///
-    /// Note that property level handlers don't need to check this, as those handlers are
-    /// not called when this is `true`. Direct event listeners in [`UiNode`] and [`AppExtension`]
-    /// must check if this is `true`.
-    ///
-    /// [`UiNode`]: crate::widget::node::UiNode
-    /// [`AppExtension`]: crate::AppExtension
-    pub fn is_stopped(&self) -> bool {
-        self.0.load(Relaxed)
-    }
-}
-impl Default for EventPropagationHandle {
-    fn default() -> Self {
-        EventPropagationHandle::new()
-    }
-}
-impl PartialEq for EventPropagationHandle {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-impl Eq for EventPropagationHandle {}
-impl std::hash::Hash for EventPropagationHandle {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let ptr = Arc::as_ptr(&self.0) as usize;
-        std::hash::Hash::hash(&ptr, state);
-    }
+    /// Gets if the widget is in any of the target paths in this update.
+    fn is_in_target(&self, widget: WidgetId) -> bool;
 }
 
 ///<span data-del-macro-root></span> Declares new [`EventArgs`] types.
 ///
 /// The macro syntax is similar to `struct` declaration, but after the args struct members you must add `..` and then
-/// the `fn delivery_list(&self, list: &mut UpdateDeliveryList) {}` method that inserts the widget targets.
+/// the `fn is_in_target(&self, widget: WidgetId) -> bool { }` method that matches the widget target.
 ///
-/// After the `delivery_list` method you can also optionally add a `fn validate(&self) -> Result<(), Txt> { }` method
+/// After the `is_in_target` method you can also optionally add a `fn validate(&self) -> Result<(), Txt> { }` method
 /// that validates the arguments.
 ///
-/// The macro expansion implements the [`EventArgs`] and [`AnyEventArgs`] traits for the new structs, it generates a public `timestamp`
+/// The macro expansion implements the [`EventArgs`] trait for the new structs, it generates a public `timestamp`
 /// member and a `new` and `now` associated functions. The `new` function instantiates args with custom timestamp and propagation handle,
 /// the `now` function provides the timestamp and propagation handle and is the primary way to instantiate args.
 ///
@@ -130,8 +48,8 @@ impl std::hash::Hash for EventPropagationHandle {
 ///
 ///         ..
 ///
-///         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-///             list.insert_wgt(&self.target);
+///         fn is_in_target(&self, widget: WidgetId) -> bool { } {
+///             self.target.contains(widget)
 ///         }
 ///
 ///         /// Optional validation, if defined the generated `new` and `now` functions call it and unwrap the result.
@@ -158,8 +76,8 @@ macro_rules! event_args {
         $vis:vis struct $Args:ident {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
-            $(#[$delivery_list_outer:meta])*
-            fn delivery_list(&$self:ident, $delivery_list_ident:ident: &mut UpdateDeliveryList) { $($delivery_list:tt)* }
+            $(#[$is_in_target_outer:meta])*
+            fn is_in_target(&$self:ident, $is_in_target_id:ident: WidgetId) -> bool { $($is_in_target:tt)* }
 
             $(
                 $(#[$validate_outer:meta])*
@@ -174,8 +92,8 @@ macro_rules! event_args {
 
                 ..
 
-                $(#[$delivery_list_outer])*
-                fn delivery_list(&$self, $delivery_list_ident: &mut UpdateDeliveryList) { $($delivery_list)* }
+                $(#[$is_in_target_outer])*
+                fn is_in_target(&$self, $is_in_target_id: WidgetId) -> bool { $($is_in_target)* }
 
                 $(
                     $(#[$validate_outer])*
@@ -194,8 +112,8 @@ macro_rules! __event_args {
         $vis:vis struct $Args:ident {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
-            $(#[$delivery_list_outer:meta])*
-            fn delivery_list(&$self:ident, $delivery_list_ident:ident: &mut UpdateDeliveryList) { $($delivery_list:tt)* }
+            $(#[$is_in_target_outer:meta])*
+            fn is_in_target(&$self:ident, $is_in_target_id:ident: WidgetId) -> bool { $($is_in_target:tt)* }
 
             $(#[$validate_outer:meta])*
             fn validate(&$self_v:ident) -> Result<(), $ValidationError:path> { $($validate:tt)+ }
@@ -207,8 +125,8 @@ macro_rules! __event_args {
             $vis struct $Args {
                 $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
                 ..
-                $(#[$delivery_list_outer])*
-                fn delivery_list(&$self, $delivery_list_ident: &mut UpdateDeliveryList) { $($delivery_list)* }
+                $(#[$is_in_target_outer])*
+                fn is_in_target(&$self, $is_in_target_id: WidgetId) -> bool { $($is_in_target)* }
             }
         }
         impl $Args {
@@ -289,8 +207,8 @@ macro_rules! __event_args {
         $vis:vis struct $Args:ident {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
-            $(#[$delivery_list_outer:meta])*
-            fn delivery_list(&$self:ident, $delivery_list_ident:ident: &mut UpdateDeliveryList) { $($delivery_list:tt)* }
+            $(#[$is_in_target_outer:meta])*
+            fn is_in_target(&$self:ident, $is_in_target_id:ident: WidgetId) -> bool { $($is_in_target:tt)* }
         }
     ) => {
         $crate::__event_args! {common=>
@@ -299,8 +217,8 @@ macro_rules! __event_args {
             $vis struct $Args {
                 $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
                 ..
-                $(#[$delivery_list_outer])*
-                fn delivery_list(&$self, $delivery_list_ident: &mut UpdateDeliveryList) { $($delivery_list)* }
+                $(#[$is_in_target_outer])*
+                fn is_in_target(&$self, $is_in_target_id: WidgetId) -> bool { $($is_in_target)* }
             }
         }
 
@@ -334,12 +252,12 @@ macro_rules! __event_args {
         $vis:vis struct $Args:ident {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
-            $(#[$delivery_list_outer:meta])*
-            fn delivery_list(&$self:ident, $delivery_list_ident:ident: &mut UpdateDeliveryList) { $($delivery_list:tt)* }
+            $(#[$is_in_target_outer:meta])*
+            fn is_in_target(&$self:ident, $is_in_target_id:ident: WidgetId) -> bool { $($is_in_target:tt)* }
         }
     ) => {
         $(#[$outer])*
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, PartialEq)]
         $vis struct $Args {
             /// Instant the event happened.
             pub timestamp: $crate::DInstant,
@@ -348,26 +266,14 @@ macro_rules! __event_args {
             propagation_handle: $crate::event::EventPropagationHandle,
         }
         impl $crate::event::EventArgs for $Args {
-        }
-        impl $crate::event::AnyEventArgs for $Args {
-            fn clone_any(&self) -> std::boxed::Box<dyn $crate::event::AnyEventArgs> {
-                Box::new(self.clone())
-            }
-
-            fn as_any(&self) -> &dyn std::any::Any {
-                self
-            }
-
             fn timestamp(&self) -> $crate::DInstant {
                 self.timestamp
             }
 
-            $(#[$delivery_list_outer])*
-            fn delivery_list(&$self, $delivery_list_ident: &mut $crate::update::UpdateDeliveryList) {
-                #[allow(unused_imports)]
-                use $crate::update::UpdateDeliveryList;
-
-                $($delivery_list)*
+            $(#[$is_in_target_outer])*
+            fn is_in_target(&$self, $is_in_target_id: $crate::widget::WidgetId) -> bool {
+                let _ = $is_in_target_id;
+                $($is_in_target)*
             }
 
             fn propagation(&self) -> &$crate::event::EventPropagationHandle {
@@ -378,4 +284,54 @@ macro_rules! __event_args {
 }
 #[doc(inline)]
 pub use crate::event_args;
-use crate::update::UpdateDeliveryList;
+
+/// Event propagation handle associated with one or multiple [`EventArgs`].
+///
+/// Event handlers can use this to signal subsequent handlers that the event is already handled and they should
+/// operate as if the event was not received.
+///
+/// You can get the propagation handle of any event argument by using the [`EventArgs::propagation`] method.
+#[derive(Debug, Clone)]
+pub struct EventPropagationHandle(Arc<AtomicBool>);
+impl EventPropagationHandle {
+    /// New in the not stopped default state.
+    pub fn new() -> Self {
+        EventPropagationHandle(Arc::new(AtomicBool::new(false)))
+    }
+
+    /// Signal subsequent handlers that the event is already handled.
+    pub fn stop(&self) {
+        // Is `Arc` to make `EventArgs` send, but stop handle is only useful in the UI thread, so
+        // we don't need any ordering.
+        self.0.store(true, Relaxed);
+    }
+
+    /// If the handler must skip this event instance.
+    ///
+    /// Note that property level handlers don't need to check this, as those handlers are
+    /// not called when this is `true`. Direct event listeners in [`UiNode`] and [`AppExtension`]
+    /// must check if this is `true`.
+    ///
+    /// [`UiNode`]: crate::widget::node::UiNode
+    /// [`AppExtension`]: crate::AppExtension
+    pub fn is_stopped(&self) -> bool {
+        self.0.load(Relaxed)
+    }
+}
+impl Default for EventPropagationHandle {
+    fn default() -> Self {
+        EventPropagationHandle::new()
+    }
+}
+impl PartialEq for EventPropagationHandle {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for EventPropagationHandle {}
+impl std::hash::Hash for EventPropagationHandle {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let ptr = Arc::as_ptr(&self.0) as usize;
+        std::hash::Hash::hash(&ptr, state);
+    }
+}

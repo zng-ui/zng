@@ -1,5 +1,12 @@
 # Unreleased
 
+* **Breaking** Accessibility event args not contain the full path to target widget.
+
+* **Breaking** Refactored events to be specialized variables.
+    - Unifies all reactive programming into vars and `update`.
+    - Batches update delivery in sync with other updates.
+    - Remove `UiNode::event` and related types.
+
 * **Breaking** Rename `Img` to `ImageEntry`.
 
 * **Breaking** Variable `subscribe_when` and related methods now have access to the full `VarHookArgs`.

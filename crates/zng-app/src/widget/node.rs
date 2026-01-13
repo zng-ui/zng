@@ -27,7 +27,7 @@ use zng_var::{BoxAnyVarValue, ContextInitHandle, ResponseVar, response_done_var,
 
 use crate::{
     render::{FrameBuilder, FrameUpdate},
-    update::{EventUpdate, WidgetUpdates},
+    update::WidgetUpdates,
     widget::builder::{NestGroup, WidgetBuilding},
 };
 
@@ -209,30 +209,9 @@ pub trait UiNodeImpl: Any + Send {
         }
     }
 
-    /// Receives an event.
+    /// Receives event and variable updates.
     ///
-    /// Every call to this method is for a single update of a single event type, you can listen to events
-    /// by subscribing to then on init and using the [`Event::on`] method in this method to detect the event.
-    ///
-    /// Note that events sent to descendant nodes also flow through this method and must be delegated. If you observe
-    /// an event for a descendant before delegating to the descendant this is a ***preview*** handling, in the normal handling
-    /// you delegate first, then check the event propagation.
-    ///
-    /// [`Event::on`]: crate::event::Event::on
-    fn event(&mut self, update: &EventUpdate) {
-        match self.children_len() {
-            0 => {}
-            1 => self.with_child(0, &mut |c| c.0.event(update)),
-            _ => {
-                debug_warn_list!(self, "event");
-                self.for_each_child(&mut |_, n| n.0.event(update))
-            }
-        }
-    }
-
-    /// Receives variable and other non-event updates.
-    ///
-    /// Calls to this method aggregate all updates that happen in the last pass, multiple variables can be new at the same time.
+    /// Calls to this method aggregate all updates that happen in the last pass, multiple events and variables can be new at the same time.
     /// You can listen to variable updates by subscribing to then on init and using the [`Var::get_new`] method in this method to
     /// receive the new values.
     ///
@@ -777,7 +756,6 @@ impl UiNode {
             UiNodeOp::Init => self.init(),
             UiNodeOp::Deinit => self.deinit(),
             UiNodeOp::Info { info } => self.info(info),
-            UiNodeOp::Event { update } => self.event(update),
             UiNodeOp::Update { updates } => self.update(updates),
             UiNodeOp::Measure { wm, desired_size } => *desired_size = self.measure(wm),
             UiNodeOp::Layout { wl, final_size } => *final_size = self.layout(wl),
@@ -816,15 +794,7 @@ impl UiNode {
         self.0.info(info);
     }
 
-    /// Notify event update.
-    ///
-    /// See [`UiNodeImpl::event`] for more details.
-    #[inline(always)]
-    pub fn event(&mut self, update: &EventUpdate) {
-        self.0.event(update);
-    }
-
-    /// Notify non-event update.
+    /// Notify updates.
     ///
     /// See [`UiNodeImpl::update`] for more details.
     #[inline(always)]
@@ -832,7 +802,7 @@ impl UiNode {
         self.0.update(updates);
     }
 
-    /// Notify non-event update and observe list changes if the widget is a list.
+    /// Notify updates and observe list changes if the widget is a list.
     ///
     /// See [`UiNodeImpl::update_list`] for more details.
     #[inline(always)]

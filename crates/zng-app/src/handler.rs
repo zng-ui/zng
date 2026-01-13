@@ -8,12 +8,13 @@ use std::time::Duration;
 use parking_lot::Mutex;
 #[doc(hidden)]
 pub use zng_clone_move::*;
+use zng_txt::{Txt, formatx};
 
 use crate::update::UPDATES;
 use crate::widget::{UiTaskWidget as _, WIDGET};
 use crate::{AppControlFlow, HeadlessApp};
 use zng_handle::{Handle, WeakHandle};
-use zng_task::{self as task, UiTask};
+use zng_task::UiTask;
 
 use crate::INSTANT;
 
@@ -638,7 +639,7 @@ impl HeadlessApp {
     /// This function *spins* until all update tasks are completed. Timers or send events can
     /// be received during execution but the loop does not sleep, it just spins requesting an update
     /// for each pass.
-    pub fn block_on<A>(&mut self, handler: &mut Handler<A>, args: &A, timeout: Duration) -> Result<(), String>
+    pub fn block_on<A>(&mut self, handler: &mut Handler<A>, args: &A, timeout: Duration) -> Result<(), Txt>
     where
         A: Clone + 'static,
     {
@@ -650,7 +651,7 @@ impl HeadlessApp {
     /// This function *spins* until all update tasks are completed. Timers or send events can
     /// be received during execution but the loop does not sleep, it just spins requesting an update
     /// for each pass.
-    pub fn block_on_multi<A>(&mut self, handlers: Vec<&mut Handler<A>>, args: &A, timeout: Duration) -> Result<(), String>
+    pub fn block_on_multi<A>(&mut self, handlers: Vec<&mut Handler<A>>, args: &A, timeout: Duration) -> Result<(), Txt>
     where
         A: Clone + 'static,
     {
@@ -672,7 +673,7 @@ impl HeadlessApp {
                 UPDATES.update(None);
                 let flow = self.update(false);
                 if INSTANT.now().duration_since(start_time) >= timeout {
-                    return Err(format!(
+                    return Err(formatx!(
                         "block_on reached timeout of {timeout:?} before the handler task could finish",
                     ));
                 }
@@ -692,40 +693,23 @@ impl HeadlessApp {
     }
 
     /// Polls a `future` and updates the app repeatedly until it completes or the `timeout` is reached.
-    pub fn block_on_fut<F: Future>(&mut self, future: F, timeout: Duration) -> Result<F::Output, String> {
-        let future = task::with_deadline(future, timeout);
-        let mut future = std::pin::pin!(future);
-
-        let waker = UPDATES.waker(None);
-        let mut cx = std::task::Context::from_waker(&waker);
-
-        loop {
-            let mut fut_poll = future.as_mut().poll(&mut cx);
-            let flow = self.update_observe(
-                || {
-                    if fut_poll.is_pending() {
-                        fut_poll = future.as_mut().poll(&mut cx);
-                    }
-                },
-                true,
-            );
-
-            match fut_poll {
-                std::task::Poll::Ready(r) => match r {
-                    Ok(r) => return Ok(r),
-                    Err(e) => return Err(e.to_string()),
-                },
-                std::task::Poll::Pending => {}
-            }
-
-            match flow {
-                AppControlFlow::Poll => continue,
-                AppControlFlow::Wait => {
-                    thread::yield_now();
-                    continue;
-                }
-                AppControlFlow::Exit => return Err("app exited".to_owned()),
-            }
+    pub fn block_on_fut<F>(&mut self, future: F, timeout: Duration) -> Result<F::Output, Txt>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        let r = Arc::new(Mutex::new(None::<F::Output>));
+        self.block_on(
+            &mut async_hn_once!(r, |_| {
+                let fr = future.await;
+                *r.lock() = Some(fr);
+            }),
+            &(),
+            timeout,
+        )?;
+        match r.lock().take() {
+            Some(r) => Ok(r),
+            None => Err("unblocked without finishing".into()),
         }
     }
 

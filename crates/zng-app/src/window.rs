@@ -1,8 +1,14 @@
 //! Window context API.
 
-use std::{borrow::Cow, fmt, sync::Arc};
+use std::{any::Any, borrow::Cow, fmt, sync::Arc};
 
-use crate::{update::UpdatesTrace, widget::info::WidgetInfoTree};
+use crate::{
+    update::{InfoUpdates, LayoutUpdates, RenderUpdates, UpdatesTrace, WidgetUpdates},
+    widget::{
+        WidgetId,
+        info::{WidgetInfo, WidgetInfoTree},
+    },
+};
 use parking_lot::RwLock;
 use zng_app_context::context_local;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
@@ -242,7 +248,7 @@ mod _impl {
     use super::*;
     use crate::{
         render::FrameValueKey,
-        update::{ContextUpdates, EventUpdate, LayoutUpdates, UPDATES, UpdateDeliveryList, WidgetUpdates},
+        update::{ContextUpdates, LayoutUpdates, UPDATES, UpdateDeliveryList, WidgetUpdates},
         widget::{
             WIDGET, WIDGET_CTX, WidgetCtx, WidgetId, WidgetUpdateMode,
             info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetPath},
@@ -339,16 +345,6 @@ mod _impl {
             UPDATES.apply()
         }
 
-        /// Call inside [`with_test_context`] to delivery an event to the `content` as a child of the test window root.
-        ///
-        /// [`with_test_context`]: Self::with_test_context
-        pub fn test_event(&self, content: &mut UiNode, update: &mut EventUpdate) -> ContextUpdates {
-            update.delivery_list_mut().fulfill_search([&WINDOW.info()].into_iter());
-            content.event(update);
-            WIDGET.test_root_updates();
-            UPDATES.apply()
-        }
-
         /// Call inside [`with_test_context`] to update the `content` as a child of the test window root.
         ///
         /// The `updates` can be set to a custom delivery list, otherwise window root and `content` widget are flagged for update.
@@ -366,7 +362,7 @@ mod _impl {
                     WidgetPath::new(WINDOW.id(), vec![WIDGET.id()].into())
                 };
 
-                let mut updates = WidgetUpdates::new(UpdateDeliveryList::new_any());
+                let mut updates = WidgetUpdates::new(UpdateDeliveryList::new());
                 updates.delivery_list.insert_wgt(&target);
 
                 content.update(&updates);
@@ -385,7 +381,7 @@ mod _impl {
             if let Some(c) = constraints {
                 metrics = metrics.with_constraints(c);
             }
-            let mut updates = LayoutUpdates::new(UpdateDeliveryList::new_any());
+            let mut updates = LayoutUpdates::new(UpdateDeliveryList::new());
             updates.delivery_list.insert_updates_root(WINDOW.id(), WIDGET.id());
             let size = LAYOUT.with_context(metrics, || {
                 crate::widget::info::WidgetLayout::with_root_widget(Arc::new(updates), |wl| content.layout(wl))
@@ -622,4 +618,74 @@ impl WindowMode {
             WindowMode::Headless => false,
         }
     }
+}
+
+/// Integration with the `WINDOWS` service implementer.
+#[allow(non_camel_case_types)]
+pub struct WINDOWS_APP;
+impl WINDOWS_APP {
+    /// Connect with the `WINDOWS` info storage.
+    pub fn init_info_provider(service: Box<dyn WindowsService>) {
+        *WINDOWS_APP_SV.write() = Some(service);
+    }
+
+    /// Get the latest info tree for the window.
+    pub fn widget_tree(&self, id: WindowId) -> Option<WidgetInfoTree> {
+        WINDOWS_APP_SV.read().as_ref().unwrap().widget_tree(id)
+    }
+
+    /// Search for the widget in the latest info tree of each open window.
+    pub fn widget_info(&self, id: WidgetId) -> Option<WidgetInfo> {
+        WINDOWS_APP_SV.read().as_ref().unwrap().widget_info(id)
+    }
+
+    /// Rebuild info trees.
+    pub fn update_info(&self, info_widgets: &mut InfoUpdates) {
+        WINDOWS_APP_SV.read().as_ref().unwrap().update_info(info_widgets)
+    }
+
+    /// Update widgets.
+    pub fn update_widgets(&self, update_widgets: &mut WidgetUpdates) {
+        WINDOWS_APP_SV.read().as_ref().unwrap().update_widgets(update_widgets)
+    }
+
+    /// Layout windows and widgets.
+    pub fn update_layout(&self, layout_widgets: &mut LayoutUpdates) {
+        WINDOWS_APP_SV.read().as_ref().unwrap().update_layout(layout_widgets)
+    }
+
+    /// Update frames.
+    pub fn update_render(&self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
+        WINDOWS_APP_SV
+            .read()
+            .as_ref()
+            .unwrap()
+            .update_render(render_widgets, render_update_widgets)
+    }
+}
+
+/// Represents the `WINDOWS` service.
+pub trait WindowsService: Any + Send + Sync {
+    /// Get the latest info tree for the window.
+    fn widget_tree(&self, id: WindowId) -> Option<WidgetInfoTree>;
+    /// Search for the widget in the latest info tree of each open window.
+    fn widget_info(&self, id: WidgetId) -> Option<WidgetInfo>;
+    /// Rebuild info trees.
+    fn update_info(&self, updates: &mut InfoUpdates);
+    /// Update window and widgets.
+    fn update_widgets(&self, updates: &mut WidgetUpdates);
+    /// Layout windows and widgets.
+    fn update_layout(&self, updates: &mut LayoutUpdates);
+    /// Update frames.
+    fn update_render(&self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates);
+}
+
+zng_app_context::app_local! {
+    static WINDOWS_APP_SV: Option<Box<dyn WindowsService>> = const { None };
+}
+fn none_tree(_: WindowId) -> Option<WidgetInfoTree> {
+    None
+}
+fn none_info(_: WidgetInfo) -> Option<WidgetInfo> {
+    None
 }

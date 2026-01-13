@@ -1,11 +1,20 @@
 use std::{
-    any::TypeId,
+    any::{Any, TypeId},
     collections::{HashMap, hash_map},
-    mem, ops,
+    fmt, mem,
+    ops::{self, ControlFlow},
+    sync::atomic::Ordering,
     thread::ThreadId,
 };
 
-use crate::{APP, shortcut::CommandShortcutExt, update::UpdatesTrace, widget::info::WidgetInfo, window::WindowId};
+use crate::{
+    APP,
+    handler::Handler,
+    shortcut::CommandShortcutExt,
+    update::UpdatesTrace,
+    widget::info::{WidgetInfo, WidgetPath},
+    window::{WINDOWS_APP, WindowId},
+};
 
 use super::*;
 
@@ -158,6 +167,7 @@ macro_rules! command {
 #[doc(inline)]
 pub use command;
 
+use parking_lot::Mutex;
 use zng_app_context::AppId;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
 use zng_txt::Txt;
@@ -183,7 +193,7 @@ macro_rules! __command {
                 $meta_init
             }
             $crate::event::app_local! {
-                static EVENT: $crate::event::EventData = const { $crate::event::EventData::new(std::stringify!($COMMAND)) };
+                static EVENT: $crate::event::EventData = $crate::event::EventData::new::<$crate::event::CommandArgs>();
                 static DATA: $crate::event::CommandData = $crate::event::CommandData::new(__meta_init__);
             }
             $crate::event::Command::new(&EVENT, &DATA)
@@ -277,7 +287,7 @@ pub fn init_meta_l10n(
         } else if let Some(&file) = l10n_arg.downcast_ref::<&'static str>() {
             l10n_file = file;
         } else {
-            tracing::error!("unknown l10n value in {}", cmd.event().as_any().name());
+            tracing::error!("unknown l10n value in {:?}", cmd.event());
             return;
         }
 
@@ -337,7 +347,7 @@ impl fmt::Debug for Command {
                 .field("scope", &self.scope)
                 .finish_non_exhaustive()
         } else {
-            write!(f, "{}", self.event.name())?;
+            write!(f, "{:?}", self.event)?;
             match self.scope {
                 CommandScope::App => Ok(()),
                 CommandScope::Window(id) => write!(f, "({id})"),
@@ -451,33 +461,6 @@ impl Command {
         }
     }
 
-    /// Returns `true` if the update is for this command and scope.
-    pub fn has(&self, update: &EventUpdate) -> bool {
-        self.on(update).is_some()
-    }
-
-    /// Get the command update args if the update is for this command and scope.
-    pub fn on<'a>(&self, update: &'a EventUpdate) -> Option<&'a CommandArgs> {
-        self.event.on(update).filter(|a| a.scope == self.scope)
-    }
-
-    /// Get the event update args if the update is for this event and propagation is not stopped.
-    pub fn on_unhandled<'a>(&self, update: &'a EventUpdate) -> Option<&'a CommandArgs> {
-        self.event
-            .on(update)
-            .filter(|a| a.scope == self.scope && !a.propagation().is_stopped())
-    }
-
-    /// Calls `handler` if the update is for this event and propagation is not stopped,
-    /// after the handler is called propagation is stopped.
-    pub fn handle<R>(&self, update: &EventUpdate, handler: impl FnOnce(&CommandArgs) -> R) -> Option<R> {
-        if let Some(args) = self.on(update) {
-            args.handle(handler)
-        } else {
-            None
-        }
-    }
-
     /// Gets a variable that tracks if this command has any handlers.
     pub fn has_handlers(&self) -> Var<bool> {
         let mut write = self.local.write();
@@ -530,7 +513,12 @@ impl Command {
 
     /// Schedule a command update without param.
     pub fn notify(&self) {
-        self.event.notify(CommandArgs::now(None, self.scope, self.is_enabled_value()))
+        self.event.notify(CommandArgs::now(
+            None,
+            self.scope,
+            self.scope.search_target(),
+            self.is_enabled_value(),
+        ))
     }
 
     /// Schedule a command update without param for all scopes inside `parent`.
@@ -548,8 +536,12 @@ impl Command {
 
     /// Schedule a command update with custom `param`.
     pub fn notify_param(&self, param: impl Any + Send + Sync) {
-        self.event
-            .notify(CommandArgs::now(CommandParam::new(param), self.scope, self.is_enabled_value()));
+        self.event.notify(CommandArgs::now(
+            CommandParam::new(param),
+            self.scope,
+            self.scope.search_target(),
+            self.is_enabled_value(),
+        ));
     }
 
     /// Schedule a command update linked with an external event `propagation`.
@@ -559,19 +551,9 @@ impl Command {
             propagation,
             param,
             self.scope,
+            self.scope.search_target(),
             self.is_enabled_value(),
         ))
-    }
-
-    /// Create an event update for this command without custom `param`.
-    pub fn new_update(&self) -> EventUpdate {
-        self.event.new_update(CommandArgs::now(None, self.scope, self.is_enabled_value()))
-    }
-
-    /// Create an event update for this command with custom `param`.
-    pub fn new_update_param(&self, param: impl Any + Send + Sync) -> EventUpdate {
-        self.event
-            .new_update(CommandArgs::now(CommandParam::new(param), self.scope, self.is_enabled_value()))
     }
 
     /// Creates a preview event handler for the command.
@@ -581,7 +563,7 @@ impl Command {
     ///
     /// The `enabled` parameter defines the initial state of the command subscription, the subscription
     /// handle is available in the handler args.
-    pub fn on_pre_event(&self, enabled: bool, handler: Handler<AppCommandArgs>) -> EventHandle {
+    pub fn on_pre_event(&self, enabled: bool, handler: Handler<AppCommandArgs>) -> VarHandle {
         self.event().on_pre_event(self.handler(enabled, handler))
     }
 
@@ -592,7 +574,7 @@ impl Command {
     ///
     /// The `enabled` parameter defines the initial state of the command subscription, the subscription
     /// handle is available in the handler args.
-    pub fn on_event(&self, enabled: bool, handler: Handler<AppCommandArgs>) -> EventHandle {
+    pub fn on_event(&self, enabled: bool, handler: Handler<AppCommandArgs>) -> VarHandle {
         self.event().on_event(self.handler(enabled, handler))
     }
 
@@ -642,7 +624,7 @@ impl Command {
         }
     }
 }
-impl Deref for Command {
+impl ops::Deref for Command {
     type Target = Event<CommandArgs>;
 
     fn deref(&self) -> &Self::Target {
@@ -677,6 +659,16 @@ pub enum CommandScope {
     /// Scope of a widget.
     Widget(WidgetId),
 }
+impl CommandScope {
+    /// Search for the widget scope, or the window root widget for window scope.
+    pub fn search_target(self) -> Option<WidgetPath> {
+        match self {
+            CommandScope::App => None,
+            CommandScope::Window(id) => WINDOWS_APP.widget_tree(id).map(|t| t.root().path()),
+            CommandScope::Widget(id) => WINDOWS_APP.widget_info(id).map(|w| w.path()),
+        }
+    }
+}
 impl_from_and_into_var! {
     fn from(id: WidgetId) -> CommandScope {
         CommandScope::Widget(id)
@@ -703,6 +695,13 @@ event_args! {
         /// Scope of command that notified.
         pub scope: CommandScope,
 
+        /// Target widget.
+        ///
+        /// * If the scope is `App` this is `None`.
+        /// * If the scope is `Window` this is the window root widget, if the window was found.
+        /// * If the scope is `Widget` this is the widget, if it was found.
+        pub target: Option<WidgetPath>,
+
         /// If the command handle was enabled when the command notified.
         ///
         /// If `false` the command primary action must not run, but a secondary "disabled interaction"
@@ -711,14 +710,34 @@ event_args! {
 
         ..
 
-        /// Broadcast to all widget subscribers for [`CommandScope::App`]. Targets the window root for
-        /// [`CommandScope::Window`] if found. Target ancestors and widget for [`CommandScope::Widget`], if it is found.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+        /// Broadcast to all if the scope is `App`, otherwise if is in `target`.
+        fn is_in_target(&self, id: WidgetId) -> bool {
             match self.scope {
-                CommandScope::Widget(id) => list.search_widget(id),
-                CommandScope::Window(id) => list.insert_window(id),
-                CommandScope::App => list.search_all(),
+                CommandScope::App => true,
+                _ => match &self.target {
+                    Some(t) => t.contains(id),
+                    None => false,
+                },
             }
+        }
+
+        fn validate(&self) -> Result<(), Txt> {
+            if let Some(t) = &self.target {
+                match self.scope {
+                    CommandScope::App => return Err("args for app scope cannot have a `target`".into()),
+                    CommandScope::Window(id) => {
+                        if id != t.window_id() || t.widgets_path().len() > 1 {
+                            return Err("args for window scope must only `target` that window root widget".into());
+                        }
+                    }
+                    CommandScope::Widget(id) => {
+                        if id != t.widget_id() {
+                            return Err("args for widget scope must only `target` that widget".into());
+                        }
+                    }
+                }
+            }
+            Ok(())
         }
     }
 }
@@ -774,6 +793,11 @@ pub struct AppCommandArgs {
     /// The command handle held by the event handler.
     pub handle: Arc<CommandHandle>,
 }
+impl PartialEq for AppCommandArgs {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.handle, &other.handle) && self.args == other.args
+    }
+}
 impl ops::Deref for AppCommandArgs {
     type Target = CommandArgs;
 
@@ -781,28 +805,19 @@ impl ops::Deref for AppCommandArgs {
         &self.args
     }
 }
-impl AnyEventArgs for AppCommandArgs {
-    fn clone_any(&self) -> Box<dyn AnyEventArgs> {
-        Box::new(self.clone())
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
+impl EventArgs for AppCommandArgs {
     fn timestamp(&self) -> crate::DInstant {
-        self.args.timestamp()
-    }
-
-    fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-        self.args.delivery_list(list)
+        self.args.timestamp
     }
 
     fn propagation(&self) -> &EventPropagationHandle {
         self.args.propagation()
     }
+
+    fn is_in_target(&self, widget: WidgetId) -> bool {
+        self.args.is_in_target(widget)
+    }
 }
-impl EventArgs for AppCommandArgs {}
 
 /// A handle to a [`Command`] subscription.
 ///
@@ -814,7 +829,7 @@ pub struct CommandHandle {
     command: Option<Command>,
     local_enabled: AtomicBool,
     app_id: Option<AppId>,
-    _event_handle: EventHandle,
+    _event_handle: VarHandle,
 }
 impl CommandHandle {
     /// The command.
@@ -868,7 +883,7 @@ impl CommandHandle {
             command: None,
             app_id: None,
             local_enabled: AtomicBool::new(false),
-            _event_handle: EventHandle::dummy(),
+            _event_handle: VarHandle::dummy(),
         }
     }
 
@@ -1252,30 +1267,7 @@ static_id! {
 }
 impl CommandNameExt for Command {
     fn name(self) -> CommandMetaVar<Txt> {
-        self.with_meta(|m| {
-            m.get_var_or_insert(*COMMAND_NAME_ID, || {
-                let name = self.event.name();
-                let name = name.strip_suffix("_CMD").unwrap_or(name);
-                let mut title = String::with_capacity(name.len());
-                let mut lower = false;
-                for c in name.chars() {
-                    if c == '_' {
-                        if !title.ends_with(' ') {
-                            title.push(' ');
-                        }
-                        lower = false;
-                    } else if lower {
-                        for l in c.to_lowercase() {
-                            title.push(l);
-                        }
-                    } else {
-                        title.push(c);
-                        lower = true;
-                    }
-                }
-                Txt::from(title)
-            })
-        })
+        self.with_meta(|m| m.get_var_or_insert(*COMMAND_NAME_ID, Txt::default))
     }
 
     fn init_name(self, name: impl Into<Txt>) -> Self {
@@ -1394,7 +1386,9 @@ impl CommandData {
             command: Some(command),
             app_id: APP.id(),
             local_enabled: AtomicBool::new(enabled),
-            _event_handle: target.map(|t| command.event.subscribe(t)).unwrap_or_else(EventHandle::dummy),
+            _event_handle: target
+                .map(|t| command.event.subscribe(UpdateOp::Update, t))
+                .unwrap_or_else(VarHandle::dummy),
         }
     }
 }
@@ -1430,7 +1424,7 @@ mod tests {
 
     #[test]
     fn parameter_none() {
-        let _ = CommandArgs::now(None, CommandScope::App, true);
+        let _ = CommandArgs::now(None, CommandScope::App, None, true);
     }
 
     #[test]

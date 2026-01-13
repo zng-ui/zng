@@ -33,7 +33,7 @@ mod service;
 pub use service::*;
 
 use zng_app::{
-    AppControlFlow, AppExtended, AppExtension, HeadlessApp,
+    AppBuilder, AppControlFlow, AppExtension, HeadlessApp,
     update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates},
     view_process::raw_events::{RAW_WINDOW_FOCUS_EVENT, RawWindowFocusArgs},
     window::WindowId,
@@ -161,7 +161,7 @@ pub trait AppRunWindowExt {
     where
         F: Future<Output = WindowRoot> + Send + 'static;
 }
-impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
+impl<E: AppExtension> AppRunWindowExt for AppBuilder<E> {
     fn run_window<F>(self, new_window: impl IntoFuture<IntoFuture = F>)
     where
         F: Future<Output = WindowRoot> + Send + 'static,

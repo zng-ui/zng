@@ -192,7 +192,7 @@ impl fmt::Display for ApiExtensionNameError {
 impl std::error::Error for ApiExtensionNameError {}
 
 /// List of available API extensions.
-#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Clone, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ApiExtensions(Vec<ApiExtensionName>);
 impl ops::Deref for ApiExtensions {
     type Target = [ApiExtensionName];
