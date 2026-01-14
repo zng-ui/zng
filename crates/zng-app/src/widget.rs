@@ -1055,7 +1055,7 @@ impl WIDGET {
     /// Subscribe to receive [`UpdateOp`] when the `event` notifies and `predicate` approves the args.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
-    pub fn sub_var_op_when<A: EventArgs>(
+    pub fn sub_event_op_when<A: EventArgs>(
         &self,
         op: UpdateOp,
         event: &Event<A>,
@@ -1118,7 +1118,7 @@ impl WIDGET {
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
     pub fn sub_event_render_when<A: EventArgs>(&self, event: &Event<A>, predicate: impl Fn(&A) -> bool + Send + Sync + 'static) -> &Self {
-        self.sub_var_op_when(UpdateOp::Render, event, predicate)
+        self.sub_event_op_when(UpdateOp::Render, event, predicate)
     }
 
     /// Subscribe to receive render update requests when the `event` notifies.
@@ -1365,7 +1365,6 @@ impl WidgetCtx {
     pub fn deinit(&mut self, retain_state: bool) {
         let ctx = self.0.as_mut().unwrap();
         ctx.handles.var_handles.lock().clear();
-        ctx.handles.event_handles.lock().clear();
         ctx.flags.store(UpdateFlags::empty(), Relaxed);
         *ctx.render_reuse.lock() = None;
 
@@ -1471,7 +1470,6 @@ impl WidgetHandlesCtx {
     pub fn clear(&mut self) {
         let h = self.0.as_ref().unwrap();
         h.var_handles.lock().clear();
-        h.event_handles.lock().clear();
     }
 }
 impl Default for WidgetHandlesCtx {

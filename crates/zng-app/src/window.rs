@@ -415,7 +415,7 @@ mod _impl {
                 .with_constraints(layout_constraints.0)
                 .with_inline_constraints(Some(InlineConstraints::Layout(layout_constraints.1)));
 
-            let mut updates = LayoutUpdates::new(UpdateDeliveryList::new_any());
+            let mut updates = LayoutUpdates::new(UpdateDeliveryList::new());
             updates.delivery_list.insert_updates_root(WINDOW.id(), WIDGET.id());
 
             let layout_size = LAYOUT.with_context(metrics, || {
@@ -682,10 +682,4 @@ pub trait WindowsService: Any + Send + Sync {
 
 zng_app_context::app_local! {
     static WINDOWS_APP_SV: Option<Box<dyn WindowsService>> = const { None };
-}
-fn none_tree(_: WindowId) -> Option<WidgetInfoTree> {
-    None
-}
-fn none_info(_: WidgetInfo) -> Option<WidgetInfo> {
-    None
 }

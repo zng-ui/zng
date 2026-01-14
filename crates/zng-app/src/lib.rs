@@ -16,7 +16,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::{collections::HashMap, fmt, path::PathBuf};
+use std::{collections::HashMap, fmt, path::PathBuf, sync::Arc};
 
 pub mod access;
 pub mod crash_handler;
@@ -35,8 +35,9 @@ pub mod window;
 
 mod tests;
 
+use parking_lot::Mutex;
 use view_process::VIEW_PROCESS;
-use widget::UiTaskWidget;
+use zng_clone_move::async_clmv;
 #[doc(hidden)]
 pub use zng_layout as layout;
 use zng_txt::Txt;
@@ -49,7 +50,6 @@ pub use zng_time::{DInstant, Deadline, INSTANT, InstantMode};
 use update::UPDATES;
 use window::WindowMode;
 use zng_app_context::{AppId, AppScope, LocalContext};
-use zng_task::UiTask;
 
 pub use zng_unique_id::static_id;
 
@@ -227,14 +227,24 @@ impl HeadlessApp {
         VIEW_PROCESS.is_available()
     }
 
-    /// Does updates unobserved.
+    /// Does updates.
     ///
-    /// See [`update_observed`] for more details.
-    ///
-    /// [`update_observed`]: HeadlessApp::update
-    pub fn update(&mut self, wait_app_event: bool) -> AppControlFlow {
-        self.app.
-        self.update_observed(&mut (), wait_app_event)
+    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received or a timer elapses,
+    /// if it is `false` only responds to app events already in the buffer.
+    pub fn update(&mut self, mut wait_app_event: bool) -> AppControlFlow {
+        if self.app.has_exited() {
+            return AppControlFlow::Exit;
+        }
+
+        loop {
+            match self.app.poll(wait_app_event) {
+                AppControlFlow::Poll => {
+                    wait_app_event = false;
+                    continue;
+                }
+                flow => return flow,
+            }
+        }
     }
 
     /// Execute the async `task` in the UI thread, updating the app until it finishes or the app shuts-down.
@@ -242,48 +252,34 @@ impl HeadlessApp {
     /// Returns the task result if the app has not shut-down.
     pub fn run_task<R, T>(&mut self, task: impl IntoFuture<IntoFuture = T>) -> Option<R>
     where
-        R: 'static,
-        T: Future<Output = R> + Send + Sync + 'static,
+        R: Send + 'static,
+        T: Future<Output = R> + Send + 'static,
     {
-        let mut task = UiTask::new(None, task);
+        let task = task.into_future();
 
-        let mut flow = self.update_observe(
-            || {
-                task.update();
-            },
-            false,
-        );
-
-        if task.update().is_some() {
-            let r = task.into_result().ok();
-            debug_assert!(r.is_some());
-            return r;
+        if self.app.has_exited() {
+            return None;
         }
 
-        let mut n = 0;
-        while flow != AppControlFlow::Exit {
-            flow = self.update_observe(
-                || {
-                    task.update();
-                },
-                true,
-            );
+        let r = Arc::new(Mutex::new(None::<R>));
+        UPDATES
+            .run(async_clmv!(r, {
+                let fr = task.await;
+                *r.lock() = Some(fr);
+            }))
+            .perm();
 
-            if n == 10_000 {
-                tracing::error!("excessive future awaking, run_task ran 10_000 update cycles without finishing");
-            } else if n == 100_000 {
-                panic!("run_task stuck, ran 100_000 update cycles without finishing");
-            }
-            n += 1;
-
-            match task.into_result() {
-                Ok(r) => return Some(r),
-                Err(t) => task = t,
+        loop {
+            match self.app.poll(true) {
+                AppControlFlow::Exit => return None,
+                _ => {
+                    let mut r = r.lock();
+                    if r.is_some() {
+                        return r.take();
+                    }
+                }
             }
         }
-        task.cancel();
-
-        None
     }
 
     /// Requests and wait for app exit.
@@ -334,7 +330,7 @@ impl APP {
     /// [`run`]: AppExtended::run
     /// [`run_headless`]: AppExtended::run_headless
     pub fn is_running(&self) -> bool {
-        self.is_started() && APP_PROCESS_SV.read().is_running()
+        self.is_started() && !APP_PROCESS_SV.read().exit
     }
 
     /// Gets the unique ID of the current app.

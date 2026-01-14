@@ -373,8 +373,7 @@ impl Command {
     ///
     /// If the command is scoped on a window or widget if it is added to the command event subscribers.
     pub fn subscribe(&self, enabled: bool) -> CommandHandle {
-        let mut evs = EVENTS_SV.write();
-        self.local.write().subscribe(&mut evs, *self, enabled, None)
+        self.local.write().subscribe(*self, enabled, None)
     }
 
     /// Create a new handle for this command for a handler in the `target` widget.
@@ -385,8 +384,7 @@ impl Command {
     ///
     /// [`subscribe`]: Command::subscribe
     pub fn subscribe_wgt(&self, enabled: bool, target: WidgetId) -> CommandHandle {
-        let mut evs = EVENTS_SV.write();
-        self.local.write().subscribe(&mut evs, *self, enabled, Some(target))
+        self.local.write().subscribe(*self, enabled, Some(target))
     }
 
     /// Underlying event that represents this command in any scope.
@@ -587,42 +585,6 @@ impl Command {
             })
         })
     }
-
-    /// Update state vars, returns if the command must be retained.
-    #[must_use]
-    pub(crate) fn update_state(&self) -> bool {
-        let mut write = self.local.write();
-        if let CommandScope::App = self.scope {
-            let has_handlers = write.handle_count > 0;
-            if has_handlers != write.has_handlers.get() {
-                write.has_handlers.set(has_handlers);
-            }
-            let is_enabled = has_handlers && write.enabled_count > 0;
-            if is_enabled != write.is_enabled.get() {
-                write.is_enabled.set(is_enabled);
-            }
-            true
-        } else if let hash_map::Entry::Occupied(entry) = write.scopes.entry(self.scope) {
-            let scope = entry.get();
-
-            if scope.handle_count == 0 && scope.has_handlers.strong_count() == 1 && scope.is_enabled.strong_count() == 1 {
-                entry.remove();
-                return false;
-            }
-
-            let has_handlers = scope.handle_count > 0;
-            if has_handlers != scope.has_handlers.get() {
-                scope.has_handlers.set(has_handlers);
-            }
-            let is_enabled = has_handlers && scope.enabled_count > 0;
-            if is_enabled != scope.is_enabled.get() {
-                scope.is_enabled.set(is_enabled);
-            }
-            true
-        } else {
-            false
-        }
-    }
 }
 impl ops::Deref for Command {
     type Target = Event<CommandArgs>;
@@ -721,6 +683,7 @@ event_args! {
             }
         }
 
+        /// Validates if the target matches the scope.
         fn validate(&self) -> Result<(), Txt> {
             if let Some(t) = &self.target {
                 match self.scope {
@@ -911,15 +874,35 @@ impl Drop for CommandHandle {
             match command.scope {
                 CommandScope::App => {
                     write.handle_count -= 1;
+                    if write.handle_count == 0 {
+                        write.has_handlers.set(false);
+                    }
+
                     if self.local_enabled.load(Ordering::Relaxed) {
                         write.enabled_count -= 1;
+
+                        if write.enabled_count == 0 {
+                            write.is_enabled.set(false);
+                        }
                     }
                 }
                 scope => {
-                    if let Some(data) = write.scopes.get_mut(&scope) {
+                    if let hash_map::Entry::Occupied(mut entry) = write.scopes.entry(scope) {
+                        let data = entry.get_mut();
+
                         data.handle_count -= 1;
+
                         if self.local_enabled.load(Ordering::Relaxed) {
                             data.enabled_count -= 1;
+                            if data.enabled_count == 0 {
+                                data.is_enabled.set(false);
+                            }
+                        }
+
+                        if data.handle_count == 0 {
+                            data.has_handlers.set(false);
+                            entry.remove();
+                            EVENTS.unregister_command(command);
                         }
                     }
                 }
@@ -1352,28 +1335,42 @@ impl CommandData {
         }
     }
 
-    fn subscribe(&mut self, events: &mut EventsService, command: Command, enabled: bool, mut target: Option<WidgetId>) -> CommandHandle {
+    fn subscribe(&mut self, command: Command, enabled: bool, mut target: Option<WidgetId>) -> CommandHandle {
         match command.scope {
             CommandScope::App => {
                 if !mem::replace(&mut self.registered, true) {
-                    events.register_command(command);
+                    EVENTS.register_command(command);
                 }
 
                 self.handle_count += 1;
                 if enabled {
                     self.enabled_count += 1;
                 }
+
+                if self.handle_count == 1 {
+                    self.has_handlers.set(true);
+                }
+                if self.enabled_count == 1 {
+                    self.is_enabled.set(true);
+                }
             }
             scope => {
                 let data = self.scopes.entry(scope).or_default();
 
                 if !mem::replace(&mut data.registered, true) {
-                    events.register_command(command);
+                    EVENTS.register_command(command);
                 }
 
                 data.handle_count += 1;
                 if enabled {
                     data.enabled_count += 1;
+                }
+
+                if data.handle_count == 1 {
+                    data.has_handlers.set(true);
+                }
+                if data.enabled_count == 1 {
+                    data.is_enabled.set(true);
                 }
 
                 if let CommandScope::Widget(id) = scope {

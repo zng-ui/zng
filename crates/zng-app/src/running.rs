@@ -19,7 +19,7 @@ use zng_view_api::{DeviceEventsFilter, raw_input::InputDeviceEvent};
 
 use crate::{
     APP, AppControlFlow, DInstant, INSTANT,
-    event::{CommandHandle, CommandInfoExt, CommandNameExt, EventPropagationHandle, command, event},
+    event::{CommandInfoExt, CommandNameExt, command, event},
     event_args,
     shortcut::CommandShortcutExt,
     shortcut::shortcut,
@@ -599,7 +599,7 @@ impl RunningApp {
         !self.pending_view_events.is_empty() || self.pending.has_updates() || UPDATES.has_pending_updates() || !self.receiver.is_empty()
     }
 
-    fn poll(&mut self, wait_app_event: bool) -> AppControlFlow {
+    pub(crate) fn poll(&mut self, wait_app_event: bool) -> AppControlFlow {
         let mut disconnected = false;
 
         if self.exited {
@@ -994,7 +994,7 @@ impl APP {
         // apply `device_events_filter`
         s.device_events_filter
             .hook(|a| {
-                if let Err(e) = VIEW_PROCESS.set_device_events_filter(*a.value()) {
+                if let Err(e) = VIEW_PROCESS.set_device_events_filter(a.value().clone()) {
                     tracing::error!("cannot set device events on the view-process, {e}");
                 }
                 true
@@ -1156,15 +1156,6 @@ impl fmt::Display for ExitCancelled {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "exit request cancelled")
     }
-}
-
-struct AppIntrinsic {
-    exit_handle: CommandHandle,
-    pending_exit: Option<PendingExit>,
-}
-struct PendingExit {
-    handle: EventPropagationHandle,
-    response: ResponderVar<ExitCancelled>,
 }
 
 pub(crate) fn assert_not_view_process() {

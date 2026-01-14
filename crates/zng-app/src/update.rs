@@ -12,7 +12,7 @@ use zng_app_context::app_local;
 use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_task::channel::ChannelError;
 use zng_unique_id::IdSet;
-use zng_var::VARS_APP;
+use zng_var::{VARS, VARS_APP};
 
 use crate::{
     AppEventSender, LoopTimer, async_hn_once,
@@ -44,7 +44,7 @@ impl fmt::Debug for UpdateDeliveryList {
 }
 impl Default for UpdateDeliveryList {
     fn default() -> Self {
-        Self::new_any()
+        Self::new()
     }
 }
 impl UpdateDeliveryList {
@@ -65,16 +65,10 @@ impl UpdateDeliveryList {
 
     /// Insert the `wgt` and ancestors up-to the inner most that is included in the subscribers.
     pub fn insert_wgt(&mut self, wgt: &impl WidgetPathProvider) {
-        let mut any = false;
         for w in wgt.widget_and_ancestors() {
-            if any || self.subscribers.contains(w) {
-                any = true;
-                self.widgets.insert(w);
-            }
+            self.widgets.insert(w);
         }
-        if any {
-            self.windows.insert(wgt.window_id());
-        }
+        self.windows.insert(wgt.window_id());
     }
 
     /// Insert the window by itself, the window root widget will be targeted.
@@ -83,16 +77,9 @@ impl UpdateDeliveryList {
         self.search_root = true;
     }
 
-    /// Register all subscribers for search and delivery.
-    pub fn search_all(&mut self) {
-        self.search = self.subscribers.to_set();
-    }
-
     /// Register the widget of unknown location for search before delivery routing starts.
     pub fn search_widget(&mut self, widget_id: WidgetId) {
-        if self.subscribers.contains(widget_id) {
-            self.search.insert(widget_id);
-        }
+        self.search.insert(widget_id);
     }
 
     /// If the list has pending widgets that must be found before delivery can start.
@@ -523,9 +510,6 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
     fn event(&self, event: &tracing::Event<'_>) {
         let action = match visit_str(|v| event.record(v), "kind").as_str() {
             "var" => UpdateAction::Var {
-                type_name: visit_str(|v| event.record(v), "type_name"),
-            },
-            "event" => UpdateAction::Event {
                 type_name: visit_str(|v| event.record(v), "type_name"),
             },
             "request" => UpdateAction::Update,
@@ -1230,6 +1214,13 @@ impl UPDATES {
         Self::push_handler(&mut u.pos_handlers.lock(), false, handler, false)
     }
 
+    /// Calls the closure once the current update is over.
+    ///
+    /// This is an alias for [`VARS::modify`].
+    pub fn once_update(&self, debug_name: &'static str, u: impl FnOnce() + Send + 'static) {
+        VARS.modify(debug_name, u);
+    }
+
     fn push_handler(
         entries: &mut Vec<UpdateHandler>,
         is_preview: bool,
@@ -1389,11 +1380,11 @@ impl UpdatesService {
         Self {
             event_sender: None,
             update_ext: UpdateFlags::empty(),
-            update_widgets: UpdateDeliveryList::new_any(),
-            info_widgets: UpdateDeliveryList::new_any(),
-            layout_widgets: UpdateDeliveryList::new_any(),
-            render_widgets: UpdateDeliveryList::new_any(),
-            render_update_widgets: UpdateDeliveryList::new_any(),
+            update_widgets: UpdateDeliveryList::new(),
+            info_widgets: UpdateDeliveryList::new(),
+            layout_widgets: UpdateDeliveryList::new(),
+            render_widgets: UpdateDeliveryList::new(),
+            render_update_widgets: UpdateDeliveryList::new(),
 
             pre_handlers: Mutex::new(vec![]),
             pos_handlers: Mutex::new(vec![]),
@@ -1489,7 +1480,6 @@ impl fmt::Debug for ContextUpdates {
                 .field("info", &self.info)
                 .field("layout", &self.layout)
                 .field("render", &self.render)
-                .field("events", &self.events)
                 .field("update_widgets", &self.update_widgets)
                 .field("info_widgets", &self.info_widgets)
                 .field("layout_widgets", &self.layout_widgets)
@@ -1499,14 +1489,6 @@ impl fmt::Debug for ContextUpdates {
         } else {
             write!(f, "ContextUpdates: ")?;
             let mut sep = "";
-            if !self.events.is_empty() {
-                write!(f, "{sep}events[")?;
-                for e in &self.events {
-                    write!(f, "{sep}{}", e.event.name())?;
-                    sep = ", ";
-                }
-                write!(f, "]")?;
-            }
             if self.update {
                 write!(f, "{sep}update")?;
                 sep = ", ";
@@ -1533,12 +1515,11 @@ impl fmt::Debug for ContextUpdates {
 impl ContextUpdates {
     /// If has events, update, layout or render was requested.
     pub fn has_updates(&self) -> bool {
-        !self.events.is_empty() || self.update || self.info || self.layout || self.render
+        self.update || self.info || self.layout || self.render
     }
 }
 impl std::ops::BitOrAssign for ContextUpdates {
     fn bitor_assign(&mut self, rhs: Self) {
-        self.events.extend(rhs.events);
         self.update |= rhs.update;
         self.update_widgets.extend(rhs.update_widgets);
         self.info |= rhs.info;

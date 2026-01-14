@@ -1,3 +1,5 @@
+//! App event and commands API.
+
 use std::{
     fmt,
     marker::PhantomData,
@@ -143,7 +145,7 @@ impl fmt::Debug for AnyEvent {
     }
 }
 impl AnyEvent {
-    fn read_var(&self) -> MappedRwLockReadGuard<AnyVar> {
+    fn read_var(&self) -> MappedRwLockReadGuard<'_, AnyVar> {
         self.0.read_map(|v| &v.var)
     }
 
@@ -379,7 +381,7 @@ impl<A: EventArgs> Event<A> {
             for args in args.value().iter() {
                 let args = args.clone();
 
-                let update_once: Handler<crate::update::UpdateArgs> = Box::new(clmv!(handler, |_| {
+                let update_once: Handler<crate::update::UpdateArgs> = Box::new(clmv!(handle, handler, |_| {
                     APP_HANDLER.unsubscribe(); // once
                     APP_HANDLER.with(handle.clone_boxed(), is_preview, || handler.call(&args))
                 }));

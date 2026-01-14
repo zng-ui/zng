@@ -13,7 +13,6 @@ app_local! {
 
 pub(crate) struct EventsService {
     commands: CommandSet,
-    register_commands: Vec<Command>,
     l10n: EventsL10n,
 }
 enum EventsL10n {
@@ -24,16 +23,8 @@ impl EventsService {
     const fn new() -> Self {
         Self {
             commands: HashSet::with_hasher(BuildFxHasher),
-            register_commands: vec![],
             l10n: EventsL10n::Pending(vec![]),
         }
-    }
-
-    pub(super) fn register_command(&mut self, command: Command) {
-        if self.register_commands.is_empty() {
-            UPDATES.update(None);
-        }
-        self.register_commands.push(command);
     }
 }
 
@@ -63,6 +54,20 @@ impl EVENTS {
     /// [`Command::subscribe`]: crate::event::Command::subscribe
     pub fn commands(&self) -> CommandSet {
         EVENTS_SV.read().commands.clone()
+    }
+
+    pub(super) fn register_command(&self, cmd: Command) {
+        UPDATES.once_update("register_command", move || {
+            let mut ev = EVENTS_SV.write();
+            if !ev.commands.insert(cmd) {
+                tracing::error!("command `{cmd:?}` is already registered");
+            }
+        });
+    }
+    pub(super) fn unregister_command(&self, cmd: Command) {
+        UPDATES.once_update("unregister_command", move || {
+            EVENTS_SV.write().commands.remove(&cmd);
+        });
     }
 
     /// Schedule a custom closure to run as an event notify callback.
