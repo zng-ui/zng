@@ -291,7 +291,7 @@ impl WidgetInfoBuilder {
 
     /// Build the info tree.
     ///
-    /// Also notifies [`WIDGET_INFO_CHANGED_EVENT`] and [`INTERACTIVITY_CHANGED_EVENT`] if `notify` is true.
+    /// Also notifies [`WIDGET_INFO_CHANGED_EVENT`] if `notify` is true.
     pub fn finalize(mut self, previous_tree: Option<WidgetInfoTree>, notify: bool) -> WidgetInfoTree {
         let mut node = self.tree.root_mut();
         let meta = Arc::new(Arc::try_unwrap(self.meta).unwrap().into_inner());
@@ -357,8 +357,8 @@ impl WidgetInfoBuilder {
         }));
 
         if notify {
-            let args = WidgetInfoChangedArgs::now(tree.clone());
-            WIDGET_INFO_CHANGED_EVENT.notify(args);
+            let args = WidgetTreeChangedArgs::now(tree.clone(), false);
+            WIDGET_TREE_CHANGED_EVENT.notify(args);
         }
 
         tree
@@ -370,14 +370,22 @@ crate::event::event! {
     ///
     /// Note that some widgets values may update internally after render, those changes do not generate an event. To monitor
     /// those changes use a variable and schedule a modify during each render pass that requery the value.
-    pub static WIDGET_INFO_CHANGED_EVENT: WidgetInfoChangedArgs;
+    pub static WIDGET_TREE_CHANGED_EVENT: WidgetTreeChangedArgs;
 }
 
 crate::event::event_args! {
-    /// [`WIDGET_INFO_CHANGED_EVENT`] args.
-    pub struct WidgetInfoChangedArgs {
+    /// [`WIDGET_TREE_CHANGED_EVENT`] args.
+    pub struct WidgetTreeChangedArgs {
         /// New widget tree.
         pub tree: WidgetInfoTree,
+
+        /// If it is the same tree, just render info updated.
+        /// 
+        /// Note that these changes are applied with interior mutability, so the `tree` shared reference
+        /// will can be modified on the next render. To compare values save a copy.
+        /// 
+        /// Some values updated without tree rebuild are, widget transforms, widget visibility.
+        pub is_update: bool,
 
         ..
 

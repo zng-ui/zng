@@ -13,7 +13,7 @@ use zng_app::{
     view_process::raw_events::RAW_KEY_INPUT_EVENT,
     widget::{
         WidgetId,
-        info::{InteractionPath, WIDGET_INFO_CHANGED_EVENT, WidgetBoundsInfo, WidgetInfoTree},
+        info::{InteractionPath, WIDGET_TREE_CHANGED_EVENT, WidgetBoundsInfo, WidgetInfoTree},
     },
     window::WindowId,
 };
@@ -352,7 +352,7 @@ impl AppExtension for FocusManager {
     }
 
     fn event_preview(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
+        if let Some(args) = WIDGET_TREE_CHANGED_EVENT.on(update) {
             if FOCUS_SV
                 .read()
                 .focused

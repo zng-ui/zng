@@ -266,12 +266,20 @@ impl WidgetInfoTree {
         scale_factor: Factor,
         view_process_gen: Option<ViewProcessGen>,
         widget_count_offsets: Option<ParallelSegmentOffsets>,
+        notify: bool,
     ) {
+        let mut any_update = false;
+
         let mut frame = self.0.frame.write();
         let stats_update = frame.stats_update.take();
+
+        any_update = stats_update.bounds_updated > 0 || stats_update.vis_updated > 0;
+
         frame.stats.update(frame_id, stats_update);
 
         if !frame.out_of_bounds_update.is_empty() {
+            any_update = true;
+
             // update out-of-bounds list, reuses the same vec most of the time,
             // unless a spatial iter was generated and not dropped before render.
 
@@ -294,20 +302,31 @@ impl WidgetInfoTree {
             let b = WidgetInfo::new(self.clone(), *out).inner_bounds().to_box2d();
             spatial_bounds = spatial_bounds.union(&b);
         }
+        any_update = any_update || frame.spatial_bounds != spatial_bounds;
         frame.spatial_bounds = spatial_bounds;
 
+        any_update = any_update || frame.scale_factor != scale_factor;
         frame.scale_factor = scale_factor;
+
         if let Some(vp_gen) = view_process_gen {
+            any_update = any_update || frame.view_process_gen != vp_gen;
+
             frame.view_process_gen = vp_gen;
         }
         if let Some(w) = widget_count_offsets {
+            any_update = any_update || frame.widget_count_offsets != w;
+
             frame.widget_count_offsets = w;
+        }
+
+        if notify && any_update {
+            WIDGET_TREE_CHANGED_EVENT.notify(WidgetTreeChangedArgs::now(self.clone(), true));
         }
     }
 
-    pub(crate) fn after_render_update(&self, frame_id: FrameId) {
+    pub(crate) fn after_render_update(&self, frame_id: FrameId, notify: bool) {
         let scale_factor = self.0.frame.read().scale_factor;
-        self.after_render(frame_id, scale_factor, None, None);
+        self.after_render(frame_id, scale_factor, None, None, notify);
     }
 }
 impl fmt::Debug for WidgetInfoTree {

@@ -20,7 +20,7 @@ use zng_app::{
     },
     widget::{
         WIDGET, WidgetId,
-        info::{HitTestInfo, InteractionPath, WIDGET_INFO_CHANGED_EVENT, WidgetInfo, WidgetInfoBuilder},
+        info::{HitTestInfo, InteractionPath, WIDGET_TREE_CHANGED_EVENT, WidgetInfo, WidgetInfoBuilder},
     },
     window::WindowId,
 };
@@ -1173,7 +1173,7 @@ impl AppExtension for MouseManager {
             if let Some(window_id) = args.prev_focus {
                 self.on_window_blur(window_id, args.new_focus);
             }
-        } else if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
+        } else if let Some(args) = WIDGET_TREE_CHANGED_EVENT.on(update) {
             self.continue_hovered(args.window_id);
         } else if let Some(args) = RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.on(update) {
             MOUSE_SV.read().multi_click_config.set(args.config);

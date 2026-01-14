@@ -13,7 +13,7 @@ zng_wgt::enable_widget_macros!();
 
 use parking_lot::Mutex;
 use zng_app::widget::border::CORNER_RADIUS_VAR;
-use zng_app::widget::info::WIDGET_INFO_CHANGED_EVENT;
+use zng_app::widget::info::WIDGET_TREE_CHANGED_EVENT;
 use zng_ext_input::mouse::MOUSE;
 use zng_ext_input::touch::TOUCH;
 use zng_ext_window::WINDOW_Ext as _;
@@ -218,7 +218,7 @@ impl LAYERS {
                         anchor_info = Some(get_anchor_info(anchor.get()));
 
                         interactivity = mode.with(|m| m.interactivity);
-                        _info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(WIDGET.id()));
+                        _info_changed_handle = Some(WIDGET_TREE_CHANGED_EVENT.subscribe(WIDGET.id()));
 
                         if mode.with(|m| matches!(&m.transform, AnchorTransform::Cursor { .. })) {
                             mouse_pos_handle = Some(MOUSE.position().subscribe(UpdateOp::Update, WIDGET.id()));
@@ -264,7 +264,7 @@ impl LAYERS {
                 }
             }
             UiNodeOp::Event { update } => {
-                if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update)
+                if let Some(args) = WIDGET_TREE_CHANGED_EVENT.on(update)
                     && args.window_id == WINDOW.id()
                 {
                     anchor_info = Some(get_anchor_info(anchor.get()));

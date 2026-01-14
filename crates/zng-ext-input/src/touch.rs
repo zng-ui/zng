@@ -16,7 +16,7 @@ use zng_app::{
     },
     widget::{
         WIDGET, WidgetId,
-        info::{HitTestInfo, InteractionPath, WIDGET_INFO_CHANGED_EVENT},
+        info::{HitTestInfo, InteractionPath, WIDGET_TREE_CHANGED_EVENT},
     },
     window::WindowId,
 };
@@ -1059,7 +1059,7 @@ impl AppExtension for TouchManager {
             }
 
             self.on_move(args, pending_move);
-        } else if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
+        } else if let Some(args) = WIDGET_TREE_CHANGED_EVENT.on(update) {
             self.continue_pressed(args.window_id);
         } else if let Some(args) = MODIFIERS_CHANGED_EVENT.on(update) {
             self.modifiers = args.modifiers;

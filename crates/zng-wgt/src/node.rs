@@ -6,7 +6,7 @@ use std::{any::Any, sync::Arc};
 
 use crate::WidgetFn;
 use zng_app::{
-    event::{AnyEventArgs, Command, CommandArgs, CommandHandle, CommandScope, Event, EventArgs, EventPropagationHandle},
+    event::{Command, CommandArgs, CommandHandle, CommandScope, Event, EventArgs},
     handler::{Handler, HandlerExt as _},
     render::{FrameBuilder, FrameValueKey},
     update::WidgetUpdates,
@@ -220,20 +220,22 @@ pub fn with_context_var_init<T: VarValue>(
 ///     pub(crate) fn key_down {
 ///         event: KEY_INPUT_EVENT,
 ///         args: KeyInputArgs,
-///         // optional filter:
-///         filter: |args| args.state == KeyState::Pressed,
+///         // optional filter_builder:
+///         filter_builder: {
+///             let _id = WIDGET.id(); // builder can capture context for the filter
+///             |args| args.state == KeyState::Pressed
+///         },
 ///     }
 /// }
 /// ```
 ///
 /// # Filter
 ///
-/// App events are delivered to all widgets that are both in the [`UpdateDeliveryList`] and event subscribers list,
-/// event properties can specialize further by defining a filter predicate.
+/// App events are delivered to all widgets that are the args target, event properties can specialize further by defining a filter predicate.
 ///
-/// The `filter:` predicate is called if [`propagation`] is not stopped. It must return `true` if the event arguments
-/// are relevant in the context of the widget and event property. If it returns `true` the `handler` closure is called.
-/// See [`on_event`] and [`on_pre_event`] for more information.
+/// The `filter_builder:` closure is called to capture the relevant widget context and return a predicate closure that uses the context
+/// to filter the event args. The filter is used in the event subscription to avoid even routing the event to the widget and in the event
+/// update to confirm the event. See [`on_event`] and [`on_pre_event`] for more information.
 ///
 /// If you don't provide a filter predicate the default always allows, so all app events targeting the widget and not already handled
 /// are allowed by default. Note that events that represent an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`]
@@ -308,7 +310,7 @@ macro_rules! event_property {
         $vis:vis fn $event:ident {
             event: $EVENT:path,
             args: $Args:path
-            $(, filter: $filter:expr)?
+            $(, filter_builder: $filter_builder:expr)?
             $(, widget_impl: $Wgt:ty)?
             $(, with: $with:expr)?
             $(,)?
@@ -319,7 +321,7 @@ macro_rules! event_property {
                 sig { $(#[$on_event_attrs])* $vis fn $event { event: $EVENT, args: $Args, } }
             }
 
-            $(filter: $filter,)?
+            $(filter_builder: $filter,)?
             $(widget_impl: $Wgt,)?
             $(with: $with,)?
         }
@@ -329,18 +331,18 @@ macro_rules! event_property {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __event_property {
-    // match filter:
+    // match filter_builder:
     (
         done {
             $($done:tt)+
         }
-        filter: $filter:expr,
+        filter_builder: $filter_builder:expr,
         $($rest:tt)*
     ) => {
         $crate::__event_property! {
             done {
                 $($done)+
-                filter { $filter }
+                filter_builder { $filter }
             }
             $($rest)*
         }
@@ -384,7 +386,7 @@ macro_rules! __event_property {
         $crate::__event_property! {
             done {
                 sig { $($sig)+ }
-                filter { |_args| true }
+                filter_builder { |_args| true }
                 widget_impl { }
                 with { }
             }
@@ -394,13 +396,13 @@ macro_rules! __event_property {
     (
         done {
             sig { $($sig:tt)+ }
-            filter { $($filter:tt)+ }
+            filter_builder { $($filter_builder:tt)+ }
         }
     ) => {
         $crate::__event_property! {
             done {
                 sig { $($sig)+ }
-                filter { $($filter)+ }
+                filter_builder { $($filter)+ }
                 widget_impl { }
                 with { }
             }
@@ -416,7 +418,7 @@ macro_rules! __event_property {
         $crate::__event_property! {
             done {
                 sig { $($sig)+ }
-                filter { |_args| true }
+                filter_builder { |_args| true }
                 widget_impl { $($widget_impl)+ }
                 with { }
             }
@@ -432,7 +434,7 @@ macro_rules! __event_property {
         $crate::__event_property! {
             done {
                 sig { $($sig)+ }
-                filter { |_args| true }
+                filter_builder { |_args| true }
                 widget_impl { }
                 with { $($with)+ }
             }
@@ -442,14 +444,14 @@ macro_rules! __event_property {
     (
         done {
             sig { $($sig:tt)+ }
-            filter { $($filter:tt)+ }
+            filter_builder { $($filter_builder:tt)+ }
             widget_impl { $($widget_impl:tt)+ }
         }
     ) => {
         $crate::__event_property! {
             done {
                 sig { $($sig)+ }
-                filter { $($filter)+ }
+                filter_builder { $($filter)+ }
                 widget_impl { $($widget_impl)+ }
                 with { }
             }
@@ -459,14 +461,14 @@ macro_rules! __event_property {
     (
         done {
             sig { $($sig:tt)+ }
-            filter { $($filter:tt)+ }
+            filter_builder { $($filter_builder:tt)+ }
             with { $($with:tt)+ }
         }
     ) => {
         $crate::__event_property! {
             done {
                 sig { $($sig)+ }
-                filter { $($filter)+ }
+                filter_builder { $($filter)+ }
                 widget_impl { }
                 with { $($with)+ }
             }
@@ -476,7 +478,7 @@ macro_rules! __event_property {
     (
         done {
             sig { $(#[$on_event_attrs:meta])* $vis:vis fn $event:ident { event: $EVENT:path, args: $Args:path, } }
-            filter { $filter:expr }
+            filter_builder { $filter_builder:expr }
             widget_impl { $($widget_impl:tt)* }
             with { $($with:expr)? }
         }
@@ -501,7 +503,7 @@ macro_rules! __event_property {
                 child: impl $crate::node::__macro_util::IntoUiNode,
                 handler: $crate::node::__macro_util::Handler<$Args>,
             ) -> $crate::node::__macro_util::UiNode {
-                $crate::__event_property!(=> with($crate::node::on_event(child, $EVENT, $filter, handler), false, $($with)?))
+                $crate::__event_property!(=> with($crate::node::on_event(child, $EVENT, || $filter, handler), false, $($with)?))
             }
 
             #[doc = "Preview [`on_"$event "`](fn.on_"$event ".html) event."]
@@ -524,7 +526,7 @@ macro_rules! __event_property {
                 child: impl $crate::node::__macro_util::IntoUiNode,
                 handler: $crate::node::__macro_util::Handler<$Args>,
             ) -> $crate::node::__macro_util::UiNode {
-                $crate::__event_property!(=> with($crate::node::on_pre_event(child, $EVENT, $filter, handler), true, $($with)?))
+                $crate::__event_property!(=> with($crate::node::on_pre_event(child, $EVENT, || $filter, handler), true, $($with)?))
             }
         }
     };
@@ -539,10 +541,17 @@ macro_rules! __event_property {
 ///
 /// # Filter
 ///
-/// The `filter` predicate is called if [`propagation`] was not stopped. It must return `true` if the event arguments are
-/// relevant in the context of the widget. If it returns `true` the `handler` closure is called. Note that events that represent
-/// an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`] targets, event properties should probably distinguish
-/// if they fire on normal interactions vs on *disabled* interactions.
+/// The `filter_builder` is called on init and on event, it must produce another closure, the filter predicate. The `filter_builder`
+/// runs in the widget context, the filter predicate does not always.
+///
+/// In the event hook the filter predicate runs in the app context, it is called if the args target the widget, the predicate must
+/// use any captured contextual info to filter the args, this is an optimization, it can save a visit to the widget node.
+///
+/// If the event is received the second filter predicate is called again to confirm the event.
+/// The second instance is called if [`propagation`] was not stopped, if it returns `true` the `handler` closure is called.
+///
+/// Note that events that represent an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`] targets,
+/// event properties should probably distinguish if they fire on normal interactions vs on *disabled* interactions.
 ///
 /// # Route
 ///
@@ -562,57 +571,56 @@ macro_rules! __event_property {
 /// [`propagation`]: zng_app::event::AnyEventArgs::propagation
 /// [`ENABLED`]: zng_app::widget::info::Interactivity::ENABLED
 /// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
-pub fn on_event<C, A, F>(child: C, event: Event<A>, filter: F, handler: Handler<A>) -> UiNode
+pub fn on_event<C, A, F, FB>(child: C, event: Event<A>, filter_builder: FB, handler: Handler<A>) -> UiNode
 where
     C: IntoUiNode,
     A: EventArgs,
-    F: FnMut(&A) -> bool + Send + 'static,
+    F: Fn(&A) -> bool + Send + Sync + 'static,
+    FB: FnMut() -> F + Send + 'static,
 {
-    on_event_impl(child.into_node(), event, filter, handler)
+    on_event_impl(child.into_node(), event, filter_builder, handler)
 }
-fn on_event_impl<A, F>(child: UiNode, event: Event<A>, mut filter: F, handler: Handler<A>) -> UiNode
+fn on_event_impl<A, F, FB>(child: UiNode, event: Event<A>, mut filter_builder: FB, handler: Handler<A>) -> UiNode
 where
     A: EventArgs,
-    F: FnMut(&A) -> bool + Send + 'static,
+    F: Fn(&A) -> bool + Send + Sync + 'static,
+    FB: FnMut() -> F + Send + 'static,
 {
     let mut handler = handler.into_wgt_runner();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_event(&event);
+            WIDGET.sub_event_when(&event, filter_builder());
         }
         UiNodeOp::Deinit => {
             handler.deinit();
         }
-        UiNodeOp::Event { update } => {
-            child.event(update);
-
-            if let Some(args) = event.on(update)
-                && !args.propagation().is_stopped()
-                && filter(args)
-            {
-                #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
-                let t = std::time::Instant::now();
-                #[cfg(all(debug_assertions, target_arch = "wasm32"))]
-                let t = web_time::Instant::now();
-
-                handler.event(args);
-
-                #[cfg(debug_assertions)]
-                {
-                    let t = t.elapsed();
-                    if t > std::time::Duration::from_millis(300) {
-                        tracing::warn!(
-                            "event handler for `{}` in {:?} blocked for {t:?}, consider using `async_hn!`",
-                            event.as_any().name(),
-                            WIDGET.id()
-                        );
-                    }
-                }
-            }
-        }
         UiNodeOp::Update { updates } => {
             child.update(updates);
             handler.update();
+
+            let mut f = None;
+            event.each_update(false, |args| {
+                if f.get_or_insert_with(&mut filter_builder)(args) {
+                    #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
+                    let t = std::time::Instant::now();
+                    #[cfg(all(debug_assertions, target_arch = "wasm32"))]
+                    let t = web_time::Instant::now();
+
+                    handler.event(args);
+
+                    #[cfg(debug_assertions)]
+                    {
+                        let t = t.elapsed();
+                        if t > std::time::Duration::from_millis(300) {
+                            tracing::warn!(
+                                "event handler for `{:?}` in {:?} blocked for {t:?}, consider using `async_hn!`",
+                                event,
+                                WIDGET.id()
+                            );
+                        }
+                    }
+                }
+            });
         }
         _ => {}
     })
@@ -624,10 +632,17 @@ where
 ///
 /// # Filter
 ///
-/// The `filter` predicate is called if [`propagation`] was not stopped. It must return `true` if the event arguments are
-/// relevant in the context of the widget. If it returns `true` the `handler` closure is called. Note that events that represent
-/// an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`] targets, event properties should probably distinguish
-/// if they fire on normal interactions vs on *disabled* interactions.
+/// The `filter_builder` is called on init and on event, it must produce another closure, the filter predicate. The `filter_builder`
+/// runs in the widget context, the filter predicate does not always.
+///
+/// In the event hook the filter predicate runs in the app context, it is called if the args target the widget, the predicate must
+/// use any captured contextual info to filter the args, this is an optimization, it can save a visit to the widget node.
+///
+/// If the event is received the second filter predicate is called again to confirm the event.
+/// The second instance is called if [`propagation`] was not stopped, if it returns `true` the `handler` closure is called.
+///
+/// Note that events that represent an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`] targets,
+/// event properties should probably distinguish if they fire on normal interactions vs on *disabled* interactions.
 ///
 /// # Route
 ///
@@ -647,52 +662,53 @@ where
 /// [`propagation`]: zng_app::event::AnyEventArgs::propagation
 /// [`ENABLED`]: zng_app::widget::info::Interactivity::ENABLED
 /// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
-pub fn on_pre_event<C, A, F>(child: C, event: Event<A>, filter: F, handler: Handler<A>) -> UiNode
+pub fn on_pre_event<C, A, F, FB>(child: C, event: Event<A>, filter_builder: FB, handler: Handler<A>) -> UiNode
 where
     C: IntoUiNode,
     A: EventArgs,
-    F: FnMut(&A) -> bool + Send + 'static,
+    F: Fn(&A) -> bool + Send + Sync + 'static,
+    FB: FnMut() -> F + Send + 'static,
 {
-    on_pre_event_impl(child.into_node(), event, filter, handler)
+    on_pre_event_impl(child.into_node(), event, filter_builder, handler)
 }
-fn on_pre_event_impl<A, F>(child: UiNode, event: Event<A>, mut filter: F, handler: Handler<A>) -> UiNode
+fn on_pre_event_impl<A, F, FB>(child: UiNode, event: Event<A>, mut filter_builder: FB, handler: Handler<A>) -> UiNode
 where
     A: EventArgs,
-    F: FnMut(&A) -> bool + Send + 'static,
+    F: Fn(&A) -> bool + Send + Sync + 'static,
+    FB: FnMut() -> F + Send + 'static,
 {
     let mut handler = handler.into_wgt_runner();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_event(&event);
+            WIDGET.sub_event_when(&event, filter_builder());
         }
         UiNodeOp::Deinit => {
             handler.deinit();
         }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = event.on(update)
-                && !args.propagation().is_stopped()
-                && filter(args)
-            {
-                #[cfg(debug_assertions)]
-                let t = std::time::Instant::now();
-
-                handler.event(args);
-
-                #[cfg(debug_assertions)]
-                {
-                    let t = t.elapsed();
-                    if t > std::time::Duration::from_millis(300) {
-                        tracing::warn!(
-                            "preview event handler for `{}` in {:?} blocked for {t:?}, consider using `async_hn!`",
-                            event.as_any().name(),
-                            WIDGET.id()
-                        );
-                    }
-                }
-            }
-        }
         UiNodeOp::Update { .. } => {
             handler.update();
+
+            let mut f = None;
+            event.each_update(false, |args| {
+                if f.get_or_insert_with(&mut filter_builder)(args) {
+                    #[cfg(debug_assertions)]
+                    let t = std::time::Instant::now();
+
+                    handler.event(args);
+
+                    #[cfg(debug_assertions)]
+                    {
+                        let t = t.elapsed();
+                        if t > std::time::Duration::from_millis(300) {
+                            tracing::warn!(
+                                "preview event handler for `{:?}` in {:?} blocked for {t:?}, consider using `async_hn!`",
+                                event,
+                                WIDGET.id()
+                            );
+                        }
+                    }
+                }
+            });
         }
         _ => {}
     })
@@ -1072,7 +1088,6 @@ where
     let mut handle = CommandHandle::dummy();
     let mut win_handle = CommandHandle::dummy();
     let mut command = NIL_CMD;
-    let mut last_propagation = EventPropagationHandle::new();
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -1102,28 +1117,14 @@ where
             handler.deinit();
         }
 
-        UiNodeOp::Event { update } => {
-            child.event(update);
-
-            if command.event().has(update) {
-                if win_handle.is_dummy() {
-                    if let Some(args) = command.on_unhandled(update) {
-                        handler.event(args);
-                    }
-                } else if let Some(args) = command
-                    .on_unhandled(update)
-                    .or_else(|| command.scoped(WINDOW.id()).on_unhandled(update))
-                    && &last_propagation != args.propagation()
-                {
-                    handler.event(args);
-                    last_propagation = args.propagation().clone();
-                }
-            }
-        }
         UiNodeOp::Update { updates } => {
             child.update(updates);
 
             handler.update();
+
+            command.each_update(false, |args| {
+                handler.event(args);
+            });
 
             if let Some(enabled) = enabled.as_ref().expect("node not inited").get_new() {
                 handle.set_enabled(enabled);
@@ -1165,7 +1166,6 @@ where
     let mut handle = CommandHandle::dummy();
     let mut win_handle = CommandHandle::dummy();
     let mut command = NIL_CMD;
-    let mut last_propagation = EventPropagationHandle::new();
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -1195,24 +1195,12 @@ where
             handler.deinit();
         }
 
-        UiNodeOp::Event { update } => {
-            if command.event().has(update) {
-                if win_handle.is_dummy() {
-                    if let Some(args) = command.on_unhandled(update) {
-                        handler.event(args);
-                    }
-                } else if let Some(args) = command
-                    .on_unhandled(update)
-                    .or_else(|| command.scoped(WINDOW.id()).on_unhandled(update))
-                    && &last_propagation != args.propagation()
-                {
-                    handler.event(args);
-                    last_propagation = args.propagation().clone();
-                }
-            }
-        }
         UiNodeOp::Update { .. } => {
             handler.update();
+
+            command.each_update(false, |args| {
+                handler.event(args);
+            });
 
             if let Some(enabled) = enabled.as_ref().expect("on_pre_command not initialized").get_new() {
                 handle.set_enabled(enabled);
@@ -1235,314 +1223,39 @@ pub fn validate_getter_var<T: VarValue>(_var: &Var<T>) {
     }
 }
 
-/// Helper for declaring state properties that depend on a single event.
-///
-/// When the `event` is received `on_event` is called, if it provides a new state the `state` variable is set.
-pub fn event_state<A: EventArgs, S: VarValue>(
-    child: impl IntoUiNode,
-    state: impl IntoVar<S>,
-    default: S,
-    event: Event<A>,
-    mut on_event: impl FnMut(&A) -> Option<S> + Send + 'static,
-) -> UiNode {
-    let state = state.into_var();
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Init => {
-            validate_getter_var(&state);
-            WIDGET.sub_event(&event);
-            state.set(default.clone());
-        }
-        UiNodeOp::Deinit => {
-            state.set(default.clone());
-        }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = event.on(update)
-                && let Some(s) = on_event(args)
-            {
-                state.set(s);
-            }
-        }
-        _ => {}
-    })
-}
-
-/// Helper for declaring state properties that depend on two other event states.
-///
-/// When the `event#` is received `on_event#` is called, if it provides a new value `merge` is called, if merge
-/// provides a new value the `state` variable is set.
-#[expect(clippy::too_many_arguments)]
-pub fn event_state2<A0, A1, S0, S1, S>(
-    child: impl IntoUiNode,
-    state: impl IntoVar<S>,
-    default: S,
-    event0: Event<A0>,
-    default0: S0,
-    mut on_event0: impl FnMut(&A0) -> Option<S0> + Send + 'static,
-    event1: Event<A1>,
-    default1: S1,
-    mut on_event1: impl FnMut(&A1) -> Option<S1> + Send + 'static,
-    mut merge: impl FnMut(S0, S1) -> Option<S> + Send + 'static,
-) -> UiNode
-where
-    A0: EventArgs,
-    A1: EventArgs,
-    S0: VarValue,
-    S1: VarValue,
-    S: VarValue,
-{
-    let state = state.into_var();
-    let partial_default = (default0, default1);
-    let mut partial = partial_default.clone();
-
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Init => {
-            validate_getter_var(&state);
-            WIDGET.sub_event(&event0).sub_event(&event1);
-
-            partial = partial_default.clone();
-            state.set(default.clone());
-        }
-        UiNodeOp::Deinit => {
-            state.set(default.clone());
-        }
-        UiNodeOp::Event { update } => {
-            let mut updated = false;
-            if let Some(args) = event0.on(update) {
-                if let Some(state) = on_event0(args)
-                    && partial.0 != state
-                {
-                    partial.0 = state;
-                    updated = true;
-                }
-            } else if let Some(args) = event1.on(update)
-                && let Some(state) = on_event1(args)
-                && partial.1 != state
-            {
-                partial.1 = state;
-                updated = true;
-            }
-            child.event(update);
-
-            if updated && let Some(value) = merge(partial.0.clone(), partial.1.clone()) {
-                state.set(value);
-            }
-        }
-        _ => {}
-    })
-}
-
-/// Helper for declaring state properties that depend on three other event states.
-///
-/// When the `event#` is received `on_event#` is called, if it provides a new value `merge` is called, if merge
-/// provides a new value the `state` variable is set.
-#[expect(clippy::too_many_arguments)]
-pub fn event_state3<A0, A1, A2, S0, S1, S2, S>(
-    child: impl IntoUiNode,
-    state: impl IntoVar<S>,
-    default: S,
-    event0: Event<A0>,
-    default0: S0,
-    mut on_event0: impl FnMut(&A0) -> Option<S0> + Send + 'static,
-    event1: Event<A1>,
-    default1: S1,
-    mut on_event1: impl FnMut(&A1) -> Option<S1> + Send + 'static,
-    event2: Event<A2>,
-    default2: S2,
-    mut on_event2: impl FnMut(&A2) -> Option<S2> + Send + 'static,
-    mut merge: impl FnMut(S0, S1, S2) -> Option<S> + Send + 'static,
-) -> UiNode
-where
-    A0: EventArgs,
-    A1: EventArgs,
-    A2: EventArgs,
-    S0: VarValue,
-    S1: VarValue,
-    S2: VarValue,
-    S: VarValue,
-{
-    let state = state.into_var();
-    let partial_default = (default0, default1, default2);
-    let mut partial = partial_default.clone();
-
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Init => {
-            validate_getter_var(&state);
-            WIDGET.sub_event(&event0).sub_event(&event1).sub_event(&event2);
-
-            partial = partial_default.clone();
-            state.set(default.clone());
-        }
-        UiNodeOp::Deinit => {
-            state.set(default.clone());
-        }
-        UiNodeOp::Event { update } => {
-            let mut updated = false;
-            if let Some(args) = event0.on(update) {
-                if let Some(state) = on_event0(args)
-                    && partial.0 != state
-                {
-                    partial.0 = state;
-                    updated = true;
-                }
-            } else if let Some(args) = event1.on(update) {
-                if let Some(state) = on_event1(args)
-                    && partial.1 != state
-                {
-                    partial.1 = state;
-                    updated = true;
-                }
-            } else if let Some(args) = event2.on(update)
-                && let Some(state) = on_event2(args)
-                && partial.2 != state
-            {
-                partial.2 = state;
-                updated = true;
-            }
-            child.event(update);
-
-            if updated && let Some(value) = merge(partial.0.clone(), partial.1.clone(), partial.2.clone()) {
-                state.set(value);
-            }
-        }
-        _ => {}
-    })
-}
-
-/// Helper for declaring state properties that depend on four other event states.
-///
-/// When the `event#` is received `on_event#` is called, if it provides a new value `merge` is called, if merge
-/// provides a new value the `state` variable is set.
-#[expect(clippy::too_many_arguments)]
-pub fn event_state4<A0, A1, A2, A3, S0, S1, S2, S3, S>(
-    child: impl IntoUiNode,
-    state: impl IntoVar<S>,
-    default: S,
-    event0: Event<A0>,
-    default0: S0,
-    mut on_event0: impl FnMut(&A0) -> Option<S0> + Send + 'static,
-    event1: Event<A1>,
-    default1: S1,
-    mut on_event1: impl FnMut(&A1) -> Option<S1> + Send + 'static,
-    event2: Event<A2>,
-    default2: S2,
-    mut on_event2: impl FnMut(&A2) -> Option<S2> + Send + 'static,
-    event3: Event<A3>,
-    default3: S3,
-    mut on_event3: impl FnMut(&A3) -> Option<S3> + Send + 'static,
-    mut merge: impl FnMut(S0, S1, S2, S3) -> Option<S> + Send + 'static,
-) -> UiNode
-where
-    A0: EventArgs,
-    A1: EventArgs,
-    A2: EventArgs,
-    A3: EventArgs,
-    S0: VarValue,
-    S1: VarValue,
-    S2: VarValue,
-    S3: VarValue,
-    S: VarValue,
-{
-    let state = state.into_var();
-    let partial_default = (default0, default1, default2, default3);
-    let mut partial = partial_default.clone();
-
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Init => {
-            validate_getter_var(&state);
-            WIDGET.sub_event(&event0).sub_event(&event1).sub_event(&event2).sub_event(&event3);
-
-            partial = partial_default.clone();
-            state.set(default.clone());
-        }
-        UiNodeOp::Deinit => {
-            state.set(default.clone());
-        }
-        UiNodeOp::Event { update } => {
-            let mut updated = false;
-            if let Some(args) = event0.on(update) {
-                if let Some(state) = on_event0(args)
-                    && partial.0 != state
-                {
-                    partial.0 = state;
-                    updated = true;
-                }
-            } else if let Some(args) = event1.on(update) {
-                if let Some(state) = on_event1(args)
-                    && partial.1 != state
-                {
-                    partial.1 = state;
-                    updated = true;
-                }
-            } else if let Some(args) = event2.on(update) {
-                if let Some(state) = on_event2(args)
-                    && partial.2 != state
-                {
-                    partial.2 = state;
-                    updated = true;
-                }
-            } else if let Some(args) = event3.on(update)
-                && let Some(state) = on_event3(args)
-                && partial.3 != state
-            {
-                partial.3 = state;
-                updated = true;
-            }
-            child.event(update);
-
-            if updated && let Some(value) = merge(partial.0.clone(), partial.1.clone(), partial.2.clone(), partial.3.clone()) {
-                state.set(value);
-            }
-        }
-        _ => {}
-    })
-}
-
 /// Helper for declaring state properties that are controlled by a variable.
 ///
 /// On init the `state` variable is set to `source` and bound to it, you can use this to create state properties
 /// that map from a context variable or to create composite properties that merge other state properties.
 pub fn bind_state<T: VarValue>(child: impl IntoUiNode, source: impl IntoVar<T>, state: impl IntoVar<T>) -> UiNode {
     let source = source.into_var();
-    let state = state.into_var();
-    let mut _binding = VarHandle::dummy();
-
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Init => {
-            validate_getter_var(&state);
-            state.set_from(&source);
-            _binding = source.bind(&state);
-        }
-        UiNodeOp::Deinit => {
-            _binding = VarHandle::dummy();
-        }
-        _ => {}
+    bind_state_init(child, state, move |state| {
+        state.set_from(&source);
+        source.bind(&state)
     })
 }
 
 /// Helper for declaring state properties that are controlled by a variable.
 ///
-/// On init the `state` closure is called to provide a variable, the variable is set to `source` and bound to it,
-/// you can use this to create state properties that map from a context variable or to create composite properties
-/// that merge other state properties.
-pub fn bind_state_init<T>(child: impl IntoUiNode, source: impl Fn() -> Var<T> + Send + 'static, state: impl IntoVar<T>) -> UiNode
+/// On init the `bind` closure is called with the `state` variable, it must set and bind it.
+pub fn bind_state_init<T>(
+    child: impl IntoUiNode,
+    state: impl IntoVar<T>,
+    mut bind: impl FnMut(&Var<T>) -> VarHandle + Send + 'static,
+) -> UiNode
 where
     T: VarValue,
 {
     let state = state.into_var();
-    let mut _source_var = None;
     let mut _binding = VarHandle::dummy();
 
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             validate_getter_var(&state);
-            let source = source();
-            state.set_from(&source);
-            _binding = source.bind(&state);
-            _source_var = Some(source);
+            _binding = bind(&state);
         }
         UiNodeOp::Deinit => {
             _binding = VarHandle::dummy();
-            _source_var = None;
         }
         _ => {}
     })
@@ -2483,10 +2196,6 @@ where
         self.view.info(info);
     }
 
-    fn event(&mut self, update: &zng_app::update::EventUpdate) {
-        self.view.event(update);
-    }
-
     fn measure(&mut self, wm: &mut zng_app::widget::info::WidgetMeasure) -> PxSize {
         self.view.measure(wm)
     }
@@ -2625,10 +2334,6 @@ where
 
     fn info(&mut self, info: &mut zng_app::widget::info::WidgetInfoBuilder) {
         self.view.info(info)
-    }
-
-    fn event(&mut self, update: &zng_app::update::EventUpdate) {
-        self.view.event(update);
     }
 
     fn measure(&mut self, wm: &mut zng_app::widget::info::WidgetMeasure) -> PxSize {

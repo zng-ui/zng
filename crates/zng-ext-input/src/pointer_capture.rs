@@ -19,7 +19,7 @@ use zng_app::{
     },
     widget::{
         WIDGET, WidgetId,
-        info::{InteractionPath, WIDGET_INFO_CHANGED_EVENT, WidgetInfoTree, WidgetPath},
+        info::{InteractionPath, WIDGET_TREE_CHANGED_EVENT, WidgetInfoTree, WidgetPath},
     },
     window::{WINDOW, WindowId},
 };
@@ -111,7 +111,7 @@ impl AppExtension for PointerCaptureManager {
                     TouchPhase::Move => {}
                 }
             }
-        } else if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
+        } else if let Some(args) = WIDGET_TREE_CHANGED_EVENT.on(update) {
             if let Some(c) = &self.capture
                 && c.target.window_id() == args.window_id
             {

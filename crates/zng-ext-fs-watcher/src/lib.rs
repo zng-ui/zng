@@ -22,10 +22,8 @@ use std::{
 
 use path_absolutize::Absolutize;
 use zng_app::{
-    AppExtension,
-    event::{EventHandle, event, event_args},
+    event::{event, event_args},
     handler::{Handler, HandlerExt as _},
-    update::EventUpdate,
     view_process::raw_events::LOW_MEMORY_EVENT,
 };
 use zng_handle::Handle;
@@ -895,8 +893,8 @@ event_args! {
         ..
 
         /// None, only app level handlers receive this event.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            let _ = list;
+        fn is_in_target(&self, _id: WidgetId) -> bool {
+            false
         }
     }
 }

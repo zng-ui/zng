@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use zng_app::widget::info;
+use zng_app::{view_process::raw_events::RAW_FRAME_RENDERED_EVENT, window::WINDOWS_APP};
 
 /// Sets the widget visibility.
 ///
@@ -93,17 +93,27 @@ pub fn visibility(child: impl IntoUiNode, visibility: impl IntoVar<Visibility>) 
 }
 
 fn visibility_eq_state(child: impl IntoUiNode, state: impl IntoVar<bool>, expected: Visibility) -> UiNode {
-    event_state(
-        child,
-        state,
-        expected == Visibility::Visible,
-        info::VISIBILITY_CHANGED_EVENT,
-        move |a| {
-            let vis = a.tree.get(WIDGET.id()).map(|w| w.visibility()).unwrap_or(Visibility::Visible);
-
-            Some(vis == expected)
-        },
-    )
+    let state = state.into_var();
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Init = op {
+            let w_id = WINDOW.id();
+            let id = WIDGET.id();
+            // !!: TODO, this is not the best event, we don't need to await render,
+            // can't just modify in UiNodeOp::Render either because a parent may collapse us
+            WIDGET.push_var_handle(RAW_FRAME_RENDERED_EVENT.hook(clmv!(state, |a| {
+                if a.window_id == w_id
+                    && let Some(w) = WINDOWS_APP.widget_tree(w_id)
+                    && let Some(w) = w.get(id)
+                {
+                    let ns = w.visibility() == expected;
+                    if ns != state.get() {
+                        state.set(ns);
+                    }
+                }
+                true
+            })));
+        }
+    })
 }
 /// If the widget is [`Visible`](Visibility::Visible).
 #[property(CONTEXT)]

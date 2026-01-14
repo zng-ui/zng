@@ -11,7 +11,7 @@ use parking_lot::MappedRwLockReadGuard;
 use zng_app_context::AppLocal;
 use zng_clone_move::clmv;
 use zng_task::channel;
-use zng_var::{AnyVar, Var, VarHandle, VarUpdateId};
+use zng_var::{AnyVar, Var, VarHandle, VarUpdateId, VarValue};
 
 use crate::{
     handler::{APP_HANDLER, AppWeakHandle as _, Handler, HandlerExt as _},
@@ -209,6 +209,45 @@ impl<A: EventArgs> Event<A> {
     /// Is only `None` if this event has never notified yet.
     pub fn var_latest(&self) -> Var<Option<A>> {
         self.get_var().map(|l| l.latest().cloned())
+    }
+
+    /// Filter map the latest args.
+    ///
+    /// The variable tracks the latest args that passes the `filter_map`. Every event update calls the closure for each
+    /// pending args, latest first, and stops on the first args that produces a new value.
+    pub fn var_map<O: VarValue>(
+        &self,
+        mut filter_map: impl FnMut(&A) -> Option<O> + Send + 'static,
+        fallback_init: impl Fn() -> O + Send + 'static,
+    ) -> Var<O> {
+        self.read_var().filter_map(
+            move |a| {
+                for args in a.downcast_ref::<EventUpdates<A>>().unwrap().iter().rev() {
+                    let r = filter_map(args);
+                    if r.is_some() {
+                        return r;
+                    }
+                }
+                None
+            },
+            fallback_init,
+        )
+    }
+
+    /// Bind filter the latest args to the variable.
+    ///
+    /// The `other` variable will be updated with the latest args that passes the `filter_map`.  Every event update calls the closure for each
+    /// pending args, latest first, and stops on the first args that produces a new value.
+    pub fn var_bind<O: VarValue>(&self, other: &Var<O>, mut filter_map: impl FnMut(&A) -> Option<O> + Send + 'static) -> VarHandle {
+        self.read_var().bind_filter_map(other, move |a| {
+            for args in a.downcast_ref::<EventUpdates<A>>().unwrap().iter().rev() {
+                let r = filter_map(args);
+                if r.is_some() {
+                    return r;
+                }
+            }
+            None
+        })
     }
 
     /// Modify the event variable to include the `args` in the next update.

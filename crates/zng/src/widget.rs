@@ -201,9 +201,9 @@ pub mod info {
     pub use zng_app::widget::info::{
         HitInfo, HitTestInfo, INTERACTIVITY_CHANGED_EVENT, InlineSegmentInfo, InteractionPath, Interactivity, InteractivityChangedArgs,
         InteractivityFilterArgs, ParallelBuilder, RelativeHitZ, TRANSFORM_CHANGED_EVENT, TransformChangedArgs, TreeFilter,
-        VISIBILITY_CHANGED_EVENT, VisibilityChangedArgs, WIDGET_INFO_CHANGED_EVENT, WidgetBorderInfo, WidgetBoundsInfo,
-        WidgetDescendantsRange, WidgetInfo, WidgetInfoBuilder, WidgetInfoChangedArgs, WidgetInfoMeta, WidgetInfoTree, WidgetInfoTreeStats,
-        WidgetInlineInfo, WidgetInlineMeasure, WidgetPath, iter,
+        VISIBILITY_CHANGED_EVENT, VisibilityChangedArgs, WIDGET_TREE_CHANGED_EVENT, WidgetBorderInfo, WidgetBoundsInfo,
+        WidgetDescendantsRange, WidgetInfo, WidgetInfoBuilder, WidgetInfoMeta, WidgetInfoTree, WidgetInfoTreeStats, WidgetInlineInfo,
+        WidgetInlineMeasure, WidgetPath, WidgetTreeChangedArgs, iter,
     };
 
     /// Accessibility metadata types.

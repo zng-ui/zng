@@ -4,7 +4,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use zng_app::widget::info::WIDGET_INFO_CHANGED_EVENT;
+use zng_app::widget::info::WIDGET_TREE_CHANGED_EVENT;
 use zng_ext_input::focus::*;
 use zng_ext_input::gesture::{CLICK_EVENT, GESTURES};
 use zng_ext_input::mouse::MOUSE_INPUT_EVENT;
@@ -519,7 +519,7 @@ pub fn return_focus_on_deinit(child: impl IntoUiNode, enabled: impl IntoVar<bool
                     return;
                 }
                 // try focus after info rebuild.
-                WIDGET_INFO_CHANGED_EVENT
+                WIDGET_TREE_CHANGED_EVENT
                     .on_pre_event(hn_once!(|_| {
                         FOCUS.focus_widget(id, false);
                     }))
