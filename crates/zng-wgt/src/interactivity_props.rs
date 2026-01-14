@@ -1,9 +1,16 @@
 use std::sync::Arc;
 
 use task::parking_lot::Mutex;
-use zng_app::{static_id, widget::info::WIDGET_TREE_CHANGED_EVENT};
+use zng_app::{
+    static_id,
+    widget::info::{WIDGET_TREE_CHANGED_EVENT, WidgetTreeChangedArgs},
+};
 
-use crate::{node::bind_state_init, prelude::*};
+use crate::{
+    event_property,
+    node::{EventNodeBuilder, VarEventNodeBuilder, bind_state_init},
+    prelude::*,
+};
 
 context_var! {
     static IS_ENABLED_VAR: bool = true;
@@ -407,11 +414,28 @@ event_property! {
     /// [`on_block`]: fn@on_block
     /// [`on_unblock`]: fn@on_unblock
     /// [`is_new`]: info::InteractivityChangedArgs::is_new
-    pub fn interactivity_changed {
-        event: info::INTERACTIVITY_CHANGED_EVENT,
-        args: info::InteractivityChangedArgs,
+    #[property(EVENT)]
+    pub fn on_interactivity_changed(child: impl IntoUiNode, handler: Handler<Interactivity>) -> UiNode {
+        VarEventNodeBuilder::new(|| {
+            let win_id = WINDOW.id();
+            let wgt_id = WIDGET.id();
+            WIDGET_TREE_CHANGED_EVENT.var_map(
+                move |a| {
+                    if a.tree.window_id() == win_id
+                        && let Some(w) = a.tree.get(wgt_id)
+                    {
+                        Some(w.interactivity())
+                    } else {
+                        None
+                    }
+                },
+                Interactivity::empty,
+            )
+        })
+        .build::<false>(child, handler)
     }
-
+}
+old_stuff! {
     /// Widget was enabled or disabled.
     ///
     /// Note that this event tracks the actual enabled status of the widget, not the visually enabled status,

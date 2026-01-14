@@ -848,7 +848,12 @@ impl Input {
                     false
                 }
 
-                match *t.ty.clone() {
+                let mut ty = *t.ty.clone();
+                if let Type::Group(g) = ty  {
+                    // macro_rules! expanded name
+                    ty = *g.elem;
+                }
+                match ty {
                     Type::ImplTrait(mut it) if it.bounds.len() == 1 => {
                         let bounds = it.bounds.pop().unwrap().into_value();
                         match bounds {

@@ -380,10 +380,10 @@ crate::event::event_args! {
         pub tree: WidgetInfoTree,
 
         /// If it is the same tree, just render info updated.
-        /// 
+        ///
         /// Note that these changes are applied with interior mutability, so the `tree` shared reference
         /// will can be modified on the next render. To compare values save a copy.
-        /// 
+        ///
         /// Some values updated without tree rebuild are, widget transforms, widget visibility.
         pub is_update: bool,
 

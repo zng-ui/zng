@@ -1,5 +1,7 @@
 # Unreleased
 
+* **Breaking** Replaced syntax of `event_property!` to allow custom nodes.
+
 * **Breaking** Accessibility event args not contain the full path to target widget.
 
 * **Breaking** Refactored events to be specialized variables.
