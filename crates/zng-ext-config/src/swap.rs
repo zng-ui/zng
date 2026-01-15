@@ -81,9 +81,7 @@ mod tests {
 
     #[test]
     fn swap_config_in_memory() {
-        let mut app = APP
-            .minimal()
-            .run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let mut cfg = SwapConfig::new();
 
@@ -102,9 +100,7 @@ mod tests {
 
     #[test]
     fn swap_config_swap() {
-        let mut app = APP
-            .minimal()
-            .run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let mut inner1 = MemoryConfig::default();
         let c1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false);
@@ -121,9 +117,7 @@ mod tests {
 
     #[test]
     fn swap_config_swap_load() {
-        let mut app = APP
-            .minimal()
-            .run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let mut inner1 = MemoryConfig::default();
         let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false);
@@ -150,9 +144,7 @@ mod tests {
 
     #[test]
     fn swap_config_swap_load_delayed() {
-        let mut app = APP
-            .minimal()
-            .run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let mut inner1 = MemoryConfig::default();
         let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false);
@@ -182,9 +174,7 @@ mod tests {
 
     #[test]
     fn swap_config_swap_fallback_delayed() {
-        let mut app = APP
-            .minimal()
-            .run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let mut fallback = MemoryConfig::default();
         fallback
