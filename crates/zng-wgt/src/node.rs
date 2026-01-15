@@ -364,7 +364,7 @@ where
 
                 let mut f = None;
                 event.each_update(false, |args| {
-                    if f.get_or_insert_with(|| filter_builder())(args) {
+                    if f.get_or_insert_with(&mut filter_builder)(args) {
                         handler.event(&map_args(args));
                     }
                 });
@@ -455,7 +455,7 @@ where
 
                 let mut f = None;
                 event.each_update(false, |args| {
-                    if f.get_or_insert_with(|| filter_builder())(args) {
+                    if f.get_or_insert_with(&mut filter_builder)(args) {
                         handler.event(args);
                     }
                 });
@@ -646,7 +646,7 @@ where
 ///
 ///     /// Another property.
 ///     #[property(EVENT)]
-///     pub fn on_key_down<on_key_down>(child: impl IntoUiNode, handler: Handler<KeyInputArgs>) -> UiNode {
+///     pub fn on_key_down<on_pre_key_down>(child: impl IntoUiNode, handler: Handler<KeyInputArgs>) -> UiNode {
 ///         const PRE: bool;
 ///         EventNodeBuilder::new(KEY_INPUT_EVENT)
 ///             .filter(|a| a.state == KeyState::Pressed)
@@ -748,6 +748,43 @@ macro_rules! event_property_impl {
     };
 }
 
+///<span data-del-macro-root></span> Declare command event properties.
+///
+/// Each declaration can expand to an `on_cmd`, `on_pre_cmd` and  and optionally an `can_cmd` and `CAN_CMD_VAR`.
+///
+/// # Examples
+///
+/// ```
+/// # fn main() { }
+/// # use zng_app::{event::*, widget::*};
+/// # use zng_app::var::*;
+/// # use zng_wgt::node::*;
+/// # command! {
+/// # pub static COPY_CMD;
+/// # pub static PASTE_CMD;
+/// # }
+/// command_property! {
+///     /// Property docs.
+///     #[property(EVENT)]
+///     pub fn on_paste<on_pre_paste>(child: impl IntoUiNode, handler: impl Handler<CommandArgs>) -> UiNode {
+///         PASTE_CMD
+///     }
+///
+///     /// Another property, with optional `can_*` contextual property.
+///     #[property(EVENT)]
+///     pub fn on_copy<on_pre_copy, can_copy>(child: impl IntoUiNode, handler: impl Handler<CommandArgs>) -> UiNode {
+///         COPY_CMD
+///     }
+/// }
+/// ```
+///
+/// The example above declares five properties and a context var. Note that unlike [`event_property!`] the body only defines the command,
+/// a standard node is generated.
+///
+/// # Enabled
+///
+/// An optional contextual property (`can_*`) and context var (`CAN_*_VAR`) can be generated. When defined the command handle enabled status
+/// is controlled by the contextual property. When not defined the command handle is always enabled.
 #[macro_export]
 macro_rules! command_property {
     ($(
@@ -818,12 +855,13 @@ macro_rules! command_property_impl {
                 ///
                 $vis fn $on_ident<$on_pre_ident>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
                     const PRE: bool;
-                    $crate::node::EventNodeBuilder::new($COMMAND)
-                    .filter(|| {
-                        let enabled = self::[<$can_ident:upper _VAR>].current_context();
-                        move |_| enabled.get()
-                    })
-                    .build::<PRE>($child, $handler)
+                    let child = $crate::node::EventNodeBuilder::new($COMMAND)
+                        .filter(|| {
+                            let enabled = self::[<$can_ident:upper _VAR>].current_context();
+                            move |_| enabled.get()
+                        })
+                        .build::<PRE>($child, $handler);
+                    $crate::node::command_contextual_enabled(child, $COMMAND, [<$can_ident:upper _VAR>])
                 }
             }
         }
@@ -846,7 +884,8 @@ macro_rules! command_property_impl {
             ///
             $vis fn $on_ident<$on_pre_ident>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
                 const PRE: bool;
-                $crate::node::EventNodeBuilder::new($COMMAND).build::<PRE>($child, $handler)
+                let child = $crate::node::EventNodeBuilder::new($COMMAND).build::<PRE>($child, $handler);
+                $crate::node::command_always_enabled(child, $COMMAND)
             }
         }
     };
@@ -861,6 +900,24 @@ pub fn command_always_enabled(child: UiNode, cmd: Command) -> UiNode {
         }
         UiNodeOp::Deinit => {
             _handle = CommandHandle::dummy();
+        }
+        _ => {}
+    })
+}
+
+#[doc(hidden)]
+pub fn command_contextual_enabled(child: UiNode, cmd: Command, ctx: ContextVar<bool>) -> UiNode {
+    let mut _handle = VarHandle::dummy();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            let handle = cmd.scoped(WIDGET.id()).subscribe(ctx.get());
+            let _handle = ctx.hook(move |a| {
+                handle.set_enabled(*a.value());
+                true
+            });
+        }
+        UiNodeOp::Deinit => {
+            _handle = VarHandle::dummy();
         }
         _ => {}
     })
@@ -885,7 +942,7 @@ pub fn bind_state<T: VarValue>(child: impl IntoUiNode, source: impl IntoVar<T>, 
     let source = source.into_var();
     bind_state_init(child, state, move |state| {
         state.set_from(&source);
-        source.bind(&state)
+        source.bind(state)
     })
 }
 

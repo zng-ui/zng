@@ -427,7 +427,6 @@ event_property! {
     /// [`on_disable`]: fn@on_disable
     /// [`on_block`]: fn@on_block
     /// [`on_unblock`]: fn@on_unblock
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
     #[property(EVENT)]
     pub fn on_interactivity_changed(child: impl IntoUiNode, handler: Handler<Interactivity>) -> UiNode {
         interactivity_var_event_source!(|i| i, Interactivity::ENABLED).build::<false>(child, handler)
@@ -442,7 +441,6 @@ event_property! {
     ///
     /// [`on_interactivity_changed`]: fn@on_interactivity_changed
     /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn on_enabled_changed(child: impl IntoUiNode, handler: Handler<bool>) -> UiNode {
         interactivity_var_event_source!(|i| i.is_enabled(), true).build::<false>(child, handler)
     }
@@ -456,7 +454,6 @@ event_property! {
     ///
     /// [`on_interactivity_changed`]: fn@on_interactivity_changed
     /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn on_vis_enabled_changed(child: impl IntoUiNode, handler: Handler<bool>) -> UiNode {
         interactivity_var_event_source!(|i| i.is_vis_enabled(), true).build::<false>(child, handler)
     }
@@ -469,7 +466,6 @@ event_property! {
     ///
     /// [`on_interactivity_changed`]: fn@on_interactivity_changed
     /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn on_blocked_changed(child: impl IntoUiNode, handler: Handler<bool>) -> UiNode {
         interactivity_var_event_source!(|i| i.is_blocked(), false).build::<false>(child, handler)
     }
@@ -479,11 +475,12 @@ event_property! {
     /// Note that this event tracks the actual enabled status of the widget, not the visually enabled status,
     /// see [`Interactivity`] for more details.
     ///
+    /// Note that widgets are enabled by default, so this will not notify on init.
+    ///
     /// See [`on_enabled_changed`] for a more general event.
     ///
     /// [`on_enabled_changed`]: fn@on_enabled_changed
     /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn on_enabled(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
         interactivity_var_event_source!(|i| i.is_enabled(), true)
             .filter(|| |e| *e)
@@ -500,7 +497,6 @@ event_property! {
     ///
     /// [`on_enabled_changed`]: fn@on_enabled_changed
     /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn on_disabled(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
         interactivity_var_event_source!(|i| i.is_disabled(), false)
             .filter(|| |d| *d)
@@ -513,11 +509,12 @@ event_property! {
     /// Note that this event tracks the visual enabled status of the widget, not the actual status, the widget may
     /// still be blocked, see [`Interactivity`] for more details.
     ///
+    /// Note that widgets are enabled by default, so this will not notify on init.
+    ///
     /// See [`on_vis_enabled_changed`] for a more general event.
     ///
     /// [`on_vis_enabled_changed`]: fn@on_vis_enabled_changed
     /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn on_vis_enabled(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
         interactivity_var_event_source!(|i| i.is_vis_enabled(), true)
             .filter(|| |e| *e)
@@ -534,7 +531,6 @@ event_property! {
     ///
     /// [`on_vis_enabled_changed`]: fn@on_vis_enabled_changed
     /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn on_vis_disabled(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
         interactivity_var_event_source!(|i| i.is_vis_disabled(), false)
             .filter(|| |d| *d)
@@ -550,7 +546,6 @@ event_property! {
     ///
     /// [`on_blocked_changed`]: fn@on_blocked_changed
     /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn on_block(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
         interactivity_var_event_source!(|i| i.is_blocked(), false)
             .filter(|| |b| *b)
@@ -566,7 +561,6 @@ event_property! {
     ///
     /// [`on_blocked_changed`]: fn@on_blocked_changed
     /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn on_unblock(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
         interactivity_var_event_source!(|i| !i.is_blocked(), true)
             .filter(|| |u| *u)
