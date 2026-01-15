@@ -6,7 +6,7 @@ use std::{any::Any, sync::Arc};
 
 use crate::WidgetFn;
 use zng_app::{
-    event::{Event, EventArgs},
+    event::{Command, CommandHandle, Event, EventArgs},
     handler::{Handler, HandlerExt as _},
     render::{FrameBuilder, FrameValueKey},
     update::WidgetUpdates,
@@ -677,7 +677,7 @@ where
 #[macro_export]
 macro_rules! event_property {
     ($(
-        $(#[$meta:meta])*
+        $(#[$meta:meta])+
         $vis:vis fn $on_ident:ident $(< $on_pre_ident:ident >)? (
             $child:ident: impl $IntoUiNode:path,
             $handler:ident: $Handler:ty
@@ -686,7 +686,7 @@ macro_rules! event_property {
         }
     )+) => {$(
        $crate::event_property_impl! {
-            $(#[$meta])*
+            $(#[$meta])+
             $vis fn $on_ident $(< $on_pre_ident >)? ($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
                 $($body)+
             }
@@ -700,13 +700,13 @@ pub use event_property;
 #[macro_export]
 macro_rules! event_property_impl {
     (
-        $(#[$meta:meta])*
+        $(#[$meta:meta])+
         $vis:vis fn $on_ident:ident < $on_pre_ident:ident > ($child:ident : impl $IntoUiNode:path, $handler:ident : $Handler:ty) -> $UiNode:path {
             const $PRE:ident : bool;
             $($body:tt)+
         }
     ) => {
-        $(#[$meta])*
+        $(#[$meta])+
         ///
         /// # Route
         ///
@@ -718,7 +718,7 @@ macro_rules! event_property_impl {
             $($body)+
         }
 
-        $(#[$meta])*
+        $(#[$meta])+
         ///
         /// # Route
         ///
@@ -732,12 +732,12 @@ macro_rules! event_property_impl {
     };
 
     (
-        $(#[$meta:meta])*
+        $(#[$meta:meta])+
         $vis:vis fn $on_ident:ident ($child:ident : impl $IntoUiNode:path, $handler:ident : $Handler:path) -> $UiNode:path {
             $($body:tt)+
         }
     ) => {
-        $(#[$meta])*
+        $(#[$meta])+
         ///
         /// # Route
         ///
@@ -746,6 +746,124 @@ macro_rules! event_property_impl {
             $($body)+
         }
     };
+}
+
+#[macro_export]
+macro_rules! command_property {
+    ($(
+        $(#[$meta:meta])+
+        $vis:vis fn $on_ident:ident < $on_pre_ident:ident $($can_ident:ident)?> (
+            $child:ident: impl $IntoUiNode:path,
+            $handler:ident: $Handler:ty
+        ) -> $UiNode:path {
+            $COMMAND:path
+        }
+    )+) => {$(
+       $crate::command_property_impl! {
+            $(#[$meta])+
+            $vis fn $on_ident<$on_pre_ident $(, $can_ident)?>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
+                $COMMAND
+            }
+       }
+    )+};
+}
+#[doc(hidden)]
+#[macro_export]
+macro_rules! command_property_impl {
+    (
+        $(#[$meta:meta])+
+        $vis:vis fn $on_ident:ident < $on_pre_ident:ident, $can_ident:ident> (
+            $child:ident: impl $IntoUiNode:path,
+            $handler:ident: $Handler:ty
+        ) -> $UiNode:path {
+            $COMMAND:path
+        }
+    ) => {
+        $crate::paste! {
+            $crate::node::__macro_util::context_var! {
+                /// Defines if 
+                #[doc = concat!("[`", stringify!($on_ident), "`](fn@", stringify!($on_ident), ")")]
+                /// and 
+                #[doc = concat!("[`", stringify!($on_pre_ident), "`](fn@", stringify!($on_pre_ident), ")")]
+                /// command handlers are enabled in a widget and descendants.
+                /// 
+                /// Use 
+                #[doc = concat!("[`", stringify!($can_ident), "`](fn@", stringify!($can_ident), ")")]
+                /// to set. Is enabled by default.
+                $vis [<$can_ident:upper _VAR>]: bool = true;
+            }
+
+            /// Defines if 
+            #[doc = concat!("[`", stringify!($on_ident), "`](fn@", stringify!($on_ident), ")")]
+            /// and 
+            #[doc = concat!("[`", stringify!($on_pre_ident), "`](fn@", stringify!($on_pre_ident), ")")]
+            /// command handlers are enabled in the widget and descendants.
+            /// 
+            #[doc = "Sets the [`"$can_ident:upper "_VAR`]."]
+            $vis fn $can_ident(
+                child: impl $crate::node::__macro_util::IntoUiNode, 
+                enabled: impl $crate::node::__macro_util::IntoVar<bool>,
+            ) -> $crate::node::__macro_util::UiNode {
+                $crate::node::with_context_var(child, self::[<$can_ident:upper _VAR>], enabled)
+            }
+
+            $crate::event_property! {
+                $(#[$meta])+
+                ///
+                /// # Enabled
+                /// 
+                /// The command handle is enabled by default and can be disabled using the contextual property
+                #[doc = concat!("[`", stringify!($can_ident), "`](fn@", stringify!($can_ident), ")")]
+                /// .
+                /// 
+                $vis fn $on_ident<$on_pre_ident>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
+                    const PRE: bool;
+                    $crate::node::EventNodeBuilder::new($COMMAND)
+                    .filter(|| {
+                        let enabled = self::[<$can_ident:upper _VAR>].current_context();
+                        move |_| enabled.get()
+                    })
+                    .build::<PRE>($child, $handler)
+                }
+            }
+        }        
+    };
+    (
+        $(#[$meta:meta])+
+        $vis:vis fn $on_ident:ident < $on_pre_ident:ident> (
+            $child:ident: impl $IntoUiNode:path,
+            $handler:ident: $Handler:ty
+        ) -> $UiNode:path {
+            $COMMAND:path
+        }
+    ) => {
+        $crate::event_property! {
+            $(#[$meta])+
+            ///
+            /// # Enabled
+            /// 
+            /// The command handle is always enabled.
+            /// 
+            $vis fn $on_ident<$on_pre_ident>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
+                const PRE: bool;
+                $crate::node::EventNodeBuilder::new($COMMAND).build::<PRE>($child, $handler)
+            }
+        }
+    };
+}
+
+#[doc(hidden)]
+pub fn command_always_enabled(child: UiNode, cmd: Command) -> UiNode {
+    let mut _handle = CommandHandle::dummy();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            _handle = cmd.scoped(WIDGET.id()).subscribe(true);
+        },
+        UiNodeOp::Deinit => {
+            _handle = CommandHandle::dummy();
+        }
+        _ => {}
+    })
 }
 
 /// Logs an error if the `_var` is always read-only.

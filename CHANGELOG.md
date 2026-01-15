@@ -1,6 +1,7 @@
 # Unreleased
 
 * **Breaking** Replaced syntax of `event_property!` to allow custom nodes.
+    - **Breaking** Replaced syntax of `command_property!` to align with new `event_property!`.
 
 * **Breaking** Accessibility event args not contain the full path to target widget.
 

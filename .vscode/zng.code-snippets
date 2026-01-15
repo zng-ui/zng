@@ -332,11 +332,10 @@
 		"prefix": "event_property!",
 		"body": [
 			"event_property! {",
-			"    /// $5",
-			"    pub fn ${1:name} {",
-			"        event: ${2:FOO}_EVENT,",
-			"        args: ${3:Foo}Args,",
-			"        ${4:filter: |args| true,}",
+			"    /// $3",
+			"    pub fn on_${1:name}<on_pre_$1>(child: impl IntoUiNode, handler: Handler<${2:Args}>) -> UiNode {",
+			"       const PRE: bool;",
+			"       EventNodeBuilder::new(${1:/upcase}_EVENT).build::<PRE>(child, handler)",
 			"    }",
 			"}",
 		]
@@ -347,9 +346,9 @@
 		"prefix": "command_property!",
 		"body": [
 			"command_property! {",
-			"    /// $4",
-			"    pub fn ${1:name} {",
-			"        cmd: ${2:FOO}_CMD${3:.scoped(WIDGET.id())},",
+			"    /// $3",
+			"    pub fn on_${1:name}<on_pre_$1, can_$1>(child: impl IntoUiNode, handler: Handler<${2:Args}>) -> UiNode {",
+			"       ${1:/upcase}_CMD",
 			"    }",
 			"}",
 		]
