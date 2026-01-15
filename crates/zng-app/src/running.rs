@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{Deadline, event::EventArgs as _, window::WINDOWS_APP};
+use crate::{Deadline, event::EventArgs as _, handler::HandlerExt as _, window::WINDOWS_APP};
 use parking_lot::Mutex;
 use zng_app_context::{AppScope, app_local};
 use zng_task::DEADLINE_APP;
@@ -47,6 +47,13 @@ pub(crate) struct RunningApp {
     // cleans on drop
     _scope: AppScope,
 }
+impl Drop for RunningApp {
+    fn drop(&mut self) {
+        let _s = tracing::debug_span!("exit").entered();
+        APP.call_deinit_handlers();
+        VIEW_PROCESS.exit();
+    }
+}
 impl RunningApp {
     pub(crate) fn start(
         scope: AppScope,
@@ -80,10 +87,7 @@ impl RunningApp {
 
         APP.pre_init(is_headed, with_renderer, view_process_exe, view_process_env);
 
-        let args = AppStartArgs { _private: () };
-        for h in zng_unique_id::hot_static_ref!(ON_APP_START).lock().iter_mut() {
-            h(&args)
-        }
+        APP.call_init_handlers();
 
         RunningApp {
             receiver,
@@ -795,33 +799,83 @@ impl RunningApp {
         self.loop_monitor.finish_frame();
     }
 }
-impl Drop for RunningApp {
-    fn drop(&mut self) {
-        let _s = tracing::debug_span!("exit").entered();
-        VIEW_PROCESS.exit();
+
+
+/// Arguments for [`APP.on_init`] handlers.
+///
+/// No args as of this release. The handler is called in the new app context, so you can access any service inside.
+/// 
+/// [`APP.on_init`]: APP::on_init
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct AppInitArgs {
+}
+
+/// Arguments for [`APP.on_deinit`] handlers.
+///
+/// No args as of this release. The handler is called in the app context.
+/// 
+/// [`APP.on_deinit`]: APP::on_deinit
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct AppDeinitArgs {
+}
+
+
+impl APP {
+    /// Register a handler to be called when the app starts.
+    /// 
+    /// In single app builds (without `"multi_app"` feature) the `handler` is called only once and dropped.
+    /// 
+    /// In `"multi_app"` builds the `handler` can be called more than once. The handler is called in the new app context, but
+    /// it lives in the app process lifetime, you can unsubscribe from the inside or just use `hn_once!` to drop on init.
+    /// 
+    /// This method must be called before any other `APP` method, the `handler` is not called for an already running app.
+    /// 
+    /// Async handlers are fully supported, the code before the first `.await` runs blocking the rest runs in the `UPDATES` service.
+    pub fn on_init(&self, handler: crate::handler::Handler<AppInitArgs>) {
+        zng_unique_id::hot_static_ref!(ON_APP_INIT).lock().push(handler);
+    }
+
+    /// Register a handler to be called when the app exits.
+    /// 
+    /// The `handler` is called only once, it runs in the app context and is dropped, any async tasks or requests that require app updates will
+    /// not work, the app will exit just after calling the handler. 
+    /// 
+    /// This method must be called in the app context. 
+    pub fn on_deinit(&self, handler: impl FnOnce(&AppDeinitArgs) + Send + 'static) {
+        ON_APP_DEINIT.write().get_mut().push(Box::new(handler));
+    }
+
+    fn call_init_handlers(&self) {
+        let mut handlers = mem::take(&mut *zng_unique_id::hot_static_ref!(ON_APP_INIT).lock());
+        let args = AppInitArgs { };
+        handlers.retain_mut(|h| {
+            let (owner, handle) = zng_handle::Handle::new(());
+            h.app_event(Box::new(handle.downgrade()), true, &args);
+            !owner.is_dropped()
+        });
+
+        let mut s = zng_unique_id::hot_static_ref!(ON_APP_INIT).lock();
+        handlers.extend(s.drain(..));
+        *s = handlers;
+    }
+
+    fn call_deinit_handlers(&self) {
+        let handlers = mem::take(&mut *ON_APP_DEINIT.write().get_mut());
+        let args = AppDeinitArgs { };
+        for h in handlers {
+            h(&args);
+        }
     }
 }
-
-/// Arguments for [`on_app_start`] handlers.
-///
-/// Empty in this release. The handler is called in the new app context so you can use `APP` or
-/// any other app service to access the new app.
-pub struct AppStartArgs {
-    _private: (),
-}
-
-/// Register a `handler` to run when an `APP` starts running in the process.
-///
-/// The `handler` is called in the new app context, just before the "run" future executes, all app service are already available in it.
-///
-/// In `"multi_app"` builds the handler can be called more them once.
-pub fn on_app_start(handler: impl FnMut(&AppStartArgs) + Send + 'static) {
-    zng_unique_id::hot_static_ref!(ON_APP_START).lock().push(Box::new(handler))
-}
 zng_unique_id::hot_static! {
-    static ON_APP_START: Mutex<Vec<AppStartHandler>> = Mutex::new(vec![]);
+    static ON_APP_INIT: Mutex<Vec<crate::handler::Handler<AppInitArgs>>> = Mutex::new(vec![]);
 }
-type AppStartHandler = Box<dyn FnMut(&AppStartArgs) + Send + 'static>;
+app_local! {
+    // Mutex for Sync only
+    static ON_APP_DEINIT: Mutex<Vec<Box<dyn FnOnce(&AppDeinitArgs) + Send + 'static>>> = const { Mutex::new(vec![]) };
+}
 
 /// App main loop timer.
 #[derive(Debug)]

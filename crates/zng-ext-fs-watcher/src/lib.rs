@@ -29,7 +29,7 @@ use zng_app::{
 use zng_handle::Handle;
 use zng_txt::Txt;
 use zng_unit::TimeUnits;
-use zng_var::{Var, VarValue};
+use zng_var::{Var, VarHandle, VarValue};
 
 mod service;
 use service::*;
@@ -324,7 +324,7 @@ impl WATCHER {
     ///
     /// [`async_hn!`]: macro@zng_app::handler::async_hn
     /// [`task::wait`]: zng_task::wait
-    pub fn on_file_changed(&self, file: impl Into<PathBuf>, handler: Handler<FsChangesArgs>) -> EventHandle {
+    pub fn on_file_changed(&self, file: impl Into<PathBuf>, handler: Handler<FsChangesArgs>) -> VarHandle {
         let file = file.into();
         let handle = self.watch(file.clone());
         FS_CHANGES_EVENT.on_event(handler.filtered(move |args| {
@@ -340,7 +340,7 @@ impl WATCHER {
     ///
     /// [`async_hn!`]: macro@zng_app::handler::async_hn
     /// [`task::wait`]: zng_task::wait
-    pub fn on_dir_changed(&self, dir: impl Into<PathBuf>, recursive: bool, handler: Handler<FsChangesArgs>) -> EventHandle {
+    pub fn on_dir_changed(&self, dir: impl Into<PathBuf>, recursive: bool, handler: Handler<FsChangesArgs>) -> VarHandle {
         let dir = dir.into();
         let handle = self.watch_dir(dir.clone(), recursive);
         FS_CHANGES_EVENT.on_event(handler.filtered(move |args| {

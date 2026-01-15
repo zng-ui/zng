@@ -7,8 +7,7 @@ use std::{
 
 use atomic::{Atomic, Ordering};
 use zng_app::{
-    APP, DInstant, INSTANT, hn_once,
-    timer::{DeadlineHandle, TIMERS},
+    APP, DInstant, EXIT_REQUESTED_EVENT, INSTANT, hn_once, timer::{DeadlineHandle, TIMERS}
 };
 use zng_app_context::{LocalContext, app_local};
 use zng_clone_move::clmv;
@@ -55,7 +54,7 @@ pub(crate) struct WatcherService {
 }
 impl WatcherService {
     fn new() -> Self {
-        Self {
+        let mut s = Self {
             debounce: var(100.ms()),
             sync_debounce: var(100.ms()),
             poll_interval: var(1.secs()),
@@ -67,11 +66,15 @@ impl WatcherService {
             read_to_var: vec![],
             sync_with_var: vec![],
             notes: vec![],
-        }
-    }
+        };
 
-    pub fn init_watcher(&mut self) {
-        self.watcher.init();
+        EXIT_REQUESTED_EVENT.on_event(hn_once!(|_| {
+            WATCHER_SV.write().shutdown();
+        })).perm();
+        
+
+        s.watcher.init();
+        s
     }
 
     pub fn event(&mut self, args: &FsChangesArgs) {

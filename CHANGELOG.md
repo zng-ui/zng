@@ -1,5 +1,8 @@
 # Unreleased
 
+* Added `APP.on_init` and `APP.on_deinit`.
+    - **Breaking** Removed `on_app_start`.
+
 * **Breaking** Replaced syntax of `event_property!` to allow custom nodes.
     - **Breaking** Replaced syntax of `command_property!` to align with new `event_property!`.
 
