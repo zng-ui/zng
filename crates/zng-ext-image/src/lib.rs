@@ -14,7 +14,7 @@ use std::{
     pin::Pin,
 };
 
-use zng_app::{AppExtension, update::EventUpdate, view_process::ViewImageHandle};
+use zng_app::view_process::ViewImageHandle;
 use zng_clone_move::async_clmv;
 use zng_task as task;
 use zng_task::channel::IpcBytes;

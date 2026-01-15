@@ -11,7 +11,7 @@ use parking_lot::Mutex;
 use task::io::AsyncReadExt;
 use zng_app::{
     APP,
-    update::{EventUpdate, UPDATES},
+    update::UPDATES,
     view_process::{
         VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewAudioHandle, ViewAudioOutput,
         raw_events::{

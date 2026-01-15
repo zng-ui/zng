@@ -22,7 +22,7 @@ pub use types::*;
 mod output;
 pub use output::*;
 
-use zng_app::{AppExtension, update::EventUpdate, view_process::ViewAudioHandle};
+use zng_app::view_process::ViewAudioHandle;
 use zng_clone_move::async_clmv;
 use zng_task::{self as task, channel::IpcBytes};
 #[cfg(feature = "http")]

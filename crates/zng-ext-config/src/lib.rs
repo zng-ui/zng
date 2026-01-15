@@ -3,6 +3,12 @@
 //!
 //! Config service and sources.
 //!
+//! # Services
+//!
+//! Services this extension provides.
+//!
+//! * [`CONFIG`]
+//!
 //! # Crate
 //!
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
@@ -54,39 +60,13 @@ use std::{
     sync::Arc,
 };
 
-use zng_app::{APP, AppExtension, update::EventUpdate, view_process::raw_events::LOW_MEMORY_EVENT};
+use zng_app::view_process::raw_events::LOW_MEMORY_EVENT;
 use zng_app_context::app_local;
 use zng_clone_move::clmv;
-use zng_ext_fs_watcher::{FsWatcherManager, WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile};
+use zng_ext_fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile};
 use zng_task as task;
 use zng_txt::Txt;
 use zng_var::{Var, VarHandles, VarValue, WeakVar, const_var, var};
-
-/// Application extension that provides mouse events and service.
-///
-/// # Services
-///
-/// Services this extension provides.
-///
-/// * [`CONFIG`]
-///
-/// # Depends
-///
-/// This extension depends on [`FsWatcherManager`] to function.
-#[derive(Default)]
-#[non_exhaustive]
-pub struct ConfigManager {}
-
-impl AppExtension for ConfigManager {
-    fn init(&mut self) {
-        APP.extensions().require::<FsWatcherManager>();
-    }
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        if LOW_MEMORY_EVENT.on(update).is_some() {
-            CONFIG_SV.write().low_memory();
-        }
-    }
-}
 
 /// Represents the app main config.
 ///
@@ -162,7 +142,13 @@ impl AnyConfig for CONFIG {
 
 app_local! {
     static CONFIG_SV: SwapConfig = {
-        APP.extensions().require::<ConfigManager>();
+        LOW_MEMORY_EVENT
+            .hook(|_| {
+                CONFIG_SV.write().low_memory();
+                true
+            })
+            .perm();
+
         SwapConfig::new()
     };
 }

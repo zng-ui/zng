@@ -1,7 +1,7 @@
 use std::{any::Any, sync::Arc};
 
 use zng_app::{
-    update::{EventUpdate, UPDATES},
+    update::UPDATES,
     view_process::ViewImageHandle,
     widget::{
         WIDGET,
