@@ -849,7 +849,7 @@ impl Input {
                 }
 
                 let mut ty = *t.ty.clone();
-                if let Type::Group(g) = ty  {
+                if let Type::Group(g) = ty {
                     // macro_rules! expanded name
                     ty = *g.elem;
                 }

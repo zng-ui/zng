@@ -662,11 +662,11 @@ where
 ///     }
 /// }
 /// ```
-/// 
+///
 /// The example above generates five event properties.
-/// 
+///
 /// # Route
-/// 
+///
 /// Note that is an event property has an `on_pre_*` pair it is expected to be representing a fully routing event, with args that
 /// implement [`EventArgs`]. If the property does not have a preview pair it is expected to be a *direct* event. This is the event
 /// property pattern and is explained in the generated documentation, don't declare a non-standard pair using this macro.
@@ -781,27 +781,27 @@ macro_rules! command_property_impl {
     ) => {
         $crate::paste! {
             $crate::node::__macro_util::context_var! {
-                /// Defines if 
+                /// Defines if
                 #[doc = concat!("[`", stringify!($on_ident), "`](fn@", stringify!($on_ident), ")")]
-                /// and 
+                /// and
                 #[doc = concat!("[`", stringify!($on_pre_ident), "`](fn@", stringify!($on_pre_ident), ")")]
                 /// command handlers are enabled in a widget and descendants.
-                /// 
-                /// Use 
+                ///
+                /// Use
                 #[doc = concat!("[`", stringify!($can_ident), "`](fn@", stringify!($can_ident), ")")]
                 /// to set. Is enabled by default.
                 $vis [<$can_ident:upper _VAR>]: bool = true;
             }
 
-            /// Defines if 
+            /// Defines if
             #[doc = concat!("[`", stringify!($on_ident), "`](fn@", stringify!($on_ident), ")")]
-            /// and 
+            /// and
             #[doc = concat!("[`", stringify!($on_pre_ident), "`](fn@", stringify!($on_pre_ident), ")")]
             /// command handlers are enabled in the widget and descendants.
-            /// 
+            ///
             #[doc = "Sets the [`"$can_ident:upper "_VAR`]."]
             $vis fn $can_ident(
-                child: impl $crate::node::__macro_util::IntoUiNode, 
+                child: impl $crate::node::__macro_util::IntoUiNode,
                 enabled: impl $crate::node::__macro_util::IntoVar<bool>,
             ) -> $crate::node::__macro_util::UiNode {
                 $crate::node::with_context_var(child, self::[<$can_ident:upper _VAR>], enabled)
@@ -811,11 +811,11 @@ macro_rules! command_property_impl {
                 $(#[$meta])+
                 ///
                 /// # Enabled
-                /// 
+                ///
                 /// The command handle is enabled by default and can be disabled using the contextual property
                 #[doc = concat!("[`", stringify!($can_ident), "`](fn@", stringify!($can_ident), ")")]
                 /// .
-                /// 
+                ///
                 $vis fn $on_ident<$on_pre_ident>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
                     const PRE: bool;
                     $crate::node::EventNodeBuilder::new($COMMAND)
@@ -826,7 +826,7 @@ macro_rules! command_property_impl {
                     .build::<PRE>($child, $handler)
                 }
             }
-        }        
+        }
     };
     (
         $(#[$meta:meta])+
@@ -841,9 +841,9 @@ macro_rules! command_property_impl {
             $(#[$meta])+
             ///
             /// # Enabled
-            /// 
+            ///
             /// The command handle is always enabled.
-            /// 
+            ///
             $vis fn $on_ident<$on_pre_ident>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
                 const PRE: bool;
                 $crate::node::EventNodeBuilder::new($COMMAND).build::<PRE>($child, $handler)
@@ -858,7 +858,7 @@ pub fn command_always_enabled(child: UiNode, cmd: Command) -> UiNode {
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             _handle = cmd.scoped(WIDGET.id()).subscribe(true);
-        },
+        }
         UiNodeOp::Deinit => {
             _handle = CommandHandle::dummy();
         }
