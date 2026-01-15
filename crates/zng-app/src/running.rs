@@ -800,56 +800,52 @@ impl RunningApp {
     }
 }
 
-
 /// Arguments for [`APP.on_init`] handlers.
 ///
 /// No args as of this release. The handler is called in the new app context, so you can access any service inside.
-/// 
+///
 /// [`APP.on_init`]: APP::on_init
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct AppInitArgs {
-}
+pub struct AppInitArgs {}
 
 /// Arguments for [`APP.on_deinit`] handlers.
 ///
 /// No args as of this release. The handler is called in the app context.
-/// 
+///
 /// [`APP.on_deinit`]: APP::on_deinit
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct AppDeinitArgs {
-}
-
+pub struct AppDeinitArgs {}
 
 impl APP {
     /// Register a handler to be called when the app starts.
-    /// 
+    ///
     /// In single app builds (without `"multi_app"` feature) the `handler` is called only once and dropped.
-    /// 
+    ///
     /// In `"multi_app"` builds the `handler` can be called more than once. The handler is called in the new app context, but
     /// it lives in the app process lifetime, you can unsubscribe from the inside or just use `hn_once!` to drop on init.
-    /// 
+    ///
     /// This method must be called before any other `APP` method, the `handler` is not called for an already running app.
-    /// 
+    ///
     /// Async handlers are fully supported, the code before the first `.await` runs blocking the rest runs in the `UPDATES` service.
     pub fn on_init(&self, handler: crate::handler::Handler<AppInitArgs>) {
         zng_unique_id::hot_static_ref!(ON_APP_INIT).lock().push(handler);
     }
 
     /// Register a handler to be called when the app exits.
-    /// 
+    ///
     /// The `handler` is called only once, it runs in the app context and is dropped, any async tasks or requests that require app updates will
-    /// not work, the app will exit just after calling the handler. 
-    /// 
-    /// This method must be called in the app context. 
+    /// not work, the app will exit just after calling the handler.
+    ///
+    /// This method must be called in the app context.
     pub fn on_deinit(&self, handler: impl FnOnce(&AppDeinitArgs) + Send + 'static) {
         ON_APP_DEINIT.write().get_mut().push(Box::new(handler));
     }
 
     fn call_init_handlers(&self) {
         let mut handlers = mem::take(&mut *zng_unique_id::hot_static_ref!(ON_APP_INIT).lock());
-        let args = AppInitArgs { };
+        let args = AppInitArgs {};
         handlers.retain_mut(|h| {
             let (owner, handle) = zng_handle::Handle::new(());
             h.app_event(Box::new(handle.downgrade()), true, &args);
@@ -863,7 +859,7 @@ impl APP {
 
     fn call_deinit_handlers(&self) {
         let handlers = mem::take(&mut *ON_APP_DEINIT.write().get_mut());
-        let args = AppDeinitArgs { };
+        let args = AppDeinitArgs {};
         for h in handlers {
             h(&args);
         }

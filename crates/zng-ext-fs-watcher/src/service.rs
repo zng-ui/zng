@@ -7,7 +7,9 @@ use std::{
 
 use atomic::{Atomic, Ordering};
 use zng_app::{
-    APP, DInstant, EXIT_REQUESTED_EVENT, INSTANT, hn_once, timer::{DeadlineHandle, TIMERS}
+    APP, DInstant, INSTANT, hn_once,
+    timer::{DeadlineHandle, TIMERS},
+    view_process::raw_events::LOW_MEMORY_EVENT,
 };
 use zng_app_context::{LocalContext, app_local};
 use zng_clone_move::clmv;
@@ -15,8 +17,8 @@ use zng_unit::TimeUnits;
 use zng_var::{VARS, Var, VarUpdateId, VarValue, var};
 
 use crate::{
-    FS_CHANGES_EVENT, FsChange, FsChangeNote, FsChangeNoteHandle, FsChangesArgs, FsWatcherManager, WatchFile, WatcherHandle,
-    WatcherReadStatus, WatcherSyncStatus, WriteFile, fs_event,
+    FS_CHANGES_EVENT, FsChange, FsChangeNote, FsChangeNoteHandle, FsChangesArgs, WatchFile, WatcherHandle, WatcherReadStatus,
+    WatcherSyncStatus, WriteFile, fs_event,
 };
 
 mod watchers;
@@ -29,10 +31,7 @@ mod sync_with_var;
 use sync_with_var::*;
 
 app_local! {
-    pub(crate) static WATCHER_SV: WatcherService = {
-        APP.extensions().require::<FsWatcherManager>();
-        WatcherService::new()
-    };
+    pub(crate) static WATCHER_SV: WatcherService = WatcherService::new();
 }
 
 pub(crate) struct WatcherService {
@@ -68,13 +67,61 @@ impl WatcherService {
             notes: vec![],
         };
 
-        EXIT_REQUESTED_EVENT.on_event(hn_once!(|_| {
-            WATCHER_SV.write().shutdown();
-        })).perm();
-        
+        FS_CHANGES_EVENT
+            .hook(|a| {
+                WATCHER_SV.write().event(a);
+                true
+            })
+            .perm();
+
+        LOW_MEMORY_EVENT
+            .hook(|_| {
+                WATCHER_SV.write().low_memory();
+                true
+            })
+            .perm();
+
+        APP.on_deinit(|_| {
+            let mut flush = WATCHER_SV.write().shutdown();
+            for v in &mut flush {
+                v.flush_shutdown();
+            }
+        });
+
+        s.poll_interval
+            .hook(|n| {
+                WATCHER_SV.write().watcher.set_poll_interval(*n.value());
+                true
+            })
+            .perm();
+
+        s.debounce
+            .hook(|n| {
+                let mut s = WATCHER_SV.write();
+                if s.debounce_oldest.elapsed() >= *n.value() {
+                    s.notify();
+                }
+                true
+            })
+            .perm();
+        s.sync_debounce
+            .hook(|_| {
+                WATCHER_SV.write().update_sync();
+                true
+            })
+            .perm();
 
         s.watcher.init();
         s
+    }
+
+    pub fn update_read(&mut self) {
+        self.read_to_var.retain_mut(|f| f.retain());
+    }
+
+    pub fn update_sync(&mut self) {
+        let sync_debounce = self.sync_debounce.get();
+        self.sync_with_var.retain_mut(|f| f.retain(sync_debounce));
     }
 
     pub fn event(&mut self, args: &FsChangesArgs) {
@@ -86,21 +133,6 @@ impl WatcherService {
         self.read_to_var.retain_mut(|v| v.retain());
         let sync_debounce = self.sync_debounce.get();
         self.sync_with_var.retain_mut(|v| v.retain(sync_debounce));
-    }
-
-    pub fn update(&mut self) {
-        if let Some(n) = self.poll_interval.get_new() {
-            self.watcher.set_poll_interval(n);
-        }
-        if !self.debounce_buffer.is_empty()
-            && let Some(n) = self.debounce.get_new()
-            && self.debounce_oldest.elapsed() >= n
-        {
-            self.notify();
-        }
-        self.read_to_var.retain_mut(|f| f.retain());
-        let sync_debounce = self.sync_debounce.get();
-        self.sync_with_var.retain_mut(|f| f.retain(sync_debounce));
     }
 
     pub fn watch(&mut self, file: PathBuf) -> WatcherHandle {
@@ -343,7 +375,10 @@ impl WatcherService {
             None => false,
         });
 
-        self.debounce_buffer.push(FsChange { notes, event: r });
+        self.debounce_buffer.push(FsChange {
+            notes,
+            event: r.map_err(Arc::new),
+        });
 
         if notify {
             self.notify();

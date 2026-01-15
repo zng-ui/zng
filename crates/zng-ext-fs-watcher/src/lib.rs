@@ -3,6 +3,18 @@
 //!
 //! File system events and service.
 //!
+//! # Events
+//!
+//! Events this extension provides.
+//!
+//! * [`FS_CHANGES_EVENT`]
+//!
+//! # Services
+//!
+//! Services this extension provides.
+//!
+//! * [`WATCHER`]
+//!
 //! # Crate
 //!
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
@@ -22,9 +34,8 @@ use std::{
 
 use path_absolutize::Absolutize;
 use zng_app::{
-    event::{event, event_args},
+    event::event_args,
     handler::{Handler, HandlerExt as _},
-    view_process::raw_events::LOW_MEMORY_EVENT,
 };
 use zng_handle::Handle;
 use zng_txt::Txt;
@@ -36,47 +47,6 @@ use service::*;
 
 mod lock;
 use lock::*;
-
-/// Application extension that provides file system change events and service.
-///
-/// # Events
-///
-/// Events this extension provides.
-///
-/// * [`FS_CHANGES_EVENT`]
-///
-/// # Services
-///
-/// Services this extension provides.
-///
-/// * [`WATCHER`]
-#[derive(Default)]
-#[non_exhaustive]
-pub struct FsWatcherManager {}
-impl AppExtension for FsWatcherManager {
-    fn init(&mut self) {
-        WATCHER_SV.write().init_watcher();
-    }
-
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = FS_CHANGES_EVENT.on(update) {
-            WATCHER_SV.write().event(args);
-        } else if LOW_MEMORY_EVENT.on(update).is_some() {
-            WATCHER_SV.write().low_memory();
-        }
-    }
-
-    fn update_preview(&mut self) {
-        WATCHER_SV.write().update();
-    }
-
-    fn deinit(&mut self) {
-        let mut flush = WATCHER_SV.write().shutdown();
-        for v in &mut flush {
-            v.flush_shutdown();
-        }
-    }
-}
 
 /// File system watcher service.
 ///
@@ -850,7 +820,7 @@ pub mod fs_event {
 }
 
 /// Represents a single file system change, annotated.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct FsChange {
     /// All [`WATCHER.annotate`] that where set when this event happened.
@@ -859,7 +829,18 @@ pub struct FsChange {
     pub notes: Vec<Arc<dyn FsChangeNote>>,
 
     /// The actual notify event or error.
-    pub event: Result<fs_event::Event, fs_event::Error>,
+    pub event: Result<fs_event::Event, Arc<fs_event::Error>>,
+}
+impl PartialEq for FsChange {
+    fn eq(&self, other: &Self) -> bool {
+        self.notes.len() == other.notes.len()
+            && self.notes.iter().zip(other.notes.iter()).all(|(a, b)| Arc::ptr_eq(a, b))
+            && match (&self.event, &other.event) {
+                (Ok(a), Ok(b)) => a == b,
+                (Err(a), Err(b)) => Arc::ptr_eq(a, b),
+                _ => false,
+            }
+    }
 }
 impl FsChange {
     /// If the change affects the `path`.
@@ -906,7 +887,7 @@ impl FsChangesArgs {
 
     /// Iterate over all file watcher errors.
     pub fn errors(&self) -> impl Iterator<Item = &notify::Error> + '_ {
-        self.changes.iter().filter_map(|r| r.event.as_ref().err())
+        self.changes.iter().filter_map(|r| r.event.as_ref().err().map(|e| &**e))
     }
 
     /// Returns `true` is some events where lost.
@@ -944,7 +925,7 @@ impl FsChangesArgs {
     }
 }
 
-event! {
+zng_app::event::event! {
     /// Event sent by the [`WATCHER`] service on directories or files that are watched.
     pub static FS_CHANGES_EVENT: FsChangesArgs;
 }

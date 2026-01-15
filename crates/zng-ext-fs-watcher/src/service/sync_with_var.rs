@@ -68,6 +68,11 @@ impl SyncWithVar {
             }))
             .perm();
 
+        var.hook_drop(|| {
+            WATCHER_SV.write().update_sync();
+        })
+        .perm();
+
         type PendingFlag = u8;
         const READ: PendingFlag = 0b01;
         const WRITE: PendingFlag = 0b11;

@@ -12,7 +12,7 @@ use zng_clone_move::clmv;
 use zng_task as task;
 use zng_var::{Var, VarValue, var};
 
-use crate::{FsChangesArgs, WatcherHandle};
+use crate::{FsChangesArgs, WatcherHandle, service::WATCHER_SV};
 
 pub struct ReadToVar {
     read: Box<dyn Fn(&Arc<AtomicBool>, &WatcherHandle, ReadEvent) + Send + Sync>,
@@ -38,6 +38,11 @@ impl ReadToVar {
         let pending = Arc::new(AtomicBool::new(false));
         let read = Arc::new(Mutex::new(read));
         let wk_var = var.downgrade();
+
+        var.hook_drop(|| {
+            WATCHER_SV.write().update_read();
+        })
+        .perm();
 
         // read task "drains" pending, drops handle if the var is dropped.
         let read = Box::new(move |pending: &Arc<AtomicBool>, handle: &WatcherHandle, ev: ReadEvent| {
