@@ -63,7 +63,7 @@ event! {
 
 zng_env::on_process_start!(|args| {
     if args.next_handlers_count > 0 && args.yield_count < zng_env::ProcessStartArgs::MAX_YIELD_COUNT {
-        // absolute sure that this is the app-process
+        // yield until we are the last handler, this ensures we are running in the app-process
         return args.yield_once();
     }
 

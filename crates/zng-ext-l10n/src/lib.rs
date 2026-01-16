@@ -3,6 +3,12 @@
 //!
 //! Localization service, [`l10n!`] and helpers.
 //!
+//! # Services
+//!
+//! Services this extension provides.
+//!
+//! * [`L10N`]
+//!
 //! # Crate
 //!
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
@@ -13,11 +19,12 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use semver::Version;
 use zng_app::{
-    AppExtension,
+    APP,
     event::{Command, CommandMetaVar, EVENTS_L10N},
-    update::EventUpdate,
+    hn,
     view_process::raw_events::RAW_LOCALE_CONFIG_CHANGED_EVENT,
 };
+use zng_env::on_process_start;
 use zng_layout::context::LayoutDirection;
 use zng_task as task;
 
@@ -49,18 +56,15 @@ pub use sources::*;
 /// This service is provided by the [`L10nManager`] extension, it will panic if used in an app not extended.
 pub struct L10N;
 
-/// Application extension that provides localization.
-///
-/// # Services
-///
-/// Services this extension provides.
-///
-/// * [`L10N`]
-#[derive(Default)]
-#[non_exhaustive]
-pub struct L10nManager {}
-impl AppExtension for L10nManager {
-    fn init(&mut self) {
+on_process_start!(|args: &zng_env::ProcessStartArgs| {
+    if args.next_handlers_count > 0 && args.yield_count < zng_env::ProcessStartArgs::MAX_YIELD_COUNT {
+        // yield until we are the last handler, this ensures we are running in the app-process
+        return args.yield_once();
+    }
+
+    APP.on_init(hn!(|_| {
+        // integrate with commands localization
+        // this is the reason we don't lazy init L10N too.
         EVENTS_L10N.init_l10n(|file, cmd, attr, txt| {
             L10N.bind_command_meta(
                 LangFilePath {
@@ -76,14 +80,15 @@ impl AppExtension for L10nManager {
                 txt,
             );
         });
-    }
 
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        if let Some(u) = RAW_LOCALE_CONFIG_CHANGED_EVENT.on(update) {
-            L10N_SV.read().set_sys_langs(&u.config);
-        }
-    }
-}
+        RAW_LOCALE_CONFIG_CHANGED_EVENT
+            .hook(|args| {
+                L10N_SV.read().set_sys_langs(&args.config);
+                true
+            })
+            .perm()
+    }));
+});
 
 ///<span data-del-macro-root></span> Gets a variable that localizes and formats the text in a widget context.
 ///
@@ -443,7 +448,7 @@ impl L10N {
         meta_name: impl Into<Txt>,
         meta_value: CommandMetaVar<Txt>,
     ) {
-        let msg = self.message(file, cmd.event().as_any().name(), meta_name, meta_value.get()).build();
+        let msg = self.message(file, cmd.static_name(), meta_name, meta_value.get()).build();
         meta_value.set_from(&msg);
 
         // bind only holds a weak ref to `meta_value`` in `msg`

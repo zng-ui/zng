@@ -8,14 +8,13 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use zng_app::APP;
 use zng_app_context::app_local;
 use zng_txt::Txt;
 use zng_var::{ArcEq, MergeVarBuilder, Var, WeakVar, const_var, merge_var, var};
 use zng_view_api::config::LocaleConfig;
 
 use crate::{
-    FluentParserErrors, L10nArgument, L10nManager, L10nSource, Lang, LangFilePath, LangMap, LangResource, LangResourceStatus, Langs,
+    FluentParserErrors, L10nArgument, L10nSource, Lang, LangFilePath, LangMap, LangResource, LangResourceStatus, Langs,
     SwapL10nSource,
 };
 
@@ -252,10 +251,7 @@ impl L10nService {
     }
 }
 app_local! {
-    pub(super) static L10N_SV: L10nService = {
-        APP.extensions().require::<L10nManager>();
-        L10nService::new()
-    };
+    pub(super) static L10N_SV: L10nService = L10nService::new();
 }
 
 type ConcurrentFluentBundle = fluent::bundle::FluentBundle<Arc<fluent::FluentResource>, intl_memoizer::concurrent::IntlLangMemoizer>;

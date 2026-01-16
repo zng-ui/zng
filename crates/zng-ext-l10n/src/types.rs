@@ -292,14 +292,7 @@ context_var! {
     /// Is [`L10N.app_lang`] by default.
     ///
     /// [`L10N.app_lang`]: L10N::app_lang
-    pub static LANG_VAR: Langs = {
-        if zng_app::APP.extensions().contains::<crate::L10nManager>() {
-            L10N.app_lang()
-        } else {
-            tracing::warn!("LANG_VAR default not connected to L10N.app_lang, L10nManager extension is missing");
-            Langs::default().into_var()
-        }
-    };
+    pub static LANG_VAR: Langs = L10N.app_lang();
 }
 
 /// Identifies the language, region and script of text.

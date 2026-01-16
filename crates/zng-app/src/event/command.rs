@@ -194,7 +194,7 @@ macro_rules! __command {
             }
             $crate::event::app_local! {
                 static EVENT: $crate::event::EventData = $crate::event::EventData::new::<$crate::event::CommandArgs>();
-                static DATA: $crate::event::CommandData = $crate::event::CommandData::new(__meta_init__);
+                static DATA: $crate::event::CommandData = $crate::event::CommandData::new(__meta_init__, stringify!($COMMAND));
             }
             $crate::event::Command::new(&EVENT, &DATA)
         };
@@ -584,6 +584,11 @@ impl Command {
                 handle: handle.clone(),
             })
         })
+    }
+
+    /// Name of the `static` item that defines this command.
+    pub fn static_name(&self) -> &'static str {
+        self.local.read().static_name
     }
 }
 impl ops::Deref for Command {
@@ -1250,7 +1255,30 @@ static_id! {
 }
 impl CommandNameExt for Command {
     fn name(self) -> CommandMetaVar<Txt> {
-        self.with_meta(|m| m.get_var_or_insert(*COMMAND_NAME_ID, Txt::default))
+        self.with_meta(|m| {
+            m.get_var_or_insert(*COMMAND_NAME_ID, || {
+                let name = self.static_name();
+                let name = name.strip_suffix("_CMD").unwrap_or(name);
+                let mut title = String::with_capacity(name.len());
+                let mut lower = false;
+                for c in name.chars() {
+                    if c == '_' {
+                        if !title.ends_with(' ') {
+                            title.push(' ');
+                        }
+                        lower = false;
+                    } else if lower {
+                        for l in c.to_lowercase() {
+                            title.push(l);
+                        }
+                    } else {
+                        title.push(c);
+                        lower = true;
+                    }
+                }
+                Txt::from(title)
+            })
+        })
     }
 
     fn init_name(self, name: impl Into<Txt>) -> Self {
@@ -1306,6 +1334,8 @@ enum MetaInit {
 
 #[doc(hidden)]
 pub struct CommandData {
+    static_name: &'static str,
+
     meta_init: MetaInit,
     meta: Mutex<OwnedStateMap<CommandMetaState>>,
 
@@ -1319,8 +1349,9 @@ pub struct CommandData {
     scopes: HashMap<CommandScope, ScopedValue>,
 }
 impl CommandData {
-    pub fn new(meta_init: fn(Command)) -> Self {
+    pub fn new(meta_init: fn(Command), static_name: &'static str) -> Self {
         CommandData {
+            static_name,
             meta_init: MetaInit::Init(meta_init),
             meta: Mutex::new(OwnedStateMap::new()),
 
