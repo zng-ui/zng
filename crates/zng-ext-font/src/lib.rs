@@ -3,6 +3,19 @@
 //!
 //! Font loading, text segmenting and shaping.
 //!
+//! # Services
+//!
+//! Services this extension provides:
+//!
+//! * [`FONTS`] - Service that finds and loads fonts.
+//! * [`HYPHENATION`] - Service that loads and applies hyphenation dictionaries.
+//!
+//! # Events
+//!
+//! Events this extension provides:
+//!
+//! * [`FONT_CHANGED_EVENT`] - Font config or system fonts changed.
+//!
 //! # Crate
 //!
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
@@ -49,10 +62,9 @@ pub use unit::*;
 use parking_lot::{Mutex, RwLock};
 use pastey::paste;
 use zng_app::{
-    AppExtension,
-    event::{event, event_args},
+    event::{EventArgs, event, event_args},
     render::FontSynthesis,
-    update::{EventUpdate, UPDATES},
+    update::UPDATES,
     view_process::{
         VIEW_PROCESS_INITED_EVENT, ViewRenderer,
         raw_events::{RAW_FONT_AA_CHANGED_EVENT, RAW_FONT_CHANGED_EVENT},
@@ -66,10 +78,7 @@ use zng_layout::unit::{
 };
 use zng_task::{self as task, channel::IpcBytes};
 use zng_txt::Txt;
-use zng_var::{
-    IntoVar, ResponderVar, ResponseVar, Var, animation::Transitionable, const_var, impl_from_and_into_var, response_done_var, response_var,
-    var,
-};
+use zng_var::{IntoVar, ResponseVar, Var, animation::Transitionable, const_var, impl_from_and_into_var, response_done_var, response_var};
 use zng_view_api::{config::FontAntiAliasing, font::IpcFontBytes};
 
 /// Font family name.
@@ -578,14 +587,14 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 }
 
 /// Possible changes in a [`FontChangedArgs`].
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum FontChange {
     /// OS fonts change.
     ///
@@ -614,95 +623,51 @@ pub enum FontChange {
     Fallback(Lang),
 }
 
-/// Application extension that manages text fonts.
-///
-/// Services this extension provides:
-///
-/// * [`FONTS`] - Service that finds and loads fonts.
-/// * [`HYPHENATION`] - Service that loads and applies hyphenation dictionaries.
-///
-/// Events this extension provides:
-///
-/// * [`FONT_CHANGED_EVENT`] - Font config or system fonts changed.
-#[derive(Default)]
-#[non_exhaustive]
-pub struct FontManager {}
-impl AppExtension for FontManager {
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        if RAW_FONT_CHANGED_EVENT.has(update) {
-            FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::SystemFonts));
-        } else if let Some(args) = RAW_FONT_AA_CHANGED_EVENT.on(update) {
-            FONTS_SV.read().font_aa.set(args.aa);
-        } else if FONT_CHANGED_EVENT.has(update) {
-            FONTS_SV.write().on_fonts_changed();
-        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update)
-            && args.is_respawn
-        {
-            let mut fonts = FONTS_SV.write();
-            fonts.loader.on_view_process_respawn();
-        }
-    }
-
-    fn update(&mut self) {
-        let mut fonts = FONTS_SV.write();
-
-        {
-            let mut f = GENERIC_FONTS_SV.write();
-            for request in std::mem::take(&mut f.requests) {
-                request(&mut f);
-            }
-        }
-
-        let mut changed = false;
-        for (request, responder) in std::mem::take(&mut fonts.loader.unregister_requests) {
-            let r = if let Some(removed) = fonts.loader.custom_fonts.remove(&request) {
-                // cut circular reference so that when the last font ref gets dropped
-                // this font face also gets dropped. Also tag the font as unregistered
-                // so it does not create further circular references.
-                for removed in removed {
-                    removed.on_refresh();
-                }
-
-                changed = true;
-
-                true
-            } else {
-                false
-            };
-            responder.respond(r);
-        }
-        if changed {
-            FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::CustomFonts));
-        }
-
-        if fonts.prune_requested {
-            fonts.on_prune();
-        }
-    }
-}
-
 app_local! {
-    static FONTS_SV: FontsService = FontsService {
-        loader: FontFaceLoader::new(),
-        prune_requested: false,
-        font_aa: var(FontAntiAliasing::Default),
-    };
+    static FONTS_SV: FontsService = FontsService::new();
 }
 
 struct FontsService {
     loader: FontFaceLoader,
-    prune_requested: bool,
-    font_aa: Var<FontAntiAliasing>,
 }
 impl FontsService {
-    fn on_fonts_changed(&mut self) {
-        self.loader.on_refresh();
-        self.prune_requested = false;
-    }
+    fn new() -> Self {
+        let s = FontsService {
+            loader: FontFaceLoader::new(),
+        };
 
-    fn on_prune(&mut self) {
-        self.loader.on_prune();
-        self.prune_requested = false;
+        // propagate view-process notification
+        RAW_FONT_CHANGED_EVENT
+            .hook(|args| {
+                FONT_CHANGED_EVENT.notify(FontChangedArgs::new(
+                    args.timestamp,
+                    args.propagation().clone(),
+                    FontChange::SystemFonts,
+                ));
+                true
+            })
+            .perm();
+
+        // FONTS service can also fire this event.
+        FONT_CHANGED_EVENT
+            .hook(|_| {
+                let mut s = FONTS_SV.write();
+                s.loader.on_refresh();
+                true
+            })
+            .perm();
+
+        // handle respawn
+        VIEW_PROCESS_INITED_EVENT
+            .hook(|args| {
+                if args.is_respawn {
+                    FONTS_SV.write().loader.on_view_process_respawn();
+                }
+                true
+            })
+            .perm();
+
+        s
     }
 }
 
@@ -718,11 +683,9 @@ impl FONTS {
 
     /// Remove all unused fonts from cache.
     pub fn prune(&self) {
-        let mut ft = FONTS_SV.write();
-        if !ft.prune_requested {
-            ft.prune_requested = true;
-            UPDATES.update(None);
-        }
+        UPDATES.once_update("FONTS.prune", move || {
+            FONTS_SV.write().loader.on_prune();
+        });
     }
 
     /// Actual name of generic fonts.
@@ -739,14 +702,65 @@ impl FONTS {
     /// The returned response will update once when the font finishes loading with the new font.
     /// At minimum the new font will be available on the next update.
     pub fn register(&self, custom_font: CustomFont) -> ResponseVar<Result<FontFace, FontLoadingError>> {
-        FontFaceLoader::register(custom_font)
+        // start loading
+        let resp = task::respond(FontFace::load_custom(custom_font));
+
+        // modify loader.custom_fonts at the end of whatever update is happening when finishes loading.
+        resp.hook(|args| {
+            if let Some(done) = args.value().done() {
+                if let Ok(face) = done {
+                    let mut fonts = FONTS_SV.write();
+                    let family = fonts.loader.custom_fonts.entry(face.0.family_name.clone()).or_default();
+                    let existing = family
+                        .iter()
+                        .position(|f| f.0.weight == face.0.weight && f.0.style == face.0.style && f.0.stretch == face.0.stretch);
+
+                    if let Some(i) = existing {
+                        family[i] = face.clone();
+                    } else {
+                        family.push(face.clone());
+                    }
+
+                    FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::CustomFonts));
+                }
+                false
+            } else {
+                true
+            }
+        })
+        .perm();
+
+        resp
     }
 
     /// Removes a custom font family. If the font faces are not in use it is also unloaded.
     ///
     /// Returns a response var that updates once with a value that indicates if any custom font was removed.
     pub fn unregister(&self, custom_family: FontName) -> ResponseVar<bool> {
-        FONTS_SV.write().loader.unregister(custom_family)
+        let (responder, response) = response_var();
+
+        UPDATES.once_update("FONTS.unregister", move || {
+            let mut fonts = FONTS_SV.write();
+            let r = if let Some(removed) = fonts.loader.custom_fonts.remove(&custom_family) {
+                // cut circular reference so that when the last font ref gets dropped
+                // this font face also gets dropped. Also tag the font as unregistered
+                // so it does not create further circular references.
+                for removed in removed {
+                    removed.on_refresh();
+                }
+
+                true
+            } else {
+                false
+            };
+            responder.respond(r);
+
+            if r {
+                FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::CustomFonts));
+            }
+        });
+
+        response
     }
 
     /// Gets a font list that best matches the query.
@@ -814,7 +828,7 @@ impl FONTS {
     ///
     /// The variable updates when the system config changes.
     pub fn system_font_aa(&self) -> Var<FontAntiAliasing> {
-        FONTS_SV.read().font_aa.read_only()
+        RAW_FONT_AA_CHANGED_EVENT.var_map(|a| Some(a.aa), || FontAntiAliasing::Default)
     }
 }
 
@@ -1766,7 +1780,6 @@ impl<I: SliceIndex<[Font]>> std::ops::Index<I> for FontList {
 
 struct FontFaceLoader {
     custom_fonts: HashMap<FontName, Vec<FontFace>>,
-    unregister_requests: Vec<(FontName, ResponderVar<bool>)>,
 
     system_fonts_cache: HashMap<FontName, Vec<SystemFontFace>>,
     list_cache: HashMap<Box<[FontName]>, Vec<FontFaceListQuery>>,
@@ -1784,7 +1797,6 @@ impl FontFaceLoader {
     fn new() -> Self {
         FontFaceLoader {
             custom_fonts: HashMap::new(),
-            unregister_requests: vec![],
             system_fonts_cache: HashMap::new(),
             list_cache: HashMap::new(),
         }
@@ -1832,48 +1844,6 @@ impl FontFaceLoader {
         });
 
         self.list_cache.clear();
-    }
-
-    fn register(custom_font: CustomFont) -> ResponseVar<Result<FontFace, FontLoadingError>> {
-        // start loading
-        let resp = task::respond(FontFace::load_custom(custom_font));
-
-        // modify loader.custom_fonts at the end of whatever update is happening when finishes loading.
-        resp.hook(|args| {
-            if let Some(done) = args.value().done() {
-                if let Ok(face) = done {
-                    let mut fonts = FONTS_SV.write();
-                    let family = fonts.loader.custom_fonts.entry(face.0.family_name.clone()).or_default();
-                    let existing = family
-                        .iter()
-                        .position(|f| f.0.weight == face.0.weight && f.0.style == face.0.style && f.0.stretch == face.0.stretch);
-
-                    if let Some(i) = existing {
-                        family[i] = face.clone();
-                    } else {
-                        family.push(face.clone());
-                    }
-
-                    FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::CustomFonts));
-                }
-                false
-            } else {
-                true
-            }
-        })
-        .perm();
-        resp
-    }
-
-    fn unregister(&mut self, custom_family: FontName) -> ResponseVar<bool> {
-        let (responder, response) = response_var();
-
-        if !self.unregister_requests.is_empty() {
-            UPDATES.update(None);
-        }
-        self.unregister_requests.push((custom_family, responder));
-
-        response
     }
 
     fn try_list(
@@ -2259,8 +2229,6 @@ struct GenericFontsService {
     cursive: LangMap<FontName>,
     fantasy: LangMap<FontName>,
     fallback: LangMap<FontName>,
-
-    requests: Vec<Box<dyn FnOnce(&mut GenericFontsService) + Send + Sync>>,
 }
 impl GenericFontsService {
     fn new() -> Self {
@@ -2291,8 +2259,6 @@ impl GenericFontsService {
             fantasy: default(fantasy),
 
             fallback: default(fallback),
-
-            requests: vec![],
         }
     }
 }
@@ -2327,19 +2293,17 @@ macro_rules! impl_fallback_accessors {
 
     #[doc = "Sets the fallback *"$name_str "* font for the given language."]
     ///
-    /// The change applied for the next update.
+    /// The change is applied for the next update.
     ///
     /// Use `lang!(und)` to set name used when no language matches.
     pub fn [<set_ $name>]<F: Into<FontName>>(&self, lang: Lang, font_name: F) {
-        let mut g = GENERIC_FONTS_SV.write();
-        let font_name = font_name.into();
-        if g.requests.is_empty() {
-            UPDATES.update(None);
-        }
-        g.requests.push(Box::new(move |g| {
-            g.$name.insert(lang.clone(), font_name);
+        self.[<set_ $name _impl>](lang, font_name.into());
+    }
+    fn [<set_ $name _impl>](&self, lang: Lang, font_name: FontName) {
+        UPDATES.once_update("GenericFonts.set", move || {
+            GENERIC_FONTS_SV.write().$name.insert(lang.clone(), font_name);
             FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::GenericFont(FontName::$name(), lang)));
-        }));
+        });
     }
     })+};
 }
@@ -2362,15 +2326,13 @@ impl GenericFonts {
     ///
     /// Use `lang!(und)` to set name used when no language matches.
     pub fn set_fallback<F: Into<FontName>>(&self, lang: Lang, font_name: F) {
-        let mut g = GENERIC_FONTS_SV.write();
-        if g.requests.is_empty() {
-            UPDATES.update(None);
-        }
-        let font_name = font_name.into();
-        g.requests.push(Box::new(move |g| {
-            FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::Fallback(lang.clone())));
-            g.fallback.insert(lang, font_name);
-        }));
+        self.set_fallback_impl(lang, font_name.into());
+    }
+    fn set_fallback_impl(&self, lang: Lang, font_name: FontName) {
+        UPDATES.once_update("GenericFonts.set", move || {
+            GENERIC_FONTS_SV.write().fallback.insert(lang.clone(), font_name);
+            FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::Fallback(lang)));
+        });
     }
 
     /// Returns the font name registered for the generic `name` and `lang`.
@@ -2506,7 +2468,7 @@ impl FontBytes {
             Ok(FontBytes(FontBytesImpl::System(Arc::new(SystemFontBytes { path, mmap }))))
         }
 
-        Ok(Self(FontBytesImpl::Ipc(IpcBytes::from_file_blocking(&path)?)))
+        Ok(Self(FontBytesImpl::Ipc(IpcBytes::from_path_blocking(&path)?)))
     }
 
     /// Read lock the `path` and memory maps it.
@@ -3659,14 +3621,14 @@ mod tests {
 
     #[test]
     fn generic_fonts_default() {
-        let _app = APP.minimal().extend(FontManager::default()).run_headless(false);
+        let _app = APP.minimal().run_headless(false);
 
         assert_eq!(FontName::sans_serif(), GenericFonts {}.sans_serif(&lang!(und)))
     }
 
     #[test]
     fn generic_fonts_fallback() {
-        let _app = APP.minimal().extend(FontManager::default()).run_headless(false);
+        let _app = APP.minimal().run_headless(false);
 
         assert_eq!(FontName::sans_serif(), GenericFonts {}.sans_serif(&lang!(en_US)));
         assert_eq!(FontName::sans_serif(), GenericFonts {}.sans_serif(&lang!(es)));
@@ -3674,7 +3636,7 @@ mod tests {
 
     #[test]
     fn generic_fonts_get1() {
-        let mut app = APP.minimal().extend(FontManager::default()).run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
         GenericFonts {}.set_sans_serif(lang!(en_US), "Test Value");
         app.update(false).assert_wait();
 
@@ -3684,7 +3646,7 @@ mod tests {
 
     #[test]
     fn generic_fonts_get2() {
-        let mut app = APP.minimal().extend(FontManager::default()).run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
         GenericFonts {}.set_sans_serif(lang!(en), "Test Value");
         app.update(false).assert_wait();
 
@@ -3694,7 +3656,7 @@ mod tests {
 
     #[test]
     fn generic_fonts_get_best() {
-        let mut app = APP.minimal().extend(FontManager::default()).run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
         GenericFonts {}.set_sans_serif(lang!(en), "Test Value");
         GenericFonts {}.set_sans_serif(lang!(en_US), "Best");
         app.update(false).assert_wait();
@@ -3706,7 +3668,7 @@ mod tests {
 
     #[test]
     fn generic_fonts_get_no_lang_match() {
-        let mut app = APP.minimal().extend(FontManager::default()).run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
         GenericFonts {}.set_sans_serif(lang!(es_US), "Test Value");
         app.update(false).assert_wait();
 

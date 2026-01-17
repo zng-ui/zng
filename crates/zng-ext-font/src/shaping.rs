@@ -4739,8 +4739,8 @@ fn into_harf_direction(d: LayoutDirection) -> rustybuzz::Direction {
 #[cfg(test)]
 mod tests {
     use crate::{
-        FONTS, Font, FontManager, FontName, FontStretch, FontStyle, FontWeight, ParagraphBreak, SegmentedText, TextReshapingArgs,
-        TextShapingArgs, WordContextKey,
+        FONTS, Font, FontName, FontStretch, FontStyle, FontWeight, ParagraphBreak, SegmentedText, TextReshapingArgs, TextShapingArgs,
+        WordContextKey,
     };
     use zng_app::APP;
     use zng_ext_l10n::lang;
@@ -4750,7 +4750,7 @@ mod tests {
     };
 
     fn test_font() -> Font {
-        let mut app = APP.minimal().extend(FontManager::default()).run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
         let font = app
             .block_on_fut(
                 async {
@@ -4863,7 +4863,7 @@ mod tests {
 
     #[test]
     fn font_fallback_issue() {
-        let mut app = APP.minimal().extend(FontManager::default()).run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
         app.block_on_fut(
             async {
                 let font = FONTS
