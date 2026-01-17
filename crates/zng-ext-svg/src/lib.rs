@@ -3,30 +3,30 @@
 //!
 //! SVG image support.
 //!
+//! This extension installs a [`IMAGES`] extension on init that handles SVG rendering.
+//!
 //! # Crate
 //!
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use zng_app::AppExtension;
+use zng_app::{APP, hn};
 use zng_ext_image::*;
 use zng_task::channel::IpcBytes;
 use zng_txt::{Txt, formatx};
 use zng_unit::{ByteLength, Px, PxDensity2d, PxDensityUnits as _, PxSize};
+use zng_var::const_var;
 
-/// Application extension that installs SVG handling.
-///
-/// This extension installs a [`IMAGES`] extension on init that handles SVG rendering.
-#[derive(Default)]
-#[non_exhaustive]
-pub struct SvgManager {}
-
-impl AppExtension for SvgManager {
-    fn init(&mut self) {
-        IMAGES.extend(Box::new(SvgRenderExtension::default()));
+zng_env::on_process_start!(|args| {
+    if args.yield_until_app() {
+        return;
     }
-}
+
+    APP.on_init(hn!(|_| {
+        IMAGES.extend(Box::new(SvgRenderExtension::default()));
+    }));
+});
 
 /// Image service extension that handlers SVG requests.
 #[derive(Default)]
@@ -88,7 +88,7 @@ fn load(max_decoded_len: ByteLength, data: SvgData, downscale: Option<ImageDowns
             }
 
             if size.width() as usize * size.height() as usize * 4 > max_decoded_len.bytes() {
-                let img = ImageEntry::new_empty(formatx!("cannot render svg, would exceed max {max_decoded_len} allowed"));
+                let img = ImageEntry::new_error(formatx!("cannot render svg, would exceed max {max_decoded_len} allowed"));
                 return ImageSource::Image(zng_var::const_var(img));
             }
 
@@ -126,7 +126,7 @@ fn load(max_decoded_len: ByteLength, data: SvgData, downscale: Option<ImageDowns
 }
 
 fn error(error: Txt) -> ImageSource {
-    ImageSource::Image(IMAGES.dummy(Some(error)))
+    ImageSource::Image(const_var(ImageEntry::new_error(error)))
 }
 
 fn svg_data_from_unknown(data: &[u8]) -> Option<String> {

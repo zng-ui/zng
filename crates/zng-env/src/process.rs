@@ -1,6 +1,6 @@
 use std::{
     mem,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicU8, Ordering},
 };
 
 use parking_lot::Mutex;
@@ -46,7 +46,7 @@ pub use linkme as __linkme;
 /// ```
 ///
 /// Note that the handler yields once, this gives a chance for all handlers to run first before the handler is called again
-/// and takes over the process. It is good practice to yield at least once to ensure handlers that are supported to affect all
+/// and takes over the process. It is good practice to yield at least once to ensure handlers that are supposed to affect all
 /// processes actually init, as an example, the trace recorder may never start for the process if it does not yield.
 ///
 /// Also note the use of custom [`exit`], it is important to call it to collaborate with [`on_process_exit`] handlers.
@@ -54,7 +54,7 @@ pub use linkme as __linkme;
 /// # App Context
 ///
 /// This event happens on the executable process context, before any `APP` context starts, you can use
-/// `zng::app::on_app_start` here to register a handler to be called in the app context, if and when it starts.
+/// `zng::APP::on_init` here to register a handler to be called in the app context, if and when it starts.
 ///
 /// # Web Assembly
 ///
@@ -92,17 +92,19 @@ macro_rules! on_process_start {
 #[macro_export]
 macro_rules! __on_process_start {
     ($closure:expr) => {
-        #[$crate::__linkme::distributed_slice($crate::ZNG_ENV_ON_PROCESS_START)]
-        #[linkme(crate = $crate::__linkme)]
-        #[doc(hidden)]
-        static _ON_PROCESS_START: fn(&$crate::ProcessStartArgs) = _on_process_start;
-        #[doc(hidden)]
-        fn _on_process_start(args: &$crate::ProcessStartArgs) {
-            fn on_process_start(args: &$crate::ProcessStartArgs, handler: impl FnOnce(&$crate::ProcessStartArgs)) {
-                handler(args)
+        const _: () = {
+            #[$crate::__linkme::distributed_slice($crate::ZNG_ENV_ON_PROCESS_START)]
+            #[linkme(crate = $crate::__linkme)]
+            #[doc(hidden)]
+            static _ON_PROCESS_START: fn(&$crate::ProcessStartArgs) = _on_process_start;
+            #[doc(hidden)]
+            fn _on_process_start(args: &$crate::ProcessStartArgs) {
+                fn on_process_start(args: &$crate::ProcessStartArgs, handler: impl FnOnce(&$crate::ProcessStartArgs)) {
+                    handler(args)
+                }
+                on_process_start(args, $closure)
             }
-            on_process_start(args, $closure)
-        }
+        };
     };
 }
 
@@ -148,18 +150,25 @@ fn process_init_impl(handlers: &[fn(&ProcessStartArgs)]) -> MainExitHandler {
     assert_eq!(process_state, ProcessLifetimeState::BeforeInit, "init!() already called");
 
     let mut yielded = vec![];
+    let mut yield_until_app = vec![];
     let mut next_handlers_count = handlers.len();
     for h in handlers {
         next_handlers_count -= 1;
         let args = ProcessStartArgs {
             next_handlers_count,
             yield_count: 0,
-            yield_requested: AtomicBool::new(false),
+            yield_requested: AtomicU8::new(0),
         };
         h(&args);
-        if args.yield_requested.load(Ordering::Relaxed) {
-            yielded.push(h);
-            next_handlers_count += 1;
+        match args.yield_requested.load(Ordering::Relaxed) {
+            ProcessStartArgs::YIELD_ONCE => {
+                yielded.push(h);
+                next_handlers_count += 1;
+            }
+            ProcessStartArgs::YIELD_UNTIL_APP => {
+                yield_until_app.push(h);
+            }
+            _ => {}
         }
     }
 
@@ -177,13 +186,31 @@ fn process_init_impl(handlers: &[fn(&ProcessStartArgs)]) -> MainExitHandler {
             let args = ProcessStartArgs {
                 next_handlers_count,
                 yield_count,
-                yield_requested: AtomicBool::new(false),
+                yield_requested: AtomicU8::new(0),
             };
             h(&args);
-            if args.yield_requested.load(Ordering::Relaxed) {
-                yielded.push(h);
-                next_handlers_count += 1;
+            match args.yield_requested.load(Ordering::Relaxed) {
+                ProcessStartArgs::YIELD_ONCE => {
+                    yielded.push(h);
+                    next_handlers_count += 1;
+                }
+                ProcessStartArgs::YIELD_UNTIL_APP => {
+                    yield_until_app.push(h);
+                }
+                _ => {}
             }
+        }
+    }
+
+    for h in yield_until_app {
+        let args = ProcessStartArgs {
+            next_handlers_count: 0,
+            yield_count: ProcessStartArgs::MAX_YIELD_COUNT,
+            yield_requested: AtomicU8::new(0),
+        };
+        h(&args);
+        if args.yield_requested.load(Ordering::Relaxed) != 0 {
+            eprintln!("handler requested `yield_until_app` and then yielded again")
         }
     }
     MainExitHandler
@@ -230,17 +257,67 @@ pub struct ProcessStartArgs {
     /// If this exceeds 32 times the handler is ignored.
     pub yield_count: u16,
 
-    yield_requested: AtomicBool,
+    yield_requested: AtomicU8,
 }
 impl ProcessStartArgs {
     /// Yield requests after this are ignored.
     pub const MAX_YIELD_COUNT: u16 = 32;
 
+    const YIELD_ONCE: u8 = 1;
+    const YIELD_UNTIL_APP: u8 = 2;
+
     /// Let other process start handlers run first.
     ///
     /// The handler must call this if it takes over the process and it cannot determinate if it should from the environment.
+    ///
+    /// ```
+    /// # macro_rules! on_process_start { ($($tt:tt)*) => { } }
+    /// fn run_foo_process() {}
+    /// on_process_start!(|args| {
+    ///     if args.yield_count == 0 {
+    ///         return args.yield_once();
+    ///     }
+    ///
+    ///     // yielded once, handlers that affect all processes (loggers, tracers) are inited now
+    ///     if std::env::var("IS_FOO").is_ok() {
+    ///         // take over as "foo" process
+    ///         run_foo_process();
+    ///         zng_env::exit(0);
+    ///     }
+    /// });
+    /// ```
     pub fn yield_once(&self) {
-        self.yield_requested.store(true, Ordering::Relaxed);
+        self.yield_requested.store(Self::YIELD_ONCE, Ordering::Relaxed);
+    }
+
+    /// Yields until is running the the app-process.
+    ///
+    /// Returns `true` if should skip the handler.
+    ///
+    /// ```rust
+    /// # macro_rules! on_process_start { ($($tt:tt)*) => { } }
+    /// on_process_start!(|args| {
+    ///     if args.yield_until_app() {
+    ///         return;
+    ///     }
+    ///
+    ///     println!("Is running in the app-process");
+    /// });
+    /// ```
+    ///
+    /// Note that the handler is still called before the `APP` context starts, you can register a `APP.on_init` handler
+    /// to run in the new app context.
+    pub fn yield_until_app(&self) -> bool {
+        if self.next_handlers_count > 0 && self.yield_count < Self::MAX_YIELD_COUNT {
+            // yield until we are the last handler, this ensures we are running in the app-process
+            self.yield_requested.store(Self::YIELD_UNTIL_APP, Ordering::Relaxed);
+            return true;
+        }
+
+        // init name early, since there is interest
+        crate::init_process_name("app-process");
+
+        false
     }
 }
 
