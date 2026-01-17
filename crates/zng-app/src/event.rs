@@ -7,15 +7,15 @@ use std::{
     sync::{Arc, atomic::AtomicBool},
 };
 
+use crate::{handler::HandlerResult, widget::OnVarArgs};
 use parking_lot::MappedRwLockReadGuard;
 use zng_app_context::AppLocal;
-use zng_clone_move::clmv;
 use zng_task::channel;
-use zng_var::{AnyVar, Var, VarHandle, VarUpdateId, VarValue};
+use zng_var::{AnyVar, VARS, Var, VarHandle, VarUpdateId, VarValue};
 
 use crate::{
-    handler::{APP_HANDLER, AppWeakHandle as _, Handler, HandlerExt as _},
-    update::{UPDATES, UpdateOp},
+    handler::Handler,
+    update::UpdateOp,
     widget::{VarSubscribe, WIDGET, WidgetId},
 };
 
@@ -353,7 +353,7 @@ impl<A: EventArgs> Event<A> {
     /// [`hn_once!`]: crate::handler::hn_once!
     /// [`async_hn_once!`]: crate::handler::async_hn_once!
     pub fn on_pre_event(&self, handler: Handler<A>) -> VarHandle {
-        self.on_event_impl(handler, true)
+        self.get_var().on_pre_new(Self::event_handler(handler))
     }
 
     /// Creates an event handler.
@@ -397,42 +397,29 @@ impl<A: EventArgs> Event<A> {
     /// [`hn_once!`]: crate::handler::hn_once!
     /// [`async_hn_once!`]: crate::handler::async_hn_once!
     pub fn on_event(&self, handler: Handler<A>) -> VarHandle {
-        self.on_event_impl(handler, false)
+        self.get_var().on_new(Self::event_handler(handler))
     }
 
-    fn on_event_impl(&self, handler: Handler<A>, is_preview: bool) -> VarHandle {
-        let var = self.read_var();
-
-        if var.capabilities().is_const() {
-            return VarHandle::dummy();
-        }
-
-        let handler = handler.into_arc();
-        let (inner_handle_owner, inner_handle) = zng_handle::Handle::new(());
-        var.hook(move |args| {
-            let args = args.downcast::<EventUpdates<A>>().unwrap();
-            if inner_handle_owner.is_dropped() {
-                return false;
-            }
-
-            let handle = inner_handle.downgrade();
-
-            for args in args.value().iter() {
-                let args = args.clone();
-
-                let update_once: Handler<crate::update::UpdateArgs> = Box::new(clmv!(handle, handler, |_| {
-                    APP_HANDLER.unsubscribe(); // once
-                    APP_HANDLER.with(handle.clone_boxed(), is_preview, || handler.call(&args))
-                }));
-
-                if is_preview {
-                    UPDATES.on_pre_update(update_once).perm();
-                } else {
-                    UPDATES.on_update(update_once).perm();
+    fn event_handler(mut handler: Handler<A>) -> Handler<OnVarArgs<EventUpdates<A>>> {
+        Box::new(move |a| {
+            let mut futs = vec![];
+            for args in a.value.iter() {
+                match handler(args) {
+                    HandlerResult::Done => {}
+                    HandlerResult::Continue(f) => futs.push(f),
                 }
             }
-
-            true
+            if futs.is_empty() {
+                HandlerResult::Done
+            } else if futs.len() == 1 {
+                HandlerResult::Continue(futs.remove(0))
+            } else {
+                HandlerResult::Continue(Box::pin(async move {
+                    for f in futs {
+                        f.await;
+                    }
+                }))
+            }
         })
     }
 
@@ -447,16 +434,7 @@ impl<A: EventArgs> Event<A> {
     {
         let (sender, receiver) = channel::unbounded();
 
-        self.read_var()
-            .hook(move |u| {
-                for args in u.value().downcast_ref::<EventUpdates<A>>().unwrap().iter() {
-                    if sender.send_blocking(args.clone()).is_err() {
-                        return false;
-                    }
-                }
-                true
-            })
-            .perm();
+        self.hook(move |args| sender.send_blocking(args.clone()).is_ok()).perm();
 
         receiver
     }
@@ -473,8 +451,24 @@ impl<A: EventArgs> Event<A> {
     ///
     /// Any event notification or var modification done in the `handler` will apply on the same update that notifies this event.
     pub fn hook(&self, mut handler: impl FnMut(&A) -> bool + Send + 'static) -> VarHandle {
+        // events can be modified multiple times in the same hooks resolution, every var hook update will list all *pending*
+        // args for the next update, to avoid calling `handler` for the same args we track already called
+        let mut last_call_id = VarUpdateId::never();
+        let mut last_call_take = 0;
         self.read_var().hook(move |a| {
-            for args in a.downcast_value::<EventUpdates<A>>().unwrap().iter() {
+            let updates = a.downcast_value::<EventUpdates<A>>().unwrap();
+            let id = VARS.update_id();
+            let mut skip = 0;
+            if last_call_id != id {
+                last_call_id = id;
+                last_call_take = 0;
+            } else {
+                skip = last_call_take;
+                last_call_take = updates.len();
+            }
+
+            // notify
+            for args in updates[skip..].iter() {
                 if !handler(args) {
                     return false;
                 }

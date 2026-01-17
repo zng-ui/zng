@@ -200,8 +200,8 @@ impl VarImpl for SharedVar {
 impl SharedVar {
     fn modify_impl(&self, value_or_modify: ValueOrModify) {
         let name = value_type_name(self);
-        let var = self.clone();
         // not weak ref here because some vars are spawned modified just to notify something and dropped
+        let var = self.clone();
         VARS.schedule_update(name, move || {
             let mut value = var.0.value.write();
 
@@ -237,6 +237,9 @@ impl SharedVar {
                 value.2.importance = i;
             }
 
+            // !!: TODO delay this to after all hooks are drained? right now we push every update,
+            // if the value is replaced multiple times hook is called for each value, it should be called
+            // once for each drain, still multiple times in the same update if another hook sets but
             if update.contains(VarModifyUpdate::UPDATE) {
                 value.1 = VARS.update_id();
 
