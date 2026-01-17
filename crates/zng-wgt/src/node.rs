@@ -910,9 +910,9 @@ pub fn command_contextual_enabled(child: UiNode, cmd: Command, ctx: ContextVar<b
     let mut _handle = VarHandle::dummy();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            let handle = cmd.scoped(WIDGET.id()).subscribe(ctx.get());
+            let handle = cmd.scoped(WIDGET.id()).subscribe(ctx.get());            
             let _handle = ctx.hook(move |a| {
-                handle.set_enabled(*a.value());
+                handle.enabled().set(*a.value());
                 true
             });
         }

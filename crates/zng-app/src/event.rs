@@ -1,11 +1,6 @@
 //! App event and commands API.
 
-use std::{
-    fmt,
-    marker::PhantomData,
-    ops,
-    sync::{Arc, atomic::AtomicBool},
-};
+use std::{fmt, marker::PhantomData, ops, sync::Arc};
 
 use crate::{handler::HandlerResult, widget::OnVarArgs};
 use parking_lot::MappedRwLockReadGuard;

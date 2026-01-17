@@ -3,15 +3,12 @@ use std::{
     collections::{HashMap, hash_map},
     fmt, mem,
     ops::{self, ControlFlow},
-    sync::atomic::Ordering,
     thread::ThreadId,
 };
 
 use crate::{
-    APP,
-    handler::Handler,
+    handler::{Handler, HandlerExt},
     shortcut::CommandShortcutExt,
-    update::UpdatesTrace,
     widget::info::{WidgetInfo, WidgetPath},
     window::{WINDOWS_APP, WindowId},
 };
@@ -168,11 +165,10 @@ macro_rules! command {
 pub use command;
 
 use parking_lot::Mutex;
-use zng_app_context::AppId;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
 use zng_txt::Txt;
 use zng_unique_id::{static_id, unique_id_64};
-use zng_var::{Var, VarValue, impl_from_and_into_var, var};
+use zng_var::{Var, VarValue, const_var, impl_from_and_into_var, var};
 
 #[doc(hidden)]
 pub use zng_app_context::app_local;
@@ -477,24 +473,6 @@ impl Command {
         }
     }
 
-    /// Gets if the command has handlers without creating a tracking variable for the state.
-    pub fn has_handlers_value(&self) -> bool {
-        let read = self.local.read();
-        match self.scope {
-            CommandScope::App => read.handle_count > 0,
-            scope => read.scopes.get(&scope).map(|l| l.handle_count > 0).unwrap_or(false),
-        }
-    }
-
-    /// Gets if the command is enabled without creating a tracking variable for the state.
-    pub fn is_enabled_value(&self) -> bool {
-        let read = self.local.read();
-        match self.scope {
-            CommandScope::App => read.enabled_count > 0,
-            scope => read.scopes.get(&scope).map(|l| l.enabled_count > 0).unwrap_or(false),
-        }
-    }
-
     /// Calls `visitor` for each scope of this command.
     ///
     /// Note that scoped commands are removed if unused, see [`with_meta`](Self::with_meta) for more details.
@@ -515,7 +493,7 @@ impl Command {
             None,
             self.scope,
             self.scope.search_target(),
-            self.is_enabled_value(),
+            self.is_enabled().get(),
         ))
     }
 
@@ -538,7 +516,7 @@ impl Command {
             CommandParam::new(param),
             self.scope,
             self.scope.search_target(),
-            self.is_enabled_value(),
+            self.is_enabled().get(),
         ));
     }
 
@@ -550,19 +528,31 @@ impl Command {
             param,
             self.scope,
             self.scope.search_target(),
-            self.is_enabled_value(),
+            self.is_enabled().get(),
         ))
     }
 
     /// Creates a preview event handler for the command.
     ///
     /// This is similar to [`Event::on_pre_event`], but `handler` is only called if the command
-    /// scope matches.
+    /// scope matches and the handle is enabled.
     ///
-    /// The `enabled` parameter defines the initial state of the command subscription, the subscription
-    /// handle is available in the handler args.
-    pub fn on_pre_event(&self, enabled: bool, handler: Handler<AppCommandArgs>) -> VarHandle {
-        self.event().on_pre_event(self.handler(enabled, handler))
+    /// The `enabled` parameter defines the initial state of the command subscription, returns a handle
+    /// that can change this status.
+    pub fn on_pre_event(&self, enabled: bool, handler: Handler<CommandArgs>) -> CommandHandle {
+        let mut handle = self.scoped(CommandScope::App).subscribe(enabled);
+        let local_enabled = handle.enabled().clone();
+        let handler = match self.scope() {
+            CommandScope::App => handler.filtered(move |_| local_enabled.get()),
+            CommandScope::Window(id) => {
+                handler.filtered(move |a| a.target.as_ref().map(|t| t.window_id() == id).unwrap_or(false) && local_enabled.get())
+            }
+            CommandScope::Widget(id) => {
+                handler.filtered(move |a| a.target.as_ref().map(|t| t.contains(id)).unwrap_or(false) && local_enabled.get())
+            }
+        };
+        handle._event_handle = self.event().on_pre_event(handler);
+        handle
     }
 
     /// Creates an event handler for the command.
@@ -570,20 +560,22 @@ impl Command {
     /// This is similar to [`Event::on_event`], but `handler` is only called if the command
     /// scope matches.
     ///
-    /// The `enabled` parameter defines the initial state of the command subscription, the subscription
-    /// handle is available in the handler args.
-    pub fn on_event(&self, enabled: bool, handler: Handler<AppCommandArgs>) -> VarHandle {
-        self.event().on_event(self.handler(enabled, handler))
-    }
-
-    fn handler(&self, enabled: bool, mut handler: Handler<AppCommandArgs>) -> Handler<CommandArgs> {
-        let handle = Arc::new(self.subscribe(enabled));
-        Box::new(move |args| {
-            handler(&AppCommandArgs {
-                args: args.clone(),
-                handle: handle.clone(),
-            })
-        })
+    /// The `enabled` parameter defines the initial state of the command subscription, returns a handle
+    /// that can control if the handler is enabled or not.
+    pub fn on_event(&self, enabled: bool, handler: Handler<CommandArgs>) -> CommandHandle {
+        let mut handle = self.scoped(CommandScope::App).subscribe(enabled);
+        let local_enabled = handle.enabled().clone();
+        let handler = match self.scope() {
+            CommandScope::App => handler.filtered(move |_| local_enabled.get()),
+            CommandScope::Window(id) => {
+                handler.filtered(move |a| a.target.as_ref().map(|t| t.window_id() == id).unwrap_or(false) && local_enabled.get())
+            }
+            CommandScope::Widget(id) => {
+                handler.filtered(move |a| a.target.as_ref().map(|t| t.contains(id)).unwrap_or(false) && local_enabled.get())
+            }
+        };
+        handle._event_handle = self.event().on_event(handler);
+        handle
     }
 
     /// Name of the `static` item that defines this command.
@@ -669,10 +661,13 @@ event_args! {
         /// * If the scope is `Widget` this is the widget, if it was found.
         pub target: Option<WidgetPath>,
 
-        /// If the command handle was enabled when the command notified.
+        /// If the command was enabled when the command notified.
         ///
         /// If `false` the command primary action must not run, but a secondary "disabled interaction"
         /// that indicates what conditions enable the command is recommended.
+        ///
+        /// Note that this is the [`Command::is_enabled`] value, it is `true` id any handle is enabled,
+        /// the local handler might still be disabled.
         pub enabled: bool,
 
         ..
@@ -730,74 +725,30 @@ impl CommandArgs {
     pub fn disabled_param<T: Any>(&self) -> Option<&T> {
         if !self.enabled { self.param::<T>() } else { None }
     }
-
-    /// Call `handler` if propagation is not stopped and the command and local handler are enabled. Stops propagation
-    /// after `handler` is called.
-    ///
-    /// This is the default behavior of commands, when a command has a handler it is *relevant* in the context, and overwrites
-    /// lower priority handlers, but if the handler is disabled the command primary action is not run.
-    ///
-    /// Returns the `handler` result if it was called.
-    pub fn handle_enabled<F, R>(&self, local_handle: &CommandHandle, handler: F) -> Option<R>
-    where
-        F: FnOnce(&Self) -> R,
-    {
-        if self.propagation().is_stopped() || !self.enabled || !local_handle.is_enabled() {
-            None
-        } else {
-            let r = handler(self);
-            self.propagation().stop();
-            Some(r)
-        }
-    }
-}
-
-/// Arguments for [`Command::on_event`] handler closure.
-#[non_exhaustive]
-#[derive(Debug, Clone)]
-pub struct AppCommandArgs {
-    /// The command args.
-    pub args: CommandArgs,
-    /// The command handle held by the event handler.
-    pub handle: Arc<CommandHandle>,
-}
-impl PartialEq for AppCommandArgs {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.handle, &other.handle) && self.args == other.args
-    }
-}
-impl ops::Deref for AppCommandArgs {
-    type Target = CommandArgs;
-
-    fn deref(&self) -> &Self::Target {
-        &self.args
-    }
-}
-impl EventArgs for AppCommandArgs {
-    fn timestamp(&self) -> crate::DInstant {
-        self.args.timestamp
-    }
-
-    fn propagation(&self) -> &EventPropagationHandle {
-        self.args.propagation()
-    }
-
-    fn is_in_target(&self, widget: WidgetId) -> bool {
-        self.args.is_in_target(widget)
-    }
 }
 
 /// A handle to a [`Command`] subscription.
 ///
 /// Holding the command handle indicates that the command is relevant in the current app state.
-/// The handle needs to be enabled to indicate that the command primary action can be executed.
+/// The handle also needs to be enabled to indicate that the command primary action can be executed.
 ///
 /// You can use the [`Command::subscribe`] method in a command type to create a handle.
 pub struct CommandHandle {
     command: Option<Command>,
-    local_enabled: AtomicBool,
-    app_id: Option<AppId>,
+    local_enabled: Var<bool>,
+    // event subscription handle in `subscribe` or event handle in `on_(pre_)event`
     _event_handle: VarHandle,
+}
+/// Clone the handle.
+///
+/// Note that the cloned handle will have its own enabled state, disconnected from this handle.
+impl Clone for CommandHandle {
+    fn clone(&self) -> Self {
+        match self.command {
+            Some(c) => c.subscribe(self.local_enabled.get()),
+            None => Self::dummy(),
+        }
+    }
 }
 impl CommandHandle {
     /// The command.
@@ -805,53 +756,64 @@ impl CommandHandle {
         self.command
     }
 
-    /// Sets if the command event handler is active.
+    /// Variable that gets and sets if this specific handle is enabled.
     ///
-    /// When at least one [`CommandHandle`] is enabled the command is [`is_enabled`](Command::is_enabled).
-    pub fn set_enabled(&self, enabled: bool) {
-        if let Some(command) = self.command
-            && self.local_enabled.swap(enabled, Ordering::Relaxed) != enabled
-        {
-            if self.app_id != APP.id() {
-                return;
-            }
-
-            UpdatesTrace::log_var(std::any::type_name::<bool>());
-
-            let mut write = command.local.write();
-            match command.scope {
-                CommandScope::App => {
-                    if enabled {
-                        write.enabled_count += 1;
-                    } else {
-                        write.enabled_count -= 1;
-                    }
-                }
-                scope => {
-                    if let Some(data) = write.scopes.get_mut(&scope) {
-                        if enabled {
-                            data.enabled_count += 1;
-                        } else {
-                            data.enabled_count -= 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /// Returns if this handle has enabled the command.
-    pub fn is_enabled(&self) -> bool {
-        self.local_enabled.load(Ordering::Relaxed)
+    /// The [`Command::is_enabled`] is `true` if any handle is enabled.
+    pub fn enabled(&self) -> &Var<bool> {
+        &self.local_enabled
     }
 
     /// New handle not connected to any command.
     pub fn dummy() -> Self {
         CommandHandle {
             command: None,
-            app_id: None,
-            local_enabled: AtomicBool::new(false),
+            local_enabled: const_var(false),
             _event_handle: VarHandle::dummy(),
+        }
+    }
+
+    fn new(cmd: Command, _event_handle: VarHandle, enabled: bool) -> Self {
+        let r = Self {
+            command: Some(cmd),
+            local_enabled: var(enabled),
+            _event_handle,
+        };
+
+        // var explicit update can call hook without changing value
+        let mut last_applied = enabled;
+        r.local_enabled
+            .hook(move |args| {
+                let enabled = *args.value();
+                if last_applied != enabled {
+                    Self::update_enabled(cmd, enabled);
+                    last_applied = enabled;
+                }
+                true
+            })
+            .perm();
+
+        r
+    }
+
+    fn update_enabled(command: Command, enabled: bool) {
+        let mut write = command.local.write();
+        match command.scope {
+            CommandScope::App => {
+                if enabled {
+                    write.enabled_count += 1;
+                } else {
+                    write.enabled_count -= 1;
+                }
+            }
+            scope => {
+                if let Some(data) = write.scopes.get_mut(&scope) {
+                    if enabled {
+                        data.enabled_count += 1;
+                    } else {
+                        data.enabled_count -= 1;
+                    }
+                }
+            }
         }
     }
 
@@ -859,22 +821,29 @@ impl CommandHandle {
     pub fn is_dummy(&self) -> bool {
         self.command.is_none()
     }
+
+    /// Drop the handle removing its effect.
+    ///
+    /// The command will be stuck indicating that it has handlers and if this handle is enabled, it will
+    /// continue indicating it is enabled until the app exit.
+    pub fn perm(mut self) {
+        // perm the handle
+        mem::replace(&mut self._event_handle, VarHandle::dummy()).perm();
+        // pretend we are dummy to avoid Drop code
+        self.command = None;
+    }
 }
 impl fmt::Debug for CommandHandle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CommandHandle")
             .field("command", &self.command)
-            .field("local_enabled", &self.local_enabled.load(Ordering::Relaxed))
-            .finish()
+            .field("enabled", &self.local_enabled.get())
+            .finish_non_exhaustive()
     }
 }
 impl Drop for CommandHandle {
     fn drop(&mut self) {
         if let Some(command) = self.command {
-            if self.app_id != APP.id() {
-                return;
-            }
-
             let mut write = command.local.write();
             match command.scope {
                 CommandScope::App => {
@@ -883,7 +852,7 @@ impl Drop for CommandHandle {
                         write.has_handlers.set(false);
                     }
 
-                    if self.local_enabled.load(Ordering::Relaxed) {
+                    if self.local_enabled.get() {
                         write.enabled_count -= 1;
 
                         if write.enabled_count == 0 {
@@ -897,7 +866,7 @@ impl Drop for CommandHandle {
 
                         data.handle_count -= 1;
 
-                        if self.local_enabled.load(Ordering::Relaxed) {
+                        if self.local_enabled.get() {
                             data.enabled_count -= 1;
                             if data.enabled_count == 0 {
                                 data.is_enabled.set(false);
@@ -1410,14 +1379,13 @@ impl CommandData {
             }
         };
 
-        CommandHandle {
-            command: Some(command),
-            app_id: APP.id(),
-            local_enabled: AtomicBool::new(enabled),
-            _event_handle: target
+        CommandHandle::new(
+            command,
+            target
                 .map(|t| command.event.subscribe(UpdateOp::Update, t))
                 .unwrap_or_else(VarHandle::dummy),
-        }
+            enabled,
+        )
     }
 }
 
@@ -1444,6 +1412,8 @@ impl Default for ScopedValue {
 
 #[cfg(test)]
 mod tests {
+    use crate::APP;
+
     use super::*;
 
     command! {
@@ -1457,83 +1427,104 @@ mod tests {
 
     #[test]
     fn enabled() {
-        let _app = APP.minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
-        assert!(!FOO_CMD.has_handlers_value());
+        assert!(!FOO_CMD.has_handlers().get());
 
         let handle = FOO_CMD.subscribe(true);
-        assert!(FOO_CMD.is_enabled_value());
+        app.update(false).assert_wait();
+        assert!(FOO_CMD.is_enabled().get());
 
-        handle.set_enabled(false);
-        assert!(FOO_CMD.has_handlers_value());
-        assert!(!FOO_CMD.is_enabled_value());
+        handle.enabled().set(false);
+        app.update(false).assert_wait();
 
-        handle.set_enabled(true);
-        assert!(FOO_CMD.is_enabled_value());
+        assert!(FOO_CMD.has_handlers().get());
+        assert!(!FOO_CMD.is_enabled().get());
+
+        handle.enabled().set(true);
+        app.update(false).assert_wait();
+
+        assert!(FOO_CMD.is_enabled().get());
 
         drop(handle);
-        assert!(!FOO_CMD.has_handlers_value());
+        app.update(false).assert_wait();
+
+        assert!(!FOO_CMD.has_handlers().get());
+        assert!(!FOO_CMD.is_enabled().get());
     }
 
     #[test]
     fn enabled_scoped() {
-        let _app = APP.minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let cmd = FOO_CMD;
         let cmd_scoped = FOO_CMD.scoped(WindowId::named("enabled_scoped"));
-        assert!(!cmd.has_handlers_value());
-        assert!(!cmd_scoped.has_handlers_value());
+        app.update(false).assert_wait();
+        assert!(!cmd.has_handlers().get());
+        assert!(!cmd_scoped.has_handlers().get());
 
         let handle_scoped = cmd_scoped.subscribe(true);
-        assert!(!cmd.has_handlers_value());
-        assert!(cmd_scoped.is_enabled_value());
+        app.update(false).assert_wait();
 
-        handle_scoped.set_enabled(false);
-        assert!(!cmd.has_handlers_value());
-        assert!(!cmd_scoped.is_enabled_value());
-        assert!(cmd_scoped.has_handlers_value());
+        assert!(!cmd.has_handlers().get());
+        assert!(cmd_scoped.is_enabled().get());
 
-        handle_scoped.set_enabled(true);
-        assert!(!cmd.has_handlers_value());
-        assert!(cmd_scoped.is_enabled_value());
+        handle_scoped.enabled().set(false);
+        app.update(false).assert_wait();
+
+        assert!(!cmd.has_handlers().get());
+        assert!(!cmd_scoped.is_enabled().get());
+        assert!(cmd_scoped.has_handlers().get());
+
+        handle_scoped.enabled().set(true);
+
+        assert!(!cmd.has_handlers().get());
+        assert!(cmd_scoped.is_enabled().get());
 
         drop(handle_scoped);
-        assert!(!cmd.has_handlers_value());
-        assert!(!cmd_scoped.has_handlers_value());
+        app.update(false).assert_wait();
+
+        assert!(!cmd.has_handlers().get());
+        assert!(!cmd_scoped.has_handlers().get());
     }
 
     #[test]
     fn has_handlers() {
-        let _app = APP.minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
-        assert!(!FOO_CMD.has_handlers_value());
+        assert!(!FOO_CMD.has_handlers().get());
 
         let handle = FOO_CMD.subscribe(false);
-        assert!(FOO_CMD.has_handlers_value());
+        app.update(false).assert_wait();
+
+        assert!(FOO_CMD.has_handlers().get());
 
         drop(handle);
-        assert!(!FOO_CMD.has_handlers_value());
+        app.update(false).assert_wait();
+
+        assert!(!FOO_CMD.has_handlers().get());
     }
 
     #[test]
     fn has_handlers_scoped() {
-        let _app = APP.minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let cmd = FOO_CMD;
         let cmd_scoped = FOO_CMD.scoped(WindowId::named("has_handlers_scoped"));
+        app.update(false).assert_wait();
 
-        assert!(!cmd.has_handlers_value());
-        assert!(!cmd_scoped.has_handlers_value());
+        assert!(!cmd.has_handlers().get());
+        assert!(!cmd_scoped.has_handlers().get());
 
         let handle = cmd_scoped.subscribe(false);
 
-        assert!(!cmd.has_handlers_value());
-        assert!(cmd_scoped.has_handlers_value());
+        assert!(!cmd.has_handlers().get());
+        assert!(cmd_scoped.has_handlers().get());
 
         drop(handle);
 
-        assert!(!cmd.has_handlers_value());
-        assert!(!cmd_scoped.has_handlers_value());
+        assert!(!cmd.has_handlers().get());
+        assert!(!cmd_scoped.has_handlers().get());
     }
 
     // there are also integration tests in tests/command.rs
