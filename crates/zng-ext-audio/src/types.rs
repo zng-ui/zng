@@ -107,8 +107,8 @@ pub type AudioVar = Var<AudioTrack>;
 pub struct AudioTrack {
     pub(crate) cache_key: Option<AudioHash>,
     pub(crate) handle: ViewAudioHandle,
-    meta: AudioMetadata,
-    data: AudioDecoded,
+    pub(crate) meta: AudioMetadata,
+    pub(crate) data: AudioDecoded,
     tracks: Vec<VarEq<AudioTrack>>,
     error: Txt,
 }
@@ -123,45 +123,39 @@ impl PartialEq for AudioTrack {
     }
 }
 impl AudioTrack {
-    pub(super) fn new_cached(cache_key: AudioHash) -> Self {
-        let mut s = Self::new_loading(ViewAudioHandle::dummy());
-        s.cache_key = Some(cache_key);
+    /// Create a dummy audio in the loading state.
+    ///
+    /// This is the same as calling [`new_error`] with an empty error.
+    ///
+    /// [`new_error`]: Self::new_error
+    pub fn new_loading() -> Self {
+        Self::new_error(Txt::from_static(""))
+    }
+
+    /// Create a dummy audio in the error state.
+    ///
+    /// If the `error` is empty the audio is *loading*, not an error.
+    pub fn new_error(error: Txt) -> Self {
+        let mut s = Self::new(
+            None,
+            ViewAudioHandle::dummy(),
+            AudioMetadata::new(AudioId::INVALID, 0, 0),
+            AudioDecoded::new(AudioId::INVALID, IpcBytesCast::default()),
+        );
+        s.error = error;
         s
     }
 
-    pub(super) fn new_loading(handle: ViewAudioHandle) -> Self {
-        Self {
-            cache_key: None,
-            meta: AudioMetadata::new(handle.audio_id(), 0, 0),
-            data: AudioDecoded::new(handle.audio_id(), IpcBytesCast::default()),
-            handle,
-            tracks: vec![],
-            error: Txt::from_static(""),
-        }
-    }
-
     /// New from existing view audio.
-    pub(super) fn new(handle: ViewAudioHandle, meta: AudioMetadata, data: AudioDecoded) -> Self {
+    pub(super) fn new(cache_key: Option<AudioHash>, handle: ViewAudioHandle, meta: AudioMetadata, data: AudioDecoded) -> Self {
         Self {
-            cache_key: None,
+            cache_key,
             handle,
             meta,
             data,
             tracks: vec![],
             error: Txt::from_static(""),
         }
-    }
-
-    /// Create a dummy audio in the loading or error state.
-    ///
-    /// Note that you can use the [`AUDIOS.register`] method to integrate with audios from other sources. The intention
-    /// of this function is creating an initial loading audio or an error message audio.
-    ///
-    /// [`AUDIOS.register`]: crate::AUDIOS::register
-    pub fn new_empty(error: Txt) -> Self {
-        let mut s = Self::new_loading(ViewAudioHandle::dummy());
-        s.error = error;
-        s
     }
 
     /// Returns `true` if the is still acquiring or decoding the audio bytes.
@@ -301,8 +295,8 @@ impl AudioTrack {
     /// Insert `track` in [`tracks`].
     ///
     /// [`tracks`]: Self::tracks
-    pub fn insert_track(&mut self, track: AudioTrack) -> AudioVar {
-        let i = track.track_index();
+    pub fn insert_track(&mut self, track: AudioVar) {
+        let i = track.with(|i| i.track_index());
         let i = self
             .tracks
             .iter()
@@ -311,39 +305,7 @@ impl AudioTrack {
                 entry_i > i
             })
             .unwrap_or(self.tracks.len());
-        let entry = zng_var::var(track);
-        self.tracks.insert(i, VarEq(entry.clone()));
-        entry
-    }
-
-    pub(crate) fn set_meta(&mut self, meta: AudioMetadata) {
-        self.meta = meta;
-    }
-
-    pub(crate) fn set_data(&mut self, data: AudioDecoded) {
-        self.data = data;
-    }
-
-    pub(crate) fn set_error(&mut self, error: Txt) {
-        self.error = error;
-    }
-
-    pub(crate) fn set_handle(&mut self, handle: ViewAudioHandle) {
-        self.handle = handle;
-    }
-
-    pub(crate) fn has_loading_tracks(&self) -> bool {
-        self.tracks.iter().any(|t| t.with(|t| t.is_loading() || t.has_loading_tracks()))
-    }
-
-    pub(crate) fn find_track(&self, id: AudioId) -> Option<AudioVar> {
-        self.tracks.iter().find_map(|v| {
-            if v.with(|i| i.handle.audio_id() == id) {
-                Some(v.0.clone())
-            } else {
-                v.with(|i| i.find_track(id))
-            }
-        })
+        self.tracks.insert(i, VarEq(track));
     }
 }
 
@@ -852,7 +814,7 @@ pub type PathFilter = AudioSourceFilter<PathBuf>;
 impl PathFilter {
     /// Allow any file inside `dir` or sub-directories of `dir`.
     pub fn allow_dir(dir: impl AsRef<Path>) -> Self {
-        let dir = crate::absolute_path(dir.as_ref(), || env::current_dir().expect("could not access current dir"), true);
+        let dir = absolute_path(dir.as_ref(), || env::current_dir().expect("could not access current dir"), true);
         PathFilter::custom(move |r| r.starts_with(&dir))
     }
 
@@ -1035,4 +997,55 @@ impl AudioOptions {
     pub fn cache() -> Self {
         Self::new(AudioCacheMode::Cache)
     }
+
+    /// New with no config, no caching.
+    pub fn none() -> Self {
+        Self::new(AudioCacheMode::Ignore)
+    }
+}
+
+fn absolute_path(path: &Path, base: impl FnOnce() -> PathBuf, allow_escape: bool) -> PathBuf {
+    if path.is_absolute() {
+        normalize_path(path)
+    } else {
+        let mut dir = base();
+        if allow_escape {
+            dir.push(path);
+            normalize_path(&dir)
+        } else {
+            dir.push(normalize_path(path));
+            dir
+        }
+    }
+}
+/// Resolves `..` components, without any system request.
+///
+/// Source: https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
+fn normalize_path(path: &Path) -> PathBuf {
+    use std::path::Component;
+
+    let mut components = path.components().peekable();
+    let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+        components.next();
+        PathBuf::from(c.as_os_str())
+    } else {
+        PathBuf::new()
+    };
+
+    for component in components {
+        match component {
+            Component::Prefix(..) => unreachable!(),
+            Component::RootDir => {
+                ret.push(component.as_os_str());
+            }
+            Component::CurDir => {}
+            Component::ParentDir => {
+                ret.pop();
+            }
+            Component::Normal(c) => {
+                ret.push(c);
+            }
+        }
+    }
+    ret
 }

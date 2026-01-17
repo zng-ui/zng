@@ -161,12 +161,7 @@ impl ImageEntry {
 
     /// Create a dummy image in the error state.
     ///
-    /// Note that you can use the [`IMAGES.register`] method to integrate with images from other sources. The intention
-    /// of this function is creating an initial loading image or an error message image.
-    ///
     /// If the `error` is empty the image is *loading*, not an error.
-    ///
-    /// [`IMAGES.register`]: crate::IMAGES::register
     pub fn new_error(error: Txt) -> Self {
         let mut s = Self::new(None, ViewImageHandle::dummy(), ImageDecoded::default());
         s.error = error;

@@ -3,156 +3,173 @@
 //!
 //! Audio loading and cache and playback.
 //!
+//! # Services
+//!
+//! Services this extension provides.
+//!
+//! * [`AUDIOS`]
+//!
 //! # Crate
 //!
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::{
-    path::{Path, PathBuf},
-    pin::Pin,
-};
+use std::{mem, path::PathBuf, pin::Pin};
 
-mod service;
+use zng_app::{
+    update::UPDATES,
+    view_process::{
+        VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewAudioHandle,
+        raw_events::{RAW_AUDIO_DECODE_ERROR_EVENT, RAW_AUDIO_DECODED_EVENT, RAW_AUDIO_METADATA_DECODED_EVENT},
+    },
+};
+use zng_app_context::app_local;
+use zng_clone_move::clmv;
+use zng_task::channel::{IpcBytes, IpcBytesCast};
+use zng_txt::ToTxt;
+use zng_txt::Txt;
+use zng_unique_id::{IdEntry, IdMap};
+use zng_unit::ByteLength;
+use zng_var::{Var, VarHandle, const_var, var};
+use zng_view_api::audio::{AudioDecoded, AudioId, AudioMetadata, AudioRequest};
 
 mod types;
 pub use types::*;
 
-mod output;
-pub use output::*;
+app_local! {
+    static AUDIOS_SV: AudiosService = AudiosService::new();
+}
 
-use zng_app::view_process::ViewAudioHandle;
-use zng_clone_move::async_clmv;
-use zng_task::{self as task, channel::IpcBytes};
-#[cfg(feature = "http")]
-use zng_txt::ToTxt;
-use zng_txt::Txt;
-use zng_var::{IntoValue, ResponseVar, Var, const_var, var};
-use zng_view_api::audio::{AudioDecoded, AudioMetadata};
+struct AudiosService {
+    load_in_headless: Var<bool>,
+    limits: Var<AudioLimits>,
 
-/// Application extension that provides an audio cache and output stream creation.
-///
-/// # Services
-///
-/// Services this extension provides.
-///
-/// * [`AUDIOS`]
-#[derive(Default)]
-#[non_exhaustive]
-pub struct AudioManager {}
-impl AppExtension for AudioManager {
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        service::on_app_event_preview(update);
-    }
+    extensions: Vec<Box<dyn AudiosExtension>>,
 
-    fn update_preview(&mut self) {
-        service::on_app_update_preview();
-    }
+    cache: IdMap<AudioHash, AudioVar>,
+}
+impl AudiosService {
+    pub fn new() -> Self {
+        Self {
+            load_in_headless: var(false),
+            limits: var(AudioLimits::default()),
 
-    fn update(&mut self) {
-        service::on_app_update();
+            extensions: vec![],
+
+            cache: IdMap::new(),
+        }
     }
 }
 
-/// Audio loading, cache and output service.
+/// Audio loading and cache service.
 ///
 /// If the app is running without a [`VIEW_PROCESS`] all audios are dummy, see [`load_in_headless`] for
 /// details.
 ///
-/// # Provider
-///
-/// This service is provided by the [`AudioManager`] extension, it will panic if used in an app not extended.
-///
 /// [`load_in_headless`]: AUDIOS::load_in_headless
 /// [`VIEW_PROCESS`]: zng_app::view_process::VIEW_PROCESS
 pub struct AUDIOS;
-/// Audio service config.
 impl AUDIOS {
     /// If should still download/read audio bytes in headless/renderless mode.
     ///
     /// When an app is in headless mode without renderer no [`VIEW_PROCESS`] is available, so
-    /// audios cannot be decoded, in this case all audios are the [`dummy`] audio and no attempt
+    /// audio cannot be decoded, in this case all audio are dummy loading and no attempt
     /// to download/read the audio files is made. You can enable loading in headless tests to detect
     /// IO errors, in this case if there is an error acquiring the audio file the audio will be a
-    /// [`dummy`] with error.
+    /// [`AudioTrack::error`].
     ///
-    /// [`dummy`]: AUDIOS::dummy
     /// [`VIEW_PROCESS`]: zng_app::view_process::VIEW_PROCESS
     pub fn load_in_headless(&self) -> Var<bool> {
-        service::load_in_headless()
+        AUDIOS_SV.read().load_in_headless.clone()
     }
 
     /// Default loading and decoding limits for each audio.
     pub fn limits(&self) -> Var<AudioLimits> {
-        service::limits()
-    }
-}
-/// Audio track loading and caching.
-impl AUDIOS {
-    /// Returns a dummy audio that reports it is loading or an error.
-    pub fn dummy(&self, error: Option<Txt>) -> AudioVar {
-        const_var(AudioTrack::new_empty(error.unwrap_or_default()))
+        AUDIOS_SV.read().limits.clone()
     }
 
-    /// Cache or load an audio file from a file system `path`.
+    /// Request an audio, reads from a `path` and caches it.
+    ///
+    /// This is shorthand for calling [`AUDIOS.audio`] with [`AudioSource::Read`] and [`AudioOptions::cache`].
+    ///
+    /// [`AUDIOS.audio`]: AUDIOS::audio
     pub fn read(&self, path: impl Into<PathBuf>) -> AudioVar {
-        service::audio(path.into().into(), AudioOptions::cache(), None)
+        self.audio_impl(path.into().into(), AudioOptions::cache(), None)
     }
 
-    /// Get a cached `uri` or download it.
+    /// Request an audio, downloads from an `uri` and caches it.
     ///
     /// Optionally define the HTTP ACCEPT header, if not set all audio formats supported by the view-process
     /// backend are accepted.
+    ///
+    /// This is shorthand for calling [`AUDIOS.audio`] with [`AudioSource::Download`] and [`AudioOptions::cache`].
+    ///
+    /// [`AUDIOS.audio`]: AUDIOS::audio
     #[cfg(feature = "http")]
     pub fn download<U>(&self, uri: U, accept: Option<Txt>) -> AudioVar
     where
-        U: TryInto<task::http::Uri>,
-        <U as TryInto<task::http::Uri>>::Error: ToTxt,
+        U: TryInto<zng_task::http::Uri>,
+        <U as TryInto<zng_task::http::Uri>>::Error: ToTxt,
     {
         match uri.try_into() {
-            Ok(uri) => service::audio(AudioSource::Download(uri, accept), AudioOptions::cache(), None),
-            Err(e) => self.dummy(Some(e.to_txt())),
+            Ok(uri) => self.audio_impl(AudioSource::Download(uri, accept), AudioOptions::cache(), None),
+            Err(e) => const_var(AudioTrack::new_error(e.to_txt())),
         }
     }
 
-    /// Get a cached audio from `&'static [u8]` data.
+    /// Request an audio from `&'static [u8]` data.
     ///
     /// The data can be any of the formats described in [`AudioDataFormat`].
     ///
-    /// The audio key is a [`AudioHash`] of the audio data. The audio is fully decoded.
+    /// This is shorthand for calling [`AUDIOS.audio`] with [`AudioSource::Data`] and [`AudioOptions::cache`].
     ///
     /// # Examples
     ///
-    /// Get an audio from a WAV file embedded in the app executable using [`include_bytes!`].
+    /// Get an audio from a PNG file embedded in the app executable using [`include_bytes!`].
     ///
     /// ```
-    /// # use zng_ext_audio::*;
+    /// # use zng_ext_image::*;
     /// # macro_rules! include_bytes { ($tt:tt) => { &[] } }
     /// # fn demo() {
-    /// let audio_var = AUDIOS.from_static(include_bytes!("signal.wav"), "wav");
+    /// let audio_var = AUDIOS.from_static(include_bytes!("ping.wav"), "wav");
     /// # }
+    /// ```
+    ///
+    /// [`AUDIOS.audio`]: AUDIOS::audio
     pub fn from_static(&self, data: &'static [u8], format: impl Into<AudioDataFormat>) -> AudioVar {
-        service::audio((data, format.into()).into(), AudioOptions::cache(), None)
+        self.audio_impl((data, format.into()).into(), AudioOptions::cache(), None)
     }
 
     /// Get a cached audio from shared data.
     ///
-    /// The audio key is a [`AudioHash`] of the audio data. The audio is fully decoded.
-    /// The data reference is held only until the audio is decoded.
-    ///
     /// The data can be any of the formats described in [`AudioDataFormat`].
+    ///
+    /// This is shorthand for calling [`AUDIOS.audio`] with [`AudioSource::Data`] and [`AudioOptions::cache`].
+    ///
+    /// [`AUDIOS.audio`]: AUDIOS::audio
     pub fn from_data(&self, data: IpcBytes, format: impl Into<AudioDataFormat>) -> AudioVar {
-        service::audio((data, format.into()).into(), AudioOptions::cache(), None)
+        self.audio_impl((data, format.into()).into(), AudioOptions::cache(), None)
     }
 
-    /// Get or load an audio with full configuration.
+    /// Request an audio, with full load and cache configuration.
     ///
     /// If `limits` is `None` the [`AUDIOS.limits`] is used.
     ///
+    /// Always returns a *loading* audio due to the deferred nature of services. If the audio is already in cache
+    /// it will be set and bound to it once the current update finishes.
+    ///
     /// [`AUDIOS.limits`]: AUDIOS::limits
     pub fn audio(&self, source: impl Into<AudioSource>, options: AudioOptions, limits: Option<AudioLimits>) -> AudioVar {
-        service::audio(source.into(), options, limits)
+        self.audio_impl(source.into(), options, limits)
+    }
+    fn audio_impl(&self, source: AudioSource, options: AudioOptions, limits: Option<AudioLimits>) -> AudioVar {
+        let r = var(AudioTrack::new_loading());
+        let ri = r.read_only();
+        UPDATES.once_update("AUDIOS.audio", move || {
+            audio(source, options, limits, r);
+        });
+        ri
     }
 
     /// Await for an audio source, then get or load the audio.
@@ -178,164 +195,465 @@ impl AUDIOS {
         options: AudioOptions,
         limits: Option<AudioLimits>,
     ) -> AudioVar {
-        let audio = var(AudioTrack::new_empty(Txt::from_static("")));
-        task::spawn(async_clmv!(audio, {
+        let r = var(AudioTrack::new_loading());
+        let ri = r.read_only();
+        zng_task::spawn(async move {
             let source = source.await;
-            let actual_audio = service::audio(source, options, limits);
-            actual_audio.set_bind(&audio).perm();
-            audio.hold(actual_audio).perm();
-        }));
-        audio.read_only()
+            audio(source, options, limits, r);
+        });
+        ri
     }
 
     /// Associate the `audio` produced by direct interaction with the view-process with the `key` in the cache.
     ///
-    /// If the `key` is not set the audio is not cached, the service only manages it until it is loaded.
+    /// Returns an audio var that tracks the audio, note that if the `key` is already known does not use the `audio` data.
     ///
-    /// Returns `Ok(AudioVar)` with the new audio var that tracks `audio`, or `Err(audio, AudioVar)`
-    /// that returns the `audio` and a clone of the var already associated with the `key`.
+    /// Note that you can register tracks in [`AudioTrack::insert_track`], this method is only for tracking a new entry.
     ///
-    /// Note that you can register tracks on the returned [`AudioTrack::insert_track`].
-    #[allow(clippy::result_large_err)] // boxing here does not really help performance
-    pub fn register(
-        &self,
-        key: Option<AudioHash>,
-        audio: (ViewAudioHandle, AudioMetadata, AudioDecoded),
-    ) -> std::result::Result<AudioVar, ((ViewAudioHandle, AudioMetadata, AudioDecoded), AudioVar)> {
-        service::register(key, audio, Txt::from_static(""))
+    /// Note that the audio will not automatically restore on respawn if the view-process fails while decoding.
+    pub fn register(&self, key: Option<AudioHash>, audio: (ViewAudioHandle, AudioMetadata, AudioDecoded)) -> AudioVar {
+        let r = var(AudioTrack::new_loading());
+        let rr = r.read_only();
+        UPDATES.once_update("AUDIOS.register", move || {
+            audio_view(key, audio.0, audio.1, audio.2, None, r);
+        });
+        rr
     }
 
     /// Remove the audio from the cache, if it is only held by the cache.
     ///
     /// You can use [`AudioSource::hash128_read`] and [`AudioSource::hash128_download`] to get the `key`
     /// for files or downloads.
-    ///
-    /// Returns `true` if the audio was removed.
-    pub fn clean(&self, key: AudioHash) -> bool {
-        service::remove(key, false)
+    pub fn clean(&self, key: AudioHash) {
+        UPDATES.once_update("AUDIOS.clean", move || {
+            if let IdEntry::Occupied(e) = AUDIOS_SV.write().cache.entry(key)
+                && e.get().strong_count() == 1
+            {
+                e.remove();
+            }
+        });
     }
 
     /// Remove the audio from the cache, even if it is still referenced outside of the cache.
     ///
     /// You can use [`AudioSource::hash128_read`] and [`AudioSource::hash128_download`] to get the `key`
     /// for files or downloads.
-    ///
-    /// Returns `true` if the audio was removed, that is, if it was cached.
-    pub fn purge(&self, key: AudioHash) -> bool {
-        service::remove(key, true)
+    pub fn purge(&self, key: AudioHash) {
+        UPDATES.once_update("AUDIOS.purge", move || {
+            AUDIOS_SV.write().cache.remove(&key);
+        });
     }
 
     /// Gets the cache key of an audio.
     pub fn cache_key(&self, audio: &AudioTrack) -> Option<AudioHash> {
-        if let Some(key) = &audio.cache_key
-            && service::contains_key(key)
-        {
-            return Some(*key);
+        let key = audio.cache_key?;
+        if AUDIOS_SV.read().cache.contains_key(&key) {
+            Some(key)
+        } else {
+            None
         }
-        None
     }
 
     /// If the audio is cached.
     pub fn is_cached(&self, audio: &AudioTrack) -> bool {
-        audio.cache_key.as_ref().map(service::contains_key).unwrap_or(false)
+        match &audio.cache_key {
+            Some(k) => AUDIOS_SV.read().cache.contains_key(k),
+            None => false,
+        }
     }
 
-    /// Returns an audio that is not cached.
-    ///
-    /// If the `audio` is the only reference returns it and removes it from the cache. If there are other
-    /// references a new [`AudioVar`] is generated from a clone of the audio.
-    pub fn detach(&self, audio: AudioVar) -> AudioVar {
-        service::detach(audio)
-    }
-
-    /// Clear cached audios that are not referenced outside of the cache.
+    /// Clear cached audio that are not referenced outside of the cache.
     pub fn clean_all(&self) {
-        service::clean_all();
+        UPDATES.once_update("AUDIOS.clean_all", || {
+            AUDIOS_SV.write().cache.retain(|_, v| v.strong_count() > 1);
+        });
     }
 
-    /// Clear all cached audios, including audios that are still referenced outside of the cache.
+    /// Clear all cached audio, including audio that are still referenced outside of the cache.
     ///
     /// Audio memory only drops when all strong references are removed, so if an audio is referenced
     /// outside of the cache it will merely be disconnected from the cache by this method.
     pub fn purge_all(&self) {
-        service::purge_all();
+        UPDATES.once_update("AUDIOS.purge_all", || {
+            AUDIOS_SV.write().cache.clear();
+        });
     }
 
-    /// Add an audios service extension.
+    /// Add an audio service extension.
     ///
     /// See [`AudiosExtension`] for extension capabilities.
     pub fn extend(&self, extension: Box<dyn AudiosExtension>) {
-        service::extend(extension);
+        UPDATES.once_update("AUDIOS.extend", move || {
+            AUDIOS_SV.write().extensions.push(extension);
+        });
     }
 
     /// Audio formats implemented by the current view-process and extensions.
     pub fn available_formats(&self) -> Vec<AudioFormat> {
-        service::available_formats()
+        let mut formats = VIEW_PROCESS.info().audio.clone();
+
+        let mut exts = mem::take(&mut AUDIOS_SV.write().extensions);
+        for ext in exts.iter_mut() {
+            ext.available_formats(&mut formats);
+        }
+        let mut s = AUDIOS_SV.write();
+        exts.append(&mut s.extensions);
+        s.extensions = exts;
+
+        formats
+    }
+
+    fn http_accept(&self) -> Txt {
+        let mut s = String::new();
+        let mut sep = "";
+        for f in self.available_formats() {
+            for f in f.media_type_suffixes_iter() {
+                s.push_str(sep);
+                s.push_str("audio/");
+                s.push_str(f);
+                sep = ",";
+            }
+        }
+        s.into()
     }
 }
 
-/// Audio output.
-impl AUDIOS {
-    /// Request a new audio output stream.
-    ///
-    /// Returns a response var that updates once when the output opens.
-    pub fn open_output(&self, cache: bool) -> ResponseVar<AudioOutput> {
-        service::open_output(AudioOutputId::new_unique(), false, cache)
+fn audio(mut source: AudioSource, mut options: AudioOptions, limits: Option<AudioLimits>, r: Var<AudioTrack>) {
+    let mut s = AUDIOS_SV.write();
+
+    let limits = limits.unwrap_or_else(|| s.limits.get());
+
+    // apply extensions
+    let mut exts = mem::take(&mut s.extensions);
+    drop(s); // drop because extensions may use the service
+    for ext in &mut exts {
+        ext.audio(&limits, &mut source, &mut options);
+    }
+    let mut s = AUDIOS_SV.write();
+    exts.append(&mut s.extensions);
+
+    if let AudioSource::Audio(var) = source {
+        // Audio is passthrough, cache config is ignored
+        var.set_bind(&r).perm();
+        r.hold(var).perm();
+        return;
     }
 
-    /// Get the audio output stream associated with the `id` or requests it.
-    ///
-    /// Returns a response var that updates once when the output opens or already contains the output if it is already open.
-    ///
-    /// The output stream will remain open as long as at least one clone of [`AudioOutput`] is held, if `cache`
-    /// is `true` the [`AUDIOS`] service also holds the output.
-    pub fn get_or_open_output(&self, id: impl IntoValue<AudioOutputId>, cache: bool) -> ResponseVar<AudioOutput> {
-        service::open_output(id.into(), true, cache)
+    if !VIEW_PROCESS.is_available() && !s.load_in_headless.get() {
+        tracing::debug!("ignoring audio request due headless mode");
+        return;
+    }
+
+    let key = source.hash128(&options).unwrap();
+
+    // setup cache and drop service lock
+    match options.cache_mode {
+        AudioCacheMode::Ignore => (),
+        AudioCacheMode::Cache => {
+            match s.cache.entry(key) {
+                IdEntry::Occupied(e) => {
+                    // already cached
+                    let var = e.get();
+                    var.set_bind(&r).perm();
+                    r.hold(var.clone()).perm();
+                    return;
+                }
+                IdEntry::Vacant(e) => {
+                    // cache
+                    e.insert(r.clone());
+                }
+            }
+        }
+        AudioCacheMode::Retry => {
+            match s.cache.entry(key) {
+                IdEntry::Occupied(mut e) => {
+                    let var = e.get();
+                    if var.with(AudioTrack::is_error) {
+                        // already cached with error
+
+                        // bind old entry to new, in case there are listeners to it,
+                        // can't use `strong_count` to optimize here because it might have weak refs out there
+                        r.set_bind(var).perm();
+                        var.hold(r.clone()).perm();
+
+                        // new var `r` becomes the entry
+                        e.insert(r.clone());
+                    } else {
+                        // already cached ok
+                        var.set_bind(&r).perm();
+                        r.hold(var.clone()).perm();
+                        return;
+                    }
+                }
+                IdEntry::Vacant(e) => {
+                    // cache
+                    e.insert(r.clone());
+                }
+            }
+        }
+        AudioCacheMode::Reload => {
+            match s.cache.entry(key) {
+                IdEntry::Occupied(mut e) => {
+                    let var = e.get();
+                    r.set_bind(var).perm();
+                    var.hold(r.clone()).perm();
+
+                    e.insert(r.clone());
+                }
+                IdEntry::Vacant(e) => {
+                    // cache
+                    e.insert(r.clone());
+                }
+            }
+        }
+    }
+    drop(s);
+
+    match source {
+        AudioSource::Read(path) => {
+            fn read(path: PathBuf, limit: ByteLength) -> std::io::Result<IpcBytes> {
+                let file = std::fs::File::open(path)?;
+                if file.metadata()?.len() > limit.bytes() as u64 {
+                    return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "file length exceeds limit"));
+                }
+                IpcBytes::from_file_blocking(file)
+            }
+            let limit = limits.max_encoded_len;
+            let data_format = match path.extension() {
+                Some(ext) => AudioDataFormat::FileExtension(ext.to_string_lossy().to_txt()),
+                None => AudioDataFormat::Unknown,
+            };
+            zng_task::spawn_wait(move || match read(path, limit) {
+                Ok(data) => audio_data(false, Some(key), data_format, data, options, limits, r),
+                Err(e) => {
+                    r.set(AudioTrack::new_error(e.to_txt()));
+                }
+            });
+        }
+        #[cfg(feature = "http")]
+        AudioSource::Download(uri, accept) => {
+            let accept = accept.unwrap_or_else(|| AUDIOS.http_accept());
+
+            use zng_task::http::*;
+            async fn download(uri: Uri, accept: Txt, limit: ByteLength) -> Result<(AudioDataFormat, IpcBytes), Error> {
+                let request = Request::get(uri)?.max_length(limit).header(header::ACCEPT, accept.as_str())?;
+                let mut response = send(request).await?;
+                let data_format = match response.header().get(&header::CONTENT_TYPE).and_then(|m| m.to_str().ok()) {
+                    Some(m) => AudioDataFormat::MimeType(m.to_txt()),
+                    None => AudioDataFormat::Unknown,
+                };
+                let data = response.body().await?;
+
+                Ok((data_format, data))
+            }
+
+            let limit = limits.max_encoded_len;
+            zng_task::spawn(async move {
+                match download(uri, accept, limit).await {
+                    Ok((fmt, data)) => {
+                        audio_data(false, Some(key), fmt, data, options, limits, r);
+                    }
+                    Err(e) => r.set(AudioTrack::new_error(e.to_txt())),
+                }
+            });
+        }
+        AudioSource::Data(_, data, format) => audio_data(false, Some(key), format, data, options, limits, r),
+        _ => unreachable!(),
     }
 }
 
-fn absolute_path(path: &Path, base: impl FnOnce() -> PathBuf, allow_escape: bool) -> PathBuf {
-    if path.is_absolute() {
-        normalize_path(path)
-    } else {
-        let mut dir = base();
-        if allow_escape {
-            dir.push(path);
-            normalize_path(&dir)
-        } else {
-            dir.push(normalize_path(path));
-            dir
+// source data acquired, setup view-process handle
+fn audio_data(
+    is_respawn: bool,
+    cache_key: Option<AudioHash>,
+    format: AudioDataFormat,
+    data: IpcBytes,
+    options: AudioOptions,
+    limits: AudioLimits,
+    r: Var<AudioTrack>,
+) {
+    if !is_respawn && let Some(key) = cache_key {
+        let mut replaced = false;
+        let mut exts = mem::take(&mut AUDIOS_SV.write().extensions);
+        for ext in &mut exts {
+            if let Some(replacement) = ext.audio_data(limits.max_decoded_len, &key, &data, &format, &options) {
+                replacement.set_bind(&r).perm();
+                r.hold(replacement).perm();
+
+                replaced = true;
+                break;
+            }
+        }
+
+        {
+            let mut s = AUDIOS_SV.write();
+            exts.append(&mut s.extensions);
+            s.extensions = exts;
+
+            if replaced {
+                return;
+            }
+        }
+    }
+
+    if !VIEW_PROCESS.is_available() {
+        tracing::debug!("ignoring audio view request after test load due to headless mode");
+        return;
+    }
+
+    let mut request = AudioRequest::new(format.clone(), data.clone(), limits.max_decoded_len.bytes() as u64);
+    request.tracks = options.tracks;
+
+    let try_gen = VIEW_PROCESS.generation();
+
+    match VIEW_PROCESS.add_audio(request) {
+        Ok(view_audio) => audio_view(
+            cache_key,
+            view_audio,
+            AudioMetadata::new(AudioId::INVALID, 0, 0),
+            AudioDecoded::new(AudioId::INVALID, IpcBytesCast::default()),
+            Some((format, data, options, limits)),
+            r,
+        ),
+        Err(_) => {
+            tracing::debug!("audio view request failed, will retry on respawn");
+
+            zng_task::spawn(async move {
+                VIEW_PROCESS_INITED_EVENT.wait_match(move |a| a.generation != try_gen).await;
+                audio_data(true, cache_key, format, data, options, limits, r);
+            });
         }
     }
 }
-/// Resolves `..` components, without any system request.
-///
-/// Source: https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
-fn normalize_path(path: &Path) -> PathBuf {
-    use std::path::Component;
+// monitor view-process handle until it is loaded
+fn audio_view(
+    cache_key: Option<AudioHash>,
+    handle: ViewAudioHandle,
+    meta: AudioMetadata,
+    decoded: AudioDecoded,
+    respawn_data: Option<(AudioDataFormat, IpcBytes, AudioOptions, AudioLimits)>,
+    r: Var<AudioTrack>,
+) {
+    let a = AudioTrack::new(cache_key, handle, meta, decoded);
+    let is_loaded = a.is_loaded();
+    let is_dummy = a.view_handle().is_dummy();
+    r.set(a);
 
-    let mut components = path.components().peekable();
-    let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
-        components.next();
-        PathBuf::from(c.as_os_str())
+    if is_loaded {
+        audio_decoded(r);
+        return;
+    }
+
+    if is_dummy {
+        tracing::error!("tried to register dummy handle");
+        return;
+    }
+
+    // handle respawn during audio decode
+    let decoding_respawn_handle = if respawn_data.is_some() {
+        let r_weak = r.downgrade();
+        let mut respawn_data = respawn_data;
+        VIEW_PROCESS_INITED_EVENT.hook(move |_| {
+            if let Some(r) = r_weak.upgrade() {
+                let (format, data, options, limits) = respawn_data.take().unwrap();
+                audio_data(true, cache_key, format, data, options, limits, r);
+            }
+            false
+        })
     } else {
-        PathBuf::new()
+        // audio registered (without source info), respawn is the responsibility of the caller
+        VarHandle::dummy()
     };
 
-    for component in components {
-        match component {
-            Component::Prefix(..) => unreachable!(),
-            Component::RootDir => {
-                ret.push(component.as_os_str());
-            }
-            Component::CurDir => {}
-            Component::ParentDir => {
-                ret.pop();
-            }
-            Component::Normal(c) => {
-                ret.push(c);
+    // handle decode error
+    let r_weak = r.downgrade();
+    let decode_error_handle = RAW_AUDIO_DECODE_ERROR_EVENT.hook(move |args| match r_weak.upgrade() {
+        Some(r) => {
+            if r.with(|a| a.view_handle() == args.handle) {
+                r.set(AudioTrack::new_error(args.error.clone()));
+                false
+            } else {
+                r.with(AudioTrack::is_loading)
             }
         }
-    }
-    ret
+        None => false,
+    });
+
+    // handle metadata decoded
+    let r_weak = r.downgrade();
+    let decode_meta_handle = RAW_AUDIO_METADATA_DECODED_EVENT.hook(move |args| match r_weak.upgrade() {
+        Some(r) => {
+            if r.with(|a| a.view_handle() == args.handle) {
+                let meta = args.meta.clone();
+                r.modify(move |i| i.meta = meta);
+            } else if let Some(p) = &args.meta.parent
+                && p.parent == r.with(|a| a.view_handle().audio_id())
+            {
+                // discovered a track for this audio, start tracking it
+
+                let data = AudioDecoded::new(AudioId::INVALID, IpcBytesCast::default());
+                let track = var(AudioTrack::new(None, args.handle.clone(), args.meta.clone(), data.clone()));
+                r.modify(clmv!(track, |i| i.insert_track(track)));
+                audio_view(None, args.handle.clone(), args.meta.clone(), data, None, track);
+            }
+            r.with(AudioTrack::is_loading)
+        }
+        None => false,
+    });
+
+    // handle pixels decoded
+    let r_weak = r.downgrade();
+    RAW_AUDIO_DECODED_EVENT
+        .hook(move |args| {
+            let _hold = [&decoding_respawn_handle, &decode_error_handle, &decode_meta_handle];
+            match r_weak.upgrade() {
+                Some(r) => {
+                    if r.with(|a| a.view_handle() == args.handle) {
+                        let data = args.audio.clone();
+                        let is_loading = !data.is_full;
+                        r.modify(move |i| i.data = data);
+                        if !is_loading {
+                            audio_decoded(r);
+                        }
+                        is_loading
+                    } else {
+                        r.with(AudioTrack::is_loading)
+                    }
+                }
+                None => false,
+            }
+        })
+        .perm();
+}
+// audio decoded ok, setup respawn handle
+fn audio_decoded(r: Var<AudioTrack>) {
+    let r_weak = r.downgrade();
+    VIEW_PROCESS_INITED_EVENT
+        .hook(move |_| {
+            if let Some(r) = r_weak.upgrade() {
+                let a = r.get();
+                if !a.is_loaded() {
+                    // audio rebound, maybe due to cache refresh
+                    return false;
+                }
+
+                // respawn the audio as decoded data
+                let format = AudioDataFormat::InterleavedF32 {
+                    channel_count: a.meta.channel_count,
+                    sample_rate: a.meta.sample_rate,
+                    total_duration: a.meta.total_duration,
+                };
+                audio_data(
+                    true,
+                    a.cache_key,
+                    format,
+                    a.data.chunk.into(),
+                    AudioOptions::none(),
+                    AudioLimits::none(),
+                    r,
+                );
+            }
+            false
+        })
+        .perm();
 }
