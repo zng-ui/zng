@@ -482,6 +482,11 @@ impl<A: EventArgs> Event<A> {
             true
         })
     }
+
+    /// Wait until any args, current or new passes the `predicate`.
+    pub async fn wait_match(&self, predicate: impl Fn(&A) -> bool + Send + Sync + 'static) {
+        self.get_var().wait_match(move |a| a.iter().any(&predicate)).await
+    }
 }
 
 #[doc(hidden)]
@@ -505,12 +510,12 @@ macro_rules! event_macro_impl {
     ) => {
         $(#[$attr])*
         $vis static $EVENT: $crate::event::Event<$Args> = {
-            fn init() {
+            fn __init_event__() {
                 $($init)*
             }
             $crate::event::app_local! {
                 static LOCAL: $crate::event::EventData = {
-                    $crate::event::EVENTS.notify("event init", init);
+                    $crate::event::EVENTS.notify("event init", __init_event__);
                     $crate::event::EventData::new::<$Args>()
                 };
             }

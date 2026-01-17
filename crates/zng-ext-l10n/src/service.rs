@@ -14,8 +14,7 @@ use zng_var::{ArcEq, MergeVarBuilder, Var, WeakVar, const_var, merge_var, var};
 use zng_view_api::config::LocaleConfig;
 
 use crate::{
-    FluentParserErrors, L10nArgument, L10nSource, Lang, LangFilePath, LangMap, LangResource, LangResourceStatus, Langs,
-    SwapL10nSource,
+    FluentParserErrors, L10nArgument, L10nSource, Lang, LangFilePath, LangMap, LangResource, LangResourceStatus, Langs, SwapL10nSource,
 };
 
 pub(super) struct L10nService {

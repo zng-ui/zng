@@ -8,6 +8,7 @@ use std::{
 use parking_lot::Mutex;
 use zng_app::{
     view_process::{EncodeError, VIEW_PROCESS, ViewImageHandle, ViewRenderer},
+    widget::node::UiNode,
     window::WindowId,
 };
 use zng_color::{
@@ -24,9 +25,12 @@ use zng_task::{
 };
 use zng_txt::Txt;
 use zng_var::{Var, VarEq, animation::Transitionable, impl_from_and_into_var};
-use zng_view_api::image::{ImageDecoded, ImageEncodeRequest, ImageId, ImageMetadata, ImageTextureId};
+use zng_view_api::{
+    image::{ImageDecoded, ImageEncodeRequest, ImageTextureId},
+    window::RenderMode,
+};
 
-use crate::ImageRenderWindowRoot;
+use crate::{IMAGES_SV, ImageRenderWindowRoot};
 
 pub use zng_view_api::image::{
     ColorType, ImageDataFormat, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageFormat, ImageFormatCapability, ImageMaskMode,
@@ -129,7 +133,7 @@ pub struct ImageEntry {
     pub(crate) cache_key: Option<ImageHash>,
 
     pub(crate) handle: ViewImageHandle,
-    data: ImageDecoded,
+    pub(crate) data: ImageDecoded,
     entries: Vec<VarEq<ImageEntry>>,
 
     error: Txt,
@@ -146,49 +150,38 @@ impl PartialEq for ImageEntry {
     }
 }
 impl ImageEntry {
-    pub(super) fn new_cached(cache_key: ImageHash) -> Self {
-        let mut s = Self::new_loading(ViewImageHandle::dummy());
-        s.cache_key = Some(cache_key);
+    /// Create a dummy image in the loading state.
+    ///
+    /// This is the same as calling [`new_error`] with an empty error.
+    ///
+    /// [`new_error`]: Self::new_error
+    pub fn new_loading() -> Self {
+        Self::new_error(Txt::from_static(""))
+    }
+
+    /// Create a dummy image in the error state.
+    ///
+    /// Note that you can use the [`IMAGES.register`] method to integrate with images from other sources. The intention
+    /// of this function is creating an initial loading image or an error message image.
+    ///
+    /// If the `error` is empty the image is *loading*, not an error.
+    ///
+    /// [`IMAGES.register`]: crate::IMAGES::register
+    pub fn new_error(error: Txt) -> Self {
+        let mut s = Self::new(None, ViewImageHandle::dummy(), ImageDecoded::default());
+        s.error = error;
         s
     }
 
-    pub(super) fn new_loading(handle: ViewImageHandle) -> Self {
+    pub(crate) fn new(cache_key: Option<ImageHash>, handle: ViewImageHandle, data: ImageDecoded) -> Self {
         Self {
-            cache_key: None,
-            handle,
-            data: ImageDecoded::new(
-                ImageMetadata::new(ImageId::INVALID, PxSize::zero(), false, ColorType::BGRA8),
-                IpcBytes::default(),
-                true,
-            ),
-            entries: vec![],
-            error: Txt::from_static(""),
-            img_mut: Arc::default(),
-        }
-    }
-
-    /// New from existing view image.
-    pub(super) fn new(handle: ViewImageHandle, data: ImageDecoded) -> Self {
-        Self {
-            cache_key: None,
+            cache_key,
             handle,
             data,
             entries: vec![],
             error: Txt::from_static(""),
             img_mut: Arc::default(),
         }
-    }
-
-    /// Create a dummy image in the loading or error state.
-    ///
-    /// Note that you can use the [`IMAGES.register`] method to integrate with images from other sources. The intention
-    /// of this function is creating an initial loading image or an error message image.
-    ///
-    /// [`IMAGES.register`]: crate::IMAGES::register
-    pub fn new_empty(error: Txt) -> Self {
-        let mut s = Self::new_loading(ViewImageHandle::dummy());
-        s.error = error;
-        s
     }
 
     /// Returns `true` if the is still acquiring or decoding the image bytes.
@@ -624,38 +617,11 @@ impl ImageEntry {
         task::wait(move || fs::write(path, &data[..])).await
     }
 
-    pub(crate) fn find_entry(&self, id: zng_view_api::image::ImageId) -> Option<ImageVar> {
-        self.entries.iter().find_map(|v| {
-            if v.with(|i| i.handle.image_id() == id) {
-                Some(v.0.clone())
-            } else {
-                v.with(|i| i.find_entry(id))
-            }
-        })
-    }
-
-    pub(crate) fn has_loading_entries(&self) -> bool {
-        self.entries.iter().any(|e| e.with(|e| e.is_loading() || e.has_loading_entries()))
-    }
-
-    pub(crate) fn set_handle(&mut self, handle: ViewImageHandle) {
-        self.handle = handle;
-    }
-
-    pub(crate) fn set_data(&mut self, data: ImageDecoded) {
-        self.data = data;
-        self.error = Txt::from_static("");
-    }
-
-    pub(crate) fn set_error(&mut self, error: Txt) {
-        self.error = error;
-    }
-
     /// Insert `entry` in [`entries`].
     ///
     /// [`entries`]: Self::entries
-    pub fn insert_entry(&mut self, image: ImageEntry) -> ImageVar {
-        let i = image.entry_index();
+    pub fn insert_entry(&mut self, entry: ImageVar) {
+        let i = entry.with(|i| i.entry_index());
         let i = self
             .entries
             .iter()
@@ -664,9 +630,7 @@ impl ImageEntry {
                 entry_i > i
             })
             .unwrap_or(self.entries.len());
-        let entry = zng_var::var(image);
-        self.entries.insert(i, VarEq(entry.clone()));
-        entry
+        self.entries.insert(i, VarEq(entry));
     }
 }
 impl zng_app::render::Img for ImageEntry {
@@ -842,7 +806,7 @@ impl std::hash::Hasher for ImageHasher {
 }
 
 // We don't use Arc<dyn ..> because of this issue: https://github.com/rust-lang/rust/issues/69757
-type RenderFn = Arc<Box<dyn Fn(&ImageRenderArgs) -> Box<dyn ImageRenderWindowRoot> + Send + Sync>>;
+pub(crate) type RenderFn = Arc<Box<dyn Fn(&ImageRenderArgs) -> Box<dyn ImageRenderWindowRoot> + Send + Sync>>;
 
 /// Arguments for the [`ImageSource::Render`] closure.
 ///
@@ -874,7 +838,7 @@ pub enum ImageSource {
     ///
     /// Image equality is defined by the URI and ACCEPT string.
     #[cfg(feature = "http")]
-    Download(crate::task::http::Uri, Option<Txt>),
+    Download(zng_task::http::Uri, Option<Txt>),
     /// Shared reference to bytes for an encoded or decoded image.
     ///
     /// Image equality is defined by the hash, it is usually the hash of the bytes but it does not need to be.
@@ -952,7 +916,7 @@ impl ImageSource {
     ///
     /// [`Download`]: Self::Download
     #[cfg(feature = "http")]
-    pub fn hash128_download(uri: &crate::task::http::Uri, accept: &Option<Txt>, options: &ImageOptions) -> ImageHash {
+    pub fn hash128_download(uri: &zng_task::http::Uri, accept: &Option<Txt>, options: &ImageOptions) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         1u8.hash(&mut h);
@@ -979,6 +943,100 @@ impl ImageSource {
         options.mask.hash(&mut h);
         options.entries.hash(&mut h);
         h.finish()
+    }
+}
+
+impl ImageSource {
+    /// New image from a function that generates a headless window.
+    ///
+    /// The function is called every time the image source is resolved and it is not found in the cache.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use zng_ext_image::*;
+    /// # use zng_color::colors;
+    /// # use std::any::Any;
+    /// # struct WindowRoot;
+    /// # impl ImageRenderWindowRoot for WindowRoot { fn into_any(self: Box<Self>) -> Box<dyn Any> { self } }
+    /// # macro_rules! Window { ($($property:ident = $value:expr;)+) => { {$(let _ = $value;)+ WindowRoot } } }
+    /// # macro_rules! Text { ($($tt:tt)*) => { () } }
+    /// # fn main() { }
+    /// # fn demo() {
+    /// # let _ = ImageSource::render(
+    ///     |args| Window! {
+    ///         size = (500, 400);
+    ///         parent = args.parent;
+    ///         background_color = colors::GREEN;
+    ///         child = Text!("Rendered!");
+    ///     }
+    /// )
+    /// # ; }
+    /// ```
+    ///
+    pub fn render<F, R>(new_img: F) -> Self
+    where
+        F: Fn(&ImageRenderArgs) -> R + Send + Sync + 'static,
+        R: ImageRenderWindowRoot,
+    {
+        let window = IMAGES_SV.read().render_windows();
+        Self::Render(
+            Arc::new(Box::new(move |args| {
+                if let Some(parent) = args.parent {
+                    window.set_parent_in_window_context(parent);
+                }
+                let r = new_img(args);
+                window.enable_frame_capture_in_window_context(None);
+                Box::new(r)
+            })),
+            None,
+        )
+    }
+
+    /// New image from a function that generates a new [`UiNode`].
+    ///
+    /// The function is called every time the image source is resolved and it is not found in the cache.
+    ///
+    /// Note that the generated [`UiNode`] is not a child of the widget that renders the image, it is the root widget of a headless
+    /// surface, not a part of the context where it is rendered. See [`IMAGES.render`] for more information.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use zng_ext_image::*;
+    /// # use zng_view_api::window::RenderMode;
+    /// # use std::any::Any;
+    /// # struct WindowRoot;
+    /// # impl ImageRenderWindowRoot for WindowRoot { fn into_any(self: Box<Self>) -> Box<dyn Any> { self } }
+    /// # macro_rules! Container { ($($tt:tt)*) => { zng_app::widget::node::UiNode::nil() } }
+    /// # fn main() { }
+    /// # fn demo() {
+    /// # let _ =
+    /// ImageSource::render_node(RenderMode::Software, |_args| {
+    ///     Container! {
+    ///         size = (500, 400);
+    ///         background_color = colors::GREEN;
+    ///         child = Text!("Rendered!");
+    ///     }
+    /// })
+    /// # ; }
+    /// ```
+    ///
+    /// [`IMAGES.render`]: crate::IMAGES::render
+    /// [`UiNode`]: zng_app::widget::node::UiNode
+    pub fn render_node(render_mode: RenderMode, render: impl Fn(&ImageRenderArgs) -> UiNode + Send + Sync + 'static) -> Self {
+        let window = IMAGES_SV.read().render_windows();
+        Self::Render(
+            Arc::new(Box::new(move |args| {
+                if let Some(parent) = args.parent {
+                    window.set_parent_in_window_context(parent);
+                }
+                let node = render(args);
+                window.enable_frame_capture_in_window_context(None);
+                window.new_window_root(node, render_mode)
+            })),
+            None,
+        )
     }
 }
 
@@ -1254,11 +1312,11 @@ impl fmt::Debug for ImageSource {
 
 #[cfg(feature = "http")]
 impl_from_and_into_var! {
-    fn from(uri: crate::task::http::Uri) -> ImageSource {
+    fn from(uri: zng_task::http::Uri) -> ImageSource {
         ImageSource::Download(uri, None)
     }
     /// From (URI, HTTP-ACCEPT).
-    fn from((uri, accept): (crate::task::http::Uri, &'static str)) -> ImageSource {
+    fn from((uri, accept): (zng_task::http::Uri, &'static str)) -> ImageSource {
         ImageSource::Download(uri, Some(accept.into()))
     }
 
@@ -1268,7 +1326,7 @@ impl_from_and_into_var! {
     /// [`Download`]: ImageSource::Download
     /// [`Read`]: ImageSource::Read
     fn from(s: &str) -> ImageSource {
-        use crate::task::http::*;
+        use zng_task::http::*;
         if let Ok(uri) = Uri::try_from(s)
             && let Some(scheme) = uri.scheme()
         {
@@ -1518,7 +1576,7 @@ pub type PathFilter = ImageSourceFilter<PathBuf>;
 impl PathFilter {
     /// Allow any file inside `dir` or sub-directories of `dir`.
     pub fn allow_dir(dir: impl AsRef<Path>) -> Self {
-        let dir = crate::absolute_path(dir.as_ref(), || env::current_dir().expect("could not access current dir"), true);
+        let dir = absolute_path(dir.as_ref(), || env::current_dir().expect("could not access current dir"), true);
         PathFilter::custom(move |r| r.starts_with(&dir))
     }
 
@@ -1563,7 +1621,7 @@ impl PathFilter {
 ///
 /// See [`ImageLimits::allow_uri`] for more information.
 #[cfg(feature = "http")]
-pub type UriFilter = ImageSourceFilter<crate::task::http::Uri>;
+pub type UriFilter = ImageSourceFilter<zng_task::http::Uri>;
 #[cfg(feature = "http")]
 impl UriFilter {
     /// Allow any file from the `host` site.
@@ -1709,4 +1767,55 @@ impl ImageOptions {
     pub fn cache() -> Self {
         Self::new(ImageCacheMode::Cache, None, None, ImageEntriesMode::empty())
     }
+
+    /// New with nothing enabled, no caching.
+    pub fn none() -> Self {
+        Self::new(ImageCacheMode::Ignore, None, None, ImageEntriesMode::empty())
+    }
+}
+
+fn absolute_path(path: &Path, base: impl FnOnce() -> PathBuf, allow_escape: bool) -> PathBuf {
+    if path.is_absolute() {
+        normalize_path(path)
+    } else {
+        let mut dir = base();
+        if allow_escape {
+            dir.push(path);
+            normalize_path(&dir)
+        } else {
+            dir.push(normalize_path(path));
+            dir
+        }
+    }
+}
+/// Resolves `..` components, without any system request.
+///
+/// Source: https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
+fn normalize_path(path: &Path) -> PathBuf {
+    use std::path::Component;
+
+    let mut components = path.components().peekable();
+    let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+        components.next();
+        PathBuf::from(c.as_os_str())
+    } else {
+        PathBuf::new()
+    };
+
+    for component in components {
+        match component {
+            Component::Prefix(..) => unreachable!(),
+            Component::RootDir => {
+                ret.push(component.as_os_str());
+            }
+            Component::CurDir => {}
+            Component::ParentDir => {
+                ret.pop();
+            }
+            Component::Normal(c) => {
+                ret.push(c);
+            }
+        }
+    }
+    ret
 }

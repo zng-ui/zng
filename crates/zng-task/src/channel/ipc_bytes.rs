@@ -222,11 +222,15 @@ impl IpcBytes {
         .await
     }
 
+    /// Read `path` into shared memory.
+    pub async fn from_path(path: PathBuf) -> io::Result<Self> {
+        let file = crate::fs::File::open(path).await?;
+        Self::from_file(file).await
+    }
     /// Read `file` into shared memory.
-    pub async fn from_file(file: PathBuf) -> io::Result<Self> {
+    pub async fn from_file(mut file: crate::fs::File) -> io::Result<Self> {
         #[cfg(ipc)]
         {
-            let mut file = crate::fs::File::open(file).await?;
             let len = file.metadata().await?.len();
             if len <= Self::UNNAMED_MAX as u64 {
                 let mut buf = vec![0u8; len as usize];
@@ -242,7 +246,6 @@ impl IpcBytes {
         }
         #[cfg(not(ipc))]
         {
-            let mut file = crate::fs::File::open(file).await?;
             let mut buf = vec![];
             file.read_to_end(&mut buf).await?;
             Self::from_vec_blocking(buf)
@@ -476,11 +479,15 @@ impl IpcBytes {
         })
     }
 
+    /// Read `path` into shared memory.
+    pub fn from_path_blocking(path: &Path) -> io::Result<Self> {
+        let file = fs::File::open(path)?;
+        Self::from_file_blocking(file)
+    }
     /// Read `file` into shared memory.
-    pub fn from_file_blocking(file: &Path) -> io::Result<Self> {
+    pub fn from_file_blocking(mut file: fs::File) -> io::Result<Self> {
         #[cfg(ipc)]
         {
-            let mut file = fs::File::open(file)?;
             let len = file.metadata()?.len();
             if len <= Self::UNNAMED_MAX as u64 {
                 let mut buf = vec![0u8; len as usize];
@@ -495,7 +502,6 @@ impl IpcBytes {
         }
         #[cfg(not(ipc))]
         {
-            let mut file = fs::File::open(file)?;
             let mut buf = vec![];
             file.read_to_end(&mut buf)?;
             Self::from_vec_blocking(buf)
