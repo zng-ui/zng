@@ -31,8 +31,8 @@ event_args! {
         ..
 
         /// Target.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_wgt(&self.target);
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 }

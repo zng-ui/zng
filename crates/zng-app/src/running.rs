@@ -1032,11 +1032,11 @@ impl APP {
         EXIT_CMD
             .on_event(
                 true,
+                true,
+                false,
                 crate::hn!(|a| {
-                    if !a.propagation().is_stopped() {
-                        a.propagation().stop();
-                        APP.exit();
-                    }
+                    a.propagation().stop();
+                    APP.exit();
                 }),
             )
             .perm();
@@ -1086,7 +1086,7 @@ impl APP {
             s.exit_requests = Some(responder);
             EXIT_REQUESTED_EVENT.notify(ExitRequestedArgs::now());
             EXIT_REQUESTED_EVENT
-                .on_event(crate::hn_once!(|args: &ExitRequestedArgs| {
+                .on_event(true, crate::hn_once!(|args: &ExitRequestedArgs| {
                     let mut s = APP_PROCESS_SV.write();
                     if args.propagation().is_stopped() {
                         s.exit = true;

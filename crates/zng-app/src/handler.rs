@@ -348,7 +348,7 @@ macro_rules! hn_once {
     }};
     ($($clmv:ident,)* |$args:ident| $body:expr) => {{
         // type inference fails here, error message slightly better them not having this pattern
-        let mut once: std::boxed::Box<dyn FnOnce(&_) + Send + 'static> =
+        let mut once: Option<std::boxed::Box<dyn FnOnce(&_) + Send + 'static>> =
             Some(std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |$args: &_| { $body })));
         $crate::handler::hn!(|$args: &_| if let Some(f) = once.take() {
             $crate::handler::APP_HANDLER.unsubscribe();

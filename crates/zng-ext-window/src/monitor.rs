@@ -1,10 +1,8 @@
 use core::fmt;
 use std::sync::Arc;
 
-use zng_app::APP;
-use zng_app::event::{AnyEventArgs, event, event_args};
-use zng_app::update::EventUpdate;
-use zng_app::view_process::raw_events::{RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT, RawMonitorsChangedArgs};
+use zng_app::event::{EventArgs as _, event, event_args};
+use zng_app::view_process::raw_events::{RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT};
 use zng_app::window::{MonitorId, WINDOW, WindowId};
 use zng_app_context::app_local;
 use zng_layout::unit::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Px, PxDensity, PxPoint, PxRect, PxSize, PxToDip};
@@ -13,15 +11,10 @@ use zng_unique_id::IdMap;
 use zng_var::{Var, VarValue, impl_from_and_into_var, var};
 use zng_view_api::window::VideoMode;
 
-use crate::{WINDOWS, WindowManager};
+use crate::WINDOWS;
 
 app_local! {
-    pub(super) static MONITORS_SV: MonitorsService = {
-        APP.extensions().require::<WindowManager>();
-        MonitorsService {
-            monitors: var(IdMap::new()),
-        }
-    };
+    static MONITORS_SV: MonitorsService = MonitorsService::new();
 }
 
 /// Monitors service.
@@ -52,14 +45,9 @@ app_local! {
 /// set the pixel density for the screen using the [`density`] variable, this value is then available in the [`LayoutMetrics`]
 /// for the next layout. If not set, the default is `96.0ppi`.
 ///
-/// # Provider
-///
-/// This service is provided by the [`WindowManager`] extension, it will panic if used in an app not extended.
-///
 /// [`density`]: MonitorInfo::density
 /// [`scale_factor`]: MonitorInfo::scale_factor
 /// [`LayoutMetrics`]: zng_layout::context::LayoutMetrics
-/// [`WindowManager`]: crate::WindowManager
 pub struct MONITORS;
 impl MONITORS {
     /// Get monitor info.
@@ -89,55 +77,65 @@ impl MONITORS {
     }
 }
 
-pub(super) struct MonitorsService {
+struct MonitorsService {
     monitors: Var<IdMap<MonitorId, MonitorInfo>>,
 }
 impl MonitorsService {
-    fn on_monitors_changed(&mut self, args: &RawMonitorsChangedArgs) {
-        let mut available_monitors: IdMap<_, _> = args.available_monitors.iter().cloned().collect();
-        let event_ts = args.timestamp;
-        let event_propagation = args.propagation().clone();
-
-        self.monitors.modify(move |m| {
-            let mut removed = vec![];
-            let mut changed = vec![];
-
-            m.retain(|key, value| {
-                if let Some(new) = available_monitors.remove(key) {
-                    if value.update(new) {
-                        changed.push(*key);
+    fn new() -> Self {
+        // track monitor scale factors
+        RAW_SCALE_FACTOR_CHANGED_EVENT
+            .hook(|args| {
+                MONITORS_SV.read().monitors.with(|a| {
+                    if let Some(m) = a.get(&args.monitor_id) {
+                        m.scale_factor.set(args.scale_factor);
                     }
-                    true
-                } else {
-                    removed.push(*key);
-                    false
-                }
-            });
+                });
+                true
+            })
+            .perm();
 
-            let mut added = Vec::with_capacity(available_monitors.len());
+        // track monitors
+        RAW_MONITORS_CHANGED_EVENT
+            .hook(|args| {
+                let mut available_monitors: IdMap<_, _> = args.available_monitors.iter().cloned().collect();
+                let event_ts = args.timestamp;
+                let event_propagation = args.propagation().clone();
 
-            for (id, info) in available_monitors {
-                added.push(id);
+                MONITORS_SV.read().monitors.modify(move |m| {
+                    let mut removed = vec![];
+                    let mut changed = vec![];
 
-                m.insert(id, MonitorInfo::from_gen(id, info));
-            }
+                    m.retain(|key, value| {
+                        if let Some(new) = available_monitors.remove(key) {
+                            if value.update(new) {
+                                changed.push(*key);
+                            }
+                            true
+                        } else {
+                            removed.push(*key);
+                            false
+                        }
+                    });
 
-            if !removed.is_empty() || !added.is_empty() || !changed.is_empty() {
-                let args = MonitorsChangedArgs::new(event_ts, event_propagation, removed, added, changed);
-                MONITORS_CHANGED_EVENT.notify(args);
-            }
-        });
-    }
+                    let mut added = Vec::with_capacity(available_monitors.len());
 
-    pub(super) fn on_pre_event(update: &EventUpdate) {
-        if let Some(args) = RAW_SCALE_FACTOR_CHANGED_EVENT.on(update) {
-            MONITORS_SV.read().monitors.with(|m| {
-                if let Some(m) = m.get(&args.monitor_id) {
-                    m.scale_factor.set(args.scale_factor);
-                }
-            });
-        } else if let Some(args) = RAW_MONITORS_CHANGED_EVENT.on(update) {
-            MONITORS_SV.write().on_monitors_changed(args);
+                    for (id, info) in available_monitors {
+                        added.push(id);
+
+                        m.insert(id, MonitorInfo::from_gen(id, info));
+                    }
+
+                    if !removed.is_empty() || !added.is_empty() || !changed.is_empty() {
+                        let args = MonitorsChangedArgs::new(event_ts, event_propagation, removed, added, changed);
+                        MONITORS_CHANGED_EVENT.notify(args);
+                    }
+                });
+                true
+            })
+            .perm();
+
+        Self {
+            monitors: var(IdMap::new()),
         }
     }
 }
@@ -436,7 +434,7 @@ impl MonitorQuery {
 
     fn parent_or_primary_query(win_id: WindowId) -> Option<MonitorInfo> {
         if let Some(parent) = WINDOWS.vars(win_id).unwrap().parent().get()
-            && let Ok(w) = WINDOWS.vars(parent)
+            && let Some(w) = WINDOWS.vars(parent)
         {
             return if let Some(monitor) = w.actual_monitor().get() {
                 MONITORS.monitor(monitor)
@@ -477,8 +475,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, _id: WidgetId) -> bool {
+            true
         }
     }
 }

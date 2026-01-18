@@ -1,10 +1,10 @@
 //! Commands that control the scoped window.
 
 use zng_app::{
-    event::{CommandHandle, CommandInfoExt, CommandNameExt, command},
+    event::{CommandHandle, CommandInfoExt, CommandNameExt, EventArgs, command},
+    hn,
     shortcut::{CommandShortcutExt, shortcut},
-    update::EventUpdate,
-    window::{WINDOW, WindowId},
+    window::WindowId,
 };
 
 use zng_view_api::window::WindowState;
@@ -122,67 +122,82 @@ pub(super) struct WindowCommands {
     close_handle: CommandHandle,
 }
 impl WindowCommands {
-    pub fn new(window_id: WindowId) -> Self {
-        WindowCommands {
-            maximize_handle: MAXIMIZE_CMD.scoped(window_id).subscribe(false),
-            minimize_handle: MINIMIZE_CMD.scoped(window_id).subscribe(false),
-            restore_handle: RESTORE_CMD.scoped(window_id).subscribe(false),
-            fullscreen_handle: FULLSCREEN_CMD.scoped(window_id).subscribe(true),
-            exclusive_handle: EXCLUSIVE_FULLSCREEN_CMD.scoped(window_id).subscribe(true),
-            close_handle: CLOSE_CMD.scoped(window_id).subscribe(true),
-        }
-    }
+    /// Setup command handlers, handles live in the WindowVars::state var.
+    pub fn init(window_id: WindowId, window_vars: &WindowVars) {
+        let state = window_vars.state();
+        let restore_state = window_vars.restore_state();
+        let s = state.get();
+        let c = WindowCommands {
+            maximize_handle: MAXIMIZE_CMD.scoped(window_id).on_event(
+                !matches!(s, WindowState::Maximized),
+                true,
+                false,
+                hn!(state, |args| {
+                    args.propagation().stop();
+                    state.set(WindowState::Maximized);
+                }),
+            ),
+            minimize_handle: MINIMIZE_CMD.scoped(window_id).on_event(
+                !matches!(s, WindowState::Minimized),
+                true,
+                false,
+                hn!(state, |args| {
+                    args.propagation().stop();
+                    state.set(WindowState::Minimized);
+                }),
+            ),
+            restore_handle: RESTORE_CMD.scoped(window_id).on_event(
+                !matches!(s, WindowState::Normal),
+                true,
+                false,
+                hn!(state, restore_state, |args| {
+                    args.propagation().stop();
+                    state.set(restore_state.get());
+                }),
+            ),
+            fullscreen_handle: FULLSCREEN_CMD.scoped(window_id).on_event(
+                true,
+                true,
+                false,
+                hn!(state, restore_state, |args| {
+                    if let WindowState::Fullscreen = state.get() {
+                        state.set(restore_state.get());
+                    } else {
+                        state.set(WindowState::Fullscreen);
+                    }
+                }),
+            ),
+            exclusive_handle: EXCLUSIVE_FULLSCREEN_CMD.scoped(window_id).on_event(
+                true,
+                true,
+                false,
+                hn!(state, |args| {
+                    if let WindowState::Exclusive = state.get() {
+                        state.set(restore_state.get());
+                    } else {
+                        state.set(WindowState::Exclusive);
+                    }
+                }),
+            ),
+            close_handle: CLOSE_CMD.scoped(window_id).on_event(
+                true,
+                true,
+                false,
+                hn!(|args| {
+                    args.propagation().stop();
+                    let _ = WINDOWS.close(window_id);
+                }),
+            ),
+        };
 
-    pub fn event(&mut self, window_vars: &WindowVars, update: &EventUpdate) {
-        let scope = WINDOW.id();
-        if let Some(args) = MAXIMIZE_CMD.scoped(scope).on(update) {
-            args.handle_enabled(&self.maximize_handle, |_| {
-                window_vars.state().set(WindowState::Maximized);
-            });
-        } else if let Some(args) = MINIMIZE_CMD.scoped(scope).on(update) {
-            args.handle_enabled(&self.minimize_handle, |_| {
-                window_vars.state().set(WindowState::Minimized);
-            });
-        } else if let Some(args) = RESTORE_CMD.scoped(scope).on(update) {
-            args.handle_enabled(&self.restore_handle, |_| {
-                window_vars.state().set(window_vars.restore_state().get());
-            });
-        } else if let Some(args) = CLOSE_CMD.scoped(scope).on(update) {
-            args.handle_enabled(&self.close_handle, |_| {
-                let _ = WINDOWS.close(scope);
-            });
-        } else if let Some(args) = FULLSCREEN_CMD.scoped(scope).on(update) {
-            args.handle_enabled(&self.fullscreen_handle, |_| {
-                if let WindowState::Fullscreen = window_vars.state().get() {
-                    window_vars.state().set(window_vars.restore_state().get());
-                } else {
-                    window_vars.state().set(WindowState::Fullscreen);
-                }
-            });
-        } else if let Some(args) = EXCLUSIVE_FULLSCREEN_CMD.scoped(scope).on(update) {
-            args.handle_enabled(&self.exclusive_handle, |_| {
-                if let WindowState::Exclusive = window_vars.state().get() {
-                    window_vars.state().set(window_vars.restore_state().get());
-                } else {
-                    window_vars.state().set(WindowState::Exclusive);
-                }
-            });
-        }
-    }
-
-    pub fn init(&mut self, window_vars: &WindowVars) {
-        self.update_state(window_vars.state().get());
-    }
-
-    pub fn update(&mut self, window_vars: &WindowVars) {
-        if let Some(state) = window_vars.state().get_new() {
-            self.update_state(state);
-        }
-    }
-
-    fn update_state(&mut self, state: WindowState) {
-        self.restore_handle.set_enabled(state != WindowState::Normal);
-        self.maximize_handle.set_enabled(state != WindowState::Maximized);
-        self.minimize_handle.set_enabled(state != WindowState::Minimized);
+        state
+            .hook(move |a| {
+                let state = *a.value();
+                c.restore_handle.enabled().set(state != WindowState::Normal);
+                c.maximize_handle.enabled().set(state != WindowState::Maximized);
+                c.minimize_handle.enabled().set(state != WindowState::Minimized);
+                true
+            })
+            .perm();
     }
 }

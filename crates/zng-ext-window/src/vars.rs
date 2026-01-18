@@ -1,6 +1,7 @@
+use core::fmt;
 use std::sync::Arc;
 
-use crate::{AutoSize, CursorSource, MonitorQuery, WindowIcon};
+use crate::{AutoSize, CursorSource, MonitorQuery, WindowIcon, WindowInstanceState};
 use zng_app::{
     widget::{WidgetId, base::Parallel, info::access::AccessEnabled},
     window::{MonitorId, WINDOW, WindowId},
@@ -24,6 +25,8 @@ use crate::FrameCaptureMode;
 use zng_ext_image::ImageEntry;
 
 pub(super) struct WindowVarsData {
+    pub(crate) instance_state: Var<WindowInstanceState>,
+
     chrome: Var<bool>,
     icon: Var<WindowIcon>,
     #[cfg(feature = "image")]
@@ -79,8 +82,7 @@ pub(super) struct WindowVarsData {
     accent_color: Var<Option<LightDark>>,
     pub(super) actual_accent_color: Var<LightDark>,
 
-    pub(super) is_open: Var<bool>,
-    pub(super) is_loaded: Var<bool>,
+    pub(super) focused: Var<bool>,
 
     #[cfg(feature = "image")]
     frame_capture_mode: Var<FrameCaptureMode>,
@@ -102,9 +104,15 @@ pub(super) struct WindowVarsData {
 /// [`WINDOW.vars`]: crate::WINDOW_Ext::vars
 #[derive(Clone)]
 pub struct WindowVars(pub(super) Arc<WindowVarsData>);
+impl fmt::Debug for WindowVars {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("WindowVars").finish_non_exhaustive()
+    }
+}
 impl WindowVars {
     pub(super) fn new(default_render_mode: RenderMode, primary_scale_factor: Factor, system_colors: ColorsConfig) -> Self {
         let vars = Arc::new(WindowVarsData {
+            instance_state: var(WindowInstanceState::Building),
             chrome: var(true),
             icon: var(WindowIcon::Default),
             #[cfg(feature = "image")]
@@ -164,8 +172,7 @@ impl WindowVars {
             accent_color: var(None),
             actual_accent_color: var(system_colors.accent.into()),
 
-            is_open: var(true),
-            is_loaded: var(false),
+            focused: var(false),
 
             #[cfg(feature = "image")]
             frame_capture_mode: var(FrameCaptureMode::Sporadic),
@@ -186,6 +193,11 @@ impl WindowVars {
     /// Panics if called in a custom window context that did not setup the variables.
     pub(super) fn req() -> Self {
         WINDOW.req_state(*WINDOW_VARS_ID)
+    }
+
+    /// Window instance state.
+    pub fn instance_state(&self) -> Var<WindowInstanceState> {
+        self.0.instance_state.read_only()
     }
 
     /// Defines if the window chrome is visible.
@@ -669,28 +681,11 @@ impl WindowVars {
         self.0.actual_accent_color.read_only()
     }
 
-    /// If the window is open.
-    ///
-    /// This is a read-only variable, it starts set to `true` and will update only once,
-    /// when the window finishes opening.
-    ///
-    /// Note that a window is only actually opened in the view-process after it [`is_loaded`].
-    ///
-    /// [`is_loaded`]: Self::is_loaded
-    pub fn is_open(&self) -> Var<bool> {
-        self.0.is_open.read_only()
-    }
-
-    /// If the window has finished loading.
-    ///
-    /// This is a read-only variable, it starts set to `false` and will update only once, after
-    /// the first window layout and when all loading handles to the window are released.
-    ///
-    /// A window is only opened in the view-process once it is loaded, see [`WINDOWS.loading_handle`] for more details.
-    ///
-    /// [`WINDOWS.loading_handle`]: crate::WINDOWS::loading_handle
-    pub fn is_loaded(&self) -> Var<bool> {
-        self.0.is_loaded.read_only()
+    /// Read-only variable that tracks if the window is focused in the system window manager.
+    /// 
+    /// Note that most of the time its preferable to use the `FOCUS` service as it also tracks the widget focus.
+    pub fn is_focused(&self) -> Var<bool> {
+        self.0.focused.read_only()
     }
 
     /// Defines the active user attention required indicator.

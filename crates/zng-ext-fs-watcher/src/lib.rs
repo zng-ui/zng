@@ -292,12 +292,14 @@ impl WATCHER {
     /// Note that the `handler` is blocking, use [`async_hn!`] and [`task::wait`] to run IO without
     /// blocking the app.
     ///
+    /// If `ignore_propagation` is `true` also calls `handler` when another handler marked as handled.
+    /// 
     /// [`async_hn!`]: macro@zng_app::handler::async_hn
     /// [`task::wait`]: zng_task::wait
-    pub fn on_file_changed(&self, file: impl Into<PathBuf>, handler: Handler<FsChangesArgs>) -> VarHandle {
+    pub fn on_file_changed(&self, file: impl Into<PathBuf>, ignore_propagation: bool, handler: Handler<FsChangesArgs>) -> VarHandle {
         let file = file.into();
         let handle = self.watch(file.clone());
-        FS_CHANGES_EVENT.on_event(handler.filtered(move |args| {
+        FS_CHANGES_EVENT.on_event(ignore_propagation, handler.filtered(move |args| {
             let _handle = &handle;
             args.events_for_path(&file).next().is_some()
         }))
@@ -307,13 +309,15 @@ impl WATCHER {
     ///
     /// Note that the `handler` is blocking, use [`async_hn!`] and [`task::wait`] to run IO without
     /// blocking the app.
+    /// 
+    /// If `ignore_propagation` is `true` also calls `handler` when another handler marked as handled.
     ///
     /// [`async_hn!`]: macro@zng_app::handler::async_hn
     /// [`task::wait`]: zng_task::wait
-    pub fn on_dir_changed(&self, dir: impl Into<PathBuf>, recursive: bool, handler: Handler<FsChangesArgs>) -> VarHandle {
+    pub fn on_dir_changed(&self, dir: impl Into<PathBuf>, recursive: bool, ignore_propagation: bool, handler: Handler<FsChangesArgs>) -> VarHandle {
         let dir = dir.into();
         let handle = self.watch_dir(dir.clone(), recursive);
-        FS_CHANGES_EVENT.on_event(handler.filtered(move |args| {
+        FS_CHANGES_EVENT.on_event(ignore_propagation, handler.filtered(move |args| {
             let _handle = &handle;
             args.events_for_path(&dir).next().is_some()
         }))

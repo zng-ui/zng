@@ -137,6 +137,7 @@ impl SingleInstanceData {
         WATCHER
             .on_file_changed(
                 &args_file,
+                true,
                 async_hn!(args_file, |_| {
                     let args = zng_task::wait(clmv!(args_file, || {
                         for i in 0..5 {

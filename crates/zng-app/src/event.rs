@@ -313,6 +313,8 @@ impl<A: EventArgs> Event<A> {
     /// The handler is called before widget handlers and [`on_event`](Self::on_event) handlers. The handler is called
     /// after all previous registered preview handlers.
     ///
+    /// If `ignore_propagation` is set also call handlers for args with stopped propagation.
+    ///
     /// Returns an [`EventHandle`] that can be dropped to unsubscribe, you can also unsubscribe from inside the handler by calling
     /// [`unsubscribe`](crate::handler::APP_HANDLER::unsubscribe).
     ///
@@ -347,8 +349,8 @@ impl<A: EventArgs> Event<A> {
     /// [`async_hn!`]: crate::handler::async_hn!
     /// [`hn_once!`]: crate::handler::hn_once!
     /// [`async_hn_once!`]: crate::handler::async_hn_once!
-    pub fn on_pre_event(&self, handler: Handler<A>) -> VarHandle {
-        self.get_var().on_pre_new(Self::event_handler(handler))
+    pub fn on_pre_event(&self, ignore_propagation: bool, handler: Handler<A>) -> VarHandle {
+        self.get_var().on_pre_new(Self::event_handler(ignore_propagation, handler))
     }
 
     /// Creates an event handler.
@@ -356,6 +358,8 @@ impl<A: EventArgs> Event<A> {
     /// The event `handler` is called for every update that has not stopped [`propagation`](AnyEventArgs::propagation).
     /// The handler is called after all [`on_pre_event`](Self::on_pre_event) all widget handlers and all [`on_event`](Self::on_event)
     /// handlers registered before this one.
+    /// 
+    /// If `ignore_propagation` is set also call handlers for args with stopped propagation.
     ///
     /// Returns an [`EventHandle`] that can be dropped to unsubscribe, you can also unsubscribe from inside the handler by calling
     /// [`unsubscribe`](crate::handler::APP_HANDLER::unsubscribe) in the third parameter of [`hn!`] or [`async_hn!`].
@@ -391,14 +395,17 @@ impl<A: EventArgs> Event<A> {
     /// [`async_hn!`]: crate::handler::async_hn!
     /// [`hn_once!`]: crate::handler::hn_once!
     /// [`async_hn_once!`]: crate::handler::async_hn_once!
-    pub fn on_event(&self, handler: Handler<A>) -> VarHandle {
-        self.get_var().on_new(Self::event_handler(handler))
+    pub fn on_event(&self, ignore_propagation: bool, handler: Handler<A>) -> VarHandle {
+        self.get_var().on_new(Self::event_handler(ignore_propagation, handler))
     }
 
-    fn event_handler(mut handler: Handler<A>) -> Handler<OnVarArgs<EventUpdates<A>>> {
+    fn event_handler(ignore_propagation: bool, mut handler: Handler<A>) -> Handler<OnVarArgs<EventUpdates<A>>> {
         Box::new(move |a| {
             let mut futs = vec![];
             for args in a.value.iter() {
+                if !ignore_propagation && args.propagation().is_stopped() {
+                    continue;
+                }
                 match handler(args) {
                     HandlerResult::Done => {}
                     HandlerResult::Continue(f) => futs.push(f),

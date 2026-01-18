@@ -534,47 +534,54 @@ impl Command {
 
     /// Creates a preview event handler for the command.
     ///
-    /// This is similar to [`Event::on_pre_event`], but `handler` is only called if the command
-    /// scope matches and the handle is enabled.
+    /// This is similar to [`Event::on_pre_event`], but with extra filtering. The `handler` is only called if
+    /// handle is `enabled` and if the scope matches. if `direct_scope_only` is enabled only handles exact
+    /// matches, otherwise the app scope matches all events, the window scope matches all events for the window
+    /// or widgets in the window and the widget scope matches the widget and all descendants.
     ///
-    /// The `enabled` parameter defines the initial state of the command subscription, returns a handle
-    /// that can change this status.
-    pub fn on_pre_event(&self, enabled: bool, handler: Handler<CommandArgs>) -> CommandHandle {
-        let mut handle = self.scoped(CommandScope::App).subscribe(enabled);
+    /// The `enabled` value defines the handle initial state.
+    pub fn on_pre_event(&self, enabled: bool, direct_scope_only: bool, ignore_propagation: bool, handler: Handler<CommandArgs>) -> CommandHandle {
+        let (mut handle, handler) = self.event_handler(enabled, direct_scope_only, handler);
+        handle._event_handle = self.event().on_pre_event(ignore_propagation, handler);
+        handle
+    }
+
+    fn event_handler(
+        &self,
+        enabled: bool,
+        direct_scope_only: bool,
+        handler: Handler<CommandArgs>,
+    ) -> (CommandHandle, Handler<CommandArgs>) {
+        let handle = self.scoped(CommandScope::App).subscribe(enabled);
         let local_enabled = handle.enabled().clone();
-        let handler = match self.scope() {
-            CommandScope::App => handler.filtered(move |_| local_enabled.get()),
-            CommandScope::Window(id) => {
-                handler.filtered(move |a| a.target.as_ref().map(|t| t.window_id() == id).unwrap_or(false) && local_enabled.get())
-            }
-            CommandScope::Widget(id) => {
-                handler.filtered(move |a| a.target.as_ref().map(|t| t.contains(id)).unwrap_or(false) && local_enabled.get())
+        let handler = if direct_scope_only {
+            let scope = self.scope();
+            handler.filtered(move |a| a.scope == scope && local_enabled.get())
+        } else {
+            match self.scope() {
+                CommandScope::App => handler.filtered(move |_| local_enabled.get()),
+                CommandScope::Window(id) => {
+                    handler.filtered(move |a| a.target.as_ref().map(|t| t.window_id() == id).unwrap_or(false) && local_enabled.get())
+                }
+                CommandScope::Widget(id) => {
+                    handler.filtered(move |a| a.target.as_ref().map(|t| t.contains(id)).unwrap_or(false) && local_enabled.get())
+                }
             }
         };
-        handle._event_handle = self.event().on_pre_event(handler);
-        handle
+        (handle, handler)
     }
 
     /// Creates an event handler for the command.
     ///
-    /// This is similar to [`Event::on_event`], but `handler` is only called if the command
-    /// scope matches.
+    /// This is similar to [`Event::on_event`], but with extra filtering. The `handler` is only called if
+    /// handle is `enabled` and if the scope matches. if `direct_scope_only` is enabled only handles exact
+    /// matches, otherwise the app scope matches all events, the window scope matches all events for the window
+    /// or widgets in the window and the widget scope matches the widget and all descendants.
     ///
-    /// The `enabled` parameter defines the initial state of the command subscription, returns a handle
-    /// that can control if the handler is enabled or not.
-    pub fn on_event(&self, enabled: bool, handler: Handler<CommandArgs>) -> CommandHandle {
-        let mut handle = self.scoped(CommandScope::App).subscribe(enabled);
-        let local_enabled = handle.enabled().clone();
-        let handler = match self.scope() {
-            CommandScope::App => handler.filtered(move |_| local_enabled.get()),
-            CommandScope::Window(id) => {
-                handler.filtered(move |a| a.target.as_ref().map(|t| t.window_id() == id).unwrap_or(false) && local_enabled.get())
-            }
-            CommandScope::Widget(id) => {
-                handler.filtered(move |a| a.target.as_ref().map(|t| t.contains(id)).unwrap_or(false) && local_enabled.get())
-            }
-        };
-        handle._event_handle = self.event().on_event(handler);
+    /// The `enabled` value defines the handle initial state.
+    pub fn on_event(&self, enabled: bool, direct_scope_only: bool, ignore_propagation: bool, handler: Handler<CommandArgs>) -> CommandHandle {
+        let (mut handle, handler) = self.event_handler(enabled, direct_scope_only, handler);
+        handle._event_handle = self.event().on_event(ignore_propagation, handler);
         handle
     }
 
