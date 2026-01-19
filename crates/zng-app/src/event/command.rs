@@ -540,7 +540,13 @@ impl Command {
     /// or widgets in the window and the widget scope matches the widget and all descendants.
     ///
     /// The `enabled` value defines the handle initial state.
-    pub fn on_pre_event(&self, enabled: bool, direct_scope_only: bool, ignore_propagation: bool, handler: Handler<CommandArgs>) -> CommandHandle {
+    pub fn on_pre_event(
+        &self,
+        enabled: bool,
+        direct_scope_only: bool,
+        ignore_propagation: bool,
+        handler: Handler<CommandArgs>,
+    ) -> CommandHandle {
         let (mut handle, handler) = self.event_handler(enabled, direct_scope_only, handler);
         handle._event_handle = self.event().on_pre_event(ignore_propagation, handler);
         handle
@@ -579,7 +585,13 @@ impl Command {
     /// or widgets in the window and the widget scope matches the widget and all descendants.
     ///
     /// The `enabled` value defines the handle initial state.
-    pub fn on_event(&self, enabled: bool, direct_scope_only: bool, ignore_propagation: bool, handler: Handler<CommandArgs>) -> CommandHandle {
+    pub fn on_event(
+        &self,
+        enabled: bool,
+        direct_scope_only: bool,
+        ignore_propagation: bool,
+        handler: Handler<CommandArgs>,
+    ) -> CommandHandle {
         let (mut handle, handler) = self.event_handler(enabled, direct_scope_only, handler);
         handle._event_handle = self.event().on_event(ignore_propagation, handler);
         handle

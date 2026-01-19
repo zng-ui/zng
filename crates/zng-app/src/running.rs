@@ -1086,14 +1086,17 @@ impl APP {
             s.exit_requests = Some(responder);
             EXIT_REQUESTED_EVENT.notify(ExitRequestedArgs::now());
             EXIT_REQUESTED_EVENT
-                .on_event(true, crate::hn_once!(|args: &ExitRequestedArgs| {
-                    let mut s = APP_PROCESS_SV.write();
-                    if args.propagation().is_stopped() {
-                        s.exit = true;
-                    } else {
-                        s.exit_requests.take().unwrap().respond(ExitCancelled);
-                    }
-                }))
+                .on_event(
+                    true,
+                    crate::hn_once!(|args: &ExitRequestedArgs| {
+                        let mut s = APP_PROCESS_SV.write();
+                        if args.propagation().is_stopped() {
+                            s.exit = true;
+                        } else {
+                            s.exit_requests.take().unwrap().respond(ExitCancelled);
+                        }
+                    }),
+                )
                 .perm();
             response
         }

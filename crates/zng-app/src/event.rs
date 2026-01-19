@@ -358,7 +358,7 @@ impl<A: EventArgs> Event<A> {
     /// The event `handler` is called for every update that has not stopped [`propagation`](AnyEventArgs::propagation).
     /// The handler is called after all [`on_pre_event`](Self::on_pre_event) all widget handlers and all [`on_event`](Self::on_event)
     /// handlers registered before this one.
-    /// 
+    ///
     /// If `ignore_propagation` is set also call handlers for args with stopped propagation.
     ///
     /// Returns an [`EventHandle`] that can be dropped to unsubscribe, you can also unsubscribe from inside the handler by calling
