@@ -460,7 +460,7 @@ pub use zng_ext_single_instance::{APP_INSTANCE_EVENT, AppInstanceArgs};
 ///
 /// fn main() {
 ///     // tracing applied to all processes.
-///     zng::app::print_tracing(tracing::Level::INFO);
+///     zng::app::print_tracing(tracing::Level::INFO, false);
 ///
 ///     // monitor-process spawns app-process and if needed dialog-process here.
 ///     zng::env::init!();

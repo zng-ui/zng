@@ -1,4 +1,8 @@
-use zng_app::{AppBuilder, AppControlFlow, HeadlessApp, view_process::raw_events::{RAW_WINDOW_FOCUS_EVENT, RawWindowFocusArgs}, window::WindowId};
+use zng_app::{
+    AppBuilder, AppControlFlow, HeadlessApp,
+    view_process::raw_events::{RAW_WINDOW_FOCUS_EVENT, RawWindowFocusArgs},
+    window::WindowId,
+};
 
 use crate::{CloseWindowResult, WINDOWS, WindowInstanceState, WindowRoot, WindowVars};
 

@@ -1,7 +1,11 @@
 use std::fmt;
 
 use zng_app::{
-    Deadline, event::{event, event_args}, timer::DeadlineVar, widget::{WidgetId, node::UiNode}, window::WindowId
+    Deadline,
+    event::{event, event_args},
+    timer::DeadlineVar,
+    widget::{WidgetId, node::UiNode},
+    window::WindowId,
 };
 use zng_layout::unit::{DipPoint, DipSize, PxPoint};
 use zng_task::channel::ChannelError;
@@ -790,6 +794,8 @@ pub enum ViewExtensionError {
     /// If the window is headless without renderer it will never open in view-process, if the window is headed
     /// headless with renderer the window opens in the view-process after the first layout.
     NotOpenInViewProcess(WindowId),
+    /// Window is already open in view-process. Extensions init must be set before first layout.
+    AlreadyOpenInViewProcess(WindowId),
     /// View-process is not running.
     Disconnected,
     /// Api Error.
@@ -801,6 +807,7 @@ impl fmt::Display for ViewExtensionError {
             Self::WindowNotFound(id) => write!(f, "window `{id}` not found"),
             Self::WindowNotHeaded(id) => write!(f, "window `{id}` is not headed"),
             Self::NotOpenInViewProcess(id) => write!(f, "window/renderer `{id}` not open in the view-process"),
+            Self::AlreadyOpenInViewProcess(id) => write!(f, "window/renderer `{id}` already open in the view-process"),
             Self::Disconnected => fmt::Display::fmt(&DISCONNECTED_SOURCE, f),
             Self::Api(e) => fmt::Display::fmt(e, f),
         }
@@ -812,6 +819,7 @@ impl std::error::Error for ViewExtensionError {
             Self::WindowNotFound(_) => None,
             Self::WindowNotHeaded(_) => None,
             Self::NotOpenInViewProcess(_) => None,
+            Self::AlreadyOpenInViewProcess(_) => None,
             Self::Disconnected => Some(&DISCONNECTED_SOURCE),
             Self::Api(e) => Some(e),
         }
@@ -856,13 +864,13 @@ pub enum WindowInstanceState {
     /// The new window closure is running.
     ///
     /// The [`WINDOWS.vars`] is available.
-    /// 
+    ///
     /// [`WINDOWS.vars`]: WINDOWS::vars
     Building,
     /// Some [`WindowLoadingHandle`] are still held.
-    /// 
+    ///
     /// The [`WINDOWS.widget_tree`] is available, the window is awaiting load to show.
-    /// 
+    ///
     /// [`WINDOWS.widget_tree`]: WINDOWS::widget_tree
     Loading,
     /// Window is fully loaded or load handles have timeout.

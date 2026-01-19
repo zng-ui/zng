@@ -44,7 +44,7 @@ mod android {
     fn android_main(app: android::AndroidApp) {
         zng::env::init!();
 
-        zng::app::print_tracing(tracing::Level::INFO);
+        zng::app::print_tracing(tracing::Level::INFO, false);
         tracing::info!("Hello Android!");
 
         android::init_android_app(app.clone());
@@ -63,7 +63,7 @@ mod ios {
     pub extern "C" fn ios_main() {
         zng::env::init!();
 
-        zng::app::print_tracing(tracing::Level::INFO);
+        zng::app::print_tracing(tracing::Level::INFO, false);
         tracing::info!("Hello iOS!");
 
         run_same_process(app::run);

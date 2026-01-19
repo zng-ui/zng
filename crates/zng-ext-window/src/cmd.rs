@@ -123,12 +123,12 @@ pub(super) struct WindowCommands {
 }
 impl WindowCommands {
     /// Setup command handlers, handles live in the WindowVars::state var.
-    pub fn init(window_id: WindowId, window_vars: &WindowVars) {
-        let state = window_vars.state();
-        let restore_state = window_vars.restore_state();
+    pub fn init(id: WindowId, vars: &WindowVars) {
+        let state = vars.state();
+        let restore_state = vars.restore_state();
         let s = state.get();
         let c = WindowCommands {
-            maximize_handle: MAXIMIZE_CMD.scoped(window_id).on_event(
+            maximize_handle: MAXIMIZE_CMD.scoped(id).on_event(
                 !matches!(s, WindowState::Maximized),
                 true,
                 false,
@@ -137,7 +137,7 @@ impl WindowCommands {
                     state.set(WindowState::Maximized);
                 }),
             ),
-            minimize_handle: MINIMIZE_CMD.scoped(window_id).on_event(
+            minimize_handle: MINIMIZE_CMD.scoped(id).on_event(
                 !matches!(s, WindowState::Minimized),
                 true,
                 false,
@@ -146,7 +146,7 @@ impl WindowCommands {
                     state.set(WindowState::Minimized);
                 }),
             ),
-            restore_handle: RESTORE_CMD.scoped(window_id).on_event(
+            restore_handle: RESTORE_CMD.scoped(id).on_event(
                 !matches!(s, WindowState::Normal),
                 true,
                 false,
@@ -155,7 +155,7 @@ impl WindowCommands {
                     state.set(restore_state.get());
                 }),
             ),
-            fullscreen_handle: FULLSCREEN_CMD.scoped(window_id).on_event(
+            fullscreen_handle: FULLSCREEN_CMD.scoped(id).on_event(
                 true,
                 true,
                 false,
@@ -167,7 +167,7 @@ impl WindowCommands {
                     }
                 }),
             ),
-            exclusive_handle: EXCLUSIVE_FULLSCREEN_CMD.scoped(window_id).on_event(
+            exclusive_handle: EXCLUSIVE_FULLSCREEN_CMD.scoped(id).on_event(
                 true,
                 true,
                 false,
@@ -179,13 +179,13 @@ impl WindowCommands {
                     }
                 }),
             ),
-            close_handle: CLOSE_CMD.scoped(window_id).on_event(
+            close_handle: CLOSE_CMD.scoped(id).on_event(
                 true,
                 true,
                 false,
                 hn!(|args| {
                     args.propagation().stop();
-                    let _ = WINDOWS.close(window_id);
+                    let _ = WINDOWS.close(id);
                 }),
             ),
         };

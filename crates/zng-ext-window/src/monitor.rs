@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use zng_app::event::{EventArgs as _, event, event_args};
 use zng_app::view_process::raw_events::{RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT};
-use zng_app::window::{MonitorId, WINDOW, WindowId};
+use zng_app::window::{MonitorId, WindowId};
 use zng_app_context::app_local;
 use zng_layout::unit::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Px, PxDensity, PxPoint, PxRect, PxSize, PxToDip};
 use zng_txt::{ToTxt, Txt};
@@ -396,21 +396,18 @@ impl MonitorQuery {
     }
 
     /// Runs the query.
-    pub fn select(&self) -> Option<MonitorInfo> {
-        self.select_for(WINDOW.id())
-    }
-    fn select_for(&self, win_id: WindowId) -> Option<MonitorInfo> {
+    pub fn select(&self, window_id: WindowId) -> Option<MonitorInfo> {
         match self {
-            MonitorQuery::ParentOrPrimary => Self::parent_or_primary_query(win_id),
+            MonitorQuery::ParentOrPrimary => Self::parent_or_primary_query(window_id),
             MonitorQuery::Primary => Self::primary_query(),
             MonitorQuery::Query(q) => q(),
         }
     }
 
     /// Runs the query. Falls back to `Primary`, or the largest or [`MonitorInfo::fallback`].
-    pub fn select_fallback(&self) -> MonitorInfo {
+    pub fn select_fallback(&self, window_id: WindowId) -> MonitorInfo {
         match self {
-            MonitorQuery::ParentOrPrimary => Self::parent_or_primary_query(WINDOW.id()),
+            MonitorQuery::ParentOrPrimary => Self::parent_or_primary_query(window_id),
             MonitorQuery::Primary => Self::primary_query(),
             MonitorQuery::Query(q) => q().or_else(Self::primary_query),
         }
@@ -439,7 +436,7 @@ impl MonitorQuery {
             return if let Some(monitor) = w.actual_monitor().get() {
                 MONITORS.monitor(monitor)
             } else {
-                w.monitor().get().select_for(parent)
+                w.monitor().get().select(parent)
             };
         }
         MONITORS.primary_monitor().get()

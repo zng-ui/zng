@@ -394,7 +394,7 @@ impl APP {
         zng_env::init_process_name("app-process");
 
         #[cfg(debug_assertions)]
-        print_tracing(tracing::Level::INFO);
+        print_tracing(tracing::Level::INFO, false);
         assert_not_view_process();
         Self::assert_can_run();
         spawn_deadlock_detection();
@@ -495,9 +495,10 @@ mod private {
 
 /// Enables [`tracing`] events printing if a subscriber is not already set.
 ///
-/// All non-fatal errors in the Zng project are logged using tracing.
+/// All non-fatal errors in the Zng project are logged using tracing, printing these errors is essential for debugging.
+/// In debug builds this is enabled by default in the app-process on app init with `INFO` level and no span events.
 ///
-/// In debug builds this function is called automatically with level INFO on app start.
+/// If `span_events` are enabled [`tracing::span!`] enter and exit are also printed as events.
 ///
 /// In `"wasm32"` builds logs to the browser console.
 ///
@@ -507,8 +508,21 @@ mod private {
 ///
 /// See also [`print_tracing_filter`] for the filter used by this.
 ///
+/// # Examples
+///
+/// In the example below this function is called before `init!`, enabling it in all app processes.
+///
+/// ```
+/// # macro_rules! { () => {
+/// fn main() {
+///     zng::app::print_tracing(tracing::Level::INFO, false);
+///     zng::env::init!();
+/// }
+/// # }}
+/// ```
+///
 /// [`tracing`]: https://docs.rs/tracing
-pub fn print_tracing(max: tracing::Level) -> bool {
+pub fn print_tracing(max: tracing::Level, span_events: bool) -> bool {
     use tracing_subscriber::prelude::*;
 
     let layers = tracing_subscriber::registry().with(FilterLayer(max));
@@ -518,7 +532,10 @@ pub fn print_tracing(max: tracing::Level) -> bool {
 
     #[cfg(not(target_os = "android"))]
     let layers = {
-        let fmt_layer = tracing_subscriber::fmt::layer().without_time();
+        let mut fmt_layer = tracing_subscriber::fmt::layer().without_time();
+        if span_events {
+            fmt_layer = fmt_layer.with_span_events(tracing_subscriber::fmt::format::FmtSpan::ACTIVE);
+        }
 
         #[cfg(target_arch = "wasm32")]
         let fmt_layer = fmt_layer.with_ansi(false).with_writer(tracing_web::MakeWebConsoleWriter::new());

@@ -625,7 +625,7 @@ impl WindowMode {
 pub struct WINDOWS_APP;
 impl WINDOWS_APP {
     /// Connect with the `WINDOWS` info storage.
-    pub fn init_info_provider(service: Box<dyn WindowsService>) {
+    pub fn init_info_provider(&self, service: Box<dyn WindowsService>) {
         *WINDOWS_APP_SV.write() = Some(service);
     }
 
