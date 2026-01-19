@@ -19,35 +19,28 @@ use zng_wgt::prelude::*;
 #[property(CONTEXT, default(RendererDebug::disabled()))]
 pub fn renderer_debug(child: impl IntoUiNode, debug: impl IntoVar<RendererDebug>) -> UiNode {
     let debug = debug.into_var();
-    let mut send = false;
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_var(&debug).sub_event(&VIEW_PROCESS_INITED_EVENT);
-            send = debug.with(|d| !d.is_empty());
-        }
-        UiNodeOp::Event { update } => {
-            if VIEW_PROCESS_INITED_EVENT.has(update) {
-                send = true;
-                WIDGET.layout();
+    fn send(dbg: &RendererDebug) {
+        if !dbg.is_empty()
+            && let Some(ext_id) = VIEW_PROCESS.extension_id("zng-view.webrender_debug").ok().flatten()
+        {
+            match WINDOWS.view_render_extension(WINDOW.id(), ext_id, dbg) {
+                Ok(()) => {}
+                Err(e) => tracing::error!("{e}"),
             }
         }
-        UiNodeOp::Update { .. } => {
-            if debug.is_new() {
-                send = true;
-                WIDGET.layout();
-            }
+    }
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Init = op {
+            debug.with(send);
+            WIDGET.push_var_handle(debug.hook(|a| {
+                send(a.value());
+                true
+            }));
+            WIDGET.push_var_handle(VIEW_PROCESS_INITED_EVENT.hook(clmv!(debug, |_| {
+                debug.with(send);
+                true
+            })));
         }
-        UiNodeOp::Layout { .. } => {
-            if std::mem::take(&mut send)
-                && let Some(ext_id) = VIEW_PROCESS.extension_id("zng-view.webrender_debug").ok().flatten()
-            {
-                debug.with(|d| match WINDOWS.view_render_extension(WINDOW.id(), ext_id, d) {
-                    Ok(()) => {}
-                    Err(e) => tracing::error!("{e}"),
-                });
-            }
-        }
-        _ => {}
     })
 }
 
