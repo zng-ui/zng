@@ -629,38 +629,43 @@ impl WINDOWS_APP {
         *WINDOWS_APP_SV.write() = Some(service);
     }
 
+    fn with<R>(&self, f: impl FnOnce(&dyn WindowsService) -> R) -> Option<R> {
+        if let Some(s) = WINDOWS_APP_SV.read().as_ref() {
+            Some(f(&**s))
+        } else {
+            tracing::debug!("no WINDOWS_APP");
+            None
+        }
+    }
+
     /// Get the latest info tree for the window.
     pub fn widget_tree(&self, id: WindowId) -> Option<WidgetInfoTree> {
-        WINDOWS_APP_SV.read().as_ref().unwrap().widget_tree(id)
+        self.with(|s| s.widget_tree(id)).flatten()
     }
 
     /// Search for the widget in the latest info tree of each open window.
     pub fn widget_info(&self, id: WidgetId) -> Option<WidgetInfo> {
-        WINDOWS_APP_SV.read().as_ref().unwrap().widget_info(id)
+        self.with(|s| s.widget_info(id)).flatten()
     }
 
     /// Rebuild info trees.
     pub fn update_info(&self, info_widgets: &mut InfoUpdates) {
-        WINDOWS_APP_SV.read().as_ref().unwrap().update_info(info_widgets)
+        self.with(|s| s.update_info(info_widgets));
     }
 
     /// Update widgets.
     pub fn update_widgets(&self, update_widgets: &mut WidgetUpdates) {
-        WINDOWS_APP_SV.read().as_ref().unwrap().update_widgets(update_widgets)
+        self.with(|s| s.update_widgets(update_widgets));
     }
 
     /// Layout windows and widgets.
     pub fn update_layout(&self, layout_widgets: &mut LayoutUpdates) {
-        WINDOWS_APP_SV.read().as_ref().unwrap().update_layout(layout_widgets)
+        self.with(|s| s.update_layout(layout_widgets));
     }
 
     /// Update frames.
     pub fn update_render(&self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
-        WINDOWS_APP_SV
-            .read()
-            .as_ref()
-            .unwrap()
-            .update_render(render_widgets, render_update_widgets)
+        self.with(|s| s.update_render(render_widgets, render_update_widgets));
     }
 }
 

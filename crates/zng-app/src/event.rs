@@ -324,10 +324,10 @@ impl<A: EventArgs> Event<A> {
     /// # use zng_app::event::*;
     /// # use zng_app::APP;
     /// # use zng_app::handler::hn;
-    /// # event_args! { pub struct FocusChangedArgs { pub new_focus: bool, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
+    /// # event_args! { pub struct FocusChangedArgs { pub new_focus: bool, .. fn is_in_target(&self, _id: WidgetId) -> bool { true } } }
     /// # event! { pub static FOCUS_CHANGED_EVENT: FocusChangedArgs; }
     /// # let _scope = APP.minimal();
-    /// let handle = FOCUS_CHANGED_EVENT.on_pre_event(hn!(|args| {
+    /// let handle = FOCUS_CHANGED_EVENT.on_pre_event(false, hn!(|args| {
     ///     println!("focused: {:?}", args.new_focus);
     /// }));
     /// ```
@@ -370,10 +370,10 @@ impl<A: EventArgs> Event<A> {
     /// # use zng_app::event::*;
     /// # use zng_app::APP;
     /// # use zng_app::handler::hn;
-    /// # event_args! { pub struct FocusChangedArgs { pub new_focus: bool, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
+    /// # event_args! { pub struct FocusChangedArgs { pub new_focus: bool, .. fn is_in_target(&self, _id: WidgetId) -> bool { true } } }
     /// # event! { pub static FOCUS_CHANGED_EVENT: FocusChangedArgs; }
     /// # let _scope = APP.minimal();
-    /// let handle = FOCUS_CHANGED_EVENT.on_event(hn!(|args| {
+    /// let handle = FOCUS_CHANGED_EVENT.on_event(false, hn!(|args| {
     ///     println!("focused: {:?}", args.new_focus);
     /// }));
     /// ```

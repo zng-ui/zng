@@ -820,16 +820,28 @@ impl CommandHandle {
             CommandScope::App => {
                 if enabled {
                     write.enabled_count += 1;
+                    if write.enabled_count == 1 {
+                        write.is_enabled.set(true);
+                    }
                 } else {
                     write.enabled_count -= 1;
+                    if write.enabled_count == 0 {
+                        write.is_enabled.set(false);
+                    }
                 }
             }
             scope => {
                 if let Some(data) = write.scopes.get_mut(&scope) {
                     if enabled {
                         data.enabled_count += 1;
+                        if data.enabled_count == 1 {
+                            data.is_enabled.set(true);
+                        }
                     } else {
                         data.enabled_count -= 1;
+                        if data.enabled_count == 0 {
+                            data.is_enabled.set(false);
+                        }
                     }
                 }
             }
@@ -1445,7 +1457,7 @@ mod tests {
     }
 
     #[test]
-    fn enabled() {
+    fn enabled_not_scoped() {
         let mut app = APP.minimal().run_headless(false);
 
         assert!(!FOO_CMD.has_handlers().get());
@@ -1496,6 +1508,7 @@ mod tests {
         assert!(cmd_scoped.has_handlers().get());
 
         handle_scoped.enabled().set(true);
+        app.update(false).assert_wait();
 
         assert!(!cmd.has_handlers().get());
         assert!(cmd_scoped.is_enabled().get());
@@ -1536,11 +1549,13 @@ mod tests {
         assert!(!cmd_scoped.has_handlers().get());
 
         let handle = cmd_scoped.subscribe(false);
+        app.update(false).assert_wait();
 
         assert!(!cmd.has_handlers().get());
         assert!(cmd_scoped.has_handlers().get());
 
         drop(handle);
+        app.update(false).assert_wait();
 
         assert!(!cmd.has_handlers().get());
         assert!(!cmd_scoped.has_handlers().get());

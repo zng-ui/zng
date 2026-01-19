@@ -2346,7 +2346,7 @@ impl WidgetDescendantsRange {
 }
 
 /// A hit-test hit.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct HitInfo {
     /// ID of widget hit.
@@ -2357,7 +2357,7 @@ pub struct HitInfo {
 }
 
 /// A hit-test result.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct HitTestInfo {
     window_id: WindowId,
     frame_id: FrameId,

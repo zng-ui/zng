@@ -253,13 +253,13 @@ impl<A: Clone + 'static> WidgetRunner<A> {
 /// from the inside.
 ///
 /// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn is_in_target(&self, _id: WidgetId) -> bool { true } } }
 /// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
 /// # use zng_app::handler::{hn, APP_HANDLER};
 /// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT
-///     .on_event(hn!(|args| {
+///     .on_event(false, hn!(|args| {
 ///         println!("Clicked Somewhere!");
 ///         if args.target == "something" {
 ///             APP_HANDLER.unsubscribe();
@@ -395,7 +395,7 @@ pub use crate::hn_once;
 /// Internally the [`clmv!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn is_in_target(&self, _id: WidgetId) -> bool { true } } }
 /// # use zng_app::handler::async_hn;
 /// # use zng_var::{var, Var};
 /// # use zng_task as task;

@@ -48,7 +48,7 @@ pub trait EventArgs: VarValue {
 ///
 ///         ..
 ///
-///         fn is_in_target(&self, widget: WidgetId) -> bool { } {
+///         fn is_in_target(&self, widget: WidgetId) -> bool {
 ///             self.target.contains(widget)
 ///         }
 ///
