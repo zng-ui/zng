@@ -1090,8 +1090,9 @@ impl APP {
                     true,
                     crate::hn_once!(|args: &ExitRequestedArgs| {
                         let mut s = APP_PROCESS_SV.write();
-                        if args.propagation().is_stopped() {
+                        if !args.propagation().is_stopped() {
                             s.exit = true;
+                            UPDATES.update(None);
                         } else {
                             s.exit_requests.take().unwrap().respond(ExitCancelled);
                         }

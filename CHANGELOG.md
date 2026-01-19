@@ -1,5 +1,9 @@
 # Unreleased
 
+* Fix `Var::on_(pre_)new` notifying multiple times if the variable is modified multiple times in the same update.
+
+* **Breaking** Removes `"dyn_app_extension"` feature.
+
 * Added `APP.on_init` and `APP.on_deinit`.
     - **Breaking** Removed `on_app_start`.
 

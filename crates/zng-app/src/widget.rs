@@ -24,7 +24,7 @@ use zng_layout::unit::{DipPoint, DipToPx as _, Layout1d, Layout2d, Px, PxPoint, 
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zng_task::UiTask;
 use zng_txt::{Txt, formatx};
-use zng_var::{AnyVar, BoxAnyVarValue, ResponseVar, Var, VarHandle, VarHandles, VarHookArgs, VarValue};
+use zng_var::{AnyVar, BoxAnyVarValue, ResponseVar, VARS, Var, VarHandle, VarHandles, VarHookArgs, VarUpdateId, VarValue};
 use zng_view_api::display_list::ReuseRange;
 
 use crate::{
@@ -1625,10 +1625,18 @@ where
 
     let handler = handler.into_arc();
     let (inner_handle_owner, inner_handle) = Handle::new(());
+    let mut update = VarUpdateId::never();
     var.hook(move |args| {
         if inner_handle_owner.is_dropped() {
             return false;
         }
+
+        // already scheduled update for this cycle
+        let u = VARS.update_id();
+        if update == u {
+            return true;
+        }
+        update = u;
 
         let handle = inner_handle.downgrade();
         let value = args.value().clone();

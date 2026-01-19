@@ -81,6 +81,12 @@ impl<A: EventArgs> EventUpdates<A> {
     }
 
     fn notify(&mut self, args: A) {
+        let generation = VARS.update_id();
+        if generation != self.generation {
+            self.updates.clear();
+            self.generation = generation;
+        }
+
         if self.updates.is_empty() {
             self.updates.push(args);
         } else {
@@ -327,9 +333,12 @@ impl<A: EventArgs> Event<A> {
     /// # event_args! { pub struct FocusChangedArgs { pub new_focus: bool, .. fn is_in_target(&self, _id: WidgetId) -> bool { true } } }
     /// # event! { pub static FOCUS_CHANGED_EVENT: FocusChangedArgs; }
     /// # let _scope = APP.minimal();
-    /// let handle = FOCUS_CHANGED_EVENT.on_pre_event(false, hn!(|args| {
-    ///     println!("focused: {:?}", args.new_focus);
-    /// }));
+    /// let handle = FOCUS_CHANGED_EVENT.on_pre_event(
+    ///     false,
+    ///     hn!(|args| {
+    ///         println!("focused: {:?}", args.new_focus);
+    ///     }),
+    /// );
     /// ```
     /// The example listens to all `FOCUS_CHANGED_EVENT` events, independent of widget context and before all UI handlers.
     ///
@@ -373,9 +382,12 @@ impl<A: EventArgs> Event<A> {
     /// # event_args! { pub struct FocusChangedArgs { pub new_focus: bool, .. fn is_in_target(&self, _id: WidgetId) -> bool { true } } }
     /// # event! { pub static FOCUS_CHANGED_EVENT: FocusChangedArgs; }
     /// # let _scope = APP.minimal();
-    /// let handle = FOCUS_CHANGED_EVENT.on_event(false, hn!(|args| {
-    ///     println!("focused: {:?}", args.new_focus);
-    /// }));
+    /// let handle = FOCUS_CHANGED_EVENT.on_event(
+    ///     false,
+    ///     hn!(|args| {
+    ///         println!("focused: {:?}", args.new_focus);
+    ///     }),
+    /// );
     /// ```
     /// The example listens to all `FOCUS_CHANGED_EVENT` events, independent of widget context, after the UI was notified.
     ///

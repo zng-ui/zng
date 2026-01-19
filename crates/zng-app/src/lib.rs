@@ -16,7 +16,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::{collections::HashMap, fmt, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 pub mod access;
 pub mod crash_handler;
@@ -390,7 +390,6 @@ impl APP {
 
 impl APP {
     /// Starts building an application with no extra config.
-    #[cfg(feature = "dyn_app_extension")]
     pub fn minimal(&self) -> AppBuilder {
         zng_env::init_process_name("app-process");
 
@@ -403,23 +402,6 @@ impl APP {
         let _ = INSTANT.now();
         let scope = LocalContext::start_app(AppId::new_unique());
         AppBuilder {
-            view_process_exe: None,
-            view_process_env: HashMap::new(),
-            _cleanup: scope,
-        }
-    }
-
-    /// Starts building an application with no extensions.
-    #[cfg(not(feature = "dyn_app_extension"))]
-    pub fn minimal(&self) -> AppBuilder<()> {
-        #[cfg(debug_assertions)]
-        print_tracing(tracing::Level::INFO);
-        assert_not_view_process();
-        Self::assert_can_run();
-        spawn_deadlock_detection();
-        let scope = LocalContext::start_app(AppId::new_unique());
-        AppBuilder {
-            extensions: (),
             view_process_exe: None,
             view_process_env: HashMap::new(),
             _cleanup: scope,
@@ -562,7 +544,7 @@ impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for FilterLayer {
         if event.metadata().level() == &tracing::Level::ERROR && APP.is_running() && TEST_LOG.get() {
             struct MsgCollector<'a>(&'a mut String);
             impl tracing::field::Visit for MsgCollector<'_> {
-                fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn fmt::Debug) {
+                fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
                     use std::fmt::Write;
                     write!(self.0, "\n  {} = {:?}", field.name(), value).unwrap();
                 }

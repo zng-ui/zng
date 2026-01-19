@@ -259,12 +259,15 @@ impl<A: Clone + 'static> WidgetRunner<A> {
 /// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT
-///     .on_event(false, hn!(|args| {
-///         println!("Clicked Somewhere!");
-///         if args.target == "something" {
-///             APP_HANDLER.unsubscribe();
-///         }
-///     }))
+///     .on_event(
+///         false,
+///         hn!(|args| {
+///             println!("Clicked Somewhere!");
+///             if args.target == "something" {
+///                 APP_HANDLER.unsubscribe();
+///             }
+///         }),
+///     )
 ///     .perm();
 /// # }
 /// ```
