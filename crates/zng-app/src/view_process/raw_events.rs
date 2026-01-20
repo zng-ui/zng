@@ -16,6 +16,7 @@
 
 use zng_layout::unit::{DipPoint, DipSideOffsets, DipSize, Factor, PxPoint};
 use zng_txt::Txt;
+use zng_var::WeakEq;
 use zng_view_api::{
     AxisId, DragDropId, Ime,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -33,11 +34,11 @@ use zng_view_api::{
 
 use crate::{
     event::{event, event_args},
-    view_process::{AudioOutputId, ViewAudioHandle, ViewAudioOutput},
+    view_process::{AudioOutputId, ViewImageHandle, WeakViewAudioHandle, WeakViewAudioOutput},
     window::{MonitorId, WindowId},
 };
 
-use super::{ViewHeadless, ViewImageHandle, ViewWindow, WindowOpenData, raw_device_events::InputDeviceId};
+use super::{WeakViewHeadless, WeakViewImageHandle, WeakViewWindow, WindowOpenData, raw_device_events::InputDeviceId};
 
 event_args! {
     /// Arguments for the [`RAW_KEY_INPUT_EVENT`].
@@ -124,7 +125,10 @@ event_args! {
         pub frame_id: FrameId,
 
         /// The frame pixels if it was requested when the frame request was sent to the view process.
-        pub frame_image: Option<(ViewImageHandle, ImageDecoded)>,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the image alive indefinitely.
+        pub frame_image: Option<WeakEq<(ViewImageHandle, ImageDecoded)>>,
 
         ..
 
@@ -188,7 +192,10 @@ event_args! {
         pub window_id: WindowId,
 
         /// Live connection to the window in the view-process.
-        pub window: ViewWindow,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the window alive indefinitely.
+        pub window: WeakViewWindow,
 
         /// Extra data send by the view-process.
         pub data: WindowOpenData,
@@ -207,7 +214,10 @@ event_args! {
         pub window_id: WindowId,
 
         /// Live connection to the headless surface in the view-process.
-        pub surface: ViewHeadless,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the surface alive indefinitely.
+        pub surface: WeakViewHeadless,
 
         /// Extra data send by the view-process.
         pub data: HeadlessOpenData,
@@ -538,7 +548,10 @@ event_args! {
     /// Arguments for [`RAW_IMAGE_METADATA_DECODED_EVENT`].
     pub struct RawImageMetadataDecodedArgs {
         /// Handle to the image in the view-process.
-        pub handle: ViewImageHandle,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the image alive indefinitely.
+        pub handle: WeakViewImageHandle,
         /// Image metadata.
         pub meta: ImageMetadata,
 
@@ -553,9 +566,14 @@ event_args! {
     /// Arguments for the [`RAW_IMAGE_DECODED_EVENT`].
     pub struct RawImageDecodedArgs {
         /// Handle to the image in the view-process.
-        pub handle: ViewImageHandle,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the image alive indefinitely.
+        pub handle: WeakViewImageHandle,
         /// Image data.
-        pub image: ImageDecoded,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped.
+        pub image: WeakEq<ImageDecoded>,
 
         ..
 
@@ -570,7 +588,9 @@ event_args! {
         /// Handle that identifies the image request.
         ///
         /// The image data is already removed in the view-process.
-        pub handle: ViewImageHandle,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped.
+        pub handle: WeakViewImageHandle,
         /// Error message.
         pub error: Txt,
 
@@ -585,7 +605,10 @@ event_args! {
     /// Arguments for [`RAW_AUDIO_METADATA_DECODED_EVENT`].
     pub struct RawAudioMetadataDecodedArgs {
         /// Handle to the audio in the view-process.
-        pub handle: ViewAudioHandle,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the audio alive indefinitely.
+        pub handle: WeakViewAudioHandle,
         /// Audio metadata.
         pub meta: AudioMetadata,
 
@@ -600,9 +623,11 @@ event_args! {
     /// Arguments for the [`RAW_AUDIO_DECODED_EVENT`].
     pub struct RawAudioDecodedArgs {
         /// Handle to the audio in the view-process.
-        pub handle: ViewAudioHandle,
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the audio alive indefinitely.
+        pub handle: WeakViewAudioHandle,
         /// Audio data.
-        pub audio: AudioDecoded,
+        pub audio: WeakEq<AudioDecoded>,
 
         ..
 
@@ -617,7 +642,10 @@ event_args! {
         /// Handle that identifies the audio request.
         ///
         /// The audio data is already removed in the view-process.
-        pub handle: ViewAudioHandle,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the audio alive indefinitely.
+        pub handle: WeakViewAudioHandle,
         /// Error message.
         pub error: Txt,
 
@@ -635,7 +663,10 @@ event_args! {
         pub output_id: AudioOutputId,
 
         /// Live connection to audio output stream.
-        pub output: ViewAudioOutput,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the image audio indefinitely.
+        pub output: WeakViewAudioOutput,
 
         ..
 

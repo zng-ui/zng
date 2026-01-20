@@ -598,7 +598,7 @@ fn image_view(
     let r_weak = r.downgrade();
     let decode_error_handle = RAW_IMAGE_DECODE_ERROR_EVENT.hook(move |args| match r_weak.upgrade() {
         Some(r) => {
-            if r.with(|img| img.view_handle() == args.handle) {
+            if r.with(|img| img.view_handle() == args.handle.upgrade().unwrap()) {
                 r.set(ImageEntry::new_error(args.error.clone()));
                 false
             } else {
@@ -612,7 +612,7 @@ fn image_view(
     let r_weak = r.downgrade();
     let decode_meta_handle = RAW_IMAGE_METADATA_DECODED_EVENT.hook(move |args| match r_weak.upgrade() {
         Some(r) => {
-            if r.with(|img| img.view_handle() == args.handle) {
+            if r.with(|img| img.view_handle() == args.handle.upgrade().unwrap()) {
                 let meta = args.meta.clone();
                 r.modify(move |i| i.data.meta = meta);
             } else if let Some(p) = &args.meta.parent
@@ -621,9 +621,9 @@ fn image_view(
                 // discovered an entry for this image, start tracking it
                 let mut entry_d = ImageDecoded::default();
                 entry_d.meta = args.meta.clone();
-                let entry = var(ImageEntry::new(None, args.handle.clone(), entry_d.clone()));
+                let entry = var(ImageEntry::new(None, args.handle.upgrade().unwrap(), entry_d.clone()));
                 r.modify(clmv!(entry, |i| i.insert_entry(entry)));
-                image_view(None, args.handle.clone(), entry_d, None, entry);
+                image_view(None, args.handle.upgrade().unwrap(), entry_d, None, entry);
             }
             r.with(ImageEntry::is_loading)
         }
@@ -637,10 +637,10 @@ fn image_view(
             let _hold = [&decoding_respawn_handle, &decode_error_handle, &decode_meta_handle];
             match r_weak.upgrade() {
                 Some(r) => {
-                    if r.with(|img| img.view_handle() == args.handle) {
-                        let data = args.image.clone();
+                    if r.with(|img| img.view_handle() == args.handle.upgrade().unwrap()) {
+                        let data = args.image.upgrade().unwrap();
                         let is_loading = data.partial.is_some();
-                        r.modify(move |i| i.data = data);
+                        r.modify(move |i| i.data = (*data.0).clone());
                         if !is_loading {
                             image_decoded(r);
                         }
@@ -746,7 +746,10 @@ fn image_render_open(cache_key: Option<ImageHash>, win_id: WindowId, retain: Var
             if args.window_id == win_id {
                 if let Some(r) = r_weak.upgrade() {
                     match args.frame_image.clone() {
-                        Some((handle, data)) => {
+                        Some(h) => {
+                            let h = h.upgrade().unwrap();
+                            let handle = h.0.0.clone();
+                            let data = h.1.clone();
                             let retain = retain.get();
                             r.set(ImageEntry::new(cache_key, handle, data));
                             if !retain {

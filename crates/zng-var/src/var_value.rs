@@ -179,11 +179,17 @@ where
 pub trait VarValue: AnyVarValue + Clone + PartialEq {}
 impl<T: AnyVarValue + Clone + PartialEq> VarValue for T {}
 
-/// Arc value that implements equality by pointer comparison.
+/// An [`Arc`] value that implements equality by pointer comparison.
 ///
 /// This type allows external types that are only `Debug + Send + Sync` to become
 /// a full [`VarValue`] to be allowed as a variable value.
 pub struct ArcEq<T: fmt::Debug + Send + Sync>(pub Arc<T>);
+impl<T: fmt::Debug + Send + Sync> ArcEq<T> {
+    /// Create a new [`WeakEq<T>`] pointer.
+    pub fn downgrade(this: &Self) -> WeakEq<T> {
+        WeakEq(Arc::downgrade(&this.0))
+    }
+}
 impl<T: fmt::Debug + Send + Sync> ops::Deref for ArcEq<T> {
     type Target = Arc<T>;
 
@@ -211,6 +217,52 @@ impl<T: fmt::Debug + Send + Sync> Clone for ArcEq<T> {
 impl<T: fmt::Debug + Send + Sync> fmt::Debug for ArcEq<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&*self.0, f)
+    }
+}
+
+/// An [`std::sync::Weak`] value that implements equality by pointer comparison.
+///
+/// This type allows external types that are only `Send + Sync` to become
+/// a full [`VarValue`] to be allowed as a variable value.
+pub struct WeakEq<T: Send + Sync>(pub std::sync::Weak<T>);
+impl<T: fmt::Debug + Send + Sync> WeakEq<T> {
+    /// Attempt to upgrade to [`ArcEq<T>`].
+    pub fn upgrade(&self) -> Option<ArcEq<T>> {
+        self.0.upgrade().map(ArcEq)
+    }
+}
+impl<T: Send + Sync> WeakEq<T> {
+    /// New without alloc.
+    pub const fn new() -> Self {
+        Self(std::sync::Weak::new())
+    }
+}
+impl<T: Send + Sync> Default for WeakEq<T> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+impl<T: Send + Sync> ops::Deref for WeakEq<T> {
+    type Target = std::sync::Weak<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T: Send + Sync> PartialEq for WeakEq<T> {
+    fn eq(&self, other: &Self) -> bool {
+        std::sync::Weak::ptr_eq(&self.0, &other.0)
+    }
+}
+impl<T: Send + Sync> Eq for WeakEq<T> {}
+impl<T: Send + Sync> Clone for WeakEq<T> {
+    fn clone(&self) -> Self {
+        Self(std::sync::Weak::clone(&self.0))
+    }
+}
+impl<T: Send + Sync> fmt::Debug for WeakEq<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
     }
 }
 

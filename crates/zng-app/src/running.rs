@@ -7,14 +7,16 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{Deadline, event::EventArgs as _, handler::HandlerExt as _, window::WINDOWS_APP};
+use crate::{
+    Deadline, event::EventArgs as _, handler::HandlerExt as _, view_process::raw_events::RAW_FRAME_RENDERED_EVENT, window::WINDOWS_APP,
+};
 use parking_lot::Mutex;
 use zng_app_context::{AppScope, app_local};
 use zng_task::DEADLINE_APP;
 use zng_task::channel::{self, ChannelError};
 use zng_time::{INSTANT_APP, InstantMode};
 use zng_txt::Txt;
-use zng_var::{ResponderVar, ResponseVar, VARS_APP, Var, expr_var, response_var};
+use zng_var::{ArcEq, ResponderVar, ResponseVar, VARS_APP, Var, expr_var, response_var};
 use zng_view_api::{DeviceEventsFilter, raw_input::InputDeviceEvent};
 
 use crate::{
@@ -301,14 +303,26 @@ impl RunningApp {
             Event::WindowOpened(w_id, data) => {
                 let w_id = window_id(w_id);
                 let (window, data) = VIEW_PROCESS.on_window_opened(w_id, data);
-                let args = RawWindowOpenArgs::now(w_id, window, data);
+                let args = RawWindowOpenArgs::now(w_id, window.downgrade(), data);
                 RAW_WINDOW_OPEN_EVENT.notify(args);
+                RAW_WINDOW_OPEN_EVENT
+                    .hook(move |_| {
+                        let _hold_once = &window;
+                        false
+                    })
+                    .perm();
             }
             Event::HeadlessOpened(w_id, data) => {
                 let w_id = window_id(w_id);
                 let (surface, data) = VIEW_PROCESS.on_headless_opened(w_id, data);
-                let args = RawHeadlessOpenArgs::now(w_id, surface, data);
+                let args = RawHeadlessOpenArgs::now(w_id, surface.downgrade(), data);
                 RAW_HEADLESS_OPEN_EVENT.notify(args);
+                RAW_HEADLESS_OPEN_EVENT
+                    .hook(move |_| {
+                        let _hold_once = &surface;
+                        false
+                    })
+                    .perm();
             }
             Event::WindowOrHeadlessOpenError { id: w_id, error } => {
                 let w_id = window_id(w_id);
@@ -321,24 +335,43 @@ impl RunningApp {
             }
             Event::ImageMetadataDecoded(meta) => {
                 if let Some(handle) = VIEW_PROCESS.on_image_metadata(&meta) {
-                    let args = RawImageMetadataDecodedArgs::now(handle, meta);
+                    let args = RawImageMetadataDecodedArgs::now(handle.downgrade(), meta);
                     RAW_IMAGE_METADATA_DECODED_EVENT.notify(args);
+                    RAW_IMAGE_METADATA_DECODED_EVENT
+                        .hook(move |_| {
+                            let _hold_once = &handle;
+                            false
+                        })
+                        .perm();
                 } else {
                     tracing::warn!("received unknown image metadata {:?} ({:?}), ignoring", meta.id, meta.size);
                 }
             }
             Event::ImageDecoded(img) => {
                 if let Some(handle) = VIEW_PROCESS.on_image_decoded(&img) {
-                    let args = RawImageDecodedArgs::now(handle, img);
+                    let img = ArcEq::new(img);
+                    let args = RawImageDecodedArgs::now(handle.downgrade(), ArcEq::downgrade(&img));
                     RAW_IMAGE_DECODED_EVENT.notify(args);
+                    RAW_IMAGE_DECODED_EVENT
+                        .hook(move |_| {
+                            let _hold_once = (&handle, &img);
+                            false
+                        })
+                        .perm();
                 } else {
                     tracing::warn!("received unknown image metadata {:?} ({:?}), ignoring", img.meta.id, img.meta.size);
                 }
             }
             Event::ImageDecodeError { image: id, error } => {
                 if let Some(handle) = VIEW_PROCESS.on_image_error(id) {
-                    let args = RawImageDecodeErrorArgs::now(handle, error);
+                    let args = RawImageDecodeErrorArgs::now(handle.downgrade(), error);
                     RAW_IMAGE_DECODE_ERROR_EVENT.notify(args);
+                    RAW_IMAGE_DECODE_ERROR_EVENT
+                        .hook(move |_| {
+                            let _hold_once = &handle;
+                            false
+                        })
+                        .perm();
                 }
             }
             Event::ImageEncoded { task, data } => VIEW_PROCESS.on_image_encoded(task, data),
@@ -348,24 +381,43 @@ impl RunningApp {
 
             Event::AudioMetadataDecoded(meta) => {
                 if let Some(handle) = VIEW_PROCESS.on_audio_metadata(&meta) {
-                    let args = RawAudioMetadataDecodedArgs::now(handle, meta);
+                    let args = RawAudioMetadataDecodedArgs::now(handle.downgrade(), meta);
                     RAW_AUDIO_METADATA_DECODED_EVENT.notify(args);
+                    RAW_AUDIO_METADATA_DECODED_EVENT
+                        .hook(move |_| {
+                            let _hold_once = &handle;
+                            false
+                        })
+                        .perm();
                 } else {
                     tracing::warn!("received unknown audio metadata {:?}, ignoring", meta.id);
                 }
             }
             Event::AudioDecoded(audio) => {
                 if let Some(handle) = VIEW_PROCESS.on_audio_decoded(&audio) {
-                    let args = RawAudioDecodedArgs::now(handle, audio);
+                    let audio = ArcEq::new(audio);
+                    let args = RawAudioDecodedArgs::now(handle.downgrade(), ArcEq::downgrade(&audio));
                     RAW_AUDIO_DECODED_EVENT.notify(args);
+                    RAW_AUDIO_DECODED_EVENT
+                        .hook(move |_| {
+                            let _hold_once = (&handle, &audio);
+                            false
+                        })
+                        .perm();
                 } else {
                     tracing::warn!("received unknown audio metadata {:?}, ignoring", audio.id);
                 }
             }
             Event::AudioDecodeError { audio: id, error } => {
                 if let Some(handle) = VIEW_PROCESS.on_audio_error(id) {
-                    let args = RawAudioDecodeErrorArgs::now(handle, error);
+                    let args = RawAudioDecodeErrorArgs::now(handle.downgrade(), error);
                     RAW_AUDIO_DECODE_ERROR_EVENT.notify(args);
+                    RAW_AUDIO_DECODE_ERROR_EVENT
+                        .hook(move |_| {
+                            let _hold_once = &handle;
+                            false
+                        })
+                        .perm();
                 }
             }
 
@@ -373,8 +425,14 @@ impl RunningApp {
                 let a_id = audio_output_id(id);
                 let output = VIEW_PROCESS.on_audio_output_opened(a_id, data);
 
-                let args = RawAudioOutputOpenArgs::now(a_id, output);
+                let args = RawAudioOutputOpenArgs::now(a_id, output.downgrade());
                 RAW_AUDIO_OUTPUT_OPEN_EVENT.notify(args);
+                RAW_AUDIO_OUTPUT_OPEN_EVENT
+                    .hook(move |_| {
+                        let _hold_once = &output;
+                        false
+                    })
+                    .perm();
             }
             Event::AudioOutputOpenError { id, error } => {
                 let a_id = audio_output_id(id);
@@ -515,9 +573,17 @@ impl RunningApp {
         debug_assert!(ev.window != zng_view_api::window::WindowId::INVALID);
         let window_id = WindowId::from_raw(ev.window.get());
         // view.on_frame_rendered(window_id); // already called in push_coalesce
-        let image = ev.frame_image.map(|img| (VIEW_PROCESS.on_frame_image(&img), img));
-        let args = crate::view_process::raw_events::RawFrameRenderedArgs::now(window_id, ev.frame, image);
-        crate::view_process::raw_events::RAW_FRAME_RENDERED_EVENT.notify(args);
+        let image = ev.frame_image.map(|img| (VIEW_PROCESS.on_frame_image(&img), img)).map(ArcEq::new);
+        let args = crate::view_process::raw_events::RawFrameRenderedArgs::now(window_id, ev.frame, image.as_ref().map(ArcEq::downgrade));
+        RAW_FRAME_RENDERED_EVENT.notify(args);
+        if image.is_some() {
+            RAW_FRAME_RENDERED_EVENT
+                .hook(move |_| {
+                    let _hold_once = &image;
+                    false
+                })
+                .perm();
+        }
     }
 
     pub(crate) fn run_headed(mut self) {

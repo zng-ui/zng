@@ -20,7 +20,7 @@ use zng_app_context::app_local;
 use zng_layout::unit::{DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect};
 use zng_task::channel::{self, ChannelError, IpcBytes, IpcReceiver, Receiver};
 use zng_txt::Txt;
-use zng_var::{ResponderVar, Var, VarHandle};
+use zng_var::{ArcEq, ResponderVar, Var, VarHandle, WeakEq};
 use zng_view_api::{
     self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen, ViewProcessInfo,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError},
@@ -63,10 +63,10 @@ struct ViewProcessService {
 
     info: ViewProcessInfo,
 
-    loading_images: Vec<sync::Weak<ViewImageHandleData>>,
+    loading_images: Vec<WeakEq<ViewImageHandleData>>,
     encoding_images: Vec<EncodeRequest>,
 
-    loading_audios: Vec<sync::Weak<ViewAudioHandleData>>,
+    loading_audios: Vec<WeakEq<ViewAudioHandleData>>,
 
     pending_frames: usize,
 
@@ -199,8 +199,8 @@ impl VIEW_PROCESS {
 
         let id = app.process.add_image(request)?;
 
-        let handle = Arc::new((APP.id().unwrap(), app.process.generation(), id));
-        app.loading_images.push(Arc::downgrade(&handle));
+        let handle = ArcEq::new((APP.id().unwrap(), app.process.generation(), id));
+        app.loading_images.push(ArcEq::downgrade(&handle));
 
         Ok(ViewImageHandle(Some(handle)))
     }
@@ -218,8 +218,8 @@ impl VIEW_PROCESS {
 
         let id = app.process.add_image_pro(request)?;
 
-        let handle = Arc::new((APP.id().unwrap(), app.process.generation(), id));
-        app.loading_images.push(Arc::downgrade(&handle));
+        let handle = ArcEq::new((APP.id().unwrap(), app.process.generation(), id));
+        app.loading_images.push(ArcEq::downgrade(&handle));
 
         Ok(ViewImageHandle(Some(handle)))
     }
@@ -266,8 +266,8 @@ impl VIEW_PROCESS {
 
         let id = app.process.add_audio(request)?;
 
-        let handle = Arc::new((APP.id().unwrap(), app.process.generation(), id));
-        app.loading_audios.push(Arc::downgrade(&handle));
+        let handle = ArcEq::new((APP.id().unwrap(), app.process.generation(), id));
+        app.loading_audios.push(ArcEq::downgrade(&handle));
 
         Ok(ViewAudioHandle(Some(handle)))
     }
@@ -287,8 +287,8 @@ impl VIEW_PROCESS {
 
         let id = app.process.add_audio_pro(request)?;
 
-        let handle = Arc::new((APP.id().unwrap(), app.process.generation(), id));
-        app.loading_audios.push(Arc::downgrade(&handle));
+        let handle = ArcEq::new((APP.id().unwrap(), app.process.generation(), id));
+        app.loading_audios.push(ArcEq::downgrade(&handle));
 
         Ok(ViewAudioHandle(Some(handle)))
     }
@@ -412,7 +412,7 @@ impl VIEW_PROCESS {
         let mut app = self.write();
         let _ = app.check_generation();
 
-        let win = ViewWindow(Arc::new(ViewWindowData {
+        let win = ViewWindow(ArcEq::new(ViewWindowData {
             app_id: APP.id().unwrap(),
             id: ApiWindowId::from_raw(window_id.get()),
             generation: app.data_generation,
@@ -428,7 +428,7 @@ impl VIEW_PROCESS {
         let mut app = self.write();
         let _ = app.check_generation();
 
-        ViewAudioOutput(Arc::new(ViewAudioOutputData {
+        ViewAudioOutput(ArcEq::new(ViewAudioOutputData {
             app_id: APP.id().unwrap(),
             id: ApiAudioOutputId::from_raw(output_id.get()),
             generation: app.data_generation,
@@ -469,7 +469,7 @@ impl VIEW_PROCESS {
         let mut app = self.write();
         let _ = app.check_generation();
 
-        let surf = ViewHeadless(Arc::new(ViewWindowData {
+        let surf = ViewHeadless(ArcEq::new(ViewWindowData {
             app_id: APP.id().unwrap(),
             id: ApiWindowId::from_raw(id.get()),
             generation: app.data_generation,
@@ -505,8 +505,8 @@ impl VIEW_PROCESS {
         if found.is_none() && meta.parent.is_some() {
             // start tracking entry image
 
-            let handle = Arc::new((APP.id().unwrap(), app.process.generation(), meta.id));
-            app.loading_images.push(Arc::downgrade(&handle));
+            let handle = ArcEq::new((APP.id().unwrap(), app.process.generation(), meta.id));
+            app.loading_images.push(ArcEq::downgrade(&handle));
 
             return Some(ViewImageHandle(Some(handle)));
         }
@@ -580,8 +580,8 @@ impl VIEW_PROCESS {
         if found.is_none() && meta.parent.is_some() {
             // start tracking entry track
 
-            let handle = Arc::new((APP.id().unwrap(), app.process.generation(), meta.id));
-            app.loading_audios.push(Arc::downgrade(&handle));
+            let handle = ArcEq::new((APP.id().unwrap(), app.process.generation(), meta.id));
+            app.loading_audios.push(ArcEq::downgrade(&handle));
 
             return Some(ViewAudioHandle(Some(handle)));
         }
@@ -640,7 +640,7 @@ impl VIEW_PROCESS {
     }
 
     pub(crate) fn on_frame_image(&self, data: &ImageDecoded) -> ViewImageHandle {
-        ViewImageHandle(Some(Arc::new((APP.id().unwrap(), self.generation(), data.meta.id))))
+        ViewImageHandle(Some(ArcEq::new((APP.id().unwrap(), self.generation(), data.meta.id))))
     }
 
     pub(super) fn on_image_encoded(&self, task_id: ImageEncodeId, data: IpcBytes) {
@@ -825,16 +825,9 @@ impl WindowOpenData {
 /// Handle to a window open in the view-process.
 ///
 /// The window is closed when all clones of the handle are dropped.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[must_use = "the window is closed when all clones of the handle are dropped"]
-pub struct ViewWindow(Arc<ViewWindowData>);
-impl PartialEq for ViewWindow {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-impl Eq for ViewWindow {}
-
+pub struct ViewWindow(ArcEq<ViewWindowData>);
 impl ViewWindow {
     /// Returns the view-process generation on which the window was open.
     pub fn generation(&self) -> ViewProcessGen {
@@ -933,7 +926,7 @@ impl ViewWindow {
 
     /// Reference the window renderer.
     pub fn renderer(&self) -> ViewRenderer {
-        ViewRenderer(Arc::downgrade(&self.0))
+        ViewRenderer(ArcEq::downgrade(&self.0))
     }
 
     /// Sets if the headed window is in *capture-mode*. If `true` the resources used to capture
@@ -1059,6 +1052,31 @@ impl ViewWindow {
         let r = self.window_extension_raw(extension_id, ApiExtensionPayload::serialize(&request).unwrap())?;
         Ok(r.deserialize())
     }
+
+    /// Create a weak reference to this handle.
+    pub fn downgrade(&self) -> WeakViewWindow {
+        WeakViewWindow(ArcEq::downgrade(&self.0))
+    }
+}
+/// Weak reference to a [`ViewWindow`].
+#[derive(Debug, Clone)]
+pub struct WeakViewWindow(WeakEq<ViewWindowData>);
+impl PartialEq for WeakViewWindow {
+    fn eq(&self, other: &Self) -> bool {
+        sync::Weak::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for WeakViewWindow {}
+impl WeakViewWindow {
+    /// Create a strong reference to the view window, if it is still open.
+    pub fn upgrade(&self) -> Option<ViewWindow> {
+        let d = self.0.upgrade()?;
+        if d.generation == VIEW_PROCESS.generation() {
+            Some(ViewWindow(d))
+        } else {
+            None
+        }
+    }
 }
 
 /// View window or headless surface.
@@ -1140,14 +1158,9 @@ impl Drop for ViewAudioOutputData {
 /// Handle to an audio output stream in the View Process.
 ///
 /// The stream is disposed when all clones of the handle are dropped.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use = "the audio output is disposed when all clones of the handle are dropped"]
-pub struct ViewAudioOutput(Arc<ViewAudioOutputData>);
-impl PartialEq for ViewAudioOutput {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
+pub struct ViewAudioOutput(ArcEq<ViewAudioOutputData>);
 impl ViewAudioOutput {
     /// Play or enqueue audio.
     pub fn cue(&self, mix: AudioMix) -> Result<AudioPlayId> {
@@ -1162,6 +1175,25 @@ impl ViewAudioOutput {
     /// Audio output stream data.
     pub fn data(&self) -> &AudioOutputOpenData {
         &self.0.data
+    }
+
+    /// Create a weak reference to this audio output.
+    pub fn downgrade(&self) -> WeakViewAudioOutput {
+        WeakViewAudioOutput(ArcEq::downgrade(&self.0))
+    }
+}
+/// Weak reference to a [`ViewAudioOutput`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WeakViewAudioOutput(WeakEq<ViewAudioOutputData>);
+impl WeakViewAudioOutput {
+    /// Create a strong reference to the audio output, if it is still open.
+    pub fn upgrade(&self) -> Option<ViewAudioOutput> {
+        let d = self.0.upgrade()?;
+        if d.generation == VIEW_PROCESS.generation() {
+            Some(ViewAudioOutput(d))
+        } else {
+            None
+        }
     }
 }
 
@@ -1197,15 +1229,9 @@ type Result<T> = std::result::Result<T, ChannelError>;
 /// Handle to a headless surface/document open in the View Process.
 ///
 /// The view is disposed when all clones of the handle are dropped.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use = "the view is disposed when all clones of the handle are dropped"]
-pub struct ViewHeadless(Arc<ViewWindowData>);
-impl PartialEq for ViewHeadless {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-impl Eq for ViewHeadless {}
+pub struct ViewHeadless(ArcEq<ViewWindowData>);
 impl ViewHeadless {
     /// Resize the headless surface.
     pub fn set_size(&self, size: DipSize, scale_factor: Factor) -> Result<()> {
@@ -1214,7 +1240,7 @@ impl ViewHeadless {
 
     /// Reference the window renderer.
     pub fn renderer(&self) -> ViewRenderer {
-        ViewRenderer(Arc::downgrade(&self.0))
+        ViewRenderer(ArcEq::downgrade(&self.0))
     }
 
     /// Call a window extension with custom encoded payload.
@@ -1231,27 +1257,39 @@ impl ViewHeadless {
         let r = self.window_extension_raw(extension_id, ApiExtensionPayload::serialize(&request).unwrap())?;
         Ok(r.deserialize())
     }
+
+    /// Create a weak reference to this handle.
+    pub fn downgrade(&self) -> WeakViewHeadless {
+        WeakViewHeadless(ArcEq::downgrade(&self.0))
+    }
+}
+
+/// Weak reference to a [`ViewHeadless`] handle.
+#[derive(Clone, Debug)]
+pub struct WeakViewHeadless(WeakEq<ViewWindowData>);
+impl PartialEq for WeakViewHeadless {
+    fn eq(&self, other: &Self) -> bool {
+        sync::Weak::ptr_eq(&self.0, &other.0)
+    }
+}
+impl WeakViewHeadless {
+    /// Create a strong reference to the headless surface, if it is still alive.
+    pub fn upgrade(&self) -> Option<ViewHeadless> {
+        let d = self.0.upgrade()?;
+        if d.generation == VIEW_PROCESS.generation() {
+            Some(ViewHeadless(d))
+        } else {
+            None
+        }
+    }
 }
 
 /// Weak handle to a window or view.
 ///
 /// This is only a weak reference, every method returns [`ChannelError::disconnected`] if the
 /// window is closed or view is disposed.
-#[derive(Clone, Debug)]
-pub struct ViewRenderer(sync::Weak<ViewWindowData>);
-impl PartialEq for ViewRenderer {
-    fn eq(&self, other: &Self) -> bool {
-        if let Some(s) = self.0.upgrade()
-            && let Some(o) = other.0.upgrade()
-        {
-            Arc::ptr_eq(&s, &o)
-        } else {
-            false
-        }
-    }
-}
-impl Eq for ViewRenderer {}
-
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ViewRenderer(WeakEq<ViewWindowData>);
 impl ViewRenderer {
     fn call<R>(&self, f: impl FnOnce(ApiWindowId, &mut Controller) -> Result<R>) -> Result<R> {
         if let Some(c) = self.0.upgrade() {
@@ -1363,8 +1401,8 @@ impl ViewRenderer {
             ViewImageHandle::dummy()
         } else {
             let mut app = VIEW_PROCESS.handle_write(app_id);
-            let handle = Arc::new((APP.id().unwrap(), app.process.generation(), id));
-            app.loading_images.push(Arc::downgrade(&handle));
+            let handle = ArcEq::new((APP.id().unwrap(), app.process.generation(), id));
+            app.loading_images.push(ArcEq::downgrade(&handle));
 
             ViewImageHandle(Some(handle))
         }
@@ -1422,18 +1460,8 @@ type ViewImageHandleData = (AppId, ViewProcessGen, ImageId);
 ///
 /// The image is disposed when all clones of the handle are dropped.
 #[must_use = "the image is disposed when all clones of the handle are dropped"]
-#[derive(Clone, Debug)]
-pub struct ViewImageHandle(Option<Arc<ViewImageHandleData>>);
-impl PartialEq for ViewImageHandle {
-    fn eq(&self, other: &Self) -> bool {
-        match (&self.0, &other.0) {
-            (Some(a), Some(b)) => Arc::ptr_eq(a, b),
-            (None, None) => true,
-            _ => false,
-        }
-    }
-}
-impl Eq for ViewImageHandle {}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ViewImageHandle(Option<ArcEq<ViewImageHandleData>>);
 impl ViewImageHandle {
     /// New handle to nothing.
     pub fn dummy() -> Self {
@@ -1458,7 +1486,7 @@ impl ViewImageHandle {
     ///
     /// Is `None` for dummy.
     pub fn app_id(&self) -> Option<AppId> {
-        self.0.as_ref().map(|h| h.0)
+        self.0.as_ref().map(|h| h.0.0)
     }
 
     /// View-process generation that provided this image.
@@ -1469,6 +1497,14 @@ impl ViewImageHandle {
     pub fn view_process_gen(&self) -> ViewProcessGen {
         self.0.as_ref().map(|h| h.1).unwrap_or(ViewProcessGen::INVALID)
     }
+
+    /// Create a weak reference to this handle.
+    pub fn downgrade(&self) -> WeakViewImageHandle {
+        match &self.0 {
+            Some(h) => WeakViewImageHandle(ArcEq::downgrade(h)),
+            None => WeakViewImageHandle(WeakEq::new()),
+        }
+    }
 }
 impl Drop for ViewImageHandle {
     fn drop(&mut self) {
@@ -1476,7 +1512,7 @@ impl Drop for ViewImageHandle {
             && Arc::strong_count(&h) == 1
             && let Some(app) = APP.id()
         {
-            if h.0 != app {
+            if h.0.0 != app {
                 tracing::error!("image from app `{:?}` dropped in app `{:?}`", h.0, app);
                 return;
             }
@@ -1494,14 +1530,24 @@ impl Drop for ViewImageHandle {
 /// to a strong connection to the image.
 ///
 /// Dummy handles never upgrade back.
-#[derive(Clone)]
-pub struct WeakViewImageHandle(sync::Weak<ViewImageHandleData>);
+#[derive(Clone, Debug)]
+pub struct WeakViewImageHandle(WeakEq<ViewImageHandleData>);
+impl PartialEq for WeakViewImageHandle {
+    fn eq(&self, other: &Self) -> bool {
+        sync::Weak::ptr_eq(&self.0, &other.0)
+    }
+}
 impl WeakViewImageHandle {
     /// Attempt to upgrade the weak pointer to the image to a full image.
     ///
     /// Returns `Some` if the is at least another [`ViewImageHandle`] holding the image alive.
     pub fn upgrade(&self) -> Option<ViewImageHandle> {
-        self.0.upgrade().map(|h| ViewImageHandle(Some(h)))
+        let d = self.0.upgrade()?;
+        if d.1 == VIEW_PROCESS.generation() {
+            Some(ViewImageHandle(Some(d)))
+        } else {
+            None
+        }
     }
 }
 
@@ -1591,8 +1637,8 @@ impl ViewClipboard {
                 if id == ImageId::INVALID {
                     Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned invalid image"))))
                 } else {
-                    let handle = Arc::new((APP.id().unwrap(), app.process.generation(), id));
-                    app.loading_images.push(Arc::downgrade(&handle));
+                    let handle = ArcEq::new((APP.id().unwrap(), app.process.generation(), id));
+                    app.loading_images.push(ArcEq::downgrade(&handle));
                     Ok(Ok(ViewImageHandle(Some(handle))))
                 }
             }
@@ -1673,18 +1719,8 @@ type ViewAudioHandleData = (AppId, ViewProcessGen, AudioId);
 ///
 /// The audio is disposed when all clones of the handle are dropped.
 #[must_use = "the audio is disposed when all clones of the handle are dropped"]
-#[derive(Clone, Debug)]
-pub struct ViewAudioHandle(Option<Arc<ViewAudioHandleData>>);
-impl PartialEq for ViewAudioHandle {
-    fn eq(&self, other: &Self) -> bool {
-        match (&self.0, &other.0) {
-            (Some(a), Some(b)) => Arc::ptr_eq(a, b),
-            (None, None) => true,
-            _ => false,
-        }
-    }
-}
-impl Eq for ViewAudioHandle {}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ViewAudioHandle(Option<ArcEq<ViewAudioHandleData>>);
 impl ViewAudioHandle {
     /// New handle to nothing.
     pub fn dummy() -> Self {
@@ -1709,7 +1745,7 @@ impl ViewAudioHandle {
     ///
     /// Is `None` for dummy.
     pub fn app_id(&self) -> Option<AppId> {
-        self.0.as_ref().map(|h| h.0)
+        self.0.as_ref().map(|h| h.0.0)
     }
 
     /// View-process generation that provided this image.
@@ -1720,6 +1756,14 @@ impl ViewAudioHandle {
     pub fn view_process_gen(&self) -> ViewProcessGen {
         self.0.as_ref().map(|h| h.1).unwrap_or(ViewProcessGen::INVALID)
     }
+
+    /// Create a weak reference to this audio.
+    pub fn downgrade(&self) -> WeakViewAudioHandle {
+        match &self.0 {
+            Some(h) => WeakViewAudioHandle(ArcEq::downgrade(h)),
+            None => WeakViewAudioHandle(WeakEq::new()),
+        }
+    }
 }
 impl Drop for ViewAudioHandle {
     fn drop(&mut self) {
@@ -1727,7 +1771,7 @@ impl Drop for ViewAudioHandle {
             && Arc::strong_count(&h) == 1
             && let Some(app) = APP.id()
         {
-            if h.0 != app {
+            if h.0.0 != app {
                 tracing::error!("audio from app `{:?}` dropped in app `{:?}`", h.0, app);
                 return;
             }
@@ -1745,14 +1789,19 @@ impl Drop for ViewAudioHandle {
 /// to a strong connection to the audio.
 ///
 /// Dummy handles never upgrade back.
-#[derive(Clone)]
-pub struct WeakViewAudioHandle(sync::Weak<ViewAudioHandleData>);
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WeakViewAudioHandle(WeakEq<ViewAudioHandleData>);
 impl WeakViewAudioHandle {
     /// Attempt to upgrade the weak pointer to the audio to a full audio.
     ///
     /// Returns `Some` if the is at least another [`ViewAudioHandle`] holding the audio alive.
     pub fn upgrade(&self) -> Option<ViewAudioHandle> {
-        self.0.upgrade().map(|h| ViewAudioHandle(Some(h)))
+        let h = self.0.upgrade()?;
+        if h.1 == VIEW_PROCESS.generation() {
+            Some(ViewAudioHandle(Some(h)))
+        } else {
+            None
+        }
     }
 }
 

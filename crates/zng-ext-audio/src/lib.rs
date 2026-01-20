@@ -569,7 +569,7 @@ fn audio_view(
     let r_weak = r.downgrade();
     let decode_error_handle = RAW_AUDIO_DECODE_ERROR_EVENT.hook(move |args| match r_weak.upgrade() {
         Some(r) => {
-            if r.with(|a| a.view_handle() == args.handle) {
+            if r.with(|a| a.view_handle() == args.handle.upgrade().unwrap()) {
                 r.set(AudioTrack::new_error(args.error.clone()));
                 false
             } else {
@@ -583,7 +583,7 @@ fn audio_view(
     let r_weak = r.downgrade();
     let decode_meta_handle = RAW_AUDIO_METADATA_DECODED_EVENT.hook(move |args| match r_weak.upgrade() {
         Some(r) => {
-            if r.with(|a| a.view_handle() == args.handle) {
+            if r.with(|a| a.view_handle() == args.handle.upgrade().unwrap()) {
                 let meta = args.meta.clone();
                 r.modify(move |i| i.meta = meta);
             } else if let Some(p) = &args.meta.parent
@@ -592,9 +592,14 @@ fn audio_view(
                 // discovered a track for this audio, start tracking it
 
                 let data = AudioDecoded::new(AudioId::INVALID, IpcBytesCast::default());
-                let track = var(AudioTrack::new(None, args.handle.clone(), args.meta.clone(), data.clone()));
+                let track = var(AudioTrack::new(
+                    None,
+                    args.handle.upgrade().unwrap(),
+                    args.meta.clone(),
+                    data.clone(),
+                ));
                 r.modify(clmv!(track, |i| i.insert_track(track)));
-                audio_view(None, args.handle.clone(), args.meta.clone(), data, None, track);
+                audio_view(None, args.handle.upgrade().unwrap(), args.meta.clone(), data, None, track);
             }
             r.with(AudioTrack::is_loading)
         }
@@ -608,10 +613,10 @@ fn audio_view(
             let _hold = [&decoding_respawn_handle, &decode_error_handle, &decode_meta_handle];
             match r_weak.upgrade() {
                 Some(r) => {
-                    if r.with(|a| a.view_handle() == args.handle) {
-                        let data = args.audio.clone();
+                    if r.with(|a| a.view_handle() == args.handle.upgrade().unwrap()) {
+                        let data = args.audio.upgrade().unwrap();
                         let is_loading = !data.is_full;
-                        r.modify(move |i| i.data = data);
+                        r.modify(move |i| i.data = (*data.0).clone());
                         if !is_loading {
                             audio_decoded(r);
                         }
