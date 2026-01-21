@@ -1,11 +1,7 @@
-use std::sync::Arc;
-
-use atomic::Atomic;
 use zng_app::{
     event::{event, event_args},
     widget::info::{WidgetInfo, WidgetInfoBuilder, WidgetPath},
 };
-use zng_layout::unit::PxRect;
 use zng_state_map::{StateId, static_id};
 use zng_txt::Txt;
 
@@ -62,45 +58,30 @@ event! {
 ///
 /// [`WidgetInfo`]: zng_app::widget::info::WidgetInfo
 pub trait WidgetInfoImeArea {
-    /// IME exclusion area in the window space.
-    ///
-    /// Widgets are IME targets when they are focused and subscribe to [`IME_EVENT`]. This
-    /// value is an area the IME window should avoid covering, by default it is the widget inner-bounds,
-    /// but the widget can override it using [`set_ime_area`].
-    ///
-    /// This value can change after every render update.
-    ///
-    /// [`set_ime_area`]: WidgetInfoBuilderImeArea::set_ime_area
-    fn ime_area(&self) -> PxRect;
+    /// If widget defines an IME exclusion area in the window space when it is focused.
+    fn is_ime_area(&self) -> bool;
 }
 
 /// IME extension methods for [`WidgetInfoBuilder`].
 ///
 /// [`WidgetInfoBuilder`]: zng_app::widget::info::WidgetInfoBuilder
 pub trait WidgetInfoBuilderImeArea {
-    /// Set a custom [`ime_area`].
-    ///
-    /// The value can be updated every frame using interior mutability, without needing to rebuild the info.
-    ///
-    /// [`ime_area`]: WidgetInfoImeArea::ime_area
-    fn set_ime_area(&mut self, area: Arc<Atomic<PxRect>>);
+    /// Flag this widget as an IME exclusion area in the window space when it is focused.
+    fn flag_is_ime_area(&mut self);
 }
 
 static_id! {
-    static ref IME_AREA: StateId<Arc<Atomic<PxRect>>>;
+    static ref IS_IME_AREA: StateId<()>;
 }
 
 impl WidgetInfoImeArea for WidgetInfo {
-    fn ime_area(&self) -> PxRect {
-        self.meta()
-            .get(*IME_AREA)
-            .map(|r| r.load(atomic::Ordering::Relaxed))
-            .unwrap_or_else(|| self.inner_bounds())
+    fn is_ime_area(&self) -> bool {
+        self.meta().flagged(*IS_IME_AREA)
     }
 }
 
 impl WidgetInfoBuilderImeArea for WidgetInfoBuilder {
-    fn set_ime_area(&mut self, area: Arc<Atomic<PxRect>>) {
-        self.set_meta(*IME_AREA, area);
+    fn flag_is_ime_area(&mut self) {
+        self.flag_meta(*IS_IME_AREA);
     }
 }

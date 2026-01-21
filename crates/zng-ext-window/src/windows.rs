@@ -7,7 +7,7 @@ use zng_app::{
     hn_once,
     timer::TIMERS,
     update::{InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, WidgetUpdates},
-    view_process::raw_events::RAW_CHROME_CONFIG_CHANGED_EVENT,
+    view_process::{VIEW_PROCESS, raw_events::RAW_CHROME_CONFIG_CHANGED_EVENT},
     widget::{
         WIDGET, WidgetId,
         info::{WIDGET_TREE_CHANGED_EVENT, WidgetInfoTree, WidgetTreeChangedArgs},
@@ -16,18 +16,22 @@ use zng_app::{
 };
 use zng_app_context::app_local;
 use zng_task::rayon::prelude::*;
+use zng_txt::{ToTxt as _, formatx};
 use zng_unique_id::{IdEntry, IdMap, IdSet};
-use zng_var::{ResponderVar, ResponseVar, Var, response_done_var, response_var, var, var_default};
+use zng_var::{ResponderVar, ResponseVar, Var, VarHandle, response_done_var, response_var, var, var_default};
 use zng_view_api::{
+    DragDropId,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ChromeConfig,
-    window::RenderMode,
+    drag_drop::{DragDropData, DragDropEffect, DragDropError},
+    window::{RenderMode, WindowCapability},
 };
-use zng_wgt::prelude::{UiNode, WidgetInfo, WidgetInfoBuilder};
+use zng_wgt::prelude::{InteractionPath, UiNode, WidgetInfo, WidgetInfoBuilder};
 
 use crate::{
-    CloseWindowResult, ParallelWin, ViewExtensionError, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_Ext as _, WindowCloseRequestedArgs,
-    WindowInstance, WindowInstanceState, WindowLoadingHandle, WindowNode, WindowRoot, WindowVars,
+    CloseWindowResult, NestedWindowNode, ParallelWin, ViewExtensionError, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT,
+    WINDOW_Ext as _, WindowCloseArgs, WindowCloseRequestedArgs, WindowInstance, WindowInstanceState, WindowLoadingHandle, WindowNode,
+    WindowRoot, WindowVars,
 };
 
 app_local! {
@@ -39,22 +43,28 @@ pub(crate) struct WindowsService {
     parallel: Var<ParallelWin>,
     // Mutex for Sync
     pub(crate) root_extenders: Mutex<Vec<Box<dyn FnMut(WindowRootExtenderArgs) -> UiNode + Send + 'static>>>,
+    pub(crate) open_nested_handlers: Mutex<Vec<Box<dyn FnMut(&mut OpenNestedHandlerArgs) + Send + 'static>>>,
 
     pub(crate) windows: IdMap<WindowId, WindowInstance>,
     widget_update_buf: Vec<(WindowId, WindowNode, Option<WindowVars>)>,
+
+    pub(crate) focused_handle: VarHandle,
 }
 impl WindowsService {
     fn new() -> Self {
         WINDOWS_APP.init_info_provider(Box::new(WINDOWS));
-        crate::hooks::init_service_hooks();
+        crate::hooks::hook_events();
         Self {
             exit_on_last_close: var(true),
             default_render_mode: var_default(),
             parallel: var_default(),
             root_extenders: Mutex::new(vec![]),
+            open_nested_handlers: Mutex::new(vec![]),
 
             windows: IdMap::new(),
             widget_update_buf: vec![],
+
+            focused_handle: VarHandle::dummy(),
         }
     }
 
@@ -335,7 +345,7 @@ impl WINDOWS {
     /// [`Cancel`]: CloseWindowResult::Cancel
     pub fn close_all(&self) -> ResponseVar<CloseWindowResult> {
         let set: Vec<_> = WINDOWS_SV.read().windows.keys().copied().collect();
-        self.close_together(set)
+        self.close_together_impl(set)
     }
 }
 
@@ -397,7 +407,14 @@ fn close_together_all_built(request: Vec<WindowId>, r: ResponderVar<CloseWindowR
                         }
                     }
                 }
+                if nodes.is_empty() && s.exit_on_last_close.get() {
+                    zng_app::APP.exit();
+                }
+
                 s.finish_widget_update(nodes);
+
+                // notify
+                WINDOW_CLOSE_EVENT.notify(WindowCloseArgs::now(args.windows.clone()));
             }),
         )
         .perm();
@@ -603,27 +620,18 @@ impl zng_app::window::WindowsService for WINDOWS {
     }
 }
 
-/// Arguments for [`WINDOWS.register_root_extender`].
-///
-/// [`WINDOWS.register_root_extender`]: WINDOWS::register_root_extender
-#[non_exhaustive]
-pub struct WindowRootExtenderArgs {
-    /// The window root content, extender must wrap this node with extension nodes or return
-    /// it for no-op.
-    pub root: UiNode,
-}
-
 #[cfg(feature = "image")]
 impl WINDOWS {
     /// Generate an image from the current rendered frame of the window.
     ///
-    /// The image is not loaded at the moment of return, it will update when it is loaded.
+    /// The image is not loaded at the moment of return, it will update when the window has rendered at
+    /// least once and it the image has loaded.
     ///
-    /// If the window is not found the error is reported in the [image error].
+    /// If the window is not found or an error is reported in the [image error].
     ///
     /// [image error]: zng_ext_image::ImageEntry::error
     pub fn frame_image(&self, window_id: impl Into<WindowId>, mask: Option<zng_ext_image::ImageMaskMode>) -> zng_ext_image::ImageVar {
-        todo!()
+        self.frame_image_task(window_id.into(), Box::new(move |v| v.frame_image(mask)))
     }
 
     /// Generate an image from a rectangular selection of the current rendered frame of the window.
@@ -636,39 +644,147 @@ impl WINDOWS {
     pub fn frame_image_rect(
         &self,
         window_id: impl Into<WindowId>,
-        mut rect: zng_layout::unit::PxRect,
+        rect: zng_layout::unit::PxRect,
         mask: Option<zng_ext_image::ImageMaskMode>,
     ) -> zng_ext_image::ImageVar {
-        todo!()
+        self.frame_image_task(window_id.into(), Box::new(move |v| v.frame_image_rect(rect, mask)))
+    }
+
+    fn frame_image_task(
+        &self,
+        window_id: WindowId,
+        task: Box<
+            dyn FnOnce(
+                    &zng_app::view_process::ViewRenderer,
+                ) -> Result<zng_app::view_process::ViewImageHandle, zng_task::channel::ChannelError>
+                + Send
+                + Sync,
+        >,
+    ) -> zng_ext_image::ImageVar {
+        use zng_ext_image::*;
+        use zng_txt::*;
+        use zng_var::*;
+
+        let s = WINDOWS_SV.read();
+        if let Some(w) = &s.windows.get(&window_id) {
+            if !w.mode.has_renderer() {
+                return const_var(ImageEntry::new_error(formatx!("window {window_id} has no renderer")));
+            }
+
+            if let Some(n) = &w.root
+                && let Some(v) = &n.renderer
+                && n.frame_id != zng_view_api::window::FrameId::INVALID
+            {
+                // already has a frame
+
+                return match task(v) {
+                    Ok(handle) => IMAGES.register(None, (handle, Default::default())),
+                    Err(e) => const_var(ImageEntry::new_error(e.to_txt())),
+                };
+            }
+
+            // first frame not available yet, await it
+            use zng_app::view_process::raw_events::RAW_FRAME_RENDERED_EVENT;
+            let r = var(ImageEntry::new_loading());
+            let rr = r.read_only();
+            let mut task = Some(task);
+            RAW_FRAME_RENDERED_EVENT
+                .hook(move |args| {
+                    if args.window_id == window_id {
+                        let img = WINDOWS.frame_image_task(window_id, task.take().unwrap());
+                        img.set_bind(&r).perm();
+                        r.hold(r.clone()).perm();
+                        false
+                    } else {
+                        WINDOWS_SV.read().windows.contains_key(&window_id)
+                    }
+                })
+                .perm();
+            rr
+        } else {
+            const_var(ImageEntry::new_error(formatx!("window {window_id} not found")))
+        }
     }
 }
-
 impl WINDOWS {
     /// Move the window to the front of the operating system Z stack.
     ///
     /// Note that the window is not focused, the [`focus`] operation also moves the window to the front.
     ///
-    /// [`always_on_top`]: WindowVars::always_on_top
     /// [`focus`]: Self::focus
     pub fn bring_to_top(&self, window_id: impl Into<WindowId>) {
-        todo!()
+        self.bring_to_top_impl(window_id.into());
+    }
+    fn bring_to_top_impl(&self, window_id: WindowId) {
+        UPDATES.once_update("WINDOWS.bring_to_top", move || {
+            if let Some(w) = WINDOWS_SV.read().windows.get(&window_id)
+                && let Some(root) = &w.root
+                && let Some(v) = &root.view_window
+            {
+                let _ = v.bring_to_top();
+            } else {
+                tracing::error!("cannot bring_to_top {window_id}, not open in view-process");
+            }
+        });
+    }
+}
+
+/// Windows focus service integration.
+///
+/// The `FOCUS` uses this.
+#[expect(non_camel_case_types)]
+pub struct WINDOWS_FOCUS;
+impl WINDOWS_FOCUS {
+    /// Setup a var that is controlled by the focus service and tracks the focused widget.
+    ///
+    /// This must be called by the focus implementation only.
+    pub fn hook_focus_service(&self, focused: Var<Option<InteractionPath>>) {
+        let mut s = WINDOWS_SV.write();
+        if s.focused_handle.is_dummy() {
+            let mut handler = crate::hooks::focused_widget_handler();
+            s.focused_handle = focused.hook(move |a| {
+                handler(a.value());
+                true
+            });
+        } else {
+            panic!("focus service already hooked");
+        }
     }
 
     /// Request operating system focus for the window.
     ///
     /// The window will be made active and steal keyboard focus from the current focused window.
-    ///
-    /// Prefer using the `FOCUS` service and advanced `FocusRequest` configs instead of using this method directly, they integrate
-    /// with the in app widget focus and internally still use this method.
-    ///
-    /// If the `window_id` is only associated with an open request it is modified to focus the window on open.
-    /// If more than one focus request is made in the same update cycle only the last request is processed.
     pub fn focus(&self, window_id: impl Into<WindowId>) {
-        todo!()
+        self.focus_impl(window_id.into());
+    }
+    fn focus_impl(&self, window_id: WindowId) {
+        UPDATES.once_update("WINDOWS.focus", move || {
+            if let Some(w) = WINDOWS_SV.read().windows.get(&window_id)
+                && let Some(root) = &w.root
+                && let Some(v) = &root.view_window
+            {
+                let _ = v.focus();
+            } else {
+                tracing::error!("cannot bring_to_top {window_id}, not open in view-process");
+            }
+        });
     }
 }
 
-impl WINDOWS {
+/// Windows extensions hooks.
+#[expect(non_camel_case_types)]
+pub struct WINDOWS_EXTENSIONS;
+
+/// Arguments for [`WINDOWS_EXT.register_root_extender`].
+///
+/// [`WINDOWS_EXT.register_root_extender`]: WINDOWS_EXT::register_root_extender
+#[non_exhaustive]
+pub struct WindowRootExtenderArgs {
+    /// The window root content, extender must wrap this node with extension nodes or return
+    /// it for no-op.
+    pub root: UiNode,
+}
+impl WINDOWS_EXTENSIONS {
     /// Register the closure `extender` to be called with the root of every new window starting on the next update.
     ///
     /// The closure returns the new root node that will be passed to any other root extender until
@@ -695,7 +811,7 @@ impl WINDOWS {
 
     /// Register the closure `handler` to be called for every new window starting on the next update.
     ///
-    /// The closure can use the args to inspect the new window context and optionally convert the request to a [`NestedWindowNode`].
+    /// The closure is called in the new [`WINDOW`] context and can optionally call [`OpenNestedHandlerArgs::nest`] to convert to a nested window.
     /// Nested windows can be manipulated using the `WINDOWS` API just like other windows, but are layout and rendered inside another window.
     ///
     /// This is primarily an adapter for mobile platforms that only support one real window, it accelerates cross platform support from
@@ -707,13 +823,13 @@ impl WINDOWS {
     ///
     /// [`NestedWindowNode`]: crate::NestedWindowNode
     /// [`ArcNode`]: zng_app::widget::node::ArcNode
-    pub fn register_open_nested_handler(&self, handler: impl FnMut(&mut crate::OpenNestedHandlerArgs) + Send + 'static) {
-        todo!()
+    pub fn register_open_nested_handler(&self, handler: impl FnMut(&mut OpenNestedHandlerArgs) + Send + 'static) {
+        self.register_open_nested_handler_impl(Box::new(handler));
     }
-
-    /// Gets the parent actual window and widget that hosts `maybe_nested` if it is open and nested.
-    pub fn nest_parent(&self, maybe_nested: impl Into<WindowId>) -> Option<(WindowId, WidgetId)> {
-        todo!()
+    fn register_open_nested_handler_impl(&self, handler: Box<dyn FnMut(&mut OpenNestedHandlerArgs) + Send + 'static>) {
+        UPDATES.once_update("WINDOWS.register_open_nested_handler", move || {
+            WINDOWS_SV.write().open_nested_handlers.get_mut().push(handler);
+        });
     }
 
     /// Add a view-process extension payload to the window request for the view-process.
@@ -772,7 +888,28 @@ impl WINDOWS {
         extension_id: ApiExtensionId,
         request: ApiExtensionPayload,
     ) -> Result<ApiExtensionPayload, ViewExtensionError> {
-        todo!()
+        self.view_window_extension_raw_impl(window_id.into(), extension_id, request)
+    }
+    fn view_window_extension_raw_impl(
+        &self,
+        window_id: WindowId,
+        extension_id: ApiExtensionId,
+        request: ApiExtensionPayload,
+    ) -> Result<ApiExtensionPayload, ViewExtensionError> {
+        if let Some(w) = WINDOWS_SV.read().windows.get(&window_id) {
+            if let Some(r) = &w.root
+                && let Some(v) = &r.view_window
+            {
+                match v.window_extension_raw(extension_id, request) {
+                    Ok(r) => Ok(r),
+                    Err(_) => Err(ViewExtensionError::Disconnected),
+                }
+            } else {
+                Err(ViewExtensionError::NotOpenInViewProcess(window_id))
+            }
+        } else {
+            Err(ViewExtensionError::WindowNotFound(window_id))
+        }
     }
 
     /// Call a headed window extension with serialized payload.
@@ -788,7 +925,24 @@ impl WINDOWS {
         I: serde::Serialize,
         O: serde::de::DeserializeOwned,
     {
-        todo!()
+        let window_id = window_id.into();
+        if let Some(w) = WINDOWS_SV.read().windows.get(&window_id) {
+            if let Some(r) = &w.root
+                && let Some(v) = &r.view_window
+            {
+                match v.window_extension(extension_id, request) {
+                    Ok(r) => match r {
+                        Ok(r) => Ok(r),
+                        Err(e) => Err(ViewExtensionError::Api(e)),
+                    },
+                    Err(_) => Err(ViewExtensionError::Disconnected),
+                }
+            } else {
+                Err(ViewExtensionError::NotOpenInViewProcess(window_id))
+            }
+        } else {
+            Err(ViewExtensionError::WindowNotFound(window_id))
+        }
     }
 
     /// Call a view-process render extension with custom encoded payload for the renderer associated with the window.
@@ -800,7 +954,28 @@ impl WINDOWS {
         extension_id: ApiExtensionId,
         request: ApiExtensionPayload,
     ) -> Result<ApiExtensionPayload, ViewExtensionError> {
-        todo!()
+        self.view_render_extension_raw_impl(window_id.into(), extension_id, request)
+    }
+    fn view_render_extension_raw_impl(
+        &self,
+        window_id: WindowId,
+        extension_id: ApiExtensionId,
+        request: ApiExtensionPayload,
+    ) -> Result<ApiExtensionPayload, ViewExtensionError> {
+        if let Some(w) = WINDOWS_SV.read().windows.get(&window_id) {
+            if let Some(r) = &w.root
+                && let Some(v) = &r.renderer
+            {
+                match v.render_extension_raw(extension_id, request) {
+                    Ok(r) => Ok(r),
+                    Err(_) => Err(ViewExtensionError::Disconnected),
+                }
+            } else {
+                Err(ViewExtensionError::NotOpenInViewProcess(window_id))
+            }
+        } else {
+            Err(ViewExtensionError::WindowNotFound(window_id))
+        }
     }
 
     /// Call a render extension with serialized payload for the renderer associated with the window.
@@ -816,11 +991,228 @@ impl WINDOWS {
         I: serde::Serialize,
         O: serde::de::DeserializeOwned,
     {
-        todo!()
+        let window_id = window_id.into();
+        if let Some(w) = WINDOWS_SV.read().windows.get(&window_id) {
+            if let Some(r) = &w.root
+                && let Some(v) = &r.renderer
+            {
+                match v.render_extension(extension_id, request) {
+                    Ok(r) => match r {
+                        Ok(r) => Ok(r),
+                        Err(e) => Err(ViewExtensionError::Api(e)),
+                    },
+                    Err(_) => Err(ViewExtensionError::Disconnected),
+                }
+            } else {
+                Err(ViewExtensionError::NotOpenInViewProcess(window_id))
+            }
+        } else {
+            Err(ViewExtensionError::WindowNotFound(window_id))
+        }
+    }
+}
+
+/// Windows dialog service integration.
+#[expect(non_camel_case_types)]
+pub struct WINDOWS_DIALOG;
+
+impl WINDOWS_DIALOG {
+    /// Show a native message dialog for the window.
+    ///
+    /// The dialog can be modal in the view-process, in the app-process it is always async, the
+    /// response var will update once when the user responds to the dialog.
+    ///
+    /// Consider using the `DIALOG` service instead of the method directly.
+    pub fn native_message_dialog(
+        &self,
+        window_id: impl Into<WindowId>,
+        dialog: zng_view_api::dialog::MsgDialog,
+    ) -> ResponseVar<zng_view_api::dialog::MsgDialogResponse> {
+        self.native_message_dialog_impl(window_id.into(), dialog)
+    }
+    fn native_message_dialog_impl(
+        &self,
+        window_id: WindowId,
+        dialog: zng_view_api::dialog::MsgDialog,
+    ) -> ResponseVar<zng_view_api::dialog::MsgDialogResponse> {
+        let (r, rsp) = response_var();
+
+        UPDATES.once_update("WINDOWS.native_message_dialog", move || {
+            use zng_view_api::dialog::MsgDialogResponse;
+            if let Some(w) = WINDOWS_SV.read().windows.get(&window_id)
+                && let Some(root) = &w.root
+                && let Some(v) = &root.view_window
+            {
+                if let Err(e) = v.message_dialog(dialog, r.clone()) {
+                    r.respond(MsgDialogResponse::Error(formatx!("cannot show dialog, {e}")));
+                }
+            } else {
+                r.respond(MsgDialogResponse::Error(formatx!(
+                    "cannot show dialog, {window_id} not open in view-process"
+                )));
+            }
+        });
+
+        rsp
+    }
+
+    /// Show a native file dialog for the window.
+    ///
+    /// The dialog can be modal in the view-process, in the app-process it is always async, the
+    /// response var will update once when the user responds to the dialog.
+    ///
+    /// Consider using the `DIALOG` service instead of the method directly.
+    pub fn native_file_dialog(
+        &self,
+        window_id: impl Into<WindowId>,
+        dialog: zng_view_api::dialog::FileDialog,
+    ) -> ResponseVar<zng_view_api::dialog::FileDialogResponse> {
+        self.native_file_dialog_impl(window_id.into(), dialog)
+    }
+    fn native_file_dialog_impl(
+        &self,
+        window_id: WindowId,
+        dialog: zng_view_api::dialog::FileDialog,
+    ) -> ResponseVar<zng_view_api::dialog::FileDialogResponse> {
+        let (r, rsp) = response_var();
+
+        UPDATES.once_update("WINDOWS.native_file_dialog", move || {
+            use zng_view_api::dialog::FileDialogResponse;
+            if let Some(w) = WINDOWS_SV.read().windows.get(&window_id)
+                && let Some(root) = &w.root
+                && let Some(v) = &root.view_window
+            {
+                if let Err(e) = v.file_dialog(dialog, r.clone()) {
+                    r.respond(FileDialogResponse::Error(formatx!("cannot show dialog, {e}")));
+                }
+            } else {
+                r.respond(FileDialogResponse::Error(formatx!(
+                    "cannot show dialog, {window_id} not open in view-process"
+                )));
+            }
+        });
+
+        rsp
+    }
+
+    /// Window operations supported by the current view-process instance for headed windows.
+    ///
+    /// Not all window operations may be available, depending on the operating system and build. When an operation
+    /// is not available an error is logged and otherwise ignored.
+    pub fn available_operations(&self) -> WindowCapability {
+        VIEW_PROCESS.info().window
     }
 }
 
 /// Arguments for the [`WINDOWS.register_open_nested_handler`] handler.
 ///
 /// [`WINDOWS.register_open_nested_handler`]: WINDOWS::register_open_nested_handler
-pub struct OpenNestedHandlerArgs {}
+pub struct OpenNestedHandlerArgs {
+    pub(crate) has_nested: bool,
+}
+impl OpenNestedHandlerArgs {
+    pub(crate) fn new() -> Self {
+        Self { has_nested: true }
+    }
+
+    /// Instantiate a node that layouts and renders the window content.
+    ///
+    /// Calling this will stop the normal window chrome from opening, the caller is responsible for inserting the node into the
+    /// main window layout.
+    ///
+    /// Note that the window will notify *open* like normal, but it will only be visible on this node.
+    pub fn nest(&mut self) -> NestedWindowNode {
+        NestedWindowNode::new(WINDOW.id())
+    }
+}
+
+/// Raw drag&drop API.
+#[allow(non_camel_case_types)]
+pub struct WINDOWS_DRAG_DROP;
+impl WINDOWS_DRAG_DROP {
+    /// Start of drag&drop from the window.
+    ///
+    /// Note that unlike normal service methods this applies immediately.
+    pub fn start_drag_drop(
+        &self,
+        window_id: WindowId,
+        data: Vec<DragDropData>,
+        allowed_effects: DragDropEffect,
+    ) -> Result<DragDropId, DragDropError> {
+        if let Some(w) = WINDOWS_SV.read().windows.get(&window_id)
+            && let Some(root) = &w.root
+            && let Some(v) = &root.view_window
+        {
+            v.start_drag_drop(data, allowed_effects)
+                .map_err(|e| DragDropError::CannotStart(e.to_txt()))?
+        } else {
+            Err(DragDropError::CannotStart(formatx!("window {window_id} not open in view-process")))
+        }
+    }
+
+    /// Notify the drag source of what effect was applied for a received drag&drop.
+    ///
+    /// Note that unlike normal service methods this applies immediately.
+    pub fn drag_dropped(&self, window_id: WindowId, drop_id: DragDropId, applied: DragDropEffect) {
+        if let Some(w) = WINDOWS_SV.read().windows.get(&window_id)
+            && let Some(root) = &w.root
+            && let Some(v) = &root.view_window
+        {
+            let _ = v.drag_dropped(drop_id, applied);
+        }
+    }
+}
+
+#[cfg(feature = "image")]
+impl zng_ext_image::ImageRenderWindowsService for WINDOWS {
+    fn clone_boxed(&self) -> Box<dyn zng_ext_image::ImageRenderWindowsService> {
+        Box::new(WINDOWS)
+    }
+
+    fn new_window_root(&self, node: UiNode, render_mode: RenderMode) -> Box<dyn zng_ext_image::ImageRenderWindowRoot> {
+        Box::new(WindowRoot::new_container(
+            WidgetId::new_unique(),
+            crate::StartPosition::Default,
+            false,
+            true,
+            Some(render_mode),
+            crate::HeadlessMonitor::default(),
+            false,
+            node,
+        ))
+    }
+
+    fn set_parent_in_window_context(&self, parent_id: WindowId) {
+        WINDOW.vars().0.parent.set(parent_id);
+    }
+
+    fn enable_frame_capture_in_window_context(&self, mask: Option<zng_ext_image::ImageMaskMode>) {
+        let mode = if let Some(mask) = mask {
+            crate::FrameCaptureMode::AllMask(mask)
+        } else {
+            crate::FrameCaptureMode::All
+        };
+        WINDOW.vars().0.frame_capture_mode.set(mode);
+    }
+
+    fn open_headless_window(&self, new_window_root: Box<dyn FnOnce() -> Box<dyn zng_ext_image::ImageRenderWindowRoot> + Send>) {
+        WINDOWS.open_headless(
+            WindowId::new_unique(),
+            async move {
+                let root: Box<dyn std::any::Any> = new_window_root();
+                let w = *root.downcast::<WindowRoot>().expect("expected `WindowRoot` in image render window");
+                let vars = WINDOW.vars();
+                vars.auto_size().set(true);
+                vars.min_size().set(zng_layout::unit::Length::Px(zng_layout::unit::Px(1)));
+                w
+            },
+            true,
+        );
+    }
+
+    fn close_window(&self, window_id: WindowId) {
+        WINDOWS.close(window_id);
+    }
+}
+#[cfg(feature = "image")]
+impl zng_ext_image::ImageRenderWindowRoot for WindowRoot {}

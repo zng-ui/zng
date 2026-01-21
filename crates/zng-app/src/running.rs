@@ -51,7 +51,7 @@ pub(crate) struct RunningApp {
 }
 impl Drop for RunningApp {
     fn drop(&mut self) {
-        let _s = tracing::debug_span!("exit").entered();
+        let _s = tracing::debug_span!("RunningApp::drop").entered();
         APP.call_deinit_handlers();
         VIEW_PROCESS.exit();
     }
@@ -677,8 +677,6 @@ impl RunningApp {
         }
 
         if wait_app_event {
-            let idle = tracing::debug_span!("<idle>", ended_by = tracing::field::Empty).entered();
-
             const PING_TIMER: Duration = Duration::from_secs(2);
 
             let ping_timer = Deadline::timeout(PING_TIMER);
@@ -689,26 +687,16 @@ impl RunningApp {
             };
             match self.receiver.recv_deadline_blocking(timer.unwrap_or(ping_timer)) {
                 Ok(ev) => {
-                    idle.record("ended_by", "event");
-                    drop(idle);
                     self.last_wait_event = Instant::now();
                     self.push_coalesce(ev)
                 }
                 Err(e) => match e {
                     ChannelError::Timeout => {
-                        if timer.is_none() {
-                            idle.record("ended_by", "timeout (ping)");
-                        } else {
-                            idle.record("ended_by", "timeout");
-                        }
                         if self.last_wait_event.elapsed() >= PING_TIMER && !VIEW_PROCESS.is_same_process() && VIEW_PROCESS.is_connected() {
                             VIEW_PROCESS.ping();
                         }
                     }
-                    ChannelError::Disconnected { .. } => {
-                        idle.record("ended_by", "disconnected");
-                        disconnected = true
-                    }
+                    ChannelError::Disconnected { .. } => disconnected = true,
                 },
             }
         }

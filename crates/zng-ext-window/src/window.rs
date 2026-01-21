@@ -2,36 +2,45 @@ use std::{mem, pin::Pin, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
-    Deadline, hn,
+    Deadline, async_hn_once, hn,
     render::{FrameBuilder, FrameUpdate},
     static_id,
+    timer::{DeadlineHandle, TIMERS},
     update::{LayoutUpdates, RenderUpdates, UPDATES},
     view_process::{
         VIEW_PROCESS, ViewHeadless, ViewRenderer, ViewWindow,
-        raw_events::{
-            RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_WINDOW_OPEN_EVENT, RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT,
-        },
+        raw_events::{RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_WINDOW_OPEN_EVENT},
     },
-    widget::{VarLayout as _, VarSubscribe, WIDGET, WidgetCtx, info::WidgetInfoTree},
+    widget::{VarLayout as _, VarSubscribe, WIDGET, WidgetCtx, base::PARALLEL_VAR, info::WidgetInfoTree},
     window::{WINDOW, WindowCtx, WindowId, WindowMode},
 };
-use zng_color::Rgba;
+use zng_app_context::LocalContext;
+use zng_color::{COLOR_SCHEME_VAR, Rgba, colors::ACCENT_COLOR_VAR};
+use zng_layout::unit::TimeUnits as _;
 use zng_layout::{
     context::LayoutPassId,
-    unit::{DipToPx as _, FactorUnits as _, Length, Px, PxConstraints, PxDensity, PxSize, PxToDip as _},
+    unit::{
+        Dip, DipPoint, DipToPx as _, FactorUnits as _, Layout2d as _, Length, Px, PxConstraints, PxConstraints2d, PxDensity, PxPoint,
+        PxRect, PxSize, PxToDip as _, PxVector,
+    },
 };
 use zng_state_map::StateId;
+use zng_unique_id::IdSet;
 use zng_var::{ResponderVar, ResponseVar, Var, VarHandle, var};
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::{ColorsConfig, FontAntiAliasing},
-    window::{FrameId, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessRequest, WindowRequest, WindowState, WindowStateAll},
+    window::{FrameId, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessRequest, WindowCapability, WindowRequest, WindowState},
 };
-use zng_wgt::prelude::{DIRECTION_VAR, LAYOUT, LayoutMetrics, UiNode, WidgetInfo, WidgetLayout};
+use zng_wgt::{
+    node::with_context_var,
+    prelude::{DIRECTION_VAR, LAYOUT, LayoutMetrics, UiNode, UiNodeImpl, WidgetInfo, WidgetInfoBuilder, WidgetLayout},
+};
 
 use crate::{
-    AutoSize, CloseWindowResult, MONITORS, StartPosition, WINDOWS, WINDOWS_SV, WindowInstanceState, WindowLoadingHandle, WindowRoot,
-    WindowRootExtenderArgs, WindowVars,
+    AutoSize, CloseWindowResult, MONITORS, OpenNestedHandlerArgs, SetFromLayoutTag, StartPosition, WINDOW_CLOSE_EVENT, WINDOWS,
+    WINDOWS_EXTENSIONS, WINDOWS_SV, WindowCloseArgs, WindowInstanceState, WindowLoadingHandle, WindowRoot, WindowRootExtenderArgs,
+    WindowVars,
 };
 
 /// Extensions methods for [`WINDOW`] contexts of windows open by [`WINDOWS`].
@@ -175,7 +184,7 @@ impl WindowInstance {
                 let vars = {
                     let mut s = WINDOWS_SV.write();
                     let vars = WindowVars::new(s.default_render_mode.get(), primary_scale_factor, system_colors);
-                    crate::hooks::init_window_hooks(id, &vars);
+                    crate::hooks::hook_window_vars_cmds(id, &vars);
                     r.respond(vars.clone());
                     s.windows.get_mut(&id).unwrap().vars = Some(vars.clone());
                     vars
@@ -204,17 +213,96 @@ impl WindowInstance {
                     f: new_window,
                     ctx: Some(ctx),
                 };
-                let (mut root, win_ctx) = new_window.await;
+                let (mut root, mut win_ctx) = new_window.await;
+                let mut nested = None;
 
-                // apply root extenders
-                let mut extenders = mem::take(&mut WINDOWS_SV.write().root_extenders).into_inner();
-                for ext in &mut extenders {
-                    root.child = ext(WindowRootExtenderArgs { root: root.child });
+                // lock in kiosk mode
+                if root.kiosk {
+                    vars.0.chrome.set(false);
+                    let chrome_wk = vars.0.chrome.downgrade();
+                    vars.0
+                        .chrome
+                        .hook(move |a| {
+                            if !a.value() {
+                                tracing::error!("cannot enable chrome in kiosk mode");
+                                if let Some(c) = chrome_wk.upgrade() {
+                                    c.set(false);
+                                }
+                            }
+                            true
+                        })
+                        .perm();
+
+                    if !vars.0.state.get().is_fullscreen() {
+                        let try_exclusive =
+                            !VIEW_PROCESS.is_connected() || VIEW_PROCESS.info().window.contains(WindowCapability::EXCLUSIVE);
+                        if try_exclusive {
+                            vars.0.state.set(WindowState::Exclusive);
+                        } else {
+                            vars.0.state.set(WindowState::Fullscreen);
+                        }
+                        let state_wk = vars.0.state.downgrade();
+                        vars.0
+                            .state
+                            .hook(move |a| {
+                                if !a.value().is_fullscreen() {
+                                    tracing::error!("cannot exit fullscreen in kiosk mode");
+                                    if let Some(s) = state_wk.upgrade() {
+                                        let try_exclusive = !VIEW_PROCESS.is_connected()
+                                            || VIEW_PROCESS.info().window.contains(WindowCapability::EXCLUSIVE);
+                                        if try_exclusive {
+                                            s.set(WindowState::Exclusive);
+                                        } else {
+                                            s.set(WindowState::Fullscreen);
+                                        }
+                                    }
+                                }
+
+                                true
+                            })
+                            .perm();
+                    }
                 }
+
+                // apply root extenders and nest handlers
+                let mut extenders;
+                let mut nest_handlers;
+                {
+                    let mut s = WINDOWS_SV.write();
+                    extenders = mem::take(&mut s.root_extenders).into_inner();
+                    nest_handlers = mem::take(&mut s.open_nested_handlers).into_inner();
+                }
+                WINDOW.with_context(&mut win_ctx, || {
+                    for ext in &mut extenders {
+                        root.child = ext(WindowRootExtenderArgs {
+                            root: mem::replace(&mut root.child, UiNode::nil()),
+                        });
+                    }
+                    // built-in "extenders", set context vars
+                    let child = mem::replace(&mut root.child, UiNode::nil());
+                    let child = with_context_var(child, ACCENT_COLOR_VAR, vars.actual_accent_color());
+                    let child = with_context_var(child, COLOR_SCHEME_VAR, vars.actual_color_scheme());
+                    let child = with_context_var(child, PARALLEL_VAR, vars.parallel());
+                    root.child = child;
+
+                    let mut args = OpenNestedHandlerArgs::new();
+                    for nest in &mut nest_handlers {
+                        nest(&mut args);
+                        if args.has_nested {
+                            nested = Some(NestedData {
+                                pending_layout: None,
+                                pending_render: None,
+                            });
+                            break;
+                        }
+                    }
+                });
                 {
                     let mut s = WINDOWS_SV.write();
                     extenders.append(s.root_extenders.get_mut());
                     *s.root_extenders.get_mut() = extenders;
+                    nest_handlers.append(s.open_nested_handlers.get_mut());
+                    *s.open_nested_handlers.get_mut() = nest_handlers;
                 }
 
                 // init and request first info update
@@ -228,6 +316,8 @@ impl WindowInstance {
                     renderer: None,
                     view_opening: VarHandle::dummy(),
 
+                    nested,
+
                     layout_pass: LayoutPassId::new(),
                     frame_id: FrameId::INVALID,
                     clear_color: Rgba::default(),
@@ -236,7 +326,6 @@ impl WindowInstance {
                 root.with_root(|n| n.init());
                 UPDATES.update_info_window(id);
                 UPDATES.layout_window(id);
-                UPDATES.render_window(id);
                 WINDOWS_SV.write().windows.get_mut(&id).unwrap().root = Some(root);
                 vars.0.instance_state.set(WindowInstanceState::Loading);
 
@@ -258,6 +347,8 @@ pub(crate) struct WindowNode {
     pub(crate) renderer: Option<ViewRenderer>,
     pub(crate) view_opening: VarHandle,
 
+    pub(crate) nested: Option<NestedData>,
+
     pub(crate) layout_pass: LayoutPassId,
     pub(crate) frame_id: FrameId,
     pub(crate) clear_color: Rgba,
@@ -271,6 +362,11 @@ impl WindowNode {
             })
         })
     }
+}
+
+pub(crate) struct NestedData {
+    pending_layout: Option<Arc<LayoutUpdates>>,
+    pending_render: Option<[Arc<RenderUpdates>; 2]>,
 }
 
 static_id! {
@@ -301,25 +397,57 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
 
     let vars = vars.take().unwrap();
 
-    // root metrics
-    let scale_factor = vars.scale_factor().get();
+    if let Some(n) = &mut n.nested {
+        // nested window layout happens in the layout context of the parent window
+        n.pending_layout = Some(updates.clone());
+        if let Some(t) = vars.0.nest_parent.get() {
+            UPDATES.layout(Some(t));
+        }
+        return;
+    }
 
     // resolve monitor
-    let monitor = vars.0
-        .actual_monitor
-        .get()
-        .and_then(|id| MONITORS.monitor(id));
-    let resolving_monitor = monitor.is_none();
-    let monitor = monitor.unwrap_or_else(|| vars.0.monitor.get().select_fallback(*id));
-    if resolving_monitor {
-        vars.0.actual_monitor.set(monitor.id());
+    let mut monitor_rect = PxRect::zero();
+    let mut monitor_density = PxDensity::default();
+    let mut scale_factor = 1.fct();
+    if n.win_ctx.mode().is_headed() {
+        // get real monitor data
+        let monitor = vars.0.actual_monitor.get().and_then(|id| MONITORS.monitor(id));
+
+        // if monitor query is running now
+        let resolving_monitor = monitor.is_none();
+        let monitor = monitor.unwrap_or_else(|| vars.0.monitor.get().select_fallback(*id));
+
+        monitor_rect = monitor.px_rect();
+        monitor_density = monitor.density().get();
+        scale_factor = monitor.scale_factor().get();
+
+        if resolving_monitor {
+            let id = monitor.id();
+            vars.0.actual_monitor.modify(move |a| {
+                if a.set(id) {
+                    a.push_tag(SetFromLayoutTag);
+                }
+            });
+        }
+    } else {
+        debug_assert!(n.win_ctx.mode().is_headless());
+        // uses test monitor data
+        let m = &n.root.get_mut().headless_monitor;
+        if let Some(f) = m.scale_factor {
+            scale_factor = f;
+        }
+        monitor_rect.size = m.size.to_px(scale_factor);
+        monitor_density = m.density;
     }
 
     // metrics for layout of actual root values, relative to screen size
     let font_size_dft = Length::pt_to_px(11.0, scale_factor);
-    let metrics = LayoutMetrics::new(scale_factor, monitor.size().get(), font_size_dft)
-        .with_screen_density(monitor.density().get())
-        .with_direction(DIRECTION_VAR.get());
+    let monitor_metrics = || {
+        LayoutMetrics::new(scale_factor, monitor_rect.size, font_size_dft)
+            .with_screen_density(monitor_density)
+            .with_direction(DIRECTION_VAR.get())
+    };
 
     // valid auto size config
     let auto_size = if matches!(vars.state().get(), WindowState::Normal) {
@@ -330,13 +458,13 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
 
     // layout
     n.layout_pass = n.layout_pass.next();
-    let (final_size, min_size, max_size) = LAYOUT.with_root_context(n.layout_pass, metrics, || {
+    let (final_size, min_size, max_size) = LAYOUT.with_root_context(n.layout_pass, monitor_metrics(), || {
         // root font size
         let font_size = vars.font_size().layout_dft_x(font_size_dft);
         LAYOUT.with_font_size(font_size, || {
             // root constraints
             let min_size = vars.min_size().layout();
-            let max_size = vars.max_size().layout_dft(PxSize::splat(Px::MAX)).max(min_size);                        
+            let max_size = vars.max_size().layout_dft(PxSize::splat(Px::MAX)).max(min_size);
             let size = vars.actual_size().get().to_px(scale_factor);
             let mut root_cons = LAYOUT.constraints();
             if auto_size.contains(AutoSize::CONTENT_WIDTH) {
@@ -362,7 +490,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
             }
             if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
                 final_size.height = desired_size.height.max(min_size.height).min(max_size.height);
-            }            
+            }
 
             (final_size, min_size, max_size)
         })
@@ -377,6 +505,10 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
         // on view resize will skip layout again because size matches
         vars.0.actual_size.set(size_dip);
     }
+    let min_size_dip = min_size.to_dip(scale_factor);
+    let max_size_dip = max_size.to_dip(scale_factor);
+    vars.0.actual_min_size.set(max_size_dip);
+    vars.0.actual_max_size.set(max_size_dip);
 
     // transition to Loaded (without view)
     if matches!(vars.0.instance_state.get(), WindowInstanceState::Loading) {
@@ -393,14 +525,34 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
         vars.0.instance_state.set(WindowInstanceState::Loaded { has_view: false });
     }
 
-     // transition to Loaded (with view) or update view
+    // transition to Loaded (with view) or update view
     match n.win_ctx.mode() {
         WindowMode::Headed => {
             if let Some(view) = &n.view_window {
                 // update view window size if is auto_size
-                if !auto_size.is_empty() {
-                    let mut s = vars.window_state_all(min_size, max_size);
+                let prev_size = vars.0.actual_size.get().to_px(scale_factor);
+                if !auto_size.is_empty() && prev_size != final_size {
+                    let mut s = vars.window_state_all();
+
+                    let prev_center = LAYOUT.with_root_context(
+                        LayoutPassId::new(),
+                        monitor_metrics().with_constraints(PxConstraints2d::new_exact_size(prev_size)),
+                        || vars.0.auto_size_origin.layout(),
+                    );
+                    let new_center = LAYOUT.with_root_context(
+                        LayoutPassId::new(),
+                        monitor_metrics().with_constraints(PxConstraints2d::new_exact_size(final_size)),
+                        || vars.0.auto_size_origin.layout(),
+                    );
+                    let offset = if prev_size.is_empty() {
+                        PxVector::zero()
+                    } else {
+                        prev_center.to_vector() - new_center.to_vector()
+                    };
+                    s.restore_rect.origin += offset.to_dip(scale_factor);
                     s.restore_rect.size = size_dip;
+                    s.min_size = min_size_dip;
+                    s.max_size = max_size_dip;
                     vars.restore_rect().modify(move |a| {
                         if a.value().size != size_dip {
                             a.value_mut().size = size_dip;
@@ -418,26 +570,30 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
 
                 let id = n.win_ctx.id();
 
-                // fatal error if view-process fails to open, there is no way to recover from this,
-                // its not a view-process crash as that causes a respawn, its an invalid request, maybe
-                // the implementation only supports one window or something like that
-                let error_handle = RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT.hook(move |a| {
-                    if a.window_id != id {
-                        return true;
-                    }
-                    panic!("view-process failed to open window {id}, {}", a.error);
-                });
                 n.view_opening = RAW_WINDOW_OPEN_EVENT.hook(move |a| {
-                    let _hold = &error_handle;
-
                     if a.window_id != id {
                         return true;
                     }
 
                     let mut s = WINDOWS_SV.write();
                     if let Some(w) = s.windows.get_mut(&id) {
-                        w.vars.as_ref().unwrap().0.instance_state.set(WindowInstanceState::Loaded { has_view: true });
-                        w.root.as_mut().unwrap().view_window = Some(a.window); // !!: TODO renderer, window data, event holding handle
+                        w.vars
+                            .as_ref()
+                            .unwrap()
+                            .0
+                            .instance_state
+                            .set(WindowInstanceState::Loaded { has_view: true });
+                        let r = w.root.as_mut().unwrap();
+                        let window = a.window.upgrade().unwrap();
+
+                        if mem::take(&mut r.root.get_mut().start_focused) {
+                            let _ = window.focus();
+                        }
+
+                        r.renderer = Some(window.renderer());
+                        r.view_window = Some(window);
+                        r.view_opening = VarHandle::dummy();
+                        UPDATES.render_window(id);
                     }
 
                     false
@@ -445,16 +601,62 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
 
                 // Layout initial position in the monitor space.
                 let mut system_pos = false;
-                let position = match n.root.get_mut().start_position {
-                    StartPosition::Default => {} // !!: TODO
-                    StartPosition::CenterMonitor => {}
-                    StartPosition::CenterParent => {}
+                let mut global_position = PxPoint::zero();
+                let mut position = DipPoint::zero();
+                match n.root.get_mut().start_position {
+                    StartPosition::Default => {
+                        let pos = vars.0.position.get();
+                        system_pos = pos.x.is_default() || pos.y.is_default();
+                        if !system_pos {
+                            LAYOUT.with_root_context(n.layout_pass, monitor_metrics(), || {
+                                let pos = pos.layout();
+                                position = pos.to_dip(scale_factor);
+                                global_position = monitor_rect.origin + pos.to_vector();
+                            });
+                        } else {
+                            // in case system does not implement position
+                            position = DipPoint::splat(Dip::new(60));
+                            global_position = monitor_rect.origin + position.to_px(scale_factor).to_vector();
+                        }
+                    }
+                    start_position => {
+                        let screen_rect = match start_position {
+                            StartPosition::CenterMonitor => monitor_rect,
+                            StartPosition::CenterParent => {
+                                if let Some(parent_id) = vars.0.parent.get()
+                                    && let Some(parent_vars) = WINDOWS.vars(parent_id)
+                                    && matches!(parent_vars.0.instance_state.get(), WindowInstanceState::Loaded { has_view: true })
+                                {
+                                    PxRect::new(parent_vars.0.global_position.get(), parent_vars.actual_size_px().get())
+                                } else {
+                                    monitor_rect
+                                }
+                            }
+                            _ => unreachable!(),
+                        };
+
+                        let pos = PxPoint::new(
+                            (screen_rect.size.width - final_size.width) / Px(2),
+                            (screen_rect.size.height - final_size.height) / Px(2),
+                        );
+                        global_position = screen_rect.origin + pos.to_vector();
+                        position = pos.to_dip(scale_factor);
+                    }
                 };
+                vars.0.global_position.set(global_position);
+                vars.0.position.set(position);
+
+                let mut state_all = vars.window_state_all();
+                state_all.global_position = global_position;
+                state_all.restore_rect.origin = position;
+                state_all.restore_rect.size = size_dip;
+                state_all.min_size = min_size_dip;
+                state_all.max_size = max_size_dip;
 
                 let r = VIEW_PROCESS.open_window(WindowRequest::new(
                     zng_view_api::window::WindowId::from_raw(id.get()),
                     vars.0.title.get(),
-                    vars.window_state_all(min_size, max_size),
+                    state_all,
                     n.root.get_mut().kiosk,
                     system_pos,
                     vars.0.video_mode.get(),
@@ -482,10 +684,10 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                     n.root.get_mut().render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
                     vars.0.focus_indicator.get(),
                     vars.0.focused.get(),
-                    None, // !!: TODO, from info tree
+                    None, // !!: TODO, ime_area, from info tree
                     vars.0.enabled_buttons.get(),
                     vars.0.system_shutdown_warn.get(),
-                    WINDOWS.take_view_extensions_init(id),
+                    WINDOWS_EXTENSIONS.take_view_extensions_init(id),
                 ));
                 if r.is_err() {
                     tracing::error!("view-process window open request failed, will retry on respawn");
@@ -506,18 +708,26 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
 
                 // start opening view-process renderer
                 let id = n.win_ctx.id();
-                let error_handle = RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT.hook(move |a| {
+                n.view_opening = RAW_HEADLESS_OPEN_EVENT.hook(move |a| {
                     if a.window_id != id {
                         return true;
                     }
-                    tracing::error!("failed to open headless surface {id}, {}", a.error);
-                    false
-                });
-                n.view_opening = RAW_HEADLESS_OPEN_EVENT.hook(move |a| {
-                    let _hold = &error_handle;
 
-                    if a.window_id != id {
-                        return true;
+                    let mut s = WINDOWS_SV.write();
+                    if let Some(w) = s.windows.get_mut(&id) {
+                        w.vars
+                            .as_ref()
+                            .unwrap()
+                            .0
+                            .instance_state
+                            .set(WindowInstanceState::Loaded { has_view: true });
+                        let r = w.root.as_mut().unwrap();
+                        let surface = a.surface.upgrade().unwrap();
+                        r.renderer = Some(surface.renderer());
+                        r.view_headless = Some(surface);
+                        r.view_opening = VarHandle::dummy();
+
+                        UPDATES.render_window(id);
                     }
 
                     false
@@ -527,7 +737,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                     scale_factor,
                     size_dip,
                     n.root.get_mut().render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
-                    WINDOWS.take_view_extensions_init(id),
+                    WINDOWS_EXTENSIONS.take_view_extensions_init(id),
                 ));
                 if r.is_err() {
                     tracing::error!("view-process headless surface open request failed, will retry on respawn");
@@ -545,8 +755,17 @@ pub(crate) fn render(
     render_update_widgets: &Arc<RenderUpdates>,
 ) {
     if render_widgets.delivery_list().enter_window(*id) {
+        if let Some(n) = &mut n.nested {
+            n.pending_render = Some([render_widgets.clone(), render_update_widgets.clone()]);
+            if let Some(t) = vars.take().unwrap().0.nest_parent.get() {
+                UPDATES.render(Some(t));
+            }
+            return;
+        }
+
         // skip until there is a window.
         if matches!(n.win_ctx.mode(), WindowMode::Headed | WindowMode::Headless) && n.renderer.is_none() {
+            tracing::debug!("skipping render, no renderer connected");
             return;
         }
 
@@ -587,6 +806,14 @@ pub(crate) fn render(
             n.with_root(|_| WIDGET.update());
         }
     } else if render_update_widgets.delivery_list().enter_window(*id) {
+        if let Some(n) = &mut n.nested {
+            n.pending_render = Some([render_widgets.clone(), render_update_widgets.clone()]);
+            if let Some(t) = vars.take().unwrap().0.nest_parent.get() {
+                UPDATES.render_update(Some(t));
+            }
+            return;
+        }
+
         // update
         n.frame_id = n.frame_id.next_update();
         let mut update = FrameUpdate::new(
@@ -627,6 +854,175 @@ pub(crate) fn render(
 
         if n.wgt_ctx.is_pending_reinit() {
             n.with_root(|_| WIDGET.update());
+        }
+    }
+}
+
+/// UI node that hosts a nested window as defined by [`WINDOWS.register_open_nested_handler`] handler.
+///
+/// [`WINDOWS.register_open_nested_handler`]: WINDOWS::register_open_nested_handler
+pub struct NestedWindowNode {
+    window_id: WindowId,
+    close_deadline: DeadlineHandle,
+}
+impl NestedWindowNode {
+    pub(crate) fn new(window_id: WindowId) -> Self {
+        Self {
+            window_id,
+            close_deadline: DeadlineHandle::dummy(),
+        }
+    }
+
+    fn take_node(&self) -> Option<WindowNode> {
+        WINDOWS_SV.write().windows.get_mut(&self.window_id)?.root.take()
+    }
+
+    fn restore_node(&self, node: WindowNode) {
+        if let Some(w) = WINDOWS_SV.write().windows.get_mut(&self.window_id) {
+            w.root = Some(node);
+        }
+    }
+}
+// layout and render happens during parent window pass, other updates/info are disconnected
+impl UiNodeImpl for NestedWindowNode {
+    fn children_len(&self) -> usize {
+        0
+    }
+    fn with_child(&mut self, _: usize, _: &mut dyn FnMut(&mut UiNode)) {}
+
+    fn init(&mut self) {
+        if let Some(mut n) = self.take_node() {
+            // net parent and nest vars
+
+            let inner_vars = WINDOW.with_context(&mut n.win_ctx, || WINDOW.vars());
+            let parent_id = WINDOW.id();
+            let nest_id = WIDGET.id();
+            inner_vars.0.parent.set(Some(parent_id));
+            inner_vars.0.nest_parent.set(Some(nest_id));
+
+            // parent var allows modify, lock it
+            let this = inner_vars.0.parent.downgrade();
+            inner_vars
+                .0
+                .parent
+                .hook(move |a| {
+                    if *a.value() != Some(parent_id) {
+                        this.upgrade().unwrap().set(Some(parent_id));
+                    }
+                    true
+                })
+                .perm();
+
+            self.restore_node(n);
+        }
+
+        // cancel close in case of reinit
+        self.close_deadline = DeadlineHandle::dummy();
+    }
+
+    fn deinit(&mut self) {
+        // can be a temporary deinit (for reinit), wait 100ms before closing window
+        let id = self.window_id;
+        self.close_deadline = TIMERS.on_deadline(
+            100.ms(),
+            async_hn_once!(|_| {
+                let r = WINDOWS.close(id).wait_rsp().await;
+                if matches!(r, CloseWindowResult::Cancel) {
+                    // did not close ok, force close
+                    tracing::error!("nested window {id} already deinited, cannot cancel close");
+                    let mut s = WINDOWS_SV.write();
+                    let mut windows = IdSet::new();
+                    if let Some(mut w) = s.windows.remove(&id) {
+                        let vars = w.vars.take().unwrap();
+                        vars.0.instance_state.set(WindowInstanceState::Closed);
+                        windows.insert(id);
+
+                        if let Some(mut r) = w.root.take() {
+                            r.with_root(|n| n.deinit());
+                        }
+                    }
+                    WINDOW_CLOSE_EVENT.notify(WindowCloseArgs::now(windows));
+                }
+            }),
+        );
+    }
+
+    fn info(&mut self, info: &mut WidgetInfoBuilder) {
+        info.set_meta(*NESTED_WINDOW_INFO_ID, self.window_id);
+    }
+
+    fn measure(&mut self, wm: &mut zng_wgt::prelude::WidgetMeasure) -> PxSize {
+        let mut r = PxSize::zero();
+        // reset context to app level, only parent layout constraints should affect the nested window
+        if let Some(mut n) = self.take_node() {
+            let mut ctx = LocalContext::capture_filtered(zng_app_context::CaptureFilter::app_only());
+            ctx.with_context(|| {
+                n.with_root(|n| {
+                    r = wm.with_widget(|wm| n.measure(wm));
+                })
+            });
+            self.restore_node(n);
+        }
+        r
+    }
+
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        let mut r = PxSize::zero();
+        if let Some(mut n) = self.take_node() {
+            let pending = n.nested.as_mut().unwrap().pending_layout.take();
+            let mut ctx = LocalContext::capture_filtered(zng_app_context::CaptureFilter::app_only());
+            ctx.with_context(|| {
+                n.with_root(|n| {
+                    r = if let Some(p) = pending {
+                        wl.with_layout_updates(p, |wl| n.layout(wl))
+                    } else {
+                        wl.with_widget(|wl| n.layout(wl))
+                    };
+                });
+            });
+            self.restore_node(n);
+        }
+        r
+    }
+
+    fn render(&mut self, frame: &mut FrameBuilder) {
+        if let Some(mut n) = self.take_node() {
+            let [render_widgets, render_update_widgets] = n.nested.as_mut().unwrap().pending_render.take().unwrap_or_default();
+            let mut ctx = LocalContext::capture_filtered(zng_app_context::CaptureFilter::app_only());
+            ctx.with_context(|| {
+                let root_id = n.wgt_ctx.id();
+                let root_bounds = n.wgt_ctx.bounds();
+                let info = n.win_ctx.widget_tree();
+                n.with_root(|n| {
+                    frame.with_nested_window(
+                        render_widgets,
+                        render_update_widgets,
+                        root_id,
+                        &root_bounds,
+                        &info,
+                        FontAntiAliasing::Default,
+                        |frame| n.render(frame),
+                    );
+                });
+            });
+            self.restore_node(n);
+        }
+    }
+
+    fn render_update(&mut self, update: &mut FrameUpdate) {
+        if let Some(mut n) = self.take_node() {
+            let [_, render_update_widgets] = n.nested.as_mut().unwrap().pending_render.take().unwrap_or_default();
+            let mut ctx = LocalContext::capture_filtered(zng_app_context::CaptureFilter::app_only());
+            ctx.with_context(|| {
+                let root_id = n.wgt_ctx.id();
+                let root_bounds = n.wgt_ctx.bounds();
+                n.with_root(|n| {
+                    update.with_nested_window(render_update_widgets, root_id, root_bounds, |update| {
+                        n.render_update(update);
+                    });
+                })
+            });
+            self.restore_node(n);
         }
     }
 }

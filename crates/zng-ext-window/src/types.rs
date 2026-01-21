@@ -838,8 +838,6 @@ bitflags! {
     pub struct ParallelWin: u8 {
         /// Windows can init, deinit, update and rebuild info in parallel.
         const UPDATE = 0b0001;
-        /// Windows can handle event updates in parallel.
-        const EVENT = 0b0010;
         /// Windows can layout in parallel.
         const LAYOUT = 0b0100;
         /// Windows with pending render or render update generate display lists in parallel.

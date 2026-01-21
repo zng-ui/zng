@@ -21,7 +21,7 @@ use zng_app::{
 pub mod cmd;
 use cmd::FocusCommands;
 use zng_app_context::app_local;
-use zng_ext_window::{WINDOW_FOCUS, WINDOW_FOCUS_CHANGED_EVENT, WINDOWS};
+use zng_ext_window::{WINDOW_FOCUS_CHANGED_EVENT, WINDOWS, WINDOWS_FOCUS};
 use zng_layout::unit::{Px, PxPoint, PxRect, TimeUnits};
 use zng_unique_id::{IdEntry, IdMap};
 use zng_var::{Var, var};
@@ -347,7 +347,7 @@ pub struct FocusManager {
 
 impl AppExtension for FocusManager {
     fn init(&mut self) {
-        WINDOW_FOCUS.hook_focus_service(FOCUS.focused());
+        WINDOWS_FOCUS.hook_focus_service(FOCUS.focused());
         self.commands = Some(FocusCommands::new());
     }
 

@@ -116,10 +116,10 @@ pub(super) struct WindowCommands {
     minimize_handle: CommandHandle,
     restore_handle: CommandHandle,
 
-    fullscreen_handle: CommandHandle,
-    exclusive_handle: CommandHandle,
+    _fullscreen_handle: CommandHandle,
+    _exclusive_handle: CommandHandle,
 
-    close_handle: CommandHandle,
+    _close_handle: CommandHandle,
 }
 impl WindowCommands {
     /// Setup command handlers, handles live in the WindowVars::state var.
@@ -155,7 +155,7 @@ impl WindowCommands {
                     state.set(restore_state.get());
                 }),
             ),
-            fullscreen_handle: FULLSCREEN_CMD.scoped(id).on_event(
+            _fullscreen_handle: FULLSCREEN_CMD.scoped(id).on_event(
                 true,
                 true,
                 false,
@@ -167,7 +167,7 @@ impl WindowCommands {
                     }
                 }),
             ),
-            exclusive_handle: EXCLUSIVE_FULLSCREEN_CMD.scoped(id).on_event(
+            _exclusive_handle: EXCLUSIVE_FULLSCREEN_CMD.scoped(id).on_event(
                 true,
                 true,
                 false,
@@ -179,7 +179,7 @@ impl WindowCommands {
                     }
                 }),
             ),
-            close_handle: CLOSE_CMD.scoped(id).on_event(
+            _close_handle: CLOSE_CMD.scoped(id).on_event(
                 true,
                 true,
                 false,

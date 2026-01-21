@@ -1983,7 +1983,7 @@ impl Api for App {
     }
 
     fn open_window(&mut self, mut config: WindowRequest) {
-        let _s = tracing::debug_span!("open", ?config).entered();
+        let _s = tracing::debug_span!("open_window", ?config).entered();
 
         config.state.clamp_size();
         config.enforce_kiosk();
@@ -2073,8 +2073,6 @@ impl Api for App {
     }
 
     fn close(&mut self, id: WindowId) {
-        let _s = tracing::debug_span!("close_window", ?id);
-
         self.assert_resumed();
         if let Some(i) = self.windows.iter().position(|w| w.id() == id) {
             let _ = self.windows.swap_remove(i);

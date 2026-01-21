@@ -598,7 +598,7 @@ fn image_view(
     let r_weak = r.downgrade();
     let decode_error_handle = RAW_IMAGE_DECODE_ERROR_EVENT.hook(move |args| match r_weak.upgrade() {
         Some(r) => {
-            if r.with(|img| img.view_handle() == args.handle.upgrade().unwrap()) {
+            if r.with(|img| img.view_handle() == &args.handle.upgrade().unwrap()) {
                 r.set(ImageEntry::new_error(args.error.clone()));
                 false
             } else {
@@ -612,7 +612,7 @@ fn image_view(
     let r_weak = r.downgrade();
     let decode_meta_handle = RAW_IMAGE_METADATA_DECODED_EVENT.hook(move |args| match r_weak.upgrade() {
         Some(r) => {
-            if r.with(|img| img.view_handle() == args.handle.upgrade().unwrap()) {
+            if r.with(|img| img.view_handle() == &args.handle.upgrade().unwrap()) {
                 let meta = args.meta.clone();
                 r.modify(move |i| i.data.meta = meta);
             } else if let Some(p) = &args.meta.parent
@@ -637,7 +637,7 @@ fn image_view(
             let _hold = [&decoding_respawn_handle, &decode_error_handle, &decode_meta_handle];
             match r_weak.upgrade() {
                 Some(r) => {
-                    if r.with(|img| img.view_handle() == args.handle.upgrade().unwrap()) {
+                    if r.with(|img| img.view_handle() == &args.handle.upgrade().unwrap()) {
                         let data = args.image.upgrade().unwrap();
                         let is_loading = data.partial.is_some();
                         r.modify(move |i| i.data = (*data.0).clone());

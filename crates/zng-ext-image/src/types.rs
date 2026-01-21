@@ -419,8 +419,8 @@ impl ImageEntry {
     }
 
     /// Connection to the image resource in the view-process.
-    pub fn view_handle(&self) -> ViewImageHandle {
-        self.handle.clone()
+    pub fn view_handle(&self) -> &ViewImageHandle {
+        &self.handle
     }
 
     /// Calculate an *ideal* layout size for the image.

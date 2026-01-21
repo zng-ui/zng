@@ -158,7 +158,6 @@ impl VIEW_PROCESS {
     /// [`RAW_WINDOW_OPEN_EVENT`]: crate::view_process::raw_events::RAW_WINDOW_OPEN_EVENT
     /// [`RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT`]: crate::view_process::raw_events::RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT
     pub fn open_window(&self, config: WindowRequest) -> Result<()> {
-        let _s = tracing::debug_span!("VIEW_PROCESS.open_window").entered();
         self.write().process.open_window(config)
     }
 
@@ -172,7 +171,6 @@ impl VIEW_PROCESS {
     /// [`RAW_HEADLESS_OPEN_EVENT`]: crate::view_process::raw_events::RAW_HEADLESS_OPEN_EVENT
     /// [`RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT`]: crate::view_process::raw_events::RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT
     pub fn open_headless(&self, config: HeadlessRequest) -> Result<()> {
-        let _s = tracing::debug_span!("VIEW_PROCESS.open_headless").entered();
         self.write().process.open_headless(config)
     }
 
@@ -388,7 +386,7 @@ impl VIEW_PROCESS {
     where
         F: FnMut(Event) + Send + 'static,
     {
-        let _s = tracing::debug_span!("VIEW_PROCESS.start").entered();
+        let _s = tracing::debug_span!("VIEW_PROCESS.start", ?view_process_exe, ?view_process_env, ?headless).entered();
 
         let process = zng_view_api::Controller::start(view_process_exe, view_process_env, headless, on_event);
         *VIEW_PROCESS_SV.write() = Some(ViewProcessService {
@@ -1410,8 +1408,6 @@ impl ViewRenderer {
 
     /// Render a new frame.
     pub fn render(&self, frame: FrameRequest) -> Result<()> {
-        let _s = tracing::debug_span!("ViewRenderer.render").entered();
-
         if let Some(w) = self.0.upgrade() {
             w.call(|id, p| p.render(id, frame))?;
             VIEW_PROCESS.handle_write(w.app_id).pending_frames += 1;
@@ -1423,8 +1419,6 @@ impl ViewRenderer {
 
     /// Update the current frame and re-render it.
     pub fn render_update(&self, frame: FrameUpdateRequest) -> Result<()> {
-        let _s = tracing::debug_span!("ViewRenderer.render_update").entered();
-
         if let Some(w) = self.0.upgrade() {
             w.call(|id, p| p.render_update(id, frame))?;
             VIEW_PROCESS.handle_write(w.app_id).pending_frames += 1;

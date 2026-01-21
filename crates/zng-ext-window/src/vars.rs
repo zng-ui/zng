@@ -1,20 +1,19 @@
 use core::fmt;
 use std::sync::Arc;
 
-use crate::{AutoSize, CursorSource, MonitorQuery, WindowIcon, WindowInstanceState, cmd::WindowCommands};
+use crate::{AutoSize, CursorSource, MonitorQuery, WINDOWS, WindowIcon, WindowInstanceState};
 use zng_app::{
     widget::{WidgetId, base::Parallel, info::access::AccessEnabled},
     window::{MonitorId, WINDOW, WindowId},
 };
 use zng_color::LightDark;
 use zng_layout::unit::{
-    Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, PxToDip,
-    Size,
+    Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, Size,
 };
 use zng_state_map::{StateId, static_id};
 use zng_txt::Txt;
 use zng_unique_id::IdSet;
-use zng_var::{Var, merge_var, var, var_from};
+use zng_var::{Var, VarValue, merge_var, var, var_from};
 use zng_view_api::{
     config::{ColorScheme, ColorsConfig},
     window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState, WindowStateAll},
@@ -28,8 +27,8 @@ use zng_ext_image::ImageEntry;
 pub(crate) struct WindowVarsData {
     pub(crate) instance_state: Var<WindowInstanceState>,
 
-    chrome: Var<bool>,
-    icon: Var<WindowIcon>,
+    pub(crate) chrome: Var<bool>,
+    pub(crate) icon: Var<WindowIcon>,
     #[cfg(feature = "image")]
     pub(crate) actual_icon: Var<Option<ImageEntry>>,
     pub(crate) cursor: Var<CursorSource>,
@@ -37,25 +36,27 @@ pub(crate) struct WindowVarsData {
     pub(crate) actual_cursor_img: Var<Option<(ImageEntry, PxPoint)>>,
     pub(crate) title: Var<Txt>,
 
-    state: Var<WindowState>,
+    pub(crate) state: Var<WindowState>,
     pub(crate) focus_indicator: Var<Option<FocusIndicator>>,
 
-    position: Var<Point>,
+    pub(crate) position: Var<Point>,
     pub(crate) monitor: Var<MonitorQuery>,
     pub(crate) video_mode: Var<VideoMode>,
 
-    size: Var<Size>,
+    pub(crate) size: Var<Size>,
     pub(crate) auto_size: Var<AutoSize>,
-    auto_size_origin: Var<Point>,
-    min_size: Var<Size>,
-    max_size: Var<Size>,
+    pub(crate) auto_size_origin: Var<Point>,
+    pub(crate) min_size: Var<Size>,
+    pub(crate) max_size: Var<Size>,
 
-    font_size: Var<Length>,
+    pub(crate) font_size: Var<Length>,
 
     pub(crate) actual_position: Var<DipPoint>,
     pub(crate) global_position: Var<PxPoint>,
     pub(crate) actual_monitor: Var<Option<MonitorId>>,
     pub(crate) actual_size: Var<DipSize>,
+    pub(crate) actual_min_size: Var<DipSize>,
+    pub(crate) actual_max_size: Var<DipSize>,
     pub(crate) safe_padding: Var<DipSideOffsets>,
 
     pub(crate) scale_factor: Var<Factor>,
@@ -73,14 +74,14 @@ pub(crate) struct WindowVarsData {
     pub(crate) visible: Var<bool>,
     pub(crate) taskbar_visible: Var<bool>,
 
-    parent: Var<Option<WindowId>>,
+    pub(crate) parent: Var<Option<WindowId>>,
     pub(crate) nest_parent: Var<Option<WidgetId>>,
     modal: Var<bool>,
     pub(crate) children: Var<IdSet<WindowId>>,
 
-    color_scheme: Var<Option<ColorScheme>>,
+    pub(crate) color_scheme: Var<Option<ColorScheme>>,
     pub(crate) actual_color_scheme: Var<ColorScheme>,
-    accent_color: Var<Option<LightDark>>,
+    pub(crate) accent_color: Var<Option<LightDark>>,
     pub(crate) actual_accent_color: Var<LightDark>,
 
     pub(crate) focused: Var<bool>,
@@ -137,6 +138,8 @@ impl WindowVars {
             global_position: var(PxPoint::zero()),
             actual_monitor: var(None),
             actual_size: var(DipSize::zero()),
+            actual_min_size: var(DipSize::zero()),
+            actual_max_size: var(DipSize::splat(Dip::MAX)),
             safe_padding: var(DipSideOffsets::zero()),
 
             scale_factor: var(primary_scale_factor),
@@ -208,7 +211,7 @@ impl WindowVars {
     /// The default value is `true`.
     ///
     /// Note that if the [`WINDOWS.system_chrome`] reports the windowing system prefers a custom chrome **and** does not
-    /// provide one the system chrome is not requested, even if this is `true`. Window widget implementers can use this to
+    /// provide one the system chrome is not requested, even if this is `true`. Window widget implementers can use that variable to
     /// detect when a fallback chrome must be provided.
     ///
     /// [`WINDOWS.system_chrome`]: crate::WINDOWS::system_chrome
@@ -298,7 +301,7 @@ impl WindowVars {
     /// * **Maximized**: The window is maximized in the new monitor.
     /// * **Normal**: The window is centered in the new monitor, keeping the same size, unless the
     ///   [`position`] and [`size`] where set in the same update, in that case these values are used.
-    /// * **Minimized/Hidden**: The window restore position and size are defined like **Normal**.
+    /// * **Minimized/Hidden**: The window remains hidden, the restore position and size are defined like **Normal**.
     ///
     /// [`position`]: WindowVars::position
     /// [`actual_monitor`]: WindowVars::actual_monitor
@@ -440,6 +443,20 @@ impl WindowVars {
         merge_var!(self.0.actual_size.clone(), self.0.scale_factor.clone(), |size, factor| {
             PxSize::new(size.width.to_px(*factor), size.height.to_px(*factor))
         })
+    }
+
+    /// Window actual min size.
+    ///
+    /// This is a read-only variable that tracks the computed min size of the window.
+    pub fn actual_min_size(&self) -> Var<DipSize> {
+        self.0.actual_min_size.read_only()
+    }
+
+    /// Window actual max size.
+    ///
+    /// This is a read-only variable that tracks the computed min size of the window.
+    pub fn actual_max_size(&self) -> Var<DipSize> {
+        self.0.actual_max_size.read_only()
     }
 
     /// Padding that must be applied to the window content so that it stays clear of screen obstructions
@@ -797,17 +814,24 @@ impl WindowVars {
         zng_view_api::window::FrameCapture::None
     }
 
-    pub(crate) fn window_state_all(&self, min_size: PxSize, max_size: PxSize) -> WindowStateAll {
-        let f = self.0.scale_factor.get();
+    pub(crate) fn window_state_all(&self) -> WindowStateAll {
         WindowStateAll::new(
             self.0.state.get(),
             self.0.global_position.get(),
             self.0.restore_rect.get(),
             self.0.restore_state.get(),
-            min_size.to_dip(f),
-            max_size.to_dip(f),
-            self.0.chrome.get(),
+            self.0.actual_min_size.get(),
+            self.0.actual_max_size.get(),
+            self.0.chrome.get() && !WINDOWS.system_chrome().get().needs_custom(),
         )
+    }
+
+    pub(crate) fn set_from_view<T: VarValue>(&self, var: impl FnOnce(&Self) -> &Var<T>, new_value: T) {
+        var(self).modify(move |a| {
+            if a.set(new_value) {
+                a.push_tag(SetFromViewTag);
+            }
+        });
     }
 }
 impl PartialEq for WindowVars {
@@ -820,3 +844,11 @@ impl Eq for WindowVars {}
 static_id! {
     pub(crate) static ref WINDOW_VARS_ID: StateId<WindowVars>;
 }
+
+/// Identifies a variable update set from the view-process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SetFromViewTag;
+
+/// Identifies a variable update set from layout, meaning it should not request window layout back.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SetFromLayoutTag;

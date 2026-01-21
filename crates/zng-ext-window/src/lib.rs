@@ -21,9 +21,18 @@
 //! * [`WINDOWS`]
 //! * [`MONITORS`]
 //!
-//! The [`WINDOWS`] service is also setup as the implementer for [`IMAGES`] rendering.
+//! # Raw Services
 //!
-//! [`IMAGES`]: zng_ext_image::IMAGES
+//! Services this extension provides for other more advanced services.
+//!
+//! * [`WINDOWS_FOCUS`]
+//! * [`WINDOWS_EXTENSIONS`]
+//! * [`WINDOWS_DIALOG`]
+//! * [`WINDOWS_DRAG_DROP`]
+//!
+//! The [`WINDOWS`] service installs it self as the [`IMAGES_WINDOW`] handler.
+//!
+//! [`IMAGES_WINDOW`]: zng_ext_image::IMAGES_WINDOW
 //!
 //! # Crate
 //!

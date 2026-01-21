@@ -495,6 +495,13 @@ impl<A: EventArgs> Event<A> {
     pub async fn wait_match(&self, predicate: impl Fn(&A) -> bool + Send + Sync + 'static) {
         self.get_var().wait_match(move |a| a.iter().any(&predicate)).await
     }
+
+    /// Visit the args current value of [`var`].
+    ///
+    /// [`var`]: Self::var
+    pub fn with<R>(&self, visitor: impl FnOnce(&EventUpdates<A>) -> R) -> R {
+        self.read_var().with(move |v| visitor(v.downcast_ref::<EventUpdates<A>>().unwrap()))
+    }
 }
 
 #[doc(hidden)]
