@@ -441,7 +441,6 @@ impl MouseHoverArgs {
         tree.get(wgt.1)?
             .inner_transform()
             .inverse()?
-            .tr
             .transform_point(point.to_px(tree.scale_factor()))
     }
 }
@@ -461,7 +460,6 @@ impl MouseMoveArgs {
         tree.get(wgt.1)?
             .inner_transform()
             .inverse()?
-            .tr
             .transform_point(point.to_px(tree.scale_factor()))
     }
 }
@@ -514,7 +512,6 @@ impl MouseInputArgs {
         tree.get(wgt.1)?
             .inner_transform()
             .inverse()?
-            .tr
             .transform_point(point.to_px(tree.scale_factor()))
     }
 }
@@ -551,7 +548,6 @@ impl MouseClickArgs {
         tree.get(wgt.1)?
             .inner_transform()
             .inverse()?
-            .tr
             .transform_point(point.to_px(tree.scale_factor()))
     }
 }
@@ -655,7 +651,6 @@ impl MouseWheelArgs {
         tree.get(wgt.1)?
             .inner_transform()
             .inverse()?
-            .tr
             .transform_point(point.to_px(tree.scale_factor()))
     }
 }

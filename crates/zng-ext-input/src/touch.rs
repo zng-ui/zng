@@ -1,24 +1,32 @@
 //! Touch events and service.
 //!
-//! The app extension [`TouchManager`] provides the events and service. It is included in the default application.
+//! # Events
+//!
+//! Events this extension provides.
+//!
+//! * [`TOUCH_MOVE_EVENT`]
+//! * [`TOUCH_INPUT_EVENT`]
+//! * [`TOUCHED_EVENT`]
+//! * [`TOUCH_TAP_EVENT`]
+//! * [`TOUCH_TRANSFORM_EVENT`]
+//! * [`TOUCH_LONG_PRESS_EVENT`]
+//!
+//! # Services
+//!
+//! Services this extension provides.
+//!
+//! * [`TOUCH`]
 
 use std::{collections::HashMap, mem, num::NonZeroU32, ops, time::Duration};
 use zng_app::{
-    APP, AppExtension, DInstant,
-    event::{AnyEventArgs, EventPropagationHandle, event, event_args},
-    shortcut::ModifiersState,
-    timer::{DeadlineVar, TIMERS},
-    update::EventUpdate,
-    view_process::{
+    APP, AppExtension, DInstant, event::{AnyEventArgs, EventPropagationHandle, event, event_args}, hn, shortcut::ModifiersState, timer::{DeadlineVar, TIMERS}, update::EventUpdate, view_process::{
         VIEW_PROCESS_INITED_EVENT,
         raw_device_events::InputDeviceId,
         raw_events::{RAW_FRAME_RENDERED_EVENT, RAW_MOUSE_LEFT_EVENT, RAW_TOUCH_CONFIG_CHANGED_EVENT, RAW_TOUCH_EVENT, RawTouchArgs},
-    },
-    widget::{
+    }, widget::{
         WIDGET, WidgetId,
         info::{HitTestInfo, InteractionPath, WIDGET_TREE_CHANGED_EVENT},
-    },
-    window::WindowId,
+    }, window::WindowId
 };
 
 use zng_app_context::app_local;
@@ -26,7 +34,7 @@ use zng_ext_window::{NestedWindowWidgetInfoExt as _, WINDOWS};
 use zng_layout::unit::{
     AngleRadian, Dip, DipPoint, DipToPx, DipVector, Factor, Px, PxPoint, PxToDip, PxTransform, PxVector, TimeUnits, euclid,
 };
-use zng_var::{Var, impl_from_and_into_var, var};
+use zng_var::{Var, VarHandle, impl_from_and_into_var, var};
 pub use zng_view_api::{
     config::TouchConfig,
     touch::{TouchForce, TouchId, TouchPhase, TouchUpdate},
@@ -37,33 +45,6 @@ use crate::{
     pointer_capture::{CaptureInfo, POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
 };
 
-/// Application extension that provides touch events and service.
-///
-/// # Events
-///
-/// Events this extension provides.
-///
-/// * [`TOUCH_MOVE_EVENT`]
-/// * [`TOUCH_INPUT_EVENT`]
-/// * [`TOUCHED_EVENT`]
-/// * [`TOUCH_TAP_EVENT`]
-/// * [`TOUCH_TRANSFORM_EVENT`]
-/// * [`TOUCH_LONG_PRESS_EVENT`]
-///
-/// # Services
-///
-/// Services this extension provides.
-///
-/// * [`TOUCH`]
-#[derive(Default)]
-pub struct TouchManager {
-    modifiers: ModifiersState,
-    pressed: HashMap<TouchId, PressedInfo>,
-    tap_gesture: TapGesture,
-    transform_gesture: TransformGesture,
-    long_press_gesture: LongPressGesture,
-    mouse_touch: Option<TouchId>,
-}
 struct PressedInfo {
     touch_propagation: EventPropagationHandle,
     target: InteractionPath,
@@ -199,13 +180,29 @@ pub struct TouchPosition {
 
 app_local! {
     static TOUCH_SV: TouchService = {
-        APP.extensions().require::<TouchManager>();
+        hooks();
         let sys_touch_config = var(TouchConfig::default());
+        let touch_from_mouse_events = var(false);
+        let mut mouse_handles = Default::default();
+        touch_from_mouse_events.hook(|a| {
+            if *a.value() {
+                mouse_handles = hooks_touch_from_mouse();
+            } else {
+                mouse_handles = Default::default();
+            }
+            true
+        }).perm();
         TouchService {
             touch_config: sys_touch_config.cow(),
             sys_touch_config,
             positions: var(vec![]),
-            touch_from_mouse_events: var(false),
+            touch_from_mouse_events,
+            modifiers: Default::default(),
+            pressed: Default::default(),
+            tap_gesture: Default::default(),
+            transform_gesture: Default::default(),
+            long_press_gesture: Default::default(),
+            mouse_touch: Default::default(),
         }
     };
 }
@@ -214,6 +211,13 @@ struct TouchService {
     sys_touch_config: Var<TouchConfig>,
     positions: Var<Vec<TouchPosition>>,
     touch_from_mouse_events: Var<bool>,
+
+    modifiers: ModifiersState,
+    pressed: HashMap<TouchId, PressedInfo>,
+    tap_gesture: TapGesture,
+    transform_gesture: TransformGesture,
+    long_press_gesture: LongPressGesture,
+    mouse_touch: Option<TouchId>,
 }
 
 /// Identify the moves of one touch contact in [`TouchMoveArgs`].
@@ -277,16 +281,19 @@ event_args! {
 
         ..
 
-        /// Each [`TouchMove::target`] and [`capture`].
+        /// If is in any [`TouchMove::target`] or [`capture`].
         ///
         /// [`capture`]: Self::capture
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+        fn is_in_target(&self, id: WidgetId) -> bool {
             for t in &self.touches {
-                list.insert_wgt(&t.target);
+                if t.target.contains(id) {
+                    return true;
+                }
             }
             if let Some(c) = &self.capture {
-                list.insert_wgt(&c.target);
+                return c.target.contains(id);
             }
+            false
         }
     }
 
@@ -356,15 +363,19 @@ event_args! {
 
         ..
 
-        /// The [`target`] and [`capture`].
+        /// If is in [`target`] or [`capture`].
         ///
         /// [`target`]: Self::target
         /// [`capture`]: Self::capture
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            if self.target.contains(id) {
+                return true;
+            }
             list.insert_wgt(&self.target);
             if let Some(c) = &self.capture {
-                list.insert_wgt(&c.target);
+                return c.target.contains(id);
             }
+            false
         }
     }
 
@@ -414,21 +425,26 @@ event_args! {
 
         ..
 
-        /// The [`prev_target`], [`target`] and [`capture`].
+        /// If is in [`prev_target`], [`target`] or [`capture`].
         ///
         /// [`prev_target`]: Self::prev_target
         /// [`target`]: Self::target
         /// [`capture`]: Self::capture
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            if let Some(p) = &self.prev_target {
-                list.insert_wgt(p);
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            if let Some(p) = &self.prev_target
+                && p.contains(id)
+            {
+                return true;
             }
-            if let Some(p) = &self.target {
-                list.insert_wgt(p);
+            if let Some(p) = &self.target
+                && p.contains(id)
+            {
+                return true;
             }
             if let Some(c) = &self.capture {
-                list.insert_wgt(&c.target);
+                return c.target.contains(id);
             }
+            false
         }
     }
 
@@ -464,11 +480,11 @@ event_args! {
 
         ..
 
-        /// The [`target`].
+        /// If is in [`target`].
         ///
         /// [`target`]: Self::target
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_wgt(&self.target);
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
@@ -504,11 +520,11 @@ event_args! {
 
         ..
 
-        /// The [`target`].
+        /// If is in [`target`].
         ///
         /// [`target`]: Self::target
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_wgt(&self.target);
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
@@ -552,38 +568,39 @@ event_args! {
 
         ..
 
-        /// The [`target`] and [`capture`].
+        /// If is in [`target`] and [`capture`].
         ///
         /// [`target`]: Self::target
         /// [`capture`]: Self::capture
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_wgt(&self.target);
-            if let Some(c) = &self.capture {
-                list.insert_wgt(&c.target);
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            if self.target.contains(id) {
+                return true;
             }
+            if let Some(c) = &self.capture {
+                return c.target.contains(id);
+            }
+            false
         }
     }
 }
 
 impl TouchMoveArgs {
-    /// If [`capture`] is `None` or [`allows`] the [`WIDGET`] to receive this event.
+    /// If [`capture`] is `None` or [`allows`] the `wgt` to receive this event.
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn capture_allows(&self) -> bool {
-        self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
+    pub fn capture_allows(&self, wgt: (WindowId, WidgetId)) -> bool {
+        self.capture.as_ref().map(|c| c.allows(wgt)).unwrap_or(true)
     }
 }
 
 impl TouchInputArgs {
-    /// If [`capture`] is `None` or [`allows`] the [`WIDGET`] to receive this event.
+    /// If [`capture`] is `None` or [`allows`] the `wgt` to receive this event.
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn capture_allows(&self) -> bool {
-        self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
+    pub fn capture_allows(&self, wgt: (WindowId, WidgetId)) -> bool {
+        self.capture.as_ref().map(|c| c.allows(wgt)).unwrap_or(true)
     }
 
     /// If the [`phase`] is start.
@@ -653,19 +670,22 @@ impl TouchInputArgs {
     }
 
     /// Gets position in the widget inner bounds.
-    pub fn position_wgt(&self) -> Option<PxPoint> {
-        WIDGET.win_point_to_wgt(self.position)
+    pub fn position_wgt(&self, wgt: (WindowId, WidgetId)) -> Option<PxPoint> {
+        let tree = WINDOWS.widget_tree(wgt.0)?;
+        tree.get(wgt.1)?
+            .inner_transform()
+            .inverse()?
+            .transform_point(point.to_px(tree.scale_factor()))
     }
 }
 
 impl TouchedArgs {
-    /// If [`capture`] is `None` or [`allows`] the [`WIDGET`] to receive this event.
+    /// If [`capture`] is `None` or [`allows`] the `wgt` to receive this event.
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn capture_allows(&self) -> bool {
-        self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
+    pub fn capture_allows(&self, wgt: (WindowId, WidgetId)) -> bool {
+        self.capture.as_ref().map(|c| c.allows(wgt)).unwrap_or(true)
     }
 
     /// Event caused by the touch position moving over/out of the widget bounds.
@@ -683,56 +703,43 @@ impl TouchedArgs {
         self.prev_capture != self.capture
     }
 
-    /// Returns `true` if the [`WIDGET`] was not touched, but now is.
-    ///
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn is_touch_enter(&self) -> bool {
-        !self.was_touched() && self.is_touched()
+    /// Returns `true` if the `wgt` was not touched, but now is.
+    pub fn is_touch_enter(&self, wgt: (WindowId, WidgetId)) -> bool {
+        !self.was_touched(wgt) && self.is_touched(wgt)
     }
 
-    /// Returns `true` if the [`WIDGET`] was touched, but now isn't.
-    ///
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn is_touch_leave(&self) -> bool {
-        self.was_touched() && !self.is_touched()
+    /// Returns `true` if the `wgt` was touched, but now isn't.
+    pub fn is_touch_leave(&self, wgt: (WindowId, WidgetId)) -> bool {
+        self.was_touched(wgt) && !self.is_touched(wgt)
     }
 
-    /// Returns `true` if the [`WIDGET`] was not touched or was disabled, but now is touched and enabled.
-    ///
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn is_touch_enter_enabled(&self) -> bool {
-        (!self.was_touched() || self.was_disabled(WIDGET.id())) && self.is_touched() && self.is_enabled(WIDGET.id())
+    /// Returns `true` if the `wgt` was not touched or was disabled, but now is touched and enabled.
+    pub fn is_touch_enter_enabled(&self, wgt: (WindowId, WidgetId)) -> bool {
+        (!self.was_touched(wgt) || self.was_disabled(wgt.1)) && self.is_touched(wgt) && self.is_enabled(wgt.1)
     }
 
-    /// Returns `true` if the [`WIDGET`] was touched and enabled, but now is not touched or is disabled.
-    ///
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn is_touch_leave_enabled(&self) -> bool {
-        self.was_touched() && self.was_enabled(WIDGET.id()) && (!self.is_touched() || self.is_disabled(WIDGET.id()))
+    /// Returns `true` if the `wgt` was touched and enabled, but now is not touched or is disabled.
+    pub fn is_touch_leave_enabled(&self, wgt: (WindowId, WidgetId)) -> bool {
+        self.was_touched(wgt) && self.was_enabled(wgt.1) && (!self.is_touched(wgt) || self.is_disabled(wgt.1))
     }
 
-    /// Returns `true` if the [`WIDGET`] was not touched or was enabled, but now is touched and disabled.
-    ///
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn is_touch_enter_disabled(&self) -> bool {
-        (!self.was_touched() || self.was_enabled(WIDGET.id())) && self.is_touched() && self.is_disabled(WIDGET.id())
+    /// Returns `true` if the `wgt` was not touched or was enabled, but now is touched and disabled.
+    pub fn is_touch_enter_disabled(&self, wgt: (WindowId, WidgetId)) -> bool {
+        (!self.was_touched(wgt) || self.was_enabled(wgt.1)) && self.is_touched(wgt) && self.is_disabled(wgt.1)
     }
 
-    /// Returns `true` if the [`WIDGET`] was touched and disabled, but now is not touched or is enabled.
-    ///
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn is_touch_leave_disabled(&self) -> bool {
-        self.was_touched() && self.was_disabled(WIDGET.id()) && (!self.is_touched() || self.is_enabled(WIDGET.id()))
+    /// Returns `true` if the `wgt` was touched and disabled, but now is not touched or is enabled.
+    pub fn is_touch_leave_disabled(&self, wgt: (WindowId, WidgetId)) -> bool {
+        self.was_touched(wgt) && self.was_disabled(wgt.1) && (!self.is_touched(wgt) || self.is_enabled(wgt.1))
     }
 
-    /// Returns `true` if the [`WIDGET`] is in [`prev_target`] and is allowed by the [`prev_capture`].
+    /// Returns `true` if the `wgt` is in [`prev_target`] and is allowed by the [`prev_capture`].
     ///
     /// [`prev_target`]: Self::prev_target
     /// [`prev_capture`]: Self::prev_capture
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn was_touched(&self) -> bool {
+    pub fn was_touched(&self, wgt: (WindowId, WidgetId)) -> bool {
         if let Some(cap) = &self.prev_capture
-            && !cap.allows()
+            && !cap.allows(wgt)
         {
             return false;
         }
@@ -744,20 +751,19 @@ impl TouchedArgs {
         false
     }
 
-    /// Returns `true` if the [`WIDGET`] is in [`target`] and is allowed by the current [`capture`].
+    /// Returns `true` if the `wgt` is in [`target`] and is allowed by the current [`capture`].
     ///
     /// [`target`]: Self::target
     /// [`capture`]: Self::capture
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn is_touched(&self) -> bool {
+    pub fn is_touched(&self, wgt: (WindowId, WidgetId)) -> bool {
         if let Some(cap) = &self.capture
-            && !cap.allows()
+            && !cap.allows(wgt)
         {
             return false;
         }
 
         if let Some(t) = &self.target {
-            return t.contains(WIDGET.id());
+            return t.contains(wgt.1);
         }
 
         false
@@ -804,25 +810,27 @@ impl TouchedArgs {
 }
 
 impl TouchTransformArgs {
-    /// If [`capture`] is `None` or [`allows`] the [`WIDGET`] to receive this event.
+    /// If [`capture`] is `None` or [`allows`] the `wgt` to receive this event.
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn capture_allows(&self) -> bool {
-        self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
+    pub fn capture_allows(&self, wgt: (WindowId, WidgetId)) -> bool {
+        self.capture.as_ref().map(|c| c.allows(wgt)).unwrap_or(true)
     }
 
-    /// Gets the [`first_info`] and [`latest_info`] in the [`WIDGET`] inner bounds space.
+    /// Gets the [`first_info`] and [`latest_info`] in the `wgt` inner bounds space.
     ///
     /// [`first_info`]: Self::first_info
     /// [`latest_info`]: Self::latest_info
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn local_info(&self) -> [TouchTransformInfo; 2] {
+    pub fn local_info(&self, wgt: (WindowId, WidgetId)) -> [TouchTransformInfo; 2] {
         let mut first = self.first_info.clone();
         let mut latest = self.latest_info.clone();
 
-        let offset = WIDGET.bounds().inner_offset();
+        let offset = WINDOWS
+            .widget_tree(wgt.0)
+            .and_then(|t| t.get(wgt.1))
+            .map(|w| w.bounds_info().inner_offset())
+            .unwrap_or_default();
 
         first -= offset;
         latest -= offset;
@@ -897,8 +905,8 @@ impl TouchTransformArgs {
     /// Computes the transform between the [`local_info`] values, rotates and scales around the latest center.
     ///
     /// [`local_info`]: Self::local_info
-    pub fn local_transform(&self, mode: TouchTransformMode) -> PxTransform {
-        let [first, latest] = self.local_info();
+    pub fn local_transform(&self, mode: TouchTransformMode, wgt: (WindowId, WidgetId)) -> PxTransform {
+        let [first, latest] = self.local_info(wgt);
 
         let mut r = first.transform(&latest, mode);
 
@@ -996,25 +1004,25 @@ impl TouchTransformArgs {
 
 event! {
     /// Touch contact moved.
-    pub static TOUCH_MOVE_EVENT: TouchMoveArgs;
+    pub static TOUCH_MOVE_EVENT: TouchMoveArgs { TOUCH_SV.read(); };
 
     /// Touch contact started or ended.
-    pub static TOUCH_INPUT_EVENT: TouchInputArgs;
+    pub static TOUCH_INPUT_EVENT: TouchInputArgs { TOUCH_SV.read(); };
 
     /// Touch made first contact or lost contact with a widget.
-    pub static TOUCHED_EVENT: TouchedArgs;
+    pub static TOUCHED_EVENT: TouchedArgs { TOUCH_SV.read(); };
 
     /// Touch tap.
     ///
     /// This is a touch gesture event, it only notifies if it has listeners, either widget subscribers in the
     /// touched path or app level hooks.
-    pub static TOUCH_TAP_EVENT: TouchTapArgs;
+    pub static TOUCH_TAP_EVENT: TouchTapArgs { TOUCH_SV.read(); };
 
     /// Two point touch transform.
     ///
     /// This is a touch gesture event, it only notifies if it has listeners, either widget subscribers in the
     /// touched path or app level hooks.
-    pub static TOUCH_TRANSFORM_EVENT: TouchTransformArgs;
+    pub static TOUCH_TRANSFORM_EVENT: TouchTransformArgs { TOUCH_SV.read(); };
 
     /// Touch contact pressed without moving for more then the [`tap_max_time`].
     ///
@@ -1022,177 +1030,10 @@ event! {
     /// touched path or app level hooks.
     ///
     /// [`tap_max_time`]: TouchConfig::tap_max_time
-    pub static TOUCH_LONG_PRESS_EVENT: TouchLongPressArgs;
+    pub static TOUCH_LONG_PRESS_EVENT: TouchLongPressArgs { TOUCH_SV.read(); };
 }
 
-impl AppExtension for TouchManager {
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
-            self.continue_pressed(args.window_id);
-        } else if let Some(args) = RAW_TOUCH_EVENT.on(update) {
-            let mut pending_move: Vec<TouchMove> = vec![];
-
-            for u in &args.touches {
-                if let TouchPhase::Move = u.phase {
-                    if let Some(e) = pending_move.iter_mut().find(|e| e.touch == u.touch) {
-                        e.moves.push((u.position, u.force));
-                    } else {
-                        pending_move.push(TouchMove {
-                            touch: u.touch,
-                            touch_propagation: if let Some(i) = self.pressed.get(&u.touch) {
-                                i.touch_propagation.clone()
-                            } else {
-                                let weird = EventPropagationHandle::new();
-                                weird.stop();
-                                weird
-                            },
-                            moves: vec![(u.position, u.force)],
-                            velocity: DipVector::zero(),
-                            hits: HitTestInfo::no_hits(args.window_id), // hit-test deferred
-                            target: InteractionPath::new(args.window_id, []),
-                        });
-                    }
-                } else {
-                    self.on_move(args, mem::take(&mut pending_move));
-                    self.on_input(args, u);
-                }
-            }
-
-            self.on_move(args, pending_move);
-        } else if let Some(args) = WIDGET_TREE_CHANGED_EVENT.on(update) {
-            self.continue_pressed(args.window_id);
-        } else if let Some(args) = MODIFIERS_CHANGED_EVENT.on(update) {
-            self.modifiers = args.modifiers;
-        } else if let Some(args) = RAW_TOUCH_CONFIG_CHANGED_EVENT.on(update) {
-            TOUCH_SV.read().touch_config.set(args.config);
-        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            if args.is_respawn {
-                self.tap_gesture.clear();
-                self.transform_gesture.clear();
-                self.long_press_gesture.clear();
-                TOUCH_SV.read().positions.set(vec![]);
-
-                for (touch, info) in self.pressed.drain() {
-                    let args = TouchInputArgs::now(
-                        info.target.window_id(),
-                        info.device_id,
-                        touch,
-                        info.touch_propagation.clone(),
-                        DipPoint::splat(Dip::new(-1)),
-                        None,
-                        DipVector::zero(),
-                        TouchPhase::Cancel,
-                        HitTestInfo::no_hits(info.target.window_id()),
-                        info.target.clone(),
-                        None,
-                        ModifiersState::empty(),
-                    );
-                    TOUCH_INPUT_EVENT.notify(args);
-
-                    let args = TouchedArgs::now(
-                        info.target.window_id(),
-                        info.device_id,
-                        touch,
-                        info.touch_propagation,
-                        DipPoint::splat(Dip::new(-1)),
-                        None,
-                        TouchPhase::Cancel,
-                        HitTestInfo::no_hits(info.target.window_id()),
-                        info.target,
-                        None,
-                        None,
-                        None,
-                    );
-                    TOUCHED_EVENT.notify(args);
-                }
-            }
-        } else if TOUCH_SV.read().touch_from_mouse_events.get() {
-            use super::mouse::*;
-
-            if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
-                if let Some(id) = self.mouse_touch {
-                    args.propagation().stop();
-
-                    RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
-                        args.window_id,
-                        args.device_id,
-                        vec![TouchUpdate::new(id, TouchPhase::Move, args.position, None)],
-                    ));
-                }
-            } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
-                if args.button == super::mouse::MouseButton::Left {
-                    args.propagation().stop();
-
-                    let phase = match args.state {
-                        ButtonState::Pressed => {
-                            if self.mouse_touch.is_some() {
-                                return;
-                            }
-                            self.mouse_touch = Some(TouchId(u64::MAX));
-                            TouchPhase::Start
-                        }
-                        ButtonState::Released => {
-                            if self.mouse_touch.is_none() {
-                                return;
-                            }
-                            self.mouse_touch = None;
-                            TouchPhase::End
-                        }
-                    };
-
-                    RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
-                        args.window_id,
-                        args.device_id.unwrap_or(InputDeviceId::new_unique()),
-                        vec![TouchUpdate::new(TouchId(u64::MAX), phase, args.position, None)],
-                    ));
-                }
-            } else if let Some(args) = RAW_MOUSE_LEFT_EVENT.on(update)
-                && let Some(id) = self.mouse_touch.take()
-            {
-                RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
-                    args.window_id,
-                    args.device_id,
-                    vec![TouchUpdate::new(id, TouchPhase::Cancel, DipPoint::zero(), None)],
-                ))
-            }
-        }
-    }
-
-    fn event(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
-            self.tap_gesture.on_input(args);
-            self.transform_gesture.on_input(args);
-            self.long_press_gesture.on_input(args);
-        } else if let Some(args) = TOUCH_MOVE_EVENT.on(update) {
-            self.tap_gesture.on_move(args);
-            self.transform_gesture.on_move(args);
-            self.long_press_gesture.on_move(args);
-        } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
-            for (touch, info) in &self.pressed {
-                let args = TouchedArgs::now(
-                    info.target.window_id(),
-                    info.device_id,
-                    *touch,
-                    info.touch_propagation.clone(),
-                    info.position,
-                    info.force,
-                    TouchPhase::Move,
-                    info.hits.clone(),
-                    info.target.clone(),
-                    info.target.clone(),
-                    args.prev_capture.clone(),
-                    args.new_capture.clone(),
-                );
-                TOUCHED_EVENT.notify(args);
-            }
-        }
-    }
-
-    fn update_preview(&mut self) {
-        self.long_press_gesture.on_update();
-    }
-}
-impl TouchManager {
+impl TouchService {
     fn on_input(&mut self, args: &RawTouchArgs, update: &TouchUpdate) {
         if let Ok(w) = WINDOWS.widget_tree(args.window_id) {
             let mut hits = w.root().hit_test(update.position.to_px(w.scale_factor()));
@@ -1272,7 +1113,7 @@ impl TouchManager {
                         start_time: args.timestamp,
                         update_time: args.timestamp,
                     };
-                    TOUCH_SV.read().positions.modify(move |p| {
+                    self.positions.modify(move |p| {
                         let p = &mut **p;
                         if let Some(weird) = p.iter().position(|p| p.touch == pos_info.touch) {
                             p.remove(weird);
@@ -1282,7 +1123,7 @@ impl TouchManager {
                 }
                 _ => {
                     let touch = update.touch;
-                    TOUCH_SV.read().positions.modify(move |p| {
+                    self.positions.modify(move |p| {
                         if let Some(i) = p.iter().position(|p| p.touch == touch) {
                             p.remove(i);
                         }
@@ -1417,7 +1258,7 @@ impl TouchManager {
                     update_time: args.timestamp,
                 })
                 .collect();
-            TOUCH_SV.read().positions.modify(move |p| {
+            self.positions.modify(move |p| {
                 for mut update in position_updates {
                     if let Some(i) = p.iter().position(|p| p.touch == update.touch) {
                         update.start_time = p[i].start_time;
@@ -1634,6 +1475,14 @@ impl LongPressGesture {
                 } else if TOUCH_LONG_PRESS_EVENT.has_hooks()
                     || args.target.widgets_path().iter().any(|w| TOUCH_LONG_PRESS_EVENT.is_subscriber(*w))
                 {
+                    let delay = TIMERS.deadline(TOUCH.touch_config().get().tap_max_time);
+                    delay.hook(|a| {
+                        let elapsed = a.value().has_elapsed();
+                        if elapsed {
+                            TOUCH_SV.write().long_press_gesture.on_update();
+                        }
+                        !elapsed
+                    }).perm();
                     self.pending = Some(PendingLongPress {
                         window_id: args.window_id,
                         device_id: args.device_id,
@@ -1643,7 +1492,7 @@ impl LongPressGesture {
                         modifiers: args.modifiers,
                         target: args.target.widget_id(),
                         propagation: args.touch_propagation.clone(),
-                        delay: TIMERS.deadline(TOUCH.touch_config().get().tap_max_time),
+                        delay,
                         canceled: false,
                     });
                 }
@@ -2579,4 +2428,204 @@ impl TransformGesture {
             _ => {}
         }
     }
+}
+
+fn hooks() {
+    WIDGET_TREE_CHANGED_EVENT
+        .hook(|args| {
+            TOUCH_SV.write().continue_pressed(args.window_id);
+            true
+        })
+        .perm();
+
+    RAW_TOUCH_EVENT
+        .hook(|args| {
+            let mut s = TOUCH_SV.write();
+            let mut pending_move: Vec<TouchMove> = vec![];
+            for u in &args.touches {
+                if let TouchPhase::Move = u.phase {
+                    if let Some(e) = pending_move.iter_mut().find(|e| e.touch == u.touch) {
+                        e.moves.push((u.position, u.force));
+                    } else {
+                        pending_move.push(TouchMove {
+                            touch: u.touch,
+                            touch_propagation: if let Some(i) = s.pressed.get(&u.touch) {
+                                i.touch_propagation.clone()
+                            } else {
+                                let weird = EventPropagationHandle::new();
+                                weird.stop();
+                                weird
+                            },
+                            moves: vec![(u.position, u.force)],
+                            velocity: DipVector::zero(),
+                            hits: HitTestInfo::no_hits(args.window_id), // hit-test deferred
+                            target: InteractionPath::new(args.window_id, []),
+                        });
+                    }
+                } else {
+                    s.on_move(args, mem::take(&mut pending_move));
+                    s.on_input(args, u);
+                }
+            }
+
+            s.on_move(args, pending_move);
+            true
+        })
+        .perm();
+
+    MODIFIERS_CHANGED_EVENT
+        .hook(|args| {
+            TOUCH_SV.write().modifiers = args.modifiers;
+            true
+        })
+        .perm();
+
+    RAW_TOUCH_CONFIG_CHANGED_EVENT
+        .hook(|args| {
+            TOUCH_SV.read().touch_config.set(args.config);
+            true
+        })
+        .perm();
+
+    VIEW_PROCESS_INITED_EVENT
+        .hook(|args| {
+            if args.is_respawn {
+                let mut s = TOUCH_SV.write();
+                s.tap_gesture.clear();
+                s.transform_gesture.clear();
+                s.long_press_gesture.clear();
+                s.positions.set(vec![]);
+
+                for (touch, info) in s.pressed.drain() {
+                    let args = TouchInputArgs::now(
+                        info.target.window_id(),
+                        info.device_id,
+                        touch,
+                        info.touch_propagation.clone(),
+                        DipPoint::splat(Dip::new(-1)),
+                        None,
+                        DipVector::zero(),
+                        TouchPhase::Cancel,
+                        HitTestInfo::no_hits(info.target.window_id()),
+                        info.target.clone(),
+                        None,
+                        ModifiersState::empty(),
+                    );
+                    TOUCH_INPUT_EVENT.notify(args);
+
+                    let args = TouchedArgs::now(
+                        info.target.window_id(),
+                        info.device_id,
+                        touch,
+                        info.touch_propagation,
+                        DipPoint::splat(Dip::new(-1)),
+                        None,
+                        TouchPhase::Cancel,
+                        HitTestInfo::no_hits(info.target.window_id()),
+                        info.target,
+                        None,
+                        None,
+                        None,
+                    );
+                    TOUCHED_EVENT.notify(args);
+                }
+            }
+            true
+        })
+        .perm();
+
+    TOUCH_INPUT_EVENT.on_event(true, hn!(|args| {
+        let mut s = TOUCH_SV.write();
+        s.tap_gesture.on_input(args);
+        s.transform_gesture.on_input(args);
+        s.long_press_gesture.on_input(args);
+    })).perm();
+
+    TOUCH_MOVE_EVENT.on_event(true, hn!(|args| {
+        let mut s = TOUCH_SV.write();
+        s.tap_gesture.on_move(args);
+        s.transform_gesture.on_move(args);
+        s.long_press_gesture.on_move(args);
+    })).perm();
+
+    POINTER_CAPTURE_EVENT.hook(|args| {
+        if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
+            for (touch, info) in &self.pressed {
+                let args = TouchedArgs::now(
+                    info.target.window_id(),
+                    info.device_id,
+                    *touch,
+                    info.touch_propagation.clone(),
+                    info.position,
+                    info.force,
+                    TouchPhase::Move,
+                    info.hits.clone(),
+                    info.target.clone(),
+                    info.target.clone(),
+                    args.prev_capture.clone(),
+                    args.new_capture.clone(),
+                );
+                TOUCHED_EVENT.notify(args);
+            }
+        }
+        true
+    }).perm();
+}
+fn hooks_touch_from_mouse() -> [VarHandle; 3] {
+    use crate::mouse::*;
+    [
+        MOUSE_MOVE_EVENT.hook(|args| {
+            if let Some(id) = TOUCH_SV.read().mouse_touch {
+                args.propagation().stop();
+
+                RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
+                    args.window_id,
+                    args.device_id,
+                    vec![TouchUpdate::new(id, TouchPhase::Move, args.position, None)],
+                ));
+            }
+            true
+        }),
+        MOUSE_INPUT_EVENT.hook(|args| {
+            if args.button == super::mouse::MouseButton::Left {
+                args.propagation().stop();
+
+                let mut s = TOUCH_SV.write();
+
+                let phase = match args.state {
+                    ButtonState::Pressed => {
+                        if s.mouse_touch.is_some() {
+                            return;
+                        }
+                        s.mouse_touch = Some(TouchId(u64::MAX));
+                        TouchPhase::Start
+                    }
+                    ButtonState::Released => {
+                        if s.mouse_touch.is_none() {
+                            return;
+                        }
+                        s.mouse_touch = None;
+                        TouchPhase::End
+                    }
+                };
+
+                RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
+                    args.window_id,
+                    args.device_id.unwrap_or(InputDeviceId::new_unique()),
+                    vec![TouchUpdate::new(TouchId(u64::MAX), phase, args.position, None)],
+                ));
+            }
+            true
+        }),
+        RAW_MOUSE_LEFT_EVENT.hook(|args| {
+            if let Some(id) = TOUCH_SV.write().mouse_touch.take() {
+                RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
+                    args.window_id,
+                    args.device_id,
+                    vec![TouchUpdate::new(id, TouchPhase::Cancel, DipPoint::zero(), None)],
+                ))
+            }
+            true
+        }),
+    ]
 }
