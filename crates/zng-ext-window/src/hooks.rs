@@ -7,8 +7,8 @@ use zng_app::{
     view_process::{
         VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewWindow,
         raw_events::{
-            RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_WINDOW_CHANGED_EVENT, RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_CLOSE_REQUESTED_EVENT,
-            RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT,
+            RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_IME_EVENT, RAW_WINDOW_CHANGED_EVENT, RAW_WINDOW_CLOSE_EVENT,
+            RAW_WINDOW_CLOSE_REQUESTED_EVENT, RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT,
         },
     },
     widget::{
@@ -27,9 +27,9 @@ use zng_view_api::window::WindowCapability;
 use zng_wgt::prelude::{DIRECTION_VAR, InteractionPath, LAYOUT, LayoutMetrics};
 
 use crate::{
-    CursorSource, MONITORS, SetFromLayoutTag, SetFromViewTag, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT, WINDOWS,
-    WINDOWS_SV, WidgetInfoImeArea, WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowIcon, WindowInstance, WindowInstanceState,
-    WindowNode, WindowVars, cmd::WindowCommands,
+    CursorSource, IME_EVENT, ImeArgs, MONITORS, SetFromLayoutTag, SetFromViewTag, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT,
+    WINDOWS, WINDOWS_SV, WidgetInfoImeArea, WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowIcon, WindowInstance,
+    WindowInstanceState, WindowNode, WindowVars, cmd::WindowCommands,
 };
 
 /// Hooks always active for the lifetime of the app.
@@ -121,7 +121,8 @@ pub(crate) fn hook_events() {
         .hook(|args| {
             let mut prev = None;
             let mut new = None;
-            for (id, w) in WINDOWS_SV.read().windows.iter() {
+            let s = WINDOWS_SV.read();
+            for (id, w) in s.windows.iter() {
                 if let Some(v) = &w.vars {
                     if v.0.focused.get() {
                         prev = Some(*id);
@@ -129,6 +130,18 @@ pub(crate) fn hook_events() {
                     let is_focused = args.new_focus == Some(*id);
                     if is_focused {
                         new = Some(*id);
+
+                        // bring children to front
+                        v.0.children.with(|c| {
+                            for id in c {
+                                if let Some(w) = s.windows.get(id)
+                                    && let Some(r) = &w.root
+                                    && let Some(v) = &r.view_window
+                                {
+                                    let _ = v.bring_to_top();
+                                }
+                            }
+                        });
                     }
                     v.set_from_view(|v| &v.0.focused, is_focused);
                 }
@@ -261,6 +274,34 @@ pub(crate) fn hook_events() {
                         }),
                     )
                     .perm();
+            }
+            true
+        })
+        .perm();
+
+    // propagate IME event if the window has a focused IME area widget
+    RAW_IME_EVENT
+        .hook(|args| {
+            let s = WINDOWS_SV.read();
+            if let Some(focus) = s.focused.get()
+                && focus.window_id() == args.window_id
+                && focus.interactivity().is_enabled()
+                && let Some(w) = s.windows.get(&args.window_id)
+                && let Some(info) = &w.info
+                && let Some(info) = info.get(focus.widget_id())
+                && info.is_ime_area()
+            {
+                let mut preview_caret = None;
+                let txt;
+                match &args.ime {
+                    zng_view_api::Ime::Preview(t, caret) => {
+                        txt = t.clone();
+                        preview_caret = Some(*caret);
+                    }
+                    zng_view_api::Ime::Commit(t) => txt = t.clone(),
+                }
+
+                IME_EVENT.notify(ImeArgs::new(args.timestamp, args.propagation().clone(), focus, txt, preview_caret));
             }
             true
         })
@@ -774,6 +815,20 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                 }
             }
             prev_parent = *a.value();
+            true
+        })
+        .perm();
+
+    #[cfg(feature = "image")]
+    vars.0
+        .frame_capture_mode
+        .hook(move |a| {
+            with_view(id, |_, _, v| {
+                let _ = v.set_capture_mode(matches!(
+                    *a.value(),
+                    crate::FrameCaptureMode::All | crate::FrameCaptureMode::AllMask(_)
+                ));
+            });
             true
         })
         .perm();

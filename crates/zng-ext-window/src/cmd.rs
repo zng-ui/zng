@@ -1,16 +1,18 @@
 //! Commands that control the scoped window.
 
 use zng_app::{
-    event::{CommandHandle, CommandInfoExt, CommandNameExt, EventArgs, command},
+    event::{CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, command},
     hn,
     shortcut::{CommandShortcutExt, shortcut},
+    view_process::VIEW_PROCESS,
     window::WindowId,
 };
 
-use zng_view_api::window::WindowState;
+use zng_layout::unit::{Dip, DipPoint, PxPoint, PxToDip as _};
+use zng_view_api::window::{WindowCapability, WindowState};
 use zng_wgt::{CommandIconExt as _, ICONS, wgt_fn};
 
-use crate::{WINDOWS, WindowVars};
+use crate::{IME_EVENT, ImeArgs, WINDOWS, WINDOWS_SV, WindowInstanceState, WindowVars};
 
 pub use zng_view_api::window::ResizeDirection;
 
@@ -122,7 +124,7 @@ pub(super) struct WindowCommands {
     _close_handle: CommandHandle,
 }
 impl WindowCommands {
-    /// Setup command handlers, handles live in the WindowVars::state var.
+    /// Setup command handlers, handles live in the WindowVars hooks.
     pub fn init(id: WindowId, vars: &WindowVars) {
         let state = vars.state();
         let restore_state = vars.restore_state();
@@ -189,13 +191,103 @@ impl WindowCommands {
                 }),
             ),
         };
-
         state
             .hook(move |a| {
                 let state = *a.value();
                 c.restore_handle.enabled().set(state != WindowState::Normal);
                 c.maximize_handle.enabled().set(state != WindowState::Maximized);
                 c.minimize_handle.enabled().set(state != WindowState::Minimized);
+                true
+            })
+            .perm();
+
+        fn can_open_ctx_menu(state: WindowInstanceState) -> bool {
+            matches!(state, WindowInstanceState::Loaded { has_view: true })
+                && VIEW_PROCESS.info().window.contains(WindowCapability::OPEN_TITLE_BAR_CONTEXT_MENU)
+        }
+        let handle = OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(id).on_event(
+            can_open_ctx_menu(vars.0.instance_state.get()),
+            true,
+            false,
+            hn!(|args| {
+                if let Some(w) = WINDOWS_SV.read().windows.get(&id)
+                    && let Some(vars) = &w.vars
+                    && let Some(r) = &w.root
+                    && let Some(v) = &r.view_window
+                {
+                    args.propagation().stop();
+
+                    let pos = if let Some(p) = args.param::<DipPoint>() {
+                        *p
+                    } else if let Some(p) = args.param::<PxPoint>() {
+                        p.to_dip(vars.0.scale_factor.get())
+                    } else {
+                        DipPoint::splat(Dip::new(24))
+                    };
+
+                    let _ = v.open_title_bar_context_menu(pos);
+                }
+            }),
+        );
+        vars.0
+            .instance_state
+            .hook(move |a| {
+                handle.enabled().set(can_open_ctx_menu(a.value().clone()));
+                true
+            })
+            .perm();
+
+        let handle = CANCEL_IME_CMD.scoped(id).on_event(
+            false,
+            false,
+            false,
+            hn!(|args| {
+                let s = WINDOWS_SV.read();
+                if let Some(w) = s.windows.get(&id)
+                    && let Some(r) = &w.root
+                    && let Some(v) = &r.view_window
+                    && let Some(f) = s.focused.get()
+                    && f.window_id() == id
+                    && (matches!(args.scope, CommandScope::Window(w) if w == id)
+                        || matches!(args.scope, CommandScope::Widget(w) if w == f.widget_id()))
+                {
+                    args.propagation().stop();
+
+                    let _ = v.set_ime_area(None);
+
+                    IME_EVENT.notify(ImeArgs::now(f, "", None));
+                }
+            }),
+        );
+        vars.0
+            .focused
+            .hook(move |a| {
+                handle.enabled().set(*a.value());
+                true
+            })
+            .perm();
+
+        let handle = DRAG_MOVE_RESIZE_CMD.scoped(id).on_event(
+            vars.0.resizable.get(),
+            true,
+            false,
+            hn!(|args| {
+                if let Some(w) = WINDOWS_SV.read().windows.get(&id)
+                    && let Some(r) = &w.root
+                    && let Some(v) = &r.view_window
+                {
+                    args.propagation().stop();
+                    let _ = match args.param::<crate::cmd::ResizeDirection>() {
+                        Some(r) => v.drag_resize(*r),
+                        None => v.drag_move(),
+                    };
+                }
+            }),
+        );
+        vars.0
+            .resizable
+            .hook(move |a| {
+                handle.enabled().set(*a.value());
                 true
             })
             .perm();

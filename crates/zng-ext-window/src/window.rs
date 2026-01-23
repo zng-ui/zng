@@ -39,8 +39,8 @@ use zng_wgt::{
 
 use crate::{
     AutoSize, CloseWindowResult, MONITORS, OpenNestedHandlerArgs, SetFromLayoutTag, StartPosition, WINDOW_CLOSE_EVENT, WINDOWS,
-    WINDOWS_EXTENSIONS, WINDOWS_SV, WindowCloseArgs, WindowInstanceState, WindowLoadingHandle, WindowRoot, WindowRootExtenderArgs,
-    WindowVars,
+    WINDOWS_EXTENSIONS, WINDOWS_SV, WidgetInfoImeArea as _, WindowCloseArgs, WindowInstanceState, WindowLoadingHandle, WindowRoot,
+    WindowRootExtenderArgs, WindowVars,
 };
 
 /// Extensions methods for [`WINDOW`] contexts of windows open by [`WINDOWS`].
@@ -653,6 +653,22 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                 state_all.min_size = min_size_dip;
                 state_all.max_size = max_size_dip;
 
+                let mut ime_area = None;
+                {
+                    let s = WINDOWS_SV.read();
+                    s.focused.with(|f| {
+                        if let Some(f) = f
+                            && f.window_id() == id
+                            && let Some(w) = s.windows.get(&id)
+                            && let Some(i) = &w.info
+                            && let Some(i) = i.get(f.widget_id())
+                            && i.is_ime_area()
+                        {
+                            ime_area = Some(i.inner_bounds().to_dip(scale_factor));
+                        }
+                    });
+                }
+
                 let r = VIEW_PROCESS.open_window(WindowRequest::new(
                     zng_view_api::window::WindowId::from_raw(id.get()),
                     vars.0.title.get(),
@@ -684,7 +700,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                     n.root.get_mut().render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
                     vars.0.focus_indicator.get(),
                     vars.0.focused.get(),
-                    None, // !!: TODO, ime_area, from info tree
+                    ime_area,
                     vars.0.enabled_buttons.get(),
                     vars.0.system_shutdown_warn.get(),
                     WINDOWS_EXTENSIONS.take_view_extensions_init(id),

@@ -10,7 +10,7 @@ use zng_app::{
     view_process::{VIEW_PROCESS, raw_events::RAW_CHROME_CONFIG_CHANGED_EVENT},
     widget::{
         WIDGET, WidgetId,
-        info::{WIDGET_TREE_CHANGED_EVENT, WidgetInfoTree, WidgetTreeChangedArgs},
+        info::{WIDGET_TREE_CHANGED_EVENT, WidgetInfoTree, WidgetTreeChangedArgs, access::AccessEnabled},
     },
     window::{WINDOW, WINDOWS_APP, WindowId, WindowMode},
 };
@@ -18,7 +18,7 @@ use zng_app_context::app_local;
 use zng_task::rayon::prelude::*;
 use zng_txt::{ToTxt as _, formatx};
 use zng_unique_id::{IdEntry, IdMap, IdSet};
-use zng_var::{ResponderVar, ResponseVar, Var, VarHandle, response_done_var, response_var, var, var_default};
+use zng_var::{ResponderVar, ResponseVar, Var, const_var, response_done_var, response_var, var, var_default};
 use zng_view_api::{
     DragDropId,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -48,7 +48,8 @@ pub(crate) struct WindowsService {
     pub(crate) windows: IdMap<WindowId, WindowInstance>,
     widget_update_buf: Vec<(WindowId, WindowNode, Option<WindowVars>)>,
 
-    pub(crate) focused_handle: VarHandle,
+    pub(crate) focused: Var<Option<InteractionPath>>,
+    focused_set: bool,
 }
 impl WindowsService {
     fn new() -> Self {
@@ -64,7 +65,8 @@ impl WindowsService {
             windows: IdMap::new(),
             widget_update_buf: vec![],
 
-            focused_handle: VarHandle::dummy(),
+            focused: const_var(None),
+            focused_set: false,
         }
     }
 
@@ -485,11 +487,12 @@ impl zng_app::window::WindowsService for WINDOWS {
         let rebuild_info = |(id, n, _): &mut (WindowId, WindowNode, _)| {
             if updates.delivery_list().enter_window(*id) {
                 // rebuild info
+                let access_enabled = WINDOW.vars().access_enabled().get();
                 let info = n.with_root(|n| {
                     let mut builder = WidgetInfoBuilder::new(
                         updates.clone(),
                         *id,
-                        WINDOW.vars().access_enabled().get(),
+                        access_enabled,
                         WIDGET.id(),
                         WIDGET.bounds(),
                         WIDGET.border(),
@@ -504,6 +507,11 @@ impl zng_app::window::WindowsService for WINDOWS {
                 // apply and notify
                 WINDOWS_SV.write().windows.get_mut(id).unwrap().info = Some(info.clone());
                 WIDGET_TREE_CHANGED_EVENT.notify(WidgetTreeChangedArgs::now(info, false));
+
+                if access_enabled.contains(AccessEnabled::VIEW) {
+                    // access data is send in the frame display list
+                    UPDATES.render_window(WINDOW.id());
+                }
             }
         };
         if parallel {
@@ -740,15 +748,15 @@ impl WINDOWS_FOCUS {
     /// This must be called by the focus implementation only.
     pub fn hook_focus_service(&self, focused: Var<Option<InteractionPath>>) {
         let mut s = WINDOWS_SV.write();
-        if s.focused_handle.is_dummy() {
-            let mut handler = crate::hooks::focused_widget_handler();
-            s.focused_handle = focused.hook(move |a| {
+        assert!(!s.focused_set, "focus service already hooked");
+        s.focused = focused;
+        let mut handler = crate::hooks::focused_widget_handler();
+        s.focused
+            .hook(move |a| {
                 handler(a.value());
                 true
-            });
-        } else {
-            panic!("focus service already hooked");
-        }
+            })
+            .perm();
     }
 
     /// Request operating system focus for the window.
