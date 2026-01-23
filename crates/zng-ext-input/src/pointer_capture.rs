@@ -381,8 +381,6 @@ pub struct CaptureInfo {
 impl CaptureInfo {
     /// If the widget is allowed by the current capture.
     ///
-    /// This method uses [`WINDOW`] and [`WIDGET`] to identify the widget context.
-    ///
     /// | Mode           | Allows                                             |
     /// |----------------|----------------------------------------------------|
     /// | `Window`       | All widgets in the same window.                    |
@@ -391,13 +389,13 @@ impl CaptureInfo {
     ///
     /// [`WIDGET`]: zng_app::widget::WIDGET
     /// [`WINDOW`]: zng_app::window::WINDOW
-    pub fn allows(&self) -> bool {
+    pub fn allows(&self, wgt: (WindowId, WidgetId)) -> bool {
         match self.mode {
-            CaptureMode::Window => self.target.window_id() == WINDOW.id(),
-            CaptureMode::Widget => self.target.widget_id() == WIDGET.id(),
+            CaptureMode::Window => self.target.window_id() == wgt.0,
+            CaptureMode::Widget => self.target.widget_id() == wgt.1,
             CaptureMode::Subtree => {
-                let tree = WINDOW.info();
-                if let Some(wgt) = tree.get(WIDGET.id()) {
+                let tree = WINDOWS.widget_tree(wgt.0);
+                if let Some(wgt) = tree.get(wgt.1) {
                     for wgt in wgt.self_and_ancestors() {
                         if wgt.id() == self.target.widget_id() {
                             return true;
