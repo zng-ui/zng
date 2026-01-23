@@ -190,7 +190,7 @@ impl CLIPBOARD {
         UPDATES.once_update("CLIPBOARD.set_image", move || match VIEW_PROCESS.clipboard() {
             Ok(c) => {
                 if img.is_loaded() {
-                    match c.write_image(&img.view_handle()) {
+                    match c.write_image(img.view_handle()) {
                         Ok(vr) => r.respond(vr.map_err(ClipboardError::from)),
                         Err(e) => r.respond(Err(e.into())),
                     }
