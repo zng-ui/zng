@@ -14,26 +14,22 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    fmt, mem,
+    fmt,
 };
 
 use zng_app::{
-    APP, AppExtension,
     event::{event, event_args},
-    update::{EventUpdate, UPDATES},
+    update::UPDATES,
     view_process::{
         VIEW_PROCESS_INITED_EVENT,
         raw_device_events::InputDeviceId,
-        raw_events::{
-            RAW_FRAME_RENDERED_EVENT, RAW_MOUSE_INPUT_EVENT, RAW_MOUSE_MOVED_EVENT, RAW_TOUCH_EVENT, RAW_WINDOW_CLOSE_EVENT,
-            RAW_WINDOW_FOCUS_EVENT,
-        },
+        raw_events::{RAW_MOUSE_INPUT_EVENT, RAW_MOUSE_MOVED_EVENT, RAW_TOUCH_EVENT, RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_FOCUS_EVENT},
     },
     widget::{
-        WIDGET, WidgetId,
+        WidgetId,
         info::{InteractionPath, WIDGET_TREE_CHANGED_EVENT, WidgetInfoTree, WidgetPath},
     },
-    window::{WINDOW, WindowId},
+    window::WindowId,
 };
 use zng_app_context::app_local;
 use zng_ext_window::{NestedWindowWidgetInfoExt, WINDOWS};
@@ -88,7 +84,7 @@ impl POINTER_CAPTURE {
                     s.set_capture(wgt.interaction_path(), mode);
                 } else {
                     tracing::debug!("ignoring capture request for {widget_id}, no found in pressed window");
-                }             
+                }
             } else {
                 tracing::debug!("ignoring capture request for {widget_id}, no window is pressed");
             }
@@ -102,10 +98,12 @@ impl POINTER_CAPTURE {
     pub fn release_capture(&self) {
         UPDATES.once_update("POINTER_CAPTURE.release_capture", move || {
             let mut s = POINTER_CAPTURE_SV.write();
-            if let Some(cap) = &s.capture_value && cap.mode != CaptureMode::Window {
+            if let Some(cap) = &s.capture_value
+                && cap.mode != CaptureMode::Window
+            {
                 // release capture (back to default capture).
-                let target = current.target.root_path();
-                self.set_capture(&mut cap, InteractionPath::from_enabled(target.into_owned()), CaptureMode::Window);
+                let target = cap.target.root_path().into_owned();
+                s.set_capture(InteractionPath::from_enabled(target), CaptureMode::Window);
             } else {
                 tracing::debug!("ignoring release_capture request, no widget or subtree holding capture");
             }
@@ -180,8 +178,7 @@ impl CaptureInfo {
             CaptureMode::Window => self.target.window_id() == wgt.0,
             CaptureMode::Widget => self.target.widget_id() == wgt.1,
             CaptureMode::Subtree => {
-                let tree = WINDOWS.widget_tree(wgt.0);
-                if let Some(wgt) = tree.get(wgt.1) {
+                if let Some(wgt) = WINDOWS.widget_tree(wgt.0).and_then(|t| t.get(wgt.1)) {
                     for wgt in wgt.self_and_ancestors() {
                         if wgt.id() == self.target.widget_id() {
                             return true;
@@ -204,7 +201,6 @@ app_local! {
             mouse_position: Default::default(),
             mouse_down: Default::default(),
             touch_down: Default::default(),
-            capture_value: Default::default(),
         }
     };
 }
@@ -216,7 +212,6 @@ struct PointerCaptureService {
     mouse_position: HashMap<(WindowId, InputDeviceId), DipPoint>,
     mouse_down: HashSet<(WindowId, InputDeviceId, MouseButton)>,
     touch_down: HashSet<(WindowId, InputDeviceId, TouchId)>,
-    capture_value: Option<CaptureInfo>,
 }
 
 event! {
@@ -293,9 +288,9 @@ impl PointerCaptureArgs {
 fn hooks() {
     WIDGET_TREE_CHANGED_EVENT
         .hook(|args| {
-            let s = POINTER_CAPTURE_SV.write();
+            let mut s = POINTER_CAPTURE_SV.write();
             if let Some(c) = &s.capture_value
-                && c.target.window_id() == args.window_id
+                && c.target.window_id() == args.tree.window_id()
             {
                 s.continue_capture(&args.tree);
             }
@@ -322,13 +317,8 @@ fn hooks() {
                         && s.mouse_down.len() == 1
                         && s.touch_down.is_empty()
                     {
-                        s.on_first_down(
-                            args.window_id,
-                            self.mouse_position
-                                .get(&(args.window_id, args.device_id))
-                                .copied()
-                                .unwrap_or_default(),
-                        );
+                        let point = s.mouse_position.get(&(args.window_id, args.device_id)).copied().unwrap_or_default();
+                        s.on_first_down(args.window_id, point);
                     }
                 }
                 ButtonState::Released => {
@@ -379,10 +369,16 @@ fn hooks() {
         })
         .perm();
 
+    fn nest_parent(id: WindowId) -> Option<WindowId> {
+        WINDOWS
+            .vars(id)
+            .and_then(|v| if v.nest_parent().get().is_some() { v.parent().get() } else { None })
+    }
+
     RAW_WINDOW_FOCUS_EVENT
         .hook(|args| {
-            let actual_prev = args.prev_focus.map(|id| WINDOWS.nest_parent(id).map(|(p, _)| p).unwrap_or(id));
-            let actual_new = args.new_focus.map(|id| WINDOWS.nest_parent(id).map(|(p, _)| p).unwrap_or(id));
+            let actual_prev = args.prev_focus.map(|id| nest_parent(id).unwrap_or(id));
+            let actual_new = args.new_focus.map(|id| nest_parent(id).unwrap_or(id));
 
             if actual_prev == actual_new {
                 // can happen when focus moves from parent to nested, or malformed event
@@ -401,12 +397,13 @@ fn hooks() {
             if args.is_respawn {
                 let mut s = POINTER_CAPTURE_SV.write();
 
-                if (!s.mouse_down.is_empty() || !s.touch_down.is_empty()) {
+                if !s.mouse_down.is_empty() || !s.touch_down.is_empty() {
                     s.mouse_down.clear();
                     s.touch_down.clear();
                     s.on_last_up();
                 }
             }
+            true
         })
         .perm();
 }
@@ -425,7 +422,7 @@ impl PointerCaptureService {
     }
 
     fn on_first_down(&mut self, window_id: WindowId, point: DipPoint) {
-        if let Ok(mut info) = WINDOWS.widget_tree(window_id) {
+        if let Some(mut info) = WINDOWS.widget_tree(window_id) {
             let mut point = point.to_px(info.scale_factor());
 
             // hit-test for nested window
@@ -439,7 +436,7 @@ impl PointerCaptureService {
                     .inverse()
                     .and_then(|t| t.transform_point(point))
                     .unwrap_or(point);
-            }            
+            }
 
             // default capture
             self.set_capture(info.root().interaction_path(), CaptureMode::Window);
@@ -451,7 +448,7 @@ impl PointerCaptureService {
     }
 
     fn continue_capture(&mut self, info: &WidgetInfoTree) {
-        let current = self.capture.as_ref().unwrap();
+        let current = self.capture_value.as_ref().unwrap();
 
         if let Some(widget) = info.get(current.target.widget_id()) {
             if let Some(new_path) = widget.new_interaction_path(&InteractionPath::from_enabled(current.target.clone())) {
@@ -471,9 +468,8 @@ impl PointerCaptureService {
             self.unset_capture();
             return;
         }
-        if new != self.capture {
-            let prev = self.capture.take();
-            self.capture.clone_from(&new);
+        if new != self.capture_value {
+            let prev = self.capture_value.take();
             self.capture_value.clone_from(&new);
             self.capture.set(new.clone());
             POINTER_CAPTURE_EVENT.notify(PointerCaptureArgs::now(prev, new));
@@ -481,8 +477,8 @@ impl PointerCaptureService {
     }
 
     fn unset_capture(&mut self) {
-        if self.capture.is_some() {
-            let prev = self.capture.take();
+        if self.capture_value.is_some() {
+            let prev = self.capture_value.take();
             self.capture_value = None;
             self.capture.set(None);
             POINTER_CAPTURE_EVENT.notify(PointerCaptureArgs::now(prev, None));

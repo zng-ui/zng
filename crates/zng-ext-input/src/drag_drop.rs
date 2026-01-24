@@ -1,20 +1,35 @@
 #![cfg(feature = "drag_drop")]
 
 //! Drag & drop gesture events and service.
+//!
+//! # Events
+//!
+//! Events this extension provides.
+//!
+//! * [`DROP_EVENT`]
+//! * [`DRAG_HOVERED_EVENT`]
+//! * [`DRAG_MOVE_EVENT`]
+//! * [`DRAG_START_EVENT`]
+//! * [`DRAG_END_EVENT`]
+//! * [`DROP_EVENT`]
+//!
+//! # Services
+//!
+//! Services this extension provides.
+//!
+//! * [`DRAG_DROP`]
 
 use std::{mem, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
-    APP, AppExtension,
-    event::{AnyEventArgs, event, event_args},
-    static_id,
-    update::{EventUpdate, UPDATES},
+    event::{EventArgs as _, event, event_args},
+    hn, static_id,
     view_process::raw_events::{
         RAW_APP_DRAG_ENDED_EVENT, RAW_DRAG_CANCELLED_EVENT, RAW_DRAG_DROPPED_EVENT, RAW_DRAG_HOVERED_EVENT, RAW_DRAG_MOVED_EVENT,
     },
     widget::{
-        WIDGET, WidgetId,
+        WidgetId,
         info::{HitTestInfo, InteractionPath, WidgetInfo, WidgetInfoBuilder},
     },
     window::WindowId,
@@ -33,286 +48,7 @@ use crate::{mouse::MOUSE_INPUT_EVENT, touch::TOUCH_INPUT_EVENT};
 
 pub use zng_view_api::drag_drop::{DragDropData, DragDropEffect};
 
-/// Application extension that provides drag&drop events and service.
-///
-/// # Events
-///
-/// Events this extension provides.
-///
-/// * [`DROP_EVENT`]
-/// * [`DRAG_HOVERED_EVENT`]
-/// * [`DRAG_MOVE_EVENT`]
-/// * [`DRAG_START_EVENT`]
-/// * [`DRAG_END_EVENT`]
-/// * [`DROP_EVENT`]
-///
-/// # Services
-///
-/// Services this extension provides.
-///
-/// * [`DRAG_DROP`]
-#[derive(Default)]
-pub struct DragDropManager {
-    // last cursor move position (scaled).
-    pos: DipPoint,
-    // last cursor move over `pos_window` and source device.
-    pos_window: Option<WindowId>,
-    // last cursor move hit-test (on the pos_window or a nested window).
-    hits: Option<HitTestInfo>,
-    hovered: Option<InteractionPath>,
-}
-
-impl AppExtension for DragDropManager {
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        let mut update_sv = false;
-        if let Some(args) = RAW_DRAG_DROPPED_EVENT.on(update) {
-            // system drop
-            let mut sv = DRAG_DROP_SV.write();
-            let len = sv.system_dragging.len();
-            for data in &args.data {
-                sv.system_dragging.retain(|d| d != data);
-            }
-            update_sv = len != sv.system_dragging.len();
-
-            // view-process can notify multiple drops in sequence with the same ID, so we only notify DROP_EVENT
-            // on he next update
-            if self.pos_window == Some(args.window_id)
-                && let Some(hovered) = &self.hovered
-            {
-                match &mut sv.pending_drop {
-                    Some((id, target, data, allowed)) => {
-                        if target != hovered {
-                            tracing::error!("drop sequence across different hovered")
-                        } else if *id != args.drop_id {
-                            tracing::error!("drop_id changed mid sequence")
-                        } else if *allowed != args.allowed {
-                            tracing::error!("allowed effects changed mid sequence")
-                        } else {
-                            data.extend(args.data.iter().cloned());
-                        }
-                    }
-                    None => sv.pending_drop = Some((args.drop_id, hovered.clone(), args.data.clone(), args.allowed)),
-                }
-            }
-            UPDATES.update(None);
-        } else if let Some(args) = RAW_DRAG_HOVERED_EVENT.on(update) {
-            // system drag hover window
-            update_sv = true;
-            DRAG_DROP_SV.write().system_dragging.extend(args.data.iter().cloned());
-        } else if let Some(args) = RAW_DRAG_MOVED_EVENT.on(update) {
-            // code adapted from the MouseManager implementation for mouse hovered
-            let moved = self.pos != args.position || self.pos_window != Some(args.window_id);
-            if moved {
-                self.pos = args.position;
-                self.pos_window = Some(args.window_id);
-
-                let mut position = args.position;
-
-                // mouse_move data
-                let mut frame_info = match WINDOWS.widget_tree(args.window_id) {
-                    Ok(f) => f,
-                    Err(_) => {
-                        // window not found
-                        if let Some(hovered) = self.hovered.take() {
-                            DRAG_HOVERED_EVENT.notify(DragHoveredArgs::now(
-                                Some(hovered),
-                                None,
-                                position,
-                                HitTestInfo::no_hits(args.window_id),
-                            ));
-                            self.pos_window = None;
-                        }
-                        return;
-                    }
-                };
-
-                let mut pos_hits = frame_info.root().hit_test(position.to_px(frame_info.scale_factor()));
-
-                let target = if let Some(t) = pos_hits.target() {
-                    if let Some(w) = frame_info.get(t.widget_id) {
-                        if let Some(f) = w.nested_window_tree() {
-                            // nested window hit
-                            frame_info = f;
-                            let factor = frame_info.scale_factor();
-                            let pos = position.to_px(factor);
-                            let pos = w.inner_transform().inverse().and_then(|t| t.transform_point(pos)).unwrap_or(pos);
-                            pos_hits = frame_info.root().hit_test(pos);
-                            position = pos.to_dip(factor);
-                            pos_hits
-                                .target()
-                                .and_then(|h| frame_info.get(h.widget_id))
-                                .map(|w| w.interaction_path())
-                                .unwrap_or_else(|| frame_info.root().interaction_path())
-                        } else {
-                            w.interaction_path()
-                        }
-                    } else {
-                        tracing::error!("hits target `{}` not found", t.widget_id);
-                        frame_info.root().interaction_path()
-                    }
-                } else {
-                    frame_info.root().interaction_path()
-                }
-                .unblocked();
-
-                self.hits = Some(pos_hits.clone());
-
-                // drag_enter/leave.
-                let hovered_args = if self.hovered != target {
-                    let prev_target = mem::replace(&mut self.hovered, target.clone());
-                    let args = DragHoveredArgs::now(prev_target, target.clone(), position, pos_hits.clone());
-                    Some(args)
-                } else {
-                    None
-                };
-
-                // mouse_move
-                if let Some(target) = target {
-                    let args = DragMoveArgs::now(frame_info.window_id(), args.coalesced_pos.clone(), position, pos_hits, target);
-                    DRAG_MOVE_EVENT.notify(args);
-                }
-
-                if let Some(args) = hovered_args {
-                    DRAG_HOVERED_EVENT.notify(args);
-                }
-            }
-        } else if let Some(args) = RAW_DRAG_CANCELLED_EVENT.on(update) {
-            // system drag cancelled of dragged out of all app windows
-            let mut sv = DRAG_DROP_SV.write();
-            update_sv = !sv.system_dragging.is_empty();
-            sv.system_dragging.clear();
-
-            if let Some(prev) = self.hovered.take() {
-                self.pos_window = None;
-                DRAG_HOVERED_EVENT.notify(DragHoveredArgs::now(
-                    Some(prev),
-                    None,
-                    self.pos,
-                    self.hits.take().unwrap_or_else(|| HitTestInfo::no_hits(args.window_id)),
-                ));
-            }
-        } else if let Some(args) = RAW_APP_DRAG_ENDED_EVENT.on(update) {
-            let mut sv = DRAG_DROP_SV.write();
-            sv.app_dragging.retain(|d| {
-                if d.view_id != args.id {
-                    return true;
-                }
-
-                if !args.applied.is_empty() && !d.allowed.contains(args.applied) {
-                    tracing::error!(
-                        "drop target applied disallowed effect, allowed={:?}, applied={:?}",
-                        d.allowed,
-                        args.applied
-                    );
-                }
-
-                DRAG_END_EVENT.notify(DragEndArgs::now(d.target.clone(), args.applied));
-
-                false
-            });
-        }
-
-        if update_sv {
-            DRAG_DROP.update_var();
-        }
-    }
-
-    fn event(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
-            if matches!(args.state, ButtonState::Pressed)
-                && let Some(wgt) = WINDOWS.widget_info(args.target.widget_id())
-                && let Some(wgt) = wgt.self_and_ancestors().find(|w| w.is_draggable())
-            {
-                // unhandled mouse press on draggable
-                args.propagation().stop();
-                let target = wgt.interaction_path();
-                let args = DragStartArgs::now(target.clone());
-                DRAG_START_EVENT.notify(args);
-                DRAG_DROP_SV.write().app_drag = Some(AppDragging {
-                    target,
-                    data: vec![],
-                    handles: vec![],
-                    allowed: DragDropEffect::empty(),
-                    view_id: DragDropId(0),
-                }); // calls to DRAG_DROP.drag are now valid
-            }
-        } else if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
-            if matches!(args.phase, TouchPhase::Start)
-                && let Some(wgt) = WINDOWS.widget_info(args.target.widget_id())
-                && let Some(wgt) = wgt.self_and_ancestors().find(|w| w.is_draggable())
-            {
-                // unhandled touch start on draggable
-                args.propagation().stop();
-                let target = wgt.interaction_path();
-                let args = DragStartArgs::now(target.clone());
-                DRAG_START_EVENT.notify(args);
-                DRAG_DROP_SV.write().app_drag = Some(AppDragging {
-                    target,
-                    data: vec![],
-                    handles: vec![],
-                    allowed: DragDropEffect::empty(),
-                    view_id: DragDropId(0),
-                }); // calls to DRAG_DROP.drag are now valid
-            }
-        } else if let Some(args) = DRAG_START_EVENT.on(update) {
-            // finished notifying draggable drag start
-            let mut sv = DRAG_DROP_SV.write();
-            let mut data = sv.app_drag.take();
-            let mut cancel = args.propagation_handle.is_stopped();
-            if !cancel {
-                if let Some(d) = &mut data {
-                    if d.data.is_empty() {
-                        d.data.push(encode_widget_id(args.target.widget_id()));
-                        d.allowed = DragDropEffect::all();
-                    }
-                    match WINDOWS_DRAG_DROP.start_drag_drop(d.target.window_id(), mem::take(&mut d.data), d.allowed) {
-                        Ok(id) => {
-                            d.view_id = id;
-                            sv.app_dragging.push(data.take().unwrap());
-                        }
-                        Err(e) => {
-                            tracing::error!("cannot start drag&drop, {e}");
-                            cancel = true;
-                        }
-                    }
-                } else {
-                    tracing::warn!("external notification of DRAG_START_EVENT ignored")
-                }
-            }
-            if cancel && let Some(d) = data {
-                DRAG_END_EVENT.notify(DragEndArgs::now(d.target, DragDropEffect::empty()));
-            }
-        } else if let Some(args) = DROP_EVENT.on(update) {
-            let _ = WINDOWS_DRAG_DROP.drag_dropped(args.target.window_id(), args.drop_id, *args.applied.lock());
-        }
-    }
-
-    fn update_preview(&mut self) {
-        let mut sv = DRAG_DROP_SV.write();
-
-        // fulfill drop requests
-        if let Some((id, target, data, allowed)) = sv.pending_drop.take() {
-            let window_id = self.pos_window.take().unwrap();
-            let hits = self.hits.take().unwrap_or_else(|| HitTestInfo::no_hits(window_id));
-            DRAG_HOVERED_EVENT.notify(DragHoveredArgs::now(Some(target.clone()), None, self.pos, hits.clone()));
-            DROP_EVENT.notify(DropArgs::now(
-                target,
-                data,
-                allowed,
-                self.pos,
-                hits,
-                id,
-                Arc::new(Mutex::new(DragDropEffect::empty())),
-            ));
-        }
-    }
-}
-
 /// Drag & drop service.
-///
-/// # Provider
-///
-/// This service is provided by the [`DragDropManager`] extension, it will panic if used in an app not extended.
 #[allow(non_camel_case_types)]
 pub struct DRAG_DROP;
 impl DRAG_DROP {
@@ -357,22 +93,20 @@ impl DRAG_DROP {
         tracing::error!("cannot drag, not in `DRAG_START_EVENT` interval");
         DragHandle::dummy()
     }
-
-    fn update_var(&self) {
-        let sv = DRAG_DROP_SV.read();
-        sv.data.set(sv.system_dragging.clone());
-    }
 }
 
 app_local! {
     static DRAG_DROP_SV: DragDropService = {
-        APP.extensions().require::<DragDropManager>();
         DragDropService {
             data: var(vec![]),
             system_dragging: vec![],
             app_drag: None,
             app_dragging: vec![],
-            pending_drop: None,
+
+            pos: Default::default(),
+            pos_window: None,
+            hits: None,
+            hovered: Default::default(),
         }
     };
 }
@@ -384,7 +118,13 @@ struct DragDropService {
     app_drag: Option<AppDragging>,
     app_dragging: Vec<AppDragging>,
 
-    pending_drop: Option<(DragDropId, InteractionPath, Vec<DragDropData>, DragDropEffect)>,
+    // last cursor move position.
+    pos: DipPoint,
+    // last cursor move over window.
+    pos_window: Option<WindowId>,
+    // last cursor move hit-test (on the pos_window or a nested window).
+    hits: Option<HitTestInfo>,
+    hovered: Option<InteractionPath>,
 }
 struct AppDragging {
     target: InteractionPath,
@@ -392,6 +132,268 @@ struct AppDragging {
     handles: Vec<HandleOwner<()>>,
     allowed: DragDropEffect,
     view_id: DragDropId,
+}
+
+fn hooks() {
+    RAW_DRAG_DROPPED_EVENT
+        .hook(|args| {
+            // system drop
+            let mut s = DRAG_DROP_SV.write();
+            let len = s.system_dragging.len();
+            for data in &args.data {
+                s.system_dragging.retain(|d| d != data);
+            }
+            if s.system_dragging.len() != len {
+                s.data.set(s.system_dragging.clone());
+            }
+
+            if s.pos_window == Some(args.window_id)
+                && let Some(hovered) = &s.hovered
+            {
+                let hits = s.hits.take().unwrap_or_else(|| HitTestInfo::no_hits(args.window_id));
+                DRAG_HOVERED_EVENT.notify(DragHoveredArgs::now(Some(hovered.clone()), None, s.pos, hits.clone()));
+                DROP_EVENT.notify(DropArgs::now(
+                    hovered.clone(),
+                    args.data.clone(),
+                    args.allowed,
+                    s.pos,
+                    hits,
+                    args.drop_id,
+                    Arc::new(Mutex::new(DragDropEffect::empty())),
+                ));
+            }
+
+            true
+        })
+        .perm();
+
+    RAW_DRAG_HOVERED_EVENT
+        .hook(|args| {
+            let mut s = DRAG_DROP_SV.write();
+            s.system_dragging.extend(args.data.iter().cloned());
+            s.data.set(s.system_dragging.clone());
+            true
+        })
+        .perm();
+
+    RAW_DRAG_MOVED_EVENT
+        .hook(|args| {
+            let mut s = DRAG_DROP_SV.write();
+            let moved = s.pos != args.position || s.pos_window != Some(args.window_id);
+            if moved {
+                s.pos = args.position;
+                s.pos_window = Some(args.window_id);
+
+                let mut position = args.position;
+
+                // mouse_move data
+                let mut frame_info = match WINDOWS.widget_tree(args.window_id) {
+                    Some(f) => f,
+                    None => {
+                        // window not found
+                        if let Some(hovered) = s.hovered.take() {
+                            DRAG_HOVERED_EVENT.notify(DragHoveredArgs::now(
+                                Some(hovered),
+                                None,
+                                position,
+                                HitTestInfo::no_hits(args.window_id),
+                            ));
+                            s.pos_window = None;
+                        }
+                        return true;
+                    }
+                };
+
+                let mut pos_hits = frame_info.root().hit_test(position.to_px(frame_info.scale_factor()));
+
+                let target = if let Some(t) = pos_hits.target() {
+                    if let Some(w) = frame_info.get(t.widget_id) {
+                        if let Some(f) = w.nested_window_tree() {
+                            // nested window hit
+                            frame_info = f;
+                            let factor = frame_info.scale_factor();
+                            let pos = position.to_px(factor);
+                            let pos = w.inner_transform().inverse().and_then(|t| t.transform_point(pos)).unwrap_or(pos);
+                            pos_hits = frame_info.root().hit_test(pos);
+                            position = pos.to_dip(factor);
+                            pos_hits
+                                .target()
+                                .and_then(|h| frame_info.get(h.widget_id))
+                                .map(|w| w.interaction_path())
+                                .unwrap_or_else(|| frame_info.root().interaction_path())
+                        } else {
+                            w.interaction_path()
+                        }
+                    } else {
+                        tracing::error!("hits target `{}` not found", t.widget_id);
+                        frame_info.root().interaction_path()
+                    }
+                } else {
+                    frame_info.root().interaction_path()
+                }
+                .unblocked();
+
+                s.hits = Some(pos_hits.clone());
+
+                // drag_enter/leave.
+                let hovered_args = if s.hovered != target {
+                    let prev_target = mem::replace(&mut s.hovered, target.clone());
+                    let args = DragHoveredArgs::now(prev_target, target.clone(), position, pos_hits.clone());
+                    Some(args)
+                } else {
+                    None
+                };
+
+                // mouse_move
+                if let Some(target) = target {
+                    let args = DragMoveArgs::now(frame_info.window_id(), args.coalesced_pos.clone(), position, pos_hits, target);
+                    DRAG_MOVE_EVENT.notify(args);
+                }
+
+                if let Some(args) = hovered_args {
+                    DRAG_HOVERED_EVENT.notify(args);
+                }
+            }
+            true
+        })
+        .perm();
+
+    // system drag cancelled of dragged out of all app windows
+    RAW_DRAG_CANCELLED_EVENT
+        .hook(|args| {
+            let mut s = DRAG_DROP_SV.write();
+            let changed = !s.system_dragging.is_empty();
+            s.system_dragging.clear();
+            if changed {
+                s.data.set(s.system_dragging.clone());
+            }
+
+            if let Some(prev) = s.hovered.take() {
+                s.pos_window = None;
+                DRAG_HOVERED_EVENT.notify(DragHoveredArgs::now(
+                    Some(prev),
+                    None,
+                    s.pos,
+                    s.hits.take().unwrap_or_else(|| HitTestInfo::no_hits(args.window_id)),
+                ));
+            }
+
+            true
+        })
+        .perm();
+
+    RAW_APP_DRAG_ENDED_EVENT
+        .hook(|args| {
+            let mut s = DRAG_DROP_SV.write();
+            s.app_dragging.retain(|d| {
+                if d.view_id != args.id {
+                    return true;
+                }
+
+                if !args.applied.is_empty() && !d.allowed.contains(args.applied) {
+                    tracing::error!(
+                        "drop target applied disallowed effect, allowed={:?}, applied={:?}",
+                        d.allowed,
+                        args.applied
+                    );
+                }
+
+                DRAG_END_EVENT.notify(DragEndArgs::now(d.target.clone(), args.applied));
+
+                false
+            });
+            true
+        })
+        .perm();
+
+    MOUSE_INPUT_EVENT
+        .on_event(
+            false,
+            hn!(|args| {
+                if matches!(args.state, ButtonState::Pressed)
+                    && let Some(wgt) = WINDOWS.widget_info(args.target.widget_id())
+                    && let Some(wgt) = wgt.self_and_ancestors().find(|w| w.is_draggable())
+                {
+                    // unhandled mouse press on draggable
+                    args.propagation().stop();
+                    let target = wgt.interaction_path();
+                    let args = DragStartArgs::now(target.clone());
+                    DRAG_START_EVENT.notify(args);
+                    DRAG_DROP_SV.write().app_drag = Some(AppDragging {
+                        target,
+                        data: vec![],
+                        handles: vec![],
+                        allowed: DragDropEffect::empty(),
+                        view_id: DragDropId(0),
+                    }); // calls to DRAG_DROP.drag are now valid
+                }
+            }),
+        )
+        .perm();
+
+    TOUCH_INPUT_EVENT
+        .on_event(
+            false,
+            hn!(|args| {
+                if matches!(args.phase, TouchPhase::Start)
+                    && let Some(wgt) = WINDOWS.widget_info(args.target.widget_id())
+                    && let Some(wgt) = wgt.self_and_ancestors().find(|w| w.is_draggable())
+                {
+                    // unhandled touch start on draggable
+                    args.propagation().stop();
+                    let target = wgt.interaction_path();
+                    let args = DragStartArgs::now(target.clone());
+                    DRAG_START_EVENT.notify(args);
+                    DRAG_DROP_SV.write().app_drag = Some(AppDragging {
+                        target,
+                        data: vec![],
+                        handles: vec![],
+                        allowed: DragDropEffect::empty(),
+                        view_id: DragDropId(0),
+                    }); // calls to DRAG_DROP.drag are now valid
+                }
+            }),
+        )
+        .perm();
+
+    DRAG_START_EVENT
+        .hook(|args| {
+            // finished notifying draggable drag start
+            let mut s = DRAG_DROP_SV.write();
+            let mut data = s.app_drag.take();
+            let mut cancel = args.propagation_handle.is_stopped();
+            if !cancel {
+                if let Some(d) = &mut data {
+                    if d.data.is_empty() {
+                        d.data.push(encode_widget_id(args.target.widget_id()));
+                        d.allowed = DragDropEffect::all();
+                    }
+                    match WINDOWS_DRAG_DROP.start_drag_drop(d.target.window_id(), mem::take(&mut d.data), d.allowed) {
+                        Ok(id) => {
+                            d.view_id = id;
+                            s.app_dragging.push(data.take().unwrap());
+                        }
+                        Err(e) => {
+                            tracing::error!("cannot start drag&drop, {e}");
+                            cancel = true;
+                        }
+                    }
+                } else {
+                    tracing::warn!("external notification of DRAG_START_EVENT ignored")
+                }
+            }
+            if cancel && let Some(d) = data {
+                DRAG_END_EVENT.notify(DragEndArgs::now(d.target, DragDropEffect::empty()));
+            }
+
+            true
+        })
+        .perm();
+
+    DROP_EVENT.hook(|args| {
+        let _ = WINDOWS_DRAG_DROP.drag_dropped(args.target.window_id(), args.drop_id, *args.applied.lock());
+        true
+    }).perm();
 }
 
 /// Represents dragging data.
@@ -501,8 +503,11 @@ event_args! {
 
         ..
 
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_wgt(&self.target);
+        /// If is in [`target`].
+        ///
+        /// [`target`]: DropArgs::target
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
@@ -519,13 +524,22 @@ event_args! {
 
         ..
 
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            if let Some(p) = &self.prev_target {
-                list.insert_wgt(p);
+        /// If is in [`prev_target`] or [`target`].
+        ///
+        /// [`prev_target`]: DropArgs::prev_target
+        /// [`target`]: DropArgs::target
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            if let Some(p) = &self.prev_target
+                && p.contains(id)
+            {
+                return true;
             }
-            if let Some(p) = &self.target {
-                list.insert_wgt(p);
+            if let Some(p) = &self.target
+                && p.contains(id)
+            {
+                return true;
             }
+            false
         }
     }
 
@@ -550,11 +564,11 @@ event_args! {
 
         ..
 
-        /// The [`target`].
+        /// If is in [`target`].
         ///
         /// [`target`]: Self::target
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_wgt(&self.target);
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
@@ -565,8 +579,11 @@ event_args! {
 
         ..
 
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_wgt(&self.target);
+        /// If is in [`target`].
+        ///
+        /// [`target`]: Self::target
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
@@ -582,8 +599,11 @@ event_args! {
 
         ..
 
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_wgt(&self.target);
+        /// If is in [`target`].
+        ///
+        /// [`target`]: Self::target
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
 
         /// The `applied` field can only be empty or only have a single flag set.
@@ -597,21 +617,21 @@ event_args! {
 }
 event! {
     /// Drag&drop action finished over some drop target widget.
-    pub static DROP_EVENT: DropArgs;
+    pub static DROP_EVENT: DropArgs { DRAG_DROP_SV.read(); };
     /// Drag&drop enter or exit a drop target widget.
-    pub static DRAG_HOVERED_EVENT: DragHoveredArgs;
+    pub static DRAG_HOVERED_EVENT: DragHoveredArgs { DRAG_DROP_SV.read(); };
     /// Drag&drop is dragging over the target widget.
-    pub static DRAG_MOVE_EVENT: DragMoveArgs;
+    pub static DRAG_MOVE_EVENT: DragMoveArgs { DRAG_DROP_SV.read(); };
     /// Drag&drop started dragging a draggable widget.
     ///
     /// If propagation is stopped the drag operation is cancelled. Handlers can use
     /// [`DRAG_DROP.drag`] to set the data, otherwise the widget ID will be dragged.
     ///
     /// [`DRAG_DROP.drag`]: DRAG_DROP::drag
-    pub static DRAG_START_EVENT: DragStartArgs;
+    pub static DRAG_START_EVENT: DragStartArgs { DRAG_DROP_SV.read(); };
 
     /// Drag&drop gesture started from the draggable widget has ended.
-    pub static DRAG_END_EVENT: DragEndArgs;
+    pub static DRAG_END_EVENT: DragEndArgs { DRAG_DROP_SV.read(); };
 }
 
 impl DropArgs {
@@ -646,41 +666,33 @@ impl DragHoveredArgs {
         DRAG_DROP.dragging_data()
     }
 
-    /// Returns `true` if the [`WIDGET`] was not hovered, but now is.
-    ///
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn is_drag_enter(&self) -> bool {
-        !self.was_over() && self.is_over()
+    /// Returns `true` if the `wgt` was not hovered, but now is.
+    pub fn is_drag_enter(&self, wgt: WidgetId) -> bool {
+        !self.was_over(wgt) && self.is_over(wgt)
     }
 
-    /// Returns `true` if the [`WIDGET`] was hovered, but now isn't.
-    ///
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn is_drag_leave(&self) -> bool {
-        self.was_over() && !self.is_over()
+    /// Returns `true` if the `wgt` was hovered, but now isn't.
+    pub fn is_drag_leave(&self, wgt: WidgetId) -> bool {
+        self.was_over(wgt) && !self.is_over(wgt)
     }
 
-    /// Returns `true` if the [`WIDGET`] is in [`prev_target`].
+    /// Returns `true` if the `wgt` is in [`prev_target`].
     ///
     /// [`prev_target`]: Self::prev_target
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn was_over(&self) -> bool {
+    pub fn was_over(&self, wgt: WidgetId) -> bool {
         if let Some(t) = &self.prev_target {
-            return t.contains(WIDGET.id());
+            return t.contains(wgt);
         }
-
         false
     }
 
-    /// Returns `true` if the [`WIDGET`] is in [`target`].
+    /// Returns `true` if the `wgt` is in [`target`].
     ///
     /// [`target`]: Self::target
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn is_over(&self) -> bool {
+    pub fn is_over(&self, wgt: WidgetId) -> bool {
         if let Some(t) = &self.target {
-            return t.contains(WIDGET.id());
+            return t.contains(wgt);
         }
-
         false
     }
 
@@ -724,32 +736,24 @@ impl DragHoveredArgs {
         }
     }
 
-    /// Returns `true` if the [`WIDGET`] was not hovered or was disabled, but now is hovered and enabled.
-    ///
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn is_drag_enter_enabled(&self) -> bool {
-        (!self.was_over() || self.was_disabled(WIDGET.id())) && self.is_over() && self.is_enabled(WIDGET.id())
+    /// Returns `true` if the `wgt` was not hovered or was disabled, but now is hovered and enabled.
+    pub fn is_drag_enter_enabled(&self, wgt: WidgetId) -> bool {
+        (!self.was_over(wgt) || self.was_disabled(wgt)) && self.is_over(wgt) && self.is_enabled(wgt)
     }
 
-    /// Returns `true` if the [`WIDGET`] was hovered and enabled, but now is not hovered or is disabled.
-    ///
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn is_drag_leave_enabled(&self) -> bool {
-        self.was_over() && self.was_enabled(WIDGET.id()) && (!self.is_over() || self.is_disabled(WIDGET.id()))
+    /// Returns `true` if the `wgt` was hovered and enabled, but now is not hovered or is disabled.
+    pub fn is_drag_leave_enabled(&self, wgt: WidgetId) -> bool {
+        self.was_over(wgt) && self.was_enabled(wgt) && (!self.is_over(wgt) || self.is_disabled(wgt))
     }
 
-    /// Returns `true` if the [`WIDGET`] was not hovered or was enabled, but now is hovered and disabled.
-    ///
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn is_drag_enter_disabled(&self) -> bool {
-        (!self.was_over() || self.was_enabled(WIDGET.id())) && self.is_over() && self.is_disabled(WIDGET.id())
+    /// Returns `true` if the `wgt` was not hovered or was enabled, but now is hovered and disabled.
+    pub fn is_drag_enter_disabled(&self, wgt: WidgetId) -> bool {
+        (!self.was_over(wgt) || self.was_enabled(wgt)) && self.is_over(wgt) && self.is_disabled(wgt)
     }
 
-    /// Returns `true` if the [`WIDGET`] was hovered and disabled, but now is not hovered or is enabled.
-    ///
-    /// [`WIDGET`]: zng_app::widget::WIDGET
-    pub fn is_drag_leave_disabled(&self) -> bool {
-        self.was_over() && self.was_disabled(WIDGET.id()) && (!self.is_over() || self.is_enabled(WIDGET.id()))
+    /// Returns `true` if the `wgt` was hovered and disabled, but now is not hovered or is enabled.
+    pub fn is_drag_leave_disabled(&self, wgt: WidgetId) -> bool {
+        self.was_over(wgt) && self.was_disabled(wgt) && (!self.is_over(wgt) || self.is_enabled(wgt))
     }
 }
 

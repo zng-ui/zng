@@ -1,5 +1,5 @@
 //! Aggregate events.
-//! 
+//!
 //! Events this extension provides.
 //!
 //! * [`CLICK_EVENT`]
@@ -18,14 +18,13 @@ use std::{
     time::Duration,
 };
 use zng_app::{
-    APP, AppExtension, DInstant, HeadlessApp,
+    DInstant, HeadlessApp,
     access::{ACCESS_CLICK_EVENT, AccessClickArgs},
-    event::{AnyEventArgs, Command, CommandScope, EVENTS, EventPropagationHandle, event, event_args},
+    event::{Command, CommandScope, EVENTS, EventArgs as _, EventPropagationHandle, event, event_args},
     shortcut::{
         CommandShortcutExt, GestureKey, KeyChord, KeyGesture, ModifierGesture, ModifiersState, Shortcut, ShortcutFilter, Shortcuts,
         shortcut,
     },
-    update::EventUpdate,
     view_process::raw_device_events::InputDeviceId,
     widget::{
         WidgetId,
@@ -169,7 +168,9 @@ event_args! {
         ..
 
         /// No target, only app extensions.
-        fn is_in_target(&self, _id: WidgetId) -> bool { false }
+        fn is_in_target(&self, _id: WidgetId) -> bool {
+            false
+        }
     }
 }
 impl From<MouseClickArgs> for ClickArgs {
@@ -344,39 +345,51 @@ event! {
 
 fn hooks() {
     // Generate click events from mouse clicks.
-    MOUSE_CLICK_EVENT.hook(|args| {
-        CLICK_EVENT.notify(args.clone().into());
-        true
-    }).perm();
-     // Generate click events from taps.
-    TOUCH_TAP_EVENT.hook(|args| {
-        CLICK_EVENT.notify(args.clone().into());
-        true
-    }).perm();
+    MOUSE_CLICK_EVENT
+        .hook(|args| {
+            CLICK_EVENT.notify(args.clone().into());
+            true
+        })
+        .perm();
+    // Generate click events from taps.
+    TOUCH_TAP_EVENT
+        .hook(|args| {
+            CLICK_EVENT.notify(args.clone().into());
+            true
+        })
+        .perm();
 
-     // Generate shortcut events from keyboard input.
-    KEY_INPUT_EVENT.hook(|args| {
-        GESTURES_SV.write().on_key_input(args);
-        true
-    }).perm();
+    // Generate shortcut events from keyboard input.
+    KEY_INPUT_EVENT
+        .hook(|args| {
+            GESTURES_SV.write().on_key_input(args);
+            true
+        })
+        .perm();
 
     // Generate click events from touch long press.
-    TOUCH_LONG_PRESS_EVENT.hook(|args| {
-        CLICK_EVENT.notify(args.clone().into());
-        true
-    }).perm();
+    TOUCH_LONG_PRESS_EVENT
+        .hook(|args| {
+            CLICK_EVENT.notify(args.clone().into());
+            true
+        })
+        .perm();
 
     // Run access click.
-    ACCESS_CLICK_EVENT.hook(|args| {
-        GESTURES_SV.write().on_access(args);
-        true
-    }).perm();
+    ACCESS_CLICK_EVENT
+        .hook(|args| {
+            GESTURES_SV.write().on_access(args);
+            true
+        })
+        .perm();
 
     // Run shortcut actions.
-    SHORTCUT_EVENT.hook(|args| {
-        GESTURES_SV.write().on_shortcut(args);
-        true
-    }).perm();
+    SHORTCUT_EVENT
+        .hook(|args| {
+            GESTURES_SV.write().on_shortcut(args);
+            true
+        })
+        .perm();
 }
 
 app_local! {
@@ -520,13 +533,13 @@ impl GesturesService {
     }
 
     fn on_access(&mut self, args: &AccessClickArgs) {
-        if let Ok(tree) = WINDOWS.widget_tree(args.window_id)
-            && let Some(wgt) = tree.get(args.widget_id)
+        if let Some(tree) = WINDOWS.widget_tree(args.target.window_id())
+            && let Some(wgt) = tree.get(args.target.widget_id())
         {
             let path = wgt.interaction_path();
             if !path.interactivity().is_blocked() {
                 let args = ClickArgs::now(
-                    args.window_id,
+                    args.target.window_id(),
                     None,
                     ClickArgsSource::Access {
                         is_primary: args.is_primary,
@@ -628,7 +641,7 @@ impl ShortcutTarget {
     fn resolve_path(&self) -> Option<InteractionPath> {
         let mut found = self.last_found.lock();
         if let Some(found) = &mut *found
-            && let Ok(tree) = WINDOWS.widget_tree(found.window_id())
+            && let Some(tree) = WINDOWS.widget_tree(found.window_id())
             && let Some(w) = tree.get(found.widget_id())
         {
             let path = w.interaction_path();
@@ -1118,7 +1131,7 @@ impl CommandShortcutMatchesExt for Command {
         if filter.is_empty() {
             return true;
         }
-        if filter.contains(ShortcutFilter::CMD_ENABLED) && !self.is_enabled_value() {
+        if filter.contains(ShortcutFilter::CMD_ENABLED) && !self.is_enabled().get() {
             return false;
         }
 
@@ -1138,8 +1151,8 @@ impl CommandShortcutMatchesExt for Command {
                     })
                 } else if filter.contains(ShortcutFilter::ENABLED) {
                     let tree = match WINDOWS.widget_tree(id) {
-                        Ok(t) => t,
-                        Err(_) => return false,
+                        Some(t) => t,
+                        None => return false,
                     };
 
                     tree.root().interactivity().is_enabled()

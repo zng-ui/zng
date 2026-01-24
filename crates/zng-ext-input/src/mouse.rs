@@ -18,22 +18,21 @@
 use std::{collections::HashMap, mem, num::NonZeroU32, time::*};
 
 use zng_app::{
-    APP, AppExtension, DInstant, INSTANT,
+    DInstant, INSTANT,
     event::{EventPropagationHandle, event, event_args},
     hn,
     shortcut::ModifiersState,
     timer::{DeadlineVar, TIMERS},
-    update::EventUpdate,
     view_process::{
         VIEW_PROCESS_INITED_EVENT,
         raw_device_events::InputDeviceId,
         raw_events::{
-            RAW_FRAME_RENDERED_EVENT, RAW_MOUSE_INPUT_EVENT, RAW_MOUSE_LEFT_EVENT, RAW_MOUSE_MOVED_EVENT, RAW_MOUSE_WHEEL_EVENT,
+            RAW_MOUSE_INPUT_EVENT, RAW_MOUSE_LEFT_EVENT, RAW_MOUSE_MOVED_EVENT, RAW_MOUSE_WHEEL_EVENT,
             RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT,
         },
     },
     widget::{
-        WIDGET, WidgetId,
+        WidgetId,
         info::{HitTestInfo, InteractionPath, WIDGET_TREE_CHANGED_EVENT, WidgetInfo, WidgetInfoBuilder},
     },
     window::WindowId,
@@ -254,10 +253,14 @@ event_args! {
         /// [`prev_target`]: Self::prev_target
         /// [`capture`]: Self::capture
         fn is_in_target(&self, id: WidgetId) -> bool {
-            if self.target.contains(id) {
+            if let Some(t) = &self.target
+                && t.contains(id)
+            {
                 return true;
             }
-            if self.prev_target.contains(id) {
+            if let Some(t) = &self.prev_target
+                && t.contains(id)
+            {
                 return true;
             }
 
@@ -356,7 +359,7 @@ impl MouseHoverArgs {
 
     /// Returns `true` if the `wgt` was hovered and disabled, but now is not hovered or is enabled.
     pub fn is_mouse_leave_disabled(&self, wgt: (WindowId, WidgetId)) -> bool {
-        self.was_over(wgt) && self.was_disabled(wgt.1) && (!self.is_over(wgt) || self.is_enabled(wgt))
+        self.was_over(wgt) && self.was_disabled(wgt.1) && (!self.is_over(wgt) || self.is_enabled(wgt.1))
     }
 
     /// Returns `true` if the `wgt` is in [`prev_target`] and is allowed by the [`prev_capture`].
@@ -441,7 +444,7 @@ impl MouseHoverArgs {
         tree.get(wgt.1)?
             .inner_transform()
             .inverse()?
-            .transform_point(point.to_px(tree.scale_factor()))
+            .transform_point(self.position.to_px(tree.scale_factor()))
     }
 }
 
@@ -460,7 +463,7 @@ impl MouseMoveArgs {
         tree.get(wgt.1)?
             .inner_transform()
             .inverse()?
-            .transform_point(point.to_px(tree.scale_factor()))
+            .transform_point(self.position.to_px(tree.scale_factor()))
     }
 }
 
@@ -512,7 +515,7 @@ impl MouseInputArgs {
         tree.get(wgt.1)?
             .inner_transform()
             .inverse()?
-            .transform_point(point.to_px(tree.scale_factor()))
+            .transform_point(self.position.to_px(tree.scale_factor()))
     }
 }
 
@@ -548,7 +551,7 @@ impl MouseClickArgs {
         tree.get(wgt.1)?
             .inner_transform()
             .inverse()?
-            .transform_point(point.to_px(tree.scale_factor()))
+            .transform_point(self.position.to_px(tree.scale_factor()))
     }
 }
 
@@ -651,7 +654,7 @@ impl MouseWheelArgs {
         tree.get(wgt.1)?
             .inner_transform()
             .inverse()?
-            .transform_point(point.to_px(tree.scale_factor()))
+            .transform_point(self.position.to_px(tree.scale_factor()))
     }
 }
 
@@ -931,7 +934,7 @@ app_local! {
 
             modifiers: ModifiersState::default(),
 
-            hovered: None,
+            hovered_value: None,
             clicking: HashMap::default(),
         }
     };
@@ -955,7 +958,7 @@ struct MouseService {
     /// last modifiers.
     modifiers: ModifiersState,
 
-    hovered: Option<InteractionPath>,
+    hovered_value: Option<InteractionPath>,
     clicking: HashMap<MouseButton, ClickingInfo>,
 }
 
@@ -975,7 +978,7 @@ struct ClickingInfo {
 fn hooks() {
     WIDGET_TREE_CHANGED_EVENT
         .hook(|args| {
-            MOUSE_SV.write().continue_hovered(args.window_id);
+            MOUSE_SV.write().continue_hovered(args.tree.window_id());
             true
         })
         .perm();
@@ -1050,7 +1053,7 @@ fn hooks() {
         .on_event(
             true,
             hn!(|a| {
-                MOUSE_SV.write().on_pointer_capture(a.prev_capture, a.new_capture);
+                MOUSE_SV.write().on_pointer_capture(&a.prev_capture, &a.new_capture);
             }),
         )
         .perm();
@@ -1066,9 +1069,9 @@ impl MouseService {
         let hits = self.hits.clone().unwrap_or_else(|| HitTestInfo::no_hits(window_id));
 
         let wgt_tree = match WINDOWS.widget_tree(hits.window_id()) {
-            Ok(t) => t,
-            Err(e) => {
-                tracing::error!("cannot find clicked window, {e:?}");
+            Some(t) => t,
+            None => {
+                tracing::error!("cannot find clicked window, {}", hits.window_id());
                 return;
             }
         };
@@ -1185,7 +1188,7 @@ impl MouseService {
             entry.repeat_count = 0;
         }
 
-        let capture_info = POINTER_CAPTURE.current_capture_value();
+        let capture_info = POINTER_CAPTURE.current_capture().get();
 
         let now = INSTANT.now();
         let args = MouseInputArgs::new(
@@ -1253,11 +1256,11 @@ impl MouseService {
 
             // mouse_move data
             let mut frame_info = match WINDOWS.widget_tree(window_id) {
-                Ok(f) => f,
-                Err(_) => {
+                Some(f) => f,
+                None => {
                     // window not found
-                    if let Some(hovered) = self.hovered.take() {
-                        let capture = POINTER_CAPTURE.current_capture_value();
+                    if let Some(hovered) = self.hovered_value.take() {
+                        let capture = POINTER_CAPTURE.current_capture().get();
                         let args = MouseHoverArgs::now(
                             window_id,
                             device_id,
@@ -1311,12 +1314,12 @@ impl MouseService {
 
             self.hits = Some(pos_hits.clone());
 
-            let capture = POINTER_CAPTURE.current_capture_value();
+            let capture = POINTER_CAPTURE.current_capture().get();
 
             // mouse_enter/mouse_leave.
-            let hovered_args = if self.hovered != target {
+            let hovered_args = if self.hovered_value != target {
                 self.hovered.set(target.clone());
-                let prev_target = mem::replace(&mut self.hovered, target.clone());
+                let prev_target = mem::replace(&mut self.hovered_value, target.clone());
                 let args = MouseHoverArgs::now(
                     frame_info.window_id(),
                     device_id,
@@ -1380,9 +1383,9 @@ impl MouseService {
     fn on_cursor_left_window(&mut self, window_id: WindowId, device_id: InputDeviceId) {
         if Some(window_id) == self.pos_window.take() {
             self.position.set(None);
-            if let Some(path) = self.hovered.take() {
+            if let Some(path) = self.hovered_value.take() {
                 self.hovered.set(None);
-                let capture = POINTER_CAPTURE.current_capture_value();
+                let capture = POINTER_CAPTURE.current_capture().get();
                 let args = MouseHoverArgs::now(
                     window_id,
                     device_id,
@@ -1416,8 +1419,8 @@ impl MouseService {
         if self.pos_window == Some(window_id) {
             // update hovered if widgets moved under the cursor position.
             let mut frame_info = match WINDOWS.widget_tree(window_id) {
-                Ok(f) => f,
-                Err(_) => {
+                Some(f) => f,
+                None => {
                     self.clean_all_state();
                     return;
                 }
@@ -1452,9 +1455,9 @@ impl MouseService {
             .unblocked();
             self.hits = Some(pos_hits.clone());
 
-            if self.hovered != target {
-                let capture = POINTER_CAPTURE.current_capture_value();
-                let prev = mem::replace(&mut self.hovered, target.clone());
+            if self.hovered_value != target {
+                let capture = POINTER_CAPTURE.current_capture().get();
+                let prev = mem::replace(&mut self.hovered_value, target.clone());
                 let args = MouseHoverArgs::now(window_id, None, position, pos_hits, prev, target, capture.clone(), capture);
                 MOUSE_HOVERED_EVENT.notify(args);
             }
@@ -1463,7 +1466,7 @@ impl MouseService {
 
     fn clean_all_state(&mut self) {
         if self.pos_window.take().is_some()
-            && let Some(path) = self.hovered.take()
+            && let Some(path) = self.hovered_value.take()
         {
             let window_id = path.window_id();
             self.buttons.with(|b| {
@@ -1505,8 +1508,8 @@ impl MouseService {
         self.hovered.set(None);
     }
 
-    fn on_pointer_capture(&mut self, prev_capture: Option<CaptureInfo>, new_capture: Option<CaptureInfo>) {
-        if let Some(path) = &self.hovered
+    fn on_pointer_capture(&mut self, prev_capture: &Option<CaptureInfo>, new_capture: &Option<CaptureInfo>) {
+        if let Some(path) = &self.hovered_value
             && self.pos_window.is_some()
         {
             let window_id = path.window_id();
@@ -1535,7 +1538,7 @@ impl MouseService {
                     info.repeat_count = info.repeat_count.saturating_add(1);
 
                     if let Some(dv) = self.pos_device
-                        && let Ok(tree) = WINDOWS.widget_tree(info.path.window_id())
+                        && let Some(tree) = WINDOWS.widget_tree(info.path.window_id())
                     {
                         // probably still valid
 
@@ -1546,7 +1549,7 @@ impl MouseService {
                         if let Some(hit) = hit_test.target().map(|t| tree.get(t.widget_id).unwrap()) {
                             target = hit.path().shared_ancestor(info.path.as_path()).map(|c| c.into_owned());
                         }
-                        if let Some(c) = POINTER_CAPTURE.current_capture_value() {
+                        if let Some(c) = POINTER_CAPTURE.current_capture().get() {
                             match c.mode {
                                 CaptureMode::Window => {
                                     if let Some(t) = &target {

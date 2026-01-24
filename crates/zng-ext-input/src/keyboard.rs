@@ -19,10 +19,9 @@
 use std::{collections::HashSet, time::Duration};
 
 use zng_app::{
-    APP, AppExtension, DInstant, HeadlessApp,
+    DInstant, HeadlessApp,
     event::{event, event_args},
     shortcut::{GestureKey, KeyGesture, ModifierGesture, ModifiersState, Shortcut},
-    update::EventUpdate,
     view_process::{
         VIEW_PROCESS_INITED_EVENT,
         raw_device_events::InputDeviceId,
@@ -257,6 +256,7 @@ fn hooks() {
 
                 kb.last_key_down = None;
             }
+            true
         })
         .perm();
 
@@ -452,7 +452,11 @@ impl KeyboardService {
 
         // notify events
         if let Some(target) = focused
-            && (target.window_id() == args.window_id || WINDOWS.nest_parent(target.window_id()).map(|(p, _)| p) == Some(args.window_id))
+            && (target.window_id() == args.window_id
+                || WINDOWS
+                    .vars(target.window_id())
+                    .and_then(|v| if v.nest_parent().get().is_some() { v.parent().get() } else { None })
+                    == Some(args.window_id))
         {
             let args = KeyInputArgs::now(
                 target.window_id(),
