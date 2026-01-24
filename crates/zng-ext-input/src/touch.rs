@@ -19,14 +19,22 @@
 
 use std::{collections::HashMap, mem, num::NonZeroU32, ops, time::Duration};
 use zng_app::{
-    APP, AppExtension, DInstant, event::{AnyEventArgs, EventPropagationHandle, event, event_args}, hn, shortcut::ModifiersState, timer::{DeadlineVar, TIMERS}, update::EventUpdate, view_process::{
+    APP, AppExtension, DInstant,
+    event::{AnyEventArgs, EventPropagationHandle, event, event_args},
+    hn,
+    shortcut::ModifiersState,
+    timer::{DeadlineVar, TIMERS},
+    update::EventUpdate,
+    view_process::{
         VIEW_PROCESS_INITED_EVENT,
         raw_device_events::InputDeviceId,
         raw_events::{RAW_FRAME_RENDERED_EVENT, RAW_MOUSE_LEFT_EVENT, RAW_TOUCH_CONFIG_CHANGED_EVENT, RAW_TOUCH_EVENT, RawTouchArgs},
-    }, widget::{
+    },
+    widget::{
         WIDGET, WidgetId,
         info::{HitTestInfo, InteractionPath, WIDGET_TREE_CHANGED_EVENT},
-    }, window::WindowId
+    },
+    window::WindowId,
 };
 
 use zng_app_context::app_local;
@@ -184,14 +192,16 @@ app_local! {
         let sys_touch_config = var(TouchConfig::default());
         let touch_from_mouse_events = var(false);
         let mut mouse_handles = Default::default();
-        touch_from_mouse_events.hook(|a| {
-            if *a.value() {
-                mouse_handles = hooks_touch_from_mouse();
-            } else {
-                mouse_handles = Default::default();
-            }
-            true
-        }).perm();
+        touch_from_mouse_events
+            .hook(|a| {
+                if *a.value() {
+                    mouse_handles = hooks_touch_from_mouse();
+                } else {
+                    mouse_handles = Default::default();
+                }
+                true
+            })
+            .perm();
         TouchService {
             touch_config: sys_touch_config.cow(),
             sys_touch_config,
@@ -1476,13 +1486,15 @@ impl LongPressGesture {
                     || args.target.widgets_path().iter().any(|w| TOUCH_LONG_PRESS_EVENT.is_subscriber(*w))
                 {
                     let delay = TIMERS.deadline(TOUCH.touch_config().get().tap_max_time);
-                    delay.hook(|a| {
-                        let elapsed = a.value().has_elapsed();
-                        if elapsed {
-                            TOUCH_SV.write().long_press_gesture.on_update();
-                        }
-                        !elapsed
-                    }).perm();
+                    delay
+                        .hook(|a| {
+                            let elapsed = a.value().has_elapsed();
+                            if elapsed {
+                                TOUCH_SV.write().long_press_gesture.on_update();
+                            }
+                            !elapsed
+                        })
+                        .perm();
                     self.pending = Some(PendingLongPress {
                         window_id: args.window_id,
                         device_id: args.device_id,
@@ -2534,42 +2546,54 @@ fn hooks() {
         })
         .perm();
 
-    TOUCH_INPUT_EVENT.on_event(true, hn!(|args| {
-        let mut s = TOUCH_SV.write();
-        s.tap_gesture.on_input(args);
-        s.transform_gesture.on_input(args);
-        s.long_press_gesture.on_input(args);
-    })).perm();
+    TOUCH_INPUT_EVENT
+        .on_event(
+            true,
+            hn!(|args| {
+                let mut s = TOUCH_SV.write();
+                s.tap_gesture.on_input(args);
+                s.transform_gesture.on_input(args);
+                s.long_press_gesture.on_input(args);
+            }),
+        )
+        .perm();
 
-    TOUCH_MOVE_EVENT.on_event(true, hn!(|args| {
-        let mut s = TOUCH_SV.write();
-        s.tap_gesture.on_move(args);
-        s.transform_gesture.on_move(args);
-        s.long_press_gesture.on_move(args);
-    })).perm();
+    TOUCH_MOVE_EVENT
+        .on_event(
+            true,
+            hn!(|args| {
+                let mut s = TOUCH_SV.write();
+                s.tap_gesture.on_move(args);
+                s.transform_gesture.on_move(args);
+                s.long_press_gesture.on_move(args);
+            }),
+        )
+        .perm();
 
-    POINTER_CAPTURE_EVENT.hook(|args| {
-        if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
-            for (touch, info) in &self.pressed {
-                let args = TouchedArgs::now(
-                    info.target.window_id(),
-                    info.device_id,
-                    *touch,
-                    info.touch_propagation.clone(),
-                    info.position,
-                    info.force,
-                    TouchPhase::Move,
-                    info.hits.clone(),
-                    info.target.clone(),
-                    info.target.clone(),
-                    args.prev_capture.clone(),
-                    args.new_capture.clone(),
-                );
-                TOUCHED_EVENT.notify(args);
+    POINTER_CAPTURE_EVENT
+        .hook(|args| {
+            if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
+                for (touch, info) in &self.pressed {
+                    let args = TouchedArgs::now(
+                        info.target.window_id(),
+                        info.device_id,
+                        *touch,
+                        info.touch_propagation.clone(),
+                        info.position,
+                        info.force,
+                        TouchPhase::Move,
+                        info.hits.clone(),
+                        info.target.clone(),
+                        info.target.clone(),
+                        args.prev_capture.clone(),
+                        args.new_capture.clone(),
+                    );
+                    TOUCHED_EVENT.notify(args);
+                }
             }
-        }
-        true
-    }).perm();
+            true
+        })
+        .perm();
 }
 fn hooks_touch_from_mouse() -> [VarHandle; 3] {
     use crate::mouse::*;

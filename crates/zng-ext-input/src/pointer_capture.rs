@@ -1,4 +1,16 @@
 //! Mouse and touch capture.
+//!
+//! # Events
+//!
+//! Events this extension provides.
+//!
+//! * [`POINTER_CAPTURE_EVENT`]
+//!
+//! # Services
+//!
+//! Services this extension provides.
+//!
+//! * [`POINTER_CAPTURE`]
 
 use std::{
     collections::{HashMap, HashSet},
@@ -32,241 +44,6 @@ use zng_view_api::{
     touch::{TouchId, TouchPhase},
 };
 
-/// Application extension that provides mouse and touch capture service.
-///
-/// # Events
-///
-/// Events this extension provides.
-///
-/// * [`POINTER_CAPTURE_EVENT`]
-///
-/// # Services
-///
-/// Services this extension provides.
-///
-/// * [`POINTER_CAPTURE`]
-#[derive(Default)]
-pub struct PointerCaptureManager {
-    mouse_position: HashMap<(WindowId, InputDeviceId), DipPoint>,
-    mouse_down: HashSet<(WindowId, InputDeviceId, MouseButton)>,
-    touch_down: HashSet<(WindowId, InputDeviceId, TouchId)>,
-    capture: Option<CaptureInfo>,
-}
-impl AppExtension for PointerCaptureManager {
-    fn event(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
-            if let Some(c) = &self.capture
-                && c.target.window_id() == args.window_id
-                && let Ok(info) = WINDOWS.widget_tree(args.window_id)
-            {
-                self.continue_capture(&info);
-            }
-            // else will receive close event.
-        } else if let Some(args) = RAW_MOUSE_MOVED_EVENT.on(update) {
-            self.mouse_position.insert((args.window_id, args.device_id), args.position);
-        } else if let Some(args) = RAW_MOUSE_INPUT_EVENT.on(update) {
-            match args.state {
-                ButtonState::Pressed => {
-                    if self.mouse_down.insert((args.window_id, args.device_id, args.button))
-                        && self.mouse_down.len() == 1
-                        && self.touch_down.is_empty()
-                    {
-                        self.on_first_down(
-                            args.window_id,
-                            self.mouse_position
-                                .get(&(args.window_id, args.device_id))
-                                .copied()
-                                .unwrap_or_default(),
-                        );
-                    }
-                }
-                ButtonState::Released => {
-                    if self.mouse_down.remove(&(args.window_id, args.device_id, args.button))
-                        && self.mouse_down.is_empty()
-                        && self.touch_down.is_empty()
-                    {
-                        self.on_last_up();
-                    }
-                }
-            }
-        } else if let Some(args) = RAW_TOUCH_EVENT.on(update) {
-            for touch in &args.touches {
-                match touch.phase {
-                    TouchPhase::Start => {
-                        if self.touch_down.insert((args.window_id, args.device_id, touch.touch))
-                            && self.touch_down.len() == 1
-                            && self.mouse_down.is_empty()
-                        {
-                            self.on_first_down(args.window_id, touch.position);
-                        }
-                    }
-                    TouchPhase::End | TouchPhase::Cancel => {
-                        if self.touch_down.remove(&(args.window_id, args.device_id, touch.touch))
-                            && self.touch_down.is_empty()
-                            && self.mouse_down.is_empty()
-                        {
-                            self.on_last_up();
-                        }
-                    }
-                    TouchPhase::Move => {}
-                }
-            }
-        } else if let Some(args) = WIDGET_TREE_CHANGED_EVENT.on(update) {
-            if let Some(c) = &self.capture
-                && c.target.window_id() == args.window_id
-            {
-                self.continue_capture(&args.tree);
-            }
-        } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
-            self.remove_window(args.window_id);
-        } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
-            let actual_prev = args.prev_focus.map(|id| WINDOWS.nest_parent(id).map(|(p, _)| p).unwrap_or(id));
-            let actual_new = args.new_focus.map(|id| WINDOWS.nest_parent(id).map(|(p, _)| p).unwrap_or(id));
-
-            if actual_prev == actual_new {
-                // can happen when focus moves from parent to nested, or malformed event
-                return;
-            }
-
-            if let Some(w) = actual_prev {
-                self.remove_window(w);
-            }
-        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update)
-            && args.is_respawn
-            && (!self.mouse_down.is_empty() || !self.touch_down.is_empty())
-        {
-            self.mouse_down.clear();
-            self.touch_down.clear();
-            self.on_last_up();
-        }
-    }
-
-    fn update(&mut self) {
-        if let Some(current) = &self.capture {
-            let mut cap = POINTER_CAPTURE_SV.write();
-            if let Some((widget_id, mode)) = cap.capture_request.take() {
-                let is_win_focused = match WINDOWS.is_focused(current.target.window_id()) {
-                    Ok(mut f) => {
-                        if !f {
-                            // nested windows can take two updates to receive focus
-                            if let Some(parent) = WINDOWS.nest_parent(current.target.window_id()).map(|(p, _)| p) {
-                                f = WINDOWS.is_focused(parent) == Ok(true);
-                            }
-                        }
-                        f
-                    }
-                    Err(_) => false,
-                };
-                if is_win_focused {
-                    // current window pressed
-                    if let Some(widget) = WINDOWS.widget_tree(current.target.window_id()).unwrap().get(widget_id) {
-                        // request valid
-                        self.set_capture(&mut cap, widget.interaction_path(), mode);
-                    }
-                }
-            } else if mem::take(&mut cap.release_requested) && current.mode != CaptureMode::Window {
-                // release capture (back to default capture).
-                let target = current.target.root_path();
-                self.set_capture(&mut cap, InteractionPath::from_enabled(target.into_owned()), CaptureMode::Window);
-            }
-        }
-    }
-}
-impl PointerCaptureManager {
-    fn remove_window(&mut self, window_id: WindowId) {
-        self.mouse_position.retain(|(w, _), _| *w != window_id);
-
-        if !self.mouse_down.is_empty() || !self.touch_down.is_empty() {
-            self.mouse_down.retain(|(w, _, _)| *w != window_id);
-            self.touch_down.retain(|(w, _, _)| *w != window_id);
-
-            if self.mouse_down.is_empty() && self.touch_down.is_empty() {
-                self.on_last_up();
-            }
-        }
-    }
-
-    fn on_first_down(&mut self, window_id: WindowId, point: DipPoint) {
-        if let Ok(mut info) = WINDOWS.widget_tree(window_id) {
-            let mut cap = POINTER_CAPTURE_SV.write();
-            cap.release_requested = false;
-
-            let mut point = point.to_px(info.scale_factor());
-
-            // hit-test for nested window
-            if let Some(t) = info.root().hit_test(point).target()
-                && let Some(w) = info.get(t.widget_id)
-                && let Some(t) = w.nested_window_tree()
-            {
-                info = t;
-                point = w
-                    .inner_transform()
-                    .inverse()
-                    .and_then(|t| t.transform_point(point))
-                    .unwrap_or(point);
-            }
-
-            if let Some((widget_id, mode)) = cap.capture_request.take()
-                && let Some(w_info) = info.get(widget_id)
-                && w_info.hit_test(point).contains(widget_id)
-            {
-                // capture for widget
-                self.set_capture(&mut cap, w_info.interaction_path(), mode);
-                return;
-            }
-
-            // default capture
-            self.set_capture(&mut cap, info.root().interaction_path(), CaptureMode::Window);
-        }
-    }
-
-    fn on_last_up(&mut self) {
-        let mut cap = POINTER_CAPTURE_SV.write();
-        cap.release_requested = false;
-        cap.capture_request = None;
-        self.unset_capture(&mut cap);
-    }
-
-    fn continue_capture(&mut self, info: &WidgetInfoTree) {
-        let current = self.capture.as_ref().unwrap();
-
-        if let Some(widget) = info.get(current.target.widget_id()) {
-            if let Some(new_path) = widget.new_interaction_path(&InteractionPath::from_enabled(current.target.clone())) {
-                // widget moved inside window tree.
-                let mode = current.mode;
-                self.set_capture(&mut POINTER_CAPTURE_SV.write(), new_path, mode);
-            }
-        } else {
-            // widget not found. Returns to default capture.
-            self.set_capture(&mut POINTER_CAPTURE_SV.write(), info.root().interaction_path(), CaptureMode::Window);
-        }
-    }
-
-    fn set_capture(&mut self, cap: &mut PointerCaptureService, target: InteractionPath, mode: CaptureMode) {
-        let new = target.enabled().map(|target| CaptureInfo { target, mode });
-        if new.is_none() {
-            self.unset_capture(cap);
-            return;
-        }
-        if new != self.capture {
-            let prev = self.capture.take();
-            self.capture.clone_from(&new);
-            cap.capture_value.clone_from(&new);
-            cap.capture.set(new.clone());
-            POINTER_CAPTURE_EVENT.notify(PointerCaptureArgs::now(prev, new));
-        }
-    }
-
-    fn unset_capture(&mut self, cap: &mut PointerCaptureService) {
-        if self.capture.is_some() {
-            let prev = self.capture.take();
-            cap.capture_value = None;
-            cap.capture.set(None);
-            POINTER_CAPTURE_EVENT.notify(PointerCaptureArgs::now(prev, None));
-        }
-    }
-}
-
 /// Mouse and touch capture service.
 ///
 /// Mouse and touch is **captured** when mouse and touch events are redirected to a specific target. The user
@@ -278,10 +55,6 @@ impl PointerCaptureManager {
 /// and the window is focused.
 ///
 /// Windows capture by default, this cannot be disabled. For other widgets this is optional.
-///
-/// # Provider
-///
-/// This service is provided by the [`PointerCaptureManager`] extension, it will panic if used in an app not extended.
 #[expect(non_camel_case_types)]
 pub struct POINTER_CAPTURE;
 impl POINTER_CAPTURE {
@@ -294,9 +67,7 @@ impl POINTER_CAPTURE {
     ///
     /// The capture will be set only if the widget is pressed.
     pub fn capture_widget(&self, widget_id: WidgetId) {
-        let mut m = POINTER_CAPTURE_SV.write();
-        m.capture_request = Some((widget_id, CaptureMode::Widget));
-        UPDATES.update(None);
+        self.capture_impl(widget_id, CaptureMode::Widget);
     }
 
     /// Set a widget to be the root of a capture subtree.
@@ -306,9 +77,22 @@ impl POINTER_CAPTURE {
     ///
     /// The capture will be set only if the widget is pressed.
     pub fn capture_subtree(&self, widget_id: WidgetId) {
-        let mut m = POINTER_CAPTURE_SV.write();
-        m.capture_request = Some((widget_id, CaptureMode::Subtree));
-        UPDATES.update(None);
+        self.capture_impl(widget_id, CaptureMode::Subtree);
+    }
+
+    fn capture_impl(&self, widget_id: WidgetId, mode: CaptureMode) {
+        UPDATES.once_update("POINTER_CAPTURE.capture", move || {
+            let mut s = POINTER_CAPTURE_SV.write();
+            if let Some(cap) = &s.capture_value {
+                if let Some(wgt) = WINDOWS.widget_tree(cap.target.window_id()).and_then(|t| t.get(widget_id)) {
+                    s.set_capture(wgt.interaction_path(), mode);
+                } else {
+                    tracing::debug!("ignoring capture request for {widget_id}, no found in pressed window");
+                }             
+            } else {
+                tracing::debug!("ignoring capture request for {widget_id}, no window is pressed");
+            }
+        });
     }
 
     /// Release the current mouse and touch capture back to window.
@@ -316,14 +100,16 @@ impl POINTER_CAPTURE {
     /// **Note:** The capture is released automatically when the mouse buttons or touch are released
     /// or when the window loses focus.
     pub fn release_capture(&self) {
-        let mut m = POINTER_CAPTURE_SV.write();
-        m.release_requested = true;
-        UPDATES.update(None);
-    }
-
-    /// Latest capture, already valid for the current raw mouse or touch event cycle.
-    pub(crate) fn current_capture_value(&self) -> Option<CaptureInfo> {
-        POINTER_CAPTURE_SV.read().capture_value.clone()
+        UPDATES.once_update("POINTER_CAPTURE.release_capture", move || {
+            let mut s = POINTER_CAPTURE_SV.write();
+            if let Some(cap) = &s.capture_value && cap.mode != CaptureMode::Window {
+                // release capture (back to default capture).
+                let target = current.target.root_path();
+                self.set_capture(&mut cap, InteractionPath::from_enabled(target.into_owned()), CaptureMode::Window);
+            } else {
+                tracing::debug!("ignoring release_capture request, no widget or subtree holding capture");
+            }
+        });
     }
 }
 
@@ -410,12 +196,15 @@ impl CaptureInfo {
 
 app_local! {
     static POINTER_CAPTURE_SV: PointerCaptureService = {
-        APP.extensions().require::<PointerCaptureManager>();
+        hooks();
         PointerCaptureService {
             capture_value: None,
             capture: var(None),
-            capture_request: None,
-            release_requested: false,
+
+            mouse_position: Default::default(),
+            mouse_down: Default::default(),
+            touch_down: Default::default(),
+            capture_value: Default::default(),
         }
     };
 }
@@ -423,13 +212,16 @@ app_local! {
 struct PointerCaptureService {
     capture_value: Option<CaptureInfo>,
     capture: Var<Option<CaptureInfo>>,
-    capture_request: Option<(WidgetId, CaptureMode)>,
-    release_requested: bool,
+
+    mouse_position: HashMap<(WindowId, InputDeviceId), DipPoint>,
+    mouse_down: HashSet<(WindowId, InputDeviceId, MouseButton)>,
+    touch_down: HashSet<(WindowId, InputDeviceId, TouchId)>,
+    capture_value: Option<CaptureInfo>,
 }
 
 event! {
     /// Mouse and touch capture changed event.
-    pub static POINTER_CAPTURE_EVENT: PointerCaptureArgs;
+    pub static POINTER_CAPTURE_EVENT: PointerCaptureArgs { POINTER_CAPTURE_SV.read(); };
 }
 
 event_args! {
@@ -442,17 +234,22 @@ event_args! {
 
         ..
 
-        /// The [`prev_capture`] and [`new_capture`] paths start with the current path.
+        /// If is in [`prev_capture`] or [`new_capture`] paths start with the current path.
         ///
         /// [`prev_capture`]: Self::prev_capture
         /// [`new_capture`]: Self::new_capture
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            if let Some(p) = &self.prev_capture {
-                list.insert_wgt(&p.target);
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            if let Some(p) = &self.prev_capture
+                && p.target.contains(id)
+            {
+                return true;
             }
-            if let Some(p) = &self.new_capture {
-                list.insert_wgt(&p.target);
+            if let Some(p) = &self.new_capture
+                && p.target.contains(id)
+            {
+                return true;
             }
+            false
         }
     }
 }
@@ -489,6 +286,206 @@ impl PointerCaptureArgs {
             (_, None) => false,
             (None, Some(p)) => p.target.widget_id() == widget_id,
             (Some(prev), Some(new)) => prev.target.widget_id() != widget_id && new.target.widget_id() == widget_id,
+        }
+    }
+}
+
+fn hooks() {
+    WIDGET_TREE_CHANGED_EVENT
+        .hook(|args| {
+            let s = POINTER_CAPTURE_SV.write();
+            if let Some(c) = &s.capture_value
+                && c.target.window_id() == args.window_id
+            {
+                s.continue_capture(&args.tree);
+            }
+            true
+        })
+        .perm();
+
+    RAW_MOUSE_MOVED_EVENT
+        .hook(|args| {
+            POINTER_CAPTURE_SV
+                .write()
+                .mouse_position
+                .insert((args.window_id, args.device_id), args.position);
+            true
+        })
+        .perm();
+
+    RAW_MOUSE_INPUT_EVENT
+        .hook(|args| {
+            let mut s = POINTER_CAPTURE_SV.write();
+            match args.state {
+                ButtonState::Pressed => {
+                    if s.mouse_down.insert((args.window_id, args.device_id, args.button))
+                        && s.mouse_down.len() == 1
+                        && s.touch_down.is_empty()
+                    {
+                        s.on_first_down(
+                            args.window_id,
+                            self.mouse_position
+                                .get(&(args.window_id, args.device_id))
+                                .copied()
+                                .unwrap_or_default(),
+                        );
+                    }
+                }
+                ButtonState::Released => {
+                    if s.mouse_down.remove(&(args.window_id, args.device_id, args.button))
+                        && s.mouse_down.is_empty()
+                        && s.touch_down.is_empty()
+                    {
+                        s.on_last_up();
+                    }
+                }
+            }
+            true
+        })
+        .perm();
+
+    RAW_TOUCH_EVENT
+        .hook(|args| {
+            let mut s = POINTER_CAPTURE_SV.write();
+            for touch in &args.touches {
+                match touch.phase {
+                    TouchPhase::Start => {
+                        if s.touch_down.insert((args.window_id, args.device_id, touch.touch))
+                            && s.touch_down.len() == 1
+                            && s.mouse_down.is_empty()
+                        {
+                            s.on_first_down(args.window_id, touch.position);
+                        }
+                    }
+                    TouchPhase::End | TouchPhase::Cancel => {
+                        if s.touch_down.remove(&(args.window_id, args.device_id, touch.touch))
+                            && s.touch_down.is_empty()
+                            && s.mouse_down.is_empty()
+                        {
+                            s.on_last_up();
+                        }
+                    }
+                    TouchPhase::Move => {}
+                }
+            }
+            true
+        })
+        .perm();
+
+    RAW_WINDOW_CLOSE_EVENT
+        .hook(|args| {
+            POINTER_CAPTURE_SV.write().remove_window(args.window_id);
+            true
+        })
+        .perm();
+
+    RAW_WINDOW_FOCUS_EVENT
+        .hook(|args| {
+            let actual_prev = args.prev_focus.map(|id| WINDOWS.nest_parent(id).map(|(p, _)| p).unwrap_or(id));
+            let actual_new = args.new_focus.map(|id| WINDOWS.nest_parent(id).map(|(p, _)| p).unwrap_or(id));
+
+            if actual_prev == actual_new {
+                // can happen when focus moves from parent to nested, or malformed event
+                return true;
+            }
+
+            if let Some(w) = actual_prev {
+                POINTER_CAPTURE_SV.write().remove_window(w);
+            }
+            true
+        })
+        .perm();
+
+    VIEW_PROCESS_INITED_EVENT
+        .hook(|args| {
+            if args.is_respawn {
+                let mut s = POINTER_CAPTURE_SV.write();
+
+                if (!s.mouse_down.is_empty() || !s.touch_down.is_empty()) {
+                    s.mouse_down.clear();
+                    s.touch_down.clear();
+                    s.on_last_up();
+                }
+            }
+        })
+        .perm();
+}
+impl PointerCaptureService {
+    fn remove_window(&mut self, window_id: WindowId) {
+        self.mouse_position.retain(|(w, _), _| *w != window_id);
+
+        if !self.mouse_down.is_empty() || !self.touch_down.is_empty() {
+            self.mouse_down.retain(|(w, _, _)| *w != window_id);
+            self.touch_down.retain(|(w, _, _)| *w != window_id);
+
+            if self.mouse_down.is_empty() && self.touch_down.is_empty() {
+                self.on_last_up();
+            }
+        }
+    }
+
+    fn on_first_down(&mut self, window_id: WindowId, point: DipPoint) {
+        if let Ok(mut info) = WINDOWS.widget_tree(window_id) {
+            let mut point = point.to_px(info.scale_factor());
+
+            // hit-test for nested window
+            if let Some(t) = info.root().hit_test(point).target()
+                && let Some(w) = info.get(t.widget_id)
+                && let Some(t) = w.nested_window_tree()
+            {
+                info = t;
+                point = w
+                    .inner_transform()
+                    .inverse()
+                    .and_then(|t| t.transform_point(point))
+                    .unwrap_or(point);
+            }            
+
+            // default capture
+            self.set_capture(info.root().interaction_path(), CaptureMode::Window);
+        }
+    }
+
+    fn on_last_up(&mut self) {
+        self.unset_capture();
+    }
+
+    fn continue_capture(&mut self, info: &WidgetInfoTree) {
+        let current = self.capture.as_ref().unwrap();
+
+        if let Some(widget) = info.get(current.target.widget_id()) {
+            if let Some(new_path) = widget.new_interaction_path(&InteractionPath::from_enabled(current.target.clone())) {
+                // widget moved inside window tree.
+                let mode = current.mode;
+                self.set_capture(new_path, mode);
+            }
+        } else {
+            // widget not found. Returns to default capture.
+            self.set_capture(info.root().interaction_path(), CaptureMode::Window);
+        }
+    }
+
+    fn set_capture(&mut self, target: InteractionPath, mode: CaptureMode) {
+        let new = target.enabled().map(|target| CaptureInfo { target, mode });
+        if new.is_none() {
+            self.unset_capture();
+            return;
+        }
+        if new != self.capture {
+            let prev = self.capture.take();
+            self.capture.clone_from(&new);
+            self.capture_value.clone_from(&new);
+            self.capture.set(new.clone());
+            POINTER_CAPTURE_EVENT.notify(PointerCaptureArgs::now(prev, new));
+        }
+    }
+
+    fn unset_capture(&mut self) {
+        if self.capture.is_some() {
+            let prev = self.capture.take();
+            self.capture_value = None;
+            self.capture.set(None);
+            POINTER_CAPTURE_EVENT.notify(PointerCaptureArgs::now(prev, None));
         }
     }
 }
