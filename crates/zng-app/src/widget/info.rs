@@ -111,6 +111,27 @@ impl WidgetInfoTreeStatsUpdate {
     }
 }
 
+/// Weak reference to a [`WidgetInfoTree`].
+#[derive(Clone, Debug, Default)]
+pub struct WeakWidgetInfoTree(std::sync::Weak<WidgetInfoTreeInner>);
+impl WeakWidgetInfoTree {
+    /// New without allocating any memory.
+    pub const fn new() -> Self {
+        Self(std::sync::Weak::new())
+    }
+
+    /// Attempt to upgrade to a strong reference to the widget tree.
+    pub fn upgrade(&self) -> Option<WidgetInfoTree> {
+        self.0.upgrade().map(WidgetInfoTree)
+    }
+}
+impl PartialEq for WeakWidgetInfoTree {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.ptr_eq(&other.0)
+    }
+}
+impl Eq for WeakWidgetInfoTree {}
+
 /// A tree of [`WidgetInfo`].
 ///
 /// The tree is behind an `Arc` pointer so cloning and storing this type is very cheap.
@@ -320,13 +341,18 @@ impl WidgetInfoTree {
         }
 
         if notify && any_update {
-            WIDGET_TREE_CHANGED_EVENT.notify(WidgetTreeChangedArgs::now(self.clone(), true));
+            WIDGET_TREE_CHANGED_EVENT.notify(WidgetTreeChangedArgs::now(self.downgrade(), self.clone(), true));
         }
     }
 
     pub(crate) fn after_render_update(&self, frame_id: FrameId, notify: bool) {
         let scale_factor = self.0.frame.read().scale_factor;
         self.after_render(frame_id, scale_factor, None, None, notify);
+    }
+
+    /// Create a weak reference to this tree.
+    pub fn downgrade(&self) -> WeakWidgetInfoTree {
+        WeakWidgetInfoTree(Arc::downgrade(&self.0))
     }
 }
 impl fmt::Debug for WidgetInfoTree {

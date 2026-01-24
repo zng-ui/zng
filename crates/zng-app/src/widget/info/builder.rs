@@ -9,7 +9,7 @@ use zng_unique_id::IdMap;
 use crate::{
     DInstant, INSTANT,
     render::TransformStyle,
-    update::{InfoUpdates, LayoutUpdates, UpdateFlags},
+    update::{InfoUpdates, LayoutUpdates, UPDATES, UpdateFlags},
     widget::{WIDGET, WidgetId, WidgetUpdateMode, border::BORDER, node::UiNode},
     window::{WINDOW, WindowId},
 };
@@ -357,7 +357,14 @@ impl WidgetInfoBuilder {
         }));
 
         if notify {
-            let args = WidgetTreeChangedArgs::now(tree.clone(), false);
+            let mut prev_tree = WeakWidgetInfoTree::new();
+            if let Some(t) = previous_tree {
+                prev_tree = t.downgrade();
+                UPDATES.once_next_update("", move || {
+                    let _hold_once = &t;
+                });
+            }
+            let args = WidgetTreeChangedArgs::now(prev_tree, tree.clone(), false);
             WIDGET_TREE_CHANGED_EVENT.notify(args);
         }
 
@@ -376,6 +383,14 @@ crate::event::event! {
 crate::event::event_args! {
     /// [`WIDGET_TREE_CHANGED_EVENT`] args.
     pub struct WidgetTreeChangedArgs {
+        /// Previous widget tree.
+        ///
+        /// The strong reference if only held for the duration event update duration, after it is dropped. It will also
+        /// not upgrade if this event is the first for the window.
+        ///
+        /// This is equal to `tree` if `is_update`.
+        pub prev_tree: WeakWidgetInfoTree,
+
         /// New widget tree.
         pub tree: WidgetInfoTree,
 

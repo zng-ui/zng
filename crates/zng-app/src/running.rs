@@ -305,24 +305,18 @@ impl RunningApp {
                 let (window, data) = VIEW_PROCESS.on_window_opened(w_id, data);
                 let args = RawWindowOpenArgs::now(w_id, window.downgrade(), data);
                 RAW_WINDOW_OPEN_EVENT.notify(args);
-                RAW_WINDOW_OPEN_EVENT
-                    .hook(move |_| {
-                        let _hold_once = &window;
-                        false
-                    })
-                    .perm();
+                UPDATES.once_next_update("", move || {
+                    let _hold_once = &window;
+                });
             }
             Event::HeadlessOpened(w_id, data) => {
                 let w_id = window_id(w_id);
                 let (surface, data) = VIEW_PROCESS.on_headless_opened(w_id, data);
                 let args = RawHeadlessOpenArgs::now(w_id, surface.downgrade(), data);
                 RAW_HEADLESS_OPEN_EVENT.notify(args);
-                RAW_HEADLESS_OPEN_EVENT
-                    .hook(move |_| {
-                        let _hold_once = &surface;
-                        false
-                    })
-                    .perm();
+                UPDATES.once_next_update("", move || {
+                    let _hold_once = &surface;
+                });
             }
             Event::WindowOrHeadlessOpenError { id: w_id, error } => {
                 let w_id = window_id(w_id);
@@ -337,12 +331,9 @@ impl RunningApp {
                 if let Some(handle) = VIEW_PROCESS.on_image_metadata(&meta) {
                     let args = RawImageMetadataDecodedArgs::now(handle.downgrade(), meta);
                     RAW_IMAGE_METADATA_DECODED_EVENT.notify(args);
-                    RAW_IMAGE_METADATA_DECODED_EVENT
-                        .hook(move |_| {
-                            let _hold_once = &handle;
-                            false
-                        })
-                        .perm();
+                    UPDATES.once_next_update("", move || {
+                        let _hold_once = &handle;
+                    });
                 } else {
                     tracing::warn!("received unknown image metadata {:?} ({:?}), ignoring", meta.id, meta.size);
                 }
@@ -352,12 +343,9 @@ impl RunningApp {
                     let img = ArcEq::new(img);
                     let args = RawImageDecodedArgs::now(handle.downgrade(), ArcEq::downgrade(&img));
                     RAW_IMAGE_DECODED_EVENT.notify(args);
-                    RAW_IMAGE_DECODED_EVENT
-                        .hook(move |_| {
-                            let _hold_once = (&handle, &img);
-                            false
-                        })
-                        .perm();
+                    UPDATES.once_next_update("", move || {
+                        let _hold_once = (&handle, &img);
+                    });
                 } else {
                     tracing::warn!("received unknown image metadata {:?} ({:?}), ignoring", img.meta.id, img.meta.size);
                 }
@@ -366,12 +354,9 @@ impl RunningApp {
                 if let Some(handle) = VIEW_PROCESS.on_image_error(id) {
                     let args = RawImageDecodeErrorArgs::now(handle.downgrade(), error);
                     RAW_IMAGE_DECODE_ERROR_EVENT.notify(args);
-                    RAW_IMAGE_DECODE_ERROR_EVENT
-                        .hook(move |_| {
-                            let _hold_once = &handle;
-                            false
-                        })
-                        .perm();
+                    UPDATES.once_next_update("", move || {
+                        let _hold_once = &handle;
+                    });
                 }
             }
             Event::ImageEncoded { task, data } => VIEW_PROCESS.on_image_encoded(task, data),
@@ -383,12 +368,9 @@ impl RunningApp {
                 if let Some(handle) = VIEW_PROCESS.on_audio_metadata(&meta) {
                     let args = RawAudioMetadataDecodedArgs::now(handle.downgrade(), meta);
                     RAW_AUDIO_METADATA_DECODED_EVENT.notify(args);
-                    RAW_AUDIO_METADATA_DECODED_EVENT
-                        .hook(move |_| {
-                            let _hold_once = &handle;
-                            false
-                        })
-                        .perm();
+                    UPDATES.once_next_update("", move || {
+                        let _hold_once = &handle;
+                    });
                 } else {
                     tracing::warn!("received unknown audio metadata {:?}, ignoring", meta.id);
                 }
@@ -398,12 +380,9 @@ impl RunningApp {
                     let audio = ArcEq::new(audio);
                     let args = RawAudioDecodedArgs::now(handle.downgrade(), ArcEq::downgrade(&audio));
                     RAW_AUDIO_DECODED_EVENT.notify(args);
-                    RAW_AUDIO_DECODED_EVENT
-                        .hook(move |_| {
-                            let _hold_once = (&handle, &audio);
-                            false
-                        })
-                        .perm();
+                    UPDATES.once_next_update("", move || {
+                        let _hold_once = (&handle, &audio);
+                    });
                 } else {
                     tracing::warn!("received unknown audio metadata {:?}, ignoring", audio.id);
                 }
@@ -412,12 +391,9 @@ impl RunningApp {
                 if let Some(handle) = VIEW_PROCESS.on_audio_error(id) {
                     let args = RawAudioDecodeErrorArgs::now(handle.downgrade(), error);
                     RAW_AUDIO_DECODE_ERROR_EVENT.notify(args);
-                    RAW_AUDIO_DECODE_ERROR_EVENT
-                        .hook(move |_| {
-                            let _hold_once = &handle;
-                            false
-                        })
-                        .perm();
+                    UPDATES.once_next_update("", move || {
+                        let _hold_once = &handle;
+                    });
                 }
             }
 
@@ -427,12 +403,9 @@ impl RunningApp {
 
                 let args = RawAudioOutputOpenArgs::now(a_id, output.downgrade());
                 RAW_AUDIO_OUTPUT_OPEN_EVENT.notify(args);
-                RAW_AUDIO_OUTPUT_OPEN_EVENT
-                    .hook(move |_| {
-                        let _hold_once = &output;
-                        false
-                    })
-                    .perm();
+                UPDATES.once_next_update("", move || {
+                    let _hold_once = &output;
+                });
             }
             Event::AudioOutputOpenError { id, error } => {
                 let a_id = audio_output_id(id);
@@ -577,12 +550,9 @@ impl RunningApp {
         let args = crate::view_process::raw_events::RawFrameRenderedArgs::now(window_id, ev.frame, image.as_ref().map(ArcEq::downgrade));
         RAW_FRAME_RENDERED_EVENT.notify(args);
         if image.is_some() {
-            RAW_FRAME_RENDERED_EVENT
-                .hook(move |_| {
-                    let _hold_once = &image;
-                    false
-                })
-                .perm();
+            UPDATES.once_next_update("", move || {
+                let _hold_once = &image;
+            });
         }
     }
 

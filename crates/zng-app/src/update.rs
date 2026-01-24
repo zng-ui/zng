@@ -17,6 +17,7 @@ use zng_var::{VARS, VARS_APP};
 use crate::{
     AppEventSender, LoopTimer, async_hn_once,
     handler::{AppWeakHandle, Handler, HandlerExt as _},
+    hn_once,
     timer::TIMERS_SV,
     widget::{
         WIDGET, WidgetId,
@@ -1219,6 +1220,16 @@ impl UPDATES {
     /// This is an alias for [`VARS::modify`].
     pub fn once_update(&self, debug_name: &'static str, u: impl FnOnce() + Send + 'static) {
         VARS.modify(debug_name, u);
+    }
+
+    /// Calls the closure once the next update is over.
+    ///
+    /// Note that this requests an update, after the current update is over another one will process and at its end the closure is called.
+    pub fn once_next_update(&self, debug_name: &'static str, u: impl FnOnce() + Send + 'static) {
+        self.run_hn_once(hn_once!(|_| {
+            UPDATES.once_update(debug_name, u);
+        }))
+        .perm();
     }
 
     fn push_handler(
