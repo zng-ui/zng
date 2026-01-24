@@ -1,4 +1,13 @@
 //! Aggregate events.
+//! 
+//! Events this extension provides.
+//!
+//! * [`CLICK_EVENT`]
+//! * [`SHORTCUT_EVENT`]
+//!
+//! Services this extension provides.
+//!
+//! * [`GESTURES`]
 
 use parking_lot::Mutex;
 use std::{
@@ -128,11 +137,11 @@ event_args! {
 
         ..
 
-        /// The [`target`].
+        /// If is in [`target`].
         ///
         /// [`target`]: Self::target
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_wgt(&self.target)
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
@@ -160,7 +169,7 @@ event_args! {
         ..
 
         /// No target, only app extensions.
-        fn delivery_list(&self, _list: &mut UpdateDeliveryList) {}
+        fn is_in_target(&self, _id: WidgetId) -> bool { false }
     }
 }
 impl From<MouseClickArgs> for ClickArgs {
@@ -321,7 +330,7 @@ event! {
     /// Aggregate click event.
     ///
     /// Can be a mouse click, a shortcut press or a touch tap.
-    pub static CLICK_EVENT: ClickArgs;
+    pub static CLICK_EVENT: ClickArgs { GESTURES_SV.read(); };
 
     /// Shortcut input event.
     ///
@@ -330,56 +339,49 @@ event! {
     /// This event is not send to any widget, use the [`GESTURES`] service to setup widget targets for shortcuts.
     ///
     /// [`Shortcut`]: zng_app::shortcut::Shortcut
-    pub static SHORTCUT_EVENT: ShortcutArgs;
+    pub static SHORTCUT_EVENT: ShortcutArgs { GESTURES_SV.read(); };
 }
 
-/// Application extension that provides aggregate events.
-///
-/// Events this extension provides.
-///
-/// * [`CLICK_EVENT`]
-/// * [`SHORTCUT_EVENT`]
-///
-/// Services this extension provides.
-///
-/// * [`GESTURES`]
-#[derive(Default)]
-pub struct GestureManager {}
-impl AppExtension for GestureManager {
-    fn init(&mut self) {
-        // touch gesture event, only notifies if has hooks or subscribers.
-        TOUCH_TAP_EVENT.as_any().hook(|_| true).perm();
-        TOUCH_LONG_PRESS_EVENT.as_any().hook(|_| true).perm();
-    }
+fn hooks() {
+    // Generate click events from mouse clicks.
+    MOUSE_CLICK_EVENT.hook(|args| {
+        CLICK_EVENT.notify(args.clone().into());
+        true
+    }).perm();
+     // Generate click events from taps.
+    TOUCH_TAP_EVENT.hook(|args| {
+        CLICK_EVENT.notify(args.clone().into());
+        true
+    }).perm();
 
-    fn event(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = MOUSE_CLICK_EVENT.on_unhandled(update) {
-            // Generate click events from mouse clicks.
-            CLICK_EVENT.notify(args.clone().into());
-        } else if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-            // Generate shortcut events from keyboard input.
-            GESTURES_SV.write().on_key_input(args);
-        } else if let Some(args) = TOUCH_TAP_EVENT.on_unhandled(update) {
-            // Generate click events from taps.
-            CLICK_EVENT.notify(args.clone().into());
-        } else if let Some(args) = TOUCH_LONG_PRESS_EVENT.on_unhandled(update) {
-            // Generate click events from touch long press.
-            if !args.propagation().is_stopped() {
-                CLICK_EVENT.notify(args.clone().into());
-            }
-        } else if let Some(args) = SHORTCUT_EVENT.on_unhandled(update) {
-            // Run shortcut actions.
-            GESTURES_SV.write().on_shortcut(args);
-        } else if let Some(args) = ACCESS_CLICK_EVENT.on_unhandled(update) {
-            // Run access click.
-            GESTURES_SV.write().on_access(args);
-        }
-    }
+     // Generate shortcut events from keyboard input.
+    KEY_INPUT_EVENT.hook(|args| {
+        GESTURES_SV.write().on_key_input(args);
+        true
+    }).perm();
+
+    // Generate click events from touch long press.
+    TOUCH_LONG_PRESS_EVENT.hook(|args| {
+        CLICK_EVENT.notify(args.clone().into());
+        true
+    }).perm();
+
+    // Run access click.
+    ACCESS_CLICK_EVENT.hook(|args| {
+        GESTURES_SV.write().on_access(args);
+        true
+    }).perm();
+
+    // Run shortcut actions.
+    SHORTCUT_EVENT.hook(|args| {
+        GESTURES_SV.write().on_shortcut(args);
+        true
+    }).perm();
 }
 
 app_local! {
     static GESTURES_SV: GesturesService = {
-        APP.extensions().require::<GestureManager>();
+        hooks();
         GesturesService::new()
     };
 }
