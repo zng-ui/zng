@@ -216,7 +216,7 @@ struct PointerCaptureService {
 
 event! {
     /// Mouse and touch capture changed event.
-    pub static POINTER_CAPTURE_EVENT: PointerCaptureArgs { POINTER_CAPTURE_SV.read(); };
+    pub static POINTER_CAPTURE_EVENT: PointerCaptureArgs { let _ = POINTER_CAPTURE_SV.read(); };
 }
 
 event_args! {

@@ -230,7 +230,7 @@ struct TouchService {
 }
 
 /// Identify the moves of one touch contact in [`TouchMoveArgs`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TouchMove {
     /// Identify the touch contact or *finger*.
     ///
@@ -1012,25 +1012,25 @@ impl TouchTransformArgs {
 
 event! {
     /// Touch contact moved.
-    pub static TOUCH_MOVE_EVENT: TouchMoveArgs { TOUCH_SV.read(); };
+    pub static TOUCH_MOVE_EVENT: TouchMoveArgs { let _ = TOUCH_SV.read(); };
 
     /// Touch contact started or ended.
-    pub static TOUCH_INPUT_EVENT: TouchInputArgs { TOUCH_SV.read(); };
+    pub static TOUCH_INPUT_EVENT: TouchInputArgs { let _ = TOUCH_SV.read(); };
 
     /// Touch made first contact or lost contact with a widget.
-    pub static TOUCHED_EVENT: TouchedArgs { TOUCH_SV.read(); };
+    pub static TOUCHED_EVENT: TouchedArgs { let _ = TOUCH_SV.read(); };
 
     /// Touch tap.
     ///
     /// This is a touch gesture event, it only notifies if it has listeners, either widget subscribers in the
     /// touched path or app level hooks.
-    pub static TOUCH_TAP_EVENT: TouchTapArgs { TOUCH_SV.read(); };
+    pub static TOUCH_TAP_EVENT: TouchTapArgs { let _ = TOUCH_SV.read(); };
 
     /// Two point touch transform.
     ///
     /// This is a touch gesture event, it only notifies if it has listeners, either widget subscribers in the
     /// touched path or app level hooks.
-    pub static TOUCH_TRANSFORM_EVENT: TouchTransformArgs { TOUCH_SV.read(); };
+    pub static TOUCH_TRANSFORM_EVENT: TouchTransformArgs { let _ = TOUCH_SV.read(); };
 
     /// Touch contact pressed without moving for more then the [`tap_max_time`].
     ///
@@ -1038,7 +1038,7 @@ event! {
     /// touched path or app level hooks.
     ///
     /// [`tap_max_time`]: TouchConfig::tap_max_time
-    pub static TOUCH_LONG_PRESS_EVENT: TouchLongPressArgs { TOUCH_SV.read(); };
+    pub static TOUCH_LONG_PRESS_EVENT: TouchLongPressArgs { let _ = TOUCH_SV.read(); };
 }
 
 impl TouchService {
@@ -1963,9 +1963,7 @@ impl TransformGesture {
     fn on_input(&mut self, args: &TouchInputArgs) {
         match mem::take(self) {
             Self::NoStartedZero => {
-                if TouchPhase::Start == args.phase
-                    && !args.touch_propagation.is_stopped()
-                {
+                if TouchPhase::Start == args.phase && !args.touch_propagation.is_stopped() {
                     *self = Self::NotStartedOne {
                         window_id: args.window_id,
                         device_id: args.device_id,

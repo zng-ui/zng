@@ -19,7 +19,7 @@
 //!
 //! * [`DRAG_DROP`]
 
-use std::{mem, sync::Arc};
+use std::mem;
 
 use parking_lot::Mutex;
 use zng_app::{
@@ -41,7 +41,7 @@ use zng_layout::unit::{DipPoint, DipToPx as _, PxToDip as _};
 use zng_state_map::StateId;
 use zng_task::channel::IpcBytes;
 use zng_txt::{Txt, formatx};
-use zng_var::{Var, var};
+use zng_var::{ArcEq, Var, var};
 use zng_view_api::{DragDropId, mouse::ButtonState, touch::TouchPhase};
 
 use crate::{mouse::MOUSE_INPUT_EVENT, touch::TOUCH_INPUT_EVENT};
@@ -97,6 +97,7 @@ impl DRAG_DROP {
 
 app_local! {
     static DRAG_DROP_SV: DragDropService = {
+        hooks();
         DragDropService {
             data: var(vec![]),
             system_dragging: vec![],
@@ -139,6 +140,7 @@ fn hooks() {
         .hook(|args| {
             // system drop
             let mut s = DRAG_DROP_SV.write();
+            let s = &mut *s;
             let len = s.system_dragging.len();
             for data in &args.data {
                 s.system_dragging.retain(|d| d != data);
@@ -159,7 +161,7 @@ fn hooks() {
                     s.pos,
                     hits,
                     args.drop_id,
-                    Arc::new(Mutex::new(DragDropEffect::empty())),
+                    ArcEq::new(Mutex::new(DragDropEffect::empty())),
                 ));
             }
 
@@ -390,10 +392,12 @@ fn hooks() {
         })
         .perm();
 
-    DROP_EVENT.hook(|args| {
-        let _ = WINDOWS_DRAG_DROP.drag_dropped(args.target.window_id(), args.drop_id, *args.applied.lock());
-        true
-    }).perm();
+    DROP_EVENT
+        .hook(|args| {
+            WINDOWS_DRAG_DROP.drag_dropped(args.target.window_id(), args.drop_id, *args.applied.lock());
+            true
+        })
+        .perm();
 }
 
 /// Represents dragging data.
@@ -499,7 +503,7 @@ event_args! {
         pub hits: HitTestInfo,
 
         drop_id: DragDropId,
-        applied: Arc<Mutex<DragDropEffect>>,
+        applied: ArcEq<Mutex<DragDropEffect>>,
 
         ..
 
@@ -617,21 +621,21 @@ event_args! {
 }
 event! {
     /// Drag&drop action finished over some drop target widget.
-    pub static DROP_EVENT: DropArgs { DRAG_DROP_SV.read(); };
+    pub static DROP_EVENT: DropArgs { let _ = DRAG_DROP_SV.read(); };
     /// Drag&drop enter or exit a drop target widget.
-    pub static DRAG_HOVERED_EVENT: DragHoveredArgs { DRAG_DROP_SV.read(); };
+    pub static DRAG_HOVERED_EVENT: DragHoveredArgs { let _ = DRAG_DROP_SV.read(); };
     /// Drag&drop is dragging over the target widget.
-    pub static DRAG_MOVE_EVENT: DragMoveArgs { DRAG_DROP_SV.read(); };
+    pub static DRAG_MOVE_EVENT: DragMoveArgs { let _ = DRAG_DROP_SV.read(); };
     /// Drag&drop started dragging a draggable widget.
     ///
     /// If propagation is stopped the drag operation is cancelled. Handlers can use
     /// [`DRAG_DROP.drag`] to set the data, otherwise the widget ID will be dragged.
     ///
     /// [`DRAG_DROP.drag`]: DRAG_DROP::drag
-    pub static DRAG_START_EVENT: DragStartArgs { DRAG_DROP_SV.read(); };
+    pub static DRAG_START_EVENT: DragStartArgs { let _ = DRAG_DROP_SV.read(); };
 
     /// Drag&drop gesture started from the draggable widget has ended.
-    pub static DRAG_END_EVENT: DragEndArgs { DRAG_DROP_SV.read(); };
+    pub static DRAG_END_EVENT: DragEndArgs { let _ = DRAG_DROP_SV.read(); };
 }
 
 impl DropArgs {

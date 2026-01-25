@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 use zng_app::{
     widget::{
         WidgetId,
-        info::{TreeFilter, Visibility, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetPath},
+        info::{TreeFilter, Visibility, WeakWidgetInfoTree, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetPath},
     },
     window::WindowId,
 };
@@ -241,10 +241,8 @@ pub struct FocusRequest {
 
     /// If the window should be focused even if another app has focus. By default the window
     /// is only focused if the app has keyboard focus in any of the open windows, if this is enabled
-    /// a [`WINDOWS.focus`] request is always made, potentially stealing keyboard focus from another app
+    /// and the operating system supports it forces focus on the window, potentially stealing keyboard focus from another app
     /// and disrupting the user.
-    ///
-    /// [`WINDOWS.focus`]: zng_ext_window::WINDOWS::focus
     pub force_window_focus: bool,
 
     /// Focus indicator to set on the target window if the app does not have keyboard focus and
@@ -255,6 +253,9 @@ pub struct FocusRequest {
     ///
     /// [`focus_indicator`]: zng_ext_window::WindowVars::focus_indicator
     pub window_indicator: Option<FocusIndicator>,
+
+    /// Only fulfill this request is no other focus requests are made in the same update pass.
+    pub fallback_only: bool,
 }
 
 impl FocusRequest {
@@ -265,6 +266,7 @@ impl FocusRequest {
             highlight,
             force_window_focus: false,
             window_indicator: None,
+            fallback_only: false,
         }
     }
 
@@ -392,14 +394,14 @@ pub enum FocusTarget {
         navigation_origin: bool,
     },
 
-    /// Move focus to the first focusable descendant of the current focus, or to first in screen.
+    /// Move focus to the first focusable descendant of the current focus.
     Enter,
-    /// Move focus to the first focusable ancestor of the current focus, or to first in screen, or the return focus from ALT scopes.
+    /// Move focus to the first focusable ancestor of the current focus, or the return focus from ALT scopes.
     Exit,
 
-    /// Move focus to next from current in screen, or to first in screen.
+    /// Move focus to next from current in scope.
     Next,
-    /// Move focus to previous from current in screen, or to last in screen.
+    /// Move focus to previous from current in scope.
     Prev,
 
     /// Move focus above current.
@@ -1908,13 +1910,12 @@ pub(super) struct FocusTreeData {
     alt_scopes: Mutex<IdSet<WidgetId>>,
 }
 impl FocusTreeData {
-    pub(super) fn consolidate_alt_scopes(prev_tree: &WidgetInfoTree, new_tree: &WidgetInfoTree) {
+    pub(super) fn consolidate_alt_scopes(prev_tree: &WeakWidgetInfoTree, new_tree: &WidgetInfoTree) {
         // reused widgets don't insert build-meta, so we add the previous ALT scopes and validate everything.
 
         let prev = prev_tree
-            .build_meta()
-            .get(*FOCUS_TREE_ID)
-            .map(|d| d.alt_scopes.lock().clone())
+            .upgrade()
+            .and_then(|t| t.build_meta().get(*FOCUS_TREE_ID).map(|d| d.alt_scopes.lock().clone()))
             .unwrap_or_default();
 
         let mut alt_scopes = prev;

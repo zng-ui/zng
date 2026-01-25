@@ -10,7 +10,7 @@ use zng_app::{
     view_process::{VIEW_PROCESS, raw_events::RAW_CHROME_CONFIG_CHANGED_EVENT},
     widget::{
         WIDGET, WidgetId,
-        info::{WIDGET_TREE_CHANGED_EVENT, WidgetInfoTree, WidgetTreeChangedArgs, access::AccessEnabled},
+        info::{WidgetInfoTree, access::AccessEnabled},
     },
     window::{WINDOW, WINDOWS_APP, WindowId, WindowMode},
 };
@@ -503,10 +503,7 @@ impl zng_app::window::WindowsService for WINDOWS {
                     builder.finalize(WINDOW.try_info(), true)
                 });
                 n.win_ctx.set_widget_tree(info.clone());
-
-                // apply and notify
                 WINDOWS_SV.write().windows.get_mut(id).unwrap().info = Some(info.clone());
-                WIDGET_TREE_CHANGED_EVENT.notify(WidgetTreeChangedArgs::now(info, false));
 
                 if access_enabled.contains(AccessEnabled::VIEW) {
                     // access data is send in the frame display list

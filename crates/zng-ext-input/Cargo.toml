@@ -28,6 +28,7 @@ zng-state-map = { path = "../zng-state-map", version = "0.9.1", default-features
 zng-unique-id = { path = "../zng-unique-id", version = "0.10.1", default-features = false }
 zng-ext-window = { path = "../zng-ext-window", version = "0.11.4", default-features = false }
 zng-task = { path = "../zng-task", version = "0.11.1", default-features = false }
+zng-env = { path = "../zng-env", version = "0.9.1", default-features = false }
 
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 parking_lot = { version = "0.12", default-features = false }

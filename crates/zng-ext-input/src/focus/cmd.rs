@@ -2,12 +2,14 @@
 //!
 //! [`Command`]: zng_app::event::Command
 
+use zng_app::event::EventArgs;
 use zng_app::{
-    event::{Command, CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, command},
+    event::{Command, CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, command},
+    hn,
     shortcut::{CommandShortcutExt, shortcut},
-    update::EventUpdate,
     widget::info::WidgetInfo,
 };
+use zng_ext_window::WINDOWS;
 use zng_var::{Var, merge_var};
 
 use super::*;
@@ -109,54 +111,21 @@ pub(super) struct FocusCommands {
 }
 impl FocusCommands {
     pub fn new() -> Self {
-        Self {
-            next_handle: FOCUS_NEXT_CMD.subscribe(false),
-            prev_handle: FOCUS_PREV_CMD.subscribe(false),
-
-            alt_handle: FOCUS_ALT_CMD.subscribe(false),
-
-            up_handle: FOCUS_UP_CMD.subscribe(false),
-            down_handle: FOCUS_DOWN_CMD.subscribe(false),
-            left_handle: FOCUS_LEFT_CMD.subscribe(false),
-            right_handle: FOCUS_RIGHT_CMD.subscribe(false),
-
-            exit_handle: FOCUS_EXIT_CMD.subscribe(false),
-            enter_handle: FOCUS_ENTER_CMD.subscribe(false),
-
-            focus_handle: FOCUS_CMD.subscribe(true),
-        }
-    }
-
-    pub fn update_enabled(&mut self, nav: FocusNavAction) {
-        self.next_handle.set_enabled(nav.contains(FocusNavAction::NEXT));
-        self.prev_handle.set_enabled(nav.contains(FocusNavAction::PREV));
-
-        self.alt_handle.set_enabled(nav.contains(FocusNavAction::ALT));
-
-        self.up_handle.set_enabled(nav.contains(FocusNavAction::UP));
-        self.down_handle.set_enabled(nav.contains(FocusNavAction::DOWN));
-        self.left_handle.set_enabled(nav.contains(FocusNavAction::LEFT));
-        self.right_handle.set_enabled(nav.contains(FocusNavAction::RIGHT));
-
-        self.exit_handle.set_enabled(nav.contains(FocusNavAction::EXIT));
-        self.enter_handle.set_enabled(nav.contains(FocusNavAction::ENTER));
-    }
-
-    pub fn event_preview(&mut self, update: &EventUpdate) {
         macro_rules! handle {
-            ($($CMD:ident($handle:ident) => $method:ident,)+) => {$(
-                if let Some(args) = $CMD.on(update) {
-                    args.handle(|args| {
-                        if args.enabled && self.$handle.is_enabled() {
-                            FOCUS.$method();
-                        } else {
-                            FOCUS.on_disabled_cmd();
-                        }
-                    });
-                    return;
-                }
-            )+};
+            ($($CMD:ident($handle:ident) => $method:ident,)+) => {Self {
+                $($handle: $CMD.on_event(false, true, false, hn!(|args| {
+                    args.propagation().stop();
+                    FOCUS.$method();
+                })),)+
+                focus_handle: FOCUS_CMD.on_event(true, true, false, hn!(|args| {
+                    if let Some(req) = args.param::<FocusRequest>() {
+                        args.propagation().stop();
+                        FOCUS.focus(*req);
+                    }
+                })),
+            }};
         }
+
         #[rustfmt::skip] // for zng fmt
         handle! {
             FOCUS_NEXT_CMD(next_handle) => focus_next,
@@ -169,14 +138,21 @@ impl FocusCommands {
             FOCUS_ENTER_CMD(enter_handle) => focus_enter,
             FOCUS_EXIT_CMD(exit_handle) => focus_exit,
         }
+    }
 
-        if let Some(args) = FOCUS_CMD.on(update)
-            && let Some(req) = args.param::<FocusRequest>()
-        {
-            args.handle_enabled(&self.focus_handle, |_| {
-                FOCUS.focus(*req);
-            });
-        }
+    pub fn update_enabled(&mut self, nav: FocusNavAction) {
+        self.next_handle.enabled().set(nav.contains(FocusNavAction::NEXT));
+        self.prev_handle.enabled().set(nav.contains(FocusNavAction::PREV));
+
+        self.alt_handle.enabled().set(nav.contains(FocusNavAction::ALT));
+
+        self.up_handle.enabled().set(nav.contains(FocusNavAction::UP));
+        self.down_handle.enabled().set(nav.contains(FocusNavAction::DOWN));
+        self.left_handle.enabled().set(nav.contains(FocusNavAction::LEFT));
+        self.right_handle.enabled().set(nav.contains(FocusNavAction::RIGHT));
+
+        self.exit_handle.enabled().set(nav.contains(FocusNavAction::EXIT));
+        self.enter_handle.enabled().set(nav.contains(FocusNavAction::ENTER));
     }
 }
 
@@ -234,7 +210,7 @@ impl CommandFocusExt for Command {
         let cmd = self.scoped(CommandScope::App);
         merge_var!(FOCUS.alt_return(), FOCUS.focused(), |alt, f| {
             match alt.as_ref().or(f.as_ref()) {
-                Some(p) => WINDOWS.widget_tree(p.window_id()).ok()?.get(p.widget_id()),
+                Some(p) => WINDOWS.widget_tree(p.window_id())?.get(p.widget_id()),
                 None => None,
             }
         })
