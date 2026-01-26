@@ -63,7 +63,7 @@ use super::*;
 ///
 /// command! {
 ///     /// Represents the **foo** action.
-///     pub static FOO_CMD = {
+///     pub static FOO_CMD {
 ///         name: "Foo!",
 ///         info: "Does the foo thing",
 ///         shortcut: shortcut![CTRL + 'F'],
@@ -73,7 +73,7 @@ use super::*;
 ///
 /// The initialization uses the [command extensions] pattern and runs once for each app.
 ///
-/// Or you can use a custom closure to initialize the command:
+/// Or you the special `init: |cmd| { }` to run an arbitrary closure on init:
 ///
 /// ```
 /// use zng_app::{
@@ -83,15 +83,15 @@ use super::*;
 ///
 /// command! {
 ///     /// Represents the **foo** action.
-///     pub static FOO_CMD => |cmd| {
+///     pub static FOO_CMD { init: |cmd| {
 ///         cmd.init_name("Foo!");
 ///         cmd.init_info("Does the foo thing.");
 ///         cmd.init_shortcut(shortcut![CTRL+'F']);
-///     };
+///     }};
 /// }
 /// ```
 ///
-/// For the first kind of metadata initialization a documentation section is also generated with a table of metadata.
+/// A documentation section is also generated with a table of metadata for each inited metadata.
 ///
 /// # Localization
 ///
@@ -101,7 +101,7 @@ use super::*;
 /// ```
 /// # use zng_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
 /// command! {
-///     pub static FOO_CMD = {
+///     pub static FOO_CMD {
 ///         l10n!: true,
 ///         name: "Foo!",
 ///         info: "Does the foo thing",
@@ -122,7 +122,7 @@ use super::*;
 /// ```
 /// # use zng_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
 /// command! {
-///     pub static FOO_CMD = {
+///     pub static FOO_CMD {
 ///         l10n!: "file",
 ///         name: "Foo!",
 ///     };
@@ -149,12 +149,12 @@ use super::*;
 macro_rules! command {
     ($(
         $(#[$attr:meta])*
-        $vis:vis static $COMMAND:ident $(=> |$cmd:ident|$custom_meta_init:expr ;)? $(= { $($meta_ident:ident $(!)? : $meta_init:expr),* $(,)? };)? $(;)?
+        $vis:vis static $COMMAND:ident $({ $($meta_ident:ident $(!)? : $meta_init:expr),* $(,)? };)? $(;)?
     )+) => {
         $(
             $crate::__command! {
                 $(#[$attr])*
-                $vis static $COMMAND $(=> |$cmd|$custom_meta_init)? $(= {
+                $vis static $COMMAND $({
                     $($meta_ident: $meta_init,)+
                 })? ;
             }
@@ -180,55 +180,38 @@ pub use pastey::paste;
 #[macro_export]
 macro_rules! __command {
     (
-        $(#[$attr:meta])*
-        $vis:vis static $COMMAND:ident => |$cmd:ident| $meta_init:expr;
-    ) => {
-        $(#[$attr])*
-        $vis static $COMMAND: $crate::event::Command = {
-            fn __meta_init__($cmd: $crate::event::Command) {
-                $meta_init
-            }
-            $crate::event::app_local! {
-                static EVENT: $crate::event::EventData = $crate::event::EventData::new::<$crate::event::CommandArgs>();
-                static DATA: $crate::event::CommandData = $crate::event::CommandData::new(__meta_init__, stringify!($COMMAND));
-            }
-            $crate::event::Command::new(&EVENT, &DATA)
-        };
-    };
-    (
-        $(#[$attr:meta])*
-        $vis:vis static $COMMAND:ident = { l10n: $l10n_arg:expr, $($meta_ident:ident : $meta_init:expr),* $(,)? };
+        $(#[$attr:meta])* 
+        $vis:vis static $COMMAND:ident { l10n: $l10n_arg:expr, $($meta_ident:ident : $meta_init:expr),* $(,)? };
     ) => {
         $crate::event::paste! {
-            $crate::__command! {
-                $(#[$attr])*
-                ///
-                /// # Metadata
-                ///
-                /// This command has the following default metadata:
-                ///
-                /// <table>
-                /// <thead><tr><th>metadata</th><th>value</th></tr></thead>
-                /// <tbody>
-                $(#[doc = concat!("<tr> <td>", stringify!($meta_ident), "</td> <td>", stringify!($meta_init), "</td> </tr>")])+
-                ///
-                /// </tbody>
-                /// </table>
-                ///
-                /// Text metadata is localized.
-                $vis static $COMMAND => |cmd| {
+            $(#[$attr])*
+            ///
+            /// # Metadata
+            ///
+            /// This command has the following default metadata:
+            ///
+            $(#[doc = concat!("* `", stringify!($meta_ident), "`")])+
+            ///
+            /// Text metadata is localized.
+            $vis static $COMMAND: $crate::event::Command = {
+                fn __meta_init__(cmd: $crate::event::Command) {
                     let __l10n_arg = $l10n_arg;
                     $(
                         cmd.[<init_ $meta_ident>]($meta_init);
                         $crate::event::init_meta_l10n(std::env!("CARGO_PKG_NAME"), std::env!("CARGO_PKG_VERSION"), &__l10n_arg, cmd, stringify!($meta_ident), &cmd.$meta_ident());
                     )*
-                };
-            }
+                }
+                $crate::event::app_local! {
+                    static EVENT: $crate::event::EventData = $crate::event::EventData::new::<$crate::event::CommandArgs>();
+                    static DATA: $crate::event::CommandData = $crate::event::CommandData::new(__meta_init__, stringify!($COMMAND));
+                }
+                $crate::event::Command::new(&EVENT, &DATA)
+            };
         }
     };
     (
         $(#[$attr:meta])*
-        $vis:vis static $COMMAND:ident = { $($meta_ident:ident : $meta_init:expr),* $(,)? };
+        $vis:vis static $COMMAND:ident { $($meta_ident:ident : $meta_init:expr),* $(,)? };
     ) => {
         $crate::event::paste! {
             $crate::__command! {
@@ -238,17 +221,19 @@ macro_rules! __command {
                 ///
                 /// This command has the following default metadata:
                 ///
-                /// <table>
-                /// <thead><tr><th>metadata</th><th>value</th></tr></thead>
-                /// <tbody>
-                $(#[doc = concat!("<tr> <td>", stringify!($meta_ident), "</td> <td>", stringify!($meta_init), "</td> </tr>")])+
-                ///
-                /// </tbody>
-                /// </table>
-                $vis static $COMMAND => |cmd| {
-                    $(
-                        cmd.[<init_ $meta_ident>]($meta_init);
-                    )*
+                $(#[doc = concat!("* `", stringify!($meta_ident), "`")])+
+                $vis static $COMMAND: $crate::event::Command = {
+                    fn __meta_init__(cmd: $crate::event::Command) {
+                        let __l10n_arg = $l10n_arg;
+                        $(
+                            cmd.[<init_ $meta_ident>]($meta_init);
+                        )*
+                    }
+                    $crate::event::app_local! {
+                        static EVENT: $crate::event::EventData = $crate::event::EventData::new::<$crate::event::CommandArgs>();
+                        static DATA: $crate::event::CommandData = $crate::event::CommandData::new(__meta_init__, stringify!($COMMAND));
+                    }
+                    $crate::event::Command::new(&EVENT, &DATA)
                 };
             }
         }
@@ -257,10 +242,16 @@ macro_rules! __command {
         $(#[$attr:meta])*
         $vis:vis static $COMMAND:ident;
     ) => {
-        $crate::__command! {
-            $(#[$attr])*
-            $vis static $COMMAND => |_cmd|{};
-        }
+        $(#[$attr])*
+        $vis static $COMMAND: $crate::event::Command = {
+            fn __meta_init__(_: $crate::event::Command) {
+            }
+            $crate::event::app_local! {
+                static EVENT: $crate::event::EventData = $crate::event::EventData::new::<$crate::event::CommandArgs>();
+                static DATA: $crate::event::CommandData = $crate::event::CommandData::new(__meta_init__, stringify!($COMMAND));
+            }
+            $crate::event::Command::new(&EVENT, &DATA)
+        };
     };
 }
 
@@ -1298,6 +1289,16 @@ impl CommandNameExt for Command {
             }
         })
     }
+}
+
+// support `init: |cmd| { }` in `command!`
+impl Command {
+    #[doc(hidden)]
+    pub fn init_init(self, init: impl FnOnce(Self)) {
+        init(self)
+    }    
+    #[doc(hidden)]
+    pub fn init(self) {}
 }
 
 /// Adds the [`info`](CommandInfoExt) command metadata.

@@ -10,7 +10,7 @@
 pub use webrender_api::DebugFlags;
 
 use zng_app::view_process::{VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
-use zng_ext_window::WINDOWS;
+use zng_ext_window::WINDOWS_EXTENSIONS;
 use zng_wgt::prelude::*;
 
 /// Sets the Webrender renderer debug flags and profiler UI for the current window.
@@ -23,7 +23,7 @@ pub fn renderer_debug(child: impl IntoUiNode, debug: impl IntoVar<RendererDebug>
         if !dbg.is_empty()
             && let Some(ext_id) = VIEW_PROCESS.extension_id("zng-view.webrender_debug").ok().flatten()
         {
-            match WINDOWS.view_render_extension(WINDOW.id(), ext_id, dbg) {
+            match WINDOWS_EXTENSIONS.view_render_extension(WINDOW.id(), ext_id, dbg) {
                 Ok(()) => {}
                 Err(e) => tracing::error!("{e}"),
             }

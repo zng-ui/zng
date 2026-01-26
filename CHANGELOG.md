@@ -1,5 +1,7 @@
 # Unreleased
 
+**Breaking** `command!` syntax changed slightly.
+
 * Fix `Var::on_(pre_)new` notifying multiple times if the variable is modified multiple times in the same update.
 
 * **Breaking** Removes `"dyn_app_extension"` feature.

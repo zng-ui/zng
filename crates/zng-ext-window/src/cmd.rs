@@ -18,7 +18,7 @@ pub use zng_view_api::window::ResizeDirection;
 
 command! {
     /// Represents the window **close** action.
-    pub static CLOSE_CMD = {
+    pub static CLOSE_CMD {
         l10n!: true,
         name: "Close",
         info: "Close the window",
@@ -27,7 +27,7 @@ command! {
     };
 
     /// Represents the window **minimize** action.
-    pub static MINIMIZE_CMD = {
+    pub static MINIMIZE_CMD {
         l10n!: true,
         name: "Minimize",
         info: "Minimize the window",
@@ -35,7 +35,7 @@ command! {
     };
 
     /// Represents the window **maximize** action.
-    pub static MAXIMIZE_CMD = {
+    pub static MAXIMIZE_CMD {
         l10n!: true,
         name: "Maximize",
         info: "Maximize the window",
@@ -48,7 +48,7 @@ command! {
     ///
     /// This command is about the *windowed* fullscreen state ([`WindowState::Fullscreen`]),
     /// use the [`EXCLUSIVE_FULLSCREEN_CMD`] to toggle *exclusive* video mode fullscreen.
-    pub static FULLSCREEN_CMD = {
+    pub static FULLSCREEN_CMD {
         l10n!: true,
         name: "Fullscreen",
         info: "Toggle fullscreen mode on the window",
@@ -69,7 +69,7 @@ command! {
     ///
     /// This command is about the *exclusive* fullscreen state ([`WindowState::Exclusive`]),
     /// use the [`FULLSCREEN_CMD`] to toggle *windowed* fullscreen.
-    pub static EXCLUSIVE_FULLSCREEN_CMD = {
+    pub static EXCLUSIVE_FULLSCREEN_CMD {
         l10n!: true,
         name: "Exclusive Fullscreen",
         info: "Toggle exclusive fullscreen mode on the window",
@@ -79,7 +79,7 @@ command! {
     /// Represents the window **restore** action.
     ///
     /// Restores the window to its previous non-minimized state or normal state.
-    pub static RESTORE_CMD = {
+    pub static RESTORE_CMD {
         l10n!: true,
         name: "Restore",
         info: "Restores the window to its previous non-minimized state or normal state",

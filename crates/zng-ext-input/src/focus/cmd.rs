@@ -16,7 +16,7 @@ use super::*;
 
 command! {
     /// Represents the **focus next** action.
-    pub static FOCUS_NEXT_CMD = {
+    pub static FOCUS_NEXT_CMD {
         l10n!: true,
         name: "Focus Next",
         info: "Focus next focusable",
@@ -24,7 +24,7 @@ command! {
     };
 
     /// Represents the **focus previous** action.
-    pub static FOCUS_PREV_CMD = {
+    pub static FOCUS_PREV_CMD {
         l10n!: true,
         name: "Focus Previous",
         info: "Focus previous focusable",
@@ -32,7 +32,7 @@ command! {
     };
 
     /// Represents the **focus/escape alt** action.
-    pub static FOCUS_ALT_CMD = {
+    pub static FOCUS_ALT_CMD {
         l10n!: true,
         name: "Focus Alt",
         info: "Focus alt scope",
@@ -40,7 +40,7 @@ command! {
     };
 
     /// Represents the **focus enter** action.
-    pub static FOCUS_ENTER_CMD = {
+    pub static FOCUS_ENTER_CMD {
         l10n!: true,
         name: "Focus Enter",
         info: "Focus child focusable",
@@ -48,7 +48,7 @@ command! {
     };
 
     /// Represents the **focus exit** action.
-    pub static FOCUS_EXIT_CMD = {
+    pub static FOCUS_EXIT_CMD {
         l10n!: true,
         name: "Focus Exit",
         info: "Focus parent focusable, or return focus",
@@ -56,7 +56,7 @@ command! {
     };
 
     /// Represents the **focus up** action.
-    pub static FOCUS_UP_CMD = {
+    pub static FOCUS_UP_CMD {
         l10n!: true,
         name: "Focus Up",
         info: "Focus closest focusable up",
@@ -64,7 +64,7 @@ command! {
     };
 
     /// Represents the **focus down** action.
-    pub static FOCUS_DOWN_CMD = {
+    pub static FOCUS_DOWN_CMD {
         l10n!: true,
         name: "Focus Down",
         info: "Focus closest focusable down",
@@ -72,7 +72,7 @@ command! {
     };
 
     /// Represents the **focus left** action.
-    pub static FOCUS_LEFT_CMD = {
+    pub static FOCUS_LEFT_CMD {
         l10n!: true,
         name: "Focus Left",
         info: "Focus closest focusable left",
@@ -80,7 +80,7 @@ command! {
     };
 
     /// Represents the **focus right** action.
-    pub static FOCUS_RIGHT_CMD = {
+    pub static FOCUS_RIGHT_CMD {
         l10n!: true,
         name: "Focus Right",
         info: "Focus closest focusable right",

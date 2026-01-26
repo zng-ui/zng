@@ -308,7 +308,7 @@ impl CLIPBOARD {
 
 command! {
     /// Represents the clipboard **cut** action.
-    pub static CUT_CMD = {
+    pub static CUT_CMD {
         l10n!: true,
         name: "Cut",
         info: "Remove the selection and place it in the clipboard",
@@ -318,7 +318,7 @@ command! {
     };
 
     /// Represents the clipboard **copy** action.
-    pub static COPY_CMD = {
+    pub static COPY_CMD {
         l10n!: true,
         name: "Copy",
         info: "Place a copy of the selection in the clipboard",
@@ -328,7 +328,7 @@ command! {
     };
 
     /// Represents the clipboard **paste** action.
-    pub static PASTE_CMD = {
+    pub static PASTE_CMD {
         l10n!: true,
         name: "Paste",
         info: "Insert content from the clipboard",

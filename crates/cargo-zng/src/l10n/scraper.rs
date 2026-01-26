@@ -369,7 +369,7 @@ impl TryFrom<TokenStream> for CommandMacroEntry {
 
     fn try_from(command_meta_group_stream: TokenStream) -> Result<Self, Self::Error> {
         // static FOO_CMD = { #command_meta_group_stream };
-        let mut tts = command_meta_group_stream.into_iter();
+        let mut tts = command_meta_group_stream.into_iter(); // !!: TODO update syntax
 
         let mut r = CommandMacroEntry {
             id: String::new(),

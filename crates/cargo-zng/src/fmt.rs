@@ -797,7 +797,7 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         }
     }
     Some(out)
-}
+} // !!: TODO, macro syntax update
 // replace line with only `..` tokens with:
 //
 // ```
