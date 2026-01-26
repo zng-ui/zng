@@ -1461,6 +1461,16 @@ impl WeakAnyVar {
     pub fn upgrade(&self) -> Option<AnyVar> {
         self.0.upgrade().map(AnyVar)
     }
+
+    /// New weak var that does not upgrade.
+    pub const fn new() -> Self {
+        Self(crate::var_impl::DynWeakAnyVar::Const(crate::var_impl::const_var::WeakConstVar))
+    }
+}
+impl Default for WeakAnyVar {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// Arguments for [`AnyVar::hook`].

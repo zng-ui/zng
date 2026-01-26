@@ -878,9 +878,9 @@ impl WidgetFocusInfo {
     /// Returns the different widget the focus must move to after focusing in `self` that is a focus scope.
     ///
     /// If `self` is not a [`FocusScope`](FocusInfo::FocusScope) always returns `None`.
-    pub fn on_focus_scope_move<'f>(
+    pub fn on_focus_scope_move(
         &self,
-        last_focused: impl FnOnce(WidgetId) -> Option<&'f WidgetPath>,
+        last_focused: impl FnOnce(WidgetId) -> Option<WidgetId>,
         is_tab_cycle_reentry: bool,
         reverse: bool,
     ) -> Option<WidgetFocusInfo> {
@@ -896,7 +896,7 @@ impl WidgetFocusInfo {
                     }
                     FocusScopeOnFocus::LastFocused | FocusScopeOnFocus::LastFocusedIgnoreBounds => {
                         if is_tab_cycle_reentry { None } else { last_focused(self.info.id()) }
-                            .and_then(|path| self.info.tree().get(path.widget_id()))
+                            .and_then(|id| self.info.tree().get(id))
                             .and_then(|w| w.into_focusable(self.focus_disabled_widgets(), self.focus_hidden_widgets()))
                             .and_then(|f| {
                                 if f.info.is_descendant(&self.info) {

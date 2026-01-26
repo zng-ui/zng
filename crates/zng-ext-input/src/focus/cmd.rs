@@ -107,7 +107,7 @@ pub(super) struct FocusCommands {
     exit_handle: CommandHandle,
     enter_handle: CommandHandle,
 
-    focus_handle: CommandHandle,
+    _focus_handle: CommandHandle,
 }
 impl FocusCommands {
     pub fn new() -> Self {
@@ -117,7 +117,7 @@ impl FocusCommands {
                     args.propagation().stop();
                     FOCUS.$method();
                 })),)+
-                focus_handle: FOCUS_CMD.on_event(true, true, false, hn!(|args| {
+                _focus_handle: FOCUS_CMD.on_event(true, true, false, hn!(|args| {
                     if let Some(req) = args.param::<FocusRequest>() {
                         args.propagation().stop();
                         FOCUS.focus(*req);
