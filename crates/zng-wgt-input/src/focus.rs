@@ -7,7 +7,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use zng_app::widget::info::WIDGET_TREE_CHANGED_EVENT;
 use zng_ext_input::focus::*;
 use zng_ext_input::gesture::{CLICK_EVENT, GESTURES};
-use zng_ext_input::mouse::MOUSE_INPUT_EVENT;
+use zng_ext_window::WINDOWS;
+use zng_wgt::node::bind_state_init;
 use zng_wgt::prelude::*;
 
 /// Makes the widget focusable when set to `true`.
@@ -207,20 +208,20 @@ impl std::fmt::Debug for FocusClickBehavior {
 pub fn focus_click_behavior(child: impl IntoUiNode, behavior: impl IntoVar<FocusClickBehavior>) -> UiNode {
     let behavior = behavior.into_var();
     match_node(child, move |c, op| {
-        if let UiNodeOp::Event { update } = op {
+        if let UiNodeOp::Update { updates } = op {
             let mut delegate = || {
                 if let Some(ctx) = &*FOCUS_CLICK_HANDLED_CTX.get() {
-                    c.event(update);
+                    c.update(updates);
                     ctx.swap(true, Ordering::Relaxed)
                 } else {
                     let mut ctx = Some(Arc::new(Some(AtomicBool::new(false))));
-                    FOCUS_CLICK_HANDLED_CTX.with_context(&mut ctx, || c.event(update));
+                    FOCUS_CLICK_HANDLED_CTX.with_context(&mut ctx, || c.update(updates));
                     let ctx = ctx.unwrap();
                     (*ctx).as_ref().unwrap().load(Ordering::Relaxed)
                 }
             };
 
-            if let Some(args) = CLICK_EVENT.on(update) {
+            CLICK_EVENT.each_update(true, |args| {
                 if !delegate() {
                     let exit = match behavior.get() {
                         FocusClickBehavior::Ignore => false,
@@ -232,22 +233,7 @@ pub fn focus_click_behavior(child: impl IntoUiNode, behavior: impl IntoVar<Focus
                         FOCUS.focus_exit();
                     }
                 }
-            } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update)
-                && args.propagation().is_stopped()
-                && !delegate()
-            {
-                // CLICK_EVENT not send if source mouse-input is already handled.
-
-                let exit = match behavior.get() {
-                    FocusClickBehavior::Ignore => false,
-                    FocusClickBehavior::Exit => true,
-                    FocusClickBehavior::ExitEnabled => args.target.interactivity().is_enabled(),
-                    FocusClickBehavior::ExitHandled => true,
-                };
-                if exit {
-                    FOCUS.focus_exit();
-                }
-            }
+            });
         }
     })
 }
@@ -257,37 +243,58 @@ context_local! {
 
 event_property! {
     /// Focus changed in the widget or its descendants.
-    pub fn focus_changed {
-        event: FOCUS_CHANGED_EVENT,
-        args: FocusChangedArgs,
+    #[property(EVENT)]
+    pub fn on_focus_changed<on_pre_focus_changed>(child: impl IntoUiNode, handler: Handler<FocusChangedArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(FOCUS_CHANGED_EVENT).build::<PRE>(child, handler)
     }
 
     /// Widget got direct keyboard focus.
-    pub fn focus {
-        event: FOCUS_CHANGED_EVENT,
-        args: FocusChangedArgs,
-        filter: |args| args.is_focus(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_focus<on_pre_focus>(child: impl IntoUiNode, handler: Handler<FocusChangedArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(FOCUS_CHANGED_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_focus(id)
+            })
+            .build::<PRE>(child, handler)
     }
 
     /// Widget lost direct keyboard focus.
-    pub fn blur {
-        event: FOCUS_CHANGED_EVENT,
-        args: FocusChangedArgs,
-        filter: |args| args.is_blur(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_blur<on_pre_blur>(child: impl IntoUiNode, handler: Handler<FocusChangedArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(FOCUS_CHANGED_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_blur(id)
+            })
+            .build::<PRE>(child, handler)
     }
 
     /// Widget or one of its descendants got focus.
-    pub fn focus_enter {
-        event: FOCUS_CHANGED_EVENT,
-        args: FocusChangedArgs,
-        filter: |args| args.is_focus_enter(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_focus_enter<on_pre_focus_enter>(child: impl IntoUiNode, handler: Handler<FocusChangedArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(FOCUS_CHANGED_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_focus_enter(id)
+            })
+            .build::<PRE>(child, handler)
     }
 
     /// Widget or one of its descendants lost focus.
-    pub fn focus_leave {
-        event: FOCUS_CHANGED_EVENT,
-        args: FocusChangedArgs,
-        filter: |args| args.is_focus_leave(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_focus_leave<on_pre_focus_leave>(child: impl IntoUiNode, handler: Handler<FocusChangedArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(FOCUS_CHANGED_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_focus_leave(id)
+            })
+            .build::<PRE>(child, handler)
     }
 }
 
@@ -314,15 +321,17 @@ event_property! {
 /// [`is_return_focus`]: fn@is_return_focus
 #[property(EVENT, widget_impl(FocusableMix<P>))]
 pub fn is_focused(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
+    bind_state_init(child, state, |s| {
         let id = WIDGET.id();
-        if args.is_focus(id) {
-            Some(true)
-        } else if args.is_blur(id) {
-            Some(false)
-        } else {
-            None
-        }
+        FOCUS_CHANGED_EVENT.var_bind(s, move |args| {
+            if args.is_focus(id) {
+                Some(true)
+            } else if args.is_blur(id) {
+                Some(false)
+            } else {
+                None
+            }
+        })
     })
 }
 
@@ -336,15 +345,17 @@ pub fn is_focused(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
 /// [`is_focus_within_hgl`]: fn@is_focus_within_hgl
 #[property(EVENT, widget_impl(FocusableMix<P>))]
 pub fn is_focus_within(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
+    bind_state_init(child, state, |s| {
         let id = WIDGET.id();
-        if args.is_focus_enter(id) {
-            Some(true)
-        } else if args.is_focus_leave(id) {
-            Some(false)
-        } else {
-            None
-        }
+        FOCUS_CHANGED_EVENT.var_bind(s, move |args| {
+            if args.is_focus_enter(id) {
+                Some(true)
+            } else if args.is_focus_leave(id) {
+                Some(false)
+            } else {
+                None
+            }
+        })
     })
 }
 
@@ -362,17 +373,19 @@ pub fn is_focus_within(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiN
 /// [`is_focused`]: fn@is_focused
 #[property(EVENT, widget_impl(FocusableMix<P>))]
 pub fn is_focused_hgl(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
+    bind_state_init(child, state, |s| {
         let id = WIDGET.id();
-        if args.is_focus(id) {
-            Some(args.highlight)
-        } else if args.is_blur(id) {
-            Some(false)
-        } else if args.is_highlight_changed() && args.new_focus.as_ref().map(|p| p.widget_id() == id).unwrap_or(false) {
-            Some(args.highlight)
-        } else {
-            None
-        }
+        FOCUS_CHANGED_EVENT.var_bind(s, move |args| {
+            if args.is_focus(id) {
+                Some(args.highlight)
+            } else if args.is_blur(id) {
+                Some(false)
+            } else if args.is_highlight_changed() && args.new_focus.as_ref().map(|p| p.widget_id() == id).unwrap_or(false) {
+                Some(args.highlight)
+            } else {
+                None
+            }
+        })
     })
 }
 
@@ -386,17 +399,19 @@ pub fn is_focused_hgl(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNo
 /// [`is_focus_within`]: fn@is_focus_within
 #[property(EVENT, widget_impl(FocusableMix<P>))]
 pub fn is_focus_within_hgl(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
+    bind_state_init(child, state, |s| {
         let id = WIDGET.id();
-        if args.is_focus_enter(id) {
-            Some(args.highlight)
-        } else if args.is_focus_leave(id) {
-            Some(false)
-        } else if args.is_highlight_changed() && args.new_focus.as_ref().map(|p| p.contains(id)).unwrap_or(false) {
-            Some(args.highlight)
-        } else {
-            None
-        }
+        FOCUS_CHANGED_EVENT.var_bind(s, move |args| {
+            if args.is_focus_enter(id) {
+                Some(args.highlight)
+            } else if args.is_focus_leave(id) {
+                Some(false)
+            } else if args.is_highlight_changed() && args.new_focus.as_ref().map(|p| p.contains(id)).unwrap_or(false) {
+                Some(args.highlight)
+            } else {
+                None
+            }
+        })
     })
 }
 
@@ -418,15 +433,17 @@ pub fn is_focus_within_hgl(child: impl IntoUiNode, state: impl IntoVar<bool>) ->
 /// [`is_focused_hgl`]: fn@is_focused_hgl
 #[property(EVENT, widget_impl(FocusableMix<P>))]
 pub fn is_return_focus(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state(child, state, false, RETURN_FOCUS_CHANGED_EVENT, |args| {
+    bind_state_init(child, state, |s| {
         let id = WIDGET.id();
-        if args.is_return_focus(id) {
-            Some(true)
-        } else if args.was_return_focus(id) {
-            Some(false)
-        } else {
-            None
-        }
+        RETURN_FOCUS_CHANGED_EVENT.var_bind(s, move |args| {
+            if args.is_return_focus(id) {
+                Some(true)
+            } else if args.was_return_focus(id) {
+                Some(false)
+            } else {
+                None
+            }
+        })
     })
 }
 
@@ -437,15 +454,17 @@ pub fn is_return_focus(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiN
 /// [`is_return_focus`]: fn@is_return_focus
 #[property(EVENT, widget_impl(FocusableMix<P>))]
 pub fn is_return_focus_within(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state(child, state, false, RETURN_FOCUS_CHANGED_EVENT, |args| {
+    bind_state_init(child, state, |s| {
         let id = WIDGET.id();
-        if args.is_return_focus_enter(id) {
-            Some(true)
-        } else if args.is_return_focus_leave(id) {
-            Some(false)
-        } else {
-            None
-        }
+        RETURN_FOCUS_CHANGED_EVENT.var_bind(s, move |args| {
+            if args.is_return_focus_enter(id) {
+                Some(true)
+            } else if args.is_return_focus_leave(id) {
+                Some(false)
+            } else {
+                None
+            }
+        })
     })
 }
 
@@ -519,11 +538,18 @@ pub fn return_focus_on_deinit(child: impl IntoUiNode, enabled: impl IntoVar<bool
                     return;
                 }
                 // try focus after info rebuild.
+                let win_id = WINDOW.id();
                 WIDGET_TREE_CHANGED_EVENT
-                    .on_pre_event(hn_once!(|_| {
+                    .hook(move |args| {
+                        if args.tree.window_id() != win_id {
+                            // some other window also rebuilt, retain if parent still open
+                            return WINDOWS.widget_tree(win_id).is_some();
+                        }
                         FOCUS.focus_widget(id, false);
-                    }))
+                        false
+                    })
                     .perm();
+
                 // ensure info rebuilds to clear the event at least
                 WIDGET.update_info();
             }

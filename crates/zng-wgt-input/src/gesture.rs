@@ -18,19 +18,29 @@ event_property! {
     /// to not include double/triple clicks.
     ///
     /// [`CLICK_EVENT`]: zng_ext_input::gesture::CLICK_EVENT
-    pub fn any_click {
-        event: CLICK_EVENT,
-        args: ClickArgs,
-        filter: |args| args.target.contains_enabled(WIDGET.id()),
-        with: access_click,
+    #[property(EVENT)]
+    pub fn on_any_click<on_pre_any_click>(child: impl IntoUiNode, handler: Handler<ClickArgs>) -> UiNode {
+        const PRE: bool;
+        let child = EventNodeBuilder::new(CLICK_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.target.contains_enabled(id)
+            })
+            .build::<PRE>(child, handler);
+        access_click(child)
     }
 
     /// On widget click from any source and of any click count and the widget is disabled.
-    pub fn disabled_click {
-        event: CLICK_EVENT,
-        args: ClickArgs,
-        filter: |args| args.target.contains_disabled(WIDGET.id()),
-        with: access_click,
+    #[property(EVENT)]
+    pub fn on_disabled_click<on_pre_disabled_click>(child: impl IntoUiNode, handler: Handler<ClickArgs>) -> UiNode {
+        const PRE: bool;
+        let child = EventNodeBuilder::new(CLICK_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.target.contains_disabled(id)
+            })
+            .build::<PRE>(child, handler);
+        access_click(child)
     }
 
     /// On widget click from any source but excluding double/triple clicks and the widget is enabled.
@@ -39,11 +49,16 @@ event_property! {
     /// [`on_single_click`](fn@on_single_click) to handle only primary button clicks.
     ///
     /// [`CLICK_EVENT`]: zng_ext_input::gesture::CLICK_EVENT
-    pub fn any_single_click {
-        event: CLICK_EVENT,
-        args: ClickArgs,
-        filter: |args| args.is_single() && args.target.contains_enabled(WIDGET.id()),
-        with: access_click,
+    #[property(EVENT)]
+    pub fn on_any_single_click<on_pre_any_single_click>(child: impl IntoUiNode, handler: Handler<ClickArgs>) -> UiNode {
+        const PRE: bool;
+        let child = EventNodeBuilder::new(CLICK_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_single() && args.target.contains_enabled(id)
+            })
+            .build::<PRE>(child, handler);
+        access_click(child)
     }
 
     /// On widget double click from any source and the widget is enabled.
@@ -52,10 +67,15 @@ event_property! {
     /// [`on_double_click`](fn@on_double_click) to handle only primary button clicks.
     ///
     /// [`CLICK_EVENT`]: zng_ext_input::gesture::CLICK_EVENT
-    pub fn any_double_click {
-        event: CLICK_EVENT,
-        args: ClickArgs,
-        filter: |args| args.is_double() && args.target.contains_enabled(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_any_double_click<on_pre_any_double_click>(child: impl IntoUiNode, handler: Handler<ClickArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(CLICK_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_double() && args.target.contains_enabled(id)
+            })
+            .build::<PRE>(child, handler)
     }
 
     /// On widget triple click from any source and the widget is enabled.
@@ -64,10 +84,15 @@ event_property! {
     /// [`on_triple_click`](fn@on_triple_click) to handle only primary button clicks.
     ///
     /// [`CLICK_EVENT`]: zng_ext_input::gesture::CLICK_EVENT
-    pub fn any_triple_click {
-        event: CLICK_EVENT,
-        args: ClickArgs,
-        filter: |args| args.is_triple() && args.target.contains_enabled(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_any_triple_click<on_pre_any_triple_click>(child: impl IntoUiNode, handler: Handler<ClickArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(CLICK_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_triple() && args.target.contains_enabled(id)
+            })
+            .build::<PRE>(child, handler)
     }
 
     /// On widget click with the primary button and any click count and the widget is enabled.
@@ -75,52 +100,77 @@ event_property! {
     /// This raises only if the click [is primary](ClickArgs::is_primary), but raises for any click count (double/triple clicks).
     /// Use [`on_any_click`](fn@on_any_click) to handle clicks from any button or [`on_single_click`](fn@on_single_click) to not include
     /// double/triple clicks.
-    pub fn click {
-        event: CLICK_EVENT,
-        args: ClickArgs,
-        filter: |args| args.is_primary() && args.target.contains_enabled(WIDGET.id()),
-        with: access_click,
+    #[property(EVENT)]
+    pub fn on_click<on_pre_click>(child: impl IntoUiNode, handler: Handler<ClickArgs>) -> UiNode {
+        const PRE: bool;
+        let child = EventNodeBuilder::new(CLICK_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_primary() && args.target.contains_enabled(id)
+            })
+            .build::<PRE>(child, handler);
+        access_click(child)
     }
 
     /// On widget click with the primary button, excluding double/triple clicks and the widget is enabled.
     ///
     /// This raises only if the click [is primary](ClickArgs::is_primary) and the click count is one. Use
     /// [`on_any_single_click`](fn@on_any_single_click) to handle single clicks from any button.
-    pub fn single_click {
-        event: CLICK_EVENT,
-        args: ClickArgs,
-        filter: |args| args.is_primary() && args.is_single() && args.target.contains_enabled(WIDGET.id()),
-        with: access_click,
+    #[property(EVENT)]
+    pub fn on_single_click<on_pre_single_click>(child: impl IntoUiNode, handler: Handler<ClickArgs>) -> UiNode {
+        const PRE: bool;
+        let child = EventNodeBuilder::new(CLICK_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_primary() && args.is_single() && args.target.contains_enabled(id)
+            })
+            .build::<PRE>(child, handler);
+        access_click(child)
     }
 
     /// On widget double click with the primary button and the widget is enabled.
     ///
     /// This raises only if the click [is primary](ClickArgs::is_primary) and the click count is two. Use
     /// [`on_any_double_click`](fn@on_any_double_click) to handle double clicks from any button.
-    pub fn double_click {
-        event: CLICK_EVENT,
-        args: ClickArgs,
-        filter: |args| args.is_primary() && args.is_double() && args.target.contains_enabled(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_double_click<on_pre_double_click>(child: impl IntoUiNode, handler: Handler<ClickArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(CLICK_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_primary() && args.is_double() && args.target.contains_enabled(id)
+            })
+            .build::<PRE>(child, handler)
     }
 
     /// On widget triple click with the primary button and the widget is enabled.
     ///
     /// This raises only if the click [is primary](ClickArgs::is_primary) and the click count is three. Use
     /// [`on_any_double_click`](fn@on_any_double_click) to handle double clicks from any button.
-    pub fn triple_click {
-        event: CLICK_EVENT,
-        args: ClickArgs,
-        filter: |args| args.is_primary() && args.is_triple() && args.target.contains_enabled(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_triple_click<on_pre_triple_click>(child: impl IntoUiNode, handler: Handler<ClickArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(CLICK_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_primary() && args.is_triple() && args.target.contains_enabled(id)
+            })
+            .build::<PRE>(child, handler)
     }
 
     /// On widget click with the secondary/context button and the widget is enabled.
     ///
     /// This raises only if the click [is context](ClickArgs::is_context).
-    pub fn context_click {
-        event: CLICK_EVENT,
-        args: ClickArgs,
-        filter: |args| args.is_context() && args.target.contains_enabled(WIDGET.id()),
-        with: access_click,
+    #[property(EVENT)]
+    pub fn on_context_click<on_pre_context_click>(child: impl IntoUiNode, handler: Handler<ClickArgs>) -> UiNode {
+        const PRE: bool;
+        let child = EventNodeBuilder::new(CLICK_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_context() && args.target.contains_enabled(id)
+            })
+            .build::<PRE>(child, handler);
+        access_click(child)
     }
 }
 
@@ -162,7 +212,7 @@ fn click_shortcut_node(child: impl IntoUiNode, shortcuts: impl IntoVar<Shortcuts
     })
 }
 
-pub(crate) fn access_click(child: impl IntoUiNode, _: bool) -> UiNode {
+pub(crate) fn access_click(child: impl IntoUiNode) -> UiNode {
     access_capable(child, AccessCmdName::Click)
 }
 fn access_capable(child: impl IntoUiNode, cmd: AccessCmdName) -> UiNode {

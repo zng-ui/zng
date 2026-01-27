@@ -180,63 +180,56 @@ pub use pastey::paste;
 #[macro_export]
 macro_rules! __command {
     (
-        $(#[$attr:meta])* 
+        $(#[$attr:meta])*
         $vis:vis static $COMMAND:ident { l10n: $l10n_arg:expr, $($meta_ident:ident : $meta_init:expr),* $(,)? };
     ) => {
-        $crate::event::paste! {
-            $(#[$attr])*
-            ///
-            /// # Metadata
-            ///
-            /// This command has the following default metadata:
-            ///
-            $(#[doc = concat!("* `", stringify!($meta_ident), "`")])+
-            ///
-            /// Text metadata is localized.
-            $vis static $COMMAND: $crate::event::Command = {
-                fn __meta_init__(cmd: $crate::event::Command) {
-                    let __l10n_arg = $l10n_arg;
-                    $(
-                        cmd.[<init_ $meta_ident>]($meta_init);
-                        $crate::event::init_meta_l10n(std::env!("CARGO_PKG_NAME"), std::env!("CARGO_PKG_VERSION"), &__l10n_arg, cmd, stringify!($meta_ident), &cmd.$meta_ident());
-                    )*
-                }
-                $crate::event::app_local! {
-                    static EVENT: $crate::event::EventData = $crate::event::EventData::new::<$crate::event::CommandArgs>();
-                    static DATA: $crate::event::CommandData = $crate::event::CommandData::new(__meta_init__, stringify!($COMMAND));
-                }
-                $crate::event::Command::new(&EVENT, &DATA)
-            };
-        }
+        $(#[$attr])*
+        ///
+        /// # Metadata
+        ///
+        /// This command has the following default metadata:
+        ///
+        $(#[doc = concat!("* `", stringify!($meta_ident), "`")])+
+        ///
+        /// Text metadata is localized.
+        $vis static $COMMAND: $crate::event::Command = {
+            fn __meta_init__(cmd: $crate::event::Command) {
+                let __l10n_arg = $l10n_arg;
+                $crate::event::paste! {$(
+                    cmd.[<init_ $meta_ident>]($meta_init);
+                    $crate::event::init_meta_l10n(std::env!("CARGO_PKG_NAME"), std::env!("CARGO_PKG_VERSION"), &__l10n_arg, cmd, stringify!($meta_ident), &cmd.$meta_ident());
+                )*}
+            }
+            $crate::event::app_local! {
+                static EVENT: $crate::event::EventData = $crate::event::EventData::new::<$crate::event::CommandArgs>();
+                static DATA: $crate::event::CommandData = $crate::event::CommandData::new(__meta_init__, stringify!($COMMAND));
+            }
+            $crate::event::Command::new(&EVENT, &DATA)
+        };
     };
     (
         $(#[$attr:meta])*
         $vis:vis static $COMMAND:ident { $($meta_ident:ident : $meta_init:expr),* $(,)? };
     ) => {
-        $crate::event::paste! {
-            $crate::__command! {
-                $(#[$attr])*
-                ///
-                /// # Metadata
-                ///
-                /// This command has the following default metadata:
-                ///
-                $(#[doc = concat!("* `", stringify!($meta_ident), "`")])+
-                $vis static $COMMAND: $crate::event::Command = {
-                    fn __meta_init__(cmd: $crate::event::Command) {
-                        let __l10n_arg = $l10n_arg;
-                        $(
-                            cmd.[<init_ $meta_ident>]($meta_init);
-                        )*
-                    }
-                    $crate::event::app_local! {
-                        static EVENT: $crate::event::EventData = $crate::event::EventData::new::<$crate::event::CommandArgs>();
-                        static DATA: $crate::event::CommandData = $crate::event::CommandData::new(__meta_init__, stringify!($COMMAND));
-                    }
-                    $crate::event::Command::new(&EVENT, &DATA)
-                };
+        $(#[$attr])*
+        ///
+        /// # Metadata
+        ///
+        /// This command has the following default metadata:
+        ///
+        $(#[doc = concat!("* `", stringify!($meta_ident), "`")])+
+        $vis static $COMMAND: $crate::event::Command = {
+            fn __meta_init__(cmd: $crate::event::Command) {
+                $crate::event::paste! {$(
+                    cmd.[<init_ $meta_ident>]($meta_init);
+                )*}
             }
-        }
+            $crate::event::app_local! {
+                static EVENT: $crate::event::EventData = $crate::event::EventData::new::<$crate::event::CommandArgs>();
+                static DATA: $crate::event::CommandData = $crate::event::CommandData::new(__meta_init__, stringify!($COMMAND));
+            }
+            $crate::event::Command::new(&EVENT, &DATA)
+        };
     };
     (
         $(#[$attr:meta])*
@@ -1296,7 +1289,7 @@ impl Command {
     #[doc(hidden)]
     pub fn init_init(self, init: impl FnOnce(Self)) {
         init(self)
-    }    
+    }
     #[doc(hidden)]
     pub fn init(self) {}
 }

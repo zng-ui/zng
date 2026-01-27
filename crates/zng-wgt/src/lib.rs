@@ -60,8 +60,8 @@ mod __prelude {
 
     pub use zng_var::{
         ContextVar, IntoValue, IntoVar, ObservableVec, ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarUpdateId,
-        VarValue, WeakVar, const_var, context_var, expr_var, flat_expr_var, impl_from_and_into_var, merge_var, response_done_var,
-        response_var, var, var_default, var_from, var_state, when_var,
+        VarValue, WeakVar, WeakVarHandle, const_var, context_var, expr_var, flat_expr_var, impl_from_and_into_var, merge_var,
+        response_done_var, response_var, var, var_default, var_from, var_state, when_var,
     };
 
     pub use zng_layout::{
@@ -95,9 +95,9 @@ mod __prelude {
 
     pub use crate::node::{
         EventNodeBuilder, VarEventNodeBuilder, VarPresent as _, VarPresentData as _, VarPresentList as _, VarPresentListFromIter as _,
-        VarPresentOpt as _, bind_state, border_node, event_property, fill_node, list_presenter, list_presenter_from_iter, presenter,
-        presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local, with_context_local_init,
-        with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
+        VarPresentOpt as _, bind_state, border_node, command_property, event_property, fill_node, list_presenter, list_presenter_from_iter,
+        presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local,
+        with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
     };
 
     pub use crate::{CommandIconExt as _, WidgetFn, wgt_fn};

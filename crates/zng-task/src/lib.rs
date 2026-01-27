@@ -748,7 +748,7 @@ where
 /// # use zng_unit::*;
 /// # async fn foo(u: u8) -> Result<u8, ()> { task::deadline(1.ms()).await; Ok(u) }
 ///
-/// #[test]
+/// # #[test]
 /// # fn __() { }
 /// pub fn run_ok() {
 ///     let r = task::block_on(task::run(async { foo(32).await }));

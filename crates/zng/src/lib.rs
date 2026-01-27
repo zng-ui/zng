@@ -801,9 +801,9 @@ mod __prelude_wgt {
     };
 
     pub use zng_var::{
-        ContextVar, IntoValue, IntoVar, ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarValue, const_var,
-        context_var, expr_var, flat_expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, var, var_getter,
-        var_state, when_var,
+        ContextVar, IntoValue, IntoVar, ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarValue, WeakVarHandle,
+        const_var, context_var, expr_var, flat_expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, var,
+        var_getter, var_state, when_var,
     };
 
     pub use zng_layout::{

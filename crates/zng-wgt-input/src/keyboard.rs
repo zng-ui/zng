@@ -33,10 +33,15 @@ event_property! {
     ///
     /// [`KeyInputArgs`]: zng_ext_input::keyboard::KeyInputArgs
     /// [`KEY_INPUT_EVENT`]: zng_ext_input::keyboard::KEY_INPUT_EVENT
-    pub fn key_input {
-        event: KEY_INPUT_EVENT,
-        args: KeyInputArgs,
-        filter: |args| args.target.contains_enabled(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_key_input<on_pre_key_input>(child: impl IntoUiNode, handler: Handler<KeyInputArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(KEY_INPUT_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.target.contains_enabled(id)
+            })
+            .build::<PRE>(child, handler)
     }
 
     /// Event fired when a keyboard key is pressed or released and the widget is disabled.
@@ -64,10 +69,15 @@ event_property! {
     ///
     /// [`KeyInputArgs`]: zng_ext_input::keyboard::KeyInputArgs
     /// [`KEY_INPUT_EVENT`]: zng_ext_input::keyboard::KEY_INPUT_EVENT
-    pub fn disabled_key_input {
-        event: KEY_INPUT_EVENT,
-        args: KeyInputArgs,
-        filter: |args| args.target.contains_disabled(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_disabled_key_input<on_pre_disabled_key_input>(child: impl IntoUiNode, handler: Handler<KeyInputArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(KEY_INPUT_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.target.contains_disabled(id)
+            })
+            .build::<PRE>(child, handler)
     }
 
     /// Event fired when a keyboard key is pressed and the widget is enabled.
@@ -95,10 +105,15 @@ event_property! {
     ///
     /// [`KeyInputArgs`]: zng_ext_input::keyboard::KeyInputArgs
     /// [`KEY_INPUT_EVENT`]: zng_ext_input::keyboard::KEY_INPUT_EVENT
-    pub fn key_down {
-        event: KEY_INPUT_EVENT,
-        args: KeyInputArgs,
-        filter: |args| args.state == KeyState::Pressed && args.target.contains_enabled(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_key_down<on_pre_key_down>(child: impl IntoUiNode, handler: Handler<KeyInputArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(KEY_INPUT_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.state == KeyState::Pressed && args.target.contains_enabled(id)
+            })
+            .build::<PRE>(child, handler)
     }
 
     /// Event fired when a keyboard key is released and the widget is enabled.
@@ -125,9 +140,14 @@ event_property! {
     ///
     /// [`KeyInputArgs`]: zng_ext_input::keyboard::KeyInputArgs
     /// [`KEY_INPUT_EVENT`]: zng_ext_input::keyboard::KEY_INPUT_EVENT
-    pub fn key_up {
-        event: KEY_INPUT_EVENT,
-        args: KeyInputArgs,
-        filter: |args| args.state == KeyState::Released && args.target.contains_enabled(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_key_up<on_pre_key_up>(child: impl IntoUiNode, handler: Handler<KeyInputArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(KEY_INPUT_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.state == KeyState::Released && args.target.contains_enabled(id)
+            })
+            .build::<PRE>(child, handler)
     }
 }

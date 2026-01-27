@@ -306,6 +306,15 @@ impl<A: EventArgs> Event<A> {
             .flatten()
     }
 
+    /// If has at least one update for the context widget.
+    ///
+    /// If `ignore_propagation` is `false` only returns `true` if any [`propagation`] is not stopped.
+    ///
+    /// [`propagation`]: EventArgs::propagation
+    pub fn has_update(&self, ignore_propagation: bool) -> bool {
+        self.latest_update(ignore_propagation, |_| true).unwrap_or(false)
+    }
+
     /// Subscribe the widget to receive updates when events are relevant to it and the latest args passes the `predicate`.
     pub fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&A) -> bool + Send + Sync + 'static) -> VarHandle {
         self.get_var().subscribe_when(op, widget_id, move |v| {

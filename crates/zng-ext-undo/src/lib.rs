@@ -31,10 +31,14 @@ use std::{
 use atomic::Atomic;
 use parking_lot::Mutex;
 use zng_app::{
-    DInstant, INSTANT, event::{Command, CommandNameExt, CommandScope, EventArgs as _, command}, hn, shortcut::{CommandShortcutExt, shortcut}, widget::{
+    DInstant, INSTANT,
+    event::{Command, CommandNameExt, CommandScope, EventArgs as _, command},
+    hn,
+    shortcut::{CommandShortcutExt, shortcut},
+    widget::{
         WIDGET, WidgetId,
         info::{WidgetInfo, WidgetInfoBuilder},
-    }
+    },
 };
 use zng_app_context::{RunOnDrop, app_local, context_local};
 use zng_clone_move::clmv;
@@ -1156,30 +1160,44 @@ app_local! {
 }
 
 fn hooks() {
-    UNDO_CMD.on_event(true, true, false, hn!(|args| {
-        args.propagation().stop();
-            if let Some(c) = args.param::<u32>() {
-                UNDO.undo_select(*c);
-            } else if let Some(i) = args.param::<Duration>() {
-                UNDO.undo_select(*i);
-            } else if let Some(t) = args.param::<DInstant>() {
-                UNDO.undo_select(*t);
-            } else {
-                UNDO.undo();
-            }
-    })).perm();
-    REDO_CMD.on_event(true, true, false, hn!(|args| {
-        args.propagation().stop();
-            if let Some(c) = args.param::<u32>() {
-                UNDO.redo_select(*c);
-            } else if let Some(i) = args.param::<Duration>() {
-                UNDO.redo_select(*i);
-            } else if let Some(t) = args.param::<DInstant>() {
-                UNDO.redo_select(*t);
-            } else {
-                UNDO.redo();
-            }
-    })).perm();
+    UNDO_CMD
+        .on_event(
+            true,
+            true,
+            false,
+            hn!(|args| {
+                args.propagation().stop();
+                if let Some(c) = args.param::<u32>() {
+                    UNDO.undo_select(*c);
+                } else if let Some(i) = args.param::<Duration>() {
+                    UNDO.undo_select(*i);
+                } else if let Some(t) = args.param::<DInstant>() {
+                    UNDO.undo_select(*t);
+                } else {
+                    UNDO.undo();
+                }
+            }),
+        )
+        .perm();
+    REDO_CMD
+        .on_event(
+            true,
+            true,
+            false,
+            hn!(|args| {
+                args.propagation().stop();
+                if let Some(c) = args.param::<u32>() {
+                    UNDO.redo_select(*c);
+                } else if let Some(i) = args.param::<Duration>() {
+                    UNDO.redo_select(*i);
+                } else if let Some(t) = args.param::<DInstant>() {
+                    UNDO.redo_select(*t);
+                } else {
+                    UNDO.redo();
+                }
+            }),
+        )
+        .perm();
 }
 
 /// Undo extension methods for widget info.
@@ -1382,9 +1400,7 @@ mod tests {
 
     #[test]
     fn register() {
-        let _a = APP
-            .minimal()
-            .run_headless(false);
+        let _a = APP.minimal().run_headless(false);
         let data = Arc::new(Mutex::new(vec![1, 2]));
 
         UNDO.register(PushAction {
@@ -1427,9 +1443,7 @@ mod tests {
 
     #[test]
     fn run_op() {
-        let _a = APP
-            .minimal()
-            .run_headless(false);
+        let _a = APP.minimal().run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         push_1_2(&data);
@@ -1448,9 +1462,7 @@ mod tests {
 
     #[test]
     fn transaction_undo() {
-        let _a = APP
-            .minimal()
-            .run_headless(false);
+        let _a = APP.minimal().run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         let t = UNDO.transaction(|| {
@@ -1467,9 +1479,7 @@ mod tests {
 
     #[test]
     fn transaction_commit() {
-        let _a = APP
-            .minimal()
-            .run_headless(false);
+        let _a = APP.minimal().run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         let t = UNDO.transaction(|| {
@@ -1495,9 +1505,7 @@ mod tests {
 
     #[test]
     fn transaction_group() {
-        let _a = APP
-            .minimal()
-            .run_headless(false);
+        let _a = APP.minimal().run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         let t = UNDO.transaction(|| {
@@ -1537,9 +1545,7 @@ mod tests {
 
     #[test]
     fn undo_redo_t_zero() {
-        let _a = APP
-            .minimal()
-            .run_headless(false);
+        let _a = APP.minimal().run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         push_1_sleep_2(&data);
@@ -1567,9 +1573,7 @@ mod tests {
     }
 
     fn undo_redo_t_large(t: Duration) {
-        let _a = APP
-            .minimal()
-            .run_headless(false);
+        let _a = APP.minimal().run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         push_1_sleep_2(&data);
@@ -1584,9 +1588,7 @@ mod tests {
 
     #[test]
     fn watch_var() {
-        let mut app = APP
-            .minimal()
-            .run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let test_var = var(0);
         UNDO.watch_var("set test var", test_var.clone()).perm();

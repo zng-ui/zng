@@ -1,4 +1,4 @@
-use std::{collections::HashSet, time::Duration};
+use std::{collections::HashSet, num::Wrapping, time::Duration};
 
 use zng_app::timer::TIMERS;
 use zng_ext_input::{
@@ -7,20 +7,27 @@ use zng_ext_input::{
     pointer_capture::POINTER_CAPTURE_EVENT,
     touch::{TOUCH_TAP_EVENT, TOUCHED_EVENT},
 };
+use zng_ext_window::WINDOWS;
 use zng_view_api::{mouse::ButtonState, touch::TouchPhase};
-use zng_wgt::{node::validate_getter_var, prelude::*};
+use zng_wgt::{
+    node::{bind_state_init, validate_getter_var},
+    prelude::*,
+};
 
 /// If the mouse pointer is over the widget or a descendant and the widget is disabled.
 #[property(EVENT)]
 pub fn is_hovered_disabled(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state(child, state, false, MOUSE_HOVERED_EVENT, |args| {
-        if args.is_mouse_enter_disabled() {
-            Some(true)
-        } else if args.is_mouse_leave_disabled() {
-            Some(false)
-        } else {
-            None
-        }
+    bind_state_init(child, state, |s| {
+        let wgt = (WINDOW.id(), WIDGET.id());
+        MOUSE_HOVERED_EVENT.var_bind(s, move |args| {
+            if args.is_mouse_enter_disabled(wgt) {
+                Some(true)
+            } else if args.is_mouse_leave_disabled(wgt) {
+                Some(false)
+            } else {
+                None
+            }
+        })
     })
 }
 
@@ -36,15 +43,48 @@ pub fn is_hovered_disabled(child: impl IntoUiNode, state: impl IntoVar<bool>) ->
 /// [`is_hovered_disabled`]: fn@is_hovered_disabled
 #[property(EVENT)]
 pub fn is_hovered(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state(child, state, false, MOUSE_HOVERED_EVENT, |args| {
-        if args.is_mouse_enter_enabled() {
-            Some(true)
-        } else if args.is_mouse_leave_enabled() {
-            Some(false)
-        } else {
-            None
-        }
+    bind_state_init(child, state, |s| {
+        let wgt = (WINDOW.id(), WIDGET.id());
+        MOUSE_HOVERED_EVENT.var_bind(s, move |args| {
+            if args.is_mouse_enter_enabled(wgt) {
+                Some(true)
+            } else if args.is_mouse_leave_enabled(wgt) {
+                Some(false)
+            } else {
+                None
+            }
+        })
     })
+}
+
+fn hovered_var(wgt: (WindowId, WidgetId)) -> Var<bool> {
+    MOUSE_HOVERED_EVENT.var_map(
+        clmv!(wgt, |args| {
+            if args.is_mouse_enter_enabled(wgt) {
+                Some(true)
+            } else if args.is_mouse_leave_enabled(wgt) {
+                Some(false)
+            } else {
+                None
+            }
+        }),
+        || false,
+    )
+}
+
+fn captured_var(id: WidgetId) -> Var<bool> {
+    POINTER_CAPTURE_EVENT.var_map(
+        move |args| {
+            if args.is_got(id) {
+                Some(true)
+            } else if args.is_lost(id) {
+                Some(false)
+            } else {
+                None
+            }
+        },
+        || false,
+    )
 }
 
 /// If the mouse pointer is over the widget, or a descendant, or is captured by it.
@@ -54,33 +94,31 @@ pub fn is_hovered(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
 pub fn is_cap_hovered(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state2(
-        child,
-        state,
-        false,
-        MOUSE_HOVERED_EVENT,
-        false,
-        |hovered_args| {
-            if hovered_args.is_mouse_enter_enabled() {
-                Some(true)
-            } else if hovered_args.is_mouse_leave_enabled() {
-                Some(false)
-            } else {
-                None
+    bind_state_init(child, state, |s| {
+        let wgt = (WINDOW.id(), WIDGET.id());
+
+        let actual_state = expr_var!(*#{hovered_var(wgt)} || *#{captured_var(wgt.1)});
+        actual_state.set_bind(s).perm();
+        s.hold(actual_state)
+    })
+}
+
+fn pressed_var(wgt: (WindowId, WidgetId)) -> Var<bool> {
+    MOUSE_INPUT_EVENT.var_map(
+        move |args| {
+            if args.is_primary() {
+                match args.state {
+                    ButtonState::Pressed => {
+                        if args.capture_allows(wgt) {
+                            return Some(args.target.contains_enabled(wgt.1));
+                        }
+                    }
+                    ButtonState::Released => return Some(false),
+                }
             }
+            None
         },
-        POINTER_CAPTURE_EVENT,
-        false,
-        |cap_args| {
-            if cap_args.is_got(WIDGET.id()) {
-                Some(true)
-            } else if cap_args.is_lost(WIDGET.id()) {
-                Some(false)
-            } else {
-                None
-            }
-        },
-        |hovered, captured| Some(hovered || captured),
+        || false,
     )
 }
 
@@ -99,104 +137,46 @@ pub fn is_cap_hovered(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNo
 /// [`ClickMode::repeat`]: zng_ext_input::mouse::ClickMode::repeat
 #[property(EVENT)]
 pub fn is_mouse_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state3(
-        child,
-        state,
-        false,
-        MOUSE_HOVERED_EVENT,
-        false,
-        |hovered_args| {
-            if hovered_args.is_mouse_enter_enabled() {
-                Some(true)
-            } else if hovered_args.is_mouse_leave_enabled() {
-                Some(false)
-            } else {
-                None
-            }
-        },
-        MOUSE_INPUT_EVENT,
-        false,
-        |input_args| {
-            if input_args.is_primary() {
-                match input_args.state {
-                    ButtonState::Pressed => {
-                        if input_args.capture_allows() {
-                            return Some(input_args.target.contains_enabled(WIDGET.id()));
-                        }
+    bind_state_init(child, state, |s| {
+        let wgt = (WINDOW.id(), WIDGET.id());
+        let mut info_gen = 0;
+        let mut mode = ClickMode::default();
+        let actual_state = expr_var! {
+            let hovered = *#{hovered_var(wgt)};
+            let captured = *#{captured_var(wgt.1)};
+            let pressed = *#{pressed_var(wgt)};
+
+            if let Some(tree) = WINDOWS.widget_tree(wgt.0) {
+                let t_gen = tree.stats().generation;
+                if info_gen != t_gen {
+                    // cache mode to avoid some queries
+                    info_gen = t_gen;
+                    if let Some(w) = tree.get(wgt.1) {
+                        mode = w.click_mode();
                     }
-                    ButtonState::Released => return Some(false),
                 }
-            }
-            None
-        },
-        POINTER_CAPTURE_EVENT,
-        false,
-        |cap_args| {
-            if cap_args.is_got(WIDGET.id()) {
-                Some(true)
-            } else if cap_args.is_lost(WIDGET.id()) {
-                Some(false)
+
+                if mode.repeat { pressed || captured } else { hovered && pressed }
             } else {
-                None
+                false
             }
-        },
-        {
-            let mut info_gen = 0;
-            let mut mode = ClickMode::default();
-
-            move |hovered, is_down, is_captured| {
-                // cache mode
-                let tree = WINDOW.info();
-                if info_gen != tree.stats().generation {
-                    mode = tree.get(WIDGET.id()).unwrap().click_mode();
-                    info_gen = tree.stats().generation;
-                }
-
-                if mode.repeat {
-                    Some(is_down || is_captured)
-                } else {
-                    Some(hovered && is_down)
-                }
-            }
-        },
-    )
+        };
+        actual_state.set_bind(s).perm();
+        s.hold(actual_state)
+    })
 }
 
 /// If the mouse pointer is pressed or captured by the widget and it is enabled.
 #[property(EVENT)]
 pub fn is_cap_mouse_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state2(
-        child,
-        state,
-        false,
-        MOUSE_INPUT_EVENT,
-        false,
-        |input_args| {
-            if input_args.is_primary() {
-                match input_args.state {
-                    ButtonState::Pressed => {
-                        if input_args.capture_allows() {
-                            return Some(input_args.target.contains_enabled(WIDGET.id()));
-                        }
-                    }
-                    ButtonState::Released => return Some(false),
-                }
-            }
-            None
-        },
-        POINTER_CAPTURE_EVENT,
-        false,
-        |cap_args| {
-            if cap_args.is_got(WIDGET.id()) {
-                Some(true)
-            } else if cap_args.is_lost(WIDGET.id()) {
-                Some(false)
-            } else {
-                None
-            }
-        },
-        |is_down, is_captured| Some(is_down || is_captured),
-    )
+    bind_state_init(child, state, |s| {
+        let wgt = (WINDOW.id(), WIDGET.id());
+        let actual_state = expr_var! {
+            *#{pressed_var(wgt)} || *#{captured_var(wgt.1)}
+        };
+        actual_state.set_bind(s).perm();
+        s.hold(actual_state)
+    })
 }
 
 /// If the widget was clicked by shortcut or accessibility event and the [`shortcut_pressed_duration`] has not elapsed.
@@ -204,49 +184,35 @@ pub fn is_cap_mouse_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -
 /// [`shortcut_pressed_duration`]: GESTURES::shortcut_pressed_duration
 #[property(EVENT)]
 pub fn is_shortcut_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    let state = state.into_var();
-    let mut shortcut_press = None;
-
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Init => {
-            state.set(false);
-            WIDGET.sub_event(&CLICK_EVENT);
-        }
-        UiNodeOp::Deinit => {
-            state.set(false);
-        }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = CLICK_EVENT.on(update)
-                && (args.is_from_keyboard() || args.is_from_access())
-                && args.target.contains_enabled(WIDGET.id())
-            {
+    bind_state_init(child, state, |s| {
+        let id = WIDGET.id();
+        let mut shortcut_press = None;
+        CLICK_EVENT.hook(clmv!(s, |args| {
+            if (args.is_from_keyboard() || args.is_from_access()) && args.target.contains_enabled(id) {
                 // if a shortcut click happened, we show pressed for the duration of `shortcut_pressed_duration`
                 // unless we where already doing that, then we just stop showing pressed, this causes
                 // a flickering effect when rapid clicks are happening.
                 if shortcut_press.take().is_none() {
                     let duration = GESTURES.shortcut_pressed_duration().get();
-                    if duration != Duration::default() {
+                    if duration > Duration::ZERO {
                         let dl = TIMERS.deadline(duration);
-                        dl.subscribe(UpdateOp::Update, WIDGET.id()).perm();
+                        dl.hook(clmv!(s, |t| {
+                            let elapsed = t.value().has_elapsed();
+                            if elapsed {
+                                s.set(false);
+                            }
+                            !elapsed
+                        }))
+                        .perm();
                         shortcut_press = Some(dl);
-                        state.set(true);
+                        s.set(true);
                     }
                 } else {
-                    state.set(false);
+                    s.set(false);
                 }
             }
-        }
-        UiNodeOp::Update { updates } => {
-            child.update(updates);
-
-            if let Some(timer) = &shortcut_press
-                && timer.is_new()
-            {
-                shortcut_press = None;
-                state.set(false);
-            }
-        }
-        _ => {}
+            true
+        }))
     })
 }
 
@@ -265,15 +231,32 @@ pub fn is_shortcut_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) ->
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
 pub fn is_touched(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state(child, state, false, TOUCHED_EVENT, |args| {
-        if args.is_touch_enter_enabled() {
-            Some(true)
-        } else if args.is_touch_leave_enabled() {
-            Some(false)
-        } else {
-            None
-        }
+    bind_state_init(child, state, |s| {
+        let wgt = (WINDOW.id(), WIDGET.id());
+        TOUCHED_EVENT.var_bind(s, move |args| {
+            if args.is_touch_enter_enabled(wgt) {
+                Some(true)
+            } else if args.is_touch_leave_enabled(wgt) {
+                Some(false)
+            } else {
+                None
+            }
+        })
     })
+}
+fn touched_var(wgt: (WindowId, WidgetId)) -> Var<bool> {
+    TOUCHED_EVENT.var_map(
+        move |args| {
+            if args.is_touch_enter_enabled(wgt) {
+                Some(true)
+            } else if args.is_touch_leave_enabled(wgt) {
+                Some(false)
+            } else {
+                None
+            }
+        },
+        || false,
+    )
 }
 
 /// If a touch contact that started over the widget is over it and it is enabled.
@@ -287,28 +270,58 @@ pub fn is_touched(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
 /// [`is_cap_touched_from_start`]: fn@is_cap_touched_from_start
 #[property(EVENT)]
 pub fn is_touched_from_start(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
+    bind_state_init(child, state, |s| {
+        #[expect(clippy::mutable_key_type)] // EventPropagationHandle compares pointers, not value
+        let mut touches_started = HashSet::new();
+        let wgt = (WINDOW.id(), WIDGET.id());
+        TOUCHED_EVENT.var_bind(s, move |args| {
+            if args.is_touch_enter_enabled(wgt) {
+                match args.phase {
+                    TouchPhase::Start => {
+                        touches_started.retain(|t: &EventPropagationHandle| !t.is_stopped()); // for touches released outside the widget.
+                        touches_started.insert(args.touch_propagation.clone());
+                        Some(true)
+                    }
+                    TouchPhase::Move => Some(touches_started.contains(&args.touch_propagation)),
+                    TouchPhase::End | TouchPhase::Cancel => Some(false), // weird
+                }
+            } else if args.is_touch_leave_enabled(wgt) {
+                if let TouchPhase::End | TouchPhase::Cancel = args.phase {
+                    touches_started.remove(&args.touch_propagation);
+                }
+                Some(false)
+            } else {
+                None
+            }
+        })
+    })
+}
+fn touched_from_start_var(wgt: (WindowId, WidgetId)) -> Var<bool> {
     #[expect(clippy::mutable_key_type)] // EventPropagationHandle compares pointers, not value
     let mut touches_started = HashSet::new();
-    event_state(child, state, false, TOUCHED_EVENT, move |args| {
-        if args.is_touch_enter_enabled() {
-            match args.phase {
-                TouchPhase::Start => {
-                    touches_started.retain(|t: &EventPropagationHandle| !t.is_stopped()); // for touches released outside the widget.
-                    touches_started.insert(args.touch_propagation.clone());
-                    Some(true)
+    TOUCHED_EVENT.var_map(
+        move |args| {
+            if args.is_touch_enter_enabled(wgt) {
+                match args.phase {
+                    TouchPhase::Start => {
+                        touches_started.retain(|t: &EventPropagationHandle| !t.is_stopped()); // for touches released outside the widget.
+                        touches_started.insert(args.touch_propagation.clone());
+                        Some(true)
+                    }
+                    TouchPhase::Move => Some(touches_started.contains(&args.touch_propagation)),
+                    TouchPhase::End | TouchPhase::Cancel => Some(false), // weird
                 }
-                TouchPhase::Move => Some(touches_started.contains(&args.touch_propagation)),
-                TouchPhase::End | TouchPhase::Cancel => Some(false), // weird
+            } else if args.is_touch_leave_enabled(wgt) {
+                if let TouchPhase::End | TouchPhase::Cancel = args.phase {
+                    touches_started.remove(&args.touch_propagation);
+                }
+                Some(false)
+            } else {
+                None
             }
-        } else if args.is_touch_leave_enabled() {
-            if let TouchPhase::End | TouchPhase::Cancel = args.phase {
-                touches_started.remove(&args.touch_propagation);
-            }
-            Some(false)
-        } else {
-            None
-        }
-    })
+        },
+        || false,
+    )
 }
 
 /// If a touch contact point is over the widget, or is over a descendant, or is captured by it.
@@ -318,34 +331,14 @@ pub fn is_touched_from_start(child: impl IntoUiNode, state: impl IntoVar<bool>) 
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
 pub fn is_cap_touched(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state2(
-        child,
-        state,
-        false,
-        TOUCHED_EVENT,
-        false,
-        |hovered_args| {
-            if hovered_args.is_touch_enter_enabled() {
-                Some(true)
-            } else if hovered_args.is_touch_leave_enabled() {
-                Some(false)
-            } else {
-                None
-            }
-        },
-        POINTER_CAPTURE_EVENT,
-        false,
-        |cap_args| {
-            if cap_args.is_got(WIDGET.id()) {
-                Some(true)
-            } else if cap_args.is_lost(WIDGET.id()) {
-                Some(false)
-            } else {
-                None
-            }
-        },
-        |hovered, captured| Some(hovered || captured),
-    )
+    bind_state_init(child, state, |s| {
+        let wgt = (WINDOW.id(), WIDGET.id());
+        let actual_state = expr_var! {
+            *#{touched_var(wgt)} || *#{captured_var(wgt.1)}
+        };
+        actual_state.set_bind(s).perm();
+        s.hold(actual_state)
+    })
 }
 
 /// If a touch contact point is over the widget, or is over a descendant, or is captured by it.
@@ -355,47 +348,14 @@ pub fn is_cap_touched(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNo
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
 pub fn is_cap_touched_from_start(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    #[expect(clippy::mutable_key_type)] // EventPropagationHandle compares pointers, not value
-    let mut touches_started = HashSet::new();
-    event_state2(
-        child,
-        state,
-        false,
-        TOUCHED_EVENT,
-        false,
-        move |hovered_args| {
-            if hovered_args.is_touch_enter_enabled() {
-                match hovered_args.phase {
-                    TouchPhase::Start => {
-                        touches_started.retain(|t: &EventPropagationHandle| !t.is_stopped()); // for touches released outside the widget.
-                        touches_started.insert(hovered_args.touch_propagation.clone());
-                        Some(true)
-                    }
-                    TouchPhase::Move => Some(touches_started.contains(&hovered_args.touch_propagation)),
-                    TouchPhase::End | TouchPhase::Cancel => Some(false), // weird
-                }
-            } else if hovered_args.is_touch_leave_enabled() {
-                if let TouchPhase::End | TouchPhase::Cancel = hovered_args.phase {
-                    touches_started.remove(&hovered_args.touch_propagation);
-                }
-                Some(false)
-            } else {
-                None
-            }
-        },
-        POINTER_CAPTURE_EVENT,
-        false,
-        |cap_args| {
-            if cap_args.is_got(WIDGET.id()) {
-                Some(true)
-            } else if cap_args.is_lost(WIDGET.id()) {
-                Some(false)
-            } else {
-                None
-            }
-        },
-        |hovered, captured| Some(hovered || captured),
-    )
+    bind_state_init(child, state, |s| {
+        let wgt = (WINDOW.id(), WIDGET.id());
+        let actual_state = expr_var! {
+            *#{touched_from_start_var(wgt)} || *#{captured_var(wgt.1)}
+        };
+        actual_state.set_bind(s).perm();
+        s.hold(actual_state)
+    })
 }
 
 /// If [`is_mouse_pressed`] or [`is_touched_from_start`].
@@ -494,82 +454,112 @@ pub fn is_cap_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNo
 #[property(EVENT)]
 pub fn is_mouse_active(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
-    enum State {
-        False,
-        Maybe(DipPoint),
-        True(DipPoint, TimerVar),
-    }
-    let mut raw_state = State::False;
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            validate_getter_var(&state);
-            WIDGET.sub_event(&MOUSE_MOVE_EVENT).sub_var(&MOUSE_ACTIVE_CONFIG_VAR);
-            state.set(true);
+            let mut timer = None::<TimerVar>;
+            let cfg = MOUSE_ACTIVE_CONFIG_VAR.current_context();
+
+            // variable set by mouse events when mouse activity is observed
+            let activate = var(Wrapping(0u8));
+            let mut last = u8::MAX;
+            activate
+                .hook(clmv!(cfg, state, |args| {
+                    let cfg = cfg.get();
+                    if cfg.duration == Duration::ZERO {
+                        if timer.take().is_some() {
+                            // just disabled
+                            state.set(false);
+                        }
+                        return true;
+                    }
+
+                    let n = args.value().0;
+                    let is_activate = last != n;
+                    last = n;
+
+                    if is_activate {
+                        if let Some(t) = &timer {
+                            t.with(|t| {
+                                if t.deadline().has_elapsed() {
+                                    // activate again
+                                    state.set(true);
+                                }
+                                // update cfg if needed
+                                t.set_interval(cfg.duration);
+                                // restart or reset running timer
+                                t.play(true);
+                            });
+                        } else {
+                            state.set(true);
+                            // start timer that will disable the state on elapsed and pause,
+                            // the timer is reused on subsequent activations
+                            let t = TIMERS.interval(cfg.duration, true);
+                            t.hook(clmv!(state, |t| {
+                                let t = t.value();
+                                if t.deadline().has_elapsed() {
+                                    t.pause();
+                                    state.set(false);
+                                }
+                                true
+                            }))
+                            .perm();
+                            t.with(|t| t.play(false));
+                            timer = Some(t);
+                        }
+                    }
+
+                    true
+                }))
+                .perm();
+
+            let id = WIDGET.id();
+
+            // activate on mouse move >= cfg.area
+            let mut first_pos = None::<DipPoint>;
+            let handle = MOUSE_MOVE_EVENT.hook(clmv!(activate, cfg, |args| {
+                if args.target.contains(id) {
+                    let dist = if let Some(prev_pos) = first_pos {
+                        (prev_pos - args.position).abs()
+                    } else {
+                        first_pos = Some(args.position);
+                        DipVector::zero()
+                    };
+                    let cfg = cfg.get();
+                    if dist.x >= cfg.area.width || dist.y >= cfg.area.height {
+                        activate.modify(|c| **c += 1);
+                    }
+                } else {
+                    first_pos = None;
+                }
+                true
+            }));
+            // activate on mouse wheel
+            let handle = MOUSE_WHEEL_EVENT.hook(clmv!(activate, |args| {
+                let _hold = &handle;
+                if args.target.contains(id) {
+                    activate.modify(|c| **c += 1);
+                }
+                true
+            }));
+            // activate on mouse input
+            let handle = MOUSE_INPUT_EVENT.hook(clmv!(activate, |args| {
+                let _hold = &handle;
+                if args.target.contains(id) {
+                    activate.modify(|c| **c += 1);
+                }
+                true
+            }));
+            // update timer interval
+            let handle = cfg.hook(move |_| {
+                let _hold = &handle;
+                activate.update();
+                true
+            });
+            WIDGET.push_var_handle(handle);
         }
         UiNodeOp::Deinit => {
-            state.set(false);
-            raw_state = State::False;
-        }
-        UiNodeOp::Event { update } => {
-            let mut start = None;
-            if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
-                match &mut raw_state {
-                    State::False => {
-                        let cfg = MOUSE_ACTIVE_CONFIG_VAR.get();
-                        if cfg.area.width <= Dip::new(1) || cfg.area.height <= Dip::new(1) {
-                            start = Some((cfg.duration, args.position));
-                        } else {
-                            raw_state = State::Maybe(args.position);
-                        }
-                    }
-                    State::Maybe(s) => {
-                        let cfg = MOUSE_ACTIVE_CONFIG_VAR.get();
-                        if (args.position.x - s.x).abs() >= cfg.area.width || (args.position.y - s.y).abs() >= cfg.area.height {
-                            start = Some((cfg.duration, args.position));
-                        }
-                    }
-                    State::True(p, timer) => {
-                        if (args.position.x - p.x).abs() >= Dip::new(1) || (args.position.y - p.y).abs() >= Dip::new(1) {
-                            // reset
-                            timer.get().play(true);
-                            *p = args.position;
-                        }
-                    }
-                }
-            } else {
-                let pos = if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
-                    Some(args.position)
-                } else {
-                    MOUSE_WHEEL_EVENT.on(update).map(|args| args.position)
-                };
-                if let Some(pos) = pos {
-                    match &raw_state {
-                        State::True(_, timer) => {
-                            // reset
-                            timer.get().play(true);
-                        }
-                        _ => {
-                            start = Some((MOUSE_ACTIVE_CONFIG_VAR.get().duration, pos));
-                        }
-                    }
-                }
-            }
-            if let Some((t, pos)) = start {
-                let timer = TIMERS.interval(t, false);
-                timer.subscribe(UpdateOp::Update, WIDGET.id()).perm();
-                state.set(true);
-                raw_state = State::True(pos, timer);
-            }
-        }
-        UiNodeOp::Update { .. } => {
-            if let State::True(_, timer) = &raw_state {
-                if let Some(timer) = timer.get_new() {
-                    timer.stop();
-                    state.set(false);
-                    raw_state = State::False;
-                } else if let Some(cfg) = MOUSE_ACTIVE_CONFIG_VAR.get_new() {
-                    timer.get().set_interval(cfg.duration);
-                }
+            if state.get() {
+                state.set(false);
             }
         }
         _ => {}
@@ -612,9 +602,10 @@ pub fn is_touch_active(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiN
             state.set(false);
             raw_state = State::False;
         }
-        UiNodeOp::Event { update } => {
-            c.event(update);
-            if TOUCH_TAP_EVENT.on_unhandled(update).is_some() {
+        UiNodeOp::Update { updates } => {
+            c.update(updates);
+
+            if TOUCH_TAP_EVENT.has_update(false) {
                 match &raw_state {
                     State::False => {
                         let t = TOUCH_ACTIVE_CONFIG_VAR.get().duration;
@@ -634,8 +625,7 @@ pub fn is_touch_active(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiN
                     }
                 }
             }
-        }
-        UiNodeOp::Update { .. } => {
+
             if let State::True(timer) = &raw_state {
                 if let Some(timer) = timer.get_new() {
                     timer.stop();

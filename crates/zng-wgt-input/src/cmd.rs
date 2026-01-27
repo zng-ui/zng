@@ -1,6 +1,7 @@
 //! Common commands.
 //!
 
+use zng_app::event::CommandArgs;
 use zng_ext_clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD};
 use zng_wgt::{ICONS, prelude::*};
 
@@ -47,7 +48,7 @@ command! {
     };
 
     /// Represents the **context menu open** action.
-    pub static CONTEXT_MENU_CMD = {
+    pub static CONTEXT_MENU_CMD {
         shortcut: [shortcut!(SHIFT + F10), shortcut!(ContextMenu)],
         icon: wgt_fn!(|_| ICONS.get(["context-menu", "menu-open"])),
     };
@@ -73,8 +74,9 @@ command_property! {
     ///
     /// Receives [`NEW_CMD`] command events scoped on the widget. The command parameter can be
     /// the new item type identifier.
-    pub fn new {
-        cmd: NEW_CMD.scoped(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_new<on_pre_new, can_new>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
+        NEW_CMD
     }
 
     /// On open command.
@@ -85,8 +87,9 @@ command_property! {
     /// You can use [`WINDOWS.native_file_dialog`] to prompt the user for a file or folder path.
     ///
     /// [`WINDOWS.native_file_dialog`]: zng_ext_window::WINDOWS::native_file_dialog
-    pub fn open {
-        cmd: OPEN_CMD.scoped(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_open<on_pre_open, can_open>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
+        OPEN_CMD
     }
 
     /// On save command.
@@ -98,8 +101,9 @@ command_property! {
     ///
     /// [`WINDOWS.native_file_dialog`]: zng_ext_window::WINDOWS::native_file_dialog
     /// [`on_save_as`]: fn@on_save_as
-    pub fn save {
-        cmd: SAVE_CMD.scoped(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_save<on_pre_save, can_save>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
+        SAVE_CMD
     }
 
     /// On save-as command.
@@ -110,8 +114,9 @@ command_property! {
     /// You can use [`WINDOWS.native_file_dialog`] to prompt the user for a file or folder path.
     ///
     /// [`WINDOWS.native_file_dialog`]: zng_ext_window::WINDOWS::native_file_dialog
-    pub fn save_as {
-        cmd: SAVE_AS_CMD.scoped(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_save_as<on_pre_save_as, can_save_as>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
+        SAVE_AS_CMD
     }
 
     /// On cut command.
@@ -120,8 +125,9 @@ command_property! {
     /// to send data to the clipboard.
     ///
     /// [`CUT_CMD`]: zng_ext_clipboard::CUT_CMD
-    pub fn cut {
-        cmd: CUT_CMD.scoped(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_cut<on_pre_cut, can_cut>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
+        CUT_CMD
     }
 
     /// On copy command.
@@ -130,8 +136,9 @@ command_property! {
     /// to send data to the clipboard.
     ///
     /// [`COPY_CMD`]: zng_ext_clipboard::COPY_CMD
-    pub fn copy {
-        cmd: COPY_CMD.scoped(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_copy<on_pre_copy, can_copy>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
+        COPY_CMD
     }
 
     /// On paste command.
@@ -140,14 +147,16 @@ command_property! {
     /// to receive data from the clipboard.
     ///
     /// [`PASTE_CMD`]: zng_ext_clipboard::PASTE_CMD
-    pub fn paste {
-        cmd: PASTE_CMD.scoped(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_paste<on_pre_paste, can_paste>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
+        PASTE_CMD
     }
 
     /// On settings command.
     ///
     /// Receives [`SETTINGS_CMD`] command events scoped on the widget.
-    pub fn settings {
-        cmd: SETTINGS_CMD.scoped(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_settings<on_pre_settings, can_settings>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
+        SETTINGS_CMD
     }
 }

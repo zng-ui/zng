@@ -680,7 +680,7 @@ macro_rules! event_property {
         $(#[$meta:meta])+
         $vis:vis fn $on_ident:ident $(< $on_pre_ident:ident >)? (
             $child:ident: impl $IntoUiNode:path,
-            $handler:ident: $Handler:ty
+            $handler:ident: $Handler:ty $(,)?
         ) -> $UiNode:path {
             $($body:tt)+
         }
@@ -789,7 +789,7 @@ macro_rules! event_property_impl {
 macro_rules! command_property {
     ($(
         $(#[$meta:meta])+
-        $vis:vis fn $on_ident:ident < $on_pre_ident:ident $($can_ident:ident)?> (
+        $vis:vis fn $on_ident:ident < $on_pre_ident:ident $(, $can_ident:ident)?> (
             $child:ident: impl $IntoUiNode:path,
             $handler:ident: $Handler:ty
         ) -> $UiNode:path {
@@ -804,6 +804,8 @@ macro_rules! command_property {
        }
     )+};
 }
+#[doc(inline)]
+pub use command_property;
 #[doc(hidden)]
 #[macro_export]
 macro_rules! command_property_impl {
@@ -816,7 +818,7 @@ macro_rules! command_property_impl {
             $COMMAND:path
         }
     ) => {
-        $crate::paste! {
+        $crate::node::paste! {
             $crate::node::__macro_util::context_var! {
                 /// Defines if
                 #[doc = concat!("[`", stringify!($on_ident), "`](fn@", stringify!($on_ident), ")")]
@@ -827,7 +829,7 @@ macro_rules! command_property_impl {
                 /// Use
                 #[doc = concat!("[`", stringify!($can_ident), "`](fn@", stringify!($can_ident), ")")]
                 /// to set. Is enabled by default.
-                $vis [<$can_ident:upper _VAR>]: bool = true;
+                $vis static [<$can_ident:upper _VAR>]: bool = true;
             }
 
             /// Defines if
@@ -855,7 +857,7 @@ macro_rules! command_property_impl {
                 ///
                 $vis fn $on_ident<$on_pre_ident>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
                     const PRE: bool;
-                    let child = $crate::node::EventNodeBuilder::new($COMMAND)
+                    let child = $crate::node::EventNodeBuilder::new(*$COMMAND)
                         .filter(|| {
                             let enabled = self::[<$can_ident:upper _VAR>].current_context();
                             move |_| enabled.get()
