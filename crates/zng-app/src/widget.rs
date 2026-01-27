@@ -738,6 +738,7 @@ impl WIDGET {
     }
 
     /// Gets the widget info.
+    #[must_use] // easy to confuse with update_info
     pub fn info(&self) -> WidgetInfo {
         WINDOW.info().get(WIDGET.id()).expect("widget info not init")
     }

@@ -516,6 +516,44 @@ impl Command {
         ))
     }
 
+    /// Visit each new update, oldest first, that target the context widget.
+    ///
+    /// This is similar to [`Event::each_update`], but with extra filtering. If `direct_scope_only` is enabled
+    /// only handle exact command scope matches, otherwise the app scope matches all events, the window scope matches all events for the window
+    /// or widgets in the window and the widget scope matches the widget and all descendants.
+    pub fn each_update(&self, direct_scope_only: bool, ignore_propagation: bool, mut handler: impl FnMut(&CommandArgs)) {
+        self.event.each_update(ignore_propagation, move |args| {
+            if !direct_scope_only || args.scope == self.scope {
+                handler(args)
+            }
+        });
+    }
+
+    /// Visit the latest update that targets the context widget.
+    ///
+    /// This is similar to [`Event::latest_update`], but with extra filtering.
+    pub fn latest_update<O>(
+        &self,
+        direct_scope_only: bool,
+        ignore_propagation: bool,
+        handler: impl FnOnce(&CommandArgs) -> O,
+    ) -> Option<O> {
+        let mut r = None;
+        self.event.latest_update(ignore_propagation, |args| {
+            if !direct_scope_only || args.scope == self.scope {
+                r = Some(handler(args));
+            }
+        });
+        r
+    }
+
+    /// Visit the latest update that targets the context widget.
+    ///
+    /// This is similar to [`Event::has_update`], but with extra filtering.
+    pub fn has_update(&self, direct_scope_only: bool, ignore_propagation: bool) -> bool {
+        self.latest_update(direct_scope_only, ignore_propagation, |_| true).unwrap_or(false)
+    }
+
     /// Creates a preview event handler for the command.
     ///
     /// This is similar to [`Event::on_pre_event`], but with extra filtering. The `handler` is only called if
