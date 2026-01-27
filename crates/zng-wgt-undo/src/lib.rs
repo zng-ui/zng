@@ -132,7 +132,6 @@ pub fn undo_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> UiNod
 
         UNDO.with_scope(&mut scope, || c.op(op));
 
-
         let new_can_undo = scope.can_undo();
         let new_can_redo = scope.can_redo();
 
@@ -142,7 +141,7 @@ pub fn undo_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> UiNod
             undo_cmd.enabled().set(can_undo);
             redo_cmd.enabled().set(can_redo);
             clear_cmd.enabled().set(can_undo || can_redo);
-        }        
+        }
     })
 }
 
