@@ -38,7 +38,7 @@ pub fn collapse_scope(child: impl IntoUiNode, mode: impl IntoVar<CollapseMode>) 
             let s = maybe_exclusive.unwrap_or(&mut new);
 
             // tracks changes in reused set, ignore this if is_new
-            let mut changes = UpdateDeliveryList::new_any();
+            let mut changes = UpdateDeliveryList::new();
             if mode.is_empty() {
                 if !s.collapse.is_empty() {
                     let info = WIDGET.info();
