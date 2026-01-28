@@ -3,6 +3,7 @@
 use std::time::Duration;
 
 use zng_ext_input::focus::{DirectionalNav, FOCUS_CHANGED_EVENT, FocusScopeOnFocus, TabNav};
+use zng_ext_window::WINDOWS;
 use zng_wgt::{modal_included, prelude::*};
 use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
@@ -154,7 +155,8 @@ impl POPUP {
 
                     if let Some(mut wgt) = c.node().as_widget() {
                         wgt.with_context(WidgetUpdateMode::Bubble, || {
-                            WIDGET.sub_event(&FOCUS_CHANGED_EVENT);
+                            let id = WIDGET.id();
+                            WIDGET.sub_event_when(&FOCUS_CHANGED_EVENT, move |args| args.is_focus_leave(id));
                         });
                         let id = wgt.id();
                         state.set(PopupState::Open(id));
@@ -172,19 +174,20 @@ impl POPUP {
                             UiNodeOp::Init => {
                                 WIDGET.sub_event(&FOCUS_CHANGED_EVENT).sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
                             }
-                            UiNodeOp::Event { update } => {
-                                if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on(update)
-                                    && let Some(mut now_is_widget) = c.node().as_widget()
-                                {
-                                    let now_is_widget = now_is_widget.with_context(WidgetUpdateMode::Ignore, || WIDGET.info().path());
-                                    if POPUP_CLOSE_REQUESTED_EVENT.is_subscriber(now_is_widget.widget_id()) {
-                                        // node become widget after init, and it expects POPUP_CLOSE_REQUESTED_EVENT.
-                                        let mut delivery = UpdateDeliveryList::new_any();
-                                        delivery.insert_wgt(&now_is_widget);
-                                        let update = POPUP_CLOSE_REQUESTED_EVENT.new_update_custom(args.clone(), delivery);
-                                        c.event(&update);
+                            UiNodeOp::Update { .. } => {
+                                POPUP_CLOSE_REQUESTED_EVENT.latest_update(false, |args| {
+                                    if let Some(mut now_is_widget) = c.node().as_widget() {
+                                        let now_is_widget = now_is_widget.with_context(WidgetUpdateMode::Ignore, || WIDGET.info().path());
+                                        if !args.is_in_target(now_is_widget.widget_id()) {
+                                            // if is not already the request
+                                            POPUP_CLOSE_REQUESTED_EVENT.notify(PopupCloseRequestedArgs::new(
+                                                args.timestamp,
+                                                args.propagation().clone(),
+                                                now_is_widget,
+                                            ));
+                                        }
                                     }
-                                }
+                                });
                             }
                             _ => {}
                         });
@@ -202,15 +205,16 @@ impl POPUP {
                     state.set(PopupState::Closed);
                     _close_handle = CommandHandle::dummy();
                 }
-                UiNodeOp::Event { update } => {
+                UiNodeOp::Update { .. } => {
                     c.node().as_widget().unwrap().with_context(WidgetUpdateMode::Bubble, || {
                         let id = WIDGET.id();
 
-                        if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                        FOCUS_CHANGED_EVENT.each_update(true, |args| {
                             if args.is_focus_leave(id) && CLOSE_ON_FOCUS_LEAVE_VAR.get() {
                                 POPUP.close_id(id);
                             }
-                        } else if let Some(args) = POPUP_CLOSE_CMD.scoped(id).on_unhandled(update) {
+                        });
+                        POPUP_CLOSE_CMD.scoped(id).latest_update(true, false, |args| {
                             match args.param::<PopupCloseMode>() {
                                 Some(s) => match s {
                                     PopupCloseMode::Request => POPUP.close_id(id),
@@ -218,7 +222,7 @@ impl POPUP {
                                 },
                                 None => POPUP.close_id(id),
                             }
-                        }
+                        });
                     });
                 }
                 _ => {}
@@ -287,7 +291,11 @@ impl POPUP {
     /// You can also use the [`POPUP_CLOSE_CMD`] scoped on the popup to request or force close.    
     pub fn close_id(&self, widget_id: WidgetId) {
         setup_popup_close_service();
-        POPUP_CLOSE_REQUESTED_EVENT.notify(PopupCloseRequestedArgs::now(widget_id));
+        if let Some(wgt) = WINDOWS.widget_info(widget_id) {
+            POPUP_CLOSE_REQUESTED_EVENT.notify(PopupCloseRequestedArgs::now(wgt.path()));
+        } else {
+            tracing::debug!("cannot close {widget_id}, not found");
+        }
     }
 
     /// Close the popup widget without notifying the request event.
@@ -395,12 +403,15 @@ event_args! {
     /// Arguments for [`POPUP_CLOSE_REQUESTED_EVENT`].
     pub struct PopupCloseRequestedArgs {
         /// The popup that has close requested.
-        pub popup: WidgetId,
+        pub popup: WidgetPath,
 
         ..
 
-        fn delivery_list(&self, delivery_list: &mut UpdateDeliveryList) {
-            delivery_list.search_widget(self.popup)
+        /// If is in [`popup`] path.
+        ///
+        /// [`popup`]: Self::popup
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.popup.contains(id)
         }
     }
 }
@@ -419,9 +430,13 @@ event_property! {
     /// Requesting [`propagation().stop()`] on this event cancels the popup close.
     ///
     /// [`propagation().stop()`]: zng_app::event::EventPropagationHandle::stop
-    pub fn popup_close_requested {
-        event: POPUP_CLOSE_REQUESTED_EVENT,
-        args: PopupCloseRequestedArgs,
+    #[property(EVENT)]
+    pub fn on_popup_close_requested<on_pre_popup_close_requested>(
+        child: impl IntoUiNode,
+        handler: Handler<PopupCloseRequestedArgs>,
+    ) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(POPUP_CLOSE_REQUESTED_EVENT).build::<PRE>(child, handler)
     }
 }
 
@@ -458,9 +473,9 @@ fn setup_popup_close_service() {
 
     if !std::mem::replace(&mut *POPUP_SETUP.write(), true) {
         POPUP_CLOSE_REQUESTED_EVENT
-            .on_event(hn!(|args| {
+            .on_event(false, hn!(|args| {
                 if !args.propagation().is_stopped() {
-                    POPUP_CLOSE_CMD.scoped(args.popup).notify_param(PopupCloseMode::Force);
+                    POPUP_CLOSE_CMD.scoped(args.popup.widget_id()).notify_param(PopupCloseMode::Force);
                 }
             }))
             .perm();
@@ -480,15 +495,16 @@ pub fn close_delay(child: impl IntoUiNode, delay: impl IntoVar<Duration>) -> UiN
 
     let child = match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
+            let id = WIDGET.id();
+            WIDGET.sub_event_when(&POPUP_CLOSE_REQUESTED_EVENT, move |args| args.popup.widget_id() == id);
         }
         UiNodeOp::Deinit => {
             timer = None;
         }
-        UiNodeOp::Event { update } => {
-            c.event(update);
-            if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on_unhandled(update) {
-                if args.popup != WIDGET.id() {
+        UiNodeOp::Update { updates } => {
+            c.update(updates);
+            POPUP_CLOSE_REQUESTED_EVENT.each_update(false, |args| {
+                if args.popup.widget_id() != WIDGET.id() {
                     return;
                 }
 
@@ -508,7 +524,7 @@ pub fn close_delay(child: impl IntoUiNode, delay: impl IntoVar<Duration>) -> UiN
                     args.propagation().stop();
 
                     IS_CLOSE_DELAYED_VAR.set(true);
-                    let cmd = POPUP_CLOSE_CMD.scoped(args.popup);
+                    let cmd = POPUP_CLOSE_CMD.scoped(args.popup.widget_id());
                     timer = Some(TIMERS.on_deadline(
                         delay,
                         hn_once!(|_| {
@@ -516,7 +532,7 @@ pub fn close_delay(child: impl IntoUiNode, delay: impl IntoVar<Duration>) -> UiN
                         }),
                     ));
                 }
-            }
+            });
         }
         _ => {}
     });

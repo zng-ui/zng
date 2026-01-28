@@ -2517,7 +2517,7 @@ where
                 *v = v.wrapping_add(1);
                 *u = true;
             }
-            WIDGET.info();
+            WIDGET.update_info();
         }
     }
 
