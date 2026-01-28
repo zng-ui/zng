@@ -77,8 +77,9 @@ pub fn checked(child: impl IntoUiNode, checked: impl IntoVar<bool>) -> UiNode {
         child,
         clmv!(checked, |child, op| match op {
             UiNodeOp::Init => {
-                WIDGET.sub_event(&CLICK_EVENT);
-                _toggle_handle = cmd::TOGGLE_CMD.scoped(WIDGET.id()).subscribe(true);
+                let id = WIDGET.id();
+                WIDGET.sub_event_when(&CLICK_EVENT, move |args| args.is_primary() && args.target.contains_enabled(id));
+                _toggle_handle = cmd::TOGGLE_CMD.scoped(id).subscribe(true);
             }
             UiNodeOp::Deinit => {
                 _toggle_handle = CommandHandle::dummy();
@@ -92,20 +93,20 @@ pub fn checked(child: impl IntoUiNode, checked: impl IntoVar<bool>) -> UiNode {
                     a.set_checked(Some(checked.get()));
                 }
             }
-            UiNodeOp::Event { update } => {
-                child.event(update);
+            UiNodeOp::Update { updates } => {
+                child.update(updates);
 
-                if let Some(args) = CLICK_EVENT.on(update) {
+                CLICK_EVENT.each_update(false, |args| {
                     if args.is_primary()
                         && checked.capabilities().contains(VarCapability::MODIFY)
-                        && !args.propagation.is_stopped()
                         && args.target.contains_enabled(WIDGET.id())
                     {
                         args.propagation.stop();
 
                         checked.set(!checked.get());
                     }
-                } else if let Some(args) = cmd::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                });
+                cmd::TOGGLE_CMD.scoped(WIDGET.id()).each_update(true, false, |args| {
                     if let Some(b) = args.param::<bool>() {
                         args.propagation.stop();
                         checked.set(*b);
@@ -118,7 +119,7 @@ pub fn checked(child: impl IntoUiNode, checked: impl IntoVar<bool>) -> UiNode {
                         args.propagation.stop();
                         checked.set(!checked.get());
                     }
-                }
+                });
             }
             _ => {}
         }),
@@ -138,8 +139,9 @@ pub fn checked_opt(child: impl IntoUiNode, checked: impl IntoVar<Option<bool>>) 
         child,
         clmv!(checked, |child, op| match op {
             UiNodeOp::Init => {
-                WIDGET.sub_event(&CLICK_EVENT);
-                _toggle_handle = cmd::TOGGLE_CMD.scoped(WIDGET.id()).subscribe(true);
+                let id = WIDGET.id();
+                WIDGET.sub_event_when(&CLICK_EVENT, move |args| args.is_primary() && args.target.contains_enabled(id));
+                _toggle_handle = cmd::TOGGLE_CMD.scoped(id).subscribe(true);
             }
             UiNodeOp::Deinit => {
                 _toggle_handle = CommandHandle::dummy();
@@ -153,22 +155,22 @@ pub fn checked_opt(child: impl IntoUiNode, checked: impl IntoVar<Option<bool>>) 
                     a.set_checked(checked.get());
                 }
             }
-            UiNodeOp::Event { update } => {
-                child.event(update);
+            UiNodeOp::Update { updates } => {
+                child.update(updates);
 
                 let mut cycle = false;
 
-                if let Some(args) = CLICK_EVENT.on(update) {
+                CLICK_EVENT.each_update(false, |args| {
                     if args.is_primary()
                         && checked.capabilities().contains(VarCapability::MODIFY)
-                        && !args.propagation.is_stopped()
                         && args.target.contains_enabled(WIDGET.id())
                     {
                         args.propagation.stop();
 
                         cycle = true;
                     }
-                } else if let Some(args) = cmd::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                });
+                cmd::TOGGLE_CMD.scoped(WIDGET.id()).each_update(true, false, |args| {
                     if let Some(b) = args.param::<bool>() {
                         args.propagation.stop();
                         checked.set(Some(*b));
@@ -185,7 +187,7 @@ pub fn checked_opt(child: impl IntoUiNode, checked: impl IntoVar<Option<bool>>) 
 
                         cycle = true;
                     }
-                }
+                });
 
                 if cycle {
                     if IS_TRISTATE_VAR.get() {
@@ -344,7 +346,9 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
                 }
             });
 
-            _click_handle = Some(CLICK_EVENT.subscribe(id));
+            _click_handle = Some(CLICK_EVENT.subscribe_when(UpdateOp::Update, id, move |args| {
+                args.is_primary() && args.target.contains_enabled(id)
+            }));
             _toggle_handle = cmd::TOGGLE_CMD.scoped(id).subscribe(true);
             _select_handle = cmd::SELECT_CMD.scoped(id).subscribe(true);
         }
@@ -380,11 +384,11 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
             _toggle_handle = CommandHandle::dummy();
             _select_handle = CommandHandle::dummy();
         }
-        UiNodeOp::Event { update } => {
-            child.event(update);
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
 
-            if let Some(args) = CLICK_EVENT.on(update) {
-                if args.is_primary() && !args.propagation.is_stopped() && args.target.contains_enabled(WIDGET.id()) {
+            CLICK_EVENT.each_update(false, |args| {
+                if args.is_primary() && args.target.contains_enabled(WIDGET.id()) {
                     args.propagation.stop();
 
                     value.with(|value| {
@@ -396,7 +400,9 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
                         checked.set(Some(selected))
                     });
                 }
-            } else if let Some(args) = cmd::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+            });
+
+            cmd::TOGGLE_CMD.scoped(WIDGET.id()).each_update(true, false, |args| {
                 if args.param.is_none() {
                     args.propagation.stop();
 
@@ -423,19 +429,19 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
                         });
                     }
                 }
-            } else if let Some(args) = cmd::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update)
-                && args.param.is_none()
-            {
-                args.propagation.stop();
-                value.with(|value| {
-                    let selected = checked.get() == Some(true);
-                    if !selected && select(value) {
-                        checked.set(Some(true));
-                    }
-                });
-            }
-        }
-        UiNodeOp::Update { .. } => {
+            });
+            cmd::SELECT_CMD.scoped(WIDGET.id()).each_update(true, false, |args| {
+                if args.param.is_none() {
+                    args.propagation.stop();
+                    value.with(|value| {
+                        let selected = checked.get() == Some(true);
+                        if !selected && select(value) {
+                            checked.set(Some(true));
+                        }
+                    });
+                }
+            });
+
             let mut selected = None;
             value.with_new(|new| {
                 // auto select new.
@@ -521,16 +527,16 @@ pub fn selector(child: impl IntoUiNode, selector: impl IntoValue<Selector>) -> U
         UiNodeOp::Deinit => {
             _select_handle = CommandHandle::dummy();
         }
-        UiNodeOp::Event { update } => {
-            c.event(update);
+        UiNodeOp::Update { updates } => {
+            c.update(updates);
 
-            if let Some(args) = cmd::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update)
-                && let Some(p) = args.param::<cmd::SelectOp>()
-            {
-                args.propagation.stop();
+            cmd::SELECT_CMD.scoped(WIDGET.id()).each_update(true, false, |args| {
+                if let Some(p) = args.param::<cmd::SelectOp>() {
+                    args.propagation.stop();
 
-                p.call();
-            }
+                    p.call();
+                }
+            });
         }
         _ => {}
     });
@@ -1170,25 +1176,25 @@ pub fn checked_popup(child: impl IntoUiNode, popup: impl IntoVar<WidgetFn<()>>) 
     match_node(child, move |_, op| {
         let new = match op {
             UiNodeOp::Init => {
-                WIDGET.sub_var(&IS_CHECKED_VAR).sub_event(&MOUSE_INPUT_EVENT);
+                WIDGET
+                    .sub_var(&IS_CHECKED_VAR)
+                    .sub_event_when(&MOUSE_INPUT_EVENT, |args| args.is_mouse_down() && args.is_primary());
                 IS_CHECKED_VAR.get()
             }
             UiNodeOp::Deinit => {
                 _state_handle = VarHandle::dummy();
                 Some(false)
             }
-            UiNodeOp::Event { update } => {
-                if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
+            UiNodeOp::Update { .. } => {
+                MOUSE_INPUT_EVENT.each_update(false, |args| {
                     // close on mouse down to avoid issue when the popup closes on mouse-down (due to focus loss),
                     // but a click is formed (down+up) on the toggle that immediately opens the popup again.
                     if args.is_mouse_down() && args.is_primary() && IS_CHECKED_VAR.get() == Some(true) {
                         args.propagation.stop();
                         cmd::TOGGLE_CMD.scoped(WIDGET.id()).notify_param(Some(false));
                     }
-                }
-                None
-            }
-            UiNodeOp::Update { .. } => {
+                });
+
                 if let Some(s) = state.get_new() {
                     if matches!(s, PopupState::Closed) {
                         if IS_CHECKED_VAR.get() != Some(false) {
