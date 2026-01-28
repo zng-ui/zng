@@ -20,7 +20,7 @@ use std::{
 use zng_app::{
     DInstant, HeadlessApp,
     access::{ACCESS_CLICK_EVENT, AccessClickArgs},
-    event::{Command, CommandScope, EVENTS, EventArgs as _, EventPropagationHandle, event, event_args},
+    event::{Command, CommandScope, EVENTS, AnyEventArgs as _, EventPropagationHandle, event, event_args},
     shortcut::{
         CommandShortcutExt, GestureKey, KeyChord, KeyGesture, ModifierGesture, ModifiersState, Shortcut, ShortcutFilter, Shortcuts,
         shortcut,

@@ -31,7 +31,7 @@ mod __prelude {
         DInstant, Deadline, INSTANT,
         event::{
             Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, Event, EventArgs as _, EventPropagationHandle, command,
-            event, event_args,
+            event, event_args, AnyEventArgs as _,
         },
         handler::{Handler, HandlerExt as _, async_hn, async_hn_once, hn, hn_once},
         render::{FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, SpatialFrameId, TransformStyle},

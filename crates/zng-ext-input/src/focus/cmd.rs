@@ -2,7 +2,7 @@
 //!
 //! [`Command`]: zng_app::event::Command
 
-use zng_app::event::EventArgs;
+use zng_app::event::AnyEventArgs;
 use zng_app::{
     event::{Command, CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, command},
     hn,

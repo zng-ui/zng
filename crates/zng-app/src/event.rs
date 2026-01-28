@@ -2,7 +2,7 @@
 
 use std::{fmt, marker::PhantomData, ops, sync::Arc};
 
-use crate::{handler::HandlerResult, widget::OnVarArgs};
+use crate::{handler::HandlerResult, update::UPDATES, widget::{AnyVarSubscribe, OnVarArgs}};
 use parking_lot::MappedRwLockReadGuard;
 use zng_app_context::AppLocal;
 use zng_task::channel;
@@ -103,21 +103,25 @@ impl<A: EventArgs> EventUpdates<A> {
 #[doc(hidden)]
 pub struct EventData {
     var: AnyVar,
-    subscribe: fn(&AnyVar, UpdateOp, WidgetId) -> VarHandle,
+    hook: fn(&AnyVar, Box<dyn FnMut(&dyn AnyEventArgs) -> bool + Send>) -> VarHandle,
 }
 impl EventData {
     pub fn new<A: EventArgs>() -> Self {
         Self {
             var: zng_var::var(EventUpdates::<A>::none()).into(),
-            subscribe: Self::subscribe::<A>,
+            hook: Self::hook::<A>,
         }
     }
 
-    fn subscribe<A: EventArgs>(var: &AnyVar, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
-        var.clone()
-            .downcast::<EventUpdates<A>>()
-            .unwrap()
-            .subscribe_when(op, widget_id, move |v| v.value().latest_relevant(widget_id, true).is_some())
+    fn hook<A: EventArgs>(var: &AnyVar, mut handler: Box<dyn FnMut(&dyn AnyEventArgs) -> bool + Send>) -> VarHandle {
+        var.clone().downcast::<EventUpdates<A>>().unwrap().hook(move |args| {
+            for args in args.value().iter() {
+                if !handler(args) {
+                    return false;
+                }
+            }
+            true
+        })
     }
 }
 
@@ -152,8 +156,28 @@ impl AnyEvent {
 
     /// Subscribe the widget to receive updates when events are relevant to it.
     pub fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
+        self.hook(move |_| {
+            UPDATES.update_op(op, widget_id);
+            true
+        })
+    }
+
+    /// Variable that tracks all the args notified in the last update cycle.
+    ///
+    /// Note that the event variable is only cleared when new notifications are requested.
+    pub fn var(&self) -> AnyVar {
+        self.0.read().var.read_only()
+    }
+
+    /// Setups a callback for just after the event notifications are listed,
+    /// the closure runs in the root app context, just like var modify and hook closures.
+    ///
+    /// The closure must return true to be retained and false to be dropped.
+    ///
+    /// Any event notification or var modification done in the `handler` will apply on the same update that notifies this event.
+    pub fn hook(&self, handler: impl FnMut(&dyn AnyEventArgs) -> bool + Send + 'static) -> VarHandle {
         let s = self.0.read();
-        (s.subscribe)(&s.var, op, widget_id)
+        (s.hook)(&s.var, Box::new(handler))
     }
 }
 
@@ -313,6 +337,11 @@ impl<A: EventArgs> Event<A> {
     /// [`propagation`]: EventArgs::propagation
     pub fn has_update(&self, ignore_propagation: bool) -> bool {
         self.latest_update(ignore_propagation, |_| true).unwrap_or(false)
+    }
+
+    /// Subscribe the widget to receive updates when events are relevant to it.
+    pub fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
+        self.get_var().subscribe(op, widget_id)
     }
 
     /// Subscribe the widget to receive updates when events are relevant to it and the latest args passes the `predicate`.

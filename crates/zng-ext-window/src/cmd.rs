@@ -1,7 +1,7 @@
 //! Commands that control the scoped window.
 
 use zng_app::{
-    event::{CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, command},
+    event::{CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, AnyEventArgs, command},
     hn,
     shortcut::{CommandShortcutExt, shortcut},
     view_process::VIEW_PROCESS,

@@ -3,7 +3,7 @@ use std::{mem, pin::Pin, sync::Arc};
 use parking_lot::Mutex;
 use zng_app::{
     Deadline,
-    event::EventArgs,
+    event::AnyEventArgs,
     hn_once,
     timer::TIMERS,
     update::{InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, WidgetUpdates},

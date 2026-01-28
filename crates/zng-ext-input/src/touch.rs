@@ -20,7 +20,7 @@
 use std::{collections::HashMap, mem, num::NonZeroU32, ops, time::Duration};
 use zng_app::{
     DInstant,
-    event::{EventArgs as _, EventPropagationHandle, event, event_args},
+    event::{AnyEventArgs as _, EventPropagationHandle, event, event_args},
     hn,
     shortcut::ModifiersState,
     timer::{DeadlineVar, TIMERS},

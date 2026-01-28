@@ -32,7 +32,7 @@ use atomic::Atomic;
 use parking_lot::Mutex;
 use zng_app::{
     DInstant, INSTANT,
-    event::{Command, CommandNameExt, CommandScope, EventArgs as _, command},
+    event::{Command, CommandNameExt, CommandScope, AnyEventArgs as _, command},
     hn,
     shortcut::{CommandShortcutExt, shortcut},
     widget::{

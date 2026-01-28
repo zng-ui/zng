@@ -23,7 +23,7 @@ use std::mem;
 
 use parking_lot::Mutex;
 use zng_app::{
-    event::{EventArgs as _, event, event_args},
+    event::{AnyEventArgs as _, event, event_args},
     hn, static_id,
     view_process::raw_events::{
         RAW_APP_DRAG_ENDED_EVENT, RAW_DRAG_CANCELLED_EVENT, RAW_DRAG_DROPPED_EVENT, RAW_DRAG_HOVERED_EVENT, RAW_DRAG_MOVED_EVENT,

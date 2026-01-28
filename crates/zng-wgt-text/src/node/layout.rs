@@ -4,7 +4,7 @@ use atomic::Atomic;
 use parking_lot::RwLock;
 use zng_app::{
     DInstant,
-    event::{CommandHandle, EventArgs as _},
+    event::{CommandHandle, AnyEventArgs as _},
     widget::{
         WIDGET,
         node::{UiNode, UiNodeOp, match_node},

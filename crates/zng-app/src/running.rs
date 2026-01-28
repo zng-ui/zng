@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    Deadline, event::EventArgs as _, handler::HandlerExt as _, view_process::raw_events::RAW_FRAME_RENDERED_EVENT, window::WINDOWS_APP,
+    Deadline, event::AnyEventArgs as _, handler::HandlerExt as _, view_process::raw_events::RAW_FRAME_RENDERED_EVENT, window::WINDOWS_APP,
 };
 use parking_lot::Mutex;
 use zng_app_context::{AppScope, app_local};

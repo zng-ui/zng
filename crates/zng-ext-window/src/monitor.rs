@@ -1,7 +1,7 @@
 use core::fmt;
 use std::sync::Arc;
 
-use zng_app::event::{EventArgs as _, event, event_args};
+use zng_app::event::{AnyEventArgs as _, event, event_args};
 use zng_app::view_process::raw_events::{RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT};
 use zng_app::window::{MonitorId, WindowId};
 use zng_app_context::app_local;

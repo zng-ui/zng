@@ -22,10 +22,10 @@ use zng_app::{APP, hn};
 
 zng_wgt::enable_widget_macros!();
 
- #[cfg(all(
-        feature = "embedded",
-        any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp")
-    ))]
+#[cfg(all(
+    feature = "embedded",
+    any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp")
+))]
 zng_env::on_process_start!(|args| {
     if args.yield_until_app() {
         return;

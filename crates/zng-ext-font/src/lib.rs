@@ -62,7 +62,7 @@ pub use unit::*;
 use parking_lot::{Mutex, RwLock};
 use pastey::paste;
 use zng_app::{
-    event::{EventArgs, event, event_args},
+    event::{AnyEventArgs, event, event_args},
     render::FontSynthesis,
     update::UPDATES,
     view_process::{

@@ -1,7 +1,7 @@
 use zng_app::{
     EXIT_REQUESTED_EVENT,
     access::{ACCESS_DEINITED_EVENT, ACCESS_INITED_EVENT},
-    event::EventArgs,
+    event::AnyEventArgs,
     hn_once,
     update::UPDATES,
     view_process::{

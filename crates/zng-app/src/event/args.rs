@@ -1,12 +1,12 @@
 use std::sync::{Arc, atomic::AtomicBool};
 
-use zng_var::VarValue;
+use zng_var::{AnyVarValue, VarValue};
 
 use crate::widget::WidgetId;
 use atomic::Ordering::Relaxed;
 
-/// Represents an event update.
-pub trait EventArgs: VarValue {
+/// Represents any event update.
+pub trait AnyEventArgs: AnyVarValue {
     /// Instant this event update happened.
     fn timestamp(&self) -> crate::DInstant;
 
@@ -18,6 +18,10 @@ pub trait EventArgs: VarValue {
 
     /// Gets if the widget is in any of the target paths in this update.
     fn is_in_target(&self, widget: WidgetId) -> bool;
+}
+
+/// Represents a strongly typed event update.
+pub trait EventArgs: AnyEventArgs + VarValue {
 }
 
 ///<span data-del-macro-root></span> Declares new [`EventArgs`] types.
@@ -265,7 +269,7 @@ macro_rules! __event_args {
 
             propagation_handle: $crate::event::EventPropagationHandle,
         }
-        impl $crate::event::EventArgs for $Args {
+        impl $crate::event::AnyEventArgs for $Args {
             fn timestamp(&self) -> $crate::DInstant {
                 self.timestamp
             }
@@ -280,6 +284,7 @@ macro_rules! __event_args {
                 &self.propagation_handle
             }
         }
+        impl $crate::event::EventArgs for $Args { }
     };
 }
 #[doc(inline)]
