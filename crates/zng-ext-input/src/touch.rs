@@ -327,7 +327,7 @@ event_args! {
         /// touch gesture events aggregate all these events to produce a single *gesture event*, usually only a single
         /// gesture should be generated, multiple gestures can disambiguate using this `touch_propagation` handle.
         ///
-        /// As an example, [`TOUCH_TAP_EVENT`] only tries to match the gesture if it has subscribers, and only notifies
+        /// As an example, [`TOUCH_TAP_EVENT`] only notifies
         /// if by the time the gesture completes the `touch_propagation` was not stopped. Touch gesture events or event properties
         /// must stop touch propagation as soon as they commit to a gesture, a *pan* gesture for example, must stop as soon as
         /// it starts scrolling, otherwise the user may accidentally scroll and tap a button at the same time.
@@ -1021,21 +1021,12 @@ event! {
     pub static TOUCHED_EVENT: TouchedArgs { let _ = TOUCH_SV.read(); };
 
     /// Touch tap.
-    ///
-    /// This is a touch gesture event, it only notifies if it has listeners, either widget subscribers in the
-    /// touched path or app level hooks.
     pub static TOUCH_TAP_EVENT: TouchTapArgs { let _ = TOUCH_SV.read(); };
 
     /// Two point touch transform.
-    ///
-    /// This is a touch gesture event, it only notifies if it has listeners, either widget subscribers in the
-    /// touched path or app level hooks.
     pub static TOUCH_TRANSFORM_EVENT: TouchTransformArgs { let _ = TOUCH_SV.read(); };
 
     /// Touch contact pressed without moving for more then the [`tap_max_time`].
-    ///
-    /// This is a touch gesture event, it only notifies if it has listeners, either widget subscribers in the
-    /// touched path or app level hooks.
     ///
     /// [`tap_max_time`]: TouchConfig::tap_max_time
     pub static TOUCH_LONG_PRESS_EVENT: TouchLongPressArgs { let _ = TOUCH_SV.read(); };

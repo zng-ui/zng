@@ -85,17 +85,20 @@ fn thumb_layout(child: impl IntoUiNode) -> UiNode {
     let mut scale_factor = 1.fct();
 
     let mut mouse_down = None::<(Px, Factor)>;
+    let mut mouse_move_handle = VarHandle::dummy();
 
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET
-                .sub_event(&MOUSE_MOVE_EVENT)
-                .sub_event(&MOUSE_INPUT_EVENT)
+                .sub_event_when(&MOUSE_INPUT_EVENT, |args| args.is_primary())
                 .sub_var_layout(&THUMB_OFFSET_VAR);
         }
-        UiNodeOp::Event { update } => {
+        UiNodeOp::Deinit => {
+            mouse_move_handle = VarHandle::dummy();
+        }
+        UiNodeOp::Update { .. } => {
             if let Some((md, start_offset)) = mouse_down {
-                if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
+                MOUSE_MOVE_EVENT.latest_update(true, |args| {
                     let bounds = WIDGET.bounds().inner_bounds();
                     let (mut offset, cancel_offset, bounds_min, bounds_max) = match ORIENTATION_VAR.get() {
                         scrollbar::Orientation::Vertical => (
@@ -136,26 +139,30 @@ fn thumb_layout(child: impl IntoUiNode) -> UiNode {
                     WIDGET.layout();
 
                     args.propagation().stop();
-                } else if let Some(args) = MOUSE_INPUT_EVENT.on(update)
-                    && args.is_primary()
-                    && args.is_mouse_up()
-                {
-                    mouse_down = None;
+                });
+            }
+
+            MOUSE_INPUT_EVENT.each_update(true, |args| {
+                if !args.is_primary() {
+                    return;
+                }
+
+                if mouse_down.is_some() {
+                    if args.is_mouse_up() {
+                        mouse_down = None;
+                        mouse_move_handle = VarHandle::dummy();
+                    }
+                } else if args.is_mouse_down() {
+                    let a = match ORIENTATION_VAR.get() {
+                        scrollbar::Orientation::Vertical => args.position.y.to_px(scale_factor),
+                        scrollbar::Orientation::Horizontal => args.position.x.to_px(scale_factor),
+                    };
+                    mouse_down = Some((a, THUMB_OFFSET_VAR.get()));
+                    mouse_move_handle = MOUSE_MOVE_EVENT.subscribe(UpdateOp::Update, WIDGET.id());
 
                     args.propagation().stop();
                 }
-            } else if let Some(args) = MOUSE_INPUT_EVENT.on(update)
-                && args.is_primary()
-                && args.is_mouse_down()
-            {
-                let a = match ORIENTATION_VAR.get() {
-                    scrollbar::Orientation::Vertical => args.position.y.to_px(scale_factor),
-                    scrollbar::Orientation::Horizontal => args.position.x.to_px(scale_factor),
-                };
-                mouse_down = Some((a, THUMB_OFFSET_VAR.get()));
-
-                args.propagation().stop();
-            }
+            });
         }
         UiNodeOp::Layout { wl, .. } => {
             let bar_size = LAYOUT.constraints().fill_size();

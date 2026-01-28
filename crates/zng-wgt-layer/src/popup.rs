@@ -214,15 +214,15 @@ impl POPUP {
                                 POPUP.close_id(id);
                             }
                         });
-                        POPUP_CLOSE_CMD.scoped(id).latest_update(true, false, |args| {
-                            match args.param::<PopupCloseMode>() {
+                        POPUP_CLOSE_CMD
+                            .scoped(id)
+                            .latest_update(true, false, |args| match args.param::<PopupCloseMode>() {
                                 Some(s) => match s {
                                     PopupCloseMode::Request => POPUP.close_id(id),
                                     PopupCloseMode::Force => LAYERS.remove(id),
                                 },
                                 None => POPUP.close_id(id),
-                            }
-                        });
+                            });
                     });
                 }
                 _ => {}
@@ -473,11 +473,14 @@ fn setup_popup_close_service() {
 
     if !std::mem::replace(&mut *POPUP_SETUP.write(), true) {
         POPUP_CLOSE_REQUESTED_EVENT
-            .on_event(false, hn!(|args| {
-                if !args.propagation().is_stopped() {
-                    POPUP_CLOSE_CMD.scoped(args.popup.widget_id()).notify_param(PopupCloseMode::Force);
-                }
-            }))
+            .on_event(
+                false,
+                hn!(|args| {
+                    if !args.propagation().is_stopped() {
+                        POPUP_CLOSE_CMD.scoped(args.popup.widget_id()).notify_param(PopupCloseMode::Force);
+                    }
+                }),
+            )
             .perm();
     }
 }
