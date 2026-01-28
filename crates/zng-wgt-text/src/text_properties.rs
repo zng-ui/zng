@@ -2030,9 +2030,6 @@ pub fn has_selection(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNod
             UiNodeOp::Deinit => {
                 state.set(false);
             }
-            UiNodeOp::Event { .. } => {
-                update = true;
-            }
             UiNodeOp::Update { .. } => {
                 update = true;
             }
@@ -2069,9 +2066,6 @@ pub fn get_selection(child: impl IntoUiNode, state: impl IntoVar<Txt>) -> UiNode
             }
             UiNodeOp::Deinit => {
                 state.set(Txt::from_static(""));
-            }
-            UiNodeOp::Event { .. } => {
-                update = true;
             }
             UiNodeOp::Update { .. } => {
                 update = true;

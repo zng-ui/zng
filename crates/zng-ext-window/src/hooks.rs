@@ -289,7 +289,7 @@ pub(crate) fn hook_events() {
                 && let Some(w) = s.windows.get(&args.window_id)
                 && let Some(info) = &w.info
                 && let Some(info) = info.get(focus.widget_id())
-                && info.is_ime_area()
+                && info.ime_area().is_some()
             {
                 let mut preview_caret = None;
                 let txt;
@@ -935,10 +935,10 @@ pub(crate) fn focused_widget_handler() -> impl FnMut(&Option<InteractionPath>) +
             && let Some(w) = s.windows.get(&p.window_id())
             && let Some(tree) = &w.info
             && let Some(info) = tree.get(p.widget_id())
-            && info.is_ime_area()
+            && let Some(r) = info.ime_area()
         {
             new_ime_area = Some((p.window_id(), p.widget_id()));
-            area = info.inner_bounds().to_dip(tree.scale_factor());
+            area = r.to_dip(tree.scale_factor());
         }
 
         if prev_ime_area == new_ime_area {
@@ -980,12 +980,12 @@ fn hook_ime_area_update(window_id: WindowId, area_id: WidgetId) -> VarHandle {
     WIDGET_TREE_CHANGED_EVENT.hook(move |args| {
         if args.tree.window_id() == window_id {
             if let Some(area) = args.tree.get(area_id)
-                && area.is_ime_area()
+                && let Some(area) = area.ime_area()
                 && let Some(w) = WINDOWS_SV.read().windows.get(&window_id)
                 && let Some(r) = &w.root
                 && let Some(v) = &r.view_window
             {
-                let _ = v.set_ime_area(Some(area.inner_bounds().to_dip(args.tree.scale_factor())));
+                let _ = v.set_ime_area(Some(area.to_dip(args.tree.scale_factor())));
             } else {
                 return false;
             }

@@ -1,7 +1,11 @@
+use std::sync::Arc;
+
+use atomic::Atomic;
 use zng_app::{
     event::{event, event_args},
     widget::info::{WidgetInfo, WidgetInfoBuilder, WidgetPath},
 };
+use zng_layout::unit::PxRect;
 use zng_state_map::{StateId, static_id};
 use zng_txt::Txt;
 
@@ -58,30 +62,32 @@ event! {
 ///
 /// [`WidgetInfo`]: zng_app::widget::info::WidgetInfo
 pub trait WidgetInfoImeArea {
-    /// If widget defines an IME exclusion area in the window space when it is focused.
-    fn is_ime_area(&self) -> bool;
+    /// IME exclusion area in the window space when this widget is focused.
+    ///
+    /// The are is usually inside the widget inner bounds, representing the text caret or selection.
+    fn ime_area(&self) -> Option<PxRect>;
 }
 
 /// IME extension methods for [`WidgetInfoBuilder`].
 ///
 /// [`WidgetInfoBuilder`]: zng_app::widget::info::WidgetInfoBuilder
 pub trait WidgetInfoBuilderImeArea {
-    /// Flag this widget as an IME exclusion area in the window space when it is focused.
-    fn flag_is_ime_area(&mut self);
+    /// Set an IME exclusion area in the window space when this widget is focused.
+    fn set_ime_area(&mut self, area: Arc<Atomic<PxRect>>);
 }
 
 static_id! {
-    static ref IS_IME_AREA: StateId<()>;
+    static ref IME_AREA_ID: StateId<Arc<Atomic<PxRect>>>;
 }
 
 impl WidgetInfoImeArea for WidgetInfo {
-    fn is_ime_area(&self) -> bool {
-        self.meta().flagged(*IS_IME_AREA)
+    fn ime_area(&self) -> Option<PxRect> {
+        Some(self.meta().get(*IME_AREA_ID)?.load(std::sync::atomic::Ordering::Relaxed))
     }
 }
 
 impl WidgetInfoBuilderImeArea for WidgetInfoBuilder {
-    fn flag_is_ime_area(&mut self) {
-        self.flag_meta(*IS_IME_AREA);
+    fn set_ime_area(&mut self, area: Arc<Atomic<PxRect>>) {
+        self.set_meta(*IME_AREA_ID, area);
     }
 }

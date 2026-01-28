@@ -508,9 +508,6 @@ impl RichText {
     fn no_context() -> Self {
         panic!("no `RichText` in context, only available inside `rich_text`")
     }
-    fn no_dispatch_context() -> Vec<EventUpdate> {
-        panic!("`RichText::notify_leaf` must be called inside `UiNode::event` only")
-    }
 }
 
 context_local! {
@@ -520,26 +517,6 @@ context_local! {
     static RESOLVED_TEXT: RwLock<ResolvedText> = RwLock::new(ResolvedText::no_context());
     /// Represents the contextual [`LaidoutText`] setup by the [`layout_text`] node.
     static LAIDOUT_TEXT: RwLock<LaidoutText> = RwLock::new(LaidoutText::no_context());
-    /// Represents a list of events send from rich text leaves to other leaves.
-    static RICH_TEXT_NOTIFY: RwLock<Vec<EventUpdate>> = RwLock::new(RichText::no_dispatch_context());
-}
-
-impl RichText {
-    /// Send an event *immediately* to a leaf widget inside the rich context.
-    ///
-    /// After the current event returns to the rich text root widget the `update` is sent. Rich text leaves can send
-    /// multiple commands to sibling leaves to implement rich text operations, using this method instead of the global dispatch
-    /// can gain significant performance.
-    ///
-    /// Note that all requests during a single app event run after that event, and all recursive requests during these notification events only
-    /// run after they all notify, that is, not actually recursive.
-    ///
-    /// # Panics
-    ///
-    /// Panics is not called during a `UiNode::event`.
-    pub fn notify_leaf(&self, update: EventUpdate) {
-        RICH_TEXT_NOTIFY.write().push(update);
-    }
 }
 
 bitflags! {
@@ -586,10 +563,6 @@ pub(super) fn get_caret_index(child: impl IntoUiNode, index: impl IntoVar<Option
             UiNodeOp::Deinit => {
                 index.set(None);
             }
-            UiNodeOp::Event { update } => {
-                c.event(update);
-                u = true;
-            }
             UiNodeOp::Update { updates } => {
                 c.update(updates);
                 u = true;
@@ -621,10 +594,6 @@ pub(super) fn get_caret_status(child: impl IntoUiNode, status: impl IntoVar<Care
             }
             UiNodeOp::Deinit => {
                 status.set(CaretStatus::none());
-            }
-            UiNodeOp::Event { update } => {
-                c.event(update);
-                u = true;
             }
             UiNodeOp::Update { updates } => {
                 c.update(updates);
@@ -822,7 +791,7 @@ where
                         if !matches!(state.swap(State::Sync, Ordering::Relaxed), State::Sync) {
                             // exit pending state, even if it parse fails
                             is_pending.set(false);
-                            cmd_handle.set_enabled(false);
+                            cmd_handle.enabled().set(false);
                         }
 
                         // try parse
@@ -842,7 +811,7 @@ where
                         if !matches!(state.swap(State::Pending, Ordering::Relaxed), State::Pending) {
                             // enter pending state
                             is_pending.set(true);
-                            cmd_handle.set_enabled(true);
+                            cmd_handle.enabled().set(true);
                         }
 
                         // does not update the value
@@ -856,7 +825,7 @@ where
 
                     if !matches!(state.swap(State::Sync, Ordering::Relaxed), State::Sync) {
                         is_pending.set(false);
-                        cmd_handle.set_enabled(false);
+                        cmd_handle.enabled().set(false);
                     }
 
                     Some(val.to_txt())
@@ -870,18 +839,17 @@ where
         UiNodeOp::Deinit => {
             _error_note = DataNoteHandle::dummy();
         }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = super::cmd::PARSE_CMD.scoped(WIDGET.id()).on_unhandled(update)
-                && matches!(state.load(Ordering::Relaxed), State::Pending)
-            {
-                // requested parse and parse is pending
-
-                state.store(State::Requested, Ordering::Relaxed);
-                TEXT.resolved().txt.update();
-                args.propagation().stop();
-            }
-        }
         UiNodeOp::Update { .. } => {
+            if matches!(state.load(Ordering::Relaxed), State::Pending) {
+                super::cmd::PARSE_CMD.scoped(WIDGET.id()).each_update(true, false, |args| {
+                    // requested parse and parse is pending
+
+                    state.store(State::Requested, Ordering::Relaxed);
+                    TEXT.resolved().txt.update();
+                    args.propagation().stop();
+                });
+            }
+
             if let Some(true) = TXT_PARSE_LIVE_VAR.get_new()
                 && matches!(state.load(Ordering::Relaxed), State::Pending)
             {
@@ -911,31 +879,6 @@ pub(super) fn on_change_stop(child: impl IntoUiNode, handler: Handler<ChangeStop
         UiNodeOp::Deinit => {
             handler.deinit();
         }
-        UiNodeOp::Event { update } => {
-            if pending.is_none() {
-                return;
-            }
-
-            if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-                if let KeyState::Pressed = args.state
-                    && let Key::Enter = &args.key
-                    && !ACCEPTS_ENTER_VAR.get()
-                {
-                    pending = None;
-                    handler.event(&ChangeStopArgs {
-                        cause: ChangeStopCause::Enter,
-                    });
-                }
-            } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                let target = WIDGET.id();
-                if args.is_blur(target) {
-                    pending = None;
-                    handler.event(&ChangeStopArgs {
-                        cause: ChangeStopCause::Blur,
-                    });
-                }
-            }
-        }
         UiNodeOp::Update { updates } => {
             if TEXT.resolved().txt.is_new() {
                 let deadline = TIMERS.deadline(CHANGE_STOP_DELAY_VAR.get());
@@ -953,6 +896,31 @@ pub(super) fn on_change_stop(child: impl IntoUiNode, handler: Handler<ChangeStop
 
             c.update(updates);
             handler.update();
+
+            if pending.is_none() {
+                return;
+            }
+
+            KEY_INPUT_EVENT.each_update(false, |args| {
+                if let KeyState::Pressed = args.state
+                    && let Key::Enter = &args.key
+                    && !ACCEPTS_ENTER_VAR.get()
+                {
+                    pending = None;
+                    handler.event(&ChangeStopArgs {
+                        cause: ChangeStopCause::Enter,
+                    });
+                }
+            });
+            FOCUS_CHANGED_EVENT.each_update(true, |args| {
+                let target = WIDGET.id();
+                if args.is_blur(target) {
+                    pending = None;
+                    handler.event(&ChangeStopArgs {
+                        cause: ChangeStopCause::Blur,
+                    });
+                }
+            });
         }
         _ => {}
     })
@@ -975,53 +943,7 @@ pub fn selection_toolbar_node(child: impl IntoUiNode) -> UiNode {
             UiNodeOp::Deinit => {
                 close = true;
             }
-            UiNodeOp::Event { update } => {
-                c.event(update);
-
-                let open_id = || {
-                    if let Some(popup_state) = &popup_state
-                        && let PopupState::Open(id) = popup_state.get()
-                    {
-                        return Some(id);
-                    }
-                    None
-                };
-
-                if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
-                    if open_id().map(|id| !args.target.contains(id)).unwrap_or(false) {
-                        close = true;
-                    }
-                    if args.state == ButtonState::Released {
-                        open = true;
-                    }
-                } else if TOUCH_LONG_PRESS_EVENT.has(update) {
-                    open = true;
-                    open_long_press = true;
-                } else if KEY_INPUT_EVENT.has(update) {
-                    close = true;
-                } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                    if args.is_blur(WIDGET.id())
-                        && open_id()
-                            .map(|id| args.new_focus.as_ref().map(|p| !p.contains(id)).unwrap_or(true))
-                            .unwrap_or(false)
-                    {
-                        close = true;
-                    }
-                } else if let Some(args) = TOUCH_INPUT_EVENT.on(update)
-                    && matches!(args.phase, TouchPhase::Start | TouchPhase::Move)
-                    && open_id().map(|id| !args.target.contains(id)).unwrap_or(false)
-                {
-                    close = true;
-                }
-
-                if popup_state.is_some() {
-                    let r_txt = TEXT.resolved();
-                    if selection_range != r_txt.caret.selection_range() {
-                        close = true;
-                    }
-                }
-            }
-            UiNodeOp::Update { .. } => {
+            UiNodeOp::Update { updates } => {
                 if SELECTION_TOOLBAR_FN_VAR.is_new() {
                     close = true;
                 }
@@ -1035,6 +957,58 @@ pub fn selection_toolbar_node(child: impl IntoUiNode) -> UiNode {
                         if !is_open {
                             popup_state = None;
                         }
+                    }
+                }
+
+                c.update(updates);
+
+                let open_id = || {
+                    if let Some(popup_state) = &popup_state
+                        && let PopupState::Open(id) = popup_state.get()
+                    {
+                        return Some(id);
+                    }
+                    None
+                };
+
+                MOUSE_INPUT_EVENT.each_update(true, |args| {
+                    if open_id().map(|id| !args.target.contains(id)).unwrap_or(false) {
+                        close = true;
+                    }
+                    if args.state == ButtonState::Released {
+                        open = true;
+                    }
+                });
+
+                if TOUCH_LONG_PRESS_EVENT.has_update(true) {
+                    open = true;
+                    open_long_press = true;
+                }
+                if KEY_INPUT_EVENT.has_update(true) {
+                    close = true;
+                }
+
+                FOCUS_CHANGED_EVENT.each_update(true, |args| {
+                    if args.is_blur(WIDGET.id())
+                        && open_id()
+                            .map(|id| args.new_focus.as_ref().map(|p| !p.contains(id)).unwrap_or(true))
+                            .unwrap_or(false)
+                    {
+                        close = true;
+                    }
+                });
+                TOUCH_INPUT_EVENT.each_update(true, |args| {
+                    if matches!(args.phase, TouchPhase::Start | TouchPhase::Move)
+                        && open_id().map(|id| !args.target.contains(id)).unwrap_or(false)
+                    {
+                        close = true;
+                    }
+                });
+
+                if popup_state.is_some() {
+                    let r_txt = TEXT.resolved();
+                    if selection_range != r_txt.caret.selection_range() {
+                        close = true;
                     }
                 }
             }

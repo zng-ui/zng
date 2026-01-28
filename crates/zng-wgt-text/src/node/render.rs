@@ -175,15 +175,17 @@ pub fn render_selection(child: impl IntoUiNode) -> UiNode {
             WIDGET.sub_var_render(&SELECTION_COLOR_VAR);
             is_focused = false;
         }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                // rich context also sends this event to all selected
-                let new_is_focused = args.is_focus_within(TEXT.try_rich().map(|r| r.root_id).unwrap_or_else(|| WIDGET.id()));
-                if is_focused != new_is_focused {
-                    WIDGET.render();
-                    is_focused = new_is_focused;
+        UiNodeOp::Update { .. } => {
+            // rich context extends update for focus on rich root to all selected leaves
+            FOCUS_CHANGED_EVENT.var().with_new(|updates| {
+                for args in updates.iter() {
+                    let new_is_focused = args.is_focus_within(TEXT.try_rich().map(|r| r.root_id).unwrap_or_else(|| WIDGET.id()));
+                    if is_focused != new_is_focused {
+                        WIDGET.render();
+                        is_focused = new_is_focused;
+                    }
                 }
-            }
+            });
         }
         UiNodeOp::Render { frame } => {
             let r_txt = TEXT.resolved();

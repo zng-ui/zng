@@ -4,7 +4,7 @@ use atomic::Atomic;
 use parking_lot::RwLock;
 use zng_app::{
     DInstant,
-    event::{AnyEventArgs as _, CommandHandle, EventHandle, EventHandles},
+    event::{CommandHandle, EventArgs as _},
     widget::{
         WIDGET,
         node::{UiNode, UiNodeOp, match_node},
@@ -874,13 +874,6 @@ fn layout_text_edit(child: impl IntoUiNode) -> UiNode {
                     info.set_ime_area(e.ime_area.clone());
                 }
             }
-            UiNodeOp::Event { update } => {
-                child.event(update);
-
-                if let Some(e) = &mut edit {
-                    layout_text_edit_events(update, e);
-                }
-            }
             UiNodeOp::Update { .. } => {
                 if TEXT_EDITABLE_VAR.is_new() || TEXT_SELECTABLE_VAR.is_new() {
                     enable = TEXT_EDITABLE_VAR.get() || TEXT_SELECTABLE_VAR.get();
@@ -889,7 +882,7 @@ fn layout_text_edit(child: impl IntoUiNode) -> UiNode {
                     }
                 } else if let Some(edit) = &edit {
                     TEXT.resolved().txt.with_new(|t| {
-                        edit.select_all.set_enabled(!t.is_empty());
+                        edit.select_all.enabled().set(!t.is_empty());
                     });
                 }
 
@@ -897,12 +890,16 @@ fn layout_text_edit(child: impl IntoUiNode) -> UiNode {
                     && let Some(obscure) = OBSCURE_TXT_VAR.get_new()
                 {
                     if edit.is_none() && WINDOW.info().access_enabled().is_enabled() {
-                        WIDGET.info();
+                        WIDGET.update_info();
                     }
 
                     if obscure {
                         UNDO.clear();
                     }
+                }
+
+                if let Some(e) = &mut edit {
+                    layout_text_edit_events(e);
                 }
             }
             UiNodeOp::Render { frame } => {
@@ -929,10 +926,10 @@ fn layout_text_edit(child: impl IntoUiNode) -> UiNode {
             if selectable || editable {
                 let id = WIDGET.id();
 
-                edit.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
-                edit.events[1] = TOUCH_TAP_EVENT.subscribe(id);
-                edit.events[2] = TOUCH_LONG_PRESS_EVENT.subscribe(id);
-                edit.events[3] = TOUCH_INPUT_EVENT.subscribe(id);
+                edit.events[0] = MOUSE_INPUT_EVENT.subscribe(UpdateOp::Update, id);
+                edit.events[1] = TOUCH_TAP_EVENT.subscribe(UpdateOp::Update, id);
+                edit.events[2] = TOUCH_LONG_PRESS_EVENT.subscribe(UpdateOp::Update, id);
+                edit.events[3] = TOUCH_INPUT_EVENT.subscribe(UpdateOp::Update, id);
                 // KEY_INPUT_EVENT subscribed by `resolve_text`.
             } else {
                 edit.events = Default::default();
@@ -954,7 +951,7 @@ fn layout_text_edit(child: impl IntoUiNode) -> UiNode {
 /// Data allocated only when `editable`.
 #[derive(Default)]
 struct LayoutTextEdit {
-    events: [EventHandle; 4],
+    events: [VarHandle; 4],
     caret_animation: VarHandle,
     select: CommandHandle,
     select_all: CommandHandle,
@@ -962,7 +959,7 @@ struct LayoutTextEdit {
     click_count: u8,
     selection_mouse_down: Option<SelectionMouseDown>,
     auto_select: bool,
-    selection_move_handles: EventHandles,
+    selection_move_handles: VarHandles,
     selection_started_by_alt: bool,
 }
 struct SelectionMouseDown {
@@ -1006,7 +1003,7 @@ impl LayoutTextEdit {
     }
 }
 
-fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
+fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
     let resolved = TEXT.resolved();
     let editable = TEXT_EDITABLE_VAR.get() && resolved.txt.capabilities().can_modify();
     let selectable = TEXT_SELECTABLE_VAR.get();
@@ -1027,7 +1024,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
     };
     drop(resolved);
 
-    if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
+    KEY_INPUT_EVENT.each_update(false, |args| {
         if args.state == KeyState::Pressed {
             if args.target.widget_id() == widget.id() {
                 match &args.key {
@@ -1215,7 +1212,8 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                 args.propagation().stop();
             }
         }
-    } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
+    });
+    MOUSE_INPUT_EVENT.each_update(true, |args| {
         if args.is_primary() && args.is_mouse_down() && args.target.widget_id() == widget.id() {
             let mut modifiers = args.modifiers;
             let alt = modifiers.take_alt();
@@ -1296,8 +1294,9 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                 };
                 if selectable {
                     let id = widget.id();
-                    edit.selection_move_handles.push(MOUSE_MOVE_EVENT.subscribe(id));
-                    edit.selection_move_handles.push(POINTER_CAPTURE_EVENT.subscribe(id));
+                    edit.selection_move_handles.push(MOUSE_MOVE_EVENT.subscribe(UpdateOp::Update, id));
+                    edit.selection_move_handles
+                        .push(POINTER_CAPTURE_EVENT.subscribe(UpdateOp::Update, id));
                     POINTER_CAPTURE.capture_widget(id);
                 }
             }
@@ -1314,7 +1313,9 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             }
             edit.selection_move_handles.clear();
         }
-    } else if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
+    });
+
+    TOUCH_INPUT_EVENT.each_update(false, |args| {
         let mut modifiers = args.modifiers;
         let alt = modifiers.take_alt();
         if modifiers.is_empty() && (!selectable_alt_only || alt) && args.target.widget_id() == widget.id() {
@@ -1325,7 +1326,9 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                 && !FOCUS.is_focused(widget.id()).get()
                 && TEXT.resolved().caret.selection_range().is_none();
         }
-    } else if let Some(args) = TOUCH_TAP_EVENT.on_unhandled(update) {
+    });
+
+    TOUCH_TAP_EVENT.each_update(false, |args| {
         let mut modifiers = args.modifiers;
         let alt = modifiers.take_alt();
         if modifiers.is_empty() && (!selectable_alt_only || alt) && args.target.widget_id() == widget.id() {
@@ -1351,7 +1354,8 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                 TextSelectOp::select_all().call()
             }
         }
-    } else if let Some(args) = TOUCH_LONG_PRESS_EVENT.on_unhandled(update) {
+    });
+    TOUCH_LONG_PRESS_EVENT.each_update(false, |args| {
         let mut modifiers = args.modifiers;
         let alt = modifiers.take_alt();
         if modifiers.is_empty() && (!selectable_alt_only || alt) && selectable && args.target.widget_id() == widget.id() {
@@ -1368,7 +1372,8 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
 
             TextSelectOp::select_word_nearest_to(true, args.position).call();
         }
-    } else if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
+    });
+    MOUSE_MOVE_EVENT.each_update(false, |args| {
         if !edit.selection_move_handles.is_dummy() && selectable {
             let handle = if let Some(rich_root_id) = TEXT.try_rich().map(|r| r.root_id) {
                 args.target.contains(rich_root_id)
@@ -1388,21 +1393,25 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                 }
             }
         }
-    } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
+    });
+    POINTER_CAPTURE_EVENT.each_update(false, |args| {
         if args.is_lost(widget.id()) {
             edit.selection_move_handles.clear();
             edit.auto_select = false;
         }
-    } else if selectable {
-        if let Some(args) = SELECT_CMD.scoped(widget.id()).on_unhandled(update) {
+    });
+
+    if selectable {
+        SELECT_CMD.scoped(widget.id()).each_update(true, false, |args| {
             if let Some(op) = args.param::<TextSelectOp>() {
                 args.propagation().stop();
                 op.clone().call();
             }
-        } else if let Some(args) = SELECT_ALL_CMD.scoped(widget.id()).on_unhandled(update) {
+        });
+        SELECT_ALL_CMD.scoped(widget.id()).each_update(true, false, |args| {
             args.propagation().stop();
             TextSelectOp::select_all().call();
-        }
+        });
     }
 
     let mut resolve = TEXT.resolve();

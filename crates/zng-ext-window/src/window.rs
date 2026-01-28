@@ -662,9 +662,9 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                             && let Some(w) = s.windows.get(&id)
                             && let Some(i) = &w.info
                             && let Some(i) = i.get(f.widget_id())
-                            && i.is_ime_area()
+                            && let Some(r) = i.ime_area()
                         {
-                            ime_area = Some(i.inner_bounds().to_dip(scale_factor));
+                            ime_area = Some(r.to_dip(scale_factor));
                         }
                     });
                 }

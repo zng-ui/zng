@@ -13,7 +13,7 @@ use crate::{
     cmd::{SELECT_ALL_CMD, SELECT_CMD, TextSelectOp},
 };
 
-use super::{RICH_TEXT, RICH_TEXT_NOTIFY, RichCaretInfo, RichText, TEXT};
+use super::{RICH_TEXT, RichCaretInfo, RichText, TEXT};
 
 pub(crate) fn rich_text_node(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
@@ -22,7 +22,6 @@ pub(crate) fn rich_text_node(child: impl IntoUiNode, enabled: impl IntoVar<bool>
     let child = rich_text_component(child, "rich_text");
 
     let mut ctx = None;
-    let mut dispatch = None;
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&enabled);
@@ -35,37 +34,8 @@ pub(crate) fn rich_text_node(child: impl IntoUiNode, enabled: impl IntoVar<bool>
                     },
                     selection_started_by_alt: false,
                 })));
-                dispatch = Some(Arc::new(RwLock::new(vec![])));
 
                 RICH_TEXT.with_context(&mut ctx, || child.init());
-            }
-        }
-        UiNodeOp::Event { update } => {
-            if ctx.is_some() {
-                RICH_TEXT.with_context(&mut ctx, || {
-                    RICH_TEXT_NOTIFY.with_context(&mut dispatch, || {
-                        child.event(update);
-
-                        let mut tree = None;
-                        let mut requests = std::mem::take(&mut *RICH_TEXT_NOTIFY.write());
-                        while !requests.is_empty() {
-                            for mut update in requests.drain(..) {
-                                if update.delivery_list_mut().has_pending_search() {
-                                    if tree.is_none() {
-                                        tree = Some(WINDOW.info());
-                                    }
-                                    update.delivery_list_mut().fulfill_search(tree.iter());
-                                }
-                                if update.delivery_list().enter_widget(WIDGET.id()) {
-                                    child.event(&update);
-                                } else {
-                                    tracing::error!("RichText notify_leaf update does not target an widget inside the rich context");
-                                }
-                            }
-                            requests.extend(RICH_TEXT_NOTIFY.write().drain(..));
-                        }
-                    });
-                });
             }
         }
         UiNodeOp::Update { updates } => {
@@ -79,7 +49,6 @@ pub(crate) fn rich_text_node(child: impl IntoUiNode, enabled: impl IntoVar<bool>
             if ctx.is_some() {
                 RICH_TEXT.with_context(&mut ctx, || child.deinit());
                 ctx = None;
-                dispatch = None;
             }
         }
         op => {
@@ -101,7 +70,7 @@ fn rich_text_cmds(child: impl IntoUiNode) -> UiNode {
         select_all: CommandHandle,
     }
     let mut _cmds = Cmds::default();
-    match_node(child, move |child, op| match op {
+    match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             if TEXT.try_rich().is_some() {
                 let id = WIDGET.id();
@@ -116,12 +85,12 @@ fn rich_text_cmds(child: impl IntoUiNode) -> UiNode {
         UiNodeOp::Deinit => {
             _cmds = Cmds::default();
         }
-        UiNodeOp::Event { update } => {
+        UiNodeOp::Update { .. } => {
             let ctx = match TEXT.try_rich() {
                 Some(c) => c,
                 None => return, // disabled
             };
-            if let Some(args) = COPY_CMD.event().on_unhandled(update) {
+            COPY_CMD.event().each_update(false, |args| {
                 if args.param.is_none()
                     && let CommandScope::Widget(scope_id) = args.scope
                     && (ctx.root_id == scope_id || ctx.leaf_info(scope_id).is_some())
@@ -129,42 +98,49 @@ fn rich_text_cmds(child: impl IntoUiNode) -> UiNode {
                     // is normal COPY_CMD request for the rich text or a leaf text.
                     args.propagation().stop();
 
-                    let mut txt = String::new();
+                    let leaf_texts: Vec<_> = ctx
+                        .selection()
+                        .map(|leaf| {
+                            let rich_copy = RichTextCopyParam::default();
+                            COPY_CMD.scoped(leaf.id()).notify_param(rich_copy.clone());
+                            (rich_copy, leaf)
+                        })
+                        .collect();
 
-                    for leaf in ctx.selection() {
-                        let rich_copy = RichTextCopyParam::default();
-                        let mut update = COPY_CMD.scoped(leaf.id()).new_update_param(rich_copy.clone());
-                        update.delivery_list_mut().fulfill_search([leaf.tree()].into_iter());
+                    if !leaf_texts.is_empty() {
+                        // after all leafs set the text
+                        UPDATES.once_next_update("rich-text-copy", move || {
+                            let mut txt = String::new();
 
-                        child.event(&update);
+                            for (leaf_text, leaf) in leaf_texts {
+                                if let Some(t_frag) = leaf_text.into_text() {
+                                    let line_info = leaf.rich_text_line_info();
+                                    if line_info.starts_new_line && !line_info.is_wrap_start && !txt.is_empty() {
+                                        txt.push('\n');
+                                    }
 
-                        if let Some(t_frag) = rich_copy.into_text() {
-                            let line_info = leaf.rich_text_line_info();
-                            if line_info.starts_new_line && !line_info.is_wrap_start && !txt.is_empty() {
-                                txt.push('\n');
+                                    txt.push_str(&t_frag);
+                                }
                             }
 
-                            txt.push_str(&t_frag);
-                        }
+                            let _ = CLIPBOARD.set_text(txt);
+                        });
                     }
+                }
+            });
 
-                    let _ = CLIPBOARD.set_text(txt);
-                }
-            } else if let Some(args) = SELECT_CMD.scoped(ctx.root_id).on_unhandled(update) {
+            SELECT_CMD.scoped(ctx.root_id).each_update(true, false, |args| {
                 args.propagation().stop();
                 if let Some(leaf) = ctx.caret_index_info().or_else(|| ctx.leaves().next()) {
-                    let mut update = SELECT_CMD.scoped(leaf.id()).new_update();
-                    update.delivery_list_mut().fulfill_search([leaf.tree()].into_iter());
-                    child.event(&update);
+                    SELECT_CMD.scoped(leaf.id()).notify_param(args.param.clone());
                 }
-            } else if let Some(args) = SELECT_ALL_CMD.scoped(ctx.root_id).on_unhandled(update) {
+            });
+            SELECT_ALL_CMD.scoped(ctx.root_id).latest_update(true, false, |args| {
                 args.propagation().stop();
                 if let Some(leaf) = ctx.caret_index_info().or_else(|| ctx.leaves().next()) {
-                    let mut update = SELECT_ALL_CMD.scoped(leaf.id()).new_update();
-                    update.delivery_list_mut().fulfill_search([leaf.tree()].into_iter());
-                    child.event(&update);
+                    SELECT_ALL_CMD.scoped(leaf.id()).notify_param(args.param.clone());
                 }
-            }
+            });
         }
         _ => {}
     })
@@ -172,22 +148,22 @@ fn rich_text_cmds(child: impl IntoUiNode) -> UiNode {
 // some visuals (like selection background) depend on focused status of any rich leaf
 fn rich_text_focus_change_broadcast(child: impl IntoUiNode) -> UiNode {
     match_node(child, move |c, op| {
-        if let UiNodeOp::Event { update } = op
-            && let Some(args) = FOCUS_CHANGED_EVENT.on(update)
-        {
-            let ctx = match TEXT.try_rich() {
-                Some(c) => c,
-                None => return, // disabled
-            };
-            if args.prev_focus.iter().chain(args.new_focus.iter()).any(|p| p.contains(ctx.root_id)) {
-                let mut extended_list = UpdateDeliveryList::new_any();
-                for leaf in ctx.leaves() {
-                    extended_list.insert_wgt(&leaf);
+        if let UiNodeOp::Update { .. } = op {
+            FOCUS_CHANGED_EVENT.each_update(true, |args| {
+                let ctx = match TEXT.try_rich() {
+                    Some(c) => c,
+                    None => return, // disabled
+                };
+                if args.prev_focus.iter().chain(args.new_focus.iter()).any(|p| p.contains(ctx.root_id)) {
+                    // visuals know to receive FOCUS_CHANGED_EVENT for rich root ID too
+                    let mut extended_list = UpdateDeliveryList::new();
+                    for leaf in ctx.leaves() {
+                        extended_list.insert_wgt(&leaf);
+                    }
+                    let updates = WidgetUpdates::new(extended_list);
+                    c.node().update(&updates);
                 }
-                args.delivery_list(&mut extended_list);
-                debug_assert!(!extended_list.has_pending_search()); // FocusChangedArgs inserts full paths.
-                c.event(&update.custom(extended_list));
-            }
+            });
         }
     })
 }
@@ -231,8 +207,8 @@ pub fn rich_text_component(child: impl IntoUiNode, kind: &'static str) -> UiNode
                 info.set_meta(*RICH_TEXT_COMPONENT_ID, c);
             }
         }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+        UiNodeOp::Update { updates } => {
+            FOCUS_CHANGED_EVENT.each_update(true, |args| {
                 let new_is_focus_within = args.is_focus_within(WIDGET.id());
                 if focus_within != new_is_focus_within {
                     focus_within = new_is_focus_within;
@@ -242,9 +218,8 @@ pub fn rich_text_component(child: impl IntoUiNode, kind: &'static str) -> UiNode
                         WIDGET.update(); // Z_INDEX.set only works on update
                     }
                 }
-            }
-        }
-        UiNodeOp::Update { updates } => {
+            });
+
             c.update(updates);
 
             if let Some(apply) = index_update.take() {
@@ -532,7 +507,7 @@ impl RichCaretInfo {
 }
 
 pub(crate) fn notify_leaf_select_op(leaf_id: WidgetId, op: TextSelectOp) {
-    RICH_TEXT_NOTIFY.write().push(SELECT_CMD.scoped(leaf_id).new_update_param(op));
+    SELECT_CMD.scoped(leaf_id).notify_param(op);
 }
 
 /// Extends [`WidgetInfo`] state to provide information about rich text.
