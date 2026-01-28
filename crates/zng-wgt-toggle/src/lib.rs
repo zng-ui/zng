@@ -98,24 +98,24 @@ pub fn checked(child: impl IntoUiNode, checked: impl IntoVar<bool>) -> UiNode {
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary()
                         && checked.capabilities().contains(VarCapability::MODIFY)
-                        && !args.propagation().is_stopped()
+                        && !args.propagation.is_stopped()
                         && args.target.contains_enabled(WIDGET.id())
                     {
-                        args.propagation().stop();
+                        args.propagation.stop();
 
                         checked.set(!checked.get());
                     }
                 } else if let Some(args) = cmd::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                     if let Some(b) = args.param::<bool>() {
-                        args.propagation().stop();
+                        args.propagation.stop();
                         checked.set(*b);
                     } else if let Some(b) = args.param::<Option<bool>>() {
                         if let Some(b) = b {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             checked.set(*b);
                         }
                     } else if args.param.is_none() {
-                        args.propagation().stop();
+                        args.propagation.stop();
                         checked.set(!checked.get());
                     }
                 }
@@ -161,27 +161,27 @@ pub fn checked_opt(child: impl IntoUiNode, checked: impl IntoVar<Option<bool>>) 
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary()
                         && checked.capabilities().contains(VarCapability::MODIFY)
-                        && !args.propagation().is_stopped()
+                        && !args.propagation.is_stopped()
                         && args.target.contains_enabled(WIDGET.id())
                     {
-                        args.propagation().stop();
+                        args.propagation.stop();
 
                         cycle = true;
                     }
                 } else if let Some(args) = cmd::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                     if let Some(b) = args.param::<bool>() {
-                        args.propagation().stop();
+                        args.propagation.stop();
                         checked.set(Some(*b));
                     } else if let Some(b) = args.param::<Option<bool>>() {
                         if IS_TRISTATE_VAR.get() {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             checked.set(*b);
                         } else if let Some(b) = b {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             checked.set(Some(*b));
                         }
                     } else if args.param.is_none() {
-                        args.propagation().stop();
+                        args.propagation.stop();
 
                         cycle = true;
                     }
@@ -384,8 +384,8 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
             child.event(update);
 
             if let Some(args) = CLICK_EVENT.on(update) {
-                if args.is_primary() && !args.propagation().is_stopped() && args.target.contains_enabled(WIDGET.id()) {
-                    args.propagation().stop();
+                if args.is_primary() && !args.propagation.is_stopped() && args.target.contains_enabled(WIDGET.id()) {
+                    args.propagation.stop();
 
                     value.with(|value| {
                         let selected = if checked.get() == Some(true) {
@@ -398,7 +398,7 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
                 }
             } else if let Some(args) = cmd::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                 if args.param.is_none() {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     value.with(|value| {
                         let selected = if checked.get() == Some(true) {
@@ -415,7 +415,7 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
                         args.param::<bool>().copied()
                     };
                     if let Some(s) = s {
-                        args.propagation().stop();
+                        args.propagation.stop();
 
                         value.with(|value| {
                             let selected = if s { select(value) } else { !deselect(value) };
@@ -426,7 +426,7 @@ fn value_impl(child: impl IntoUiNode, value: AnyVar) -> UiNode {
             } else if let Some(args) = cmd::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update)
                 && args.param.is_none()
             {
-                args.propagation().stop();
+                args.propagation.stop();
                 value.with(|value| {
                     let selected = checked.get() == Some(true);
                     if !selected && select(value) {
@@ -527,7 +527,7 @@ pub fn selector(child: impl IntoUiNode, selector: impl IntoValue<Selector>) -> U
             if let Some(args) = cmd::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update)
                 && let Some(p) = args.param::<cmd::SelectOp>()
             {
-                args.propagation().stop();
+                args.propagation.stop();
 
                 p.call();
             }
@@ -1182,7 +1182,7 @@ pub fn checked_popup(child: impl IntoUiNode, popup: impl IntoVar<WidgetFn<()>>) 
                     // close on mouse down to avoid issue when the popup closes on mouse-down (due to focus loss),
                     // but a click is formed (down+up) on the toggle that immediately opens the popup again.
                     if args.is_mouse_down() && args.is_primary() && IS_CHECKED_VAR.get() == Some(true) {
-                        args.propagation().stop();
+                        args.propagation.stop();
                         cmd::TOGGLE_CMD.scoped(WIDGET.id()).notify_param(Some(false));
                     }
                 }

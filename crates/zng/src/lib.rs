@@ -357,7 +357,7 @@
 //!         widget::visibility = cmd.has_handlers().map_into();
 //!         tooltip = Tip!(Text!(cmd.name_with_shortcut()));
 //!         on_click = hn!(|args: &gesture::ClickArgs| {
-//!             args.propagation().stop();
+//!             args.propagation.stop();
 //!             cmd.notify();
 //!         });
 //!     };

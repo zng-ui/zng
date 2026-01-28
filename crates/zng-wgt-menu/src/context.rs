@@ -76,7 +76,7 @@ fn context_menu_node(child: impl IntoUiNode, menu: impl IntoVar<WidgetFn<Context
                     args.target.interactivity().is_enabled()
                 };
                 if apply {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     let menu = menu.get()(ContextMenuArgs {
                         anchor_id: WIDGET.id(),

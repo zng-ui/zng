@@ -218,7 +218,7 @@ impl SearchStyle {
                     })
                 });
                 on_click = hn!(|args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     zng_wgt_text::cmd::EDIT_CMD
                         .scoped(WIDGET.info().parent().unwrap().id())
                         .notify_param(zng_wgt_text::cmd::TextEditOp::clear());

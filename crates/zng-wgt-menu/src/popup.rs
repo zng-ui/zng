@@ -164,7 +164,7 @@ pub fn sub_menu_popup_node(children: ArcNode, parent: Option<WidgetId>) -> UiNod
                         Key::Escape => {
                             let info = WIDGET.info();
                             if let Some(m) = info.submenu_parent() {
-                                args.propagation().stop();
+                                args.propagation.stop();
 
                                 FOCUS.focus_widget(m.id(), true);
                                 POPUP.force_close_id(info.id());
@@ -188,13 +188,13 @@ pub fn sub_menu_popup_node(children: ArcNode, parent: Option<WidgetId>) -> UiNod
                                         }
 
                                         if escape {
-                                            args.propagation().stop();
+                                            args.propagation.stop();
                                             // escape
 
                                             FOCUS.focus_widget(m.id(), true);
                                             POPUP.force_close_id(WIDGET.id());
                                         } else if let Some(m) = info.info().submenu_root() {
-                                            args.propagation().stop();
+                                            args.propagation.stop();
                                             // change root
 
                                             let m = m.into_focus_info(true, true);
@@ -230,12 +230,12 @@ pub fn sub_menu_popup_node(children: ArcNode, parent: Option<WidgetId>) -> UiNod
                     {
                         if sub_focused.submenu_ancestors().any(|a| a.id() == sub_self.id()) {
                             // keep open, focused child.
-                            args.propagation().stop();
+                            args.propagation.stop();
                             close_ancestors = None;
                         } else if sub_self.submenu_ancestors().any(|a| a.id() == sub_focused.id()) {
                             if Some(sub_focused.id()) == sub_self.submenu_parent().map(|s| s.id()) {
                                 // keep open, focused parent.
-                                args.propagation().stop();
+                                args.propagation.stop();
                                 close_ancestors = None;
                             } else {
                                 close_ancestors = Some(Some(sub_focused.id()));

@@ -31,7 +31,7 @@
 //!     });
 //!     gesture::on_pre_click = hn!(|args| {
 //!         if count.get() == 10 {
-//!             args.propagation().stop();
+//!             args.propagation.stop();
 //!             count.set(0u8);
 //!         }
 //!     });

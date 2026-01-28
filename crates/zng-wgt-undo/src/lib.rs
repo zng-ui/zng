@@ -89,7 +89,7 @@ pub fn undo_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> UiNod
 
                 let id = WIDGET.id();
                 UNDO_CMD.scoped(id).each_update(false, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     UNDO.with_scope(&mut scope, || {
                         if let Some(&n) = args.param::<u32>() {
                             UNDO.undo_select(n);
@@ -103,7 +103,7 @@ pub fn undo_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> UiNod
                     });
                 });
                 REDO_CMD.scoped(id).each_update(false, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     UNDO.with_scope(&mut scope, || {
                         if let Some(&n) = args.param::<u32>() {
                             UNDO.redo_select(n);
@@ -117,7 +117,7 @@ pub fn undo_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> UiNod
                     });
                 });
                 CLEAR_HISTORY_CMD.scoped(id).each_update(false, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     UNDO.with_scope(&mut scope, || {
                         UNDO.clear();
                     });

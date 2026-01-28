@@ -96,7 +96,7 @@ fn rich_text_cmds(child: impl IntoUiNode) -> UiNode {
                     && (ctx.root_id == scope_id || ctx.leaf_info(scope_id).is_some())
                 {
                     // is normal COPY_CMD request for the rich text or a leaf text.
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     let leaf_texts: Vec<_> = ctx
                         .selection()
@@ -130,13 +130,13 @@ fn rich_text_cmds(child: impl IntoUiNode) -> UiNode {
             });
 
             SELECT_CMD.scoped(ctx.root_id).each_update(true, false, |args| {
-                args.propagation().stop();
+                args.propagation.stop();
                 if let Some(leaf) = ctx.caret_index_info().or_else(|| ctx.leaves().next()) {
                     SELECT_CMD.scoped(leaf.id()).notify_param(args.param.clone());
                 }
             });
             SELECT_ALL_CMD.scoped(ctx.root_id).latest_update(true, false, |args| {
-                args.propagation().stop();
+                args.propagation.stop();
                 if let Some(leaf) = ctx.caret_index_info().or_else(|| ctx.leaves().next()) {
                     SELECT_ALL_CMD.scoped(leaf.id()).notify_param(args.param.clone());
                 }

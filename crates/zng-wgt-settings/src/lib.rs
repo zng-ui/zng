@@ -295,7 +295,7 @@ fn command_handler(child: impl IntoUiNode) -> UiNode {
             c.event(update);
 
             if let Some(args) = SETTINGS_CMD.scoped(WIDGET.id()).on_unhandled(update) {
-                args.propagation().stop();
+                args.propagation.stop();
 
                 if let Some(id) = args.param::<CategoryId>() {
                     if SETTINGS
@@ -335,11 +335,11 @@ pub fn handle_settings_cmd() {
         .on_event(
             true,
             async_hn!(|args| {
-                if args.propagation().is_stopped() || !SETTINGS.any(|_, _| true) {
+                if args.propagation.is_stopped() || !SETTINGS.any(|_, _| true) {
                     return;
                 }
 
-                args.propagation().stop();
+                args.propagation.stop();
 
                 let parent = WINDOWS.focused_window_id();
 

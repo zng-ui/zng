@@ -105,7 +105,7 @@ fn dialog_closing_node(child: impl IntoUiNode) -> UiNode {
                                     .notify_param(path.widget_id());
                             } else {
                                 // no default response, cancel close
-                                args.propagation().stop();
+                                args.propagation.stop();
                                 DIALOG_CLOSE_CANCELED_EVENT.notify(DialogCloseCanceledArgs::now(path));
                             }
                         }
@@ -123,7 +123,7 @@ fn dialog_closing_node(child: impl IntoUiNode) -> UiNode {
                         if let Some(r) = DEFAULT_RESPONSE_VAR.get() {
                             ctx.responder.respond(r);
                         } else {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             DIALOG_CLOSE_CANCELED_EVENT.notify(DialogCloseCanceledArgs::now(WIDGET.info().path()));
                         }
                     }
@@ -281,7 +281,7 @@ pub fn default_button_fn(args: DialogButtonArgs) -> UiNode {
     zng_wgt_button::Button! {
         child = Text!(args.response.label.clone());
         on_click = hn_once!(|a: &zng_wgt_input::gesture::ClickArgs| {
-            a.propagation().stop();
+            a.propagation.stop();
             DIALOG.respond(args.response);
         });
         focus_on_init = args.is_last;

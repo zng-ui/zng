@@ -20,7 +20,7 @@ use std::{
 use zng_app::{
     DInstant, HeadlessApp,
     access::{ACCESS_CLICK_EVENT, AccessClickArgs},
-    event::{Command, CommandScope, EVENTS, AnyEventArgs as _, EventPropagationHandle, event, event_args},
+    event::{AnyEventArgs as _, Command, CommandScope, EVENTS, EventPropagationHandle, event, event_args},
     shortcut::{
         CommandShortcutExt, GestureKey, KeyChord, KeyGesture, ModifierGesture, ModifiersState, Shortcut, ShortcutFilter, Shortcuts,
         shortcut,
@@ -177,7 +177,7 @@ impl From<MouseClickArgs> for ClickArgs {
     fn from(args: MouseClickArgs) -> Self {
         ClickArgs::new(
             args.timestamp,
-            args.propagation().clone(),
+            args.propagation.clone(),
             args.window_id,
             args.device_id,
             ClickArgsSource::Mouse {
@@ -196,7 +196,7 @@ impl From<TouchTapArgs> for ClickArgs {
     fn from(args: TouchTapArgs) -> Self {
         ClickArgs::new(
             args.timestamp,
-            args.propagation().clone(),
+            args.propagation.clone(),
             args.window_id,
             args.device_id,
             ClickArgsSource::Touch {
@@ -215,7 +215,7 @@ impl From<TouchLongPressArgs> for ClickArgs {
     fn from(args: TouchLongPressArgs) -> Self {
         ClickArgs::new(
             args.timestamp,
-            args.propagation().clone(),
+            args.propagation.clone(),
             args.window_id,
             args.device_id,
             ClickArgsSource::Touch {
@@ -464,7 +464,7 @@ impl GesturesService {
 
     fn on_key_input(&mut self, args: &KeyInputArgs) {
         let key = args.shortcut_key();
-        if !args.propagation().is_stopped() && !matches!(key, Key::Unidentified) {
+        if !args.propagation.is_stopped() && !matches!(key, Key::Unidentified) {
             match args.state {
                 KeyState::Pressed => {
                     if let Ok(gesture_key) = GestureKey::try_from(key.clone()) {
@@ -512,7 +512,7 @@ impl GesturesService {
 
         SHORTCUT_EVENT.notify(ShortcutArgs::new(
             key_args.timestamp,
-            key_args.propagation().clone(),
+            key_args.propagation.clone(),
             key_args.window_id,
             key_args.device_id,
             shortcut,

@@ -20,7 +20,7 @@
 use std::{collections::HashMap, mem, num::NonZeroU32, ops, time::Duration};
 use zng_app::{
     DInstant,
-    event::{AnyEventArgs as _, EventPropagationHandle, event, event_args},
+    event::{EventPropagationHandle, event, event_args},
     hn,
     shortcut::ModifiersState,
     timer::{DeadlineVar, TIMERS},
@@ -1638,7 +1638,7 @@ impl TapGesture {
 
                         TOUCH_TAP_EVENT.notify(TouchTapArgs::new(
                             args.timestamp,
-                            args.propagation().clone(),
+                            args.propagation.clone(),
                             p.window_id,
                             p.device_id,
                             p.touch,
@@ -2582,7 +2582,7 @@ fn hooks_touch_from_mouse() -> [VarHandle; 3] {
     [
         MOUSE_MOVE_EVENT.hook(|args| {
             if let Some(id) = TOUCH_SV.read().mouse_touch {
-                args.propagation().stop();
+                args.propagation.stop();
 
                 RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
                     args.window_id,
@@ -2594,7 +2594,7 @@ fn hooks_touch_from_mouse() -> [VarHandle; 3] {
         }),
         MOUSE_INPUT_EVENT.hook(|args| {
             if args.button == super::mouse::MouseButton::Left {
-                args.propagation().stop();
+                args.propagation.stop();
 
                 let mut s = TOUCH_SV.write();
 

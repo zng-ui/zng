@@ -2,9 +2,7 @@ use std::{mem, pin::Pin, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
-    Deadline,
-    event::AnyEventArgs,
-    hn_once,
+    Deadline, hn_once,
     timer::TIMERS,
     update::{InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, WidgetUpdates},
     view_process::{VIEW_PROCESS, raw_events::RAW_CHROME_CONFIG_CHANGED_EVENT},
@@ -370,7 +368,7 @@ fn close_together_all_built(request: Vec<WindowId>, r: ResponderVar<CloseWindowR
         .on_event(
             true,
             hn_once!(|args: &WindowCloseRequestedArgs| {
-                if args.propagation().is_stopped() {
+                if args.propagation.is_stopped() {
                     r.respond(CloseWindowResult::Cancel);
                     return;
                 }

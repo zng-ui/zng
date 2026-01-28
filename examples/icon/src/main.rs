@@ -206,7 +206,7 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
         child_align = Align::CENTER;
         on_click = hn!(|args| {
             if WIDGET.id() == args.target.widget_id() {
-                args.propagation().stop();
+                args.propagation.stop();
                 ACCESS.click(WINDOW.id(), "close-btn", true);
             }
         });
@@ -262,7 +262,7 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
                         padding = 2;
                         margin = 4;
                         on_click = async_hn!(opacity, |args| {
-                            args.propagation().stop();
+                            args.propagation.stop();
 
                             opacity.ease(0.fct(), 150.ms(), easing::linear).perm();
                             opacity.wait_animation().await;

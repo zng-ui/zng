@@ -15,7 +15,7 @@ use std::time::Duration;
 
 use zng_app::{
     access::ACCESS_TOOLTIP_EVENT,
-    widget::{OnVarArgs, info::INTERACTIVITY_CHANGED_EVENT},
+    widget::{OnVarArgs, info::WIDGET_TREE_CHANGED_EVENT},
 };
 use zng_ext_input::{
     focus::FOCUS_CHANGED_EVENT,
@@ -100,6 +100,7 @@ fn tooltip_node(child: impl IntoUiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>
     let mut check_cursor = false;
     let mut auto_close = None::<DeadlineVar>;
     let mut close_event_handles = vec![];
+    let mut interactivity = None;
     match_node(child, move |child, op| {
         let mut open = false;
 
@@ -108,49 +109,87 @@ fn tooltip_node(child: impl IntoUiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>
                 WIDGET
                     .sub_var(&tip)
                     .sub_event(&MOUSE_HOVERED_EVENT)
-                    .sub_event(&ACCESS_TOOLTIP_EVENT)
-                    .sub_event(&INTERACTIVITY_CHANGED_EVENT);
+                    .sub_event(&ACCESS_TOOLTIP_EVENT);
+
+                let win_id = WINDOW.id();
+                let wgt_id = WIDGET.id();
+                let inter = WIDGET_TREE_CHANGED_EVENT.var_map(
+                    move |args| {
+                        if args.tree.window_id() == win_id
+                            && let Some(wgt) = args.tree.get(wgt_id)
+                        {
+                            Some(wgt.interactivity())
+                        } else {
+                            None
+                        }
+                    },
+                    Interactivity::empty,
+                );
+                inter.subscribe(UpdateOp::Update, wgt_id).perm();
+                interactivity = Some(inter);
             }
             UiNodeOp::Deinit => {
                 child.deinit();
 
                 open_delay = None;
                 auto_close = None;
+                interactivity = None;
                 close_event_handles.clear();
                 if let PopupState::Open(not_closed) = pop_state.get() {
                     POPUP.force_close_id(not_closed);
                 }
             }
-            UiNodeOp::Event { update } => {
-                child.event(update);
+            UiNodeOp::Update { updates } => {
+                if let Some(d) = &open_delay
+                    && d.get().has_elapsed()
+                {
+                    open = true;
+                    open_delay = None;
+                }
+                if let Some(d) = &auto_close
+                    && d.get().has_elapsed()
+                {
+                    auto_close = None;
+                    POPUP.close(&pop_state);
+                }
+
+                if let Some(PopupState::Closed) = pop_state.get_new() {
+                    close_event_handles.clear();
+                }
+
+                child.update(updates);
 
                 let mut show_hide = None;
                 let mut hover_target = None;
 
-                if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                    hover_target = args.target.as_ref();
+                MOUSE_HOVERED_EVENT.each_update(true, |args| {
+                    let wgt = (WINDOW.id(), WIDGET.id());
+                    hover_target = args.target.clone();
                     if disabled_only {
-                        if args.is_mouse_enter_disabled() {
+                        if args.is_mouse_enter_disabled(wgt) {
                             show_hide = Some(true);
                             check_cursor = false;
-                        } else if args.is_mouse_leave_disabled() {
+                        } else if args.is_mouse_leave_disabled(wgt) {
                             show_hide = Some(false);
                         }
-                    } else if args.is_mouse_enter() {
+                    } else if args.is_mouse_enter(wgt) {
                         show_hide = Some(true);
                         check_cursor = false;
-                    } else if args.is_mouse_leave() {
+                    } else if args.is_mouse_leave(wgt) {
                         show_hide = Some(false);
                     }
-                } else if let Some(args) = ACCESS_TOOLTIP_EVENT.on(update) {
+                });
+                ACCESS_TOOLTIP_EVENT.each_update(true, |args| {
                     if disabled_only == WIDGET.info().interactivity().is_disabled() {
                         show_hide = Some(args.visible);
                         if args.visible {
                             check_cursor = true;
                         }
                     }
-                } else if let Some(args) = INTERACTIVITY_CHANGED_EVENT.on(update)
-                    && disabled_only != args.new_interactivity(WIDGET.id()).is_disabled()
+                });
+
+                if let Some(i) = interactivity.as_ref().unwrap().get_new()
+                    && i.is_disabled()
                 {
                     show_hide = Some(false);
                 }
@@ -221,24 +260,6 @@ fn tooltip_node(child: impl IntoUiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>
                     }
                 }
             }
-            UiNodeOp::Update { .. } => {
-                if let Some(d) = &open_delay
-                    && d.get().has_elapsed()
-                {
-                    open = true;
-                    open_delay = None;
-                }
-                if let Some(d) = &auto_close
-                    && d.get().has_elapsed()
-                {
-                    auto_close = None;
-                    POPUP.close(&pop_state);
-                }
-
-                if let Some(PopupState::Closed) = pop_state.get_new() {
-                    close_event_handles.clear();
-                }
-            }
             _ => {}
         }
 
@@ -287,29 +308,27 @@ fn tooltip_node(child: impl IntoUiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>
 
                     c.deinit();
                 }
-                UiNodeOp::Event { update } => {
-                    c.event(update);
+                UiNodeOp::Update { updates } => {
+                    c.update(updates);
 
-                    if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                        if is_access_open {
-                            return;
-                        }
+                    if !is_access_open {
+                        MOUSE_HOVERED_EVENT.each_update(true, |args| {
+                            let tooltip_id = match c.node().as_widget() {
+                                Some(mut w) => w.id(),
+                                None => {
+                                    // was widget on init, now is not,
+                                    // this can happen if child is an `ArcNode` that was moved
+                                    return;
+                                }
+                            };
 
-                        let tooltip_id = match c.node().as_widget() {
-                            Some(mut w) => w.id(),
-                            None => {
-                                // was widget on init, now is not,
-                                // this can happen if child is an `ArcNode` that was moved
-                                return;
+                            if let Some(t) = &args.target
+                                && !t.contains(anchor_id)
+                                && !t.contains(tooltip_id)
+                            {
+                                POPUP.close_id(tooltip_id);
                             }
-                        };
-
-                        if let Some(t) = &args.target
-                            && !t.contains(anchor_id)
-                            && !t.contains(tooltip_id)
-                        {
-                            POPUP.close_id(tooltip_id);
-                        }
+                        });
                     }
                 }
                 _ => {}

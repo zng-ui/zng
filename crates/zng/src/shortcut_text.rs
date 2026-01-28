@@ -48,7 +48,7 @@
 //!         };
 //!
 //!         on_pre_key_down = hn!(|args| {
-//!             args.propagation().stop();
+//!             args.propagation.stop();
 //!             match &args.key {
 //!                 Key::Enter => {
 //!                     let shortcut = pressed.get();

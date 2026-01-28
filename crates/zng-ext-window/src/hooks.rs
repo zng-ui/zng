@@ -1,7 +1,6 @@
 use zng_app::{
     EXIT_REQUESTED_EVENT,
     access::{ACCESS_DEINITED_EVENT, ACCESS_INITED_EVENT},
-    event::AnyEventArgs,
     hn_once,
     update::UPDATES,
     view_process::{
@@ -153,7 +152,7 @@ pub(crate) fn hook_events() {
             if prev != new {
                 WINDOW_FOCUS_CHANGED_EVENT.notify(WindowFocusChangedArgs::new(
                     args.timestamp,
-                    args.propagation().clone(),
+                    args.propagation.clone(),
                     prev,
                     new,
                     closed,
@@ -262,13 +261,13 @@ pub(crate) fn hook_events() {
     EXIT_REQUESTED_EVENT
         .hook(|args| {
             if !WINDOWS_SV.read().windows.is_empty() {
-                args.propagation().stop();
+                args.propagation.stop();
                 WINDOWS.close_all();
                 WINDOW_CLOSE_REQUESTED_EVENT
                     .on_event(
                         true,
                         hn_once!(|args: &WindowCloseRequestedArgs| {
-                            if !args.propagation().is_stopped() {
+                            if !args.propagation.is_stopped() {
                                 zng_app::APP.exit();
                             }
                         }),
@@ -301,7 +300,7 @@ pub(crate) fn hook_events() {
                     zng_view_api::Ime::Commit(t) => txt = t.clone(),
                 }
 
-                IME_EVENT.notify(ImeArgs::new(args.timestamp, args.propagation().clone(), focus, txt, preview_caret));
+                IME_EVENT.notify(ImeArgs::new(args.timestamp, args.propagation.clone(), focus, txt, preview_caret));
             }
             true
         })

@@ -1555,10 +1555,10 @@ pub fn layers_node(child: impl IntoUiNode) -> UiNode {
             LAYERS_INSERT_CMD.scoped(win_id).each_update(true, false, |args| {
                 if let Some((layer, widget)) = args.param::<(LayerIndex, WidgetFn<()>)>() {
                     LAYERS.insert(*layer, widget(()));
-                    args.propagation().stop();
+                    args.propagation.stop();
                 } else if let Some((layer, anchor, mode, widget)) = args.param::<(LayerIndex, WidgetId, AnchorMode, WidgetFn<()>)>() {
                     LAYERS.insert_anchored(*layer, *anchor, mode.clone(), widget(()));
-                    args.propagation().stop();
+                    args.propagation.stop();
                 } else {
                     tracing::debug!("ignoring LAYERS_INSERT_CMD, unknown param type");
                 }
@@ -1566,7 +1566,7 @@ pub fn layers_node(child: impl IntoUiNode) -> UiNode {
             LAYERS_REMOVE_CMD.scoped(win_id).each_update(true, false, |args| {
                 if let Some(id) = args.param::<WidgetId>() {
                     LAYERS.remove(*id);
-                    args.propagation().stop();
+                    args.propagation.stop();
                 } else {
                     tracing::debug!("ignoring LAYERS_REMOVE_CMD, unknown param type");
                 }

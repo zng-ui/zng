@@ -712,7 +712,7 @@ pub fn default_link_fn(args: LinkFnArgs) -> UiNode {
             child = items;
 
             on_click = hn!(|args| {
-                args.propagation().stop();
+                args.propagation.stop();
 
                 let link = WINDOW.info().get(WIDGET.id()).unwrap().interaction_path();
                 LINK_EVENT.notify(LinkArgs::now(url.clone(), link));
@@ -1101,7 +1101,7 @@ pub fn default_footnote_ref_fn(args: FootnoteRefFnArgs) -> UiNode {
         crate::anchor = formatx!("footnote-ref-{}", args.label);
         child = Text!("[{}]", args.label);
         on_click = hn!(|args| {
-            args.propagation().stop();
+            args.propagation.stop();
 
             let link = WINDOW.info().get(WIDGET.id()).unwrap().interaction_path();
             crate::LINK_EVENT.notify(crate::LinkArgs::now(url.clone(), link));
@@ -1135,7 +1135,7 @@ pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> UiNode {
                 style_fn = LinkStyle!();
                 child = Text!("[^{}]", args.label);
                 on_click = hn!(|args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     let link = WINDOW.info().get(WIDGET.id()).unwrap().interaction_path();
                     LINK_EVENT.notify(LinkArgs::now(url_back.clone(), link));

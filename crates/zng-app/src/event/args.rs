@@ -18,11 +18,13 @@ pub trait AnyEventArgs: AnyVarValue {
 
     /// Gets if the widget is in any of the target paths in this update.
     fn is_in_target(&self, widget: WidgetId) -> bool;
+
+    /// Clone the args to a new box.
+    fn clone_boxed(&self) -> Box<dyn AnyEventArgs>;
 }
 
 /// Represents a strongly typed event update.
-pub trait EventArgs: AnyEventArgs + VarValue {
-}
+pub trait EventArgs: AnyEventArgs + VarValue {}
 
 ///<span data-del-macro-root></span> Declares new [`EventArgs`] types.
 ///
@@ -142,13 +144,13 @@ macro_rules! __event_args {
             #[allow(clippy::too_many_arguments)]
             pub fn new(
                 timestamp: impl Into<$crate::DInstant>,
-                propagation_handle: $crate::event::EventPropagationHandle,
+                propagation: $crate::event::EventPropagationHandle,
                 $($arg : impl Into<$arg_ty>),*
             ) -> Self {
                 let args = $Args {
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
-                    propagation_handle,
+                    propagation,
                 };
                 args.assert_valid();
                 args
@@ -160,13 +162,13 @@ macro_rules! __event_args {
             #[allow(clippy::too_many_arguments)]
             pub fn try_new(
                 timestamp: impl Into<$crate::DInstant>,
-                propagation_handle: $crate::event::EventPropagationHandle,
+                propagation: $crate::event::EventPropagationHandle,
                 $($arg : impl Into<$arg_ty>),*
             ) -> Result<Self, $ValidationError> {
                 let args = $Args {
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
-                    propagation_handle,
+                    propagation,
                 };
                 args.validate()?;
                 Ok(args)
@@ -231,13 +233,13 @@ macro_rules! __event_args {
             #[allow(clippy::too_many_arguments)]
             pub fn new(
                 timestamp: impl Into<$crate::DInstant>,
-                propagation_handle: $crate::event::EventPropagationHandle,
+                propagation: $crate::event::EventPropagationHandle,
                 $($arg : impl Into<$arg_ty>),*
             ) -> Self {
                 $Args {
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
-                    propagation_handle,
+                    propagation,
                 }
             }
 
@@ -267,7 +269,11 @@ macro_rules! __event_args {
             pub timestamp: $crate::DInstant,
             $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
 
-            propagation_handle: $crate::event::EventPropagationHandle,
+            /// Propagation handle associated with this event instance.
+            ///
+            /// Cloned arguments share the same handle, some arguments may also share the handle
+            /// of another event if they share the same cause.
+            pub propagation: $crate::event::EventPropagationHandle,
         }
         impl $crate::event::AnyEventArgs for $Args {
             fn timestamp(&self) -> $crate::DInstant {
@@ -281,7 +287,11 @@ macro_rules! __event_args {
             }
 
             fn propagation(&self) -> &$crate::event::EventPropagationHandle {
-                &self.propagation_handle
+                &self.propagation
+            }
+
+            fn clone_boxed(&self) -> std::boxed::Box<dyn $crate::event::AnyEventArgs> {
+                Box::new(self.clone())
             }
         }
         impl $crate::event::EventArgs for $Args { }

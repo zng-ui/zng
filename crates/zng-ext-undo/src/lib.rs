@@ -32,7 +32,7 @@ use atomic::Atomic;
 use parking_lot::Mutex;
 use zng_app::{
     DInstant, INSTANT,
-    event::{Command, CommandNameExt, CommandScope, AnyEventArgs as _, command},
+    event::{Command, CommandNameExt, CommandScope, command},
     hn,
     shortcut::{CommandShortcutExt, shortcut},
     widget::{
@@ -1166,7 +1166,7 @@ fn hooks() {
             true,
             false,
             hn!(|args| {
-                args.propagation().stop();
+                args.propagation.stop();
                 if let Some(c) = args.param::<u32>() {
                     UNDO.undo_select(*c);
                 } else if let Some(i) = args.param::<Duration>() {
@@ -1185,7 +1185,7 @@ fn hooks() {
             true,
             false,
             hn!(|args| {
-                args.propagation().stop();
+                args.propagation.stop();
                 if let Some(c) = args.param::<u32>() {
                     UNDO.redo_select(*c);
                 } else if let Some(i) = args.param::<Duration>() {

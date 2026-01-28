@@ -4,7 +4,7 @@ use atomic::Atomic;
 use parking_lot::RwLock;
 use zng_app::{
     DInstant,
-    event::{CommandHandle, AnyEventArgs as _},
+    event::CommandHandle,
     widget::{
         WIDGET,
         node::{UiNode, UiNodeOp, match_node},
@@ -1033,7 +1033,7 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
                         let select = selectable && modifiers.take_shift();
                         let word = modifiers.take_ctrl();
                         if modifiers.is_empty() && (editable || select) {
-                            args.propagation().stop();
+                            args.propagation.stop();
 
                             TEXT.resolve().selection_by = SelectionBy::Keyboard;
 
@@ -1056,7 +1056,7 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
                         let select = selectable && modifiers.take_shift();
                         let word = modifiers.take_ctrl();
                         if modifiers.is_empty() && (editable || select) {
-                            args.propagation().stop();
+                            args.propagation.stop();
 
                             TEXT.resolve().selection_by = SelectionBy::Keyboard;
 
@@ -1079,7 +1079,7 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
                             let mut modifiers = args.modifiers;
                             let select = selectable && modifiers.take_shift();
                             if modifiers.is_empty() && (editable || select) {
-                                args.propagation().stop();
+                                args.propagation.stop();
 
                                 TEXT.resolve().selection_by = SelectionBy::Keyboard;
 
@@ -1097,7 +1097,7 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
                             let mut modifiers = args.modifiers;
                             let select = selectable && modifiers.take_shift();
                             if modifiers.is_empty() && (editable || select) {
-                                args.propagation().stop();
+                                args.propagation.stop();
 
                                 TEXT.resolve().selection_by = SelectionBy::Keyboard;
 
@@ -1115,7 +1115,7 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
                             let mut modifiers = args.modifiers;
                             let select = selectable && modifiers.take_shift();
                             if modifiers.is_empty() && (editable || select) {
-                                args.propagation().stop();
+                                args.propagation.stop();
 
                                 TEXT.resolve().selection_by = SelectionBy::Keyboard;
 
@@ -1133,7 +1133,7 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
                             let mut modifiers = args.modifiers;
                             let select = selectable && modifiers.take_shift();
                             if modifiers.is_empty() && (editable || select) {
-                                args.propagation().stop();
+                                args.propagation.stop();
 
                                 TEXT.resolve().selection_by = SelectionBy::Keyboard;
 
@@ -1151,7 +1151,7 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
                         let select = selectable && modifiers.take_shift();
                         let full_text = modifiers.take_ctrl();
                         if modifiers.is_empty() && (editable || select) {
-                            args.propagation().stop();
+                            args.propagation.stop();
 
                             TEXT.resolve().selection_by = SelectionBy::Keyboard;
 
@@ -1174,7 +1174,7 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
                         let select = selectable && modifiers.take_shift();
                         let full_text = modifiers.take_ctrl();
                         if modifiers.is_empty() && (editable || select) {
-                            args.propagation().stop();
+                            args.propagation.stop();
 
                             TEXT.resolve().selection_by = SelectionBy::Keyboard;
 
@@ -1194,7 +1194,7 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
                     }
                     Key::Escape => {
                         if args.modifiers.is_empty() && (editable || selectable) {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             TEXT.resolve().selection_by = SelectionBy::Keyboard;
 
                             TextSelectOp::clear_selection().call();
@@ -1206,10 +1206,10 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
         } else if let Key::Alt | Key::AltGraph = &args.key {
             if TEXT.try_rich().is_some() {
                 if TEXT.take_rich_selection_started_by_alt() {
-                    args.propagation().stop();
+                    args.propagation.stop();
                 }
             } else if mem::take(&mut edit.selection_started_by_alt) {
-                args.propagation().stop();
+                args.propagation.stop();
             }
         }
     });
@@ -1220,7 +1220,7 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
             let select = selectable && modifiers.take_shift();
 
             if modifiers.is_empty() && (!selectable_alt_only || alt) {
-                args.propagation().stop();
+                args.propagation.stop();
                 TEXT.resolve().selection_by = SelectionBy::Mouse;
                 if alt {
                     if TEXT.try_rich().is_some() {
@@ -1332,7 +1332,7 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
         let mut modifiers = args.modifiers;
         let alt = modifiers.take_alt();
         if modifiers.is_empty() && (!selectable_alt_only || alt) && args.target.widget_id() == widget.id() {
-            args.propagation().stop();
+            args.propagation.stop();
 
             TEXT.resolve().selection_by = SelectionBy::Touch;
             if alt {
@@ -1359,7 +1359,7 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
         let mut modifiers = args.modifiers;
         let alt = modifiers.take_alt();
         if modifiers.is_empty() && (!selectable_alt_only || alt) && selectable && args.target.widget_id() == widget.id() {
-            args.propagation().stop();
+            args.propagation.stop();
 
             TEXT.resolve().selection_by = SelectionBy::Touch;
             if alt {
@@ -1382,7 +1382,7 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
             };
 
             if handle {
-                args.propagation().stop();
+                args.propagation.stop();
 
                 match edit.click_count {
                     1 => TextSelectOp::select_nearest_to(args.position).call(),
@@ -1404,12 +1404,12 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
     if selectable {
         SELECT_CMD.scoped(widget.id()).each_update(true, false, |args| {
             if let Some(op) = args.param::<TextSelectOp>() {
-                args.propagation().stop();
+                args.propagation.stop();
                 op.clone().call();
             }
         });
         SELECT_ALL_CMD.scoped(widget.id()).each_update(true, false, |args| {
-            args.propagation().stop();
+            args.propagation.stop();
             TextSelectOp::select_all().call();
         });
     }

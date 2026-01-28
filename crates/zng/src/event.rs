@@ -44,7 +44,7 @@
 //!     gesture::on_pre_single_click = hn!(|args| {
 //!         assert!(args.is_single());
 //!         println!("single click");
-//!         args.propagation().stop();
+//!         args.propagation.stop();
 //!     });
 //!     on_click = hn!(|args| {
 //!         assert!(!args.is_single());
@@ -87,11 +87,11 @@
 //!         UiNodeOp::Event { update } => {
 //!             if let Some(args) = gesture::CLICK_EVENT.on(update) {
 //!                 if preview.get() {
-//!                     println!("preview click {:?}", args.propagation().is_stopped());
+//!                     println!("preview click {:?}", args.propagation.is_stopped());
 //!                     child.event(update);
 //!                 } else {
 //!                     child.event(update);
-//!                     println!("click {:?}", args.propagation().is_stopped());
+//!                     println!("click {:?}", args.propagation.is_stopped());
 //!                 }
 //!             }
 //!         }
@@ -298,7 +298,7 @@
 //!                 cmd.info().set("");
 //!             });
 //!             clipboard::on_pre_copy = hn!(|args| {
-//!                 args.propagation().stop();
+//!                 args.propagation.stop();
 //!                 println!("copy!");
 //!             });
 //!         },

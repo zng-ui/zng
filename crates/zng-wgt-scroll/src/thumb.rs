@@ -138,7 +138,7 @@ fn thumb_layout(child: impl IntoUiNode) -> UiNode {
                     THUMB_OFFSET_VAR.set(offset);
                     WIDGET.layout();
 
-                    args.propagation().stop();
+                    args.propagation.stop();
                 });
             }
 
@@ -160,7 +160,7 @@ fn thumb_layout(child: impl IntoUiNode) -> UiNode {
                     mouse_down = Some((a, THUMB_OFFSET_VAR.get()));
                     mouse_move_handle = MOUSE_MOVE_EVENT.subscribe(UpdateOp::Update, WIDGET.id());
 
-                    args.propagation().stop();
+                    args.propagation.stop();
                 }
             });
         }

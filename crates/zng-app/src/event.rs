@@ -2,7 +2,11 @@
 
 use std::{fmt, marker::PhantomData, ops, sync::Arc};
 
-use crate::{handler::HandlerResult, update::UPDATES, widget::{AnyVarSubscribe, OnVarArgs}};
+use crate::{
+    handler::HandlerResult,
+    update::UPDATES,
+    widget::{AnyVarSubscribe, OnVarArgs},
+};
 use parking_lot::MappedRwLockReadGuard;
 use zng_app_context::AppLocal;
 use zng_task::channel;

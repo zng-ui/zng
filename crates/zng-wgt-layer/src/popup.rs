@@ -182,7 +182,7 @@ impl POPUP {
                                             // if is not already the request
                                             POPUP_CLOSE_REQUESTED_EVENT.notify(PopupCloseRequestedArgs::new(
                                                 args.timestamp,
-                                                args.propagation().clone(),
+                                                args.propagation.clone(),
                                                 now_is_widget,
                                             ));
                                         }
@@ -476,7 +476,7 @@ fn setup_popup_close_service() {
             .on_event(
                 false,
                 hn!(|args| {
-                    if !args.propagation().is_stopped() {
+                    if !args.propagation.is_stopped() {
                         POPUP_CLOSE_CMD.scoped(args.popup.widget_id()).notify_param(PopupCloseMode::Force);
                     }
                 }),
@@ -516,7 +516,7 @@ pub fn close_delay(child: impl IntoUiNode, delay: impl IntoVar<Duration>) -> UiN
                         // allow
                         return;
                     } else {
-                        args.propagation().stop();
+                        args.propagation.stop();
                         // timer already running.
                         return;
                     }
@@ -524,7 +524,7 @@ pub fn close_delay(child: impl IntoUiNode, delay: impl IntoVar<Duration>) -> UiN
 
                 let delay = delay.get();
                 if delay != Duration::ZERO {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     IS_CLOSE_DELAYED_VAR.set(true);
                     let cmd = POPUP_CLOSE_CMD.scoped(args.popup.widget_id());

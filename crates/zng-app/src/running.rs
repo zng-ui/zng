@@ -7,9 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{
-    Deadline, event::AnyEventArgs as _, handler::HandlerExt as _, view_process::raw_events::RAW_FRAME_RENDERED_EVENT, window::WINDOWS_APP,
-};
+use crate::{Deadline, handler::HandlerExt as _, view_process::raw_events::RAW_FRAME_RENDERED_EVENT, window::WINDOWS_APP};
 use parking_lot::Mutex;
 use zng_app_context::{AppScope, app_local};
 use zng_task::DEADLINE_APP;
@@ -1059,7 +1057,7 @@ impl APP {
                 true,
                 false,
                 crate::hn!(|a| {
-                    a.propagation().stop();
+                    a.propagation.stop();
                     APP.exit();
                 }),
             )
@@ -1114,7 +1112,7 @@ impl APP {
                     true,
                     crate::hn_once!(|args: &ExitRequestedArgs| {
                         let mut s = APP_PROCESS_SV.write();
-                        if !args.propagation().is_stopped() {
+                        if !args.propagation.is_stopped() {
                             s.exit = true;
                             UPDATES.update(None);
                         } else {

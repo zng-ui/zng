@@ -846,7 +846,7 @@ where
 
                     state.store(State::Requested, Ordering::Relaxed);
                     TEXT.resolved().txt.update();
-                    args.propagation().stop();
+                    args.propagation.stop();
                 });
             }
 

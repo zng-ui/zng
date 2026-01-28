@@ -227,7 +227,7 @@ pub fn focus_click_behavior(child: impl IntoUiNode, behavior: impl IntoVar<Focus
                         FocusClickBehavior::Ignore => false,
                         FocusClickBehavior::Exit => true,
                         FocusClickBehavior::ExitEnabled => args.target.interactivity().is_enabled(),
-                        FocusClickBehavior::ExitHandled => args.propagation().is_stopped(),
+                        FocusClickBehavior::ExitHandled => args.propagation.is_stopped(),
                     };
                     if exit {
                         FOCUS.focus_exit();

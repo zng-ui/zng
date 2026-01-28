@@ -343,7 +343,7 @@ fn nested_focusables() -> UiNode {
         child = Text!("Nested Focusables");
 
         on_click = hn!(|args| {
-            args.propagation().stop();
+            args.propagation.stop();
             WINDOWS.focus_or_open("nested-focusables", async {
                 Window! {
                     title = "Focus Example - Nested Focusables";

@@ -154,7 +154,7 @@ fn scroll_click_handler() -> Handler<MouseClickArgs> {
             }
         }
 
-        args.propagation().stop();
+        args.propagation.stop();
     })
 }
 

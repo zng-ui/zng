@@ -618,19 +618,19 @@ fn slider_track_node() -> UiNode {
                     && cap.target.contains(WIDGET.id())
                 {
                     pos = Some(args.position);
-                    args.propagation().stop();
+                    args.propagation.stop();
                 }
             });
             MOUSE_INPUT_EVENT.each_update(false, |args| {
                 if args.state == ButtonState::Pressed {
                     pos = Some(args.position);
-                    args.propagation().stop();
+                    args.propagation.stop();
                 }
             });
             TOUCH_INPUT_EVENT.each_update(false, |args| {
                 if args.phase == TouchPhase::Start {
                     pos = Some(args.position);
-                    args.propagation().stop();
+                    args.propagation.stop();
                 }
             });
 

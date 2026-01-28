@@ -150,7 +150,7 @@ fn split_button() -> UiNode {
                 tracing::info!("Clicked button part");
                 button_count.set(button_count.get() + 1);
 
-                args.propagation().stop();
+                args.propagation.stop();
             });
 
             child = Text!(merge_var!(button_count, split_count, |&b, &s| {
@@ -235,7 +235,7 @@ fn combo_box() -> UiNode {
         id = "combo";
         child = TextInput! {
             txt = txt.clone();
-            gesture::on_click = hn!(|a| a.propagation().stop());
+            gesture::on_click = hn!(|a| a.propagation.stop());
         };
         style_fn = toggle::ComboStyle!();
 

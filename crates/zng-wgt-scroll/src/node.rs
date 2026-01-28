@@ -359,7 +359,7 @@ pub fn scroll_commands_node(child: impl IntoUiNode) -> UiNode {
 
             if up.enabled().get() {
                 SCROLL_UP_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     let mut offset = -layout_line.y;
                     let args = ScrollRequest::from_args(args).unwrap_or_default();
@@ -374,7 +374,7 @@ pub fn scroll_commands_node(child: impl IntoUiNode) -> UiNode {
             }
             if down.enabled().get() {
                 SCROLL_DOWN_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     let mut offset = layout_line.y;
                     let args = ScrollRequest::from_args(args).unwrap_or_default();
@@ -389,7 +389,7 @@ pub fn scroll_commands_node(child: impl IntoUiNode) -> UiNode {
             }
             if left.enabled().get() {
                 SCROLL_LEFT_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     let mut offset = -layout_line.x;
                     let args = ScrollRequest::from_args(args).unwrap_or_default();
@@ -404,7 +404,7 @@ pub fn scroll_commands_node(child: impl IntoUiNode) -> UiNode {
             }
             if right.enabled().get() {
                 SCROLL_RIGHT_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     let mut offset = layout_line.x;
                     let args = ScrollRequest::from_args(args).unwrap_or_default();
@@ -476,7 +476,7 @@ pub fn page_commands_node(child: impl IntoUiNode) -> UiNode {
 
             if up.enabled().get() {
                 PAGE_UP_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     let mut offset = -layout_page.y;
                     let args = ScrollRequest::from_args(args).unwrap_or_default();
@@ -491,7 +491,7 @@ pub fn page_commands_node(child: impl IntoUiNode) -> UiNode {
             }
             if down.enabled().get() {
                 PAGE_DOWN_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     let mut offset = layout_page.y;
                     let args = ScrollRequest::from_args(args).unwrap_or_default();
@@ -506,7 +506,7 @@ pub fn page_commands_node(child: impl IntoUiNode) -> UiNode {
             }
             if left.enabled().get() {
                 PAGE_LEFT_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     let mut offset = -layout_page.x;
                     let args = ScrollRequest::from_args(args).unwrap_or_default();
@@ -521,7 +521,7 @@ pub fn page_commands_node(child: impl IntoUiNode) -> UiNode {
             }
             if right.enabled().get() {
                 PAGE_RIGHT_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     let mut offset = layout_page.x;
                     let args = ScrollRequest::from_args(args).unwrap_or_default();
@@ -593,25 +593,25 @@ pub fn scroll_to_edge_commands_node(child: impl IntoUiNode) -> UiNode {
 
             if top.enabled().get() {
                 SCROLL_TO_TOP_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     SCROLL.chase_vertical(|_| 0.fct());
                 });
             }
             if bottom.enabled().get() {
                 SCROLL_TO_BOTTOM_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     SCROLL.chase_vertical(|_| 1.fct());
                 });
             }
             if leftmost.enabled().get() {
                 SCROLL_TO_LEFTMOST_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     SCROLL.chase_horizontal(|_| 0.fct());
                 });
             }
             if rightmost.enabled().get() {
                 SCROLL_TO_RIGHTMOST_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     SCROLL.chase_horizontal(|_| 1.fct());
                 });
             }
@@ -666,7 +666,7 @@ pub fn zoom_commands_node(child: impl IntoUiNode) -> UiNode {
 
             if zoom_in.enabled().get() {
                 ZOOM_IN_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     origin = args.param::<Point>().cloned().unwrap_or_default();
                     scale_delta += ZOOM_WHEEL_UNIT_VAR.get();
@@ -676,7 +676,7 @@ pub fn zoom_commands_node(child: impl IntoUiNode) -> UiNode {
             }
             if zoom_out.enabled().get() {
                 ZOOM_OUT_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     origin = args.param::<Point>().cloned().unwrap_or_default();
                     scale_delta -= ZOOM_WHEEL_UNIT_VAR.get();
@@ -686,7 +686,7 @@ pub fn zoom_commands_node(child: impl IntoUiNode) -> UiNode {
             }
             if zoom_to_fit.enabled().get() {
                 ZOOM_TO_FIT_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     let scale = fit_scale();
                     if let Some(p) = ZoomToFitRequest::from_args(args) {
@@ -701,7 +701,7 @@ pub fn zoom_commands_node(child: impl IntoUiNode) -> UiNode {
             }
             if zoom_reset.enabled().get() {
                 ZOOM_RESET_CMD.scoped(scope).each_update(true, false, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     SCROLL.chase_zoom(|_| 1.fct());
                     scale_delta = 0.fct();
@@ -845,7 +845,7 @@ pub fn scroll_to_node(child: impl IntoUiNode) -> UiNode {
             SCROLL_TO_CMD.scoped(self_id).each_update(true, false, |args| {
                 // event send to us and enabled
                 if let Some(request) = ScrollToRequest::from_args(args) {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     // has unhandled request
                     let tree = WINDOW.info();
@@ -866,7 +866,7 @@ pub fn scroll_to_node(child: impl IntoUiNode) -> UiNode {
                                         scroll_to_from_cmd = true;
                                         WIDGET.layout();
 
-                                        args.propagation().stop();
+                                        args.propagation.stop();
                                     }
                                 }
                             }
@@ -876,7 +876,7 @@ pub fn scroll_to_node(child: impl IntoUiNode) -> UiNode {
                             scroll_to_from_cmd = true;
                             WIDGET.layout();
 
-                            args.propagation().stop();
+                            args.propagation.stop();
                         }
                     }
                 }
@@ -1151,7 +1151,7 @@ pub fn scroll_wheel_node(child: impl IntoUiNode) -> UiNode {
             child.update(updates);
 
             MOUSE_WHEEL_EVENT.each_update(false, |args| {
-                args.propagation().stop();
+                args.propagation.stop();
                 if let Some(delta) = args.scroll_delta(ALT_FACTOR_VAR.get()) {
                     match delta {
                         MouseScrollDelta::LineDelta(x, y) => {
@@ -1171,7 +1171,7 @@ pub fn scroll_wheel_node(child: impl IntoUiNode) -> UiNode {
                             };
 
                             if scroll_x || scroll_y {
-                                args.propagation().stop();
+                                args.propagation.stop();
 
                                 if scroll_x {
                                     offset.x -= HORIZONTAL_WHEEL_UNIT_VAR.get() * x.fct();
@@ -1198,7 +1198,7 @@ pub fn scroll_wheel_node(child: impl IntoUiNode) -> UiNode {
                             };
 
                             if scroll_x || scroll_y {
-                                args.propagation().stop();
+                                args.propagation.stop();
 
                                 if scroll_x {
                                     offset.x -= x.px();
@@ -1450,14 +1450,14 @@ pub fn access_scroll_node(child: impl IntoUiNode) -> UiNode {
                         }
                         _ => return,
                     }
-                    args.propagation().stop();
+                    args.propagation.stop();
                 } else {
                     match args.command {
                         ScrollTo => super::cmd::scroll_to(args.target.widget_id(), ScrollToMode::minimal(10)),
                         ScrollToRect(rect) => super::cmd::scroll_to(args.target.widget_id(), ScrollToMode::minimal_rect(rect)),
                         _ => return,
                     }
-                    args.propagation().stop();
+                    args.propagation.stop();
                 }
             });
         }
@@ -1496,7 +1496,7 @@ pub fn auto_scroll_node(child: impl IntoUiNode) -> UiNode {
 
                 MOUSE_INPUT_EVENT.each_update(false, |args| {
                     if args.is_mouse_down() && matches!(args.button, MouseButton::Middle) && AUTO_SCROLL_VAR.get() {
-                        args.propagation().stop();
+                        args.propagation.stop();
 
                         let mut open = true;
                         if let Some((id, closed)) = auto_scrolling.take() {
@@ -1535,7 +1535,7 @@ pub fn auto_scroll_node(child: impl IntoUiNode) -> UiNode {
 
                 if cmd_handle.enabled().get() {
                     AUTO_SCROLL_CMD.scoped(WIDGET.id()).each_update(true, false, |args| {
-                        args.propagation().stop();
+                        args.propagation.stop();
 
                         let acc = args.param::<DipVector>().copied().unwrap_or_else(DipVector::zero);
                         SCROLL.auto_scroll(acc)
@@ -1667,7 +1667,7 @@ fn auto_scroller_node(child: impl IntoUiNode, closed: Arc<Mutex<DInstant>>) -> U
             });
             RAW_MOUSE_INPUT_EVENT.each_update(true, |args| {
                 if args.window_id == WINDOW.id() && args.state == ButtonState::Pressed && args.button == MouseButton::Middle {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     LAYERS.remove(WIDGET.id());
                     SCROLL.auto_scroll(DipVector::zero());
                 }
@@ -1675,7 +1675,7 @@ fn auto_scroller_node(child: impl IntoUiNode, closed: Arc<Mutex<DInstant>>) -> U
 
             KEY_INPUT_EVENT.each_update(true, |args| {
                 if matches!((args.state, &args.key), (KeyState::Pressed, Key::Escape)) {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     LAYERS.remove(WIDGET.id());
                     SCROLL.auto_scroll(DipVector::zero());
                 }

@@ -34,7 +34,7 @@ impl DialogBackdrop {
             modal = true;
 
             on_click = hn!(|args| {
-                args.propagation().stop();
+                args.propagation.stop();
                 DIALOG.respond_default();
             });
         }

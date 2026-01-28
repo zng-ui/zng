@@ -226,7 +226,7 @@ pub fn try_default_link_action(args: &LinkArgs) -> bool {
 ///
 /// Note that the request is handled even if the anchor is not found.
 pub fn try_scroll_link(args: &LinkArgs) -> bool {
-    if args.propagation().is_stopped() {
+    if args.propagation.is_stopped() {
         return false;
     }
     // Note: file names can start with #, but we are choosing to always interpret URLs with this prefix as an anchor.
@@ -243,7 +243,7 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
                 FOCUS.focus_widget(focus.info().id(), false);
             }
         }
-        args.propagation().stop();
+        args.propagation.stop();
         return true;
     }
 
@@ -252,7 +252,7 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
 
 /// Try open link, only works if the `url` is valid or a file path, returns if the confirm tooltip is visible.
 pub fn try_open_link(args: &LinkArgs) -> bool {
-    if args.propagation().is_stopped() {
+    if args.propagation.is_stopped() {
         return false;
     }
 
@@ -320,7 +320,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
             LAYERS.remove(popup_id);
         });
         on_move = async_hn!(status, |args| {
-            if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
+            if status.get() != Status::Pending || args.timestamp.duration_since(open_time) < 300.ms() {
                 return;
             }
 
@@ -342,11 +342,11 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
             text::underline_skip = text::UnderlineSkip::SPACES;
 
             on_click = async_hn_once!(status, link, |args: &ClickArgs| {
-                if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
+                if status.get() != Status::Pending || args.timestamp.duration_since(open_time) < 300.ms() {
                     return;
                 }
 
-                args.propagation().stop();
+                args.propagation.stop();
 
                 let (uri, kind) = match link {
                     Link::Url(u) => (u.to_string(), "url"),
@@ -413,11 +413,11 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
             padding = 3;
             child = COPY_CMD.icon().present_data(());
             on_click = async_hn_once!(status, |args: &ClickArgs| {
-                if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
+                if status.get() != Status::Pending || args.timestamp.duration_since(open_time) < 300.ms() {
                     return;
                 }
 
-                args.propagation().stop();
+                args.propagation.stop();
 
                 let txt = match link {
                     Link::Url(u) => u.to_txt(),

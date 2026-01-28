@@ -62,7 +62,7 @@ pub use unit::*;
 use parking_lot::{Mutex, RwLock};
 use pastey::paste;
 use zng_app::{
-    event::{AnyEventArgs, event, event_args},
+    event::{event, event_args},
     render::FontSynthesis,
     update::UPDATES,
     view_process::{
@@ -641,7 +641,7 @@ impl FontsService {
             .hook(|args| {
                 FONT_CHANGED_EVENT.notify(FontChangedArgs::new(
                     args.timestamp,
-                    args.propagation().clone(),
+                    args.propagation.clone(),
                     FontChange::SystemFonts,
                 ));
                 true

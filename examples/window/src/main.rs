@@ -736,7 +736,7 @@ fn confirm_close() -> Handler<WindowCloseRequestedArgs> {
     async_hn!(state, |args| {
         match state.get() {
             CloseState::Ask => {
-                args.propagation().stop();
+                args.propagation.stop();
                 state.set(CloseState::Asking);
 
                 let dlg = if args.windows.len() == 1 {
@@ -764,7 +764,7 @@ fn confirm_close() -> Handler<WindowCloseRequestedArgs> {
                     state.set(CloseState::Ask);
                 }
             }
-            CloseState::Asking => args.propagation().stop(),
+            CloseState::Asking => args.propagation.stop(),
             CloseState::Close => {}
         }
     })

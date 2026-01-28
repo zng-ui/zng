@@ -1,7 +1,7 @@
 //! Commands that control the scoped window.
 
 use zng_app::{
-    event::{CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, AnyEventArgs, command},
+    event::{CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, command},
     hn,
     shortcut::{CommandShortcutExt, shortcut},
     view_process::VIEW_PROCESS,
@@ -135,7 +135,7 @@ impl WindowCommands {
                 true,
                 false,
                 hn!(state, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     state.set(WindowState::Maximized);
                 }),
             ),
@@ -144,7 +144,7 @@ impl WindowCommands {
                 true,
                 false,
                 hn!(state, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     state.set(WindowState::Minimized);
                 }),
             ),
@@ -153,7 +153,7 @@ impl WindowCommands {
                 true,
                 false,
                 hn!(state, restore_state, |args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     state.set(restore_state.get());
                 }),
             ),
@@ -186,7 +186,7 @@ impl WindowCommands {
                 true,
                 false,
                 hn!(|args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     let _ = WINDOWS.close(id);
                 }),
             ),
@@ -215,7 +215,7 @@ impl WindowCommands {
                     && let Some(r) = &w.root
                     && let Some(v) = &r.view_window
                 {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     let pos = if let Some(p) = args.param::<DipPoint>() {
                         *p
@@ -251,7 +251,7 @@ impl WindowCommands {
                     && (matches!(args.scope, CommandScope::Window(w) if w == id)
                         || matches!(args.scope, CommandScope::Widget(w) if w == f.widget_id()))
                 {
-                    args.propagation().stop();
+                    args.propagation.stop();
 
                     let _ = v.set_ime_area(None);
 
@@ -276,7 +276,7 @@ impl WindowCommands {
                     && let Some(r) = &w.root
                     && let Some(v) = &r.view_window
                 {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     let _ = match args.param::<crate::cmd::ResizeDirection>() {
                         Some(r) => v.drag_resize(*r),
                         None => v.drag_move(),

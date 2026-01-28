@@ -290,11 +290,7 @@ impl ZoomToFitRequest {
     /// [`CommandArgs::param`]: zng_app::event::CommandArgs
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.param {
-            if args.propagation().is_stopped() {
-                None
-            } else {
-                Self::from_param(p)
-            }
+            if args.propagation.is_stopped() { None } else { Self::from_param(p) }
         } else {
             None
         }
@@ -351,11 +347,7 @@ impl ScrollRequest {
     /// [`CommandArgs::param`]: zng_app::event::CommandArgs
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.param {
-            if args.propagation().is_stopped() {
-                None
-            } else {
-                Self::from_param(p)
-            }
+            if args.propagation.is_stopped() { None } else { Self::from_param(p) }
         } else {
             None
         }
@@ -457,7 +449,7 @@ impl ScrollToRequest {
     /// [`CommandArgs::param`]: zng_app::event::CommandArgs
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.param {
-            if !args.enabled || args.propagation().is_stopped() {
+            if !args.enabled || args.propagation.is_stopped() {
                 None
             } else {
                 Self::from_param(p)

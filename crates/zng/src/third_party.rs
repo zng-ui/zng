@@ -152,7 +152,7 @@ pub(crate) fn setup_default_view() {
         .on_event(
             true,
             hn!(|args| {
-                args.propagation().stop();
+                args.propagation.stop();
 
                 let parent = WINDOWS.focused_window_id();
 

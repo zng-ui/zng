@@ -20,7 +20,7 @@
 //!     Window! {
 //!         on_close_requested = hn!(allow_close, |args| {
 //!             if !allow_close.get() {
-//!                 args.propagation().stop();
+//!                 args.propagation.stop();
 //!             }
 //!         });
 //!
@@ -308,7 +308,7 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
                             style_fn = zng::button::LightStyle!();
                             child = ICONS.get_or("close", || Text!("x"));
                             on_click = hn!(|args| {
-                                args.propagation().stop();
+                                args.propagation.stop();
                                 let _ = WINDOWS.close(id);
                             });
                         };

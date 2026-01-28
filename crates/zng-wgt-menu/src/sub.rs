@@ -195,7 +195,7 @@ pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
                         }
 
                         if open_pop {
-                            args.propagation().stop();
+                            args.propagation.stop();
                         }
                     }
                 } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
@@ -238,7 +238,7 @@ pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
                     }
                 } else if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary() && args.target.contains_enabled(WIDGET.id()) {
-                        args.propagation().stop();
+                        args.propagation.stop();
 
                         // open if is closed
                         open_pop = if let Some(s) = open.take() {

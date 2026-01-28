@@ -23,7 +23,7 @@ use std::mem;
 
 use parking_lot::Mutex;
 use zng_app::{
-    event::{AnyEventArgs as _, event, event_args},
+    event::{event, event_args},
     hn, static_id,
     view_process::raw_events::{
         RAW_APP_DRAG_ENDED_EVENT, RAW_DRAG_CANCELLED_EVENT, RAW_DRAG_DROPPED_EVENT, RAW_DRAG_HOVERED_EVENT, RAW_DRAG_MOVED_EVENT,
@@ -317,7 +317,7 @@ fn hooks() {
                     && let Some(wgt) = wgt.self_and_ancestors().find(|w| w.is_draggable())
                 {
                     // unhandled mouse press on draggable
-                    args.propagation().stop();
+                    args.propagation.stop();
                     let target = wgt.interaction_path();
                     let args = DragStartArgs::now(target.clone());
                     DRAG_START_EVENT.notify(args);
@@ -342,7 +342,7 @@ fn hooks() {
                     && let Some(wgt) = wgt.self_and_ancestors().find(|w| w.is_draggable())
                 {
                     // unhandled touch start on draggable
-                    args.propagation().stop();
+                    args.propagation.stop();
                     let target = wgt.interaction_path();
                     let args = DragStartArgs::now(target.clone());
                     DRAG_START_EVENT.notify(args);
@@ -363,7 +363,7 @@ fn hooks() {
             // finished notifying draggable drag start
             let mut s = DRAG_DROP_SV.write();
             let mut data = s.app_drag.take();
-            let mut cancel = args.propagation_handle.is_stopped();
+            let mut cancel = args.propagation.is_stopped();
             if !cancel {
                 if let Some(d) = &mut data {
                     if d.data.is_empty() {
@@ -653,8 +653,8 @@ impl DropArgs {
         assert!(self.allowed.contains(effect), "source does not allow this effect");
 
         let mut e = self.applied.lock();
-        if !self.propagation().is_stopped() {
-            self.propagation().stop();
+        if !self.propagation.is_stopped() {
+            self.propagation.stop();
             *e = effect;
         } else {
             tracing::error!("drop already handled");

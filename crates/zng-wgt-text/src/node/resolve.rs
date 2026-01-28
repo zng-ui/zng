@@ -426,12 +426,12 @@ fn resolve_text_edit_events(edit: &mut ResolveTextEdit) {
                     let caret = &mut ctx.caret;
                     if caret.selection_index.is_some() || caret.index.unwrap_or(CaretIndex::ZERO).index > 0 {
                         if args.modifiers.is_only_ctrl() {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             ctx.selection_by = SelectionBy::Keyboard;
                             drop(ctx);
                             TextEditOp::backspace_word().call_edit_op();
                         } else if args.modifiers.is_empty() {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             ctx.selection_by = SelectionBy::Keyboard;
                             drop(ctx);
                             TextEditOp::backspace().call_edit_op();
@@ -443,12 +443,12 @@ fn resolve_text_edit_events(edit: &mut ResolveTextEdit) {
                     let caret_idx = caret.index.unwrap_or(CaretIndex::ZERO);
                     if caret.selection_index.is_some() || caret_idx.index < ctx.segmented_text.text().len() {
                         if args.modifiers.is_only_ctrl() {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             ctx.selection_by = SelectionBy::Keyboard;
                             drop(ctx);
                             TextEditOp::delete_word().call_edit_op();
                         } else if args.modifiers.is_empty() {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             ctx.selection_by = SelectionBy::Keyboard;
                             drop(ctx);
                             TextEditOp::delete().call_edit_op();
@@ -460,7 +460,7 @@ fn resolve_text_edit_events(edit: &mut ResolveTextEdit) {
                     if !insert.is_empty() {
                         let skip = (args.is_tab() && !ACCEPTS_TAB_VAR.get()) || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get());
                         if !skip {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             ctx.selection_by = SelectionBy::Keyboard;
                             drop(ctx);
                             TextEditOp::insert(Txt::from_str(insert)).call_edit_op();
@@ -543,7 +543,7 @@ fn resolve_text_edit_events(edit: &mut ResolveTextEdit) {
     CUT_CMD.scoped(widget.id()).each_update(true, false, |args| {
         let mut ctx = TEXT.resolve();
         if let Some(range) = ctx.caret.selection_char_range() {
-            args.propagation().stop();
+            args.propagation.stop();
             ctx.selection_by = SelectionBy::Command;
             CLIPBOARD.set_text(Txt::from_str(&ctx.segmented_text.text()[range]));
             drop(ctx);
@@ -554,14 +554,14 @@ fn resolve_text_edit_events(edit: &mut ResolveTextEdit) {
         if let Some(paste) = CLIPBOARD.text().ok().flatten()
             && !paste.is_empty()
         {
-            args.propagation().stop();
+            args.propagation.stop();
             TEXT.resolve().selection_by = SelectionBy::Command;
             TextEditOp::insert(paste).call_edit_op();
         }
     });
     EDIT_CMD.scoped(widget.id()).each_update(true, false, |args| {
         if let Some(op) = args.param::<UndoTextEditOp>() {
-            args.propagation().stop();
+            args.propagation.stop();
 
             op.call();
             if !TEXT.resolved().pending_edit {
@@ -569,14 +569,14 @@ fn resolve_text_edit_events(edit: &mut ResolveTextEdit) {
                 WIDGET.update();
             }
         } else if let Some(op) = args.param::<TextEditOp>() {
-            args.propagation().stop();
+            args.propagation.stop();
 
             op.clone().call_edit_op();
         }
     });
     ACCESS_TEXT_EVENT.each_update(false, |args| {
         if args.target.widget_id() == widget.id() {
-            args.propagation().stop();
+            args.propagation.stop();
 
             if args.selection_only {
                 TextEditOp::insert(args.txt.clone())
@@ -642,7 +642,7 @@ fn resolve_text_edit_events(edit: &mut ResolveTextEdit) {
         } else {
             // commit IME insert
 
-            args.propagation().stop();
+            args.propagation.stop();
             {
                 let mut ctx = TEXT.resolve();
                 if let Some(preview) = ctx.ime_preview.take() {
@@ -721,7 +721,7 @@ fn resolve_text_edit_or_select_events(_: &mut ResolveTextEdit) {
     COPY_CMD.scoped(widget_id).each_update(true, false, |args| {
         let ctx = TEXT.resolved();
         if let Some(range) = ctx.caret.selection_char_range() {
-            args.propagation().stop();
+            args.propagation.stop();
             let txt = Txt::from_str(&ctx.segmented_text.text()[range]);
             if let Some(rt) = args.param::<RichTextCopyParam>() {
                 rt.set_text(txt);
@@ -732,7 +732,7 @@ fn resolve_text_edit_or_select_events(_: &mut ResolveTextEdit) {
     });
     ACCESS_SELECTION_EVENT.each_update(false, |args| {
         if args.start.0.widget_id() == widget_id && args.caret.0.widget_id() == widget_id {
-            args.propagation().stop();
+            args.propagation.stop();
 
             let mut ctx = TEXT.resolve();
 

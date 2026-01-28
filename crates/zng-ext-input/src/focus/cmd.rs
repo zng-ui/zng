@@ -2,7 +2,6 @@
 //!
 //! [`Command`]: zng_app::event::Command
 
-use zng_app::event::AnyEventArgs;
 use zng_app::{
     event::{Command, CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, command},
     hn,
@@ -114,12 +113,12 @@ impl FocusCommands {
         macro_rules! handle {
             ($($CMD:ident($handle:ident) => $method:ident,)+) => {Self {
                 $($handle: $CMD.on_event(false, true, false, hn!(|args| {
-                    args.propagation().stop();
+                    args.propagation.stop();
                     FOCUS.$method();
                 })),)+
                 _focus_handle: FOCUS_CMD.on_event(true, true, false, hn!(|args| {
                     if let Some(req) = args.param::<FocusRequest>() {
-                        args.propagation().stop();
+                        args.propagation.stop();
                         FOCUS.focus(*req);
                     }
                 })),

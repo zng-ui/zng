@@ -206,7 +206,7 @@ pub fn cmd(wgt: &mut WidgetBuilding, cmd: impl IntoVar<Command>) {
                                 } else {
                                     cmd.notify();
                                 }
-                                args.propagation().stop();
+                                args.propagation.stop();
                             }
                         }),
                     );
@@ -222,7 +222,7 @@ pub fn cmd(wgt: &mut WidgetBuilding, cmd: impl IntoVar<Command>) {
                                 } else {
                                     cmd.notify();
                                 }
-                                args.propagation().stop();
+                                args.propagation.stop();
                             }
                         }),
                     );
