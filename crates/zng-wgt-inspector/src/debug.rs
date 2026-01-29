@@ -185,7 +185,7 @@ fn show_widget_tree(
 #[property(CONTEXT, default(false))]
 pub fn show_hit_test(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
-    let mut handles = EventHandles::default();
+    let mut handles = VarHandles::default();
     let mut valid = false;
     let mut fails = vec![];
     let mut hits = vec![];
@@ -198,7 +198,11 @@ pub fn show_hit_test(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiN
 
                 if enabled.get() {
                     let id = WIDGET.id();
-                    handles = [MOUSE_MOVE_EVENT.subscribe(id), MOUSE_HOVERED_EVENT.subscribe(id)].into();
+                    handles = [
+                        MOUSE_MOVE_EVENT.subscribe(UpdateOp::Update, id),
+                        MOUSE_HOVERED_EVENT.subscribe(UpdateOp::Update, id),
+                    ]
+                    .into();
                 } else {
                     handles.clear();
                 }
@@ -209,8 +213,22 @@ pub fn show_hit_test(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiN
         UiNodeOp::Deinit => {
             handles.clear();
         }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
+        UiNodeOp::Update { .. } => {
+            if let Some(enabled) = enabled.get_new() {
+                if enabled && valid {
+                    let id = WIDGET.id();
+                    handles = [
+                        MOUSE_MOVE_EVENT.subscribe(UpdateOp::Update, id),
+                        MOUSE_HOVERED_EVENT.subscribe(UpdateOp::Update, id),
+                    ]
+                    .into();
+                } else {
+                    handles.clear();
+                }
+                WIDGET.render();
+            }
+
+            MOUSE_MOVE_EVENT.each_update(true, |args| {
                 if valid && enabled.get() {
                     let factor = WINDOW.vars().scale_factor().get();
                     let pt = args.position.to_px(factor);
@@ -243,27 +261,15 @@ pub fn show_hit_test(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiN
                         WIDGET.render();
                     }
                 }
-            } else if let Some(args) = MOUSE_HOVERED_EVENT.on(update)
-                && args.target.is_none()
-                && !fails.is_empty()
-                && !hits.is_empty()
-            {
-                fails.clear();
-                hits.clear();
+            });
+            MOUSE_HOVERED_EVENT.each_update(true, |args| {
+                if args.target.is_none() && !fails.is_empty() && !hits.is_empty() {
+                    fails.clear();
+                    hits.clear();
 
-                WIDGET.render();
-            }
-        }
-        UiNodeOp::Update { .. } => {
-            if let Some(enabled) = enabled.get_new() {
-                if enabled && valid {
-                    let id = WIDGET.id();
-                    handles = [MOUSE_MOVE_EVENT.subscribe(id), MOUSE_HOVERED_EVENT.subscribe(id)].into();
-                } else {
-                    handles.clear();
+                    WIDGET.render();
                 }
-                WIDGET.render();
-            }
+            });
         }
         UiNodeOp::Render { frame } => {
             child.render(frame);
@@ -310,7 +316,7 @@ pub fn show_directional_query(child: impl IntoUiNode, orientation: impl IntoVar<
             if valid {
                 WIDGET.sub_var(&orientation);
                 if orientation.get().is_some() {
-                    _mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(WIDGET.id()));
+                    _mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(UpdateOp::Update, WIDGET.id()));
                 }
             } else {
                 tracing::error!("property `show_directional_query` is only valid in a window");
@@ -318,42 +324,6 @@ pub fn show_directional_query(child: impl IntoUiNode, orientation: impl IntoVar<
         }
         UiNodeOp::Deinit => {
             _mouse_hovered_handle = None;
-        }
-        UiNodeOp::Event { update } => {
-            if !valid {
-                return;
-            }
-            if let Some(args) = MOUSE_HOVERED_EVENT.on(update)
-                && let Some(orientation) = orientation.get()
-            {
-                let mut none = true;
-                if let Some(target) = &args.target {
-                    let tree = WINDOW.info();
-                    for w_id in target.widgets_path().iter().rev() {
-                        if let Some(w) = tree.get(*w_id)
-                            && let Some(w) = w.into_focusable(true, true)
-                        {
-                            let sq: Vec<_> = orientation
-                                .search_bounds(w.info().center(), Px::MAX, tree.spatial_bounds().to_box2d())
-                                .map(|q| q.to_rect())
-                                .collect();
-
-                            if search_quads != sq {
-                                search_quads = sq;
-                                WIDGET.render();
-                            }
-
-                            none = false;
-                            break;
-                        }
-                    }
-                }
-
-                if none && !search_quads.is_empty() {
-                    search_quads.clear();
-                    WIDGET.render();
-                }
-            }
         }
         UiNodeOp::Update { .. } => {
             if !valid {
@@ -363,13 +333,44 @@ pub fn show_directional_query(child: impl IntoUiNode, orientation: impl IntoVar<
                 search_quads.clear();
 
                 if ori.is_some() {
-                    _mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(WIDGET.id()));
+                    _mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(UpdateOp::Update, WIDGET.id()));
                 } else {
                     _mouse_hovered_handle = None;
                 }
 
                 WIDGET.render();
             }
+            MOUSE_HOVERED_EVENT.each_update(true, |args| {
+                if let Some(orientation) = orientation.get() {
+                    let mut none = true;
+                    if let Some(target) = &args.target {
+                        let tree = WINDOW.info();
+                        for w_id in target.widgets_path().iter().rev() {
+                            if let Some(w) = tree.get(*w_id)
+                                && let Some(w) = w.into_focusable(true, true)
+                            {
+                                let sq: Vec<_> = orientation
+                                    .search_bounds(w.info().center(), Px::MAX, tree.spatial_bounds().to_box2d())
+                                    .map(|q| q.to_rect())
+                                    .collect();
+
+                                if search_quads != sq {
+                                    search_quads = sq;
+                                    WIDGET.render();
+                                }
+
+                                none = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    if none && !search_quads.is_empty() {
+                        search_quads.clear();
+                        WIDGET.render();
+                    }
+                }
+            });
         }
         UiNodeOp::Render { frame } => {
             child.render(frame);
