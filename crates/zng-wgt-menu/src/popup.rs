@@ -138,13 +138,14 @@ pub fn sub_menu_popup_node(children: ArcNode, parent: Option<WidgetId>) -> UiNod
             PANEL_FN_VAR
         },
     );
-    let mut close_timer = None;
+    let mut close_timer = None::<DeadlineVar>;
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
+            let id = WIDGET.id();
             WIDGET
-                .sub_event(&KEY_INPUT_EVENT)
+                .sub_event_when(&KEY_INPUT_EVENT, |a| a.state == KeyState::Pressed)
                 .sub_event(&POPUP_CLOSE_REQUESTED_EVENT)
-                .sub_event(&FOCUS_CHANGED_EVENT);
+                .sub_event_when(&FOCUS_CHANGED_EVENT, move |a| a.is_focus_leave(id) && a.new_focus.is_some());
         }
         UiNodeOp::Deinit => {
             close_timer = None;
@@ -155,10 +156,17 @@ pub fn sub_menu_popup_node(children: ArcNode, parent: Option<WidgetId>) -> UiNod
             super::sub::SUB_MENU_PARENT_CTX.with_context(&mut Some(Arc::new(parent_ctx)), || c.info(info));
             info.set_meta(*super::sub::SUB_MENU_POPUP_ID, super::sub::SubMenuPopupInfo { parent });
         }
-        UiNodeOp::Event { update } => {
-            c.event(update);
+        UiNodeOp::Update { updates } => {
+            c.update(updates);
 
-            if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
+            if let Some(t) = &close_timer
+                && t.get().has_elapsed()
+            {
+                close_timer = None;
+                POPUP.force_close_id(WIDGET.id());
+            }
+
+            KEY_INPUT_EVENT.each_update(false, |args| {
                 if let KeyState::Pressed = args.state {
                     match &args.key {
                         Key::Escape => {
@@ -214,7 +222,9 @@ pub fn sub_menu_popup_node(children: ArcNode, parent: Option<WidgetId>) -> UiNod
                         _ => {}
                     }
                 }
-            } else if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on_unhandled(update) {
+            });
+
+            POPUP_CLOSE_REQUESTED_EVENT.each_update(false, |args| {
                 let sub_self = if parent.is_some() {
                     WIDGET.info().submenu_parent()
                 } else {
@@ -262,40 +272,35 @@ pub fn sub_menu_popup_node(children: ArcNode, parent: Option<WidgetId>) -> UiNod
                         }
                     }
                 }
-            } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update)
-                && args.is_focus_leave(WIDGET.id())
-                && let Some(f) = &args.new_focus
-            {
-                let info = WIDGET.info();
-                let sub_self = if parent.is_some() {
-                    info.submenu_parent()
-                } else {
-                    // is context menu
-                    Some(info.clone())
-                };
-                if let Some(sub_menu) = sub_self
-                    && let Some(f) = info.tree().get(f.widget_id())
-                    && !f.submenu_self_and_ancestors().any(|s| s.id() == sub_menu.id())
+            });
+
+            FOCUS_CHANGED_EVENT.each_update(true, |args| {
+                if args.is_focus_leave(WIDGET.id())
+                    && let Some(f) = &args.new_focus
                 {
-                    // Focus did not move to child sub-menu nor parent,
-                    // close after delay.
-                    //
-                    // This covers the case of focus moving to a widget that is not
-                    // a child sub-menu and is not the parent sub-menu,
-                    // `sub_menu_node` covers the case of focus moving to the parent sub-menu and out.
-                    let t = TIMERS.deadline(HOVER_OPEN_DELAY_VAR.get());
-                    t.subscribe(UpdateOp::Update, info.id()).perm();
-                    close_timer = Some(t);
+                    let info = WIDGET.info();
+                    let sub_self = if parent.is_some() {
+                        info.submenu_parent()
+                    } else {
+                        // is context menu
+                        Some(info.clone())
+                    };
+                    if let Some(sub_menu) = sub_self
+                        && let Some(f) = info.tree().get(f.widget_id())
+                        && !f.submenu_self_and_ancestors().any(|s| s.id() == sub_menu.id())
+                    {
+                        // Focus did not move to child sub-menu nor parent,
+                        // close after delay.
+                        //
+                        // This covers the case of focus moving to a widget that is not
+                        // a child sub-menu and is not the parent sub-menu,
+                        // `sub_menu_node` covers the case of focus moving to the parent sub-menu and out.
+                        let t = TIMERS.deadline(HOVER_OPEN_DELAY_VAR.get());
+                        t.subscribe(UpdateOp::Update, info.id()).perm();
+                        close_timer = Some(t);
+                    }
                 }
-            }
-        }
-        UiNodeOp::Update { .. } => {
-            if let Some(t) = &close_timer
-                && t.get().has_elapsed()
-            {
-                close_timer = None;
-                POPUP.force_close_id(WIDGET.id());
-            }
+            });
         }
         _ => {}
     })
