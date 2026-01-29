@@ -89,21 +89,22 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
                 // cache-mode update:
                 let is_cached = img.as_ref().unwrap().0.with(|i| IMAGES.is_cached(i));
                 if enabled != is_cached {
-                    let i = if is_cached {
-                        // must not cache, but is cached, detach from cache.
+                    let source = source.get();
+                    let limits = MASK_IMAGE_LIMITS_VAR.get();
+                    let downscale = MASK_IMAGE_DOWNSCALE_VAR.get();
+                    let mask_mode = MASK_MODE_VAR.get();
+                    let mut opt = ImageOptions::new(ImageCacheMode::Cache, downscale, Some(mask_mode), ImageEntriesMode::PRIMARY);
 
-                        let img = img.take().unwrap().0;
-                        IMAGES.detach(img)
-                    } else {
-                        // must cache, but image is not cached, get source again.
+                    if is_cached {
+                        let _ = img.take().unwrap().0;
+                        if let Some(h) = source.hash128(&opt) {
+                            IMAGES.clean(h);
+                        }
+                                            
+                        opt.cache_mode = ImageCacheMode::Ignore;
+                    }
 
-                        let source = source.get();
-                        let limits = MASK_IMAGE_LIMITS_VAR.get();
-                        let downscale = MASK_IMAGE_DOWNSCALE_VAR.get();
-                        let mask_mode = MASK_MODE_VAR.get();
-                        let opt = ImageOptions::new(ImageCacheMode::Cache, downscale, Some(mask_mode), ImageEntriesMode::PRIMARY);
-                        IMAGES.image(source, opt, limits)
-                    };
+                    let i = IMAGES.image(source, opt, limits);
 
                     let s = i.subscribe(UpdateOp::Update, WIDGET.id());
                     img = Some((i, s));

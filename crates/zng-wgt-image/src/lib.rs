@@ -56,7 +56,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
     wgt.set_child(node);
 
     let source = wgt.capture_var::<ImageSource>(property_id!(source)).unwrap_or_else(|| {
-        let error = ImageEntry::new_empty(Txt::from_static("no source"));
+        let error = ImageEntry::new_error(Txt::from_static("no source"));
         let error = ImageSource::Image(var(error).read_only());
         const_var(error)
     });

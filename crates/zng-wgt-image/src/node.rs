@@ -1,7 +1,5 @@
 //! UI nodes used for building the image widget.
 
-use std::mem;
-
 use zng_ext_image::{IMAGES, ImageCacheMode, ImageOptions, ImageRenderArgs};
 use zng_wgt_stack::stack_nodes;
 
@@ -18,7 +16,7 @@ context_var! {
     pub static CONTEXT_IMAGE_VAR: ImageEntry = no_context_image();
 }
 fn no_context_image() -> ImageEntry {
-    ImageEntry::new_empty(Txt::from_static("no image source in context"))
+    ImageEntry::new_error(Txt::from_static("no image source in context"))
 }
 
 /// Requests an image from [`IMAGES`] and sets [`CONTEXT_IMAGE_VAR`].
@@ -33,9 +31,9 @@ fn no_context_image() -> ImageEntry {
 /// [`IMAGES`]: zng_ext_image::IMAGES
 pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> UiNode {
     let source = source.into_var();
-    let ctx_img = var(ImageEntry::new_empty(Txt::default()));
+    let ctx_img = var(ImageEntry::new_loading());
     let child = with_context_var(child, CONTEXT_IMAGE_VAR, ctx_img.read_only());
-    let mut img = var(ImageEntry::new_empty(Txt::default())).read_only();
+    let mut img = var(ImageEntry::new_loading()).read_only();
     let mut _ctx_binding = None;
 
     match_node(child, move |child, op| match op {
@@ -93,18 +91,17 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                 // cache-mode update:
                 let is_cached = ctx_img.with(|img| IMAGES.is_cached(img));
                 if enabled != is_cached {
-                    img = if is_cached {
-                        // must not cache, but is cached, detach from cache.
-
-                        let img = mem::replace(&mut img, var(ImageEntry::new_empty(Txt::default())).read_only());
-                        IMAGES.detach(img)
-                    } else {
-                        // must cache, but image is not cached, get source again.
-
-                        let source = source.get();
-                        let opt = ImageOptions::new(ImageCacheMode::Cache, IMAGE_DOWNSCALE_VAR.get(), None, IMAGE_ENTRIES_MODE_VAR.get());
-                        IMAGES.image(source, opt, IMAGE_LIMITS_VAR.get())
-                    };
+                    let source = source.get();
+                    let mut opt = ImageOptions::new(ImageCacheMode::Cache, IMAGE_DOWNSCALE_VAR.get(), None, IMAGE_ENTRIES_MODE_VAR.get());
+                        
+                    if is_cached {
+                        img = const_var(ImageEntry::new_loading());
+                        if let Some(h) = source.hash128(&opt) {
+                            IMAGES.clean(h);
+                        }
+                        opt.cache_mode = ImageCacheMode::Ignore;
+                    } 
+                    img = IMAGES.image(source, opt, IMAGE_LIMITS_VAR.get());
 
                     ctx_img.set_from(&img);
                     _ctx_binding = Some(img.bind(&ctx_img));
