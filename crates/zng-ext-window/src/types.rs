@@ -883,3 +883,11 @@ pub enum WindowInstanceState {
     /// [`WindowVars::instance_state`]: crate::WindowVars::instance_state
     Closed,
 }
+impl WindowInstanceState {
+    /// If matches [`Loaded`] with and without view.
+    /// 
+    /// [`Loaded`]: WindowInstanceState::Loaded
+    pub fn is_loaded(&self) -> bool {
+        matches!(self, Self::Loaded { .. })
+    }
+}

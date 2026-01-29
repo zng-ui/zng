@@ -243,7 +243,7 @@ pub fn save_state_node<S: ConfigValue>(
         Disabled,
         /// Awaiting config or window load
         AwaitingLoad {
-            _window_load_handle: EventHandle,
+            _window_load_handle: VarHandle,
             _config_status_handle: VarHandle,
         },
         /// Loaded, there was no config entry for the key (using default values)
@@ -255,7 +255,7 @@ pub fn save_state_node<S: ConfigValue>(
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             if let Some(key) = enabled.enabled_key() {
-                let is_loaded = WINDOW.is_loaded();
+                let is_loaded = WINDOW.vars().instance_state().get().is_loaded();
                 let status = CONFIG.status();
                 let is_idle = status.get().is_idle();
                 if is_idle || is_loaded {
@@ -272,9 +272,9 @@ pub fn save_state_node<S: ConfigValue>(
                 } else {
                     let id = WIDGET.id();
                     let _window_load_handle = if !is_loaded {
-                        WINDOW_LOAD_EVENT.subscribe(id)
+                        WINDOW_LOAD_EVENT.subscribe(UpdateOp::Update, id)
                     } else {
-                        EventHandle::dummy()
+                        VarHandle::dummy()
                     };
                     let _config_status_handle = if !is_idle {
                         status.subscribe(UpdateOp::Update, id)
@@ -292,25 +292,6 @@ pub fn save_state_node<S: ConfigValue>(
         }
         UiNodeOp::Deinit => {
             state = State::Disabled;
-        }
-        UiNodeOp::Event { update } => {
-            if matches!(&state, State::AwaitingLoad { .. }) && WINDOW_LOAD_EVENT.has(update) {
-                // window loaded, can't await for config anymore
-
-                if let Some(key) = enabled.enabled_key() {
-                    if CONFIG.contains_key(key.clone()).get() {
-                        let cfg = CONFIG.get(key, on_update_save(true).unwrap());
-                        on_load_restore(Some(cfg.get()));
-                        state = State::LoadedWithCfg(cfg);
-                    } else {
-                        on_load_restore(None);
-                        state = State::Loaded;
-                    }
-                } else {
-                    // this can happen if the parent widget node is not properly implemented (changed context)
-                    state = State::Disabled;
-                }
-            }
         }
         UiNodeOp::Update { .. } => match &mut state {
             State::LoadedWithCfg(cfg) => {
@@ -344,6 +325,25 @@ pub fn save_state_node<S: ConfigValue>(
                     } else {
                         // this can happen if the parent widget node is not properly implemented (changed context)
                         state = State::Disabled;
+                    }
+                } else {
+                    let win_id = WINDOW.id();
+                    if WINDOW_LOAD_EVENT.any_update(true, |a| a.window_id == win_id) {
+                        // window loaded, can't await for config anymore
+
+                        if let Some(key) = enabled.enabled_key() {
+                            if CONFIG.contains_key(key.clone()).get() {
+                                let cfg = CONFIG.get(key, on_update_save(true).unwrap());
+                                on_load_restore(Some(cfg.get()));
+                                state = State::LoadedWithCfg(cfg);
+                            } else {
+                                on_load_restore(None);
+                                state = State::Loaded;
+                            }
+                        } else {
+                            // this can happen if the parent widget node is not properly implemented (changed context)
+                            state = State::Disabled;
+                        }
                     }
                 }
             }
@@ -525,20 +525,19 @@ pub fn config_block_window_load(child: impl IntoUiNode, enabled: impl IntoValue<
 /// [`WINDOWS.system_chrome`]: WINDOWS::system_chrome
 #[property(EVENT, default(var_state()), widget_impl(Window))]
 pub fn needs_fallback_chrome(child: impl IntoUiNode, needs: impl IntoVar<bool>) -> UiNode {
-    zng_wgt::node::bind_state_init(
-        child,
-        || {
-            if WINDOW.mode().is_headless() {
-                const_var(false)
-            } else {
-                let vars = WINDOW.vars();
-                expr_var! {
-                    *#{vars.chrome()} && #{WINDOWS.system_chrome()}.needs_custom() && !#{vars.state()}.is_fullscreen()
-                }
-            }
-        },
-        needs,
-    )
+    zng_wgt::node::bind_state_init(child, needs, |n| {
+        if WINDOW.mode().is_headless() {
+            n.set(false);
+            VarHandle::dummy()
+        } else {
+            let vars = WINDOW.vars();
+            let state = expr_var! {
+                *#{vars.chrome()} && #{WINDOWS.system_chrome()}.needs_custom() && !#{vars.state()}.is_fullscreen()
+            };
+            state.set_bind(n).perm();
+            n.hold(state)
+        }
+    })
 }
 
 /// Gets if [`WINDOWS.system_chrome`] prefers custom chrome.

@@ -395,7 +395,7 @@ fn close_together_all_built(request: Vec<WindowId>, r: ResponderVar<CloseWindowR
                     nodes.iter_mut().for_each(deinit);
                 }
 
-                // drop windows
+                // drop windows !!: TODO this is wrong, the WINDOW_CLOSE_EVENT docs says notify happens first?
                 let mut s = WINDOWS_SV.write();
                 for (id, node, vars) in nodes.drain(..) {
                     vars.unwrap().0.instance_state.set(WindowInstanceState::Closed);

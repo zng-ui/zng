@@ -158,14 +158,14 @@ pub fn fallback_chrome() -> UiNode {
             border = 5, light_dark(colors::WHITE, colors::BLACK).rgba().map_into();
             cursor = cursor.clone();
             on_mouse_move = hn!(|args| {
-                cursor.set(match args.position_wgt().and_then(resize_direction) {
+                cursor.set(match args.position_wgt((WINDOW.id(), WIDGET.id())).and_then(resize_direction) {
                     Some(d) => CursorIcon::from(d).into(),
                     None => CursorSource::Hidden,
                 });
             });
             on_mouse_down = hn!(|args| {
                 if args.is_primary()
-                    && let Some(d) = args.position_wgt().and_then(resize_direction)
+                    && let Some(d) = args.position_wgt((WINDOW.id(), WIDGET.id())).and_then(resize_direction)
                 {
                     DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify_param(d);
                 }
