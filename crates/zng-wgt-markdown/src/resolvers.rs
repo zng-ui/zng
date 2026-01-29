@@ -189,9 +189,10 @@ event! {
 
 event_property! {
     /// Markdown link click.
-    pub fn link {
-        event: LINK_EVENT,
-        args: LinkArgs,
+    #[property(EVENT)]
+    pub fn on_link<on_pre_link>(child: impl IntoUiNode, handler: Handler<LinkArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(LINK_EVENT).build::<PRE>(child, handler)
     }
 }
 
@@ -206,8 +207,8 @@ event_args! {
 
         ..
 
-        fn delivery_list(&self, delivery_list: &mut UpdateDeliveryList) {
-            delivery_list.insert_wgt(self.link.as_path())
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.link.contains(id)
         }
     }
 }
@@ -311,16 +312,6 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
 
         on_focus_leave = async_hn_once!(status, |_| {
             if status.get() != Status::Pending {
-                return;
-            }
-
-            status.set(Status::Cancel);
-            task::deadline(200.ms()).await;
-
-            LAYERS.remove(popup_id);
-        });
-        on_move = async_hn!(status, |args| {
-            if status.get() != Status::Pending || args.timestamp.duration_since(open_time) < 300.ms() {
                 return;
             }
 
