@@ -17,7 +17,7 @@ use bitflags::bitflags;
 use parking_lot::Mutex;
 use zng_app::view_process::VIEW_PROCESS;
 use zng_ext_l10n::l10n;
-use zng_ext_window::{WINDOW_CLOSE_REQUESTED_EVENT, WINDOWS};
+use zng_ext_window::{WINDOW_CLOSE_REQUESTED_EVENT, WINDOWS, WINDOWS_DIALOG};
 use zng_var::{ContextInitHandle, animation::easing};
 use zng_view_api::dialog::{self as native_api};
 use zng_wgt::{node::VarPresent as _, prelude::*, *};
@@ -87,35 +87,38 @@ fn dialog_closing_node(child: impl IntoUiNode) -> UiNode {
                 let ctx = DIALOG_CTX.get();
                 let default_response = DEFAULT_RESPONSE_VAR.current_context();
                 let responder = ctx.responder.clone();
-                let handle = WINDOW_CLOSE_REQUESTED_EVENT.on_pre_event(hn!(|args| {
-                    // a window is closing
-                    if responder.get().is_waiting() {
-                        // dialog has no response
+                let handle = WINDOW_CLOSE_REQUESTED_EVENT.on_pre_event(
+                    true,
+                    hn!(|args| {
+                        // a window is closing
+                        if responder.get().is_waiting() {
+                            // dialog has no response
 
-                        let path = WINDOWS.widget_info(id).unwrap().path();
-                        if args.windows.contains(&path.window_id()) {
-                            // is closing dialog parent window
+                            let path = WINDOWS.widget_info(id).unwrap().path();
+                            if args.windows.contains(&path.window_id()) {
+                                // is closing dialog parent window
 
-                            if let Some(default) = default_response.get() {
-                                // has default response
-                                responder.respond(default);
-                                // in case the window close is canceled by other component
-                                zng_wgt_layer::popup::POPUP_CLOSE_CMD
-                                    .scoped(path.window_id())
-                                    .notify_param(path.widget_id());
-                            } else {
-                                // no default response, cancel close
-                                args.propagation.stop();
-                                DIALOG_CLOSE_CANCELED_EVENT.notify(DialogCloseCanceledArgs::now(path));
+                                if let Some(default) = default_response.get() {
+                                    // has default response
+                                    responder.respond(default);
+                                    // in case the window close is canceled by other component
+                                    zng_wgt_layer::popup::POPUP_CLOSE_CMD
+                                        .scoped(path.window_id())
+                                        .notify_param(path.widget_id());
+                                } else {
+                                    // no default response, cancel close
+                                    args.propagation.stop();
+                                    DIALOG_CLOSE_CANCELED_EVENT.notify(DialogCloseCanceledArgs::now(path));
+                                }
                             }
                         }
-                    }
-                }));
-                WIDGET.push_event_handle(handle);
+                    }),
+                );
+                WIDGET.push_var_handle(handle);
                 WIDGET.sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
             }
-            UiNodeOp::Event { update } => {
-                if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on(update) {
+            UiNodeOp::Update { .. } => {
+                POPUP_CLOSE_REQUESTED_EVENT.each_update(true, |args| {
                     // dialog is closing
                     let ctx = DIALOG_CTX.get();
                     if ctx.responder.get().is_waiting() {
@@ -127,7 +130,7 @@ fn dialog_closing_node(child: impl IntoUiNode) -> UiNode {
                             DIALOG_CLOSE_CANCELED_EVENT.notify(DialogCloseCanceledArgs::now(WIDGET.info().path()));
                         }
                     }
-                }
+                })
             }
             _ => (),
         }
@@ -142,8 +145,8 @@ event_args! {
 
         ..
 
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_wgt(&self.target);
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 }
@@ -157,9 +160,13 @@ event_property! {
     // An attempt to close the dialog was made without setting the response.
     ///
     /// Dialogs must only close using [`DIALOG.respond`](DIALOG::respond).
-    pub fn dialog_close_canceled {
-        event: DIALOG_CLOSE_CANCELED_EVENT,
-        args: DialogCloseCanceledArgs,
+    #[property(EVENT)]
+    pub fn on_dialog_close_canceled<on_pre_dialog_close_canceled>(
+        child: impl IntoUiNode,
+        handler: Handler<DialogCloseCanceledArgs>,
+    ) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(DIALOG_CLOSE_CANCELED_EVENT).build::<PRE>(child, handler)
     }
 }
 
@@ -674,7 +681,7 @@ impl DIALOG {
         starting_name: impl IntoVar<Txt>,
         filters: impl Into<FileDialogFilters>,
     ) -> ResponseVar<FileDialogResponse> {
-        WINDOWS.native_file_dialog(
+        WINDOWS_DIALOG.native_file_dialog(
             WINDOW.id(),
             native_api::FileDialog::new(
                 title.into_var().get(),
@@ -694,7 +701,7 @@ impl DIALOG {
         starting_name: impl IntoVar<Txt>,
         filters: impl Into<FileDialogFilters>,
     ) -> ResponseVar<FileDialogResponse> {
-        WINDOWS.native_file_dialog(
+        WINDOWS_DIALOG.native_file_dialog(
             WINDOW.id(),
             native_api::FileDialog::new(
                 title.into_var().get(),
@@ -714,7 +721,7 @@ impl DIALOG {
         starting_name: impl IntoVar<Txt>,
         filters: impl Into<FileDialogFilters>,
     ) -> ResponseVar<FileDialogResponse> {
-        WINDOWS.native_file_dialog(
+        WINDOWS_DIALOG.native_file_dialog(
             WINDOW.id(),
             native_api::FileDialog::new(
                 title.into_var().get(),
@@ -733,7 +740,7 @@ impl DIALOG {
         starting_dir: impl Into<PathBuf>,
         starting_name: impl IntoVar<Txt>,
     ) -> ResponseVar<FileDialogResponse> {
-        WINDOWS.native_file_dialog(
+        WINDOWS_DIALOG.native_file_dialog(
             WINDOW.id(),
             native_api::FileDialog::new(
                 title.into_var().get(),
@@ -752,7 +759,7 @@ impl DIALOG {
         starting_dir: impl Into<PathBuf>,
         starting_name: impl IntoVar<Txt>,
     ) -> ResponseVar<FileDialogResponse> {
-        WINDOWS.native_file_dialog(
+        WINDOWS_DIALOG.native_file_dialog(
             WINDOW.id(),
             native_api::FileDialog::new(
                 title.into_var().get(),
@@ -879,7 +886,7 @@ impl DIALOG {
         native_buttons: native_api::MsgDialogButtons,
     ) -> ResponseVar<Response> {
         if NATIVE_DIALOGS_VAR.get().contains(kind) {
-            WINDOWS
+            WINDOWS_DIALOG
                 .native_message_dialog(
                     WINDOW.id(),
                     native_api::MsgDialog::new(title.get(), msg.get(), native_icon, native_buttons),
