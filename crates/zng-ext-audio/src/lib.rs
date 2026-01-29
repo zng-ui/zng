@@ -1,7 +1,7 @@
 #![doc(html_favicon_url = "https://zng-ui.github.io/res/zng-logo-icon.png")]
 #![doc(html_logo_url = "https://zng-ui.github.io/res/zng-logo.png")]
 //!
-//! Audio loading and cache and playback.
+//! Audio loading, rendering and cache.
 //!
 //! # Services
 //!
@@ -26,13 +26,13 @@ use zng_app::{
 };
 use zng_app_context::app_local;
 use zng_clone_move::clmv;
-use zng_task::channel::{IpcBytes, IpcBytesCast};
+use zng_task::channel::IpcBytes;
 use zng_txt::ToTxt;
 use zng_txt::Txt;
 use zng_unique_id::{IdEntry, IdMap};
 use zng_unit::ByteLength;
 use zng_var::{Var, VarHandle, const_var, var};
-use zng_view_api::audio::{AudioDecoded, AudioId, AudioMetadata, AudioRequest};
+use zng_view_api::audio::{AudioDecoded, AudioMetadata, AudioRequest};
 
 mod types;
 pub use types::*;
@@ -62,7 +62,7 @@ impl AudiosService {
     }
 }
 
-/// Audio loading and cache service.
+/// Audio loading, cache and render service.
 ///
 /// If the app is running without a [`VIEW_PROCESS`] all audios are dummy, see [`load_in_headless`] for
 /// details.
@@ -74,11 +74,12 @@ impl AUDIOS {
     /// If should still download/read audio bytes in headless/renderless mode.
     ///
     /// When an app is in headless mode without renderer no [`VIEW_PROCESS`] is available, so
-    /// audio cannot be decoded, in this case all audio are dummy loading and no attempt
+    /// audios cannot be decoded, in this case all audios are dummy loading and no attempt
     /// to download/read the audio files is made. You can enable loading in headless tests to detect
     /// IO errors, in this case if there is an error acquiring the audio file the audio will be a
-    /// [`AudioTrack::error`].
+    /// [`dummy`] with error.
     ///
+    /// [`dummy`]: AUDIOS::dummy
     /// [`VIEW_PROCESS`]: zng_app::view_process::VIEW_PROCESS
     pub fn load_in_headless(&self) -> Var<bool> {
         AUDIOS_SV.read().load_in_headless.clone()
@@ -129,10 +130,10 @@ impl AUDIOS {
     /// Get an audio from a PNG file embedded in the app executable using [`include_bytes!`].
     ///
     /// ```
-    /// # use zng_ext_image::*;
+    /// # use zng_ext_audio::*;
     /// # macro_rules! include_bytes { ($tt:tt) => { &[] } }
     /// # fn demo() {
-    /// let audio_var = AUDIOS.from_static(include_bytes!("ping.wav"), "wav");
+    /// let audio_var = AUDIOS.from_static(include_bytes!("ico.png"), "png");
     /// # }
     /// ```
     ///
@@ -208,7 +209,7 @@ impl AUDIOS {
     ///
     /// Returns an audio var that tracks the audio, note that if the `key` is already known does not use the `audio` data.
     ///
-    /// Note that you can register tracks in [`AudioTrack::insert_track`], this method is only for tracking a new entry.
+    /// Note that you can register tracks in [`AudioTrack::insert_entry`], this method is only for tracking a new track.
     ///
     /// Note that the audio will not automatically restore on respawn if the view-process fails while decoding.
     pub fn register(&self, key: Option<AudioHash>, audio: (ViewAudioHandle, AudioMetadata, AudioDecoded)) -> AudioVar {
@@ -262,14 +263,14 @@ impl AUDIOS {
         }
     }
 
-    /// Clear cached audio that are not referenced outside of the cache.
+    /// Clear cached audios that are not referenced outside of the cache.
     pub fn clean_all(&self) {
         UPDATES.once_update("AUDIOS.clean_all", || {
             AUDIOS_SV.write().cache.retain(|_, v| v.strong_count() > 1);
         });
     }
 
-    /// Clear all cached audio, including audio that are still referenced outside of the cache.
+    /// Clear all cached audios, including audios that are still referenced outside of the cache.
     ///
     /// Audio memory only drops when all strong references are removed, so if an audio is referenced
     /// outside of the cache it will merely be disconnected from the cache by this method.
@@ -279,7 +280,7 @@ impl AUDIOS {
         });
     }
 
-    /// Add an audio service extension.
+    /// Add an audios service extension.
     ///
     /// See [`AudiosExtension`] for extension capabilities.
     pub fn extend(&self, extension: Box<dyn AudiosExtension>) {
@@ -371,12 +372,12 @@ fn audio(mut source: AudioSource, mut options: AudioOptions, limits: Option<Audi
                     if var.with(AudioTrack::is_error) {
                         // already cached with error
 
-                        // bind old entry to new, in case there are listeners to it,
+                        // bind old track to new, in case there are listeners to it,
                         // can't use `strong_count` to optimize here because it might have weak refs out there
                         r.set_bind(var).perm();
                         var.hold(r.clone()).perm();
 
-                        // new var `r` becomes the entry
+                        // new var `r` becomes the track
                         e.insert(r.clone());
                     } else {
                         // already cached ok
@@ -507,11 +508,11 @@ fn audio_data(
     let try_gen = VIEW_PROCESS.generation();
 
     match VIEW_PROCESS.add_audio(request) {
-        Ok(view_audio) => audio_view(
+        Ok(view_img) => audio_view(
             cache_key,
-            view_audio,
-            AudioMetadata::new(AudioId::INVALID, 0, 0),
-            AudioDecoded::new(AudioId::INVALID, IpcBytesCast::default()),
+            view_img,
+            AudioMetadata::default(),
+            AudioDecoded::default(),
             Some((format, data, options, limits)),
             r,
         ),
@@ -534,10 +535,10 @@ fn audio_view(
     respawn_data: Option<(AudioDataFormat, IpcBytes, AudioOptions, AudioLimits)>,
     r: Var<AudioTrack>,
 ) {
-    let a = AudioTrack::new(cache_key, handle, meta, decoded);
-    let is_loaded = a.is_loaded();
-    let is_dummy = a.view_handle().is_dummy();
-    r.set(a);
+    let aud = AudioTrack::new(cache_key, handle, meta, decoded);
+    let is_loaded = aud.is_loaded();
+    let is_dummy = aud.view_handle().is_dummy();
+    r.set(aud);
 
     if is_loaded {
         audio_decoded(r);
@@ -569,7 +570,7 @@ fn audio_view(
     let r_weak = r.downgrade();
     let decode_error_handle = RAW_AUDIO_DECODE_ERROR_EVENT.hook(move |args| match r_weak.upgrade() {
         Some(r) => {
-            if r.with(|a| a.view_handle() == args.handle.upgrade().unwrap()) {
+            if r.with(|aud| aud.view_handle() == &args.handle.upgrade().unwrap()) {
                 r.set(AudioTrack::new_error(args.error.clone()));
                 false
             } else {
@@ -583,23 +584,23 @@ fn audio_view(
     let r_weak = r.downgrade();
     let decode_meta_handle = RAW_AUDIO_METADATA_DECODED_EVENT.hook(move |args| match r_weak.upgrade() {
         Some(r) => {
-            if r.with(|a| a.view_handle() == args.handle.upgrade().unwrap()) {
+            if r.with(|aud| aud.view_handle() == &args.handle.upgrade().unwrap()) {
                 let meta = args.meta.clone();
                 r.modify(move |i| i.meta = meta);
             } else if let Some(p) = &args.meta.parent
-                && p.parent == r.with(|a| a.view_handle().audio_id())
+                && p.parent == r.with(|aud| aud.view_handle().audio_id())
             {
-                // discovered a track for this audio, start tracking it
-
-                let data = AudioDecoded::new(AudioId::INVALID, IpcBytesCast::default());
+                // discovered an track for this audio, start tracking it
+                let mut decoded = AudioDecoded::default();
+                decoded.id = args.meta.id;
                 let track = var(AudioTrack::new(
                     None,
                     args.handle.upgrade().unwrap(),
                     args.meta.clone(),
-                    data.clone(),
+                    decoded.clone(),
                 ));
                 r.modify(clmv!(track, |i| i.insert_track(track)));
-                audio_view(None, args.handle.upgrade().unwrap(), args.meta.clone(), data, None, track);
+                audio_view(None, args.handle.upgrade().unwrap(), args.meta.clone(), decoded, None, track);
             }
             r.with(AudioTrack::is_loading)
         }
@@ -613,7 +614,7 @@ fn audio_view(
             let _hold = [&decoding_respawn_handle, &decode_error_handle, &decode_meta_handle];
             match r_weak.upgrade() {
                 Some(r) => {
-                    if r.with(|a| a.view_handle() == args.handle.upgrade().unwrap()) {
+                    if r.with(|aud| aud.view_handle() == &args.handle.upgrade().unwrap()) {
                         let data = args.audio.upgrade().unwrap();
                         let is_loading = !data.is_full;
                         r.modify(move |i| i.data = (*data.0).clone());
@@ -636,24 +637,25 @@ fn audio_decoded(r: Var<AudioTrack>) {
     VIEW_PROCESS_INITED_EVENT
         .hook(move |_| {
             if let Some(r) = r_weak.upgrade() {
-                let a = r.get();
-                if !a.is_loaded() {
+                let aud = r.get();
+                if !aud.is_loaded() {
                     // audio rebound, maybe due to cache refresh
                     return false;
                 }
 
                 // respawn the audio as decoded data
+                let options = AudioOptions::none();
                 let format = AudioDataFormat::InterleavedF32 {
-                    channel_count: a.meta.channel_count,
-                    sample_rate: a.meta.sample_rate,
-                    total_duration: a.meta.total_duration,
+                    channel_count: aud.channel_count(),
+                    sample_rate: aud.sample_rate(),
+                    total_duration: aud.total_duration(),
                 };
                 audio_data(
                     true,
-                    a.cache_key,
+                    aud.cache_key,
                     format,
-                    a.data.chunk.into(),
-                    AudioOptions::none(),
+                    aud.chunk().into_inner(),
+                    options,
                     AudioLimits::none(),
                     r,
                 );

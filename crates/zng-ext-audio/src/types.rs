@@ -7,18 +7,16 @@ use std::{
 };
 
 use zng_app::view_process::ViewAudioHandle;
-use zng_task::channel::{IpcBytes, IpcBytesCast};
+use zng_task::{
+    self as task,
+    channel::{IpcBytes, IpcBytesCast},
+};
 use zng_txt::Txt;
-use zng_unit::{ByteLength, ByteUnits as _};
-#[cfg(feature = "http")]
-use zng_var::impl_from_and_into_var;
-#[cfg(not(feature = "http"))]
-use zng_var::impl_from_and_into_var;
-use zng_var::{Var, VarEq};
-use zng_view_api::audio::{AudioDecoded, AudioId, AudioMetadata};
+use zng_unit::{ByteLength, ByteUnits};
+use zng_var::{Var, VarEq, impl_from_and_into_var};
+use zng_view_api::audio::{AudioDecoded, AudioMetadata};
 
-pub use zng_app::view_process::AudioOutputId;
-pub use zng_view_api::audio::{AudioDataFormat, AudioFormat, AudioOutputState, AudioTracksMode};
+pub use zng_view_api::audio::{AudioDataFormat, AudioFormat, AudioFormatCapability, AudioTracksMode};
 
 /// A custom extension for the [`AUDIOS`] service.
 ///
@@ -102,14 +100,19 @@ pub trait AudiosExtension: Send + Sync + Any {
 ///
 /// [`AUDIOS`]: super::AUDIOS
 pub type AudioVar = Var<AudioTrack>;
+
 /// State of an [`AudioVar`].
+///
+/// [`AUDIOS`]: crate::AUDIOS
 #[derive(Debug, Clone)]
 pub struct AudioTrack {
     pub(crate) cache_key: Option<AudioHash>,
+
     pub(crate) handle: ViewAudioHandle,
     pub(crate) meta: AudioMetadata,
     pub(crate) data: AudioDecoded,
     tracks: Vec<VarEq<AudioTrack>>,
+
     error: Txt,
 }
 impl PartialEq for AudioTrack {
@@ -136,18 +139,12 @@ impl AudioTrack {
     ///
     /// If the `error` is empty the audio is *loading*, not an error.
     pub fn new_error(error: Txt) -> Self {
-        let mut s = Self::new(
-            None,
-            ViewAudioHandle::dummy(),
-            AudioMetadata::new(AudioId::INVALID, 0, 0),
-            AudioDecoded::new(AudioId::INVALID, IpcBytesCast::default()),
-        );
+        let mut s = Self::new(None, ViewAudioHandle::dummy(), AudioMetadata::default(), AudioDecoded::default());
         s.error = error;
         s
     }
 
-    /// New from existing view audio.
-    pub(super) fn new(cache_key: Option<AudioHash>, handle: ViewAudioHandle, meta: AudioMetadata, data: AudioDecoded) -> Self {
+    pub(crate) fn new(cache_key: Option<AudioHash>, handle: ViewAudioHandle, meta: AudioMetadata, data: AudioDecoded) -> Self {
         Self {
             cache_key,
             handle,
@@ -165,16 +162,9 @@ impl AudioTrack {
 
     /// If the audio has finished loading ok or due to error.
     ///
-    /// The audio variable may still update after
+    /// Note that depending on how the audio is requested and its source it may never be fully loaded.
     pub fn is_loaded(&self) -> bool {
         !self.is_loading()
-    }
-
-    /// If this audio can be cued for playback already.
-    ///
-    /// This is `true` when the audio has decoded enough that it can begin streaming.
-    pub fn can_cue(&self) -> bool {
-        !self.view_handle().is_dummy() && !self.is_error()
     }
 
     /// If the audio failed to load.
@@ -187,87 +177,13 @@ impl AudioTrack {
         if self.error.is_empty() { None } else { Some(self.error.clone()) }
     }
 
-    /// If [`tracks`] is not empty.
+    /// Total duration of the track, if it is known.
     ///
-    /// [`tracks`]: Self::tracks
-    pub fn has_tracks(&self) -> bool {
-        !self.tracks.is_empty()
-    }
-
-    /// Other audio tracks from the same container that are a *child* of this audio track.
-    pub fn tracks(&self) -> Vec<AudioVar> {
-        self.tracks.iter().map(|e| e.read_only()).collect()
-    }
-
-    /// All other audio tracks from the same container that are a *descendant* of this audio track.
+    /// Note that this value is set as soon as the header finishes decoding, the [`chunk`] may not contains the full stream.
     ///
-    /// The values are a tuple of each entry and the length of descendants tracks that follow it.
-    ///
-    /// The returned variable will update every time any entry descendant var updates.
-    pub fn flat_tracks(&self) -> Var<Vec<(VarEq<AudioTrack>, usize)>> {
-        // idea here is to just rebuild the flat list on any update,
-        // assuming the audio variables don't update much and tha there are not many entries
-        // this is more simple than some sort of recursive Var::flat_map_vec setup
-
-        // each entry updates this var on update
-        let update_signal = zng_var::var(());
-
-        // init value and update bindings
-        let mut out = vec![];
-        let mut update_handles = vec![];
-        self.flat_entries_init(&mut out, update_signal.clone(), &mut update_handles);
-        let out = zng_var::var(out);
-
-        // bind signal to rebuild list on update and rebind update signal
-        let self_ = self.clone();
-        let signal_weak = update_signal.downgrade();
-        update_signal
-            .bind_modify(&out, move |_, out| {
-                out.clear();
-                update_handles.clear();
-                self_.flat_entries_init(&mut *out, signal_weak.upgrade().unwrap(), &mut update_handles);
-            })
-            .perm();
-        out.hold(update_signal).perm();
-        out.read_only()
-    }
-    fn flat_entries_init(&self, out: &mut Vec<(VarEq<AudioTrack>, usize)>, update_signal: Var<()>, handles: &mut Vec<zng_var::VarHandle>) {
-        for entry in self.tracks.iter() {
-            Self::flat_entries_recursive_init(entry.clone(), out, update_signal.clone(), handles);
-        }
-    }
-    fn flat_entries_recursive_init(
-        audio: VarEq<AudioTrack>,
-        out: &mut Vec<(VarEq<AudioTrack>, usize)>,
-        signal: Var<()>,
-        handles: &mut Vec<zng_var::VarHandle>,
-    ) {
-        handles.push(audio.hook(zng_clone_move::clmv!(signal, |_| {
-            signal.update();
-            true
-        })));
-        let i = out.len();
-        out.push((audio.clone(), 0));
-        audio.with(move |audio| {
-            for entry in audio.tracks.iter() {
-                Self::flat_entries_recursive_init(entry.clone(), out, signal.clone(), handles);
-            }
-            let len = out.len() - i;
-            out[i].1 = len;
-        });
-    }
-
-    /// Sort index of the audio track in the list of entries of the source container.
-    pub fn track_index(&self) -> usize {
-        match &self.meta.parent {
-            Some(p) => p.index,
-            None => 0,
-        }
-    }
-
-    /// Connection to the audio resource in the view-process.
-    pub fn view_handle(&self) -> ViewAudioHandle {
-        self.handle.clone()
+    /// [`chunk`]: Self::chunk
+    pub fn total_duration(&self) -> Option<Duration> {
+        self.meta.total_duration
     }
 
     /// Number of channels interleaved in the track.
@@ -277,19 +193,114 @@ impl AudioTrack {
 
     /// Samples per second.
     ///
-    /// A sample is a single sequence of `channel_count`.
+    /// A sample is a single sequence of [`channel_count`] in [`chunk`].
+    ///
+    /// [`channel_count`]: Self::channel_count
+    /// [`chunk`]: Self::chunk
     pub fn sample_rate(&self) -> u32 {
         self.meta.sample_rate
     }
 
-    /// Total duration of the tack, if it is known.
-    pub fn total_duration(&self) -> Option<Duration> {
-        self.meta.total_duration
+    /// Current decoded samples.
+    ///
+    /// Note that depending on how the audio is requested and its source it may never be fully loaded. The [`chunk_offset`] defines the
+    /// position of the chunk in the overall stream.
+    ///
+    /// [`chunk_offset`]: Self::chunk_offset
+    pub fn chunk(&self) -> IpcBytesCast<f32> {
+        self.data.chunk.clone()
     }
 
-    /// Reference the decoded interleaved audio chunk.
-    pub fn chunk(&self) -> Option<IpcBytesCast<f32>> {
-        if self.is_loaded() { Some(self.data.chunk.clone()) } else { None }
+    /// Offset of the [`chunk`] in the overall stream.
+    ///
+    /// [`chunk`]: Self::chunk
+    pub fn chunk_offset(&self) -> usize {
+        self.data.offset
+    }
+
+    /// If [`tracks`] is not empty.
+    ///
+    /// [`tracks`]: Self::tracks
+    pub fn has_tracks(&self) -> bool {
+        !self.tracks.is_empty()
+    }
+
+    /// Other audios from the same container that are a *child* of this audio.
+    pub fn tracks(&self) -> Vec<AudioVar> {
+        self.tracks.iter().map(|e| e.read_only()).collect()
+    }
+
+    /// All other audios from the same container that are a *descendant* of this audio.
+    ///
+    /// The values are a tuple of each track and the length of descendants tracks that follow it.
+    ///
+    /// The returned variable will update every time any track descendant var updates.
+    ///
+    /// [`tracks`]: Self::tracks
+    pub fn flat_tracks(&self) -> Var<Vec<(VarEq<AudioTrack>, usize)>> {
+        // idea here is to just rebuild the flat list on any update,
+        // assuming the audio variables don't update much and tha there are not many tracks
+        // this is more simple than some sort of recursive Var::flat_map_vec setup
+
+        // each track updates this var on update
+        let update_signal = zng_var::var(());
+
+        // init value and update bindings
+        let mut out = vec![];
+        let mut update_handles = vec![];
+        self.flat_tracks_init(&mut out, update_signal.clone(), &mut update_handles);
+        let out = zng_var::var(out);
+
+        // bind signal to rebuild list on update and rebind update signal
+        let self_ = self.clone();
+        let signal_weak = update_signal.downgrade();
+        update_signal
+            .bind_modify(&out, move |_, out| {
+                out.clear();
+                update_handles.clear();
+                self_.flat_tracks_init(&mut *out, signal_weak.upgrade().unwrap(), &mut update_handles);
+            })
+            .perm();
+        out.hold(update_signal).perm();
+        out.read_only()
+    }
+    fn flat_tracks_init(&self, out: &mut Vec<(VarEq<AudioTrack>, usize)>, update_signal: Var<()>, handles: &mut Vec<zng_var::VarHandle>) {
+        for track in self.tracks.iter() {
+            Self::flat_tracks_recursive_init(track.clone(), out, update_signal.clone(), handles);
+        }
+    }
+    fn flat_tracks_recursive_init(
+        aud: VarEq<AudioTrack>,
+        out: &mut Vec<(VarEq<AudioTrack>, usize)>,
+        signal: Var<()>,
+        handles: &mut Vec<zng_var::VarHandle>,
+    ) {
+        handles.push(aud.hook(zng_clone_move::clmv!(signal, |_| {
+            signal.update();
+            true
+        })));
+        let i = out.len();
+        out.push((aud.clone(), 0));
+        aud.with(move |aud| {
+            for track in aud.tracks.iter() {
+                Self::flat_tracks_recursive_init(track.clone(), out, signal.clone(), handles);
+            }
+            let len = out.len() - i;
+            out[i].1 = len;
+        });
+    }
+
+    /// Sort index of the audio in the list of tracks of the source container.
+    pub fn track_index(&self) -> usize {
+        match &self.meta.parent {
+            Some(p) => p.index,
+            None => 0,
+        }
+    }
+
+    /// Connection to the audio resource in the view-process.
+    pub fn view_handle(&self) -> &ViewAudioHandle {
+        &self.handle
     }
 
     /// Insert `track` in [`tracks`].
@@ -301,8 +312,8 @@ impl AudioTrack {
             .tracks
             .iter()
             .position(|v| {
-                let entry_i = v.with(|i| i.track_index());
-                entry_i > i
+                let track_i = v.with(|i| i.track_index());
+                track_i > i
             })
             .unwrap_or(self.tracks.len());
         self.tracks.insert(i, VarEq(track));
@@ -427,7 +438,7 @@ impl std::hash::Hasher for AudioHasher {
     }
 }
 
-/// The different sources of an audio input.
+/// The different sources of an audio resource.
 #[derive(Clone)]
 #[non_exhaustive]
 pub enum AudioSource {
@@ -451,7 +462,7 @@ pub enum AudioSource {
     /// [`AUDIOS`]: super::AUDIOS
     Data(AudioHash, IpcBytes, AudioDataFormat),
 
-    /// Already resolved (decoding or decoded) audio.
+    /// Already resolved (loaded or loading) audio.
     ///
     /// The audio is passed-through, not cached.
     Audio(AudioVar),
@@ -480,8 +491,15 @@ impl AudioSource {
     ///
     /// [`Data`]: Self::Data
     pub fn hash128_data(data_hash: AudioHash, options: &AudioOptions) -> AudioHash {
-        let _ = options; // hash options that affect data if any is added in the future.
-        data_hash
+        if !options.tracks.is_empty() {
+            use std::hash::Hash;
+            let mut h = AudioHash::hasher();
+            data_hash.0.hash(&mut h);
+            options.tracks.hash(&mut h);
+            h.finish()
+        } else {
+            data_hash
+        }
     }
 
     /// Compute hash for a borrowed [`Read`] path.
@@ -492,7 +510,7 @@ impl AudioSource {
         let mut h = AudioHash::hasher();
         0u8.hash(&mut h);
         path.hash(&mut h);
-        let _ = options;
+        options.tracks.hash(&mut h);
         h.finish()
     }
 
@@ -506,7 +524,7 @@ impl AudioSource {
         1u8.hash(&mut h);
         uri.hash(&mut h);
         accept.hash(&mut h);
-        let _ = options;
+        options.tracks.hash(&mut h);
         h.finish()
     }
 }
@@ -543,6 +561,7 @@ impl fmt::Debug for AudioSource {
             #[cfg(feature = "http")]
             AudioSource::Download(u, a) => f.debug_tuple("Download").field(u).field(a).finish(),
             AudioSource::Data(key, bytes, fmt) => f.debug_tuple("Data").field(key).field(bytes).field(fmt).finish(),
+
             AudioSource::Audio(_) => write!(f, "Audio(_)"),
         }
     }
@@ -801,7 +820,7 @@ impl<U> PartialEq for AudioSourceFilter<U> {
     }
 }
 
-/// Represents a [`AudioSource::Read`] path request filter.
+/// Represents an [`AudioSource::Read`] path request filter.
 ///
 /// Only absolute, normalized paths are shared with the [`Custom`] filter, there is no relative paths or `..` components.
 ///
@@ -876,7 +895,7 @@ impl<F: Fn(&PathBuf) -> bool + Send + Sync + 'static> From<F> for PathFilter {
 }
 
 #[cfg(feature = "http")]
-impl<F: Fn(&zng_task::http::Uri) -> bool + Send + Sync + 'static> From<F> for UriFilter {
+impl<F: Fn(&task::http::Uri) -> bool + Send + Sync + 'static> From<F> for UriFilter {
     fn from(custom: F) -> Self {
         UriFilter::custom(custom)
     }
@@ -896,9 +915,7 @@ pub struct AudioLimits {
     pub max_encoded_len: ByteLength,
     /// Maximum decoded file size allowed.
     ///
-    /// An error is returned if the decoded audio memory (channels * sample_rate * total_duration * 4) would surpass this.
-    ///
-    /// Note that for chunked streaming this limits only the chunk_len * 2.
+    /// An error is returned if the decoded audio memory (width * height * 4) would surpass this.
     pub max_decoded_len: ByteLength,
 
     /// Filter for [`AudioSource::Read`] paths.
@@ -954,7 +971,7 @@ impl AudioLimits {
     }
 }
 impl Default for AudioLimits {
-    /// 100 megabytes encoded and 4096 megabytes decoded.
+    /// 100 megabytes encoded and 4096 megabytes decoded (BMP max).
     ///
     /// Allows only paths in `zng::env::res`, blocks all downloads.
     fn default() -> Self {
@@ -979,28 +996,24 @@ impl_from_and_into_var! {
 pub struct AudioOptions {
     /// If and how the audio is cached.
     pub cache_mode: AudioCacheMode,
-
-    /// How to decode containers with multiple tracks.
+    /// How to decode containers with multiple audios.
     pub tracks: AudioTracksMode,
 }
 
 impl AudioOptions {
     /// New.
-    pub fn new(cache_mode: AudioCacheMode) -> Self {
-        Self {
-            cache_mode,
-            tracks: AudioTracksMode::PRIMARY,
-        }
+    pub fn new(cache_mode: AudioCacheMode, tracks: AudioTracksMode) -> Self {
+        Self { cache_mode, tracks }
     }
 
     /// New with only cache enabled.
     pub fn cache() -> Self {
-        Self::new(AudioCacheMode::Cache)
+        Self::new(AudioCacheMode::Cache, AudioTracksMode::empty())
     }
 
-    /// New with no config, no caching.
+    /// New with nothing enabled, no caching.
     pub fn none() -> Self {
-        Self::new(AudioCacheMode::Ignore)
+        Self::new(AudioCacheMode::Ignore, AudioTracksMode::empty())
     }
 }
 

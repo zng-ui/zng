@@ -93,14 +93,14 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                 if enabled != is_cached {
                     let source = source.get();
                     let mut opt = ImageOptions::new(ImageCacheMode::Cache, IMAGE_DOWNSCALE_VAR.get(), None, IMAGE_ENTRIES_MODE_VAR.get());
-                        
+
                     if is_cached {
                         img = const_var(ImageEntry::new_loading());
                         if let Some(h) = source.hash128(&opt) {
                             IMAGES.clean(h);
                         }
                         opt.cache_mode = ImageCacheMode::Ignore;
-                    } 
+                    }
                     img = IMAGES.image(source, opt, IMAGE_LIMITS_VAR.get());
 
                     ctx_img.set_from(&img);

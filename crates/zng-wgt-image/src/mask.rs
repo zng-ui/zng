@@ -100,7 +100,7 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
                         if let Some(h) = source.hash128(&opt) {
                             IMAGES.clean(h);
                         }
-                                            
+
                         opt.cache_mode = ImageCacheMode::Ignore;
                     }
 

@@ -240,7 +240,7 @@ event_property! {
         EventNodeBuilder::new(IME_EVENT)
             .filter(|| {
                 let id = WIDGET.id();
-                move |args|args.target.widget_id() == id
+                move |args| args.target.widget_id() == id
             })
             .build::<PRE>(child, handler)
     }

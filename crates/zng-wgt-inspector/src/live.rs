@@ -68,7 +68,9 @@ pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> UiNode {
             cmd_handle = INSPECT_CMD.scoped(WINDOW.id()).subscribe_wgt(can_inspect.get(), WIDGET.id());
         }
         UiNodeOp::Info { .. } => {
-            if inspected_tree.is_some() && let Some(vars) = WINDOWS.vars(inspector) {
+            if inspected_tree.is_some()
+                && let Some(vars) = WINDOWS.vars(inspector)
+            {
                 if vars.instance_state().get() != zng_ext_window::WindowInstanceState::Building {
                     INSPECT_CMD.scoped(WINDOW.id()).notify_param(InspectorUpdateOnly::Info);
                 } else {
@@ -230,7 +232,7 @@ fn select_on_click(child: impl IntoUiNode, hit_select: Var<HitSelect>) -> UiNode
                 MOUSE_INPUT_EVENT.each_update(true, |args| {
                     args.propagation.stop();
                     c.delegated();
-                     select = Some(args.target.widget_id());
+                    select = Some(args.target.widget_id());
                 });
                 MOUSE_HOVERED_EVENT.each_update(true, |args| {
                     args.propagation.stop();

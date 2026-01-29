@@ -360,7 +360,6 @@ pub fn handle_settings_cmd() {
                     }
                 });
 
-                
                 if let Some(param) = &args.param {
                     let w = new_window.wait_rsp().await;
                     w.instance_state().wait_match(|s| s.is_loaded()).await;

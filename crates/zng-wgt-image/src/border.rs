@@ -96,10 +96,10 @@ pub fn border_img(
                         let limits = IMAGE_LIMITS_VAR.get();
 
                         let mut opt = ImageOptions::cache();
-                        
+
                         if is_cached {
                             // must not cache, but is cached, detach from cache.
-                            
+
                             img = const_var(ImageEntry::new_loading()); // drop
                             if let Some(h) = source.hash128(&opt) {
                                 IMAGES.clean(h);

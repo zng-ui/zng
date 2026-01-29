@@ -59,8 +59,10 @@ impl<A: EventArgs> EventUpdates<A> {
     /// If `ignore_propagation` is `false` only yield args with [`propagation`] is not stopped.
     ///
     /// [`propagation`]: EventArgs::propagation
-    pub fn iter_relevant(&self, id: WidgetId, ignore_propagation: bool) -> impl Iterator<Item=&A> {
-        self.updates.iter().filter(move |a| a.is_in_target(id) && (ignore_propagation || !a.propagation().is_stopped()))
+    pub fn iter_relevant(&self, id: WidgetId, ignore_propagation: bool) -> impl Iterator<Item = &A> {
+        self.updates
+            .iter()
+            .filter(move |a| a.is_in_target(id) && (ignore_propagation || !a.propagation().is_stopped()))
     }
 
     /// Referent the latest args that target the `id` or a descendant of it.
@@ -306,34 +308,38 @@ impl<A: EventArgs> Event<A> {
     }
 
     /// Visit [`each_update`], returns on the first args that produces an `O`.
-    /// 
+    ///
     /// [`each_update`]: Self::each_update
     pub fn find_update<O>(&self, ignore_propagation: bool, mut handler: impl FnMut(&A) -> Option<O>) -> Option<O> {
-        self.read_var().with_new(|u| {
-            let u = u.downcast_ref::<EventUpdates<A>>().unwrap();
-            if let Some(id) = WIDGET.try_id() {
-                for args in u.iter_relevant(id, ignore_propagation) {
-                    if let Some(o) = handler(args) {
-                        return Some(o)
+        self.read_var()
+            .with_new(|u| {
+                let u = u.downcast_ref::<EventUpdates<A>>().unwrap();
+                if let Some(id) = WIDGET.try_id() {
+                    for args in u.iter_relevant(id, ignore_propagation) {
+                        if let Some(o) = handler(args) {
+                            return Some(o);
+                        }
+                    }
+                } else {
+                    for args in u.iter() {
+                        if (ignore_propagation || !args.propagation().is_stopped())
+                            && let Some(o) = handler(args)
+                        {
+                            return Some(o);
+                        }
                     }
                 }
-            } else {
-                for args in u.iter() {
-                    if (ignore_propagation || !args.propagation().is_stopped())
-                        && let Some(o) = handler(args) {
-                            return Some(o)
-                        }
-                }
-            }
-            None
-        }).flatten()
+                None
+            })
+            .flatten()
     }
 
     /// Visit [`each_update`], returns on the first args that produces `true`.
-    /// 
+    ///
     /// [`each_update`]: Self::each_update
     pub fn any_update(&self, ignore_propagation: bool, mut handler: impl FnMut(&A) -> bool) -> bool {
-        self.find_update(ignore_propagation, move |a| if handler(a) { Some(()) } else { None }).is_some()
+        self.find_update(ignore_propagation, move |a| if handler(a) { Some(()) } else { None })
+            .is_some()
     }
 
     /// Visit the latest update that targets the context widget.
