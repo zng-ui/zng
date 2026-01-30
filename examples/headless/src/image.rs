@@ -10,7 +10,7 @@ pub fn run() {
 
     // request an image rendered from a node, the `IMAGES` service will render the node and update the image
     // variable every time the node (re)renders.
-    let img = zng::image::IMAGES.render_node(window::RenderMode::Integrated, 1.fct(), None, logo);
+    let img = zng::image::IMAGES.render_node(window::RenderMode::Integrated, None, logo);
 
     app.run_task(async move {
         while img.with(ImageEntry::is_loading) {

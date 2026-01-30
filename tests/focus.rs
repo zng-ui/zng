@@ -1,6 +1,6 @@
 use keyboard::KeyLocation;
 use zng::{
-    app::{AppBuilder, AppExtension, HeadlessApp},
+    app::{AppBuilder, HeadlessApp},
     data_view::DataView,
     focus::{
         DirectionalNav, FOCUS_CHANGED_EVENT, FocusChangedArgs, FocusChangedCause, RETURN_FOCUS_CHANGED_EVENT, ReturnFocusChangedArgs,
@@ -1332,7 +1332,7 @@ pub fn focused_removed_by_making_not_focusable() {
         || focusable.set(false),
     )
 }
-fn focused_removed_test(app: TestAppBuilder<impl AppExtension>, button1: impl IntoUiNode, set_var: impl FnOnce()) {
+fn focused_removed_test(app: TestAppBuilder, button1: impl IntoUiNode, set_var: impl FnOnce()) {
     let mut buttons = ui_vec![
         Button! {
             child = Text!("Button 0");
@@ -2001,10 +2001,10 @@ pub fn directional_continue_right() {
     assert_eq!(Some(ids[2]), app.focused());
 }
 
-struct TestAppBuilder<E: AppExtension> {
-    app: AppBuilder<E>,
+struct TestAppBuilder {
+    app: AppBuilder,
 }
-impl<E: AppExtension> TestAppBuilder<E> {
+impl TestAppBuilder {
     pub fn run(self, child: impl IntoUiNode) -> TestApp {
         self.run_window(Window!(child; id = "window root"))
     }
@@ -2017,7 +2017,8 @@ impl<E: AppExtension> TestAppBuilder<E> {
             (a, b)
         };
 
-        let window_id = app.open_window(async move { window });
+        let window_id = WINDOW.id();
+        app.open_window(window_id, async move { window });
         TestApp {
             app,
             window_id,
@@ -2036,7 +2037,7 @@ struct TestApp {
 }
 impl TestApp {
     /// Start app scope.
-    pub fn start() -> TestAppBuilder<impl AppExtension> {
+    pub fn start() -> TestAppBuilder {
         TestAppBuilder { app: APP.defaults() }
     }
 
@@ -2052,7 +2053,8 @@ impl TestApp {
 
     pub fn open_window(&mut self, child: impl IntoUiNode) -> WindowId {
         let child = child.into_node();
-        let id = self.app.open_window(async {
+        let id = WindowId::new_unique();
+        self.app.open_window(id, async {
             Window! { child }
         });
         let _ = self.app.update(false);

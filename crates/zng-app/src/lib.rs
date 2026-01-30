@@ -16,7 +16,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::{Arc, atomic::AtomicBool}};
 
 pub mod access;
 pub mod crash_handler;
@@ -245,6 +245,18 @@ impl HeadlessApp {
                 flow => return flow,
             }
         }
+    }
+
+    /// Does updates and calls `on_pre_update` on the first update.
+    pub fn update_observe(&mut self, on_pre_update: impl FnOnce() + Send + 'static) -> bool {
+        let u = Arc::new(AtomicBool::new(false));
+        UPDATES.on_pre_update(hn_once!(u, |_| {
+            u.store(true, std::sync::atomic::Ordering::Relaxed);
+            on_pre_update();
+
+        })).perm();
+        let _ = self.update(false);
+        u.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Execute the async `task` in the UI thread, updating the app until it finishes or the app shuts-down.

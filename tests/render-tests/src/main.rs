@@ -8,8 +8,7 @@ use std::{
 
 use color_print::cstr;
 use zng::{
-    APP,
-    app::HeadlessApp,
+    app::{APP, HeadlessApp},
     layout::{FactorUnits as _, TimeUnits as _},
     text::{Txt, formatx},
     window::RenderMode,

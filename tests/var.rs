@@ -28,24 +28,17 @@ mod map {
 
         source.set(10);
 
-        let mut updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(10, source.get());
-                    assert_eq!(11, mapped1.get());
-                    assert_eq!(11, mapped1b.get());
-                    assert_eq!(12, mapped2.get());
+        let updated = app.update_observe(move || {
+            assert_eq!(10, source.get());
+            assert_eq!(11, mapped1.get());
+            assert_eq!(11, mapped1b.get());
+            assert_eq!(12, mapped2.get());
 
-                    assert_eq!(Some(10), source.get_new());
-                    assert_eq!(Some(11), mapped1.get_new());
-                    assert_eq!(Some(11), mapped1b.get_new());
-                    assert_eq!(Some(12), mapped2.get_new());
-                }
-            },
-            false,
-        );
+            assert_eq!(Some(10), source.get_new());
+            assert_eq!(Some(11), mapped1.get_new());
+            assert_eq!(Some(11), mapped1b.get_new());
+            assert_eq!(Some(12), mapped2.get_new());
+        });
         assert!(updated);
     }
 }
@@ -64,43 +57,23 @@ mod bindings {
 
         a.bind_map(&b, |a| a.to_txt()).perm();
 
-        let mut updated = 0;
-        let _ = app.update_observe(
-            || {
-                updated += 1;
-            },
-            false,
-        );
-        assert_eq!(0, updated);
+        let updated = app.update_observe(|| {});
+        assert!(!updated);
 
         a.set(20);
 
-        let mut updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(Some(20i32), a.get_new());
-                    assert_eq!(Some("20".to_txt()), b.get_new());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(clmv!(a, b, || {
+            assert_eq!(Some(20i32), a.get_new());
+            assert_eq!(Some("20".to_txt()), b.get_new());
+        }));
         assert!(updated);
 
         a.set(13);
 
-        updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(Some(13i32), a.get_new());
-                    assert_eq!(Some("13".to_txt()), b.get_new());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(move || {
+            assert_eq!(Some(13i32), a.get_new());
+            assert_eq!(Some("13".to_txt()), b.get_new());
+        });
         assert!(updated);
     }
 
@@ -114,43 +87,23 @@ mod bindings {
 
         a.bind_map_bidi(&b, |a| a.to_txt(), |b| b.parse().unwrap()).perm();
 
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            || {
-                update_count += 1;
-            },
-            false,
-        );
-        assert_eq!(0, update_count);
+        let updated = app.update_observe(|| {});
+        assert!(!updated);
 
         a.set(20);
 
-        let mut updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(Some(20i32), a.get_new());
-                    assert_eq!(Some("20".to_txt()), b.get_new());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(clmv!(a, b, || {
+            assert_eq!(Some(20i32), a.get_new());
+            assert_eq!(Some("20".to_txt()), b.get_new());
+        }));
         assert!(updated);
 
         b.set("55");
 
-        updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(Some("55".to_txt()), b.get_new());
-                    assert_eq!(Some(55i32), a.get_new());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(move || {
+            assert_eq!(Some("55".to_txt()), b.get_new());
+            assert_eq!(Some(55i32), a.get_new());
+        });
         assert!(updated);
     }
 
@@ -164,44 +117,24 @@ mod bindings {
 
         a.bind_filter_map(&b, |a| if *a == 13 { None } else { Some(a.to_txt()) }).perm();
 
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            || {
-                update_count += 1;
-            },
-            false,
-        );
-        assert_eq!(0, update_count);
+        let updated = app.update_observe(|| {});
+        assert!(!updated);
 
         a.set(20);
 
-        let mut updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(Some(20i32), a.get_new());
-                    assert_eq!(Some("20".to_txt()), b.get_new());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(clmv!(a, b, || {
+            assert_eq!(Some(20i32), a.get_new());
+            assert_eq!(Some("20".to_txt()), b.get_new());
+        }));
         assert!(updated);
 
         a.set(13);
 
-        updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(Some(13i32), a.get_new());
-                    assert_eq!("20".to_txt(), b.get());
-                    assert!(!b.is_new());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(move || {
+            assert_eq!(Some(13i32), a.get_new());
+            assert_eq!("20".to_txt(), b.get());
+            assert!(!b.is_new());
+        });
         assert!(updated);
     }
 
@@ -215,59 +148,32 @@ mod bindings {
 
         a.bind_filter_map_bidi(&b, |a| Some(a.to_txt()), |b| b.parse().ok()).perm();
 
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            || {
-                update_count += 1;
-            },
-            false,
-        );
-        assert_eq!(0, update_count);
+        let updated = app.update_observe(|| {});
+        assert!(!updated);
 
         a.set(20);
 
-        let mut updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(Some(20i32), a.get_new());
-                    assert_eq!(Some("20".to_txt()), b.get_new());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(clmv!(a, b, || {
+            assert_eq!(Some(20i32), a.get_new());
+            assert_eq!(Some("20".to_txt()), b.get_new());
+        }));
         assert!(updated);
 
         b.set("55");
 
-        updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(Some("55".to_txt()), b.get_new());
-                    assert_eq!(Some(55i32), a.get_new());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(clmv!(a, b, || {
+            assert_eq!(Some("55".to_txt()), b.get_new());
+            assert_eq!(Some(55i32), a.get_new());
+        }));
         assert!(updated);
 
         b.set("not a i32");
 
-        updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(Some("not a i32".to_txt()), b.get_new());
-                    assert_eq!(55i32, a.get());
-                    assert!(!a.is_new());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(move || {
+            assert_eq!(Some("not a i32".to_txt()), b.get_new());
+            assert_eq!(55i32, a.get());
+            assert!(!a.is_new());
+        });
         assert!(updated);
     }
 
@@ -285,49 +191,27 @@ mod bindings {
         b.bind_map(&c, |b| *b + 1).perm();
         c.bind_map(&d, |c| *c + 1).perm();
 
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            || {
-                update_count += 1;
-            },
-            false,
-        );
-        assert_eq!(0, update_count);
+        let updated = app.update_observe(|| {});
+        assert!(!updated);
 
         a.set(20);
 
-        let mut updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-
-                    assert_eq!(Some(20), a.get_new());
-                    assert_eq!(Some(21), b.get_new());
-                    assert_eq!(Some(22), c.get_new());
-                    assert_eq!(Some(23), d.get_new());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(clmv!(a, b, c, d, || {
+            assert_eq!(Some(20), a.get_new());
+            assert_eq!(Some(21), b.get_new());
+            assert_eq!(Some(22), c.get_new());
+            assert_eq!(Some(23), d.get_new());
+        }));
         assert!(updated);
 
         a.set(30);
 
-        let mut updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-
-                    assert_eq!(Some(30), a.get_new());
-                    assert_eq!(Some(31), b.get_new());
-                    assert_eq!(Some(32), c.get_new());
-                    assert_eq!(Some(33), d.get_new());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(move || {
+            assert_eq!(Some(30), a.get_new());
+            assert_eq!(Some(31), b.get_new());
+            assert_eq!(Some(32), c.get_new());
+            assert_eq!(Some(33), d.get_new());
+        });
         assert!(updated);
     }
 
@@ -345,49 +229,27 @@ mod bindings {
         b.bind_bidi(&c).perm();
         c.bind_bidi(&d).perm();
 
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            || {
-                update_count += 1;
-            },
-            false,
-        );
-        assert_eq!(0, update_count);
+        let updated = app.update_observe(|| {});
+        assert!(!updated);
 
         a.set(20);
 
-        let mut updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-
-                    assert_eq!(Some(20), a.get_new());
-                    assert_eq!(Some(20), b.get_new());
-                    assert_eq!(Some(20), c.get_new());
-                    assert_eq!(Some(20), d.get_new());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(clmv!(a, b, c, d, || {
+            assert_eq!(Some(20), a.get_new());
+            assert_eq!(Some(20), b.get_new());
+            assert_eq!(Some(20), c.get_new());
+            assert_eq!(Some(20), d.get_new());
+        }));
         assert!(updated);
 
         d.set(30);
 
-        let mut updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-
-                    assert_eq!(Some(30), a.get_new());
-                    assert_eq!(Some(30), b.get_new());
-                    assert_eq!(Some(30), c.get_new());
-                    assert_eq!(Some(30), d.get_new());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(move || {
+            assert_eq!(Some(30), a.get_new());
+            assert_eq!(Some(30), b.get_new());
+            assert_eq!(Some(30), c.get_new());
+            assert_eq!(Some(30), d.get_new());
+        });
         assert!(updated);
     }
 
@@ -402,37 +264,21 @@ mod bindings {
 
         a.set(10);
 
-        let mut updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-
-                    assert_eq!(Some(10), a.get_new());
-                    assert_eq!(Some(11), b.get_new());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(clmv!(a, b, || {
+            assert_eq!(Some(10), a.get_new());
+            assert_eq!(Some(11), b.get_new());
+        }));
         assert!(updated);
 
         drop(handle);
 
         a.set(100);
 
-        updated = false;
-        let _ = app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-
-                    assert_eq!(Some(100), a.get_new());
-                    assert!(!b.is_new());
-                    assert_eq!(11, b.get());
-                }
-            },
-            false,
-        );
+        let updated = app.update_observe(clmv!(a, b, || {
+            assert_eq!(Some(100), a.get_new());
+            assert!(!b.is_new());
+            assert_eq!(11, b.get());
+        }));
         assert!(updated);
 
         assert_eq!(1, a.strong_count());
@@ -528,7 +374,7 @@ mod bindings {
 
 mod context {
     use zng::{
-        app::{AppBuilder, AppExtension, HeadlessApp},
+        app::{AppBuilder, HeadlessApp},
         prelude::*,
         prelude_wgt::*,
         var::{AnyWhenVarBuilder, ContextInitHandle},
@@ -600,12 +446,12 @@ mod context {
         wgt.set_child(child);
     }
 
-    fn test_app(app: AppBuilder<impl AppExtension>, root: impl IntoUiNode) -> HeadlessApp {
+    fn test_app(app: AppBuilder, root: impl IntoUiNode) -> HeadlessApp {
         zng_app::test_log();
 
         let mut app = app.run_headless(false);
         let root = root.into_node();
-        WINDOWS.open(async move { window::WindowRoot::new_test(root) });
+        WINDOWS.open(WindowId::new_unique(), async move { window::WindowRoot::new_test(root) });
         let _ = app.update(false);
         app
     }
@@ -887,32 +733,23 @@ mod flat_map {
 
         source.get().var.set(42usize);
 
-        let _ = app.update_observe(
-            || {
-                assert!(test.is_new());
-                assert_eq!(42, test.get());
-            },
-            false,
-        );
+        app.update_observe(clmv!(test, || {
+            assert!(test.is_new());
+            assert_eq!(42, test.get());
+        }));
 
         let old_var = source.get().var;
         source.set(Foo { bar: false, var: var(192) });
-        let _ = app.update_observe(
-            || {
-                assert!(test.is_new());
-                assert_eq!(192, test.get());
-            },
-            false,
-        );
+        app.update_observe(clmv!(test, || {
+            assert!(test.is_new());
+            assert_eq!(192, test.get());
+        }));
 
         old_var.set(220usize);
-        let _ = app.update_observe(
-            || {
-                assert!(!test.is_new());
-                assert_eq!(192, test.get());
-            },
-            false,
-        );
+        app.update_observe(move || {
+            assert!(!test.is_new());
+            assert_eq!(192, test.get());
+        });
     }
 }
 
@@ -1209,20 +1046,11 @@ mod contextualized {
 
         source.set(10u32);
 
-        let mut updated = false;
-        app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(Some(10), source.get_new());
-                    assert_eq!(Some(11), mapped.get_new());
-                    // assert_eq!(Some(12), mapped2.get_new());
-                }
-            },
-            false,
-        )
-        .assert_wait();
-
+        let updated = app.update_observe(move || {
+            assert_eq!(Some(10), source.get_new());
+            assert_eq!(Some(11), mapped.get_new());
+            // assert_eq!(Some(12), mapped2.get_new());
+        });
         assert!(updated);
     }
 
@@ -1240,20 +1068,11 @@ mod contextualized {
 
         source.set(10u32);
 
-        let mut updated = false;
-        app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(Some(10), source.get_new());
-                    // context inited here, is new because source is new when map was built.
-                    assert_eq!(Some(11), mapped.get_new());
-                }
-            },
-            false,
-        )
-        .assert_wait();
-
+        let updated = app.update_observe(move || {
+            assert_eq!(Some(10), source.get_new());
+            // context inited here, is new because source is new when map was built.
+            assert_eq!(Some(11), mapped.get_new());
+        });
         assert!(updated);
     }
 
@@ -1277,20 +1096,12 @@ mod contextualized {
         assert_eq!(0, mapped2_copy.get());
 
         source.set(10u32);
-        let mut updated = false;
-        app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(10, mapped2.get());
-                    assert_eq!(10, mapped2_copy.get());
-                    assert_eq!(Some(10), mapped2.get_new());
-                    assert_eq!(Some(10), mapped2_copy.get_new());
-                }
-            },
-            false,
-        )
-        .assert_wait();
+        let updated = app.update_observe(move || {
+            assert_eq!(10, mapped2.get());
+            assert_eq!(10, mapped2_copy.get());
+            assert_eq!(Some(10), mapped2.get_new());
+            assert_eq!(Some(10), mapped2_copy.get_new());
+        });
 
         assert!(updated);
     }
@@ -1316,25 +1127,16 @@ mod contextualized {
 
         source.set(10u32);
 
-        let mut updated = false;
-        app.update_observe(
-            || {
-                if !updated {
-                    updated = true;
-                    assert_eq!(10, source.get());
-                    assert_eq!(11, mapped.get());
-                    assert_eq!(10, mapped2.get());
-                    assert_eq!(Some(10), mapped2.get_new());
-                    other_ctx.with_context(|| {
-                        // because of same `backing_source`.
-                        assert_eq!(Some(10), mapped2_copy.get_new());
-                    });
-                }
-            },
-            false,
-        )
-        .assert_wait();
-
+        let updated = app.update_observe(move || {
+            assert_eq!(10, source.get());
+            assert_eq!(11, mapped.get());
+            assert_eq!(10, mapped2.get());
+            assert_eq!(Some(10), mapped2.get_new());
+            other_ctx.with_context(|| {
+                // because of same `backing_source`.
+                assert_eq!(Some(10), mapped2_copy.get_new());
+            });
+        });
         assert!(updated);
     }
 }
@@ -1354,34 +1156,26 @@ mod vec {
         list.modify(|a| {
             a.push(32);
         });
-        app.update_observe(
-            || {
-                assert!(list.is_new());
+        app.update_observe(clmv!(list, || {
+            assert!(list.is_new());
 
-                list.with_new(|l| {
-                    assert_eq!(&[32], &l[..]);
-                    assert_eq!(&[VecChange::Insert { index: 0, count: 1 }], l.changes());
-                });
-            },
-            false,
-        )
-        .assert_wait();
+            list.with_new(|l| {
+                assert_eq!(&[32], &l[..]);
+                assert_eq!(&[VecChange::Insert { index: 0, count: 1 }], l.changes());
+            });
+        }));
 
         list.modify(|a| {
             a.push(33);
         });
-        app.update_observe(
-            || {
-                assert!(list.is_new());
+        app.update_observe(move || {
+            assert!(list.is_new());
 
-                list.with_new(|l| {
-                    assert_eq!(&[32, 33], &l[..]);
-                    assert_eq!(&[VecChange::Insert { index: 1, count: 1 }], l.changes());
-                });
-            },
-            false,
-        )
-        .assert_wait();
+            list.with_new(|l| {
+                assert_eq!(&[32, 33], &l[..]);
+                assert_eq!(&[VecChange::Insert { index: 1, count: 1 }], l.changes());
+            });
+        });
     }
 }
 

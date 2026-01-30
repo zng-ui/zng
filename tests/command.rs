@@ -10,7 +10,7 @@ use zng::{
 #[test]
 fn notify() {
     let mut app = APP.defaults().run_headless(false);
-    app.open_window(listener_window(false));
+    app.open_window(WindowId::new_unique(), listener_window(false));
 
     let cmd = FOO_CMD;
     cmd.notify();
@@ -23,7 +23,8 @@ fn notify() {
 #[test]
 fn notify_scoped() {
     let mut app = APP.defaults().run_headless(false);
-    let window_id = app.open_window(listener_window(false));
+    let window_id = WindowId::new_unique();
+    app.open_window(window_id, listener_window(false));
 
     let cmd = FOO_CMD;
     let cmd_scoped = cmd.scoped(window_id);
@@ -38,7 +39,8 @@ fn notify_scoped() {
 #[test]
 fn shortcut() {
     let mut app = APP.defaults().run_headless(false);
-    let window_id = app.open_window(listener_window(false));
+    let window_id = WindowId::new_unique();
+    app.open_window(window_id, listener_window(false));
 
     FOO_CMD.shortcut().set(shortcut!('F'));
     let _ = app.update(false);
@@ -58,7 +60,8 @@ fn shortcut() {
 #[test]
 fn shortcut_with_focused_scope() {
     let mut app = APP.defaults().run_headless(false);
-    let window_id = app.open_window(listener_window(true));
+    let window_id = WindowId::new_unique();
+    app.open_window(window_id, listener_window(true));
 
     FOO_CMD.shortcut().set(shortcut!('F'));
     let _ = app.update(false);
@@ -74,7 +77,8 @@ fn shortcut_with_focused_scope() {
 #[test]
 fn shortcut_scoped() {
     let mut app = APP.defaults().run_headless(false);
-    let window_id = app.open_window(listener_window(false));
+    let window_id = WindowId::new_unique();
+    app.open_window(window_id, listener_window(false));
 
     FOO_CMD.shortcut().set(shortcut!('F'));
     FOO_CMD.scoped(window_id).shortcut().set(shortcut!('G'));
@@ -113,18 +117,16 @@ async fn listener_window(focused_wgt: bool) -> window::WindowRoot {
                 _handle = None;
                 _handle_scoped = None;
             }
-            UiNodeOp::Event { update } => {
-                if let Some(args) = FOO_CMD.on(update) {
-                    args.handle(|args| {
-                        TEST_TRACE.write().push(format!("no-scope / {:?}", args.scope));
-                    });
-                }
+            UiNodeOp::Update { .. } => {
+                FOO_CMD.each_update(true, false, |args| {
+                    args.propagation.stop();
+                    TEST_TRACE.write().push(format!("no-scope / {:?}", args.scope));
+                });
 
-                if let Some(args) = FOO_CMD.scoped(WIDGET.id()).on(update) {
-                    args.handle(|args| {
-                        TEST_TRACE.write().push(format!("scoped-wgt / {:?}", args.scope));
-                    });
-                }
+                FOO_CMD.scoped(WIDGET.id()).each_update(true, false, |args| {
+                    args.propagation.stop();
+                    TEST_TRACE.write().push(format!("scoped-wgt / {:?}", args.scope));
+                });
             }
             _ => {}
         })
@@ -140,12 +142,11 @@ async fn listener_window(focused_wgt: bool) -> window::WindowRoot {
             UiNodeOp::Deinit => {
                 _handle_scoped = None;
             }
-            UiNodeOp::Event { update } => {
-                if let Some(args) = FOO_CMD.scoped(WINDOW.id()).on(update) {
-                    args.handle(|args| {
-                        TEST_TRACE.write().push(format!("scoped-win / {:?}", args.scope));
-                    });
-                }
+            UiNodeOp::Update { .. } => {
+                FOO_CMD.scoped(WINDOW.id()).each_update(true, false, |args| {
+                    args.propagation.stop();
+                    TEST_TRACE.write().push(format!("scoped-win / {:?}", args.scope));
+                });
             }
             _ => {}
         })

@@ -11,7 +11,7 @@ pub(crate) fn render_test_icon() {
 async fn render_task() {
     let mut entries = Vec::with_capacity(10);
     for size in [256, 128, 96, 64, 48, 40, 32, 24, 20, 16] {
-        let entry = IMAGES.render_node(window::RenderMode::Software, 1.fct(), None, move || {
+        let entry = IMAGES.render_node(window::RenderMode::Software, None, move || {
             Text! {
                 layout::size = size.px();
                 txt = size.to_txt();
