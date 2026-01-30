@@ -21,7 +21,9 @@ use zng_app::{
     update::UPDATES,
     view_process::{
         VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewAudioHandle,
-        raw_events::{RAW_AUDIO_DECODE_ERROR_EVENT, RAW_AUDIO_DECODED_EVENT, RAW_AUDIO_METADATA_DECODED_EVENT},
+        raw_events::{
+            RAW_AUDIO_DECODE_ERROR_EVENT, RAW_AUDIO_DECODED_EVENT, RAW_AUDIO_METADATA_DECODED_EVENT,
+        },
     },
 };
 use zng_app_context::app_local;
@@ -31,11 +33,14 @@ use zng_txt::ToTxt;
 use zng_txt::Txt;
 use zng_unique_id::{IdEntry, IdMap};
 use zng_unit::ByteLength;
-use zng_var::{Var, VarHandle, const_var, var};
+use zng_var::{ResponseVar, Var, VarHandle, const_var, response_var, var};
 use zng_view_api::audio::{AudioDecoded, AudioMetadata, AudioRequest};
 
 mod types;
 pub use types::*;
+
+mod output;
+pub use output::*;
 
 app_local! {
     static AUDIOS_SV: AudiosService = AudiosService::new();
@@ -48,6 +53,8 @@ struct AudiosService {
     extensions: Vec<Box<dyn AudiosExtension>>,
 
     cache: IdMap<AudioHash, AudioVar>,
+    outputs: IdMap<AudioOutputId, WeakAudioOutput>,
+    perm_outputs: IdMap<AudioOutputId, AudioOutput>,
 }
 impl AudiosService {
     pub fn new() -> Self {
@@ -58,6 +65,8 @@ impl AudiosService {
             extensions: vec![],
 
             cache: IdMap::new(),
+            outputs: IdMap::new(),
+            perm_outputs: IdMap::new(),
         }
     }
 }
@@ -316,6 +325,54 @@ impl AUDIOS {
             }
         }
         s.into()
+    }
+}
+
+impl AUDIOS {
+    /// Open an audio output stream, or get a reference clone to the already open stream.
+    ///
+    /// If the `id` is not already open the `init` closure is called to configure the output request. By default
+    /// the configuration creates an output for the default audio output device, in the playing state,  with 100% volume and speed.
+    ///
+    /// Output remains open until all clones of it are dropped, or until the app exit if [`AudioOutput::perm`] is called.
+    ///
+    /// Note that output streams are not direct connections to the audio output device, the view-process will mix all audio streams
+    /// playing in parallel to the single audio output stream. Also note that usually the view-process will retain the device connection
+    /// for the duration of the process, created with first output, this is the recommended behavior in most operating systems.
+    pub fn open_output(
+        &self,
+        id: impl Into<AudioOutputId>,
+        init: impl FnOnce(&mut AudioOutputOptions) + Send + 'static,
+    ) -> ResponseVar<AudioOutput> {
+        self.open_audio_out(id.into(), Box::new(init))
+    }
+
+    fn open_audio_out(&self, id: AudioOutputId, init: Box<dyn FnOnce(&mut AudioOutputOptions) + Send>) -> ResponseVar<AudioOutput> {
+        let (responder, r) = response_var();
+        UPDATES.once_update("AUDIOS.open_output", move || match AUDIOS_SV.write().outputs.entry(id) {
+            IdEntry::Occupied(mut e) => match e.get().upgrade() {
+                Some(r) => responder.respond(r),
+                None => {
+                    let mut opt = AudioOutputOptions::default();
+                    init(&mut opt);
+                    let r = AudioOutput::open(id, opt);
+                    e.insert(r.downgrade());
+                    responder.respond(r);
+                }
+            },
+            IdEntry::Vacant(e) => {
+                let mut opt = AudioOutputOptions::default();
+                init(&mut opt);
+                let r = AudioOutput::open(id, opt);
+                e.insert(r.downgrade());
+                responder.respond(r);
+            }
+        });
+        r
+    }
+
+    pub(crate) fn perm_output(&self, output: &AudioOutput) {
+        AUDIOS_SV.write().perm_outputs.entry(output.id()).or_insert_with(|| output.clone());
     }
 }
 

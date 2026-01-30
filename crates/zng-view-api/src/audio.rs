@@ -493,7 +493,7 @@ impl AudioOutputConfig {
 }
 
 /// Represents the playback state if an audio output stream.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum AudioOutputState {
     /// Audio is sent to the device for playback as in the sequence they are cued.

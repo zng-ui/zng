@@ -1,28 +1,28 @@
-use std::{
-    fmt,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
-    time::Duration,
-};
+use std::{fmt, sync::Arc, time::Duration};
 
 use serde::{Deserialize, Serialize};
-use zng_app::view_process::ViewAudioOutput;
+use zng_app::{
+    update::UPDATES,
+    view_process::{
+        VIEW_PROCESS, ViewAudioOutput,
+        raw_events::{RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT, RAW_AUDIO_OUTPUT_OPEN_EVENT},
+    },
+};
+use zng_txt::{ToTxt as _, Txt};
 use zng_unit::{Factor, FactorUnits as _};
-use zng_var::{Var, impl_from_and_into_var, var};
-use zng_view_api::audio::{AudioMix as ViewAudioMix, AudioMixLayer, AudioOutputConfig, AudioOutputState};
+use zng_var::{AnyVarHookArgs, Var, impl_from_and_into_var, var};
+use zng_view_api::audio::{AudioMix as ViewAudioMix, AudioMixLayer, AudioOutputConfig, AudioPlayId};
 
-use crate::{AudioOutputId, AudioTrack, service};
+pub use zng_view_api::audio::AudioOutputState;
+use crate::{AUDIOS, AUDIOS_SV, AudioOutputId, AudioTrack};
 
 pub(crate) struct AudioOutputData {
     id: AudioOutputId,
-    view: Option<ViewAudioOutput>,
+    view: Var<Result<ViewAudioOutput, Txt>>,
 
     volume: Var<Factor>,
     speed: Var<Factor>,
     state: Var<AudioOutputState>,
-    state_stop_if_start: AtomicBool,
 }
 
 /// Represents an open audio output stream.
@@ -49,15 +49,76 @@ impl PartialEq for AudioOutput {
 }
 impl Eq for AudioOutput {}
 impl AudioOutput {
-    pub(crate) fn new(id: AudioOutputId, view: Option<ViewAudioOutput>) -> Self {
-        Self(Arc::new(AudioOutputData {
+    pub(crate) fn open(id: AudioOutputId, opt: AudioOutputOptions) -> Self {
+        let r = Self(Arc::new(AudioOutputData {
             id,
-            view,
-            volume: var(1.fct()),
-            speed: var(1.fct()),
-            state: var(AudioOutputState::Playing),
-            state_stop_if_start: AtomicBool::new(false),
-        }))
+            view: var(Err(Txt::from("not connected"))),
+            volume: var(opt.config.volume),
+            speed: var(opt.config.speed),
+            state: var(opt.config.state),
+        }));
+        r.0.state.as_any().hook(r.update_view_handler()).perm();
+        r.0.speed.as_any().hook(r.update_view_handler()).perm();
+        r.0.speed.as_any().hook(r.update_view_handler()).perm();
+
+        let handle = RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT.hook(move |args| {
+            if args.output_id == id {
+                if let Some(o) = AUDIOS_SV.read().outputs.get(&id)
+                    && let Some(o) = o.upgrade()
+                {
+                    o.0.view.set(Err(args.error.clone()));
+                }
+                return false;
+            }
+            true
+        });
+        let handle = RAW_AUDIO_OUTPUT_OPEN_EVENT.hook(move |args| {
+            let _hold = &handle;
+            if args.output_id == id {
+                if let Some(vo) = args.output.upgrade()
+                    && let Some(o) = AUDIOS_SV.read().outputs.get(&id)
+                    && let Some(o) = o.upgrade()
+                {
+                    o.0.view.set(Ok(vo));
+                }
+                return false;
+            }
+            true
+        });
+        r.0.view.hook(move |_| {
+            // hold until view is set by any of the events
+            let _hold = &handle;
+            false
+        }).perm();
+
+        let _ = VIEW_PROCESS.open_audio_output(zng_view_api::audio::AudioOutputRequest::new(
+            zng_view_api::audio::AudioOutputId::from_raw(id.get()),
+            opt.config,
+        ));
+
+        r
+    }
+    fn update_view_handler(&self) -> impl FnMut(&AnyVarHookArgs) -> bool + Send + 'static {
+        let wk = Arc::downgrade(&self.0);
+        move |_| {
+            if let Some(a) = wk.upgrade() {
+                let r = a.view.with(|v| {
+                    if let Ok(v) = v {
+                        let cfg = AudioOutputConfig::new(a.state.get(), a.volume.get(), a.speed.get());
+                        v.update(cfg)
+                    } else {
+                        Ok(())
+                    }
+                });
+                if let Err(e) = r {
+                    // will reconnect on respawn
+                    a.view.set(Err(e.to_txt()));
+                }
+                true
+            } else {
+                false
+            }
+        }
     }
 
     /// Unique ID of this output.
@@ -72,9 +133,20 @@ impl AudioOutput {
         self.cue_impl(audio.into());
     }
     fn cue_impl(&self, audio: AudioMix) {
-        if let Some(view) = self.0.view.clone() {
-            service::cue(view.clone(), audio.into());
-        }
+        let s = self.clone();
+        UPDATES.once_update("AudioOutput.cue", move || {
+            let r = s.0.view.with(|v| match v {
+                Ok(v) => v.cue(audio.view),
+                Err(e) => {
+                    tracing::error!("failed to cue audio, {e}");
+                    Ok(AudioPlayId::INVALID)
+                }
+            });
+            if let Err(e) = r {
+                // will reconnect on respawn
+                s.0.view.set(Err(e.to_txt()));
+            }
+        });
     }
 
     /// Volume of the sound.
@@ -138,25 +210,51 @@ impl AudioOutput {
     /// [`Stopped`]: AudioOutputState::Stopped
     /// [`Playing`]: AudioOutputState::Playing
     pub fn stop_play(&self) {
-        self.0.state.set(AudioOutputState::Playing);
-        self.0.state_stop_if_start.store(true, Ordering::Relaxed);
+        let s = self.clone();
+        self.0.state.modify(move |a| {
+            a.set(AudioOutputState::Playing);
+            s.0.view.with(|v| {
+                if let Ok(v) = v {
+                    let _ = v.update(AudioOutputConfig::new(AudioOutputState::Stopped, s.0.volume.get(), s.0.speed.get()));
+                    a.update();
+                }
+            });
+        });
     }
 
-    pub(crate) fn update(&self) {
-        if let Some(view) = &self.0.view {
-            let state = self.0.state.get();
-            let stop_play = self.0.state_stop_if_start.swap(false, Ordering::Relaxed) && matches!(state, AudioOutputState::Playing);
+    /// Keep the audio output open until the end of the app.
+    pub fn perm(&self) {
+        AUDIOS.perm_output(self);
+    }
 
-            if stop_play || self.0.state.is_new() {
-                let cfg = AudioOutputConfig::new(state, self.0.volume.get(), self.0.speed.get());
-                if stop_play {
-                    let mut stop_cfg = cfg.clone();
-                    stop_cfg.state = AudioOutputState::Stopped;
-                    let _ = view.update(stop_cfg);
+    /// Read-only variable that tracks if this output is connected with the view-process.
+    ///
+    /// When this is `false` the [`error`] might be set. Outputs automatically try to reconnect in case
+    /// of view-process respawn, but note that it will respawn in the [`Stopped`] state.
+    ///
+    /// [`error`]: Self::error
+    /// [`Stopped`]: AudioOutputState::Stopped
+    pub fn is_connected(&self) -> Var<bool> {
+        self.0.view.map(|v| v.is_ok())
+    }
+
+    /// Gets an error message if view-process connection has failed.
+    ///
+    /// Reconnection is attempted on view-process respawn, the [`is_connected`] tracks the ok status. Note that
+    /// the first connection attempt is `true` in [`is_connected`] and `None` here.
+    ///
+    /// [`is_connected`]: Self::is_connected
+    pub fn error(&self) -> Var<Option<Txt>> {
+        self.0.view.map(|v| match v {
+            Ok(_) => None,
+            Err(e) => {
+                if e.is_empty() {
+                    None
+                } else {
+                    Some(e.clone())
                 }
-                let _ = view.update(cfg);
             }
-        }
+        })
     }
 }
 
@@ -316,5 +414,59 @@ impl_from_and_into_var! {
 impl From<&AudioTrack> for AudioMix {
     fn from(audio: &AudioTrack) -> Self {
         AudioMix::new().with_audio(audio)
+    }
+}
+
+/// Options for a new audio output stream.
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct AudioOutputOptions {
+    /// Initial config.
+    pub config: AudioOutputConfig,
+}
+
+impl Default for AudioOutputOptions {
+    fn default() -> Self {
+        Self {
+            config: AudioOutputConfig::new(AudioOutputState::Playing, 1.fct(), 1.fct()),
+        }
+    }
+}
+
+/// Weak reference to an [`AudioOutput`].
+#[derive(Clone)]
+pub struct WeakAudioOutput(std::sync::Weak<AudioOutputData>);
+impl fmt::Debug for WeakAudioOutput {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("WeakAudioOutput").finish_non_exhaustive()
+    }
+}
+impl PartialEq for WeakAudioOutput {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.ptr_eq(&other.0)
+    }
+}
+impl Eq for WeakAudioOutput {}
+impl WeakAudioOutput {
+    /// New weak reference that does not allocate and does not upgrade.
+    pub const fn new() -> Self {
+        Self(std::sync::Weak::new())
+    }
+
+    /// Attempt to upgrade to a strong reference to the audio output.
+    pub fn upgrade(&self) -> Option<AudioOutput> {
+        self.0.upgrade().map(AudioOutput)
+    }
+}
+impl Default for WeakAudioOutput {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl AudioOutput {
+    /// Create a weak reference to this audio output.
+    pub fn downgrade(&self) -> WeakAudioOutput {
+        WeakAudioOutput(std::sync::Arc::downgrade(&self.0))
     }
 }

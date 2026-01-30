@@ -16,6 +16,7 @@ use zng_unit::{ByteLength, ByteUnits};
 use zng_var::{Var, VarEq, impl_from_and_into_var};
 use zng_view_api::audio::{AudioDecoded, AudioMetadata};
 
+pub use zng_app::view_process::AudioOutputId;
 pub use zng_view_api::audio::{AudioDataFormat, AudioFormat, AudioFormatCapability, AudioTracksMode};
 
 /// A custom extension for the [`AUDIOS`] service.
@@ -165,6 +166,13 @@ impl AudioTrack {
     /// Note that depending on how the audio is requested and its source it may never be fully loaded.
     pub fn is_loaded(&self) -> bool {
         !self.is_loading()
+    }
+
+    /// If this audio can be cued for playback already.
+    ///
+    /// This is `true` when the audio has decoded enough that it can begin streaming.
+    pub fn can_cue(&self) -> bool {
+        !self.view_handle().is_dummy() && !self.is_error()
     }
 
     /// If the audio failed to load.
