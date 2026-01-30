@@ -22,11 +22,10 @@ use zng_ext_image::{IMAGES, ImageEntry, ImageVar};
 use zng_task::channel::{ChannelError, IpcBytes};
 use zng_txt::{ToTxt, Txt};
 use zng_var::{ResponseVar, response_var};
-use zng_view_api::{
-    clipboard::{ClipboardError as ViewError, ClipboardTypes},
-    image::ImageDecoded,
-};
+use zng_view_api::{clipboard::ClipboardError as ViewError, image::ImageDecoded};
 use zng_wgt::{CommandIconExt as _, ICONS, wgt_fn};
+
+pub use zng_view_api::clipboard::{ClipboardType, ClipboardTypes};
 
 /// Error getting or setting the clipboard.
 ///

@@ -128,7 +128,6 @@ impl TextInputStyle {
             zng::layout::padding = 2;
             // return focus on enter
             zng::keyboard::on_pre_key_down = zng::handler::hn!(|args| {
-                use zng::event::AnyEventArgs as _;
                 args.propagation.stop();
                 zng::focus::FOCUS.focus_exit();
             });

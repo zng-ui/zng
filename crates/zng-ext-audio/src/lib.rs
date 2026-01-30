@@ -21,9 +21,7 @@ use zng_app::{
     update::UPDATES,
     view_process::{
         VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewAudioHandle,
-        raw_events::{
-            RAW_AUDIO_DECODE_ERROR_EVENT, RAW_AUDIO_DECODED_EVENT, RAW_AUDIO_METADATA_DECODED_EVENT,
-        },
+        raw_events::{RAW_AUDIO_DECODE_ERROR_EVENT, RAW_AUDIO_DECODED_EVENT, RAW_AUDIO_METADATA_DECODED_EVENT},
     },
 };
 use zng_app_context::app_local;

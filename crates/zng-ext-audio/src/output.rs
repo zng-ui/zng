@@ -13,8 +13,8 @@ use zng_unit::{Factor, FactorUnits as _};
 use zng_var::{AnyVarHookArgs, Var, impl_from_and_into_var, var};
 use zng_view_api::audio::{AudioMix as ViewAudioMix, AudioMixLayer, AudioOutputConfig, AudioPlayId};
 
-pub use zng_view_api::audio::AudioOutputState;
 use crate::{AUDIOS, AUDIOS_SV, AudioOutputId, AudioTrack};
+pub use zng_view_api::audio::AudioOutputState;
 
 pub(crate) struct AudioOutputData {
     id: AudioOutputId,
@@ -85,11 +85,13 @@ impl AudioOutput {
             }
             true
         });
-        r.0.view.hook(move |_| {
-            // hold until view is set by any of the events
-            let _hold = &handle;
-            false
-        }).perm();
+        r.0.view
+            .hook(move |_| {
+                // hold until view is set by any of the events
+                let _hold = &handle;
+                false
+            })
+            .perm();
 
         let _ = VIEW_PROCESS.open_audio_output(zng_view_api::audio::AudioOutputRequest::new(
             zng_view_api::audio::AudioOutputId::from_raw(id.get()),

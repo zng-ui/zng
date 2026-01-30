@@ -29,6 +29,6 @@
 //! See [`zng_app::update`] for the full update API.
 
 pub use zng_app::update::{
-    ContextUpdates, EventUpdate, InfoUpdates, LayoutUpdates, OnUpdateHandle, RenderUpdates, UPDATES, UpdateArgs, UpdateDeliveryList,
-    UpdateOp, UpdateSubscribers, UpdatesTraceUiNodeExt, WeakOnUpdateHandle, WidgetUpdates,
+    ContextUpdates, InfoUpdates, LayoutUpdates, OnUpdateHandle, RenderUpdates, UPDATES, UpdateArgs, UpdateDeliveryList, UpdateOp,
+    UpdatesTraceUiNodeExt, WeakOnUpdateHandle, WidgetUpdates,
 };

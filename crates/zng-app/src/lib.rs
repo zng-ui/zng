@@ -389,7 +389,9 @@ impl APP {
 }
 
 impl APP {
-    /// Starts building an application with no extra config.
+    /// Starts building an application with only the minimum required config and resources.
+    ///
+    /// This is the recommended builder for tests, it signal init handlers to only load required resources.
     pub fn minimal(&self) -> AppBuilder {
         zng_env::init_process_name("app-process");
 
@@ -404,8 +406,20 @@ impl APP {
         AppBuilder {
             view_process_exe: None,
             view_process_env: HashMap::new(),
+            with_defaults: false,
             _cleanup: scope,
         }
+    }
+
+    /// Starts building an application with all compiled config and resources.
+    ///
+    /// This is the recommended builder for apps, it signals init handlers to setup all resources upfront, on run, for example, register icon sets,
+    /// default settings views and more. Note that you can still define a lean app by managing the compile time feature flags, and you can also
+    /// override any default resource on run.
+    pub fn defaults(&self) -> AppBuilder {
+        let mut app = self.minimal();
+        app.with_defaults = true;
+        app
     }
 }
 
@@ -415,31 +429,38 @@ impl APP {
 pub struct AppBuilder {
     view_process_exe: Option<PathBuf>,
     view_process_env: HashMap<Txt, Txt>,
+    with_defaults: bool,
 
     // cleanup on drop.
     _cleanup: AppScope,
 }
 impl AppBuilder {
-    fn run_dyn(self, start: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
-        let app = RunningApp::start(self._cleanup, true, true, self.view_process_exe, self.view_process_env);
+    fn run_impl(self, start: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
+        let app = RunningApp::start(
+            self._cleanup,
+            true,
+            true,
+            self.view_process_exe,
+            self.view_process_env,
+            !self.with_defaults,
+        );
 
         UPDATES.run(start).perm();
 
         app.run_headed();
     }
 
-    fn run_headless_dyn(self, with_renderer: bool) -> HeadlessApp {
-        let app = RunningApp::start(self._cleanup, false, with_renderer, self.view_process_exe, self.view_process_env);
+    fn run_headless_impl(self, with_renderer: bool) -> HeadlessApp {
+        let app = RunningApp::start(
+            self._cleanup,
+            false,
+            with_renderer,
+            self.view_process_exe,
+            self.view_process_env,
+            !self.with_defaults,
+        );
 
         HeadlessApp { app }
-    }
-
-    fn run_impl(self, start: impl Future<Output = ()> + Send + 'static) {
-        self.run_dyn(Box::pin(start))
-    }
-
-    fn run_headless_impl(self, with_renderer: bool) -> HeadlessApp {
-        self.run_headless_dyn(with_renderer)
     }
 }
 impl AppBuilder {
@@ -471,7 +492,7 @@ impl AppBuilder {
     /// by opening a window, the app will keep running after `start` is finished.
     pub fn run<F: Future<Output = ()> + Send + 'static>(self, start: impl IntoFuture<IntoFuture = F>) {
         let start = start.into_future();
-        self.run_impl(start)
+        self.run_impl(Box::pin(start))
     }
 
     /// Initializes extensions in headless mode and returns an [`HeadlessApp`].

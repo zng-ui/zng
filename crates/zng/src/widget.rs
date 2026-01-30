@@ -52,13 +52,10 @@ pub use zng_app::render::RepeatMode;
 pub use zng_wgt::{
     EDITORS, EditorRequestArgs, IS_MOBILE_VAR, OnNodeOpArgs, WeakWidgetFn, Wgt, WidgetFn, auto_hide, border, border_align, border_over,
     clip_to_bounds, corner_radius, corner_radius_fit, enabled, hit_test_mode, inline, interactive, is_collapsed, is_disabled, is_enabled,
-    is_hidden, is_hit_testable, is_inited, is_mobile, is_visible, modal, modal_included, modal_includes, on_block, on_blocked_changed,
-    on_collapse, on_deinit, on_disable, on_enable, on_enabled_changed, on_hide, on_info_init, on_init, on_interactivity_changed, on_move,
-    on_node_op, on_pre_block, on_pre_blocked_changed, on_pre_collapse, on_pre_deinit, on_pre_disable, on_pre_enable,
-    on_pre_enabled_changed, on_pre_hide, on_pre_init, on_pre_interactivity_changed, on_pre_move, on_pre_node_op, on_pre_show,
-    on_pre_transform_changed, on_pre_unblock, on_pre_update, on_pre_vis_disable, on_pre_vis_enable, on_pre_vis_enabled_changed,
-    on_pre_visibility_changed, on_show, on_transform_changed, on_unblock, on_update, on_vis_disable, on_vis_enable, on_vis_enabled_changed,
-    on_visibility_changed, parallel, visibility, wgt_fn, z_index,
+    is_hidden, is_hit_testable, is_inited, is_mobile, is_visible, modal, modal_included, modal_includes, on_blocked, on_blocked_changed,
+    on_collapsed, on_deinit, on_disabled, on_enabled, on_enabled_changed, on_hidden, on_info_init, on_init, on_interactivity_changed,
+    on_node_op, on_pre_deinit, on_pre_init, on_pre_node_op, on_pre_update, on_transform_changed, on_unblocked, on_update,
+    on_vis_enabled_changed, on_visibility_changed, on_visible, parallel, visibility, wgt_fn, z_index,
 };
 
 #[cfg(feature = "image")]
@@ -199,11 +196,10 @@ pub mod builder {
 /// ```
 pub mod info {
     pub use zng_app::widget::info::{
-        HitInfo, HitTestInfo, INTERACTIVITY_CHANGED_EVENT, InlineSegmentInfo, InteractionPath, Interactivity, InteractivityChangedArgs,
-        InteractivityFilterArgs, ParallelBuilder, RelativeHitZ, TRANSFORM_CHANGED_EVENT, TransformChangedArgs, TreeFilter,
-        VISIBILITY_CHANGED_EVENT, VisibilityChangedArgs, WIDGET_TREE_CHANGED_EVENT, WidgetBorderInfo, WidgetBoundsInfo,
-        WidgetDescendantsRange, WidgetInfo, WidgetInfoBuilder, WidgetInfoMeta, WidgetInfoTree, WidgetInfoTreeStats, WidgetInlineInfo,
-        WidgetInlineMeasure, WidgetPath, WidgetTreeChangedArgs, iter,
+        HitInfo, HitTestInfo, InlineSegmentInfo, InteractionPath, Interactivity, InteractivityFilterArgs, ParallelBuilder, RelativeHitZ,
+        TreeFilter, WIDGET_TREE_CHANGED_EVENT, WidgetBorderInfo, WidgetBoundsInfo, WidgetDescendantsRange, WidgetInfo, WidgetInfoBuilder,
+        WidgetInfoMeta, WidgetInfoTree, WidgetInfoTreeStats, WidgetInlineInfo, WidgetInlineMeasure, WidgetPath, WidgetTreeChangedArgs,
+        iter,
     };
 
     /// Accessibility metadata types.
@@ -234,10 +230,10 @@ pub mod node {
     };
 
     pub use zng_wgt::node::{
-        bind_state, bind_state_init, border_node, event_state, event_state2, event_state3, event_state4, fill_node, interactive_node,
-        list_presenter, list_presenter_from_iter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state,
-        with_context_blend, with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_index_len_node,
-        with_index_node, with_rev_index_node, with_widget_state, with_widget_state_modify,
+        bind_state, bind_state_init, border_node, fill_node, interactive_node, list_presenter, list_presenter_from_iter, presenter,
+        presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local, with_context_local_init,
+        with_context_var, with_context_var_init, with_index_len_node, with_index_node, with_rev_index_node, with_widget_state,
+        with_widget_state_modify,
     };
 }
 

@@ -546,7 +546,7 @@ event_property! {
     ///
     /// [`on_blocked_changed`]: fn@on_blocked_changed
     /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    pub fn on_block(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
+    pub fn on_blocked(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
         interactivity_var_event_source!(|i| i.is_blocked(), false)
             .filter(|| |b| *b)
             .map_args(|_| ())
@@ -561,7 +561,7 @@ event_property! {
     ///
     /// [`on_blocked_changed`]: fn@on_blocked_changed
     /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    pub fn on_unblock(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
+    pub fn on_unblocked(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
         interactivity_var_event_source!(|i| !i.is_blocked(), true)
             .filter(|| |u| *u)
             .map_args(|_| ())

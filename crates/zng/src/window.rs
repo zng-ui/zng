@@ -249,20 +249,26 @@ pub mod inspector {
 pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedHandlerArgs) {
     use crate::prelude::*;
 
-    if !matches!(args.ctx().mode(), WindowMode::Headed) {
+    if !matches!(WINDOW.mode(), WindowMode::Headed) {
         return;
     }
 
     let open: Vec<_> = WINDOWS
         .widget_trees()
         .into_iter()
-        .filter(|w| WINDOWS.mode(w.window_id()) == Ok(window::WindowMode::Headed) && WINDOWS.nest_parent(w.window_id()).is_none())
+        .filter(|w| {
+            WINDOWS.mode(w.window_id()) == Some(window::WindowMode::Headed)
+                && WINDOWS
+                    .vars(w.window_id())
+                    .map(|v| v.nest_parent().get().is_none())
+                    .unwrap_or(false)
+        })
         .take(2)
         .collect();
 
     if open.len() == 1 {
-        let id = args.ctx().id();
-        let vars = args.vars();
+        let id = WINDOW.id();
+        let vars = WINDOW.vars();
         #[cfg(feature = "image")]
         let icon = vars.icon();
         let title = vars.title();
@@ -325,7 +331,7 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
         ));
 
         window::WINDOW_CLOSE_EVENT
-            .on_pre_event(hn!(|args| {
+            .on_pre_event(true, hn!(|args| {
                 if args.windows.contains(&id) {
                     APP_HANDLER.unsubscribe();
                     layer::LAYERS_REMOVE_CMD.scoped(host_win_id).notify_param(host_wgt_id);

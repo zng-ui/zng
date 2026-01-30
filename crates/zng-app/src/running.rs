@@ -61,6 +61,7 @@ impl RunningApp {
         with_renderer: bool,
         view_process_exe: Option<PathBuf>,
         view_process_env: HashMap<Txt, Txt>,
+        is_minimal: bool,
     ) -> Self {
         let _s = tracing::debug_span!("APP::start").entered();
 
@@ -87,7 +88,7 @@ impl RunningApp {
 
         APP.pre_init(is_headed, with_renderer, view_process_exe, view_process_env);
 
-        APP.call_init_handlers();
+        APP.call_init_handlers(is_minimal);
 
         RunningApp {
             receiver,
@@ -829,7 +830,10 @@ impl RunningApp {
 /// [`APP.on_init`]: APP::on_init
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct AppInitArgs {}
+pub struct AppInitArgs {
+    /// If init handlers should load only required resources.
+    pub is_minimal: bool,
+}
 
 /// Arguments for [`APP.on_deinit`] handlers.
 ///
@@ -865,9 +869,9 @@ impl APP {
         ON_APP_DEINIT.write().get_mut().push(Box::new(handler));
     }
 
-    fn call_init_handlers(&self) {
+    fn call_init_handlers(&self, is_minimal: bool) {
         let mut handlers = mem::take(&mut *zng_unique_id::hot_static_ref!(ON_APP_INIT).lock());
-        let args = AppInitArgs {};
+        let args = AppInitArgs { is_minimal };
         handlers.retain_mut(|h| {
             let (owner, handle) = zng_handle::Handle::new(());
             h.app_event(Box::new(handle.downgrade()), true, &args);
