@@ -11,21 +11,24 @@ use crate::save_name;
 pub async fn bw_rgb(render_mode: RenderMode, scale_factor: Factor) {
     let colors = [colors::BLACK, colors::WHITE, colors::RED, colors::GREEN, colors::BLUE];
 
-    let img = IMAGES.render(None, clmv!(colors, || {
-        Window! {
-            render_mode;
-            headless_monitor = HeadlessMonitor::new_scale(scale_factor);
-            child = Stack! {
-                direction = StackDirection::left_to_right();
-                children = colors.iter().map(|c| {
-                    Wgt! {
-                        widget::background_color = *c;
-                        layout::size = (5, 10);
-                    }
-                });
-            };
-        }
-    }));
+    let img = IMAGES.render(
+        None,
+        clmv!(colors, || {
+            Window! {
+                render_mode;
+                headless_monitor = HeadlessMonitor::new_scale(scale_factor);
+                child = Stack! {
+                    direction = StackDirection::left_to_right();
+                    children = colors.iter().map(|c| {
+                        Wgt! {
+                            widget::background_color = *c;
+                            layout::size = (5, 10);
+                        }
+                    });
+                };
+            }
+        }),
+    );
 
     while img.with(ImageEntry::is_loading) {
         if task::with_deadline(img.wait_update(), 20.secs()).await.is_err() {

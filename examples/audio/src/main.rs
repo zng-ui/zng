@@ -14,7 +14,7 @@ fn main() {
         AUDIOS.limits().set(zng::audio::AudioLimits::none());
 
         // open unnamed output stream, don't cache because widgets will hold it
-        let output = AUDIOS.open_output(false).wait_rsp().await;
+        let output = AUDIOS.open_output("main", |_| {}).wait_rsp().await;
         output.stop();
 
         Window! {

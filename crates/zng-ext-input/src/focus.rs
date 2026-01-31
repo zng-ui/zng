@@ -505,6 +505,18 @@ impl FOCUS {
         self.focus(FocusRequest::direct(widget_id.into(), highlight));
     }
 
+    /// Focus the root focusable widget in the given window.
+    pub fn focus_window(&self, window_id: impl Into<WindowId>, highlight: bool) {
+        self.focus_window_impl(window_id.into(), highlight);
+    }
+    fn focus_window_impl(&self, window_id: WindowId, highlight: bool) {
+        UPDATES.once_update("FOCUS.focus_window", move || {
+            if let Some(tree) = WINDOWS.widget_tree(window_id) {
+                FOCUS.focus_widget_or_enter(tree.root().id(), false, highlight);
+            }
+        });
+    }
+
     /// Focus the widget if it is focusable, else focus the first focusable parent, also changes the highlight.
     ///
     /// If the widget and no parent are focusable the focus does not move, in this case the highlight changes

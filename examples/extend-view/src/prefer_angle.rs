@@ -1,7 +1,8 @@
 //! Enable the built in extension "zng-view.prefer_angle".
 
-use zng::{prelude_wgt::*, window::WINDOWS};
+use zng::prelude_wgt::*;
 use zng_app::view_process::VIEW_PROCESS;
+use zng_ext_window::WINDOWS_EXTENSIONS;
 use zng_view_api::api_extension::{ApiExtensionId, ApiExtensionPayload};
 
 pub fn extension_id() -> ApiExtensionId {
@@ -22,7 +23,7 @@ pub fn use_angle_egl(child: impl IntoUiNode, enable: impl IntoValue<bool>) -> Ui
         if let UiNodeOp::Init = op
             && enable
         {
-            WINDOWS
+            WINDOWS_EXTENSIONS
                 .view_extensions_init(WINDOW.id(), extension_id(), ApiExtensionPayload::serialize(&true).unwrap())
                 .unwrap();
         }

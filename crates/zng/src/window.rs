@@ -331,12 +331,15 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
         ));
 
         window::WINDOW_CLOSE_EVENT
-            .on_pre_event(true, hn!(|args| {
-                if args.windows.contains(&id) {
-                    APP_HANDLER.unsubscribe();
-                    layer::LAYERS_REMOVE_CMD.scoped(host_win_id).notify_param(host_wgt_id);
-                }
-            }))
+            .on_pre_event(
+                true,
+                hn!(|args| {
+                    if args.windows.contains(&id) {
+                        APP_HANDLER.unsubscribe();
+                        layer::LAYERS_REMOVE_CMD.scoped(host_win_id).notify_param(host_wgt_id);
+                    }
+                }),
+            )
             .perm();
     }
 }

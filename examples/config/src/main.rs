@@ -140,7 +140,7 @@ fn app_main() {
                 {
                     let pos = (layout::Dip::new(x), layout::Dip::new(y));
                     WINDOW.vars().position().set(pos);
-                    WINDOWS.focus(WINDOW.id()).unwrap();
+                    FOCUS.focus_window(WINDOW.id(), false);
                 }
             });
         }

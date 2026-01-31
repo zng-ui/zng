@@ -15,7 +15,7 @@ pub fn run() {
     // open headless with renderer flag, this causes the view-process to start.
     let mut app = APP.defaults().run_headless(true);
 
-    app.run_window(async {
+    app.run_window("image", async {
         Window! {
             // the window content is the image.
             child = image();

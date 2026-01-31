@@ -332,7 +332,7 @@ fn large_image() -> UiNode {
     Button! {
         child = Text!("Large Image (205MB download)");
         on_click = hn!(|_| {
-            WINDOWS.open(async move {
+            WINDOWS.focus_or_open("large_image", async move {
                 let mouse_pan = var(false);
                 let mode = var(ScrollMode::NONE);
                 ImgWindow! {
@@ -394,7 +394,7 @@ fn panorama_image() -> UiNode {
     Button! {
         child = Text!("Panorama Image (100MB download)");
         on_click = hn!(|_| {
-            WINDOWS.open(async move {
+            WINDOWS.focus_or_open("panorama_image", async move {
                 ImgWindow!(
                     title,
                     Scroll! {
@@ -437,38 +437,41 @@ fn block_window_load_image() -> UiNode {
         widget::enabled = enabled.clone();
         on_click = hn!(|_| {
             enabled.set(false);
-            WINDOWS.open(async_clmv!(enabled, {
-                ImgWindow! {
-                    title;
-                    state = WindowState::Normal;
+            WINDOWS.focus_or_open(
+                "block_window_load_image",
+                async_clmv!(enabled, {
+                    ImgWindow! {
+                        title;
+                        state = WindowState::Normal;
 
-                    child = Scroll! {
-                        mouse_pan = true;
-                        ctrl_scroll = true;
-                        child = Image! {
-                            // block window load until the image is ready to present or 5 minutes have elapsed.
-                            // usually you want to set a shorter deadline, `true` converts to 1 second.
-                            img_block_window_load = 5.minutes();
+                        child = Scroll! {
+                            mouse_pan = true;
+                            ctrl_scroll = true;
+                            child = Image! {
+                                // block window load until the image is ready to present or 5 minutes have elapsed.
+                                // usually you want to set a shorter deadline, `true` converts to 1 second.
+                                img_block_window_load = 5.minutes();
 
-                            img_fit = ImageFit::Fill;
-                            source;
-                            img_limits = Some(
-                                ImageLimits::none()
-                                    .with_max_encoded_len(130.megabytes())
-                                    .with_max_decoded_len(1.gigabytes()),
-                            );
+                                img_fit = ImageFit::Fill;
+                                source;
+                                img_limits = Some(
+                                    ImageLimits::none()
+                                        .with_max_encoded_len(130.megabytes())
+                                        .with_max_decoded_len(1.gigabytes()),
+                                );
 
-                            on_error = hn!(|args| {
-                                tracing::error!(target: "unexpected", "{}", args.error);
-                            });
+                                on_error = hn!(|args| {
+                                    tracing::error!(target: "unexpected", "{}", args.error);
+                                });
+                            };
                         };
-                    };
 
-                    on_load = hn!(enabled, |_| {
-                        enabled.set(true);
-                    });
-                }
-            }));
+                        on_load = hn!(enabled, |_| {
+                            enabled.set(true);
+                        });
+                    }
+                }),
+            );
         });
     }
 }
@@ -479,7 +482,7 @@ fn repeat_image() -> UiNode {
     Button! {
         child = Text!("Repeat Image (2 MB download)");
         on_click = hn!(|_| {
-            WINDOWS.open(async move {
+            WINDOWS.focus_or_open("repeat_image", async move {
                 let show_pattern = var(false);
                 ImgWindow!(
                     title,
@@ -531,7 +534,7 @@ fn open_or_paste_image() -> UiNode {
     Button! {
         child = Text!("Open or Paste Image");
         on_click = hn!(|_| {
-            WINDOWS.open(async {
+            WINDOWS.focus_or_open("open_or_paste_image", async {
                 let source = var(ImageSource::flood(layout::PxSize::splat(layout::Px(1)), colors::BLACK, None));
                 ImgWindow! {
                     title = "Open or Paste Image";
@@ -608,7 +611,7 @@ fn exif_rotated() -> UiNode {
     Button! {
         child = Text!("Exif Rotated");
         on_click = hn!(|_| {
-            WINDOWS.open(async {
+            WINDOWS.focus_or_open("exif_rotated", async {
                 fn example(file: &'static str) -> UiNode {
                     Image! {
                         zng::container::child_top = Text! {
@@ -645,7 +648,7 @@ fn ppi_scaled() -> UiNode {
     Button! {
         child = Text!("PPI Scaled");
         on_click = hn!(|_| {
-            WINDOWS.open(async {
+            WINDOWS.focus_or_open("ppi_scaled", async {
                 fn example(file: &'static str) -> UiNode {
                     Image! {
                         zng::container::child_top = Text! {
@@ -686,7 +689,7 @@ fn color_profiles() -> UiNode {
     Button! {
         child = Text!("Color Profiles");
         on_click = hn!(|_| {
-            WINDOWS.open(async {
+            WINDOWS.focus_or_open("color_profiles", async {
                 Window! {
                     title = "Color Profiles";
                     child_top = Text! {
@@ -802,7 +805,7 @@ fn multi_image_container() -> UiNode {
     Button! {
         child = Text!("Multi Image Container");
         on_click = hn!(|_| {
-            WINDOWS.open(async {
+            WINDOWS.focus_or_open("multi_image_container", async {
                 let mut opt = zng::image::ImageOptions::cache();
                 opt.entries = ImageEntriesMode::REDUCED;
                 let ico = IMAGES.image(zng::env::res("test-icon.ico"), opt, None);

@@ -14,7 +14,7 @@ pub fn run() {
     const FPS: f32 = 60.0;
     zng::var::VARS.frame_duration().set((1.0 / FPS).secs());
 
-    app.run_window(async {
+    app.run_window("video", async {
         // will save frames as "{temp}/{frame}.png"
         let temp = zng::env::cache("headless_example_video");
         let _ = std::fs::remove_dir_all(&temp);

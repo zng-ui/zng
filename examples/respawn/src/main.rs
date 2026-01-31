@@ -91,7 +91,7 @@ fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) {
 
             on_load = hn_once!(|_| {
                 // force to foreground
-                let _ = WINDOWS.focus(WINDOW.id());
+                FOCUS.focus_window(WINDOW.id(), false);
             });
 
             padding = 5;

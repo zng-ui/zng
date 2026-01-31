@@ -86,28 +86,32 @@ pub trait HeadlessAppWindowExt {
     ///
     /// [`WINDOW`]: zng_app::window::WINDOW
     /// [`WindowId`]: zng_app::window::WindowId
-    fn open_window<F>(&mut self, window_id: WindowId, new_window: impl IntoFuture<IntoFuture = F>) -> WindowVars
+    fn open_window<F>(&mut self, window_id: impl Into<WindowId>, new_window: impl IntoFuture<IntoFuture = F>) -> WindowVars
     where
         F: Future<Output = WindowRoot> + Send + 'static;
 
     /// Cause the headless window to think it is focused in the screen.
-    fn focus_window(&mut self, window_id: WindowId);
+    fn focus_window(&mut self, window_id: impl Into<WindowId>);
     /// Cause the headless window to think focus moved away from it.
-    fn blur_window(&mut self, window_id: WindowId);
+    fn blur_window(&mut self, window_id: impl Into<WindowId>);
 
     /// Copy the current frame pixels of the window.
     ///
     /// The var will update until the image is loaded or error.
     #[cfg(feature = "image")]
-    fn window_frame_image(&mut self, window_id: WindowId, mask: Option<zng_view_api::image::ImageMaskMode>) -> zng_ext_image::ImageVar;
+    fn window_frame_image(
+        &mut self,
+        window_id: impl Into<WindowId>,
+        mask: Option<zng_view_api::image::ImageMaskMode>,
+    ) -> zng_ext_image::ImageVar;
 
     /// Sends a close request.
     ///
     /// Returns if the window was found and closed.
-    fn close_window(&mut self, window_id: WindowId) -> bool;
+    fn close_window(&mut self, window_id: impl Into<WindowId>) -> bool;
 
     /// Open a new headless window and update the app until the window closes.
-    fn run_window<F>(&mut self, window_id: WindowId, new_window: impl IntoFuture<IntoFuture = F>)
+    fn run_window<F>(&mut self, window_id: impl Into<WindowId>, new_window: impl IntoFuture<IntoFuture = F>)
     where
         F: Send + Future<Output = WindowRoot> + 'static;
 
@@ -118,7 +122,7 @@ pub trait HeadlessAppWindowExt {
         F: Future<Output = WindowRoot> + 'static + Send;
 }
 impl HeadlessAppWindowExt for HeadlessApp {
-    fn open_window<F>(&mut self, window_id: WindowId, new_window: impl IntoFuture<IntoFuture = F>) -> WindowVars
+    fn open_window<F>(&mut self, window_id: impl Into<WindowId>, new_window: impl IntoFuture<IntoFuture = F>) -> WindowVars
     where
         F: Future<Output = WindowRoot> + Send + 'static,
     {
@@ -133,30 +137,34 @@ impl HeadlessAppWindowExt for HeadlessApp {
         .unwrap()
     }
 
-    fn focus_window(&mut self, window_id: WindowId) {
-        let args = RawWindowFocusArgs::now(None, Some(window_id));
+    fn focus_window(&mut self, window_id: impl Into<WindowId>) {
+        let args = RawWindowFocusArgs::now(None, Some(window_id.into()));
         RAW_WINDOW_FOCUS_EVENT.notify(args);
         let _ = self.update(false);
     }
 
-    fn blur_window(&mut self, window_id: WindowId) {
-        let args = RawWindowFocusArgs::now(Some(window_id), None);
+    fn blur_window(&mut self, window_id: impl Into<WindowId>) {
+        let args = RawWindowFocusArgs::now(Some(window_id.into()), None);
         RAW_WINDOW_FOCUS_EVENT.notify(args);
         let _ = self.update(false);
     }
 
     #[cfg(feature = "image")]
-    fn window_frame_image(&mut self, window_id: WindowId, mask: Option<zng_view_api::image::ImageMaskMode>) -> zng_ext_image::ImageVar {
+    fn window_frame_image(
+        &mut self,
+        window_id: impl Into<WindowId>,
+        mask: Option<zng_view_api::image::ImageMaskMode>,
+    ) -> zng_ext_image::ImageVar {
         WINDOWS.frame_image(window_id, mask)
     }
 
-    fn close_window(&mut self, window_id: WindowId) -> bool {
+    fn close_window(&mut self, window_id: impl Into<WindowId>) -> bool {
         let r = WINDOWS.close(window_id);
         let r = self.run_task(async move { r.wait_rsp().await });
         r.is_none() || matches!(r.unwrap(), CloseWindowResult::Closed)
     }
 
-    fn run_window<F>(&mut self, window_id: WindowId, new_window: impl IntoFuture<IntoFuture = F>)
+    fn run_window<F>(&mut self, window_id: impl Into<WindowId>, new_window: impl IntoFuture<IntoFuture = F>)
     where
         F: Future<Output = WindowRoot> + Send + 'static,
     {

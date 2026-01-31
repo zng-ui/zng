@@ -200,6 +200,7 @@ fn screenshot() -> UiNode {
                 tracing::info!("taking `screenshot.png` using a new headless window ..");
                 let parent = WINDOW.id();
                 WINDOWS.open_headless(
+                    WindowId::new_unique(),
                     async_clmv!(enabled, {
                         Window! {
                             parent;
@@ -290,7 +291,7 @@ fn focus_control() -> UiNode {
             enabled.set(false);
             task::deadline(5.secs()).await;
 
-            WINDOWS.focus(WINDOW.id()).unwrap();
+            FOCUS.focus_window(WINDOW.id(), true);
             enabled.set(true);
         });
     };
@@ -501,14 +502,14 @@ fn custom_chrome(title: Var<Txt>) -> UiNode {
             widget::border = 5, light_dark(colors::WHITE, colors::BLACK).rgba().map_into();
             mouse::cursor = cursor.clone();
             mouse::on_mouse_move = hn!(|args| {
-                cursor.set(match args.position_wgt().and_then(resize_direction) {
+                cursor.set(match args.position_wgt((WINDOW.id(), WIDGET.id())).and_then(resize_direction) {
                     Some(d) => mouse::CursorIcon::from(d).into(),
                     None => mouse::CursorSource::Hidden,
                 });
             });
             mouse::on_mouse_down = hn!(|args| {
                 if args.is_primary()
-                    && let Some(d) = args.position_wgt().and_then(resize_direction)
+                    && let Some(d) = args.position_wgt((WINDOW.id(), WIDGET.id())).and_then(resize_direction)
                 {
                     window::cmd::DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify_param(d);
                 }
@@ -545,7 +546,7 @@ fn misc() -> UiNode {
                         child_count += 1;
 
                         let parent = WINDOW.id();
-                        WINDOWS.open(async move {
+                        WINDOWS.open(WindowId::new_unique(), async move {
                             Window! {
                                 title = formatx!("Window Example - Child {child_count}");
                                 size = (400, 300);
@@ -569,7 +570,7 @@ fn misc() -> UiNode {
                     on_click = hn!(|_| {
                         other_count += 1;
 
-                        WINDOWS.open(async move {
+                        WINDOWS.open(WindowId::new_unique(), async move {
                             Window! {
                                 title = formatx!("Window Example - Other {other_count}");
                                 size = (400, 300);
@@ -758,7 +759,10 @@ fn confirm_close() -> Handler<WindowCloseRequestedArgs> {
                 if r.name == "close" {
                     state.set(CloseState::Close);
                     let mut windows = args.windows;
-                    windows.retain(|w| WINDOWS.is_open(*w));
+                    windows.retain(|w| match WINDOWS.vars(*w) {
+                        Some(_) => todo!(),
+                        None => false,
+                    });
                     let _ = WINDOWS.close_together(windows);
                 } else {
                     state.set(CloseState::Ask);

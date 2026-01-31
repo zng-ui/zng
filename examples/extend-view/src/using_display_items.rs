@@ -32,22 +32,25 @@ pub mod app_side {
                     .sub_event(&MOUSE_HOVERED_EVENT);
                 ext_id = extension_id();
             }
-            UiNodeOp::Event { update } => {
-                if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
+            UiNodeOp::Update { .. } => {
+                MOUSE_MOVE_EVENT.latest_update(true, |args| {
                     if cursor != args.position {
                         cursor = args.position;
                         WIDGET.layout();
                     }
-                } else if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                    if args.is_mouse_leave() {
+                });
+                MOUSE_HOVERED_EVENT.each_update(true, |args| {
+                    let wgt = (WindowId::new_unique(), WidgetId::new_unique());
+                    if args.is_mouse_leave(wgt) {
                         cursor = DipPoint::splat(Dip::MIN);
                         cursor_px = PxPoint::splat(Px::MIN);
                         WIDGET.render_update();
                     }
-                } else if VIEW_PROCESS_INITED_EVENT.on(update).is_some() {
+                });
+                VIEW_PROCESS_INITED_EVENT.latest_update(true, |_| {
                     ext_id = extension_id();
                     WIDGET.render();
-                }
+                });
             }
             UiNodeOp::Measure { desired_size, .. } => {
                 *desired_size = LAYOUT.constraints().fill_size();
