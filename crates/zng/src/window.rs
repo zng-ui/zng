@@ -245,7 +245,9 @@ pub mod inspector {
 /// This is registered on app init for platforms that only support one window, it intercepts headed window open requests after the
 /// first and opens them as a nested modal layer on the main window.
 ///
-/// See [`WINDOWS::register_open_nested_handler`] for more details.
+/// See [`WINDOWS_EXTENSIONS.register_open_nested_handler`] for more details.
+///
+/// [`WINDOWS_EXTENSIONS.register_open_nested_handler`]: zng_ext_window::WINDOWS_EXTENSIONS::register_open_nested_handler
 pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedHandlerArgs) {
     use crate::prelude::*;
 

@@ -84,9 +84,8 @@ impl AUDIOS {
     /// audios cannot be decoded, in this case all audios are dummy loading and no attempt
     /// to download/read the audio files is made. You can enable loading in headless tests to detect
     /// IO errors, in this case if there is an error acquiring the audio file the audio will be a
-    /// [`dummy`] with error.
+    /// dummy with error.
     ///
-    /// [`dummy`]: AUDIOS::dummy
     /// [`VIEW_PROCESS`]: zng_app::view_process::VIEW_PROCESS
     pub fn load_in_headless(&self) -> Var<bool> {
         AUDIOS_SV.read().load_in_headless.clone()
@@ -216,7 +215,7 @@ impl AUDIOS {
     ///
     /// Returns an audio var that tracks the audio, note that if the `key` is already known does not use the `audio` data.
     ///
-    /// Note that you can register tracks in [`AudioTrack::insert_entry`], this method is only for tracking a new track.
+    /// Note that you can register tracks in [`AudioTrack::insert_track`], this method is only for tracking a new track.
     ///
     /// Note that the audio will not automatically restore on respawn if the view-process fails while decoding.
     pub fn register(&self, key: Option<AudioHash>, audio: (ViewAudioHandle, AudioMetadata, AudioDecoded)) -> AudioVar {

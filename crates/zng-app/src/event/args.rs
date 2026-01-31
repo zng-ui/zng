@@ -305,7 +305,7 @@ pub use crate::event_args;
 /// Event handlers can use this to signal subsequent handlers that the event is already handled and they should
 /// operate as if the event was not received.
 ///
-/// You can get the propagation handle of any event argument by using the [`EventArgs::propagation`] method.
+/// You can get the propagation handle of any event argument by using the [`AnyEventArgs::propagation`] method.
 #[derive(Debug, Clone)]
 pub struct EventPropagationHandle(Arc<AtomicBool>);
 impl EventPropagationHandle {
@@ -324,11 +324,8 @@ impl EventPropagationHandle {
     /// If the handler must skip this event instance.
     ///
     /// Note that property level handlers don't need to check this, as those handlers are
-    /// not called when this is `true`. Direct event listeners in [`UiNode`] and [`AppExtension`]
-    /// must check if this is `true`.
-    ///
-    /// [`UiNode`]: crate::widget::node::UiNode
-    /// [`AppExtension`]: crate::AppExtension
+    /// not called when this is `true`. Direct event listeners can be configured to ignore this
+    /// flag.
     pub fn is_stopped(&self) -> bool {
         self.0.load(Relaxed)
     }

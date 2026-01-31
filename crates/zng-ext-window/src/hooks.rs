@@ -19,7 +19,7 @@ use zng_app::{
 use zng_color::LightDark;
 use zng_layout::{
     context::LayoutPassId,
-    unit::{DipRect, DipToPx, Factor, FactorUnits as _, Layout2d, Length, PxDensity, PxRect, PxToDip as _, TimeUnits as _},
+    unit::{DipRect, DipToPx, Factor, FactorUnits as _, Layout2d, Length, PxDensity, PxRect, PxToDip as _},
 };
 use zng_var::VarHandle;
 use zng_view_api::window::WindowCapability;
@@ -27,8 +27,8 @@ use zng_wgt::prelude::{DIRECTION_VAR, InteractionPath, LAYOUT, LayoutMetrics};
 
 use crate::{
     CursorSource, IME_EVENT, ImeArgs, MONITORS, SetFromLayoutTag, SetFromViewTag, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT,
-    WINDOWS, WINDOWS_SV, WidgetInfoImeArea, WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowIcon, WindowInstance,
-    WindowInstanceState, WindowNode, WindowVars, cmd::WindowCommands,
+    WINDOWS, WINDOWS_SV, WidgetInfoImeArea, WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowInstance, WindowInstanceState,
+    WindowNode, WindowVars, cmd::WindowCommands,
 };
 
 /// Hooks always active for the lifetime of the app.
@@ -385,6 +385,8 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
         vars.0
             .icon
             .hook(move |args| {
+                use crate::WindowIcon;
+
                 match args.value() {
                     WindowIcon::Default => {
                         actual_icon.set(None);
@@ -433,12 +435,12 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                         actual_cursor_img.set(None);
                     }
                 }
+                #[cfg(feature = "image")]
                 CursorSource::Img(img) => {
                     // load image cursor, set fallback immediately
                     with_view(id, |_, _, v| {
                         let _ = v.set_cursor(Some(img.fallback));
                     });
-                    #[cfg(feature = "image")]
                     {
                         let hotspot = img.hotspot.clone();
                         _bind_handle = load_bind_ico(
@@ -892,6 +894,7 @@ fn load_bind_ico<T: zng_var::VarValue>(
     mut map: impl FnMut(&zng_ext_image::ImageEntry) -> T + Send + 'static,
 ) -> VarHandle {
     use zng_app::view_process::VIEW_PROCESS;
+    use zng_layout::unit::TimeUnits as _;
 
     // if VIEW_PROCESS is connected can check if system can change window icon,
     // if it cannot can skip loading icon images

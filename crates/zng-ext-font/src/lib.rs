@@ -2464,7 +2464,7 @@ impl FontBytes {
 
         #[cfg(all(not(ipc), not(target_arch = "wasm32")))]
         unsafe fn load_from_system(path: PathBuf) -> io::Result<FontBytes> {
-            let mmap = IpcBytes::from_file_blocking(&path)?;
+            let mmap = IpcBytes::from_path_blocking(&path)?;
             Ok(FontBytes(FontBytesImpl::System(Arc::new(SystemFontBytes { path, mmap }))))
         }
 

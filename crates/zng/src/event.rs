@@ -3,29 +3,33 @@
 //! Events are represented by a static instance of [`Event<A>`] with name suffix `_EVENT`. Events have
 //! custom argument types that implement [`EventArgs`], this means that all event arg types have a timestamp, propagation
 //! handle and can define their own delivery list.
+//! 
+//! Events are an specialized variable type, the [`Event::var`] and other methods can be used to bind directly to the underlying var.
+//! The variable value is [`EventUpdates`], a list of all the notifications requested in the previous update.
 //!
 //! # Notify
 //!
-//! An event update is requested using [`Event::notify`] the notification is pending until the end of the current update,
-//! at that moment the pending notifications apply, in the order they where requested. Each event notifies in this order:
-//!
-//! 1 - All [`AppExtension::event_preview`](crate::app::AppExtension::event_preview).
-//! 2 - All [`Event::on_pre_event`] handlers.
-//! 3 - All [`AppExtension::event_ui`](crate::app::AppExtension::event_ui).
-//! 3.1 - Preview route from window root to each target widget.
-//! 3.2 - Main route from target widget to window root.
-//! 4 - All [`AppExtension::event`](crate::app::AppExtension::event).
-//! 5 - All [``Event::on_event`] handlers.
+//! An event update is requested using [`Event::notify`], this schedules a var modify that clears the previous [`EventUpdates`] and
+//! inserts the new update, sorted by timestamp. 
 //!
 //! Each event args has an [`EventPropagationHandle`] that can be used to signal later handlers that the event
-//! is already handled. The event notification always makes the full route, low level handlers must check if propagation
-//! is stopped or can deliberately ignore it. Event properties automatically check propagation.
+//! is already handled. The event notification always makes the full route, direct subscribers can choose if they still
+//! execute when the args is flagged handled.
+//! 
+//! The [`Event::hook`] can be used to bind the event during var update time, like [`Var::hook`] any variable modify or event
+//! notify requests made in the hook will notify in the same next update pass.
+//! 
+//! The [`Event::on_pre_event`] and [`Event::on_event`] can be used to register handles that on the *preview route*, before UI
+//! update and before `on_event`, the *main route*.
 //!
-//! The two event routes in widgets are an emergent property of nested nodes. There is only a method for events, [`UiNode::event`],
-//! if a node handles the event before propagating to the child node it handled it in the preview route (also called tunnel route),
-//! if it handles the event after it propagated it to the child node it handled it in the main route (also called bubble route).
+//! In widgets the two event routes are an emergent property of nested nodes. The [`UiNode::update`] method is called to
+//! all widget nodes in the path to the subscriber, nodes can choose to handle the event before or after propagating the call
+//! the the children [`UiNode::update`], if a node handles it before children, this called the *preview route*, 
+//! if it handles the event after it propagated it to the children this is called the *main route*.
+//! 
+//! In other UI frameworks the preview route is also called *tunneling* and the main route *bubbling*.
 //!
-//! [`UiNode::event`]: crate::widget::node::UiNode::event
+//! [`UiNode::update`]: crate::widget::node::UiNode::update
 //!
 //! # Subscribe
 //!
@@ -62,15 +66,16 @@
 //!
 //! ## Subscribe in Nodes
 //!
-//! Widget and properties can subscribe to events directly. When the event [`UpdateDeliveryList`] is build only widgets
+//! Widget and properties can subscribe to events directly. When the [`UpdateDeliveryList`] is build only widgets
 //! selected by the event arguments that are also subscribers to the event are added to the list.
 //!
 //! The [`WIDGET.sub_event`] method can be used to subscribe for the lifetime of the widget, the [`Event::subscribe`]
-//! method can be used to subscribe for an arbitrary lifetime. The [`Event::on`] or [`Event::on_unhandled`] can be
+//! method can be used to subscribe for an arbitrary lifetime. The [`Event::each_update`] or [`Event::latest_update`] can be
 //! used to match and receive the event.
 //!
 //! [`WIDGET.sub_event`]: crate::widget::WIDGET::sub_event
 //! [`UpdateDeliveryList`]: crate::update::UpdateDeliveryList
+//! [`Var::hook`]: crate::var::Var::hook
 //!
 //! ```
 //! # fn main() { }
@@ -84,16 +89,16 @@
 //!         UiNodeOp::Init => {
 //!             WIDGET.sub_event(&gesture::CLICK_EVENT);
 //!         }
-//!         UiNodeOp::Event { update } => {
-//!             if let Some(args) = gesture::CLICK_EVENT.on(update) {
+//!         UiNodeOp::Update { updates } => {
+//!             gesture::CLICK_EVENT.each_update(true, |args| {
 //!                 if preview.get() {
 //!                     println!("preview click {:?}", args.propagation.is_stopped());
-//!                     child.event(update);
+//!                     child.update(updates);
 //!                 } else {
-//!                     child.event(update);
+//!                     child.update(updates);
 //!                     println!("click {:?}", args.propagation.is_stopped());
 //!                 }
-//!             }
+//!             });
 //!         }
 //!         _ => {}
 //!     })
@@ -101,51 +106,26 @@
 //! ```
 //!
 //! The example above declares a property that prints the `CLICK_EVENT` propagation status, the preview/main
-//! routes are defined merely by the position of `child.event(update)` in relation with the handling code.
-//!
-//! ## App Extensions
-//!
-//! App extensions don't need to subscribe to events, they all receive all events.
-//!
-//! ```
-//! use zng::{app::AppExtension, gesture::CLICK_EVENT, update::EventUpdate};
-//!
-//! #[derive(Default)]
-//! struct PrintClickManager {}
-//!
-//! impl AppExtension for PrintClickManager {
-//!     fn event_preview(&mut self, update: &mut EventUpdate) {
-//!         if let Some(args) = CLICK_EVENT.on(update) {
-//!             println!("click, before all UI handlers");
-//!         }
-//!     }
-//!
-//!     fn event(&mut self, update: &mut EventUpdate) {
-//!         if let Some(args) = CLICK_EVENT.on(update) {
-//!             println!("click, after all UI handlers");
-//!         }
-//!     }
-//! }
-//! ```
+//! routes are defined merely by the position of `child.update(updates)` in relation with the handling code.
 //!
 //! ## Direct Handlers
 //!
 //! Event handlers can be set directly on the events using [`Event::on_event`] and [`Event::on_pre_event`].
-//! The handlers run in the app scope (same as app extensions). These event handlers are only called if
-//! propagation is not stopped.
+//! The handlers run in the app scope (same as app extensions). These event handlers can be configured to ignore
+//! the propagation handle.
 //!
 //! ```
 //! use zng::prelude::*;
 //! # fn example() {
 //!
 //! gesture::CLICK_EVENT
-//!     .on_pre_event(hn!(|_| {
+//!     .on_pre_event(true, hn!(|_| {
 //!         println!("click, before all UI handlers");
 //!     }))
 //!     .perm();
 //!
 //! gesture::CLICK_EVENT
-//!     .on_event(hn!(|_| {
+//!     .on_event(true, hn!(|_| {
 //!         println!("click, after all UI handlers");
 //!     }))
 //!     .perm();
@@ -171,8 +151,8 @@
 //!
 //!         ..
 //!
-//!         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-//!             list.insert_wgt(&self.target);
+//!         fn is_in_target(&self, id: WidgetId) -> bool {
+//!             self.target.contains(id)
 //!         }
 //!     }
 //! }
@@ -182,9 +162,10 @@
 //! }
 //!
 //! event_property! {
-//!     pub fn foo {
-//!         event: FOO_EVENT,
-//!         args: FooArgs,
+//!     #[property(EVENT)]
+//!     pub fn on_foo<on_pre_foo>(child: impl IntoUiNode, handler: Handler<FooArgs>) -> UiNode {
+//!         const PRE: bool;
+//!         EventNodeBuilder::new(FOO_EVENT).build::<PRE>(child, handler)
 //!     }
 //! }
 //!
@@ -205,7 +186,7 @@
 //! # }
 //! ```
 //!
-//! The example above declares `FooArgs`, `FOO_EVENT`, `on_pre_foo` and `on_foo`. The example then declares
+//! The example above declares `FooArgs`, `FOO_EVENT`, `on_pre_foo` and `on_foo`. The example then instantiates
 //! a widget that sends the `FOO_EVENT` to itself on init and receives it using the event properties.
 //!
 //! # Commands
@@ -224,7 +205,7 @@
 //!
 //! command! {
 //!     /// Foo docs.
-//!     pub static FOO_CMD = {
+//!     pub static FOO_CMD {
 //!         l10n!: true,
 //!         name: "Foo",
 //!         info: "foo bar",
@@ -233,8 +214,9 @@
 //! }
 //!
 //! command_property! {
-//!     pub fn foo {
-//!         cmd: FOO_CMD.scoped(WIDGET.id()),
+//!     #[property(EVENT)]
+//!     pub fn on_foo<on_pre_foo, can_foo>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
+//!         FOO_CMD
 //!     }
 //! }
 //!
@@ -254,7 +236,7 @@
 //! # }
 //! ```
 //!
-//! The example above declares `FOO_CMD`, `on_pre_foo`, `on_foo`, `can_foo` and `CAN_FOO_VAR`. The example then declares
+//! The example above declares `FOO_CMD`, `on_pre_foo`, `on_foo`, `can_foo` and `CAN_FOO_VAR`. The example then instantiates
 //! a widget that sends the `FOO_CMD` to itself on init and receives it using the event properties.
 //!
 //! ## Metadata
@@ -329,6 +311,6 @@
 
 pub use zng_app::event::{
     AnyEvent, AnyEventArgs, Command, CommandArgs, CommandHandle, CommandInfoExt, CommandMeta, CommandMetaVar, CommandMetaVarId,
-    CommandNameExt, CommandParam, CommandScope, EVENTS, Event, EventArgs, EventPropagationHandle, command, event, event_args,
+    CommandNameExt, CommandParam, CommandScope, EVENTS, Event, EventArgs, EventPropagationHandle, command, event, event_args, EventUpdates,
 };
 pub use zng_wgt::node::{EventNodeBuilder, VarEventNodeBuilder, command_property, event_property};

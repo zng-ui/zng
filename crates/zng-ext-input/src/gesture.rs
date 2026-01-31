@@ -628,7 +628,6 @@ impl GesturesService {
 /// [`event_preview`]: AppExtension::event_preview
 /// [`event_ui`]: AppExtension::event_ui
 /// [`event`]: AppExtension::event
-/// [`propagation`]: EventArgs::propagation
 /// [`KeyChord::starter`]: zng_app::shortcut::KeyChord::starter
 /// [`CommandShortcutExt`]: zng_app::shortcut::CommandShortcutExt
 pub struct GESTURES;

@@ -314,7 +314,7 @@ where
     /// The `map_args` closure is called in context, just before the handler is called.
     ///
     /// Note that if the args is a full [`EventArgs`] type it must share the same propagation handle in the preview and normal route
-    /// properties, if the source type is also a full args just clone [`EventArgs::propagation`], otherwise you must use [`WIDGET::set_state`]
+    /// properties, if the source type is also a full args just clone the propagation handle, otherwise you must use [`WIDGET::set_state`]
     /// to communicate between the properties.
     pub fn map_args<M, MA>(self, map_args: M) -> VarEventNodeBuilder<I, F, M>
     where

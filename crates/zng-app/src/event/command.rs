@@ -310,7 +310,6 @@ pub fn init_meta_l10n(
 ///
 /// [`command!`]: macro@crate::event::command
 /// [`subscribe`]: Command::subscribe
-/// [enabled]: CommandHandle::set_enabled
 /// [`with_meta`]: Command::with_meta
 /// [`scoped`]: Command::scoped
 #[derive(Clone, Copy)]

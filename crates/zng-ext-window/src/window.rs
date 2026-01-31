@@ -113,6 +113,7 @@ pub trait WINDOW_Ext {
     /// See [`WINDOWS.close`] for more details.
     ///
     /// [`WINDOWS.close`]: WINDOWS::close
+    /// [`WINDOW_CLOSE_REQUESTED_EVENT`]: crate::WINDOW_CLOSE_REQUESTED_EVENT
     fn close(&self) -> ResponseVar<CloseWindowResult> {
         WINDOWS.close(WINDOW.id())
     }
@@ -874,9 +875,9 @@ pub(crate) fn render(
     }
 }
 
-/// UI node that hosts a nested window as defined by [`WINDOWS.register_open_nested_handler`] handler.
+/// UI node that hosts a nested window as defined by [`WINDOWS_EXTENSIONS.register_open_nested_handler`] handler.
 ///
-/// [`WINDOWS.register_open_nested_handler`]: WINDOWS::register_open_nested_handler
+/// [`WINDOWS_EXTENSIONS.register_open_nested_handler`]: WINDOWS_EXTENSIONS::register_open_nested_handler
 pub struct NestedWindowNode {
     window_id: WindowId,
     close_deadline: DeadlineHandle,

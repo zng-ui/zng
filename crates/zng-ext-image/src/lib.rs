@@ -40,9 +40,8 @@ use zng_layout::unit::ByteLength;
 use zng_state_map::StateId;
 use zng_task::channel::IpcBytes;
 use zng_txt::ToTxt;
-use zng_txt::Txt;
 use zng_unique_id::{IdEntry, IdMap};
-use zng_var::{IntoVar, Var, VarHandle, const_var, var};
+use zng_var::{IntoVar, Var, VarHandle, var};
 use zng_view_api::{
     image::{ImageDecoded, ImageRequest},
     window::RenderMode,
@@ -131,14 +130,14 @@ impl IMAGES {
     ///
     /// [`IMAGES.image`]: IMAGES::image
     #[cfg(feature = "http")]
-    pub fn download<U>(&self, uri: U, accept: Option<Txt>) -> ImageVar
+    pub fn download<U>(&self, uri: U, accept: Option<zng_txt::Txt>) -> ImageVar
     where
         U: TryInto<zng_task::http::Uri>,
         <U as TryInto<zng_task::http::Uri>>::Error: ToTxt,
     {
         match uri.try_into() {
             Ok(uri) => self.image_impl(ImageSource::Download(uri, accept), ImageOptions::cache(), None),
-            Err(e) => const_var(ImageEntry::new_error(e.to_txt())),
+            Err(e) => zng_var::const_var(ImageEntry::new_error(e.to_txt())),
         }
     }
 
@@ -327,7 +326,8 @@ impl IMAGES {
         formats
     }
 
-    fn http_accept(&self) -> Txt {
+    #[cfg(feature = "http")]
+    fn http_accept(&self) -> zng_txt::Txt {
         let mut s = String::new();
         let mut sep = "";
         for f in self.available_formats() {
@@ -459,7 +459,7 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
             let accept = accept.unwrap_or_else(|| IMAGES.http_accept());
 
             use zng_task::http::*;
-            async fn download(uri: Uri, accept: Txt, limit: ByteLength) -> Result<(ImageDataFormat, IpcBytes), Error> {
+            async fn download(uri: Uri, accept: zng_txt::Txt, limit: ByteLength) -> Result<(ImageDataFormat, IpcBytes), Error> {
                 let request = Request::get(uri)?.max_length(limit).header(header::ACCEPT, accept.as_str())?;
                 let mut response = send(request).await?;
                 let data_format = match response.header().get(&header::CONTENT_TYPE).and_then(|m| m.to_str().ok()) {

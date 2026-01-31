@@ -100,9 +100,11 @@ impl WINDOWS {
     ///
     /// This setting does not consider headless windows and is fully ignored in headless apps.
     ///
-    /// Note that if [`APP.exit`](APP::exit) is requested directly the windows service will cancel it, request
+    /// Note that if [`APP.exit`] is requested directly the windows service will cancel it, request
     /// close for all headed and headless windows, and if all windows close request app exit again, independent
     /// of this setting.
+    ///
+    /// [`APP.exit`]: zng_app::APP::exit
     pub fn exit_on_last_close(&self) -> Var<bool> {
         WINDOWS_SV.read().exit_on_last_close.clone()
     }
@@ -128,10 +130,11 @@ impl WINDOWS {
     /// Variable that tracks the OS window manager configuration for the window chrome.
     ///
     /// The chrome (also known as window decorations) defines the title bar, window buttons and window border. Some
-    /// window managers don't provide a native chrome, you can use this config with the [`WindowVars::chrome`] setting
-    /// in a [`register_root_extender`] to provide a custom fallback chrome.
+    /// window managers don't provide a native chrome, you can use this config with [`WindowVars::chrome`]
+    /// in a [`register_root_extender`] to provide a custom fallback chrome, the main crate `zng` also provides a custom
+    /// chrome fallback.
     ///
-    /// [`register_root_extender`]: Self::register_root_extender
+    /// [`register_root_extender`]: WINDOWS_EXTENSIONS::register_root_extender
     pub fn system_chrome(&self) -> Var<ChromeConfig> {
         RAW_CHROME_CONFIG_CHANGED_EVENT.var_map(|args| Some(args.config), ChromeConfig::default)
     }
@@ -712,9 +715,7 @@ impl WINDOWS {
 impl WINDOWS {
     /// Move the window to the front of the operating system Z stack.
     ///
-    /// Note that the window is not focused, the [`focus`] operation also moves the window to the front.
-    ///
-    /// [`focus`]: Self::focus
+    /// Note that the window is not focused, the `FOCUS.focus_window` operation brings to top and sets focus.
     pub fn bring_to_top(&self, window_id: impl Into<WindowId>) {
         self.bring_to_top_impl(window_id.into());
     }
@@ -1107,9 +1108,9 @@ impl WINDOWS_DIALOG {
     }
 }
 
-/// Arguments for the [`WINDOWS.register_open_nested_handler`] handler.
+/// Arguments for the [`WINDOWS_EXTENSIONS.register_open_nested_handler`] handler.
 ///
-/// [`WINDOWS.register_open_nested_handler`]: WINDOWS::register_open_nested_handler
+/// [`WINDOWS_EXTENSIONS.register_open_nested_handler`]: WINDOWS_EXTENSIONS::register_open_nested_handler
 pub struct OpenNestedHandlerArgs {
     pub(crate) has_nested: bool,
 }

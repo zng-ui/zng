@@ -58,7 +58,7 @@ impl<A: EventArgs> EventUpdates<A> {
     ///
     /// If `ignore_propagation` is `false` only yield args with [`propagation`] is not stopped.
     ///
-    /// [`propagation`]: EventArgs::propagation
+    /// [`propagation`]: AnyEventArgs::propagation
     pub fn iter_relevant(&self, id: WidgetId, ignore_propagation: bool) -> impl Iterator<Item = &A> {
         self.updates
             .iter()
@@ -69,7 +69,7 @@ impl<A: EventArgs> EventUpdates<A> {
     ///
     /// If `ignore_propagation` is `false` only calls the handler if the [`propagation`] is not stopped.
     ///
-    /// [`propagation`]: EventArgs::propagation
+    /// [`propagation`]: AnyEventArgs::propagation
     pub fn latest_relevant(&self, id: WidgetId, ignore_propagation: bool) -> Option<&A> {
         for args in self.updates.iter().rev() {
             if args.is_in_target(id) {
@@ -289,7 +289,7 @@ impl<A: EventArgs> Event<A> {
     ///
     /// If `ignore_propagation` is `false` only calls the handler if the [`propagation`] is not stopped.
     ///
-    /// [`propagation`]: EventArgs::propagation
+    /// [`propagation`]: AnyEventArgs::propagation
     pub fn each_update(&self, ignore_propagation: bool, mut handler: impl FnMut(&A)) {
         self.read_var().with_new(|u| {
             let u = u.downcast_ref::<EventUpdates<A>>().unwrap();
@@ -348,7 +348,7 @@ impl<A: EventArgs> Event<A> {
     ///
     /// If `ignore_propagation` is `false` only calls the handler if the [`propagation`] is not stopped.
     ///
-    /// [`propagation`]: EventArgs::propagation
+    /// [`propagation`]: AnyEventArgs::propagation
     pub fn latest_update<O>(&self, ignore_propagation: bool, handler: impl FnOnce(&A) -> O) -> Option<O> {
         self.read_var()
             .with_new(|u| {
@@ -373,7 +373,7 @@ impl<A: EventArgs> Event<A> {
     ///
     /// If `ignore_propagation` is `false` only returns `true` if any [`propagation`] is not stopped.
     ///
-    /// [`propagation`]: EventArgs::propagation
+    /// [`propagation`]: AnyEventArgs::propagation
     pub fn has_update(&self, ignore_propagation: bool) -> bool {
         self.latest_update(ignore_propagation, |_| true).unwrap_or(false)
     }
