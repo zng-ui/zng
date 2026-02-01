@@ -604,13 +604,17 @@ fn test(mut args: Vec<&str>) {
     let nightly = if take_flag(&mut args, &["+nightly"]) { "+nightly" } else { "" };
     let env = &[("RUST_BACKTRACE", "full")];
 
-    if let Some(unit_tests) = take_option(&mut args, &["-u", "--unit"], "<unit-test-name>") {
+    if let Some(unit_tests) = take_option_or_flag(&mut args, &["-u", "--unit"]) {
         // unit tests:
 
         let t_args = vec![nightly, "test", "--package", "zng*", "--lib", "--no-fail-fast", "--all-features"];
 
-        if unit_tests.contains(&"--all") || unit_tests.contains(&"*") || unit_tests.contains(&"-a") {
-            cmd_env("cargo", &t_args, &args, env);
+        if unit_tests.iter().any(|t| *t == "") {
+            if take_flag(&mut args, &["-a", "--all"]) {
+                cmd_env("cargo", &t_args, &args, env);
+            } else {
+                fatal("expected value for --unit, or --all");
+            }
         } else {
             for test_name in unit_tests {
                 let mut t_args = t_args.clone();
@@ -630,7 +634,11 @@ fn test(mut args: Vec<&str>) {
             "--all-features",
         ];
 
-        if !int_tests.contains(&"--all") && !int_tests.contains(&"-a") && !int_tests.contains(&"*") {
+        if int_tests.iter().any(|t| *t == "") {
+            if take_flag(&mut args, &["-a", "--all"]) {
+                fatal("expected value for --test, or --all");
+            }
+        } else {
             for it in int_tests {
                 t_args.push("--test");
                 t_args.push(it);

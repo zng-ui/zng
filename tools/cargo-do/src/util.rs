@@ -149,6 +149,27 @@ pub fn take_option<'a>(args: &mut Vec<&'a str>, option: &[&str], value_name: &st
     if values.is_empty() { None } else { Some(values) }
 }
 
+/// Removes all of the `option` values, if an `option` has no value inserts a `""`.
+pub fn take_option_or_flag<'a>(args: &mut Vec<&'a str>, option: &[&str]) -> Option<Vec<&'a str>> {
+    let mut i = 0;
+    let mut values = vec![];
+    while i < args.len() {
+        if option.iter().any(|&o| args[i] == o) {
+            let next_i = i + 1;
+            if next_i == args.len() || args[next_i].starts_with('-') {
+                args.remove(i); // remove flag
+                values.push("");
+            } else {
+                args.remove(i); // remove option
+                values.push(args.remove(i)) // take value.
+            }
+        }
+        i += 1;
+    }
+
+    if values.is_empty() { None } else { Some(values) }
+}
+
 // Parses the initial input. Returns ("task-name", ["task", "args"]).
 pub fn args() -> (&'static str, Vec<&'static str>) {
     let mut args: Vec<_> = env::args().skip(1).collect();
