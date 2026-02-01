@@ -31,7 +31,7 @@ use zng_txt::ToTxt;
 use zng_txt::Txt;
 use zng_unique_id::{IdEntry, IdMap};
 use zng_unit::ByteLength;
-use zng_var::{ResponseVar, Var, VarHandle, const_var, response_var, var};
+use zng_var::{ResponseVar, Var, VarHandle, response_var, var};
 use zng_view_api::audio::{AudioDecoded, AudioMetadata, AudioRequest};
 
 mod types;
@@ -121,7 +121,7 @@ impl AUDIOS {
     {
         match uri.try_into() {
             Ok(uri) => self.audio_impl(AudioSource::Download(uri, accept), AudioOptions::cache(), None),
-            Err(e) => const_var(AudioTrack::new_error(e.to_txt())),
+            Err(e) => zng_var::const_var(AudioTrack::new_error(e.to_txt())),
         }
     }
 
@@ -310,6 +310,7 @@ impl AUDIOS {
         formats
     }
 
+    #[cfg(feature = "http")]
     fn http_accept(&self) -> Txt {
         let mut s = String::new();
         let mut sep = "";

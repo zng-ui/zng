@@ -40,7 +40,7 @@ fn cleanup(test: &str) {
             for line in raw.lines() {
                 let test_line = line.trim();
                 if !skip_trait_impl {
-                    skip_trait_impl = test_line.starts_with("= help: the following other types implement trait");
+                    skip_trait_impl = test_line.contains("help: the following other types implement trait");
 
                     clean.push_str(line);
                     clean.push('\n');

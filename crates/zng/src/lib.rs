@@ -487,6 +487,8 @@ pub use zng_app::__proc_macro_util;
 
 pub use zng_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 
+pub use crate::app::APP;
+
 pub mod access;
 pub mod ansi_text;
 pub mod app;

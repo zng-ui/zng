@@ -7,10 +7,7 @@ use std::{
 };
 
 use zng_app::view_process::ViewAudioHandle;
-use zng_task::{
-    self as task,
-    channel::{IpcBytes, IpcBytesCast},
-};
+use zng_task::channel::{IpcBytes, IpcBytesCast};
 use zng_txt::Txt;
 use zng_unit::{ByteLength, ByteUnits};
 use zng_var::{Var, VarEq, impl_from_and_into_var};
@@ -903,7 +900,7 @@ impl<F: Fn(&PathBuf) -> bool + Send + Sync + 'static> From<F> for PathFilter {
 }
 
 #[cfg(feature = "http")]
-impl<F: Fn(&task::http::Uri) -> bool + Send + Sync + 'static> From<F> for UriFilter {
+impl<F: Fn(&zng_task::http::Uri) -> bool + Send + Sync + 'static> From<F> for UriFilter {
     fn from(custom: F) -> Self {
         UriFilter::custom(custom)
     }
