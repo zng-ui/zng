@@ -300,7 +300,7 @@ pub fn init_meta_l10n(
 ///
 /// Unlike other events, commands only notify if it has at least one handler, handlers
 /// must call [`subscribe`] to indicate that the command is relevant to the current app state and
-/// set the subscription handle [enabled] flag to indicate that the handler can fulfill command requests.
+/// set the subscription handle [`enabled`] flag to indicate that the handler can fulfill command requests.
 ///
 /// # Scopes
 ///
@@ -312,6 +312,7 @@ pub fn init_meta_l10n(
 /// [`subscribe`]: Command::subscribe
 /// [`with_meta`]: Command::with_meta
 /// [`scoped`]: Command::scoped
+/// [`enabled`]: CommandHandle::enabled
 #[derive(Clone, Copy)]
 pub struct Command {
     event: Event<CommandArgs>,

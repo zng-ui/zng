@@ -1,7 +1,7 @@
 //! Events directly from the view-process targeting the app windows.
 //!
-//! These events get processed by [app extensions] to generate the events used in widgets, for example
-//! the `KeyboardManager` uses the [`RAW_KEY_INPUT_EVENT`] into focus targeted events.
+//! These events get processed by app extensions to generate the events used in widgets, for example
+//! the `KEYBOARD` service maps the [`RAW_KEY_INPUT_EVENT`] into focus targeted events.
 //!
 //! # Synthetic Input
 //!
@@ -9,7 +9,6 @@
 //! hardware would generate, [app extensions] can assume that the raw events are correct. The [`InputDeviceId`] for fake
 //! input must be unique but constant for each distinctive *synthetic event source*.
 //!
-//! [app extensions]: crate::AppExtension
 //! [`RAW_KEY_INPUT_EVENT`]: crate::view_process::raw_events::RAW_KEY_INPUT_EVENT
 //! [`notify`]: crate::event::Event::notify
 //! [`InputDeviceId`]: crate::view_process::raw_device_events::InputDeviceId

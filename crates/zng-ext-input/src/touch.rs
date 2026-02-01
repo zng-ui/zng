@@ -120,10 +120,6 @@ impl PressedInfo {
 ///
 /// Touch capture is integrated with mouse capture in the [`POINTER_CAPTURE`] service.
 ///
-/// # Provider
-///
-/// This service is provided by the [`TouchManager`] extension, it will panic if used in an app not extended.
-///
 /// [`POINTER_CAPTURE`]: crate::pointer_capture::POINTER_CAPTURE
 pub struct TOUCH;
 

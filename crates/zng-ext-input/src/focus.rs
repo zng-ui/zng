@@ -314,17 +314,9 @@ impl FocusChangedCause {
 
 event! {
     /// Keyboard focused widget changed event.
-    ///
-    /// # Provider
-    ///
-    /// This event is provided by the [`FocusManager`] extension.
     pub static FOCUS_CHANGED_EVENT: FocusChangedArgs { let _ = FOCUS_SV.read(); };
 
     /// Scope return focus widget changed event.
-    ///
-    /// # Provider
-    ///
-    /// This event is provided by the [`FocusManager`] extension.
     pub static RETURN_FOCUS_CHANGED_EVENT: ReturnFocusChangedArgs { let _ = FOCUS_SV.read(); };
 }
 

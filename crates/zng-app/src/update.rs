@@ -480,18 +480,6 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
 
                 tracing::span::Id::from_u64(3)
             }
-            "AppExtension" => {
-                let name = visit_str(|v| span.record(v), "name");
-
-                let mut ctx = self.context.lock();
-                ctx.app_extension = Some(name);
-
-                if let Some(p) = ctx.tag.replace(String::new()) {
-                    self.tags_stack.lock().push(p);
-                }
-
-                tracing::span::Id::from_u64(4)
-            }
             "tag" => {
                 let tag = visit_str(|v| span.record(v), "tag");
                 let mut ctx = self.context.lock();
@@ -973,20 +961,20 @@ impl UPDATES {
         let mut u = UPDATES_SV.write();
 
         if flags.contains(UpdateFlags::UPDATE) {
-                u.update_widgets.search_widget(target);
-            }
-            if flags.contains(UpdateFlags::INFO) {
-                u.info_widgets.search_widget(target);
-            }
-            if flags.contains(UpdateFlags::LAYOUT) {
-                u.layout_widgets.search_widget(target);
-            }
+            u.update_widgets.search_widget(target);
+        }
+        if flags.contains(UpdateFlags::INFO) {
+            u.info_widgets.search_widget(target);
+        }
+        if flags.contains(UpdateFlags::LAYOUT) {
+            u.layout_widgets.search_widget(target);
+        }
 
-            if flags.contains(UpdateFlags::RENDER) {
-                u.render_widgets.search_widget(target);
-            } else if flags.contains(UpdateFlags::RENDER_UPDATE) {
-                u.render_update_widgets.search_widget(target);
-            }
+        if flags.contains(UpdateFlags::RENDER) {
+            u.render_widgets.search_widget(target);
+        } else if flags.contains(UpdateFlags::RENDER_UPDATE) {
+            u.render_update_widgets.search_widget(target);
+        }
 
         u.update_ext |= flags;
     }
@@ -1642,23 +1630,17 @@ pub enum UpdateOp {
     Info,
     /// Layouts the target.
     ///
-    /// Causes [`AppExtension::layout`].
-    ///
     /// Causes an [`UiNode::layout`] or [`UiNodeOp::Layout`] for the target widget and all ancestors.
     ///
     /// [`UiNodeOp::Layout`]: crate::widget::node::UiNodeOp::Layout
     Layout,
     /// Render the target.
     ///
-    /// Causes [`AppExtension::render`].
-    ///
     /// Causes [`UiNode::render`] or [`UiNodeOp::Render`] for the target widget and all ancestors.
     ///
     /// [`UiNodeOp::Render`]: crate::widget::node::UiNodeOp::Render
     Render,
     /// Update frame bindings of the target.
-    ///
-    /// Causes [`AppExtension::render`].
     ///
     /// Causes [`UiNode::render_update`] or [`UiNodeOp::RenderUpdate`] for the target widget and all ancestors.
     ///

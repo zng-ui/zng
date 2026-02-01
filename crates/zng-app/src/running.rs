@@ -1393,11 +1393,11 @@ impl std::task::Wake for AppWaker {
         match self.1 {
             Some(id) => {
                 let _ = self.0.send_blocking(AppEvent::Update(UpdateOp::Update, id));
-            },
+            }
             None => {
                 let _ = self.0.send_blocking(AppEvent::CheckUpdate);
             }
-        }        
+        }
     }
 }
 

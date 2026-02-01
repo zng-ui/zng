@@ -296,7 +296,7 @@ impl KEYBOARD {
     /// Returns a variable that defines key press repeat start delay and repeat speed on the app.
     ///
     /// This delay is roughly the time the user must hold a key pressed to start repeating. When a second key press
-    /// happens without any other keyboard event and within twice this value it increments the [`repeat_count`] by the [`KeyboardManager`].
+    /// happens without any other keyboard event and within twice this value it increments the [`repeat_count`] by the service.
     ///
     /// The value is the same as [`sys_repeat_config`], if set the variable disconnects from system config.
     ///

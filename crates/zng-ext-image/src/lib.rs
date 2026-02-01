@@ -99,9 +99,8 @@ impl IMAGES {
     /// images cannot be decoded, in this case all images are dummy loading and no attempt
     /// to download/read the image files is made. You can enable loading in headless tests to detect
     /// IO errors, in this case if there is an error acquiring the image file the image will be a
-    /// [`dummy`] with error.
+    /// dummy with error.
     ///
-    /// [`dummy`]: IMAGES::dummy
     /// [`VIEW_PROCESS`]: zng_app::view_process::VIEW_PROCESS
     pub fn load_in_headless(&self) -> Var<bool> {
         IMAGES_SV.read().load_in_headless.clone()

@@ -212,7 +212,7 @@ impl AppControlFlow {
 /// Headless apps don't cause external side-effects like visible windows and don't listen to system events.
 /// They can be used for creating apps like a command line app that renders widgets, or for creating integration tests.
 ///
-/// You can start a headless app using [`AppExtended::run_headless`].
+/// You can start a headless app using [`AppBuilder::run_headless`].
 pub struct HeadlessApp {
     app: RunningApp,
 }
@@ -344,8 +344,8 @@ impl APP {
     /// Apps are *running* as soon as [`run`], [`run_headless`] or `run_window` are called.
     /// This will remain `true` until run returns or the [`HeadlessApp`] is dropped.
     ///
-    /// [`run`]: AppExtended::run
-    /// [`run_headless`]: AppExtended::run_headless
+    /// [`run`]: AppBuilder::run
+    /// [`run_headless`]: AppBuilder::run_headless
     pub fn is_running(&self) -> bool {
         self.is_started() && !APP_PROCESS_SV.read().exit
     }
@@ -505,7 +505,7 @@ impl AppBuilder {
     ///
     /// This method only returns when the app has exited.
     ///
-    /// The `start` task runs in a [`UiTask`] in the app context, note that it only needs to start the app, usually
+    /// The `start` task runs in the app context, note that the future only needs to start the app, usually
     /// by opening a window, the app will keep running after `start` is finished.
     pub fn run<F: Future<Output = ()> + Send + 'static>(self, start: impl IntoFuture<IntoFuture = F>) {
         let start = start.into_future();
@@ -536,7 +536,7 @@ mod private {
 /// All non-fatal errors in the Zng project are logged using tracing, printing these errors is essential for debugging.
 /// In debug builds this is enabled by default in the app-process on app init with `INFO` level and no span events.
 ///
-/// If `span_events` are enabled [`tracing::span!`] enter and exit are also printed as events.
+/// If `span_events` are enabled `tracing::span!` enter and exit are also printed as events.
 ///
 /// In `"wasm32"` builds logs to the browser console.
 ///

@@ -83,10 +83,6 @@ command_property! {
     ///
     /// Receives [`OPEN_CMD`] command events scoped on the widget. The command parameter can be
     /// a path to open, otherwise the path must be derived from context or the user prompted.
-    ///
-    /// You can use [`WINDOWS.native_file_dialog`] to prompt the user for a file or folder path.
-    ///
-    /// [`WINDOWS.native_file_dialog`]: zng_ext_window::WINDOWS::native_file_dialog
     #[property(EVENT)]
     pub fn on_open<on_pre_open, can_open>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
         OPEN_CMD
@@ -97,9 +93,6 @@ command_property! {
     /// Receives [`SAVE_CMD`] command events scoped on the widget. Usually saves to the last
     /// open or save path, otherwise prompt the user like [`on_save_as`].
     ///
-    /// You can use [`WINDOWS.native_file_dialog`] to prompt the user for a file or folder path.
-    ///
-    /// [`WINDOWS.native_file_dialog`]: zng_ext_window::WINDOWS::native_file_dialog
     /// [`on_save_as`]: fn@on_save_as
     #[property(EVENT)]
     pub fn on_save<on_pre_save, can_save>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
@@ -110,10 +103,6 @@ command_property! {
     ///
     /// Receives [`SAVE_AS_CMD`] command events scoped on the widget. Usually prompts the user for
     /// a new save path.
-    ///
-    /// You can use [`WINDOWS.native_file_dialog`] to prompt the user for a file or folder path.
-    ///
-    /// [`WINDOWS.native_file_dialog`]: zng_ext_window::WINDOWS::native_file_dialog
     #[property(EVENT)]
     pub fn on_save_as<on_pre_save_as, can_save_as>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
         SAVE_AS_CMD

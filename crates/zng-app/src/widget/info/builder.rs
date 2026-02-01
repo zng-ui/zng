@@ -291,7 +291,7 @@ impl WidgetInfoBuilder {
 
     /// Build the info tree.
     ///
-    /// Also notifies [`WIDGET_INFO_CHANGED_EVENT`] if `notify` is true.
+    /// Also notifies [`WIDGET_TREE_CHANGED_EVENT`] if `notify` is true.
     pub fn finalize(mut self, previous_tree: Option<WidgetInfoTree>, notify: bool) -> WidgetInfoTree {
         let mut node = self.tree.root_mut();
         let meta = Arc::new(Arc::try_unwrap(self.meta).unwrap().into_inner());

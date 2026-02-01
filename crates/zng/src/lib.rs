@@ -331,6 +331,7 @@
 //! requests are only applied after the current UI update. This is even true for the [`INSTANT`] service that provides the current
 //! time.
 //!
+//! [`APP`]: app::APP
 //! [`WINDOWS`]: window::WINDOWS
 //! [`WINDOW`]: window::WINDOW
 //! [`WIDGET`]: widget::WIDGET

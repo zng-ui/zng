@@ -50,10 +50,6 @@ mod sources;
 pub use sources::*;
 
 /// Localization service.
-///
-/// # Provider
-///
-/// This service is provided by the [`L10nManager`] extension, it will panic if used in an app not extended.
 pub struct L10N;
 
 on_process_start!(|args: &zng_env::ProcessStartArgs| {

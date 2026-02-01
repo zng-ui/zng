@@ -70,10 +70,6 @@ context_var! {
 }
 
 /// Undo-redo service.
-///
-/// # Provider
-///
-/// This service is provided by the [`UndoManager`] extension, it will panic if used in an app not extended.
 pub struct UNDO;
 impl UNDO {
     /// Gets or sets the maximum length of each undo stack of each scope.

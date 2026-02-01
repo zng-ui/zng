@@ -3,30 +3,30 @@
 //! Events are represented by a static instance of [`Event<A>`] with name suffix `_EVENT`. Events have
 //! custom argument types that implement [`EventArgs`], this means that all event arg types have a timestamp, propagation
 //! handle and can define their own delivery list.
-//! 
+//!
 //! Events are an specialized variable type, the [`Event::var`] and other methods can be used to bind directly to the underlying var.
 //! The variable value is [`EventUpdates`], a list of all the notifications requested in the previous update.
 //!
 //! # Notify
 //!
 //! An event update is requested using [`Event::notify`], this schedules a var modify that clears the previous [`EventUpdates`] and
-//! inserts the new update, sorted by timestamp. 
+//! inserts the new update, sorted by timestamp.
 //!
 //! Each event args has an [`EventPropagationHandle`] that can be used to signal later handlers that the event
 //! is already handled. The event notification always makes the full route, direct subscribers can choose if they still
 //! execute when the args is flagged handled.
-//! 
+//!
 //! The [`Event::hook`] can be used to bind the event during var update time, like [`Var::hook`] any variable modify or event
 //! notify requests made in the hook will notify in the same next update pass.
-//! 
+//!
 //! The [`Event::on_pre_event`] and [`Event::on_event`] can be used to register handles that on the *preview route*, before UI
 //! update and before `on_event`, the *main route*.
 //!
 //! In widgets the two event routes are an emergent property of nested nodes. The [`UiNode::update`] method is called to
 //! all widget nodes in the path to the subscriber, nodes can choose to handle the event before or after propagating the call
-//! the the children [`UiNode::update`], if a node handles it before children, this called the *preview route*, 
+//! the the children [`UiNode::update`], if a node handles it before children, this called the *preview route*,
 //! if it handles the event after it propagated it to the children this is called the *main route*.
-//! 
+//!
 //! In other UI frameworks the preview route is also called *tunneling* and the main route *bubbling*.
 //!
 //! [`UiNode::update`]: crate::widget::node::UiNode::update
@@ -119,15 +119,21 @@
 //! # fn example() {
 //!
 //! gesture::CLICK_EVENT
-//!     .on_pre_event(true, hn!(|_| {
-//!         println!("click, before all UI handlers");
-//!     }))
+//!     .on_pre_event(
+//!         true,
+//!         hn!(|_| {
+//!             println!("click, before all UI handlers");
+//!         }),
+//!     )
 //!     .perm();
 //!
 //! gesture::CLICK_EVENT
-//!     .on_event(true, hn!(|_| {
-//!         println!("click, after all UI handlers");
-//!     }))
+//!     .on_event(
+//!         true,
+//!         hn!(|_| {
+//!             println!("click, after all UI handlers");
+//!         }),
+//!     )
 //!     .perm();
 //! # }
 //! ```
@@ -311,6 +317,6 @@
 
 pub use zng_app::event::{
     AnyEvent, AnyEventArgs, Command, CommandArgs, CommandHandle, CommandInfoExt, CommandMeta, CommandMetaVar, CommandMetaVarId,
-    CommandNameExt, CommandParam, CommandScope, EVENTS, Event, EventArgs, EventPropagationHandle, command, event, event_args, EventUpdates,
+    CommandNameExt, CommandParam, CommandScope, EVENTS, Event, EventArgs, EventPropagationHandle, EventUpdates, command, event, event_args,
 };
 pub use zng_wgt::node::{EventNodeBuilder, VarEventNodeBuilder, command_property, event_property};

@@ -272,7 +272,7 @@ pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: f
                     .stack_size(256 * 1024)
                     .spawn(|| {
                         // Sometimes the channel does not disconnect on panic,
-                        // observed this issue on a panic in `AppExtension::init`.
+                        // observed this issue on a panic in `APP.init`.
                         //
                         // This workaround ensures that we don't become a zombie process.
                         thread::sleep(std::time::Duration::from_secs(5));

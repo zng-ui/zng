@@ -51,10 +51,6 @@ use lock::*;
 /// File system watcher service.
 ///
 /// This is mostly a wrapper around the [`notify`](https://docs.rs/notify) crate, integrating it with events and variables.
-///
-/// # Provider
-///
-/// This service is provided by the [`FsWatcherManager`] extension, it will panic if used in an app not extended.
 pub struct WATCHER;
 impl WATCHER {
     /// Gets a read-write variable that defines interval awaited between each [`FS_CHANGES_EVENT`]. If
@@ -211,7 +207,7 @@ impl WATCHER {
     /// to a temporary file and committing a replace only if the write succeeded. The file is write-locked for the duration
     /// of `write` call, but the contents are not touched until commit. See [`WriteFile`] for more details.
     ///
-    /// The [`FsWatcherManager`] blocks on app exit until all writes commit or cancel. See [`WATCHER::shutdown_timeout`] for
+    /// The service blocks on app exit until all writes commit or cancel. See [`WATCHER::shutdown_timeout`] for
     /// more details.
     ///
     /// ## Read Errors

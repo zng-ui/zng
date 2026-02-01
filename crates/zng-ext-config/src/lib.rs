@@ -74,10 +74,6 @@ use zng_var::{Var, VarHandles, VarValue, WeakVar, const_var, var};
 /// duration of the app instance.
 ///
 /// [`CONFIG.load`]: CONFIG::load
-///
-/// # Provider
-///
-/// This service is provided by the [`ConfigManager`] extension, it will panic if used in an app not extended.
 pub struct CONFIG;
 impl CONFIG {
     /// Replace the config source.

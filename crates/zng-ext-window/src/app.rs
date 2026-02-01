@@ -22,7 +22,7 @@ pub trait AppRunWindowExt {
     /// # use zng_app::window::WINDOW;
     /// # use zng_app::APP;
     /// # use zng_ext_window::AppRunWindowExt as _;
-    /// # trait AppDefaults { fn defaults(&self) -> zng_app::AppExtended<impl zng_app::AppExtension> { APP.minimal() } }
+    /// # trait AppDefaults { fn defaults(&self) -> zng_app::AppBuilder { APP.minimal() } }
     /// # impl AppDefaults for APP { }
     /// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
     /// APP.defaults().run_window(async {
@@ -41,7 +41,7 @@ pub trait AppRunWindowExt {
     /// # use zng_ext_window::WINDOWS;
     /// # use zng_app::APP;
     /// # use zng_ext_window::AppRunWindowExt as _;
-    /// # trait AppDefaults { fn defaults(&self) -> zng_app::AppExtended<impl zng_app::AppExtension> { APP.minimal() } }
+    /// # trait AppDefaults { fn defaults(&self) -> zng_app::AppBuilder { APP.minimal() } }
     /// # impl AppDefaults for APP { }
     /// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
     /// APP.defaults().run(async {

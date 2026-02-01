@@ -298,7 +298,8 @@
 //! 3. Windows and widgets that requested render (or render_update) are rendered, in parallel by default.
 //!     * The render pass updates widget transforms and hit-test, generates a display list and sends it to the view-process.
 //!
-//! [`APP.defaults()`]: crate::APP::defaults
+//! [`APP.defaults()`]: crate::app::APP::defaults
+//! [`APP.on_init`]: crate::app::APP::on_init
 //! [`UPDATES.update`]: crate::update::UPDATES::update
 //! [`task`]: crate::task
 //! [`ResponseVar<R>`]: crate::var::ResponseVar
@@ -309,11 +310,13 @@
 //! [`parallel`]: fn@crate::widget::parallel
 //! [`UPDATES.on_pre_update`]: crate::update::UPDATES::on_pre_update
 //! [`UPDATES.on_update`]: crate::update::UPDATES::on_update
+//! [`Var::on_pre_new`]: crate::var::VarSubscribe::on_pre_new
+//! [`Var::on_new`]: crate::var::VarSubscribe::on_new
 //! [`Event::on_pre_event`]: crate::event::Event::on_pre_event
 //! [`Event::on_event`]: crate::event::Event::on_event
 //! [`WINDOWS.exit_on_last_close`]: crate::window::WINDOWS::exit_on_last_close
-//! [`APP.exit`]: crate::APP#method.exit
-//! [`UPDATES.once_update`]: zng::app::UPDATES::once_update
+//! [`APP.exit`]: crate::app::APP#method.exit
+//! [`UPDATES.once_update`]: zng::update::UPDATES::once_update
 //!
 //! # Full API
 //!

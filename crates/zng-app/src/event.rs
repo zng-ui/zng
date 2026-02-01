@@ -398,7 +398,7 @@ impl<A: EventArgs> Event<A> {
     ///
     /// If `ignore_propagation` is set also call handlers for args with stopped propagation.
     ///
-    /// Returns an [`EventHandle`] that can be dropped to unsubscribe, you can also unsubscribe from inside the handler by calling
+    /// Returns a [`VarHandle`] that can be dropped to unsubscribe, you can also unsubscribe from inside the handler by calling
     /// [`unsubscribe`](crate::handler::APP_HANDLER::unsubscribe).
     ///
     /// # Examples
@@ -447,7 +447,7 @@ impl<A: EventArgs> Event<A> {
     ///
     /// If `ignore_propagation` is set also call handlers for args with stopped propagation.
     ///
-    /// Returns an [`EventHandle`] that can be dropped to unsubscribe, you can also unsubscribe from inside the handler by calling
+    /// Returns an [`VarHandle`] that can be dropped to unsubscribe, you can also unsubscribe from inside the handler by calling
     /// [`unsubscribe`](crate::handler::APP_HANDLER::unsubscribe) in the third parameter of [`hn!`] or [`async_hn!`].
     ///
     /// # Examples

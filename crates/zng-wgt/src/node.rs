@@ -248,6 +248,10 @@ impl<A: EventArgs, M> EventNodeBuilder<A, (), M> {
     ///
     /// Note that events that represent an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`] targets,
     /// event properties should probably distinguish if they fire on normal interactions vs on *disabled* interactions.
+    ///
+    /// [`propagation`]: zng_app::event::AnyEventArgs::propagation
+    /// [`ENABLED`]: Interactivity::ENABLED
+    /// [`DISABLED`]: Interactivity::DISABLED
     pub fn filter<FB, F>(self, filter_builder: FB) -> EventNodeBuilder<A, FB, M>
     where
         FB: FnMut() -> F + Send + 'static,

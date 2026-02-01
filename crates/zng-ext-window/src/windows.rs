@@ -779,9 +779,9 @@ impl WINDOWS_FOCUS {
 #[expect(non_camel_case_types)]
 pub struct WINDOWS_EXTENSIONS;
 
-/// Arguments for [`WINDOWS_EXT.register_root_extender`].
+/// Arguments for [`WINDOWS_EXTENSIONS.register_root_extender`].
 ///
-/// [`WINDOWS_EXT.register_root_extender`]: WINDOWS_EXT::register_root_extender
+/// [`WINDOWS_EXTENSIONS.register_root_extender`]: WINDOWS_EXTENSIONS::register_root_extender
 #[non_exhaustive]
 pub struct WindowRootExtenderArgs {
     /// The window root content, extender must wrap this node with extension nodes or return

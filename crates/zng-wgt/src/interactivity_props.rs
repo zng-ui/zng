@@ -420,13 +420,13 @@ macro_rules! interactivity_var_event_source {
 event_property! {
     /// Widget interactivity changed.
     ///
-    /// Note that there are multiple specific events for interactivity changes, [`on_enable`], [`on_disable`], [`on_block`] and [`on_unblock`]
+    /// Note that there are multiple specific events for interactivity changes, [`on_enabled`], [`on_disabled`], [`on_blocked`] and [`on_unblocked`]
     /// are some of then.
     ///
-    /// [`on_enable`]: fn@on_enable
-    /// [`on_disable`]: fn@on_disable
-    /// [`on_block`]: fn@on_block
-    /// [`on_unblock`]: fn@on_unblock
+    /// [`on_enabled`]: fn@on_enabled
+    /// [`on_disabled`]: fn@on_disabled
+    /// [`on_blocked`]: fn@on_blocked
+    /// [`on_unblocked`]: fn@on_unblocked
     #[property(EVENT)]
     pub fn on_interactivity_changed(child: impl IntoUiNode, handler: Handler<Interactivity>) -> UiNode {
         interactivity_var_event_source!(|i| i, Interactivity::ENABLED).build::<false>(child, handler)

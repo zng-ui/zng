@@ -836,10 +836,6 @@ impl Default for ButtonRepeatConfig {
 ///
 /// Mouse capture is integrated with touch capture in the [`POINTER_CAPTURE`] service.
 ///
-/// # Provider
-///
-/// This service is provided by the [`MouseManager`] extension, it will panic if used in an app not extended.
-///
 /// [`POINTER_CAPTURE`]: crate::pointer_capture::POINTER_CAPTURE
 pub struct MOUSE;
 impl MOUSE {

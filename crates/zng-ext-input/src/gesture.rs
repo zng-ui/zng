@@ -563,8 +563,6 @@ impl GesturesService {
 
 /// Gesture events config service.
 ///
-/// This service is provided by [`GestureManager`].
-///
 /// # Shortcuts
 ///
 /// This service coordinates shortcut associations with widgets and commands. To define a command's shortcut use
@@ -613,9 +611,6 @@ impl GesturesService {
 /// The event propagation flag of shortcut, click and command events are linked, so stopping [`propagation`] in one signal
 /// all others.
 ///
-/// # Provider
-///
-/// This service is provided by the [`GestureManager`] extension, it will panic if used in an app not extended.
 ///
 /// [`click_focused`]: Self::click_focused
 /// [`context_click_focused`]: Self::context_click_focused
@@ -624,10 +619,7 @@ impl GesturesService {
 /// [`on_pre_event`]: zng_app::event::Event::on_pre_event
 /// [`on_event`]: zng_app::event::Event::on_event
 /// [`BLOCKED`]: zng_app::widget::info::Interactivity::BLOCKED
-/// [`propagation`]: AnyEventArgs::propagation
-/// [`event_preview`]: AppExtension::event_preview
-/// [`event_ui`]: AppExtension::event_ui
-/// [`event`]: AppExtension::event
+/// [`propagation`]: zng_app::event::AnyEventArgs::propagation
 /// [`KeyChord::starter`]: zng_app::shortcut::KeyChord::starter
 /// [`CommandShortcutExt`]: zng_app::shortcut::CommandShortcutExt
 pub struct GESTURES;
