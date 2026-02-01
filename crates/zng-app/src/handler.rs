@@ -673,7 +673,6 @@ impl HeadlessApp {
                 pending.retain(|h| h());
                 !pending.is_empty()
             } {
-                UPDATES.update(None);
                 let flow = self.update(false);
                 if INSTANT.now().duration_since(start_time) >= timeout {
                     return Err(formatx!(

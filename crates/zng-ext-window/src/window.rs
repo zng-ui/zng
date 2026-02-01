@@ -402,7 +402,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
         // nested window layout happens in the layout context of the parent window
         n.pending_layout = Some(updates.clone());
         if let Some(t) = vars.0.nest_parent.get() {
-            UPDATES.layout(Some(t));
+            UPDATES.layout(t);
         }
         return;
     }
@@ -775,7 +775,7 @@ pub(crate) fn render(
         if let Some(n) = &mut n.nested {
             n.pending_render = Some([render_widgets.clone(), render_update_widgets.clone()]);
             if let Some(t) = vars.take().unwrap().0.nest_parent.get() {
-                UPDATES.render(Some(t));
+                UPDATES.render(t);
             }
             return;
         }
@@ -826,7 +826,7 @@ pub(crate) fn render(
         if let Some(n) = &mut n.nested {
             n.pending_render = Some([render_widgets.clone(), render_update_widgets.clone()]);
             if let Some(t) = vars.take().unwrap().0.nest_parent.get() {
-                UPDATES.render_update(Some(t));
+                UPDATES.render_update(t);
             }
             return;
         }

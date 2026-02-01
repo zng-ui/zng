@@ -70,7 +70,7 @@ impl RunningApp {
         UPDATES.init(sender);
 
         fn app_waker() {
-            UPDATES.update(None);
+            UPDATES.update_app();
         }
         VARS_APP.init_app_waker(app_waker);
         VARS_APP.init_modify_trace(UpdatesTrace::log_var);
@@ -1118,7 +1118,6 @@ impl APP {
                         let mut s = APP_PROCESS_SV.write();
                         if !args.propagation.is_stopped() {
                             s.exit = true;
-                            UPDATES.update(None);
                         } else {
                             s.exit_requests.take().unwrap().respond(ExitCancelled);
                         }
@@ -1174,7 +1173,7 @@ impl APP {
     pub fn start_manual_time(&self) {
         INSTANT_APP.set_mode(InstantMode::Manual);
         INSTANT_APP.set_now(INSTANT.now());
-        UPDATES.update(None);
+        UPDATES.update_app();
     }
 
     /// Adds the `advance` to the current manual time.
@@ -1189,7 +1188,7 @@ impl APP {
     /// [`start_manual_time`]: Self::start_manual_time
     pub fn advance_manual_time(&self, advance: Duration) {
         INSTANT_APP.advance_now(advance);
-        UPDATES.update(None);
+        UPDATES.update_app();
     }
 
     /// Set the current [`INSTANT.now`].
@@ -1202,7 +1201,7 @@ impl APP {
     /// [`start_manual_time`]: Self::start_manual_time
     pub fn set_manual_time(&self, now: DInstant) {
         INSTANT_APP.set_now(now);
-        UPDATES.update(None);
+        UPDATES.update_app();
     }
 
     /// Resumes normal time.
@@ -1211,7 +1210,7 @@ impl APP {
             true => InstantMode::UpdatePaused,
             false => InstantMode::Now,
         });
-        UPDATES.update(None);
+        UPDATES.update_app();
     }
 }
 
@@ -1333,7 +1332,7 @@ pub(crate) enum AppEvent {
     /// Event from the View Process.
     ViewEvent(zng_view_api::Event),
     /// Do an update cycle.
-    Update(UpdateOp, Option<WidgetId>),
+    Update(UpdateOp, WidgetId),
     /// Resume a panic in the app main thread.
     ResumeUnwind(PanicPayload),
     /// Check for pending updates.
@@ -1364,9 +1363,9 @@ impl AppEventSender {
     }
 
     /// Causes an update cycle to happen in the app.
-    pub fn send_update(&self, op: UpdateOp, target: impl Into<Option<WidgetId>>) -> Result<(), ChannelError> {
+    pub fn send_update(&self, op: UpdateOp, target: WidgetId) -> Result<(), ChannelError> {
         UpdatesTrace::log_update();
-        self.send_app_event(AppEvent::Update(op, target.into()))
+        self.send_app_event(AppEvent::Update(op, target))
     }
 
     /// Resume a panic in the app main loop thread.
@@ -1380,8 +1379,8 @@ impl AppEventSender {
     }
 
     /// Create an [`Waker`] that causes a [`send_update`](Self::send_update).
-    pub fn waker(&self, target: impl Into<Option<WidgetId>>) -> Waker {
-        Arc::new(AppWaker(self.0.clone(), target.into())).into()
+    pub fn waker(&self, also_update: Option<WidgetId>) -> Waker {
+        Arc::new(AppWaker(self.0.clone(), also_update)).into()
     }
 }
 
@@ -1391,7 +1390,14 @@ impl std::task::Wake for AppWaker {
         self.wake_by_ref()
     }
     fn wake_by_ref(self: &Arc<Self>) {
-        let _ = self.0.send_blocking(AppEvent::Update(UpdateOp::Update, self.1));
+        match self.1 {
+            Some(id) => {
+                let _ = self.0.send_blocking(AppEvent::Update(UpdateOp::Update, id));
+            },
+            None => {
+                let _ = self.0.send_blocking(AppEvent::CheckUpdate);
+            }
+        }        
     }
 }
 

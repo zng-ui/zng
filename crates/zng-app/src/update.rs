@@ -936,8 +936,8 @@ impl UPDATES {
     }
 
     /// Create an std task waker that wakes the event loop and updates.
-    pub fn waker(&self, target: impl Into<Option<WidgetId>>) -> Waker {
-        UPDATES_SV.read().event_sender.as_ref().unwrap().waker(target)
+    pub fn waker(&self, also_update: Option<WidgetId>) -> Waker {
+        UPDATES_SV.read().event_sender.as_ref().unwrap().waker(also_update)
     }
 
     pub(crate) fn update_flags_root(&self, flags: UpdateFlags, window_id: WindowId, root_id: WidgetId) {
@@ -965,37 +965,34 @@ impl UPDATES {
         u.update_ext |= flags;
     }
 
-    pub(crate) fn update_flags(&self, flags: UpdateFlags, target: impl Into<Option<WidgetId>>) {
+    pub(crate) fn update_flags(&self, flags: UpdateFlags, target: WidgetId) {
         if flags.is_empty() {
             return;
         }
 
         let mut u = UPDATES_SV.write();
 
-        if let Some(id) = target.into() {
-            if flags.contains(UpdateFlags::UPDATE) {
-                u.update_widgets.search_widget(id);
+        if flags.contains(UpdateFlags::UPDATE) {
+                u.update_widgets.search_widget(target);
             }
             if flags.contains(UpdateFlags::INFO) {
-                u.info_widgets.search_widget(id);
+                u.info_widgets.search_widget(target);
             }
             if flags.contains(UpdateFlags::LAYOUT) {
-                u.layout_widgets.search_widget(id);
+                u.layout_widgets.search_widget(target);
             }
 
             if flags.contains(UpdateFlags::RENDER) {
-                u.render_widgets.search_widget(id);
+                u.render_widgets.search_widget(target);
             } else if flags.contains(UpdateFlags::RENDER_UPDATE) {
-                u.render_update_widgets.search_widget(id);
+                u.render_update_widgets.search_widget(target);
             }
-        }
 
         u.update_ext |= flags;
     }
 
-    /// Schedules an [`UpdateOp`] that optionally affects the `target` widget.
-    pub fn update_op(&self, op: UpdateOp, target: impl Into<Option<WidgetId>>) -> &Self {
-        let target = target.into();
+    /// Schedules an [`UpdateOp`] that affects the `target` widget, ancestor widgets and window.
+    pub fn update_op(&self, op: UpdateOp, target: WidgetId) -> &Self {
         match op {
             UpdateOp::Update => self.update(target),
             UpdateOp::Info => self.update_info(target),
@@ -1019,18 +1016,16 @@ impl UPDATES {
     /// Schedules an update that affects the `target`.
     ///
     /// After the current update cycle ends a new update will happen that includes the `target` widget.
-    pub fn update(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+    pub fn update(&self, target: WidgetId) -> &Self {
         UpdatesTrace::log_update();
-        self.update_internal(target.into())
+        self.update_internal(target)
     }
     /// Implements `update` without `log_update`.
-    pub(crate) fn update_internal(&self, target: Option<WidgetId>) -> &UPDATES {
+    pub(crate) fn update_internal(&self, target: WidgetId) -> &UPDATES {
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::UPDATE);
         u.send_awake();
-        if let Some(id) = target {
-            u.update_widgets.search_widget(id);
-        }
+        u.update_widgets.search_widget(target);
         self
     }
 
@@ -1043,21 +1038,20 @@ impl UPDATES {
         self
     }
 
-    pub(crate) fn send_awake(&self) {
+    /// Schedules an update without specific window or widget target.
+    pub fn update_app(&self) {
         UPDATES_SV.write().send_awake();
     }
 
     /// Schedules an info rebuild that affects the `target`.
     ///
     /// After the current update cycle ends a new update will happen that requests an info rebuild that includes the `target` widget.
-    pub fn update_info(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+    pub fn update_info(&self, target: WidgetId) -> &Self {
         UpdatesTrace::log_info();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::INFO);
         u.send_awake();
-        if let Some(id) = target.into() {
-            u.info_widgets.search_widget(id);
-        }
+        u.info_widgets.search_widget(target);
         self
     }
 
@@ -1074,14 +1068,12 @@ impl UPDATES {
     /// Schedules a layout update that affects the `target`.
     ///
     /// After the current update cycle ends and there are no more updates requested a layout pass is issued that includes the `target` widget.
-    pub fn layout(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+    pub fn layout(&self, target: WidgetId) -> &Self {
         UpdatesTrace::log_layout();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::LAYOUT);
         u.send_awake();
-        if let Some(id) = target.into() {
-            u.layout_widgets.search_widget(id);
-        }
+        u.layout_widgets.search_widget(target);
         self
     }
 
@@ -1101,14 +1093,12 @@ impl UPDATES {
     /// includes the `target` widget.
     ///
     /// If no `target` is provided only the app extensions receive a render request.
-    pub fn render(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+    pub fn render(&self, target: WidgetId) -> &Self {
         UpdatesTrace::log_render();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::RENDER);
         u.send_awake();
-        if let Some(id) = target.into() {
-            u.render_widgets.search_widget(id);
-        }
+        u.render_widgets.search_widget(target);
         self
     }
 
@@ -1127,14 +1117,12 @@ impl UPDATES {
     /// After the current update cycle ends and there are no more updates or layouts requested a render pass is issued that
     /// includes the `target` widget marked for render update only. Note that if a full render was requested for another widget
     /// on the same window this request is upgraded to a full frame render.
-    pub fn render_update(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+    pub fn render_update(&self, target: WidgetId) -> &Self {
         UpdatesTrace::log_render();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::RENDER_UPDATE);
         u.send_awake();
-        if let Some(id) = target.into() {
-            u.render_update_widgets.search_widget(id);
-        }
+        u.render_update_widgets.search_widget(target);
         self
     }
 
@@ -1637,15 +1625,15 @@ impl WeakOnUpdateHandle {
 pub enum UpdateOp {
     /// Updates the target.
     ///
-    /// Causes [`AppExtension::update_preview`], [`AppExtension::update_ui`] and [`AppExtension::update`].
+    /// Causes [`UPDATES.on_pre_update`] and [`UPDATES.on_update`].
     ///
     /// Causes [`UiNode::update`] or [`UiNodeOp::Update`] for the target widget and all ancestors.
     ///
     /// [`UiNodeOp::Update`]: crate::widget::node::UiNodeOp::Update
+    /// [`UPDATES.on_pre_update`]: UPDATES::on_pre_update
+    /// [`UPDATES.on_update`]: UPDATES::on_update
     Update,
     /// Rebuilds info for the target.
-    ///
-    /// Causes [`AppExtension::info`].
     ///
     /// Causes [`UiNode::info`] or [`UiNodeOp::Info`] for the target widget and all ancestors.
     ///

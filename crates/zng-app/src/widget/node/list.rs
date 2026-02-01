@@ -1606,7 +1606,9 @@ impl EditableUiVecRef {
             return;
         }
         s.insert.push((index, widget));
-        UPDATES.update(s.target);
+        if let Some(id) = s.target {
+            UPDATES.update(id);
+        }
     }
 
     /// Request an update for the insertion of the `widget` at the end of the list.
@@ -1625,7 +1627,9 @@ impl EditableUiVecRef {
             return;
         }
         s.push.push(widget);
-        UPDATES.update(s.target);
+        if let Some(id) = s.target {
+            UPDATES.update(id);
+        }
     }
 
     /// Request an update for the removal of the widget identified by `id`.
@@ -1655,7 +1659,9 @@ impl EditableUiVecRef {
             return;
         }
         s.retain.push(Box::new(predicate));
-        UPDATES.update(s.target);
+        if let Some(id) = s.target {
+            UPDATES.update(id);
+        }
     }
 
     /// Request a widget remove and re-insert.
@@ -1671,7 +1677,9 @@ impl EditableUiVecRef {
                 return;
             }
             s.move_index.push((remove_index, insert_index));
-            UPDATES.update(s.target);
+            if let Some(id) = s.target {
+                UPDATES.update(id);
+            }
         }
     }
 
@@ -1720,7 +1728,9 @@ impl EditableUiVecRef {
             return;
         }
         s.move_id.push((id.into(), get_move_to));
-        UPDATES.update(s.target);
+        if let Some(id) = s.target {
+            UPDATES.update(id);
+        }
     }
 
     /// Request a removal of all current widgets.
@@ -1729,7 +1739,9 @@ impl EditableUiVecRef {
     pub fn clear(&self) {
         let mut s = self.0.lock();
         s.clear = true;
-        UPDATES.update(s.target);
+        if let Some(id) = s.target {
+            UPDATES.update(id);
+        }
     }
 
     fn take_requests(&self) -> Option<EditRequests> {
