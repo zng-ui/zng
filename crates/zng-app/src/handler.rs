@@ -677,11 +677,8 @@ mod tests {
     #[test]
     fn run_test_runs() {
         let mut app = APP.minimal().run_headless(false);
-        app.run_test(
-            async {
-                zng_task::deadline(std::time::Duration::from_millis(30)).await },
-        )
-        .unwrap();
+        app.run_test(async { zng_task::deadline(std::time::Duration::from_millis(30)).await })
+            .unwrap();
     }
 
     fn t(_: Handler<TestArgs>) {}

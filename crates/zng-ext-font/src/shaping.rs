@@ -4746,23 +4746,20 @@ mod tests {
     use zng_ext_l10n::lang;
     use zng_layout::{
         context::LayoutDirection,
-        unit::{Px, PxConstraints2d, TimeUnits},
+        unit::{Px, PxConstraints2d},
     };
 
     fn test_font() -> Font {
         let mut app = APP.minimal().run_headless(false);
         let font = app
-            .block_on_fut(
-                async {
-                    FONTS
-                        .normal(&FontName::sans_serif(), &lang!(und))
-                        .wait_rsp()
-                        .await
-                        .unwrap()
-                        .sized(Px(20), vec![])
-                },
-                60.secs(),
-            )
+            .run_test(async {
+                FONTS
+                    .normal(&FontName::sans_serif(), &lang!(und))
+                    .wait_rsp()
+                    .await
+                    .unwrap()
+                    .sized(Px(20), vec![])
+            })
             .unwrap();
         drop(app);
         font
@@ -4864,29 +4861,26 @@ mod tests {
     #[test]
     fn font_fallback_issue() {
         let mut app = APP.minimal().run_headless(false);
-        app.block_on_fut(
-            async {
-                let font = FONTS
-                    .list(
-                        &[FontName::new("Consolas"), FontName::monospace()],
-                        FontStyle::Normal,
-                        FontWeight::NORMAL,
-                        FontStretch::NORMAL,
-                        &lang!(und),
-                    )
-                    .wait_rsp()
-                    .await
-                    .sized(Px(20), vec![]);
+        app.run_test(async {
+            let font = FONTS
+                .list(
+                    &[FontName::new("Consolas"), FontName::monospace()],
+                    FontStyle::Normal,
+                    FontWeight::NORMAL,
+                    FontStretch::NORMAL,
+                    &lang!(und),
+                )
+                .wait_rsp()
+                .await
+                .sized(Px(20), vec![]);
 
-                let config = TextShapingArgs::default();
+            let config = TextShapingArgs::default();
 
-                let txt_seg = SegmentedText::new("النص ثنائي الاتجاه (بالإنجليزية:Bi", LayoutDirection::RTL);
-                let txt_shape = font.shape_text(&txt_seg, &config);
+            let txt_seg = SegmentedText::new("النص ثنائي الاتجاه (بالإنجليزية:Bi", LayoutDirection::RTL);
+            let txt_shape = font.shape_text(&txt_seg, &config);
 
-                let _ok = (txt_seg, txt_shape);
-            },
-            60.secs(),
-        )
+            let _ok = (txt_seg, txt_shape);
+        })
         .unwrap()
     }
 
