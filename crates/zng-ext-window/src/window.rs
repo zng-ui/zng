@@ -2,14 +2,16 @@ use std::{mem, pin::Pin, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
-    Deadline, async_hn_once, hn,
+    APP, Deadline, async_hn_once, hn,
     render::{FrameBuilder, FrameUpdate},
     static_id,
     timer::{DeadlineHandle, TIMERS},
     update::{LayoutUpdates, RenderUpdates, UPDATES},
     view_process::{
         VIEW_PROCESS, ViewHeadless, ViewRenderer, ViewWindow,
-        raw_events::{RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_WINDOW_OPEN_EVENT},
+        raw_events::{
+            RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OPEN_EVENT, RawWindowFocusArgs,
+        },
     },
     widget::{VarLayout as _, VarSubscribe, WIDGET, WidgetCtx, base::PARALLEL_VAR, info::WidgetInfoTree},
     window::{WINDOW, WindowCtx, WindowId, WindowMode},
@@ -564,7 +566,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
             } else if n.view_opening.is_dummy() {
                 // start opening view-process window
 
-                if !VIEW_PROCESS.is_connected() {
+                if !VIEW_PROCESS.is_available() || !VIEW_PROCESS.is_connected() {
                     tracing::debug!("skipping view-process open window, no view-process connected");
                     return;
                 }
@@ -718,6 +720,15 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                     let _ = view.set_size(size_dip, scale_factor);
                 }
             } else if n.view_opening.is_dummy() {
+                if APP.window_mode().is_headless() && !vars.0.instance_state.get().is_loaded() {
+                    // simulate focus, for tests mostly
+                    let args = RawWindowFocusArgs::now(
+                        WINDOWS_SV.read().focused.with(|p| p.as_ref().map(|p| p.window_id())),
+                        Some(*id),
+                    );
+                    RAW_WINDOW_FOCUS_EVENT.notify(args);
+                }
+
                 if !VIEW_PROCESS.is_connected() {
                     tracing::debug!("skipping view-process open headless, no view-process connected");
                     return;
@@ -762,7 +773,16 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                 }
             }
         }
-        WindowMode::Headless => {}
+        WindowMode::Headless => {
+            if APP.window_mode().is_headless() && !vars.0.instance_state.get().is_loaded() {
+                // simulate focus, for tests mostly
+                let args = RawWindowFocusArgs::now(
+                    WINDOWS_SV.read().focused.with(|p| p.as_ref().map(|p| p.window_id())),
+                    Some(*id),
+                );
+                RAW_WINDOW_FOCUS_EVENT.notify(args);
+            }
+        }
     }
 }
 

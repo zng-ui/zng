@@ -7,6 +7,7 @@ use std::{
 };
 
 use crate::{
+    APP,
     handler::{Handler, HandlerExt},
     shortcut::CommandShortcutExt,
     widget::info::{WidgetInfo, WidgetPath},
@@ -896,7 +897,9 @@ impl fmt::Debug for CommandHandle {
 }
 impl Drop for CommandHandle {
     fn drop(&mut self) {
-        if let Some(command) = self.command {
+        if let Some(command) = self.command.take()
+            && APP.is_started()
+        {
             let mut write = command.local.write();
             match command.scope {
                 CommandScope::App => {

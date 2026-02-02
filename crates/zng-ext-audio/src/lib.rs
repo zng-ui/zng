@@ -28,7 +28,6 @@ use zng_app_context::app_local;
 use zng_clone_move::clmv;
 use zng_task::channel::IpcBytes;
 use zng_txt::ToTxt;
-use zng_txt::Txt;
 use zng_unique_id::{IdEntry, IdMap};
 use zng_unit::ByteLength;
 use zng_var::{ResponseVar, Var, VarHandle, response_var, var};
@@ -114,7 +113,7 @@ impl AUDIOS {
     ///
     /// [`AUDIOS.audio`]: AUDIOS::audio
     #[cfg(feature = "http")]
-    pub fn download<U>(&self, uri: U, accept: Option<Txt>) -> AudioVar
+    pub fn download<U>(&self, uri: U, accept: Option<zng_txt::Txt>) -> AudioVar
     where
         U: TryInto<zng_task::http::Uri>,
         <U as TryInto<zng_task::http::Uri>>::Error: ToTxt,
@@ -311,7 +310,7 @@ impl AUDIOS {
     }
 
     #[cfg(feature = "http")]
-    fn http_accept(&self) -> Txt {
+    fn http_accept(&self) -> zng_txt::Txt {
         let mut s = String::new();
         let mut sep = "";
         for f in self.available_formats() {
@@ -491,7 +490,7 @@ fn audio(mut source: AudioSource, mut options: AudioOptions, limits: Option<Audi
             let accept = accept.unwrap_or_else(|| AUDIOS.http_accept());
 
             use zng_task::http::*;
-            async fn download(uri: Uri, accept: Txt, limit: ByteLength) -> Result<(AudioDataFormat, IpcBytes), Error> {
+            async fn download(uri: Uri, accept: zng_txt::Txt, limit: ByteLength) -> Result<(AudioDataFormat, IpcBytes), Error> {
                 let request = Request::get(uri)?.max_length(limit).header(header::ACCEPT, accept.as_str())?;
                 let mut response = send(request).await?;
                 let data_format = match response.header().get(&header::CONTENT_TYPE).and_then(|m| m.to_str().ok()) {

@@ -8,7 +8,7 @@ use zng::{
 };
 
 #[test]
-fn notify() {
+fn notify_no_scope() {
     let mut app = APP.defaults().run_headless(false);
     app.open_window(WindowId::new_unique(), listener_window(false));
 
@@ -37,7 +37,7 @@ fn notify_scoped() {
 }
 
 #[test]
-fn shortcut() {
+fn shortcut_basic() {
     let mut app = APP.defaults().run_headless(false);
     let window_id = WindowId::new_unique();
     app.open_window(window_id, listener_window(false));

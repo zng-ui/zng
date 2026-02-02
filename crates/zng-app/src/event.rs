@@ -552,11 +552,10 @@ impl<A: EventArgs> Event<A> {
             let mut skip = 0;
             if last_call_id != id {
                 last_call_id = id;
-                last_call_take = 0;
             } else {
                 skip = last_call_take;
-                last_call_take = updates.len();
             }
+            last_call_take = updates.len();
 
             // notify
             for args in updates[skip..].iter() {

@@ -2,7 +2,7 @@ use std::{mem, pin::Pin, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
-    Deadline, hn_once,
+    APP, Deadline, hn_once,
     timer::TIMERS,
     update::{InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, WidgetUpdates},
     view_process::{VIEW_PROCESS, raw_events::RAW_CHROME_CONFIG_CHANGED_EVENT},
@@ -205,6 +205,18 @@ impl WINDOWS {
         mode: WindowMode,
         focus_existing: bool,
     ) -> ResponseVar<WindowVars> {
+        let mode = match (mode, APP.window_mode()) {
+            (m, WindowMode::Headed) => m,
+            (m, WindowMode::HeadlessWithRenderer) => {
+                if m.is_headless() {
+                    m
+                } else {
+                    WindowMode::HeadlessWithRenderer
+                }
+            }
+            (_, WindowMode::Headless) => WindowMode::Headless,
+        };
+
         let mut s = WINDOWS_SV.write();
         match s.windows.entry(window_id) {
             IdEntry::Vacant(e) => {
@@ -480,15 +492,16 @@ impl zng_app::window::WindowsService for WINDOWS {
             // UPDATE includes info rebuild
             parallel = s.parallel.get().contains(ParallelWin::UPDATE);
             // take root nodes to allow widgets to use WINDOWS
-            nodes = s.start_widget_update(false);
+            nodes = s.start_widget_update(true);
         };
 
         // for each window
         let updates = Arc::new(mem::take(updates));
-        let rebuild_info = |(id, n, _): &mut (WindowId, WindowNode, _)| {
+        let rebuild_info = |(id, n, vars): &mut (WindowId, WindowNode, Option<WindowVars>)| {
             if updates.delivery_list().enter_window(*id) {
                 // rebuild info
-                let access_enabled = WINDOW.vars().access_enabled().get();
+                let vars = vars.as_ref().unwrap();
+                let access_enabled = vars.access_enabled().get();
                 let info = n.with_root(|n| {
                     let mut builder = WidgetInfoBuilder::new(
                         updates.clone(),
@@ -497,7 +510,7 @@ impl zng_app::window::WindowsService for WINDOWS {
                         WIDGET.id(),
                         WIDGET.bounds(),
                         WIDGET.border(),
-                        WINDOW.vars().scale_factor().get(),
+                        vars.scale_factor().get(),
                     );
                     n.info(&mut builder);
 

@@ -625,6 +625,8 @@ pub fn print_tracing(max: tracing::Level, span_events: bool) -> bool {
 
     #[cfg(target_os = "android")]
     let layers = layers.with(tracing_android::layer(&zng_env::about().pkg_name).unwrap());
+    #[cfg(target_os = "android")]
+    let _ = span_events;
 
     #[cfg(not(target_os = "android"))]
     let layers = {

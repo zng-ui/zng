@@ -561,6 +561,9 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
     fn on_keyboard_input(&mut self, window_id: WindowId, code: KeyCode, location: KeyLocation, key: Key, state: KeyState) {
         use zng_app::view_process::raw_events::*;
 
+        // init service if needed
+        let _ = KEYBOARD_SV.read();
+
         let args = RawKeyInputArgs::now(
             window_id,
             InputDeviceId::virtual_keyboard(),
