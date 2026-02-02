@@ -2,21 +2,15 @@
 
 use std::pin::Pin;
 use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
 
 use parking_lot::Mutex;
 #[doc(hidden)]
 pub use zng_clone_move::*;
-use zng_txt::{Txt, formatx};
 
 use crate::update::UPDATES;
 use crate::widget::{UiTaskWidget as _, WIDGET};
-use crate::{AppControlFlow, HeadlessApp};
-use zng_handle::{Handle, WeakHandle};
+use zng_handle::WeakHandle;
 use zng_task::UiTask;
-
-use crate::INSTANT;
 
 /// Output of [`Handler<A>`].
 pub enum HandlerResult {
@@ -636,119 +630,9 @@ struct AppHandlerCtx {
     is_preview: bool,
 }
 
-impl HeadlessApp {
-    /// Calls a [`Handler<A>`] once and blocks until the update tasks started during the call complete.
-    ///
-    /// This function *spins* until all update tasks are completed. Timers or send events can
-    /// be received during execution but the loop does not sleep, it just spins requesting an update
-    /// for each pass.
-    pub fn block_on<A>(&mut self, handler: &mut Handler<A>, args: &A, timeout: Duration) -> Result<(), Txt>
-    where
-        A: Clone + 'static,
-    {
-        self.block_on_multi(vec![handler], args, timeout)
-    }
-
-    /// Calls multiple [`Handler<A>`] once each and blocks until all update tasks are complete.
-    ///
-    /// This function *spins* until all update tasks are completed. Timers or send events can
-    /// be received during execution but the loop does not sleep, it just spins requesting an update
-    /// for each pass.
-    pub fn block_on_multi<A>(&mut self, handlers: Vec<&mut Handler<A>>, args: &A, timeout: Duration) -> Result<(), Txt>
-    where
-        A: Clone + 'static,
-    {
-        let (pre_len, pos_len) = UPDATES.handler_lens();
-
-        let handle = Handle::dummy(()).downgrade();
-        for handler in handlers {
-            handler.app_event(handle.clone_boxed(), false, args);
-        }
-
-        let mut pending = UPDATES.new_update_handlers(pre_len, pos_len);
-
-        if !pending.is_empty() {
-            let start_time = INSTANT.now();
-            while {
-                pending.retain(|h| h());
-                !pending.is_empty()
-            } {
-                let flow = self.update(false);
-                if INSTANT.now().duration_since(start_time) >= timeout {
-                    return Err(formatx!(
-                        "block_on reached timeout of {timeout:?} before the handler task could finish",
-                    ));
-                }
-
-                match flow {
-                    AppControlFlow::Poll => continue,
-                    AppControlFlow::Wait => {
-                        thread::yield_now();
-                        continue;
-                    }
-                    AppControlFlow::Exit => return Ok(()),
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Polls a `future` and updates the app repeatedly until it completes or the `timeout` is reached.
-    pub fn block_on_fut<F>(&mut self, future: F, timeout: Duration) -> Result<F::Output, Txt>
-    where
-        F: Future + Send + 'static,
-        F::Output: Send + 'static,
-    {
-        let r = Arc::new(Mutex::new(None::<F::Output>));
-        self.block_on(
-            &mut async_hn_once!(r, |_| {
-                let fr = future.await;
-                *r.lock() = Some(fr);
-            }),
-            &(),
-            timeout,
-        )?;
-        match r.lock().take() {
-            Some(r) => Ok(r),
-            None => Err("unblocked without finishing".into()),
-        }
-    }
-
-    /// Calls the `handler` once and [`block_on`] it with a 60 seconds timeout using the minimal headless app.
-    ///
-    /// [`block_on`]: Self::block_on
-    #[track_caller]
-    #[cfg(any(test, doc, feature = "test_util"))]
-    pub fn doc_test<A, H>(args: A, mut handler: Handler<A>)
-    where
-        A: Clone + 'static,
-    {
-        let mut app = crate::APP.minimal().run_headless(false);
-        app.block_on(&mut handler, &args, DOC_TEST_BLOCK_ON_TIMEOUT).unwrap();
-    }
-
-    /// Calls the `handlers` once each and [`block_on_multi`] with a 60 seconds timeout.
-    ///
-    /// [`block_on_multi`]: Self::block_on_multi
-    #[track_caller]
-    #[cfg(any(test, doc, feature = "test_util"))]
-    pub fn doc_test_multi<A>(args: A, mut handlers: Vec<Handler<A>>)
-    where
-        A: Clone + 'static,
-    {
-        let mut app = crate::APP.minimal().run_headless(false);
-        app.block_on_multi(handlers.iter_mut().collect(), &args, DOC_TEST_BLOCK_ON_TIMEOUT)
-            .unwrap()
-    }
-}
-
-#[cfg(any(test, doc, feature = "test_util"))]
-const DOC_TEST_BLOCK_ON_TIMEOUT: Duration = Duration::from_secs(60);
-
 #[cfg(test)]
 mod tests {
-    use crate::handler::Handler;
+    use crate::{APP, handler::Handler};
 
     #[test]
     fn hn_return() {
@@ -788,6 +672,16 @@ mod tests {
             }
             args.task().await;
         }))
+    }
+
+    #[test]
+    fn run_test_runs() {
+        let mut app = APP.minimal().run_headless(false);
+        app.run_test(
+            async {
+                zng_task::deadline(std::time::Duration::from_millis(30)).await },
+        )
+        .unwrap();
     }
 
     fn t(_: Handler<TestArgs>) {}

@@ -1,5 +1,7 @@
 # Unreleased
 
+**Breaking** Removed `HeadlessApp::block_on*` methods. Use the `run_task` and new `run_task_deadline` for tests.
+
 **Breaking** `command!` syntax changed slightly.
 
 * Fix `Var::on_(pre_)new` notifying multiple times if the variable is modified multiple times in the same update.

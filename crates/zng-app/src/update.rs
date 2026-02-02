@@ -1028,7 +1028,9 @@ impl UPDATES {
 
     /// Schedules an update without specific window or widget target.
     pub fn update_app(&self) {
-        UPDATES_SV.write().send_awake();
+        let mut u = UPDATES_SV.write();
+        u.update_ext.insert(UpdateFlags::UPDATE);
+        u.send_awake();
     }
 
     /// Schedules an info rebuild that affects the `target`.
@@ -1320,27 +1322,6 @@ impl UPDATES {
             },
         )
     }
-
-    pub(crate) fn handler_lens(&self) -> (usize, usize) {
-        let u = UPDATES_SV.read();
-
-        (u.pre_handlers.lock().len(), u.pos_handlers.lock().len())
-    }
-    pub(crate) fn new_update_handlers(&self, pre_from: usize, pos_from: usize) -> Vec<Box<dyn Fn() -> bool>> {
-        let u = UPDATES_SV.read();
-
-        u.pre_handlers
-            .lock()
-            .iter()
-            .skip(pre_from)
-            .chain(u.pos_handlers.lock().iter().skip(pos_from))
-            .map(|h| h.handle.weak_handle())
-            .map(|h| {
-                let r: Box<dyn Fn() -> bool> = Box::new(move || h.upgrade().is_some());
-                r
-            })
-            .collect()
-    }
 }
 
 app_local! {
@@ -1386,7 +1367,7 @@ impl UpdatesService {
             self.awake_pending = true;
             match self.event_sender.as_ref() {
                 Some(s) => {
-                    if let Err(ChannelError::Disconnected { .. }) = s.send_check_update() {
+                    if let Err(ChannelError::Disconnected { .. }) = s.send_update_app() {
                         tracing::debug!("no app connected to update");
                     }
                 }

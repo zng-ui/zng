@@ -266,7 +266,7 @@ impl HeadlessApp {
 
     /// Execute the async `task` in the UI thread, updating the app until it finishes or the app shuts-down.
     ///
-    /// Returns the task result if the app has not shut-down.
+    /// Returns the task result if the app has not shutdown.
     pub fn run_task<R, T>(&mut self, task: impl IntoFuture<IntoFuture = T>) -> Option<R>
     where
         R: Send + 'static,
@@ -295,6 +295,64 @@ impl HeadlessApp {
                         return r.take();
                     }
                 }
+            }
+        }
+    }
+
+    /// Does [`run_task`] with a `deadline`.
+    ///
+    /// Returns the task result if the app has not shutdown and the `deadline` is not reached.
+    ///
+    /// If the `deadline` is reached an error is logged. Note that you can use [`with_deadline`] to create
+    /// a future with timeout and handle the timeout error.
+    ///
+    /// [`run_task`]: Self::run_task
+    /// [`with_deadline`]: zng_task::with_deadline
+    pub fn run_task_deadline<R, T>(&mut self, task: impl IntoFuture<IntoFuture = T>, deadline: impl Into<Deadline>) -> Option<R>
+    where
+        R: Send + 'static,
+        T: Future<Output = R> + Send + 'static,
+    {
+        let task = task.into_future();
+        let task = zng_task::with_deadline(task, deadline.into());
+        match self.run_task(task)? {
+            Ok(r) => Some(r),
+            Err(e) => {
+                tracing::error!("run_task reached deadline, {e}");
+                None
+            }
+        }
+    }
+
+    /// Does [`run_task`] with a deadline, panics on timeout.
+    ///
+    /// [`run_task`]: Self::run_task
+    #[cfg(any(test, feature = "test_util"))]
+    pub fn run_test<R, T>(&mut self, task: impl IntoFuture<IntoFuture = T>) -> Option<R>
+    where
+        R: Send + 'static,
+        T: Future<Output = R> + Send + 'static,
+    {
+        use std::time::Duration;
+
+        thread_local! {
+            static TIMEOUT: Duration = {
+                let t = std::env::var("ZNG_APP_RUN_TEST_TIMEOUT").unwrap_or_else(|_| "60".to_string());
+                let t: u64 = match t.parse() {
+                    Ok(0) => 60,
+                    Ok(t) => t,
+                    Err(_) => 60,
+                };
+                std::time::Duration::from_secs(t)
+            }
+        }
+        let task = task.into_future();
+        let task = zng_task::with_deadline(task, TIMEOUT.with(|t| *t));
+        match self.run_task(task)? {
+            Ok(r) => Some(r),
+            Err(e) => {
+                tracing::error!("run_task reached deadline, {e}");
+                None
             }
         }
     }

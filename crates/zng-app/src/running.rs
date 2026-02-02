@@ -629,7 +629,9 @@ impl RunningApp {
             AppEvent::Update(op, target) => {
                 UPDATES.update_op(op, target);
             }
-            AppEvent::CheckUpdate => {}
+            AppEvent::UpdateApp => {
+                UPDATES.update_app();
+            }
             AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
         }
     }
@@ -661,7 +663,11 @@ impl RunningApp {
                 }
                 Err(e) => match e {
                     ChannelError::Timeout => {
-                        if self.last_wait_event.elapsed() >= PING_TIMER && !VIEW_PROCESS.is_same_process() && VIEW_PROCESS.is_connected() {
+                        if VIEW_PROCESS.is_available()
+                            && self.last_wait_event.elapsed() >= PING_TIMER
+                            && !VIEW_PROCESS.is_same_process()
+                            && VIEW_PROCESS.is_connected()
+                        {
                             VIEW_PROCESS.ping();
                         }
                     }
@@ -1336,7 +1342,7 @@ pub(crate) enum AppEvent {
     /// Resume a panic in the app main thread.
     ResumeUnwind(PanicPayload),
     /// Check for pending updates.
-    CheckUpdate,
+    UpdateApp,
 }
 
 /// A sender that can awake apps and insert events into the main loop.
@@ -1362,20 +1368,21 @@ impl AppEventSender {
         self.0.send_blocking(AppEvent::ViewEvent(event))
     }
 
-    /// Causes an update cycle to happen in the app.
+    /// Causes an update cycle to happen in the app, includes the `target` widget in the UI.
     pub fn send_update(&self, op: UpdateOp, target: WidgetId) -> Result<(), ChannelError> {
         UpdatesTrace::log_update();
         self.send_app_event(AppEvent::Update(op, target))
     }
 
+    /// Causes an update cycle to happens in the app.
+    pub fn send_update_app(&self) -> Result<(), ChannelError> {
+        UpdatesTrace::log_update();
+        self.send_app_event(AppEvent::UpdateApp)
+    }
+
     /// Resume a panic in the app main loop thread.
     pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), ChannelError> {
         self.send_app_event(AppEvent::ResumeUnwind(payload))
-    }
-
-    /// [`UPDATES`] util.
-    pub(crate) fn send_check_update(&self) -> Result<(), ChannelError> {
-        self.send_app_event(AppEvent::CheckUpdate)
     }
 
     /// Create an [`Waker`] that causes a [`send_update`](Self::send_update).
@@ -1395,7 +1402,7 @@ impl std::task::Wake for AppWaker {
                 let _ = self.0.send_blocking(AppEvent::Update(UpdateOp::Update, id));
             }
             None => {
-                let _ = self.0.send_blocking(AppEvent::CheckUpdate);
+                let _ = self.0.send_blocking(AppEvent::UpdateApp);
             }
         }
     }

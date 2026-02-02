@@ -901,19 +901,22 @@ fn defaults() {
     #[cfg(all(single_instance, feature = "window"))]
     {
         crate::app::APP_INSTANCE_EVENT
-            .on_pre_event(crate::handler::hn!(|args| {
-                use crate::window::*;
+            .on_pre_event(
+                true,
+                crate::handler::hn!(|args| {
+                    use crate::{focus::*, window::*};
 
-                // focus a window if none are focused.
-                if !args.is_current() && WINDOWS.focused_window_id().is_none() {
-                    for w in WINDOWS.widget_trees() {
-                        if w.is_rendered() && WINDOWS.mode(w.window_id()) == Ok(WindowMode::Headed) && WINDOWS.focus(w.window_id()).is_ok()
-                        {
-                            break;
+                    // focus a window if none are focused.
+                    if !args.is_current() && FOCUS.focused().with(|f| f.is_none()) {
+                        for w in WINDOWS.widget_trees() {
+                            if w.is_rendered() && WINDOWS.mode(w.window_id()) == Some(WindowMode::Headed) {
+                                FOCUS.focus_window(w.window_id(), false);
+                                break;
+                            }
                         }
                     }
-                }
-            }))
+                }),
+            )
             .perm();
         tracing::debug!("defaults init, single_instance set");
     }
