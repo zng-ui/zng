@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `zng::env::About::is_test` metadata to detect when process was inited in a test.
+
 **Breaking** Removed `HeadlessApp::block_on*` methods. Use the `run_task` and new `run_task_deadline` for tests.
 
 **Breaking** `command!` syntax changed slightly.

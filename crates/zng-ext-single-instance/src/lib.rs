@@ -62,6 +62,11 @@ event! {
 }
 
 zng_env::on_process_start!(|args| {
+    if zng_env::about().is_test {
+        tracing::debug!("ignoring single_instance because is test process");
+        return;
+    }
+
     if args.next_handlers_count > 0 && args.yield_count < zng_env::ProcessStartArgs::MAX_YIELD_COUNT {
         // yield until we are the last handler, this ensures we are running in the app-process, before `yield_until_app` handlers.
         return args.yield_once();

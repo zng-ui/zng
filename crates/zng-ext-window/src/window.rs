@@ -722,10 +722,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
             } else if n.view_opening.is_dummy() {
                 if APP.window_mode().is_headless() && !vars.0.instance_state.get().is_loaded() {
                     // simulate focus, for tests mostly
-                    let args = RawWindowFocusArgs::now(
-                        WINDOWS_SV.read().focused.with(|p| p.as_ref().map(|p| p.window_id())),
-                        Some(*id),
-                    );
+                    let args = RawWindowFocusArgs::now(WINDOWS_SV.read().focused.with(|p| p.as_ref().map(|p| p.window_id())), Some(*id));
                     RAW_WINDOW_FOCUS_EVENT.notify(args);
                 }
 
@@ -776,10 +773,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
         WindowMode::Headless => {
             if APP.window_mode().is_headless() && !vars.0.instance_state.get().is_loaded() {
                 // simulate focus, for tests mostly
-                let args = RawWindowFocusArgs::now(
-                    WINDOWS_SV.read().focused.with(|p| p.as_ref().map(|p| p.window_id())),
-                    Some(*id),
-                );
+                let args = RawWindowFocusArgs::now(WINDOWS_SV.read().focused.with(|p| p.as_ref().map(|p| p.window_id())), Some(*id));
                 RAW_WINDOW_FOCUS_EVENT.notify(args);
             }
         }

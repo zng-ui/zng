@@ -132,6 +132,7 @@ pub fn init_parse(crate_: TokenStream) -> TokenStream {
             #license,
             #has_about,
             &[#( (#meta_keys, #meta_values) ),*],
+            cfg!(test),
         ))
     }
     .into()

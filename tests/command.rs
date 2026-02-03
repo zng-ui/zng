@@ -9,6 +9,7 @@ use zng::{
 
 #[test]
 fn notify_no_scope() {
+    zng::env::init!();
     let mut app = APP.defaults().run_headless(false);
     app.open_window(WindowId::new_unique(), listener_window(false));
 
@@ -22,6 +23,7 @@ fn notify_no_scope() {
 
 #[test]
 fn notify_scoped() {
+    zng::env::init!();
     let mut app = APP.defaults().run_headless(false);
     let window_id = WindowId::new_unique();
     app.open_window(window_id, listener_window(false));
@@ -38,6 +40,7 @@ fn notify_scoped() {
 
 #[test]
 fn shortcut_basic() {
+    zng::env::init!();
     let mut app = APP.defaults().run_headless(false);
     let window_id = WindowId::new_unique();
     app.open_window(window_id, listener_window(false));
@@ -59,6 +62,7 @@ fn shortcut_basic() {
 
 #[test]
 fn shortcut_with_focused_scope() {
+    zng::env::init!();
     let mut app = APP.defaults().run_headless(false);
     let window_id = WindowId::new_unique();
     app.open_window(window_id, listener_window(true));
@@ -76,6 +80,7 @@ fn shortcut_with_focused_scope() {
 
 #[test]
 fn shortcut_scoped() {
+    zng::env::init!();
     let mut app = APP.defaults().run_headless(false);
     let window_id = WindowId::new_unique();
     app.open_window(window_id, listener_window(false));

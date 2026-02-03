@@ -94,8 +94,33 @@ lazy_static! {
 ///
 /// See the [multi example] for more details on how to support Android and other platforms.
 ///
+/// # Test Start
+///
+/// In test builds this macro may be called multiple times in the same process at the start of `#[test]` functions.
+///
+/// ```
+/// # macro_rules! demo { () => {
+/// #[test]
+/// fn foo() {
+///     zng::env::init!();
+///     let mut app = APP.defaults().run_headless(false);
+///     // ...
+/// }
+///
+/// #[test]
+/// fn bar() {
+///     zng::env::init!();
+///     // ...
+/// }
+/// # }}
+/// ```
+///
+/// Note that the process start handlers will still only run once on the first test, the process exit handlers
+/// **will not run**.
+///
 /// [`wasm-pack`]: https://crates.io/crates/wasm-pack
 /// [multi example]: https://github.com/zng-ui/zng/tree/main/examples#multi
+#[allow(clippy::test_attr_in_doctest)]
 #[macro_export]
 macro_rules! init {
     () => {
@@ -106,11 +131,19 @@ macro_rules! init {
 pub use zng_env_proc_macros::init_parse;
 
 #[doc(hidden)]
-pub fn init(about: About) -> impl Drop {
-    if lazy_static_init(&ABOUT, about).is_err() {
-        panic!("env already inited, env::init must be the first call in the process")
+pub fn init(about: About) -> Box<dyn std::any::Any> {
+    if !about.is_test {
+        if lazy_static_init(&ABOUT, about).is_err() {
+            panic!("env::init! already called\nnote: In `cfg(test)` builds init! can be called multiple times")
+        }
+        Box::new(process_init())
+    } else {
+        // in test
+        if lazy_static_init(&ABOUT, about).is_ok() {
+            Box::leak(Box::new(process_init()));
+        }
+        Box::new(())
     }
-    process_init()
 }
 
 /// Metadata about the app and main crate.
@@ -178,6 +211,9 @@ pub struct About {
     ///
     /// Any other unknown string metadata.
     pub meta: Vec<(Txt, Txt)>,
+
+    /// If app was started in a `cfg(test)` build binary.
+    pub is_test: bool,
 }
 impl About {
     /// The `pkg_name` in snake_case.
@@ -252,6 +288,7 @@ impl About {
             has_about: false,
             app_id: fallback_id(),
             meta: vec![],
+            is_test: false,
         }
     }
 
@@ -294,6 +331,7 @@ impl About {
             app_id: Txt::from_static(""),
             has_about: false,
             meta: vec![],
+            is_test: false,
         };
         if let Some(zng) = m.package.metadata.and_then(|m| m.zng)
             && !zng.about.is_empty()
@@ -345,6 +383,7 @@ impl About {
         license: &'static str,
         has_about: bool,
         meta: &[(&'static str, &'static str)],
+        is_test: bool,
     ) -> Self {
         Self {
             pkg_name: Txt::from_static(pkg_name),
@@ -363,6 +402,7 @@ impl About {
             homepage: Txt::from_static(homepage),
             license: Txt::from_static(license),
             has_about,
+            is_test,
         }
     }
 }

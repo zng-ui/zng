@@ -30,6 +30,10 @@ zng_env::on_process_start!(|process_start_args| {
     if std::env::var(NO_CRASH_HANDLER).is_ok() {
         return;
     }
+    if zng_env::about().is_test {
+        tracing::debug!("ignoring crash_handler because is test process");
+        return;
+    }
 
     let mut config = CrashConfig::new();
     for ext in CRASH_CONFIG {
