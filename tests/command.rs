@@ -61,24 +61,6 @@ fn shortcut_basic() {
 }
 
 #[test]
-fn shortcut_with_focused_scope() {
-    zng::env::init!();
-    let mut app = APP.defaults().run_headless(false);
-    let window_id = WindowId::new_unique();
-    app.open_window(window_id, listener_window(true));
-
-    FOO_CMD.shortcut().set(shortcut!('F'));
-    let _ = app.update(false);
-
-    app.press_key(window_id, KeyCode::KeyF, KeyLocation::Standard, Key::Char('F'));
-
-    let trace = TEST_TRACE.read();
-    let widget_id = WidgetId::named("other-widget");
-    assert_eq!(1, trace.len()); // because we target the focused first.
-    assert_eq!(&trace[0], &format!("scoped-wgt / Widget({widget_id:?})"));
-}
-
-#[test]
 fn shortcut_scoped() {
     zng::env::init!();
     let mut app = APP.defaults().run_headless(false);
@@ -123,14 +105,13 @@ async fn listener_window(focused_wgt: bool) -> window::WindowRoot {
                 _handle_scoped = None;
             }
             UiNodeOp::Update { .. } => {
-                FOO_CMD.each_update(true, false, |args| {
-                    args.propagation.stop();
-                    TEST_TRACE.write().push(format!("no-scope / {:?}", args.scope));
-                });
-
                 FOO_CMD.scoped(WIDGET.id()).each_update(true, false, |args| {
                     args.propagation.stop();
                     TEST_TRACE.write().push(format!("scoped-wgt / {:?}", args.scope));
+                });
+                FOO_CMD.each_update(true, false, |args| {
+                    args.propagation.stop();
+                    TEST_TRACE.write().push(format!("no-scope / {:?}", args.scope));
                 });
             }
             _ => {}

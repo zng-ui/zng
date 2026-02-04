@@ -1090,18 +1090,18 @@ impl MouseService {
 
         match state {
             ButtonState::Pressed => {
-                if !self.buttons.with(|b| b.contains(&button)) {
-                    self.buttons.modify(move |btns| btns.push(button));
-                }
+                self.buttons.modify(move |btns| {
+                    if !btns.contains(&button) {
+                        btns.push(button);
+                    }
+                });
             }
             ButtonState::Released => {
-                if self.buttons.with(|b| b.contains(&button)) {
-                    self.buttons.modify(move |btns| {
-                        if let Some(i) = btns.iter().position(|k| *k == button) {
-                            btns.swap_remove(i);
-                        }
-                    });
-                }
+                self.buttons.modify(move |btns| {
+                    if let Some(i) = btns.iter().position(|k| *k == button) {
+                        btns.swap_remove(i);
+                    }
+                });
             }
         }
 

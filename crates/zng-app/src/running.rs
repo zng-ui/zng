@@ -862,7 +862,7 @@ impl APP {
     ///
     /// Async handlers are fully supported, the code before the first `.await` runs blocking the rest runs in the `UPDATES` service.
     pub fn on_init(&self, handler: crate::handler::Handler<AppInitArgs>) {
-        zng_unique_id::hot_static_ref!(ON_APP_INIT).lock().push(handler);
+        zng_unique_id::hot_static_ref!(ON_INIT).lock().push(handler);
     }
 
     /// Register a handler to be called when the app exits.
@@ -872,11 +872,14 @@ impl APP {
     ///
     /// This method must be called in the app context.
     pub fn on_deinit(&self, handler: impl FnOnce(&AppDeinitArgs) + Send + 'static) {
-        ON_APP_DEINIT.write().get_mut().push(Box::new(handler));
+        ON_DEINIT.write().get_mut().push(Box::new(handler));
     }
 
     fn call_init_handlers(&self, is_minimal: bool) {
-        let mut handlers = mem::take(&mut *zng_unique_id::hot_static_ref!(ON_APP_INIT).lock());
+        #[cfg(feature = "multi_app")]
+        let _lock = zng_unique_id::hot_static_ref!(ON_INIT_CALL).lock();
+
+        let mut handlers = mem::take(&mut *zng_unique_id::hot_static_ref!(ON_INIT).lock());
         let args = AppInitArgs { is_minimal };
         handlers.retain_mut(|h| {
             let (owner, handle) = zng_handle::Handle::new(());
@@ -884,13 +887,13 @@ impl APP {
             !owner.is_dropped()
         });
 
-        let mut s = zng_unique_id::hot_static_ref!(ON_APP_INIT).lock();
+        let mut s = zng_unique_id::hot_static_ref!(ON_INIT).lock();
         handlers.extend(s.drain(..));
         *s = handlers;
     }
 
     fn call_deinit_handlers(&self) {
-        let handlers = mem::take(&mut *ON_APP_DEINIT.write().get_mut());
+        let handlers = mem::take(&mut *ON_DEINIT.write().get_mut());
         let args = AppDeinitArgs {};
         for h in handlers {
             h(&args);
@@ -898,11 +901,15 @@ impl APP {
     }
 }
 zng_unique_id::hot_static! {
-    static ON_APP_INIT: Mutex<Vec<crate::handler::Handler<AppInitArgs>>> = Mutex::new(vec![]);
+    static ON_INIT: Mutex<Vec<crate::handler::Handler<AppInitArgs>>> = Mutex::new(vec![]);
+}
+#[cfg(feature = "multi_app")]
+zng_unique_id::hot_static! {
+    static ON_INIT_CALL: Mutex<()> = Mutex::new(());
 }
 app_local! {
     // Mutex for Sync only
-    static ON_APP_DEINIT: Mutex<Vec<Box<dyn FnOnce(&AppDeinitArgs) + Send + 'static>>> = const { Mutex::new(vec![]) };
+    static ON_DEINIT: Mutex<Vec<Box<dyn FnOnce(&AppDeinitArgs) + Send + 'static>>> = const { Mutex::new(vec![]) };
 }
 
 /// App main loop timer.

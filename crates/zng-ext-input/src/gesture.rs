@@ -18,9 +18,10 @@ use std::{
     time::Duration,
 };
 use zng_app::{
-    DInstant, HeadlessApp,
+    APP, DInstant, HeadlessApp,
     access::{ACCESS_CLICK_EVENT, AccessClickArgs},
     event::{AnyEventArgs as _, Command, CommandScope, EVENTS, EventPropagationHandle, event, event_args},
+    hn,
     shortcut::{
         CommandShortcutExt, GestureKey, KeyChord, KeyGesture, ModifierGesture, ModifiersState, Shortcut, ShortcutFilter, Shortcuts,
         shortcut,
@@ -33,6 +34,7 @@ use zng_app::{
     window::WindowId,
 };
 use zng_app_context::app_local;
+use zng_env::on_process_start;
 use zng_ext_window::WINDOWS;
 use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_layout::unit::DipPoint;
@@ -1176,3 +1178,16 @@ impl CommandShortcutMatchesExt for Command {
         }
     }
 }
+
+on_process_start!(|args| {
+    if args.yield_until_app() {
+        return;
+    }
+    APP.on_init(hn!(|args| {
+        if !args.is_minimal {
+            // command shortcuts are fully detached from the GESTURES service
+            // so it will not init just by setting a shortcut and subscribing to the command
+            let _ = GESTURES_SV.read();
+        }
+    }));
+});

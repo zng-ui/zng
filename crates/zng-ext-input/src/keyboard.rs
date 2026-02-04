@@ -402,19 +402,19 @@ impl KeyboardService {
                 }
 
                 let key_code = args.key_code;
-                if !self.codes.with(|c| c.contains(&key_code)) {
-                    self.codes.modify(move |cs| {
+                self.codes.modify(move |cs| {
+                    if !cs.contains(&key_code) {
                         cs.push(key_code);
-                    });
-                }
+                    }
+                });
 
                 let key = &args.key;
                 if !matches!(&key, Key::Unidentified) {
-                    if !self.keys.with(|c| c.contains(key)) {
-                        self.keys.modify(clmv!(key, |ks| {
+                    self.keys.modify(clmv!(key, |ks| {
+                        if ks.contains(&key) {
                             ks.push(key);
-                        }));
-                    }
+                        }
+                    }));
 
                     if key.is_modifier() {
                         self.set_modifiers(key.clone(), true);
@@ -425,23 +425,19 @@ impl KeyboardService {
                 self.last_key_down = None;
 
                 let key = args.key_code;
-                if self.codes.with(|c| c.contains(&key)) {
-                    self.codes.modify(move |cs| {
-                        if let Some(i) = cs.iter().position(|c| *c == key) {
-                            cs.swap_remove(i);
-                        }
-                    });
-                }
+                self.codes.modify(move |cs| {
+                    if let Some(i) = cs.iter().position(|c| *c == key) {
+                        cs.swap_remove(i);
+                    }
+                });
 
                 let key = &args.key;
                 if !matches!(&key, Key::Unidentified) {
-                    if self.keys.with(|c| c.contains(key)) {
-                        self.keys.modify(clmv!(key, |ks| {
-                            if let Some(i) = ks.iter().position(|k| k == &key) {
-                                ks.swap_remove(i);
-                            }
-                        }));
-                    }
+                    self.keys.modify(clmv!(key, |ks| {
+                        if let Some(i) = ks.iter().position(|k| k == &key) {
+                            ks.swap_remove(i);
+                        }
+                    }));
 
                     if key.is_modifier() {
                         self.set_modifiers(key.clone(), false);
