@@ -6,6 +6,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 #[doc(hidden)]
 pub use zng_clone_move::*;
+use zng_txt::Txt;
 
 use crate::update::UPDATES;
 use crate::widget::{UiTaskWidget as _, WIDGET};
@@ -60,6 +61,9 @@ pub trait HandlerExt<A: Clone + 'static> {
 
     /// Wrap the handler into a type that implements the async task management in an widget context.
     fn into_wgt_runner(self) -> WidgetRunner<A>;
+
+    /// Debug print handler calls and state.
+    fn trace(self, name: impl Into<Txt>) -> Handler<A>;
 }
 impl<A: Clone + 'static> HandlerExt<A> for Handler<A> {
     fn widget_event(&mut self, args: &A) -> Option<UiTask<()>> {
@@ -122,6 +126,64 @@ impl<A: Clone + 'static> HandlerExt<A> for Handler<A> {
 
     fn into_wgt_runner(self) -> WidgetRunner<A> {
         WidgetRunner::new(self)
+    }
+
+    fn trace(mut self, name: impl Into<Txt>) -> Handler<A> {
+        let name = name.into();
+        let mut fut_count = 0usize;
+        tracing::info!("handler {name} created");
+        Box::new(move |a| {
+            tracing::debug!("handler {name} called");
+            match self(a) {
+                HandlerResult::Done => {
+                    tracing::info!("handler {name} call done");
+                    HandlerResult::Done
+                }
+                HandlerResult::Continue(fut) => {
+                    let fut_id = fut_count;
+                    fut_count += 1;
+                    tracing::info!("handler {name} call continues in future #{fut_id}");
+                    struct TraceFut {
+                        fut: Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
+                        name: Txt,
+                        fut_id: usize,
+                        is_pending: bool,
+                    }
+                    impl Future for TraceFut {
+                        type Output = ();
+
+                        fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+                            match self.fut.as_mut().poll(cx) {
+                                std::task::Poll::Ready(()) => {
+                                    tracing::info!("handler {} future #{} completed", self.name, self.fut_id);
+                                    self.is_pending = false;
+                                    std::task::Poll::Ready(())
+                                }
+                                std::task::Poll::Pending => {
+                                    self.is_pending = true;
+                                    std::task::Poll::Pending
+                                }
+                            }
+                        }
+                    }
+                    impl Drop for TraceFut {
+                        fn drop(&mut self) {
+                            if self.is_pending {
+                                tracing::warn!("handle {} future #{} dropped pending", self.name, self.fut_id);
+                            } else {
+                                tracing::debug!("handle {} future #{} dropped completed", self.name, self.fut_id);
+                            }
+                        }
+                    }
+                    HandlerResult::Continue(Box::pin(TraceFut {
+                        fut,
+                        name: name.clone(),
+                        fut_id,
+                        is_pending: true,
+                    }))
+                }
+            }
+        })
     }
 }
 

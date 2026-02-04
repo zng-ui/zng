@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use std::{
+    any::Any,
     fmt, fs,
     io::{self, Write as _},
     ops,
@@ -32,15 +33,18 @@ use std::{
     time::Duration,
 };
 
+use parking_lot::Mutex;
 use path_absolutize::Absolutize;
 use zng_app::{
+    DInstant, INSTANT,
     event::event_args,
     handler::{Handler, HandlerExt as _},
 };
+use zng_clone_move::clmv;
 use zng_handle::Handle;
 use zng_txt::Txt;
 use zng_unit::TimeUnits;
-use zng_var::{Var, VarHandle, VarValue};
+use zng_var::{AnyVar, BoxAnyVarValue, Var, VarHandle, VarValue, WeakAnyVar, var};
 
 mod service;
 use service::*;
@@ -68,9 +72,11 @@ impl WATCHER {
     ///
     /// Is `100.ms()` by default.
     ///
+    /// Note that each [`sync`] is debounced in isolation and the first write happens immediately.
+    ///
     /// [`sync`]: WATCHER::sync
     pub fn sync_debounce(&self) -> Var<Duration> {
-        WATCHER_SV.read().debounce.clone()
+        WATCHER_SV.read().sync_debounce.clone()
     }
 
     /// Gets a read-write variable that defines the fallback poll watcher interval.
@@ -91,7 +97,7 @@ impl WATCHER {
         WATCHER_SV.read().shutdown_timeout.clone()
     }
 
-    /// Enable file change events for the `file`.
+    /// Enable [file change events] for the `file`.
     ///
     /// Returns a handle that will stop the file watch when dropped, if there is no other active handler for the same file.
     ///
@@ -101,17 +107,20 @@ impl WATCHER {
     /// See [`watch_dir`] for more details.
     ///
     /// [`watch_dir`]: WATCHER::watch_dir
+    /// [file change events]: FS_CHANGES_EVENT
     pub fn watch(&self, file: impl Into<PathBuf>) -> WatcherHandle {
         WATCHER_SV.write().watch(file.into())
     }
 
-    /// Enable file change events for files inside `dir`, also include inner directories if `recursive` is `true`.
+    /// Enable [file change events] for files inside `dir`, also include inner directories if `recursive` is `true`.
     ///
     /// Returns a handle that will stop the dir watch when dropped, if there is no other active handler for the same directory.
     ///
     /// The directory will be watched using an OS specific efficient watcher provided by the [`notify`](https://docs.rs/notify) crate. If there is
     /// any error creating the watcher, such as if the directory does not exist yet a slower polling watcher will retry periodically    
     /// until the efficient watcher can be created or the handle is dropped.
+    ///
+    /// [file change events]: FS_CHANGES_EVENT
     pub fn watch_dir(&self, dir: impl Into<PathBuf>, recursive: bool) -> WatcherHandle {
         WATCHER_SV.write().watch_dir(dir.into(), recursive)
     }
@@ -127,9 +136,57 @@ impl WATCHER {
         &self,
         file: impl Into<PathBuf>,
         init: O,
-        read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
+        mut read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
     ) -> Var<O> {
-        WATCHER_SV.write().read(file.into(), init, read)
+        let out = var(init);
+        self.read_impl(
+            absolutize_or_pass(file.into()),
+            out.as_any().downgrade(),
+            Box::new(move |r| read(r).map(BoxAnyVarValue::new)),
+        );
+        out.read_only()
+    }
+    fn read_impl(
+        &self,
+        file: PathBuf,
+        out: WeakAnyVar,
+        read: Box<dyn FnMut(io::Result<WatchFile>) -> Option<BoxAnyVarValue> + Send + 'static>,
+    ) {
+        let _handle = WATCHER.watch(file.clone());
+        struct Data {
+            file: PathBuf,
+            read: Mutex<Box<dyn FnMut(io::Result<WatchFile>) -> Option<BoxAnyVarValue> + Send + 'static>>,
+        }
+        let data = Arc::new(Data {
+            file,
+            read: Mutex::new(read),
+        });
+        FS_CHANGES_EVENT
+            .hook(move |args| {
+                let _hold = &_handle;
+
+                if let Some(out) = out.upgrade() {
+                    if has_sync_changes(args, &data.file) {
+                        // has changes, spawn read
+                        zng_task::spawn_wait(clmv!(data, || {
+                            if let Some(r) = data.read.lock()(WatchFile::open(&data.file)) {
+                                // did read update, set output
+                                out.modify(clmv!(data, |o| {
+                                    if o.set(r) {
+                                        // tag to avoid write back when `read_impl` is used in `write_impl`
+                                        o.push_tag(WatcherSyncWriteNote(data.file.clone()));
+                                    }
+                                }));
+                            }
+                        }));
+                    }
+                    true
+                } else {
+                    // out var dropped
+                    false
+                }
+            })
+            .perm();
     }
 
     /// Same operation as [`read`] but also tracks the operation status in a second var.
@@ -143,13 +200,95 @@ impl WATCHER {
         &self,
         file: impl Into<PathBuf>,
         init: O,
-        read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, E> + Send + 'static,
+        mut read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, E> + Send + 'static,
     ) -> (Var<O>, Var<S>)
     where
         O: VarValue,
         S: WatcherReadStatus<E>,
+        E: Any,
     {
-        WATCHER_SV.write().read_status(file.into(), init, read)
+        let out = var(init);
+        let status = var(S::idle());
+        self.read_status_impl(
+            absolutize_or_pass(file.into()),
+            out.as_any().downgrade(),
+            status.as_any().clone(),
+            Box::new(move |r| match read(r) {
+                Ok(Some(r)) => Ok(Some(BoxAnyVarValue::new(r))),
+                Ok(None) => Ok(None),
+                Err(e) => Err(Box::new(e)),
+            }),
+            AnyWatcherReadStatus::new::<E, S>(),
+        );
+        (out.read_only(), status.read_only())
+    }
+    fn read_status_impl(
+        &self,
+        file: PathBuf,
+        out: WeakAnyVar,
+        status: AnyVar,
+        read: Box<dyn FnMut(io::Result<WatchFile>) -> Result<Option<BoxAnyVarValue>, Box<dyn Any>> + Send + 'static>,
+        status_mtds: AnyWatcherReadStatus,
+    ) {
+        let _handle = WATCHER.watch(file.clone());
+        struct Data {
+            file: PathBuf,
+            read: Mutex<Box<dyn FnMut(io::Result<WatchFile>) -> Result<Option<BoxAnyVarValue>, Box<dyn Any>> + Send + 'static>>,
+            status: AnyVar,
+            status_mtds: AnyWatcherReadStatus,
+        }
+        let data = Arc::new(Data {
+            file,
+            read: Mutex::new(read),
+            status,
+            status_mtds,
+        });
+        fn spawn_read(data: &Arc<Data>, out: AnyVar) {
+            data.status.set((data.status_mtds.reading)());
+            zng_task::spawn_wait(clmv!(data, || {
+                let mut read = match data.read.try_lock() {
+                    Some(l) => l,
+                    None => return, // another spawn either already has read lock on the file or will acquire it
+                };
+                match read(WatchFile::open(&data.file)) {
+                    Ok(u) => {
+                        if let Some(r) = u {
+                            // did read update, set output
+                            out.modify(clmv!(data, |o| {
+                                if o.set(r) {
+                                    // tag to avoid write back when `read_status_impl` is used in `sync_status_impl`
+                                    o.push_tag(WatcherSyncWriteNote(data.file.clone()));
+                                }
+                            }));
+                        }
+                        data.status.set((data.status_mtds.idle)());
+                    }
+                    Err(e) => {
+                        // read error
+                        data.status.set((data.status_mtds.read_error)(Box::new(e)));
+                    }
+                }
+            }));
+        }
+        if data.file.exists() {
+            // read initial value
+            spawn_read(&data, out.upgrade().unwrap());
+        }
+        FS_CHANGES_EVENT
+            .hook(move |args| {
+                let _hold = &_handle;
+                if let Some(out) = out.upgrade() {
+                    if has_sync_changes(args, &data.file) {
+                        // has changes, spawn read
+                        spawn_read(&data, out);
+                    }
+                    true
+                } else {
+                    // out dropped
+                    false
+                }
+            })
+            .perm();
     }
 
     /// Read a directory into a variable, the `init` value will start the variable and the `read` closure will be called
@@ -168,9 +307,63 @@ impl WATCHER {
         dir: impl Into<PathBuf>,
         recursive: bool,
         init: O,
-        read: impl FnMut(walkdir::WalkDir) -> Option<O> + Send + 'static,
+        mut read: impl FnMut(walkdir::WalkDir) -> Option<O> + Send + 'static,
     ) -> Var<O> {
-        WATCHER_SV.write().read_dir(dir.into(), recursive, init, read)
+        let out = var(init);
+        self.read_dir_impl(
+            absolutize_or_pass(dir.into()),
+            out.as_any().downgrade(),
+            recursive,
+            Box::new(move |r| read(r).map(BoxAnyVarValue::new)),
+        );
+        out.read_only()
+    }
+    fn read_dir_impl(
+        &self,
+        dir: PathBuf,
+        out: WeakAnyVar,
+        recursive: bool,
+        read: Box<dyn FnMut(walkdir::WalkDir) -> Option<BoxAnyVarValue> + Send + 'static>,
+    ) {
+        let _handle = WATCHER.watch_dir(dir.clone(), recursive);
+        struct Data {
+            dir: PathBuf,
+            read: Mutex<Box<dyn FnMut(walkdir::WalkDir) -> Option<BoxAnyVarValue> + Send + 'static>>,
+        }
+        let data = Arc::new(Data {
+            dir,
+            read: Mutex::new(read),
+        });
+        FS_CHANGES_EVENT
+            .hook(move |args| {
+                let _hold = &_handle;
+                if let Some(out) = out.upgrade() {
+                    if has_sync_changes(args, &data.dir) {
+                        // has changes, spawn read
+                        zng_task::spawn_wait(clmv!(data, || {
+                            let dir = if recursive {
+                                walkdir::WalkDir::new(&data.dir).min_depth(1)
+                            } else {
+                                walkdir::WalkDir::new(&data.dir).min_depth(1).max_depth(1)
+                            };
+                            if let Some(r) = data.read.lock()(dir) {
+                                // did read update, set output
+                                out.modify(clmv!(data, |o| {
+                                    if o.set(r) {
+                                        // tag just for parity with `read`
+                                        o.push_tag(WatcherSyncWriteNote(data.dir.clone()));
+                                    }
+                                }));
+                            }
+                        }));
+                    }
+                    true
+                } else {
+                    // out var dropped
+                    false
+                }
+            })
+            .perm();
     }
 
     /// Same operation as [`read_dir`] but also tracks the operation status in a second var.
@@ -185,13 +378,91 @@ impl WATCHER {
         dir: impl Into<PathBuf>,
         recursive: bool,
         init: O,
-        read: impl FnMut(walkdir::WalkDir) -> Result<Option<O>, E> + Send + 'static,
+        mut read: impl FnMut(walkdir::WalkDir) -> Result<Option<O>, E> + Send + 'static,
     ) -> (Var<O>, Var<S>)
     where
         O: VarValue,
         S: WatcherReadStatus<E>,
+        E: Any,
     {
-        WATCHER_SV.write().read_dir_status(dir.into(), recursive, init, read)
+        let out = var(init);
+        let status = var(S::idle());
+
+        self.read_dir_status_impl(
+            absolutize_or_pass(dir.into()),
+            out.as_any().downgrade(),
+            status.as_any().clone(),
+            recursive,
+            Box::new(move |r| match read(r) {
+                Ok(Some(r)) => Ok(Some(BoxAnyVarValue::new(r))),
+                Ok(None) => Ok(None),
+                Err(e) => Err(Box::new(e)),
+            }),
+            AnyWatcherReadStatus::new::<E, S>(),
+        );
+        (out.read_only(), status.read_only())
+    }
+    fn read_dir_status_impl(
+        &self,
+        dir: PathBuf,
+        out: WeakAnyVar,
+        status: AnyVar,
+        recursive: bool,
+        read: Box<dyn FnMut(walkdir::WalkDir) -> Result<Option<BoxAnyVarValue>, Box<dyn Any>> + Send + 'static>,
+        status_mtds: AnyWatcherReadStatus,
+    ) {
+        let _handle = WATCHER.watch_dir(dir.clone(), recursive);
+        struct Data {
+            dir: PathBuf,
+            read: Mutex<Box<dyn FnMut(walkdir::WalkDir) -> Result<Option<BoxAnyVarValue>, Box<dyn Any>> + Send + 'static>>,
+            status: AnyVar,
+            status_mtds: AnyWatcherReadStatus,
+        }
+        let data = Arc::new(Data {
+            dir,
+            read: Mutex::new(read),
+            status,
+            status_mtds,
+        });
+        FS_CHANGES_EVENT
+            .hook(move |args| {
+                let _hold = &_handle;
+                if let Some(out) = out.upgrade() {
+                    if has_sync_changes(args, &data.dir) {
+                        // has changes, spawn read
+                        data.status.set((data.status_mtds.reading)());
+                        zng_task::spawn_wait(clmv!(data, || {
+                            let dir = if recursive {
+                                walkdir::WalkDir::new(&data.dir).min_depth(1)
+                            } else {
+                                walkdir::WalkDir::new(&data.dir).min_depth(1).max_depth(1)
+                            };
+                            match data.read.lock()(dir) {
+                                Ok(u) => {
+                                    if let Some(r) = u {
+                                        // did read update, set output
+                                        out.modify(clmv!(data, |o| {
+                                            if o.set(r) {
+                                                // tag just for parity with `read_status`
+                                                o.push_tag(WatcherSyncWriteNote(data.dir.clone()));
+                                            }
+                                        }));
+                                    }
+                                    data.status.set((data.status_mtds.idle)());
+                                }
+                                Err(e) => {
+                                    data.status.set((data.status_mtds.read_error)(Box::new(e)));
+                                }
+                            }
+                        }));
+                    }
+                    true
+                } else {
+                    // output var dropped
+                    false
+                }
+            })
+            .perm();
     }
 
     /// Bind a file with a variable, the `file` will be `read` when it changes and be `write` when the variable changes,
@@ -252,10 +523,83 @@ impl WATCHER {
         &self,
         file: impl Into<PathBuf>,
         init: O,
-        read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
-        write: impl FnMut(O, io::Result<WriteFile>) + Send + 'static,
+        mut read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
+        mut write: impl FnMut(O, io::Result<WriteFile>) + Send + 'static,
     ) -> Var<O> {
-        WATCHER_SV.write().sync(file.into(), init, read, write)
+        let out = var(init);
+        self.sync_impl(
+            absolutize_or_pass(file.into()),
+            out.as_any().clone(),
+            Box::new(move |r| read(r).map(BoxAnyVarValue::new)),
+            Box::new(move |o, r| write(o.downcast().unwrap(), r)),
+        );
+        out
+    }
+    fn sync_impl(
+        &self,
+        file: PathBuf,
+        out: AnyVar,
+        read: Box<dyn FnMut(io::Result<WatchFile>) -> Option<BoxAnyVarValue> + Send + 'static>,
+        write: Box<dyn FnMut(BoxAnyVarValue, io::Result<WriteFile>) + Send + 'static>,
+    ) {
+        self.read_impl(file.clone(), out.downgrade(), read);
+
+        struct DataWrite {
+            f: Box<dyn FnMut(BoxAnyVarValue, io::Result<WriteFile>) + Send + 'static>,
+            last: DInstant,
+        }
+        struct Data {
+            note: Arc<WatcherSyncWriteNote>,
+            write: Mutex<DataWrite>,
+            write_value: Mutex<Option<BoxAnyVarValue>>,
+            debounce_flush: Arc<SyncFlushLock>,
+        }
+        let data = Arc::new(Data {
+            note: Arc::new(WatcherSyncWriteNote(file)),
+            write: Mutex::new(DataWrite {
+                f: write,
+                last: DInstant::EPOCH,
+            }),
+            write_value: Mutex::new(None),
+            debounce_flush: Arc::new(SyncFlushLock::new()),
+        });
+        WATCHER_SV.write().push_sync_flush(&data.debounce_flush);
+
+        out.hook(move |a| {
+            // skip if value was set from `read_impl`
+            for tag in a.downcast_tags::<WatcherSyncWriteNote>() {
+                if *tag == *data.note {
+                    return true;
+                }
+            }
+
+            // spawn write
+            let mut d = data.write_value.lock();
+            let is_running = d.is_some() || data.write.try_lock().is_none();
+            *d = Some(a.value().clone_boxed());
+            if is_running {
+                return true;
+            }
+            zng_task::spawn_wait(clmv!(data, || {
+                // wait other write tasks
+                let mut write = data.write.lock();
+                // wait debounce of APP.on_deinit signal, holds _guard to block on_deinit so the process is not killed while writing
+                let _guard = data
+                    .debounce_flush
+                    .begin_write(WATCHER_SV.read().sync_debounce.get().saturating_sub(write.last.elapsed()));
+
+                // tag events during write so that `read_impl` can avoid reading this change back
+                let _tag = WATCHER.annotate(data.note.clone());
+                while let Some(value) = data.write_value.lock().take() {
+                    (write.f)(value, WriteFile::open(data.note.0.clone()));
+                }
+
+                write.last = INSTANT.now();
+            }));
+
+            true
+        })
+        .perm();
     }
 
     /// Same operation as [`sync`] but also tracks the operation status in a second var.
@@ -273,14 +617,112 @@ impl WATCHER {
         &self,
         file: impl Into<PathBuf>,
         init: O,
-        read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, ER> + Send + 'static,
-        write: impl FnMut(O, io::Result<WriteFile>) -> Result<(), EW> + Send + 'static,
+        mut read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, ER> + Send + 'static,
+        mut write: impl FnMut(O, io::Result<WriteFile>) -> Result<(), EW> + Send + 'static,
     ) -> (Var<O>, Var<S>)
     where
         O: VarValue,
         S: WatcherSyncStatus<ER, EW>,
+        ER: Any,
+        EW: Any,
     {
-        WATCHER_SV.write().sync_status(file.into(), init, read, write)
+        let out = var(init);
+        let status = var(S::idle());
+        self.sync_status_impl(
+            absolutize_or_pass(file.into()),
+            out.as_any().clone(),
+            status.as_any().clone(),
+            Box::new(move |r| match read(r) {
+                Ok(Some(r)) => Ok(Some(BoxAnyVarValue::new(r))),
+                Ok(None) => Ok(None),
+                Err(e) => Err(Box::new(e)),
+            }),
+            AnyWatcherReadStatus::new::<ER, S>(),
+            Box::new(move |o, r| match write(o.downcast().unwrap(), r) {
+                Ok(()) => Ok(()),
+                Err(e) => Err(Box::new(e)),
+            }),
+            AnyWatcherWriteStatus::new::<ER, EW, S>(),
+        );
+        (out, status.read_only())
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn sync_status_impl(
+        &self,
+        file: PathBuf,
+        out: AnyVar,
+        status: AnyVar,
+        read: Box<dyn FnMut(io::Result<WatchFile>) -> Result<Option<BoxAnyVarValue>, Box<dyn Any>> + Send + 'static>,
+        status_mtds: AnyWatcherReadStatus,
+        write: Box<dyn FnMut(BoxAnyVarValue, io::Result<WriteFile>) -> Result<(), Box<dyn Any>> + Send + 'static>,
+        status_w_mtds: AnyWatcherWriteStatus,
+    ) {
+        self.read_status_impl(file.clone(), out.downgrade(), status.clone(), read, status_mtds);
+
+        struct DataWrite {
+            f: Box<dyn FnMut(BoxAnyVarValue, io::Result<WriteFile>) -> Result<(), Box<dyn Any>> + Send + 'static>,
+            last: DInstant,
+        }
+        struct Data {
+            note: Arc<WatcherSyncWriteNote>,
+            write: Mutex<DataWrite>,
+            write_value: Mutex<Option<BoxAnyVarValue>>,
+            debounce_flush: Arc<SyncFlushLock>,
+            status: AnyVar,
+            status_w_mtds: AnyWatcherWriteStatus,
+        }
+        let data = Arc::new(Data {
+            note: Arc::new(WatcherSyncWriteNote(file)),
+            write: Mutex::new(DataWrite {
+                f: write,
+                last: DInstant::EPOCH,
+            }),
+            write_value: Mutex::new(None),
+            debounce_flush: Arc::new(SyncFlushLock::new()),
+            status,
+            status_w_mtds,
+        });
+        WATCHER_SV.write().push_sync_flush(&data.debounce_flush);
+
+        out.hook(move |a| {
+            // skip if value was set from `read_impl`
+            for tag in a.downcast_tags::<WatcherSyncWriteNote>() {
+                if *tag == *data.note {
+                    return true;
+                }
+            }
+
+            // spawn write
+            let mut d = data.write_value.lock();
+            let is_running = d.is_some() || data.write.try_lock().is_none();
+            *d = Some(a.value().clone_boxed());
+            if is_running {
+                return true;
+            }
+            data.status.set((data.status_w_mtds.writing)());
+            zng_task::spawn_wait(clmv!(data, || {
+                // wait other write tasks
+                let mut write = data.write.lock();
+                // wait debounce of APP.on_deinit signal, holds _guard to block on_deinit so the process is not killed while writing
+                let debounce = WATCHER_SV.read().sync_debounce.get().saturating_sub(write.last.elapsed());
+                let _guard = data.debounce_flush.begin_write(debounce);
+
+                // tag events during write so that `read_impl` can avoid reading this change back
+                let _tag = WATCHER.annotate(data.note.clone());
+
+                while let Some(value) = data.write_value.lock().take() {
+                    match (write.f)(value, WriteFile::open(data.note.0.clone())) {
+                        Ok(()) => data.status.set((data.status_w_mtds.idle)()),
+                        Err(e) => data.status.set((data.status_w_mtds.write_error)(e)),
+                    }
+                }
+
+                write.last = INSTANT.now();
+            }));
+
+            true
+        })
+        .perm();
     }
 
     /// Watch `file` and calls `handler` every time it changes.
@@ -293,7 +735,7 @@ impl WATCHER {
     /// [`async_hn!`]: macro@zng_app::handler::async_hn
     /// [`task::wait`]: zng_task::wait
     pub fn on_file_changed(&self, file: impl Into<PathBuf>, ignore_propagation: bool, handler: Handler<FsChangesArgs>) -> VarHandle {
-        let file = file.into();
+        let file = absolutize_or_pass(file.into());
         let handle = self.watch(file.clone());
         FS_CHANGES_EVENT.on_event(
             ignore_propagation,
@@ -320,7 +762,7 @@ impl WATCHER {
         ignore_propagation: bool,
         handler: Handler<FsChangesArgs>,
     ) -> VarHandle {
-        let dir = dir.into();
+        let dir = absolutize_or_pass(dir.into());
         let handle = self.watch_dir(dir.clone(), recursive);
         FS_CHANGES_EVENT.on_event(
             ignore_propagation,
@@ -342,6 +784,26 @@ impl WATCHER {
     }
 }
 
+fn has_sync_changes(args: &FsChangesArgs, path: &Path) -> bool {
+    let mut any = false;
+    for change in args.changes_for_path(path) {
+        for note in change.notes::<WatcherSyncWriteNote>() {
+            if note.as_path() == path {
+                return false;
+            }
+        }
+        any = true;
+    }
+    any
+}
+
+fn absolutize_or_pass(path: PathBuf) -> PathBuf {
+    match path.absolutize() {
+        Ok(p) if p != path => p.to_path_buf(),
+        _ => path,
+    }
+}
+
 /// Represents a status type for [`WATCHER.sync_status`].
 ///
 /// [`WATCHER.sync_status`]: WATCHER::sync_status
@@ -360,6 +822,54 @@ pub trait WatcherReadStatus<ER = io::Error>: VarValue + PartialEq {
     fn reading() -> Self;
     /// New read error value.
     fn read_error(e: ER) -> Self;
+}
+
+struct AnyWatcherReadStatus {
+    idle: fn() -> BoxAnyVarValue,
+    reading: fn() -> BoxAnyVarValue,
+    read_error: fn(Box<dyn Any>) -> BoxAnyVarValue,
+}
+impl AnyWatcherReadStatus {
+    fn new<ER: Any, S: WatcherReadStatus<ER> + VarValue>() -> Self {
+        fn idle_impl<ER, S: WatcherReadStatus<ER>>() -> BoxAnyVarValue {
+            BoxAnyVarValue::new(S::idle())
+        }
+        fn reading_impl<ER, S: WatcherReadStatus<ER>>() -> BoxAnyVarValue {
+            BoxAnyVarValue::new(S::reading())
+        }
+        fn read_error_impl<ER: Any, S: WatcherReadStatus<ER> + VarValue>(e: Box<dyn Any>) -> BoxAnyVarValue {
+            BoxAnyVarValue::new(S::read_error(*e.downcast::<ER>().unwrap()))
+        }
+        Self {
+            idle: idle_impl::<ER, S>,
+            reading: reading_impl::<ER, S>,
+            read_error: read_error_impl::<ER, S>,
+        }
+    }
+}
+
+struct AnyWatcherWriteStatus {
+    idle: fn() -> BoxAnyVarValue,
+    writing: fn() -> BoxAnyVarValue,
+    write_error: fn(Box<dyn Any>) -> BoxAnyVarValue,
+}
+impl AnyWatcherWriteStatus {
+    fn new<ER, EW: Any, S: WatcherSyncStatus<ER, EW> + VarValue>() -> Self {
+        fn idle_impl<ER, S: WatcherReadStatus<ER>>() -> BoxAnyVarValue {
+            BoxAnyVarValue::new(S::idle())
+        }
+        fn writing_impl<ER, EW, S: WatcherSyncStatus<ER, EW>>() -> BoxAnyVarValue {
+            BoxAnyVarValue::new(S::writing())
+        }
+        fn write_error_impl<ER, EW: Any, S: WatcherSyncStatus<ER, EW> + VarValue>(e: Box<dyn Any>) -> BoxAnyVarValue {
+            BoxAnyVarValue::new(S::write_error(*e.downcast::<EW>().unwrap()))
+        }
+        Self {
+            idle: idle_impl::<ER, S>,
+            writing: writing_impl::<ER, EW, S>,
+            write_error: write_error_impl::<ER, EW, S>,
+        }
+    }
 }
 
 /// Represents an open read-only file provided by [`WATCHER.read`].
@@ -803,7 +1313,7 @@ pub struct FsChangeNoteHandle(#[expect(dead_code)] Arc<Arc<dyn FsChangeNote>>);
 /// Identifies the [`WATCHER.sync`] file that is currently being written to.
 ///
 /// [`WATCHER.sync`]: WATCHER::sync
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WatcherSyncWriteNote(PathBuf);
 impl WatcherSyncWriteNote {
     /// Deref.

@@ -138,15 +138,17 @@ impl AnyConfig for CONFIG {
 
 app_local! {
     static CONFIG_SV: SwapConfig = {
-        LOW_MEMORY_EVENT
-            .hook(|_| {
-                CONFIG_SV.write().low_memory();
-                true
-            })
-            .perm();
-
+        hooks();
         SwapConfig::new()
     };
+}
+fn hooks() {
+    LOW_MEMORY_EVENT
+        .hook(|_| {
+            CONFIG_SV.write().low_memory();
+            true
+        })
+        .perm();
 }
 
 /// Unique key to a config entry.

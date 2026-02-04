@@ -351,8 +351,7 @@ impl HeadlessApp {
         match self.run_task(task)? {
             Ok(r) => Some(r),
             Err(e) => {
-                tracing::error!("run_task reached deadline, {e}");
-                None
+                panic!("run_task reached deadline, {e}")
             }
         }
     }
@@ -361,12 +360,13 @@ impl HeadlessApp {
     ///
     /// Forces deinit if exit is cancelled.
     pub fn exit(mut self) {
-        self.run_task(async move {
-            let req = APP.exit();
-            req.wait_rsp().await;
-        });
+        let req = APP.exit();
+        while req.is_waiting() {
+            if let AppControlFlow::Exit = self.update(true) {
+                break;
+            }
+        }
     }
-
     /// If the app has exited.
     ///
     /// Exited apps cannot update anymore. The app should be dropped to unload the app scope.
