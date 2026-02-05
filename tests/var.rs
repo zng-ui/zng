@@ -473,7 +473,7 @@ mod context {
     }
 
     #[test]
-    fn context_var_map() {
+    fn context_var_map_basic() {
         let _test = test_app(
             APP.defaults(),
             TestWgt! {

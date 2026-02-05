@@ -13,7 +13,7 @@ use zng_app::{
     window::{WINDOW, WINDOWS_APP, WindowId, WindowMode},
 };
 use zng_app_context::app_local;
-use zng_task::rayon::prelude::*;
+use zng_task::{ParallelIteratorExt, rayon::prelude::*};
 use zng_txt::{ToTxt as _, formatx};
 use zng_unique_id::{IdEntry, IdMap, IdSet};
 use zng_var::{ResponderVar, ResponseVar, Var, const_var, response_done_var, response_var, var, var_default};
@@ -405,7 +405,7 @@ fn close_together_all_built(request: Vec<WindowId>, r: ResponderVar<CloseWindowR
                     }
                 };
                 if parallel {
-                    nodes.par_iter_mut().for_each(deinit);
+                    nodes.par_iter_mut().with_ctx().for_each(deinit);
                 } else {
                     nodes.iter_mut().for_each(deinit);
                 }
@@ -526,7 +526,7 @@ impl zng_app::window::WindowsService for WINDOWS {
             }
         };
         if parallel {
-            nodes.par_iter_mut().for_each(rebuild_info);
+            nodes.par_iter_mut().with_ctx().for_each(rebuild_info);
         } else {
             nodes.iter_mut().for_each(rebuild_info);
         }
@@ -565,7 +565,7 @@ impl zng_app::window::WindowsService for WINDOWS {
             }
         };
         if parallel {
-            nodes.par_iter_mut().for_each(update);
+            nodes.par_iter_mut().with_ctx().for_each(update);
         } else {
             nodes.iter_mut().for_each(update);
         }
@@ -596,7 +596,7 @@ impl zng_app::window::WindowsService for WINDOWS {
             crate::window::layout_open_view(args, &updates);
         };
         if parallel {
-            nodes.par_iter_mut().for_each(layout);
+            nodes.par_iter_mut().with_ctx().for_each(layout);
         } else {
             nodes.iter_mut().for_each(layout);
         }
@@ -629,7 +629,7 @@ impl zng_app::window::WindowsService for WINDOWS {
             crate::window::render(args, &render_widgets, &render_update_widgets);
         };
         if parallel {
-            nodes.par_iter_mut().for_each(render);
+            nodes.par_iter_mut().with_ctx().for_each(render);
         } else {
             nodes.iter_mut().for_each(render);
         }
