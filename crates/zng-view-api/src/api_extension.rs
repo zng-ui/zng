@@ -203,8 +203,8 @@ impl ops::Deref for ApiExtensions {
 }
 impl ApiExtensions {
     /// New Empty.
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new() -> Self {
+        Self(vec![])
     }
 
     /// Gets the position of the `ext` in the list of available extensions. This index

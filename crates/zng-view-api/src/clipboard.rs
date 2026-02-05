@@ -87,7 +87,7 @@ pub struct ClipboardTypes {
 }
 impl ClipboardTypes {
     /// New.
-    pub fn new(read: Vec<ClipboardType>, write: Vec<ClipboardType>, write_multi: bool) -> Self {
+    pub const fn new(read: Vec<ClipboardType>, write: Vec<ClipboardType>, write_multi: bool) -> Self {
         Self { read, write, write_multi }
     }
 }

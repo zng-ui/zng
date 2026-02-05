@@ -61,8 +61,6 @@ struct ViewProcessService {
 
     data_generation: ViewProcessGen,
 
-    info: ViewProcessInfo,
-
     loading_images: Vec<WeakEq<ViewImageHandleData>>,
     encoding_images: Vec<EncodeRequest>,
 
@@ -78,6 +76,7 @@ struct ViewProcessService {
 }
 app_local! {
     static VIEW_PROCESS_SV: Option<ViewProcessService> = None;
+    static VIEW_PROCESS_INFO: ViewProcessInfo = const { ViewProcessInfo::new(ViewProcessGen::INVALID, false) };
 }
 impl VIEW_PROCESS {
     /// If the `VIEW_PROCESS` can be used, this is only true in app threads for apps with render, all other
@@ -133,9 +132,9 @@ impl VIEW_PROCESS {
 
     /// Read lock view-process and reference current generation info.
     ///
-    /// Strongly recommend to clone/copy the info required, the entire service is locked until the return value is dropped.
-    pub fn info(&self) -> impl std::ops::Deref<Target = ViewProcessInfo> {
-        MappedRwLockReadGuard::map(self.read(), |p| &p.info)
+    /// Strongly recommend to clone/copy the info required, as the lock prevents info update on respawn.
+    pub fn info(&self) -> MappedRwLockReadGuard<'static, ViewProcessInfo> {
+        VIEW_PROCESS_INFO.read()
     }
 
     /// Gets the current view-process generation.
@@ -342,7 +341,7 @@ impl VIEW_PROCESS {
     pub fn extension_id(&self, extension_name: impl Into<ApiExtensionName>) -> Result<Option<ApiExtensionId>> {
         let me = self.read();
         if me.process.is_connected() {
-            Ok(me.info.extensions.id(&extension_name.into()))
+            Ok(self.info().extensions.id(&extension_name.into()))
         } else {
             Err(ChannelError::disconnected())
         }
@@ -401,7 +400,6 @@ impl VIEW_PROCESS {
             message_dialogs: vec![],
             file_dialogs: vec![],
             notifications: vec![],
-            info: ViewProcessInfo::new(ViewProcessGen::INVALID, false),
             ping_count: 0,
         });
     }
@@ -451,7 +449,7 @@ impl VIEW_PROCESS {
     /// [`Event::Inited`]: zng_view_api::Event::Inited
     pub(super) fn handle_inited(&self, inited: &zng_view_api::ViewProcessInfo) {
         let mut me = self.write();
-        me.info = inited.clone();
+        *VIEW_PROCESS_INFO.write() = inited.clone();
         me.process.handle_inited(inited.generation);
     }
 

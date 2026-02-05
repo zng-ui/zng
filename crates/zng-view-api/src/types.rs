@@ -147,7 +147,7 @@ pub struct ViewProcessInfo {
 }
 impl ViewProcessInfo {
     /// New response.
-    pub fn new(generation: ViewProcessGen, is_respawn: bool) -> Self {
+    pub const fn new(generation: ViewProcessGen, is_respawn: bool) -> Self {
         Self {
             generation,
             is_respawn,

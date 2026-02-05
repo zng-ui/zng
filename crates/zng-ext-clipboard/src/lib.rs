@@ -109,6 +109,9 @@ impl CLIPBOARD {
             Some(r) => (*r).clone(),
             None => {
                 // read
+                if !VIEW_PROCESS.is_available() {
+                    return Err(ClipboardError::Disconnected);
+                }
                 let r = match VIEW_PROCESS.clipboard()?.read_text()? {
                     Ok(r) => Ok(Some(r)),
                     Err(e) => match e {
@@ -137,13 +140,17 @@ impl CLIPBOARD {
     }
     fn set_text_impl(&self, txt: Txt) -> ResponseVar<Result<(), ClipboardError>> {
         let (r, rsp) = response_var();
-        UPDATES.once_update("CLIPBOARD.set_text", move || match VIEW_PROCESS.clipboard() {
+        UPDATES.once_update("CLIPBOARD.set_text", move || {
+             if !VIEW_PROCESS.is_available() {
+                    return r.respond(Err(ClipboardError::Disconnected));
+                }
+            match VIEW_PROCESS.clipboard() {
             Ok(c) => match c.write_text(txt) {
                 Ok(vr) => r.respond(vr.map_err(ClipboardError::from)),
                 Err(e) => r.respond(Err(e.into())),
             },
             Err(e) => r.respond(Err(e.into())),
-        });
+        }});
         rsp
     }
 
@@ -158,6 +165,9 @@ impl CLIPBOARD {
         match s.update_image.upgrade() {
             Some(r) => (*r).clone(),
             None => {
+                if !VIEW_PROCESS.is_available() {
+                    return Err(ClipboardError::Disconnected);
+                }
                 let r = match VIEW_PROCESS.clipboard()?.read_image()? {
                     Ok(r) => {
                         let r = IMAGES.register(None, (r, ImageDecoded::default()));
@@ -186,7 +196,11 @@ impl CLIPBOARD {
     /// Returns a response var that updates once the image is set.
     pub fn set_image(&self, img: ImageEntry) -> ResponseVar<Result<(), ClipboardError>> {
         let (r, rsp) = response_var();
-        UPDATES.once_update("CLIPBOARD.set_image", move || match VIEW_PROCESS.clipboard() {
+        UPDATES.once_update("CLIPBOARD.set_image", move ||{ 
+            if !VIEW_PROCESS.is_available() {
+                    return r.respond(Err(ClipboardError::Disconnected));
+                }
+            match VIEW_PROCESS.clipboard() {
             Ok(c) => {
                 if img.is_loaded() {
                     match c.write_image(img.view_handle()) {
@@ -198,7 +212,7 @@ impl CLIPBOARD {
                 }
             }
             Err(e) => r.respond(Err(e.into())),
-        });
+        }});
         rsp
     }
 
@@ -209,6 +223,9 @@ impl CLIPBOARD {
         match s.update_paths.upgrade() {
             Some(r) => (*r).clone(),
             None => {
+                if !VIEW_PROCESS.is_available() {
+                    return Err(ClipboardError::Disconnected);
+                }
                 let r = match VIEW_PROCESS.clipboard()?.read_paths()? {
                     Ok(r) => Ok(Some(r)),
                     Err(e) => match e {
@@ -237,13 +254,17 @@ impl CLIPBOARD {
     }
     fn set_paths_impl(&self, list: Vec<PathBuf>) -> ResponseVar<Result<(), ClipboardError>> {
         let (r, rsp) = response_var();
-        UPDATES.once_update("CLIPBOARD.set_paths", move || match VIEW_PROCESS.clipboard() {
+        UPDATES.once_update("CLIPBOARD.set_paths", move || {
+            if !VIEW_PROCESS.is_available() {
+                    return r.respond(Err(ClipboardError::Disconnected));
+                }
+            match VIEW_PROCESS.clipboard() {
             Ok(c) => match c.write_paths(list) {
                 Ok(vr) => r.respond(vr.map_err(ClipboardError::from)),
                 Err(e) => r.respond(Err(e.into())),
             },
             Err(e) => r.respond(Err(e.into())),
-        });
+        }});
         rsp
     }
 
@@ -261,6 +282,9 @@ impl CLIPBOARD {
         match s.update_exts.get(&data_type).and_then(|r| r.upgrade()) {
             Some(r) => (*r).clone(),
             None => {
+                if !VIEW_PROCESS.is_available() {
+                    return Err(ClipboardError::Disconnected);
+                }
                 let r = match VIEW_PROCESS.clipboard()?.read_extension(data_type.clone())? {
                     Ok(r) => Ok(Some(r)),
                     Err(e) => match e {
@@ -289,13 +313,17 @@ impl CLIPBOARD {
     }
     fn set_extension_impl(&self, data_type: Txt, data: IpcBytes) -> ResponseVar<Result<(), ClipboardError>> {
         let (r, rsp) = response_var();
-        UPDATES.once_update("CLIPBOARD.set_extension", move || match VIEW_PROCESS.clipboard() {
+        UPDATES.once_update("CLIPBOARD.set_extension", move || {
+            if !VIEW_PROCESS.is_available() {
+                    return r.respond(Err(ClipboardError::Disconnected));
+                }
+            match VIEW_PROCESS.clipboard() {
             Ok(c) => match c.write_extension(data_type, data) {
                 Ok(vr) => r.respond(vr.map_err(ClipboardError::from)),
                 Err(e) => r.respond(Err(e.into())),
             },
             Err(e) => r.respond(Err(e.into())),
-        });
+        }});
         rsp
     }
 

@@ -49,9 +49,8 @@ fn headless_clipboard() {
     let mut app = APP.defaults().run_headless(false);
 
     let rsp = CLIPBOARD.set_text("test");
-    assert!(CLIPBOARD.text().unwrap().is_none()); // same app update
-
     app.update(false).assert_wait();
-    assert_eq!(rsp.rsp().unwrap(), Ok(()));
-    assert_eq!("test", CLIPBOARD.text().unwrap().unwrap());
+
+    assert_eq!(rsp.rsp().unwrap(), Err(zng::clipboard::ClipboardError::Disconnected));
+    assert_eq!( CLIPBOARD.text(), Err(zng::clipboard::ClipboardError::Disconnected));
 }
