@@ -130,10 +130,15 @@ impl Rgba {
             (self.alpha * 255.0) as u8,
         ]
     }
+
+    /// If all components are finite.
+    fn is_valid(self) -> bool {
+        self.red.is_finite() && self.blue.is_finite() && self.green.is_finite() && self.alpha.is_finite()
+    }
 }
 impl fmt::Debug for Rgba {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
+        if f.alternate() || !self.is_valid() {
             f.debug_struct("Rgba")
                 .field("red", &self.red)
                 .field("green", &self.green)
@@ -229,31 +234,49 @@ pub struct RgbaComponent(pub f32);
 /// Color channel value is in the [0..=1] range.
 impl From<f32> for RgbaComponent {
     fn from(f: f32) -> Self {
-        RgbaComponent(f)
+        if f.is_finite() {
+            RgbaComponent(f)
+        } else {
+            #[cfg(debug_assertions)]
+            panic!("rgba color component is not finite, {f}");
+
+            #[cfg(not(debug_assertions))]
+            if f.is_nan() {
+                RgbaComponent(0.0)
+            } else if f.is_sign_infinite() {
+                if f.is_sign_positive() {
+                    RgbaComponent(1.0)
+                } else {
+                    RgbaComponent(0.0)
+                }
+            } else {
+                unreachable!()
+            }
+        }
     }
 }
 /// Color channel value is in the [0..=1] range.
 impl From<f64> for RgbaComponent {
     fn from(f: f64) -> Self {
-        RgbaComponent(f as f32)
+        RgbaComponent::from(f as f32)
     }
 }
 /// Color channel value is in the [0..=255] range.
 impl From<u8> for RgbaComponent {
     fn from(u: u8) -> Self {
-        RgbaComponent(f32::from(u) / 255.)
+        RgbaComponent::from(f32::from(u) / 255.)
     }
 }
 /// Color channel value is in the [0..=100] range.
 impl From<FactorPercent> for RgbaComponent {
     fn from(p: FactorPercent) -> Self {
-        RgbaComponent(p.0 / 100.)
+        RgbaComponent::from(p.0 / 100.)
     }
 }
 /// Color channel value is in the [0..=1] range.
 impl From<Factor> for RgbaComponent {
     fn from(f: Factor) -> Self {
-        RgbaComponent(f.0)
+        RgbaComponent::from(f.0)
     }
 }
 

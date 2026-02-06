@@ -52,6 +52,8 @@ pub(crate) struct WindowsService {
 impl WindowsService {
     fn new() -> Self {
         WINDOWS_APP.init_info_provider(Box::new(WINDOWS));
+        #[cfg(feature = "image")]
+        zng_ext_image::IMAGES_WINDOW.hook_render_windows_service(Box::new(WINDOWS));
         crate::hooks::hook_events();
         Self {
             exit_on_last_close: var(true),
@@ -388,45 +390,50 @@ fn close_together_all_built(request: Vec<WindowId>, r: ResponderVar<CloseWindowR
                     return;
                 }
 
-                // deinit windows
-                let mut nodes;
-                let parallel;
-                {
-                    let mut s = WINDOWS_SV.write();
-                    // UPDATE includes info rebuild
-                    parallel = s.parallel.get().contains(ParallelWin::UPDATE);
-                    // take root nodes to allow widgets to use WINDOWS
-                    nodes = s.start_widget_update(true);
-                };
+                // notify close first, so that the closed windows receive on_close.
+                WINDOW_CLOSE_EVENT.notify(WindowCloseArgs::now(args.windows.clone()));
+                WINDOW_CLOSE_EVENT
+                    .on_event(
+                        true,
+                        hn_once!(|args: &WindowCloseArgs| {
+                            // deinit windows
+                            let mut nodes;
+                            let parallel;
+                            {
+                                let mut s = WINDOWS_SV.write();
+                                // UPDATE includes info rebuild
+                                parallel = s.parallel.get().contains(ParallelWin::UPDATE);
+                                // take root nodes to allow widgets to use WINDOWS
+                                nodes = s.start_widget_update(true);
+                            };
 
-                let deinit = |(id, n, _): &mut (WindowId, WindowNode, Option<WindowVars>)| {
-                    if args.windows.contains(id) {
-                        n.with_root(|n| n.deinit());
-                    }
-                };
-                if parallel {
-                    nodes.par_iter_mut().with_ctx().for_each(deinit);
-                } else {
-                    nodes.iter_mut().for_each(deinit);
-                }
+                            let deinit = |(id, n, _): &mut (WindowId, WindowNode, Option<WindowVars>)| {
+                                if args.windows.contains(id) {
+                                    n.with_root(|n| n.deinit());
+                                }
+                            };
+                            if parallel {
+                                nodes.par_iter_mut().with_ctx().for_each(deinit);
+                            } else {
+                                nodes.iter_mut().for_each(deinit);
+                            }
 
-                // drop windows !!: TODO this is wrong, the WINDOW_CLOSE_EVENT docs says notify happens first?
-                let mut s = WINDOWS_SV.write();
-                for (id, node, vars) in nodes.drain(..) {
-                    vars.unwrap().0.instance_state.set(WindowInstanceState::Closed);
-                    if let IdEntry::Occupied(mut e) = s.windows.entry(id) {
-                        if args.windows.contains(&id) {
-                            e.remove();
-                        } else {
-                            e.get_mut().root = Some(node);
-                        }
-                    }
-                }
-                if nodes.is_empty() && s.exit_on_last_close.get() {
-                    zng_app::APP.exit();
-                }
+                            // drop windows
+                            let mut s = WINDOWS_SV.write();
+                            s.finish_widget_update(nodes);
 
-                s.finish_widget_update(nodes);
+                            for id in &args.windows {
+                                if let Some(w) = s.windows.remove(id) {
+                                    w.vars.unwrap().0.instance_state.set(WindowInstanceState::Closed);
+                                }
+                            }
+
+                            if s.windows.is_empty() && s.exit_on_last_close.get() {
+                                zng_app::APP.exit();
+                            }
+                        }),
+                    )
+                    .perm();
 
                 // notify
                 WINDOW_CLOSE_EVENT.notify(WindowCloseArgs::now(args.windows.clone()));

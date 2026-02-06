@@ -19,7 +19,7 @@ use zng_app::{
 use zng_color::LightDark;
 use zng_layout::{
     context::LayoutPassId,
-    unit::{DipRect, DipToPx, Factor, FactorUnits as _, Layout2d, Length, PxDensity, PxRect, PxToDip as _},
+    unit::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits as _, Layout2d, Length, PxDensity, PxRect, PxToDip as _},
 };
 use zng_var::VarHandle;
 use zng_view_api::window::WindowCapability;
@@ -561,7 +561,10 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
             }
 
             with_monitor_layout(id, |_, vars, _, scale_factor, _| {
-                let size = args.value().layout().to_dip(scale_factor);
+                let size = args
+                    .value()
+                    .layout_dft(DipSize::new(Dip::new(800), Dip::new(600)).to_px(scale_factor))
+                    .to_dip(scale_factor);
                 vars.0.restore_rect.modify(move |a| {
                     if a.size != size {
                         a.size = size;
@@ -598,6 +601,12 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                 let min_size = a.value().layout().to_dip(scale_factor);
                 // view state is updated by a hook to this
                 vars.0.actual_min_size.set(min_size);
+                vars.0.restore_rect.modify(move |a| {
+                    let new_size = a.size.max(min_size);
+                    if new_size != a.size {
+                        a.size = new_size;
+                    }
+                })
             });
             true
         })
@@ -611,7 +620,43 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                 let max_size = a.value().layout().to_dip(scale_factor);
                 // view state is updated by a hook to this
                 vars.0.actual_max_size.set(max_size);
+                vars.0.restore_rect.modify(move |a| {
+                    let new_size = a.size.min(max_size);
+                    if new_size != a.size {
+                        a.size = new_size;
+                    }
+                })
             });
+            true
+        })
+        .perm();
+    // update size
+    vars.0
+        .size
+        .hook(move |a| {
+            with_monitor_layout(id, |_, vars, _, scale_factor, _| {
+                let size = a.value().layout_dft(DipSize::new(Dip::new(800), Dip::new(600)).to_px(scale_factor));
+                let min = vars.0.actual_min_size.get();
+                let max = vars.0.actual_max_size.get();
+                let size = size.to_dip(scale_factor).max(min).min(max);
+                // view state is updated by a hook to this
+                vars.0.restore_rect.modify(move |a| {
+                    if a.size != size {
+                        a.size = size;
+                    }
+                })
+            });
+            true
+        })
+        .perm();
+
+    // update layout on external resize
+    vars.0
+        .actual_size
+        .hook(move |a| {
+            if a.contains_tag(&SetFromViewTag) {
+                UPDATES.layout_window(id);
+            }
             true
         })
         .perm();
@@ -733,15 +778,14 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
         .perm();
 
     // apply local color_scheme preference
-    let actual = vars.0.actual_color_scheme.clone();
     vars.0
         .color_scheme
         .hook(move |a| {
+            let vars = WINDOWS.vars(id).unwrap();
             match *a.value() {
-                Some(c) => actual.set(c),
+                Some(c) => vars.0.actual_color_scheme.set(c),
                 None => {
                     // reset to fallback value, other hooks will keep updating (when color_scheme is None)
-                    let vars = WINDOWS.vars(id).unwrap();
                     let c = if let Some(p) = vars.0.parent.get()
                         && let Some(parent_vars) = WINDOWS.vars(p)
                     {
@@ -751,7 +795,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                             .with(|e| e.latest().map(|a| a.config.scheme))
                             .unwrap_or_default()
                     };
-                    actual.set(c);
+                    vars.0.actual_color_scheme.set(c);
                 }
             }
             true
@@ -759,15 +803,14 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
         .perm();
 
     // apply local accent_color preference
-    let actual = vars.0.actual_accent_color.clone();
     vars.0
         .accent_color
         .hook(move |a| {
+            let vars = WINDOWS.vars(id).unwrap();
             match *a.value() {
-                Some(c) => actual.set(c),
+                Some(c) => vars.0.actual_accent_color.set(c),
                 None => {
                     // reset to fallback value
-                    let vars = WINDOWS.vars(id).unwrap();
                     let c = if let Some(p) = vars.0.parent.get()
                         && let Some(parent_vars) = WINDOWS.vars(p)
                     {
@@ -778,7 +821,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                             .map(LightDark::from)
                     };
                     if let Some(c) = c {
-                        actual.set(c);
+                        vars.0.actual_accent_color.set(c);
                     }
                 }
             }
@@ -814,9 +857,60 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                 if vars.0.accent_color.get().is_none() {
                     vars.0.actual_accent_color.set(new_p_vars.0.actual_accent_color.get());
                 }
+            } else {
+                let dft = RAW_COLORS_CONFIG_CHANGED_EVENT
+                    .with(|e| e.latest().map(|l| l.config))
+                    .unwrap_or_default();
+                if vars.0.color_scheme.get().is_none() {
+                    vars.0.actual_color_scheme.set(dft.scheme);
+                }
+                if vars.0.accent_color.get().is_none() {
+                    vars.0.actual_accent_color.set(dft.accent);
+                }
             }
             prev_parent = *a.value();
             true
+        })
+        .perm();
+
+    // update children that do not override
+    vars.0
+        .actual_color_scheme
+        .hook(move |a| {
+            if let Some(vars) = WINDOWS.vars(id) {
+                vars.0.children.with(|c| {
+                    for &id in c {
+                        if let Some(vars) = WINDOWS.vars(id)
+                            && vars.0.color_scheme.get().is_none()
+                        {
+                            vars.0.actual_color_scheme.set(*a.value());
+                        }
+                    }
+                });
+                true
+            } else {
+                false
+            }
+        })
+        .perm();
+    // update children that do not override
+    vars.0
+        .actual_accent_color
+        .hook(move |a| {
+            if let Some(vars) = WINDOWS.vars(id) {
+                vars.0.children.with(|c| {
+                    for &id in c {
+                        if let Some(vars) = WINDOWS.vars(id)
+                            && vars.0.accent_color.get().is_none()
+                        {
+                            vars.0.actual_accent_color.set(*a.value());
+                        }
+                    }
+                });
+                true
+            } else {
+                false
+            }
         })
         .perm();
 
@@ -869,7 +963,9 @@ fn on_state_changed(id: WindowId, s: &zng_var::AnyVarHookArgs<'_>) -> bool {
     // !!: TODO debounce
     if !s.contains_tag(&SetFromViewTag) {
         with_view(id, |w, _, v| {
-            let _ = v.set_state(w.vars.as_ref().unwrap().window_state_all());
+            let vars = w.vars.as_ref().unwrap();
+            let state = vars.window_state_all();
+            let _ = v.set_state(state);
         })
     }
     true

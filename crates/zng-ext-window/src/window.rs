@@ -454,7 +454,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
 
     // valid auto size config
     let auto_size = if matches!(vars.state().get(), WindowState::Normal) {
-        vars.auto_size().get()
+        vars.0.auto_size.get()
     } else {
         AutoSize::empty()
     };
@@ -463,12 +463,17 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
     n.layout_pass = n.layout_pass.next();
     let (final_size, min_size, max_size) = LAYOUT.with_root_context(n.layout_pass, monitor_metrics(), || {
         // root font size
-        let font_size = vars.font_size().layout_dft_x(font_size_dft);
+        let font_size = vars.0.font_size.layout_dft_x(font_size_dft);
         LAYOUT.with_font_size(font_size, || {
             // root constraints
-            let min_size = vars.min_size().layout();
-            let max_size = vars.max_size().layout_dft(PxSize::splat(Px::MAX)).max(min_size);
-            let size = vars.actual_size().get().to_px(scale_factor);
+            let min_size = vars.0.min_size.layout();
+            let max_size = vars.0.max_size.layout_dft(PxSize::splat(Px::MAX)).max(min_size);
+            let mut size = vars.0.actual_size.get();
+            if size.is_empty() {
+                // has not open yet, use Normal size for now
+                size = vars.0.restore_rect.get().size;
+            }
+            let size = size.to_px(scale_factor);
             let mut root_cons = LAYOUT.constraints();
             if auto_size.contains(AutoSize::CONTENT_WIDTH) {
                 root_cons.x = PxConstraints::new_range(min_size.width, max_size.width);
@@ -510,7 +515,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
     }
     let min_size_dip = min_size.to_dip(scale_factor);
     let max_size_dip = max_size.to_dip(scale_factor);
-    vars.0.actual_min_size.set(max_size_dip);
+    vars.0.actual_min_size.set(min_size_dip);
     vars.0.actual_max_size.set(max_size_dip);
 
     // transition to Loaded (without view)
@@ -556,7 +561,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                     s.restore_rect.size = size_dip;
                     s.min_size = min_size_dip;
                     s.max_size = max_size_dip;
-                    vars.restore_rect().modify(move |a| {
+                    vars.0.restore_rect.modify(move |a| {
                         if a.value().size != size_dip {
                             a.value_mut().size = size_dip;
                         }
@@ -580,12 +585,8 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
 
                     let mut s = WINDOWS_SV.write();
                     if let Some(w) = s.windows.get_mut(&id) {
-                        w.vars
-                            .as_ref()
-                            .unwrap()
-                            .0
-                            .instance_state
-                            .set(WindowInstanceState::Loaded { has_view: true });
+                        let vars = w.vars.as_ref().unwrap();
+                        vars.0.instance_state.set(WindowInstanceState::Loaded { has_view: true });
                         let r = w.root.as_mut().unwrap();
                         let window = a.window.upgrade().unwrap();
 
@@ -597,6 +598,20 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                         r.view_window = Some(window);
                         r.view_opening = VarHandle::dummy();
                         UPDATES.render_window(id);
+
+                        vars.set_from_view(|v| &v.0.state, a.data.state.state);
+                        vars.set_from_view(|v| &v.0.global_position, a.data.state.global_position);
+                        vars.set_from_view(|v| &v.0.restore_rect, a.data.state.restore_rect);
+                        vars.set_from_view(|v| &v.0.restore_state, a.data.state.restore_state);
+                        vars.set_from_view(|v| &v.0.chrome, a.data.state.chrome_visible);
+
+                        vars.set_from_view(|v| &v.0.actual_monitor, a.data.monitor);
+                        vars.set_from_view(|v| &v.0.actual_position, a.data.position.1);
+                        vars.set_from_view(|v| &v.0.global_position, a.data.position.0);
+                        vars.set_from_view(|v| &v.0.actual_size, a.data.size);
+                        vars.set_from_view(|v| &v.0.scale_factor, a.data.scale_factor);
+                        vars.set_from_view(|v| &v.0.render_mode, a.data.render_mode);
+                        vars.set_from_view(|v| &v.0.safe_padding, a.data.safe_padding);
                     }
 
                     false

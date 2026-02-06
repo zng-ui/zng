@@ -52,5 +52,5 @@ fn headless_clipboard() {
     app.update(false).assert_wait();
 
     assert_eq!(rsp.rsp().unwrap(), Err(zng::clipboard::ClipboardError::Disconnected));
-    assert_eq!( CLIPBOARD.text(), Err(zng::clipboard::ClipboardError::Disconnected));
+    assert_eq!(CLIPBOARD.text(), Err(zng::clipboard::ClipboardError::Disconnected));
 }

@@ -1,7 +1,7 @@
 use std::sync::atomic::AtomicBool;
 
 use zng_ext_input::mouse::{ClickMode, MOUSE_HOVERED_EVENT, WidgetInfoBuilderMouseExt as _};
-use zng_ext_window::{WINDOW_Ext as _, WINDOWS};
+use zng_ext_window::WINDOWS;
 use zng_wgt::prelude::*;
 
 pub use zng_view_api::window::CursorIcon;
@@ -54,7 +54,7 @@ pub fn cursor(child: impl IntoUiNode, cursor: impl IntoVar<CursorSource>) -> UiN
             WIDGET.push_var_handle(h);
         }
         UiNodeOp::Info { info } => {
-            info.set_meta(*WIDGET_CURSOR_ID, cursor.clone());
+            info.set_meta(*WIDGET_CURSOR_ID, cursor.current_context());
         }
         _ => {}
     })
@@ -67,6 +67,12 @@ fn cursor_impl(id: WindowId) -> VarHandle {
             && t.window_id() == id
             && let Some(info) = WINDOWS.widget_tree(id).unwrap().get(t.widget_id())
         {
+            let mut vars = None;
+            macro_rules! vars {
+                () => {
+                    vars.get_or_insert_with(|| WINDOWS.vars(id).unwrap())
+                };
+            }
             for info in info.self_and_ancestors() {
                 if let Some(cap) = &args.capture
                     && !cap.allows((id, info.id()))
@@ -78,7 +84,7 @@ fn cursor_impl(id: WindowId) -> VarHandle {
                     if current_top != top {
                         current_top = top;
 
-                        _binding = cursor.set_bind(&WINDOW.vars().cursor());
+                        _binding = cursor.set_bind(&vars!().cursor());
                     }
                     return true;
                 }
@@ -86,7 +92,7 @@ fn cursor_impl(id: WindowId) -> VarHandle {
 
             if current_top.is_some() {
                 _binding = VarHandle::dummy();
-                WINDOW.vars().cursor().set(CursorIcon::Default);
+                vars!().cursor().set(CursorIcon::Default);
             }
         }
         true

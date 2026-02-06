@@ -186,8 +186,14 @@ fn example_fps() -> UiNode {
                         radius: color::gradient::GradientRadius::default().circle(),
                         stops: expr_var! {
                             // sample conic hue
+                            let size = #{WINDOW.vars().actual_size()};
+                            if size.is_empty() {
+                                // window still loading
+                                return color::gradient::GradientStops::from_colors::<Rgba>(&[]);
+                            }
                             let fct = *#{WINDOW.vars().scale_factor()};
-                            let size = *#{WINDOW.vars().actual_size_px()};
+                            let size = size.to_px(fct);
+
                             let c = size.to_vector().cast::<f32>() * 0.5;
                             let offset = layout::LAYOUT.with_context(layout::LayoutMetrics::new(fct, size, layout::Px(16)), || {
                                 #{offset}.layout().cast::<f32>()

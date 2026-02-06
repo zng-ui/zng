@@ -169,7 +169,7 @@ use parking_lot::Mutex;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
 use zng_txt::Txt;
 use zng_unique_id::{static_id, unique_id_64};
-use zng_var::{Var, VarValue, const_var, impl_from_and_into_var, var};
+use zng_var::{Var, VarHandles, VarValue, const_var, impl_from_and_into_var, var};
 
 #[doc(hidden)]
 pub use zng_app_context::app_local;
@@ -320,21 +320,40 @@ pub struct Command {
     local: &'static AppLocal<CommandData>,
     scope: CommandScope,
 }
-impl fmt::Debug for Command {
+struct CommandDbg {
+    static_name: &'static str,
+    scope: CommandScope,
+}
+impl CommandDbg {
+    fn new(static_name: &'static str, scope: CommandScope) -> Self {
+        Self { static_name, scope }
+    }
+}
+impl fmt::Debug for CommandDbg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             f.debug_struct("Command")
-                .field("event", &self.event)
+                .field("static_name", &self.static_name)
                 .field("scope", &self.scope)
                 .finish_non_exhaustive()
         } else {
-            write!(f, "{:?}", self.event)?;
+            write!(f, "{}", self.static_name)?;
             match self.scope {
                 CommandScope::App => Ok(()),
                 CommandScope::Window(id) => write!(f, "({id})"),
                 CommandScope::Widget(id) => write!(f, "({id})"),
             }
         }
+    }
+}
+impl fmt::Debug for Command {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let dbg = if let Some(d) = self.local.try_read() {
+            CommandDbg::new(d.static_name, self.scope)
+        } else {
+            CommandDbg::new("<locked>", self.scope)
+        };
+        fmt::Debug::fmt(&dbg, f)
     }
 }
 impl Command {
@@ -571,7 +590,7 @@ impl Command {
         handler: Handler<CommandArgs>,
     ) -> CommandHandle {
         let (mut handle, handler) = self.event_handler(enabled, direct_scope_only, handler);
-        handle._event_handle = self.event().on_pre_event(ignore_propagation, handler);
+        handle._handles.push(self.event().on_pre_event(ignore_propagation, handler));
         handle
     }
 
@@ -581,7 +600,7 @@ impl Command {
         direct_scope_only: bool,
         handler: Handler<CommandArgs>,
     ) -> (CommandHandle, Handler<CommandArgs>) {
-        let handle = self.scoped(CommandScope::App).subscribe(enabled);
+        let handle = self.subscribe(enabled);
         let local_enabled = handle.enabled().clone();
         let handler = if direct_scope_only {
             let scope = self.scope();
@@ -616,7 +635,7 @@ impl Command {
         handler: Handler<CommandArgs>,
     ) -> CommandHandle {
         let (mut handle, handler) = self.event_handler(enabled, direct_scope_only, handler);
-        handle._event_handle = self.event().on_event(ignore_propagation, handler);
+        handle._handles.push(self.event().on_event(ignore_propagation, handler));
         handle
     }
 
@@ -779,7 +798,7 @@ pub struct CommandHandle {
     command: Option<Command>,
     local_enabled: Var<bool>,
     // event subscription handle in `subscribe` or event handle in `on_(pre_)event`
-    _event_handle: VarHandle,
+    _handles: VarHandles,
 }
 /// Clone the handle.
 ///
@@ -810,29 +829,28 @@ impl CommandHandle {
         CommandHandle {
             command: None,
             local_enabled: const_var(false),
-            _event_handle: VarHandle::dummy(),
+            _handles: VarHandles::dummy(),
         }
     }
 
-    fn new(cmd: Command, _event_handle: VarHandle, enabled: bool) -> Self {
-        let r = Self {
+    fn new(cmd: Command, event_handle: VarHandle, enabled: bool) -> Self {
+        let mut r = Self {
             command: Some(cmd),
             local_enabled: var(enabled),
-            _event_handle,
+            _handles: VarHandles::dummy(),
         };
 
         // var explicit update can call hook without changing value
         let mut last_applied = enabled;
-        r.local_enabled
-            .hook(move |args| {
-                let enabled = *args.value();
-                if last_applied != enabled {
-                    Self::update_enabled(cmd, enabled);
-                    last_applied = enabled;
-                }
-                true
-            })
-            .perm();
+        r._handles.push(r.local_enabled.hook(move |args| {
+            let _hold = &event_handle;
+            let enabled = *args.value();
+            if last_applied != enabled {
+                Self::update_enabled(cmd, enabled);
+                last_applied = enabled;
+            }
+            true
+        }));
 
         r
     }
@@ -847,7 +865,15 @@ impl CommandHandle {
                         write.is_enabled.set(true);
                     }
                 } else {
-                    write.enabled_count -= 1;
+                    write.enabled_count = match write.enabled_count.checked_sub(1) {
+                        Some(c) => c,
+                        None => {
+                            #[cfg(debug_assertions)]
+                            panic!("handle for {} was disabled when enabled_count was already zero", write.static_name);
+                            #[cfg(not(debug_assertions))]
+                            0
+                        }
+                    };
                     if write.enabled_count == 0 {
                         write.is_enabled.set(false);
                     }
@@ -861,7 +887,18 @@ impl CommandHandle {
                             data.is_enabled.set(true);
                         }
                     } else {
-                        data.enabled_count -= 1;
+                        data.enabled_count = match data.enabled_count.checked_sub(1) {
+                            Some(c) => c,
+                            None => {
+                                #[cfg(debug_assertions)]
+                                panic!(
+                                    "handle for {:?} was disabled when enabled_count was already zero",
+                                    CommandDbg::new(write.static_name, scope)
+                                );
+                                #[cfg(not(debug_assertions))]
+                                0
+                            }
+                        };
                         if data.enabled_count == 0 {
                             data.is_enabled.set(false);
                         }
@@ -882,7 +919,7 @@ impl CommandHandle {
     /// continue indicating it is enabled until the app exit.
     pub fn perm(mut self) {
         // perm the handle
-        mem::replace(&mut self._event_handle, VarHandle::dummy()).perm();
+        mem::replace(&mut self._handles, VarHandles::dummy()).perm();
         // pretend we are dummy to avoid Drop code
         self.command = None;
     }
@@ -903,13 +940,32 @@ impl Drop for CommandHandle {
             let mut write = command.local.write();
             match command.scope {
                 CommandScope::App => {
-                    write.handle_count -= 1;
+                    write.handle_count = match write.handle_count.checked_sub(1) {
+                        Some(c) => c,
+                        None => {
+                            #[cfg(debug_assertions)]
+                            panic!("handle for {} was dropped when handle_count was already zero", write.static_name);
+                            #[cfg(not(debug_assertions))]
+                            0
+                        }
+                    };
                     if write.handle_count == 0 {
                         write.has_handlers.set(false);
                     }
 
                     if self.local_enabled.get() {
-                        write.enabled_count -= 1;
+                        write.enabled_count = match write.enabled_count.checked_sub(1) {
+                            Some(c) => c,
+                            None => {
+                                #[cfg(debug_assertions)]
+                                panic!(
+                                    "handle for enabled {} was dropped when enabled_count was already zero",
+                                    write.static_name
+                                );
+                                #[cfg(not(debug_assertions))]
+                                0
+                            }
+                        };
 
                         if write.enabled_count == 0 {
                             write.is_enabled.set(false);
@@ -920,10 +976,33 @@ impl Drop for CommandHandle {
                     if let hash_map::Entry::Occupied(mut entry) = write.scopes.entry(scope) {
                         let data = entry.get_mut();
 
-                        data.handle_count -= 1;
+                        data.handle_count = match data.handle_count.checked_sub(1) {
+                            Some(c) => c,
+                            None => {
+                                #[cfg(debug_assertions)]
+                                panic!(
+                                    "handle for {:?} was dropped when handle_count was already zero",
+                                    CommandDbg::new(write.static_name, scope)
+                                );
+                                #[cfg(not(debug_assertions))]
+                                0
+                            }
+                        };
 
                         if self.local_enabled.get() {
-                            data.enabled_count -= 1;
+                            data.enabled_count = match data.enabled_count.checked_sub(1) {
+                                Some(c) => c,
+                                None => {
+                                    #[cfg(debug_assertions)]
+                                    panic!(
+                                        "handle for enabled {:?} was dropped when enabled_count was already zero",
+                                        CommandDbg::new(write.static_name, scope)
+                                    );
+                                    #[cfg(not(debug_assertions))]
+                                    0
+                                }
+                            };
+
                             if data.enabled_count == 0 {
                                 data.is_enabled.set(false);
                             }

@@ -10,7 +10,7 @@
 pub use webrender_api::DebugFlags;
 
 use zng_app::view_process::{VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
-use zng_ext_window::WINDOWS_EXTENSIONS;
+use zng_ext_window::{ViewExtensionError, WINDOWS, WINDOWS_EXTENSIONS, WindowInstanceState};
 use zng_wgt::prelude::*;
 
 /// Sets the Webrender renderer debug flags and profiler UI for the current window.
@@ -19,29 +19,51 @@ use zng_wgt::prelude::*;
 #[property(CONTEXT, default(RendererDebug::disabled()))]
 pub fn renderer_debug(child: impl IntoUiNode, debug: impl IntoVar<RendererDebug>) -> UiNode {
     let debug = debug.into_var();
-    fn send(dbg: &RendererDebug) {
-        if !dbg.is_empty()
-            && let Some(ext_id) = VIEW_PROCESS.extension_id("zng-view.webrender_debug").ok().flatten()
-        {
-            match WINDOWS_EXTENSIONS.view_render_extension(WINDOW.id(), ext_id, dbg) {
-                Ok(()) => {}
-                Err(e) => tracing::error!("{e}"),
-            }
-        }
-    }
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
-            debug.with(send);
-            WIDGET.push_var_handle(debug.hook(|a| {
-                send(a.value());
+            if !WINDOW.mode().has_renderer() {
+                return;
+            }
+
+            let win_id = WINDOW.id();
+            debug.with(move |d| send_render_debug(win_id, d));
+            WIDGET.push_var_handle(debug.hook(move |a| {
+                send_render_debug(win_id, a.value());
                 true
             }));
             WIDGET.push_var_handle(VIEW_PROCESS_INITED_EVENT.hook(clmv!(debug, |_| {
-                debug.with(send);
+                debug.with(|d| send_render_debug(win_id, d));
                 true
             })));
         }
     })
+}
+fn send_render_debug(win_id: WindowId, dbg: &RendererDebug) {
+    if let Some(ext_id) = VIEW_PROCESS.extension_id("zng-view.webrender_debug").ok().flatten() {
+        // process implements webrender debug
+
+        match WINDOWS_EXTENSIONS.view_render_extension(win_id, ext_id, dbg) {
+            Ok(()) => {}
+            Err(ViewExtensionError::NotOpenInViewProcess(_)) => {
+                if let Some(vars) = WINDOWS.vars(win_id) {
+                    // not open in view yet
+                    let state = vars.instance_state();
+                    // send_render_debug is only called if window mode has renderer, so hook
+                    // to await view and send
+                    state
+                        .hook(clmv!(dbg, |a| {
+                            if matches!(*a.value(), WindowInstanceState::Loaded { has_view: true }) {
+                                send_render_debug(win_id, &dbg);
+                                return false;
+                            }
+                            true
+                        }))
+                        .perm();
+                }
+            }
+            Err(e) => tracing::error!("{e}"),
+        }
+    }
 }
 
 /// Webrender renderer debug flags and profiler UI.
