@@ -541,12 +541,11 @@ impl ImageEntry {
         format: Txt,
     ) -> std::result::Result<IpcBytes, EncodeError> {
         if self.is_loading() {
-            if self.handle.is_dummy() {
-                return Err(EncodeError::Dummy);
-            }
             return Err(EncodeError::Loading);
         } else if let Some(e) = self.error() {
             return Err(e.into());
+        } else if self.handle.is_dummy() {
+            return Err(EncodeError::Dummy);
         }
 
         let mut r = ImageEncodeRequest::new(self.handle.image_id(), format);

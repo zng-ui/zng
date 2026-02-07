@@ -648,10 +648,9 @@ impl zng_app::window::WindowsService for WINDOWS {
 
 #[cfg(feature = "image")]
 impl WINDOWS {
-    /// Generate an image from the current rendered frame of the window.
+    /// Generate an image from the current rendered frame of the window or the first frame of the window.
     ///
-    /// The image is not loaded at the moment of return, it will update when the window has rendered at
-    /// least once and it the image has loaded.
+    /// The image is not loaded at the moment of return, it will update when the frame pixels are copied.
     ///
     /// If the window is not found or an error is reported in the [image error].
     ///
@@ -660,11 +659,11 @@ impl WINDOWS {
         self.frame_image_task(window_id.into(), Box::new(move |v| v.frame_image(mask)))
     }
 
-    /// Generate an image from a rectangular selection of the current rendered frame of the window.
+    /// Generate an image from a rectangular selection of the current rendered frame of the window, or of the first frame of the window.
     ///
-    /// The image is not loaded at the moment of return, it will update when it is loaded.
+    // The image is not loaded at the moment of return, it will update when the frame pixels are copied.
     ///
-    /// If the window is not found the error is reported in the image error.
+    /// If the window is not found the error is reported in the [image error].
     ///
     /// [image error]: zng_ext_image::ImageEntry::error
     pub fn frame_image_rect(
@@ -691,45 +690,53 @@ impl WINDOWS {
         use zng_txt::*;
         use zng_var::*;
 
-        let s = WINDOWS_SV.read();
-        if let Some(w) = &s.windows.get(&window_id) {
-            if !w.mode.has_renderer() {
-                return const_var(ImageEntry::new_error(formatx!("window {window_id} has no renderer")));
+        let r = var(ImageEntry::new_loading());
+        let rr = r.read_only();
+
+        UPDATES.once_update("WINDOWS.frame_image", move || {
+            let s = WINDOWS_SV.read();
+            if let Some(w) = &s.windows.get(&window_id) {
+                if !w.mode.has_renderer() {
+                    return r.set(ImageEntry::new_error(formatx!("window {window_id} has no renderer")));
+                }
+
+                if let Some(n) = &w.root
+                    && let Some(v) = &n.renderer
+                    && n.frame_id != zng_view_api::window::FrameId::INVALID
+                {
+                    // already has a frame
+                    return match task(v) {
+                        Ok(handle) => {
+                            let img = IMAGES.register(None, (handle, Default::default()));
+                            img.set_bind(&r).perm();
+                            r.hold(img).perm();
+                        }
+                        Err(e) => r.set(ImageEntry::new_error(e.to_txt())),
+                    };
+                }
+
+                // first frame not available yet, await it
+                use zng_app::view_process::raw_events::RAW_FRAME_RENDERED_EVENT;
+
+                let mut task = Some(task);
+                RAW_FRAME_RENDERED_EVENT
+                    .hook(move |args| {
+                        if args.window_id == window_id {
+                            let img = WINDOWS.frame_image_task(window_id, task.take().unwrap());
+                            img.set_bind(&r).perm();
+                            r.hold(r.clone()).perm();
+                            false
+                        } else {
+                            WINDOWS_SV.read().windows.contains_key(&window_id)
+                        }
+                    })
+                    .perm();
+            } else {
+                r.set(ImageEntry::new_error(formatx!("window {window_id} not found")));
             }
+        });
 
-            if let Some(n) = &w.root
-                && let Some(v) = &n.renderer
-                && n.frame_id != zng_view_api::window::FrameId::INVALID
-            {
-                // already has a frame
-
-                return match task(v) {
-                    Ok(handle) => IMAGES.register(None, (handle, Default::default())),
-                    Err(e) => const_var(ImageEntry::new_error(e.to_txt())),
-                };
-            }
-
-            // first frame not available yet, await it
-            use zng_app::view_process::raw_events::RAW_FRAME_RENDERED_EVENT;
-            let r = var(ImageEntry::new_loading());
-            let rr = r.read_only();
-            let mut task = Some(task);
-            RAW_FRAME_RENDERED_EVENT
-                .hook(move |args| {
-                    if args.window_id == window_id {
-                        let img = WINDOWS.frame_image_task(window_id, task.take().unwrap());
-                        img.set_bind(&r).perm();
-                        r.hold(r.clone()).perm();
-                        false
-                    } else {
-                        WINDOWS_SV.read().windows.contains_key(&window_id)
-                    }
-                })
-                .perm();
-            rr
-        } else {
-            const_var(ImageEntry::new_error(formatx!("window {window_id} not found")))
-        }
+        rr
     }
 }
 impl WINDOWS {

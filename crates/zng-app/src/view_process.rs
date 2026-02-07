@@ -227,7 +227,7 @@ impl VIEW_PROCESS {
     pub fn encode_image(&self, request: ImageEncodeRequest) -> Receiver<std::result::Result<IpcBytes, EncodeError>> {
         let (sender, receiver) = channel::bounded(1);
 
-        if request.id == ImageId::INVALID {
+        if request.id != ImageId::INVALID {
             let mut app = VIEW_PROCESS.write();
 
             match app.process.encode_image(request) {

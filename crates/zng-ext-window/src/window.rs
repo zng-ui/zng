@@ -18,7 +18,7 @@ use zng_app::{
 };
 use zng_app_context::LocalContext;
 use zng_color::{COLOR_SCHEME_VAR, Rgba, colors::ACCENT_COLOR_VAR};
-use zng_layout::unit::TimeUnits as _;
+use zng_layout::unit::{DipSize, TimeUnits as _};
 use zng_layout::{
     context::LayoutPassId,
     unit::{
@@ -468,12 +468,14 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
             // root constraints
             let min_size = vars.0.min_size.layout();
             let max_size = vars.0.max_size.layout_dft(PxSize::splat(Px::MAX)).max(min_size);
-            let mut size = vars.0.actual_size.get();
+            let mut size = vars.0.actual_size.get().to_px(scale_factor);
             if size.is_empty() {
                 // has not open yet, use Normal size for now
-                size = vars.0.restore_rect.get().size;
+                size = vars
+                    .0
+                    .size
+                    .layout_dft(DipSize::new(Dip::new(800), Dip::new(600)).to_px(scale_factor));
             }
-            let size = size.to_px(scale_factor);
             let mut root_cons = LAYOUT.constraints();
             if auto_size.contains(AutoSize::CONTENT_WIDTH) {
                 root_cons.x = PxConstraints::new_range(min_size.width, max_size.width);

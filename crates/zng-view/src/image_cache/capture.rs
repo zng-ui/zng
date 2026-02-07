@@ -61,6 +61,13 @@ impl ImageCache {
         scale_factor: Factor,
         mask: Option<ImageMaskMode>,
     ) -> std::io::Result<ImageDecoded> {
+        if rect.size.is_empty() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "cannot capture empty frame image",
+            ));
+        }
+
         let (format, og_color_type) = match gl.get_type() {
             gleam::gl::GlType::Gl => (gleam::gl::BGRA, ColorType::BGRA8),
             gleam::gl::GlType::Gles => (gleam::gl::RGBA, ColorType::RGBA8),
