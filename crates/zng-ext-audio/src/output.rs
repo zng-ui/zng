@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use zng_app::{
     update::UPDATES,
     view_process::{
-        VIEW_PROCESS, ViewAudioOutput,
+        VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewAudioOutput,
         raw_events::{RAW_AUDIO_OUTPUT_OPEN_ERROR_EVENT, RAW_AUDIO_OUTPUT_OPEN_EVENT},
     },
 };
@@ -85,18 +85,29 @@ impl AudioOutput {
             }
             true
         });
-        r.0.view
-            .hook(move |_| {
-                // hold until view is set by any of the events
-                let _hold = &handle;
-                false
-            })
-            .perm();
+        let handle = VIEW_PROCESS_INITED_EVENT.hook(move |_| {
+            let _hold = &handle;
 
-        let _ = VIEW_PROCESS.open_audio_output(zng_view_api::audio::AudioOutputRequest::new(
-            zng_view_api::audio::AudioOutputId::from_raw(id.get()),
-            opt.config,
-        ));
+            if let Some(o) = AUDIOS_SV.read().outputs.get(&id)
+                && let Some(o) = o.upgrade()
+            {
+                let config = AudioOutputConfig::new(o.0.state.get(), o.0.volume.get(), o.0.speed.get());
+                let _ = VIEW_PROCESS.open_audio_output(zng_view_api::audio::AudioOutputRequest::new(
+                    zng_view_api::audio::AudioOutputId::from_raw(id.get()),
+                    config,
+                ));
+                return true;
+            }
+            false
+        });
+        r.0.view.hold(handle).perm();
+
+        if VIEW_PROCESS.is_connected() {
+            let _ = VIEW_PROCESS.open_audio_output(zng_view_api::audio::AudioOutputRequest::new(
+                zng_view_api::audio::AudioOutputId::from_raw(id.get()),
+                opt.config,
+            ));
+        }
 
         r
     }
