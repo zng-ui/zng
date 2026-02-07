@@ -534,24 +534,27 @@ fn image_data(
     );
     request.entries = options.entries;
 
-    let try_gen = VIEW_PROCESS.generation();
-
-    match VIEW_PROCESS.add_image(request) {
-        Ok(view_img) => image_view(
+    if VIEW_PROCESS.is_connected()
+        && let Ok(view_img) = VIEW_PROCESS.add_image(request)
+    {
+        // explicitly checking for connected to avoid logging an error
+        image_view(
             cache_key,
             view_img,
             ImageDecoded::default(),
             Some((format, data, options, limits)),
             r,
-        ),
-        Err(_) => {
-            tracing::debug!("image view request failed, will retry on respawn");
-
-            zng_task::spawn(async move {
-                VIEW_PROCESS_INITED_EVENT.wait_match(move |a| a.generation != try_gen).await;
+        );
+    } else {
+        tracing::debug!("image view request failed, will retry on respawn");
+        let mut once = Some((format, data, options, limits, r));
+        VIEW_PROCESS_INITED_EVENT
+            .hook(move |_| {
+                let (format, data, options, limits, r) = once.take().unwrap();
                 image_data(true, cache_key, format, data, options, limits, r);
-            });
-        }
+                false
+            })
+            .perm();
     }
 }
 // monitor view-process handle until it is loaded

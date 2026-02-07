@@ -854,13 +854,13 @@ impl FocusService {
             },
             FocusTarget::Exit => match &origin_info {
                 Some(i) => {
-                    if i.is_alt_scope() // is ALT
-                        && let Some(r) = self.return_focused.get(&i.info().id())
-                        && let Some(r) = r.with(|p| p.as_ref().map(|p| p.widget_id())) // has recorded return
-                        && let Some(r) = find_wgt(r)
-                        && r.is_focusable()
-                    // return is valid
+                    if let Some(alt) = i.self_and_ancestors().find(|s| s.is_alt_scope()) // is in alt
+                    && let Some(r) = self.return_focused.get(&alt.info().id())
+                    && let Some(r) = r.with(|p| p.as_ref().map(|p| p.widget_id()))  // has recorded return
+                    && let Some(r) = find_wgt(r)
+                    && r.is_focusable()
                     {
+                        // return is valid
                         tracing::debug!("exiting from alt scope with return");
                         new_info = Some(r);
                     } else {
@@ -940,39 +940,40 @@ impl FocusService {
         }
 
         if let Some(prev_info) = &current_info {
-            let mut return_change = None;
-
-            if let Some(prev_scope) = prev_info.scope()
-                && !prev_scope.info().is_ancestor(new_info.info())
-                && matches!(
-                    prev_scope.focus_info().scope_on_focus(),
-                    FocusScopeOnFocus::LastFocused | FocusScopeOnFocus::LastFocusedIgnoreBounds
-                )
-            {
-                // if exited scope that remembers last focused
-
-                return_change = Some(prev_scope.info().interaction_path());
-            } else if !prev_info.is_alt_scope()
-                && let Some(new_alt_scope) = new_info.self_and_ancestors().find(|w| w.is_alt_scope())
-            {
-                // if entered alt scope update return focus
-
-                return_change = Some(new_alt_scope.info().interaction_path());
-            }
-
-            if let Some(scope_path) = return_change {
-                match self.return_focused.entry(scope_path.widget_id()) {
-                    IdEntry::Occupied(e) => {
-                        let e = e.get();
-                        if e.with(|p| *p != prev_focus) {
-                            e.set(prev_focus.clone());
-                            RETURN_FOCUS_CHANGED_EVENT.notify(ReturnFocusChangedArgs::now(scope_path, e.get(), prev_focus.clone()));
-                        }
+            // update return focus
+            let mut update_return = |scope_path: InteractionPath| match self.return_focused.entry(scope_path.widget_id()) {
+                IdEntry::Occupied(e) => {
+                    let e = e.get();
+                    if e.with(|p| *p != prev_focus) {
+                        e.set(prev_focus.clone());
+                        RETURN_FOCUS_CHANGED_EVENT.notify(ReturnFocusChangedArgs::now(scope_path, e.get(), prev_focus.clone()));
                     }
-                    IdEntry::Vacant(e) => {
-                        e.insert(var(prev_focus.clone()));
-                        RETURN_FOCUS_CHANGED_EVENT.notify(ReturnFocusChangedArgs::now(scope_path, None, prev_focus.clone()));
-                    }
+                }
+                IdEntry::Vacant(e) => {
+                    e.insert(var(prev_focus.clone()));
+                    RETURN_FOCUS_CHANGED_EVENT.notify(ReturnFocusChangedArgs::now(scope_path, None, prev_focus.clone()));
+                }
+            };
+
+            let prev_scope = prev_info.self_and_ancestors().find(|w| w.is_scope());
+            let new_scope = new_info.self_and_ancestors().find(|w| w.is_scope());
+
+            if prev_scope != new_scope {
+                if let Some(scope) = new_scope
+                    && scope.is_alt_scope()
+                {
+                    // focus entered ALT scope, previous focus outside is return
+                    update_return(scope.info().interaction_path());
+                }
+                if let Some(scope) = prev_scope
+                    && !scope.is_alt_scope()
+                    && matches!(
+                        scope.focus_info().scope_on_focus(),
+                        FocusScopeOnFocus::LastFocused | FocusScopeOnFocus::LastFocusedIgnoreBounds
+                    )
+                {
+                    // focus exited scope that remembers last focused
+                    update_return(scope.info().interaction_path());
                 }
             }
         }

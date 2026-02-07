@@ -802,7 +802,9 @@ pub(crate) fn render(
     render_widgets: &Arc<RenderUpdates>,
     render_update_widgets: &Arc<RenderUpdates>,
 ) {
-    if render_widgets.delivery_list().enter_window(*id) {
+    if render_widgets.delivery_list().enter_window(*id)
+        || (n.frame_id == FrameId::INVALID && render_update_widgets.delivery_list().enter_window(*id))
+    {
         if let Some(n) = &mut n.nested {
             n.pending_render = Some([render_widgets.clone(), render_update_widgets.clone()]);
             if let Some(t) = vars.take().unwrap().0.nest_parent.get() {

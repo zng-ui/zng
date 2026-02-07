@@ -126,7 +126,7 @@ impl Controller {
             response_receiver,
             event_listener: Some(ev),
             headless,
-            generation: ViewProcessGen::first(),
+            generation: ViewProcessGen::INVALID,
             is_respawn: false,
             last_respawn: None,
             fast_respawn_count: 0,

@@ -194,6 +194,7 @@ impl WindowCommands {
         state
             .hook(move |a| {
                 let state = *a.value();
+                let c = &c; // hold all handles
                 c.restore_handle.enabled().set(state != WindowState::Normal);
                 c.maximize_handle.enabled().set(state != WindowState::Maximized);
                 c.minimize_handle.enabled().set(state != WindowState::Minimized);
