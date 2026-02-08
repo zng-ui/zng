@@ -90,7 +90,7 @@ fn cursor_impl(id: WindowId) -> VarHandle {
                 }
             }
 
-            if current_top.is_some() {
+            if current_top.take().is_some() {
                 _binding = VarHandle::dummy();
                 vars!().cursor().set(CursorIcon::Default);
             }
