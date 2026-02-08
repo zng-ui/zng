@@ -40,7 +40,7 @@ pub mod app_side {
                     }
                 });
                 MOUSE_HOVERED_EVENT.each_update(true, |args| {
-                    let wgt = (WindowId::new_unique(), WidgetId::new_unique());
+                    let wgt = (WINDOW.id(), WIDGET.id());
                     if args.is_mouse_leave(wgt) {
                         cursor = DipPoint::splat(Dip::MIN);
                         cursor_px = PxPoint::splat(Px::MIN);

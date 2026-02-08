@@ -488,20 +488,26 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                     .size
                     .layout_dft(DipSize::new(Dip::new(800), Dip::new(600)).to_px(scale_factor));
             }
-            let mut root_cons = LAYOUT.constraints();
+
+            let metrics = LAYOUT.metrics();
+            let mut root_cons = metrics.constraints();
+            let mut viewport = size;
             if auto_size.contains(AutoSize::CONTENT_WIDTH) {
                 root_cons.x = PxConstraints::new_range(min_size.width, max_size.width);
+                viewport.width = monitor_rect.size.width;
             } else {
                 root_cons.x = PxConstraints::new_exact(size.width);
             }
             if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
                 root_cons.y = PxConstraints::new_range(min_size.height, max_size.height);
+                viewport.height = monitor_rect.size.height;
             } else {
                 root_cons.y = PxConstraints::new_exact(size.height);
             }
 
             // layout
-            let desired_size = LAYOUT.with_constraints(root_cons, || {
+            let metrics = metrics.with_constraints(root_cons).with_viewport(viewport);
+            let desired_size = LAYOUT.with_context(metrics, || {
                 n.with_root(|n| WidgetLayout::with_root_widget(updates.clone(), |wl| n.layout(wl)))
             });
 
