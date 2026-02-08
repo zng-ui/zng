@@ -207,9 +207,9 @@ impl HeadlessMonitor {
     }
 }
 impl Default for HeadlessMonitor {
-    /// New `(11608, 8708)` at `None` scale.
+    /// New `(1920, 1080)` at `None` scale.
     fn default() -> Self {
-        (11608, 8708).into()
+        (1920, 1080).into()
     }
 }
 impl_from_and_into_var! {

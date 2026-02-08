@@ -10,11 +10,12 @@ use zng_app::{
     view_process::{
         VIEW_PROCESS, ViewHeadless, ViewRenderer, ViewWindow,
         raw_events::{
-            RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OPEN_EVENT, RawWindowFocusArgs,
+            RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_MONITORS_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT,
+            RAW_WINDOW_OPEN_EVENT, RawWindowFocusArgs,
         },
     },
     widget::{VarLayout as _, VarSubscribe, WIDGET, WidgetCtx, base::PARALLEL_VAR, info::WidgetInfoTree},
-    window::{WINDOW, WindowCtx, WindowId, WindowMode},
+    window::{MonitorId, WINDOW, WindowCtx, WindowId, WindowMode},
 };
 use zng_app_context::LocalContext;
 use zng_color::{COLOR_SCHEME_VAR, Rgba, colors::ACCENT_COLOR_VAR};
@@ -420,6 +421,17 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
         // if monitor query is running now
         let resolving_monitor = monitor.is_none();
         let monitor = monitor.unwrap_or_else(|| vars.0.monitor.get().select_fallback(*id));
+
+        if monitor.id() == MonitorId::fallback() && matches!(vars.0.instance_state.get(), WindowInstanceState::Loading) {
+            // window not open yet and view-process provided no monitor (probably loading)
+            let handle = WINDOWS.loading_handle(*id, 1.secs());
+            RAW_MONITORS_CHANGED_EVENT
+                .hook(move |_| {
+                    let _hold = &handle;
+                    false
+                })
+                .perm();
+        }
 
         monitor_rect = monitor.px_rect();
         monitor_density = monitor.density().get();

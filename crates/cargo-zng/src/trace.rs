@@ -11,7 +11,7 @@ use serde::Deserialize as _;
 pub struct TraceArgs {
     /// Path or command to run the Zng executable
     ///
-    /// Example: `cargo zng "./some/exe"` or `cargo zng -- cargo run exe`
+    /// Example: `cargo zng trace "./some/exe"` or `cargo zng trace -- cargo run exe`
     #[arg(trailing_var_arg = true)]
     command: Vec<String>,
 

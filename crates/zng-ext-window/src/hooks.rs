@@ -984,12 +984,13 @@ fn with_view(id: WindowId, f: impl FnOnce(&WindowInstance, &WindowNode, &ViewWin
 #[cfg(feature = "image")]
 fn load_bind_ico<T: zng_var::VarValue>(
     id: WindowId,
-    source: zng_ext_image::ImageSource,
+    mut source: zng_ext_image::ImageSource,
     target: &zng_var::Var<T>,
     system_cap: WindowCapability,
     mut map: impl FnMut(&zng_ext_image::ImageEntry) -> T + Send + 'static,
 ) -> VarHandle {
     use zng_app::view_process::VIEW_PROCESS;
+    use zng_ext_image::{ImageRenderArgs, ImageSource};
     use zng_layout::unit::TimeUnits as _;
 
     // if VIEW_PROCESS is connected can check if system can change window icon,
@@ -1003,6 +1004,9 @@ fn load_bind_ico<T: zng_var::VarValue>(
     // load image and "reduced" alternates, common in ICO files
     let mut opt = zng_ext_image::ImageOptions::cache();
     opt.entries = zng_ext_image::ImageEntriesMode::REDUCED;
+    if let ImageSource::Render(_, a) = &mut source {
+        *a = Some(ImageRenderArgs::new(id));
+    }
     let icon = zng_ext_image::IMAGES.image(source, opt, None);
 
     // hold window open up to 1s to show the icon from the start

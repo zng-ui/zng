@@ -12,7 +12,7 @@ use zng_app::{
     },
     window::{WINDOW, WINDOWS_APP, WindowId, WindowMode},
 };
-use zng_app_context::app_local;
+use zng_app_context::{RunOnDrop, app_local};
 use zng_task::{ParallelIteratorExt, rayon::prelude::*};
 use zng_txt::{ToTxt as _, formatx};
 use zng_unique_id::{IdEntry, IdMap, IdSet};
@@ -265,25 +265,24 @@ impl WINDOWS {
     }
     fn loading_handle_impl(&self, window_id: WindowId, deadline: Deadline) -> Option<WindowLoadingHandle> {
         let s = WINDOWS_SV.read();
+
         let count = s.windows.get(&window_id)?.pending_loading.as_ref()?;
+
         count.modify(|a| **a += 1);
-        let handle = TIMERS.deadline(deadline);
+
+        // decrement count on hook drop, hook drops if entire `handle` var drops
+        // or if it returns `false` because `has_elapsed`.
         let count_wk = count.downgrade();
+        let hold = RunOnDrop::new(move || {
+            if let Some(count) = count_wk.upgrade() {
+                count.modify(|c| **c -= 1);
+            }
+        });
+        let handle = TIMERS.deadline(deadline);
         handle
             .hook(move |a| {
-                let elapsed = a.value().has_elapsed();
-                if elapsed && let Some(count) = count_wk.upgrade() {
-                    count.modify(|c| **c -= 1);
-                }
-                !elapsed
-            })
-            .perm();
-        let count_wk = count.downgrade();
-        handle
-            .hook_drop(move || {
-                if let Some(count) = count_wk.upgrade() {
-                    count.modify(|c| **c -= 1);
-                }
+                let _hold = &hold;
+                !a.value().has_elapsed()
             })
             .perm();
         Some(WindowLoadingHandle(handle))
@@ -428,7 +427,10 @@ fn close_together_all_built(request: Vec<WindowId>, r: ResponderVar<CloseWindowR
                                 }
                             }
 
-                            if s.windows.is_empty() && s.exit_on_last_close.get() {
+                            if s.exit_on_last_close.get()
+                                && !s.windows.iter().any(|w| w.1.mode.is_headed())
+                                && APP.window_mode().is_headed()
+                            {
                                 zng_app::APP.exit();
                             }
                         }),
