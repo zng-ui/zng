@@ -577,30 +577,54 @@ impl Command {
     /// Creates a preview event handler for the command.
     ///
     /// This is similar to [`Event::on_pre_event`], but with extra filtering. The `handler` is only called if
-    /// handle is `enabled` and if the scope matches. if `direct_scope_only` is enabled only handles exact
+    /// handle is [`enabled`] and if the scope matches. if `direct_scope_only` is enabled only handles exact
     /// matches, otherwise the app scope matches all events, the window scope matches all events for the window
     /// or widgets in the window and the widget scope matches the widget and all descendants.
     ///
-    /// The `enabled` value defines the handle initial state.
+    /// The `init_enabled` value defines the handle initial state.
+    ///
+    /// [`enabled`]: CommandHandle::enabled
     pub fn on_pre_event(
         &self,
-        enabled: bool,
+        init_enabled: bool,
         direct_scope_only: bool,
         ignore_propagation: bool,
         handler: Handler<CommandArgs>,
     ) -> CommandHandle {
-        let (mut handle, handler) = self.event_handler(enabled, direct_scope_only, handler);
+        let (mut handle, handler) = self.event_handler(init_enabled, direct_scope_only, handler);
         handle._handles.push(self.event().on_pre_event(ignore_propagation, handler));
+        handle
+    }
+
+    /// Creates an event handler for the command.
+    ///
+    /// This is similar to [`Event::on_event`], but with extra filtering. The `handler` is only called if
+    /// the command handle is [`enabled`] and if the scope matches. if `direct_scope_only` is enabled only handles exact
+    /// matches, otherwise the app scope matches all events, the window scope matches all events for the window
+    /// or widgets in the window and the widget scope matches the widget and all descendants.
+    ///
+    /// The `init_enabled` value defines the handle initial state.
+    ///
+    /// [`enabled`]: CommandHandle::enabled
+    pub fn on_event(
+        &self,
+        init_enabled: bool,
+        direct_scope_only: bool,
+        ignore_propagation: bool,
+        handler: Handler<CommandArgs>,
+    ) -> CommandHandle {
+        let (mut handle, handler) = self.event_handler(init_enabled, direct_scope_only, handler);
+        handle._handles.push(self.event().on_event(ignore_propagation, handler));
         handle
     }
 
     fn event_handler(
         &self,
-        enabled: bool,
+        init_enabled: bool,
         direct_scope_only: bool,
         handler: Handler<CommandArgs>,
     ) -> (CommandHandle, Handler<CommandArgs>) {
-        let handle = self.subscribe(enabled);
+        let handle = self.subscribe(init_enabled);
         let local_enabled = handle.enabled().clone();
         let handler = if direct_scope_only {
             let scope = self.scope();
@@ -619,24 +643,81 @@ impl Command {
         (handle, handler)
     }
 
-    /// Creates an event handler for the command.
+    /// Sets a handler like [`Command::on_pre_event`], but the args include the handle [`enabled`] and the handler
+    /// is called when the handle is disabled as well.
     ///
-    /// This is similar to [`Event::on_event`], but with extra filtering. The `handler` is only called if
-    /// handle is `enabled` and if the scope matches. if `direct_scope_only` is enabled only handles exact
-    /// matches, otherwise the app scope matches all events, the window scope matches all events for the window
-    /// or widgets in the window and the widget scope matches the widget and all descendants.
-    ///
-    /// The `enabled` value defines the handle initial state.
-    pub fn on_event(
+    /// [`enabled`]: CommandHandle::enabled
+    pub fn on_pre_event_with_enabled(
         &self,
-        enabled: bool,
+        init_enabled: bool,
         direct_scope_only: bool,
         ignore_propagation: bool,
-        handler: Handler<CommandArgs>,
+        handler: Handler<(CommandArgs, Var<bool>)>,
     ) -> CommandHandle {
-        let (mut handle, handler) = self.event_handler(enabled, direct_scope_only, handler);
+        let (mut handle, handler) = self.event_handler_with_enabled(init_enabled, direct_scope_only, handler);
+        handle._handles.push(self.event().on_pre_event(ignore_propagation, handler));
+        handle
+    }
+
+    /// Sets a handler like [`Command::on_event`], but the args include the handle [`enabled`] and the handler
+    /// is called when the handle is disabled as well.
+    ///
+    /// [`enabled`]: CommandHandle::enabled
+    pub fn on_event_with_enabled(
+        &self,
+        init_enabled: bool,
+        direct_scope_only: bool,
+        ignore_propagation: bool,
+        handler: Handler<(CommandArgs, Var<bool>)>,
+    ) -> CommandHandle {
+        let (mut handle, handler) = self.event_handler_with_enabled(init_enabled, direct_scope_only, handler);
         handle._handles.push(self.event().on_event(ignore_propagation, handler));
         handle
+    }
+
+    fn event_handler_with_enabled(
+        &self,
+        init_enabled: bool,
+        direct_scope_only: bool,
+        mut handler: Handler<(CommandArgs, Var<bool>)>,
+    ) -> (CommandHandle, Handler<CommandArgs>) {
+        let handle = self.subscribe(init_enabled);
+        let local_enabled = handle.enabled().clone();
+
+        let r: Handler<CommandArgs>;
+        if direct_scope_only {
+            let scope = self.scope();
+            r = Box::new(move |a: &CommandArgs| {
+                if a.scope == scope {
+                    handler(&(a.clone(), local_enabled.clone()))
+                } else {
+                    HandlerResult::Done
+                }
+            });
+        } else {
+            match self.scope() {
+                CommandScope::App => r = Box::new(move |a: &CommandArgs| handler(&(a.clone(), local_enabled.clone()))),
+                CommandScope::Window(id) => {
+                    r = Box::new(move |a: &CommandArgs| {
+                        if a.target.as_ref().map(|t| t.window_id() == id).unwrap_or(false) {
+                            handler(&(a.clone(), local_enabled.clone()))
+                        } else {
+                            HandlerResult::Done
+                        }
+                    })
+                }
+                CommandScope::Widget(id) => {
+                    r = Box::new(move |a: &CommandArgs| {
+                        if a.target.as_ref().map(|t| t.contains(id)).unwrap_or(false) {
+                            handler(&(a.clone(), local_enabled.clone()))
+                        } else {
+                            HandlerResult::Done
+                        }
+                    })
+                }
+            }
+        };
+        (handle, r)
     }
 
     /// Name of the `static` item that defines this command.

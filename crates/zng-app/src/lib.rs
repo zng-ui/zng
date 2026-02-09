@@ -471,7 +471,7 @@ impl APP {
         zng_env::init_process_name("app-process");
 
         #[cfg(debug_assertions)]
-        print_tracing(tracing::Level::INFO, false);
+        print_tracing(tracing::Level::INFO, false, |_| true);
         assert_not_view_process();
         Self::assert_can_run();
         spawn_deadlock_detection();
@@ -611,17 +611,24 @@ mod private {
 /// ```
 /// # macro_rules! { () => {
 /// fn main() {
-///     zng::app::print_tracing(tracing::Level::INFO, false);
+///     zng::app::print_tracing(tracing::Level::INFO, false, |_| true);
 ///     zng::env::init!();
 /// }
 /// # }}
 /// ```
 ///
 /// [`tracing`]: https://docs.rs/tracing
-pub fn print_tracing(max: tracing::Level, span_events: bool) -> bool {
+pub fn print_tracing(max: tracing::Level, span_events: bool, filter: impl Fn(&tracing::Metadata) -> bool + Send + Sync + 'static) -> bool {
+    print_tracing_impl(max, span_events, Box::new(filter))
+}
+fn print_tracing_impl(
+    max: tracing::Level,
+    span_events: bool,
+    filter: Box<dyn Fn(&tracing::Metadata) -> bool + Send + Sync + 'static>,
+) -> bool {
     use tracing_subscriber::prelude::*;
 
-    let layers = tracing_subscriber::registry().with(FilterLayer(max));
+    let layers = tracing_subscriber::registry().with(FilterLayer(max, filter));
 
     #[cfg(target_os = "android")]
     let layers = layers.with(tracing_android::layer(&zng_env::about().pkg_name).unwrap());
@@ -643,11 +650,10 @@ pub fn print_tracing(max: tracing::Level, span_events: bool) -> bool {
 
     layers.try_init().is_ok()
 }
-
-struct FilterLayer(tracing::Level);
+struct FilterLayer(tracing::Level, Box<dyn Fn(&tracing::Metadata) -> bool + Send + Sync>);
 impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for FilterLayer {
     fn enabled(&self, metadata: &tracing::Metadata<'_>, _: tracing_subscriber::layer::Context<'_, S>) -> bool {
-        print_tracing_filter(&self.0, metadata)
+        print_tracing_filter(&self.0, metadata, &self.1)
     }
 
     fn max_level_hint(&self) -> Option<tracing::metadata::LevelFilter> {
@@ -679,12 +685,12 @@ impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for FilterLayer {
 /// Filter used by [`print_tracing`], removes some log noise from dependencies.
 ///
 /// Use `tracing_subscriber::filter::FilterFn` plug this filter into a tracing setup.
-pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata) -> bool {
+pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata, filter: &dyn Fn(&tracing::Metadata) -> bool) -> bool {
     if metadata.level() > level {
         return false;
     }
 
-    if metadata.level() == &tracing::Level::INFO {
+    if metadata.level() == &tracing::Level::INFO && level < &tracing::Level::TRACE {
         // suppress large info about texture cache
         if metadata.target() == "zng_webrender::device::gl" {
             return false;
@@ -693,7 +699,7 @@ pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata
         if metadata.target() == "zng_webrender::renderer::init" {
             return false;
         }
-    } else if metadata.level() == &tracing::Level::WARN {
+    } else if metadata.level() == &tracing::Level::WARN && level < &tracing::Level::DEBUG {
         // suppress webrender warnings:
         //
         if metadata.target() == "zng_webrender::device::gl" {
@@ -716,7 +722,7 @@ pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata
         }
     }
 
-    true
+    filter(metadata)
 }
 
 /// Modifies the [`print_tracing`] subscriber to panic for error logs in the current app.

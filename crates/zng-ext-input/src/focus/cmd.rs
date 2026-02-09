@@ -112,9 +112,14 @@ impl FocusCommands {
     pub fn new() -> Self {
         macro_rules! handle {
             ($($CMD:ident($handle:ident) => $method:ident,)+) => {Self {
-                $($handle: $CMD.on_event(false, true, false, hn!(|args| {
+                $($handle: $CMD.on_event_with_enabled(false, true, false, hn!(|a| {
+                    let (args, enabled) = a;
                     args.propagation.stop();
-                    FOCUS.$method();
+                    if enabled.get() {
+                        FOCUS.$method();
+                    } else {
+                        FOCUS.highlight_within_auto();
+                    }
                 })),)+
                 _focus_handle: FOCUS_CMD.on_event(true, true, false, hn!(|args| {
                     if let Some(req) = args.param::<FocusRequest>() {

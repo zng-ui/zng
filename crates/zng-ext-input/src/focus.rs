@@ -22,7 +22,7 @@ use zng_unique_id::{IdEntry, IdMap};
 
 use std::{mem, time::Duration};
 use zng_app::{
-    APP, DInstant, INSTANT,
+    APP, DInstant,
     access::{ACCESS_CLICK_EVENT, ACCESS_FOCUS_EVENT, ACCESS_FOCUS_NAV_ORIGIN_EVENT},
     event::event,
     event_args, hn,
@@ -35,7 +35,7 @@ use zng_app::{
     window::WindowId,
 };
 use zng_app_context::app_local;
-use zng_ext_window::{WINDOW_FOCUS_CHANGED_EVENT, WINDOWS, WINDOWS_FOCUS};
+use zng_ext_window::{FocusIndicator, WINDOW_FOCUS_CHANGED_EVENT, WINDOWS, WINDOWS_FOCUS, WindowInstanceState};
 use zng_layout::unit::TimeUnits as _;
 use zng_var::{Var, WeakVar, const_var, var};
 
@@ -483,6 +483,19 @@ impl FOCUS {
         }
     }
 
+    /// Schedules a [`highlight`] is the latest keyboard event was within the [`auto_highlight`] interval.
+    ///
+    /// [`highlight`]: Self::highlight
+    /// [`auto_highlight`]: Self::auto_highlight
+    pub fn highlight_within_auto(&self) {
+        let dur = FOCUS_SV.read().auto_highlight.get();
+        if let Some(dur) = dur
+            && last_keyboard_event().elapsed() <= dur
+        {
+            self.highlight();
+        }
+    }
+
     /// Focus the widget if it is focusable and change the highlight.
     ///
     /// If the widget is not focusable the focus does not move, in this case the highlight changes
@@ -514,8 +527,7 @@ impl FOCUS {
     /// If the widget and no parent are focusable the focus does not move, in this case the highlight changes
     /// for the current focused widget.
     ///
-    /// If `navigation_origin` is `true` the `target` becomes the [`navigation_origin`] when the first focusable ancestor
-    /// is focused because the `target` is not focusable.
+    /// If `navigation_origin` is `true` the `target` always becomes the [`navigation_origin`] even when it is not focusable.
     ///
     /// This makes a [`focus`](Self::focus) request using [`FocusRequest::direct_or_exit`].
     ///
@@ -529,8 +541,8 @@ impl FOCUS {
     /// If the widget and no child are focusable the focus does not move, in this case the highlight changes for
     /// the current focused widget.
     ///
-    /// If `navigation_origin` is `true` the `target` becomes the [`navigation_origin`] when the first focusable descendant
-    /// is focused because the `target` is not focusable.
+    /// If `navigation_origin` is `true` the `target` becomes the [`navigation_origin`] when it is not focusable
+    /// and has no focusable descendant.
     ///
     /// This makes a [`focus`](Self::focus) request [`FocusRequest::direct_or_enter`].
     ///
@@ -545,8 +557,8 @@ impl FOCUS {
     /// If the widget no focusable widget is found the focus does not move, in this case the highlight changes
     /// for the current focused widget.
     ///
-    /// If `navigation_origin` is `true` the `target` becomes the [`navigation_origin`] when the first focusable relative
-    /// is focused because the `target` is not focusable.
+    /// If `navigation_origin` is `true` the `target` becomes the [`navigation_origin`] when it is not focusable
+    /// and has no focusable descendant.
     ///
     /// This makes a [`focus`](Self::focus) request using [`FocusRequest::direct_or_related`].
     ///
@@ -709,6 +721,7 @@ impl FocusService {
         fn refresh(_: &zng_var::VarHookArgs<bool>) -> bool {
             let mut s = FOCUS_SV.write();
             if let Some(id) = s.focused.with(|p| p.as_ref().map(|p| p.widget_id())) {
+                tracing::trace!("focus_disabled_widgets or focus_hidden_widgets changed recovery");
                 s.focus_direct_recovery(id, None);
             }
             true
@@ -725,14 +738,13 @@ impl FocusService {
         if mem::take(&mut self.request_highlight) {
             // there was also a highlight request
             request.highlight = true;
-        } else if !request.highlight {
-            let timestamp = INSTANT.now();
-            if let Some(dur) = self.auto_highlight.get()
-                && timestamp.duration_since(last_keyboard_event()) <= dur
-            {
-                // there was also keyboard interaction within the auto_highlight interval
-                request.highlight = true;
-            }
+        } else if !request.highlight
+            && let Some(dur) = self.auto_highlight.get()
+            && last_keyboard_event().elapsed() <= dur
+        {
+            // there was also keyboard interaction within the auto_highlight interval
+            tracing::trace!("last keyboard event within {dur:?}, highlight");
+            request.highlight = true;
         }
 
         let focus_disabled = self.focus_disabled_widgets.get();
@@ -743,7 +755,7 @@ impl FocusService {
             .focused
             .with(|p| match p {
                 Some(p) => {
-                    if let Some(t) = tree_hint
+                    if let Some(t) = &tree_hint
                         && t.window_id() == p.window_id()
                     {
                         t.get(p.widget_id())
@@ -757,12 +769,17 @@ impl FocusService {
 
         // search for widget
         let find_wgt = |id| {
-            match &current_info {
-                // try the same window first
-                Some(i) => i.info().tree().get(id),
-                None => WINDOWS.widget_info(id),
+            if let Some(c) = &current_info
+                && let Some(r) = c.info().tree().get(id)
+            {
+                return Some(r.into_focus_info(focus_disabled, focus_hidden));
             }
-            .map(|i| i.into_focus_info(focus_disabled, focus_hidden))
+            if let Some(t) = &tree_hint
+                && let Some(r) = t.get(id)
+            {
+                return Some(r.into_focus_info(focus_disabled, focus_hidden));
+            }
+            WINDOWS.widget_info(id).map(|r| r.into_focus_info(focus_disabled, focus_hidden))
         };
 
         // navigation origin
@@ -780,6 +797,7 @@ impl FocusService {
             FocusTarget::Direct { target } => match find_wgt(target) {
                 Some(w) => {
                     if w.is_focusable() {
+                        tracing::trace!("focus {:?}", w.info().id());
                         new_info = Some(w);
                     } else {
                         tracing::debug!("cannot focus {target}, not focusable")
@@ -790,17 +808,21 @@ impl FocusService {
             FocusTarget::DirectOrExit { target, navigation_origin } => match find_wgt(target) {
                 Some(w) => {
                     if w.is_focusable() {
+                        tracing::trace!("focus {:?}", w.info().id());
                         new_info = Some(w);
                     } else {
                         tracing::debug!("cannot focus {target}, not focusable, will try ancestors");
                         match w.ancestors().next() {
                             Some(actual) => {
-                                if navigation_origin {
-                                    new_origin = Some(w.info().id());
-                                }
+                                tracing::trace!("focusing ancestor {:?}", actual.info().id());
                                 new_info = Some(actual);
                             }
-                            None => tracing::debug!("cannot focus {target} or ancestor, none focusable in path"),
+                            None => {
+                                tracing::debug!("cannot focus {target} or ancestor, none focusable in path");
+                            }
+                        }
+                        if navigation_origin {
+                            new_origin = Some(w.info().id());
                         }
                     }
                 }
@@ -809,17 +831,21 @@ impl FocusService {
             FocusTarget::DirectOrEnter { target, navigation_origin } => match find_wgt(target) {
                 Some(w) => {
                     if w.is_focusable() {
+                        tracing::trace!("focus {:?}", w.info().id());
                         new_info = Some(w);
                     } else {
                         tracing::debug!("cannot focus {target}, not focusable, will try descendants");
                         match w.first_tab_descendant() {
                             Some(actual) => {
+                                tracing::trace!("focusing descendant {:?}", actual.info().id());
+                                new_info = Some(actual);
+                            }
+                            None => {
                                 if navigation_origin {
                                     new_origin = Some(w.info().id());
                                 }
-                                new_info = Some(actual);
+                                tracing::debug!("cannot focus {target} or descendants, none tab focusable in subtree");
                             }
-                            None => tracing::debug!("cannot focus {target} or descendants, none tab focusable in subtree"),
                         }
                     }
                 }
@@ -828,28 +854,43 @@ impl FocusService {
             FocusTarget::DirectOrRelated { target, navigation_origin } => match find_wgt(target) {
                 Some(w) => {
                     if w.is_focusable() {
+                        tracing::trace!("focus {:?}", w.info().id());
                         new_info = Some(w);
                     } else {
                         tracing::debug!("cannot focus {target}, not focusable, will try descendants and ancestors");
                         match w
                             .first_tab_descendant()
-                            .or_else(|| w.descendants().next())
-                            .or_else(|| w.ancestors().next())
+                            .map(|w| (w, false))
+                            .or_else(|| w.descendants().next().map(|w| (w, false)))
+                            .or_else(|| w.ancestors().next().map(|w| (w, true)))
                         {
-                            Some(actual) => {
+                            Some((actual, is_ancestor)) => {
+                                if navigation_origin && is_ancestor {
+                                    new_origin = Some(w.info().id());
+                                }
+                                tracing::trace!(
+                                    "focusing {} {:?}",
+                                    if is_ancestor { "ancestor" } else { "descendant" },
+                                    actual.info().id()
+                                );
+                                new_info = Some(actual);
+                            }
+                            None => {
                                 if navigation_origin {
                                     new_origin = Some(w.info().id());
                                 }
-                                new_info = Some(actual);
+                                tracing::debug!("cannot focus {target} or descendants or ancestors, none focusable")
                             }
-                            None => tracing::debug!("cannot focus {target} or descendants or ancestors, none focusable"),
                         }
                     }
                 }
                 None => tracing::debug!("cannot focus {target} or descendants or ancestors, not found"),
             },
             FocusTarget::Enter => match &origin_info {
-                Some(i) => new_info = i.first_tab_descendant(),
+                Some(i) => {
+                    new_info = i.first_tab_descendant();
+                    tracing::trace!("enter {:?}, focus {:?}", i.info().id(), new_info.as_ref().map(|w| w.info().id()));
+                }
                 None => tracing::debug!("cannot enter focused, no current focus"),
             },
             FocusTarget::Exit => match &origin_info {
@@ -861,36 +902,75 @@ impl FocusService {
                     && r.is_focusable()
                     {
                         // return is valid
-                        tracing::debug!("exiting from alt scope with return");
+                        tracing::trace!("exiting from alt scope {:?} to return {:?}", i.info().id(), r.info().id());
                         new_info = Some(r);
                     } else {
                         new_info = i.ancestors().next();
+                        tracing::trace!("exit {:?}, focus {:?}", i.info().id(), new_info.as_ref().map(|w| w.info().id()));
                     }
                 }
                 None => tracing::debug!("cannot exit focused, no current focus"),
             },
             FocusTarget::Next => match &origin_info {
-                Some(i) => new_info = i.next_tab(false),
+                Some(i) => {
+                    new_info = i.next_tab(false);
+                    tracing::trace!(
+                        "next from {:?}, focus {:?}",
+                        i.info().id(),
+                        new_info.as_ref().map(|w| w.info().id())
+                    );
+                }
                 None => tracing::debug!("cannot focus next, no current focus"),
             },
             FocusTarget::Prev => match &origin_info {
-                Some(i) => new_info = i.prev_tab(false),
+                Some(i) => {
+                    new_info = i.prev_tab(false);
+                    tracing::trace!(
+                        "prev from {:?}, focus {:?}",
+                        i.info().id(),
+                        new_info.as_ref().map(|w| w.info().id())
+                    );
+                }
                 None => tracing::debug!("cannot focus prev, no current focus"),
             },
             FocusTarget::Up => match &origin_info {
-                Some(i) => new_info = i.next_up(),
+                Some(i) => {
+                    new_info = i.next_up();
+                    tracing::trace!("up from {:?}, focus {:?}", i.info().id(), new_info.as_ref().map(|w| w.info().id()));
+                }
                 None => tracing::debug!("cannot focus up, no current focus"),
             },
             FocusTarget::Right => match &origin_info {
-                Some(i) => new_info = i.next_right(),
+                Some(i) => {
+                    new_info = i.next_right();
+                    tracing::trace!(
+                        "right from {:?}, focus {:?}",
+                        i.info().id(),
+                        new_info.as_ref().map(|w| w.info().id())
+                    );
+                }
                 None => tracing::debug!("cannot focus right, no current focus"),
             },
             FocusTarget::Down => match &origin_info {
-                Some(i) => new_info = i.next_down(),
+                Some(i) => {
+                    new_info = i.next_down();
+                    tracing::trace!(
+                        "down from {:?}, focus {:?}",
+                        i.info().id(),
+                        new_info.as_ref().map(|w| w.info().id())
+                    );
+                }
                 None => tracing::debug!("cannot focus down, no current focus"),
             },
             FocusTarget::Left => match &origin_info {
-                Some(i) => new_info = i.next_left(),
+                Some(i) => {
+                    new_info = i.next_left();
+                    tracing::trace!(
+                        "left from {:?}, focus {:?}",
+                        i.info().id(),
+                        new_info.as_ref().map(|w| w.info().id())
+                    );
+                }
                 None => tracing::debug!("cannot focus left, no current focus"),
             },
             FocusTarget::Alt => match &origin_info {
@@ -902,17 +982,22 @@ impl FocusService {
                             && let Some(r) = find_wgt(r)
                             && r.is_focusable()
                         {
-                            tracing::trace!("exiting from alt scope with return");
+                            tracing::trace!("toggle alt from alt scope, exit to return {:?}", r.info().id());
                             new_info = Some(r);
                         } else {
-                            tracing::debug!("is in alt scope without return focus, exiting to window root focusable");
+                            tracing::trace!("is in alt scope without return focus, exiting to window root focusable");
                             new_info = i.focus_tree().focusable_root();
+                            tracing::trace!(
+                                "toggle alt from alt scope, to window root {:?}",
+                                new_info.as_ref().map(|w| w.info().id())
+                            );
                         }
                     } else {
                         new_info = i.alt_scope();
+                        tracing::trace!("alt into alt scope {:?}", new_info.as_ref().map(|w| w.info().id()));
                     }
                 }
-                None => tracing::debug!("cannot focus up, no current focus"),
+                None => tracing::debug!("cannot focus alt, no current focus"),
             },
         }
 
@@ -936,23 +1021,29 @@ impl FocusService {
 
         if prev_focus == new_focus && current_highlight == new_highlight && self.enabled_nav == new_enabled_nav {
             // no change
+            tracing::trace!("no focus change");
             return;
         }
 
         if let Some(prev_info) = &current_info {
             // update return focus
-            let mut update_return = |scope_path: InteractionPath| match self.return_focused.entry(scope_path.widget_id()) {
-                IdEntry::Occupied(e) => {
-                    let e = e.get();
-                    if e.with(|p| *p != prev_focus) {
-                        e.set(prev_focus.clone());
-                        RETURN_FOCUS_CHANGED_EVENT.notify(ReturnFocusChangedArgs::now(scope_path, e.get(), prev_focus.clone()));
+            let mut update_return = |scope_path: InteractionPath| -> bool {
+                match self.return_focused.entry(scope_path.widget_id()) {
+                    IdEntry::Occupied(e) => {
+                        let e = e.get();
+                        if e.with(|p| *p != prev_focus) {
+                            e.set(prev_focus.clone());
+                            RETURN_FOCUS_CHANGED_EVENT.notify(ReturnFocusChangedArgs::now(scope_path, e.get(), prev_focus.clone()));
+                            return true;
+                        }
+                    }
+                    IdEntry::Vacant(e) => {
+                        e.insert(var(prev_focus.clone()));
+                        RETURN_FOCUS_CHANGED_EVENT.notify(ReturnFocusChangedArgs::now(scope_path, None, prev_focus.clone()));
+                        return true;
                     }
                 }
-                IdEntry::Vacant(e) => {
-                    e.insert(var(prev_focus.clone()));
-                    RETURN_FOCUS_CHANGED_EVENT.notify(ReturnFocusChangedArgs::now(scope_path, None, prev_focus.clone()));
-                }
+                false
             };
 
             let prev_scope = prev_info.self_and_ancestors().find(|w| w.is_scope());
@@ -963,7 +1054,14 @@ impl FocusService {
                     && scope.is_alt_scope()
                 {
                     // focus entered ALT scope, previous focus outside is return
-                    update_return(scope.info().interaction_path());
+                    let set = update_return(scope.info().interaction_path());
+                    if set {
+                        tracing::trace!(
+                            "set alt scope {:?} return focus to {:?}",
+                            scope.info().id(),
+                            prev_focus.as_ref().map(|f| f.widget_id())
+                        );
+                    }
                 }
                 if let Some(scope) = prev_scope
                     && !scope.is_alt_scope()
@@ -973,7 +1071,14 @@ impl FocusService {
                     )
                 {
                     // focus exited scope that remembers last focused
-                    update_return(scope.info().interaction_path());
+                    let set = update_return(scope.info().interaction_path());
+                    if set {
+                        tracing::trace!(
+                            "set scope {:?} return focus to {:?}",
+                            scope.info().id(),
+                            prev_focus.as_ref().map(|f| f.widget_id())
+                        );
+                    }
                 }
             }
         }
@@ -989,6 +1094,9 @@ impl FocusService {
         }
 
         let mut focused_changed = prev_focus != new_focus;
+
+        let prev_focus_window = prev_focus.as_ref().map(|p| p.window_id());
+        let new_focus_window = new_focus.as_ref().map(|p| p.window_id());
 
         let args = FocusChangedArgs::now(prev_focus, new_focus.clone(), new_highlight, cause, new_enabled_nav);
 
@@ -1016,11 +1124,13 @@ impl FocusService {
                 let prev_focus = args.new_focus.clone();
                 new_focus = Some(w.info().interaction_path());
 
+                focused_changed = args.prev_focus != new_focus;
                 FOCUS_CHANGED_EVENT.notify(args);
 
                 if prev_focus != new_focus {
-                    focused_changed = true;
                     new_enabled_nav = w.enabled_nav();
+
+                    tracing::trace!("on focus scope move to {:?}", new_focus.as_ref().map(|w| w.widget_id()));
 
                     FOCUS_CHANGED_EVENT.notify(FocusChangedArgs::now(
                         prev_focus,
@@ -1039,10 +1149,35 @@ impl FocusService {
 
         if focused_changed {
             self.focused.set(new_focus);
+
+            if prev_focus_window != new_focus_window
+                && let Some(w) = new_focus_window
+                && let Some(mode) = WINDOWS.mode(w)
+                && mode.is_headed()
+                && let Some(vars) = WINDOWS.vars(w)
+                && matches!(vars.instance_state().get(), WindowInstanceState::Loaded { has_view: true })
+            {
+                tracing::trace!("focus changed to another window, from {prev_focus_window:?} to {new_focus_window:?}");
+
+                if prev_focus_window.is_some() {
+                    WINDOWS_FOCUS.focus(w);
+                } else if request.force_window_focus {
+                    tracing::trace!("attempting to steal focus from other app");
+                    // try to steal focus, or set critical indicator if system does not allow focus stealing
+                    vars.focus_indicator().set(Some(FocusIndicator::Critical));
+                    WINDOWS_FOCUS.focus(w);
+                } else if let Some(i) = request.window_indicator {
+                    tracing::trace!("set focus indicator {i:?}");
+                    vars.focus_indicator().set(i);
+                } else {
+                    tracing::debug!("app does not have focus and request did not force focus or set indicator");
+                }
+            }
         }
 
         if self.enabled_nav != new_enabled_nav {
             self.enabled_nav = new_enabled_nav;
+            tracing::trace!("update cmds {:?}", new_enabled_nav);
             self.commands.update_enabled(new_enabled_nav);
         }
 
@@ -1060,6 +1195,7 @@ impl FocusService {
             self.focused.with(|f| {
                 if let Some(p) = f {
                     // does a request to focused, with highlight now
+                    tracing::trace!("highlight request to {:?}", p.widget_id());
                     self.request = Some(FocusRequest::direct(p.widget_id(), true));
                 }
             });
@@ -1085,13 +1221,13 @@ fn hooks() {
             let is_focused = FOCUS_SV.read().focused.with(|p| p.as_ref().map(|p| p.widget_id())) == Some(args.target.widget_id());
             if args.focus {
                 if !is_focused {
-                    tracing::debug!("access focus request {}", args.target.widget_id());
+                    tracing::trace!("access focus request {}", args.target.widget_id());
                     FOCUS.focus_widget(args.target.widget_id(), false);
                 } else {
                     tracing::debug!("access focus request {} ignored, already focused", args.target.widget_id());
                 }
             } else if is_focused {
-                tracing::debug!("access focus exit request {}", args.target.widget_id());
+                tracing::trace!("access focus exit request {}", args.target.widget_id());
                 FOCUS.focus_exit();
             } else {
                 tracing::debug!("access focus exit request {} ignored, not focused", args.target.widget_id());
@@ -1104,7 +1240,7 @@ fn hooks() {
         .hook(|args| {
             let is_window_focused = FOCUS_SV.read().focused.with(|p| p.as_ref().map(|p| p.window_id())) == Some(args.target.window_id());
             if is_window_focused {
-                tracing::debug!("access focus nav origin request {}", args.target.widget_id());
+                tracing::trace!("access focus nav origin request {}", args.target.widget_id());
                 FOCUS.navigation_origin().set(Some(args.target.widget_id()));
             } else {
                 tracing::debug!(
@@ -1119,7 +1255,7 @@ fn hooks() {
     MOUSE_INPUT_EVENT
         .hook(|args| {
             if args.is_mouse_down() {
-                tracing::debug!("mouse press focus request {}", args.target.widget_id());
+                tracing::trace!("mouse press focus request {}", args.target.widget_id());
                 FOCUS.focus(FocusRequest::direct_or_exit(args.target.widget_id(), true, false));
             }
             true
@@ -1129,7 +1265,7 @@ fn hooks() {
     TOUCH_INPUT_EVENT
         .hook(|args| {
             if args.is_touch_start() {
-                tracing::debug!("touch start focus request {}", args.target.widget_id());
+                tracing::trace!("touch start focus request {}", args.target.widget_id());
                 FOCUS.focus(FocusRequest::direct_or_exit(args.target.widget_id(), true, false));
             }
             true
@@ -1138,7 +1274,7 @@ fn hooks() {
 
     ACCESS_CLICK_EVENT
         .hook(|args| {
-            tracing::debug!("access click focus request {}", args.target.widget_id());
+            tracing::trace!("access click focus request {}", args.target.widget_id());
             FOCUS.focus(FocusRequest::direct_or_exit(args.target.widget_id(), true, false));
             true
         })
@@ -1154,6 +1290,10 @@ fn hooks() {
                 // on tree update (render) the widget can stop being focusable due to visibility change
                 //
                 // to correct we do a focus request and fulfill on the focused widget id.
+                //
+                // this is also needed to update the commands enabled status, for example, the previous widget from focused
+                // is now collapsed, so the previous command must now be disabled
+                tracing::trace!("tree changed recovery");
                 s.focus_direct_recovery(wgt_id, Some(&args.tree));
 
                 // and check all return focus
@@ -1175,7 +1315,7 @@ fn hooks() {
                                 let wgt_path = wgt.interaction_path();
                                 if ret.with(|p| p.as_ref() != Some(&wgt_path)) {
                                     // changed
-                                    tracing::debug!("return_focus of {scope_id} ({wgt_id}) changed");
+                                    tracing::trace!("return_focus of {scope_id} ({wgt_id}) changed");
 
                                     let was_inside_scope = ret.with(|p| p.as_ref().unwrap().contains(*scope_id));
                                     let is_inside_scope = scope.is_ancestor(&wgt);
@@ -1191,7 +1331,7 @@ fn hooks() {
                                         // retain record
                                         return true;
                                     } else {
-                                        tracing::debug!("return_focus of {scope_id} ({wgt_id}) cannot be return anymore");
+                                        tracing::trace!("return_focus of {scope_id} ({wgt_id}) cannot be return anymore");
 
                                         ret.set(None);
                                         RETURN_FOCUS_CHANGED_EVENT.notify(ReturnFocusChangedArgs::now(
@@ -1205,7 +1345,7 @@ fn hooks() {
                                     return true;
                                 }
                             } else {
-                                tracing::debug!("return_focus of {scope_id} ({wgt_id}) no longer in focus tree");
+                                tracing::trace!("return_focus of {scope_id} ({wgt_id}) no longer in focus tree");
                                 ret.set(None);
                                 RETURN_FOCUS_CHANGED_EVENT.notify(ReturnFocusChangedArgs::now(scope.interaction_path(), ret.get(), None));
                             }
@@ -1231,15 +1371,17 @@ fn hooks() {
                 if let Some(id) = args.new_focus
                     && let Some(tree) = WINDOWS.widget_tree(id)
                 {
-                    tracing::debug!("window focus changed to {id}");
+                    tracing::trace!("window focus changed to {id}");
                     let tree = FocusInfoTree::new(tree, s.focus_disabled_widgets.get(), s.focus_hidden_widgets.get());
                     if let Some(root) = tree.focusable_root() {
                         let pending_request = s.request.take();
                         let pending_fallback_request = s.fallback_request.take();
+                        tracing::trace!("window focus changed focus request {:?}", root.info().id());
                         s.request = Some(FocusRequest::direct_or_related(root.info().id(), false, s.is_highlighting.get()));
                         s.fulfill_request(Some(tree.tree()), false);
                         s.request = pending_request;
                         s.fallback_request = pending_fallback_request;
+                        return true;
                     } else {
                         tracing::debug!("focused window does not have any focusable widget");
                     }
@@ -1257,6 +1399,7 @@ fn hooks() {
                         s.enabled_nav = FocusNavAction::empty();
                         s.commands.update_enabled(FocusNavAction::empty());
                     }
+
                     FOCUS_CHANGED_EVENT.notify(FocusChangedArgs::now(
                         s.focused.get(),
                         None,

@@ -323,6 +323,7 @@ event_property! {
 pub fn is_focused(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state_init(child, state, |s| {
         let id = WIDGET.id();
+        s.set(FOCUS.focused().with(|p| matches!(p, Some(p) if p.widget_id() == id)));
         FOCUS_CHANGED_EVENT.var_bind(s, move |args| {
             if args.is_focus(id) {
                 Some(true)
@@ -347,6 +348,7 @@ pub fn is_focused(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
 pub fn is_focus_within(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state_init(child, state, |s| {
         let id = WIDGET.id();
+        s.set(FOCUS.focused().with(|p| matches!(p, Some(p) if p.contains(id))));
         FOCUS_CHANGED_EVENT.var_bind(s, move |args| {
             if args.is_focus_enter(id) {
                 Some(true)
@@ -375,6 +377,7 @@ pub fn is_focus_within(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiN
 pub fn is_focused_hgl(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state_init(child, state, |s| {
         let id = WIDGET.id();
+        s.set(FOCUS.is_highlighting().get() && FOCUS.focused().with(|p| matches!(p, Some(p) if p.widget_id() == id)));
         FOCUS_CHANGED_EVENT.var_bind(s, move |args| {
             if args.is_focus(id) {
                 Some(args.highlight)
@@ -401,6 +404,7 @@ pub fn is_focused_hgl(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNo
 pub fn is_focus_within_hgl(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state_init(child, state, |s| {
         let id = WIDGET.id();
+        s.set(FOCUS.is_highlighting().get() && FOCUS.focused().with(|p| matches!(p, Some(p) if p.contains(id))));
         FOCUS_CHANGED_EVENT.var_bind(s, move |args| {
             if args.is_focus_enter(id) {
                 Some(args.highlight)

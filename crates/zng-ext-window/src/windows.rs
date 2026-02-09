@@ -798,7 +798,7 @@ impl WINDOWS_FOCUS {
             {
                 let _ = v.focus();
             } else {
-                tracing::error!("cannot bring_to_top {window_id}, not open in view-process");
+                tracing::error!("cannot focus {window_id}, not open in view-process");
             }
         });
     }

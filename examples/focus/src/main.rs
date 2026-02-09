@@ -18,6 +18,7 @@ use zng::{
 
 fn main() {
     zng::env::init!();
+    // zng::app::print_tracing(tracing::Level::TRACE, false, |m| m.target().contains("zng_ext_input"));
 
     APP.defaults().run_window(async {
         WINDOW.id().set_name("main").unwrap();
@@ -39,7 +40,7 @@ fn main() {
             // zng::window::inspector::show_center_points = true;
             // zng::window::inspector::show_bounds = true;
             // zng::window::inspector::show_hit_test = true;
-            // zng::window::inspector::show_directional_query = Some(zng::core::unit::Orientation2D::Below);
+            // zng::window::inspector::show_directional_query = Some(layout::Orientation2D::Below);
         }
     })
 }
@@ -110,6 +111,7 @@ fn functions(window_enabled: Var<bool>) -> UiNode {
             {
                 let detach_focused = ArcNode::new_cyclic(|wk| {
                     Button! {
+                        id = "detachable-btn";
                         child = Text!("Detach Button");
                         // focus_on_init = true;
                         on_click = hn!(|_| {
@@ -119,6 +121,9 @@ fn functions(window_enabled: Var<bool>) -> UiNode {
                                     title = "Detached Button";
                                     child_align = Align::CENTER;
                                     child = wwk.upgrade().unwrap().take_on_init();
+                                    // child_bottom = Button! {
+                                    //     child = Text!("Test");
+                                    // };
                                 }
                             });
                         });
@@ -411,33 +416,33 @@ mod inspect {
                 } else {
                     return format!("<{p}>");
                 };
-                let wgt_mod = if let Some(b) = widget.inspector_info() {
+                let wgt_type = if let Some(b) = widget.inspector_info() {
                     b.builder.widget_type()
                 } else {
                     return format!("<{p}>");
                 };
-                if wgt_mod.path.ends_with("button") {
+                if wgt_type.path.ends_with("Button") {
                     let txt = widget
-                        .inspect_descendant("text")
+                        .inspect_descendant("Text")
                         .expect("expected text in button")
                         .inspect_property("txt")
                         .expect("expected txt property in text")
                         .live_debug(0)
                         .get();
 
-                    format!("button({txt})")
-                } else if wgt_mod.path.ends_with("window") {
+                    format!("Button({txt})")
+                } else if wgt_type.path.ends_with("Window") {
                     let title = widget.inspect_property("title").map(|p| p.live_debug(0).get()).unwrap_or_default();
 
-                    format!("window({title})")
+                    format!("Window({title})")
                 } else {
                     let focus_info = widget.into_focus_info(true, true);
                     if focus_info.is_alt_scope() {
-                        format!("{}(is_alt_scope)", wgt_mod.name())
+                        format!("{}(is_alt_scope)", wgt_type.name())
                     } else if focus_info.is_scope() {
-                        format!("{}(is_scope)", wgt_mod.name())
+                        format!("{}(is_scope)", wgt_type.name())
                     } else {
-                        format!("{}({})", wgt_mod.name(), p.widget_id())
+                        format!("{}({})", wgt_type.name(), p.widget_id())
                     }
                 }
             })

@@ -247,11 +247,6 @@ pub struct FocusRequest {
 
     /// Focus indicator to set on the target window if the app does not have keyboard focus and
     /// `force_window_focus` is disabled.
-    ///
-    /// The [`focus_indicator`] of the window is set and the request is processed after the window receives focus,
-    /// or it is canceled if another focus request is made.
-    ///
-    /// [`focus_indicator`]: zng_ext_window::WindowVars::focus_indicator
     pub window_indicator: Option<FocusIndicator>,
 
     /// Only fulfill this request is no other focus requests are made in the same update pass.
@@ -366,8 +361,7 @@ pub enum FocusTarget {
     DirectOrExit {
         /// Maybe focusable widget.
         target: WidgetId,
-        /// If `true` the `target` becomes the [`navigation_origin`] when the first focusable ancestor
-        /// is focused because the `target` is not focusable.
+        /// If `true` the `target` always becomes the [`navigation_origin`], even when it is not focusable.
         ///
         /// [`navigation_origin`]: crate::focus::FOCUS::navigation_origin
         navigation_origin: bool,
@@ -376,8 +370,8 @@ pub enum FocusTarget {
     DirectOrEnter {
         /// Maybe focusable widget.
         target: WidgetId,
-        /// If `true` the `target` becomes the [`navigation_origin`] when the first focusable descendant
-        /// is focused because the `target` is not focusable.
+        /// If `true` the `target` becomes the [`navigation_origin`] when it is not focusable and has no
+        /// focusable descendant.
         ///
         /// [`navigation_origin`]: crate::focus::FOCUS::navigation_origin
         navigation_origin: bool,
@@ -387,8 +381,8 @@ pub enum FocusTarget {
     DirectOrRelated {
         /// Maybe focusable widget.
         target: WidgetId,
-        /// If `true` the `target` becomes the [`navigation_origin`] when the first focusable relative
-        /// is focused because the `target` is not focusable.
+        /// If `true` the `target` becomes the [`navigation_origin`] when it is not focusable and has no
+        /// focusable descendant.
         ///
         /// [`navigation_origin`]: crate::focus::FOCUS::navigation_origin
         navigation_origin: bool,

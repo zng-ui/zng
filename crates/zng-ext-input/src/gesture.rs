@@ -525,11 +525,13 @@ impl GesturesService {
 
     fn on_shortcut(&mut self, args: &ShortcutArgs) {
         if args.actions.has_actions() {
+            tracing::trace!("shortcut pressed {:?}", &args.shortcut);
             args.actions
                 .run(args.timestamp, args.propagation(), args.device_id, args.repeat_count);
         } else if let Shortcut::Gesture(k) = &args.shortcut
             && self.chords.contains_key(k)
         {
+            tracing::trace!("shortcut primed chord {k:?}");
             self.primed_starter = Some(k.clone());
         }
     }
@@ -974,10 +976,12 @@ impl ShortcutActions {
     /// Send all events and focus request.
     fn run(&self, timestamp: DInstant, propagation: &EventPropagationHandle, device_id: Option<InputDeviceId>, repeat_count: u32) {
         if let Some(target) = self.focus() {
+            tracing::trace!("shortcut focus {target:?}");
             FOCUS.focus(FocusRequest::new(target, true));
         }
 
         if let Some((target, kind)) = &self.click {
+            tracing::trace!("shortcut click {target:?} {kind:?}");
             let args = ClickArgs::new(
                 timestamp,
                 propagation.clone(),
@@ -995,6 +999,7 @@ impl ShortcutActions {
             CLICK_EVENT.notify(args);
         }
         for command in &self.commands {
+            tracing::trace!("shortcut cmd {:?}", command);
             command.notify_linked(propagation.clone(), None);
         }
     }

@@ -19,7 +19,7 @@ mod tests;
 static FAILED: AtomicBool = AtomicBool::new(false);
 
 fn main() {
-    zng::app::print_tracing(tracing::Level::INFO, false);
+    zng::app::print_tracing(tracing::Level::INFO, false, |_| true);
 
     std::thread::spawn(move || {
         std::thread::sleep(10.minutes());

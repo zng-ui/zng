@@ -17,7 +17,6 @@ use zng::{
 fn main() {
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::env::init!();
-    zng::app::print_tracing(tracing::Level::INFO, false); // trace in view-process (thread)
     zng::view_process::prebuilt::run_same_process(app_main);
 }
 
