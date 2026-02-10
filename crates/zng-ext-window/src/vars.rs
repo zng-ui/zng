@@ -491,10 +491,15 @@ impl WindowVars {
 
     /// Defines if and how the window size is controlled by the content layout.
     ///
-    /// When enabled overwrites [`size`](Self::size), but is still coerced by [`min_size`](Self::min_size)
-    /// and [`max_size`](Self::max_size). Auto-size is disabled if the user [manually resizes](Self::resizable).
+    /// When enabled overwrites previously set window size, but is still coerced by [`min_size`]
+    /// and [`max_size`]. Auto-size is disabled if the user resizes the window or if [`size`]
+    /// is set.
     ///
     /// The default value is [`AutoSize::DISABLED`].
+    ///
+    /// [`size`]: Self::size
+    /// [`min_size`]: Self::min_size
+    /// [`max_size`]: Self::max_size
     pub fn auto_size(&self) -> Var<AutoSize> {
         self.0.auto_size.clone()
     }

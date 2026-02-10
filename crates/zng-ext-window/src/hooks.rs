@@ -26,9 +26,9 @@ use zng_view_api::window::WindowCapability;
 use zng_wgt::prelude::{DIRECTION_VAR, InteractionPath, LAYOUT, LayoutMetrics};
 
 use crate::{
-    CursorSource, IME_EVENT, ImeArgs, MONITORS, SetFromLayoutTag, SetFromViewTag, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT,
-    WINDOWS, WINDOWS_SV, WidgetInfoImeArea, WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowInstance, WindowInstanceState,
-    WindowNode, WindowVars, cmd::WindowCommands,
+    AutoSize, CursorSource, IME_EVENT, ImeArgs, MONITORS, SetFromLayoutTag, SetFromViewTag, WINDOW_CLOSE_REQUESTED_EVENT,
+    WINDOW_FOCUS_CHANGED_EVENT, WINDOWS, WINDOWS_SV, WidgetInfoImeArea, WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowInstance,
+    WindowInstanceState, WindowNode, WindowVars, cmd::WindowCommands,
 };
 
 /// Hooks always active for the lifetime of the app.
@@ -180,6 +180,9 @@ pub(crate) fn hook_events() {
                 }
                 if let Some(size) = &args.size {
                     vars.set_from_view(|v| &v.0.actual_size, *size);
+                    if let zng_view_api::window::EventCause::System = args.cause {
+                        vars.set_from_view(|v| &v.0.auto_size, AutoSize::DISABLED);
+                    }
                 }
                 if let Some((g_pos, pos)) = &args.position {
                     vars.set_from_view(|v| &v.0.global_position, *g_pos);
@@ -630,6 +633,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
             true
         })
         .perm();
+
     // update size
     vars.0
         .size
@@ -644,8 +648,18 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                     if a.size != size {
                         a.size = size;
                     }
-                })
+                });
+                vars.0.auto_size.set(AutoSize::DISABLED);
             });
+            true
+        })
+        .perm();
+    vars.0
+        .auto_size
+        .hook(move |a| {
+            if *a.value() != AutoSize::DISABLED {
+                UPDATES.layout_window(id);
+            }
             true
         })
         .perm();
