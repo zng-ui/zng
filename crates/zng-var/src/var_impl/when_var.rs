@@ -512,6 +512,13 @@ impl WeakVarImpl for WeakWhenVar {
     fn upgrade(&self) -> Option<DynAnyVar> {
         Some(DynAnyVar::When(WhenVar(self.0.upgrade()?)))
     }
+
+    fn var_eq(&self, other: &DynWeakAnyVar) -> bool {
+        match other {
+            DynWeakAnyVar::When(o) => self.0.ptr_eq(&o.0),
+            _ => false,
+        }
+    }
 }
 
 fn when_var_easing<O: VarValue + Transitionable>(builder: AnimatingWhenVarBuilder<O>) -> Var<O> {

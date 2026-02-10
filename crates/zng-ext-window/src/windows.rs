@@ -719,7 +719,6 @@ impl WINDOWS {
 
                 // first frame not available yet, await it
                 use zng_app::view_process::raw_events::RAW_FRAME_RENDERED_EVENT;
-
                 let mut task = Some(task);
                 RAW_FRAME_RENDERED_EVENT
                     .hook(move |args| {

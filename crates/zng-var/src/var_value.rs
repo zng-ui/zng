@@ -6,6 +6,8 @@ use std::{
 
 use smallbox::*;
 
+use crate::WeakVar;
+
 /// Small box for [`AnyVarValue`] values.
 pub struct BoxAnyVarValue(SmallBox<dyn AnyVarValue, space::S4>);
 impl ops::Deref for BoxAnyVarValue {
@@ -296,6 +298,41 @@ impl<T: VarValue> fmt::Debug for VarEq<T> {
 impl<T: VarValue> PartialEq for VarEq<T> {
     fn eq(&self, other: &Self) -> bool {
         self.0.var_eq(&other.0)
+    }
+}
+impl<T: VarValue> VarEq<T> {
+    /// Create a weak reference to this variable.
+    pub fn downgrade(&self) -> WeakVarEq<T> {
+        WeakVarEq(self.0.downgrade())
+    }
+}
+
+/// Represents a [`WeakVar<T>`] as a value inside another variable.
+///
+/// See [`VarEq`] for more details.
+#[derive(Clone)]
+pub struct WeakVarEq<T: VarValue>(pub crate::WeakVar<T>);
+impl<T: VarValue> ops::Deref for WeakVarEq<T> {
+    type Target = WeakVar<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T: VarValue> fmt::Debug for WeakVarEq<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
+impl<T: VarValue> PartialEq for WeakVarEq<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.var_eq(&other.0)
+    }
+}
+impl<T: VarValue> WeakVarEq<T> {
+    /// Attempt to create a strong reference to the variable.
+    pub fn upgrade(&self) -> Option<VarEq<T>> {
+        self.0.upgrade().map(VarEq)
     }
 }
 

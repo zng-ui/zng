@@ -1466,6 +1466,11 @@ impl WeakAnyVar {
     pub const fn new() -> Self {
         Self(crate::var_impl::DynWeakAnyVar::Const(crate::var_impl::const_var::WeakConstVar))
     }
+
+    /// Gets if this and `other` are a weak reference to the same var.
+    pub fn var_eq(&self, other: &Self) -> bool {
+        self.0.var_eq(&other.0)
+    }
 }
 impl Default for WeakAnyVar {
     fn default() -> Self {

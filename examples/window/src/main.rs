@@ -212,7 +212,7 @@ fn screenshot() -> UiNode {
                             frame_capture_mode = FrameCaptureMode::Next;
                             on_frame_image_ready = async_hn_once!(|args: &FrameImageReadyArgs| {
                                 tracing::info!("saving screenshot..");
-                                match args.frame_image.unwrap().get().save("screenshot.png").await {
+                                match args.frame_image.upgrade().unwrap().get().save("screenshot.png").await {
                                     Ok(_) => tracing::info!("saved"),
                                     Err(e) => tracing::error!("{e}"),
                                 }

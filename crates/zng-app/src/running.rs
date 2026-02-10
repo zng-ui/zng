@@ -654,7 +654,7 @@ impl RunningApp {
             let timer = if self.view_is_busy() {
                 None
             } else {
-                self.loop_timer.poll().map(|t| t.min(ping_timer))
+                self.loop_timer.deadline().map(|t| t.min(ping_timer))
             };
             match self.receiver.recv_deadline_blocking(timer.unwrap_or(ping_timer)) {
                 Ok(ev) => {
@@ -738,7 +738,10 @@ impl RunningApp {
             UPDATES.on_app_sleep();
             self.exited = true;
             AppControlFlow::Exit
-        } else if self.has_pending_updates() || UPDATES.has_pending_layout_or_render() {
+        } else if self.has_pending_updates()
+            || UPDATES.has_pending_layout_or_render()
+            || matches!(self.loop_timer.deadline(), Some(t) if t.has_elapsed())
+        {
             AppControlFlow::Poll
         } else {
             UPDATES.on_app_sleep();
@@ -950,7 +953,7 @@ impl LoopTimer {
     }
 
     /// Get next recv deadline.
-    pub(crate) fn poll(&mut self) -> Option<Deadline> {
+    pub(crate) fn deadline(&self) -> Option<Deadline> {
         self.deadline
     }
 

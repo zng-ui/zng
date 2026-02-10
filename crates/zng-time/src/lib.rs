@@ -72,6 +72,7 @@ impl INSTANT_APP {
     ///
     /// If mode is set to [`InstantMode::Now`] the custom now is unset.
     pub fn set_mode(&self, mode: InstantMode) {
+        tracing::trace!("set INSTANT mode to {mode:?}");
         let mut sv = INSTANT_SV.write();
         sv.mode = mode;
         if let InstantMode::Now = mode {
@@ -87,6 +88,8 @@ impl INSTANT_APP {
     ///
     /// [`INSTANT.now`]: INSTANT::now
     pub fn set_now(&self, now: DInstant) {
+        tracing::trace!("set INSTANT.now to {now:?}");
+
         let mut sv = INSTANT_SV.write();
         if let InstantMode::Now = sv.mode {
             panic!("cannot set now with `TimeMode::Now`");
@@ -104,6 +107,7 @@ impl INSTANT_APP {
     pub fn advance_now(&self, advance: Duration) {
         let mut sv = INSTANT_SV.write();
         if let InstantMode::Manual = sv.mode {
+            tracing::trace!("advance INSTANT.now by {advance:?}");
             *sv.now.get_or_insert_with(|| DInstant(INSTANT.epoch().elapsed())) += advance;
         } else {
             panic!("cannot advance now, not `InstantMode::Manual`");
@@ -112,6 +116,7 @@ impl INSTANT_APP {
 
     /// Unset the custom now value.
     pub fn unset_now(&self) {
+        tracing::trace!("unset custom INSTANT.now");
         INSTANT_SV.write().now = None;
     }
 
@@ -130,6 +135,7 @@ impl INSTANT_APP {
         let mut sv = INSTANT_SV.write();
         match sv.mode {
             InstantMode::UpdatePaused => {
+                tracing::trace!("pause time for update");
                 let now = DInstant(INSTANT.epoch().elapsed());
                 sv.now = Some(now);
                 Some(InstantUpdatePause { now })
@@ -150,6 +156,7 @@ impl Drop for InstantUpdatePause {
     fn drop(&mut self) {
         let mut sv = INSTANT_SV.write();
         if sv.now == Some(self.now) {
+            tracing::trace!("unpause time after update");
             sv.now = None;
         }
     }
@@ -244,7 +251,7 @@ impl From<Instant> for DInstant {
 /// Defines how the [`INSTANT.now`] value updates in the app.
 ///
 /// [`INSTANT.now`]: INSTANT::now
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InstantMode {
     /// Calls during an update pass (or layout, render, etc.) read the same time.
     /// Other calls to `now` resamples the time.

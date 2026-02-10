@@ -41,9 +41,9 @@ use zng_wgt::{
 };
 
 use crate::{
-    AutoSize, CloseWindowResult, MONITORS, OpenNestedHandlerArgs, SetFromLayoutTag, StartPosition, WINDOW_CLOSE_EVENT, WINDOWS,
-    WINDOWS_EXTENSIONS, WINDOWS_SV, WidgetInfoImeArea as _, WindowCloseArgs, WindowInstanceState, WindowLoadingHandle, WindowRoot,
-    WindowRootExtenderArgs, WindowVars,
+    AutoSize, CloseWindowResult, MONITORS, OpenNestedHandlerArgs, SetFromLayoutTag, StartPosition, WINDOW_CLOSE_EVENT, WINDOW_LOAD_EVENT,
+    WINDOW_OPEN_EVENT, WINDOWS, WINDOWS_EXTENSIONS, WINDOWS_SV, WidgetInfoImeArea as _, WindowCloseArgs, WindowInstanceState,
+    WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowVars,
 };
 
 /// Extensions methods for [`WINDOW`] contexts of windows open by [`WINDOWS`].
@@ -332,6 +332,7 @@ impl WindowInstance {
                 UPDATES.layout_window(id);
                 WINDOWS_SV.write().windows.get_mut(&id).unwrap().root = Some(root);
                 vars.0.instance_state.set(WindowInstanceState::Loading);
+                WINDOW_OPEN_EVENT.notify(WindowOpenArgs::now(id));
 
                 // will continue in WindowsService::update_info, called by app loop
             })
@@ -551,6 +552,9 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
         }
         w.pending_loading = None;
         vars.0.instance_state.set(WindowInstanceState::Loaded { has_view: false });
+        if !n.win_ctx.mode().has_renderer() {
+            WINDOW_LOAD_EVENT.notify(WindowOpenArgs::now(*id));
+        }
     }
 
     // transition to Loaded (with view) or update view
@@ -607,6 +611,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                     if let Some(w) = s.windows.get_mut(&id) {
                         let vars = w.vars.as_ref().unwrap();
                         vars.0.instance_state.set(WindowInstanceState::Loaded { has_view: true });
+                        WINDOW_LOAD_EVENT.notify(WindowOpenArgs::now(id));
                         let r = w.root.as_mut().unwrap();
                         let window = a.window.upgrade().unwrap();
 
@@ -781,6 +786,8 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                             .0
                             .instance_state
                             .set(WindowInstanceState::Loaded { has_view: true });
+                        WINDOW_LOAD_EVENT.notify(WindowOpenArgs::now(id));
+
                         let r = w.root.as_mut().unwrap();
                         let surface = a.surface.upgrade().unwrap();
                         r.renderer = Some(surface.renderer());
@@ -823,7 +830,10 @@ pub(crate) fn render(
     if render_widgets.delivery_list().enter_window(*id)
         || (n.frame_id == FrameId::INVALID && render_update_widgets.delivery_list().enter_window(*id))
     {
+        // if is pending render or is first frame and is pending render_update
+
         if let Some(n) = &mut n.nested {
+            // if is nested redirect to parent window
             n.pending_render = Some([render_widgets.clone(), render_update_widgets.clone()]);
             if let Some(t) = vars.take().unwrap().0.nest_parent.get() {
                 UPDATES.render(t);
@@ -831,8 +841,8 @@ pub(crate) fn render(
             return;
         }
 
-        // skip until there is a window.
-        if matches!(n.win_ctx.mode(), WindowMode::Headed | WindowMode::Headless) && n.renderer.is_none() {
+        if matches!(n.win_ctx.mode(), WindowMode::Headed | WindowMode::HeadlessWithRenderer) && n.renderer.is_none() {
+            // skip until there is a window.
             tracing::debug!("skipping render, no renderer connected");
             return;
         }
@@ -864,10 +874,6 @@ pub(crate) fn render(
         if let Some(r) = &n.renderer {
             // send frame to view-process
             let _ = r.render(FrameRequest::new(n.frame_id, n.clear_color, frame.display_list, capture, wait_id));
-        } else {
-            // simulate for headless without renderer
-            #[cfg(feature = "image")]
-            crate::FRAME_IMAGE_READY_EVENT.notify(crate::FrameImageReadyArgs::now(n.win_ctx.id(), n.frame_id, None));
         }
 
         if n.wgt_ctx.is_pending_reinit() {
@@ -914,10 +920,6 @@ pub(crate) fn render(
                 wait_id,
                 update.extensions,
             ));
-        } else {
-            // simulate for headless without renderer
-            #[cfg(feature = "image")]
-            crate::FRAME_IMAGE_READY_EVENT.notify(crate::FrameImageReadyArgs::now(n.win_ctx.id(), n.frame_id, None));
         }
 
         if n.wgt_ctx.is_pending_reinit() {

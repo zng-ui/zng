@@ -623,6 +623,9 @@ pub(crate) fn view_timeout() -> u64 {
         Ok(s) if !s.is_empty() => match s.parse::<u64>() {
             Ok(s) => s.max(5),
             Err(e) => {
+                if s == "false" {
+                    return u64::MAX;
+                }
                 tracing::error!("invalid {VIEW_TIMEOUT:?} value, {e}");
                 10
             }

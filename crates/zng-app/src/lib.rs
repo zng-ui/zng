@@ -526,6 +526,13 @@ impl AppBuilder {
     }
 
     fn run_headless_impl(self, with_renderer: bool) -> HeadlessApp {
+        if with_renderer {
+            // disable ping timeout, headless apps manually update so don't ping on a schedule.
+            unsafe {
+                std::env::set_var("ZNG_VIEW_TIMEOUT", "false");
+            }
+        }
+
         let app = RunningApp::start(
             self._cleanup,
             false,

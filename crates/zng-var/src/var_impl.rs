@@ -199,6 +199,7 @@ declare_weak! {
     fn clone_dyn(&self) -> DynWeakAnyVar;
     fn strong_count(&self) -> usize;
     fn upgrade(&self) -> Option<DynAnyVar>;
+    fn var_eq(&self, other: &DynWeakAnyVar) -> bool;
 }
 
 /// Error when an attempt to modify a variable without the [`MODIFY`] capability is made.

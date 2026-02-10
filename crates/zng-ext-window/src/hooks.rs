@@ -26,9 +26,9 @@ use zng_view_api::window::WindowCapability;
 use zng_wgt::prelude::{DIRECTION_VAR, InteractionPath, LAYOUT, LayoutMetrics};
 
 use crate::{
-    AutoSize, CursorSource, IME_EVENT, ImeArgs, MONITORS, SetFromLayoutTag, SetFromViewTag, WINDOW_CLOSE_REQUESTED_EVENT,
-    WINDOW_FOCUS_CHANGED_EVENT, WINDOWS, WINDOWS_SV, WidgetInfoImeArea, WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowInstance,
-    WindowInstanceState, WindowNode, WindowVars, cmd::WindowCommands,
+    AutoSize, CursorSource, IME_EVENT, ImeArgs, MONITORS, SetFromLayoutTag, SetFromViewTag, WINDOW_CHANGED_EVENT,
+    WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT, WINDOWS, WINDOWS_SV, WidgetInfoImeArea, WindowChangedArgs,
+    WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowInstance, WindowInstanceState, WindowNode, WindowVars, cmd::WindowCommands,
 };
 
 /// Hooks always active for the lifetime of the app.
@@ -168,7 +168,15 @@ pub(crate) fn hook_events() {
             if let Some(w) = s.windows.get(&args.window_id)
                 && let Some(vars) = &w.vars
             {
+                let mut any = false;
+                let mut state_change = None;
                 if let Some(s) = &args.state {
+                    let prev_state = vars.0.state.get();
+                    if prev_state != s.state {
+                        any = true;
+                        state_change = Some((prev_state, s.state));
+                    }
+
                     vars.set_from_view(|v| &v.0.state, s.state);
                     vars.set_from_view(|v| &v.0.global_position, s.global_position);
                     vars.set_from_view(|v| &v.0.restore_rect, s.restore_rect);
@@ -179,12 +187,14 @@ pub(crate) fn hook_events() {
                     vars.set_from_view(|v| &v.0.actual_monitor, Some(*id));
                 }
                 if let Some(size) = &args.size {
+                    any = true;
                     vars.set_from_view(|v| &v.0.actual_size, *size);
                     if let zng_view_api::window::EventCause::System = args.cause {
                         vars.set_from_view(|v| &v.0.auto_size, AutoSize::DISABLED);
                     }
                 }
                 if let Some((g_pos, pos)) = &args.position {
+                    any = true;
                     vars.set_from_view(|v| &v.0.global_position, *g_pos);
                     vars.set_from_view(|v| &v.0.actual_position, *pos);
                 }
@@ -207,6 +217,16 @@ pub(crate) fn hook_events() {
 
                     // request in case the size did not actually change (not causing frame update)
                     UPDATES.render_window(args.window_id);
+                }
+
+                if any {
+                    WINDOW_CHANGED_EVENT.notify(WindowChangedArgs::now(
+                        args.window_id,
+                        state_change,
+                        args.position,
+                        args.size,
+                        args.cause,
+                    ));
                 }
             }
             true
@@ -304,6 +324,30 @@ pub(crate) fn hook_events() {
                 }
 
                 IME_EVENT.notify(ImeArgs::new(args.timestamp, args.propagation.clone(), focus, txt, preview_caret));
+            }
+            true
+        })
+        .perm();
+
+    #[cfg(feature = "image")]
+    zng_app::view_process::raw_events::RAW_FRAME_RENDERED_EVENT
+        .hook(|args| {
+            if let Some(img) = &args.frame_image
+                && let Some(img) = img.upgrade()
+                && let Some(mode) = WINDOWS.mode(args.window_id)
+                && mode.has_renderer()
+            {
+                let img = zng_ext_image::IMAGES.register(None, (**img).clone());
+                crate::FRAME_IMAGE_READY_EVENT.notify(crate::FrameImageReadyArgs::new(
+                    args.timestamp,
+                    args.propagation.clone(),
+                    args.window_id,
+                    args.frame_id,
+                    zng_var::WeakVarEq(img.downgrade()),
+                ));
+                UPDATES.once_next_update("", move || {
+                    let _hold = &img;
+                });
             }
             true
         })

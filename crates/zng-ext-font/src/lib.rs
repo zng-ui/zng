@@ -774,8 +774,10 @@ impl FONTS {
     ) -> ResponseVar<FontFaceList> {
         // try with shared lock
         if let Some(cached) = FONTS_SV.read().loader.try_list(families, style, weight, stretch, lang) {
+            tracing::trace!("font list ({families:?} {style:?} {weight:?} {stretch:?} {lang:?}) found cached");
             return cached;
         }
+        tracing::trace!("font list ({families:?} {style:?} {weight:?} {stretch:?} {lang:?}) not cached, load");
         // begin load with exclusive lock (cache is tried again in `load`)
         FONTS_SV.write().loader.load_list(families, style, weight, stretch, lang)
     }

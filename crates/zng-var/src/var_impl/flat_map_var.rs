@@ -202,6 +202,11 @@ impl fmt::Debug for WeakFlatMapVar {
         f.debug_tuple("WeakFlatMapVar").field(&self.0.as_ptr()).finish()
     }
 }
+impl PartialEq for WeakFlatMapVar {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.ptr_eq(&other.0)
+    }
+}
 impl WeakVarImpl for WeakFlatMapVar {
     fn clone_dyn(&self) -> DynWeakAnyVar {
         DynWeakAnyVar::FlatMap(Self(self.0.clone()))
@@ -213,5 +218,12 @@ impl WeakVarImpl for WeakFlatMapVar {
 
     fn upgrade(&self) -> Option<DynAnyVar> {
         Some(DynAnyVar::FlatMap(FlatMapVar(self.0.upgrade()?)))
+    }
+
+    fn var_eq(&self, other: &DynWeakAnyVar) -> bool {
+        match other {
+            DynWeakAnyVar::FlatMap(v) => self == v,
+            _ => false,
+        }
     }
 }

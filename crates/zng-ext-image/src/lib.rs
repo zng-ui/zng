@@ -234,7 +234,7 @@ impl IMAGES {
     ///
     /// Note that the image will not automatically restore on respawn if the view-process fails while decoding.
     pub fn register(&self, key: Option<ImageHash>, image: (ViewImageHandle, ImageDecoded)) -> ImageVar {
-        let r = var(ImageEntry::new_loading());
+        let r = var(ImageEntry::new_loading()); // !!: TODO review register `key`
         let rr = r.read_only();
         UPDATES.once_update("IMAGES.register", move || {
             image_view(key, image.0, image.1, None, r);

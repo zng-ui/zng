@@ -122,6 +122,7 @@ fn resolve_text_font(child: impl IntoUiNode) -> UiNode {
                     state = State::Reload;
                 } else if let State::Loading { response, .. } = &state {
                     if let Some(f) = response.rsp() {
+                        tracing::trace!("text {:?} fonts finished loading", WIDGET.id());
                         let mut txt = TEXT.resolve();
                         txt.synthesis = FONT_SYNTHESIS_VAR.get() & f.best().synthesis_for(FONT_STYLE_VAR.get(), FONT_WEIGHT_VAR.get());
                         txt.faces = f;
@@ -148,6 +149,7 @@ fn resolve_text_font(child: impl IntoUiNode) -> UiNode {
         if let State::Reload = &state {
             let font_list = FONT_FAMILY_VAR.with(|family| {
                 LANG_VAR.with(|lang| {
+                    tracing::trace!("text {:?} begin load font list", WIDGET.id());
                     FONTS.list(
                         family,
                         FONT_STYLE_VAR.get(),
@@ -159,6 +161,7 @@ fn resolve_text_font(child: impl IntoUiNode) -> UiNode {
             });
 
             if let Some(f) = font_list.rsp() {
+                tracing::trace!("font list already loaded");
                 let mut txt = TEXT.resolve();
                 txt.synthesis = FONT_SYNTHESIS_VAR.get() & f.best().synthesis_for(FONT_STYLE_VAR.get(), FONT_WEIGHT_VAR.get());
                 txt.faces = f;
@@ -166,6 +169,7 @@ fn resolve_text_font(child: impl IntoUiNode) -> UiNode {
 
                 WIDGET.layout();
             } else {
+                tracing::trace!("font list loading");
                 state = State::Loading {
                     _update_handle: font_list.subscribe(UpdateOp::Update, WIDGET.id()),
                     response: font_list,

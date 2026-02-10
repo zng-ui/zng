@@ -284,6 +284,13 @@ impl WeakVarImpl for WeakMergeVar {
     fn upgrade(&self) -> Option<DynAnyVar> {
         Some(DynAnyVar::Merge(MergeVar(self.0.upgrade()?)))
     }
+
+    fn var_eq(&self, other: &DynWeakAnyVar) -> bool {
+        match other {
+            DynWeakAnyVar::Merge(o) => self.0.ptr_eq(&o.0),
+            _ => false,
+        }
+    }
 }
 
 /// Build a [`merge_var!`] from any number of input vars of the same type `I`.

@@ -18,7 +18,7 @@ pub fn run() {
     app.run_window("image", async {
         Window! {
             // the window content is the image.
-            child = image();
+            child = image().await;
             auto_size = true;
 
             // use the CPU only backend if available, by default the
@@ -31,7 +31,7 @@ pub fn run() {
             // this event will fire every time a frame is rendered (just once in this case).
             on_frame_image_ready = async_hn_once!(|args: &FrameImageReadyArgs| {
                 // in this case a `frame_image` was already captured.
-                let img = args.frame_image.unwrap().get();
+                let img = args.frame_image.upgrade().unwrap().get();
 
                 // we save it...
                 print!("saving ./screenshot.png ... ");
@@ -46,7 +46,24 @@ pub fn run() {
     });
 }
 
-fn image() -> UiNode {
+async fn image() -> UiNode {
+    use zng::font::*;
+
+    // Ensure font is loaded before first frame, `Text!` (and other widgets) already take window loading handles to
+    // await resources for a bit, but they set timeouts to continue rendering skipping the resource in case its loading too slow.
+    // For image generation its best to always await all resources first.
+    let font_family = [FontName::from("Consolas"), FontName::monospace()];
+    FONTS
+        .list(
+            &font_family,
+            FontStyle::Normal,
+            FontWeight::NORMAL,
+            FontStretch::NORMAL,
+            &lang!(unc),
+        )
+        .wait_done()
+        .await;
+
     Container! {
         layout::size = (800, 600);
 
@@ -75,7 +92,7 @@ fn image() -> UiNode {
             layout::align = Align::CENTER;
             txt = "Hello World!";
             font_size = 72;
-            font_family = ["Consolas", "monospace"];
+            font_family;
             font_color = colors::WHITE;
         };
     }

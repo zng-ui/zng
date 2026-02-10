@@ -13,7 +13,7 @@ use zng_task::channel::ChannelError;
 use zng_task::channel::IpcBytes;
 use zng_unique_id::IdSet;
 #[cfg(feature = "image")]
-use zng_var::VarEq;
+use zng_var::WeakVarEq;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::window::{CursorIcon, EventCause};
 
@@ -585,12 +585,13 @@ event_args! {
         /// This is *probably* the ID of frame pixels if they are requested immediately.
         pub frame_id: FrameId,
 
-        /// The frame pixels if it was requested when the frame request was sent to the view-process.
+        /// The frame pixels.
         ///
-        /// See [`WindowVars::frame_capture_mode`] for more details.
+        /// See [`WindowVars::frame_capture_mode`] for more details. The image reference will hold only for the hooks, you must upgrade it
+        /// to keep it, this is done to avoid retaining the image in the last event.
         ///
         /// [`WindowVars::frame_capture_mode`]: crate::WindowVars::frame_capture_mode
-        pub frame_image: Option<VarEq<ImageEntry>>,
+        pub frame_image: WeakVarEq<ImageEntry>,
 
         ..
 
@@ -724,7 +725,9 @@ event! {
     /// New window has inited.
     pub static WINDOW_OPEN_EVENT: WindowOpenArgs;
 
-    /// Window finished loading and has opened in the view-process.
+    /// Window instance state has changed to [`WindowInstanceState::Loaded`].
+    ///
+    /// If the window has renderer this event notifies only after the window is loaded with renderer.
     pub static WINDOW_LOAD_EVENT: WindowOpenArgs;
 
     /// Window focus/blur event.
@@ -742,11 +745,8 @@ event! {
 }
 #[cfg(feature = "image")]
 event! {
-    /// A window frame has finished rendering.
+    /// A window frame has finished rendering and frame pixels where copied due to [`WindowVars::frame_capture_mode`].
     ///
-    /// You can request a copy of the pixels using [`WINDOWS.frame_image`] or by setting the [`WindowVars::frame_capture_mode`].
-    ///
-    /// [`WINDOWS.frame_image`]: crate::WINDOWS::frame_image
     /// [`WindowVars::frame_capture_mode`]: crate::WindowVars::frame_capture_mode
     pub static FRAME_IMAGE_READY_EVENT: FrameImageReadyArgs;
 }
