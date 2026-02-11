@@ -365,10 +365,13 @@ impl HOT_RELOAD {
     pub fn rebuild(&self, manifest_dir: impl Into<Txt>) {
         let manifest_dir = manifest_dir.into();
         UPDATES.once_update("HOT_RELOAD.rebuild", move || {
-            let mut s = HOT_RELOAD_SV.write();
-            let s = &mut *s;
-            if let Some(watched) = s.watched_libs.get_mut(manifest_dir.as_str()) {
-                watched.rebuild(manifest_dir, s.static_patch.get_or_insert_with(StaticPatch::capture));
+            let mut sv = HOT_RELOAD_SV.write();
+            let s = &mut *sv;
+            if let Some((key, mut watched)) = s.watched_libs.remove_entry(manifest_dir.as_str()) {
+                let patch = s.static_patch.get_or_insert_with(StaticPatch::capture).clone();
+                drop(sv);
+                watched.rebuild(manifest_dir, patch);
+                HOT_RELOAD_SV.write().watched_libs.insert(key, watched);
             } else {
                 tracing::error!("cannot rebuild `{manifest_dir}`, unknown");
             }
@@ -396,12 +399,6 @@ impl HOT_RELOAD {
             .rev()
             .find(|l| l.manifest_dir() == manifest_dir)
             .cloned()
-    }
-
-    fn set(&self, lib: HotLib) {
-        // we never unload HotLib because hot nodes can pass &'static references (usually inside `Txt`) to the
-        // program that will remain being used after.
-        HOT_RELOAD_SV.write().libs.push(lib);
     }
 }
 app_local! {
@@ -449,13 +446,17 @@ impl HotReloadService {
 
         zng_ext_fs_watcher::FS_CHANGES_EVENT
             .hook(|args| {
-                let mut s = HOT_RELOAD_SV.write();
-                let s = &mut *s;
-                for (manifest_dir, watched) in s.watched_libs.iter_mut() {
+                let mut watched_libs = mem::take(&mut HOT_RELOAD_SV.write().watched_libs);
+                let mut static_patch = None;
+                for (manifest_dir, watched) in watched_libs.iter_mut() {
                     if args.changes_for_path(manifest_dir.as_ref()).next().is_some() {
-                        watched.rebuild((*manifest_dir).into(), s.static_patch.get_or_insert_with(StaticPatch::capture));
+                        let patch = static_patch
+                            .get_or_insert_with(|| HOT_RELOAD_SV.write().static_patch.get_or_insert_with(StaticPatch::capture).clone())
+                            .clone();
+                        watched.rebuild((*manifest_dir).into(), patch);
                     }
                 }
+                HOT_RELOAD_SV.write().watched_libs = watched_libs;
                 true
             })
             .perm();
@@ -484,7 +485,7 @@ impl HotReloadService {
                 };
                 if let Some(lib) = lib {
                     tracing::info!("rebuilt and reloaded `{manifest_dir}` in {build_time:?}");
-                    HOT_RELOAD.set(lib.clone());
+                    self.libs.push(lib.clone());
                     HOT_RELOAD_EVENT.notify(HotReloadArgs::now(lib));
                 }
 
@@ -599,7 +600,7 @@ struct WatchedLib {
     rebuild_again: bool,
 }
 impl WatchedLib {
-    fn rebuild(&mut self, manifest_dir: Txt, static_path: &StaticPatch) {
+    fn rebuild(&mut self, manifest_dir: Txt, static_patch: StaticPatch) {
         if let Some(b) = &self.building {
             if b.start_time.elapsed() > WATCHER.debounce().get() + 34.ms() {
                 // WATCHER debounce notifies immediately, then debounces. Some
@@ -616,8 +617,7 @@ impl WatchedLib {
             tracing::info!("rebuilding `{manifest_dir}`");
 
             let mut sv = HOT_RELOAD_SV.write();
-
-            let (rebuild_load, cancel_build) = sv.rebuild_reload(manifest_dir.clone(), static_path);
+            let (rebuild_load, cancel_build) = sv.rebuild_reload(manifest_dir.clone(), &static_patch);
             rebuild_load
                 .hook(|a| {
                     if !a.value().is_done() {
