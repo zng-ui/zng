@@ -243,7 +243,7 @@ impl From<f32> for RgbaComponent {
             #[cfg(not(debug_assertions))]
             if f.is_nan() {
                 RgbaComponent(0.0)
-            } else if f.is_sign_infinite() {
+            } else if f.is_infinite() {
                 if f.is_sign_positive() {
                     RgbaComponent(1.0)
                 } else {

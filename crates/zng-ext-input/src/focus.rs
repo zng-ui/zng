@@ -1463,6 +1463,8 @@ fn hooks() {
                                 if WINDOWS.widget_info(*scope_id).is_some() {
                                     tracing::error!("expected focus scope {scope_id} to not exist after window close");
                                 }
+                                #[cfg(not(debug_assertions))]
+                                let _ = scope_id;
 
                                 return false;
                             }
