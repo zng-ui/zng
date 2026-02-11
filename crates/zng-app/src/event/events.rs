@@ -57,6 +57,7 @@ impl EVENTS {
     }
 
     pub(super) fn register_command(&self, cmd: Command) {
+        tracing::trace!("register {cmd:?}");
         UPDATES.once_update("register_command", move || {
             let mut ev = EVENTS_SV.write();
             if !ev.commands.insert(cmd) {
@@ -65,6 +66,7 @@ impl EVENTS {
         });
     }
     pub(super) fn unregister_command(&self, cmd: Command) {
+        tracing::trace!("unregister {cmd:?}");
         UPDATES.once_update("unregister_command", move || {
             EVENTS_SV.write().commands.remove(&cmd);
         });

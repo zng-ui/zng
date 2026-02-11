@@ -13,7 +13,7 @@ use zng::{
 fn main() {
     zng::env::init!();
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         // layer will init with the window, when it opens.
         LAYERS.insert(
             LayerIndex::TOP_MOST - 100,

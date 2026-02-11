@@ -12,7 +12,7 @@
 //! use zng::prelude::*;
 //!
 //! fn app() {
-//!     APP.defaults().run_window(async { window() });
+//!     APP.defaults().run_window("main", async { window() });
 //! }
 //!
 //! fn window() -> window::WindowRoot {

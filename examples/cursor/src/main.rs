@@ -7,7 +7,7 @@ mod widgets;
 fn main() {
     zng::env::init!();
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         let mut demos = ui_vec![];
         for icon in CURSORS {
             demos.push(cursor_demo(Some(*icon)));

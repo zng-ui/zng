@@ -31,7 +31,7 @@
 //! }
 //!
 //! fn app() {
-//!     APP.defaults().run_window(async {
+//!     APP.defaults().run_window("main", async {
 //!         Window! {
 //!             child_align = Align::CENTER;
 //!             child = {
@@ -350,7 +350,7 @@
 //!     prelude::*,
 //! };
 //!
-//! APP.defaults().run_window(async {
+//! APP.defaults().run_window("main", async {
 //!     let cmd = PASTE_CMD.scoped(WINDOW.id());
 //!     let paste_btn = Button! {
 //!         child = Text!(cmd.name());
@@ -845,6 +845,10 @@ mod __prelude_wgt {
     #[cfg(all(feature = "fs_watcher", feature = "image"))]
     pub use crate::fs_watcher::IMAGES_Ext as _;
 }
+
+// ensure svg on_process_start is linked
+#[cfg(feature = "svg")]
+extern crate zng_ext_svg as _;
 
 zng_env::on_process_start!(|args| {
     if args.yield_until_app() {

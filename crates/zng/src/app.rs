@@ -386,7 +386,7 @@ pub use zng_ext_single_instance::{APP_INSTANCE_EVENT, AppInstanceArgs};
 /// }
 ///
 /// fn app_main() {
-///     APP.defaults().run_window(async {
+///     APP.defaults().run_window("main", async {
 ///         Window! {
 ///             child_align = Align::CENTER;
 ///             child = Stack! {
@@ -420,7 +420,7 @@ pub use zng_ext_single_instance::{APP_INSTANCE_EVENT, AppInstanceArgs};
 ///
 ///     cfg.dialog(|args| {
 ///         // dialog-process
-///         APP.defaults().run_window(async move {
+///         APP.defaults().run_window("crash-dialog", async move {
 ///             Window! {
 ///                 title = "App Crashed!";
 ///                 auto_size = true;
@@ -491,8 +491,10 @@ pub mod crash_handler {
                 #[cfg(feature = "crash_handler_debug")]
                 {
                     use crate::prelude::*;
-                    APP.defaults()
-                        .run_window(async_clmv!(args, { zng_wgt_inspector::crash_handler::debug_dialog(args) }));
+                    APP.defaults().run_window(
+                        "debug-crash-dialog",
+                        async_clmv!(args, { zng_wgt_inspector::crash_handler::debug_dialog(args) }),
+                    );
                 }
 
                 #[cfg(not(feature = "crash_handler_debug"))]

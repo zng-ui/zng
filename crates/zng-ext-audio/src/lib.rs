@@ -386,6 +386,7 @@ fn audio(mut source: AudioSource, mut options: AudioOptions, limits: Option<Audi
     }
     let mut s = AUDIOS_SV.write();
     exts.append(&mut s.extensions);
+    s.extensions = exts;
 
     if let AudioSource::Audio(var) = source {
         // Audio is passthrough, cache config is ignored

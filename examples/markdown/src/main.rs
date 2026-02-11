@@ -11,7 +11,7 @@ fn main() {
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::env::init!();
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         Window! {
             title = "Markdown Example";
             child = Scroll! {

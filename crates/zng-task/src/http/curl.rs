@@ -19,6 +19,10 @@ impl HttpClient for CurlProcessClient {
     fn send(&'static self, request: Request) -> std::pin::Pin<Box<dyn Future<Output = Result<Response, Error>> + Send>> {
         Box::pin(run(request))
     }
+
+    fn is_cache_manager(&self) -> bool {
+        false
+    }
 }
 
 async fn run(request: Request) -> Result<Response, Error> {

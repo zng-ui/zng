@@ -24,6 +24,7 @@ zng_env::on_process_start!(|args| {
     }
 
     APP.on_init(hn!(|_| {
+        tracing::trace!("register SVG extension");
         IMAGES.extend(Box::new(SvgRenderExtension::default()));
     }));
 });
@@ -47,6 +48,7 @@ impl ImagesExtension for SvgRenderExtension {
             ImageDataFormat::Unknown => SvgData::Str(svg_data_from_unknown(data)?),
             _ => return None,
         };
+        tracing::trace!("svg request intercepted");
         let mut options = options.clone();
         let downscale = options.downscale.take();
         options.cache_mode = ImageCacheMode::Ignore;

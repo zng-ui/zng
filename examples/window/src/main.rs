@@ -21,7 +21,7 @@ fn main() {
 }
 
 fn app_main() {
-    APP.defaults().run_window(main_window());
+    APP.defaults().run_window("main", main_window());
 }
 
 async fn main_window() -> window::WindowRoot {

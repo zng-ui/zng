@@ -1,11 +1,14 @@
-use std::{mem, pin::Pin, sync::Arc};
+use std::{any::Any, mem, pin::Pin, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
     APP, Deadline, hn_once,
     timer::TIMERS,
     update::{InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, WidgetUpdates},
-    view_process::{VIEW_PROCESS, raw_events::RAW_CHROME_CONFIG_CHANGED_EVENT},
+    view_process::{
+        VIEW_PROCESS,
+        raw_events::{RAW_CHROME_CONFIG_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT},
+    },
     widget::{
         WIDGET, WidgetId,
         info::{WidgetInfoTree, access::AccessEnabled},
@@ -28,8 +31,8 @@ use zng_wgt::prelude::{InteractionPath, UiNode, WidgetInfo, WidgetInfoBuilder};
 
 use crate::{
     CloseWindowResult, NestedWindowNode, ParallelWin, ViewExtensionError, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT,
-    WINDOW_Ext as _, WindowCloseArgs, WindowCloseRequestedArgs, WindowInstance, WindowInstanceState, WindowLoadingHandle, WindowNode,
-    WindowRoot, WindowVars,
+    WindowCloseArgs, WindowCloseRequestedArgs, WindowInstance, WindowInstanceState, WindowLoadingHandle, WindowNode, WindowRoot,
+    WindowVars,
 };
 
 app_local! {
@@ -264,24 +267,39 @@ impl WINDOWS {
         self.loading_handle_impl(window_id.into(), deadline.into())
     }
     fn loading_handle_impl(&self, window_id: WindowId, deadline: Deadline) -> Option<WindowLoadingHandle> {
-        let s = WINDOWS_SV.read();
+        let mut s = WINDOWS_SV.write();
 
-        let count = s.windows.get(&window_id)?.pending_loading.as_ref()?;
+        let window = s.windows.get_mut(&window_id)?;
+        if let Some(vars) = &window.vars
+            && !matches!(
+                vars.0.instance_state.get(),
+                WindowInstanceState::Building | WindowInstanceState::Loading
+            )
+        {
+            tracing::debug!("cannot get loading handle for window, already loaded");
+            return None;
+        }
+        let h = if let Some(h) = window.pending_loading.upgrade() {
+            h
+        } else {
+            let h: Arc<dyn Any + Send + Sync> = Arc::new(RunOnDrop::new(move || {
+                if let Some(vars) = WINDOWS.vars(window_id) {
+                    vars.0.instance_state.modify(move |a| {
+                        if matches!(a.value(), WindowInstanceState::Loading) {
+                            a.set(WindowInstanceState::Loaded { has_view: false });
+                            UPDATES.layout_window(window_id);
+                        }
+                    });
+                }
+            }));
+            window.pending_loading = Arc::downgrade(&h);
+            h
+        };
 
-        count.modify(|a| **a += 1);
-
-        // decrement count on hook drop, hook drops if entire `handle` var drops
-        // or if it returns `false` because `has_elapsed`.
-        let count_wk = count.downgrade();
-        let hold = RunOnDrop::new(move || {
-            if let Some(count) = count_wk.upgrade() {
-                count.modify(|c| **c -= 1);
-            }
-        });
         let handle = TIMERS.deadline(deadline);
         handle
             .hook(move |a| {
-                let _hold = &hold;
+                let _hold = &h;
                 !a.value().has_elapsed()
             })
             .perm();
@@ -795,7 +813,13 @@ impl WINDOWS_FOCUS {
                 && let Some(root) = &w.root
                 && let Some(v) = &root.view_window
             {
-                let _ = v.focus();
+                if !RAW_WINDOW_FOCUS_EVENT.with(|a| matches!(a.latest(), Some(w) if w.new_focus == Some(window_id))) {
+                    let _ = v.focus();
+                } else {
+                    // multiple repeated focus requests have weird effects in Windows,
+                    // it may even return focus to previous window
+                    tracing::debug!("skipping focus window request, already focused");
+                }
             } else {
                 tracing::error!("cannot focus {window_id}, not open in view-process");
             }
@@ -1215,10 +1239,14 @@ impl zng_ext_image::ImageRenderWindowsService for WINDOWS {
     }
 
     fn set_parent_in_window_context(&self, parent_id: WindowId) {
+        use crate::WINDOW_Ext as _;
+
         WINDOW.vars().0.parent.set(parent_id);
     }
 
     fn enable_frame_capture_in_window_context(&self, mask: Option<zng_ext_image::ImageMaskMode>) {
+        use crate::WINDOW_Ext as _;
+
         let mode = if let Some(mask) = mask {
             crate::FrameCaptureMode::AllMask(mask)
         } else {
@@ -1231,6 +1259,8 @@ impl zng_ext_image::ImageRenderWindowsService for WINDOWS {
         WINDOWS.open_headless(
             WindowId::new_unique(),
             async move {
+                use crate::WINDOW_Ext as _;
+
                 let root: Box<dyn std::any::Any> = new_window_root();
                 let w = *root.downcast::<WindowRoot>().expect("expected `WindowRoot` in image render window");
                 let vars = WINDOW.vars();

@@ -20,7 +20,7 @@ fn main() {
     zng::env::init!();
     // zng::app::print_tracing(tracing::Level::TRACE, false, |m| m.target().contains("zng_ext_input"));
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         WINDOW.id().set_name("main").unwrap();
 
         trace_focus();

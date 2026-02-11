@@ -78,7 +78,7 @@ fn load_config() {
 }
 
 fn app_main() {
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         load_config();
 
         WINDOW.id().set_name("main").unwrap(); // name used to save window state.

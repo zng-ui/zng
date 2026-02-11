@@ -4,7 +4,7 @@
 //!
 //! ```no_run
 //! use zng::prelude::*;
-//! # APP.defaults().run_window(async {
+//! # APP.defaults().run_window("main", async {
 //!
 //! fn main_menu() -> UiNode {
 //!     Menu!(ui_vec![

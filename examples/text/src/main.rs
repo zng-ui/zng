@@ -16,7 +16,7 @@ mod form;
 fn main() {
     zng::env::init!();
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         let fs = var(Length::Pt(11.0));
 
         Window! {

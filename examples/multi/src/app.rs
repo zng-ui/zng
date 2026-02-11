@@ -2,7 +2,7 @@ use zng::prelude::*;
 
 #[allow(unused)]
 pub fn run() {
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         CONFIG.load(zng::config::JsonConfig::sync(zng::env::config("config.json")));
 
         let res = zng::env::res("my-res.txt");

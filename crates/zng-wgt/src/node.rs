@@ -6,7 +6,7 @@ use std::{any::Any, sync::Arc};
 
 use crate::WidgetFn;
 use zng_app::{
-    event::{Command, CommandHandle, Event, EventArgs},
+    event::{Command, CommandHandle, CommandScope, Event, EventArgs},
     handler::{Handler, HandlerExt as _},
     render::{FrameBuilder, FrameValueKey},
     update::WidgetUpdates,
@@ -16,6 +16,7 @@ use zng_app::{
         info::Interactivity,
         node::*,
     },
+    window::WINDOW,
 };
 use zng_app_context::{ContextLocal, LocalContext};
 use zng_layout::{
@@ -853,12 +854,16 @@ macro_rules! command_property_impl {
             $crate::event_property! {
                 $(#[$meta])+
                 ///
-                /// # Enabled
+                /// # Command
+                ///
+                /// This property will subscribe to the
+                #[doc = concat!("[`", stringify!($COMMAND), "`]")]
+                /// command scoped on the widget. If set on the `Window!` root widget it will also subscribe to
+                /// the command scoped on the window.
                 ///
                 /// The command handle is enabled by default and can be disabled using the contextual property
                 #[doc = concat!("[`", stringify!($can_ident), "`](fn@", stringify!($can_ident), ")")]
                 /// .
-                ///
                 $vis fn $on_ident<$on_pre_ident>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
                     const PRE: bool;
                     let child = $crate::node::EventNodeBuilder::new(*$COMMAND)
@@ -884,10 +889,14 @@ macro_rules! command_property_impl {
         $crate::event_property! {
             $(#[$meta])+
             ///
-            /// # Enabled
+            /// # Command
+            ///
+            /// This property will subscribe to the
+            #[doc = concat!("[`", stringify!($COMMAND), "`]")]
+            /// command scoped on the widget. If set on the `Window!` root widget it will also subscribe to
+            /// the command scoped on the window.
             ///
             /// The command handle is always enabled.
-            ///
             $vis fn $on_ident<$on_pre_ident>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
                 const PRE: bool;
                 let child = $crate::node::EventNodeBuilder::new($COMMAND).build::<PRE>($child, $handler);
@@ -897,15 +906,27 @@ macro_rules! command_property_impl {
     };
 }
 
+fn validate_cmd(cmd: Command) {
+    if !matches!(cmd.scope(), CommandScope::App) {
+        tracing::error!("command for command property cannot be scoped, {cmd:?} scope will be ignored");
+    }
+}
+
 #[doc(hidden)]
 pub fn command_always_enabled(child: UiNode, cmd: Command) -> UiNode {
-    let mut _handle = CommandHandle::dummy();
+    let mut _wgt_handle = CommandHandle::dummy();
+    let mut _win_handle = CommandHandle::dummy();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            _handle = cmd.scoped(WIDGET.id()).subscribe(true);
+            validate_cmd(cmd);
+            _wgt_handle = cmd.scoped(WIDGET.id()).subscribe(true);
+            if WIDGET.parent_id().is_none() {
+                _win_handle = cmd.scoped(WINDOW.id()).subscribe(true);
+            }
         }
         UiNodeOp::Deinit => {
-            _handle = CommandHandle::dummy();
+            _wgt_handle = CommandHandle::dummy();
+            _win_handle = CommandHandle::dummy();
         }
         _ => {}
     })
@@ -914,16 +935,32 @@ pub fn command_always_enabled(child: UiNode, cmd: Command) -> UiNode {
 #[doc(hidden)]
 pub fn command_contextual_enabled(child: UiNode, cmd: Command, ctx: ContextVar<bool>) -> UiNode {
     let mut _handle = VarHandle::dummy();
+    let mut _wgt_handle = CommandHandle::dummy();
+    let mut _win_handle = CommandHandle::dummy();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
+            let ctx = ctx.current_context();
             let handle = cmd.scoped(WIDGET.id()).subscribe(ctx.get());
-            let _handle = ctx.hook(move |a| {
-                handle.enabled().set(*a.value());
-                true
-            });
+            let win_handle = if WIDGET.parent_id().is_none() {
+                cmd.scoped(WINDOW.id()).subscribe(ctx.get())
+            } else {
+                CommandHandle::dummy()
+            };
+            if !ctx.capabilities().is_const() {
+                let _handle = ctx.hook(move |a| {
+                    handle.enabled().set(*a.value());
+                    win_handle.enabled().set(*a.value());
+                    true
+                });
+            } else {
+                _wgt_handle = handle;
+                _win_handle = win_handle;
+            }
         }
         UiNodeOp::Deinit => {
             _handle = VarHandle::dummy();
+            _wgt_handle = CommandHandle::dummy();
+            _win_handle = CommandHandle::dummy();
         }
         _ => {}
     })

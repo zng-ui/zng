@@ -32,7 +32,9 @@ fn main() {
         return encoding::render_test_icon();
     }
 
-    APP.defaults().run_window(async {
+    // zng::app::print_tracing(tracing::Level::TRACE, false, |m| m.target().contains("event::command"));
+
+    APP.defaults().run_window("main", async {
         // by default all "ImageSource::Download" requests are blocked and "ImageSource::Read"
         // is limited to only the `zng::env::res`. The limits can be set globally in here and overridden
         // for each image with the "img_limits" property.
@@ -556,9 +558,9 @@ fn open_or_paste_image() -> UiNode {
                         let img_size = var_getter::<PxSize>();
                         let img_wgt_size = var_getter::<PxSize>();
                         let menu_wgt_size = var_getter::<PxSize>();
-                        let show_menu = merge_var!(img_size.clone(), img_wgt_size.clone(), menu_wgt_size.clone(), |img, wgt, menu| {
-                            img.height < wgt.height - menu.height
-                        });
+                        let show_menu = expr_var! {
+                            #{img_size.clone()}.height < (#{img_wgt_size.clone()}.height - #{menu_wgt_size.clone()}.height)
+                        };
                         Stack!(ui_vec![
                             Image! {
                                 img_fit = ImageFit::ScaleDown;

@@ -1371,7 +1371,7 @@ fn hooks() {
                 if let Some(id) = args.new_focus
                     && let Some(tree) = WINDOWS.widget_tree(id)
                 {
-                    tracing::trace!("window focus changed to {id}");
+                    tracing::trace!("window focus changed to {id:?}");
                     let tree = FocusInfoTree::new(tree, s.focus_disabled_widgets.get(), s.focus_hidden_widgets.get());
                     if let Some(root) = tree.focusable_root() {
                         let pending_request = s.request.take();

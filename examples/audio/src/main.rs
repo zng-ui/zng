@@ -9,7 +9,7 @@ use zng::{audio::AUDIOS, prelude::*};
 fn main() {
     zng::env::init!();
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         // allow any audio source
         AUDIOS.limits().set(zng::audio::AudioLimits::none());
 

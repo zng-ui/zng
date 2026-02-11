@@ -16,7 +16,7 @@ use zng::{
 fn main() {
     zng::env::init!();
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         Window! {
             title = "Transform Example";
             child = Stack! {

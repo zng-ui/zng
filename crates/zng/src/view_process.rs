@@ -22,7 +22,7 @@
 //! }
 //!
 //! fn app() {
-//!     APP.defaults().run_window(async {
+//!     APP.defaults().run_window("main", async {
 //!         Window! {}
 //!     })
 //! }

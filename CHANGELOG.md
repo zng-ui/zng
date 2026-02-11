@@ -1,5 +1,7 @@
 # Unreleased
 
+* **Breaking** `run_window` and other methods now require the window id.
+
 * Add `zng::env::About::is_test` metadata to detect when process was inited in a test.
 
 **Breaking** Removed `HeadlessApp::block_on*` methods. Use the `run_task` and new `run_task_deadline` for tests.

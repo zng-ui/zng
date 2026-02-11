@@ -16,7 +16,7 @@ use widgets::{ease_btn, ruler};
 fn main() {
     zng::env::init!();
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         Window! {
             title = "Animation Example";
             padding = 10;

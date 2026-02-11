@@ -15,7 +15,7 @@ fn main() {
     zng::env::init!();
 
     // this is the normal app-process:
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         Window! {
             title = "Respawn Example";
             icon = WindowIcon::render(icon);
@@ -79,7 +79,7 @@ fn main() {
 // zng::app::crash_handler::crash_handler_config!(|cfg| cfg.dialog(app_crash_handler));
 #[allow(unused)]
 fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) {
-    APP.defaults().run_window(async move {
+    APP.defaults().run_window("crash-dialog", async move {
         Window! {
             title = "Respawn Example - App Crashed";
             icon = WindowIcon::render(icon);

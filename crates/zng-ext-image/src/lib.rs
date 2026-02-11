@@ -15,7 +15,12 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::{any::Any, mem, path::PathBuf, pin::Pin};
+use std::{
+    any::Any,
+    mem,
+    path::{Path, PathBuf},
+    pin::Pin,
+};
 
 use parking_lot::Mutex;
 use zng_app::{
@@ -36,7 +41,7 @@ use zng_app::{
 };
 use zng_app_context::app_local;
 use zng_clone_move::clmv;
-use zng_layout::unit::ByteLength;
+use zng_layout::unit::{ByteLength, ByteUnits};
 use zng_state_map::StateId;
 use zng_task::channel::IpcBytes;
 use zng_txt::ToTxt;
@@ -136,7 +141,11 @@ impl IMAGES {
     {
         match uri.try_into() {
             Ok(uri) => self.image_impl(ImageSource::Download(uri, accept), ImageOptions::cache(), None),
-            Err(e) => zng_var::const_var(ImageEntry::new_error(e.to_txt())),
+            Err(e) => {
+                let e = e.to_txt();
+                tracing::debug!("cannot convert into download URI, {e}");
+                zng_var::const_var(ImageEntry::new_error(e))
+            }
         }
     }
 
@@ -186,6 +195,7 @@ impl IMAGES {
         self.image_impl(source.into(), options, limits)
     }
     fn image_impl(&self, source: ImageSource, options: ImageOptions, limits: Option<ImageLimits>) -> ImageVar {
+        tracing::trace!("image request ({source:?}, {options:?}, {limits:?})");
         let r = var(ImageEntry::new_loading());
         let ri = r.read_only();
         UPDATES.once_update("IMAGES.image", move || {
@@ -349,11 +359,15 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
     // apply extensions
     let mut exts = mem::take(&mut s.extensions);
     drop(s); // drop because extensions may use the service
+    if !exts.is_empty() {
+        tracing::trace!("process image with {} extensions", exts.len());
+    }
     for ext in &mut exts {
         ext.image(&limits, &mut source, &mut options);
     }
     let mut s = IMAGES_SV.write();
     exts.append(&mut s.extensions);
+    s.extensions = exts;
 
     if let ImageSource::Image(var) = source {
         // Image is passthrough, cache config is ignored
@@ -434,7 +448,7 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
 
     match source {
         ImageSource::Read(path) => {
-            fn read(path: PathBuf, limit: ByteLength) -> std::io::Result<IpcBytes> {
+            fn read(path: &Path, limit: ByteLength) -> std::io::Result<IpcBytes> {
                 let file = std::fs::File::open(path)?;
                 if file.metadata()?.len() > limit.bytes() as u64 {
                     return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "file length exceeds limit"));
@@ -446,8 +460,11 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
                 Some(ext) => ImageDataFormat::FileExtension(ext.to_string_lossy().to_txt()),
                 None => ImageDataFormat::Unknown,
             };
-            zng_task::spawn_wait(move || match read(path, limit) {
-                Ok(data) => image_data(false, Some(key), data_format, data, options, limits, r),
+            zng_task::spawn_wait(move || match read(&path, limit) {
+                Ok(data) => {
+                    tracing::trace!("read {path:?}, len: {:?}, fmt: {data_format:?}", data.len().bytes());
+                    image_data(false, Some(key), data_format, data, options, limits, r)
+                }
                 Err(e) => {
                     r.set(ImageEntry::new_error(e.to_txt()));
                 }
@@ -499,6 +516,9 @@ fn image_data(
     if !is_respawn && let Some(key) = cache_key {
         let mut replaced = false;
         let mut exts = mem::take(&mut IMAGES_SV.write().extensions);
+        if !exts.is_empty() {
+            tracing::trace!("process image_data with {} extensions", exts.len());
+        }
         for ext in &mut exts {
             if let Some(replacement) = ext.image_data(limits.max_decoded_len, &key, &data, &format, &options) {
                 replacement.set_bind(&r).perm();
@@ -508,13 +528,13 @@ fn image_data(
                 break;
             }
         }
-
         {
             let mut s = IMAGES_SV.write();
             exts.append(&mut s.extensions);
             s.extensions = exts;
 
             if replaced {
+                tracing::trace!("extension replaced image_data");
                 return;
             }
         }
@@ -601,6 +621,7 @@ fn image_view(
     let decode_error_handle = RAW_IMAGE_DECODE_ERROR_EVENT.hook(move |args| match r_weak.upgrade() {
         Some(r) => {
             if r.with(|img| img.view_handle() == &args.handle.upgrade().unwrap()) {
+                tracing::debug!("image view error, {}", args.error);
                 r.set(ImageEntry::new_error(args.error.clone()));
                 false
             } else {
@@ -616,11 +637,13 @@ fn image_view(
         Some(r) => {
             if r.with(|img| img.view_handle() == &args.handle.upgrade().unwrap()) {
                 let meta = args.meta.clone();
+                tracing::trace!("image view metadata decoded for request");
                 r.modify(move |i| i.data.meta = meta);
             } else if let Some(p) = &args.meta.parent
                 && p.parent == r.with(|img| img.view_handle().image_id())
             {
                 // discovered an entry for this image, start tracking it
+                tracing::trace!("image view metadata decoded for entry of request");
                 let mut entry_d = ImageDecoded::default();
                 entry_d.meta = args.meta.clone();
                 let entry = var(ImageEntry::new(None, args.handle.upgrade().unwrap(), entry_d.clone()));
@@ -642,6 +665,7 @@ fn image_view(
                     if r.with(|img| img.view_handle() == &args.handle.upgrade().unwrap()) {
                         let data = args.image.upgrade().unwrap();
                         let is_loading = data.partial.is_some();
+                        tracing::trace!("image view decoded, partial={:?}", is_loading);
                         r.modify(move |i| i.data = (*data.0).clone());
                         if !is_loading {
                             image_decoded(r);

@@ -27,7 +27,7 @@ use zng::prelude::*;
 
 fn main() {
     zng::env::init!();
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         let count = var(0u32);
         let count_txt = count.map(|c| match *c {
             0 => "Click Me!".to_txt(),

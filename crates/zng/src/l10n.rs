@@ -29,7 +29,7 @@
 //! ```no_run
 //! use zng::prelude::*;
 //!
-//! APP.defaults().run_window(async {
+//! APP.defaults().run_window("main", async {
 //!     // start loading localization resources
 //!     L10N.load_dir(zng::env::res("l10n"));
 //!     // set the app language, by default is the system language

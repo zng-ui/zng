@@ -25,7 +25,7 @@ pub trait AppRunWindowExt {
     /// # trait AppDefaults { fn defaults(&self) -> zng_app::AppBuilder { APP.minimal() } }
     /// # impl AppDefaults for APP { }
     /// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
-    /// APP.defaults().run_window(async {
+    /// APP.defaults().run_window("main", async {
     ///     println!("starting app with window {:?}", WINDOW.id());
     ///     Window! {
     ///         title = "Window 1";
@@ -45,7 +45,7 @@ pub trait AppRunWindowExt {
     /// # impl AppDefaults for APP { }
     /// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
     /// APP.defaults().run(async {
-    ///     WINDOWS.open(async {
+    ///     WINDOWS.open("main", async {
     ///         println!("starting app with window {:?}", WINDOW.id());
     ///         Window! {
     ///             title = "Window 1";
@@ -56,19 +56,19 @@ pub trait AppRunWindowExt {
     /// ```
     ///
     /// [`WINDOW`]: zng_app::window::WINDOW
-    fn run_window<F>(self, new_window: impl IntoFuture<IntoFuture = F>)
-    // !!: TODO id here? All other methods have it
+    fn run_window<F>(self, window_id: impl Into<WindowId>, new_window: impl IntoFuture<IntoFuture = F>)
     where
         F: Future<Output = WindowRoot> + Send + 'static;
 }
 impl AppRunWindowExt for AppBuilder {
-    fn run_window<F>(self, new_window: impl IntoFuture<IntoFuture = F>)
+    fn run_window<F>(self, window_id: impl Into<WindowId>, new_window: impl IntoFuture<IntoFuture = F>)
     where
         F: Future<Output = WindowRoot> + Send + 'static,
     {
+        let window_id = window_id.into();
         let new_window = new_window.into_future();
         self.run(async move {
-            WINDOWS.open(WindowId::new_unique(), new_window);
+            WINDOWS.open(window_id, new_window);
         })
     }
 }

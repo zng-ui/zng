@@ -1,8 +1,8 @@
-use std::{mem, pin::Pin, sync::Arc};
+use std::{any::Any, mem, pin::Pin, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
-    APP, Deadline, async_hn_once, hn,
+    APP, Deadline, async_hn_once,
     render::{FrameBuilder, FrameUpdate},
     static_id,
     timer::{DeadlineHandle, TIMERS},
@@ -14,7 +14,7 @@ use zng_app::{
             RAW_WINDOW_OPEN_EVENT, RawWindowFocusArgs,
         },
     },
-    widget::{VarLayout as _, VarSubscribe, WIDGET, WidgetCtx, base::PARALLEL_VAR, info::WidgetInfoTree},
+    widget::{VarLayout as _, WIDGET, WidgetCtx, base::PARALLEL_VAR, info::WidgetInfoTree},
     window::{MonitorId, WINDOW, WindowCtx, WindowId, WindowMode},
 };
 use zng_app_context::LocalContext;
@@ -29,7 +29,7 @@ use zng_layout::{
 };
 use zng_state_map::StateId;
 use zng_unique_id::IdSet;
-use zng_var::{ResponderVar, ResponseVar, Var, VarHandle, var};
+use zng_var::{ResponderVar, ResponseVar, VarHandle};
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::{ColorsConfig, FontAntiAliasing},
@@ -125,7 +125,7 @@ impl WINDOW_Ext for WINDOW {}
 
 pub(crate) struct WindowInstance {
     pub(crate) mode: WindowMode,
-    pub(crate) pending_loading: Option<Var<usize>>,
+    pub(crate) pending_loading: std::sync::Weak<dyn Any + Send + Sync>,
     pub(crate) vars: Option<WindowVars>,
     pub(crate) info: Option<WidgetInfoTree>,
     pub(crate) extensions_init: Option<Vec<(ApiExtensionId, ApiExtensionPayload)>>,
@@ -138,27 +138,9 @@ impl WindowInstance {
         new_window: Pin<Box<dyn Future<Output = WindowRoot> + Send + 'static>>,
         r: ResponderVar<WindowVars>,
     ) -> Self {
-        let loading = var(0);
-        loading
-            .on_pre_new(hn!(|a| {
-                // handle loading handles dropped
-                if a.value == 0
-                    && let Some(w) = WINDOWS_SV.write().windows.get_mut(&id)
-                    && let Some(vars) = &w.vars
-                {
-                    w.pending_loading = None;
-                    vars.0.instance_state.modify(move |s| {
-                        if matches!(s.value(), WindowInstanceState::Loading) {
-                            s.set(WindowInstanceState::Loaded { has_view: false });
-                            UPDATES.layout_window(id);
-                        }
-                    });
-                }
-            }))
-            .perm();
         let w = Self {
             mode,
-            pending_loading: Some(loading),
+            pending_loading: std::sync::Weak::<()>::new(),
             vars: None,
             info: None,
             extensions_init: Some(vec![]),
@@ -543,14 +525,12 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
     if matches!(vars.0.instance_state.get(), WindowInstanceState::Loading) {
         let mut s = WINDOWS_SV.write();
         let w = s.windows.get_mut(id).unwrap();
-        if let Some(l) = &w.pending_loading
-            && l.get() > 1
-        {
+        if w.pending_loading.strong_count() > 0 {
             // wait loading handles
             tracing::debug!("skipping view-process open, active loading handles");
             return;
         }
-        w.pending_loading = None;
+        w.pending_loading = std::sync::Weak::<()>::new();
         vars.0.instance_state.set(WindowInstanceState::Loaded { has_view: false });
         if !n.win_ctx.mode().has_renderer() {
             WINDOW_LOAD_EVENT.notify(WindowOpenArgs::now(*id));

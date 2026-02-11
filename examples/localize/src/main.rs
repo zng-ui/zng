@@ -30,7 +30,7 @@ fn main() {
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::env::init!();
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         // load `available_langs`
         #[cfg(debug_assertions)]
         L10N.load_dir(zng::env::res("l10n"));
