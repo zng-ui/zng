@@ -161,6 +161,23 @@ impl WATCHER {
             file,
             read: Mutex::new(read),
         });
+        fn spawn_read(data: &Arc<Data>, out: AnyVar) {
+            zng_task::spawn_wait(clmv!(data, || {
+                if let Some(r) = data.read.lock()(WatchFile::open(&data.file)) {
+                    // did read update, set output
+                    out.modify(clmv!(data, |o| {
+                        if o.set(r) {
+                            // tag to avoid write back when `read_impl` is used in `write_impl`
+                            o.push_tag(WatcherSyncWriteNote(data.file.clone()));
+                        }
+                    }));
+                }
+            }));
+        }
+        if data.file.exists() {
+            // read initial value
+            spawn_read(&data, out.upgrade().unwrap());
+        }
         FS_CHANGES_EVENT
             .hook(move |args| {
                 let _hold = &_handle;
@@ -168,17 +185,7 @@ impl WATCHER {
                 if let Some(out) = out.upgrade() {
                     if has_sync_changes(args, &data.file) {
                         // has changes, spawn read
-                        zng_task::spawn_wait(clmv!(data, || {
-                            if let Some(r) = data.read.lock()(WatchFile::open(&data.file)) {
-                                // did read update, set output
-                                out.modify(clmv!(data, |o| {
-                                    if o.set(r) {
-                                        // tag to avoid write back when `read_impl` is used in `write_impl`
-                                        o.push_tag(WatcherSyncWriteNote(data.file.clone()));
-                                    }
-                                }));
-                            }
-                        }));
+                        spawn_read(&data, out);
                     }
                     true
                 } else {
@@ -334,28 +341,35 @@ impl WATCHER {
             dir,
             read: Mutex::new(read),
         });
+        fn spawn_read(data: &Arc<Data>, recursive: bool, out: AnyVar) {
+            zng_task::spawn_wait(clmv!(data, || {
+                let dir = if recursive {
+                    walkdir::WalkDir::new(&data.dir).min_depth(1)
+                } else {
+                    walkdir::WalkDir::new(&data.dir).min_depth(1).max_depth(1)
+                };
+                if let Some(r) = data.read.lock()(dir) {
+                    // did read update, set output
+                    out.modify(clmv!(data, |o| {
+                        if o.set(r) {
+                            // tag just for parity with `read`
+                            o.push_tag(WatcherSyncWriteNote(data.dir.clone()));
+                        }
+                    }));
+                }
+            }));
+        }
+        if data.dir.exists() {
+            // read initial value
+            spawn_read(&data, recursive, out.upgrade().unwrap());
+        }
         FS_CHANGES_EVENT
             .hook(move |args| {
                 let _hold = &_handle;
                 if let Some(out) = out.upgrade() {
                     if has_sync_changes(args, &data.dir) {
                         // has changes, spawn read
-                        zng_task::spawn_wait(clmv!(data, || {
-                            let dir = if recursive {
-                                walkdir::WalkDir::new(&data.dir).min_depth(1)
-                            } else {
-                                walkdir::WalkDir::new(&data.dir).min_depth(1).max_depth(1)
-                            };
-                            if let Some(r) = data.read.lock()(dir) {
-                                // did read update, set output
-                                out.modify(clmv!(data, |o| {
-                                    if o.set(r) {
-                                        // tag just for parity with `read`
-                                        o.push_tag(WatcherSyncWriteNote(data.dir.clone()));
-                                    }
-                                }));
-                            }
-                        }));
+                        spawn_read(&data, recursive, out);
                     }
                     true
                 } else {
@@ -424,37 +438,43 @@ impl WATCHER {
             status,
             status_mtds,
         });
+        fn spawn_read(data: &Arc<Data>, recursive: bool, out: AnyVar) {
+            data.status.set((data.status_mtds.reading)());
+            zng_task::spawn_wait(clmv!(data, || {
+                let dir = if recursive {
+                    walkdir::WalkDir::new(&data.dir).min_depth(1)
+                } else {
+                    walkdir::WalkDir::new(&data.dir).min_depth(1).max_depth(1)
+                };
+                match data.read.lock()(dir) {
+                    Ok(u) => {
+                        if let Some(r) = u {
+                            // did read update, set output
+                            out.modify(clmv!(data, |o| {
+                                if o.set(r) {
+                                    // tag just for parity with `read_status`
+                                    o.push_tag(WatcherSyncWriteNote(data.dir.clone()));
+                                }
+                            }));
+                        }
+                        data.status.set((data.status_mtds.idle)());
+                    }
+                    Err(e) => {
+                        data.status.set((data.status_mtds.read_error)(Box::new(e)));
+                    }
+                }
+            }));
+        }
+        if data.dir.exists() {
+            spawn_read(&data, recursive, out.upgrade().unwrap());
+        }
         FS_CHANGES_EVENT
             .hook(move |args| {
                 let _hold = &_handle;
                 if let Some(out) = out.upgrade() {
                     if has_sync_changes(args, &data.dir) {
                         // has changes, spawn read
-                        data.status.set((data.status_mtds.reading)());
-                        zng_task::spawn_wait(clmv!(data, || {
-                            let dir = if recursive {
-                                walkdir::WalkDir::new(&data.dir).min_depth(1)
-                            } else {
-                                walkdir::WalkDir::new(&data.dir).min_depth(1).max_depth(1)
-                            };
-                            match data.read.lock()(dir) {
-                                Ok(u) => {
-                                    if let Some(r) = u {
-                                        // did read update, set output
-                                        out.modify(clmv!(data, |o| {
-                                            if o.set(r) {
-                                                // tag just for parity with `read_status`
-                                                o.push_tag(WatcherSyncWriteNote(data.dir.clone()));
-                                            }
-                                        }));
-                                    }
-                                    data.status.set((data.status_mtds.idle)());
-                                }
-                                Err(e) => {
-                                    data.status.set((data.status_mtds.read_error)(Box::new(e)));
-                                }
-                            }
-                        }));
+                        spawn_read(&data, recursive, out);
                     }
                     true
                 } else {

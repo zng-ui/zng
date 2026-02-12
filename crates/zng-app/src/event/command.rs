@@ -945,9 +945,11 @@ impl CommandHandle {
                     if write.enabled_count == 1 {
                         write.is_enabled.set(true);
                     }
-                    tracing::trace!("command handle {:?} enabled, count: {:?}", 
-                    CommandDbg::new(write.static_name, command.scope),
-                    write.enabled_count);
+                    tracing::trace!(
+                        "command handle {:?} enabled, count: {:?}",
+                        CommandDbg::new(write.static_name, command.scope),
+                        write.enabled_count
+                    );
                 } else {
                     write.enabled_count = match write.enabled_count.checked_sub(1) {
                         Some(c) => c,
@@ -961,9 +963,11 @@ impl CommandHandle {
                     if write.enabled_count == 0 {
                         write.is_enabled.set(false);
                     }
-                    tracing::trace!("command handle {:?} disabled, count: {:?}", 
-                    CommandDbg::new(write.static_name, command.scope),
-                    write.enabled_count);
+                    tracing::trace!(
+                        "command handle {:?} disabled, count: {:?}",
+                        CommandDbg::new(write.static_name, command.scope),
+                        write.enabled_count
+                    );
                 }
             }
             scope => {
@@ -974,9 +978,11 @@ impl CommandHandle {
                         if data.enabled_count == 1 {
                             data.is_enabled.set(true);
                         }
-                        tracing::trace!("command handle {:?} enabled, count: {:?}",
-                        CommandDbg::new(write.static_name, command.scope),
-                        data.enabled_count);
+                        tracing::trace!(
+                            "command handle {:?} enabled, count: {:?}",
+                            CommandDbg::new(write.static_name, command.scope),
+                            data.enabled_count
+                        );
                     } else {
                         data.enabled_count = match data.enabled_count.checked_sub(1) {
                             Some(c) => c,
@@ -993,9 +999,11 @@ impl CommandHandle {
                         if data.enabled_count == 0 {
                             data.is_enabled.set(false);
                         }
-                        tracing::trace!("command handle {:?} enabled, count: {:?}", 
-                        CommandDbg::new(write.static_name, command.scope),
-                        data.enabled_count);
+                        tracing::trace!(
+                            "command handle {:?} enabled, count: {:?}",
+                            CommandDbg::new(write.static_name, command.scope),
+                            data.enabled_count
+                        );
                     }
                 }
             }
@@ -1031,7 +1039,7 @@ impl Drop for CommandHandle {
         if let Some(command) = self.command.take()
             && APP.is_started()
         {
-             let mut write = command.local.write();
+            let mut write = command.local.write();
             match command.scope {
                 CommandScope::App => {
                     write.handle_count = match write.handle_count.checked_sub(1) {
