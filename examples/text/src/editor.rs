@@ -149,7 +149,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
         id = "menu";
         align = Align::FILL_TOP;
         alt_focus_scope = true;
-        focus_click_behavior = FocusClickBehavior::Exit;
+        focus_click_behavior = FocusClickBehavior::menu_item();
         spacing = 4;
         direction = StackDirection::left_to_right();
         padding = 4;

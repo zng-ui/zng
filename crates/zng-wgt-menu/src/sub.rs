@@ -277,7 +277,7 @@ pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
                                 if WIDGET.info().submenu_parent().is_none() {
                                     // root sub-menu, close and return focus
                                     POPUP.force_close(&s);
-                                    FOCUS.focus_exit();
+                                    FOCUS.focus_exit(true);
                                     is_open.set(false);
                                     close_cmd.enabled().set(false);
                                 } else {

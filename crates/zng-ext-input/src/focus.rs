@@ -580,11 +580,13 @@ impl FOCUS {
     /// Focus the first logical ancestor that is focusable from the navigation origin or the current focus
     /// or the return focus from ALT scopes.
     ///
+    /// If `recursive_alt` is set and is exiting from an ALT scope recursively seek the return widget that is not inside any ALT scope.
+    ///
     /// Does nothing if no origin or focus is set. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::exit`].
-    pub fn focus_exit(&self) {
-        let req = FocusRequest::exit(FOCUS_SV.read().is_highlighting.get());
+    pub fn focus_exit(&self, recursive_alt: bool) {
+        let req = FocusRequest::exit(recursive_alt, FOCUS_SV.read().is_highlighting.get());
         self.focus(req)
     }
 
@@ -893,18 +895,49 @@ impl FocusService {
                 }
                 None => tracing::debug!("cannot enter focused, no current focus"),
             },
-            FocusTarget::Exit => match &origin_info {
+            FocusTarget::Exit { recursive_alt } => match &origin_info {
                 Some(i) => {
-                    if let Some(alt) = i.self_and_ancestors().find(|s| s.is_alt_scope()) // is in alt
-                    && let Some(r) = self.return_focused.get(&alt.info().id())
-                    && let Some(r) = r.with(|p| p.as_ref().map(|p| p.widget_id()))  // has recorded return
-                    && let Some(r) = find_wgt(r)
-                    && r.is_focusable()
-                    {
-                        // return is valid
-                        tracing::trace!("exiting from alt scope {:?} to return {:?}", i.info().id(), r.info().id());
-                        new_info = Some(r);
-                    } else {
+                    let mut alt = i.self_and_ancestors().find(|s| s.is_alt_scope());
+                    let mut recursive_alt_scopes = vec![];
+                    while let Some(a) = alt.take() {
+                        if recursive_alt_scopes.contains(&a.info().id()) {
+                            tracing::error!("circular alt return focus, {recursive_alt_scopes:?}");
+                            break;
+                        }
+
+                        if let Some(r) = self.return_focused.get(&a.info().id())
+                            && let Some(r) = r.with(|p| p.as_ref().map(|p| p.widget_id()))
+                            && let Some(r) = find_wgt(r)
+                            && r.is_focusable()
+                        {
+                            // ALT has valid return
+                            if recursive_alt {
+                                recursive_alt_scopes.push(a.info().id());
+                                alt = r.self_and_ancestors().find(|s| s.is_alt_scope());
+                                if alt.is_some() {
+                                    continue;
+                                }
+                                tracing::trace!("exit {:?}, alt {:?}, return {:?}", i.info().id(), recursive_alt_scopes, r.info().id());
+                            }  else {
+                                tracing::trace!("exit {:?}, alt {:?}, return {:?}", i.info().id(), a.info().id(), r.info().id());
+                            }
+                            new_info = Some(r);
+                        } else {
+                            // ALT has no valid return
+                            if recursive_alt {
+                                new_info = a.ancestors().find(|w| !w.in_alt_scope());
+                            } else {
+                                new_info = a.ancestors().next();
+                            }
+                            tracing::debug!(
+                                "exit {:?}, alt {:?}, no return, focus {:?}",
+                                i.info().id(),
+                                a.info().id(),
+                                new_info.as_ref().map(|w| w.info().id())
+                            );
+                        }
+                    }
+                    if new_info.is_none() {
                         new_info = i.ancestors().next();
                         tracing::trace!("exit {:?}, focus {:?}", i.info().id(), new_info.as_ref().map(|w| w.info().id()));
                     }
@@ -1050,8 +1083,11 @@ impl FocusService {
             let new_scope = new_info.self_and_ancestors().find(|w| w.is_scope());
 
             if prev_scope != new_scope {
+                debug_assert_eq!(prev_focus.as_ref().unwrap().widget_id(), prev_info.info().id());
+
                 if let Some(scope) = new_scope
                     && scope.is_alt_scope()
+                    && !matches!(request.target, FocusTarget::Exit { .. })
                 {
                     // focus entered ALT scope, previous focus outside is return
                     let set = update_return(scope.info().interaction_path());
@@ -1063,6 +1099,7 @@ impl FocusService {
                         );
                     }
                 }
+
                 if let Some(scope) = prev_scope
                     && !scope.is_alt_scope()
                     && matches!(
@@ -1228,7 +1265,7 @@ fn hooks() {
                 }
             } else if is_focused {
                 tracing::trace!("access focus exit request {}", args.target.widget_id());
-                FOCUS.focus_exit();
+                FOCUS.focus_exit(false);
             } else {
                 tracing::debug!("access focus exit request {} ignored, not focused", args.target.widget_id());
             }

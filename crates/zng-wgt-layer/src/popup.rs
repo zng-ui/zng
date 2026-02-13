@@ -48,7 +48,7 @@ impl Popup {
             directional_nav = DirectionalNav::Cycle;
             tab_nav = TabNav::Cycle;
             focus_scope_behavior = FocusScopeOnFocus::FirstDescendantIgnoreBounds;
-            focus_click_behavior = FocusClickBehavior::ExitEnabled;
+            focus_click_behavior = FocusClickBehavior::menu_item();
             focus_on_init = true;
             modal_included = POPUP.anchor_id();
         }

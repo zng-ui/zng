@@ -186,13 +186,14 @@ pub fn is_cap_mouse_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -
 pub fn is_shortcut_pressed(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state_init(child, state, |s| {
         let id = WIDGET.id();
-        let mut shortcut_press = None;
+        let mut shortcut_press = None::<DeadlineVar>;
         CLICK_EVENT.hook(clmv!(s, |args| {
             if (args.is_from_keyboard() || args.is_from_access()) && args.target.contains_enabled(id) {
                 // if a shortcut click happened, we show pressed for the duration of `shortcut_pressed_duration`
                 // unless we where already doing that, then we just stop showing pressed, this causes
                 // a flickering effect when rapid clicks are happening.
-                if shortcut_press.take().is_none() {
+                let d = shortcut_press.take();
+                if d.is_none() || matches!(d, Some(p) if p.get().has_elapsed()) {
                     let duration = GESTURES.shortcut_pressed_duration().get();
                     if duration > Duration::ZERO {
                         let dl = TIMERS.deadline(duration);

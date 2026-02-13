@@ -123,7 +123,7 @@ impl ButtonStyle {
             padding = 4;
 
             access_role = AccessRole::MenuItem;
-            focus_click_behavior = FocusClickBehavior::ExitEnabled;
+            focus_click_behavior = FocusClickBehavior::menu_item();
 
             zng_wgt_container::child_start =
                 BUTTON
@@ -154,7 +154,7 @@ impl IconButtonStyle {
             padding = 4;
 
             access_role = AccessRole::MenuItem;
-            focus_click_behavior = FocusClickBehavior::ExitEnabled;
+            focus_click_behavior = FocusClickBehavior::menu_item();
 
             zng_wgt_container::child =
                 BUTTON
@@ -208,7 +208,7 @@ impl ToggleStyle {
             self;
             padding = 4;
             access_role = AccessRole::MenuItem;
-            focus_click_behavior = FocusClickBehavior::ExitEnabled;
+            focus_click_behavior = FocusClickBehavior::menu_item();
         }
     }
 }

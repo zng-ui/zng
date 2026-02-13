@@ -76,7 +76,7 @@ fn focus_scope_impl(child: impl IntoUiNode, is_scope: impl IntoVar<bool>, is_alt
         UiNodeOp::Deinit => {
             if is_alt && FOCUS.is_focus_within(WIDGET.id()).get() {
                 // focus auto recovery can't return focus if the entire scope is missing.
-                FOCUS.focus_exit();
+                FOCUS.focus_exit(false);
             }
         }
         _ => {}
@@ -175,23 +175,44 @@ pub enum FocusClickBehavior {
     /// Click event always ignored.
     Ignore,
     /// Exit focus if a click event was send to the widget or descendant.
-    Exit,
-    /// Exit focus if a click event was send to the enabled widget or enabled descendant.
-    ExitEnabled,
-    /// Exit focus if the click event was received by the widget or descendant and event propagation was stopped.
-    ExitHandled,
+    Exit {
+        /// If exiting from an ALT scope recursively seek the return widget that is not inside any ALT scope.
+        recursive_alt: bool,
+        /// Exit only if click targets an enabled widget.
+        enabled: bool,
+        /// Exit only if the click event propagation was stopped.
+        handled: bool,
+    },
 }
-
 impl std::fmt::Debug for FocusClickBehavior {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if f.alternate() {
             write!(f, "FocusClickBehavior::")?;
         }
-        match self {
+        match &self {
             Self::Ignore => write!(f, "Ignore"),
-            Self::Exit => write!(f, "Exit"),
-            Self::ExitEnabled => write!(f, "ExitEnabled"),
-            Self::ExitHandled => write!(f, "ExitHandled"),
+            Self::Exit {
+                recursive_alt,
+                enabled,
+                handled,
+            } => f
+                .debug_struct("Exit")
+                .field("recursive_alt", recursive_alt)
+                .field("enabled", enabled)
+                .field("handled", handled)
+                .finish(),
+        }
+    }
+}
+impl FocusClickBehavior {
+    /// Default behavior for menu item buttons.
+    ///
+    /// Only if the item is enabled, exits entire menu.
+    pub fn menu_item() -> Self {
+        FocusClickBehavior::Exit {
+            recursive_alt: true,
+            enabled: true,
+            handled: false,
         }
     }
 }
@@ -209,29 +230,44 @@ pub fn focus_click_behavior(child: impl IntoUiNode, behavior: impl IntoVar<Focus
     let behavior = behavior.into_var();
     match_node(child, move |c, op| {
         if let UiNodeOp::Update { updates } = op {
-            let mut delegate = || {
+            let mut on_click = || {
                 if let Some(ctx) = &*FOCUS_CLICK_HANDLED_CTX.get() {
+                    // a parent also sets `focus_click_behavior`
+
                     c.update(updates);
+
+                    // signal that we will handle this event
                     ctx.swap(true, Ordering::Relaxed)
                 } else {
+                    // no parent sets `focus_click_behavior`, setup context
+
                     let mut ctx = Some(Arc::new(Some(AtomicBool::new(false))));
                     FOCUS_CLICK_HANDLED_CTX.with_context(&mut ctx, || c.update(updates));
+
+                    // get if any child already handled this event
                     let ctx = ctx.unwrap();
                     (*ctx).as_ref().unwrap().load(Ordering::Relaxed)
                 }
             };
 
             CLICK_EVENT.each_update(true, |args| {
-                if !delegate() {
-                    let exit = match behavior.get() {
-                        FocusClickBehavior::Ignore => false,
-                        FocusClickBehavior::Exit => true,
-                        FocusClickBehavior::ExitEnabled => args.target.interactivity().is_enabled(),
-                        FocusClickBehavior::ExitHandled => args.propagation.is_stopped(),
-                    };
-                    if exit {
-                        FOCUS.focus_exit();
+                let focus_click_handled_by_inner = on_click();
+                if !focus_click_handled_by_inner
+                    && let FocusClickBehavior::Exit {
+                        recursive_alt,
+                        enabled,
+                        handled,
+                    } = behavior.get()
+                {
+                    if enabled && !args.target.interactivity().is_enabled() {
+                        return;
                     }
+                    if handled && !args.propagation.is_stopped() {
+                        return;
+                    }
+
+                    tracing::trace!("focus_exit by focus_click_behavior");
+                    FOCUS.focus_exit(recursive_alt);
                 }
             });
         }

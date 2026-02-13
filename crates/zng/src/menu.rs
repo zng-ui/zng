@@ -129,7 +129,7 @@ impl TextInputStyle {
             // return focus on enter
             zng::keyboard::on_pre_key_down = zng::handler::hn!(|args| {
                 args.propagation.stop();
-                zng::focus::FOCUS.focus_exit();
+                zng::focus::FOCUS.focus_exit(true);
             });
         }
     }

@@ -47,6 +47,8 @@ command! {
     };
 
     /// Represents the **focus exit** action.
+    ///
+    /// An optional command parameter of type `bool` will set the `recursive_alt` parameter.
     pub static FOCUS_EXIT_CMD {
         l10n!: true,
         name: "Focus Exit",
@@ -114,6 +116,9 @@ impl FocusCommands {
             ($($CMD:ident($handle:ident) => $method:ident,)+) => {Self {
                 $($handle: $CMD.on_event_with_enabled(false, true, false, hn!(|a| {
                     let (args, enabled) = a;
+                    if args.param.is_some() {
+                        return;
+                    }
                     args.propagation.stop();
                     if enabled.get() {
                         FOCUS.$method();
@@ -121,6 +126,15 @@ impl FocusCommands {
                         FOCUS.highlight_within_auto();
                     }
                 })),)+
+                exit_handle: FOCUS_EXIT_CMD.on_event(false, true, false, hn!(|args| {
+                    if let Some(recursive_alt) = args.param::<bool>() {
+                        args.propagation.stop();
+                        FOCUS.focus_exit(*recursive_alt);
+                    } else if args.param.is_none() {
+                        args.propagation.stop();
+                        FOCUS.focus_exit(false);
+                    }
+                })),
                 _focus_handle: FOCUS_CMD.on_event(true, true, false, hn!(|args| {
                     if let Some(req) = args.param::<FocusRequest>() {
                         args.propagation.stop();
@@ -140,7 +154,6 @@ impl FocusCommands {
             FOCUS_LEFT_CMD(left_handle) => focus_left,
             FOCUS_RIGHT_CMD(right_handle) => focus_right,
             FOCUS_ENTER_CMD(enter_handle) => focus_enter,
-            FOCUS_EXIT_CMD(exit_handle) => focus_exit,
         }
     }
 

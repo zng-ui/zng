@@ -304,8 +304,8 @@ impl FocusRequest {
         Self::new(FocusTarget::Enter, highlight)
     }
     /// New [`FocusTarget::Exit`] request.
-    pub fn exit(highlight: bool) -> Self {
-        Self::new(FocusTarget::Exit, highlight)
+    pub fn exit(recursive_alt: bool, highlight: bool) -> Self {
+        Self::new(FocusTarget::Exit { recursive_alt }, highlight)
     }
     /// New [`FocusTarget::Next`] request.
     pub fn next(highlight: bool) -> Self {
@@ -391,7 +391,10 @@ pub enum FocusTarget {
     /// Move focus to the first focusable descendant of the current focus.
     Enter,
     /// Move focus to the first focusable ancestor of the current focus, or the return focus from ALT scopes.
-    Exit,
+    Exit {
+        /// If exiting from an ALT scope recursively seek the return widget that is not inside any ALT scope.
+        recursive_alt: bool,
+    },
 
     /// Move focus to next from current in scope.
     Next,

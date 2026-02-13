@@ -49,7 +49,7 @@ fn alt_scope() -> UiNode {
     Stack! {
         direction = StackDirection::left_to_right();
         alt_focus_scope = true;
-        focus_click_behavior = FocusClickBehavior::Exit;
+        focus_click_behavior = FocusClickBehavior::menu_item();
         button::style_fn = Style! {
             border = unset!;
             corner_radius = unset!;
