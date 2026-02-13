@@ -10,7 +10,10 @@ use zng::{
 fn main() {
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::env::init!();
-
+    // zng::app::print_tracing(tracing::Level::TRACE, true, |_| true);
+    run_app();
+}
+fn run_app() {
     APP.defaults().run_window("main", async {
         Window! {
             title = "Markdown Example";

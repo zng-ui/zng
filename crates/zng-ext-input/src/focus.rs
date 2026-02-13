@@ -1408,7 +1408,8 @@ fn hooks() {
                         s.enabled_nav,
                     ));
 
-                    if let Some(prev_tree) = WINDOWS.widget_tree(win_id)
+                    let prev_tree = WINDOWS.widget_tree(win_id);
+                    if let Some(prev_tree) = &prev_tree
                         && let Some(wgt) = prev_tree.get(wgt_id)
                         && let Some(wgt) = wgt.into_focusable(s.focus_disabled_widgets.get(), s.focus_hidden_widgets.get())
                         && let Some(root_scope) = wgt.self_and_ancestors().filter(|w| w.is_scope()).last()
@@ -1450,7 +1451,7 @@ fn hooks() {
                                 return_change,
                             ));
                         }
-                    } else {
+                    } else if prev_tree.is_none() {
                         // window closed, cleanup return_focused
                         s.return_focused.retain(|scope_id, v| {
                             if let Some(p_win_id) = v.with(|p| p.as_ref().map(|p| p.window_id()))

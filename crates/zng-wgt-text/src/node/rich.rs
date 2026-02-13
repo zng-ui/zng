@@ -160,6 +160,7 @@ fn rich_text_focus_change_broadcast(child: impl IntoUiNode) -> UiNode {
                     for leaf in ctx.leaves() {
                         extended_list.insert_wgt(&leaf);
                     }
+                    drop(ctx);
                     let updates = WidgetUpdates::new(extended_list);
                     c.node().update(&updates);
                 }

@@ -770,7 +770,11 @@ impl RunningApp {
                     WINDOWS_APP.update_info(&mut info_widgets);
                 }
 
-                self.pending |= UPDATES.apply_updates();
+                {
+                    let _s = tracing::debug_span!("hooks").entered();
+                    self.pending |= UPDATES.apply_updates();
+                }
+
                 TimersService::notify();
                 if mem::take(&mut self.pending.update) {
                     any = true;
