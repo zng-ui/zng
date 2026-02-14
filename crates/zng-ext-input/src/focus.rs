@@ -427,11 +427,14 @@ impl FOCUS {
     /// [`return_focused`]: Self::return_focused
     #[must_use]
     pub fn alt_return(&self) -> Var<Option<InteractionPath>> {
-        let mut s = FOCUS_SV.write();
-        if let Some(r) = s.alt_return.upgrade() {
-            return r;
+        {
+            let s = FOCUS_SV.read();
+            if let Some(r) = s.alt_return.upgrade() {
+                return r;
+            }
         }
-        let r = s.focused.flat_map(|p| {
+        let focused = FOCUS_SV.read().focused.clone();
+        let r = focused.flat_map(|p| {
             let s = FOCUS_SV.read();
             if let Some(p) = p
                 && let Some(tree) = WINDOWS.widget_tree(p.window_id())
@@ -444,7 +447,7 @@ impl FOCUS {
             }
             const_var(None)
         });
-        s.alt_return = r.downgrade();
+        FOCUS_SV.write().alt_return = r.downgrade();
         r
     }
 
@@ -917,8 +920,13 @@ impl FocusService {
                                 if alt.is_some() {
                                     continue;
                                 }
-                                tracing::trace!("exit {:?}, alt {:?}, return {:?}", i.info().id(), recursive_alt_scopes, r.info().id());
-                            }  else {
+                                tracing::trace!(
+                                    "exit {:?}, alt {:?}, return {:?}",
+                                    i.info().id(),
+                                    recursive_alt_scopes,
+                                    r.info().id()
+                                );
+                            } else {
                                 tracing::trace!("exit {:?}, alt {:?}, return {:?}", i.info().id(), a.info().id(), r.info().id());
                             }
                             new_info = Some(r);

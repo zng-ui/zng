@@ -44,7 +44,8 @@ fn form_editor_window(is_open: Var<bool>) -> WindowRoot {
             padding = 20;
 
             label::style_fn = Style! {
-                text::txt_align = Align::END;
+                text::txt_align = Align::TOP_END;
+                layout::padding = (10, 0, 0, 0);
             };
             text_input::style_fn = style_fn!(|_| text_input::FieldStyle!());
 

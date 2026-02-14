@@ -135,7 +135,8 @@ pub fn undo_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> UiNod
         let new_can_undo = scope.can_undo();
         let new_can_redo = scope.can_redo();
 
-        if can_undo != new_can_redo || can_redo != new_can_redo {
+        if can_undo != new_can_undo || can_redo != new_can_redo {
+            tracing::trace!("undo_scope={:?}, undo={new_can_undo:?}, redo={new_can_redo:?}", WIDGET.id());
             can_undo = new_can_undo;
             can_redo = new_can_redo;
             undo_cmd.enabled().set(can_undo);

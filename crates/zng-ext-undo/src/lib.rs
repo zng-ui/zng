@@ -882,6 +882,7 @@ impl UndoScope {
         let max_undo = if self.enabled.load(Ordering::Relaxed) {
             UNDO_LIMIT_VAR.get() as usize
         } else {
+            tracing::debug!("not enabled, will cleanup");
             0
         };
 
@@ -906,7 +907,8 @@ impl UndoScope {
         }
     }
 
-    fn register(&self, action: Box<dyn UndoAction>) {
+    fn register(&self, mut action: Box<dyn UndoAction>) {
+        tracing::trace!("register '{}'", action.info().description());
         self.with_enabled_undo_redo(|undo, redo| {
             let now = INSTANT.now();
             if let Some(prev) = undo.pop() {
@@ -935,6 +937,8 @@ impl UndoScope {
     }
 
     fn undo_select(&self, selector: impl UndoSelector) {
+        let _s = tracing::trace_span!("undo").entered();
+
         let mut actions = vec![];
 
         self.with_enabled_undo_redo(|undo, _| {
@@ -948,7 +952,8 @@ impl UndoScope {
             }
         });
 
-        for undo in actions {
+        for mut undo in actions {
+            tracing::trace!("undo '{}'", undo.action.info().description());
             let redo = undo.action.undo();
             self.redo.lock().push(RedoEntry {
                 timestamp: undo.timestamp,
@@ -958,6 +963,8 @@ impl UndoScope {
     }
 
     fn redo_select(&self, selector: impl UndoSelector) {
+        let _s = tracing::trace_span!("redo").entered();
+
         let mut actions = vec![];
 
         self.with_enabled_undo_redo(|_, redo| {
@@ -971,7 +978,8 @@ impl UndoScope {
             }
         });
 
-        for redo in actions {
+        for mut redo in actions {
+            tracing::trace!("redo '{}'", redo.action.info().description());
             let undo = redo.action.redo();
             self.undo.lock().push(UndoEntry {
                 timestamp: redo.timestamp,

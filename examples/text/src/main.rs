@@ -16,6 +16,8 @@ mod form;
 fn main() {
     zng::env::init!();
 
+    // zng::app::print_tracing(tracing::Level::TRACE, false, |m| m.target().contains("_undo"));
+
     APP.defaults().run_window("main", async {
         let fs = var(Length::Pt(11.0));
 
