@@ -28,6 +28,7 @@ use zng_layout::{
     },
 };
 use zng_state_map::StateId;
+use zng_txt::Txt;
 use zng_unique_id::IdSet;
 use zng_var::{ResponderVar, ResponseVar, VarHandle};
 use zng_view_api::{
@@ -77,8 +78,8 @@ pub trait WINDOW_Ext {
     /// it is best to partially render a window after a short time than not show anything.
     ///
     /// Returns `None` if the window has already loaded.
-    fn loading_handle(&self, deadline: impl Into<Deadline>) -> Option<WindowLoadingHandle> {
-        WINDOWS.loading_handle(WINDOW.id(), deadline)
+    fn loading_handle(&self, deadline: impl Into<Deadline>, debug_name: impl Into<Txt>) -> Option<WindowLoadingHandle> {
+        WINDOWS.loading_handle(WINDOW.id(), deadline, debug_name)
     }
 
     /// Generate an image from the current rendered frame of the window.
@@ -411,7 +412,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
 
         if monitor.id() == MonitorId::fallback() && matches!(vars.0.instance_state.get(), WindowInstanceState::Loading) {
             // window not open yet and view-process provided no monitor (probably loading)
-            let handle = WINDOWS.loading_handle(*id, 1.secs());
+            let handle = WINDOWS.loading_handle(*id, 1.secs(), "monitors");
             RAW_MONITORS_CHANGED_EVENT
                 .hook(move |_| {
                     let _hold = &handle;
@@ -531,9 +532,10 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
         let w = s.windows.get_mut(id).unwrap();
         if w.pending_loading.strong_count() > 0 {
             // wait loading handles
-            tracing::debug!("skipping view-process open, active loading handles");
+            tracing::debug!("skipping transition to Loaded, active loading handles");
             return;
         }
+        tracing::trace!("transition to Loaded");
         w.pending_loading = std::sync::Weak::<()>::new();
         vars.0.instance_state.set(WindowInstanceState::Loaded { has_view: false });
         if !n.win_ctx.mode().has_renderer() {

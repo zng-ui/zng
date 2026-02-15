@@ -173,7 +173,7 @@ fn resolve_text_font(child: impl IntoUiNode) -> UiNode {
                 state = State::Loading {
                     _update_handle: font_list.subscribe(UpdateOp::Update, WIDGET.id()),
                     response: font_list,
-                    _window_load_handle: WINDOW.loading_handle(1.secs()),
+                    _window_load_handle: WINDOW.loading_handle(1.secs(), "font-list"),
                 };
             }
         }

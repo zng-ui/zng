@@ -289,12 +289,10 @@ impl WidgetInfoTree {
         widget_count_offsets: Option<ParallelSegmentOffsets>,
         notify: bool,
     ) {
-        let mut any_update = false;
-
         let mut frame = self.0.frame.write();
         let stats_update = frame.stats_update.take();
 
-        any_update = stats_update.bounds_updated > 0 || stats_update.vis_updated > 0;
+        let mut any_update = stats_update.bounds_updated > 0 || stats_update.vis_updated > 0;
 
         frame.stats.update(frame_id, stats_update);
 
@@ -357,15 +355,11 @@ impl WidgetInfoTree {
 }
 impl fmt::Debug for WidgetInfoTree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let nl = if f.alternate() { "\n   " } else { " " };
-
-        write!(
-            f,
-            "WidgetInfoTree(Rc<{{{nl}window_id: {},{nl}widget_count: {},{nl}...}}>)",
-            self.0.window_id,
-            self.0.lookup.len(),
-            nl = nl
-        )
+        f.debug_struct("WidgetInfoTree")
+            .field("len()", &self.len())
+            .field("spatial_bounds()", &self.spatial_bounds())
+            .field("stats()", &self.stats())
+            .finish_non_exhaustive()
     }
 }
 
@@ -1031,8 +1025,8 @@ impl std::hash::Hash for WidgetInfo {
 impl std::fmt::Debug for WidgetInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WidgetInfo")
-            .field("[path]", &self.path().to_string())
-            .field("[meta]", &self.meta())
+            .field("trace_path()", &self.trace_path())
+            .field("inner_bounds()", &self.inner_bounds())
             .finish_non_exhaustive()
     }
 }
@@ -2171,6 +2165,55 @@ impl WidgetInfo {
         }
 
         nearest
+    }
+
+    /// Custom [`fmt::Debug`] formatter.
+    ///
+    /// The `fmt` closure must include relevant fields for printing and return `true` to include widget children
+    /// or `false` to skip children.
+    ///
+    /// Note that the [`trace_id`] is used as the [`fmt::DebugStruct`].
+    ///
+    /// [`trace_id`]: Self::trace_id
+    pub fn fmt_debug(&self, fmt: &dyn Fn(&Self, &mut fmt::DebugStruct) -> bool) -> impl fmt::Debug {
+        struct FmtDebug<'a> {
+            wgt: WidgetInfo,
+            fmt: &'a dyn Fn(&WidgetInfo, &mut fmt::DebugStruct) -> bool,
+        }
+        impl<'a> fmt::Debug for FmtDebug<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let mut s = f.debug_struct(&self.wgt.trace_id());
+                let enter = (self.fmt)(&self.wgt, &mut s);
+                if enter {
+                    s.field(
+                        "children",
+                        &FmtDebugChildren {
+                            wgt: self.wgt.clone(),
+                            fmt: self.fmt,
+                        },
+                    );
+                    s.finish()
+                } else if self.wgt.descendants_len() > 0 {
+                    s.finish_non_exhaustive()
+                } else {
+                    s.finish()
+                }
+            }
+        }
+        struct FmtDebugChildren<'a> {
+            wgt: WidgetInfo,
+            fmt: &'a dyn Fn(&WidgetInfo, &mut fmt::DebugStruct) -> bool,
+        }
+        impl<'a> fmt::Debug for FmtDebugChildren<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let mut c = f.debug_list();
+                for child in self.wgt.children() {
+                    c.entry(&FmtDebug { wgt: child, fmt: self.fmt });
+                }
+                c.finish()
+            }
+        }
+        FmtDebug { wgt: self.clone(), fmt }
     }
 }
 

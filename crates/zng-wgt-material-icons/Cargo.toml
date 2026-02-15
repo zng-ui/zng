@@ -38,6 +38,9 @@ zng-env = { path = "../zng-env", version = "0.9.1", default-features = false }
 phf = { version = "0.13", default-features = false }
 tracing = { version = "0.1", default-features = false }
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "*"
+
 [build-dependencies]
 dunce = { version = "1.0", default-features = false }
 phf_codegen = { version = "0.13", default-features = false }

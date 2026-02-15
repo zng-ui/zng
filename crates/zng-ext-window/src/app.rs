@@ -82,8 +82,7 @@ pub trait HeadlessAppWindowExt {
     ///
     /// The `new_window` runs inside the [`WINDOW`] context of the new window.
     ///
-    /// Returns the [`WindowId`] of the new window after the window is open and loaded and has generated one frame
-    /// or if the window already closed before the first frame.
+    /// Returns the [`WindowVars`] of the new window after the window is open and loaded.
     ///
     /// [`WINDOW`]: zng_app::window::WINDOW
     /// [`WindowId`]: zng_app::window::WindowId
@@ -127,12 +126,21 @@ impl HeadlessAppWindowExt for HeadlessApp {
     where
         F: Future<Output = WindowRoot> + Send + 'static,
     {
+        let window_id = window_id.into();
         let response = WINDOWS.open(window_id, new_window);
         self.run_task(async move {
             let vars = response.wait_rsp().await;
-            vars.instance_state()
-                .wait_match(|s| !matches!(s, WindowInstanceState::Building))
-                .await;
+            if let Some(mode) = WINDOWS.mode(window_id) {
+                if mode.has_renderer() {
+                    vars.instance_state()
+                        .wait_match(|s| matches!(s, WindowInstanceState::Loaded { has_view: true }))
+                        .await;
+                } else {
+                    vars.instance_state()
+                        .wait_match(|s| matches!(s, WindowInstanceState::Loaded { has_view: false }))
+                        .await;
+                }
+            }
             vars
         })
         .unwrap()

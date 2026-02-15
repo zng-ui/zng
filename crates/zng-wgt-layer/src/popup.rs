@@ -21,7 +21,7 @@ use crate::{AnchorMode, AnchorOffset, LAYERS, LayerIndex};
 ///
 /// The popup widget is designed to be used as a temporary *flyover* container inserted as a
 /// top-most layer using [`POPUP`]. By default the widget is an [`alt_focus_scope`] that is [`focus_on_init`],
-/// cycles [`directional_nav`] and [`tab_nav`], and has [`FocusClickBehavior::ExitEnabled`]. It also
+/// cycles [`directional_nav`] and [`tab_nav`], and has [`FocusClickBehavior::menu_item`]. It also
 /// sets the [`modal_included`] to [`anchor_id`] enabling the popup to be interactive when anchored to modal widgets.
 ///
 /// [`alt_focus_scope`]: fn@alt_focus_scope
@@ -30,7 +30,7 @@ use crate::{AnchorMode, AnchorOffset, LAYERS, LayerIndex};
 /// [`tab_nav`]: fn@tab_nav
 /// [`modal_included`]: fn@modal_included
 /// [`anchor_id`]: POPUP::anchor_id
-/// [`FocusClickBehavior::ExitEnabled`]: zng_wgt_input::focus::FocusClickBehavior::ExitEnabled
+/// [`FocusClickBehavior::menu_item`]: zng_wgt_input::focus::FocusClickBehavior::menu_item
 #[widget($crate::popup::Popup {
     ($child:expr) => {
         child = $child;

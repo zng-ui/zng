@@ -7,7 +7,7 @@ use zng_app::{
     update::{InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, WidgetUpdates},
     view_process::{
         VIEW_PROCESS,
-        raw_events::{RAW_CHROME_CONFIG_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT},
+        raw_events::{RAW_CHROME_CONFIG_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT, RawWindowFocusArgs},
     },
     widget::{
         WIDGET, WidgetId,
@@ -17,7 +17,7 @@ use zng_app::{
 };
 use zng_app_context::{RunOnDrop, app_local};
 use zng_task::{ParallelIteratorExt, rayon::prelude::*};
-use zng_txt::{ToTxt as _, formatx};
+use zng_txt::{ToTxt as _, Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap, IdSet};
 use zng_var::{ResponderVar, ResponseVar, Var, const_var, response_done_var, response_var, var, var_default};
 use zng_view_api::{
@@ -263,10 +263,15 @@ impl WINDOWS {
     /// it is best to partially render a window after a short time than not show anything.
     ///
     /// Returns `None` if the window has already loaded or is not found.
-    pub fn loading_handle(&self, window_id: impl Into<WindowId>, deadline: impl Into<Deadline>) -> Option<WindowLoadingHandle> {
-        self.loading_handle_impl(window_id.into(), deadline.into())
+    pub fn loading_handle(
+        &self,
+        window_id: impl Into<WindowId>,
+        deadline: impl Into<Deadline>,
+        debug_name: impl Into<Txt>,
+    ) -> Option<WindowLoadingHandle> {
+        self.loading_handle_impl(window_id.into(), deadline.into(), debug_name.into())
     }
-    fn loading_handle_impl(&self, window_id: WindowId, deadline: Deadline) -> Option<WindowLoadingHandle> {
+    fn loading_handle_impl(&self, window_id: WindowId, deadline: Deadline, debug_name: Txt) -> Option<WindowLoadingHandle> {
         let mut s = WINDOWS_SV.write();
 
         let window = s.windows.get_mut(&window_id)?;
@@ -276,7 +281,7 @@ impl WINDOWS {
                 WindowInstanceState::Building | WindowInstanceState::Loading
             )
         {
-            tracing::debug!("cannot get loading handle for window, already loaded");
+            tracing::debug!("cannot get loading handle `{debug_name}` for window `{window_id:?}`, already loaded");
             return None;
         }
         let h = if let Some(h) = window.pending_loading.upgrade() {
@@ -286,7 +291,6 @@ impl WINDOWS {
                 if let Some(vars) = WINDOWS.vars(window_id) {
                     vars.0.instance_state.modify(move |a| {
                         if matches!(a.value(), WindowInstanceState::Loading) {
-                            a.set(WindowInstanceState::Loaded { has_view: false });
                             UPDATES.layout_window(window_id);
                         }
                     });
@@ -300,7 +304,12 @@ impl WINDOWS {
         handle
             .hook(move |a| {
                 let _hold = &h;
-                !a.value().has_elapsed()
+                if a.value().has_elapsed() {
+                    tracing::debug!("loading handle `{debug_name}` timeout");
+                    false
+                } else {
+                    true
+                }
             })
             .perm();
         Some(WindowLoadingHandle(handle))
@@ -439,7 +448,12 @@ fn close_together_all_built(request: Vec<WindowId>, r: ResponderVar<CloseWindowR
 
                             for id in &args.windows {
                                 if let Some(w) = s.windows.remove(id) {
-                                    w.vars.unwrap().0.instance_state.set(WindowInstanceState::Closed);
+                                    let vars = w.vars.unwrap();
+                                    vars.0.instance_state.set(WindowInstanceState::Closed);
+                                    if vars.0.focused.get() && APP.window_mode().is_headless() {
+                                        // simulate focus loss in headless app (mostly for tests)
+                                        RAW_WINDOW_FOCUS_EVENT.notify(RawWindowFocusArgs::now(Some(*id), None));
+                                    }
                                 }
                             }
 
@@ -449,6 +463,8 @@ fn close_together_all_built(request: Vec<WindowId>, r: ResponderVar<CloseWindowR
                             {
                                 zng_app::APP.exit();
                             }
+
+                            r.respond(CloseWindowResult::Closed);
                         }),
                     )
                     .perm();

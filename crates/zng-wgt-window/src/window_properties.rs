@@ -495,7 +495,7 @@ pub fn config_block_window_load(child: impl IntoUiNode, enabled: impl IntoValue<
             if let Some(delay) = enabled.deadline() {
                 let cfg = CONFIG.status();
                 if !cfg.get().is_idle()
-                    && let Some(_handle) = WINDOW.loading_handle(delay)
+                    && let Some(_handle) = WINDOW.loading_handle(delay, "config_block_window_load")
                 {
                     let _cfg_handle = cfg.subscribe(UpdateOp::Update, WIDGET.id());
                     WIDGET.sub_var(&cfg);

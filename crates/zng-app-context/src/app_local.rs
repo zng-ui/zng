@@ -1,6 +1,9 @@
 use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
+#[cfg(feature = "multi_app")]
 use crate::{AppId, LocalContext};
+
+use std::fmt;
 
 #[doc(hidden)]
 pub struct AppLocalConst<T: Send + Sync + 'static> {
@@ -58,13 +61,20 @@ impl<T: Send + Sync + 'static> AppLocalOption<T> {
 
 #[doc(hidden)]
 pub struct AppLocalVec<T: Send + Sync + 'static> {
-    value: RwLock<Vec<(AppId, T)>>,
+    // we don't use a single RwLock here to avoid lock inversion deadlock between apps,
+    // but data still needs to drop on app deinit so we use an Option.
+    #[cfg(feature = "multi_app")]
+    value: append_only_vec::AppendOnlyVec<(AppId, RwLock<Option<T>>)>,
+    #[cfg(feature = "multi_app")]
     init: fn() -> T,
+    #[cfg(not(feature = "multi_app"))]
+    _f: std::marker::PhantomData<T>,
 }
+#[cfg(feature = "multi_app")]
 impl<T: Send + Sync + 'static> AppLocalVec<T> {
     pub const fn new(init: fn() -> T) -> Self {
         Self {
-            value: RwLock::new(vec![]),
+            value: append_only_vec::AppendOnlyVec::new(),
             init,
         }
     }
@@ -73,65 +83,45 @@ impl<T: Send + Sync + 'static> AppLocalVec<T> {
         self.try_cleanup(id, 0);
     }
     fn try_cleanup(&'static self, id: AppId, tries: u8) {
-        if let Some(mut w) = self.value.try_write_for(if tries == 0 {
-            Duration::from_millis(50)
-        } else {
-            Duration::from_millis(500)
-        }) {
-            if let Some(i) = w.iter().position(|(s, _)| *s == id) {
-                w.swap_remove(i);
+        for (app, data) in self.value.iter() {
+            if *app == id {
+                let timeout = if tries == 0 {
+                    std::time::Duration::from_millis(50)
+                } else {
+                    std::time::Duration::from_millis(500)
+                };
+                if let Some(mut w) = data.try_write_for(timeout) {
+                    // drop
+                    let _ = w.take();
+                } else if tries > 5 {
+                    tracing::error!("failed to cleanup `app_local` for {id:?}, was locked after app drop");
+                } else {
+                    std::thread::Builder::new()
+                        .name("app_local_cleanup".into())
+                        .spawn(move || {
+                            self.try_cleanup(id, tries + 1);
+                        })
+                        .expect("failed to spawn thread");
+                }
             }
-        } else if tries > 5 {
-            tracing::error!("failed to cleanup `app_local` for {id:?}, was locked after app drop");
-        } else {
-            std::thread::Builder::new()
-                .name("app_local_cleanup".into())
-                .spawn(move || {
-                    self.try_cleanup(id, tries + 1);
-                })
-                .expect("failed to spawn thread");
         }
     }
 
-    fn read_impl(&'static self, read: RwLockReadGuard<'static, Vec<(AppId, T)>>) -> MappedRwLockReadGuard<'static, T> {
+    fn app_lock(&'static self) -> &'static RwLock<Option<T>> {
         let id = LocalContext::current_app().expect("no app running, `app_local` can only be accessed inside apps");
-
-        if let Some(i) = read.iter().position(|(s, _)| *s == id) {
-            return RwLockReadGuard::map(read, |v| &v[i].1);
+        for (app, lock) in self.value.iter() {
+            if *app == id {
+                return lock;
+            }
         }
-        drop(read);
-
-        let mut write = self.value.write();
-        if write.iter().any(|(s, _)| *s == id) {
-            drop(write);
-            return self.read();
+        self.value.push((id, RwLock::new(None)));
+        // ensure we always ref the first entry, in case of a race condition inserting multiple
+        for (app, lock) in self.value.iter() {
+            if *app == id {
+                return lock;
+            }
         }
-
-        let value = (self.init)();
-        let i = write.len();
-        write.push((id, value));
-
-        LocalContext::register_cleanup(Box::new(move |id| self.cleanup(id)));
-
-        let read = RwLockWriteGuard::downgrade(write);
-
-        RwLockReadGuard::map(read, |v| &v[i].1)
-    }
-
-    fn write_impl(&'static self, mut write: RwLockWriteGuard<'static, Vec<(AppId, T)>>) -> MappedRwLockWriteGuard<'static, T> {
-        let id = LocalContext::current_app().expect("no app running, `app_local` can only be accessed inside apps");
-
-        if let Some(i) = write.iter().position(|(s, _)| *s == id) {
-            return RwLockWriteGuard::map(write, |v| &mut v[i].1);
-        }
-
-        let value = (self.init)();
-        let i = write.len();
-        write.push((id, value));
-
-        LocalContext::register_cleanup(move |id| self.cleanup(id));
-
-        RwLockWriteGuard::map(write, |v| &mut v[i].1)
+        unreachable!()
     }
 }
 #[doc(hidden)]
@@ -142,21 +132,58 @@ pub trait AppLocalImpl<T: Send + Sync + 'static>: Send + Sync + 'static {
     fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<'static, T>>;
 }
 
+#[cfg(feature = "multi_app")]
 impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalVec<T> {
     fn read(&'static self) -> MappedRwLockReadGuard<'static, T> {
-        self.read_impl(self.value.read_recursive())
+        let lock = self.app_lock();
+        let mut read = lock.read();
+        if read.is_none() {
+            drop(read);
+            let mut write = lock.write();
+            if write.is_none() {
+                *write = Some((self.init)());
+                LocalContext::register_cleanup(Box::new(move |id| self.cleanup(id)));
+            }
+            drop(write);
+            read = lock.read();
+        }
+        RwLockReadGuard::map(read, |o| o.as_ref().unwrap())
     }
 
     fn try_read(&'static self) -> Option<MappedRwLockReadGuard<'static, T>> {
-        Some(self.read_impl(self.value.try_read_recursive()?))
+        let lock = self.app_lock();
+        let mut read = lock.try_read()?;
+        if read.is_none() {
+            drop(read);
+            let mut write = lock.try_write()?;
+            if write.is_none() {
+                *write = Some((self.init)());
+                LocalContext::register_cleanup(Box::new(move |id| self.cleanup(id)));
+            }
+            drop(write);
+            read = lock.read();
+        }
+        Some(RwLockReadGuard::map(read, |o| o.as_ref().unwrap()))
     }
 
     fn write(&'static self) -> MappedRwLockWriteGuard<'static, T> {
-        self.write_impl(self.value.write())
+        let lock = self.app_lock();
+        let mut write = lock.write();
+        if write.is_none() {
+            *write = Some((self.init)());
+            LocalContext::register_cleanup(Box::new(move |id| self.cleanup(id)));
+        }
+        RwLockWriteGuard::map(write, |o| o.as_mut().unwrap())
     }
 
     fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<'static, T>> {
-        Some(self.write_impl(self.value.try_write()?))
+        let lock = self.app_lock();
+        let mut write = lock.try_write()?;
+        if write.is_none() {
+            *write = Some((self.init)());
+            LocalContext::register_cleanup(Box::new(move |id| self.cleanup(id)));
+        }
+        Some(RwLockWriteGuard::map(write, |o| o.as_mut().unwrap()))
     }
 }
 impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalOption<T> {
@@ -527,8 +554,6 @@ macro_rules! app_local_impl_multi {
         std::compile_error!("expected `const { $expr };` or `$expr;`")
     };
 }
-
-use std::{fmt, time::Duration};
 
 #[cfg(feature = "multi_app")]
 #[doc(hidden)]

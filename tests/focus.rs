@@ -53,6 +53,8 @@ pub fn first_and_last_window_events() {
     assert_eq!(FocusChangedCause::ScopeGotFocus(false), events[1].cause);
     assert!(!events[1].highlight);
 
+    // return focus recorded for window scope that lost focus
+    app.blur_window();
     let events = app.take_return_focus_changed();
     assert_eq!(1, events.len());
 
@@ -60,6 +62,9 @@ pub fn first_and_last_window_events() {
     assert!(events[0].prev_return.is_none());
     assert_eq!(root_id, events[0].scope.as_ref().map(|p| p.widget_id()).unwrap());
     assert_eq!(Some(button_0_path.clone()), events[0].new_return);
+
+    app.focus_window();
+    let _ = app.take_focus_changed();
 
     /*
         Last Events
@@ -75,13 +80,6 @@ pub fn first_and_last_window_events() {
     assert!(events[0].new_focus.is_none());
     assert_eq!(FocusChangedCause::Recovery, events[0].cause);
     assert!(!events[0].highlight);
-
-    let events = app.take_return_focus_changed();
-    assert_eq!(1, events.len());
-
-    // cleanup return focus.
-    assert_eq!(Some(button_0_path), events[0].prev_return);
-    assert!(events[0].new_return.is_none());
 }
 
 #[test]
@@ -1231,6 +1229,9 @@ pub fn dont_focus_alt_when_alt_pressed_before_focusing_window() {
             Stack!(top_to_bottom, buttons)
         ]
     ));
+    // font loading may cause focus_changed as different nav gets enabled,
+    // this extra update ensures that any response to latest frame applies
+    app.app.update(false).assert_wait();
 
     // clear
     app.take_focus_changed();
@@ -2017,7 +2018,7 @@ impl TestAppBuilder {
             (a, b)
         };
 
-        let window_id = WINDOW.id();
+        let window_id = WindowId::new_unique();
         app.open_window(window_id, async move { window });
         TestApp {
             app,

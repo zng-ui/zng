@@ -44,7 +44,7 @@ mod android {
     fn android_main(app: android::AndroidApp) {
         zng::env::init!();
 
-        zng::app::print_tracing(tracing::Level::INFO, false);
+        zng::app::print_tracing(tracing::Level::INFO, false, |_| true);
         tracing::info!("Hello Android!");
 
         android::init_android_app(app.clone());

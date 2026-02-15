@@ -440,7 +440,9 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                         _bind_handle = VarHandle::dummy();
                     }
                     WindowIcon::Image(img) => {
-                        _bind_handle = load_bind_ico(id, img.clone(), &actual_icon, WindowCapability::SET_ICON, |i| Some(i.clone()));
+                        _bind_handle = load_bind_ico(id, img.clone(), &actual_icon, WindowCapability::SET_ICON, "window-icon", |i| {
+                            Some(i.clone())
+                        });
                         if _bind_handle.is_dummy() {
                             // VIEW_PROCESS does not support SET_ICON
                             actual_icon.set(None);
@@ -495,6 +497,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                             img.source.clone(),
                             &actual_cursor_img,
                             WindowCapability::SET_CURSOR_IMAGE,
+                            "cursor-img",
                             move |i| {
                                 // layout hotspot relative to the image size
                                 use zng_wgt::prelude::*;
@@ -1018,7 +1021,6 @@ fn with_monitor_layout(id: WindowId, f: impl FnOnce(&WindowInstance, &WindowVars
 }
 
 fn on_state_changed(id: WindowId, s: &zng_var::AnyVarHookArgs<'_>) -> bool {
-    // !!: TODO debounce
     if !s.contains_tag(&SetFromViewTag) {
         with_view(id, |w, _, v| {
             let vars = w.vars.as_ref().unwrap();
@@ -1045,6 +1047,7 @@ fn load_bind_ico<T: zng_var::VarValue>(
     mut source: zng_ext_image::ImageSource,
     target: &zng_var::Var<T>,
     system_cap: WindowCapability,
+    debug_name: &'static str,
     mut map: impl FnMut(&zng_ext_image::ImageEntry) -> T + Send + 'static,
 ) -> VarHandle {
     use zng_app::view_process::VIEW_PROCESS;
@@ -1068,7 +1071,7 @@ fn load_bind_ico<T: zng_var::VarValue>(
     let icon = zng_ext_image::IMAGES.image(source, opt, None);
 
     // hold window open up to 1s to show the icon from the start
-    let mut _load_handle = WINDOWS.loading_handle(id, 1.secs());
+    let mut _load_handle = WINDOWS.loading_handle(id, 1.secs(), debug_name);
     icon.set_bind_map(target, move |i| {
         if i.is_loaded() {
             _load_handle = None;

@@ -893,7 +893,30 @@ impl FocusService {
                         }
                     }
                 }
-                None => tracing::debug!("cannot focus {target} or descendants or ancestors, not found"),
+                None => {
+                    tracing::debug!("cannot focus {target} or descendants or ancestors, not found");
+                    if !is_service_request {
+                        let focused = self.focused.get();
+                        if let Some(focused) = focused
+                            && focused.widget_id() == target
+                        {
+                            // this is is a 'recovery' request, wait one update in case the widget
+                            // is just moving, if it is really removed try the ancestors
+                            UPDATES.once_next_update("delayed-focus-recovery", move || {
+                                let mut s = FOCUS_SV.write();
+                                let focus_did_not_change = s.focused.with(|p| p.as_ref() == Some(&focused));
+                                if focus_did_not_change && s.request.is_none() {
+                                    for wgt in focused.widgets_path().iter().rev() {
+                                        if let Some(wgt) = WINDOWS.widget_info(*wgt) {
+                                            s.focus_direct_recovery(wgt.id(), Some(wgt.tree()));
+                                            break;
+                                        }
+                                    }
+                                }
+                            })
+                        }
+                    }
+                }
             },
             FocusTarget::Enter => match &origin_info {
                 Some(i) => {
@@ -1167,29 +1190,42 @@ impl FocusService {
             // reversed into the scope, first is last
             let reverse = matches!(args.cause.request_target(), Some(FocusTarget::Prev));
 
-            if let Some(w) = new_info.on_focus_scope_move(last_focused, is_tab_cycle_reentry, reverse) {
+            let mut pending_args = Some(args.clone());
+            let mut scope_info = new_info;
+            while let Some(w) = scope_info.on_focus_scope_move(last_focused, is_tab_cycle_reentry, reverse) {
                 // scope moves focus to child
 
                 let prev_focus = args.new_focus.clone();
                 new_focus = Some(w.info().interaction_path());
 
                 focused_changed = args.prev_focus != new_focus;
-                FOCUS_CHANGED_EVENT.notify(args);
-
-                if prev_focus != new_focus {
-                    new_enabled_nav = w.enabled_nav();
-
-                    tracing::trace!("on focus scope move to {:?}", new_focus.as_ref().map(|w| w.widget_id()));
-
-                    FOCUS_CHANGED_EVENT.notify(FocusChangedArgs::now(
-                        prev_focus,
-                        new_focus.clone(),
-                        new_highlight,
-                        FocusChangedCause::ScopeGotFocus(reverse),
-                        new_enabled_nav,
-                    ));
+                if prev_focus == new_focus {
+                    break;
                 }
-            } else {
+
+                new_enabled_nav = w.enabled_nav();
+
+                tracing::trace!("on focus scope move to {:?}", new_focus.as_ref().map(|w| w.widget_id()));
+
+                if let Some(args) = pending_args.take() {
+                    FOCUS_CHANGED_EVENT.notify(args);
+                }
+                pending_args = Some(FocusChangedArgs::now(
+                    prev_focus,
+                    new_focus.clone(),
+                    new_highlight,
+                    FocusChangedCause::ScopeGotFocus(reverse),
+                    new_enabled_nav,
+                ));
+
+                if w.is_scope() {
+                    // recursive into nested scopes
+                    scope_info = w;
+                } else {
+                    break;
+                }
+            }
+            if let Some(args) = pending_args.take() {
                 FOCUS_CHANGED_EVENT.notify(args);
             }
         } else {
