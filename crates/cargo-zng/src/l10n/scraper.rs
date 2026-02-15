@@ -323,21 +323,15 @@ impl TryFrom<TokenStream> for CommandMacroArgs {
 
     fn try_from(macro_group_stream: TokenStream) -> Result<Self, Self::Error> {
         let mut entries = vec![];
-        // seek and parse static IDENT = { .. }
-        let mut tail4 = Vec::with_capacity(4);
+        // seek and parse static IDENT { .. }
+        let mut tail3 = Vec::with_capacity(4);
         for tt in macro_group_stream.into_iter() {
-            tail4.push(tt);
-            if tail4.len() > 4 {
-                tail4.remove(0);
-                match &tail4[..] {
-                    [
-                        TokenTree::Ident(i0),
-                        TokenTree::Ident(id),
-                        TokenTree::Punct(p0),
-                        TokenTree::Group(g),
-                    ] if i0 == "static"
-                        && p0.as_char() == '='
-                        && matches!(g.delimiter(), Delimiter::Brace | Delimiter::Parenthesis | Delimiter::Bracket) =>
+            tail3.push(tt);
+            if tail3.len() > 3 {
+                tail3.remove(0);
+                match &tail3[..] {
+                    [TokenTree::Ident(i0), TokenTree::Ident(id), TokenTree::Group(g)]
+                        if i0 == "static" && matches!(g.delimiter(), Delimiter::Brace | Delimiter::Parenthesis | Delimiter::Bracket) =>
                     {
                         match CommandMacroEntry::try_from(g.stream()) {
                             Ok(mut entry) => {
@@ -368,8 +362,8 @@ impl TryFrom<TokenStream> for CommandMacroEntry {
     type Error = Option<(String, Span)>;
 
     fn try_from(command_meta_group_stream: TokenStream) -> Result<Self, Self::Error> {
-        // static FOO_CMD = { #command_meta_group_stream };
-        let mut tts = command_meta_group_stream.into_iter(); // !!: TODO update syntax
+        // static FOO_CMD { #command_meta_group_stream };
+        let mut tts = command_meta_group_stream.into_iter();
 
         let mut r = CommandMacroEntry {
             id: String::new(),
