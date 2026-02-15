@@ -621,21 +621,31 @@ event_args! {
 }
 event! {
     /// Drag&drop action finished over some drop target widget.
-    pub static DROP_EVENT: DropArgs { let _ = DRAG_DROP_SV.read(); };
+    pub static DROP_EVENT: DropArgs {
+        let _ = DRAG_DROP_SV.read();
+    };
     /// Drag&drop enter or exit a drop target widget.
-    pub static DRAG_HOVERED_EVENT: DragHoveredArgs { let _ = DRAG_DROP_SV.read(); };
+    pub static DRAG_HOVERED_EVENT: DragHoveredArgs {
+        let _ = DRAG_DROP_SV.read();
+    };
     /// Drag&drop is dragging over the target widget.
-    pub static DRAG_MOVE_EVENT: DragMoveArgs { let _ = DRAG_DROP_SV.read(); };
+    pub static DRAG_MOVE_EVENT: DragMoveArgs {
+        let _ = DRAG_DROP_SV.read();
+    };
     /// Drag&drop started dragging a draggable widget.
     ///
     /// If propagation is stopped the drag operation is cancelled. Handlers can use
     /// [`DRAG_DROP.drag`] to set the data, otherwise the widget ID will be dragged.
     ///
     /// [`DRAG_DROP.drag`]: DRAG_DROP::drag
-    pub static DRAG_START_EVENT: DragStartArgs { let _ = DRAG_DROP_SV.read(); };
+    pub static DRAG_START_EVENT: DragStartArgs {
+        let _ = DRAG_DROP_SV.read();
+    };
 
     /// Drag&drop gesture started from the draggable widget has ended.
-    pub static DRAG_END_EVENT: DragEndArgs { let _ = DRAG_DROP_SV.read(); };
+    pub static DRAG_END_EVENT: DragEndArgs {
+        let _ = DRAG_DROP_SV.read();
+    };
 }
 
 impl DropArgs {

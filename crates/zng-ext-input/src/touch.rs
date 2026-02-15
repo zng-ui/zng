@@ -1008,24 +1008,36 @@ impl TouchTransformArgs {
 
 event! {
     /// Touch contact moved.
-    pub static TOUCH_MOVE_EVENT: TouchMoveArgs { let _ = TOUCH_SV.read(); };
+    pub static TOUCH_MOVE_EVENT: TouchMoveArgs {
+        let _ = TOUCH_SV.read();
+    };
 
     /// Touch contact started or ended.
-    pub static TOUCH_INPUT_EVENT: TouchInputArgs { let _ = TOUCH_SV.read(); };
+    pub static TOUCH_INPUT_EVENT: TouchInputArgs {
+        let _ = TOUCH_SV.read();
+    };
 
     /// Touch made first contact or lost contact with a widget.
-    pub static TOUCHED_EVENT: TouchedArgs { let _ = TOUCH_SV.read(); };
+    pub static TOUCHED_EVENT: TouchedArgs {
+        let _ = TOUCH_SV.read();
+    };
 
     /// Touch tap.
-    pub static TOUCH_TAP_EVENT: TouchTapArgs { let _ = TOUCH_SV.read(); };
+    pub static TOUCH_TAP_EVENT: TouchTapArgs {
+        let _ = TOUCH_SV.read();
+    };
 
     /// Two point touch transform.
-    pub static TOUCH_TRANSFORM_EVENT: TouchTransformArgs { let _ = TOUCH_SV.read(); };
+    pub static TOUCH_TRANSFORM_EVENT: TouchTransformArgs {
+        let _ = TOUCH_SV.read();
+    };
 
     /// Touch contact pressed without moving for more then the [`tap_max_time`].
     ///
     /// [`tap_max_time`]: TouchConfig::tap_max_time
-    pub static TOUCH_LONG_PRESS_EVENT: TouchLongPressArgs { let _ = TOUCH_SV.read(); };
+    pub static TOUCH_LONG_PRESS_EVENT: TouchLongPressArgs {
+        let _ = TOUCH_SV.read();
+    };
 }
 
 impl TouchService {

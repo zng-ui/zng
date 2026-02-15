@@ -750,7 +750,9 @@ command! {
         name: "Undo",
         shortcut: [shortcut!(CTRL + 'Z')],
         icon: wgt_fn!(|_| ICONS.get("undo")),
-        init: |_| { let _ = UNDO_SV.read(); },
+        init: |_| {
+            let _ = UNDO_SV.read();
+        },
     };
 
     /// Represents the **redo** action.
@@ -767,7 +769,9 @@ command! {
         name: "Redo",
         shortcut: [shortcut!(CTRL + 'Y')],
         icon: wgt_fn!(|_| ICONS.get("redo")),
-        init: |_| { let _ = UNDO_SV.read(); },
+        init: |_| {
+            let _ = UNDO_SV.read();
+        },
     };
 
     /// Represents the **clear history** action.
@@ -778,7 +782,9 @@ command! {
     pub static CLEAR_HISTORY_CMD {
         l10n!: true,
         name: "Clear History",
-        init: |_| { let _ = UNDO_SV.read(); },
+        init: |_| {
+            let _ = UNDO_SV.read();
+        },
     };
 }
 

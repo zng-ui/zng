@@ -213,10 +213,14 @@ impl KeyInputArgs {
 
 event! {
     /// Key pressed, repeat pressed or released event.
-    pub static KEY_INPUT_EVENT: KeyInputArgs { let _ = KEYBOARD_SV.read(); };
+    pub static KEY_INPUT_EVENT: KeyInputArgs {
+        let _ = KEYBOARD_SV.read();
+    };
 
     /// Modifiers key state changed event.
-    pub static MODIFIERS_CHANGED_EVENT: ModifiersChangedArgs { let _ = KEYBOARD_SV.read(); };
+    pub static MODIFIERS_CHANGED_EVENT: ModifiersChangedArgs {
+        let _ = KEYBOARD_SV.read();
+    };
 }
 
 fn hooks() {

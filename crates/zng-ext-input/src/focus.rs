@@ -314,10 +314,14 @@ impl FocusChangedCause {
 
 event! {
     /// Keyboard focused widget changed event.
-    pub static FOCUS_CHANGED_EVENT: FocusChangedArgs { let _ = FOCUS_SV.read(); };
+    pub static FOCUS_CHANGED_EVENT: FocusChangedArgs {
+        let _ = FOCUS_SV.read();
+    };
 
     /// Scope return focus widget changed event.
-    pub static RETURN_FOCUS_CHANGED_EVENT: ReturnFocusChangedArgs { let _ = FOCUS_SV.read(); };
+    pub static RETURN_FOCUS_CHANGED_EVENT: ReturnFocusChangedArgs {
+        let _ = FOCUS_SV.read();
+    };
 }
 
 /// Keyboard focus service.

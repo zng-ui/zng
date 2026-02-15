@@ -333,7 +333,9 @@ event! {
     /// Aggregate click event.
     ///
     /// Can be a mouse click, a shortcut press or a touch tap.
-    pub static CLICK_EVENT: ClickArgs { let _ = GESTURES_SV.read(); };
+    pub static CLICK_EVENT: ClickArgs {
+        let _ = GESTURES_SV.read();
+    };
 
     /// Shortcut input event.
     ///
@@ -342,7 +344,9 @@ event! {
     /// This event is not send to any widget, use the [`GESTURES`] service to setup widget targets for shortcuts.
     ///
     /// [`Shortcut`]: zng_app::shortcut::Shortcut
-    pub static SHORTCUT_EVENT: ShortcutArgs { let _ = GESTURES_SV.read(); };
+    pub static SHORTCUT_EVENT: ShortcutArgs {
+        let _ = GESTURES_SV.read();
+    };
 }
 
 fn hooks() {

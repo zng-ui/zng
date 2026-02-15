@@ -84,11 +84,13 @@ use super::*;
 ///
 /// command! {
 ///     /// Represents the **foo** action.
-///     pub static FOO_CMD { init: |cmd| {
-///         cmd.init_name("Foo!");
-///         cmd.init_info("Does the foo thing.");
-///         cmd.init_shortcut(shortcut![CTRL+'F']);
-///     }};
+///     pub static FOO_CMD {
+///         init: |cmd| {
+///             cmd.init_name("Foo!");
+///             cmd.init_info("Does the foo thing.");
+///             cmd.init_shortcut(shortcut![CTRL + 'F']);
+///         },
+///     };
 /// }
 /// ```
 ///

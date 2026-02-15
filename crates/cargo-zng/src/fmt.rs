@@ -585,7 +585,6 @@ async fn try_fmt_child_macros(code: &str, stream: pm2_send::TokenStream, fmt: &F
                                 last_already_fmt_start = group_bytes.end;
                             } else if SHOW_RUSTFMT_ERRORS.load(Relaxed) {
                                 error!("unstable format skipped");
-                                // println!("FMT1:\n{formatted}\nFMT2:\n{stable}");
                             }
                         }
                     }
@@ -666,16 +665,16 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         is_event_args = matches!(&replaced_code, Cow::Owned(_));
     }
 
+    let mut is_event = false;
+    if matches!(&replaced_code, Cow::Borrowed(_)) {
+        replaced_code = replace_event(group_code, false);
+        is_event = matches!(&replaced_code, Cow::Owned(_));
+    }
+
     let mut is_command = false;
     if matches!(&replaced_code, Cow::Borrowed(_)) {
         replaced_code = replace_command(group_code, false);
         is_command = matches!(&replaced_code, Cow::Owned(_));
-    }
-
-    let mut is_event_property = false;
-    if matches!(&replaced_code, Cow::Borrowed(_)) {
-        replaced_code = replace_event_property(group_code, false);
-        is_event_property = matches!(&replaced_code, Cow::Owned(_));
     }
 
     let mut is_widget_impl = false;
@@ -758,10 +757,10 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         replace_expr_var(&code, true)
     } else if is_lazy_static {
         replace_static_ref(&code, true)
+    } else if is_event {
+        replace_event(&code, true)
     } else if is_command {
         replace_command(&code, true)
-    } else if is_event_property {
-        replace_event_property(&code, true)
     } else if is_struct_like {
         replace_struct_like(&code, true)
     } else if is_bitflags {
@@ -797,7 +796,7 @@ async fn try_fmt_macro(base_indent: usize, group_code: &str, fmt: &FmtFragServer
         }
     }
     Some(out)
-} // !!: TODO, macro syntax update
+}
 // replace line with only `..` tokens with:
 //
 // ```
@@ -824,15 +823,25 @@ fn replace_event_args(code: &str, reverse: bool) -> Cow<'_, str> {
         RGX_REV.replace_all(code, "\n$1..\n\n")
     }
 }
-// replace `static IDENT = {` with `static IDENT: __fmt__ = {`
+// replace `static IDENT: Args { ` with `static IDENT: __fmt__::Args = {`
+fn replace_event(code: &str, reverse: bool) -> Cow<'_, str> {
+    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)([^'])static +(\w+):\s+([\w:]+)\s+\{").unwrap());
+    static RGX_REV: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)([^'])static +(\w+): __fmt__::([\w:]+) = \{").unwrap());
+    if !reverse {
+        RGX.replace_all(code, "${1}static $2: __fmt__::$3 = {")
+    } else {
+        RGX_REV.replace_all(code, "${1}static $2: $3 {")
+    }
+}
+// replace `static IDENT { foo:` with `static IDENT: __fmt__ = __A_ {`
 // AND replace `static IDENT;` with `static IDENT: __fmt__ = T;`
 // AND replace `l10n!: ` with `l10n__fmt:`
 fn replace_command(code: &str, reverse: bool) -> Cow<'_, str> {
-    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)([^'])static +(\w+) ?= ?\{").unwrap());
+    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)([^'])static +(\w+) ? ?\{(\s+\w+!?:)").unwrap());
     static RGX_DEFAULTS: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)([^'])static +(\w+) ?;").unwrap());
     if !reverse {
         let cmd = RGX_DEFAULTS.replace_all(code, "${1}static $2: __fmt__ = T;");
-        let mut cmd2 = RGX.replace_all(&cmd, "${1}static $2: __fmt__ = __A_ {");
+        let mut cmd2 = RGX.replace_all(&cmd, "${1}static $2: __fmt__ = __A_ {$3");
         if let Cow::Owned(cmd) = &mut cmd2 {
             *cmd = cmd.replace("l10n!:", "l10n__fmt:");
         }
@@ -843,47 +852,8 @@ fn replace_command(code: &str, reverse: bool) -> Cow<'_, str> {
     } else {
         Cow::Owned(
             code.replace(": __fmt__ = T;", ";")
-                .replace(": __fmt__ = __A_ {", " = {")
+                .replace(": __fmt__ = __A_ {", " {")
                 .replace("l10n__fmt:", "l10n!:"),
-        )
-    }
-}
-// replace ` fn ident = { content }` with ` static __fmt_fn__ident: T = __A_ { content };/*__fmt*/`
-fn replace_event_property(code: &str, reverse: bool) -> Cow<'_, str> {
-    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m) fn +(\w+) +\{").unwrap());
-    if !reverse {
-        let mut r = RGX.replace_all(code, " static __fmt_fn__$1: T = __A_ {");
-        if let Cow::Owned(r) = &mut r {
-            const OPEN: &str = ": T = __A_ {";
-            const CLOSE_MARKER: &str = "; /*__fmt*/";
-            let mut start = 0;
-            while let Some(i) = r[start..].find(OPEN) {
-                let i = start + i + OPEN.len();
-                let mut count = 1;
-                let mut close_i = i;
-                for (ci, c) in r[i..].char_indices() {
-                    match c {
-                        '{' => count += 1,
-                        '}' => {
-                            count -= 1;
-                            if count == 0 {
-                                close_i = i + ci + 1;
-                                break;
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                r.insert_str(close_i, CLOSE_MARKER);
-                start = close_i + CLOSE_MARKER.len();
-            }
-        }
-        r
-    } else {
-        Cow::Owned(
-            code.replace(" static __fmt_fn__", " fn ")
-                .replace(": T = __A_ {", " {")
-                .replace("}; /*__fmt*/", "}"),
         )
     }
 }

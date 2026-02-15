@@ -670,19 +670,29 @@ context_var! {
 
 event! {
     /// Mouse move event.
-    pub static MOUSE_MOVE_EVENT: MouseMoveArgs { let _ = MOUSE_SV.read(); };
+    pub static MOUSE_MOVE_EVENT: MouseMoveArgs {
+        let _ = MOUSE_SV.read();
+    };
 
     /// Mouse down or up event.
-    pub static MOUSE_INPUT_EVENT: MouseInputArgs { let _ = MOUSE_SV.read(); };
+    pub static MOUSE_INPUT_EVENT: MouseInputArgs {
+        let _ = MOUSE_SV.read();
+    };
 
     /// Mouse click event, any [`click_count`](MouseClickArgs::click_count).
-    pub static MOUSE_CLICK_EVENT: MouseClickArgs { let _ = MOUSE_SV.read(); };
+    pub static MOUSE_CLICK_EVENT: MouseClickArgs {
+        let _ = MOUSE_SV.read();
+    };
 
     /// The top-most hovered widget changed or pointer capture changed.
-    pub static MOUSE_HOVERED_EVENT: MouseHoverArgs { let _ = MOUSE_SV.read(); };
+    pub static MOUSE_HOVERED_EVENT: MouseHoverArgs {
+        let _ = MOUSE_SV.read();
+    };
 
     /// Mouse wheel scroll event.
-    pub static MOUSE_WHEEL_EVENT: MouseWheelArgs { let _ = MOUSE_SV.read(); };
+    pub static MOUSE_WHEEL_EVENT: MouseWheelArgs {
+        let _ = MOUSE_SV.read();
+    };
 }
 
 /// Represents mouse gestures that can initiate a click.
