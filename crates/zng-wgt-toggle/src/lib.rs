@@ -1141,10 +1141,14 @@ impl ComboStyle {
                 opacity = 0.pct();
                 #[easing(100.ms())]
                 y = -10;
+                // to avoid receiving a Released click while sliding in.
+                #[easing(100.ms())]
+                zng_wgt::hit_test_mode = false;
 
                 when *#is_inited {
                     opacity = 100.pct();
                     y = 0;
+                    zng_wgt::hit_test_mode = true;
                 }
 
                 zng_wgt_layer::popup::close_delay = 100.ms();

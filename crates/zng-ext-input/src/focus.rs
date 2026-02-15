@@ -1215,7 +1215,8 @@ impl FocusService {
                     tracing::trace!("set focus indicator {i:?}");
                     vars.focus_indicator().set(i);
                 } else {
-                    tracing::debug!("app does not have focus and request did not force focus or set indicator");
+                    tracing::debug!("app does not have focus and force or indicator request, set info indicator");
+                    vars.focus_indicator().set(FocusIndicator::Info);
                 }
             }
         }

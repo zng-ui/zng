@@ -323,8 +323,6 @@ impl WINDOWS {
     /// Returns a response var that will update once with the result of the operation. Returns
     /// [`Cancel`] if `windows` is empty.
     ///
-    /// Returns an error if any of the IDs is not one of the open windows or is only an open request.
-    ///
     /// [`Cancel`]: CloseWindowResult::Cancel
     pub fn close_together(&self, windows: impl IntoIterator<Item = WindowId>) -> ResponseVar<CloseWindowResult> {
         self.close_together_impl(windows.into_iter().collect())

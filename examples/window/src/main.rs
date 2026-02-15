@@ -736,7 +736,9 @@ fn confirm_close() -> Handler<WindowCloseRequestedArgs> {
     async_hn!(state, |args| {
         match state.get() {
             CloseState::Ask => {
+                // cancel to show in content confirm dialog
                 args.propagation.stop();
+
                 state.set(CloseState::Asking);
 
                 let dlg = if args.windows.len() == 1 {
@@ -757,17 +759,14 @@ fn confirm_close() -> Handler<WindowCloseRequestedArgs> {
                 let r = DIALOG.custom(dlg).wait_rsp().await;
                 if r.name == "close" {
                     state.set(CloseState::Close);
-                    let mut windows = args.windows;
-                    windows.retain(|w| match WINDOWS.vars(*w) {
-                        Some(_) => todo!(),
-                        None => false,
-                    });
-                    let _ = WINDOWS.close_together(windows);
+                    let _ = WINDOWS.close_together(args.windows.iter().copied());
                 } else {
                     state.set(CloseState::Ask);
                 }
             }
+            // cancel, already showing confirm dialog
             CloseState::Asking => args.propagation.stop(),
+            // already confirmed close
             CloseState::Close => {}
         }
     })

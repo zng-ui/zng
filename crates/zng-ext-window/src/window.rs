@@ -200,6 +200,10 @@ impl WindowInstance {
                     ctx: Some(ctx),
                 };
                 let (mut root, mut win_ctx) = new_window.await;
+
+                // await one update in case requests where made in the new_window
+                zng_task::yield_now().await;
+
                 let mut nested = None;
 
                 // lock in kiosk mode

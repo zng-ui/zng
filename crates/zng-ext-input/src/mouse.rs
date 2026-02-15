@@ -1140,7 +1140,7 @@ impl MouseService {
             dist.x <= area.width && dist.y <= area.height
         };
 
-        let click_gesture = if entry.click_count == 0 || !double_allowed {
+        let click_trigger = if entry.click_count == 0 || !double_allowed {
             entry.click_count = 0;
             click_mode.single
         } else {
@@ -1151,15 +1151,15 @@ impl MouseService {
             ButtonState::Pressed => {
                 entry.pressed = true;
                 entry.press_stop_handle = stop_handle.clone();
-                matches!(click_gesture, ClickTrigger::Press)
+                matches!(click_trigger, ClickTrigger::Press)
             }
             ButtonState::Released => {
                 entry.repeat_count = 0;
                 entry.repeat_timer = None;
                 if mem::take(&mut entry.pressed) && !entry.press_stop_handle.is_stopped() {
-                    matches!(click_gesture, ClickTrigger::PressRelease | ClickTrigger::Release)
+                    matches!(click_trigger, ClickTrigger::PressRelease | ClickTrigger::Release)
                 } else {
-                    matches!(click_gesture, ClickTrigger::Release)
+                    matches!(click_trigger, ClickTrigger::Release)
                 }
             }
         };
