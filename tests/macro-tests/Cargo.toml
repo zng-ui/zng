@@ -5,6 +5,6 @@ publish = false
 edition = "2024"
 
 [dependencies]
-trybuild = "1.0"
+trybuild = " 1.0.115"
 glob = "0.3"
 zng = { path = "../../crates/zng", features = ["hot_reload"] }
