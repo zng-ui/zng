@@ -115,7 +115,7 @@
 //! ```
 //! # use zng_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
 //! command! {
-//!     pub static FOO_CMD = {
+//!     pub static FOO_CMD {
 //!         l10n!: true,
 //!         name: "Foo!",
 //!         info: "Does the foo thing",
@@ -136,7 +136,7 @@
 //! ```
 //! # use zng_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
 //! command! {
-//!     pub static FOO_CMD = {
+//!     pub static FOO_CMD {
 //!         l10n!: "file",
 //!         name: "Foo!",
 //!     };

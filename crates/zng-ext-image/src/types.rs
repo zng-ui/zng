@@ -952,7 +952,7 @@ impl ImageSource {
     /// # use zng_color::colors;
     /// # use std::any::Any;
     /// # struct WindowRoot;
-    /// # impl ImageRenderWindowRoot for WindowRoot { fn into_any(self: Box<Self>) -> Box<dyn Any> { self } }
+    /// # impl ImageRenderWindowRoot for WindowRoot { }
     /// # macro_rules! Window { ($($property:ident = $value:expr;)+) => { {$(let _ = $value;)+ WindowRoot } } }
     /// # macro_rules! Text { ($($tt:tt)*) => { () } }
     /// # fn main() { }
@@ -1001,7 +1001,7 @@ impl ImageSource {
     /// # use zng_view_api::window::RenderMode;
     /// # use std::any::Any;
     /// # struct WindowRoot;
-    /// # impl ImageRenderWindowRoot for WindowRoot { fn into_any(self: Box<Self>) -> Box<dyn Any> { self } }
+    /// # impl ImageRenderWindowRoot for WindowRoot { }
     /// # macro_rules! Container { ($($tt:tt)*) => { zng_app::widget::node::UiNode::nil() } }
     /// # fn main() { }
     /// # fn demo() {

@@ -48,11 +48,14 @@ pub use zng_wgt_input::keyboard::{
 ///     APP.device_events_filter().modify(|f| f.input |= InputDeviceCapability::KEY);
 ///
 ///     keyboard::raw_device_events::KEY_EVENT
-///         .on_pre_event(hn!(|args| {
-///             if args.state == keyboard::KeyState::Pressed {
-///                 println!("key pressed {:?}", args.key_code);
-///             }
-///         }))
+///         .on_pre_event(
+///             true,
+///             hn!(|args| {
+///                 if args.state == keyboard::KeyState::Pressed {
+///                     println!("key pressed {:?}", args.key_code);
+///                 }
+///             }),
+///         )
 ///         .perm();
 ///
 ///     Window!()

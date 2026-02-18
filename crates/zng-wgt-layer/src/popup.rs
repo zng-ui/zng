@@ -57,9 +57,9 @@ impl Popup {
     widget_impl! {
         /// Popup focus behavior when it or a descendant receives a click.
         ///
-        /// Is [`FocusClickBehavior::ExitEnabled`] by default.
+        /// Is [`FocusClickBehavior::menu_item`] by default.
         ///
-        /// [`FocusClickBehavior::ExitEnabled`]: zng_wgt_input::focus::FocusClickBehavior::ExitEnabled
+        /// [`FocusClickBehavior::menu_item`]: zng_wgt_input::focus::FocusClickBehavior::menu_item
         pub focus_click_behavior(behavior: impl IntoVar<FocusClickBehavior>);
     }
 }

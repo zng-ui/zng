@@ -853,7 +853,7 @@ mod modify_importance {
         app.update(false).assert_wait();
         assert_eq!("v1", test.get());
 
-        app.run_task(async_clmv!(ease, {
+        app.run_test(async_clmv!(ease, {
             ease.wait_animation().await;
         }));
         assert_eq!(100, ease.get());

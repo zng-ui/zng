@@ -628,10 +628,10 @@ where
 ///
 /// ```
 /// # fn main() { }
-/// # use zng_app::event::*;
+/// # use zng_app::{event::*, widget::{node::*, *}, handler::*};
 /// # use zng_wgt::node::*;
 /// # #[derive(Clone, Debug, PartialEq)] pub enum KeyState { Pressed }
-/// # event_args! { pub struct KeyInputArgs { pub state: KeyState, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # event_args! { pub struct KeyInputArgs { pub state: KeyState, .. fn is_in_target(&self, _id: WidgetId) -> bool { true } } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
 /// # struct CONTEXT;
 /// # impl CONTEXT { pub fn state(&self) -> zng_var::Var<bool> { zng_var::var(true) } }
@@ -654,7 +654,7 @@ where
 ///     pub fn on_key_down<on_pre_key_down>(child: impl IntoUiNode, handler: Handler<KeyInputArgs>) -> UiNode {
 ///         const PRE: bool;
 ///         EventNodeBuilder::new(KEY_INPUT_EVENT)
-///             .filter(|a| a.state == KeyState::Pressed)
+///             .filter(|| |a| a.state == KeyState::Pressed)
 ///             .build::<PRE>(child, handler)
 ///     }
 ///
@@ -761,7 +761,7 @@ macro_rules! event_property_impl {
 ///
 /// ```
 /// # fn main() { }
-/// # use zng_app::{event::*, widget::*};
+/// # use zng_app::{event::*, widget::{*, node::*}, handler::*};
 /// # use zng_app::var::*;
 /// # use zng_wgt::node::*;
 /// # command! {
@@ -771,13 +771,13 @@ macro_rules! event_property_impl {
 /// command_property! {
 ///     /// Property docs.
 ///     #[property(EVENT)]
-///     pub fn on_paste<on_pre_paste>(child: impl IntoUiNode, handler: impl Handler<CommandArgs>) -> UiNode {
+///     pub fn on_paste<on_pre_paste>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
 ///         PASTE_CMD
 ///     }
 ///
 ///     /// Another property, with optional `can_*` contextual property.
 ///     #[property(EVENT)]
-///     pub fn on_copy<on_pre_copy, can_copy>(child: impl IntoUiNode, handler: impl Handler<CommandArgs>) -> UiNode {
+///     pub fn on_copy<on_pre_copy, can_copy>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
 ///         COPY_CMD
 ///     }
 /// }
@@ -899,7 +899,7 @@ macro_rules! command_property_impl {
             /// The command handle is always enabled.
             $vis fn $on_ident<$on_pre_ident>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
                 const PRE: bool;
-                let child = $crate::node::EventNodeBuilder::new($COMMAND).build::<PRE>($child, $handler);
+                let child = $crate::node::EventNodeBuilder::new(*$COMMAND).build::<PRE>($child, $handler);
                 $crate::node::command_always_enabled(child, $COMMAND)
             }
         }

@@ -600,7 +600,7 @@ impl VARS {
             }
         }));
 
-        vars.ans_next_frame = Some(Deadline(DInstant::EPOCH));
+        vars.ans_next_frame = Some(Deadline(INSTANT.now()));
 
         vars.wake_app();
 

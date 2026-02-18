@@ -42,8 +42,9 @@
 //!
 //! fn app() {
 //!     APP.defaults().run(async {
-//!         let r = WINDOWS.open(async { main_window() });
-//!         println!("opened {}", r.wait_rsp().await);
+//!         let r = WINDOWS.open("main", async { main_window() });
+//!         r.wait_rsp().await.instance_state().wait_match(|v| v.is_loaded()).await;
+//!         println!("window open and loaded");
 //!     });
 //! }
 //!
@@ -58,13 +59,13 @@
 //!                 on_click = async_hn!(enabled, |_| {
 //!                     enabled.set(false);
 //!
-//!                     if WINDOWS.is_open("child-id") {
-//!                         if let Ok(r) = WINDOWS.close("child-id") {
+//!                     if WINDOWS.vars("child-id").is_some() {
+//!                         if let Some(r) = WINDOWS.close("child-id") {
 //!                             r.wait_done().await;
 //!                         }
 //!                     } else {
 //!                         let parent = WINDOW.id();
-//!                         WINDOWS.open_id("child-id", async move { child_window(parent) }).wait_done().await;
+//!                         WINDOWS.open("child-id", async move { child_window(parent) }).wait_done().await;
 //!                     }
 //!
 //!                     enabled.set(true);

@@ -346,7 +346,7 @@ impl RunningApp {
                         let _hold_once = (&handle, &img);
                     });
                 } else {
-                    tracing::warn!("received unknown image metadata {:?} ({:?}), ignoring", img.meta.id, img.meta.size);
+                    tracing::warn!("received unknown image data {:?} ({:?}), ignoring", img.meta.id, img.meta.size);
                 }
             }
             Event::ImageDecodeError { image: id, error } => {

@@ -90,7 +90,7 @@
 //!         frame_capture_mode = window::FrameCaptureMode::Next;
 //!
 //!         on_frame_image_ready = async_hn!(|args| {
-//!             if let Some(img) = args.frame_image {
+//!             if let Some(img) = args.frame_image.upgrade() {
 //!                 // if the app runs with `run_headless(/* with_renderer: */ true)` an image is captured
 //!                 // and saved here.
 //!                 img.get().save("screenshot.png").await.unwrap();
@@ -183,7 +183,11 @@
 //!             if request == '\n' {
 //!                 s.state = true;
 //!             }
-//!             let r = if s.config.get() { request.to_upper() } else { request.to_lower() };
+//!             let r = if s.config.get() {
+//!                 request.to_uppercase()
+//!             } else {
+//!                 request.to_lowercase()
+//!             };
 //!             responder.respond(r);
 //!         });
 //!         response
@@ -376,7 +380,7 @@ pub use zng_ext_single_instance::{APP_INSTANCE_EVENT, AppInstanceArgs};
 ///
 /// fn main() {
 ///     // tracing applied to all processes.
-///     zng::app::print_tracing(tracing::Level::INFO, false);
+///     zng::app::print_tracing(tracing::Level::INFO, false, |_| true);
 ///
 ///     // monitor-process spawns app-process and if needed dialog-process here.
 ///     zng::env::init!();

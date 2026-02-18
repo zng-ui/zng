@@ -351,7 +351,7 @@ impl HeadlessApp {
         match self.run_task(task)? {
             Ok(r) => Some(r),
             Err(e) => {
-                panic!("run_task reached deadline, {e}")
+                panic!("run_test {e}")
             }
         }
     }
@@ -616,7 +616,7 @@ mod private {
 /// In the example below this function is called before `init!`, enabling it in all app processes.
 ///
 /// ```
-/// # macro_rules! { () => {
+/// # macro_rules! demo { () => {
 /// fn main() {
 ///     zng::app::print_tracing(tracing::Level::INFO, false, |_| true);
 ///     zng::env::init!();

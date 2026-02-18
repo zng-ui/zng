@@ -113,10 +113,11 @@
 //!                     use zng::access::ACCESS;
 //!
 //!                     show_tooltip = !show_tooltip;
+//!                     let path = WINDOW.info().get("tooltip-anchor").unwrap().path();
 //!                     if show_tooltip {
-//!                         ACCESS.show_tooltip(WINDOW.id(), "tooltip-anchor");
+//!                         ACCESS.show_tooltip(path);
 //!                     } else {
-//!                         ACCESS.hide_tooltip(WINDOW.id(), "tooltip-anchor");
+//!                         ACCESS.hide_tooltip(path);
 //!                     }
 //!                 });
 //!                 child = Text!("Toggle Tooltip");
