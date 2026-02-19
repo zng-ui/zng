@@ -597,7 +597,7 @@ fn l10n(mut args: Vec<&str>) {
 //     test
 //        Run all unit, integration, doc, render, and macro tests.
 //     test --nextest
-//        Run all unit and integration using 'nextest'; doc and macro tests using 'test'.
+//        Run all unit and integration using 'nextest'.
 //     test --published
 //        Test if latest published release of `zng` did not break previous release.
 fn test(mut args: Vec<&str>) {
@@ -711,6 +711,32 @@ fn test(mut args: Vec<&str>) {
         std::env::set_current_dir("test-prev").unwrap();
         cmd("cargo", &["add", &format!("zng@0.{prev}")], &[]);
         cmd("cargo", &["build"], &[]);
+    } else if take_flag(&mut args, &["--nextest"]) {
+        let has_package = args.contains(&"-p") || args.contains(&"--package");
+        if !args.contains(&"--config-file") {
+            let cfg_file = "target/tmp/do-nextest-config.toml";
+            std::fs::create_dir_all("target/tmp/").unwrap();
+            std::fs::write(
+                cfg_file,
+                b"[profile.default]\nslow-timeout = { period = \"60s\", terminate-after = 3 }",
+            )
+            .unwrap();
+            args.push("--config-file");
+            args.push(cfg_file);
+        }
+        cmd_env(
+            "cargo",
+            &[
+                nightly,
+                "nextest",
+                "run",
+                "--no-fail-fast",
+                "--all-features",
+                if has_package { "" } else { "--workspace" },
+            ],
+            &args,
+            env,
+        );
     } else {
         // other, mostly handled by cargo.
 
@@ -721,45 +747,18 @@ fn test(mut args: Vec<&str>) {
             version_doc_sync::check();
         }
 
-        if take_flag(&mut args, &["--nextest"]) {
-            if !args.contains(&"--config-file") {
-                let cfg_file = "target/tmp/do-nextest-config.toml";
-                std::fs::create_dir_all("target/tmp/").unwrap();
-                std::fs::write(
-                    cfg_file,
-                    b"[profile.default]\nslow-timeout = { period = \"60s\", terminate-after = 3 }",
-                )
-                .unwrap();
-                args.push("--config-file");
-                args.push(cfg_file);
-            }
-            cmd_env(
-                "cargo",
-                &[
-                    nightly,
-                    "nextest",
-                    "run",
-                    "--no-fail-fast",
-                    "--all-features",
-                    if has_package { "" } else { "--workspace" },
-                ],
-                &args,
-                env,
-            );
-        } else {
-            cmd_env(
-                "cargo",
-                &[
-                    nightly,
-                    "test",
-                    "--no-fail-fast",
-                    "--all-features",
-                    if has_package { "" } else { "--workspace" },
-                ],
-                &args,
-                env,
-            );
-        }
+        cmd_env(
+            "cargo",
+            &[
+                nightly,
+                "test",
+                "--no-fail-fast",
+                "--all-features",
+                if has_package { "" } else { "--workspace" },
+            ],
+            &args,
+            env,
+        );
 
         if all {
             // if no args we run everything.
