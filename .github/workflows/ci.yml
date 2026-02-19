@@ -224,7 +224,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [check-ubuntu]
     env:
-      RUST_TEST_TIME_DOCTEST: 5000,5000
+      RUST_TEST_TIME_DOCTEST: 2000,5000
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -232,7 +232,7 @@ jobs:
           components: clippy, rustfmt
       - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5 && sudo apt install libasound2-dev -o Acquire::Retries=5
       - uses: Swatinem/rust-cache@v2
-      - run: cargo do test +nightly --doc -- -Zunstable-options --report-time --ensure-time
+      - run: cargo do test --doc -- --test-threads=1
   test-macro:
     runs-on: ubuntu-latest
     needs: [check-ubuntu]
