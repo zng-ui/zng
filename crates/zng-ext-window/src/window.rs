@@ -202,6 +202,8 @@ impl WindowInstance {
                 };
                 let (mut root, mut win_ctx) = new_window.await;
 
+                win_ctx.set_widget_tree(WidgetInfoTree::wgt(id, root.id));
+
                 // await one update in case requests where made in the new_window
                 zng_task::yield_now().await;
 

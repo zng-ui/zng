@@ -133,11 +133,11 @@ impl HeadlessAppWindowExt for HeadlessApp {
             if let Some(mode) = WINDOWS.mode(window_id) {
                 if mode.has_renderer() {
                     vars.instance_state()
-                        .wait_match(|s| matches!(s, WindowInstanceState::Loaded { has_view: true }))
+                        .wait_match(|s| matches!(s, WindowInstanceState::Loaded { has_view: true } | WindowInstanceState::Closed))
                         .await;
                 } else {
                     vars.instance_state()
-                        .wait_match(|s| matches!(s, WindowInstanceState::Loaded { has_view: false }))
+                        .wait_match(|s| matches!(s, WindowInstanceState::Loaded { has_view: false } | WindowInstanceState::Closed))
                         .await;
                 }
             }
