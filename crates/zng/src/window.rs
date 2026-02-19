@@ -60,9 +60,7 @@
 //!                     enabled.set(false);
 //!
 //!                     if WINDOWS.vars("child-id").is_some() {
-//!                         if let Some(r) = WINDOWS.close("child-id") {
-//!                             r.wait_done().await;
-//!                         }
+//!                         let r = WINDOWS.close("child-id").wait_done().await;
 //!                     } else {
 //!                         let parent = WINDOW.id();
 //!                         WINDOWS.open("child-id", async move { child_window(parent) }).wait_done().await;

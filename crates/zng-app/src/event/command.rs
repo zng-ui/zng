@@ -289,7 +289,7 @@ pub fn init_meta_l10n(
 /// # impl CommandFooBarExt for Command { }
 /// command! {
 ///     /// Foo-bar command.
-///     pub static FOO_BAR_CMD = { foo: true, bar: false };
+///     pub static FOO_BAR_CMD { foo: true, bar: false };
 /// }
 /// ```
 ///

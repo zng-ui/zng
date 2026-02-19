@@ -93,7 +93,7 @@
 //!             if let Some(img) = args.frame_image.upgrade() {
 //!                 // if the app runs with `run_headless(/* with_renderer: */ true)` an image is captured
 //!                 // and saved here.
-//!                 img.get().save("screenshot.png").await.unwrap();
+//!                 img.get().save("screenshot.png").await.ok();
 //!             }
 //!
 //!             // close the window, causing the app to exit.
@@ -184,9 +184,9 @@
 //!                 s.state = true;
 //!             }
 //!             let r = if s.config.get() {
-//!                 request.to_uppercase()
+//!                 request.to_ascii_uppercase()
 //!             } else {
-//!                 request.to_lowercase()
+//!                 request.to_ascii_lowercase()
 //!             };
 //!             responder.respond(r);
 //!         });

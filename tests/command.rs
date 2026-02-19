@@ -59,6 +59,9 @@ fn shortcut_basic() {
         let expect = vec![format!("scoped-wgt / Widget({widget_id:?})")];
         any_eq |= *actual == expect;
     }
+    if !any_eq {
+        panic!("!!: {:#?}", gesture::SHORTCUT_EVENT.var().get().latest().unwrap().actions);
+    }
     assert!(any_eq, "expected any of {expected_any:?}, was {actual:?}");
 }
 
@@ -91,6 +94,9 @@ fn shortcut_scoped() {
         let widget_id = WidgetId::named(id);
         let expect = vec![format!("scoped-wgt / Widget({widget_id:?})")];
         any_eq |= *actual == expect;
+    }
+    if !any_eq {
+        panic!("!!: {:#?}", gesture::SHORTCUT_EVENT.var().get().latest().unwrap().actions);
     }
     assert!(any_eq, "expected any of {expected_any:?}, was {actual:?}");
 }

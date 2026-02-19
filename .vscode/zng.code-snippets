@@ -157,7 +157,7 @@
 		"body": [
 			"command! {",
 			"    /// $4",
-			"    pub static ${1:FOO}_CMD = {",
+			"    pub static ${1:FOO}_CMD {",
 			"        name: \"${2:foo}\",",
 			"        $3",
 			"    };",

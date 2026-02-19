@@ -765,8 +765,8 @@ mod __prelude_wgt {
     pub use zng_app::{
         DInstant, Deadline, INSTANT,
         event::{
-            AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, CommandParam, Event, EventArgs as _,
-            EventPropagationHandle, command, event, event_args,
+            AnyEventArgs as _, Command, CommandArgs, CommandHandle, CommandInfoExt as _, CommandNameExt as _, CommandParam, Event,
+            EventArgs as _, EventPropagationHandle, command, event, event_args,
         },
         handler::{Handler, HandlerExt as _, async_hn, async_hn_once, hn, hn_once},
         render::{FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, SpatialFrameId, TransformStyle},

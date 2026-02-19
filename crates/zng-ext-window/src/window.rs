@@ -862,6 +862,23 @@ pub(crate) fn render(
         if let Some(r) = &n.renderer {
             // send frame to view-process
             let _ = r.render(FrameRequest::new(n.frame_id, n.clear_color, frame.display_list, capture, wait_id));
+        } else {
+            #[cfg(feature = "image")]
+            {
+                let error = match capture {
+                    zng_view_api::window::FrameCapture::None => "",
+                    zng_view_api::window::FrameCapture::Full => "cannot capture frame, no renderer",
+                    zng_view_api::window::FrameCapture::Mask(_) => "cannot capture frame mask, no renderer",
+                    _ => "",
+                };
+                if !error.is_empty() {
+                    let frame_image = zng_var::VarEq(zng_var::var(zng_ext_image::ImageEntry::new_error(error.into())));
+                    crate::FRAME_IMAGE_READY_EVENT.notify(crate::FrameImageReadyArgs::now(*id, n.frame_id, frame_image.downgrade()));
+                    UPDATES.once_next_update("", move || {
+                        let _hold = &frame_image;
+                    });
+                }
+            }
         }
 
         if n.wgt_ctx.is_pending_reinit() {
