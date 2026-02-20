@@ -50,19 +50,10 @@ fn shortcut_basic() {
 
     app.press_key(window_id, KeyCode::KeyF, KeyLocation::Standard, Key::Char('F'));
 
-    // because of parallelism "other-widget" can subscribe first
-    let mut any_eq = false;
-    let expected_any = ["test-widget", "other-widget"];
-    let actual = TEST_TRACE.read();
-    for id in expected_any {
-        let widget_id = WidgetId::named(id);
-        let expect = vec![format!("scoped-wgt / Widget({widget_id:?})")];
-        any_eq |= *actual == expect;
-    }
-    if !any_eq {
-        panic!("!!: {:#?}", gesture::SHORTCUT_EVENT.var().get().latest().unwrap().actions);
-    }
-    assert!(any_eq, "expected any of {expected_any:?}, was {actual:?}");
+    // because of parallelism any of these targets can receive first
+    let trace = TEST_TRACE.read();
+    assert!(!trace.is_empty());
+    assert!(!trace.contains(&format!("scoped-win / Window({window_id:?})")));
 }
 
 #[test]
@@ -72,7 +63,8 @@ fn shortcut_scoped() {
     let window_id = WindowId::new_unique();
     app.open_window(window_id, listener_window(false));
 
-    FOO_CMD.shortcut().set(shortcut!('F'));
+    let widget_id = WidgetId::named("test-widget");
+    FOO_CMD.scoped(widget_id).shortcut().set(shortcut!('F'));
     FOO_CMD.scoped(window_id).shortcut().set(shortcut!('G'));
     let _ = app.update(false);
 
@@ -85,20 +77,7 @@ fn shortcut_scoped() {
     }
 
     app.press_key(window_id, KeyCode::KeyF, KeyLocation::Standard, Key::Char('F'));
-
-    // because of parallelism "other-widget" can subscribe first
-    let expected_any = ["test-widget", "other-widget"];
-    let actual = TEST_TRACE.read();
-    let mut any_eq = false;
-    for id in expected_any {
-        let widget_id = WidgetId::named(id);
-        let expect = vec![format!("scoped-wgt / Widget({widget_id:?})")];
-        any_eq |= *actual == expect;
-    }
-    if !any_eq {
-        panic!("!!: {:#?}", gesture::SHORTCUT_EVENT.var().get().latest().unwrap().actions);
-    }
-    assert!(any_eq, "expected any of {expected_any:?}, was {actual:?}");
+    assert_eq!(&*TEST_TRACE.read(), &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
 }
 
 async fn listener_window(focused_wgt: bool) -> window::WindowRoot {
@@ -149,7 +128,6 @@ async fn listener_window(focused_wgt: bool) -> window::WindowRoot {
     }
 
     Window! {
-        parallel = false;
         child_top = foo_window_handler();
         child = Stack! {
             direction = StackDirection::top_to_bottom();

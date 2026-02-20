@@ -325,19 +325,28 @@ pub struct Command {
 struct CommandDbg {
     static_name: &'static str,
     scope: CommandScope,
+    state: Option<[usize; 2]>,
 }
 impl CommandDbg {
     fn new(static_name: &'static str, scope: CommandScope) -> Self {
-        Self { static_name, scope }
+        Self {
+            static_name,
+            scope,
+            state: None,
+        }
     }
 }
 impl fmt::Debug for CommandDbg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            f.debug_struct("Command")
-                .field("static_name", &self.static_name)
-                .field("scope", &self.scope)
-                .finish_non_exhaustive()
+            let mut d = f.debug_struct("Command");
+            d.field("static_name", &self.static_name).field("scope", &self.scope);
+            if let Some([has, enabled]) = &self.state {
+                d.field("handle_count", has);
+                d.field("enabled_count", enabled);
+            }
+
+            d.finish_non_exhaustive()
         } else {
             write!(f, "{}", self.static_name)?;
             match self.scope {
@@ -351,7 +360,9 @@ impl fmt::Debug for CommandDbg {
 impl fmt::Debug for Command {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let dbg = if let Some(d) = self.local.try_read() {
-            CommandDbg::new(d.static_name, self.scope)
+            let mut dbg = CommandDbg::new(d.static_name, self.scope);
+            dbg.state = Some([d.handle_count, d.enabled_count]);
+            dbg
         } else {
             CommandDbg::new("<locked>", self.scope)
         };
@@ -545,8 +556,8 @@ impl Command {
     /// or widgets in the window and the widget scope matches the widget and all descendants.
     pub fn each_update(&self, direct_scope_only: bool, ignore_propagation: bool, mut handler: impl FnMut(&CommandArgs)) {
         self.event.each_update(ignore_propagation, move |args| {
-            if !direct_scope_only || args.scope == self.scope {
-                handler(args)
+            if args.scope_matches(direct_scope_only, self.scope) {
+                handler(args);
             }
         });
     }
@@ -562,7 +573,7 @@ impl Command {
     ) -> Option<O> {
         let mut r = None;
         self.event.latest_update(ignore_propagation, |args| {
-            if !direct_scope_only || args.scope == self.scope {
+            if args.scope_matches(direct_scope_only, self.scope) {
                 r = Some(handler(args));
             }
         });
@@ -868,6 +879,40 @@ impl CommandArgs {
     /// [`enabled`]: Self::enabled
     pub fn disabled_param<T: Any>(&self) -> Option<&T> {
         if !self.enabled { self.param::<T>() } else { None }
+    }
+
+    /// If `direct_only` is enabled only matches exact command scope matches,
+    /// otherwise the app `scope` matches all args, the window `scope` matches all events for the window
+    /// or widgets in the window and the widget `scope` matches the widget and all descendants.
+    pub fn scope_matches(&self, direct_only: bool, scope: CommandScope) -> bool {
+        if direct_only {
+            self.scope == scope
+        } else {
+            match (scope, self.scope) {
+                (CommandScope::App, _) => true,
+                (CommandScope::Window(scope_id), CommandScope::Window(args_id)) => scope_id == args_id,
+                (CommandScope::Window(scope_id), CommandScope::Widget(args_id)) => {
+                    // if window contains widget
+                    if let Some(t) = &self.target {
+                        t.window_id() == scope_id && t.contains(args_id)
+                    } else if let Some(info) = WINDOWS_APP.widget_tree(scope_id) {
+                        info.contains(args_id)
+                    } else {
+                        false
+                    }
+                }
+                (CommandScope::Widget(scope_id), CommandScope::Widget(args_id)) => {
+                    // if scope widget contains args scope widget
+                    if let Some(t) = &self.target {
+                        t.widgets_path().iter().position(|i| *i == scope_id).unwrap_or(usize::MAX)
+                            < t.widgets_path().iter().position(|i| *i == args_id).unwrap_or(usize::MAX)
+                    } else {
+                        todo!()
+                    }
+                }
+                _ => false,
+            }
+        }
     }
 }
 
