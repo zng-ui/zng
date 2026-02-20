@@ -1327,12 +1327,7 @@ impl Window {
                 (Ok(o), Ok(i)) => (i.x - o.x, i.y - o.y),
                 _ => (0, 0),
             };
-            let mut origin = self
-                .state
-                .restore_rect
-                .origin
-                .to_winit()
-                .to_physical::<i32>(self.window.scale_factor());
+            let mut origin = self.state.global_position.to_winit();
             origin.x -= outer_offset.0;
             origin.y -= outer_offset.1;
             self.window.set_outer_position(origin);

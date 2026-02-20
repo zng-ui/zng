@@ -55,12 +55,12 @@ impl INSTANT {
     }
 
     /// Defines how the `now` value updates.
-    ///
-    /// # Panics
-    ///
-    /// Panics if called in a non-app thread.
     pub fn mode(&self) -> InstantMode {
-        INSTANT_SV.read().mode
+        if zng_app_context::LocalContext::current_app().is_some() {
+            INSTANT_SV.read().mode
+        } else {
+            InstantMode::Now
+        }
     }
 }
 

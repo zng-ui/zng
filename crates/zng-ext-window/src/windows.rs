@@ -562,7 +562,7 @@ impl zng_app::window::WindowsService for WINDOWS {
 
                 if access_enabled.contains(AccessEnabled::VIEW) {
                     // access data is send in the frame display list
-                    UPDATES.render_window(WINDOW.id());
+                    UPDATES.render_window(n.win_ctx.id());
                 }
             }
         };

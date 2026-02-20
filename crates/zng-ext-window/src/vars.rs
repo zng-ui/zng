@@ -299,6 +299,7 @@ impl WindowVars {
     /// the new monitor:
     ///
     /// * **Maximized**: The window is maximized in the new monitor.
+    /// * **Fullscreen**: The window is fullscreen in the new monitor.
     /// * **Normal**: The window is centered in the new monitor, keeping the same size, unless the
     ///   [`position`] and [`size`] where set in the same update, in that case these values are used.
     /// * **Minimized/Hidden**: The window remains hidden, the restore position and size are defined like **Normal**.

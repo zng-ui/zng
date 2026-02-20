@@ -534,10 +534,10 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
         let w = s.windows.get_mut(id).unwrap();
         if w.pending_loading.strong_count() > 0 {
             // wait loading handles
-            tracing::debug!("skipping transition to Loaded, active loading handles");
+            tracing::debug!(" window {id:?} skipping transition to Loaded, active loading handles");
             return;
         }
-        tracing::trace!("transition to Loaded");
+        tracing::trace!("window {id:?} has Loaded");
         w.pending_loading = std::sync::Weak::<()>::new();
         vars.0.instance_state.set(WindowInstanceState::Loaded { has_view: false });
         if !n.win_ctx.mode().has_renderer() {
@@ -584,7 +584,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                 // start opening view-process window
 
                 if !VIEW_PROCESS.is_available() || !VIEW_PROCESS.is_connected() {
-                    tracing::debug!("skipping view-process open window, no view-process connected");
+                    tracing::debug!("skipping view-process open window {id:?}, no view-process connected");
                     return;
                 }
 
@@ -625,6 +625,13 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                         vars.set_from_view(|v| &v.0.scale_factor, a.data.scale_factor);
                         vars.set_from_view(|v| &v.0.render_mode, a.data.render_mode);
                         vars.set_from_view(|v| &v.0.safe_padding, a.data.safe_padding);
+
+                        tracing::trace!(
+                            "open window {:?} in {:?}, {:?}",
+                            id,
+                            a.data.monitor,
+                            (&a.data.state.global_position, a.data.size)
+                        );
                     }
 
                     false
@@ -737,7 +744,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                     WINDOWS_EXTENSIONS.take_view_extensions_init(id),
                 ));
                 if r.is_err() {
-                    tracing::error!("view-process window open request failed, will retry on respawn");
+                    tracing::error!("view-process window {id:?} open request failed, will retry on respawn");
                     n.view_opening = VarHandle::dummy();
                 }
             }
@@ -755,7 +762,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                 }
 
                 if !VIEW_PROCESS.is_connected() {
-                    tracing::debug!("skipping view-process open headless, no view-process connected");
+                    tracing::debug!("skipping view-process open headless {id:?}, no view-process connected");
                     return;
                 }
 
@@ -795,7 +802,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                     WINDOWS_EXTENSIONS.take_view_extensions_init(id),
                 ));
                 if r.is_err() {
-                    tracing::error!("view-process headless surface open request failed, will retry on respawn");
+                    tracing::error!("view-process headless surface {id:?} open request failed, will retry on respawn");
                     n.view_opening = VarHandle::dummy();
                 }
             }
@@ -831,7 +838,7 @@ pub(crate) fn render(
 
         if matches!(n.win_ctx.mode(), WindowMode::Headed | WindowMode::HeadlessWithRenderer) && n.renderer.is_none() {
             // skip until there is a window.
-            tracing::debug!("skipping render, no renderer connected");
+            tracing::debug!("skipping render {id:?}, no renderer connected");
             return;
         }
 

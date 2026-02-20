@@ -87,6 +87,7 @@ impl MonitorsService {
             .hook(|args| {
                 MONITORS_SV.read().monitors.with(|a| {
                     if let Some(m) = a.get(&args.monitor_id) {
+                        tracing::trace!("monitor scale factor changed, {:?} {:?}", args.monitor_id, args.scale_factor);
                         m.scale_factor.set(args.scale_factor);
                     }
                 });
@@ -108,10 +109,20 @@ impl MonitorsService {
                     m.retain(|key, value| {
                         if let Some(new) = available_monitors.remove(key) {
                             if value.update(new) {
+                                tracing::trace!(
+                                    "monitor update, {:?} {:?}",
+                                    key,
+                                    (&value.name.get(), value.position.get(), value.size.get(), value.density.get())
+                                );
                                 changed.push(*key);
                             }
                             true
                         } else {
+                            tracing::trace!(
+                                "monitor removed, {:?} {:?}",
+                                key,
+                                (&value.name.get(), value.position.get(), value.size.get(), value.density.get())
+                            );
                             removed.push(*key);
                             false
                         }
@@ -121,7 +132,11 @@ impl MonitorsService {
 
                     for (id, info) in available_monitors {
                         added.push(id);
-
+                        tracing::trace!(
+                            "monitor added, {:?} {:?}",
+                            id,
+                            (&info.name, info.position, info.size, info.scale_factor)
+                        );
                         m.insert(id, MonitorInfo::from_gen(id, info));
                     }
 

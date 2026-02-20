@@ -184,6 +184,7 @@ pub(crate) fn hook_events() {
                     vars.set_from_view(|v| &v.0.chrome, s.chrome_visible);
                 }
                 if let Some(id) = &args.monitor {
+                    tracing::trace!("window {:?} moved to {:?}", args.window_id, id);
                     vars.set_from_view(|v| &v.0.actual_monitor, Some(*id));
                 }
                 if let Some(size) = &args.size {
@@ -410,15 +411,15 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
         .perm();
 
     // move monitors, only active after layout selected first actual_monitor
-    let actual_monitor = vars.0.actual_monitor.clone();
     vars.0
         .monitor
         .hook(move |args| {
-            if let Some(from_id) = actual_monitor.get()
-                && let Some(to) = args.value().select(id)
-                && from_id != to.id()
+            if let Some(vars) = WINDOWS.vars(id)
+                && matches!(vars.0.instance_state.get(), WindowInstanceState::Loaded { has_view: true })
+                && let Some(new_monitor) = args.value().select(id)
+                && Some(new_monitor.id()) != vars.0.actual_monitor.get()
             {
-                // !!: TODO, see monitors() doc
+                tracing::error!("monitor setting not implemented");
             }
             true
         })
