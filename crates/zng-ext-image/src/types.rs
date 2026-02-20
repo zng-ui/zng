@@ -26,7 +26,7 @@ use zng_task::{
 use zng_txt::Txt;
 use zng_var::{Var, VarEq, animation::Transitionable, impl_from_and_into_var};
 use zng_view_api::{
-    image::{ImageDecoded, ImageEncodeRequest, ImageTextureId},
+    image::{ImageDecoded, ImageEncodeRequest, ImageEntryMetadata, ImageTextureId},
     window::RenderMode,
 };
 
@@ -613,9 +613,16 @@ impl ImageEntry {
 
     /// Insert `entry` in [`entries`].
     ///
+    /// # Parent Metadata
+    ///
+    /// If the `entry` view-process metadata has another image as parent the metadata is replaced
+    /// and a warning is logged.
+    ///
     /// [`entries`]: Self::entries
+    /// [`IMAGES.register`]: crate::IMAGES::register
     pub fn insert_entry(&mut self, entry: ImageVar) {
-        let i = entry.with(|i| i.entry_index());
+        let id = self.handle.image_id();
+        let (i, p) = entry.with(|i| (i.entry_index(), i.data.meta.parent.clone()));
         let i = self
             .entries
             .iter()
@@ -624,6 +631,22 @@ impl ImageEntry {
                 entry_i > i
             })
             .unwrap_or(self.entries.len());
+
+        if let Some(p) = &p {
+            if p.parent != id {
+                tracing::warn!("replacing entry parent from {:?} tp {:?}", p.parent, id);
+                entry.modify(move |e| {
+                    if let Some(p) = &mut e.data.meta.parent {
+                        p.parent = id;
+                    } else {
+                        e.data.meta.parent = Some(ImageEntryMetadata::new(id, i, ImageEntryKind::Page));
+                    }
+                });
+            }
+        } else {
+            entry.modify(move |e| e.data.meta.parent = Some(ImageEntryMetadata::new(id, i, ImageEntryKind::Page)));
+        }
+
         self.entries.insert(i, VarEq(entry));
     }
 }

@@ -554,6 +554,10 @@ fn image_data(
     );
     request.entries = options.entries;
 
+    if is_respawn {
+        request.parent = r.with(|r| r.data.meta.parent.clone());
+    }
+
     if VIEW_PROCESS.is_connected()
         && let Ok(view_img) = VIEW_PROCESS.add_image(request)
     {
@@ -585,7 +589,12 @@ fn image_view(
     respawn_data: Option<(ImageDataFormat, IpcBytes, ImageOptions, ImageLimits)>,
     r: Var<ImageEntry>,
 ) {
-    let img = ImageEntry::new(cache_key, handle, decoded);
+    // reuse value to keep entry vars alive in case of respawn
+    let mut img = r.get();
+    img.cache_key = cache_key;
+    img.handle = handle;
+    img.data = decoded;
+
     let is_loaded = img.is_loaded();
     let is_dummy = img.view_handle().is_dummy();
     r.set(img);
