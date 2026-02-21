@@ -196,8 +196,8 @@ impl LocalContext {
                 drop(data); // deinit
             }));
             if let Err(p) = r {
-                tracing::error!("panic on app drop. {}", panic_str(&p));
-                eprintln!("panic on app drop. {}", panic_str(&p));
+                tracing::error!("panic on app drop, {}", panic_str(&p));
+                eprintln!("panic on app drop, {}", panic_str(&p));
                 zng_env::exit(i32::from_le_bytes(*b"appa"));
             }
         } else {

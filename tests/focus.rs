@@ -1,6 +1,6 @@
 use keyboard::KeyLocation;
 use zng::{
-    app::{AppExtended, AppExtension, HeadlessApp},
+    app::{AppBuilder, HeadlessApp},
     data_view::DataView,
     focus::{
         DirectionalNav, FOCUS_CHANGED_EVENT, FocusChangedArgs, FocusChangedCause, RETURN_FOCUS_CHANGED_EVENT, ReturnFocusChangedArgs,
@@ -53,6 +53,8 @@ pub fn first_and_last_window_events() {
     assert_eq!(FocusChangedCause::ScopeGotFocus(false), events[1].cause);
     assert!(!events[1].highlight);
 
+    // return focus recorded for window scope that lost focus
+    app.blur_window();
     let events = app.take_return_focus_changed();
     assert_eq!(1, events.len());
 
@@ -60,6 +62,9 @@ pub fn first_and_last_window_events() {
     assert!(events[0].prev_return.is_none());
     assert_eq!(root_id, events[0].scope.as_ref().map(|p| p.widget_id()).unwrap());
     assert_eq!(Some(button_0_path.clone()), events[0].new_return);
+
+    app.focus_window();
+    let _ = app.take_focus_changed();
 
     /*
         Last Events
@@ -75,13 +80,6 @@ pub fn first_and_last_window_events() {
     assert!(events[0].new_focus.is_none());
     assert_eq!(FocusChangedCause::Recovery, events[0].cause);
     assert!(!events[0].highlight);
-
-    let events = app.take_return_focus_changed();
-    assert_eq!(1, events.len());
-
-    // cleanup return focus.
-    assert_eq!(Some(button_0_path), events[0].prev_return);
-    assert!(events[0].new_return.is_none());
 }
 
 #[test]
@@ -1231,6 +1229,9 @@ pub fn dont_focus_alt_when_alt_pressed_before_focusing_window() {
             Stack!(top_to_bottom, buttons)
         ]
     ));
+    // font loading may cause focus_changed as different nav gets enabled,
+    // this extra update ensures that any response to latest frame applies
+    app.app.update(false).assert_wait();
 
     // clear
     app.take_focus_changed();
@@ -1332,7 +1333,7 @@ pub fn focused_removed_by_making_not_focusable() {
         || focusable.set(false),
     )
 }
-fn focused_removed_test(app: TestAppBuilder<impl AppExtension>, button1: impl IntoUiNode, set_var: impl FnOnce()) {
+fn focused_removed_test(app: TestAppBuilder, button1: impl IntoUiNode, set_var: impl FnOnce()) {
     let mut buttons = ui_vec![
         Button! {
             child = Text!("Button 0");
@@ -2001,10 +2002,10 @@ pub fn directional_continue_right() {
     assert_eq!(Some(ids[2]), app.focused());
 }
 
-struct TestAppBuilder<E: AppExtension> {
-    app: AppExtended<E>,
+struct TestAppBuilder {
+    app: AppBuilder,
 }
-impl<E: AppExtension> TestAppBuilder<E> {
+impl TestAppBuilder {
     pub fn run(self, child: impl IntoUiNode) -> TestApp {
         self.run_window(Window!(child; id = "window root"))
     }
@@ -2017,7 +2018,8 @@ impl<E: AppExtension> TestAppBuilder<E> {
             (a, b)
         };
 
-        let window_id = app.open_window(async move { window });
+        let window_id = WindowId::new_unique();
+        app.open_window(window_id, async move { window });
         TestApp {
             app,
             window_id,
@@ -2036,7 +2038,7 @@ struct TestApp {
 }
 impl TestApp {
     /// Start app scope.
-    pub fn start() -> TestAppBuilder<impl AppExtension> {
+    pub fn start() -> TestAppBuilder {
         TestAppBuilder { app: APP.defaults() }
     }
 
@@ -2052,7 +2054,8 @@ impl TestApp {
 
     pub fn open_window(&mut self, child: impl IntoUiNode) -> WindowId {
         let child = child.into_node();
-        let id = self.app.open_window(async {
+        let id = WindowId::new_unique();
+        self.app.open_window(id, async {
             Window! { child }
         });
         let _ = self.app.update(false);

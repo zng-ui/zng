@@ -1,10 +1,11 @@
 //! Modal backdrop widget.
 
+use zng_ext_window::WINDOWS;
 use zng_wgt::{prelude::*, *};
 use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
 use zng_wgt_input::gesture::on_click;
-use zng_wgt_layer::popup::POPUP_CLOSE_REQUESTED_EVENT;
+use zng_wgt_layer::popup::{POPUP_CLOSE_REQUESTED_EVENT, PopupCloseRequestedArgs};
 use zng_wgt_style::{Style, StyleMix, impl_style_fn};
 
 use crate::DIALOG;
@@ -26,6 +27,7 @@ impl DialogBackdrop {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
 
+        // the backdrop widget id identifies the popup, so
         self.widget_builder()
             .push_build_action(|b| b.push_intrinsic(NestGroup::EVENT, "popup-pump", backdrop_node));
 
@@ -34,7 +36,7 @@ impl DialogBackdrop {
             modal = true;
 
             on_click = hn!(|args| {
-                args.propagation().stop();
+                args.propagation.stop();
                 DIALOG.respond_default();
             });
         }
@@ -44,23 +46,27 @@ impl_style_fn!(DialogBackdrop, DefaultStyle);
 
 /// Share popup events with the dialog child.
 fn backdrop_node(child: impl IntoUiNode) -> UiNode {
-    match_node(child, |c, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
-        }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on(update) {
-                for child in WIDGET.info().descendants() {
-                    if POPUP_CLOSE_REQUESTED_EVENT.is_subscriber(child.id()) {
-                        let mut delivery = UpdateDeliveryList::new_any();
-                        delivery.insert_wgt(&child);
-                        let update = POPUP_CLOSE_REQUESTED_EVENT.new_update_custom(args.clone(), delivery);
-                        c.event(&update);
+    match_node(child, |_, op| {
+        if let UiNodeOp::Init = op {
+            let win_id = WINDOW.id();
+            let id = WIDGET.id();
+            WIDGET.push_var_handle(POPUP_CLOSE_REQUESTED_EVENT.hook(move |args| {
+                if args.popup.widget_id() == id
+                    && let Some(tree) = WINDOWS.widget_tree(win_id)
+                    && let Some(info) = tree.get(id)
+                {
+                    for child in info.children() {
+                        POPUP_CLOSE_REQUESTED_EVENT.notify(PopupCloseRequestedArgs::new(
+                            args.timestamp,
+                            args.propagation.clone(),
+                            child.path(),
+                        ));
                     }
                 }
-            }
+                true
+            }));
+            WIDGET.sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
         }
-        _ => {}
     })
 }
 

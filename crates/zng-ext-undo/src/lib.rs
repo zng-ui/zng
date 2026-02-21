@@ -3,6 +3,12 @@
 //!
 //! Undo-redo app extension, service and commands.
 //!
+//! # Services
+//!
+//! Services provided by this extension.
+//!
+//! * [`UNDO`]
+//!
 //! # Crate
 //!
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
@@ -25,10 +31,10 @@ use std::{
 use atomic::Atomic;
 use parking_lot::Mutex;
 use zng_app::{
-    APP, AppExtension, DInstant, INSTANT,
-    event::{AnyEventArgs, Command, CommandNameExt, CommandScope, command},
+    DInstant, INSTANT,
+    event::{Command, CommandNameExt, CommandScope, command},
+    hn,
     shortcut::{CommandShortcutExt, shortcut},
-    update::EventUpdate,
     widget::{
         WIDGET, WidgetId,
         info::{WidgetInfo, WidgetInfoBuilder},
@@ -45,45 +51,6 @@ use zng_wgt::{CommandIconExt as _, ICONS, wgt_fn};
 mod private {
     // https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
     pub trait Sealed {}
-}
-
-/// Undo-redo app extension.
-///
-/// # Services
-///
-/// Services provided by this extension.
-///
-/// * [`UNDO`]
-#[derive(Default)]
-pub struct UndoManager {}
-
-impl AppExtension for UndoManager {
-    fn event(&mut self, update: &mut EventUpdate) {
-        // app scope handler
-        if let Some(args) = UNDO_CMD.on_unhandled(update) {
-            args.propagation().stop();
-            if let Some(c) = args.param::<u32>() {
-                UNDO.undo_select(*c);
-            } else if let Some(i) = args.param::<Duration>() {
-                UNDO.undo_select(*i);
-            } else if let Some(t) = args.param::<DInstant>() {
-                UNDO.undo_select(*t);
-            } else {
-                UNDO.undo();
-            }
-        } else if let Some(args) = REDO_CMD.on_unhandled(update) {
-            args.propagation().stop();
-            if let Some(c) = args.param::<u32>() {
-                UNDO.redo_select(*c);
-            } else if let Some(i) = args.param::<Duration>() {
-                UNDO.redo_select(*i);
-            } else if let Some(t) = args.param::<DInstant>() {
-                UNDO.redo_select(*t);
-            } else {
-                UNDO.redo();
-            }
-        }
-    }
 }
 
 context_var! {
@@ -103,10 +70,6 @@ context_var! {
 }
 
 /// Undo-redo service.
-///
-/// # Provider
-///
-/// This service is provided by the [`UndoManager`] extension, it will panic if used in an app not extended.
 pub struct UNDO;
 impl UNDO {
     /// Gets or sets the maximum length of each undo stack of each scope.
@@ -782,11 +745,14 @@ command! {
     ///
     /// You can use [`CommandUndoExt::undo_scoped`] to get a command variable that is always scoped on the
     /// focused undo scope.
-    pub static UNDO_CMD = {
+    pub static UNDO_CMD {
         l10n!: true,
         name: "Undo",
         shortcut: [shortcut!(CTRL + 'Z')],
         icon: wgt_fn!(|_| ICONS.get("undo")),
+        init: |_| {
+            let _ = UNDO_SV.read();
+        },
     };
 
     /// Represents the **redo** action.
@@ -798,11 +764,14 @@ command! {
     ///
     /// [`redo_select`]: UNDO::redo_select
     /// [`redo`]: UNDO::redo
-    pub static REDO_CMD = {
+    pub static REDO_CMD {
         l10n!: true,
         name: "Redo",
         shortcut: [shortcut!(CTRL + 'Y')],
         icon: wgt_fn!(|_| ICONS.get("redo")),
+        init: |_| {
+            let _ = UNDO_SV.read();
+        },
     };
 
     /// Represents the **clear history** action.
@@ -810,9 +779,12 @@ command! {
     /// Implementers call [`clear`] in the undo scope.
     ///
     /// [`clear`]: UNDO::clear
-    pub static CLEAR_HISTORY_CMD = {
+    pub static CLEAR_HISTORY_CMD {
         l10n!: true,
         name: "Clear History",
+        init: |_| {
+            let _ = UNDO_SV.read();
+        },
     };
 }
 
@@ -916,6 +888,7 @@ impl UndoScope {
         let max_undo = if self.enabled.load(Ordering::Relaxed) {
             UNDO_LIMIT_VAR.get() as usize
         } else {
+            tracing::debug!("not enabled, will cleanup");
             0
         };
 
@@ -940,7 +913,8 @@ impl UndoScope {
         }
     }
 
-    fn register(&self, action: Box<dyn UndoAction>) {
+    fn register(&self, mut action: Box<dyn UndoAction>) {
+        tracing::trace!("register '{}'", action.info().description());
         self.with_enabled_undo_redo(|undo, redo| {
             let now = INSTANT.now();
             if let Some(prev) = undo.pop() {
@@ -969,6 +943,8 @@ impl UndoScope {
     }
 
     fn undo_select(&self, selector: impl UndoSelector) {
+        let _s = tracing::trace_span!("undo").entered();
+
         let mut actions = vec![];
 
         self.with_enabled_undo_redo(|undo, _| {
@@ -982,7 +958,8 @@ impl UndoScope {
             }
         });
 
-        for undo in actions {
+        for mut undo in actions {
+            tracing::trace!("undo '{}'", undo.action.info().description());
             let redo = undo.action.undo();
             self.redo.lock().push(RedoEntry {
                 timestamp: undo.timestamp,
@@ -992,6 +969,8 @@ impl UndoScope {
     }
 
     fn redo_select(&self, selector: impl UndoSelector) {
+        let _s = tracing::trace_span!("redo").entered();
+
         let mut actions = vec![];
 
         self.with_enabled_undo_redo(|_, redo| {
@@ -1005,7 +984,8 @@ impl UndoScope {
             }
         });
 
-        for redo in actions {
+        for mut redo in actions {
+            tracing::trace!("redo '{}'", redo.action.info().description());
             let undo = redo.action.redo();
             self.undo.lock().push(UndoEntry {
                 timestamp: redo.timestamp,
@@ -1184,9 +1164,50 @@ context_local! {
 }
 app_local! {
     static UNDO_SV: UndoService = {
-        APP.extensions().require::<UndoManager>();
+        hooks();
         UndoService::default()
     };
+}
+
+fn hooks() {
+    UNDO_CMD
+        .on_event(
+            true,
+            true,
+            false,
+            hn!(|args| {
+                args.propagation.stop();
+                if let Some(c) = args.param::<u32>() {
+                    UNDO.undo_select(*c);
+                } else if let Some(i) = args.param::<Duration>() {
+                    UNDO.undo_select(*i);
+                } else if let Some(t) = args.param::<DInstant>() {
+                    UNDO.undo_select(*t);
+                } else {
+                    UNDO.undo();
+                }
+            }),
+        )
+        .perm();
+    REDO_CMD
+        .on_event(
+            true,
+            true,
+            false,
+            hn!(|args| {
+                args.propagation.stop();
+                if let Some(c) = args.param::<u32>() {
+                    UNDO.redo_select(*c);
+                } else if let Some(i) = args.param::<Duration>() {
+                    UNDO.redo_select(*i);
+                } else if let Some(t) = args.param::<DInstant>() {
+                    UNDO.redo_select(*t);
+                } else {
+                    UNDO.redo();
+                }
+            }),
+        )
+        .perm();
 }
 
 /// Undo extension methods for widget info.
@@ -1384,17 +1405,12 @@ impl UndoSelect for UndoSelectLtEq {
 #[cfg(test)]
 mod tests {
     use zng_app::APP;
-    use zng_ext_input::keyboard::KeyboardManager;
 
     use super::*;
 
     #[test]
     fn register() {
-        let _a = APP
-            .minimal()
-            .extend(UndoManager::default())
-            .extend(KeyboardManager::default())
-            .run_headless(false);
+        let _a = APP.minimal().run_headless(false);
         let data = Arc::new(Mutex::new(vec![1, 2]));
 
         UNDO.register(PushAction {
@@ -1437,11 +1453,7 @@ mod tests {
 
     #[test]
     fn run_op() {
-        let _a = APP
-            .minimal()
-            .extend(UndoManager::default())
-            .extend(KeyboardManager::default())
-            .run_headless(false);
+        let _a = APP.minimal().run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         push_1_2(&data);
@@ -1460,11 +1472,7 @@ mod tests {
 
     #[test]
     fn transaction_undo() {
-        let _a = APP
-            .minimal()
-            .extend(UndoManager::default())
-            .extend(KeyboardManager::default())
-            .run_headless(false);
+        let _a = APP.minimal().run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         let t = UNDO.transaction(|| {
@@ -1481,11 +1489,7 @@ mod tests {
 
     #[test]
     fn transaction_commit() {
-        let _a = APP
-            .minimal()
-            .extend(UndoManager::default())
-            .extend(KeyboardManager::default())
-            .run_headless(false);
+        let _a = APP.minimal().run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         let t = UNDO.transaction(|| {
@@ -1511,11 +1515,7 @@ mod tests {
 
     #[test]
     fn transaction_group() {
-        let _a = APP
-            .minimal()
-            .extend(UndoManager::default())
-            .extend(KeyboardManager::default())
-            .run_headless(false);
+        let _a = APP.minimal().run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         let t = UNDO.transaction(|| {
@@ -1555,11 +1555,7 @@ mod tests {
 
     #[test]
     fn undo_redo_t_zero() {
-        let _a = APP
-            .minimal()
-            .extend(UndoManager::default())
-            .extend(KeyboardManager::default())
-            .run_headless(false);
+        let _a = APP.minimal().run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         push_1_sleep_2(&data);
@@ -1587,11 +1583,7 @@ mod tests {
     }
 
     fn undo_redo_t_large(t: Duration) {
-        let _a = APP
-            .minimal()
-            .extend(UndoManager::default())
-            .extend(KeyboardManager::default())
-            .run_headless(false);
+        let _a = APP.minimal().run_headless(false);
         let data = Arc::new(Mutex::new(vec![]));
 
         push_1_sleep_2(&data);
@@ -1606,11 +1598,7 @@ mod tests {
 
     #[test]
     fn watch_var() {
-        let mut app = APP
-            .minimal()
-            .extend(UndoManager::default())
-            .extend(KeyboardManager::default())
-            .run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let test_var = var(0);
         UNDO.watch_var("set test var", test_var.clone()).perm();

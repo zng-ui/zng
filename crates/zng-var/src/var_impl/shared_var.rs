@@ -200,8 +200,8 @@ impl VarImpl for SharedVar {
 impl SharedVar {
     fn modify_impl(&self, value_or_modify: ValueOrModify) {
         let name = value_type_name(self);
-        let var = self.clone();
         // not weak ref here because some vars are spawned modified just to notify something and dropped
+        let var = self.clone();
         VARS.schedule_update(name, move || {
             let mut value = var.0.value.write();
 
@@ -271,6 +271,11 @@ impl WeakSharedVar {
         self.0.upgrade().map(SharedVar)
     }
 }
+impl PartialEq for WeakSharedVar {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.ptr_eq(&other.0)
+    }
+}
 impl WeakVarImpl for WeakSharedVar {
     fn clone_dyn(&self) -> DynWeakAnyVar {
         DynWeakAnyVar::Shared(self.clone())
@@ -282,6 +287,13 @@ impl WeakVarImpl for WeakSharedVar {
 
     fn upgrade(&self) -> Option<DynAnyVar> {
         Some(DynAnyVar::Shared(self.upgrade_typed()?))
+    }
+
+    fn var_eq(&self, other: &DynWeakAnyVar) -> bool {
+        match other {
+            DynWeakAnyVar::Shared(v) => self == v,
+            _ => false,
+        }
     }
 }
 

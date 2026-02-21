@@ -200,13 +200,13 @@ pub fn cmd(wgt: &mut WidgetBuilding, cmd: impl IntoVar<Command>) {
                         child,
                         hn!(cmd, |args| {
                             let cmd = cmd.get();
-                            if cmd.is_enabled_value() {
+                            if cmd.is_enabled().get() {
                                 if let Some(param) = CMD_PARAM_VAR.get() {
                                     cmd.notify_param(param);
                                 } else {
                                     cmd.notify();
                                 }
-                                args.propagation().stop();
+                                args.propagation.stop();
                             }
                         }),
                     );
@@ -216,13 +216,13 @@ pub fn cmd(wgt: &mut WidgetBuilding, cmd: impl IntoVar<Command>) {
                         child,
                         hn!(cmd, |args| {
                             let cmd = cmd.get();
-                            if !cmd.is_enabled_value() {
+                            if !cmd.is_enabled().get() {
                                 if let Some(param) = CMD_PARAM_VAR.get() {
                                     cmd.notify_param(param);
                                 } else {
                                     cmd.notify();
                                 }
-                                args.propagation().stop();
+                                args.propagation.stop();
                             }
                         }),
                     );

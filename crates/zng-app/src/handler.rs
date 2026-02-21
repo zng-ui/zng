@@ -2,20 +2,16 @@
 
 use std::pin::Pin;
 use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
 
 use parking_lot::Mutex;
 #[doc(hidden)]
 pub use zng_clone_move::*;
+use zng_txt::Txt;
 
 use crate::update::UPDATES;
 use crate::widget::{UiTaskWidget as _, WIDGET};
-use crate::{AppControlFlow, HeadlessApp};
-use zng_handle::{Handle, WeakHandle};
-use zng_task::{self as task, UiTask};
-
-use crate::INSTANT;
+use zng_handle::WeakHandle;
+use zng_task::UiTask;
 
 /// Output of [`Handler<A>`].
 pub enum HandlerResult {
@@ -65,6 +61,9 @@ pub trait HandlerExt<A: Clone + 'static> {
 
     /// Wrap the handler into a type that implements the async task management in an widget context.
     fn into_wgt_runner(self) -> WidgetRunner<A>;
+
+    /// Debug print handler calls and state.
+    fn trace(self, name: impl Into<Txt>) -> Handler<A>;
 }
 impl<A: Clone + 'static> HandlerExt<A> for Handler<A> {
     fn widget_event(&mut self, args: &A) -> Option<UiTask<()>> {
@@ -127,6 +126,64 @@ impl<A: Clone + 'static> HandlerExt<A> for Handler<A> {
 
     fn into_wgt_runner(self) -> WidgetRunner<A> {
         WidgetRunner::new(self)
+    }
+
+    fn trace(mut self, name: impl Into<Txt>) -> Handler<A> {
+        let name = name.into();
+        let mut fut_count = 0usize;
+        tracing::info!("handler {name} created");
+        Box::new(move |a| {
+            tracing::debug!("handler {name} called");
+            match self(a) {
+                HandlerResult::Done => {
+                    tracing::info!("handler {name} call done");
+                    HandlerResult::Done
+                }
+                HandlerResult::Continue(fut) => {
+                    let fut_id = fut_count;
+                    fut_count += 1;
+                    tracing::info!("handler {name} call continues in future #{fut_id}");
+                    struct TraceFut {
+                        fut: Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
+                        name: Txt,
+                        fut_id: usize,
+                        is_pending: bool,
+                    }
+                    impl Future for TraceFut {
+                        type Output = ();
+
+                        fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+                            match self.fut.as_mut().poll(cx) {
+                                std::task::Poll::Ready(()) => {
+                                    tracing::info!("handler {} future #{} completed", self.name, self.fut_id);
+                                    self.is_pending = false;
+                                    std::task::Poll::Ready(())
+                                }
+                                std::task::Poll::Pending => {
+                                    self.is_pending = true;
+                                    std::task::Poll::Pending
+                                }
+                            }
+                        }
+                    }
+                    impl Drop for TraceFut {
+                        fn drop(&mut self) {
+                            if self.is_pending {
+                                tracing::warn!("handle {} future #{} dropped pending", self.name, self.fut_id);
+                            } else {
+                                tracing::debug!("handle {} future #{} dropped completed", self.name, self.fut_id);
+                            }
+                        }
+                    }
+                    HandlerResult::Continue(Box::pin(TraceFut {
+                        fut,
+                        name: name.clone(),
+                        fut_id,
+                        is_pending: true,
+                    }))
+                }
+            }
+        })
     }
 }
 
@@ -252,18 +309,21 @@ impl<A: Clone + 'static> WidgetRunner<A> {
 /// from the inside.
 ///
 /// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn is_in_target(&self, _id: WidgetId) -> bool { true } } }
 /// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
 /// # use zng_app::handler::{hn, APP_HANDLER};
 /// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT
-///     .on_event(hn!(|args| {
-///         println!("Clicked Somewhere!");
-///         if args.target == "something" {
-///             APP_HANDLER.unsubscribe();
-///         }
-///     }))
+///     .on_event(
+///         false,
+///         hn!(|args| {
+///             println!("Clicked Somewhere!");
+///             if args.target == "something" {
+///                 APP_HANDLER.unsubscribe();
+///             }
+///         }),
+///     )
 ///     .perm();
 /// # }
 /// ```
@@ -347,7 +407,7 @@ macro_rules! hn_once {
     }};
     ($($clmv:ident,)* |$args:ident| $body:expr) => {{
         // type inference fails here, error message slightly better them not having this pattern
-        let mut once: std::boxed::Box<dyn FnOnce(&_) + Send + 'static> =
+        let mut once: Option<std::boxed::Box<dyn FnOnce(&_) + Send + 'static>> =
             Some(std::boxed::Box::new($crate::handler::clmv!($($clmv,)* |$args: &_| { $body })));
         $crate::handler::hn!(|$args: &_| if let Some(f) = once.take() {
             $crate::handler::APP_HANDLER.unsubscribe();
@@ -394,7 +454,7 @@ pub use crate::hn_once;
 /// Internally the [`clmv!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
-/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn is_in_target(&self, _id: WidgetId) -> bool { true } } }
 /// # use zng_app::handler::async_hn;
 /// # use zng_var::{var, Var};
 /// # use zng_task as task;
@@ -632,137 +692,9 @@ struct AppHandlerCtx {
     is_preview: bool,
 }
 
-impl HeadlessApp {
-    /// Calls a [`Handler<A>`] once and blocks until the update tasks started during the call complete.
-    ///
-    /// This function *spins* until all update tasks are completed. Timers or send events can
-    /// be received during execution but the loop does not sleep, it just spins requesting an update
-    /// for each pass.
-    pub fn block_on<A>(&mut self, handler: &mut Handler<A>, args: &A, timeout: Duration) -> Result<(), String>
-    where
-        A: Clone + 'static,
-    {
-        self.block_on_multi(vec![handler], args, timeout)
-    }
-
-    /// Calls multiple [`Handler<A>`] once each and blocks until all update tasks are complete.
-    ///
-    /// This function *spins* until all update tasks are completed. Timers or send events can
-    /// be received during execution but the loop does not sleep, it just spins requesting an update
-    /// for each pass.
-    pub fn block_on_multi<A>(&mut self, handlers: Vec<&mut Handler<A>>, args: &A, timeout: Duration) -> Result<(), String>
-    where
-        A: Clone + 'static,
-    {
-        let (pre_len, pos_len) = UPDATES.handler_lens();
-
-        let handle = Handle::dummy(()).downgrade();
-        for handler in handlers {
-            handler.app_event(handle.clone_boxed(), false, args);
-        }
-
-        let mut pending = UPDATES.new_update_handlers(pre_len, pos_len);
-
-        if !pending.is_empty() {
-            let start_time = INSTANT.now();
-            while {
-                pending.retain(|h| h());
-                !pending.is_empty()
-            } {
-                UPDATES.update(None);
-                let flow = self.update(false);
-                if INSTANT.now().duration_since(start_time) >= timeout {
-                    return Err(format!(
-                        "block_on reached timeout of {timeout:?} before the handler task could finish",
-                    ));
-                }
-
-                match flow {
-                    AppControlFlow::Poll => continue,
-                    AppControlFlow::Wait => {
-                        thread::yield_now();
-                        continue;
-                    }
-                    AppControlFlow::Exit => return Ok(()),
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Polls a `future` and updates the app repeatedly until it completes or the `timeout` is reached.
-    pub fn block_on_fut<F: Future>(&mut self, future: F, timeout: Duration) -> Result<F::Output, String> {
-        let future = task::with_deadline(future, timeout);
-        let mut future = std::pin::pin!(future);
-
-        let waker = UPDATES.waker(None);
-        let mut cx = std::task::Context::from_waker(&waker);
-
-        loop {
-            let mut fut_poll = future.as_mut().poll(&mut cx);
-            let flow = self.update_observe(
-                || {
-                    if fut_poll.is_pending() {
-                        fut_poll = future.as_mut().poll(&mut cx);
-                    }
-                },
-                true,
-            );
-
-            match fut_poll {
-                std::task::Poll::Ready(r) => match r {
-                    Ok(r) => return Ok(r),
-                    Err(e) => return Err(e.to_string()),
-                },
-                std::task::Poll::Pending => {}
-            }
-
-            match flow {
-                AppControlFlow::Poll => continue,
-                AppControlFlow::Wait => {
-                    thread::yield_now();
-                    continue;
-                }
-                AppControlFlow::Exit => return Err("app exited".to_owned()),
-            }
-        }
-    }
-
-    /// Calls the `handler` once and [`block_on`] it with a 60 seconds timeout using the minimal headless app.
-    ///
-    /// [`block_on`]: Self::block_on
-    #[track_caller]
-    #[cfg(any(test, doc, feature = "test_util"))]
-    pub fn doc_test<A, H>(args: A, mut handler: Handler<A>)
-    where
-        A: Clone + 'static,
-    {
-        let mut app = crate::APP.minimal().run_headless(false);
-        app.block_on(&mut handler, &args, DOC_TEST_BLOCK_ON_TIMEOUT).unwrap();
-    }
-
-    /// Calls the `handlers` once each and [`block_on_multi`] with a 60 seconds timeout.
-    ///
-    /// [`block_on_multi`]: Self::block_on_multi
-    #[track_caller]
-    #[cfg(any(test, doc, feature = "test_util"))]
-    pub fn doc_test_multi<A>(args: A, mut handlers: Vec<Handler<A>>)
-    where
-        A: Clone + 'static,
-    {
-        let mut app = crate::APP.minimal().run_headless(false);
-        app.block_on_multi(handlers.iter_mut().collect(), &args, DOC_TEST_BLOCK_ON_TIMEOUT)
-            .unwrap()
-    }
-}
-
-#[cfg(any(test, doc, feature = "test_util"))]
-const DOC_TEST_BLOCK_ON_TIMEOUT: Duration = Duration::from_secs(60);
-
 #[cfg(test)]
 mod tests {
-    use crate::handler::Handler;
+    use crate::{APP, handler::Handler};
 
     #[test]
     fn hn_return() {
@@ -802,6 +734,13 @@ mod tests {
             }
             args.task().await;
         }))
+    }
+
+    #[test]
+    fn run_test_runs() {
+        let mut app = APP.minimal().run_headless(false);
+        app.run_test(async { zng_task::deadline(std::time::Duration::from_millis(30)).await })
+            .unwrap();
     }
 
     fn t(_: Handler<TestArgs>) {}

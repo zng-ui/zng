@@ -80,7 +80,6 @@ dev = [
     "audio_all",
     "button",
     "ansi_text",
-    "dyn_app_extension",
     "inspector",
     "trace_widget",
     "trace_recorder",
@@ -133,11 +132,6 @@ inspector = [
 #
 # Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_os = "ios"))` builds.
 hot_reload = ["dep:zng-ext-hot-reload"]
-
-# Use dynamic dispatch at the app-extension level.
-#
-# This speeds-up compilation time at the cost of runtime.
-dyn_app_extension = ["zng-app/dyn_app_extension"]
 
 # Test utilities.
 test_util = [
@@ -534,6 +528,8 @@ zng-view-api = { path = "../zng-view-api", version = "0.18.2", default-features 
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 zng-view = { path = "../zng-view", version = "0.15.4", default-features = false, optional = true }
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "*"
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android", target_os = "ios")))'.dependencies]
 zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.20.5", optional = true, default-features = false, features = [

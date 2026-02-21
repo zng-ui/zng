@@ -59,12 +59,15 @@
 //! # use zng::focus::FOCUS_CHANGED_EVENT;
 //! # fn example() {
 //! FOCUS_CHANGED_EVENT
-//!     .on_pre_event(hn!(|args| {
-//!         println!("focused: {:?}", args.new_focus);
-//!         if args.new_focus.is_none() {
-//!             zng::handler::APP_HANDLER.unsubscribe();
-//!         }
-//!     }))
+//!     .on_pre_event(
+//!         true,
+//!         hn!(|args| {
+//!             println!("focused: {:?}", args.new_focus);
+//!             if args.new_focus.is_none() {
+//!                 zng::handler::APP_HANDLER.unsubscribe();
+//!             }
+//!         }),
+//!     )
 //!     .perm();
 //! # }
 //! ```

@@ -30,7 +30,7 @@ fn main() {
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::env::init!();
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         // load `available_langs`
         #[cfg(debug_assertions)]
         L10N.load_dir(zng::env::res("l10n"));
@@ -153,7 +153,7 @@ fn window_content() -> UiNode {
 fn locale_menu() -> UiNode {
     Container! {
         alt_focus_scope = true;
-        focus_click_behavior = FocusClickBehavior::Exit;
+        focus_click_behavior = FocusClickBehavior::menu_item();
         child =
             L10N.available_langs()
                 .present(wgt_fn!(|langs: Arc<LangMap<HashMap<LangFilePath, PathBuf>>>| {
@@ -212,26 +212,26 @@ fn locale_menu() -> UiNode {
 zng::event::command! {
     pub static NO_META_CMD;
 
-    pub static NOT_LOCALIZED_CMD = { name: "Not Localized" };
+    pub static NOT_LOCALIZED_CMD { name: "Not Localized" };
 
-    pub static LOCALIZED_CMD = {
+    pub static LOCALIZED_CMD {
         l10n!: true,
         name: "Localized",
         info: "Localized in the default file",
     };
 
-    static PRIVATE_LOCALIZED_CMD = {
+    static PRIVATE_LOCALIZED_CMD {
         l10n!: true,
         name: "Private",
         info: "Private command, public localization text",
     };
 
-    pub static L10N_FALSE_CMD = {
+    pub static L10N_FALSE_CMD {
         l10n!: false,
         name: "No L10n",
     };
 
-    pub static LOCALIZED_FILE_CMD = {
+    pub static LOCALIZED_FILE_CMD {
         l10n!: "msg",
         name: "Localized File",
         info: "Localized in a named file 'msg'",
@@ -276,7 +276,7 @@ fn shortcut_input_dialog(output: Var<gesture::Shortcuts>) -> UiNode {
         };
 
         on_pre_key_down = hn!(|args| {
-            args.propagation().stop();
+            args.propagation.stop();
 
             match &args.key {
                 Key::Enter => {

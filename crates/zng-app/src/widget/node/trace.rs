@@ -94,10 +94,6 @@ impl UiNodeImpl for TraceNode {
         (self.trace)(self.node.as_dyn(), UiNodeMethod::Info, &mut |n| n.info(info))
     }
 
-    fn event(&mut self, update: &crate::update::EventUpdate) {
-        (self.trace)(self.node.as_dyn(), UiNodeMethod::Event, &mut |n| n.event(update))
-    }
-
     fn update(&mut self, updates: &WidgetUpdates) {
         (self.trace)(self.node.as_dyn(), UiNodeMethod::Update, &mut |n| n.update(updates))
     }

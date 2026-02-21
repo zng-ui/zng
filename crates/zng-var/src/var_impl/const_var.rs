@@ -153,4 +153,8 @@ impl WeakVarImpl for WeakConstVar {
     fn clone_dyn(&self) -> DynWeakAnyVar {
         DynWeakAnyVar::Const(WeakConstVar)
     }
+
+    fn var_eq(&self, _: &DynWeakAnyVar) -> bool {
+        false
+    }
 }

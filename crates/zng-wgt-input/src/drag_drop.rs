@@ -6,7 +6,7 @@ use zng_ext_input::drag_drop::{
     DRAG_END_EVENT, DRAG_HOVERED_EVENT, DRAG_START_EVENT, DROP_EVENT, DragEndArgs, DragHoveredArgs, DragStartArgs, DropArgs,
     WidgetInfoBuilderDragDropExt as _,
 };
-use zng_wgt::prelude::*;
+use zng_wgt::{node::bind_state_init, prelude::*};
 
 /// If this widget can be dragged in a drag&drop operation.
 ///
@@ -37,9 +37,10 @@ event_property! {
     /// To receive this event in a widget set [`draggable`] to `true`.
     ///
     /// [`draggable`]: fn@draggable
-    pub fn drag_start {
-        event: DRAG_START_EVENT,
-        args: DragStartArgs,
+    #[property(EVENT)]
+    pub fn on_drag_start<on_pre_drag_start>(child: impl IntoUiNode, handler: Handler<DragStartArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(DRAG_START_EVENT).build::<PRE>(child, handler)
     }
 
     /// Draggable widget stopped dragging.
@@ -47,35 +48,56 @@ event_property! {
     /// This event is always paired with [`on_drag_start`] first.
     ///
     /// [`on_drag_start`]: fn@on_drag_start
-    pub fn drag_end {
-        event: DRAG_END_EVENT,
-        args: DragEndArgs,
+    #[property(EVENT)]
+    pub fn on_drag_end<on_pre_drag_end>(child: impl IntoUiNode, handler: Handler<DragEndArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(DRAG_END_EVENT).build::<PRE>(child, handler)
     }
 
     /// Dragging cursor entered or exited the widget area and the widget is enabled.
-    pub fn drag_hovered {
-        event: DRAG_HOVERED_EVENT,
-        args: DragHoveredArgs,
-        filter: |args| args.is_drag_enter_enabled(),
+    #[property(EVENT)]
+    pub fn on_drag_hovered<on_pre_drag_hovered>(child: impl IntoUiNode, handler: Handler<DragHoveredArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(DRAG_HOVERED_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_drag_enter_enabled(id) || args.is_drag_leave_enabled(id)
+            })
+            .build::<PRE>(child, handler)
     }
     /// Dragging cursor entered the widget area and the widget is enabled.
-    pub fn drag_enter {
-        event: DRAG_HOVERED_EVENT,
-        args: DragHoveredArgs,
-        filter: |args| args.is_drag_enter_enabled(),
+    #[property(EVENT)]
+    pub fn on_drag_enter<on_pre_drag_enter>(child: impl IntoUiNode, handler: Handler<DragHoveredArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(DRAG_HOVERED_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_drag_enter_enabled(id)
+            })
+            .build::<PRE>(child, handler)
     }
     /// Dragging cursor exited the widget area and the widget is enabled.
-    pub fn drag_leave {
-        event: DRAG_HOVERED_EVENT,
-        args: DragHoveredArgs,
-        filter: |args| args.is_drag_leave_enabled(),
+    #[property(EVENT)]
+    pub fn on_drag_leave<on_pre_drag_leave>(child: impl IntoUiNode, handler: Handler<DragHoveredArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(DRAG_HOVERED_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_drag_leave_enabled(id)
+            })
+            .build::<PRE>(child, handler)
     }
 
     /// Dragging cursor dropped data in the widget area and the widget is enabled.
-    pub fn drop {
-        event: DROP_EVENT,
-        args: DropArgs,
-        filter: |args| args.target.contains_enabled(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_drop<on_pre_drop>(child: impl IntoUiNode, handler: Handler<DropArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(DROP_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.target.contains_enabled(id)
+            })
+            .build::<PRE>(child, handler)
     }
 }
 
@@ -87,53 +109,46 @@ event_property! {
 /// [`is_drag_hovered_disabled`]: fn@is_drag_hovered_disabled
 #[property(EVENT)]
 pub fn is_drag_hovered(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state(child, state, false, DRAG_HOVERED_EVENT, |args| {
-        if args.is_drag_enter_enabled() {
-            Some(true)
-        } else if args.is_drag_leave_enabled() {
-            Some(false)
-        } else {
-            None
-        }
+    bind_state_init(child, state, |s| {
+        let id = WIDGET.id();
+        DRAG_HOVERED_EVENT.var_bind(s, move |args| {
+            if args.is_drag_enter_enabled(id) {
+                Some(true)
+            } else if args.is_drag_leave_enabled(id) {
+                Some(false)
+            } else {
+                None
+            }
+        })
     })
 }
 
 /// If the dragging cursor is over the widget or a descendant and the widget is disabled.
 #[property(EVENT)]
 pub fn is_drag_hovered_disabled(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state(child, state, false, DRAG_HOVERED_EVENT, |args| {
-        if args.is_drag_enter_disabled() {
-            Some(true)
-        } else if args.is_drag_leave_disabled() {
-            Some(false)
-        } else {
-            None
-        }
+    bind_state_init(child, state, |s| {
+        let id = WIDGET.id();
+        DRAG_HOVERED_EVENT.var_bind(s, move |args| {
+            if args.is_drag_enter_disabled(id) {
+                Some(true)
+            } else if args.is_drag_leave_disabled(id) {
+                Some(false)
+            } else {
+                None
+            }
+        })
     })
 }
 
 /// If the draggable widget is dragging.
 #[property(EVENT)]
 pub fn is_dragging(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    let state = state.into_var();
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_event(&DRAG_START_EVENT).sub_event(&DRAG_END_EVENT);
-        }
-        UiNodeOp::Deinit => {
-            state.set(false);
-        }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = DRAG_START_EVENT.on(update) {
-                if args.target.contains(WIDGET.id()) {
-                    state.set(true);
-                }
-            } else if let Some(args) = DRAG_END_EVENT.on(update)
-                && args.target.contains(WIDGET.id())
-            {
-                state.set(false);
-            }
-        }
-        _ => {}
+    bind_state_init(child, state, |s| {
+        let id = WIDGET.id();
+        let handle = DRAG_START_EVENT.var_bind(s, move |args| if args.target.contains(id) { Some(true) } else { None });
+        DRAG_END_EVENT.var_bind(s, move |args| {
+            let _hold = &handle;
+            if args.target.contains(id) { Some(false) } else { None }
+        })
     })
 }

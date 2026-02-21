@@ -1,6 +1,6 @@
-use crate::prelude::*;
+use crate::{event_property, node::VarEventNodeBuilder, prelude::*};
 
-use zng_app::widget::info;
+use zng_app::widget::info::WIDGET_TREE_CHANGED_EVENT;
 
 /// Sets the widget visibility.
 ///
@@ -93,17 +93,22 @@ pub fn visibility(child: impl IntoUiNode, visibility: impl IntoVar<Visibility>) 
 }
 
 fn visibility_eq_state(child: impl IntoUiNode, state: impl IntoVar<bool>, expected: Visibility) -> UiNode {
-    event_state(
-        child,
-        state,
-        expected == Visibility::Visible,
-        info::VISIBILITY_CHANGED_EVENT,
-        move |a| {
-            let vis = a.tree.get(WIDGET.id()).map(|w| w.visibility()).unwrap_or(Visibility::Visible);
-
-            Some(vis == expected)
-        },
-    )
+    let state = state.into_var();
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Init = op {
+            let w_id = WINDOW.id();
+            let id = WIDGET.id();
+            WIDGET.push_var_handle(WIDGET_TREE_CHANGED_EVENT.var_bind(&state, move |a| {
+                if a.tree.window_id() == w_id
+                    && let Some(w) = a.tree.get(id)
+                {
+                    Some(w.visibility() == expected)
+                } else {
+                    None
+                }
+            }));
+        }
+    })
 }
 /// If the widget is [`Visible`](Visibility::Visible).
 #[property(CONTEXT)]
@@ -172,46 +177,103 @@ pub fn auto_hide(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode 
     })
 }
 
+macro_rules! visibility_var_event_source {
+    (|$visibility:ident| $map:expr, $default:expr) => {
+        $crate::node::VarEventNodeBuilder::new(|| {
+            let win_id = WINDOW.id();
+            let wgt_id = WIDGET.id();
+            WIDGET_TREE_CHANGED_EVENT.var_map(
+                move |a| {
+                    if a.tree.window_id() == win_id
+                        && let Some(w) = a.tree.get(wgt_id)
+                    {
+                        Some({
+                            let $visibility = w.visibility();
+                            $map
+                        })
+                    } else {
+                        None
+                    }
+                },
+                || $default,
+            )
+        })
+    };
+}
+
 event_property! {
     /// Widget global inner transform changed.
-    pub fn transform_changed {
-        event: info::TRANSFORM_CHANGED_EVENT,
-        args: info::TransformChangedArgs,
-    }
-
-    /// Widget global position changed.
-    pub fn move {
-        event: info::TRANSFORM_CHANGED_EVENT,
-        args: info::TransformChangedArgs,
-        filter: |a| a.offset(WIDGET.id()).unwrap_or_default() != PxVector::zero(),
+    #[property(EVENT)]
+    pub fn on_transform_changed(child: impl IntoUiNode, handler: Handler<PxTransform>) -> UiNode {
+        VarEventNodeBuilder::new(|| {
+            let win_id = WINDOW.id();
+            let wgt_id = WIDGET.id();
+            WIDGET_TREE_CHANGED_EVENT.var_map(
+                move |a| {
+                    if a.tree.window_id() == win_id
+                        && let Some(w) = a.tree.get(wgt_id)
+                    {
+                        Some(w.inner_transform())
+                    } else {
+                        None
+                    }
+                },
+                PxTransform::identity,
+            )
+        })
+        .build::<false>(child, handler)
     }
 
     /// Widget visibility changed.
-    pub fn visibility_changed {
-        event: info::VISIBILITY_CHANGED_EVENT,
-        args: info::VisibilityChangedArgs,
-    }
-
-    /// Widget visibility changed to collapsed.
-    pub fn collapse {
-        event: info::VISIBILITY_CHANGED_EVENT,
-        args: info::VisibilityChangedArgs,
-        filter: |a| a.is_collapse(WIDGET.id()),
-    }
-
-    /// Widget visibility changed to hidden.
-    pub fn hide {
-        event: info::VISIBILITY_CHANGED_EVENT,
-        args: info::VisibilityChangedArgs,
-        filter: |a| a.is_hide(WIDGET.id()),
+    ///
+    /// Note that there are multiple specific events for visibility changes, [`on_visible`], [`on_hidden`] and [`on_collapsed`].
+    ///
+    /// [`on_visible`]: fn@on_visible
+    /// [`on_hidden`]: fn@on_hidden
+    /// [`on_collapsed`]: fn@on_collapsed
+    #[property(EVENT)]
+    pub fn on_visibility_changed(child: impl IntoUiNode, handler: Handler<Visibility>) -> UiNode {
+        visibility_var_event_source!(|v| v, Visibility::Visible).build::<false>(child, handler)
     }
 
     /// Widget visibility changed to visible.
     ///
-    /// Note that widgets are **already marked visible** before the first render so this event does not fire on init.
-    pub fn show {
-        event: info::VISIBILITY_CHANGED_EVENT,
-        args: info::VisibilityChangedArgs,
-        filter: |a| a.is_show(WIDGET.id()),
+    /// See [`on_visibility_changed`] for a more general visibility event.
+    ///
+    /// Note that widgets are visible by default, so this will not notify on init.
+    ///
+    /// [`on_visibility_changed`]: fn@on_visibility_changed
+    #[property(EVENT)]
+    pub fn on_visible(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
+        visibility_var_event_source!(|v| v.is_visible(), true)
+            .filter(|| |v| *v)
+            .map_args(|_| ())
+            .build::<false>(child, handler)
+    }
+
+    /// Widget visibility changed to hidden.
+    ///
+    /// See [`on_visibility_changed`] for a more general visibility event.
+    ///
+    /// [`on_visibility_changed`]: fn@on_visibility_changed
+    #[property(EVENT)]
+    pub fn on_hidden(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
+        visibility_var_event_source!(|v| v.is_hidden(), true)
+            .filter(|| |v| *v)
+            .map_args(|_| ())
+            .build::<false>(child, handler)
+    }
+
+    /// Widget visibility changed to collapsed.
+    ///
+    /// See [`on_visibility_changed`] for a more general visibility event.
+    ///
+    /// [`on_visibility_changed`]: fn@on_visibility_changed
+    #[property(EVENT)]
+    pub fn on_collapsed(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
+        visibility_var_event_source!(|v| v.is_collapsed(), true)
+            .filter(|| |v| *v)
+            .map_args(|_| ())
+            .build::<false>(child, handler)
     }
 }

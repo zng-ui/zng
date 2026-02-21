@@ -4,9 +4,9 @@ use zng::{
     button,
     color::filter::drop_shadow,
     focus::{
-        DirectionalNav, FOCUS_CHANGED_EVENT, FocusClickBehavior, FocusRequest, FocusTarget, TabIndex, TabNav, alt_focus_scope,
-        directional_nav, focus_click_behavior, focus_scope, focus_shortcut, focusable, is_focused, is_return_focus, return_focus_on_deinit,
-        tab_index, tab_nav,
+        DirectionalNav, FOCUS_CHANGED_EVENT, FocusClickBehavior, FocusRequest, TabIndex, TabNav, alt_focus_scope, directional_nav,
+        focus_click_behavior, focus_scope, focus_shortcut, focusable, is_focused, is_return_focus, return_focus_on_deinit, tab_index,
+        tab_nav,
     },
     font::FontName,
     layout::{align, margin, padding},
@@ -18,8 +18,9 @@ use zng::{
 
 fn main() {
     zng::env::init!();
+    // zng::app::print_tracing(tracing::Level::TRACE, false, |m| m.target().contains("zng_ext_input"));
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         WINDOW.id().set_name("main").unwrap();
 
         trace_focus();
@@ -39,7 +40,7 @@ fn main() {
             // zng::window::inspector::show_center_points = true;
             // zng::window::inspector::show_bounds = true;
             // zng::window::inspector::show_hit_test = true;
-            // zng::window::inspector::show_directional_query = Some(zng::core::unit::Orientation2D::Below);
+            // zng::window::inspector::show_directional_query = Some(layout::Orientation2D::Below);
         }
     })
 }
@@ -48,7 +49,7 @@ fn alt_scope() -> UiNode {
     Stack! {
         direction = StackDirection::left_to_right();
         alt_focus_scope = true;
-        focus_click_behavior = FocusClickBehavior::Exit;
+        focus_click_behavior = FocusClickBehavior::menu_item();
         button::style_fn = Style! {
             border = unset!;
             corner_radius = unset!;
@@ -84,8 +85,8 @@ fn functions(window_enabled: Var<bool>) -> UiNode {
             Button! {
                 child = Text!("New Window");
                 on_click = hn!(|_| {
-                    WINDOWS.open(async {
-                        let _ = WINDOW.id().set_name("other");
+                    WINDOWS.open(WindowId::new_unique(), async {
+                        let _ = WINDOW.id().set_name("other"); // name first other
                         Window! {
                             title = "Other Window";
                             focus_shortcut = shortcut!('W');
@@ -110,15 +111,19 @@ fn functions(window_enabled: Var<bool>) -> UiNode {
             {
                 let detach_focused = ArcNode::new_cyclic(|wk| {
                     Button! {
+                        id = "detachable-btn";
                         child = Text!("Detach Button");
                         // focus_on_init = true;
                         on_click = hn!(|_| {
                             let wwk = wk.clone();
-                            WINDOWS.open(async move {
+                            WINDOWS.open(WindowId::new_unique(), async move {
                                 Window! {
                                     title = "Detached Button";
                                     child_align = Align::CENTER;
                                     child = wwk.upgrade().unwrap().take_on_init();
+                                    // child_bottom = Button! {
+                                    //     child = Text!("Test");
+                                    // };
                                 }
                             });
                         });
@@ -201,33 +206,24 @@ fn delayed_focus() -> UiNode {
         children = ui_vec![
             title("Delayed 4s (D)"),
             delayed_btn("Force Focus", || {
-                FOCUS.focus(FocusRequest {
-                    target: FocusTarget::Direct {
-                        target: WidgetId::named("target"),
-                    },
-                    highlight: true,
-                    force_window_focus: true,
-                    window_indicator: None,
+                FOCUS.focus({
+                    let mut req = FocusRequest::direct("target".into(), true);
+                    req.force_window_focus = true;
+                    req
                 });
             }),
             delayed_btn("Info Indicator", || {
-                FOCUS.focus(FocusRequest {
-                    target: FocusTarget::Direct {
-                        target: WidgetId::named("target"),
-                    },
-                    highlight: true,
-                    force_window_focus: false,
-                    window_indicator: Some(FocusIndicator::Info),
+                FOCUS.focus({
+                    let mut req = FocusRequest::direct("target".into(), true);
+                    req.window_indicator = Some(FocusIndicator::Info);
+                    req
                 });
             }),
             delayed_btn("Critical Indicator", || {
-                FOCUS.focus(FocusRequest {
-                    target: FocusTarget::Direct {
-                        target: WidgetId::named("target"),
-                    },
-                    highlight: true,
-                    force_window_focus: false,
-                    window_indicator: Some(FocusIndicator::Critical),
+                FOCUS.focus({
+                    let mut req = FocusRequest::direct("target".into(), true);
+                    req.window_indicator = Some(FocusIndicator::Critical);
+                    req
                 });
             }),
             Text! {
@@ -324,17 +320,20 @@ fn commands() -> UiNode {
 
 fn trace_focus() {
     FOCUS_CHANGED_EVENT
-        .on_pre_event(hn!(|args| {
-            if args.is_highlight_changed() {
-                tracing::info!("highlight: {}", args.highlight);
-            } else if args.is_widget_move() {
-                tracing::info!("focused {:?} moved", args.new_focus.as_ref().unwrap());
-            } else if args.is_enabled_change() {
-                tracing::info!("focused {:?} enabled/disabled", args.new_focus.as_ref().unwrap());
-            } else {
-                tracing::info!("{} -> {}", inspect::focus(&args.prev_focus), inspect::focus(&args.new_focus));
-            }
-        }))
+        .on_pre_event(
+            true,
+            hn!(|args| {
+                if args.is_highlight_changed() {
+                    tracing::info!("highlight: {}", args.highlight);
+                } else if args.is_widget_move() {
+                    tracing::info!("focused {:?} moved", args.new_focus.as_ref().unwrap());
+                } else if args.is_enabled_change() {
+                    tracing::info!("focused {:?} enabled/disabled", args.new_focus.as_ref().unwrap());
+                } else {
+                    tracing::info!("{} -> {}", inspect::focus(&args.prev_focus), inspect::focus(&args.new_focus));
+                }
+            }),
+        )
         .perm();
 }
 
@@ -343,7 +342,7 @@ fn nested_focusables() -> UiNode {
         child = Text!("Nested Focusables");
 
         on_click = hn!(|args| {
-            args.propagation().stop();
+            args.propagation.stop();
             WINDOWS.focus_or_open("nested-focusables", async {
                 Window! {
                     title = "Focus Example - Nested Focusables";
@@ -407,7 +406,7 @@ mod inspect {
     pub fn focus(path: &Option<widget::info::InteractionPath>) -> String {
         path.as_ref()
             .map(|p| {
-                let frame = if let Ok(w) = WINDOWS.widget_tree(p.window_id()) {
+                let frame = if let Some(w) = WINDOWS.widget_tree(p.window_id()) {
                     w
                 } else {
                     return format!("<{p}>");
@@ -417,33 +416,33 @@ mod inspect {
                 } else {
                     return format!("<{p}>");
                 };
-                let wgt_mod = if let Some(b) = widget.inspector_info() {
+                let wgt_type = if let Some(b) = widget.inspector_info() {
                     b.builder.widget_type()
                 } else {
                     return format!("<{p}>");
                 };
-                if wgt_mod.path.ends_with("button") {
+                if wgt_type.path.ends_with("Button") {
                     let txt = widget
-                        .inspect_descendant("text")
+                        .inspect_descendant("Text")
                         .expect("expected text in button")
                         .inspect_property("txt")
                         .expect("expected txt property in text")
                         .live_debug(0)
                         .get();
 
-                    format!("button({txt})")
-                } else if wgt_mod.path.ends_with("window") {
+                    format!("Button({txt})")
+                } else if wgt_type.path.ends_with("Window") {
                     let title = widget.inspect_property("title").map(|p| p.live_debug(0).get()).unwrap_or_default();
 
-                    format!("window({title})")
+                    format!("Window({title})")
                 } else {
                     let focus_info = widget.into_focus_info(true, true);
                     if focus_info.is_alt_scope() {
-                        format!("{}(is_alt_scope)", wgt_mod.name())
+                        format!("{}(is_alt_scope)", wgt_type.name())
                     } else if focus_info.is_scope() {
-                        format!("{}(is_scope)", wgt_mod.name())
+                        format!("{}(is_scope)", wgt_type.name())
                     } else {
-                        format!("{}({})", wgt_mod.name(), p.widget_id())
+                        format!("{}({})", wgt_type.name(), p.widget_id())
                     }
                 }
             })

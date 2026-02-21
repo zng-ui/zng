@@ -12,7 +12,7 @@
 //! use zng::prelude::*;
 //!
 //! fn app() {
-//!     APP.defaults().run_window(async { window() });
+//!     APP.defaults().run_window("main", async { window() });
 //! }
 //!
 //! fn window() -> window::WindowRoot {
@@ -20,7 +20,7 @@
 //!     Window! {
 //!         on_close_requested = hn!(allow_close, |args| {
 //!             if !allow_close.get() {
-//!                 args.propagation().stop();
+//!                 args.propagation.stop();
 //!             }
 //!         });
 //!
@@ -42,8 +42,9 @@
 //!
 //! fn app() {
 //!     APP.defaults().run(async {
-//!         let r = WINDOWS.open(async { main_window() });
-//!         println!("opened {}", r.wait_rsp().await);
+//!         let r = WINDOWS.open("main", async { main_window() });
+//!         r.wait_rsp().await.instance_state().wait_match(|v| v.is_loaded()).await;
+//!         println!("window open and loaded");
 //!     });
 //! }
 //!
@@ -58,13 +59,11 @@
 //!                 on_click = async_hn!(enabled, |_| {
 //!                     enabled.set(false);
 //!
-//!                     if WINDOWS.is_open("child-id") {
-//!                         if let Ok(r) = WINDOWS.close("child-id") {
-//!                             r.wait_done().await;
-//!                         }
+//!                     if WINDOWS.vars("child-id").is_some() {
+//!                         let r = WINDOWS.close("child-id").wait_done().await;
 //!                     } else {
 //!                         let parent = WINDOW.id();
-//!                         WINDOWS.open_id("child-id", async move { child_window(parent) }).wait_done().await;
+//!                         WINDOWS.open("child-id", async move { child_window(parent) }).wait_done().await;
 //!                     }
 //!
 //!                     enabled.set(true);
@@ -245,24 +244,32 @@ pub mod inspector {
 /// This is registered on app init for platforms that only support one window, it intercepts headed window open requests after the
 /// first and opens them as a nested modal layer on the main window.
 ///
-/// See [`WINDOWS::register_open_nested_handler`] for more details.
+/// See [`WINDOWS_EXTENSIONS.register_open_nested_handler`] for more details.
+///
+/// [`WINDOWS_EXTENSIONS.register_open_nested_handler`]: zng_ext_window::WINDOWS_EXTENSIONS::register_open_nested_handler
 pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedHandlerArgs) {
     use crate::prelude::*;
 
-    if !matches!(args.ctx().mode(), WindowMode::Headed) {
+    if !matches!(WINDOW.mode(), WindowMode::Headed) {
         return;
     }
 
     let open: Vec<_> = WINDOWS
         .widget_trees()
         .into_iter()
-        .filter(|w| WINDOWS.mode(w.window_id()) == Ok(window::WindowMode::Headed) && WINDOWS.nest_parent(w.window_id()).is_none())
+        .filter(|w| {
+            WINDOWS.mode(w.window_id()) == Some(window::WindowMode::Headed)
+                && WINDOWS
+                    .vars(w.window_id())
+                    .map(|v| v.nest_parent().get().is_none())
+                    .unwrap_or(false)
+        })
         .take(2)
         .collect();
 
     if open.len() == 1 {
-        let id = args.ctx().id();
-        let vars = args.vars();
+        let id = WINDOW.id();
+        let vars = WINDOW.vars();
         #[cfg(feature = "image")]
         let icon = vars.icon();
         let title = vars.title();
@@ -308,7 +315,7 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
                             style_fn = zng::button::LightStyle!();
                             child = ICONS.get_or("close", || Text!("x"));
                             on_click = hn!(|args| {
-                                args.propagation().stop();
+                                args.propagation.stop();
                                 let _ = WINDOWS.close(id);
                             });
                         };
@@ -325,12 +332,15 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
         ));
 
         window::WINDOW_CLOSE_EVENT
-            .on_pre_event(hn!(|args| {
-                if args.windows.contains(&id) {
-                    APP_HANDLER.unsubscribe();
-                    layer::LAYERS_REMOVE_CMD.scoped(host_win_id).notify_param(host_wgt_id);
-                }
-            }))
+            .on_pre_event(
+                true,
+                hn!(|args| {
+                    if args.windows.contains(&id) {
+                        APP_HANDLER.unsubscribe();
+                        layer::LAYERS_REMOVE_CMD.scoped(host_win_id).notify_param(host_wgt_id);
+                    }
+                }),
+            )
             .perm();
     }
 }

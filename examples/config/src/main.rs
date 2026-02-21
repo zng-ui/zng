@@ -78,7 +78,7 @@ fn load_config() {
 }
 
 fn app_main() {
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         load_config();
 
         WINDOW.id().set_name("main").unwrap(); // name used to save window state.
@@ -140,7 +140,7 @@ fn app_main() {
                 {
                     let pos = (layout::Dip::new(x), layout::Dip::new(y));
                     WINDOW.vars().position().set(pos);
-                    WINDOWS.focus(WINDOW.id()).unwrap();
+                    FOCUS.focus_window(WINDOW.id(), false);
                 }
             });
         }

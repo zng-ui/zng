@@ -60,36 +60,36 @@ fn context_menu_node(child: impl IntoUiNode, menu: impl IntoVar<WidgetFn<Context
 
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&menu).sub_event(&CLICK_EVENT);
+            WIDGET.sub_var(&menu).sub_event_when(&CLICK_EVENT, |args| args.is_context());
         }
         UiNodeOp::Deinit => {
             POPUP.close(&pop_state);
         }
-        UiNodeOp::Event { update } => {
-            c.event(update);
-            if let Some(args) = CLICK_EVENT.on_unhandled(update)
-                && args.is_context()
-            {
-                let apply = if disabled_only {
-                    args.target.interactivity().is_disabled()
-                } else {
-                    args.target.interactivity().is_enabled()
-                };
-                if apply {
-                    args.propagation().stop();
+        UiNodeOp::Update { updates } => {
+            c.update(updates);
+            CLICK_EVENT.each_update(false, |args| {
+                if args.is_context() {
+                    let apply = if disabled_only {
+                        args.target.interactivity().is_disabled()
+                    } else {
+                        args.target.interactivity().is_enabled()
+                    };
+                    if apply {
+                        args.propagation.stop();
 
-                    let menu = menu.get()(ContextMenuArgs {
-                        anchor_id: WIDGET.id(),
-                        disabled: disabled_only,
-                    });
-                    let is_shortcut = args.is_from_keyboard();
-                    pop_state = POPUP.open_config(
-                        menu,
-                        CONTEXT_MENU_ANCHOR_VAR.map(move |(c, s)| if is_shortcut { s } else { c }.clone()),
-                        CONTEXT_CAPTURE_VAR.get(),
-                    );
+                        let menu = menu.get()(ContextMenuArgs {
+                            anchor_id: WIDGET.id(),
+                            disabled: disabled_only,
+                        });
+                        let is_shortcut = args.is_from_keyboard();
+                        pop_state = POPUP.open_config(
+                            menu,
+                            CONTEXT_MENU_ANCHOR_VAR.map(move |(c, s)| if is_shortcut { s } else { c }.clone()),
+                            CONTEXT_CAPTURE_VAR.get(),
+                        );
+                    }
                 }
-            }
+            });
         }
         _ => {}
     })

@@ -315,10 +315,15 @@ impl Hsla {
             LerpSpace::HslaLinear => self.lerp_hsla(to, factor),
         }
     }
+
+    /// If all components are finite.
+    fn is_valid(&self) -> bool {
+        self.hue.is_finite() && self.alpha.is_finite() && self.lightness.is_finite() && self.saturation.is_finite()
+    }
 }
 impl fmt::Debug for Hsla {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
+        if f.alternate() || !self.is_valid() {
             f.debug_struct("Hsla")
                 .field("hue", &self.hue)
                 .field("saturation", &self.saturation)
@@ -460,10 +465,15 @@ impl Hsva {
         self.set_alpha(alpha);
         self
     }
+
+    /// If all components are finite.
+    pub fn is_valid(&self) -> bool {
+        self.hue.is_finite() && self.alpha.is_finite() && self.value.is_finite() && self.saturation.is_finite()
+    }
 }
 impl fmt::Debug for Hsva {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
+        if f.alternate() || !self.is_valid() {
             f.debug_struct("Hsla")
                 .field("hue", &self.hue)
                 .field("saturation", &self.saturation)
@@ -797,12 +807,14 @@ pub fn hsl<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, lightne
 ///
 /// [angle unit]: trait@zng_layout::unit::AngleUnits
 pub fn hsla<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, saturation: N, lightness: N, alpha: A) -> Hsla {
-    Hsla {
+    let c = Hsla {
         hue: hue.into().0,
         saturation: saturation.into().0,
         lightness: lightness.into().0,
         alpha: alpha.into().0,
-    }
+    };
+    debug_assert!(c.is_valid(), "hsla color components must be finite, was {c:?}");
+    c
 }
 
 /// HSV color, opaque, alpha is set to `1.0`.
@@ -851,12 +863,14 @@ pub fn hsv<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, value: 
 ///
 /// [angle unit]: trait@zng_layout::unit::AngleUnits
 pub fn hsva<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, saturation: N, value: N, alpha: A) -> Hsva {
-    Hsva {
+    let c = Hsva {
         hue: hue.into().0,
         saturation: saturation.into().0,
         value: value.into().0,
         alpha: alpha.into().0,
-    }
+    };
+    debug_assert!(c.is_valid(), "hsva color components must be finite, was {c:?}");
+    c
 }
 
 context_var! {

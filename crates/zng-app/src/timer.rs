@@ -89,7 +89,7 @@ impl TimersService {
     fn deadline(&mut self, deadline: Deadline) -> DeadlineVar {
         let timer = var(deadline);
         self.deadlines.push(timer.downgrade());
-        UPDATES.send_awake();
+        UPDATES.update_app();
         timer.read_only()
     }
 
@@ -99,7 +99,7 @@ impl TimersService {
             wakers: Mutex::new(vec![]),
         });
         self.wait_deadlines.push(Arc::downgrade(&deadline));
-        UPDATES.send_awake();
+        UPDATES.update_app();
         WaitDeadlineFut(deadline)
     }
 
@@ -110,7 +110,7 @@ impl TimersService {
             handle: owner,
             weak_var: timer.downgrade(),
         });
-        UPDATES.send_awake();
+        UPDATES.update_app();
         timer.read_only()
     }
 
@@ -130,7 +130,7 @@ impl TimersService {
             })),
             pending: false,
         });
-        UPDATES.send_awake();
+        UPDATES.update_app();
         handle
     }
 
@@ -144,7 +144,7 @@ impl TimersService {
             })),
             pending: None,
         });
-        UPDATES.send_awake();
+        UPDATES.update_app();
         handle
     }
 

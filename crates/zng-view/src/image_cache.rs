@@ -263,6 +263,9 @@ impl ImageCache {
                 let mut meta = ImageMetadata::new(id, size, is_mask, $og_color_type);
                 meta.density = density;
                 meta.parent = parent;
+                if !notified_meta {
+                    let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataDecoded(meta.clone())));
+                }
                 let decoded = ImageDecoded::new(meta, pixels, is_opaque);
                 let mut out = if $return_data { Some(decoded.clone()) } else { None };
                 if app_sender.send(AppEvent::ImageCanRender(decoded)).is_err() {

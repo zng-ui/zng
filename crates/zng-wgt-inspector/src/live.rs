@@ -67,23 +67,24 @@ pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> UiNode {
             WIDGET.sub_var(&can_inspect);
             cmd_handle = INSPECT_CMD.scoped(WINDOW.id()).subscribe_wgt(can_inspect.get(), WIDGET.id());
         }
-        UiNodeOp::Update { .. } => {
-            if let Some(e) = can_inspect.get_new() {
-                cmd_handle.set_enabled(e);
-            }
-        }
         UiNodeOp::Info { .. } => {
-            if inspected_tree.is_some() {
-                if WINDOWS.is_open(inspector) {
+            if inspected_tree.is_some()
+                && let Some(vars) = WINDOWS.vars(inspector)
+            {
+                if vars.instance_state().get() != zng_ext_window::WindowInstanceState::Building {
                     INSPECT_CMD.scoped(WINDOW.id()).notify_param(InspectorUpdateOnly::Info);
-                } else if !WINDOWS.is_opening(inspector) {
+                } else {
                     inspected_tree = None;
                 }
             }
         }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = INSPECT_CMD.scoped(WINDOW.id()).on_unhandled(update) {
-                args.propagation().stop();
+        UiNodeOp::Update { .. } => {
+            if let Some(e) = can_inspect.get_new() {
+                cmd_handle.enabled().set(e);
+            }
+
+            INSPECT_CMD.scoped(WINDOW.id()).each_update(true, false, |args| {
+                args.propagation.stop();
 
                 if let Some(u) = args.param::<InspectorUpdateOnly>() {
                     // pump state
@@ -118,7 +119,7 @@ pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> UiNode {
                         }),
                     );
                 }
-            }
+            });
         }
         UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
             INSPECT_CMD.scoped(WINDOW.id()).notify_param(InspectorUpdateOnly::Render);
@@ -183,7 +184,7 @@ fn select_on_click(child: impl IntoUiNode, hit_select: Var<HitSelect>) -> UiNode
     // overlay was opened, but we can't rebuild info, and we actually want the click target,
     // so we only manually block common pointer events.
 
-    let mut click_handle = EventHandles::dummy();
+    let mut click_handle = VarHandles::dummy();
     let mut _cursor_handle = VarHandle::dummy();
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
@@ -211,8 +212,8 @@ fn select_on_click(child: impl IntoUiNode, hit_select: Var<HitSelect>) -> UiNode
                         true
                     });
 
-                    click_handle.push(MOUSE_INPUT_EVENT.subscribe(WIDGET.id()));
-                    click_handle.push(TOUCH_INPUT_EVENT.subscribe(WIDGET.id()));
+                    click_handle.push(MOUSE_INPUT_EVENT.subscribe(UpdateOp::Update, WIDGET.id()));
+                    click_handle.push(TOUCH_INPUT_EVENT.subscribe(UpdateOp::Update, WIDGET.id()));
                 } else {
                     WINDOW.vars().cursor().set(CursorIcon::Default);
                     _cursor_handle = VarHandle::dummy();
@@ -220,50 +221,60 @@ fn select_on_click(child: impl IntoUiNode, hit_select: Var<HitSelect>) -> UiNode
                     click_handle.clear();
                 }
             }
-        }
-        UiNodeOp::Event { update } => {
+
             if matches!(hit_select.get(), HitSelect::Enabled) {
                 let mut select = None;
 
-                if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
-                    args.propagation().stop();
+                MOUSE_MOVE_EVENT.each_update(true, |args| {
+                    args.propagation.stop();
                     c.delegated();
-                } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
-                    args.propagation().stop();
-                    c.delegated();
-                    select = Some(args.target.widget_id());
-                } else if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                    args.propagation().stop();
-                    c.delegated();
-                } else if let Some(args) = MOUSE_WHEEL_EVENT.on(update) {
-                    args.propagation().stop();
-                    c.delegated();
-                } else if let Some(args) = CLICK_EVENT.on(update) {
-                    args.propagation().stop();
-                    c.delegated();
-                } else if let Some(args) = ACCESS_CLICK_EVENT.on(update) {
-                    args.propagation().stop();
-                    c.delegated();
-                } else if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
-                    args.propagation().stop();
+                });
+                MOUSE_INPUT_EVENT.each_update(true, |args| {
+                    args.propagation.stop();
                     c.delegated();
                     select = Some(args.target.widget_id());
-                } else if let Some(args) = TOUCHED_EVENT.on(update) {
-                    args.propagation().stop();
+                });
+                MOUSE_HOVERED_EVENT.each_update(true, |args| {
+                    args.propagation.stop();
                     c.delegated();
-                } else if let Some(args) = TOUCH_MOVE_EVENT.on(update) {
-                    args.propagation().stop();
+                });
+                MOUSE_WHEEL_EVENT.each_update(true, |args| {
+                    args.propagation.stop();
                     c.delegated();
-                } else if let Some(args) = TOUCH_TAP_EVENT.on(update) {
-                    args.propagation().stop();
+                });
+                CLICK_EVENT.each_update(true, |args| {
+                    args.propagation.stop();
                     c.delegated();
-                } else if let Some(args) = TOUCH_TRANSFORM_EVENT.on(update) {
-                    args.propagation().stop();
+                });
+                ACCESS_CLICK_EVENT.each_update(true, |args| {
+                    args.propagation.stop();
                     c.delegated();
-                } else if let Some(args) = TOUCH_LONG_PRESS_EVENT.on(update) {
-                    args.propagation().stop();
+                });
+                TOUCH_INPUT_EVENT.each_update(true, |args| {
+                    args.propagation.stop();
                     c.delegated();
-                }
+                    select = Some(args.target.widget_id());
+                });
+                TOUCHED_EVENT.each_update(true, |args| {
+                    args.propagation.stop();
+                    c.delegated();
+                });
+                TOUCH_MOVE_EVENT.each_update(true, |args| {
+                    args.propagation.stop();
+                    c.delegated();
+                });
+                TOUCH_TAP_EVENT.each_update(true, |args| {
+                    args.propagation.stop();
+                    c.delegated();
+                });
+                TOUCH_TRANSFORM_EVENT.each_update(true, |args| {
+                    args.propagation.stop();
+                    c.delegated();
+                });
+                TOUCH_LONG_PRESS_EVENT.each_update(true, |args| {
+                    args.propagation.stop();
+                    c.delegated();
+                });
 
                 if let Some(id) = select {
                     hit_select.set(HitSelect::Select(id));

@@ -3,7 +3,7 @@
 use std::{
     collections::{HashMap, hash_map},
     fmt, mem,
-    sync::{Arc, atomic::AtomicBool},
+    sync::Arc,
     task::Waker,
 };
 
@@ -12,12 +12,12 @@ use zng_app_context::app_local;
 use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_task::channel::ChannelError;
 use zng_unique_id::IdSet;
-use zng_var::VARS_APP;
+use zng_var::{VARS, VARS_APP};
 
 use crate::{
-    AppEventSender, AppExtension, LoopTimer, async_hn_once,
-    event::{AnyEvent, AnyEventArgs, EVENTS, EVENTS_SV},
+    AppEventSender, LoopTimer, async_hn_once,
     handler::{AppWeakHandle, Handler, HandlerExt as _},
+    hn_once,
     timer::TIMERS_SV,
     widget::{
         WIDGET, WidgetId,
@@ -29,8 +29,6 @@ use crate::{
 
 /// Represents all the widgets and windows marked to receive an update.
 pub struct UpdateDeliveryList {
-    subscribers: Box<dyn UpdateSubscribers>,
-
     windows: IdSet<WindowId>,
     widgets: IdSet<WidgetId>,
     search: IdSet<WidgetId>,
@@ -47,49 +45,18 @@ impl fmt::Debug for UpdateDeliveryList {
 }
 impl Default for UpdateDeliveryList {
     fn default() -> Self {
-        Self::new_any()
+        Self::new()
     }
 }
 impl UpdateDeliveryList {
     /// New list that only allows `subscribers`.
-    pub fn new(subscribers: Box<dyn UpdateSubscribers>) -> Self {
+    pub fn new() -> Self {
         Self {
-            subscribers,
             windows: IdSet::default(),
             widgets: IdSet::default(),
             search: IdSet::default(),
             search_root: false,
         }
-    }
-
-    /// New list that does not allow any entry.
-    pub fn new_none() -> Self {
-        struct UpdateDeliveryListNone;
-        impl UpdateSubscribers for UpdateDeliveryListNone {
-            fn contains(&self, _: WidgetId) -> bool {
-                false
-            }
-            fn to_set(&self) -> IdSet<WidgetId> {
-                IdSet::default()
-            }
-        }
-        Self::new(Box::new(UpdateDeliveryListNone))
-    }
-
-    /// New list that allows all entries.
-    ///
-    /// This is the default value.
-    pub fn new_any() -> Self {
-        struct UpdateDeliveryListAny;
-        impl UpdateSubscribers for UpdateDeliveryListAny {
-            fn contains(&self, _: WidgetId) -> bool {
-                true
-            }
-            fn to_set(&self) -> IdSet<WidgetId> {
-                IdSet::default()
-            }
-        }
-        Self::new(Box::new(UpdateDeliveryListAny))
     }
 
     pub(crate) fn insert_updates_root(&mut self, window_id: WindowId, root_id: WidgetId) {
@@ -99,16 +66,10 @@ impl UpdateDeliveryList {
 
     /// Insert the `wgt` and ancestors up-to the inner most that is included in the subscribers.
     pub fn insert_wgt(&mut self, wgt: &impl WidgetPathProvider) {
-        let mut any = false;
         for w in wgt.widget_and_ancestors() {
-            if any || self.subscribers.contains(w) {
-                any = true;
-                self.widgets.insert(w);
-            }
+            self.widgets.insert(w);
         }
-        if any {
-            self.windows.insert(wgt.window_id());
-        }
+        self.windows.insert(wgt.window_id());
     }
 
     /// Insert the window by itself, the window root widget will be targeted.
@@ -117,16 +78,9 @@ impl UpdateDeliveryList {
         self.search_root = true;
     }
 
-    /// Register all subscribers for search and delivery.
-    pub fn search_all(&mut self) {
-        self.search = self.subscribers.to_set();
-    }
-
     /// Register the widget of unknown location for search before delivery routing starts.
     pub fn search_widget(&mut self, widget_id: WidgetId) {
-        if self.subscribers.contains(widget_id) {
-            self.search.insert(widget_id);
-        }
+        self.search.insert(widget_id);
     }
 
     /// If the list has pending widgets that must be found before delivery can start.
@@ -257,121 +211,6 @@ impl WidgetPathProvider for InteractionPath {
 
     fn widget_and_ancestors(&self) -> Self::WidgetIter<'_> {
         self.widgets_path().iter().copied().rev()
-    }
-}
-
-/// Represents a set of widgets that subscribe to an event source.
-pub trait UpdateSubscribers: Send + Sync + 'static {
-    /// Returns `true` if the widget is one of the subscribers.
-    fn contains(&self, widget_id: WidgetId) -> bool;
-    /// Gets all subscribers as a set.
-    fn to_set(&self) -> IdSet<WidgetId>;
-}
-
-/// Represents a single event update.
-pub struct EventUpdate {
-    pub(crate) event: AnyEvent,
-    pub(crate) args: Box<dyn AnyEventArgs>,
-    pub(crate) delivery_list: UpdateDeliveryList,
-    // never locked, only used to get `Sync`.
-    pub(crate) pre_actions: Mutex<Vec<Box<dyn FnOnce(&EventUpdate) + Send>>>,
-    pub(crate) pos_actions: Mutex<Vec<Box<dyn FnOnce(&EventUpdate) + Send>>>,
-}
-impl EventUpdate {
-    /// The event.
-    pub fn event(&self) -> AnyEvent {
-        self.event
-    }
-
-    /// The update delivery list.
-    pub fn delivery_list(&self) -> &UpdateDeliveryList {
-        &self.delivery_list
-    }
-
-    /// Mutable reference to the update delivery list.
-    ///
-    /// Note that this is only available app-extensions, nodes don't get mutable access to the event update.
-    pub fn delivery_list_mut(&mut self) -> &mut UpdateDeliveryList {
-        &mut self.delivery_list
-    }
-
-    /// The update args.
-    pub fn args(&self) -> &dyn AnyEventArgs {
-        &*self.args
-    }
-
-    /// Calls `handle` if the event targets the [`WINDOW`].
-    pub fn with_window<H, R>(&self, handle: H) -> Option<R>
-    where
-        H: FnOnce() -> R,
-    {
-        if self.delivery_list.enter_window(WINDOW.id()) {
-            Some(handle())
-        } else {
-            None
-        }
-    }
-
-    /// Calls `handle` if the event targets the [`WIDGET`] and propagation is not stopped.
-    pub fn with_widget<H, R>(&self, handle: H) -> Option<R>
-    where
-        H: FnOnce() -> R,
-    {
-        if self.delivery_list.enter_widget(WIDGET.id()) {
-            if self.args.propagation().is_stopped() {
-                None
-            } else {
-                Some(handle())
-            }
-        } else {
-            None
-        }
-    }
-
-    /// Create an event update for the same event and args, but with a custom `delivery_list`.
-    ///
-    /// Note that the returned instance can only be used to notify app extensions or nodes that the caller can reference.
-    pub fn custom(&self, delivery_list: UpdateDeliveryList) -> Self {
-        Self {
-            event: self.event,
-            args: self.args.clone_any(),
-            delivery_list,
-            pre_actions: Mutex::new(vec![]),
-            pos_actions: Mutex::new(vec![]),
-        }
-    }
-
-    pub(crate) fn push_once_action(&mut self, action: Box<dyn FnOnce(&EventUpdate) + Send>, is_preview: bool) {
-        if is_preview {
-            self.pre_actions.get_mut().push(action);
-        } else {
-            self.pos_actions.get_mut().push(action);
-        }
-    }
-
-    pub(crate) fn call_pre_actions(&mut self) {
-        let _s = tracing::trace_span!("call_pre_actions");
-        let actions = mem::take(self.pre_actions.get_mut());
-        for action in actions {
-            action(self)
-        }
-    }
-
-    pub(crate) fn call_pos_actions(&mut self) {
-        let _s = tracing::trace_span!("call_pos_actions");
-        let actions = mem::take(self.pos_actions.get_mut());
-        for action in actions {
-            action(self)
-        }
-    }
-}
-impl fmt::Debug for EventUpdate {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("EventUpdate")
-            .field("event", &self.event)
-            .field("args", &self.args)
-            .field("delivery_list", &self.delivery_list)
-            .finish_non_exhaustive()
     }
 }
 
@@ -641,18 +480,6 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
 
                 tracing::span::Id::from_u64(3)
             }
-            "AppExtension" => {
-                let name = visit_str(|v| span.record(v), "name");
-
-                let mut ctx = self.context.lock();
-                ctx.app_extension = Some(name);
-
-                if let Some(p) = ctx.tag.replace(String::new()) {
-                    self.tags_stack.lock().push(p);
-                }
-
-                tracing::span::Id::from_u64(4)
-            }
             "tag" => {
                 let tag = visit_str(|v| span.record(v), "tag");
                 let mut ctx = self.context.lock();
@@ -672,9 +499,6 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
     fn event(&self, event: &tracing::Event<'_>) {
         let action = match visit_str(|v| event.record(v), "kind").as_str() {
             "var" => UpdateAction::Var {
-                type_name: visit_str(|v| event.record(v), "type_name"),
-            },
-            "event" => UpdateAction::Event {
                 type_name: visit_str(|v| event.record(v), "type_name"),
             },
             "request" => UpdateAction::Update,
@@ -718,7 +542,6 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
         }
     }
 }
-static UPDATES_TRACE_ENABLED: AtomicBool = AtomicBool::new(false);
 impl UpdatesTrace {
     const UPDATES_TARGET: &'static str = "zng-updates";
 
@@ -732,148 +555,86 @@ impl UpdatesTrace {
         }
     }
 
-    /// If updates trace is currently collecting.
-    #[inline(always)]
-    pub fn is_tracing() -> bool {
-        UPDATES_TRACE_ENABLED.load(atomic::Ordering::Relaxed)
-    }
-
-    /// Opens an app extension span.
-    pub fn extension_span<E: AppExtension>(ext_mtd: &'static str) -> tracing::span::EnteredSpan {
-        if Self::is_tracing() {
-            tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "AppExtension", name = pretty_type_name::pretty_type_name::<E>(), %ext_mtd).entered()
-        } else {
-            tracing::span::Span::none().entered()
-        }
-    }
-
     /// Opens a window span.
     pub fn window_span(id: WindowId) -> tracing::span::EnteredSpan {
-        if Self::is_tracing() {
-            tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "Window", %id, raw_id = id.get() as u64).entered()
-        } else {
-            tracing::span::Span::none().entered()
-        }
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "Window", %id, raw_id = id.get() as u64).entered()
     }
 
     /// Opens a widget span.
     #[cfg(feature = "trace_widget")]
     pub fn widget_span(id: WidgetId, name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
-        if Self::is_tracing() {
-            tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "widget", %id, raw_id = id.get(), name, %node_mtd).entered()
-        } else {
-            tracing::span::Span::none().entered()
-        }
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "widget", %id, raw_id = id.get(), name, %node_mtd).entered()
     }
 
     /// Opens a property span.
     #[cfg(feature = "trace_wgt_item")]
     pub fn property_span(name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
-        if Self::is_tracing() {
-            tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "property", name, %node_mtd).entered()
-        } else {
-            tracing::span::Span::none().entered()
-        }
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "property", name, %node_mtd).entered()
     }
 
     /// Opens an intrinsic span.
     #[cfg(feature = "trace_wgt_item")]
     pub fn intrinsic_span(name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
-        if Self::is_tracing() {
-            tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "intrinsic", name, %node_mtd).entered()
-        } else {
-            tracing::span::Span::none().entered()
-        }
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "intrinsic", name, %node_mtd).entered()
     }
 
     /// Opens a custom named span.
     pub fn custom_span(name: &str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
-        if Self::is_tracing() {
-            tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "tag", %name, %node_mtd).entered()
-        } else {
-            tracing::Span::none().entered()
-        }
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "tag", %name, %node_mtd).entered()
     }
 
     /// Log a direct update request.
     pub fn log_update() {
-        if Self::is_tracing() {
-            tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
-                kind = "update"
-            });
-        }
+        tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
+            kind = "update"
+        });
     }
 
     /// Log a direct info rebuild request.
     pub fn log_info() {
-        if Self::is_tracing() {
-            tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
-                kind = "info"
-            });
-        }
+        tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
+            kind = "info"
+        });
     }
 
     /// Log a direct layout request.
     pub fn log_layout() {
-        if Self::is_tracing() {
-            tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
-                kind = "layout"
-            });
-        }
+        tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
+            kind = "layout"
+        });
     }
 
     /// Log a direct render request.
     pub fn log_render() {
-        if Self::is_tracing() {
-            tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
-                kind = "render"
-            });
-        }
+        tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
+            kind = "render"
+        });
     }
 
     /// Log a custom event.
     pub fn log_custom(tag: &str) {
-        if Self::is_tracing() {
-            tracing::event!(
-                target: UpdatesTrace::UPDATES_TARGET,
-                tracing::Level::TRACE,
-                { kind = "custom", %tag }
-            );
-        }
+        tracing::event!(
+            target: UpdatesTrace::UPDATES_TARGET,
+            tracing::Level::TRACE,
+            { kind = "custom", %tag }
+        );
     }
 
     /// Log a var update request.
     pub fn log_var(type_name: &str) {
-        if Self::is_tracing() {
-            tracing::event!(
-                target: UpdatesTrace::UPDATES_TARGET,
-                tracing::Level::TRACE,
-                { kind = "var", type_name = pretty_type_name::pretty_type_name_str(type_name) }
-            );
-        }
-    }
-
-    /// Log an event update request.
-    pub fn log_event(event: AnyEvent) {
-        if Self::is_tracing() {
-            tracing::event!(
-                target: UpdatesTrace::UPDATES_TARGET,
-                tracing::Level::TRACE,
-                { kind = "event", type_name = event.name() }
-            );
-        }
+        tracing::event!(
+            target: UpdatesTrace::UPDATES_TARGET,
+            tracing::Level::TRACE,
+            { kind = "var", type_name = pretty_type_name::pretty_type_name_str(type_name) }
+        );
     }
 
     /// Run `action` collecting a trace of what caused updates.
     pub fn collect_trace<R>(trace: &mut Vec<UpdateTrace>, action: impl FnOnce() -> R) -> R {
-        let trace_enabled = UPDATES_TRACE_ENABLED.swap(true, atomic::Ordering::Relaxed);
-
         let tracer = UpdatesTrace::new();
         let result = Arc::clone(&tracer.trace);
         let r = tracing::subscriber::with_default(tracer, action);
         trace.extend(Arc::try_unwrap(result).unwrap().into_inner());
-
-        UPDATES_TRACE_ENABLED.store(trace_enabled, atomic::Ordering::Relaxed);
 
         r
     }
@@ -954,7 +715,6 @@ enum UpdateAction {
     Layout,
     Render,
     Var { type_name: String },
-    Event { type_name: String },
     Custom { tag: String },
 }
 impl fmt::Display for UpdateAction {
@@ -964,8 +724,7 @@ impl fmt::Display for UpdateAction {
             UpdateAction::Update => write!(f, "update"),
             UpdateAction::Layout => write!(f, "layout"),
             UpdateAction::Render => write!(f, "render"),
-            UpdateAction::Var { type_name } => write!(f, "update var of type {type_name}"),
-            UpdateAction::Event { type_name } => write!(f, "update event {type_name}"),
+            UpdateAction::Var { type_name } => write!(f, "update {type_name}"),
             UpdateAction::Custom { tag } => write!(f, "{tag}"),
         }
     }
@@ -1030,13 +789,11 @@ impl UPDATES {
 
     #[must_use]
     pub(crate) fn apply_updates(&self) -> ContextUpdates {
-        let events = EVENTS.apply_updates();
         VARS_APP.apply_updates();
 
         let (update, update_widgets) = UPDATES.take_update();
 
         ContextUpdates {
-            events,
             update,
             update_widgets,
             info: false,
@@ -1053,7 +810,6 @@ impl UPDATES {
         let (info, info_widgets) = UPDATES.take_info();
 
         ContextUpdates {
-            events: vec![],
             update: false,
             update_widgets: WidgetUpdates::default(),
             info,
@@ -1071,7 +827,6 @@ impl UPDATES {
         let (render, render_widgets, render_update_widgets) = UPDATES.take_render();
 
         ContextUpdates {
-            events: vec![],
             update: false,
             update_widgets: WidgetUpdates::default(),
             info: false,
@@ -1109,7 +864,6 @@ impl UPDATES {
     pub(crate) fn has_pending_updates(&self) -> bool {
         UPDATES_SV.read().update_ext.intersects(UpdateFlags::UPDATE | UpdateFlags::INFO)
             || VARS_APP.has_pending_updates()
-            || EVENTS_SV.write().has_pending_updates()
             || TIMERS_SV.read().has_pending_updates()
     }
 
@@ -1127,8 +881,8 @@ impl UPDATES {
     }
 
     /// Create an std task waker that wakes the event loop and updates.
-    pub fn waker(&self, target: impl Into<Option<WidgetId>>) -> Waker {
-        UPDATES_SV.read().event_sender.as_ref().unwrap().waker(target)
+    pub fn waker(&self, also_update: Option<WidgetId>) -> Waker {
+        UPDATES_SV.read().event_sender.as_ref().unwrap().waker(also_update)
     }
 
     pub(crate) fn update_flags_root(&self, flags: UpdateFlags, window_id: WindowId, root_id: WidgetId) {
@@ -1156,37 +910,34 @@ impl UPDATES {
         u.update_ext |= flags;
     }
 
-    pub(crate) fn update_flags(&self, flags: UpdateFlags, target: impl Into<Option<WidgetId>>) {
+    pub(crate) fn update_flags(&self, flags: UpdateFlags, target: WidgetId) {
         if flags.is_empty() {
             return;
         }
 
         let mut u = UPDATES_SV.write();
 
-        if let Some(id) = target.into() {
-            if flags.contains(UpdateFlags::UPDATE) {
-                u.update_widgets.search_widget(id);
-            }
-            if flags.contains(UpdateFlags::INFO) {
-                u.info_widgets.search_widget(id);
-            }
-            if flags.contains(UpdateFlags::LAYOUT) {
-                u.layout_widgets.search_widget(id);
-            }
+        if flags.contains(UpdateFlags::UPDATE) {
+            u.update_widgets.search_widget(target);
+        }
+        if flags.contains(UpdateFlags::INFO) {
+            u.info_widgets.search_widget(target);
+        }
+        if flags.contains(UpdateFlags::LAYOUT) {
+            u.layout_widgets.search_widget(target);
+        }
 
-            if flags.contains(UpdateFlags::RENDER) {
-                u.render_widgets.search_widget(id);
-            } else if flags.contains(UpdateFlags::RENDER_UPDATE) {
-                u.render_update_widgets.search_widget(id);
-            }
+        if flags.contains(UpdateFlags::RENDER) {
+            u.render_widgets.search_widget(target);
+        } else if flags.contains(UpdateFlags::RENDER_UPDATE) {
+            u.render_update_widgets.search_widget(target);
         }
 
         u.update_ext |= flags;
     }
 
-    /// Schedules an [`UpdateOp`] that optionally affects the `target` widget.
-    pub fn update_op(&self, op: UpdateOp, target: impl Into<Option<WidgetId>>) -> &Self {
-        let target = target.into();
+    /// Schedules an [`UpdateOp`] that affects the `target` widget, ancestor widgets and window.
+    pub fn update_op(&self, op: UpdateOp, target: WidgetId) -> &Self {
         match op {
             UpdateOp::Update => self.update(target),
             UpdateOp::Info => self.update_info(target),
@@ -1210,18 +961,16 @@ impl UPDATES {
     /// Schedules an update that affects the `target`.
     ///
     /// After the current update cycle ends a new update will happen that includes the `target` widget.
-    pub fn update(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+    pub fn update(&self, target: WidgetId) -> &Self {
         UpdatesTrace::log_update();
-        self.update_internal(target.into())
+        self.update_internal(target)
     }
     /// Implements `update` without `log_update`.
-    pub(crate) fn update_internal(&self, target: Option<WidgetId>) -> &UPDATES {
+    pub(crate) fn update_internal(&self, target: WidgetId) -> &UPDATES {
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::UPDATE);
         u.send_awake();
-        if let Some(id) = target {
-            u.update_widgets.search_widget(id);
-        }
+        u.update_widgets.search_widget(target);
         self
     }
 
@@ -1234,21 +983,22 @@ impl UPDATES {
         self
     }
 
-    pub(crate) fn send_awake(&self) {
-        UPDATES_SV.write().send_awake();
+    /// Schedules an update without specific window or widget target.
+    pub fn update_app(&self) {
+        let mut u = UPDATES_SV.write();
+        u.update_ext.insert(UpdateFlags::UPDATE);
+        u.send_awake();
     }
 
     /// Schedules an info rebuild that affects the `target`.
     ///
     /// After the current update cycle ends a new update will happen that requests an info rebuild that includes the `target` widget.
-    pub fn update_info(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+    pub fn update_info(&self, target: WidgetId) -> &Self {
         UpdatesTrace::log_info();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::INFO);
         u.send_awake();
-        if let Some(id) = target.into() {
-            u.info_widgets.search_widget(id);
-        }
+        u.info_widgets.search_widget(target);
         self
     }
 
@@ -1265,14 +1015,12 @@ impl UPDATES {
     /// Schedules a layout update that affects the `target`.
     ///
     /// After the current update cycle ends and there are no more updates requested a layout pass is issued that includes the `target` widget.
-    pub fn layout(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+    pub fn layout(&self, target: WidgetId) -> &Self {
         UpdatesTrace::log_layout();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::LAYOUT);
         u.send_awake();
-        if let Some(id) = target.into() {
-            u.layout_widgets.search_widget(id);
-        }
+        u.layout_widgets.search_widget(target);
         self
     }
 
@@ -1292,14 +1040,12 @@ impl UPDATES {
     /// includes the `target` widget.
     ///
     /// If no `target` is provided only the app extensions receive a render request.
-    pub fn render(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+    pub fn render(&self, target: WidgetId) -> &Self {
         UpdatesTrace::log_render();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::RENDER);
         u.send_awake();
-        if let Some(id) = target.into() {
-            u.render_widgets.search_widget(id);
-        }
+        u.render_widgets.search_widget(target);
         self
     }
 
@@ -1318,14 +1064,12 @@ impl UPDATES {
     /// After the current update cycle ends and there are no more updates or layouts requested a render pass is issued that
     /// includes the `target` widget marked for render update only. Note that if a full render was requested for another widget
     /// on the same window this request is upgraded to a full frame render.
-    pub fn render_update(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+    pub fn render_update(&self, target: WidgetId) -> &Self {
         UpdatesTrace::log_render();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::RENDER_UPDATE);
         u.send_awake();
-        if let Some(id) = target.into() {
-            u.render_update_widgets.search_widget(id);
-        }
+        u.render_update_widgets.search_widget(target);
         self
     }
 
@@ -1404,6 +1148,23 @@ impl UPDATES {
     pub fn on_update(&self, handler: Handler<UpdateArgs>) -> OnUpdateHandle {
         let u = UPDATES_SV.read();
         Self::push_handler(&mut u.pos_handlers.lock(), false, handler, false)
+    }
+
+    /// Calls the closure once the current update is over.
+    ///
+    /// This is an alias for [`VARS::modify`].
+    pub fn once_update(&self, debug_name: &'static str, u: impl FnOnce() + Send + 'static) {
+        VARS.modify(debug_name, u);
+    }
+
+    /// Calls the closure once the next update is over.
+    ///
+    /// Note that this requests an update, after the current update is over another one will process and at its end the closure is called.
+    pub fn once_next_update(&self, debug_name: &'static str, u: impl FnOnce() + Send + 'static) {
+        self.run_hn_once(hn_once!(|_| {
+            UPDATES.once_update(debug_name, u);
+        }))
+        .perm();
     }
 
     fn push_handler(
@@ -1518,27 +1279,6 @@ impl UPDATES {
             },
         )
     }
-
-    pub(crate) fn handler_lens(&self) -> (usize, usize) {
-        let u = UPDATES_SV.read();
-
-        (u.pre_handlers.lock().len(), u.pos_handlers.lock().len())
-    }
-    pub(crate) fn new_update_handlers(&self, pre_from: usize, pos_from: usize) -> Vec<Box<dyn Fn() -> bool>> {
-        let u = UPDATES_SV.read();
-
-        u.pre_handlers
-            .lock()
-            .iter()
-            .skip(pre_from)
-            .chain(u.pos_handlers.lock().iter().skip(pos_from))
-            .map(|h| h.handle.weak_handle())
-            .map(|h| {
-                let r: Box<dyn Fn() -> bool> = Box::new(move || h.upgrade().is_some());
-                r
-            })
-            .collect()
-    }
 }
 
 app_local! {
@@ -1565,11 +1305,11 @@ impl UpdatesService {
         Self {
             event_sender: None,
             update_ext: UpdateFlags::empty(),
-            update_widgets: UpdateDeliveryList::new_any(),
-            info_widgets: UpdateDeliveryList::new_any(),
-            layout_widgets: UpdateDeliveryList::new_any(),
-            render_widgets: UpdateDeliveryList::new_any(),
-            render_update_widgets: UpdateDeliveryList::new_any(),
+            update_widgets: UpdateDeliveryList::new(),
+            info_widgets: UpdateDeliveryList::new(),
+            layout_widgets: UpdateDeliveryList::new(),
+            render_widgets: UpdateDeliveryList::new(),
+            render_update_widgets: UpdateDeliveryList::new(),
 
             pre_handlers: Mutex::new(vec![]),
             pos_handlers: Mutex::new(vec![]),
@@ -1584,7 +1324,7 @@ impl UpdatesService {
             self.awake_pending = true;
             match self.event_sender.as_ref() {
                 Some(s) => {
-                    if let Err(ChannelError::Disconnected { .. }) = s.send_check_update() {
+                    if let Err(ChannelError::Disconnected { .. }) = s.send_update_app() {
                         tracing::debug!("no app connected to update");
                     }
                 }
@@ -1607,11 +1347,6 @@ impl UpdatesService {
 #[non_exhaustive]
 #[derive(Default)]
 pub struct ContextUpdates {
-    /// Events to notify.
-    ///
-    /// When this is not empty [`update`](Self::update) is `true`.
-    pub events: Vec<EventUpdate>,
-
     /// Update requested.
     ///
     /// When this is `true`, [`update_widgets`](Self::update_widgets)
@@ -1670,7 +1405,6 @@ impl fmt::Debug for ContextUpdates {
                 .field("info", &self.info)
                 .field("layout", &self.layout)
                 .field("render", &self.render)
-                .field("events", &self.events)
                 .field("update_widgets", &self.update_widgets)
                 .field("info_widgets", &self.info_widgets)
                 .field("layout_widgets", &self.layout_widgets)
@@ -1680,14 +1414,6 @@ impl fmt::Debug for ContextUpdates {
         } else {
             write!(f, "ContextUpdates: ")?;
             let mut sep = "";
-            if !self.events.is_empty() {
-                write!(f, "{sep}events[")?;
-                for e in &self.events {
-                    write!(f, "{sep}{}", e.event.name())?;
-                    sep = ", ";
-                }
-                write!(f, "]")?;
-            }
             if self.update {
                 write!(f, "{sep}update")?;
                 sep = ", ";
@@ -1714,12 +1440,11 @@ impl fmt::Debug for ContextUpdates {
 impl ContextUpdates {
     /// If has events, update, layout or render was requested.
     pub fn has_updates(&self) -> bool {
-        !self.events.is_empty() || self.update || self.info || self.layout || self.render
+        self.update || self.info || self.layout || self.render
     }
 }
 impl std::ops::BitOrAssign for ContextUpdates {
     fn bitor_assign(&mut self, rhs: Self) {
-        self.events.extend(rhs.events);
         self.update |= rhs.update;
         self.update_widgets.extend(rhs.update_widgets);
         self.info |= rhs.info;
@@ -1826,15 +1551,15 @@ impl WeakOnUpdateHandle {
 pub enum UpdateOp {
     /// Updates the target.
     ///
-    /// Causes [`AppExtension::update_preview`], [`AppExtension::update_ui`] and [`AppExtension::update`].
+    /// Causes [`UPDATES.on_pre_update`] and [`UPDATES.on_update`].
     ///
     /// Causes [`UiNode::update`] or [`UiNodeOp::Update`] for the target widget and all ancestors.
     ///
     /// [`UiNodeOp::Update`]: crate::widget::node::UiNodeOp::Update
+    /// [`UPDATES.on_pre_update`]: UPDATES::on_pre_update
+    /// [`UPDATES.on_update`]: UPDATES::on_update
     Update,
     /// Rebuilds info for the target.
-    ///
-    /// Causes [`AppExtension::info`].
     ///
     /// Causes [`UiNode::info`] or [`UiNodeOp::Info`] for the target widget and all ancestors.
     ///
@@ -1843,23 +1568,17 @@ pub enum UpdateOp {
     Info,
     /// Layouts the target.
     ///
-    /// Causes [`AppExtension::layout`].
-    ///
     /// Causes an [`UiNode::layout`] or [`UiNodeOp::Layout`] for the target widget and all ancestors.
     ///
     /// [`UiNodeOp::Layout`]: crate::widget::node::UiNodeOp::Layout
     Layout,
     /// Render the target.
     ///
-    /// Causes [`AppExtension::render`].
-    ///
     /// Causes [`UiNode::render`] or [`UiNodeOp::Render`] for the target widget and all ancestors.
     ///
     /// [`UiNodeOp::Render`]: crate::widget::node::UiNodeOp::Render
     Render,
     /// Update frame bindings of the target.
-    ///
-    /// Causes [`AppExtension::render`].
     ///
     /// Causes [`UiNode::render_update`] or [`UiNodeOp::RenderUpdate`] for the target widget and all ancestors.
     ///

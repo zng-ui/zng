@@ -150,7 +150,7 @@ pub fn default_undo_entry_fn(args: UndoEntryArgs) -> UiNode {
         undo_entry = args;
         style_fn = UndoRedoButtonStyle!();
         on_click = hn!(|args| {
-            args.propagation().stop();
+            args.propagation.stop();
             cmd.notify_param(ts);
         });
     }

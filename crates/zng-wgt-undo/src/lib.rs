@@ -28,6 +28,8 @@ pub fn undo_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> UiNod
     let mut redo_cmd = CommandHandle::dummy();
     let mut clear_cmd = CommandHandle::dummy();
     let is_scope = is_scope.into_var();
+    let mut can_undo = false;
+    let mut can_redo = false;
     match_node(child, move |c, mut op| {
         match &mut op {
             UiNodeOp::Init => {
@@ -43,6 +45,8 @@ pub fn undo_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> UiNod
                 undo_cmd = UNDO_CMD.scoped(id).subscribe(false);
                 redo_cmd = REDO_CMD.scoped(id).subscribe(false);
                 clear_cmd = CLEAR_HISTORY_CMD.scoped(id).subscribe(false);
+                can_undo = false;
+                can_redo = false;
             }
             UiNodeOp::Deinit => {
                 if !is_scope.get() {
@@ -61,48 +65,9 @@ pub fn undo_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> UiNod
                 }
                 scope.info(info);
             }
-            UiNodeOp::Event { update } => {
-                if !is_scope.get() {
-                    return;
-                }
-
-                let id = WIDGET.id();
-                if let Some(args) = UNDO_CMD.scoped(id).on_unhandled(update) {
-                    args.propagation().stop();
-                    UNDO.with_scope(&mut scope, || {
-                        if let Some(&n) = args.param::<u32>() {
-                            UNDO.undo_select(n);
-                        } else if let Some(&i) = args.param::<Duration>() {
-                            UNDO.undo_select(i);
-                        } else if let Some(&t) = args.param::<DInstant>() {
-                            UNDO.undo_select(t);
-                        } else {
-                            UNDO.undo();
-                        }
-                    });
-                } else if let Some(args) = REDO_CMD.scoped(id).on_unhandled(update) {
-                    args.propagation().stop();
-                    UNDO.with_scope(&mut scope, || {
-                        if let Some(&n) = args.param::<u32>() {
-                            UNDO.redo_select(n);
-                        } else if let Some(&i) = args.param::<Duration>() {
-                            UNDO.redo_select(i);
-                        } else if let Some(&t) = args.param::<DInstant>() {
-                            UNDO.redo_select(t);
-                        } else {
-                            UNDO.redo();
-                        }
-                    });
-                } else if let Some(args) = CLEAR_HISTORY_CMD.scoped(id).on_unhandled(update) {
-                    args.propagation().stop();
-                    UNDO.with_scope(&mut scope, || {
-                        UNDO.clear();
-                    });
-                }
-            }
             UiNodeOp::Update { .. } => {
                 if let Some(is_scope) = is_scope.get_new() {
-                    WIDGET.info();
+                    WIDGET.update_info();
 
                     if is_scope {
                         if !scope.is_inited() {
@@ -121,6 +86,42 @@ pub fn undo_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> UiNod
                 if !is_scope.get() {
                     return;
                 }
+
+                let id = WIDGET.id();
+                UNDO_CMD.scoped(id).each_update(false, false, |args| {
+                    args.propagation.stop();
+                    UNDO.with_scope(&mut scope, || {
+                        if let Some(&n) = args.param::<u32>() {
+                            UNDO.undo_select(n);
+                        } else if let Some(&i) = args.param::<Duration>() {
+                            UNDO.undo_select(i);
+                        } else if let Some(&t) = args.param::<DInstant>() {
+                            UNDO.undo_select(t);
+                        } else {
+                            UNDO.undo();
+                        }
+                    });
+                });
+                REDO_CMD.scoped(id).each_update(false, false, |args| {
+                    args.propagation.stop();
+                    UNDO.with_scope(&mut scope, || {
+                        if let Some(&n) = args.param::<u32>() {
+                            UNDO.redo_select(n);
+                        } else if let Some(&i) = args.param::<Duration>() {
+                            UNDO.redo_select(i);
+                        } else if let Some(&t) = args.param::<DInstant>() {
+                            UNDO.redo_select(t);
+                        } else {
+                            UNDO.redo();
+                        }
+                    });
+                });
+                CLEAR_HISTORY_CMD.scoped(id).each_update(false, false, |args| {
+                    args.propagation.stop();
+                    UNDO.with_scope(&mut scope, || {
+                        UNDO.clear();
+                    });
+                });
             }
             _ => {
                 if !is_scope.get() {
@@ -131,11 +132,17 @@ pub fn undo_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> UiNod
 
         UNDO.with_scope(&mut scope, || c.op(op));
 
-        let can_undo = scope.can_undo();
-        let can_redo = scope.can_redo();
-        undo_cmd.set_enabled(can_undo);
-        redo_cmd.set_enabled(can_redo);
-        clear_cmd.set_enabled(can_undo || can_redo);
+        let new_can_undo = scope.can_undo();
+        let new_can_redo = scope.can_redo();
+
+        if can_undo != new_can_undo || can_redo != new_can_redo {
+            tracing::trace!("undo_scope={:?}, undo={new_can_undo:?}, redo={new_can_redo:?}", WIDGET.id());
+            can_undo = new_can_undo;
+            can_redo = new_can_redo;
+            undo_cmd.enabled().set(can_undo);
+            redo_cmd.enabled().set(can_redo);
+            clear_cmd.enabled().set(can_undo || can_redo);
+        }
     })
 }
 

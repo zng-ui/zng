@@ -20,7 +20,7 @@ use zng::prelude::*;
 
 fn main() {
     zng::env::init!();
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         let size = var(layout::Size::new(800, 600));
         Window! {
             title = size.map(|s| formatx!("Button Example - {s}"));

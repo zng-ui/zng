@@ -8,4 +8,5 @@ error[E0277]: the trait bound `zng::var::Var<bool>: IntoVar<u32>` is not satisfi
    |
    = note: `IntoVar<T>` is implemented for all `T: VarValue`
    = note: `IntoVar<T>` is implemented for `Var<T>`, `ContextVar<T>` and others
-   = help: the following other types implement trait `IntoVar<T>`:
+help: the following other types implement trait `IntoVar<T>`
+            <implementers-list>

@@ -1,4 +1,4 @@
-error[E0412]: cannot find type `UnknownType` in this scope
+error[E0425]: cannot find type `UnknownType` in this scope
  --> cases/widget/unknown_inherit.rs:4:23
   |
 4 | pub struct TestWidget(UnknownType);

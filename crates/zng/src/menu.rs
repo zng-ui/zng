@@ -4,7 +4,7 @@
 //!
 //! ```no_run
 //! use zng::prelude::*;
-//! # APP.defaults().run_window(async {
+//! # APP.defaults().run_window("main", async {
 //!
 //! fn main_menu() -> UiNode {
 //!     Menu!(ui_vec![
@@ -128,9 +128,8 @@ impl TextInputStyle {
             zng::layout::padding = 2;
             // return focus on enter
             zng::keyboard::on_pre_key_down = zng::handler::hn!(|args| {
-                use zng::event::AnyEventArgs as _;
-                args.propagation().stop();
-                zng::focus::FOCUS.focus_exit();
+                args.propagation.stop();
+                zng::focus::FOCUS.focus_exit(true);
             });
         }
     }

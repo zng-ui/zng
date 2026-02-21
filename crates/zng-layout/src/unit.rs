@@ -2,6 +2,8 @@
 
 use std::fmt;
 
+// rustdoc ignores `no_inline` in `zng_unit::euclid`
+#[doc(no_inline)]
 pub use zng_unit::*;
 
 mod alignment;

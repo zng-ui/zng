@@ -1398,6 +1398,32 @@ impl AnyVar {
         })
     }
 
+    /// Register a closure to be called when all strong references to this variable are dropped.
+    ///
+    /// If the return handle is dropped, the hook is unregistered without calling.
+    pub fn hook_drop(&self, on_drop: impl FnOnce() + Send + 'static) -> VarHandle {
+        self.hook_drop_impl(Box::new(on_drop))
+    }
+    fn hook_drop_impl(&self, on_drop: Box<dyn FnOnce() + Send + 'static>) -> VarHandle {
+        let (handler_owner, handle) = VarHandle::new();
+
+        struct CallOnDrop(Option<Box<dyn FnOnce() + Send + 'static>>, crate::VarHandlerOwner);
+        impl Drop for CallOnDrop {
+            fn drop(&mut self) {
+                if let Some(f) = self.0.take()
+                    && self.1.is_alive()
+                {
+                    f();
+                }
+            }
+        }
+        let hold = CallOnDrop(Some(on_drop), handler_owner);
+
+        self.hook(move |_| hold.1.is_alive()).perm();
+
+        handle
+    }
+
     /// Gets the underlying var in the current calling context.
     ///
     /// If this variable is [`CONTEXT`] returns a clone of the inner variable,
@@ -1434,6 +1460,21 @@ impl WeakAnyVar {
     /// Attempt to create a strong reference to the variable.
     pub fn upgrade(&self) -> Option<AnyVar> {
         self.0.upgrade().map(AnyVar)
+    }
+
+    /// New weak var that does not upgrade.
+    pub const fn new() -> Self {
+        Self(crate::var_impl::DynWeakAnyVar::Const(crate::var_impl::const_var::WeakConstVar))
+    }
+
+    /// Gets if this and `other` are a weak reference to the same var.
+    pub fn var_eq(&self, other: &Self) -> bool {
+        self.0.var_eq(&other.0)
+    }
+}
+impl Default for WeakAnyVar {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

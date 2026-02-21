@@ -1,12 +1,27 @@
-//! Keyboard manager.
+//! Keyboard events and service.
+//!
+//! This extension processes the raw keyboard events retargeting then to the focused widget, generating derived events
+//! and variables.
+//!
+//! # Events
+//!
+//! Events this extension provides.
+//!
+//! * [`KEY_INPUT_EVENT`]
+//! * [`MODIFIERS_CHANGED_EVENT`]
+//!
+//! # Services
+//!
+//! Services this extension provides.
+//!
+//! * [`KEYBOARD`]
 
 use std::{collections::HashSet, time::Duration};
 
 use zng_app::{
-    APP, AppExtension, DInstant, HeadlessApp,
+    DInstant, HeadlessApp,
     event::{event, event_args},
     shortcut::{GestureKey, KeyGesture, ModifierGesture, ModifiersState, Shortcut},
-    update::EventUpdate,
     view_process::{
         VIEW_PROCESS_INITED_EVENT,
         raw_device_events::InputDeviceId,
@@ -81,9 +96,9 @@ event_args! {
 
         ..
 
-        /// The [`target`](Self::target).
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_wgt(&self.target)
+        /// If is in [`target`](Self::target).
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
@@ -98,8 +113,8 @@ event_args! {
         ..
 
         /// Broadcast to all.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 }
@@ -198,61 +213,45 @@ impl KeyInputArgs {
 
 event! {
     /// Key pressed, repeat pressed or released event.
-    ///
-    /// # Provider
-    ///
-    /// This event is provided by the [`KeyboardManager`] extension.
-    pub static KEY_INPUT_EVENT: KeyInputArgs;
+    pub static KEY_INPUT_EVENT: KeyInputArgs {
+        let _ = KEYBOARD_SV.read();
+    };
 
     /// Modifiers key state changed event.
-    ///
-    /// # Provider
-    ///
-    /// This event is provided by the [`KeyboardManager`] extension.
-    pub static MODIFIERS_CHANGED_EVENT: ModifiersChangedArgs;
+    pub static MODIFIERS_CHANGED_EVENT: ModifiersChangedArgs {
+        let _ = KEYBOARD_SV.read();
+    };
 }
 
-/// Application extension that provides keyboard events targeting the focused widget.
-///
-/// This [extension] processes the raw keyboard events retargeting then to the focused widget, generating derived events and variables.
-///
-/// # Events
-///
-/// Events this extension provides.
-///
-/// * [`KEY_INPUT_EVENT`]
-/// * [`MODIFIERS_CHANGED_EVENT`]
-///
-/// # Services
-///
-/// Services this extension provides.
-///
-/// * [`KEYBOARD`]
-///
-/// # Dependencies
-///
-/// This extension requires the [`FOCUS`] and [`WINDOWS`] services before the first raw key input event. It does not
-/// require anything for initialization.
-///
-/// [extension]: AppExtension
-/// [`FOCUS`]: crate::focus::FOCUS
-/// [`WINDOWS`]: zng_ext_window::WINDOWS
-#[derive(Default)]
-pub struct KeyboardManager {}
-impl AppExtension for KeyboardManager {
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
+fn hooks() {
+    RAW_KEY_INPUT_EVENT
+        .hook(|args| {
             let focused = FOCUS.focused().get();
             KEYBOARD_SV.write().key_input(args, focused);
-        } else if let Some(args) = RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.on(update) {
+            true
+        })
+        .perm();
+
+    RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT
+        .hook(|args| {
             let mut kb = KEYBOARD_SV.write();
             kb.repeat_config.set(args.config);
             kb.last_key_down = None;
-        } else if let Some(args) = RAW_ANIMATIONS_CONFIG_CHANGED_EVENT.on(update) {
+            true
+        })
+        .perm();
+
+    RAW_ANIMATIONS_CONFIG_CHANGED_EVENT
+        .hook(|args| {
             let kb = KEYBOARD_SV.read();
             kb.caret_animation_config
                 .set((args.config.caret_blink_interval, args.config.caret_blink_timeout));
-        } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
+            true
+        })
+        .perm();
+
+    RAW_WINDOW_FOCUS_EVENT
+        .hook(|args| {
             if args.new_focus.is_none() {
                 let mut kb = KEYBOARD_SV.write();
                 kb.clear_modifiers();
@@ -261,25 +260,26 @@ impl AppExtension for KeyboardManager {
 
                 kb.last_key_down = None;
             }
-        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            let mut kb = KEYBOARD_SV.write();
+            true
+        })
+        .perm();
 
+    VIEW_PROCESS_INITED_EVENT
+        .hook(|args| {
             if args.is_respawn {
+                let mut kb = KEYBOARD_SV.write();
                 kb.clear_modifiers();
                 kb.codes.set(vec![]);
                 kb.keys.set(vec![]);
 
                 kb.last_key_down = None;
             }
-        }
-    }
+            true
+        })
+        .perm();
 }
 
 /// Keyboard service.
-///
-/// # Provider
-///
-/// This service is provided by the [`KeyboardManager`] extension, it will panic if used in an app not extended.
 pub struct KEYBOARD;
 impl KEYBOARD {
     /// Returns a read-only variable that tracks the currently pressed modifier keys.
@@ -300,7 +300,7 @@ impl KEYBOARD {
     /// Returns a variable that defines key press repeat start delay and repeat speed on the app.
     ///
     /// This delay is roughly the time the user must hold a key pressed to start repeating. When a second key press
-    /// happens without any other keyboard event and within twice this value it increments the [`repeat_count`] by the [`KeyboardManager`].
+    /// happens without any other keyboard event and within twice this value it increments the [`repeat_count`] by the service.
     ///
     /// The value is the same as [`sys_repeat_config`], if set the variable disconnects from system config.
     ///
@@ -352,7 +352,7 @@ impl KEYBOARD {
 
 app_local! {
     static KEYBOARD_SV: KeyboardService = {
-        APP.extensions().require::<KeyboardManager>();
+        hooks();
         let sys_repeat_config = var_default();
         let cfg = AnimationsConfig::default();
         let sys_caret_animation_config = var((cfg.caret_blink_interval, cfg.caret_blink_timeout));
@@ -406,19 +406,19 @@ impl KeyboardService {
                 }
 
                 let key_code = args.key_code;
-                if !self.codes.with(|c| c.contains(&key_code)) {
-                    self.codes.modify(move |cs| {
+                self.codes.modify(move |cs| {
+                    if !cs.contains(&key_code) {
                         cs.push(key_code);
-                    });
-                }
+                    }
+                });
 
                 let key = &args.key;
                 if !matches!(&key, Key::Unidentified) {
-                    if !self.keys.with(|c| c.contains(key)) {
-                        self.keys.modify(clmv!(key, |ks| {
+                    self.keys.modify(clmv!(key, |ks| {
+                        if ks.contains(&key) {
                             ks.push(key);
-                        }));
-                    }
+                        }
+                    }));
 
                     if key.is_modifier() {
                         self.set_modifiers(key.clone(), true);
@@ -429,23 +429,19 @@ impl KeyboardService {
                 self.last_key_down = None;
 
                 let key = args.key_code;
-                if self.codes.with(|c| c.contains(&key)) {
-                    self.codes.modify(move |cs| {
-                        if let Some(i) = cs.iter().position(|c| *c == key) {
-                            cs.swap_remove(i);
-                        }
-                    });
-                }
+                self.codes.modify(move |cs| {
+                    if let Some(i) = cs.iter().position(|c| *c == key) {
+                        cs.swap_remove(i);
+                    }
+                });
 
                 let key = &args.key;
                 if !matches!(&key, Key::Unidentified) {
-                    if self.keys.with(|c| c.contains(key)) {
-                        self.keys.modify(clmv!(key, |ks| {
-                            if let Some(i) = ks.iter().position(|k| k == &key) {
-                                ks.swap_remove(i);
-                            }
-                        }));
-                    }
+                    self.keys.modify(clmv!(key, |ks| {
+                        if let Some(i) = ks.iter().position(|k| k == &key) {
+                            ks.swap_remove(i);
+                        }
+                    }));
 
                     if key.is_modifier() {
                         self.set_modifiers(key.clone(), false);
@@ -456,7 +452,11 @@ impl KeyboardService {
 
         // notify events
         if let Some(target) = focused
-            && (target.window_id() == args.window_id || WINDOWS.nest_parent(target.window_id()).map(|(p, _)| p) == Some(args.window_id))
+            && (target.window_id() == args.window_id
+                || WINDOWS
+                    .vars(target.window_id())
+                    .and_then(|v| if v.nest_parent().get().is_some() { v.parent().get() } else { None })
+                    == Some(args.window_id))
         {
             let args = KeyInputArgs::now(
                 target.window_id(),
@@ -560,6 +560,9 @@ pub trait HeadlessAppKeyboardExt {
 impl HeadlessAppKeyboardExt for HeadlessApp {
     fn on_keyboard_input(&mut self, window_id: WindowId, code: KeyCode, location: KeyLocation, key: Key, state: KeyState) {
         use zng_app::view_process::raw_events::*;
+
+        // init service if needed
+        let _ = KEYBOARD_SV.read();
 
         let args = RawKeyInputArgs::now(
             window_id,

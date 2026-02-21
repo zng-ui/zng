@@ -6,6 +6,8 @@ use zng::prelude::*;
 pub fn run() {
     println!("-=Headless Example (video)=-\n");
 
+    // zng::app::print_tracing(tracing::Level::TRACE, false, |_| true);
+
     // open headless with renderer flag, this causes the view-process to start.
     let mut app = APP.defaults().run_headless(true);
     // saving frame can be slow, so we will manually control the app time to not miss any frame.
@@ -14,7 +16,7 @@ pub fn run() {
     const FPS: f32 = 60.0;
     zng::var::VARS.frame_duration().set((1.0 / FPS).secs());
 
-    app.run_window(async {
+    app.run_window("video", async {
         // will save frames as "{temp}/{frame}.png"
         let temp = zng::env::cache("headless_example_video");
         let _ = std::fs::remove_dir_all(&temp);
@@ -26,7 +28,7 @@ pub fn run() {
 
         Window! {
             // the window content is the "video".
-            child = video(recorded.clone());
+            child = video(recorded.clone()).await;
             auto_size = true;
 
             // use the CPU only backend if available, by default the
@@ -37,21 +39,21 @@ pub fn run() {
             frame_capture_mode = FrameCaptureMode::All;
 
             // this event will fire every time a frame is rendered.
-            on_frame_image_ready = async_hn!(temp, frame, |args| {
-                let img = args.frame_image.unwrap().get();
+            on_frame_image_ready = async_hn!(temp, frame, recorded, |args| {
+                let img = args.frame_image.upgrade().unwrap().get();
 
                 let frame_i = frame.get();
                 frame.set(frame_i + 1);
 
                 img.save(temp.join(format!("{frame_i:05}.png"))).await.unwrap();
 
-                // advance time at a perfect framerate.
-                APP.advance_manual_time((1.0 / FPS).secs());
-                // ensure a frame image is actually generated (for video).
-                //
-                // also, retained rendering only renders when needed, so without this
-                // line the app never even updates, and the initial delay timer waits forever.
-                WIDGET.render_update();
+                if !recorded.get() {
+                    // advance time at a perfect framerate.
+                    APP.advance_manual_time((1.0 / FPS).secs());
+                    WIDGET.render_update();
+                } else {
+                    APP.end_manual_time();
+                }
             });
 
             on_load = async_hn!(recorded, temp, |_| {
@@ -95,7 +97,9 @@ pub fn run() {
     while !matches!(app.update(true), zng::app::AppControlFlow::Exit) {}
 }
 
-fn video(finished: Var<bool>) -> UiNode {
+async fn video(finished: Var<bool>) -> UiNode {
+    load_resources().await;
+
     let bkg_rotate = var(0.turn());
     let txt_fade = var(0.fct());
     let txt_size = var(32.dip());
@@ -156,6 +160,20 @@ fn video(finished: Var<bool>) -> UiNode {
             color::filter::opacity = txt_fade;
         };
     }
+}
+async fn load_resources() {
+    use zng::font::*;
+    let font_family = [FontName::from("Consolas"), FontName::monospace()];
+    FONTS
+        .list(
+            &font_family,
+            FontStyle::Normal,
+            FontWeight::NORMAL,
+            FontStretch::NORMAL,
+            &lang!(unc),
+        )
+        .wait_done()
+        .await;
 }
 
 fn print_status(task: &'static str, done: &Var<bool>) {

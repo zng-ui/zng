@@ -23,6 +23,7 @@ zng-env = { path = "../zng-env", version = "0.9.1", default-features = false }
 libloading = { version = "0.9", default-features = false, features = ["std"] }
 dunce = { version = "1.0", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 [build-dependencies]
 sha2 = { version = "0.10", features = ["std"], default-features = false }

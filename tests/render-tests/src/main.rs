@@ -8,8 +8,7 @@ use std::{
 
 use color_print::cstr;
 use zng::{
-    APP,
-    app::HeadlessApp,
+    app::{APP, HeadlessApp},
     layout::{FactorUnits as _, TimeUnits as _},
     text::{Txt, formatx},
     window::RenderMode,
@@ -20,7 +19,7 @@ mod tests;
 static FAILED: AtomicBool = AtomicBool::new(false);
 
 fn main() {
-    zng::app::print_tracing(tracing::Level::INFO);
+    zng::app::print_tracing(tracing::Level::INFO, false, |_| true);
 
     std::thread::spawn(move || {
         std::thread::sleep(10.minutes());

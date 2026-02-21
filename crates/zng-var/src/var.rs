@@ -1585,6 +1585,19 @@ impl<T: VarValue> WeakVar<T> {
     pub fn upgrade(&self) -> Option<Var<T>> {
         self.any.upgrade().map(Var::new_any)
     }
+
+    /// New weak var that does not upgrade.
+    pub const fn new() -> Self {
+        Self {
+            any: WeakAnyVar::new(),
+            _t: PhantomData,
+        }
+    }
+}
+impl<T: VarValue> Default for WeakVar<T> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// New read/write shared reference variable from any type that can convert into it.

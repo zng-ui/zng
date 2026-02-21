@@ -1,6 +1,7 @@
+use core::fmt;
 use std::sync::Arc;
 
-use crate::{AutoSize, CursorSource, MonitorQuery, WindowIcon};
+use crate::{AutoSize, CursorSource, MonitorQuery, WindowIcon, WindowInstanceState};
 use zng_app::{
     widget::{WidgetId, base::Parallel, info::access::AccessEnabled},
     window::{MonitorId, WINDOW, WindowId},
@@ -12,10 +13,10 @@ use zng_layout::unit::{
 use zng_state_map::{StateId, static_id};
 use zng_txt::Txt;
 use zng_unique_id::IdSet;
-use zng_var::{Var, merge_var, var, var_from};
+use zng_var::{Var, VarValue, merge_var, var, var_from};
 use zng_view_api::{
     config::{ColorScheme, ColorsConfig},
-    window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState},
+    window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState, WindowStateAll},
 };
 
 #[cfg(feature = "image")]
@@ -23,71 +24,74 @@ use crate::FrameCaptureMode;
 #[cfg(feature = "image")]
 use zng_ext_image::ImageEntry;
 
-pub(super) struct WindowVarsData {
-    chrome: Var<bool>,
-    icon: Var<WindowIcon>,
+pub(crate) struct WindowVarsData {
+    pub(crate) instance_state: Var<WindowInstanceState>,
+
+    pub(crate) chrome: Var<bool>,
+    pub(crate) icon: Var<WindowIcon>,
     #[cfg(feature = "image")]
-    pub(super) actual_icon: Var<Option<ImageEntry>>,
-    cursor: Var<CursorSource>,
+    pub(crate) actual_icon: Var<Option<ImageEntry>>,
+    pub(crate) cursor: Var<CursorSource>,
     #[cfg(feature = "image")]
-    pub(super) actual_cursor_img: Var<Option<(ImageEntry, PxPoint)>>,
-    title: Var<Txt>,
+    pub(crate) actual_cursor_img: Var<Option<(ImageEntry, PxPoint)>>,
+    pub(crate) title: Var<Txt>,
 
-    state: Var<WindowState>,
-    focus_indicator: Var<Option<FocusIndicator>>,
+    pub(crate) state: Var<WindowState>,
+    pub(crate) focus_indicator: Var<Option<FocusIndicator>>,
 
-    position: Var<Point>,
-    monitor: Var<MonitorQuery>,
-    video_mode: Var<VideoMode>,
+    pub(crate) position: Var<Point>,
+    pub(crate) monitor: Var<MonitorQuery>,
+    pub(crate) video_mode: Var<VideoMode>,
 
-    size: Var<Size>,
-    pub(super) auto_size: Var<AutoSize>,
-    auto_size_origin: Var<Point>,
-    min_size: Var<Size>,
-    max_size: Var<Size>,
+    pub(crate) size: Var<Size>,
+    pub(crate) auto_size: Var<AutoSize>,
+    pub(crate) auto_size_origin: Var<Point>,
+    pub(crate) min_size: Var<Size>,
+    pub(crate) max_size: Var<Size>,
 
-    font_size: Var<Length>,
+    pub(crate) font_size: Var<Length>,
 
-    pub(super) actual_position: Var<DipPoint>,
-    pub(super) global_position: Var<PxPoint>,
-    pub(super) actual_monitor: Var<Option<MonitorId>>,
-    pub(super) actual_size: Var<DipSize>,
-    pub(super) safe_padding: Var<DipSideOffsets>,
+    pub(crate) actual_position: Var<DipPoint>,
+    pub(crate) global_position: Var<PxPoint>,
+    pub(crate) actual_monitor: Var<Option<MonitorId>>,
+    pub(crate) actual_size: Var<DipSize>,
+    pub(crate) actual_min_size: Var<DipSize>,
+    pub(crate) actual_max_size: Var<DipSize>,
+    pub(crate) safe_padding: Var<DipSideOffsets>,
 
-    pub(super) scale_factor: Var<Factor>,
+    pub(crate) scale_factor: Var<Factor>,
 
-    pub(super) restore_state: Var<WindowState>,
-    pub(super) restore_rect: Var<DipRect>,
+    pub(crate) restore_state: Var<WindowState>,
+    pub(crate) restore_rect: Var<DipRect>,
 
-    enabled_buttons: Var<WindowButton>,
+    pub(crate) enabled_buttons: Var<WindowButton>,
 
-    resizable: Var<bool>,
-    movable: Var<bool>,
+    pub(crate) resizable: Var<bool>,
+    pub(crate) movable: Var<bool>,
 
-    always_on_top: Var<bool>,
+    pub(crate) always_on_top: Var<bool>,
 
-    visible: Var<bool>,
-    taskbar_visible: Var<bool>,
+    pub(crate) visible: Var<bool>,
+    pub(crate) taskbar_visible: Var<bool>,
 
-    parent: Var<Option<WindowId>>,
-    pub(super) nest_parent: Var<Option<WidgetId>>,
+    pub(crate) parent: Var<Option<WindowId>>,
+    pub(crate) nest_parent: Var<Option<WidgetId>>,
     modal: Var<bool>,
-    pub(super) children: Var<IdSet<WindowId>>,
+    pub(crate) children: Var<IdSet<WindowId>>,
 
-    color_scheme: Var<Option<ColorScheme>>,
-    pub(super) actual_color_scheme: Var<ColorScheme>,
-    accent_color: Var<Option<LightDark>>,
-    pub(super) actual_accent_color: Var<LightDark>,
+    pub(crate) color_scheme: Var<Option<ColorScheme>>,
+    pub(crate) actual_color_scheme: Var<ColorScheme>,
+    pub(crate) accent_color: Var<Option<LightDark>>,
+    pub(crate) actual_accent_color: Var<LightDark>,
 
-    pub(super) is_open: Var<bool>,
-    pub(super) is_loaded: Var<bool>,
+    pub(crate) focused: Var<bool>,
 
     #[cfg(feature = "image")]
-    frame_capture_mode: Var<FrameCaptureMode>,
-    pub(super) render_mode: Var<RenderMode>,
+    pub(crate) frame_capture_mode: Var<FrameCaptureMode>,
+    pub(crate) render_mode: Var<RenderMode>,
 
-    pub(super) access_enabled: Var<AccessEnabled>,
-    system_shutdown_warn: Var<Txt>,
+    pub(crate) access_enabled: Var<AccessEnabled>,
+    pub(crate) system_shutdown_warn: Var<Txt>,
 
     parallel: Var<Parallel>,
 }
@@ -101,10 +105,16 @@ pub(super) struct WindowVarsData {
 /// [`WINDOWS.vars`]: crate::WINDOWS::vars
 /// [`WINDOW.vars`]: crate::WINDOW_Ext::vars
 #[derive(Clone)]
-pub struct WindowVars(pub(super) Arc<WindowVarsData>);
+pub struct WindowVars(pub(crate) Arc<WindowVarsData>);
+impl fmt::Debug for WindowVars {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("WindowVars").finish_non_exhaustive()
+    }
+}
 impl WindowVars {
-    pub(super) fn new(default_render_mode: RenderMode, primary_scale_factor: Factor, system_colors: ColorsConfig) -> Self {
+    pub(crate) fn new(default_render_mode: RenderMode, primary_scale_factor: Factor, system_colors: ColorsConfig) -> Self {
         let vars = Arc::new(WindowVarsData {
+            instance_state: var(WindowInstanceState::Building),
             chrome: var(true),
             icon: var(WindowIcon::Default),
             #[cfg(feature = "image")]
@@ -128,6 +138,8 @@ impl WindowVars {
             global_position: var(PxPoint::zero()),
             actual_monitor: var(None),
             actual_size: var(DipSize::zero()),
+            actual_min_size: var(DipSize::zero()),
+            actual_max_size: var(DipSize::splat(Dip::MAX)),
             safe_padding: var(DipSideOffsets::zero()),
 
             scale_factor: var(primary_scale_factor),
@@ -164,8 +176,7 @@ impl WindowVars {
             accent_color: var(None),
             actual_accent_color: var(system_colors.accent.into()),
 
-            is_open: var(true),
-            is_loaded: var(false),
+            focused: var(false),
 
             #[cfg(feature = "image")]
             frame_capture_mode: var(FrameCaptureMode::Sporadic),
@@ -184,8 +195,13 @@ impl WindowVars {
     /// # Panics
     ///
     /// Panics if called in a custom window context that did not setup the variables.
-    pub(super) fn req() -> Self {
+    pub(crate) fn req() -> Self {
         WINDOW.req_state(*WINDOW_VARS_ID)
+    }
+
+    /// Window instance state.
+    pub fn instance_state(&self) -> Var<WindowInstanceState> {
+        self.0.instance_state.read_only()
     }
 
     /// Defines if the window chrome is visible.
@@ -195,7 +211,7 @@ impl WindowVars {
     /// The default value is `true`.
     ///
     /// Note that if the [`WINDOWS.system_chrome`] reports the windowing system prefers a custom chrome **and** does not
-    /// provide one the system chrome is not requested, even if this is `true`. Window widget implementers can use this to
+    /// provide one the system chrome is not requested, even if this is `true`. Window widget implementers can use that variable to
     /// detect when a fallback chrome must be provided.
     ///
     /// [`WINDOWS.system_chrome`]: crate::WINDOWS::system_chrome
@@ -283,9 +299,10 @@ impl WindowVars {
     /// the new monitor:
     ///
     /// * **Maximized**: The window is maximized in the new monitor.
+    /// * **Fullscreen**: The window is fullscreen in the new monitor.
     /// * **Normal**: The window is centered in the new monitor, keeping the same size, unless the
     ///   [`position`] and [`size`] where set in the same update, in that case these values are used.
-    /// * **Minimized/Hidden**: The window restore position and size are defined like **Normal**.
+    /// * **Minimized/Hidden**: The window remains hidden, the restore position and size are defined like **Normal**.
     ///
     /// [`position`]: WindowVars::position
     /// [`actual_monitor`]: WindowVars::actual_monitor
@@ -429,6 +446,20 @@ impl WindowVars {
         })
     }
 
+    /// Window actual min size.
+    ///
+    /// This is a read-only variable that tracks the computed min size of the window.
+    pub fn actual_min_size(&self) -> Var<DipSize> {
+        self.0.actual_min_size.read_only()
+    }
+
+    /// Window actual max size.
+    ///
+    /// This is a read-only variable that tracks the computed min size of the window.
+    pub fn actual_max_size(&self) -> Var<DipSize> {
+        self.0.actual_max_size.read_only()
+    }
+
     /// Padding that must be applied to the window content so that it stays clear of screen obstructions
     /// such as a camera notch cutout.
     ///
@@ -461,10 +492,15 @@ impl WindowVars {
 
     /// Defines if and how the window size is controlled by the content layout.
     ///
-    /// When enabled overwrites [`size`](Self::size), but is still coerced by [`min_size`](Self::min_size)
-    /// and [`max_size`](Self::max_size). Auto-size is disabled if the user [manually resizes](Self::resizable).
+    /// When enabled overwrites previously set window size, but is still coerced by [`min_size`]
+    /// and [`max_size`]. Auto-size is disabled if the user resizes the window or if [`size`]
+    /// is set.
     ///
     /// The default value is [`AutoSize::DISABLED`].
+    ///
+    /// [`size`]: Self::size
+    /// [`min_size`]: Self::min_size
+    /// [`max_size`]: Self::max_size
     pub fn auto_size(&self) -> Var<AutoSize> {
         self.0.auto_size.clone()
     }
@@ -669,28 +705,11 @@ impl WindowVars {
         self.0.actual_accent_color.read_only()
     }
 
-    /// If the window is open.
+    /// Read-only variable that tracks if the window is focused in the system window manager.
     ///
-    /// This is a read-only variable, it starts set to `true` and will update only once,
-    /// when the window finishes opening.
-    ///
-    /// Note that a window is only actually opened in the view-process after it [`is_loaded`].
-    ///
-    /// [`is_loaded`]: Self::is_loaded
-    pub fn is_open(&self) -> Var<bool> {
-        self.0.is_open.read_only()
-    }
-
-    /// If the window has finished loading.
-    ///
-    /// This is a read-only variable, it starts set to `false` and will update only once, after
-    /// the first window layout and when all loading handles to the window are released.
-    ///
-    /// A window is only opened in the view-process once it is loaded, see [`WINDOWS.loading_handle`] for more details.
-    ///
-    /// [`WINDOWS.loading_handle`]: crate::WINDOWS::loading_handle
-    pub fn is_loaded(&self) -> Var<bool> {
-        self.0.is_loaded.read_only()
+    /// Note that most of the time its preferable to use the `FOCUS` service as it also tracks the widget focus.
+    pub fn is_focused(&self) -> Var<bool> {
+        self.0.focused.read_only()
     }
 
     /// Defines the active user attention required indicator.
@@ -778,6 +797,48 @@ impl WindowVars {
     pub fn parallel(&self) -> Var<Parallel> {
         self.0.parallel.clone()
     }
+
+    #[cfg(feature = "image")]
+    pub(crate) fn take_frame_capture(&self) -> zng_view_api::window::FrameCapture {
+        use zng_view_api::window::FrameCapture;
+        match self.0.frame_capture_mode.get() {
+            FrameCaptureMode::Sporadic => FrameCapture::None,
+            FrameCaptureMode::Next => {
+                self.0.frame_capture_mode.set(FrameCaptureMode::Sporadic);
+                FrameCapture::Full
+            }
+            FrameCaptureMode::All => FrameCapture::Full,
+            FrameCaptureMode::NextMask(m) => {
+                self.0.frame_capture_mode.set(FrameCaptureMode::Sporadic);
+                FrameCapture::Mask(m)
+            }
+            FrameCaptureMode::AllMask(m) => FrameCapture::Mask(m),
+        }
+    }
+    #[cfg(not(feature = "image"))]
+    pub(crate) fn take_frame_capture(&self) -> zng_view_api::window::FrameCapture {
+        zng_view_api::window::FrameCapture::None
+    }
+
+    pub(crate) fn window_state_all(&self) -> WindowStateAll {
+        WindowStateAll::new(
+            self.0.state.get(),
+            self.0.global_position.get(),
+            self.0.restore_rect.get(),
+            self.0.restore_state.get(),
+            self.0.actual_min_size.get(),
+            self.0.actual_max_size.get(),
+            self.0.chrome.get(),
+        )
+    }
+
+    pub(crate) fn set_from_view<T: VarValue>(&self, var: impl FnOnce(&Self) -> &Var<T>, new_value: T) {
+        var(self).modify(move |a| {
+            if a.set(new_value) {
+                a.push_tag(SetFromViewTag);
+            }
+        });
+    }
 }
 impl PartialEq for WindowVars {
     fn eq(&self, other: &Self) -> bool {
@@ -787,5 +848,13 @@ impl PartialEq for WindowVars {
 impl Eq for WindowVars {}
 
 static_id! {
-    pub(super) static ref WINDOW_VARS_ID: StateId<WindowVars>;
+    pub(crate) static ref WINDOW_VARS_ID: StateId<WindowVars>;
 }
+
+/// Identifies a variable update set from the view-process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SetFromViewTag;
+
+/// Identifies a variable update set from layout, meaning it should not request window layout back.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SetFromLayoutTag;

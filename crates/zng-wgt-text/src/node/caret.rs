@@ -3,7 +3,6 @@ use std::{fmt, sync::Arc};
 use atomic::{Atomic, Ordering};
 use parking_lot::Mutex;
 use zng_app::{
-    event::EventHandles,
     property_id,
     render::FrameValueKey,
     update::UPDATES,
@@ -113,8 +112,15 @@ pub fn interactive_carets(child: impl IntoUiNode) -> UiNode {
                 LAYERS.remove(caret.id);
             }
         }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+        UiNodeOp::Update { .. } => {
+            if !carets.is_empty() && INTERACTIVE_CARET_VISUAL_VAR.is_new() {
+                for caret in carets.drain(..) {
+                    LAYERS.remove(caret.id);
+                }
+                WIDGET.layout();
+            }
+
+            FOCUS_CHANGED_EVENT.each_update(true, |args| {
                 let new_is_focused;
                 if let Some(ctx) = TEXT.try_rich() {
                     new_is_focused = FOCUS.is_focus_within(ctx.root_id).get();
@@ -125,15 +131,7 @@ pub fn interactive_carets(child: impl IntoUiNode) -> UiNode {
                     WIDGET.layout();
                     is_focused = new_is_focused;
                 }
-            }
-        }
-        UiNodeOp::Update { .. } => {
-            if !carets.is_empty() && INTERACTIVE_CARET_VISUAL_VAR.is_new() {
-                for caret in carets.drain(..) {
-                    LAYERS.remove(caret.id);
-                }
-                WIDGET.layout();
-            }
+            });
         }
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = c.layout(wl);
@@ -410,8 +408,8 @@ fn interactive_caret_node(
     input: Arc<Mutex<InteractiveCaretInputMut>>,
 ) -> UiNode {
     let mut caret_spot_buf = Some(Arc::new(Atomic::new(PxPoint::zero())));
-    let mut touch_move = None::<(TouchId, EventHandles)>;
-    let mut mouse_move = EventHandles::dummy();
+    let mut touch_move = None::<(TouchId, VarHandles)>;
+    let mut mouse_move = VarHandles::dummy();
     let mut move_start_to_spot = DipVector::zero();
 
     match_node(child, move |visual, op| match op {
@@ -422,10 +420,10 @@ fn interactive_caret_node(
             touch_move = None;
             mouse_move.clear();
         }
-        UiNodeOp::Event { update } => {
-            visual.event(update);
+        UiNodeOp::Update { updates } => {
+            visual.update(updates);
 
-            if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
+            TOUCH_INPUT_EVENT.each_update(false, |args| {
                 FOCUS.focus_widget(parent_id, false);
                 if args.is_touch_start() {
                     let wgt_info = WIDGET.info();
@@ -436,17 +434,18 @@ fn interactive_caret_node(
                         .to_dip(wgt_info.tree().scale_factor())
                         - args.position.to_vector();
 
-                    let mut handles = EventHandles::dummy();
-                    handles.push(TOUCH_MOVE_EVENT.subscribe(wgt_id));
-                    handles.push(POINTER_CAPTURE_EVENT.subscribe(wgt_id));
+                    let mut handles = VarHandles::dummy();
+                    handles.push(TOUCH_MOVE_EVENT.subscribe(UpdateOp::Update, wgt_id));
+                    handles.push(POINTER_CAPTURE_EVENT.subscribe(UpdateOp::Update, wgt_id));
                     touch_move = Some((args.touch, handles));
                     POINTER_CAPTURE.capture_subtree(wgt_id);
                 } else if touch_move.is_some() {
                     touch_move = None;
                     POINTER_CAPTURE.release_capture();
                 }
-            } else if let Some(args) = TOUCH_MOVE_EVENT.on_unhandled(update) {
-                if let Some((id, _)) = &touch_move {
+            });
+            if let Some((id, _)) = &touch_move {
+                TOUCH_MOVE_EVENT.each_update(false, |args| {
                     for t in &args.touches {
                         if t.touch == *id {
                             let spot = t.position() + move_start_to_spot;
@@ -459,8 +458,9 @@ fn interactive_caret_node(
                             break;
                         }
                     }
-                }
-            } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
+                });
+            }
+            MOUSE_INPUT_EVENT.each_update(false, |args| {
                 // keep focus on the text input, a click outside the are can move focus to window
                 FOCUS.focus_widget(parent_id, false);
                 if !args.is_click && args.is_mouse_down() && args.is_primary() {
@@ -472,15 +472,16 @@ fn interactive_caret_node(
                         .to_dip(wgt_info.tree().scale_factor())
                         - args.position.to_vector();
 
-                    mouse_move.push(MOUSE_MOVE_EVENT.subscribe(wgt_id));
-                    mouse_move.push(POINTER_CAPTURE_EVENT.subscribe(wgt_id));
+                    mouse_move.push(MOUSE_MOVE_EVENT.subscribe(UpdateOp::Update, wgt_id));
+                    mouse_move.push(POINTER_CAPTURE_EVENT.subscribe(UpdateOp::Update, wgt_id));
                     POINTER_CAPTURE.capture_subtree(wgt_id);
                 } else if !mouse_move.is_dummy() {
                     POINTER_CAPTURE.release_capture();
                     mouse_move.clear();
                 }
-            } else if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
-                if !mouse_move.is_dummy() {
+            });
+            if !mouse_move.is_dummy() {
+                MOUSE_MOVE_EVENT.each_update(true, |args| {
                     let spot = args.position + move_start_to_spot;
 
                     let op = match input.lock().shape {
@@ -488,8 +489,9 @@ fn interactive_caret_node(
                         _ => TextSelectOp::select_index_nearest_to(spot, is_selection_index),
                     };
                     SELECT_CMD.scoped(parent_id).notify_param(op);
-                }
-            } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
+                });
+            }
+            POINTER_CAPTURE_EVENT.each_update(false, |args| {
                 let id = WIDGET.id();
                 if args.is_lost(id) {
                     touch_move = None;
@@ -499,7 +501,7 @@ fn interactive_caret_node(
                         LAYERS.remove(id);
                     }
                 }
-            }
+            });
         }
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = TOUCH_CARET_SPOT.with_context(&mut caret_spot_buf, || visual.layout(wl));

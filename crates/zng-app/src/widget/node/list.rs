@@ -10,7 +10,7 @@ use std::{
 
 use crate::{
     render::{FrameBuilder, FrameUpdate, FrameValueKey},
-    update::{EventUpdate, UPDATES, WidgetUpdates},
+    update::{UPDATES, WidgetUpdates},
     widget::{
         WIDGET, WidgetUpdateMode,
         base::{PARALLEL_VAR, Parallel},
@@ -298,14 +298,6 @@ impl UiNodeImpl for UiVec {
             info.parallel_fold(b);
         } else {
             self.iter_mut().for_each(|n| n.info(info));
-        }
-    }
-
-    fn event(&mut self, update: &EventUpdate) {
-        if (self as &mut dyn UiNodeImpl).parallelize_hint() && PARALLEL_VAR.get().contains(Parallel::EVENT) {
-            self.par_iter_mut().with_ctx().for_each(|n| n.event(update));
-        } else {
-            self.iter_mut().for_each(|n| n.event(update));
         }
     }
 
@@ -742,10 +734,6 @@ impl UiNodeImpl for ChainList {
         self.0.info(info);
     }
 
-    fn event(&mut self, update: &EventUpdate) {
-        self.0.event(update);
-    }
-
     fn update(&mut self, updates: &WidgetUpdates) {
         self.0.update(updates);
     }
@@ -1054,10 +1042,6 @@ impl UiNodeImpl for SortingList {
 
     fn info(&mut self, info: &mut WidgetInfoBuilder) {
         self.list.0.info(info);
-    }
-
-    fn event(&mut self, update: &EventUpdate) {
-        self.list.0.event(update);
     }
 
     fn update(&mut self, updates: &WidgetUpdates) {
@@ -1490,10 +1474,6 @@ impl UiNodeImpl for EditableUiVec {
         self.vec.info(info);
     }
 
-    fn event(&mut self, update: &EventUpdate) {
-        self.vec.event(update);
-    }
-
     fn update(&mut self, updates: &WidgetUpdates) {
         self.vec.update(updates);
         self.fulfill_requests(&mut ());
@@ -1626,7 +1606,9 @@ impl EditableUiVecRef {
             return;
         }
         s.insert.push((index, widget));
-        UPDATES.update(s.target);
+        if let Some(id) = s.target {
+            UPDATES.update(id);
+        }
     }
 
     /// Request an update for the insertion of the `widget` at the end of the list.
@@ -1645,7 +1627,9 @@ impl EditableUiVecRef {
             return;
         }
         s.push.push(widget);
-        UPDATES.update(s.target);
+        if let Some(id) = s.target {
+            UPDATES.update(id);
+        }
     }
 
     /// Request an update for the removal of the widget identified by `id`.
@@ -1675,7 +1659,9 @@ impl EditableUiVecRef {
             return;
         }
         s.retain.push(Box::new(predicate));
-        UPDATES.update(s.target);
+        if let Some(id) = s.target {
+            UPDATES.update(id);
+        }
     }
 
     /// Request a widget remove and re-insert.
@@ -1691,7 +1677,9 @@ impl EditableUiVecRef {
                 return;
             }
             s.move_index.push((remove_index, insert_index));
-            UPDATES.update(s.target);
+            if let Some(id) = s.target {
+                UPDATES.update(id);
+            }
         }
     }
 
@@ -1740,7 +1728,9 @@ impl EditableUiVecRef {
             return;
         }
         s.move_id.push((id.into(), get_move_to));
-        UPDATES.update(s.target);
+        if let Some(id) = s.target {
+            UPDATES.update(id);
+        }
     }
 
     /// Request a removal of all current widgets.
@@ -1749,7 +1739,9 @@ impl EditableUiVecRef {
     pub fn clear(&self) {
         let mut s = self.0.lock();
         s.clear = true;
-        UPDATES.update(s.target);
+        if let Some(id) = s.target {
+            UPDATES.update(id);
+        }
     }
 
     fn take_requests(&self) -> Option<EditRequests> {
@@ -2513,10 +2505,6 @@ where
         }
     }
 
-    fn event(&mut self, update: &EventUpdate) {
-        self.list.event(update);
-    }
-
     fn update(&mut self, updates: &WidgetUpdates) {
         self.update_list(updates, &mut ());
     }
@@ -2541,7 +2529,7 @@ where
                 *v = v.wrapping_add(1);
                 *u = true;
             }
-            WIDGET.info();
+            WIDGET.update_info();
         }
     }
 

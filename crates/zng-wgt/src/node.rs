@@ -6,7 +6,7 @@ use std::{any::Any, sync::Arc};
 
 use crate::WidgetFn;
 use zng_app::{
-    event::{AnyEventArgs, Command, CommandArgs, CommandHandle, CommandScope, Event, EventArgs, EventPropagationHandle},
+    event::{Command, CommandHandle, CommandScope, Event, EventArgs},
     handler::{Handler, HandlerExt as _},
     render::{FrameBuilder, FrameValueKey},
     update::WidgetUpdates,
@@ -195,1031 +195,773 @@ pub fn with_context_var_init<T: VarValue>(
     })
 }
 
-///<span data-del-macro-root></span> Declare one or more event properties.
+/// Helper for declaring event properties.
+pub struct EventNodeBuilder<A: EventArgs, F, M> {
+    event: Event<A>,
+    filter_builder: F,
+    map_args: M,
+}
+/// Helper for declaring event properties from variables.
+pub struct VarEventNodeBuilder<I, F, M> {
+    init_var: I,
+    filter_builder: F,
+    map_args: M,
+}
+
+impl<A: EventArgs> EventNodeBuilder<A, (), ()> {
+    /// Node that calls the handler for all args that target the widget and has not stopped propagation.
+    pub fn new(event: Event<A>) -> EventNodeBuilder<A, (), ()> {
+        EventNodeBuilder {
+            event,
+            filter_builder: (),
+            map_args: (),
+        }
+    }
+}
+impl<I, T> VarEventNodeBuilder<I, (), ()>
+where
+    T: VarValue,
+    I: FnMut() -> Var<T> + Send + 'static,
+{
+    /// Node that calls the handler for var updates.
+    ///
+    /// The `init_var` is called on init to
+    pub fn new(init_var: I) -> VarEventNodeBuilder<I, (), ()> {
+        VarEventNodeBuilder {
+            init_var,
+            filter_builder: (),
+            map_args: (),
+        }
+    }
+}
+
+impl<A: EventArgs, M> EventNodeBuilder<A, (), M> {
+    /// Filter event.
+    ///
+    /// The `filter_builder` is called on init and on event, it must produce another closure, the filter predicate. The `filter_builder`
+    /// runs in the widget context, the filter predicate does not always.
+    ///
+    /// In the event hook the filter predicate runs in the app context, it is called if the args target the widget, the predicate must
+    /// use any captured contextual info to filter the args, this is an optimization, it can save a visit to the widget node.
+    ///
+    /// If the event is received the second filter predicate is called again to confirm the event.
+    /// The second instance is called if [`propagation`] was not stopped, if it returns `true` the `handler` closure is called.
+    ///
+    /// Note that events that represent an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`] targets,
+    /// event properties should probably distinguish if they fire on normal interactions vs on *disabled* interactions.
+    ///
+    /// [`propagation`]: zng_app::event::AnyEventArgs::propagation
+    /// [`ENABLED`]: Interactivity::ENABLED
+    /// [`DISABLED`]: Interactivity::DISABLED
+    pub fn filter<FB, F>(self, filter_builder: FB) -> EventNodeBuilder<A, FB, M>
+    where
+        FB: FnMut() -> F + Send + 'static,
+        F: Fn(&A) -> bool + Send + Sync + 'static,
+    {
+        EventNodeBuilder {
+            event: self.event,
+            filter_builder,
+            map_args: self.map_args,
+        }
+    }
+}
+impl<T, I, M> VarEventNodeBuilder<I, (), M>
+where
+    T: VarValue,
+    I: FnMut() -> Var<T> + Send + 'static,
+{
+    /// Filter event.
+    ///
+    /// The `filter_builder` is called on init and on new, it must produce another closure, the filter predicate. The `filter_builder`
+    /// runs in the widget context, the filter predicate does not always.
+    ///
+    /// In the variable hook the filter predicate runs in the app context, it is called if the args target the widget, the predicate must
+    /// use any captured contextual info to filter the args, this is an optimization, it can save a visit to the widget node.
+    ///
+    /// If the update is received the second filter predicate is called again to confirm the update.
+    /// If it returns `true` the `handler` closure is called.
+    pub fn filter<FB, F>(self, filter_builder: FB) -> VarEventNodeBuilder<I, FB, M>
+    where
+        FB: FnMut() -> F + Send + 'static,
+        F: Fn(&T) -> bool + Send + Sync + 'static,
+    {
+        VarEventNodeBuilder {
+            init_var: self.init_var,
+            filter_builder,
+            map_args: self.map_args,
+        }
+    }
+}
+
+impl<A: EventArgs, F> EventNodeBuilder<A, F, ()> {
+    /// Convert args.
+    ///
+    /// The `map_args` closure is called in context, just before the handler is called.
+    pub fn map_args<M, MA>(self, map_args: M) -> EventNodeBuilder<A, F, M>
+    where
+        M: FnMut(&A) -> MA + Send + 'static,
+        MA: Clone + 'static,
+    {
+        EventNodeBuilder {
+            event: self.event,
+            filter_builder: self.filter_builder,
+            map_args,
+        }
+    }
+}
+impl<T, I, F> VarEventNodeBuilder<I, F, ()>
+where
+    T: VarValue,
+    I: FnMut() -> Var<T> + Send + 'static,
+{
+    /// Convert args.
+    ///
+    /// The `map_args` closure is called in context, just before the handler is called.
+    ///
+    /// Note that if the args is a full [`EventArgs`] type it must share the same propagation handle in the preview and normal route
+    /// properties, if the source type is also a full args just clone the propagation handle, otherwise you must use [`WIDGET::set_state`]
+    /// to communicate between the properties.
+    pub fn map_args<M, MA>(self, map_args: M) -> VarEventNodeBuilder<I, F, M>
+    where
+        M: FnMut(&T) -> MA + Send + 'static,
+        MA: Clone + 'static,
+    {
+        VarEventNodeBuilder {
+            init_var: self.init_var,
+            filter_builder: self.filter_builder,
+            map_args,
+        }
+    }
+}
+
+/// Build with filter and args mapping.
+impl<A, F, FB, MA, M> EventNodeBuilder<A, FB, M>
+where
+    A: EventArgs,
+    F: Fn(&A) -> bool + Send + Sync + 'static,
+    FB: FnMut() -> F + Send + 'static,
+    MA: Clone + 'static,
+    M: FnMut(&A) -> MA + Send + 'static,
+{
+    /// Build node.
+    ///
+    /// If `PRE` is `true` the handler is called before the children, *preview* route.
+    pub fn build<const PRE: bool>(self, child: impl IntoUiNode, handler: Handler<MA>) -> UiNode {
+        let Self {
+            event,
+            mut filter_builder,
+            mut map_args,
+        } = self;
+        let mut handler = handler.into_wgt_runner();
+        match_node(child, move |child, op| match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_event_when(&event, filter_builder());
+            }
+            UiNodeOp::Deinit => {
+                handler.deinit();
+            }
+            UiNodeOp::Update { updates } => {
+                if !PRE {
+                    child.update(updates);
+                }
+
+                handler.update();
+
+                let mut f = None;
+                event.each_update(false, |args| {
+                    if f.get_or_insert_with(&mut filter_builder)(args) {
+                        handler.event(&map_args(args));
+                    }
+                });
+            }
+            _ => {}
+        })
+    }
+}
+
+/// Build with filter and args mapping.
+impl<T, I, F, FB, MA, M> VarEventNodeBuilder<I, FB, M>
+where
+    T: VarValue,
+    I: FnMut() -> Var<T> + Send + 'static,
+    F: Fn(&T) -> bool + Send + Sync + 'static,
+    FB: FnMut() -> F + Send + 'static,
+    MA: Clone + 'static,
+    M: FnMut(&T) -> MA + Send + 'static,
+{
+    /// Build node.
+    ///
+    /// If `PRE` is `true` the handler is called before the children, *preview* route.
+    pub fn build<const PRE: bool>(self, child: impl IntoUiNode, handler: Handler<MA>) -> UiNode {
+        let Self {
+            mut init_var,
+            mut filter_builder,
+            mut map_args,
+        } = self;
+        let mut handler = handler.into_wgt_runner();
+        let mut var = None;
+        match_node(child, move |child, op| match op {
+            UiNodeOp::Init => {
+                let v = init_var();
+                let f = filter_builder();
+                WIDGET.sub_var_when(&v, move |a| f(a.value()));
+                var = Some(v);
+            }
+            UiNodeOp::Deinit => {
+                handler.deinit();
+                var = None;
+            }
+            UiNodeOp::Update { updates } => {
+                if PRE {
+                    child.update(updates);
+                }
+
+                handler.update();
+
+                var.as_ref().unwrap().with_new(|t| {
+                    if filter_builder()(t) {
+                        handler.event(&map_args(t));
+                    }
+                });
+            }
+            _ => {}
+        })
+    }
+}
+
+/// Build with filter and without args mapping.
+impl<A, F, FB> EventNodeBuilder<A, FB, ()>
+where
+    A: EventArgs,
+    F: Fn(&A) -> bool + Send + Sync + 'static,
+    FB: FnMut() -> F + Send + 'static,
+{
+    /// Build node.
+    ///
+    /// If `PRE` is `true` the handler is called before the children, *preview* route.
+    pub fn build<const PRE: bool>(self, child: impl IntoUiNode, handler: Handler<A>) -> UiNode {
+        let Self {
+            event, mut filter_builder, ..
+        } = self;
+        let mut handler = handler.into_wgt_runner();
+        match_node(child, move |child, op| match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_event_when(&event, filter_builder());
+            }
+            UiNodeOp::Deinit => {
+                handler.deinit();
+            }
+            UiNodeOp::Update { updates } => {
+                if !PRE {
+                    child.update(updates);
+                }
+
+                handler.update();
+
+                let mut f = None;
+                event.each_update(false, |args| {
+                    if f.get_or_insert_with(&mut filter_builder)(args) {
+                        handler.event(args);
+                    }
+                });
+            }
+            _ => {}
+        })
+    }
+}
+/// Build with filter and without args mapping.
+impl<T, I, F, FB> VarEventNodeBuilder<I, FB, ()>
+where
+    T: VarValue,
+    I: FnMut() -> Var<T> + Send + 'static,
+    F: Fn(&T) -> bool + Send + Sync + 'static,
+    FB: FnMut() -> F + Send + 'static,
+{
+    /// Build node.
+    ///
+    /// If `PRE` is `true` the handler is called before the children, *preview* route.
+    pub fn build<const PRE: bool>(self, child: impl IntoUiNode, handler: Handler<T>) -> UiNode {
+        let Self {
+            mut init_var,
+            mut filter_builder,
+            ..
+        } = self;
+        let mut handler = handler.into_wgt_runner();
+        let mut var = None;
+        match_node(child, move |child, op| match op {
+            UiNodeOp::Init => {
+                let v = init_var();
+                let f = filter_builder();
+                WIDGET.sub_var_when(&v, move |a| f(a.value()));
+                var = Some(v);
+            }
+            UiNodeOp::Deinit => {
+                handler.deinit();
+                var = None;
+            }
+            UiNodeOp::Update { updates } => {
+                if !PRE {
+                    child.update(updates);
+                }
+
+                handler.update();
+
+                var.as_ref().unwrap().with_new(|t| {
+                    if filter_builder()(t) {
+                        handler.event(t);
+                    }
+                });
+            }
+            _ => {}
+        })
+    }
+}
+
+/// Build without filter and without args mapping.
+impl<A> EventNodeBuilder<A, (), ()>
+where
+    A: EventArgs,
+{
+    /// Build node.
+    ///
+    /// If `PRE` is `true` the handler is called before the children, *preview* route.
+    pub fn build<const PRE: bool>(self, child: impl IntoUiNode, handler: Handler<A>) -> UiNode {
+        let Self { event, .. } = self;
+        let mut handler = handler.into_wgt_runner();
+        match_node(child, move |child, op| match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_event(&event);
+            }
+            UiNodeOp::Deinit => {
+                handler.deinit();
+            }
+            UiNodeOp::Update { updates } => {
+                if !PRE {
+                    child.update(updates);
+                }
+
+                handler.update();
+
+                event.each_update(false, |args| {
+                    handler.event(args);
+                });
+            }
+            _ => {}
+        })
+    }
+}
+/// Build without filter and without args mapping.
+impl<T, I> VarEventNodeBuilder<I, (), ()>
+where
+    T: VarValue,
+    I: FnMut() -> Var<T> + Send + 'static,
+{
+    /// Build node.
+    ///
+    /// If `PRE` is `true` the handler is called before the children, *preview* route.
+    pub fn build<const PRE: bool>(self, child: impl IntoUiNode, handler: Handler<T>) -> UiNode {
+        let Self { mut init_var, .. } = self;
+        let mut handler = handler.into_wgt_runner();
+        let mut var = None;
+        match_node(child, move |child, op| match op {
+            UiNodeOp::Init => {
+                let v = init_var();
+                WIDGET.sub_var(&v);
+                var = Some(v);
+            }
+            UiNodeOp::Deinit => {
+                handler.deinit();
+                var = None;
+            }
+            UiNodeOp::Update { updates } => {
+                if !PRE {
+                    child.update(updates);
+                }
+
+                handler.update();
+
+                var.as_ref().unwrap().with_new(|t| {
+                    handler.event(t);
+                });
+            }
+            _ => {}
+        })
+    }
+}
+
+/// Build with no filter and args mapping.
+impl<A, MA, M> EventNodeBuilder<A, (), M>
+where
+    A: EventArgs,
+    MA: Clone + 'static,
+    M: FnMut(&A) -> MA + Send + 'static,
+{
+    /// Build node.
+    ///
+    /// If `PRE` is `true` the handler is called before the children, *preview* route.
+    pub fn build<const PRE: bool>(self, child: impl IntoUiNode, handler: Handler<MA>) -> UiNode {
+        self.filter(|| |_| true).build::<PRE>(child, handler)
+    }
+}
+/// Build with no filter and args mapping.
+impl<T, I, MA, M> VarEventNodeBuilder<I, (), M>
+where
+    T: VarValue,
+    I: FnMut() -> Var<T> + Send + 'static,
+    MA: Clone + 'static,
+    M: FnMut(&T) -> MA + Send + 'static,
+{
+    /// Build node.
+    ///
+    /// If `PRE` is `true` the handler is called before the children, *preview* route.
+    pub fn build<const PRE: bool>(self, child: impl IntoUiNode, handler: Handler<MA>) -> UiNode {
+        self.filter(|| |_| true).build::<PRE>(child, handler)
+    }
+}
+
+///<span data-del-macro-root></span> Declare event properties.
 ///
-/// Each declaration expands to two properties `on_$event` and `on_pre_$event`.
-/// The preview properties call [`on_pre_event`], the main event properties call [`on_event`].
+/// Each declaration can expand to an `on_event` and optionally an `on_pre_event`. The body can be declared using [`EventNodeBuilder`] or
+/// [`VarEventNodeBuilder`].
 ///
 /// # Examples
 ///
 /// ```
 /// # fn main() { }
-/// # use zng_app::event::*;
+/// # use zng_app::{event::*, widget::{node::*, *}, handler::*};
 /// # use zng_wgt::node::*;
 /// # #[derive(Clone, Debug, PartialEq)] pub enum KeyState { Pressed }
-/// # event_args! { pub struct KeyInputArgs { pub state: KeyState, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # event_args! { pub struct KeyInputArgs { pub state: KeyState, .. fn is_in_target(&self, _id: WidgetId) -> bool { true } } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
+/// # struct CONTEXT;
+/// # impl CONTEXT { pub fn state(&self) -> zng_var::Var<bool> { zng_var::var(true) } }
 /// event_property! {
-///     /// on_key_input docs.
-///     pub fn key_input {
-///         event: KEY_INPUT_EVENT,
-///         args: KeyInputArgs,
-///         // default filter is |args| true,
+///     /// Docs copied for `on_key_input` and `on_pre_key_input`.
+///     ///
+///     /// The macro also generates docs linking between the two properties.
+///     #[property(EVENT)]
+///     pub fn on_key_input<on_pre_key_input>(child: impl IntoUiNode, handler: Handler<KeyInputArgs>) -> UiNode {
+///         // Preview flag, only if the signature contains the `<on_pre...>` part,
+///         // the macro matches `const $IDENT: bool;` and expands to `const IDENT: bool = true/false;`.
+///         const PRE: bool;
+///
+///         // rest of the body can be anything the builds a node.
+///         EventNodeBuilder::new(KEY_INPUT_EVENT).build::<PRE>(child, handler)
 ///     }
 ///
-///     pub(crate) fn key_down {
-///         event: KEY_INPUT_EVENT,
-///         args: KeyInputArgs,
-///         // optional filter:
-///         filter: |args| args.state == KeyState::Pressed,
+///     /// Another property.
+///     #[property(EVENT)]
+///     pub fn on_key_down<on_pre_key_down>(child: impl IntoUiNode, handler: Handler<KeyInputArgs>) -> UiNode {
+///         const PRE: bool;
+///         EventNodeBuilder::new(KEY_INPUT_EVENT)
+///             .filter(|| |a| a.state == KeyState::Pressed)
+///             .build::<PRE>(child, handler)
+///     }
+///
+///     /// Another, this time derived from a var source, and without the optional preview property.
+///     #[property(EVENT)]
+///     pub fn on_state(child: impl IntoUiNode, handler: Handler<bool>) -> UiNode {
+///         VarEventNodeBuilder::new(|| CONTEXT.state())
+///             .map_args(|b| !*b)
+///             .build::<false>(child, handler)
 ///     }
 /// }
 /// ```
 ///
-/// # Filter
+/// The example above generates five event properties.
 ///
-/// App events are delivered to all widgets that are both in the [`UpdateDeliveryList`] and event subscribers list,
-/// event properties can specialize further by defining a filter predicate.
+/// # Route
 ///
-/// The `filter:` predicate is called if [`propagation`] is not stopped. It must return `true` if the event arguments
-/// are relevant in the context of the widget and event property. If it returns `true` the `handler` closure is called.
-/// See [`on_event`] and [`on_pre_event`] for more information.
-///
-/// If you don't provide a filter predicate the default always allows, so all app events targeting the widget and not already handled
-/// are allowed by default. Note that events that represent an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`]
-/// widgets, event properties should probably distinguish if they fire on normal interactions versus on *disabled* interactions.
-///
-/// # Async
-///
-/// Async event handlers are supported by properties generated by this macro, but only the code before the first `.await` executes
-/// in the event track, subsequent code runs in widget updates.
+/// Note that is an event property has an `on_pre_*` pair it is expected to be representing a fully routing event, with args that
+/// implement [`EventArgs`]. If the property does not have a preview pair it is expected to be a *direct* event. This is the event
+/// property pattern and is explained in the generated documentation, don't declare a non-standard pair using this macro.
 ///
 /// # Commands
 ///
-/// You can use [`command_property`] to declare command event properties.
-///
-/// # Implement For
-///
-/// You can implement the new properties for a widget or mixin using the `widget_impl:` directive:
-///
-/// ```
-/// # fn main() { }
-/// # use zng_app::{event::*, widget::{node::{UiNode, IntoUiNode}, widget_mixin}};
-/// # use zng_wgt::node::*;
-/// # event_args! { pub struct KeyInputArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
-/// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
-/// # fn some_node(child: impl IntoUiNode) -> UiNode { child.into_node() }
-/// /// Keyboard events.
-/// #[widget_mixin]
-/// pub struct KeyboardMix<P>(P);
-///
-/// event_property! {
-///     pub fn key_input {
-///         event: KEY_INPUT_EVENT,
-///         args: KeyInputArgs,
-///         widget_impl: KeyboardMix<P>,
-///     }
-/// }
-/// ```
-///
-/// # With Extra Nodes
-///
-/// You can wrap the event handler node with extra nodes by setting the optional `with:` closure:
-///
-/// ```
-/// # fn main() { }
-/// # use zng_app::{event::*, widget::node::{UiNode, IntoUiNode}};
-/// # use zng_wgt::node::*;
-/// # event_args! { pub struct KeyInputArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
-/// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
-/// # fn some_node(child: impl IntoUiNode) -> UiNode { child.into_node() }
-/// event_property! {
-///     pub fn key_input {
-///         event: KEY_INPUT_EVENT,
-///         args: KeyInputArgs,
-///         with: |child, _preview| some_node(child),
-///     }
-/// }
-/// ```
-///
-/// The closure receives two arguments, the handler `UiNode` and a `bool` that is `true` if the closure is called in the *on_pre_*
-/// property or `false` when called in the *on_* property.
-///
-/// [`on_pre_event`]: crate::node::on_pre_event
-/// [`on_event`]: crate::node::on_event
-/// [`propagation`]: zng_app::event::AnyEventArgs::propagation
-/// [`ENABLED`]: zng_app::widget::info::Interactivity::ENABLED
-/// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
-/// [`UpdateDeliveryList`]: zng_app::update::UpdateDeliveryList
+/// You can use [`command_property`] to declare command event properties, it also generates enabled control properties.
 #[macro_export]
 macro_rules! event_property {
     ($(
-        $(#[$on_event_attrs:meta])*
-        $vis:vis fn $event:ident {
-            event: $EVENT:path,
-            args: $Args:path
-            $(, filter: $filter:expr)?
-            $(, widget_impl: $Wgt:ty)?
-            $(, with: $with:expr)?
-            $(,)?
+        $(#[$meta:meta])+
+        $vis:vis fn $on_ident:ident $(< $on_pre_ident:ident >)? (
+            $child:ident: impl $IntoUiNode:path,
+            $handler:ident: $Handler:ty $(,)?
+        ) -> $UiNode:path {
+            $($body:tt)+
         }
     )+) => {$(
-        $crate::__event_property! {
-            done {
-                sig { $(#[$on_event_attrs])* $vis fn $event { event: $EVENT, args: $Args, } }
+       $crate::event_property_impl! {
+            $(#[$meta])+
+            $vis fn $on_ident $(< $on_pre_ident >)? ($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
+                $($body)+
             }
-
-            $(filter: $filter,)?
-            $(widget_impl: $Wgt,)?
-            $(with: $with,)?
-        }
+       }
     )+};
 }
+#[doc(inline)]
+pub use event_property;
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __event_property {
-    // match filter:
+macro_rules! event_property_impl {
     (
-        done {
-            $($done:tt)+
-        }
-        filter: $filter:expr,
-        $($rest:tt)*
-    ) => {
-        $crate::__event_property! {
-            done {
-                $($done)+
-                filter { $filter }
-            }
-            $($rest)*
-        }
-    };
-    // match widget_impl:
-    (
-        done {
-            $($done:tt)+
-        }
-        widget_impl: $Wgt:ty,
-        $($rest:tt)*
-    ) => {
-        $crate::__event_property! {
-            done {
-                $($done)+
-                widget_impl { , widget_impl($Wgt) }
-            }
-            $($rest)*
-        }
-    };
-    // match with:
-    (
-        done {
-            $($done:tt)+
-        }
-        with: $with:expr,
-    ) => {
-        $crate::__event_property! {
-            done {
-                $($done)+
-                with { $with }
-            }
-        }
-    };
-    // match done sig
-    (
-        done {
-            sig { $($sig:tt)+ }
+        $(#[$meta:meta])+
+        $vis:vis fn $on_ident:ident < $on_pre_ident:ident > ($child:ident : impl $IntoUiNode:path, $handler:ident : $Handler:ty) -> $UiNode:path {
+            const $PRE:ident : bool;
+            $($body:tt)+
         }
     ) => {
-        $crate::__event_property! {
-            done {
-                sig { $($sig)+ }
-                filter { |_args| true }
-                widget_impl { }
-                with { }
-            }
+        $(#[$meta])+
+        ///
+        /// # Route
+        ///
+        /// This event property uses the normal route, that is, the `handler` is called after the children widget handlers and after the
+        #[doc = concat!("[`", stringify!($pn_pre_ident), "`](fn@", stringify!($pn_pre_ident), ")")]
+        /// handlers.
+        $vis fn $on_ident($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
+            const $PRE: bool = false;
+            $($body)+
         }
-    };
-    // match done sig+filter
-    (
-        done {
-            sig { $($sig:tt)+ }
-            filter { $($filter:tt)+ }
-        }
-    ) => {
-        $crate::__event_property! {
-            done {
-                sig { $($sig)+ }
-                filter { $($filter)+ }
-                widget_impl { }
-                with { }
-            }
-        }
-    };
-    // match done sig+widget_impl
-    (
-        done {
-            sig { $($sig:tt)+ }
-            widget_impl { $($widget_impl:tt)+ }
-        }
-    ) => {
-        $crate::__event_property! {
-            done {
-                sig { $($sig)+ }
-                filter { |_args| true }
-                widget_impl { $($widget_impl)+ }
-                with { }
-            }
-        }
-    };
-    // match done sig+with
-    (
-        done {
-            sig { $($sig:tt)+ }
-            with { $($with:tt)+ }
-        }
-    ) => {
-        $crate::__event_property! {
-            done {
-                sig { $($sig)+ }
-                filter { |_args| true }
-                widget_impl { }
-                with { $($with)+ }
-            }
-        }
-    };
-    // match done sig+filter+widget_impl
-    (
-        done {
-            sig { $($sig:tt)+ }
-            filter { $($filter:tt)+ }
-            widget_impl { $($widget_impl:tt)+ }
-        }
-    ) => {
-        $crate::__event_property! {
-            done {
-                sig { $($sig)+ }
-                filter { $($filter)+ }
-                widget_impl { $($widget_impl)+ }
-                with { }
-            }
-        }
-    };
-    // match done sig+filter+with
-    (
-        done {
-            sig { $($sig:tt)+ }
-            filter { $($filter:tt)+ }
-            with { $($with:tt)+ }
-        }
-    ) => {
-        $crate::__event_property! {
-            done {
-                sig { $($sig)+ }
-                filter { $($filter)+ }
-                widget_impl { }
-                with { $($with)+ }
-            }
-        }
-    };
-    // match done sig+filter+widget_impl+with
-    (
-        done {
-            sig { $(#[$on_event_attrs:meta])* $vis:vis fn $event:ident { event: $EVENT:path, args: $Args:path, } }
-            filter { $filter:expr }
-            widget_impl { $($widget_impl:tt)* }
-            with { $($with:expr)? }
-        }
-    ) => {
-        $crate::node::paste! {
-            $(#[$on_event_attrs])*
-            ///
-            /// # Preview
-            ///
-            #[doc = "You can preview this event using [`on_pre_"$event "`](fn.on_pre_"$event ".html)."]
-            /// Otherwise the handler is only called after the widget content has a chance to stop propagation.
-            ///
-            /// # Async
-            ///
-            /// You can use async event handlers with this property.
-            #[$crate::node::__macro_util::property(
-                EVENT,
-                default( $crate::node::__macro_util::hn!(|_|{}) )
-                $($widget_impl)*
-            )]
-            $vis fn [<on_ $event>](
-                child: impl $crate::node::__macro_util::IntoUiNode,
-                handler: $crate::node::__macro_util::Handler<$Args>,
-            ) -> $crate::node::__macro_util::UiNode {
-                $crate::__event_property!(=> with($crate::node::on_event(child, $EVENT, $filter, handler), false, $($with)?))
-            }
 
-            #[doc = "Preview [`on_"$event "`](fn.on_"$event ".html) event."]
-            ///
-            /// # Preview
-            ///
-            /// Preview event properties call the handler before the main event property and before the widget content, if you stop
-            /// the propagation of a preview event the main event handler is not called.
-            ///
-            /// # Async
-            ///
-            /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
-            /// subsequent code runs in widget updates.
-            #[$crate::node::__macro_util::property(
-                EVENT,
-                default( $crate::node::__macro_util::hn!(|_|{}) )
-                $($widget_impl)*
-            )]
-            $vis fn [<on_pre_ $event>](
-                child: impl $crate::node::__macro_util::IntoUiNode,
-                handler: $crate::node::__macro_util::Handler<$Args>,
-            ) -> $crate::node::__macro_util::UiNode {
-                $crate::__event_property!(=> with($crate::node::on_pre_event(child, $EVENT, $filter, handler), true, $($with)?))
-            }
+        $(#[$meta])+
+        ///
+        /// # Route
+        ///
+        /// This event property uses the preview route, that is, the `handler` is called before the children widget handlers and before the
+        #[doc = concat!("[`", stringify!($pn_ident), "`](fn@", stringify!($pn_ident), ")")]
+        /// handlers.
+        $vis fn $on_pre_ident($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
+            const $PRE: bool = true;
+            $($body)+
         }
     };
 
-    (=> with($child:expr, $preview:expr,)) => { $child };
-    (=> with($child:expr, $preview:expr, $with:expr)) => { ($with)($child, $preview) };
-}
-
-/// Helper for declaring event properties.
-///
-/// This function is used by the [`event_property!`] macro.
-///
-/// # Filter
-///
-/// The `filter` predicate is called if [`propagation`] was not stopped. It must return `true` if the event arguments are
-/// relevant in the context of the widget. If it returns `true` the `handler` closure is called. Note that events that represent
-/// an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`] targets, event properties should probably distinguish
-/// if they fire on normal interactions vs on *disabled* interactions.
-///
-/// # Route
-///
-/// The event `handler` is called after the [`on_pre_event`] equivalent at the same context level. If the event
-/// `filter` allows more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
-///
-/// # Async
-///
-/// Async event handlers are called like normal, but code after the first `.await` only runs in subsequent updates. This means
-/// that [`propagation`] must be stopped before the first `.await`, otherwise you are only signaling
-/// other async tasks handling the same event, if they are monitoring the propagation handle.
-///
-/// # Commands
-///
-/// You can use [`on_command`] to declare command event properties.
-///
-/// [`propagation`]: zng_app::event::AnyEventArgs::propagation
-/// [`ENABLED`]: zng_app::widget::info::Interactivity::ENABLED
-/// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
-pub fn on_event<C, A, F>(child: C, event: Event<A>, filter: F, handler: Handler<A>) -> UiNode
-where
-    C: IntoUiNode,
-    A: EventArgs,
-    F: FnMut(&A) -> bool + Send + 'static,
-{
-    on_event_impl(child.into_node(), event, filter, handler)
-}
-fn on_event_impl<A, F>(child: UiNode, event: Event<A>, mut filter: F, handler: Handler<A>) -> UiNode
-where
-    A: EventArgs,
-    F: FnMut(&A) -> bool + Send + 'static,
-{
-    let mut handler = handler.into_wgt_runner();
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_event(&event);
-        }
-        UiNodeOp::Deinit => {
-            handler.deinit();
-        }
-        UiNodeOp::Event { update } => {
-            child.event(update);
-
-            if let Some(args) = event.on(update)
-                && !args.propagation().is_stopped()
-                && filter(args)
-            {
-                #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
-                let t = std::time::Instant::now();
-                #[cfg(all(debug_assertions, target_arch = "wasm32"))]
-                let t = web_time::Instant::now();
-
-                handler.event(args);
-
-                #[cfg(debug_assertions)]
-                {
-                    let t = t.elapsed();
-                    if t > std::time::Duration::from_millis(300) {
-                        tracing::warn!(
-                            "event handler for `{}` in {:?} blocked for {t:?}, consider using `async_hn!`",
-                            event.as_any().name(),
-                            WIDGET.id()
-                        );
-                    }
-                }
-            }
-        }
-        UiNodeOp::Update { updates } => {
-            child.update(updates);
-            handler.update();
-        }
-        _ => {}
-    })
-}
-
-/// Helper for declaring preview event properties.
-///
-/// This function is used by the [`event_property!`] macro.
-///
-/// # Filter
-///
-/// The `filter` predicate is called if [`propagation`] was not stopped. It must return `true` if the event arguments are
-/// relevant in the context of the widget. If it returns `true` the `handler` closure is called. Note that events that represent
-/// an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`] targets, event properties should probably distinguish
-/// if they fire on normal interactions vs on *disabled* interactions.
-///
-/// # Route
-///
-/// The event `handler` is called before the [`on_event`] equivalent at the same context level. If the event
-/// `filter` allows more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
-///
-/// # Async
-///
-/// Async event handlers are called like normal, but code after the first `.await` only runs in subsequent event updates. This means
-/// that [`propagation`] must be stopped before the first `.await`, otherwise you are only signaling
-/// other async tasks handling the same event, if they are monitoring the propagation handle.
-///
-/// # Commands
-///
-/// You can use [`on_pre_command`] to declare command event properties.
-///
-/// [`propagation`]: zng_app::event::AnyEventArgs::propagation
-/// [`ENABLED`]: zng_app::widget::info::Interactivity::ENABLED
-/// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
-pub fn on_pre_event<C, A, F>(child: C, event: Event<A>, filter: F, handler: Handler<A>) -> UiNode
-where
-    C: IntoUiNode,
-    A: EventArgs,
-    F: FnMut(&A) -> bool + Send + 'static,
-{
-    on_pre_event_impl(child.into_node(), event, filter, handler)
-}
-fn on_pre_event_impl<A, F>(child: UiNode, event: Event<A>, mut filter: F, handler: Handler<A>) -> UiNode
-where
-    A: EventArgs,
-    F: FnMut(&A) -> bool + Send + 'static,
-{
-    let mut handler = handler.into_wgt_runner();
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_event(&event);
-        }
-        UiNodeOp::Deinit => {
-            handler.deinit();
-        }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = event.on(update)
-                && !args.propagation().is_stopped()
-                && filter(args)
-            {
-                #[cfg(debug_assertions)]
-                let t = std::time::Instant::now();
-
-                handler.event(args);
-
-                #[cfg(debug_assertions)]
-                {
-                    let t = t.elapsed();
-                    if t > std::time::Duration::from_millis(300) {
-                        tracing::warn!(
-                            "preview event handler for `{}` in {:?} blocked for {t:?}, consider using `async_hn!`",
-                            event.as_any().name(),
-                            WIDGET.id()
-                        );
-                    }
-                }
-            }
-        }
-        UiNodeOp::Update { .. } => {
-            handler.update();
-        }
-        _ => {}
-    })
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __command_property {
-    // final match, command_property! never calls this directly
     (
-        $(#[$on_cmd_attrs:meta])*
-        $vis:vis fn $command:ident {
-            cmd { $cmd_init:expr }
-            widget_impl { $($widget_impl:tt)* }
-            enabled_var { $enabled_var:expr }
-            generate_can_property: false
-        }
-    ) => { $crate::node::paste! {
-        $(#[$on_cmd_attrs])*
-        ///
-        /// # Preview
-        ///
-        #[doc = "You can preview this command event using [`on_pre_"$command "`](fn.on_pre_"$command ".html)."]
-        /// Otherwise the handler is only called after the widget content has a chance to stop propagation.
-        ///
-        /// # Async
-        ///
-        /// You can use async event handlers with this property.
-        #[$crate::node::__macro_util::property(EVENT, default( $crate::node::__macro_util::hn!(|_|{}) ))]
-        $vis fn [<on_ $command>](
-            child: impl $crate::node::__macro_util::IntoUiNode,
-            handler: $crate::node::__macro_util::Handler<$crate::node::__macro_util::CommandArgs>,
-        ) -> $crate::node::__macro_util::UiNode {
-            $crate::node::on_command(child, || $cmd_init, || $enabled_var, handler)
-        }
-
-        #[doc = "Preview [`on_"$command "`](fn.on_"$command ".html) command."]
-        ///
-        /// # Preview
-        ///
-        /// Preview event properties call the handler before the main event property and before the widget content, if you stop
-        /// the propagation of a preview event the main event handler is not called.
-        ///
-        /// # Async
-        ///
-        /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
-        /// subsequent code runs in widget updates.
-        #[$crate::node::__macro_util::property(EVENT, default( $crate::node::__macro_util::hn!(|_|{}) ) $($widget_impl)*)]
-        $vis fn [<on_pre_ $command>](
-            child: impl $crate::node::__macro_util::IntoUiNode,
-            handler: $crate::node::__macro_util::Handler<$crate::node::__macro_util::CommandArgs>,
-        ) -> $crate::node::__macro_util::UiNode {
-            $crate::node::on_pre_command(child, || $cmd_init, || $enabled_var, handler)
-        }
-    } };
-    (
-        $(#[$on_cmd_attrs:meta])*
-        $vis:vis fn $command:ident {
-            cmd { $cmd_init:expr }
-            widget_impl { $($widget_impl:tt)* }
-            generate_can_property: true
-        }
-    ) => { $crate::node::paste! {
-        $(#[$on_cmd_attrs])*
-        ///
-        /// # Preview
-        ///
-        #[doc = "You can preview this command event using [`on_pre_"$command "`](fn.on_pre_"$command ".html)."]
-        /// Otherwise the handler is only called after the widget content has a chance to stop propagation.
-        ///
-        /// # Async
-        ///
-        /// You can use async event handlers with this property.
-        ///
-        /// # Enabled
-        ///
-        #[doc = "You can use the [`can_"$command "`] context property to disable the command handle."]
-        /// When disabled the `handler` is not called and the command handle signals as disabled.
-        #[$crate::node::__macro_util::property(EVENT, default( $crate::node::__macro_util::hn!(|_|{}) ))]
-        $vis fn [<on_ $command>](
-            child: impl $crate::node::__macro_util::IntoUiNode,
-            handler: $crate::node::__macro_util::Handler<$crate::node::__macro_util::CommandArgs>,
-        ) -> $crate::node::__macro_util::UiNode {
-            $crate::node::on_command(child, || $cmd_init, || $crate::node::__macro_util::IntoVar::into_var(self::[<CAN_ $command:upper _VAR>]), handler)
-        }
-
-        #[doc = "Preview [`on_"$command "`](fn.on_"$command ".html) command."]
-        ///
-        /// # Preview
-        ///
-        /// Preview event properties call the handler before the main event property and before the widget content, if you stop
-        /// the propagation of a preview event the main event handler is not called.
-        ///
-        /// # Async
-        ///
-        /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
-        /// subsequent code runs in widget updates.
-        ///
-        /// # Enabled
-        ///
-        #[doc = "You can use the [`can_"$command "`](fn@can_"$command ") context property to disable the command handle."]
-        #[$crate::node::__macro_util::property(EVENT, default( $crate::node::__macro_util::hn!(|_|{}) ) $($widget_impl)*)]
-        $vis fn [<on_pre_ $command>](
-            child: impl $crate::node::__macro_util::IntoUiNode,
-            handler: $crate::node::__macro_util::Handler<$crate::node::__macro_util::CommandArgs>,
-        ) -> $crate::node::__macro_util::UiNode {
-            $crate::node::on_pre_command(child, || $cmd_init, || $crate::node::__macro_util::IntoVar::into_var(self::[<CAN_ $command:upper _VAR>]), handler)
-        }
-
-        $crate::node::__macro_util::context_var! {
-            #[doc = "Enable/disable [`on_"$command "`](fn@on_"$command ") and [`on_pre_"$command "`](fn@on_pre_"$command ") command handles."]
-            ///
-            #[doc = "Enabled by default, use the [`can_"$command "`](fn@can_" $command ") property to set."]
-            $vis static [<CAN_ $command:upper _VAR>]: bool = true;
-        }
-
-        #[doc = "Defines if [`on_"$command "`](fn@on_"$command ") and [`on_pre_"$command "`](fn@on_pre_"$command ") command handles"]
-        /// are enabled in the context.
-        ///
-        /// Is enabled by default.
-        ///
-        #[doc = "Sets the [`CAN_"$command:upper "_VAR`]."]
-        #[$crate::node::__macro_util::property(CONTEXT, default(true) $($widget_impl)*)]
-        $vis fn [<can_ $command>](
-            child: impl $crate::node::__macro_util::IntoUiNode,
-            enabled: impl $crate::node::__macro_util::IntoVar<bool>,
-        ) -> $crate::node::__macro_util::UiNode {
-            $crate::node::with_context_var(child, self::[<CAN_ $command:upper _VAR>], enabled)
-        }
-    } };
-
-    // custom enabled + widget_impl
-    (
-        $(#[$on_cmd_attrs:meta])*
-        $vis:vis fn $command:ident {
-            cmd { $cmd_init:expr }
-            enabled { $enabled_var:expr }
-            widget_impl_ty { $Wgt:ty }
+        $(#[$meta:meta])+
+        $vis:vis fn $on_ident:ident ($child:ident : impl $IntoUiNode:path, $handler:ident : $Handler:path) -> $UiNode:path {
+            $($body:tt)+
         }
     ) => {
-        $crate::__command_property! {
-            $(#[$on_cmd_attrs])*
-            $vis fn $command {
-                cmd { $cmd_init }
-                widget_impl { , widget_impl($Wgt) }
-                enabled_var { $enabled_var }
-                generate_can_property: false
-            }
-        }
-    };
-
-    // default enabled + widget_impl
-    (
-        $(#[$on_cmd_attrs:meta])*
-        $vis:vis fn $command:ident {
-            cmd { $cmd_init:expr }
-            widget_impl_ty { $Wgt:ty }
-        }
-    ) => {
-        $crate::node::paste! {
-            $crate::__command_property! {
-                $(#[$on_cmd_attrs])*
-                $vis fn $command {
-                    cmd { $cmd_init }
-                    widget_impl { , widget_impl($Wgt) }
-                    generate_can_property: true
-                }
-            }
-        }
-    };
-
-    // custom enabled, no widget_impl
-    (
-        $(#[$on_cmd_attrs:meta])*
-        $vis:vis fn $command:ident {
-            cmd { $cmd_init:expr }
-            enabled { $enabled_var:expr }
-        }
-    ) => {
-        $crate::__command_property! {
-            $(#[$on_cmd_attrs])*
-            $vis fn $command {
-                cmd { $cmd_init }
-                widget_impl { }
-                enabled_var { $enabled_var }
-                generate_can_property: false
-            }
-        }
-    };
-
-    // default enabled, no widget_impl
-    (
-        $(#[$on_cmd_attrs:meta])*
-        $vis:vis fn $command:ident {
-            cmd { $cmd_init:expr }
-        }
-    ) => {
-        $crate::__command_property! {
-            $(#[$on_cmd_attrs])*
-            $vis fn $command {
-                cmd { $cmd_init }
-                widget_impl { }
-                generate_can_property: true
-            }
+        $(#[$meta])+
+        ///
+        /// # Route
+        ///
+        /// This event property uses a *direct* route, that is, it cannot be intercepted in parent widgets.
+        $vis fn $on_ident($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
+            $($body)+
         }
     };
 }
 
-///<span data-del-macro-root></span> Declare one or more command event properties.
+///<span data-del-macro-root></span> Declare command event properties.
 ///
-/// Each declaration expands to two properties `on_$command` and `on_pre_$command`.
-/// The preview properties call [`on_pre_command`], the main event properties call [`on_command`].
-///
-/// By default a `CAN_$COMMAND_VAR` and `can_$command` var and property are also generated.
+/// Each declaration can expand to an `on_cmd`, `on_pre_cmd` and  and optionally an `can_cmd` and `CAN_CMD_VAR`.
 ///
 /// # Examples
 ///
 /// ```
 /// # fn main() { }
-/// # use zng_app::{event::*, widget::*};
+/// # use zng_app::{event::*, widget::{*, node::*}, handler::*};
 /// # use zng_app::var::*;
 /// # use zng_wgt::node::*;
 /// # command! {
+/// # pub static COPY_CMD;
 /// # pub static PASTE_CMD;
 /// # }
 /// command_property! {
-///     /// Paste command property docs.
-///     pub fn paste {
-///         cmd: PASTE_CMD.scoped(WIDGET.id()),
+///     /// Property docs.
+///     #[property(EVENT)]
+///     pub fn on_paste<on_pre_paste>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
+///         PASTE_CMD
+///     }
+///
+///     /// Another property, with optional `can_*` contextual property.
+///     #[property(EVENT)]
+///     pub fn on_copy<on_pre_copy, can_copy>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
+///         COPY_CMD
 ///     }
 /// }
 /// ```
 ///
-/// The example above generates event properties `on_pre_paste` and `on_paste`, context property `can_paste` and
-/// context var `CAN_PASTE_VAR`.
-///
-/// The event properties will hold a [`CommandHandle`] when the widget is inited, the handle wil signal enabled based
-/// on the contextual var value. The context property sets that var in a widget context.
-///
-/// # Command
-///
-/// The `cmd:` expression evaluates on init to generate the command, this allows for the
-/// creation of widget scoped commands. The new command property event handler will receive events
-/// for the command and scope that target the widget where the property is set.
-///
-/// If the command is scoped on the root widget and the command property is set on the same root widget a second handle
-/// is taken for the window scope too, so callers can target the *window* using the window ID or the root widget ID.
+/// The example above declares five properties and a context var. Note that unlike [`event_property!`] the body only defines the command,
+/// a standard node is generated.
 ///
 /// # Enabled
 ///
-/// The `enabled:` expression evaluates on init to generate a boolean variable that defines
-/// if the command handle is enabled. Command event handlers track both their existence and
-/// the enabled flag, see [`Command::subscribe`] for details.
-///
-/// If not provided a `CAN_$CMD_VAR` and `can_$cmd` contextual  var and property are generated.
-///
-/// ```
-/// # fn main() { }
-/// # use zng_app::{event::*, widget::*};
-/// # use zng_app::var::*;
-/// # use zng_wgt::node::*;
-/// # command! {
-/// # pub static PASTE_CMD;
-/// # }
-/// command_property! {
-///     /// Paste command property docs.
-///     pub fn paste {
-///         cmd: PASTE_CMD.scoped(WIDGET.id()),
-///         enabled: const_var(true), // command handle always enabled
-///     }
-/// }
-/// ```
-///
-/// In the example above `enabled:` is set to a custom variable, so the associated
-/// `CAN_PASTE_VAR` and `can_paste` will not be generated.
-///
-/// # Implement For
-///
-/// You can implement the new properties for a widget or mixin using the `widget_impl:` directive:
-///
-/// ```
-/// # fn main() { }
-/// # use zng_wgt::node::*;
-/// # use zng_app::{event::*, widget::*};
-/// # use zng_app::var::*;
-/// # use zng_wgt::node::*;
-/// # command! {
-/// # pub static PASTE_CMD;
-/// # }
-/// /// Clipboard handler.
-/// #[widget_mixin]
-/// pub struct ClipboardMix<P>(P);
-///
-/// command_property! {
-///     /// Paste command property docs.
-///     pub fn paste {
-///         cmd: PASTE_CMD.scoped(WIDGET.id()),
-///         widget_impl: ClipboardMix<P>,
-///     }
-/// }
-/// ```
-///
-/// [`Command::subscribe`]: zng_app::event::Command::subscribe
+/// An optional contextual property (`can_*`) and context var (`CAN_*_VAR`) can be generated. When defined the command handle enabled status
+/// is controlled by the contextual property. When not defined the command handle is always enabled.
 #[macro_export]
 macro_rules! command_property {
     ($(
-        $(#[$on_cmd_attrs:meta])*
-        $vis:vis fn $command:ident {
-            cmd: $cmd_init:expr
-            $(, enabled: $enabled_var:expr)?
-            $(, widget_impl: $Wgt:ty)?
-            $(,)?
+        $(#[$meta:meta])+
+        $vis:vis fn $on_ident:ident < $on_pre_ident:ident $(, $can_ident:ident)?> (
+            $child:ident: impl $IntoUiNode:path,
+            $handler:ident: $Handler:ty
+        ) -> $UiNode:path {
+            $COMMAND:path
         }
     )+) => {$(
-        $crate::__command_property! {
-            $(#[$on_cmd_attrs])*
-            $vis fn $command {
-                cmd { $cmd_init }
-                $( enabled { $enabled_var } )?
-                $( widget_impl_ty { $Wgt } )?
+       $crate::command_property_impl! {
+            $(#[$meta])+
+            $vis fn $on_ident<$on_pre_ident $(, $can_ident)?>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
+                $COMMAND
             }
-        }
+       }
     )+};
 }
-
-/// Helper for declaring command event properties.
-///
-/// This function is used by the [`command_property!`] macro.
-///
-/// # Command
-///
-/// The `command_builder` closure is called on init to generate the command, it is a closure to allow
-/// creation of widget scoped commands. The event `handler` will receive events for the command
-/// and scope that target the widget where it is set.
-///
-/// If the command is scoped on the root widget and `on_command` is set on the same root widget a second handle
-/// is taken for the window scope too, so callers can target the *window* using the window ID or the root widget ID.
-///
-/// # Enabled
-///
-/// The `enabled_builder` closure is called on init to generate a boolean variable that defines
-/// if the command handle is enabled. Command event handlers track both their existence and
-/// the enabled flag, see [`Command::subscribe`] for details.
-///
-/// Note that the command handler can be enabled even when the widget is disabled, the widget
-/// will receive the event while disabled in this case, you can use this to show feedback explaining
-/// why the command cannot run.
-///
-/// # Route
-///
-/// The event `handler` is called after the [`on_pre_command`] equivalent at the same context level. If the command
-/// event targets more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
-///
-/// # Async
-///
-/// Async event handlers are called like normal, but code after the first `.await` only runs in subsequent updates. This means
-/// that [`propagation`] must be stopped before the first `.await`, otherwise you are only signaling
-/// other async tasks handling the same event, if they are monitoring the propagation handle.
-///  
-/// [`propagation`]: zng_app::event::AnyEventArgs::propagation
-/// [`Command::subscribe`]: zng_app::event::Command::subscribe
-pub fn on_command<U, CB, EB>(child: U, command_builder: CB, enabled_builder: EB, handler: Handler<CommandArgs>) -> UiNode
-where
-    U: IntoUiNode,
-    CB: FnMut() -> Command + Send + 'static,
-    EB: FnMut() -> Var<bool> + Send + 'static,
-{
-    on_command_impl(child.into_node(), command_builder, enabled_builder, handler)
-}
-fn on_command_impl<CB, EB>(child: UiNode, mut command_builder: CB, mut enabled_builder: EB, handler: Handler<CommandArgs>) -> UiNode
-where
-    CB: FnMut() -> Command + Send + 'static,
-    EB: FnMut() -> Var<bool> + Send + 'static,
-{
-    let mut handler = handler.into_wgt_runner();
-    let mut enabled = None;
-    let mut handle = CommandHandle::dummy();
-    let mut win_handle = CommandHandle::dummy();
-    let mut command = NIL_CMD;
-    let mut last_propagation = EventPropagationHandle::new();
-
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Init => {
-            child.init();
-
-            let e = enabled_builder();
-            WIDGET.sub_var(&e);
-            let is_enabled = e.get();
-            enabled = Some(e);
-
-            command = command_builder();
-
-            let id = WIDGET.id();
-            handle = command.subscribe_wgt(is_enabled, id);
-            if CommandScope::Widget(id) == command.scope() && WIDGET.parent_id().is_none() {
-                // root scope, also include the window.
-                win_handle = command.scoped(WINDOW.id()).subscribe_wgt(is_enabled, id);
+#[doc(inline)]
+pub use command_property;
+#[doc(hidden)]
+#[macro_export]
+macro_rules! command_property_impl {
+    (
+        $(#[$meta:meta])+
+        $vis:vis fn $on_ident:ident < $on_pre_ident:ident, $can_ident:ident> (
+            $child:ident: impl $IntoUiNode:path,
+            $handler:ident: $Handler:ty
+        ) -> $UiNode:path {
+            $COMMAND:path
+        }
+    ) => {
+        $crate::node::paste! {
+            $crate::node::__macro_util::context_var! {
+                /// Defines if
+                #[doc = concat!("[`", stringify!($on_ident), "`](fn@", stringify!($on_ident), ")")]
+                /// and
+                #[doc = concat!("[`", stringify!($on_pre_ident), "`](fn@", stringify!($on_pre_ident), ")")]
+                /// command handlers are enabled in a widget and descendants.
+                ///
+                /// Use
+                #[doc = concat!("[`", stringify!($can_ident), "`](fn@", stringify!($can_ident), ")")]
+                /// to set. Is enabled by default.
+                $vis static [<$can_ident:upper _VAR>]: bool = true;
             }
-        }
-        UiNodeOp::Deinit => {
-            child.deinit();
 
-            enabled = None;
-            handle = CommandHandle::dummy();
-            win_handle = CommandHandle::dummy();
-            command = NIL_CMD;
-            handler.deinit();
-        }
+            /// Defines if
+            #[doc = concat!("[`", stringify!($on_ident), "`](fn@", stringify!($on_ident), ")")]
+            /// and
+            #[doc = concat!("[`", stringify!($on_pre_ident), "`](fn@", stringify!($on_pre_ident), ")")]
+            /// command handlers are enabled in the widget and descendants.
+            ///
+            #[doc = "Sets the [`"$can_ident:upper "_VAR`]."]
+            $vis fn $can_ident(
+                child: impl $crate::node::__macro_util::IntoUiNode,
+                enabled: impl $crate::node::__macro_util::IntoVar<bool>,
+            ) -> $crate::node::__macro_util::UiNode {
+                $crate::node::with_context_var(child, self::[<$can_ident:upper _VAR>], enabled)
+            }
 
-        UiNodeOp::Event { update } => {
-            child.event(update);
-
-            if command.event().has(update) {
-                if win_handle.is_dummy() {
-                    if let Some(args) = command.on_unhandled(update) {
-                        handler.event(args);
-                    }
-                } else if let Some(args) = command
-                    .on_unhandled(update)
-                    .or_else(|| command.scoped(WINDOW.id()).on_unhandled(update))
-                    && &last_propagation != args.propagation()
-                {
-                    handler.event(args);
-                    last_propagation = args.propagation().clone();
+            $crate::event_property! {
+                $(#[$meta])+
+                ///
+                /// # Command
+                ///
+                /// This property will subscribe to the
+                #[doc = concat!("[`", stringify!($COMMAND), "`]")]
+                /// command scoped on the widget. If set on the `Window!` root widget it will also subscribe to
+                /// the command scoped on the window.
+                ///
+                /// The command handle is enabled by default and can be disabled using the contextual property
+                #[doc = concat!("[`", stringify!($can_ident), "`](fn@", stringify!($can_ident), ")")]
+                /// .
+                $vis fn $on_ident<$on_pre_ident>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
+                    const PRE: bool;
+                    let child = $crate::node::EventNodeBuilder::new(*$COMMAND)
+                        .filter(|| {
+                            let enabled = self::[<$can_ident:upper _VAR>].current_context();
+                            move |_| enabled.get()
+                        })
+                        .build::<PRE>($child, $handler);
+                    $crate::node::command_contextual_enabled(child, $COMMAND, [<$can_ident:upper _VAR>])
                 }
             }
         }
-        UiNodeOp::Update { updates } => {
-            child.update(updates);
-
-            handler.update();
-
-            if let Some(enabled) = enabled.as_ref().expect("node not inited").get_new() {
-                handle.set_enabled(enabled);
-                win_handle.set_enabled(enabled);
+    };
+    (
+        $(#[$meta:meta])+
+        $vis:vis fn $on_ident:ident < $on_pre_ident:ident> (
+            $child:ident: impl $IntoUiNode:path,
+            $handler:ident: $Handler:ty
+        ) -> $UiNode:path {
+            $COMMAND:path
+        }
+    ) => {
+        $crate::event_property! {
+            $(#[$meta])+
+            ///
+            /// # Command
+            ///
+            /// This property will subscribe to the
+            #[doc = concat!("[`", stringify!($COMMAND), "`]")]
+            /// command scoped on the widget. If set on the `Window!` root widget it will also subscribe to
+            /// the command scoped on the window.
+            ///
+            /// The command handle is always enabled.
+            $vis fn $on_ident<$on_pre_ident>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
+                const PRE: bool;
+                let child = $crate::node::EventNodeBuilder::new(*$COMMAND).build::<PRE>($child, $handler);
+                $crate::node::command_always_enabled(child, $COMMAND)
             }
         }
+    };
+}
 
+fn validate_cmd(cmd: Command) {
+    if !matches!(cmd.scope(), CommandScope::App) {
+        tracing::error!("command for command property cannot be scoped, {cmd:?} scope will be ignored");
+    }
+}
+
+#[doc(hidden)]
+pub fn command_always_enabled(child: UiNode, cmd: Command) -> UiNode {
+    let mut _wgt_handle = CommandHandle::dummy();
+    let mut _win_handle = CommandHandle::dummy();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            validate_cmd(cmd);
+            _wgt_handle = cmd.scoped(WIDGET.id()).subscribe(true);
+            if WIDGET.parent_id().is_none() {
+                _win_handle = cmd.scoped(WINDOW.id()).subscribe(true);
+            }
+        }
+        UiNodeOp::Deinit => {
+            _wgt_handle = CommandHandle::dummy();
+            _win_handle = CommandHandle::dummy();
+        }
         _ => {}
     })
 }
 
-zng_app::event::command! {
-    static NIL_CMD;
-}
-
-/// Helper for declaring command preview handlers.
-///
-/// Other then the route this helper behaves exactly like [`on_command`].
-///
-/// # Route
-///
-/// The event `handler` is called before the [`on_command`] equivalent at the same context level. If the command event
-/// targets more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
-pub fn on_pre_command<U, CB, EB>(child: U, command_builder: CB, enabled_builder: EB, handler: Handler<CommandArgs>) -> UiNode
-where
-    U: IntoUiNode,
-    CB: FnMut() -> Command + Send + 'static,
-    EB: FnMut() -> Var<bool> + Send + 'static,
-{
-    on_pre_command_impl(child.into_node(), command_builder, enabled_builder, handler)
-}
-fn on_pre_command_impl<CB, EB>(child: UiNode, mut command_builder: CB, mut enabled_builder: EB, handler: Handler<CommandArgs>) -> UiNode
-where
-    CB: FnMut() -> Command + Send + 'static,
-    EB: FnMut() -> Var<bool> + Send + 'static,
-{
-    let mut handler = handler.into_wgt_runner();
-    let mut enabled = None;
-    let mut handle = CommandHandle::dummy();
-    let mut win_handle = CommandHandle::dummy();
-    let mut command = NIL_CMD;
-    let mut last_propagation = EventPropagationHandle::new();
-
-    match_node(child, move |child, op| match op {
+#[doc(hidden)]
+pub fn command_contextual_enabled(child: UiNode, cmd: Command, ctx: ContextVar<bool>) -> UiNode {
+    let mut _handle = VarHandle::dummy();
+    let mut _wgt_handle = CommandHandle::dummy();
+    let mut _win_handle = CommandHandle::dummy();
+    match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            child.init();
-
-            let e = enabled_builder();
-            WIDGET.sub_var(&e);
-            let is_enabled = e.get();
-            enabled = Some(e);
-
-            command = command_builder();
-
-            let id = WIDGET.id();
-            handle = command.subscribe_wgt(is_enabled, id);
-            if CommandScope::Widget(id) == command.scope() && WIDGET.parent_id().is_none() {
-                // root scope, also include the window.
-                win_handle = command.scoped(WINDOW.id()).subscribe_wgt(is_enabled, id);
+            let ctx = ctx.current_context();
+            let handle = cmd.scoped(WIDGET.id()).subscribe(ctx.get());
+            let win_handle = if WIDGET.parent_id().is_none() {
+                cmd.scoped(WINDOW.id()).subscribe(ctx.get())
+            } else {
+                CommandHandle::dummy()
+            };
+            if !ctx.capabilities().is_const() {
+                let _handle = ctx.hook(move |a| {
+                    handle.enabled().set(*a.value());
+                    win_handle.enabled().set(*a.value());
+                    true
+                });
+            } else {
+                _wgt_handle = handle;
+                _win_handle = win_handle;
             }
         }
         UiNodeOp::Deinit => {
-            child.deinit();
-
-            enabled = None;
-            handle = CommandHandle::dummy();
-            win_handle = CommandHandle::dummy();
-            command = NIL_CMD;
-            handler.deinit();
+            _handle = VarHandle::dummy();
+            _wgt_handle = CommandHandle::dummy();
+            _win_handle = CommandHandle::dummy();
         }
-
-        UiNodeOp::Event { update } => {
-            if command.event().has(update) {
-                if win_handle.is_dummy() {
-                    if let Some(args) = command.on_unhandled(update) {
-                        handler.event(args);
-                    }
-                } else if let Some(args) = command
-                    .on_unhandled(update)
-                    .or_else(|| command.scoped(WINDOW.id()).on_unhandled(update))
-                    && &last_propagation != args.propagation()
-                {
-                    handler.event(args);
-                    last_propagation = args.propagation().clone();
-                }
-            }
-        }
-        UiNodeOp::Update { .. } => {
-            handler.update();
-
-            if let Some(enabled) = enabled.as_ref().expect("on_pre_command not initialized").get_new() {
-                handle.set_enabled(enabled);
-                win_handle.set_enabled(enabled);
-            }
-        }
-
         _ => {}
     })
 }
@@ -1235,314 +977,39 @@ pub fn validate_getter_var<T: VarValue>(_var: &Var<T>) {
     }
 }
 
-/// Helper for declaring state properties that depend on a single event.
-///
-/// When the `event` is received `on_event` is called, if it provides a new state the `state` variable is set.
-pub fn event_state<A: EventArgs, S: VarValue>(
-    child: impl IntoUiNode,
-    state: impl IntoVar<S>,
-    default: S,
-    event: Event<A>,
-    mut on_event: impl FnMut(&A) -> Option<S> + Send + 'static,
-) -> UiNode {
-    let state = state.into_var();
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Init => {
-            validate_getter_var(&state);
-            WIDGET.sub_event(&event);
-            state.set(default.clone());
-        }
-        UiNodeOp::Deinit => {
-            state.set(default.clone());
-        }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = event.on(update)
-                && let Some(s) = on_event(args)
-            {
-                state.set(s);
-            }
-        }
-        _ => {}
-    })
-}
-
-/// Helper for declaring state properties that depend on two other event states.
-///
-/// When the `event#` is received `on_event#` is called, if it provides a new value `merge` is called, if merge
-/// provides a new value the `state` variable is set.
-#[expect(clippy::too_many_arguments)]
-pub fn event_state2<A0, A1, S0, S1, S>(
-    child: impl IntoUiNode,
-    state: impl IntoVar<S>,
-    default: S,
-    event0: Event<A0>,
-    default0: S0,
-    mut on_event0: impl FnMut(&A0) -> Option<S0> + Send + 'static,
-    event1: Event<A1>,
-    default1: S1,
-    mut on_event1: impl FnMut(&A1) -> Option<S1> + Send + 'static,
-    mut merge: impl FnMut(S0, S1) -> Option<S> + Send + 'static,
-) -> UiNode
-where
-    A0: EventArgs,
-    A1: EventArgs,
-    S0: VarValue,
-    S1: VarValue,
-    S: VarValue,
-{
-    let state = state.into_var();
-    let partial_default = (default0, default1);
-    let mut partial = partial_default.clone();
-
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Init => {
-            validate_getter_var(&state);
-            WIDGET.sub_event(&event0).sub_event(&event1);
-
-            partial = partial_default.clone();
-            state.set(default.clone());
-        }
-        UiNodeOp::Deinit => {
-            state.set(default.clone());
-        }
-        UiNodeOp::Event { update } => {
-            let mut updated = false;
-            if let Some(args) = event0.on(update) {
-                if let Some(state) = on_event0(args)
-                    && partial.0 != state
-                {
-                    partial.0 = state;
-                    updated = true;
-                }
-            } else if let Some(args) = event1.on(update)
-                && let Some(state) = on_event1(args)
-                && partial.1 != state
-            {
-                partial.1 = state;
-                updated = true;
-            }
-            child.event(update);
-
-            if updated && let Some(value) = merge(partial.0.clone(), partial.1.clone()) {
-                state.set(value);
-            }
-        }
-        _ => {}
-    })
-}
-
-/// Helper for declaring state properties that depend on three other event states.
-///
-/// When the `event#` is received `on_event#` is called, if it provides a new value `merge` is called, if merge
-/// provides a new value the `state` variable is set.
-#[expect(clippy::too_many_arguments)]
-pub fn event_state3<A0, A1, A2, S0, S1, S2, S>(
-    child: impl IntoUiNode,
-    state: impl IntoVar<S>,
-    default: S,
-    event0: Event<A0>,
-    default0: S0,
-    mut on_event0: impl FnMut(&A0) -> Option<S0> + Send + 'static,
-    event1: Event<A1>,
-    default1: S1,
-    mut on_event1: impl FnMut(&A1) -> Option<S1> + Send + 'static,
-    event2: Event<A2>,
-    default2: S2,
-    mut on_event2: impl FnMut(&A2) -> Option<S2> + Send + 'static,
-    mut merge: impl FnMut(S0, S1, S2) -> Option<S> + Send + 'static,
-) -> UiNode
-where
-    A0: EventArgs,
-    A1: EventArgs,
-    A2: EventArgs,
-    S0: VarValue,
-    S1: VarValue,
-    S2: VarValue,
-    S: VarValue,
-{
-    let state = state.into_var();
-    let partial_default = (default0, default1, default2);
-    let mut partial = partial_default.clone();
-
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Init => {
-            validate_getter_var(&state);
-            WIDGET.sub_event(&event0).sub_event(&event1).sub_event(&event2);
-
-            partial = partial_default.clone();
-            state.set(default.clone());
-        }
-        UiNodeOp::Deinit => {
-            state.set(default.clone());
-        }
-        UiNodeOp::Event { update } => {
-            let mut updated = false;
-            if let Some(args) = event0.on(update) {
-                if let Some(state) = on_event0(args)
-                    && partial.0 != state
-                {
-                    partial.0 = state;
-                    updated = true;
-                }
-            } else if let Some(args) = event1.on(update) {
-                if let Some(state) = on_event1(args)
-                    && partial.1 != state
-                {
-                    partial.1 = state;
-                    updated = true;
-                }
-            } else if let Some(args) = event2.on(update)
-                && let Some(state) = on_event2(args)
-                && partial.2 != state
-            {
-                partial.2 = state;
-                updated = true;
-            }
-            child.event(update);
-
-            if updated && let Some(value) = merge(partial.0.clone(), partial.1.clone(), partial.2.clone()) {
-                state.set(value);
-            }
-        }
-        _ => {}
-    })
-}
-
-/// Helper for declaring state properties that depend on four other event states.
-///
-/// When the `event#` is received `on_event#` is called, if it provides a new value `merge` is called, if merge
-/// provides a new value the `state` variable is set.
-#[expect(clippy::too_many_arguments)]
-pub fn event_state4<A0, A1, A2, A3, S0, S1, S2, S3, S>(
-    child: impl IntoUiNode,
-    state: impl IntoVar<S>,
-    default: S,
-    event0: Event<A0>,
-    default0: S0,
-    mut on_event0: impl FnMut(&A0) -> Option<S0> + Send + 'static,
-    event1: Event<A1>,
-    default1: S1,
-    mut on_event1: impl FnMut(&A1) -> Option<S1> + Send + 'static,
-    event2: Event<A2>,
-    default2: S2,
-    mut on_event2: impl FnMut(&A2) -> Option<S2> + Send + 'static,
-    event3: Event<A3>,
-    default3: S3,
-    mut on_event3: impl FnMut(&A3) -> Option<S3> + Send + 'static,
-    mut merge: impl FnMut(S0, S1, S2, S3) -> Option<S> + Send + 'static,
-) -> UiNode
-where
-    A0: EventArgs,
-    A1: EventArgs,
-    A2: EventArgs,
-    A3: EventArgs,
-    S0: VarValue,
-    S1: VarValue,
-    S2: VarValue,
-    S3: VarValue,
-    S: VarValue,
-{
-    let state = state.into_var();
-    let partial_default = (default0, default1, default2, default3);
-    let mut partial = partial_default.clone();
-
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Init => {
-            validate_getter_var(&state);
-            WIDGET.sub_event(&event0).sub_event(&event1).sub_event(&event2).sub_event(&event3);
-
-            partial = partial_default.clone();
-            state.set(default.clone());
-        }
-        UiNodeOp::Deinit => {
-            state.set(default.clone());
-        }
-        UiNodeOp::Event { update } => {
-            let mut updated = false;
-            if let Some(args) = event0.on(update) {
-                if let Some(state) = on_event0(args)
-                    && partial.0 != state
-                {
-                    partial.0 = state;
-                    updated = true;
-                }
-            } else if let Some(args) = event1.on(update) {
-                if let Some(state) = on_event1(args)
-                    && partial.1 != state
-                {
-                    partial.1 = state;
-                    updated = true;
-                }
-            } else if let Some(args) = event2.on(update) {
-                if let Some(state) = on_event2(args)
-                    && partial.2 != state
-                {
-                    partial.2 = state;
-                    updated = true;
-                }
-            } else if let Some(args) = event3.on(update)
-                && let Some(state) = on_event3(args)
-                && partial.3 != state
-            {
-                partial.3 = state;
-                updated = true;
-            }
-            child.event(update);
-
-            if updated && let Some(value) = merge(partial.0.clone(), partial.1.clone(), partial.2.clone(), partial.3.clone()) {
-                state.set(value);
-            }
-        }
-        _ => {}
-    })
-}
-
 /// Helper for declaring state properties that are controlled by a variable.
 ///
 /// On init the `state` variable is set to `source` and bound to it, you can use this to create state properties
 /// that map from a context variable or to create composite properties that merge other state properties.
 pub fn bind_state<T: VarValue>(child: impl IntoUiNode, source: impl IntoVar<T>, state: impl IntoVar<T>) -> UiNode {
     let source = source.into_var();
-    let state = state.into_var();
-    let mut _binding = VarHandle::dummy();
-
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Init => {
-            validate_getter_var(&state);
-            state.set_from(&source);
-            _binding = source.bind(&state);
-        }
-        UiNodeOp::Deinit => {
-            _binding = VarHandle::dummy();
-        }
-        _ => {}
+    bind_state_init(child, state, move |state| {
+        state.set_from(&source);
+        source.bind(state)
     })
 }
 
 /// Helper for declaring state properties that are controlled by a variable.
 ///
-/// On init the `state` closure is called to provide a variable, the variable is set to `source` and bound to it,
-/// you can use this to create state properties that map from a context variable or to create composite properties
-/// that merge other state properties.
-pub fn bind_state_init<T>(child: impl IntoUiNode, source: impl Fn() -> Var<T> + Send + 'static, state: impl IntoVar<T>) -> UiNode
+/// On init the `bind` closure is called with the `state` variable, it must set and bind it.
+pub fn bind_state_init<T>(
+    child: impl IntoUiNode,
+    state: impl IntoVar<T>,
+    mut bind: impl FnMut(&Var<T>) -> VarHandle + Send + 'static,
+) -> UiNode
 where
     T: VarValue,
 {
     let state = state.into_var();
-    let mut _source_var = None;
     let mut _binding = VarHandle::dummy();
 
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             validate_getter_var(&state);
-            let source = source();
-            state.set_from(&source);
-            _binding = source.bind(&state);
-            _source_var = Some(source);
+            _binding = bind(&state);
         }
         UiNodeOp::Deinit => {
             _binding = VarHandle::dummy();
-            _source_var = None;
         }
         _ => {}
     })
@@ -2483,10 +1950,6 @@ where
         self.view.info(info);
     }
 
-    fn event(&mut self, update: &zng_app::update::EventUpdate) {
-        self.view.event(update);
-    }
-
     fn measure(&mut self, wm: &mut zng_app::widget::info::WidgetMeasure) -> PxSize {
         self.view.measure(wm)
     }
@@ -2627,10 +2090,6 @@ where
         self.view.info(info)
     }
 
-    fn event(&mut self, update: &zng_app::update::EventUpdate) {
-        self.view.event(update);
-    }
-
     fn measure(&mut self, wm: &mut zng_app::widget::info::WidgetMeasure) -> PxSize {
         self.view.measure(wm)
     }
@@ -2736,8 +2195,3 @@ impl<D: VarValue> VarPresentData<D> for Var<WidgetFn<D>> {
         presenter(data, self.clone())
     }
 }
-
-#[doc(inline)]
-pub use crate::command_property;
-#[doc(inline)]
-pub use crate::event_property;

@@ -30,14 +30,14 @@ mod __prelude {
     pub use zng_app::{
         DInstant, Deadline, INSTANT,
         event::{
-            AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, Event, EventArgs as _, EventHandle,
-            EventHandles, EventPropagationHandle, command, event, event_args,
+            AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, Event, EventArgs as _,
+            EventPropagationHandle, command, event, event_args,
         },
         handler::{Handler, HandlerExt as _, async_hn, async_hn_once, hn, hn_once},
         render::{FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, SpatialFrameId, TransformStyle},
         shortcut::{CommandShortcutExt as _, Shortcut, ShortcutFilter, Shortcuts, shortcut},
         timer::{DeadlineHandle, DeadlineVar, TIMERS, TimerHandle, TimerVar},
-        update::{EventUpdate, UPDATES, UpdateDeliveryList, UpdateOp, WidgetUpdates},
+        update::{UPDATES, UpdateDeliveryList, UpdateOp, WidgetUpdates},
         widget::{
             AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _, WIDGET, WidgetId, WidgetUpdateMode,
             base::{WidgetBase, WidgetImpl},
@@ -59,9 +59,9 @@ mod __prelude {
     };
 
     pub use zng_var::{
-        ContextVar, IntoValue, IntoVar, ObservableVec, ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarUpdateId,
-        VarValue, WeakVar, const_var, context_var, expr_var, flat_expr_var, impl_from_and_into_var, merge_var, response_done_var,
-        response_var, var, var_default, var_from, var_state, when_var,
+        ContextVar, IntoValue, IntoVar, ObservableVec, ResponderVar, ResponseVar, Var, VarCapability, VarEq, VarHandle, VarHandles,
+        VarUpdateId, VarValue, WeakVar, WeakVarEq, WeakVarHandle, const_var, context_var, expr_var, flat_expr_var, impl_from_and_into_var,
+        merge_var, response_done_var, response_var, var, var_default, var_from, var_state, when_var,
     };
 
     pub use zng_layout::{
@@ -94,10 +94,10 @@ mod __prelude {
     };
 
     pub use crate::node::{
-        VarPresent as _, VarPresentData as _, VarPresentList as _, VarPresentListFromIter as _, VarPresentOpt as _, bind_state,
-        border_node, command_property, event_property, event_state, event_state2, event_state3, event_state4, fill_node, list_presenter,
-        list_presenter_from_iter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend,
-        with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
+        EventNodeBuilder, VarEventNodeBuilder, VarPresent as _, VarPresentData as _, VarPresentList as _, VarPresentListFromIter as _,
+        VarPresentOpt as _, bind_state, border_node, command_property, event_property, fill_node, list_presenter, list_presenter_from_iter,
+        presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local,
+        with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
     };
 
     pub use crate::{CommandIconExt as _, WidgetFn, wgt_fn};

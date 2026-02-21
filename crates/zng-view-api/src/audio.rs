@@ -303,7 +303,7 @@ pub struct AudioMetadata {
     ///
     /// A sample is a single sequence of `channel_count`.
     pub sample_rate: u32,
-    /// Total duration of the tack, if it is known.
+    /// Total duration of the track, if it is known.
     pub total_duration: Option<Duration>,
 
     /// Track is an entry (or subtree) of this other track.
@@ -318,6 +318,18 @@ impl AudioMetadata {
             sample_rate,
             total_duration: None,
             parent: None,
+        }
+    }
+}
+/// Invalid initial value.
+impl Default for AudioMetadata {
+    fn default() -> Self {
+        Self {
+            id: AudioId::INVALID,
+            channel_count: Default::default(),
+            sample_rate: Default::default(),
+            total_duration: Default::default(),
+            parent: Default::default(),
         }
     }
 }
@@ -382,6 +394,17 @@ impl AudioDecoded {
             offset: 0,
             chunk,
             is_full: false,
+        }
+    }
+}
+/// Invalid initial value.
+impl Default for AudioDecoded {
+    fn default() -> Self {
+        Self {
+            id: AudioId::INVALID,
+            offset: Default::default(),
+            chunk: Default::default(),
+            is_full: Default::default(),
         }
     }
 }
@@ -470,7 +493,7 @@ impl AudioOutputConfig {
 }
 
 /// Represents the playback state if an audio output stream.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum AudioOutputState {
     /// Audio is sent to the device for playback as in the sequence they are cued.

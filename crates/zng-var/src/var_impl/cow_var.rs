@@ -272,6 +272,7 @@ impl VarImpl for CowVar {
     }
 }
 
+#[derive(PartialEq)]
 pub(crate) struct WeakCowVar(super::shared_var::WeakSharedVar);
 impl fmt::Debug for WeakCowVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -289,5 +290,12 @@ impl WeakVarImpl for WeakCowVar {
 
     fn upgrade(&self) -> Option<DynAnyVar> {
         Some(DynAnyVar::Cow(CowVar(self.0.upgrade_typed()?)))
+    }
+
+    fn var_eq(&self, other: &DynWeakAnyVar) -> bool {
+        match other {
+            DynWeakAnyVar::Cow(v) => self.0 == v.0,
+            _ => false,
+        }
     }
 }

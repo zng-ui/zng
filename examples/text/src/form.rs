@@ -19,14 +19,7 @@ pub fn form_editor() -> UiNode {
         );
         style_fn = button::LinkStyle!();
         on_click = hn!(|_| {
-            let editor_id = WindowId::named("form-editor");
-            if is_open.get() {
-                if WINDOWS.focus(editor_id).is_err() {
-                    is_open.set(false);
-                }
-            } else {
-                WINDOWS.open_id(editor_id, async_clmv!(is_open, { form_editor_window(is_open) }));
-            }
+            WINDOWS.focus_or_open("form-editor", async_clmv!(is_open, { form_editor_window(is_open) }));
         });
     }
 }
@@ -51,7 +44,8 @@ fn form_editor_window(is_open: Var<bool>) -> WindowRoot {
             padding = 20;
 
             label::style_fn = Style! {
-                text::txt_align = Align::END;
+                text::txt_align = Align::TOP_END;
+                layout::padding = (10, 0, 0, 0);
             };
             text_input::style_fn = style_fn!(|_| text_input::FieldStyle!());
 

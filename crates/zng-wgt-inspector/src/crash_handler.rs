@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use zng_app::crash_handler::*;
 use zng_ext_config::CONFIG;
 use zng_ext_l10n::l10n;
-use zng_ext_window::{StartPosition, WINDOWS, WindowRoot};
+use zng_ext_window::{StartPosition, WINDOWS_FOCUS, WindowRoot};
 use zng_wgt::node::VarPresent as _;
 use zng_wgt::prelude::*;
 use zng_wgt::{align, corner_radius, enabled, margin};
@@ -48,7 +48,7 @@ pub fn debug_dialog(args: CrashArgs) -> WindowRoot {
 
         on_load = hn_once!(|_| {
             // force to foreground
-            let _ = WINDOWS.focus(WINDOW.id());
+            WINDOWS_FOCUS.focus(WINDOW.id());
         });
         on_close = hn_once!(args, |_| {
             args.exit(0);

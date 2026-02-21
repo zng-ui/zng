@@ -23,7 +23,7 @@ pub use crate::live::data_model::{INSPECTOR, InspectedInfo, InspectedTree, Inspe
 
 command! {
     /// Represent the window **inspect** action.
-    pub static INSPECT_CMD = {
+    pub static INSPECT_CMD {
         l10n!: "inspector",
         name: "Debug Inspector",
         info: "Inspect the window",

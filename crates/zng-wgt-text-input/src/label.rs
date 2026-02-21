@@ -70,9 +70,9 @@ pub fn target(child: impl IntoUiNode, target: impl IntoVar<WidgetId>) -> UiNode 
         UiNodeOp::Init => {
             WIDGET
                 .sub_var(&target)
-                .sub_event(&MOUSE_INPUT_EVENT)
-                .sub_event(&TOUCH_INPUT_EVENT)
-                .sub_event(&ACCESS_CLICK_EVENT);
+                .sub_event_when(&MOUSE_INPUT_EVENT, |a| a.is_mouse_down())
+                .sub_event_when(&TOUCH_INPUT_EVENT, |a| a.is_touch_start())
+                .sub_event_when(&ACCESS_CLICK_EVENT, |a| a.is_primary);
         }
         UiNodeOp::Info { info } => {
             c.info(info);
@@ -85,30 +85,22 @@ pub fn target(child: impl IntoUiNode, target: impl IntoVar<WidgetId>) -> UiNode 
                 a.set_labels(target);
             }
         }
-        UiNodeOp::Event { update } => {
-            c.event(update);
-
-            if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
-                if args.is_mouse_down() {
-                    FOCUS.focus_widget_or_enter(target.get(), true, false);
-                }
-            } else if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
-                if args.is_touch_start() {
-                    FOCUS.focus_widget_or_enter(target.get(), true, false);
-                }
-            } else if let Some(args) = ACCESS_CLICK_EVENT.on(update)
-                && args.is_primary
-            {
-                FOCUS.focus_widget_or_enter(target.get(), true, false);
-            }
-        }
-        UiNodeOp::Update { .. } => {
+        UiNodeOp::Update { updates } => {
             if let Some(id) = target.get_new() {
                 if let Some(id) = prev_target.take() {
                     UPDATES.update_info(id);
                 }
                 UPDATES.update_info(id);
                 WIDGET.update_info();
+            }
+
+            c.update(updates);
+
+            if MOUSE_INPUT_EVENT.any_update(true, |a| a.is_mouse_down())
+                || TOUCH_INPUT_EVENT.any_update(true, |a| a.is_touch_start())
+                || ACCESS_CLICK_EVENT.any_update(true, |a| a.is_primary)
+            {
+                FOCUS.focus_widget_or_enter(target.get(), true, false);
             }
         }
         _ => {}

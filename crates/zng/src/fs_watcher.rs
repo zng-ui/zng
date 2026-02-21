@@ -98,6 +98,7 @@ mod images_ext {
         let img = IMAGES.read(path.clone());
         let handle = WATCHER.on_file_changed(
             path.clone(),
+            true,
             hn!(|_| {
                 let mut opt = ImageOptions::cache();
                 opt.cache_mode = ImageCacheMode::Reload;
@@ -112,6 +113,7 @@ mod images_ext {
         let img = IMAGES.image(ImageSource::Read(path.clone()), option.clone(), limits.clone());
         let handle = WATCHER.on_file_changed(
             path.clone(),
+            true,
             hn!(|_| {
                 let mut opt = option.clone();
                 opt.cache_mode = ImageCacheMode::Reload;

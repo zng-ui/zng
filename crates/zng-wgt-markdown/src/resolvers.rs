@@ -189,9 +189,10 @@ event! {
 
 event_property! {
     /// Markdown link click.
-    pub fn link {
-        event: LINK_EVENT,
-        args: LinkArgs,
+    #[property(EVENT)]
+    pub fn on_link<on_pre_link>(child: impl IntoUiNode, handler: Handler<LinkArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(LINK_EVENT).build::<PRE>(child, handler)
     }
 }
 
@@ -206,8 +207,8 @@ event_args! {
 
         ..
 
-        fn delivery_list(&self, delivery_list: &mut UpdateDeliveryList) {
-            delivery_list.insert_wgt(self.link.as_path())
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.link.contains(id)
         }
     }
 }
@@ -226,7 +227,7 @@ pub fn try_default_link_action(args: &LinkArgs) -> bool {
 ///
 /// Note that the request is handled even if the anchor is not found.
 pub fn try_scroll_link(args: &LinkArgs) -> bool {
-    if args.propagation().is_stopped() {
+    if args.propagation.is_stopped() {
         return false;
     }
     // Note: file names can start with #, but we are choosing to always interpret URLs with this prefix as an anchor.
@@ -243,7 +244,7 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
                 FOCUS.focus_widget(focus.info().id(), false);
             }
         }
-        args.propagation().stop();
+        args.propagation.stop();
         return true;
     }
 
@@ -252,7 +253,7 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
 
 /// Try open link, only works if the `url` is valid or a file path, returns if the confirm tooltip is visible.
 pub fn try_open_link(args: &LinkArgs) -> bool {
-    if args.propagation().is_stopped() {
+    if args.propagation.is_stopped() {
         return false;
     }
 
@@ -319,16 +320,6 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
 
             LAYERS.remove(popup_id);
         });
-        on_move = async_hn!(status, |args| {
-            if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
-                return;
-            }
-
-            status.set(Status::Cancel);
-            task::deadline(200.ms()).await;
-
-            LAYERS.remove(popup_id);
-        });
 
         child = Button! {
             style_fn = zng_wgt_button::LinkStyle!();
@@ -342,11 +333,11 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
             text::underline_skip = text::UnderlineSkip::SPACES;
 
             on_click = async_hn_once!(status, link, |args: &ClickArgs| {
-                if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
+                if status.get() != Status::Pending || args.timestamp.duration_since(open_time) < 300.ms() {
                     return;
                 }
 
-                args.propagation().stop();
+                args.propagation.stop();
 
                 let (uri, kind) = match link {
                     Link::Url(u) => (u.to_string(), "url"),
@@ -413,11 +404,11 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
             padding = 3;
             child = COPY_CMD.icon().present_data(());
             on_click = async_hn_once!(status, |args: &ClickArgs| {
-                if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
+                if status.get() != Status::Pending || args.timestamp.duration_since(open_time) < 300.ms() {
                     return;
                 }
 
-                args.propagation().stop();
+                args.propagation.stop();
 
                 let txt = match link {
                     Link::Url(u) => u.to_txt(),

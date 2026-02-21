@@ -29,7 +29,7 @@
 //! ```no_run
 //! use zng::prelude::*;
 //!
-//! APP.defaults().run_window(async {
+//! APP.defaults().run_window("main", async {
 //!     // start loading localization resources
 //!     L10N.load_dir(zng::env::res("l10n"));
 //!     // set the app language, by default is the system language
@@ -115,7 +115,7 @@
 //! ```
 //! # use zng_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
 //! command! {
-//!     pub static FOO_CMD = {
+//!     pub static FOO_CMD {
 //!         l10n!: true,
 //!         name: "Foo!",
 //!         info: "Does the foo thing",
@@ -136,7 +136,7 @@
 //! ```
 //! # use zng_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
 //! command! {
-//!     pub static FOO_CMD = {
+//!     pub static FOO_CMD {
 //!         l10n!: "file",
 //!         name: "Foo!",
 //!     };

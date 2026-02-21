@@ -16,7 +16,7 @@ use zng::{
 fn main() {
     zng::env::init!();
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         Window! {
             title = "Transform Example";
             child = Stack! {
@@ -376,27 +376,19 @@ fn open_touch_example() -> UiNode {
         font_size = 1.1.em();
         child = Text!("Touch Transform");
         on_click = hn!(|_| {
-            let example_id = WindowId::named("touch-example");
-            if is_open.get() {
-                if WINDOWS.focus(example_id).is_err() {
-                    is_open.set(false);
-                }
-            } else {
-                let parent = WINDOW.id();
-                is_open.set(true);
-                WINDOWS.open_id(
-                    example_id,
-                    async_clmv!(is_open, {
-                        Window! {
-                            title = "Transform Example - Touch";
-                            state = WindowState::Maximized;
-                            parent;
-                            child = touch_example();
-                            on_close = hn_once!(|_| is_open.set(false));
-                        }
-                    }),
-                );
-            }
+            let parent = WINDOW.id();
+            WINDOWS.focus_or_open(
+                "touch-example",
+                async_clmv!(is_open, {
+                    Window! {
+                        title = "Transform Example - Touch";
+                        state = WindowState::Maximized;
+                        parent;
+                        child = touch_example();
+                        on_close = hn_once!(|_| is_open.set(false));
+                    }
+                }),
+            );
         });
     }
 }

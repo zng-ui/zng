@@ -14,7 +14,7 @@ fn main() {
 }
 
 fn app_main() {
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         let count = timer::TIMERS.interval(1.secs(), false).map(move |t| {
             let count = 10 - t.count();
             if count == 0 {

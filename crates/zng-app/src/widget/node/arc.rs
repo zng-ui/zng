@@ -188,7 +188,7 @@ mod impls {
     use crate::{
         event::{Event, EventArgs},
         render::{FrameBuilder, FrameUpdate},
-        update::{EventUpdate, UPDATES, WidgetUpdates},
+        update::{UPDATES, WidgetUpdates},
         widget::{
             WIDGET, WidgetHandlesCtx,
             info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
@@ -200,11 +200,6 @@ mod impls {
 
     pub(super) trait TakeOn: Send + 'static {
         fn take_on_init(&mut self) -> bool {
-            false
-        }
-
-        fn take_on_event(&mut self, update: &EventUpdate) -> bool {
-            let _ = update;
             false
         }
 
@@ -239,12 +234,10 @@ mod impls {
             self.take_on_init
         }
 
-        fn take_on_event(&mut self, update: &EventUpdate) -> bool {
-            if let Some(args) = self.event.on(update) {
-                (self.filter)(args)
-            } else {
-                false
-            }
+        fn take_on_update(&mut self, _: &WidgetUpdates) -> bool {
+            let mut any = false;
+            self.event.each_update(true, |a| any |= (self.filter)(a));
+            any
         }
     }
 
@@ -280,13 +273,6 @@ mod impls {
             }
 
             self.wgt_handles.clear();
-        }
-
-        fn on_event(&mut self, update: &EventUpdate) {
-            if !self.is_owner() && self.take.take_on_event(update) {
-                // request ownership.
-                self.take();
-            }
         }
 
         fn on_update(&mut self, updates: &WidgetUpdates) {
@@ -412,11 +398,6 @@ mod impls {
 
         fn info(&mut self, info: &mut WidgetInfoBuilder) {
             self.delegate_owned_mut(|n| n.0.info(info));
-        }
-
-        fn event(&mut self, update: &EventUpdate) {
-            self.delegate_owned_mut_with_handles(|n| n.0.event(update));
-            self.on_event(update);
         }
 
         fn update(&mut self, updates: &WidgetUpdates) {

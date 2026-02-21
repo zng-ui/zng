@@ -623,10 +623,10 @@ impl ScrollBarArgs {
 #[property(LAYOUT, default(false), widget_impl(Scroll))]
 pub fn mouse_pan(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
-    let mut mouse_input = EventHandle::dummy();
+    let mut mouse_input = VarHandle::dummy();
 
     struct Dragging {
-        _mouse_move: EventHandle,
+        _mouse_move: VarHandle,
         start: PxPoint,
         applied_offset: PxVector,
         factor: Factor,
@@ -637,48 +637,50 @@ pub fn mouse_pan(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode 
         UiNodeOp::Init => {
             WIDGET.sub_var(&enabled);
             if enabled.get() {
-                mouse_input = MOUSE_INPUT_EVENT.subscribe(WIDGET.id());
+                mouse_input = MOUSE_INPUT_EVENT.subscribe_when(UpdateOp::Update, WIDGET.id(), |args| args.is_primary());
             }
         }
         UiNodeOp::Deinit => {
-            mouse_input = EventHandle::dummy();
+            mouse_input = VarHandle::dummy();
             dragging = None;
         }
-        UiNodeOp::Update { .. } => {
+        UiNodeOp::Update { updates } => {
             if let Some(enabled) = enabled.get_new() {
                 if enabled && mouse_input.is_dummy() {
-                    mouse_input = MOUSE_INPUT_EVENT.subscribe(WIDGET.id());
+                    mouse_input = MOUSE_INPUT_EVENT.subscribe_when(UpdateOp::Update, WIDGET.id(), |args| args.is_primary());
                 } else {
-                    mouse_input = EventHandle::dummy();
+                    mouse_input = VarHandle::dummy();
                     dragging = None;
                 }
             }
-        }
-        UiNodeOp::Event { update } => {
-            if enabled.get() {
-                c.event(update);
+            if !enabled.get() {
+                return;
+            }
+            c.update(updates);
 
-                if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
-                    if args.is_primary() {
-                        if args.is_mouse_down() {
-                            let id = WIDGET.id();
-                            POINTER_CAPTURE.capture_widget(id);
-                            let factor = WINDOW.info().scale_factor();
-                            dragging = Some(Dragging {
-                                _mouse_move: MOUSE_MOVE_EVENT.subscribe(id),
-                                start: args.position.to_px(factor),
-                                applied_offset: PxVector::zero(),
-                                factor,
-                            });
-                        } else {
-                            dragging = None;
-                            SCROLL.clear_vertical_overscroll();
-                            SCROLL.clear_horizontal_overscroll();
-                        }
-                    }
-                } else if let Some(d) = &mut dragging
-                    && let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update)
-                {
+            MOUSE_INPUT_EVENT.each_update(false, |args| {
+                if !args.is_primary() {
+                    return;
+                }
+                if args.is_mouse_down() {
+                    let id = WIDGET.id();
+                    POINTER_CAPTURE.capture_widget(id);
+                    let factor = WINDOW.info().scale_factor();
+                    dragging = Some(Dragging {
+                        _mouse_move: MOUSE_MOVE_EVENT.subscribe(UpdateOp::Update, id),
+                        start: args.position.to_px(factor),
+                        applied_offset: PxVector::zero(),
+                        factor,
+                    });
+                } else {
+                    debug_assert!(args.is_mouse_up());
+                    dragging = None;
+                    SCROLL.clear_vertical_overscroll();
+                    SCROLL.clear_horizontal_overscroll();
+                }
+            });
+            if let Some(d) = &mut dragging {
+                MOUSE_MOVE_EVENT.each_update(false, |args| {
                     let offset = d.start - args.position.to_px(d.factor);
                     let delta = d.applied_offset - offset;
                     d.applied_offset = offset;
@@ -689,7 +691,7 @@ pub fn mouse_pan(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode 
                     if delta.x != Px(0) {
                         SCROLL.scroll_horizontal_touch(-delta.x);
                     }
-                }
+                });
             }
         }
         _ => {}

@@ -153,4 +153,22 @@ impl<V: WeakVarImpl> WeakVarImpl for ReadOnlyImpl<V> {
     fn upgrade(&self) -> Option<DynAnyVar> {
         Some(self.0.upgrade()?.into_read_only())
     }
+
+    fn var_eq(&self, other: &DynWeakAnyVar) -> bool {
+        #[inline(always)]
+        fn eq_any<V: WeakVarImpl + PartialEq + Any>(self_: &dyn Any, other: &V) -> bool {
+            match self_.downcast_ref::<V>() {
+                Some(v) => v == other,
+                None => false,
+            }
+        }
+        match other {
+            DynWeakAnyVar::ReadOnlyShared(v) => eq_any(&self.0, &v.0),
+            DynWeakAnyVar::ReadOnlyFlatMap(v) => eq_any(&self.0, &v.0),
+            DynWeakAnyVar::ReadOnlyContext(v) => eq_any(&self.0, &v.0),
+            DynWeakAnyVar::ReadOnlyCow(v) => eq_any(&self.0, &v.0),
+            DynWeakAnyVar::ReadOnlyContextual(v) => eq_any(&self.0, &v.0),
+            _ => false,
+        }
+    }
 }

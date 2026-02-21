@@ -29,7 +29,7 @@ use zng_layout::{
 };
 use zng_state_map::{OwnedStateMap, StateMapRef};
 use zng_txt::{Txt, formatx};
-use zng_unique_id::{IdEntry, IdMap};
+use zng_unique_id::IdMap;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::{ViewProcessGen, display_list::FrameValueUpdate, window::FrameId};
 
@@ -110,6 +110,27 @@ impl WidgetInfoTreeStatsUpdate {
         mem::take(self)
     }
 }
+
+/// Weak reference to a [`WidgetInfoTree`].
+#[derive(Clone, Debug, Default)]
+pub struct WeakWidgetInfoTree(std::sync::Weak<WidgetInfoTreeInner>);
+impl WeakWidgetInfoTree {
+    /// New without allocating any memory.
+    pub const fn new() -> Self {
+        Self(std::sync::Weak::new())
+    }
+
+    /// Attempt to upgrade to a strong reference to the widget tree.
+    pub fn upgrade(&self) -> Option<WidgetInfoTree> {
+        self.0.upgrade().map(WidgetInfoTree)
+    }
+}
+impl PartialEq for WeakWidgetInfoTree {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.ptr_eq(&other.0)
+    }
+}
+impl Eq for WeakWidgetInfoTree {}
 
 /// A tree of [`WidgetInfo`].
 ///
@@ -266,12 +287,18 @@ impl WidgetInfoTree {
         scale_factor: Factor,
         view_process_gen: Option<ViewProcessGen>,
         widget_count_offsets: Option<ParallelSegmentOffsets>,
+        notify: bool,
     ) {
         let mut frame = self.0.frame.write();
         let stats_update = frame.stats_update.take();
+
+        let mut any_update = stats_update.bounds_updated > 0 || stats_update.vis_updated > 0;
+
         frame.stats.update(frame_id, stats_update);
 
         if !frame.out_of_bounds_update.is_empty() {
+            any_update = true;
+
             // update out-of-bounds list, reuses the same vec most of the time,
             // unless a spatial iter was generated and not dropped before render.
 
@@ -294,93 +321,45 @@ impl WidgetInfoTree {
             let b = WidgetInfo::new(self.clone(), *out).inner_bounds().to_box2d();
             spatial_bounds = spatial_bounds.union(&b);
         }
+        any_update = any_update || frame.spatial_bounds != spatial_bounds;
         frame.spatial_bounds = spatial_bounds;
 
+        any_update = any_update || frame.scale_factor != scale_factor;
         frame.scale_factor = scale_factor;
+
         if let Some(vp_gen) = view_process_gen {
+            any_update = any_update || frame.view_process_gen != vp_gen;
+
             frame.view_process_gen = vp_gen;
         }
         if let Some(w) = widget_count_offsets {
+            any_update = any_update || frame.widget_count_offsets != w;
+
             frame.widget_count_offsets = w;
         }
 
-        let mut changes = IdMap::new();
-        TRANSFORM_CHANGED_EVENT.visit_subscribers::<()>(|wid| {
-            if let Some(wgt) = self.get(wid) {
-                let transform = wgt.inner_transform();
-                match frame.transform_changed_subs.entry(wid) {
-                    IdEntry::Occupied(mut e) => {
-                        let prev = e.insert(transform);
-                        if prev != transform {
-                            changes.insert(wid, prev);
-                        }
-                    }
-                    IdEntry::Vacant(e) => {
-                        e.insert(transform);
-                    }
-                }
-            }
-            ops::ControlFlow::Continue(())
-        });
-        if !changes.is_empty() {
-            if (frame.transform_changed_subs.len() - changes.len()) > 500 {
-                frame
-                    .transform_changed_subs
-                    .retain(|k, _| TRANSFORM_CHANGED_EVENT.is_subscriber(*k));
-            }
-
-            TRANSFORM_CHANGED_EVENT.notify(TransformChangedArgs::now(self.clone(), changes));
-        }
-        drop(frame); // wgt.visibility can read frame
-
-        let mut changes = IdMap::new();
-        VISIBILITY_CHANGED_EVENT.visit_subscribers::<()>(|wid| {
-            if let Some(wgt) = self.get(wid) {
-                let visibility = wgt.visibility();
-                let mut frame = self.0.frame.write();
-                match frame.visibility_changed_subs.entry(wid) {
-                    IdEntry::Occupied(mut e) => {
-                        let prev = e.insert(visibility);
-                        if prev != visibility {
-                            changes.insert(wid, prev);
-                        }
-                    }
-                    IdEntry::Vacant(e) => {
-                        e.insert(visibility);
-                    }
-                }
-            }
-            ops::ControlFlow::Continue(())
-        });
-        if !changes.is_empty() {
-            if (self.0.frame.read().visibility_changed_subs.len() - changes.len()) > 500 {
-                self.0
-                    .frame
-                    .write()
-                    .visibility_changed_subs
-                    .retain(|k, _| VISIBILITY_CHANGED_EVENT.is_subscriber(*k));
-            }
-
-            VISIBILITY_CHANGED_EVENT.notify(VisibilityChangedArgs::now(self.clone(), changes));
+        if notify && any_update {
+            WIDGET_TREE_CHANGED_EVENT.notify(WidgetTreeChangedArgs::now(self.downgrade(), self.clone(), true));
         }
     }
 
-    pub(crate) fn after_render_update(&self, frame_id: FrameId) {
+    pub(crate) fn after_render_update(&self, frame_id: FrameId, notify: bool) {
         let scale_factor = self.0.frame.read().scale_factor;
-        self.after_render(frame_id, scale_factor, None, None);
+        self.after_render(frame_id, scale_factor, None, None, notify);
+    }
+
+    /// Create a weak reference to this tree.
+    pub fn downgrade(&self) -> WeakWidgetInfoTree {
+        WeakWidgetInfoTree(Arc::downgrade(&self.0))
     }
 }
 impl fmt::Debug for WidgetInfoTree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let nl = if f.alternate() { "\n   " } else { " " };
-
-        write!(
-            f,
-            "WidgetInfoTree(Rc<{{{nl}window_id: {},{nl}widget_count: {},{nl}...}}>)",
-            self.0.window_id,
-            self.0.lookup.len(),
-            nl = nl
-        )
+        f.debug_struct("WidgetInfoTree")
+            .field("len()", &self.len())
+            .field("spatial_bounds()", &self.spatial_bounds())
+            .field("stats()", &self.stats())
+            .finish_non_exhaustive()
     }
 }
 
@@ -1046,8 +1025,8 @@ impl std::hash::Hash for WidgetInfo {
 impl std::fmt::Debug for WidgetInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WidgetInfo")
-            .field("[path]", &self.path().to_string())
-            .field("[meta]", &self.meta())
+            .field("trace_path()", &self.trace_path())
+            .field("inner_bounds()", &self.inner_bounds())
             .finish_non_exhaustive()
     }
 }
@@ -2187,6 +2166,55 @@ impl WidgetInfo {
 
         nearest
     }
+
+    /// Custom [`fmt::Debug`] formatter.
+    ///
+    /// The `fmt` closure must include relevant fields for printing and return `true` to include widget children
+    /// or `false` to skip children.
+    ///
+    /// Note that the [`trace_id`] is used as the [`fmt::DebugStruct`].
+    ///
+    /// [`trace_id`]: Self::trace_id
+    pub fn fmt_debug(&self, fmt: &dyn Fn(&Self, &mut fmt::DebugStruct) -> bool) -> impl fmt::Debug {
+        struct FmtDebug<'a> {
+            wgt: WidgetInfo,
+            fmt: &'a dyn Fn(&WidgetInfo, &mut fmt::DebugStruct) -> bool,
+        }
+        impl<'a> fmt::Debug for FmtDebug<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let mut s = f.debug_struct(&self.wgt.trace_id());
+                let enter = (self.fmt)(&self.wgt, &mut s);
+                if enter {
+                    s.field(
+                        "children",
+                        &FmtDebugChildren {
+                            wgt: self.wgt.clone(),
+                            fmt: self.fmt,
+                        },
+                    );
+                    s.finish()
+                } else if self.wgt.descendants_len() > 0 {
+                    s.finish_non_exhaustive()
+                } else {
+                    s.finish()
+                }
+            }
+        }
+        struct FmtDebugChildren<'a> {
+            wgt: WidgetInfo,
+            fmt: &'a dyn Fn(&WidgetInfo, &mut fmt::DebugStruct) -> bool,
+        }
+        impl<'a> fmt::Debug for FmtDebugChildren<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let mut c = f.debug_list();
+                for child in self.wgt.children() {
+                    c.entry(&FmtDebug { wgt: child, fmt: self.fmt });
+                }
+                c.finish()
+            }
+        }
+        FmtDebug { wgt: self.clone(), fmt }
+    }
 }
 
 /// Argument for a interactivity filter function.
@@ -2387,7 +2415,7 @@ impl WidgetDescendantsRange {
 }
 
 /// A hit-test hit.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct HitInfo {
     /// ID of widget hit.
@@ -2398,7 +2426,7 @@ pub struct HitInfo {
 }
 
 /// A hit-test result.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct HitTestInfo {
     window_id: WindowId,
     frame_id: FrameId,

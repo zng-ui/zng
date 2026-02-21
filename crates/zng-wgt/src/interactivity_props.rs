@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use task::parking_lot::Mutex;
-use zng_app::{static_id, widget::info};
+use zng_app::{static_id, widget::info::WIDGET_TREE_CHANGED_EVENT};
 
-use crate::prelude::*;
+use crate::{event_property, node::bind_state_init, prelude::*};
 
 context_var! {
     static IS_ENABLED_VAR: bool = true;
@@ -90,6 +90,22 @@ pub fn interactive(child: impl IntoUiNode, interactive: impl IntoVar<bool>) -> U
     })
 }
 
+fn is_interactivity_state(child: UiNode, state: Var<bool>, check: fn(Interactivity) -> bool) -> UiNode {
+    bind_state_init(child, state, move |state| {
+        let win_id = WINDOW.id();
+        let wgt_id = WIDGET.id();
+        WIDGET_TREE_CHANGED_EVENT.var_bind(state, move |args| {
+            if args.tree.window_id() == win_id
+                && let Some(wgt) = args.tree.get(wgt_id)
+            {
+                Some(check(wgt.interactivity()))
+            } else {
+                None
+            }
+        })
+    })
+}
+
 /// If the widget is enabled for interaction.
 ///
 /// This property is used only for probing the state. You can set the state using
@@ -98,13 +114,7 @@ pub fn interactive(child: impl IntoUiNode, interactive: impl IntoVar<bool>) -> U
 /// [`enabled`]: fn@enabled
 #[property(EVENT)]
 pub fn is_enabled(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state(child, state, true, info::INTERACTIVITY_CHANGED_EVENT, move |args| {
-        if let Some((_, new)) = args.vis_enabled_change(WIDGET.id()) {
-            Some(new.is_vis_enabled())
-        } else {
-            None
-        }
-    })
+    is_interactivity_state(child.into_node(), state.into_var(), Interactivity::is_vis_enabled)
 }
 /// If the widget is disabled for interaction.
 ///
@@ -114,201 +124,34 @@ pub fn is_enabled(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
 /// [`enabled`]: fn@enabled
 #[property(EVENT)]
 pub fn is_disabled(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    event_state(child, state, false, info::INTERACTIVITY_CHANGED_EVENT, move |args| {
-        if let Some((_, new)) = args.vis_enabled_change(WIDGET.id()) {
-            Some(!new.is_vis_enabled())
-        } else {
-            None
-        }
-    })
+    fn check(i: Interactivity) -> bool {
+        !i.is_vis_enabled()
+    }
+    is_interactivity_state(child.into_node(), state.into_var(), check)
 }
 
-event_property! {
-    /// Widget interactivity changed.
-    ///
-    /// Note that there are multiple specific events for interactivity changes, [`on_enable`], [`on_disable`], [`on_block`] and [`on_unblock`]
-    /// are some of then.
-    ///
-    /// Note that an event is received when the widget first initializes in the widget info tree, this is because the interactivity *changed*
-    /// from `None`, this initial event can be detected using the [`is_new`] method in the args.
-    ///
-    /// [`on_enable`]: fn@on_enable
-    /// [`on_disable`]: fn@on_disable
-    /// [`on_block`]: fn@on_block
-    /// [`on_unblock`]: fn@on_unblock
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
-    pub fn interactivity_changed {
-        event: info::INTERACTIVITY_CHANGED_EVENT,
-        args: info::InteractivityChangedArgs,
-    }
-
-    /// Widget was enabled or disabled.
-    ///
-    /// Note that this event tracks the actual enabled status of the widget, not the visually enabled status,
-    /// see [`Interactivity`] for more details.
-    ///
-    /// Note that an event is received when the widget first initializes in the widget info tree, this is because the interactivity *changed*
-    /// from `None`, this initial event can be detected using the [`is_new`] method in the args.
-    ///
-    /// See [`on_interactivity_changed`] for a more general interactivity event.
-    ///
-    /// [`on_interactivity_changed`]: fn@on_interactivity_changed
-    /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
-    pub fn enabled_changed {
-        event: info::INTERACTIVITY_CHANGED_EVENT,
-        args: info::InteractivityChangedArgs,
-        filter: |a| a.enabled_change(WIDGET.id()).is_some(),
-    }
-
-    /// Widget changed to enabled or disabled visuals.
-    ///
-    /// Note that this event tracks the visual enabled status of the widget, not the actual status, the widget may
-    /// still be blocked, see [`Interactivity`] for more details.
-    ///
-    /// Note that an event is received when the widget first initializes in the widget info tree, this is because the interactivity *changed*
-    /// from `None`, this initial event can be detected using the [`is_new`] method in the args.
-    ///
-    /// See [`on_interactivity_changed`] for a more general interactivity event.
-    ///
-    /// [`on_interactivity_changed`]: fn@on_interactivity_changed
-    /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
-    pub fn vis_enabled_changed {
-        event: info::INTERACTIVITY_CHANGED_EVENT,
-        args: info::InteractivityChangedArgs,
-        filter: |a| a.vis_enabled_change(WIDGET.id()).is_some(),
-    }
-
-    /// Widget interactions where blocked or unblocked.
-    ///
-    /// Note that blocked widgets may still be visually enabled, see [`Interactivity`] for more details.
-    ///
-    /// Note that an event is received when the widget first initializes in the widget info tree, this is because the interactivity *changed*
-    /// from `None`, this initial event can be detected using the [`is_new`] method in the args.
-    ///
-    /// See [`on_interactivity_changed`] for a more general interactivity event.
-    ///
-    /// [`on_interactivity_changed`]: fn@on_interactivity_changed
-    /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
-    pub fn blocked_changed {
-        event: info::INTERACTIVITY_CHANGED_EVENT,
-        args: info::InteractivityChangedArgs,
-        filter: |a| a.blocked_change(WIDGET.id()).is_some(),
-    }
-
-    /// Widget normal interactions now enabled.
-    ///
-    /// Note that this event tracks the actual enabled status of the widget, not the visually enabled status,
-    /// see [`Interactivity`] for more details.
-    ///
-    /// Note that an event is received when the widget first initializes in the widget info tree if it starts enabled,
-    /// this initial event can be detected using the [`is_new`] method in the args.
-    ///
-    /// See [`on_enabled_changed`] for a more general event.
-    ///
-    /// [`on_enabled_changed`]: fn@on_enabled_changed
-    /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
-    pub fn enable {
-        event: info::INTERACTIVITY_CHANGED_EVENT,
-        args: info::InteractivityChangedArgs,
-        filter: |a| a.is_enable(WIDGET.id()),
-    }
-
-    /// Widget normal interactions now disabled.
-    ///
-    /// Note that this event tracks the actual enabled status of the widget, not the visually enabled status,
-    /// see [`Interactivity`] for more details.
-    ///
-    /// Note that an event is received when the widget first initializes in the widget info tree if it starts disabled,
-    /// this initial event can be detected using the [`is_new`] method in the args.
-    ///
-    /// See [`on_enabled_changed`] for a more general event.
-    ///
-    /// [`on_enabled_changed`]: fn@on_enabled_changed
-    /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
-    pub fn disable {
-        event: info::INTERACTIVITY_CHANGED_EVENT,
-        args: info::InteractivityChangedArgs,
-        filter: |a| a.is_disable(WIDGET.id()),
-    }
-
-    /// Widget now looks enabled.
-    ///
-    /// Note that this event tracks the visual enabled status of the widget, not the actual status, the widget may
-    /// still be blocked, see [`Interactivity`] for more details.
-    ///
-    /// Note that an event is received when the widget first initializes in the widget info tree if it starts visually enabled,
-    /// this initial event can be detected using the [`is_new`] method in the args.
-    ///
-    /// See [`on_vis_enabled_changed`] for a more general event.
-    ///
-    /// [`on_vis_enabled_changed`]: fn@on_vis_enabled_changed
-    /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
-    pub fn vis_enable {
-        event: info::INTERACTIVITY_CHANGED_EVENT,
-        args: info::InteractivityChangedArgs,
-        filter: |a| a.is_vis_enable(WIDGET.id()),
-    }
-
-    /// Widget now looks disabled.
-    ///
-    /// Note that this event tracks the visual enabled status of the widget, not the actual status, the widget may
-    /// still be blocked, see [`Interactivity`] for more details.
-    ///
-    /// Note that an event is received when the widget first initializes in the widget info tree if it starts visually disabled,
-    /// this initial event can be detected using the [`is_new`] method in the args.
-    ///
-    /// See [`on_vis_enabled_changed`] for a more general event.
-    ///
-    /// [`on_vis_enabled_changed`]: fn@on_vis_enabled_changed
-    /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
-    pub fn vis_disable {
-        event: info::INTERACTIVITY_CHANGED_EVENT,
-        args: info::InteractivityChangedArgs,
-        filter: |a| a.is_vis_disable(WIDGET.id()),
-    }
-
-    /// Widget interactions now blocked.
-    ///
-    /// Note that blocked widgets may still be visually enabled, see [`Interactivity`] for more details.
-    ///
-    /// Note that an event is received when the widget first initializes in the widget info tree if it starts blocked,
-    /// this initial event can be detected using the [`is_new`] method in the args.
-    ///
-    /// See [`on_blocked_changed`] for a more general event.
-    ///
-    /// [`on_blocked_changed`]: fn@on_blocked_changed
-    /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
-    pub fn block {
-        event: info::INTERACTIVITY_CHANGED_EVENT,
-        args: info::InteractivityChangedArgs,
-        filter: |a| a.is_block(WIDGET.id()),
-    }
-
-    /// Widget interactions now unblocked.
-    ///
-    /// Note that the widget may still be disabled.
-    ///
-    /// Note that an event is received when the widget first initializes in the widget info tree if it starts unblocked,
-    /// this initial event can be detected using the [`is_new`] method in the args.
-    ///
-    /// See [`on_blocked_changed`] for a more general event.
-    ///
-    /// [`on_blocked_changed`]: fn@on_blocked_changed
-    /// [`Interactivity`]: zng_app::widget::info::Interactivity
-    /// [`is_new`]: info::InteractivityChangedArgs::is_new
-    pub fn unblock {
-        event: info::INTERACTIVITY_CHANGED_EVENT,
-        args: info::InteractivityChangedArgs,
-        filter: |a| a.is_unblock(WIDGET.id()),
-    }
+/// Get the widget interactivity value.
+///
+/// This property is used only for probing the state. You can set the state using
+/// the [`enabled`] and [`interactive`] properties.
+///
+/// [`enabled`]: fn@enabled
+/// [`interactive`]: fn@interactive
+#[property(EVENT)]
+pub fn get_interactivity(child: impl IntoUiNode, state: impl IntoVar<Interactivity>) -> UiNode {
+    bind_state_init(child, state, move |state| {
+        let win_id = WINDOW.id();
+        let wgt_id = WIDGET.id();
+        WIDGET_TREE_CHANGED_EVENT.var_bind(state, move |args| {
+            if args.tree.window_id() == win_id
+                && let Some(wgt) = args.tree.get(wgt_id)
+            {
+                Some(wgt.interactivity())
+            } else {
+                None
+            }
+        })
+    })
 }
 
 /// Only allow interaction inside the widget, descendants and ancestors.
@@ -548,4 +391,180 @@ impl WidgetInfoModalExt for WidgetInfo {
 static_id! {
     static ref MODAL_INCLUDES: StateId<IdSet<WidgetId>>;
     static ref MODAL_INCLUDED: StateId<WidgetId>;
+}
+
+macro_rules! interactivity_var_event_source {
+    (|$interactivity:ident| $map:expr, $default:expr) => {
+        $crate::node::VarEventNodeBuilder::new(|| {
+            let win_id = WINDOW.id();
+            let wgt_id = WIDGET.id();
+            WIDGET_TREE_CHANGED_EVENT.var_map(
+                move |a| {
+                    if a.tree.window_id() == win_id
+                        && let Some(w) = a.tree.get(wgt_id)
+                    {
+                        Some({
+                            let $interactivity = w.interactivity();
+                            $map
+                        })
+                    } else {
+                        None
+                    }
+                },
+                || $default,
+            )
+        })
+    };
+}
+
+event_property! {
+    /// Widget interactivity changed.
+    ///
+    /// Note that there are multiple specific events for interactivity changes, [`on_enabled`], [`on_disabled`], [`on_blocked`] and [`on_unblocked`]
+    /// are some of then.
+    ///
+    /// [`on_enabled`]: fn@on_enabled
+    /// [`on_disabled`]: fn@on_disabled
+    /// [`on_blocked`]: fn@on_blocked
+    /// [`on_unblocked`]: fn@on_unblocked
+    #[property(EVENT)]
+    pub fn on_interactivity_changed(child: impl IntoUiNode, handler: Handler<Interactivity>) -> UiNode {
+        interactivity_var_event_source!(|i| i, Interactivity::ENABLED).build::<false>(child, handler)
+    }
+
+    /// Widget was enabled or disabled.
+    ///
+    /// Note that this event tracks the actual enabled status of the widget, not the visually enabled status,
+    /// see [`Interactivity`] for more details.
+    ///
+    /// See [`on_interactivity_changed`] for a more general interactivity event.
+    ///
+    /// [`on_interactivity_changed`]: fn@on_interactivity_changed
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
+    pub fn on_enabled_changed(child: impl IntoUiNode, handler: Handler<bool>) -> UiNode {
+        interactivity_var_event_source!(|i| i.is_enabled(), true).build::<false>(child, handler)
+    }
+
+    /// Widget changed to enabled or disabled visuals.
+    ///
+    /// Note that this event tracks the visual enabled status of the widget, not the actual status, the widget may
+    /// still be blocked, see [`Interactivity`] for more details.
+    ///
+    /// See [`on_interactivity_changed`] for a more general interactivity event.
+    ///
+    /// [`on_interactivity_changed`]: fn@on_interactivity_changed
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
+    pub fn on_vis_enabled_changed(child: impl IntoUiNode, handler: Handler<bool>) -> UiNode {
+        interactivity_var_event_source!(|i| i.is_vis_enabled(), true).build::<false>(child, handler)
+    }
+
+    /// Widget interactions where blocked or unblocked.
+    ///
+    /// Note that blocked widgets may still be visually enabled, see [`Interactivity`] for more details.
+    ///
+    /// See [`on_interactivity_changed`] for a more general interactivity event.
+    ///
+    /// [`on_interactivity_changed`]: fn@on_interactivity_changed
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
+    pub fn on_blocked_changed(child: impl IntoUiNode, handler: Handler<bool>) -> UiNode {
+        interactivity_var_event_source!(|i| i.is_blocked(), false).build::<false>(child, handler)
+    }
+
+    /// Widget normal interactions now enabled.
+    ///
+    /// Note that this event tracks the actual enabled status of the widget, not the visually enabled status,
+    /// see [`Interactivity`] for more details.
+    ///
+    /// Note that widgets are enabled by default, so this will not notify on init.
+    ///
+    /// See [`on_enabled_changed`] for a more general event.
+    ///
+    /// [`on_enabled_changed`]: fn@on_enabled_changed
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
+    pub fn on_enabled(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
+        interactivity_var_event_source!(|i| i.is_enabled(), true)
+            .filter(|| |e| *e)
+            .map_args(|_| ())
+            .build::<false>(child, handler)
+    }
+
+    /// Widget normal interactions now disabled.
+    ///
+    /// Note that this event tracks the actual enabled status of the widget, not the visually enabled status,
+    /// see [`Interactivity`] for more details.
+    ///
+    /// See [`on_enabled_changed`] for a more general event.
+    ///
+    /// [`on_enabled_changed`]: fn@on_enabled_changed
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
+    pub fn on_disabled(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
+        interactivity_var_event_source!(|i| i.is_disabled(), false)
+            .filter(|| |d| *d)
+            .map_args(|_| ())
+            .build::<false>(child, handler)
+    }
+
+    /// Widget now looks enabled.
+    ///
+    /// Note that this event tracks the visual enabled status of the widget, not the actual status, the widget may
+    /// still be blocked, see [`Interactivity`] for more details.
+    ///
+    /// Note that widgets are enabled by default, so this will not notify on init.
+    ///
+    /// See [`on_vis_enabled_changed`] for a more general event.
+    ///
+    /// [`on_vis_enabled_changed`]: fn@on_vis_enabled_changed
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
+    pub fn on_vis_enabled(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
+        interactivity_var_event_source!(|i| i.is_vis_enabled(), true)
+            .filter(|| |e| *e)
+            .map_args(|_| ())
+            .build::<false>(child, handler)
+    }
+
+    /// Widget now looks disabled.
+    ///
+    /// Note that this event tracks the visual enabled status of the widget, not the actual status, the widget may
+    /// still be blocked, see [`Interactivity`] for more details.
+    ///
+    /// See [`on_vis_enabled_changed`] for a more general event.
+    ///
+    /// [`on_vis_enabled_changed`]: fn@on_vis_enabled_changed
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
+    pub fn on_vis_disabled(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
+        interactivity_var_event_source!(|i| i.is_vis_disabled(), false)
+            .filter(|| |d| *d)
+            .map_args(|_| ())
+            .build::<false>(child, handler)
+    }
+
+    /// Widget interactions now blocked.
+    ///
+    /// Note that blocked widgets may still be visually enabled, see [`Interactivity`] for more details.
+    ///
+    /// See [`on_blocked_changed`] for a more general event.
+    ///
+    /// [`on_blocked_changed`]: fn@on_blocked_changed
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
+    pub fn on_blocked(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
+        interactivity_var_event_source!(|i| i.is_blocked(), false)
+            .filter(|| |b| *b)
+            .map_args(|_| ())
+            .build::<false>(child, handler)
+    }
+
+    /// Widget interactions now unblocked.
+    ///
+    /// Note that the widget may still be disabled.
+    ///
+    /// See [`on_blocked_changed`] for a more general event.
+    ///
+    /// [`on_blocked_changed`]: fn@on_blocked_changed
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
+    pub fn on_unblocked(child: impl IntoUiNode, handler: Handler<()>) -> UiNode {
+        interactivity_var_event_source!(|i| !i.is_blocked(), true)
+            .filter(|| |u| *u)
+            .map_args(|_| ())
+            .build::<false>(child, handler)
+    }
 }

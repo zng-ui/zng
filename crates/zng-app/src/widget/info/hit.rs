@@ -447,6 +447,12 @@ pub(crate) struct ParallelSegmentOffsets {
     used: bool,
     segments: Vec<(ParallelSegmentId, usize)>,
 }
+
+impl PartialEq for ParallelSegmentOffsets {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && self.used == other.used && self.segments == other.segments
+    }
+}
 impl Default for ParallelSegmentOffsets {
     fn default() -> Self {
         Self {

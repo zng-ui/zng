@@ -31,7 +31,7 @@
 //! }
 //!
 //! fn app() {
-//!     APP.defaults().run_window(async {
+//!     APP.defaults().run_window("main", async {
 //!         Window! {
 //!             child_align = Align::CENTER;
 //!             child = {
@@ -331,6 +331,7 @@
 //! requests are only applied after the current UI update. This is even true for the [`INSTANT`] service that provides the current
 //! time.
 //!
+//! [`APP`]: app::APP
 //! [`WINDOWS`]: window::WINDOWS
 //! [`WINDOW`]: window::WINDOW
 //! [`WIDGET`]: widget::WIDGET
@@ -349,7 +350,7 @@
 //!     prelude::*,
 //! };
 //!
-//! APP.defaults().run_window(async {
+//! APP.defaults().run_window("main", async {
 //!     let cmd = PASTE_CMD.scoped(WINDOW.id());
 //!     let paste_btn = Button! {
 //!         child = Text!(cmd.name());
@@ -357,7 +358,7 @@
 //!         widget::visibility = cmd.has_handlers().map_into();
 //!         tooltip = Tip!(Text!(cmd.name_with_shortcut()));
 //!         on_click = hn!(|args: &gesture::ClickArgs| {
-//!             args.propagation().stop();
+//!             args.propagation.stop();
 //!             cmd.notify();
 //!         });
 //!     };
@@ -486,6 +487,8 @@ pub use zng_app::__proc_macro_util;
 
 pub use zng_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 
+pub use crate::app::APP;
+
 pub mod access;
 pub mod ansi_text;
 pub mod app;
@@ -548,16 +551,6 @@ pub mod widget;
 pub mod window;
 pub mod wrap;
 
-/// Start and manage an app process.
-pub struct APP;
-impl std::ops::Deref for APP {
-    type Target = zng_app::APP;
-
-    fn deref(&self) -> &Self::Target {
-        &zng_app::APP
-    }
-}
-
 /// Types for general app development.
 ///
 /// See also [`prelude_wgt`] for declaring new widgets and properties.
@@ -566,7 +559,6 @@ pub mod prelude {
     pub use crate::__prelude::*;
 }
 mod __prelude {
-    pub use crate::APP;
     pub use crate::{color, gesture, keyboard, layout, mouse, task, timer, touch, widget};
 
     pub use zng_task::rayon::prelude::{
@@ -580,7 +572,7 @@ mod __prelude {
     };
 
     pub use zng_app::{
-        INSTANT,
+        APP, INSTANT,
         event::{AnyEventArgs as _, CommandInfoExt as _, CommandNameExt as _, CommandParam, EventArgs as _},
         handler::{HandlerExt as _, async_hn, async_hn_once, hn, hn_once},
         shortcut::{CommandShortcutExt as _, shortcut},
@@ -773,14 +765,14 @@ mod __prelude_wgt {
     pub use zng_app::{
         DInstant, Deadline, INSTANT,
         event::{
-            AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, CommandParam, Event, EventArgs as _,
-            EventHandle, EventHandles, EventPropagationHandle, command, event, event_args,
+            AnyEventArgs as _, Command, CommandArgs, CommandHandle, CommandInfoExt as _, CommandNameExt as _, CommandParam, Event,
+            EventArgs as _, EventPropagationHandle, command, event, event_args,
         },
         handler::{Handler, HandlerExt as _, async_hn, async_hn_once, hn, hn_once},
         render::{FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, SpatialFrameId, TransformStyle},
         shortcut::{CommandShortcutExt as _, Shortcut, ShortcutFilter, Shortcuts, shortcut},
         timer::{DeadlineHandle, DeadlineVar, TIMERS, TimerHandle, TimerVar},
-        update::{EventUpdate, UPDATES, UpdateDeliveryList, UpdateOp, WidgetUpdates},
+        update::{UPDATES, UpdateDeliveryList, UpdateOp, WidgetUpdates},
         widget::{
             AnyVarSubscribe as _, ResponseVarSubscribe as _, VarLayout as _, VarSubscribe as _, WIDGET, WidgetId, WidgetUpdateMode,
             base::{WidgetBase, WidgetImpl},
@@ -801,9 +793,9 @@ mod __prelude_wgt {
     };
 
     pub use zng_var::{
-        ContextVar, IntoValue, IntoVar, ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarValue, const_var,
-        context_var, expr_var, flat_expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, var, var_getter,
-        var_state, when_var,
+        ContextVar, IntoValue, IntoVar, ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarValue, WeakVarHandle,
+        const_var, context_var, expr_var, flat_expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, var,
+        var_getter, var_state, when_var,
     };
 
     pub use zng_layout::{
@@ -838,8 +830,8 @@ mod __prelude_wgt {
     };
 
     pub use zng_wgt::node::{
-        VarPresent as _, VarPresentData as _, VarPresentList as _, VarPresentListFromIter, VarPresentOpt as _, bind_state, bind_state_init,
-        border_node, command_property, event_property, event_state, event_state2, event_state3, event_state4, fill_node, list_presenter,
+        EventNodeBuilder, VarEventNodeBuilder, VarPresent as _, VarPresentData as _, VarPresentList as _, VarPresentListFromIter,
+        VarPresentOpt as _, bind_state, bind_state_init, border_node, command_property, event_property, fill_node, list_presenter,
         list_presenter_from_iter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend,
         with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
     };
@@ -854,225 +846,83 @@ mod __prelude_wgt {
     pub use crate::fs_watcher::IMAGES_Ext as _;
 }
 
-mod defaults {
-    use zng_app::{AppExtended, AppExtension};
-    #[cfg(feature = "audio")]
-    use zng_ext_audio::AudioManager;
-    #[cfg(feature = "clipboard")]
-    use zng_ext_clipboard::ClipboardManager;
-    #[cfg(feature = "config")]
-    use zng_ext_config::ConfigManager;
-    use zng_ext_font::FontManager;
-    #[cfg(feature = "fs_watcher")]
-    use zng_ext_fs_watcher::FsWatcherManager;
-    #[cfg(feature = "image")]
-    use zng_ext_image::ImageManager;
-    use zng_ext_input::{
-        focus::FocusManager, gesture::GestureManager, keyboard::KeyboardManager, mouse::MouseManager,
-        pointer_capture::PointerCaptureManager, touch::TouchManager,
-    };
+// ensure svg on_process_start is linked
+#[cfg(feature = "svg")]
+extern crate zng_ext_svg as _;
 
-    #[cfg(feature = "drag_drop")]
-    use zng_ext_input::drag_drop::DragDropManager;
+zng_env::on_process_start!(|args| {
+    if args.yield_until_app() {
+        return;
+    }
 
-    use zng_ext_l10n::L10nManager;
-    #[cfg(feature = "undo")]
-    use zng_ext_undo::UndoManager;
+    zng_app::APP.on_init(zng_app::hn!(|args| {
+        if !args.is_minimal {
+            defaults();
+        }
+    }));
+});
+fn defaults() {
+    // Common editors.
+    zng_wgt::EDITORS.register_fallback(zng_wgt::WidgetFn::new(default_editors::handler));
+    tracing::debug!("defaults init, EDITORS set");
 
+    // injected in all windows
     #[cfg(feature = "window")]
-    use zng_ext_window::WindowManager;
+    {
+        zng_ext_window::WINDOWS_EXTENSIONS.register_root_extender(|a| {
+            let child = a.root;
 
-    use crate::default_editors;
+            #[cfg(feature = "inspector")]
+            let child = zng_wgt_inspector::inspector(child, zng_wgt_inspector::live_inspector(true));
 
-    #[cfg(feature = "dyn_app_extension")]
-    macro_rules! DefaultsAppExtended {
-        () => {
-            AppExtended<Vec<Box<dyn zng_app::AppExtensionBoxed>>>
-        }
+            #[cfg(feature = "menu")]
+            let child = zng_wgt_menu::style_fn(child, crate::style::style_fn!(|_| crate::menu::DefaultStyle!()));
+
+            child
+        });
+        tracing::debug!("defaults init, root_extender set");
     }
-    #[cfg(not(feature = "dyn_app_extension"))]
-    macro_rules! DefaultsAppExtended {
-        () => {
-            AppExtended<impl AppExtension>
-        }
-    }
-
-    impl super::APP {
-        /// App with default extensions.
-        ///     
-        /// # Extensions
-        ///
-        /// Extensions included.
-        ///
-        /// * [`FsWatcherManager`] if the `"fs_watcher"` feature is enabled.
-        /// * [`ConfigManager`] if the `"config"` feature is enabled.
-        /// * [`L10nManager`]
-        /// * [`PointerCaptureManager`]
-        /// * [`MouseManager`]
-        /// * [`TouchManager`]
-        /// * [`KeyboardManager`]
-        /// * [`GestureManager`]
-        /// * [`WindowManager`] if the `"window"` feature is enabled.
-        /// * [`FontManager`]
-        /// * [`FocusManager`]
-        /// * [`DragDropManager`] if the `"drag_drop"` feature is enabled.
-        /// * [`ImageManager`] if the `"image"` feature is enabled.
-        /// * [`AudioManager`] if the `"audio"` feature is enabled.
-        /// * [`ClipboardManager`] if the `"clipboard"` feature is enabled.
-        /// * [`UndoManager`]
-        /// * [`SingleInstanceManager`] if the `"single_instance"` feature is enabled.
-        /// * [`HotReloadManager`] if the `"hot_reload"` feature is enabled.
-        /// * [`MaterialIconsManager`] if any `"material_icons*"` feature is enabled.
-        /// * [`SvgManager`] if the `"svg"` feature is enabled.
-        ///
-        /// [`MaterialIconsManager`]: zng_wgt_material_icons::MaterialIconsManager
-        /// [`SingleInstanceManager`]: zng_ext_single_instance::SingleInstanceManager
-        /// [`HotReloadManager`]: zng_ext_hot_reload::HotReloadManager
-        /// [`ConfigManager`]: zng_ext_config::ConfigManager
-        /// [`L10nManager`]: zng_ext_l10n::L10nManager
-        /// [`FontManager`]: zng_ext_font::FontManager
-        /// [`SvgManager`]: zng_ext_svg::SvgManager
-        pub fn defaults(&self) -> DefaultsAppExtended![] {
-            let r = self.minimal();
-
-            #[cfg(feature = "fs_watcher")]
-            let r = r.extend(FsWatcherManager::default());
-
-            #[cfg(feature = "config")]
-            let r = r.extend(ConfigManager::default());
-
-            let r = r.extend(L10nManager::default());
-
-            let r = r.extend(PointerCaptureManager::default());
-
-            let r = r.extend(MouseManager::default());
-
-            let r = r.extend(TouchManager::default());
-
-            let r = r.extend(KeyboardManager::default());
-
-            let r = r.extend(GestureManager::default());
-
-            #[cfg(feature = "window")]
-            let r = r.extend(WindowManager::default());
-
-            let r = r.extend(FontManager::default());
-
-            let r = r.extend(FocusManager::default());
-
-            #[cfg(feature = "drag_drop")]
-            let r = r.extend(DragDropManager::default());
-
-            #[cfg(feature = "image")]
-            let r = r.extend(ImageManager::default());
-
-            #[cfg(feature = "audio")]
-            let r = r.extend(AudioManager::default());
-
-            #[cfg(feature = "clipboard")]
-            let r = r.extend(ClipboardManager::default());
-
-            #[cfg(feature = "undo")]
-            let r = r.extend(UndoManager::default());
-
-            #[cfg(all(view, view_prebuilt))]
-            tracing::debug!(r#"both "view" and "view_prebuilt" enabled, will use only one, indeterminate witch"#);
-
-            #[cfg(single_instance)]
-            let r = r.extend(zng_ext_single_instance::SingleInstanceManager::default());
-
-            #[cfg(hot_reload)]
-            let r = r.extend(zng_ext_hot_reload::HotReloadManager::default());
-
-            #[cfg(any(
-                feature = "material_icons_outlined",
-                feature = "material_icons_filled",
-                feature = "material_icons_rounded",
-                feature = "material_icons_sharp",
-            ))]
-            let r = r.extend(zng_wgt_material_icons::MaterialIconsManager::default());
-
-            #[cfg(feature = "svg")]
-            let r = r.extend(zng_ext_svg::SvgManager::default());
-
-            r.extend(DefaultsInit {})
-        }
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        zng_ext_window::WINDOWS_EXTENSIONS.register_open_nested_handler(crate::window::default_mobile_nested_open_handler);
+        tracing::debug!("defaults init, open_nested_handler set");
     }
 
-    struct DefaultsInit {}
-    impl AppExtension for DefaultsInit {
-        fn init(&mut self) {
-            // Common editors.
-            zng_wgt::EDITORS.register_fallback(zng_wgt::WidgetFn::new(default_editors::handler));
-            tracing::debug!("defaults init, EDITORS set");
+    // setup OPEN_LICENSES_CMD handler
+    #[cfg(all(feature = "third_party_default", feature = "third_party"))]
+    {
+        crate::third_party::setup_default_view();
+        tracing::debug!("defaults init, third_party set");
+    }
 
-            // injected in all windows
-            #[cfg(feature = "window")]
-            {
-                zng_ext_window::WINDOWS.register_root_extender(|a| {
-                    let child = a.root;
+    // setup SETTINGS_CMD handler
+    #[cfg(feature = "settings_editor")]
+    {
+        zng_wgt_settings::handle_settings_cmd();
+        tracing::debug!("defaults init, settings set");
+    }
 
-                    #[cfg(feature = "inspector")]
-                    let child = zng_wgt_inspector::inspector(child, zng_wgt_inspector::live_inspector(true));
+    #[cfg(all(single_instance, feature = "window"))]
+    {
+        crate::app::APP_INSTANCE_EVENT
+            .on_pre_event(
+                true,
+                crate::handler::hn!(|args| {
+                    use crate::{focus::*, window::*};
 
-                    #[cfg(feature = "menu")]
-                    let child = zng_wgt_menu::style_fn(child, crate::style::style_fn!(|_| crate::menu::DefaultStyle!()));
-
-                    child
-                });
-                tracing::debug!("defaults init, root_extender set");
-            }
-            #[cfg(any(target_os = "android", target_os = "ios"))]
-            {
-                zng_ext_window::WINDOWS.register_open_nested_handler(crate::window::default_mobile_nested_open_handler);
-                tracing::debug!("defaults init, open_nested_handler set");
-            }
-
-            // setup OPEN_LICENSES_CMD handler
-            #[cfg(all(feature = "third_party_default", feature = "third_party"))]
-            {
-                crate::third_party::setup_default_view();
-                tracing::debug!("defaults init, third_party set");
-            }
-
-            // setup SETTINGS_CMD handler
-            #[cfg(feature = "settings_editor")]
-            {
-                zng_wgt_settings::handle_settings_cmd();
-                tracing::debug!("defaults init, settings set");
-            }
-
-            #[cfg(all(single_instance, feature = "window"))]
-            {
-                crate::app::APP_INSTANCE_EVENT
-                    .on_pre_event(crate::handler::hn!(|args| {
-                        use crate::window::*;
-
-                        // focus a window if none are focused.
-                        if !args.is_current() && WINDOWS.focused_window_id().is_none() {
-                            for w in WINDOWS.widget_trees() {
-                                if w.is_rendered()
-                                    && WINDOWS.mode(w.window_id()) == Ok(WindowMode::Headed)
-                                    && WINDOWS.focus(w.window_id()).is_ok()
-                                {
-                                    break;
-                                }
+                    // focus a window if none are focused.
+                    if !args.is_current() && FOCUS.focused().with(|f| f.is_none()) {
+                        for w in WINDOWS.widget_trees() {
+                            if w.is_rendered() && WINDOWS.mode(w.window_id()) == Some(WindowMode::Headed) {
+                                FOCUS.focus_window(w.window_id(), false);
+                                break;
                             }
                         }
-                    }))
-                    .perm();
-                tracing::debug!("defaults init, single_instance set");
-            }
-        }
-
-        fn deinit(&mut self) {
-            // ensure zng_view_prebuilt is linked, macOS system linker can "optimize" the entire
-            // crate away because it is only referenced by `linkme` in `on_process_start!`
-            #[cfg(all(view_prebuilt, any(target_os = "macos", target_os = "ios")))]
-            if std::env::var("=").is_ok() {
-                crate::view_process::prebuilt::run_same_process(|| unreachable!());
-            }
-        }
+                    }
+                }),
+            )
+            .perm();
+        tracing::debug!("defaults init, single_instance set");
     }
 }
 

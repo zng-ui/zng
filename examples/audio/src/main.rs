@@ -9,12 +9,12 @@ use zng::{audio::AUDIOS, prelude::*};
 fn main() {
     zng::env::init!();
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         // allow any audio source
         AUDIOS.limits().set(zng::audio::AudioLimits::none());
 
         // open unnamed output stream, don't cache because widgets will hold it
-        let output = AUDIOS.open_output(false).wait_rsp().await;
+        let output = AUDIOS.open_output("main", |_| {}).wait_rsp().await;
         output.stop();
 
         Window! {

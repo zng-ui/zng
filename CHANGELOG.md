@@ -1,5 +1,30 @@
 # Unreleased
 
+* **Breaking** `run_window` and other methods now require the window id.
+
+* Add `zng::env::About::is_test` metadata to detect when process was inited in a test.
+
+**Breaking** Removed `HeadlessApp::block_on*` methods. Use the `run_task` and new `run_task_deadline` for tests.
+
+**Breaking** `command!` syntax changed slightly.
+
+* Fix `Var::on_(pre_)new` notifying multiple times if the variable is modified multiple times in the same update.
+
+* **Breaking** Removes `"dyn_app_extension"` feature.
+
+* Added `APP.on_init` and `APP.on_deinit`.
+    - **Breaking** Removed `on_app_start`.
+
+* **Breaking** Replaced syntax of `event_property!` to allow custom nodes.
+    - **Breaking** Replaced syntax of `command_property!` to align with new `event_property!`.
+
+* **Breaking** Accessibility event args not contain the full path to target widget.
+
+* **Breaking** Refactored events to be specialized variables.
+    - Unifies all reactive programming into vars and `update`.
+    - Batches update delivery in sync with other updates.
+    - Remove `UiNode::event` and related types.
+
 * **Breaking** Rename `Img` to `ImageEntry`.
 
 * **Breaking** Variable `subscribe_when` and related methods now have access to the full `VarHookArgs`.

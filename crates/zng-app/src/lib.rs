@@ -17,11 +17,9 @@
 #![warn(missing_docs)]
 
 use std::{
-    any::{TypeId, type_name},
     collections::HashMap,
-    fmt, ops,
     path::PathBuf,
-    sync::Arc,
+    sync::{Arc, atomic::AtomicBool},
 };
 
 pub mod access;
@@ -41,8 +39,9 @@ pub mod window;
 
 mod tests;
 
+use parking_lot::Mutex;
 use view_process::VIEW_PROCESS;
-use widget::UiTaskWidget;
+use zng_clone_move::async_clmv;
 #[doc(hidden)]
 pub use zng_layout as layout;
 use zng_txt::Txt;
@@ -52,10 +51,9 @@ use zng_var::Var;
 
 pub use zng_time::{DInstant, Deadline, INSTANT, InstantMode};
 
-use update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, UpdatesTrace, WidgetUpdates};
+use update::UPDATES;
 use window::WindowMode;
 use zng_app_context::{AppId, AppScope, LocalContext};
-use zng_task::UiTask;
 
 pub use zng_unique_id::static_id;
 
@@ -134,7 +132,7 @@ pub mod __proc_macro_util {
 
     #[doc(hidden)]
     pub mod update {
-        pub use crate::update::{EventUpdate, WidgetUpdates};
+        pub use crate::update::WidgetUpdates;
     }
 
     #[doc(hidden)]
@@ -182,413 +180,6 @@ pub mod __proc_macro_util {
     }
 }
 
-/// An app extension.
-///
-/// App extensions setup and update core features such as services and events. App instances
-/// are fully composed of app extensions.
-///
-/// See the `zng::app` module level documentation for more details, including the call order of methods
-/// of this trait.
-pub trait AppExtension: 'static {
-    /// Register info abound this extension on the info list.
-    #[inline(always)]
-    fn register(&self, info: &mut AppExtensionsInfo)
-    where
-        Self: Sized,
-    {
-        info.push::<Self>()
-    }
-
-    /// Initializes this extension.
-    #[inline(always)]
-    fn init(&mut self) {}
-
-    /// Called just before [`event_ui`](Self::event_ui) when an event notifies.
-    ///
-    /// Extensions can handle this method to intercept event updates before the UI.
-    ///
-    /// Note that this is not related to the `on_event_preview` properties, all UI events
-    /// happen in `event_ui`.
-    #[inline(always)]
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        let _ = update;
-    }
-
-    /// Called just before [`event`](Self::event).
-    ///
-    /// Only extensions that generate windows should handle this method. The [`UiNode::event`](crate::widget::node::UiNode::event)
-    /// method is called here.
-    #[inline(always)]
-    fn event_ui(&mut self, update: &mut EventUpdate) {
-        let _ = update;
-    }
-
-    /// Called after [`event_ui`](Self::event_ui).
-    ///
-    /// This is the general extensions event handler, it gives the chance for the UI to signal stop propagation.
-    #[inline(always)]
-    fn event(&mut self, update: &mut EventUpdate) {
-        let _ = update;
-    }
-
-    /// Called when info rebuild is requested for windows and widgets.
-    ///
-    /// The [`UiNode::info`] method is called here.
-    ///
-    /// [`UiNode::info`]: crate::widget::node::UiNode::info
-    #[inline(always)]
-    fn info(&mut self, info_widgets: &mut InfoUpdates) {
-        let _ = info_widgets;
-    }
-
-    /// Called just before [`update_ui`](Self::update_ui).
-    ///
-    /// Extensions can handle this method to react to updates before the UI.
-    ///
-    /// Note that this is not related to the `on_event_preview` properties, all UI events
-    /// happen in `update_ui`.
-    #[inline(always)]
-    fn update_preview(&mut self) {}
-
-    /// Called just before [`update`](Self::update).
-    ///
-    /// Only extensions that manage windows should handle this method.
-    ///
-    /// The [`UiNode::update`] method is called here.
-    ///
-    /// [`UiNode::update`]: crate::widget::node::UiNode::update
-    #[inline(always)]
-    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
-        let _ = update_widgets;
-    }
-
-    /// Called after every [`update_ui`](Self::update_ui) and [`info`](Self::info).
-    ///
-    /// This is the general extensions update, it gives the chance for
-    /// the UI to make service requests.
-    #[inline(always)]
-    fn update(&mut self) {}
-
-    /// Called when layout is requested for windows and widgets.
-    ///
-    /// The [`UiNode::layout`] method is called here.
-    ///
-    /// [`UiNode::layout`]: crate::widget::node::UiNode::layout
-    #[inline(always)]
-    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
-        let _ = layout_widgets;
-    }
-
-    /// Called when render is requested for windows and widgets.
-    ///
-    /// The [`UiNode::render`] and [`UiNode::render_update`] methods are called here.
-    ///
-    /// [`UiNode::render`]: crate::widget::node::UiNode::render
-    /// [`UiNode::render_update`]: crate::widget::node::UiNode::render_update
-    #[inline(always)]
-    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
-        let _ = (render_widgets, render_update_widgets);
-    }
-
-    /// Called when the application is exiting.
-    ///
-    /// Update requests and event notifications generated during this call are ignored,
-    /// the extensions will be dropped after every extension received this call.
-    #[inline(always)]
-    fn deinit(&mut self) {}
-
-    /// Gets the extension boxed.
-    ///
-    /// Boxed app extensions also implement `AppExtension`, this method does not double box.
-    #[inline(always)]
-    fn boxed(self) -> Box<dyn AppExtensionBoxed>
-    where
-        Self: Sized,
-    {
-        Box::new(self)
-    }
-}
-
-/// Boxed version of [`AppExtension`].
-#[doc(hidden)]
-pub trait AppExtensionBoxed: 'static {
-    fn register_boxed(&self, info: &mut AppExtensionsInfo);
-    fn init_boxed(&mut self);
-    fn update_preview_boxed(&mut self);
-    fn update_ui_boxed(&mut self, updates: &mut WidgetUpdates);
-    fn update_boxed(&mut self);
-    fn event_preview_boxed(&mut self, update: &mut EventUpdate);
-    fn event_ui_boxed(&mut self, update: &mut EventUpdate);
-    fn event_boxed(&mut self, update: &mut EventUpdate);
-    fn info_boxed(&mut self, info_widgets: &mut InfoUpdates);
-    fn layout_boxed(&mut self, layout_widgets: &mut LayoutUpdates);
-    fn render_boxed(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates);
-    fn deinit_boxed(&mut self);
-}
-impl<T: AppExtension> AppExtensionBoxed for T {
-    fn register_boxed(&self, info: &mut AppExtensionsInfo) {
-        self.register(info);
-    }
-
-    fn init_boxed(&mut self) {
-        self.init();
-    }
-
-    fn update_preview_boxed(&mut self) {
-        self.update_preview();
-    }
-
-    fn update_ui_boxed(&mut self, updates: &mut WidgetUpdates) {
-        self.update_ui(updates);
-    }
-
-    fn info_boxed(&mut self, info_widgets: &mut InfoUpdates) {
-        self.info(info_widgets);
-    }
-
-    fn update_boxed(&mut self) {
-        self.update();
-    }
-
-    fn event_preview_boxed(&mut self, update: &mut EventUpdate) {
-        self.event_preview(update);
-    }
-
-    fn event_ui_boxed(&mut self, update: &mut EventUpdate) {
-        self.event_ui(update);
-    }
-
-    fn event_boxed(&mut self, update: &mut EventUpdate) {
-        self.event(update);
-    }
-
-    fn layout_boxed(&mut self, layout_widgets: &mut LayoutUpdates) {
-        self.layout(layout_widgets);
-    }
-
-    fn render_boxed(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
-        self.render(render_widgets, render_update_widgets);
-    }
-
-    fn deinit_boxed(&mut self) {
-        self.deinit();
-    }
-}
-impl AppExtension for Box<dyn AppExtensionBoxed> {
-    fn register(&self, info: &mut AppExtensionsInfo) {
-        self.as_ref().register_boxed(info);
-    }
-
-    fn init(&mut self) {
-        self.as_mut().init_boxed();
-    }
-
-    fn update_preview(&mut self) {
-        self.as_mut().update_preview_boxed();
-    }
-
-    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
-        self.as_mut().update_ui_boxed(update_widgets);
-    }
-
-    fn update(&mut self) {
-        self.as_mut().update_boxed();
-    }
-
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        self.as_mut().event_preview_boxed(update);
-    }
-
-    fn event_ui(&mut self, update: &mut EventUpdate) {
-        self.as_mut().event_ui_boxed(update);
-    }
-
-    fn event(&mut self, update: &mut EventUpdate) {
-        self.as_mut().event_boxed(update);
-    }
-
-    fn info(&mut self, info_widgets: &mut InfoUpdates) {
-        self.as_mut().info_boxed(info_widgets);
-    }
-
-    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
-        self.as_mut().layout_boxed(layout_widgets);
-    }
-
-    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
-        self.as_mut().render_boxed(render_widgets, render_update_widgets);
-    }
-
-    fn deinit(&mut self) {
-        self.as_mut().deinit_boxed();
-    }
-
-    fn boxed(self) -> Box<dyn AppExtensionBoxed>
-    where
-        Self: Sized,
-    {
-        self
-    }
-}
-
-struct TraceAppExt<E: AppExtension>(E);
-impl<E: AppExtension> AppExtension for TraceAppExt<E> {
-    fn register(&self, info: &mut AppExtensionsInfo) {
-        self.0.register(info)
-    }
-
-    fn init(&mut self) {
-        let _span = UpdatesTrace::extension_span::<E>("init");
-        self.0.init();
-    }
-
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        let _span = UpdatesTrace::extension_span::<E>("event_preview");
-        self.0.event_preview(update);
-    }
-
-    fn event_ui(&mut self, update: &mut EventUpdate) {
-        let _span = UpdatesTrace::extension_span::<E>("event_ui");
-        self.0.event_ui(update);
-    }
-
-    fn event(&mut self, update: &mut EventUpdate) {
-        let _span = UpdatesTrace::extension_span::<E>("event");
-        self.0.event(update);
-    }
-
-    fn update_preview(&mut self) {
-        let _span = UpdatesTrace::extension_span::<E>("update_preview");
-        self.0.update_preview();
-    }
-
-    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
-        let _span = UpdatesTrace::extension_span::<E>("update_ui");
-        self.0.update_ui(update_widgets);
-    }
-
-    fn update(&mut self) {
-        let _span = UpdatesTrace::extension_span::<E>("update");
-        self.0.update();
-    }
-
-    fn info(&mut self, info_widgets: &mut InfoUpdates) {
-        let _span = UpdatesTrace::extension_span::<E>("info");
-        self.0.info(info_widgets);
-    }
-
-    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
-        let _span = UpdatesTrace::extension_span::<E>("layout");
-        self.0.layout(layout_widgets);
-    }
-
-    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
-        let _span = UpdatesTrace::extension_span::<E>("render");
-        self.0.render(render_widgets, render_update_widgets);
-    }
-
-    fn deinit(&mut self) {
-        let _span = UpdatesTrace::extension_span::<E>("deinit");
-        self.0.deinit();
-    }
-
-    fn boxed(self) -> Box<dyn AppExtensionBoxed>
-    where
-        Self: Sized,
-    {
-        Box::new(self)
-    }
-}
-
-/// Info about an app-extension.
-///
-/// See [`APP::extensions`] for more details.
-#[derive(Clone, Copy)]
-#[non_exhaustive]
-pub struct AppExtensionInfo {
-    /// Extension type ID.
-    pub type_id: TypeId,
-    /// Extension type name.
-    pub type_name: &'static str,
-}
-impl PartialEq for AppExtensionInfo {
-    fn eq(&self, other: &Self) -> bool {
-        self.type_id == other.type_id
-    }
-}
-impl fmt::Debug for AppExtensionInfo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.type_name)
-    }
-}
-impl Eq for AppExtensionInfo {}
-impl AppExtensionInfo {
-    /// New info for `E`.
-    pub fn new<E: AppExtension>() -> Self {
-        Self {
-            type_id: TypeId::of::<E>(),
-            type_name: type_name::<E>(),
-        }
-    }
-}
-
-/// List of app-extensions that are part of an app.
-#[derive(Clone, PartialEq)]
-pub struct AppExtensionsInfo {
-    infos: Vec<AppExtensionInfo>,
-}
-impl fmt::Debug for AppExtensionsInfo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list().entries(&self.infos).finish()
-    }
-}
-impl AppExtensionsInfo {
-    pub(crate) fn start() -> Self {
-        Self { infos: vec![] }
-    }
-
-    /// Push the extension info.
-    pub fn push<E: AppExtension>(&mut self) {
-        let info = AppExtensionInfo::new::<E>();
-        assert!(!self.contains::<E>(), "app-extension `{info:?}` is already in the list");
-        self.infos.push(info);
-    }
-
-    /// Gets if the extension `E` is in the list.
-    pub fn contains<E: AppExtension>(&self) -> bool {
-        self.contains_info(AppExtensionInfo::new::<E>())
-    }
-
-    /// Gets i the extension is in the list.
-    pub fn contains_info(&self, info: AppExtensionInfo) -> bool {
-        self.infos.iter().any(|e| e.type_id == info.type_id)
-    }
-
-    /// Panics if the extension `E` is not present.
-    #[track_caller]
-    pub fn require<E: AppExtension>(&self) {
-        let info = AppExtensionInfo::new::<E>();
-        if !self.contains_info(info) {
-            let mut note = "";
-            if !APP.is_running() {
-                if APP.is_started() {
-                    note = "\nnote: the app is not running yet";
-                } else {
-                    note = "\nnote: no app is started in the current thread";
-                }
-            }
-            panic!("app-extension `{info:?}` is required{note}")
-        }
-    }
-}
-impl ops::Deref for AppExtensionsInfo {
-    type Target = [AppExtensionInfo];
-
-    fn deref(&self) -> &Self::Target {
-        &self.infos
-    }
-}
-
 /// Desired next step of app main loop.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[must_use = "methods that return `AppControlFlow` expect to be inside a controlled loop"]
@@ -621,9 +212,9 @@ impl AppControlFlow {
 /// Headless apps don't cause external side-effects like visible windows and don't listen to system events.
 /// They can be used for creating apps like a command line app that renders widgets, or for creating integration tests.
 ///
-/// You can start a headless app using [`AppExtended::run_headless`].
+/// You can start a headless app using [`AppBuilder::run_headless`].
 pub struct HeadlessApp {
-    app: RunningApp<Box<dyn AppExtensionBoxed>>,
+    app: RunningApp,
 }
 impl HeadlessApp {
     /// If headless rendering is enabled.
@@ -640,61 +231,17 @@ impl HeadlessApp {
         VIEW_PROCESS.is_available()
     }
 
-    /// Does updates unobserved.
-    ///
-    /// See [`update_observed`] for more details.
-    ///
-    /// [`update_observed`]: HeadlessApp::update
-    pub fn update(&mut self, wait_app_event: bool) -> AppControlFlow {
-        self.update_observed(&mut (), wait_app_event)
-    }
-
-    /// Does updates observing [`update`] only.
-    ///
-    /// See [`update_observed`] for more details.
-    ///
-    /// [`update`]: AppEventObserver::update
-    /// [`update_observed`]: HeadlessApp::update
-    pub fn update_observe(&mut self, on_update: impl FnMut(), wait_app_event: bool) -> AppControlFlow {
-        struct Observer<F>(F);
-        impl<F: FnMut()> AppEventObserver for Observer<F> {
-            fn update(&mut self) {
-                (self.0)()
-            }
-        }
-        let mut observer = Observer(on_update);
-
-        self.update_observed(&mut observer, wait_app_event)
-    }
-
-    /// Does updates observing [`event`] only.
-    ///
-    /// See [`update_observed`] for more details.
-    ///
-    /// [`event`]: AppEventObserver::event
-    /// [`update_observed`]: HeadlessApp::update
-    pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut EventUpdate), wait_app_event: bool) -> AppControlFlow {
-        struct Observer<F>(F);
-        impl<F: FnMut(&mut EventUpdate)> AppEventObserver for Observer<F> {
-            fn event(&mut self, update: &mut EventUpdate) {
-                (self.0)(update);
-            }
-        }
-        let mut observer = Observer(on_event);
-        self.update_observed(&mut observer, wait_app_event)
-    }
-
-    /// Does updates with an [`AppEventObserver`].
+    /// Does updates.
     ///
     /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received or a timer elapses,
     /// if it is `false` only responds to app events already in the buffer.
-    pub fn update_observed<O: AppEventObserver>(&mut self, observer: &mut O, mut wait_app_event: bool) -> AppControlFlow {
+    pub fn update(&mut self, mut wait_app_event: bool) -> AppControlFlow {
         if self.app.has_exited() {
             return AppControlFlow::Exit;
         }
 
         loop {
-            match self.app.poll(wait_app_event, observer) {
+            match self.app.poll(wait_app_event) {
                 AppControlFlow::Poll => {
                     wait_app_event = false;
                     continue;
@@ -704,375 +251,127 @@ impl HeadlessApp {
         }
     }
 
+    /// Does updates and calls `on_pre_update` on the first update.
+    pub fn update_observe(&mut self, on_pre_update: impl FnOnce() + Send + 'static) -> bool {
+        let u = Arc::new(AtomicBool::new(false));
+        UPDATES
+            .on_pre_update(hn_once!(u, |_| {
+                u.store(true, std::sync::atomic::Ordering::Relaxed);
+                on_pre_update();
+            }))
+            .perm();
+        let _ = self.update(false);
+        u.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// Execute the async `task` in the UI thread, updating the app until it finishes or the app shuts-down.
     ///
-    /// Returns the task result if the app has not shut-down.
+    /// Returns the task result if the app has not shutdown.
     pub fn run_task<R, T>(&mut self, task: impl IntoFuture<IntoFuture = T>) -> Option<R>
     where
-        R: 'static,
-        T: Future<Output = R> + Send + Sync + 'static,
+        R: Send + 'static,
+        T: Future<Output = R> + Send + 'static,
     {
-        let mut task = UiTask::new(None, task);
+        let task = task.into_future();
 
-        let mut flow = self.update_observe(
-            || {
-                task.update();
-            },
-            false,
-        );
-
-        if task.update().is_some() {
-            let r = task.into_result().ok();
-            debug_assert!(r.is_some());
-            return r;
+        if self.app.has_exited() {
+            return None;
         }
 
-        let mut n = 0;
-        while flow != AppControlFlow::Exit {
-            flow = self.update_observe(
-                || {
-                    task.update();
-                },
-                true,
-            );
+        let r = Arc::new(Mutex::new(None::<R>));
+        UPDATES
+            .run(async_clmv!(r, {
+                let fr = task.await;
+                *r.lock() = Some(fr);
+            }))
+            .perm();
 
-            if n == 10_000 {
-                tracing::error!("excessive future awaking, run_task ran 10_000 update cycles without finishing");
-            } else if n == 100_000 {
-                panic!("run_task stuck, ran 100_000 update cycles without finishing");
-            }
-            n += 1;
-
-            match task.into_result() {
-                Ok(r) => return Some(r),
-                Err(t) => task = t,
+        loop {
+            match self.app.poll(true) {
+                AppControlFlow::Exit => return None,
+                _ => {
+                    let mut r = r.lock();
+                    if r.is_some() {
+                        return r.take();
+                    }
+                }
             }
         }
-        task.cancel();
+    }
 
-        None
+    /// Does [`run_task`] with a `deadline`.
+    ///
+    /// Returns the task result if the app has not shutdown and the `deadline` is not reached.
+    ///
+    /// If the `deadline` is reached an error is logged. Note that you can use [`with_deadline`] to create
+    /// a future with timeout and handle the timeout error.
+    ///
+    /// [`run_task`]: Self::run_task
+    /// [`with_deadline`]: zng_task::with_deadline
+    pub fn run_task_deadline<R, T>(&mut self, task: impl IntoFuture<IntoFuture = T>, deadline: impl Into<Deadline>) -> Option<R>
+    where
+        R: Send + 'static,
+        T: Future<Output = R> + Send + 'static,
+    {
+        let task = task.into_future();
+        let task = zng_task::with_deadline(task, deadline.into());
+        match self.run_task(task)? {
+            Ok(r) => Some(r),
+            Err(e) => {
+                tracing::error!("run_task reached deadline, {e}");
+                None
+            }
+        }
+    }
+
+    /// Does [`run_task`] with a deadline, panics on timeout.
+    ///
+    /// [`run_task`]: Self::run_task
+    #[cfg(any(test, feature = "test_util"))]
+    pub fn run_test<R, T>(&mut self, task: impl IntoFuture<IntoFuture = T>) -> Option<R>
+    where
+        R: Send + 'static,
+        T: Future<Output = R> + Send + 'static,
+    {
+        use std::time::Duration;
+
+        thread_local! {
+            static TIMEOUT: Duration = {
+                let t = std::env::var("ZNG_APP_RUN_TEST_TIMEOUT").unwrap_or_else(|_| "60".to_string());
+                let t: u64 = match t.parse() {
+                    Ok(0) => 60,
+                    Ok(t) => t,
+                    Err(_) => 60,
+                };
+                std::time::Duration::from_secs(t)
+            }
+        }
+        let task = task.into_future();
+        let task = zng_task::with_deadline(task, TIMEOUT.with(|t| *t));
+        match self.run_task(task)? {
+            Ok(r) => Some(r),
+            Err(e) => {
+                panic!("run_test {e}")
+            }
+        }
     }
 
     /// Requests and wait for app exit.
     ///
     /// Forces deinit if exit is cancelled.
     pub fn exit(mut self) {
-        self.run_task(async move {
-            let req = APP.exit();
-            req.wait_rsp().await;
-        });
+        let req = APP.exit();
+        while req.is_waiting() {
+            if let AppControlFlow::Exit = self.update(true) {
+                break;
+            }
+        }
     }
-
     /// If the app has exited.
     ///
     /// Exited apps cannot update anymore. The app should be dropped to unload the app scope.
     pub fn has_exited(&self) -> bool {
         self.app.has_exited()
-    }
-}
-
-/// Observer for [`HeadlessApp::update_observed`].
-///
-/// This works like a temporary app extension that runs only for the update call.
-pub trait AppEventObserver {
-    /// Called for each raw event received.
-    fn raw_event(&mut self, ev: &zng_view_api::Event) {
-        let _ = ev;
-    }
-
-    /// Called just after [`AppExtension::event_preview`].
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        let _ = update;
-    }
-
-    /// Called just after [`AppExtension::event_ui`].
-    fn event_ui(&mut self, update: &mut EventUpdate) {
-        let _ = update;
-    }
-
-    /// Called just after [`AppExtension::event`].
-    fn event(&mut self, update: &mut EventUpdate) {
-        let _ = update;
-    }
-
-    /// Called just after [`AppExtension::update_preview`].
-    fn update_preview(&mut self) {}
-
-    /// Called just after [`AppExtension::update_ui`].
-    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
-        let _ = update_widgets;
-    }
-
-    /// Called just after [`AppExtension::update`].
-    fn update(&mut self) {}
-
-    /// Called just after [`AppExtension::info`].
-    fn info(&mut self, info_widgets: &mut InfoUpdates) {
-        let _ = info_widgets;
-    }
-
-    /// Called just after [`AppExtension::layout`].
-    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
-        let _ = layout_widgets;
-    }
-
-    /// Called just after [`AppExtension::render`].
-    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
-        let _ = (render_widgets, render_update_widgets);
-    }
-
-    /// Cast to dynamically dispatched observer, this can help avoid code bloat.
-    ///
-    /// The app methods that accept observers automatically use this method if the feature `"dyn_app_extension"` is active.
-    fn as_dyn(&mut self) -> DynAppEventObserver<'_>
-    where
-        Self: Sized,
-    {
-        DynAppEventObserver(self)
-    }
-}
-/// Nil observer, does nothing.
-impl AppEventObserver for () {}
-
-#[doc(hidden)]
-pub struct DynAppEventObserver<'a>(&'a mut dyn AppEventObserverDyn);
-
-trait AppEventObserverDyn {
-    fn raw_event_dyn(&mut self, ev: &zng_view_api::Event);
-    fn event_preview_dyn(&mut self, update: &mut EventUpdate);
-    fn event_ui_dyn(&mut self, update: &mut EventUpdate);
-    fn event_dyn(&mut self, update: &mut EventUpdate);
-    fn update_preview_dyn(&mut self);
-    fn update_ui_dyn(&mut self, updates: &mut WidgetUpdates);
-    fn update_dyn(&mut self);
-    fn info_dyn(&mut self, info_widgets: &mut InfoUpdates);
-    fn layout_dyn(&mut self, layout_widgets: &mut LayoutUpdates);
-    fn render_dyn(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates);
-}
-impl<O: AppEventObserver> AppEventObserverDyn for O {
-    fn raw_event_dyn(&mut self, ev: &zng_view_api::Event) {
-        self.raw_event(ev)
-    }
-
-    fn event_preview_dyn(&mut self, update: &mut EventUpdate) {
-        self.event_preview(update)
-    }
-
-    fn event_ui_dyn(&mut self, update: &mut EventUpdate) {
-        self.event_ui(update)
-    }
-
-    fn event_dyn(&mut self, update: &mut EventUpdate) {
-        self.event(update)
-    }
-
-    fn update_preview_dyn(&mut self) {
-        self.update_preview()
-    }
-
-    fn update_ui_dyn(&mut self, update_widgets: &mut WidgetUpdates) {
-        self.update_ui(update_widgets)
-    }
-
-    fn update_dyn(&mut self) {
-        self.update()
-    }
-
-    fn info_dyn(&mut self, info_widgets: &mut InfoUpdates) {
-        self.info(info_widgets)
-    }
-
-    fn layout_dyn(&mut self, layout_widgets: &mut LayoutUpdates) {
-        self.layout(layout_widgets)
-    }
-
-    fn render_dyn(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
-        self.render(render_widgets, render_update_widgets)
-    }
-}
-impl AppEventObserver for DynAppEventObserver<'_> {
-    fn raw_event(&mut self, ev: &zng_view_api::Event) {
-        self.0.raw_event_dyn(ev)
-    }
-
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        self.0.event_preview_dyn(update)
-    }
-
-    fn event_ui(&mut self, update: &mut EventUpdate) {
-        self.0.event_ui_dyn(update)
-    }
-
-    fn event(&mut self, update: &mut EventUpdate) {
-        self.0.event_dyn(update)
-    }
-
-    fn update_preview(&mut self) {
-        self.0.update_preview_dyn()
-    }
-
-    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
-        self.0.update_ui_dyn(update_widgets)
-    }
-
-    fn update(&mut self) {
-        self.0.update_dyn()
-    }
-
-    fn info(&mut self, info_widgets: &mut InfoUpdates) {
-        self.0.info_dyn(info_widgets)
-    }
-
-    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
-        self.0.layout_dyn(layout_widgets)
-    }
-
-    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
-        self.0.render_dyn(render_widgets, render_update_widgets)
-    }
-
-    fn as_dyn(&mut self) -> DynAppEventObserver<'_> {
-        DynAppEventObserver(self.0)
-    }
-}
-
-impl AppExtension for () {
-    fn register(&self, _: &mut AppExtensionsInfo) {}
-}
-impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
-    fn init(&mut self) {
-        self.0.init();
-        self.1.init();
-    }
-
-    fn register(&self, info: &mut AppExtensionsInfo) {
-        self.0.register(info);
-        self.1.register(info);
-    }
-
-    fn update_preview(&mut self) {
-        self.0.update_preview();
-        self.1.update_preview();
-    }
-
-    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
-        self.0.update_ui(update_widgets);
-        self.1.update_ui(update_widgets);
-    }
-
-    fn update(&mut self) {
-        self.0.update();
-        self.1.update();
-    }
-
-    fn info(&mut self, info_widgets: &mut InfoUpdates) {
-        self.0.info(info_widgets);
-        self.1.info(info_widgets);
-    }
-
-    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
-        self.0.layout(layout_widgets);
-        self.1.layout(layout_widgets);
-    }
-
-    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
-        self.0.render(render_widgets, render_update_widgets);
-        self.1.render(render_widgets, render_update_widgets);
-    }
-
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        self.0.event_preview(update);
-        self.1.event_preview(update);
-    }
-
-    fn event_ui(&mut self, update: &mut EventUpdate) {
-        self.0.event_ui(update);
-        self.1.event_ui(update);
-    }
-
-    fn event(&mut self, update: &mut EventUpdate) {
-        self.0.event(update);
-        self.1.event(update);
-    }
-
-    fn deinit(&mut self) {
-        self.1.deinit();
-        self.0.deinit();
-    }
-}
-
-#[cfg(feature = "dyn_app_extension")]
-impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
-    fn init(&mut self) {
-        for ext in self {
-            ext.init();
-        }
-    }
-
-    fn register(&self, info: &mut AppExtensionsInfo) {
-        for ext in self {
-            ext.register(info);
-        }
-    }
-
-    fn update_preview(&mut self) {
-        for ext in self {
-            ext.update_preview();
-        }
-    }
-
-    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
-        for ext in self {
-            ext.update_ui(update_widgets);
-        }
-    }
-
-    fn update(&mut self) {
-        for ext in self {
-            ext.update();
-        }
-    }
-
-    fn event_preview(&mut self, update: &mut EventUpdate) {
-        for ext in self {
-            ext.event_preview(update);
-        }
-    }
-
-    fn event_ui(&mut self, update: &mut EventUpdate) {
-        for ext in self {
-            ext.event_ui(update);
-        }
-    }
-
-    fn event(&mut self, update: &mut EventUpdate) {
-        for ext in self {
-            ext.event(update);
-        }
-    }
-
-    fn info(&mut self, info_widgets: &mut InfoUpdates) {
-        for ext in self {
-            ext.info(info_widgets);
-        }
-    }
-
-    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
-        for ext in self {
-            ext.layout(layout_widgets);
-        }
-    }
-
-    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
-        for ext in self {
-            ext.render(render_widgets, render_update_widgets);
-        }
-    }
-
-    fn deinit(&mut self) {
-        for ext in self.iter_mut().rev() {
-            ext.deinit();
-        }
     }
 }
 
@@ -1103,10 +402,10 @@ impl APP {
     /// Apps are *running* as soon as [`run`], [`run_headless`] or `run_window` are called.
     /// This will remain `true` until run returns or the [`HeadlessApp`] is dropped.
     ///
-    /// [`run`]: AppExtended::run
-    /// [`run_headless`]: AppExtended::run_headless
+    /// [`run`]: AppBuilder::run
+    /// [`run_headless`]: AppBuilder::run_headless
     pub fn is_running(&self) -> bool {
-        self.is_started() && APP_PROCESS_SV.read().is_running()
+        self.is_started() && !APP_PROCESS_SV.read().exit
     }
 
     /// Gets the unique ID of the current app.
@@ -1152,10 +451,6 @@ impl APP {
             WindowMode::Headless
         }
     }
-    /// List of app extensions that are part of the current app.
-    pub fn extensions(&self) -> Arc<AppExtensionsInfo> {
-        APP_PROCESS_SV.read().extensions()
-    }
 
     /// Defines what raw device events the view-process instance should monitor and notify.
     ///
@@ -1169,72 +464,60 @@ impl APP {
 }
 
 impl APP {
-    /// Starts building an application with no extensions.
-    #[cfg(feature = "dyn_app_extension")]
-    pub fn minimal(&self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+    /// Starts building an application with only the minimum required config and resources.
+    ///
+    /// This is the recommended builder for tests, it signal init handlers to only load required resources.
+    pub fn minimal(&self) -> AppBuilder {
         zng_env::init_process_name("app-process");
 
         #[cfg(debug_assertions)]
-        print_tracing(tracing::Level::INFO);
+        print_tracing(tracing::Level::INFO, false, |_| true);
         assert_not_view_process();
         Self::assert_can_run();
         spawn_deadlock_detection();
 
         let _ = INSTANT.now();
         let scope = LocalContext::start_app(AppId::new_unique());
-        AppExtended {
-            extensions: vec![],
+        AppBuilder {
             view_process_exe: None,
             view_process_env: HashMap::new(),
+            with_defaults: false,
             _cleanup: scope,
         }
     }
 
-    /// Starts building an application with no extensions.
-    #[cfg(not(feature = "dyn_app_extension"))]
-    pub fn minimal(&self) -> AppExtended<()> {
-        #[cfg(debug_assertions)]
-        print_tracing(tracing::Level::INFO);
-        assert_not_view_process();
-        Self::assert_can_run();
-        spawn_deadlock_detection();
-        let scope = LocalContext::start_app(AppId::new_unique());
-        AppExtended {
-            extensions: (),
-            view_process_exe: None,
-            view_process_env: HashMap::new(),
-            _cleanup: scope,
-        }
+    /// Starts building an application with all compiled config and resources.
+    ///
+    /// This is the recommended builder for apps, it signals init handlers to setup all resources upfront, on run, for example, register icon sets,
+    /// default settings views and more. Note that you can still define a lean app by managing the compile time feature flags, and you can also
+    /// override any default resource on run.
+    pub fn defaults(&self) -> AppBuilder {
+        let mut app = self.minimal();
+        app.with_defaults = true;
+        app
     }
 }
 
 /// Application builder.
 ///
 /// You can use `APP` to start building the app.
-pub struct AppExtended<E: AppExtension> {
-    extensions: E,
+pub struct AppBuilder {
     view_process_exe: Option<PathBuf>,
     view_process_env: HashMap<Txt, Txt>,
+    with_defaults: bool,
 
     // cleanup on drop.
     _cleanup: AppScope,
 }
-#[cfg(feature = "dyn_app_extension")]
-impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
-    /// Includes an application extension.
-    pub fn extend<F: AppExtension>(mut self, extension: F) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
-        self.extensions.push(TraceAppExt(extension).boxed());
-        self
-    }
-
-    fn run_dyn(self, start: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
+impl AppBuilder {
+    fn run_impl(self, start: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
         let app = RunningApp::start(
             self._cleanup,
-            self.extensions,
             true,
             true,
             self.view_process_exe,
             self.view_process_env,
+            !self.with_defaults,
         );
 
         UPDATES.run(start).perm();
@@ -1242,89 +525,27 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         app.run_headed();
     }
 
-    fn run_headless_dyn(self, with_renderer: bool) -> HeadlessApp {
-        let app = RunningApp::start(
-            self._cleanup,
-            self.extensions.boxed(),
-            false,
-            with_renderer,
-            self.view_process_exe,
-            self.view_process_env,
-        );
-
-        HeadlessApp { app }
-    }
-}
-
-// Monomorphize dyn app. Without this the entire RunningApp code is generic that must build on the dependent crates.
-#[cfg(feature = "dyn_app_extension")]
-impl<E: AppExtension> AppExtended<E> {
-    fn cast_app(self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
-        let app: Box<dyn std::any::Any> = Box::new(self);
-        match app.downcast::<AppExtended<Vec<Box<dyn AppExtensionBoxed>>>>() {
-            Ok(ok) => *ok,
-            Err(e) => {
-                let app = *e.downcast::<Self>().unwrap();
-                AppExtended {
-                    extensions: vec![app.extensions.boxed()],
-                    view_process_exe: app.view_process_exe,
-                    view_process_env: app.view_process_env,
-                    _cleanup: app._cleanup,
-                }
+    fn run_headless_impl(self, with_renderer: bool) -> HeadlessApp {
+        if with_renderer {
+            // disable ping timeout, headless apps manually update so don't ping on a schedule.
+            unsafe {
+                std::env::set_var("ZNG_VIEW_TIMEOUT", "false");
             }
         }
-    }
 
-    fn run_impl(self, start: impl Future<Output = ()> + Send + 'static) {
-        self.cast_app().run_dyn(Box::pin(start))
-    }
-
-    fn run_headless_impl(self, with_renderer: bool) -> HeadlessApp {
-        self.cast_app().run_headless_dyn(with_renderer)
-    }
-}
-
-#[cfg(not(feature = "dyn_app_extension"))]
-impl<E: AppExtension> AppExtended<E> {
-    /// Includes an application extension.
-    pub fn extend<F: AppExtension>(self, extension: F) -> AppExtended<impl AppExtension> {
-        AppExtended {
-            _cleanup: self._cleanup,
-            extensions: (self.extensions, TraceAppExt(extension)),
-            view_process_exe: self.view_process_exe,
-            view_process_env: self.view_process_env,
-        }
-    }
-
-    fn run_impl(self, start: impl Future<Output = ()> + Send + 'static) {
         let app = RunningApp::start(
             self._cleanup,
-            self.extensions,
-            true,
-            true,
-            self.view_process_exe,
-            self.view_process_env,
-        );
-
-        UPDATES.run(start).perm();
-
-        app.run_headed();
-    }
-
-    fn run_headless_impl(self, with_renderer: bool) -> HeadlessApp {
-        let app = RunningApp::start(
-            self._cleanup,
-            self.extensions.boxed(),
             false,
             with_renderer,
             self.view_process_exe,
             self.view_process_env,
+            !self.with_defaults,
         );
 
         HeadlessApp { app }
     }
 }
-impl<E: AppExtension> AppExtended<E> {
+impl AppBuilder {
     /// Set the path to the executable for the *View Process*.
     ///
     /// By the default the current executable is started again as a *View Process*, you can use
@@ -1349,11 +570,11 @@ impl<E: AppExtension> AppExtended<E> {
     ///
     /// This method only returns when the app has exited.
     ///
-    /// The `start` task runs in a [`UiTask`] in the app context, note that it only needs to start the app, usually
+    /// The `start` task runs in the app context, note that the future only needs to start the app, usually
     /// by opening a window, the app will keep running after `start` is finished.
     pub fn run<F: Future<Output = ()> + Send + 'static>(self, start: impl IntoFuture<IntoFuture = F>) {
         let start = start.into_future();
-        self.run_impl(start)
+        self.run_impl(Box::pin(start))
     }
 
     /// Initializes extensions in headless mode and returns an [`HeadlessApp`].
@@ -1377,9 +598,10 @@ mod private {
 
 /// Enables [`tracing`] events printing if a subscriber is not already set.
 ///
-/// All non-fatal errors in the Zng project are logged using tracing.
+/// All non-fatal errors in the Zng project are logged using tracing, printing these errors is essential for debugging.
+/// In debug builds this is enabled by default in the app-process on app init with `INFO` level and no span events.
 ///
-/// In debug builds this function is called automatically with level INFO on app start.
+/// If `span_events` are enabled `tracing::span!` enter and exit are also printed as events.
 ///
 /// In `"wasm32"` builds logs to the browser console.
 ///
@@ -1389,18 +611,43 @@ mod private {
 ///
 /// See also [`print_tracing_filter`] for the filter used by this.
 ///
+/// # Examples
+///
+/// In the example below this function is called before `init!`, enabling it in all app processes.
+///
+/// ```
+/// # macro_rules! demo { () => {
+/// fn main() {
+///     zng::app::print_tracing(tracing::Level::INFO, false, |_| true);
+///     zng::env::init!();
+/// }
+/// # }}
+/// ```
+///
 /// [`tracing`]: https://docs.rs/tracing
-pub fn print_tracing(max: tracing::Level) -> bool {
+pub fn print_tracing(max: tracing::Level, span_events: bool, filter: impl Fn(&tracing::Metadata) -> bool + Send + Sync + 'static) -> bool {
+    print_tracing_impl(max, span_events, Box::new(filter))
+}
+fn print_tracing_impl(
+    max: tracing::Level,
+    span_events: bool,
+    filter: Box<dyn Fn(&tracing::Metadata) -> bool + Send + Sync + 'static>,
+) -> bool {
     use tracing_subscriber::prelude::*;
 
-    let layers = tracing_subscriber::registry().with(FilterLayer(max));
+    let layers = tracing_subscriber::registry().with(FilterLayer(max, filter));
 
     #[cfg(target_os = "android")]
     let layers = layers.with(tracing_android::layer(&zng_env::about().pkg_name).unwrap());
+    #[cfg(target_os = "android")]
+    let _ = span_events;
 
     #[cfg(not(target_os = "android"))]
     let layers = {
-        let fmt_layer = tracing_subscriber::fmt::layer().without_time();
+        let mut fmt_layer = tracing_subscriber::fmt::layer().without_time();
+        if span_events {
+            fmt_layer = fmt_layer.with_span_events(tracing_subscriber::fmt::format::FmtSpan::ACTIVE);
+        }
 
         #[cfg(target_arch = "wasm32")]
         let fmt_layer = fmt_layer.with_ansi(false).with_writer(tracing_web::MakeWebConsoleWriter::new());
@@ -1410,11 +657,10 @@ pub fn print_tracing(max: tracing::Level) -> bool {
 
     layers.try_init().is_ok()
 }
-
-struct FilterLayer(tracing::Level);
+struct FilterLayer(tracing::Level, Box<dyn Fn(&tracing::Metadata) -> bool + Send + Sync>);
 impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for FilterLayer {
     fn enabled(&self, metadata: &tracing::Metadata<'_>, _: tracing_subscriber::layer::Context<'_, S>) -> bool {
-        print_tracing_filter(&self.0, metadata)
+        print_tracing_filter(&self.0, metadata, &self.1)
     }
 
     fn max_level_hint(&self) -> Option<tracing::metadata::LevelFilter> {
@@ -1426,7 +672,7 @@ impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for FilterLayer {
         if event.metadata().level() == &tracing::Level::ERROR && APP.is_running() && TEST_LOG.get() {
             struct MsgCollector<'a>(&'a mut String);
             impl tracing::field::Visit for MsgCollector<'_> {
-                fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn fmt::Debug) {
+                fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
                     use std::fmt::Write;
                     write!(self.0, "\n  {} = {:?}", field.name(), value).unwrap();
                 }
@@ -1446,12 +692,12 @@ impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for FilterLayer {
 /// Filter used by [`print_tracing`], removes some log noise from dependencies.
 ///
 /// Use `tracing_subscriber::filter::FilterFn` plug this filter into a tracing setup.
-pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata) -> bool {
+pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata, filter: &dyn Fn(&tracing::Metadata) -> bool) -> bool {
     if metadata.level() > level {
         return false;
     }
 
-    if metadata.level() == &tracing::Level::INFO {
+    if metadata.level() == &tracing::Level::INFO && level < &tracing::Level::TRACE {
         // suppress large info about texture cache
         if metadata.target() == "zng_webrender::device::gl" {
             return false;
@@ -1460,7 +706,7 @@ pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata
         if metadata.target() == "zng_webrender::renderer::init" {
             return false;
         }
-    } else if metadata.level() == &tracing::Level::WARN {
+    } else if metadata.level() == &tracing::Level::WARN && level < &tracing::Level::DEBUG {
         // suppress webrender warnings:
         //
         if metadata.target() == "zng_webrender::device::gl" {
@@ -1483,7 +729,7 @@ pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata
         }
     }
 
-    true
+    filter(metadata)
 }
 
 /// Modifies the [`print_tracing`] subscriber to panic for error logs in the current app.

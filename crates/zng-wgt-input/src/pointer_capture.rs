@@ -11,23 +11,40 @@ pub use zng_ext_input::pointer_capture::CaptureMode;
 
 event_property! {
     /// Widget acquired mouse and touch capture.
-    pub fn got_pointer_capture {
-        event: POINTER_CAPTURE_EVENT,
-        args: PointerCaptureArgs,
-        filter: |args| args.is_got(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_got_pointer_capture<on_pre_got_pointer_capture>(child: impl IntoUiNode, handler: Handler<PointerCaptureArgs>) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(POINTER_CAPTURE_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_got(id)
+            })
+            .build::<PRE>(child, handler)
     }
 
     /// Widget lost mouse and touch capture.
-    pub fn lost_pointer_capture {
-        event: POINTER_CAPTURE_EVENT,
-        args: PointerCaptureArgs,
-        filter: |args| args.is_lost(WIDGET.id()),
+    #[property(EVENT)]
+    pub fn on_lost_pointer_capture<on_pre_lost_pointer_capture>(
+        child: impl IntoUiNode,
+        handler: Handler<PointerCaptureArgs>,
+    ) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(POINTER_CAPTURE_EVENT)
+            .filter(|| {
+                let id = WIDGET.id();
+                move |args| args.is_lost(id)
+            })
+            .build::<PRE>(child, handler)
     }
 
     /// Widget acquired or lost mouse and touch capture.
-    pub fn pointer_capture_changed {
-        event: POINTER_CAPTURE_EVENT,
-        args: PointerCaptureArgs,
+    #[property(EVENT)]
+    pub fn on_pointer_capture_changed<on_pre_pointer_capture_changed>(
+        child: impl IntoUiNode,
+        handler: Handler<PointerCaptureArgs>,
+    ) -> UiNode {
+        const PRE: bool;
+        EventNodeBuilder::new(POINTER_CAPTURE_EVENT).build::<PRE>(child, handler)
     }
 }
 
@@ -48,28 +65,6 @@ pub fn capture_pointer(child: impl IntoUiNode, mode: impl IntoVar<CaptureMode>) 
         UiNodeOp::Init => {
             WIDGET.sub_event(&MOUSE_INPUT_EVENT).sub_event(&TOUCH_INPUT_EVENT).sub_var(&mode);
         }
-        UiNodeOp::Event { update } => {
-            let mut capture = false;
-            if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
-                capture = args.is_mouse_down();
-            } else if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
-                capture = args.is_touch_start();
-            }
-
-            if capture {
-                let widget_id = WIDGET.id();
-
-                match mode.get() {
-                    CaptureMode::Widget => {
-                        POINTER_CAPTURE.capture_widget(widget_id);
-                    }
-                    CaptureMode::Subtree => {
-                        POINTER_CAPTURE.capture_subtree(widget_id);
-                    }
-                    CaptureMode::Window => (),
-                }
-            }
-        }
         UiNodeOp::Update { .. } => {
             if let Some(new_mode) = mode.get_new() {
                 let tree = WINDOW.info();
@@ -84,6 +79,21 @@ pub fn capture_pointer(child: impl IntoUiNode, mode: impl IntoVar<CaptureMode>) 
                         CaptureMode::Subtree => POINTER_CAPTURE.capture_subtree(widget_id),
                         CaptureMode::Window => POINTER_CAPTURE.release_capture(),
                     }
+                }
+            }
+            if MOUSE_INPUT_EVENT.latest_update(true, |a| a.is_mouse_down()).unwrap_or(false)
+                || TOUCH_INPUT_EVENT.latest_update(true, |a| a.is_touch_start()).unwrap_or(false)
+            {
+                let widget_id = WIDGET.id();
+
+                match mode.get() {
+                    CaptureMode::Widget => {
+                        POINTER_CAPTURE.capture_widget(widget_id);
+                    }
+                    CaptureMode::Subtree => {
+                        POINTER_CAPTURE.capture_subtree(widget_id);
+                    }
+                    CaptureMode::Window => (),
                 }
             }
         }

@@ -26,14 +26,7 @@ pub fn text_editor() -> UiNode {
         );
         style_fn = button::LinkStyle!();
         on_click = hn!(|_| {
-            let editor_id = WindowId::named("text-editor");
-            if is_open.get() {
-                if WINDOWS.focus(editor_id).is_err() {
-                    is_open.set(false);
-                }
-            } else {
-                WINDOWS.open_id(editor_id, async_clmv!(is_open, { text_editor_window(is_open) }));
-            }
+            WINDOWS.focus_or_open("text-editor", async_clmv!(is_open, { text_editor_window(is_open) }));
         });
     }
 }
@@ -141,7 +134,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
                 child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone());
                 tooltip = Tip!(Text!(cmd.flat_map(|c| c.name_with_shortcut())));
                 on_click = hn!(|a| {
-                    a.propagation().stop();
+                    a.propagation.stop();
                     cmd.get().notify();
                 });
             };
@@ -156,7 +149,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> UiNode {
         id = "menu";
         align = Align::FILL_TOP;
         alt_focus_scope = true;
-        focus_click_behavior = FocusClickBehavior::Exit;
+        focus_click_behavior = FocusClickBehavior::menu_item();
         spacing = 4;
         direction = StackDirection::left_to_right();
         padding = 4;
@@ -364,7 +357,7 @@ impl TextEditor {
 
     pub async fn on_close_requested(&self, args: WindowCloseRequestedArgs) {
         if self.unsaved().get() {
-            args.propagation().stop();
+            args.propagation.stop();
             if self.handle_unsaved().await {
                 self.txt_touched.set(false);
                 WINDOW.close();

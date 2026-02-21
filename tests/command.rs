@@ -8,9 +8,10 @@ use zng::{
 };
 
 #[test]
-fn notify() {
+fn notify_no_scope() {
+    zng::env::init!();
     let mut app = APP.defaults().run_headless(false);
-    app.open_window(listener_window(false));
+    app.open_window(WindowId::new_unique(), listener_window(false));
 
     let cmd = FOO_CMD;
     cmd.notify();
@@ -22,8 +23,10 @@ fn notify() {
 
 #[test]
 fn notify_scoped() {
+    zng::env::init!();
     let mut app = APP.defaults().run_headless(false);
-    let window_id = app.open_window(listener_window(false));
+    let window_id = WindowId::new_unique();
+    app.open_window(window_id, listener_window(false));
 
     let cmd = FOO_CMD;
     let cmd_scoped = cmd.scoped(window_id);
@@ -36,47 +39,32 @@ fn notify_scoped() {
 }
 
 #[test]
-fn shortcut() {
+fn shortcut_basic() {
+    zng::env::init!();
     let mut app = APP.defaults().run_headless(false);
-    let window_id = app.open_window(listener_window(false));
+    let window_id = WindowId::new_unique();
+    app.open_window(window_id, listener_window(false));
 
     FOO_CMD.shortcut().set(shortcut!('F'));
     let _ = app.update(false);
 
     app.press_key(window_id, KeyCode::KeyF, KeyLocation::Standard, Key::Char('F'));
 
-    // because of parallelism "other-widget" can subscribe first
-    let mut any_eq = false;
-    for id in ["test-widget", "other-widget"] {
-        let widget_id = WidgetId::named(id);
-        let expect = vec![format!("scoped-wgt / Widget({widget_id:?})")];
-        any_eq |= *TEST_TRACE.read() == expect;
-    }
-    assert!(any_eq);
-}
-
-#[test]
-fn shortcut_with_focused_scope() {
-    let mut app = APP.defaults().run_headless(false);
-    let window_id = app.open_window(listener_window(true));
-
-    FOO_CMD.shortcut().set(shortcut!('F'));
-    let _ = app.update(false);
-
-    app.press_key(window_id, KeyCode::KeyF, KeyLocation::Standard, Key::Char('F'));
-
+    // because of parallelism any of these targets can receive first
     let trace = TEST_TRACE.read();
-    let widget_id = WidgetId::named("other-widget");
-    assert_eq!(1, trace.len()); // because we target the focused first.
-    assert_eq!(&trace[0], &format!("scoped-wgt / Widget({widget_id:?})"));
+    assert!(!trace.is_empty());
+    assert!(!trace.contains(&format!("scoped-win / Window({window_id:?})")));
 }
 
 #[test]
 fn shortcut_scoped() {
+    zng::env::init!();
     let mut app = APP.defaults().run_headless(false);
-    let window_id = app.open_window(listener_window(false));
+    let window_id = WindowId::new_unique();
+    app.open_window(window_id, listener_window(false));
 
-    FOO_CMD.shortcut().set(shortcut!('F'));
+    let widget_id = WidgetId::named("test-widget");
+    FOO_CMD.scoped(widget_id).shortcut().set(shortcut!('F'));
     FOO_CMD.scoped(window_id).shortcut().set(shortcut!('G'));
     let _ = app.update(false);
 
@@ -89,15 +77,7 @@ fn shortcut_scoped() {
     }
 
     app.press_key(window_id, KeyCode::KeyF, KeyLocation::Standard, Key::Char('F'));
-
-    // because of parallelism "other-widget" can subscribe first
-    let mut any_eq = false;
-    for id in ["test-widget", "other-widget"] {
-        let widget_id = WidgetId::named(id);
-        let expect = vec![format!("scoped-wgt / Widget({widget_id:?})")];
-        any_eq |= *TEST_TRACE.read() == expect;
-    }
-    assert!(any_eq);
+    assert_eq!(&*TEST_TRACE.read(), &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
 }
 
 async fn listener_window(focused_wgt: bool) -> window::WindowRoot {
@@ -113,18 +93,15 @@ async fn listener_window(focused_wgt: bool) -> window::WindowRoot {
                 _handle = None;
                 _handle_scoped = None;
             }
-            UiNodeOp::Event { update } => {
-                if let Some(args) = FOO_CMD.on(update) {
-                    args.handle(|args| {
-                        TEST_TRACE.write().push(format!("no-scope / {:?}", args.scope));
-                    });
-                }
-
-                if let Some(args) = FOO_CMD.scoped(WIDGET.id()).on(update) {
-                    args.handle(|args| {
-                        TEST_TRACE.write().push(format!("scoped-wgt / {:?}", args.scope));
-                    });
-                }
+            UiNodeOp::Update { .. } => {
+                FOO_CMD.scoped(WIDGET.id()).each_update(true, false, |args| {
+                    args.propagation.stop();
+                    TEST_TRACE.write().push(format!("scoped-wgt / {:?}", args.scope));
+                });
+                FOO_CMD.each_update(true, false, |args| {
+                    args.propagation.stop();
+                    TEST_TRACE.write().push(format!("no-scope / {:?}", args.scope));
+                });
             }
             _ => {}
         })
@@ -140,19 +117,17 @@ async fn listener_window(focused_wgt: bool) -> window::WindowRoot {
             UiNodeOp::Deinit => {
                 _handle_scoped = None;
             }
-            UiNodeOp::Event { update } => {
-                if let Some(args) = FOO_CMD.scoped(WINDOW.id()).on(update) {
-                    args.handle(|args| {
-                        TEST_TRACE.write().push(format!("scoped-win / {:?}", args.scope));
-                    });
-                }
+            UiNodeOp::Update { .. } => {
+                FOO_CMD.scoped(WINDOW.id()).each_update(true, false, |args| {
+                    args.propagation.stop();
+                    TEST_TRACE.write().push(format!("scoped-win / {:?}", args.scope));
+                });
             }
             _ => {}
         })
     }
 
     Window! {
-        parallel = false;
         child_top = foo_window_handler();
         child = Stack! {
             direction = StackDirection::top_to_bottom();

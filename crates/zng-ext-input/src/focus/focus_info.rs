@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 use zng_app::{
     widget::{
         WidgetId,
-        info::{TreeFilter, Visibility, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetPath},
+        info::{TreeFilter, Visibility, WeakWidgetInfoTree, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetPath},
     },
     window::WindowId,
 };
@@ -241,20 +241,16 @@ pub struct FocusRequest {
 
     /// If the window should be focused even if another app has focus. By default the window
     /// is only focused if the app has keyboard focus in any of the open windows, if this is enabled
-    /// a [`WINDOWS.focus`] request is always made, potentially stealing keyboard focus from another app
+    /// and the operating system supports it forces focus on the window, potentially stealing keyboard focus from another app
     /// and disrupting the user.
-    ///
-    /// [`WINDOWS.focus`]: zng_ext_window::WINDOWS::focus
     pub force_window_focus: bool,
 
     /// Focus indicator to set on the target window if the app does not have keyboard focus and
     /// `force_window_focus` is disabled.
-    ///
-    /// The [`focus_indicator`] of the window is set and the request is processed after the window receives focus,
-    /// or it is canceled if another focus request is made.
-    ///
-    /// [`focus_indicator`]: zng_ext_window::WindowVars::focus_indicator
     pub window_indicator: Option<FocusIndicator>,
+
+    /// Only fulfill this request is no other focus requests are made in the same update pass.
+    pub fallback_only: bool,
 }
 
 impl FocusRequest {
@@ -265,6 +261,7 @@ impl FocusRequest {
             highlight,
             force_window_focus: false,
             window_indicator: None,
+            fallback_only: false,
         }
     }
 
@@ -307,8 +304,8 @@ impl FocusRequest {
         Self::new(FocusTarget::Enter, highlight)
     }
     /// New [`FocusTarget::Exit`] request.
-    pub fn exit(highlight: bool) -> Self {
-        Self::new(FocusTarget::Exit, highlight)
+    pub fn exit(recursive_alt: bool, highlight: bool) -> Self {
+        Self::new(FocusTarget::Exit { recursive_alt }, highlight)
     }
     /// New [`FocusTarget::Next`] request.
     pub fn next(highlight: bool) -> Self {
@@ -364,8 +361,7 @@ pub enum FocusTarget {
     DirectOrExit {
         /// Maybe focusable widget.
         target: WidgetId,
-        /// If `true` the `target` becomes the [`navigation_origin`] when the first focusable ancestor
-        /// is focused because the `target` is not focusable.
+        /// If `true` the `target` always becomes the [`navigation_origin`], even when it is not focusable.
         ///
         /// [`navigation_origin`]: crate::focus::FOCUS::navigation_origin
         navigation_origin: bool,
@@ -374,8 +370,8 @@ pub enum FocusTarget {
     DirectOrEnter {
         /// Maybe focusable widget.
         target: WidgetId,
-        /// If `true` the `target` becomes the [`navigation_origin`] when the first focusable descendant
-        /// is focused because the `target` is not focusable.
+        /// If `true` the `target` becomes the [`navigation_origin`] when it is not focusable and has no
+        /// focusable descendant.
         ///
         /// [`navigation_origin`]: crate::focus::FOCUS::navigation_origin
         navigation_origin: bool,
@@ -385,21 +381,24 @@ pub enum FocusTarget {
     DirectOrRelated {
         /// Maybe focusable widget.
         target: WidgetId,
-        /// If `true` the `target` becomes the [`navigation_origin`] when the first focusable relative
-        /// is focused because the `target` is not focusable.
+        /// If `true` the `target` becomes the [`navigation_origin`] when it is not focusable and has no
+        /// focusable descendant.
         ///
         /// [`navigation_origin`]: crate::focus::FOCUS::navigation_origin
         navigation_origin: bool,
     },
 
-    /// Move focus to the first focusable descendant of the current focus, or to first in screen.
+    /// Move focus to the first focusable descendant of the current focus.
     Enter,
-    /// Move focus to the first focusable ancestor of the current focus, or to first in screen, or the return focus from ALT scopes.
-    Exit,
+    /// Move focus to the first focusable ancestor of the current focus, or the return focus from ALT scopes.
+    Exit {
+        /// If exiting from an ALT scope recursively seek the return widget that is not inside any ALT scope.
+        recursive_alt: bool,
+    },
 
-    /// Move focus to next from current in screen, or to first in screen.
+    /// Move focus to next from current in scope.
     Next,
-    /// Move focus to previous from current in screen, or to last in screen.
+    /// Move focus to previous from current in scope.
     Prev,
 
     /// Move focus above current.
@@ -876,9 +875,9 @@ impl WidgetFocusInfo {
     /// Returns the different widget the focus must move to after focusing in `self` that is a focus scope.
     ///
     /// If `self` is not a [`FocusScope`](FocusInfo::FocusScope) always returns `None`.
-    pub fn on_focus_scope_move<'f>(
+    pub fn on_focus_scope_move(
         &self,
-        last_focused: impl FnOnce(WidgetId) -> Option<&'f WidgetPath>,
+        last_focused: impl FnOnce(WidgetId) -> Option<WidgetId>,
         is_tab_cycle_reentry: bool,
         reverse: bool,
     ) -> Option<WidgetFocusInfo> {
@@ -894,7 +893,7 @@ impl WidgetFocusInfo {
                     }
                     FocusScopeOnFocus::LastFocused | FocusScopeOnFocus::LastFocusedIgnoreBounds => {
                         if is_tab_cycle_reentry { None } else { last_focused(self.info.id()) }
-                            .and_then(|path| self.info.tree().get(path.widget_id()))
+                            .and_then(|id| self.info.tree().get(id))
                             .and_then(|w| w.into_focusable(self.focus_disabled_widgets(), self.focus_hidden_widgets()))
                             .and_then(|f| {
                                 if f.info.is_descendant(&self.info) {
@@ -1908,13 +1907,12 @@ pub(super) struct FocusTreeData {
     alt_scopes: Mutex<IdSet<WidgetId>>,
 }
 impl FocusTreeData {
-    pub(super) fn consolidate_alt_scopes(prev_tree: &WidgetInfoTree, new_tree: &WidgetInfoTree) {
+    pub(super) fn consolidate_alt_scopes(prev_tree: &WeakWidgetInfoTree, new_tree: &WidgetInfoTree) {
         // reused widgets don't insert build-meta, so we add the previous ALT scopes and validate everything.
 
         let prev = prev_tree
-            .build_meta()
-            .get(*FOCUS_TREE_ID)
-            .map(|d| d.alt_scopes.lock().clone())
+            .upgrade()
+            .and_then(|t| t.build_meta().get(*FOCUS_TREE_ID).map(|d| d.alt_scopes.lock().clone()))
             .unwrap_or_default();
 
         let mut alt_scopes = prev;

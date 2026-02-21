@@ -45,7 +45,7 @@ error[E0277]: can't compare `NotDefault` with `NotDefault`
    |                                                         ^^^^ no implementation for `NotDefault == NotDefault`
    |
    = help: the trait `PartialEq` is not implemented for `NotDefault`
-   = help: the following other types implement trait `IntoVar<T>`:
+help: the following other types implement trait `IntoVar<T>`
             <implementers-list>
    = note: required for `zng::var::Var<NotDefault>` to implement `IntoVar<NotDefault>`
 note: required by a bound in `get_state_invalid_::args`
@@ -55,6 +55,7 @@ note: required by a bound in `get_state_invalid_::args`
    | -------------------- required by a bound in this associated function
 10 | pub fn get_state_invalid(child: impl IntoUiNode, state: impl IntoVar<NotDefault>) -> UiNode {
    |                                                              ^^^^^^^^^^^^^^^^^^^ required by this bound in `get_state_invalid_::args`
+   = note: this error originates in the macro `$crate::__impl_from_and_into_var` which comes from the expansion of the macro `impl_from_and_into_var` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
    |
 16 + #[derive(PartialEq)]

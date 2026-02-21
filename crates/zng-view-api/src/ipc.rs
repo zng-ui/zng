@@ -90,6 +90,11 @@ impl RequestSender {
         r
     }
 }
+impl Drop for RequestSender {
+    fn drop(&mut self) {
+        tracing::trace!("dropped RequestSender");
+    }
+}
 
 /// Requests channel end-point.
 ///
@@ -106,6 +111,11 @@ impl RequestReceiver {
             tracing::debug!("request receiver error, {e}");
         }
         r
+    }
+}
+impl Drop for RequestReceiver {
+    fn drop(&mut self) {
+        tracing::trace!("dropped RequestReceiver");
     }
 }
 
@@ -134,6 +144,12 @@ impl ResponseSender {
         r
     }
 }
+impl Drop for ResponseSender {
+    fn drop(&mut self) {
+        tracing::trace!("dropped ResponseSender");
+    }
+}
+
 pub(crate) struct ResponseReceiver(Mutex<IpcReceiver<Response>>);
 impl ResponseReceiver {
     pub fn recv(&mut self) -> IpcResult<Response> {
@@ -142,6 +158,11 @@ impl ResponseReceiver {
             tracing::debug!("response receiver error, {e}");
         }
         r
+    }
+}
+impl Drop for ResponseReceiver {
+    fn drop(&mut self) {
+        tracing::trace!("dropped ResponseReceiver");
     }
 }
 

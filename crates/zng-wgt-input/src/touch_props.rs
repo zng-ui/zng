@@ -6,26 +6,22 @@ use zng_wgt::prelude::*;
 #[property(LAYOUT, default(false))]
 pub fn touch_transform(child: impl IntoUiNode, mode: impl IntoVar<TouchTransformMode>) -> UiNode {
     let mode = mode.into_var();
-    let mut handle = EventHandle::dummy();
+    let mut handle = VarHandle::dummy();
     let mut transform_committed = PxTransform::identity();
     let mut transform = PxTransform::identity();
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&mode);
             if !mode.get().is_empty() {
-                handle = TOUCH_TRANSFORM_EVENT.subscribe(WIDGET.id());
+                handle = TOUCH_TRANSFORM_EVENT.subscribe(UpdateOp::Update, WIDGET.id());
             }
         }
         UiNodeOp::Deinit => {
-            handle = EventHandle::dummy();
+            handle = VarHandle::dummy();
         }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = TOUCH_TRANSFORM_EVENT.on(update) {
-                if args.propagation().is_stopped() {
-                    return;
-                }
-
-                let t = transform_committed.then(&args.local_transform(mode.get()));
+        UiNodeOp::Update { .. } => {
+            TOUCH_TRANSFORM_EVENT.each_update(false, |args| {
+                let t = transform_committed.then(&args.local_transform(mode.get(), (WINDOW.id(), WIDGET.id())));
                 if transform != t {
                     transform = t;
                     WIDGET.render_update();
@@ -41,16 +37,15 @@ pub fn touch_transform(child: impl IntoUiNode, mode: impl IntoVar<TouchTransform
                         WIDGET.render_update();
                     }
                 }
-            }
-        }
-        UiNodeOp::Update { .. } => {
+            });
+
             if let Some(mode) = mode.get_new() {
                 if handle.is_dummy() {
                     if !mode.is_empty() {
-                        handle = TOUCH_TRANSFORM_EVENT.subscribe(WIDGET.id());
+                        handle = TOUCH_TRANSFORM_EVENT.subscribe(UpdateOp::Update, WIDGET.id());
                     }
                 } else if mode.is_empty() {
-                    handle = EventHandle::dummy();
+                    handle = VarHandle::dummy();
                 }
             }
         }

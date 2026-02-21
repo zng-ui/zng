@@ -17,12 +17,11 @@ use zng::{
 fn main() {
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::env::init!();
-    zng::app::print_tracing(tracing::Level::INFO); // trace in view-process (thread)
     zng::view_process::prebuilt::run_same_process(app_main);
 }
 
 fn app_main() {
-    APP.defaults().run_window(main_window());
+    APP.defaults().run_window("main", main_window());
 }
 
 async fn main_window() -> window::WindowRoot {
@@ -200,6 +199,7 @@ fn screenshot() -> UiNode {
                 tracing::info!("taking `screenshot.png` using a new headless window ..");
                 let parent = WINDOW.id();
                 WINDOWS.open_headless(
+                    WindowId::new_unique(),
                     async_clmv!(enabled, {
                         Window! {
                             parent;
@@ -212,7 +212,7 @@ fn screenshot() -> UiNode {
                             frame_capture_mode = FrameCaptureMode::Next;
                             on_frame_image_ready = async_hn_once!(|args: &FrameImageReadyArgs| {
                                 tracing::info!("saving screenshot..");
-                                match args.frame_image.unwrap().get().save("screenshot.png").await {
+                                match args.frame_image.upgrade().unwrap().get().save("screenshot.png").await {
                                     Ok(_) => tracing::info!("saved"),
                                     Err(e) => tracing::error!("{e}"),
                                 }
@@ -290,7 +290,7 @@ fn focus_control() -> UiNode {
             enabled.set(false);
             task::deadline(5.secs()).await;
 
-            WINDOWS.focus(WINDOW.id()).unwrap();
+            FOCUS.focus_window(WINDOW.id(), true);
             enabled.set(true);
         });
     };
@@ -501,14 +501,14 @@ fn custom_chrome(title: Var<Txt>) -> UiNode {
             widget::border = 5, light_dark(colors::WHITE, colors::BLACK).rgba().map_into();
             mouse::cursor = cursor.clone();
             mouse::on_mouse_move = hn!(|args| {
-                cursor.set(match args.position_wgt().and_then(resize_direction) {
+                cursor.set(match args.position_wgt((WINDOW.id(), WIDGET.id())).and_then(resize_direction) {
                     Some(d) => mouse::CursorIcon::from(d).into(),
                     None => mouse::CursorSource::Hidden,
                 });
             });
             mouse::on_mouse_down = hn!(|args| {
                 if args.is_primary()
-                    && let Some(d) = args.position_wgt().and_then(resize_direction)
+                    && let Some(d) = args.position_wgt((WINDOW.id(), WIDGET.id())).and_then(resize_direction)
                 {
                     window::cmd::DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify_param(d);
                 }
@@ -545,7 +545,7 @@ fn misc() -> UiNode {
                         child_count += 1;
 
                         let parent = WINDOW.id();
-                        WINDOWS.open(async move {
+                        WINDOWS.open(WindowId::new_unique(), async move {
                             Window! {
                                 title = formatx!("Window Example - Child {child_count}");
                                 size = (400, 300);
@@ -569,7 +569,7 @@ fn misc() -> UiNode {
                     on_click = hn!(|_| {
                         other_count += 1;
 
-                        WINDOWS.open(async move {
+                        WINDOWS.open(WindowId::new_unique(), async move {
                             Window! {
                                 title = formatx!("Window Example - Other {other_count}");
                                 size = (400, 300);
@@ -736,7 +736,9 @@ fn confirm_close() -> Handler<WindowCloseRequestedArgs> {
     async_hn!(state, |args| {
         match state.get() {
             CloseState::Ask => {
-                args.propagation().stop();
+                // cancel to show in content confirm dialog
+                args.propagation.stop();
+
                 state.set(CloseState::Asking);
 
                 let dlg = if args.windows.len() == 1 {
@@ -757,14 +759,14 @@ fn confirm_close() -> Handler<WindowCloseRequestedArgs> {
                 let r = DIALOG.custom(dlg).wait_rsp().await;
                 if r.name == "close" {
                     state.set(CloseState::Close);
-                    let mut windows = args.windows;
-                    windows.retain(|w| WINDOWS.is_open(*w));
-                    let _ = WINDOWS.close_together(windows);
+                    let _ = WINDOWS.close_together(args.windows.iter().copied());
                 } else {
                     state.set(CloseState::Ask);
                 }
             }
-            CloseState::Asking => args.propagation().stop(),
+            // cancel, already showing confirm dialog
+            CloseState::Asking => args.propagation.stop(),
+            // already confirmed close
             CloseState::Close => {}
         }
     })

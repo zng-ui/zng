@@ -3,8 +3,7 @@
 //!
 //! Material icons for the [`Icon!`] widget.
 //!
-//! A map from name to icon codepoint is defined in a module for each font. The font files are embedded
-//! by default and can are registered using the [`MaterialIconsManager`] app extension. The extension
+//! A map from name to icon codepoint is defined in a module for each font. The extension
 //! also registers [`ICONS`] handlers that provide the icons.
 //!
 //! The icons are from the [Material Design Icons] project.
@@ -19,22 +18,24 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
+use zng_app::{APP, hn};
+
 zng_wgt::enable_widget_macros!();
 
-/// Material icon fonts manager.
-///
-/// This app extension registers the fonts in `"embedded"` builds and registers [`ICONS`] handlers that provide the icons.
-///
-/// [`ICONS`]: struct@zng_wgt::ICONS
-#[derive(Default)]
-#[non_exhaustive]
-pub struct MaterialIconsManager;
-impl MaterialIconsManager {
-    #[cfg(all(
-        feature = "embedded",
-        any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp")
-    ))]
-    fn register_fonts(&self) {
+#[cfg(all(
+    feature = "embedded",
+    any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp")
+))]
+zng_env::on_process_start!(|args| {
+    if args.yield_until_app() {
+        return;
+    }
+    APP.on_init(hn!(|_| {
+        use zng_wgt::{ICONS, IconRequestArgs, prelude::UiNode, wgt_fn};
+        use zng_wgt_text::icon::{GlyphIcon, Icon};
+
+        // register fonts
+
         let sets = [
             #[cfg(feature = "outlined")]
             (outlined::FONT_NAME, outlined::FONT_BYTES),
@@ -50,17 +51,8 @@ impl MaterialIconsManager {
             let font = zng_ext_font::CustomFont::from_bytes(name, zng_ext_font::FontBytes::from_static(bytes), 0);
             zng_ext_font::FONTS.register(font);
         }
-    }
-}
-#[cfg(feature = "embedded")]
-impl zng_app::AppExtension for MaterialIconsManager {
-    #[cfg(any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp"))]
-    fn init(&mut self) {
-        use zng_wgt::{ICONS, IconRequestArgs, prelude::UiNode, wgt_fn};
-        use zng_wgt_text::icon::{GlyphIcon, Icon};
 
-        self.register_fonts();
-
+        // register icons
         ICONS.register(wgt_fn!(|args: IconRequestArgs| {
             if let Some(strong_key) = args.name().strip_prefix("material/") {
                 #[expect(clippy::type_complexity)]
@@ -104,8 +96,8 @@ impl zng_app::AppExtension for MaterialIconsManager {
             }
             UiNode::nil()
         }));
-    }
-}
+    }));
+});
 
 #[cfg(any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp"))]
 macro_rules! getters {

@@ -1,7 +1,7 @@
 //! Events directly from the view-process targeting the app windows.
 //!
-//! These events get processed by [app extensions] to generate the events used in widgets, for example
-//! the `KeyboardManager` uses the [`RAW_KEY_INPUT_EVENT`] into focus targeted events.
+//! These events get processed by app extensions to generate the events used in widgets, for example
+//! the `KEYBOARD` service maps the [`RAW_KEY_INPUT_EVENT`] into focus targeted events.
 //!
 //! # Synthetic Input
 //!
@@ -9,20 +9,18 @@
 //! hardware would generate, [app extensions] can assume that the raw events are correct. The [`InputDeviceId`] for fake
 //! input must be unique but constant for each distinctive *synthetic event source*.
 //!
-//! [app extensions]: crate::AppExtension
 //! [`RAW_KEY_INPUT_EVENT`]: crate::view_process::raw_events::RAW_KEY_INPUT_EVENT
 //! [`notify`]: crate::event::Event::notify
 //! [`InputDeviceId`]: crate::view_process::raw_device_events::InputDeviceId
 
 use zng_layout::unit::{DipPoint, DipSideOffsets, DipSize, Factor, PxPoint};
 use zng_txt::Txt;
+use zng_var::WeakEq;
 use zng_view_api::{
     AxisId, DragDropId, Ime,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     audio::{AudioDecoded, AudioMetadata},
-    config::{
-        AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
-    },
+    config::{AnimationsConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
     drag_drop::{DragDropData, DragDropEffect},
     image::{ImageDecoded, ImageMetadata},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
@@ -33,11 +31,11 @@ use zng_view_api::{
 
 use crate::{
     event::{event, event_args},
-    view_process::{AudioOutputId, ViewAudioHandle, ViewAudioOutput},
+    view_process::{AudioOutputId, ViewImageHandle, WeakViewAudioHandle, WeakViewAudioOutput},
     window::{MonitorId, WindowId},
 };
 
-use super::{ViewHeadless, ViewImageHandle, ViewWindow, WindowOpenData, raw_device_events::InputDeviceId};
+use super::{WeakViewHeadless, WeakViewImageHandle, WeakViewWindow, WindowOpenData, raw_device_events::InputDeviceId};
 
 event_args! {
     /// Arguments for the [`RAW_KEY_INPUT_EVENT`].
@@ -78,8 +76,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -94,8 +92,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -110,8 +108,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -124,13 +122,16 @@ event_args! {
         pub frame_id: FrameId,
 
         /// The frame pixels if it was requested when the frame request was sent to the view process.
-        pub frame_image: Option<(ViewImageHandle, ImageDecoded)>,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the image alive indefinitely.
+        pub frame_image: Option<WeakEq<(ViewImageHandle, ImageDecoded)>>,
 
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -177,8 +178,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -188,7 +189,10 @@ event_args! {
         pub window_id: WindowId,
 
         /// Live connection to the window in the view-process.
-        pub window: ViewWindow,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the window alive indefinitely.
+        pub window: WeakViewWindow,
 
         /// Extra data send by the view-process.
         pub data: WindowOpenData,
@@ -196,8 +200,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -207,7 +211,10 @@ event_args! {
         pub window_id: WindowId,
 
         /// Live connection to the headless surface in the view-process.
-        pub surface: ViewHeadless,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the surface alive indefinitely.
+        pub surface: WeakViewHeadless,
 
         /// Extra data send by the view-process.
         pub data: HeadlessOpenData,
@@ -215,8 +222,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -230,8 +237,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -243,8 +250,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -256,8 +263,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -274,8 +281,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -295,8 +302,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -317,8 +324,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -330,8 +337,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -351,8 +358,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -375,8 +382,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -391,8 +398,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -413,8 +420,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -435,8 +442,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -457,8 +464,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -479,8 +486,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -498,8 +505,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -517,8 +524,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -530,38 +537,46 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
     /// Arguments for [`RAW_IMAGE_METADATA_DECODED_EVENT`].
     pub struct RawImageMetadataDecodedArgs {
         /// Handle to the image in the view-process.
-        pub handle: ViewImageHandle,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the image alive indefinitely.
+        pub handle: WeakViewImageHandle,
         /// Image metadata.
         pub meta: ImageMetadata,
 
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
     /// Arguments for the [`RAW_IMAGE_DECODED_EVENT`].
     pub struct RawImageDecodedArgs {
         /// Handle to the image in the view-process.
-        pub handle: ViewImageHandle,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the image alive indefinitely.
+        pub handle: WeakViewImageHandle,
         /// Image data.
-        pub image: ImageDecoded,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped.
+        pub image: WeakEq<ImageDecoded>,
 
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -570,45 +585,52 @@ event_args! {
         /// Handle that identifies the image request.
         ///
         /// The image data is already removed in the view-process.
-        pub handle: ViewImageHandle,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped.
+        pub handle: WeakViewImageHandle,
         /// Error message.
         pub error: Txt,
 
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
     /// Arguments for [`RAW_AUDIO_METADATA_DECODED_EVENT`].
     pub struct RawAudioMetadataDecodedArgs {
         /// Handle to the audio in the view-process.
-        pub handle: ViewAudioHandle,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the audio alive indefinitely.
+        pub handle: WeakViewAudioHandle,
         /// Audio metadata.
         pub meta: AudioMetadata,
 
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
     /// Arguments for the [`RAW_AUDIO_DECODED_EVENT`].
     pub struct RawAudioDecodedArgs {
         /// Handle to the audio in the view-process.
-        pub handle: ViewAudioHandle,
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the audio alive indefinitely.
+        pub handle: WeakViewAudioHandle,
         /// Audio data.
-        pub audio: AudioDecoded,
+        pub audio: WeakEq<AudioDecoded>,
 
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -617,15 +639,18 @@ event_args! {
         /// Handle that identifies the audio request.
         ///
         /// The audio data is already removed in the view-process.
-        pub handle: ViewAudioHandle,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the audio alive indefinitely.
+        pub handle: WeakViewAudioHandle,
         /// Error message.
         pub error: Txt,
 
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -635,13 +660,16 @@ event_args! {
         pub output_id: AudioOutputId,
 
         /// Live connection to audio output stream.
-        pub output: ViewAudioOutput,
+        ///
+        /// The handle can be upgraded on hook only, after it is dropped. This is so the
+        /// latest event does not keep the image audio indefinitely.
+        pub output: WeakViewAudioOutput,
 
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -655,8 +683,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -666,8 +694,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -679,8 +707,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -692,8 +720,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -705,8 +733,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -718,8 +746,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -731,8 +759,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -744,8 +772,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -757,21 +785,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
-        }
-    }
-
-    /// Arguments for the [`RAW_CHROME_CONFIG_CHANGED_EVENT`].
-    pub struct RawChromeConfigChangedArgs {
-        /// New config.
-        pub config: ChromeConfig,
-
-        ..
-
-        /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -785,8 +800,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -796,8 +811,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
         }
     }
 }
@@ -893,9 +908,6 @@ event! {
 
     /// Color scheme or accent color preference changed for a window.
     pub static RAW_COLORS_CONFIG_CHANGED_EVENT: RawColorsConfigChangedArgs;
-
-    /// System window chrome config changed.
-    pub static RAW_CHROME_CONFIG_CHANGED_EVENT: RawChromeConfigChangedArgs;
 
     /// Change in system font anti-aliasing config.
     pub static RAW_FONT_AA_CHANGED_EVENT: RawFontAaChangedArgs;

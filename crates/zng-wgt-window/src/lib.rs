@@ -15,8 +15,8 @@ zng_wgt::enable_widget_macros!();
 use zng_color::colors::BASE_COLOR_VAR;
 use zng_ext_input::focus::{DirectionalNav, FocusScopeOnFocus, TabNav};
 use zng_ext_window::{
-    HeadlessMonitor, RenderMode, StartPosition, WINDOW_Ext as _, WINDOWS, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs,
-    WindowOpenArgs, WindowRoot,
+    HeadlessMonitor, RenderMode, StartPosition, WINDOW_Ext as _, WINDOWS, WINDOWS_EXTENSIONS, WindowChangedArgs, WindowCloseArgs,
+    WindowCloseRequestedArgs, WindowOpenArgs, WindowRoot,
 };
 use zng_var::contextual_var;
 use zng_wgt::{base_color, is_mobile, prelude::*};
@@ -426,12 +426,12 @@ pub trait WINDOWS_Ext {
     /// This method is the recommended entry point for themes. It uses [`register_root_extender`]
     /// to inject the style in every new window instance.
     ///
-    /// [`register_root_extender`]: WINDOWS::register_root_extender
+    /// [`register_root_extender`]: WINDOWS_EXTENSIONS::register_root_extender
     fn register_style_fn(&self, style_fn: impl IntoVar<zng_wgt_style::StyleFn>);
 }
 impl WINDOWS_Ext for WINDOWS {
     fn register_style_fn(&self, style: impl IntoVar<zng_wgt_style::StyleFn>) {
         let style = style.into_var();
-        WINDOWS.register_root_extender(move |args| style_fn(args.root, style.clone()));
+        WINDOWS_EXTENSIONS.register_root_extender(move |args| style_fn(args.root, style.clone()));
     }
 }

@@ -3,18 +3,19 @@
 //! [`Command`]: zng_app::event::Command
 
 use zng_app::{
-    event::{Command, CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, command},
+    event::{Command, CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, command},
+    hn,
     shortcut::{CommandShortcutExt, shortcut},
-    update::EventUpdate,
     widget::info::WidgetInfo,
 };
+use zng_ext_window::WINDOWS;
 use zng_var::{Var, merge_var};
 
 use super::*;
 
 command! {
     /// Represents the **focus next** action.
-    pub static FOCUS_NEXT_CMD = {
+    pub static FOCUS_NEXT_CMD {
         l10n!: true,
         name: "Focus Next",
         info: "Focus next focusable",
@@ -22,7 +23,7 @@ command! {
     };
 
     /// Represents the **focus previous** action.
-    pub static FOCUS_PREV_CMD = {
+    pub static FOCUS_PREV_CMD {
         l10n!: true,
         name: "Focus Previous",
         info: "Focus previous focusable",
@@ -30,7 +31,7 @@ command! {
     };
 
     /// Represents the **focus/escape alt** action.
-    pub static FOCUS_ALT_CMD = {
+    pub static FOCUS_ALT_CMD {
         l10n!: true,
         name: "Focus Alt",
         info: "Focus alt scope",
@@ -38,7 +39,7 @@ command! {
     };
 
     /// Represents the **focus enter** action.
-    pub static FOCUS_ENTER_CMD = {
+    pub static FOCUS_ENTER_CMD {
         l10n!: true,
         name: "Focus Enter",
         info: "Focus child focusable",
@@ -46,7 +47,9 @@ command! {
     };
 
     /// Represents the **focus exit** action.
-    pub static FOCUS_EXIT_CMD = {
+    ///
+    /// An optional command parameter of type `bool` will set the `recursive_alt` parameter.
+    pub static FOCUS_EXIT_CMD {
         l10n!: true,
         name: "Focus Exit",
         info: "Focus parent focusable, or return focus",
@@ -54,7 +57,7 @@ command! {
     };
 
     /// Represents the **focus up** action.
-    pub static FOCUS_UP_CMD = {
+    pub static FOCUS_UP_CMD {
         l10n!: true,
         name: "Focus Up",
         info: "Focus closest focusable up",
@@ -62,7 +65,7 @@ command! {
     };
 
     /// Represents the **focus down** action.
-    pub static FOCUS_DOWN_CMD = {
+    pub static FOCUS_DOWN_CMD {
         l10n!: true,
         name: "Focus Down",
         info: "Focus closest focusable down",
@@ -70,7 +73,7 @@ command! {
     };
 
     /// Represents the **focus left** action.
-    pub static FOCUS_LEFT_CMD = {
+    pub static FOCUS_LEFT_CMD {
         l10n!: true,
         name: "Focus Left",
         info: "Focus closest focusable left",
@@ -78,7 +81,7 @@ command! {
     };
 
     /// Represents the **focus right** action.
-    pub static FOCUS_RIGHT_CMD = {
+    pub static FOCUS_RIGHT_CMD {
         l10n!: true,
         name: "Focus Right",
         info: "Focus closest focusable right",
@@ -105,58 +108,42 @@ pub(super) struct FocusCommands {
     exit_handle: CommandHandle,
     enter_handle: CommandHandle,
 
-    focus_handle: CommandHandle,
+    _focus_handle: CommandHandle,
 }
 impl FocusCommands {
     pub fn new() -> Self {
-        Self {
-            next_handle: FOCUS_NEXT_CMD.subscribe(false),
-            prev_handle: FOCUS_PREV_CMD.subscribe(false),
-
-            alt_handle: FOCUS_ALT_CMD.subscribe(false),
-
-            up_handle: FOCUS_UP_CMD.subscribe(false),
-            down_handle: FOCUS_DOWN_CMD.subscribe(false),
-            left_handle: FOCUS_LEFT_CMD.subscribe(false),
-            right_handle: FOCUS_RIGHT_CMD.subscribe(false),
-
-            exit_handle: FOCUS_EXIT_CMD.subscribe(false),
-            enter_handle: FOCUS_ENTER_CMD.subscribe(false),
-
-            focus_handle: FOCUS_CMD.subscribe(true),
-        }
-    }
-
-    pub fn update_enabled(&mut self, nav: FocusNavAction) {
-        self.next_handle.set_enabled(nav.contains(FocusNavAction::NEXT));
-        self.prev_handle.set_enabled(nav.contains(FocusNavAction::PREV));
-
-        self.alt_handle.set_enabled(nav.contains(FocusNavAction::ALT));
-
-        self.up_handle.set_enabled(nav.contains(FocusNavAction::UP));
-        self.down_handle.set_enabled(nav.contains(FocusNavAction::DOWN));
-        self.left_handle.set_enabled(nav.contains(FocusNavAction::LEFT));
-        self.right_handle.set_enabled(nav.contains(FocusNavAction::RIGHT));
-
-        self.exit_handle.set_enabled(nav.contains(FocusNavAction::EXIT));
-        self.enter_handle.set_enabled(nav.contains(FocusNavAction::ENTER));
-    }
-
-    pub fn event_preview(&mut self, update: &EventUpdate) {
         macro_rules! handle {
-            ($($CMD:ident($handle:ident) => $method:ident,)+) => {$(
-                if let Some(args) = $CMD.on(update) {
-                    args.handle(|args| {
-                        if args.enabled && self.$handle.is_enabled() {
-                            FOCUS.$method();
-                        } else {
-                            FOCUS.on_disabled_cmd();
-                        }
-                    });
-                    return;
-                }
-            )+};
+            ($($CMD:ident($handle:ident) => $method:ident,)+) => {Self {
+                $($handle: $CMD.on_event_with_enabled(false, true, false, hn!(|a| {
+                    let (args, enabled) = a;
+                    if args.param.is_some() {
+                        return;
+                    }
+                    args.propagation.stop();
+                    if enabled.get() {
+                        FOCUS.$method();
+                    } else {
+                        FOCUS.highlight_within_auto();
+                    }
+                })),)+
+                exit_handle: FOCUS_EXIT_CMD.on_event(false, true, false, hn!(|args| {
+                    if let Some(recursive_alt) = args.param::<bool>() {
+                        args.propagation.stop();
+                        FOCUS.focus_exit(*recursive_alt);
+                    } else if args.param.is_none() {
+                        args.propagation.stop();
+                        FOCUS.focus_exit(false);
+                    }
+                })),
+                _focus_handle: FOCUS_CMD.on_event(true, true, false, hn!(|args| {
+                    if let Some(req) = args.param::<FocusRequest>() {
+                        args.propagation.stop();
+                        FOCUS.focus(*req);
+                    }
+                })),
+            }};
         }
+
         #[rustfmt::skip] // for zng fmt
         handle! {
             FOCUS_NEXT_CMD(next_handle) => focus_next,
@@ -167,16 +154,22 @@ impl FocusCommands {
             FOCUS_LEFT_CMD(left_handle) => focus_left,
             FOCUS_RIGHT_CMD(right_handle) => focus_right,
             FOCUS_ENTER_CMD(enter_handle) => focus_enter,
-            FOCUS_EXIT_CMD(exit_handle) => focus_exit,
         }
+    }
 
-        if let Some(args) = FOCUS_CMD.on(update)
-            && let Some(req) = args.param::<FocusRequest>()
-        {
-            args.handle_enabled(&self.focus_handle, |_| {
-                FOCUS.focus(*req);
-            });
-        }
+    pub fn update_enabled(&mut self, nav: FocusNavAction) {
+        self.next_handle.enabled().set(nav.contains(FocusNavAction::NEXT));
+        self.prev_handle.enabled().set(nav.contains(FocusNavAction::PREV));
+
+        self.alt_handle.enabled().set(nav.contains(FocusNavAction::ALT));
+
+        self.up_handle.enabled().set(nav.contains(FocusNavAction::UP));
+        self.down_handle.enabled().set(nav.contains(FocusNavAction::DOWN));
+        self.left_handle.enabled().set(nav.contains(FocusNavAction::LEFT));
+        self.right_handle.enabled().set(nav.contains(FocusNavAction::RIGHT));
+
+        self.exit_handle.enabled().set(nav.contains(FocusNavAction::EXIT));
+        self.enter_handle.enabled().set(nav.contains(FocusNavAction::ENTER));
     }
 }
 
@@ -234,7 +227,7 @@ impl CommandFocusExt for Command {
         let cmd = self.scoped(CommandScope::App);
         merge_var!(FOCUS.alt_return(), FOCUS.focused(), |alt, f| {
             match alt.as_ref().or(f.as_ref()) {
-                Some(p) => WINDOWS.widget_tree(p.window_id()).ok()?.get(p.widget_id()),
+                Some(p) => WINDOWS.widget_tree(p.window_id())?.get(p.widget_id()),
                 None => None,
             }
         })

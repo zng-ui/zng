@@ -151,14 +151,16 @@ pub(crate) fn setup_default_view() {
     OPEN_LICENSES_CMD
         .on_event(
             true,
+            true,
+            false,
             hn!(|args| {
-                args.propagation().stop();
+                args.propagation.stop();
 
-                let parent = WINDOWS.focused_window_id();
+                let parent = FOCUS.focused().with(|p| p.as_ref().map(|p| p.window_id()));
 
                 WINDOWS.focus_or_open(id, async move {
                     if let Some(p) = parent
-                        && let Ok(p) = WINDOWS.vars(p)
+                        && let Some(p) = WINDOWS.vars(p)
                     {
                         let v = WINDOW.vars();
                         p.icon().set_bind(&v.icon()).perm();

@@ -597,20 +597,24 @@ fn l10n(mut args: Vec<&str>) {
 //     test
 //        Run all unit, integration, doc, render, and macro tests.
 //     test --nextest
-//        Run all unit and integration using 'nextest'; doc and macro tests using 'test'.
+//        Run all unit and integration using 'nextest'.
 //     test --published
 //        Test if latest published release of `zng` did not break previous release.
 fn test(mut args: Vec<&str>) {
     let nightly = if take_flag(&mut args, &["+nightly"]) { "+nightly" } else { "" };
     let env = &[("RUST_BACKTRACE", "full")];
 
-    if let Some(unit_tests) = take_option(&mut args, &["-u", "--unit"], "<unit-test-name>") {
+    if let Some(unit_tests) = take_option_or_flag(&mut args, &["-u", "--unit"]) {
         // unit tests:
 
         let t_args = vec![nightly, "test", "--package", "zng*", "--lib", "--no-fail-fast", "--all-features"];
 
-        if unit_tests.contains(&"--all") || unit_tests.contains(&"*") || unit_tests.contains(&"-a") {
-            cmd_env("cargo", &t_args, &args, env);
+        if unit_tests.iter().any(|t| *t == "") {
+            if take_flag(&mut args, &["-a", "--all"]) {
+                cmd_env("cargo", &t_args, &args, env);
+            } else {
+                fatal("expected value for --unit, or --all");
+            }
         } else {
             for test_name in unit_tests {
                 let mut t_args = t_args.clone();
@@ -630,7 +634,11 @@ fn test(mut args: Vec<&str>) {
             "--all-features",
         ];
 
-        if !int_tests.contains(&"--all") && !int_tests.contains(&"-a") && !int_tests.contains(&"*") {
+        if int_tests.iter().any(|t| *t == "") {
+            if take_flag(&mut args, &["-a", "--all"]) {
+                fatal("expected value for --test, or --all");
+            }
+        } else {
             for it in int_tests {
                 t_args.push("--test");
                 t_args.push(it);
@@ -703,6 +711,32 @@ fn test(mut args: Vec<&str>) {
         std::env::set_current_dir("test-prev").unwrap();
         cmd("cargo", &["add", &format!("zng@0.{prev}")], &[]);
         cmd("cargo", &["build"], &[]);
+    } else if take_flag(&mut args, &["--nextest"]) {
+        let has_package = args.contains(&"-p") || args.contains(&"--package");
+        if !args.contains(&"--config-file") {
+            let cfg_file = "target/tmp/do-nextest-config.toml";
+            std::fs::create_dir_all("target/tmp/").unwrap();
+            std::fs::write(
+                cfg_file,
+                b"[profile.default]\nslow-timeout = { period = \"60s\", terminate-after = 3 }",
+            )
+            .unwrap();
+            args.push("--config-file");
+            args.push(cfg_file);
+        }
+        cmd_env(
+            "cargo",
+            &[
+                nightly,
+                "nextest",
+                "run",
+                "--no-fail-fast",
+                "--all-features",
+                if has_package { "" } else { "--workspace" },
+            ],
+            &args,
+            env,
+        );
     } else {
         // other, mostly handled by cargo.
 
@@ -713,45 +747,18 @@ fn test(mut args: Vec<&str>) {
             version_doc_sync::check();
         }
 
-        if take_flag(&mut args, &["--nextest"]) {
-            if !args.contains(&"--config-file") {
-                let cfg_file = "target/tmp/do-nextest-config.toml";
-                std::fs::create_dir_all("target/tmp/").unwrap();
-                std::fs::write(
-                    cfg_file,
-                    b"[profile.default]\nslow-timeout = { period = \"60s\", terminate-after = 3 }",
-                )
-                .unwrap();
-                args.push("--config-file");
-                args.push(cfg_file);
-            }
-            cmd_env(
-                "cargo",
-                &[
-                    nightly,
-                    "nextest",
-                    "run",
-                    "--no-fail-fast",
-                    "--all-features",
-                    if has_package { "" } else { "--workspace" },
-                ],
-                &args,
-                env,
-            );
-        } else {
-            cmd_env(
-                "cargo",
-                &[
-                    nightly,
-                    "test",
-                    "--no-fail-fast",
-                    "--all-features",
-                    if has_package { "" } else { "--workspace" },
-                ],
-                &args,
-                env,
-            );
-        }
+        cmd_env(
+            "cargo",
+            &[
+                nightly,
+                "test",
+                "--no-fail-fast",
+                "--all-features",
+                if has_package { "" } else { "--workspace" },
+            ],
+            &args,
+            env,
+        );
 
         if all {
             // if no args we run everything.

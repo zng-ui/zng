@@ -1,7 +1,5 @@
 //! 9-patch image border.
 
-use std::mem;
-
 use zng_app::render::RepeatMode;
 use zng_ext_image::{IMAGES, ImageCacheMode, ImageEntry, ImageOptions, ImageRenderArgs, ImageSource};
 use zng_wgt::prelude::*;
@@ -27,7 +25,7 @@ pub fn border_img(
     let source = source.into_var();
     let slices = slices.into_var();
 
-    let mut img = var(ImageEntry::new_empty(Txt::default())).read_only();
+    let mut img = var(ImageEntry::new_loading()).read_only();
     let mut _img_sub = VarHandle::dummy();
     let mut slices_img_size = PxSize::zero();
     let mut slices_px = PxSideOffsets::zero();
@@ -68,7 +66,7 @@ pub fn border_img(
                 }
             }
             UiNodeOp::Deinit => {
-                img = var(ImageEntry::new_empty(Txt::default())).read_only();
+                img = var(ImageEntry::new_loading()).read_only();
                 _img_sub = VarHandle::dummy();
             }
             UiNodeOp::Update { .. } => {
@@ -94,18 +92,21 @@ pub fn border_img(
                     // cache-mode update:
                     let is_cached = img.with(|img| IMAGES.is_cached(img));
                     if enabled != is_cached {
-                        img = if is_cached {
+                        let source = source.get();
+                        let limits = IMAGE_LIMITS_VAR.get();
+
+                        let mut opt = ImageOptions::cache();
+
+                        if is_cached {
                             // must not cache, but is cached, detach from cache.
 
-                            let img = mem::replace(&mut img, var(ImageEntry::new_empty(Txt::default())).read_only());
-                            IMAGES.detach(img)
-                        } else {
-                            // must cache, but image is not cached, get source again.
-
-                            let source = source.get();
-                            let limits = IMAGE_LIMITS_VAR.get();
-                            IMAGES.image(source, ImageOptions::cache(), limits)
-                        };
+                            img = const_var(ImageEntry::new_loading()); // drop
+                            if let Some(h) = source.hash128(&opt) {
+                                IMAGES.clean(h);
+                            }
+                            opt.cache_mode = ImageCacheMode::Ignore;
+                        }
+                        img = IMAGES.image(source, opt, limits);
                     }
                 }
 

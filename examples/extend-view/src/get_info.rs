@@ -4,6 +4,7 @@
 pub mod app_side {
     use zng::prelude::*;
     use zng_app::view_process::VIEW_PROCESS;
+    use zng_ext_window::WINDOWS_EXTENSIONS;
     use zng_view_api::api_extension::ApiExtensionId;
 
     /// Get the raw-window-handle formatted to text.
@@ -11,7 +12,7 @@ pub mod app_side {
     /// This sends a custom command to the view-process (implemented in `super::view_side`), the view-process
     /// uses a WindowExtension to access the raw-window-handle and format it to text as a basic example.
     pub fn window_handle(win_id: WindowId) -> Option<Txt> {
-        match WINDOWS.view_window_extension::<_, super::api::Response>(
+        match WINDOWS_EXTENSIONS.view_window_extension::<_, super::api::Response>(
             win_id,
             self::extension_id(),
             &super::api::Request::WindowHandle { alternate: false },
@@ -26,7 +27,11 @@ pub mod app_side {
 
     /// Get the OpenGl `GL_VERSION` text.
     pub fn gl_version(win_id: WindowId) -> Option<Txt> {
-        match WINDOWS.view_window_extension::<_, super::api::Response>(win_id, self::extension_id(), &super::api::Request::GlVersion) {
+        match WINDOWS_EXTENSIONS.view_window_extension::<_, super::api::Response>(
+            win_id,
+            self::extension_id(),
+            &super::api::Request::GlVersion,
+        ) {
             Ok(r) => Some(r.txt),
             Err(e) => {
                 tracing::error!("failed to get extension response, {e}");

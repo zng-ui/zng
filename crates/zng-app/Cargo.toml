@@ -15,11 +15,6 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 # Instrument each widget instance to retain build information.
 inspector = []
 
-# Use dynamic dispatch at the app-extension level.
-#
-# This speeds-up compilation time at the cost of runtime.
-dyn_app_extension = []
-
 # Like `cfg(test)` but also visible in docs and integration tests.
 test_util = ["multi_app", "deadlock_detection"]
 

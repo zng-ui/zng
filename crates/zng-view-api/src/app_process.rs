@@ -126,7 +126,7 @@ impl Controller {
             response_receiver,
             event_listener: Some(ev),
             headless,
-            generation: ViewProcessGen::first(),
+            generation: ViewProcessGen::INVALID,
             is_respawn: false,
             last_respawn: None,
             fast_respawn_count: 0,
@@ -242,14 +242,6 @@ impl Controller {
         self.same_process
     }
 
-    fn disconnected_err(&self) -> Result<(), ChannelError> {
-        if self.is_connected() {
-            Ok(())
-        } else {
-            Err(ChannelError::disconnected())
-        }
-    }
-
     fn try_talk(&mut self, req: Request) -> Result<Response, ChannelError> {
         self.request_sender.send(req)?;
         self.response_receiver.recv()
@@ -257,12 +249,18 @@ impl Controller {
     pub(crate) fn talk(&mut self, req: Request) -> VpResult<Response> {
         debug_assert!(req.expect_response());
 
-        if req.must_be_connected() {
-            self.disconnected_err()?;
+        tracing::trace!("talk {req:?}");
+
+        if req.must_be_connected() && !self.is_connected() {
+            tracing::error!("cannot send request {req:?}, not connected");
+            return Err(ChannelError::disconnected());
         }
 
         match self.try_talk(req) {
-            Ok(r) => Ok(r),
+            Ok(r) => {
+                tracing::trace!("talk {r:?}");
+                Ok(r)
+            }
             Err(ChannelError::Disconnected { cause }) => {
                 self.handle_disconnect(self.generation);
                 Err(ChannelError::Disconnected { cause })
@@ -274,12 +272,18 @@ impl Controller {
     pub(crate) fn command(&mut self, req: Request) -> Result<(), ChannelError> {
         debug_assert!(!req.expect_response());
 
-        if req.must_be_connected() {
-            self.disconnected_err()?;
+        tracing::trace!("command {req:?}");
+
+        if req.must_be_connected() && !self.is_connected() {
+            tracing::error!("cannot send request {req:?}, not connected");
+            return Err(ChannelError::disconnected());
         }
 
         match self.request_sender.send(req) {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                tracing::trace!("command ok");
+                Ok(())
+            }
             Err(ChannelError::Disconnected { cause }) => {
                 self.handle_disconnect(self.generation);
                 Err(ChannelError::Disconnected { cause })
@@ -619,6 +623,9 @@ pub(crate) fn view_timeout() -> u64 {
         Ok(s) if !s.is_empty() => match s.parse::<u64>() {
             Ok(s) => s.max(5),
             Err(e) => {
+                if s == "false" {
+                    return u64::MAX;
+                }
                 tracing::error!("invalid {VIEW_TIMEOUT:?} value, {e}");
                 10
             }

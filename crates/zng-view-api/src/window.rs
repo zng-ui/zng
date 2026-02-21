@@ -142,7 +142,7 @@ impl HeadlessRequest {
 }
 
 /// Information about a monitor screen.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct MonitorInfo {
     /// Readable name of the monitor.
@@ -291,7 +291,7 @@ impl WindowOpenData {
 }
 
 /// Information about a successfully opened headless surface.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct HeadlessOpenData {
     /// Actual render mode, can be different from the requested mode if it is not available.
@@ -655,7 +655,7 @@ pub struct WindowStateAll {
 
     /// If the system provided outer-border and title-bar is visible.
     ///
-    /// This is also called the "decoration" or "chrome" of the window. Note that the system may prefer
+    /// This is also called the "decoration" or "chrome" of the window.
     pub chrome_visible: bool,
 }
 impl WindowStateAll {
@@ -1300,7 +1300,7 @@ bitflags::bitflags! {
         /// Can open the system context menu that usually shows on right click on the title bar.
         const OPEN_TITLE_BAR_CONTEXT_MENU = 1 << 14;
 
-        /// If operating system or view-process implementation provides a default window chrome (title bar, resize borders).
+        /// If operating system provides a window chrome (title bar, resize borders).
         const SYSTEM_CHROME = 1 << 15;
 
         /// Can minimize window.

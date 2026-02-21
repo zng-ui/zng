@@ -267,6 +267,11 @@ impl fmt::Debug for WeakContextualVar {
         f.debug_struct("WeakContextualVar").field("init", &self.0.init.as_ptr()).finish()
     }
 }
+impl PartialEq for WeakContextualVar {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.init.ptr_eq(&other.0.init)
+    }
+}
 impl WeakVarImpl for WeakContextualVar {
     fn clone_dyn(&self) -> DynWeakAnyVar {
         DynWeakAnyVar::Contextual(self.clone())
@@ -283,6 +288,13 @@ impl WeakVarImpl for WeakContextualVar {
                 ctx: RwLock::new((no_ctx_var(self.0.value_type), ContextInitHandle::no_context())),
             })))
         })
+    }
+
+    fn var_eq(&self, other: &DynWeakAnyVar) -> bool {
+        match other {
+            DynWeakAnyVar::Contextual(b) => self == b,
+            _ => false,
+        }
     }
 }
 

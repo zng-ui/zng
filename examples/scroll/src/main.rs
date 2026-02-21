@@ -9,7 +9,7 @@ use zng::{
 fn main() {
     zng::env::init!();
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         let mouse_pan = var(false);
         let smooth_scrolling = var(true);
         Window! {

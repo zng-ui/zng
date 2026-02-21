@@ -16,7 +16,7 @@ command! {
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`v_line_unit`]: fn@crate::v_line_unit
-    pub static SCROLL_UP_CMD = {
+    pub static SCROLL_UP_CMD {
         l10n!: true,
         name: "Scroll Up",
         info: "Scroll Up by one scroll unit",
@@ -32,7 +32,7 @@ command! {
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`v_line_unit`]: fn@crate::v_line_unit
-    pub static SCROLL_DOWN_CMD = {
+    pub static SCROLL_DOWN_CMD {
         l10n!: true,
         name: "Scroll Down",
         info: "Scroll Down by one scroll unit",
@@ -48,7 +48,7 @@ command! {
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`h_line_unit`]: fn@crate::h_line_unit
-    pub static SCROLL_LEFT_CMD = {
+    pub static SCROLL_LEFT_CMD {
         l10n!: true,
         name: "Scroll Left",
         info: "Scroll Left by one scroll unit",
@@ -64,7 +64,7 @@ command! {
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`h_line_unit`]: fn@crate::h_line_unit
-    pub static SCROLL_RIGHT_CMD = {
+    pub static SCROLL_RIGHT_CMD {
         l10n!: true,
         name: "Scroll Right",
         info: "Scroll Right by one scroll unit",
@@ -83,7 +83,7 @@ command! {
     /// [`info`]: CommandInfoExt
     /// [`shortcut`]: CommandShortcutExt
     /// [`v_page_unit`]: fn@crate::v_page_unit
-    pub static PAGE_UP_CMD = {
+    pub static PAGE_UP_CMD {
         l10n!: true,
         name: "Page Up",
         info: "Scroll Up by one page unit",
@@ -99,7 +99,7 @@ command! {
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`v_page_unit`]: fn@crate::v_page_unit
-    pub static PAGE_DOWN_CMD = {
+    pub static PAGE_DOWN_CMD {
         l10n!: true,
         name: "Page Down",
         info: "Scroll down by one page unit",
@@ -115,7 +115,7 @@ command! {
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`h_page_unit`]: fn@crate::h_page_unit
-    pub static PAGE_LEFT_CMD = {
+    pub static PAGE_LEFT_CMD {
         l10n!: true,
         name: "Page Left",
         info: "Scroll Left by one page unit",
@@ -131,7 +131,7 @@ command! {
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`h_page_unit`]: fn@crate::h_page_unit
-    pub static PAGE_RIGHT_CMD = {
+    pub static PAGE_RIGHT_CMD {
         l10n!: true,
         name: "Page Right",
         info: "Scroll Right by one page unit",
@@ -140,7 +140,7 @@ command! {
     };
 
     /// Represents the **scroll to top** action.
-    pub static SCROLL_TO_TOP_CMD = {
+    pub static SCROLL_TO_TOP_CMD {
         l10n!: true,
         name: "Scroll to Top",
         info: "Scroll up to the content top",
@@ -150,7 +150,7 @@ command! {
     };
 
     /// Represents the **scroll to bottom** action.
-    pub static SCROLL_TO_BOTTOM_CMD = {
+    pub static SCROLL_TO_BOTTOM_CMD {
         l10n!: true,
         name: "Scroll to Bottom",
         info: "Scroll down to the content bottom.",
@@ -160,7 +160,7 @@ command! {
     };
 
     /// Represents the **scroll to leftmost** action.
-    pub static SCROLL_TO_LEFTMOST_CMD = {
+    pub static SCROLL_TO_LEFTMOST_CMD {
         l10n!: true,
         name: "Scroll to Leftmost",
         info: "Scroll left to the content left edge",
@@ -169,7 +169,7 @@ command! {
     };
 
     /// Represents the **scroll to rightmost** action.
-    pub static SCROLL_TO_RIGHTMOST_CMD = {
+    pub static SCROLL_TO_RIGHTMOST_CMD {
         l10n!: true,
         name: "Scroll to Rightmost",
         info: "Scroll right to the content right edge",
@@ -204,7 +204,7 @@ command! {
     /// is *top-start*.
     ///
     /// [`Point`]: zng_wgt::prelude::Point
-    pub static ZOOM_IN_CMD = {
+    pub static ZOOM_IN_CMD {
         l10n!: true,
         name: "Zoom In",
         shortcut: shortcut!(CTRL + '+'),
@@ -221,7 +221,7 @@ command! {
     /// is *top-start*.
     ///
     /// [`Point`]: zng_wgt::prelude::Point
-    pub static ZOOM_OUT_CMD = {
+    pub static ZOOM_OUT_CMD {
         l10n!: true,
         name: "Zoom Out",
         shortcut: shortcut!(CTRL + '-'),
@@ -236,7 +236,7 @@ command! {
     /// # Parameter
     ///
     /// This command accepts an optional [`ZoomToFitRequest`] parameter with configuration.
-    pub static ZOOM_TO_FIT_CMD = {
+    pub static ZOOM_TO_FIT_CMD {
         l10n!: true,
         name: "Zoom to Fit",
         shortcut: shortcut!(CTRL + '0'),
@@ -247,7 +247,7 @@ command! {
     /// Represents the **reset zoom** action.
     ///
     /// The content is scaled back to 100%, without adjusting the scroll.
-    pub static ZOOM_RESET_CMD = {
+    pub static ZOOM_RESET_CMD {
         l10n!: true,
         name: "Reset Zoom",
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
@@ -290,11 +290,7 @@ impl ZoomToFitRequest {
     /// [`CommandArgs::param`]: zng_app::event::CommandArgs
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.param {
-            if args.propagation().is_stopped() {
-                None
-            } else {
-                Self::from_param(p)
-            }
+            if args.propagation.is_stopped() { None } else { Self::from_param(p) }
         } else {
             None
         }
@@ -351,11 +347,7 @@ impl ScrollRequest {
     /// [`CommandArgs::param`]: zng_app::event::CommandArgs
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.param {
-            if args.propagation().is_stopped() {
-                None
-            } else {
-                Self::from_param(p)
-            }
+            if args.propagation.is_stopped() { None } else { Self::from_param(p) }
         } else {
             None
         }
@@ -457,7 +449,7 @@ impl ScrollToRequest {
     /// [`CommandArgs::param`]: zng_app::event::CommandArgs
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.param {
-            if !args.enabled || args.propagation().is_stopped() {
+            if !args.enabled || args.propagation.is_stopped() {
                 None
             } else {
                 Self::from_param(p)

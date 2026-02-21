@@ -4,9 +4,7 @@ use crate::{
     access::{AccessCmd, AccessNodeId},
     api_extension::{ApiExtensionId, ApiExtensionPayload, ApiExtensions},
     audio::{AudioDecoded, AudioDeviceId, AudioDeviceInfo, AudioId, AudioMetadata, AudioOutputId, AudioOutputOpenData, AudioPlayId},
-    config::{
-        AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
-    },
+    config::{AnimationsConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse, NotificationResponse},
     drag_drop::{DragDropData, DragDropEffect},
     image::{ImageDecoded, ImageEncodeId, ImageId, ImageMetadata},
@@ -111,7 +109,7 @@ pub struct DragDropId(pub u32);
 /// The view-process implementation may not cover the full API, depending on operating system, build, headless mode.
 /// When the view-process does not implement something it just logs an error and ignores the request, this struct contains
 /// detailed info about what operations are available in the view-process instance.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ViewProcessInfo {
     /// View-process generation, changes after respawns and is never zero.
@@ -147,7 +145,7 @@ pub struct ViewProcessInfo {
 }
 impl ViewProcessInfo {
     /// New response.
-    pub fn new(generation: ViewProcessGen, is_respawn: bool) -> Self {
+    pub const fn new(generation: ViewProcessGen, is_respawn: bool) -> Self {
         Self {
             generation,
             is_respawn,
@@ -164,7 +162,7 @@ impl ViewProcessInfo {
 }
 
 /// IME preview or insert event.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Ime {
     /// Preview an IME insert at the last non-preview caret/selection.
     ///
@@ -506,8 +504,6 @@ pub enum Event {
     LocaleChanged(LocaleConfig),
     /// System color scheme or colors changed.
     ColorsConfigChanged(ColorsConfig),
-    /// System window chrome (decorations) preference changed.
-    ChromeConfigChanged(ChromeConfig),
 
     /// Raw input device event.
     InputDeviceEvent {

@@ -2001,6 +2001,7 @@ impl FrameBuilder {
                     .unwrap_or(ViewProcessGen::INVALID),
             ),
             Some(nested.widget_count_offsets.clone()),
+            true,
         );
 
         // fold nested window into host window
@@ -2047,6 +2048,7 @@ impl FrameBuilder {
                     .unwrap_or(ViewProcessGen::INVALID),
             ),
             Some(self.widget_count_offsets),
+            true,
         );
 
         let display_list = self.display_list.finalize();
@@ -2845,7 +2847,7 @@ impl FrameUpdate {
     ///
     /// Returns the property updates and the new clear color if any was set.
     pub fn finalize(mut self, info_tree: &WidgetInfoTree) -> BuiltFrameUpdate {
-        info_tree.after_render_update(self.frame_id);
+        info_tree.after_render_update(self.frame_id, true);
 
         if self.clear_color == Some(self.current_clear_color) {
             self.clear_color = None;

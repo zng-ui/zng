@@ -1,9 +1,9 @@
-use std::{fmt, sync::Arc};
+use std::fmt;
 
 use zng_app::{
-    AppEventSender, Deadline,
+    Deadline,
     event::{event, event_args},
-    update::UpdateOp,
+    timer::DeadlineVar,
     widget::{WidgetId, node::UiNode},
     window::WindowId,
 };
@@ -12,6 +12,8 @@ use zng_task::channel::ChannelError;
 #[cfg(feature = "image")]
 use zng_task::channel::IpcBytes;
 use zng_unique_id::IdSet;
+#[cfg(feature = "image")]
+use zng_var::WeakVarEq;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::window::{CursorIcon, EventCause};
 
@@ -27,7 +29,7 @@ use std::path::{Path, PathBuf};
 #[cfg(feature = "image")]
 use zng_app::window::WINDOW;
 #[cfg(feature = "image")]
-use zng_ext_image::{ImageSource, ImageVar};
+use zng_ext_image::{ImageEntry, ImageSource, ImageVar};
 #[cfg(feature = "image")]
 use zng_layout::unit::Point;
 #[cfg(feature = "image")]
@@ -486,8 +488,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, _id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -501,8 +503,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, _id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -529,8 +531,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, _id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -548,8 +550,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, _id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -566,8 +568,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, _id: WidgetId) -> bool {
+            true
         }
     }
 }
@@ -583,18 +585,19 @@ event_args! {
         /// This is *probably* the ID of frame pixels if they are requested immediately.
         pub frame_id: FrameId,
 
-        /// The frame pixels if it was requested when the frame request was sent to the view-process.
+        /// The frame pixels.
         ///
-        /// See [`WindowVars::frame_capture_mode`] for more details.
+        /// See [`WindowVars::frame_capture_mode`] for more details. The image reference will hold only for the hooks, you must upgrade it
+        /// to keep it, this is done to avoid retaining the image in the last event.
         ///
         /// [`WindowVars::frame_capture_mode`]: crate::WindowVars::frame_capture_mode
-        pub frame_image: Option<ImageVar>,
+        pub frame_image: WeakVarEq<ImageEntry>,
 
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        fn is_in_target(&self, _id: WidgetId) -> bool {
+            true
         }
     }
 }
@@ -722,7 +725,9 @@ event! {
     /// New window has inited.
     pub static WINDOW_OPEN_EVENT: WindowOpenArgs;
 
-    /// Window finished loading and has opened in the view-process.
+    /// Window instance state has changed to [`WindowInstanceState::Loaded`].
+    ///
+    /// If the window has renderer this event notifies only after the window is loaded with renderer.
     pub static WINDOW_LOAD_EVENT: WindowOpenArgs;
 
     /// Window focus/blur event.
@@ -740,11 +745,8 @@ event! {
 }
 #[cfg(feature = "image")]
 event! {
-    /// A window frame has finished rendering.
+    /// A window frame has finished rendering and frame pixels where copied due to [`WindowVars::frame_capture_mode`].
     ///
-    /// You can request a copy of the pixels using [`WINDOWS.frame_image`] or by setting the [`WindowVars::frame_capture_mode`].
-    ///
-    /// [`WINDOWS.frame_image`]: crate::WINDOWS::frame_image
     /// [`WindowVars::frame_capture_mode`]: crate::WindowVars::frame_capture_mode
     pub static FRAME_IMAGE_READY_EVENT: FrameImageReadyArgs;
 }
@@ -762,30 +764,6 @@ pub enum CloseWindowResult {
     Cancel,
 }
 
-/// Error when a [`WindowId`] is not opened by the [`WINDOWS`] service.
-///
-/// [`WINDOWS`]: crate::WINDOWS
-/// [`WindowId`]: crate::WindowId
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct WindowNotFoundError(WindowId);
-impl WindowNotFoundError {
-    /// New from id.
-    pub fn new(id: impl Into<WindowId>) -> Self {
-        Self(id.into())
-    }
-
-    /// Gets the ID that was not found.
-    pub fn id(&self) -> WindowId {
-        self.0
-    }
-}
-impl fmt::Display for WindowNotFoundError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "window `{}` not found", self.0)
-    }
-}
-impl std::error::Error for WindowNotFoundError {}
-
 /// Represents a handle that stops the window from loading while the handle is alive.
 ///
 /// A handle can be retrieved using [`WINDOWS.loading_handle`] or [`WINDOW.loading_handle`], the window does not
@@ -793,38 +771,13 @@ impl std::error::Error for WindowNotFoundError {}
 ///
 /// [`WINDOWS.loading_handle`]: WINDOWS::loading_handle
 /// [`WINDOW.loading_handle`]: WINDOW::loading_handle
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[must_use = "the window does not await loading if the handle is dropped"]
-pub struct WindowLoadingHandle(pub(crate) Arc<WindowLoadingHandleData>);
+pub struct WindowLoadingHandle(pub(crate) DeadlineVar);
 impl WindowLoadingHandle {
     /// Handle expiration deadline.
     pub fn deadline(&self) -> Deadline {
-        self.0.deadline
-    }
-}
-pub(crate) struct WindowLoadingHandleData {
-    pub(crate) update: AppEventSender,
-    pub(crate) deadline: Deadline,
-}
-impl Drop for WindowLoadingHandleData {
-    fn drop(&mut self) {
-        let _ = self.update.send_update(UpdateOp::Update, None);
-    }
-}
-impl PartialEq for WindowLoadingHandle {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-impl Eq for WindowLoadingHandle {}
-impl std::hash::Hash for WindowLoadingHandle {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        (Arc::as_ptr(&self.0) as usize).hash(state);
-    }
-}
-impl fmt::Debug for WindowLoadingHandle {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "WindowLoadingHandle(_)")
+        self.0.get()
     }
 }
 
@@ -833,7 +786,7 @@ impl fmt::Debug for WindowLoadingHandle {
 #[non_exhaustive]
 pub enum ViewExtensionError {
     /// Window is not open in the `WINDOWS` service.
-    WindowNotFound(WindowNotFoundError),
+    WindowNotFound(WindowId),
     /// Window must be headed to call window extensions.
     WindowNotHeaded(WindowId),
     /// Window is not open in the view-process.
@@ -841,6 +794,8 @@ pub enum ViewExtensionError {
     /// If the window is headless without renderer it will never open in view-process, if the window is headed
     /// headless with renderer the window opens in the view-process after the first layout.
     NotOpenInViewProcess(WindowId),
+    /// Window is already open in view-process. Extensions init must be set before first layout.
+    AlreadyOpenInViewProcess(WindowId),
     /// View-process is not running.
     Disconnected,
     /// Api Error.
@@ -849,9 +804,10 @@ pub enum ViewExtensionError {
 impl fmt::Display for ViewExtensionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::WindowNotFound(e) => fmt::Display::fmt(e, f),
+            Self::WindowNotFound(id) => write!(f, "window `{id}` not found"),
             Self::WindowNotHeaded(id) => write!(f, "window `{id}` is not headed"),
             Self::NotOpenInViewProcess(id) => write!(f, "window/renderer `{id}` not open in the view-process"),
+            Self::AlreadyOpenInViewProcess(id) => write!(f, "window/renderer `{id}` already open in the view-process"),
             Self::Disconnected => fmt::Display::fmt(&DISCONNECTED_SOURCE, f),
             Self::Api(e) => fmt::Display::fmt(e, f),
         }
@@ -860,12 +816,78 @@ impl fmt::Display for ViewExtensionError {
 impl std::error::Error for ViewExtensionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::WindowNotFound(e) => Some(e),
+            Self::WindowNotFound(_) => None,
             Self::WindowNotHeaded(_) => None,
             Self::NotOpenInViewProcess(_) => None,
+            Self::AlreadyOpenInViewProcess(_) => None,
             Self::Disconnected => Some(&DISCONNECTED_SOURCE),
             Self::Api(e) => Some(e),
         }
     }
 }
 static DISCONNECTED_SOURCE: ChannelError = ChannelError::Disconnected { cause: None };
+
+bitflags! {
+    /// Defines what window operations can run in parallel, between windows.
+    ///
+    /// Note that this does not define parallelism inside the window, see [`WINDOWS.parallel`] for more details.
+    ///
+    /// [`WINDOWS.parallel`]: WINDOWS::parallel
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
+    pub struct ParallelWin: u8 {
+        /// Windows can init, deinit, update and rebuild info in parallel.
+        const UPDATE = 0b0001;
+        /// Windows can layout in parallel.
+        const LAYOUT = 0b0100;
+        /// Windows with pending render or render update generate display lists in parallel.
+        const RENDER = 0b1000;
+    }
+}
+impl Default for ParallelWin {
+    /// Is all by default.
+    fn default() -> Self {
+        Self::all()
+    }
+}
+impl_from_and_into_var! {
+    fn from(all: bool) -> ParallelWin {
+        if all { ParallelWin::all() } else { ParallelWin::empty() }
+    }
+}
+
+/// Represents stages of a window instance lifetime.
+#[derive(Debug, PartialEq, Clone)]
+pub enum WindowInstanceState {
+    /// The new window closure is running.
+    ///
+    /// The [`WINDOWS.vars`] is available.
+    ///
+    /// [`WINDOWS.vars`]: WINDOWS::vars
+    Building,
+    /// Some [`WindowLoadingHandle`] are still held.
+    ///
+    /// The [`WINDOWS.widget_tree`] is available, the window is awaiting load to show.
+    ///
+    /// [`WINDOWS.widget_tree`]: WINDOWS::widget_tree
+    Loading,
+    /// Window is fully loaded or load handles have timeout.
+    Loaded {
+        /// If the window is headed or headless with renderer and it is represented in the view-process.
+        has_view: bool,
+    },
+    /// Window content and view has deinited and dropped.
+    ///
+    /// The [`WindowVars::instance_state`] variable will not update again.
+    ///
+    /// [`WindowVars::instance_state`]: crate::WindowVars::instance_state
+    Closed,
+}
+impl WindowInstanceState {
+    /// If matches [`Loaded`] with and without view.
+    ///
+    /// [`Loaded`]: WindowInstanceState::Loaded
+    pub fn is_loaded(&self) -> bool {
+        matches!(self, Self::Loaded { .. })
+    }
+}

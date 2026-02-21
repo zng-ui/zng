@@ -9,7 +9,7 @@ fn main() {
 
     // examples/Cargo.toml enables the `"hot_reload"` feature for `zng`,
     // so the hot reload extension is available in `APP.defaults()`.
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         // default rebuild is just `cargo build`, the rebuilder must match the Cargo feature set
         // used to run the program, it will rebuild only until the dylib is finished.
         //

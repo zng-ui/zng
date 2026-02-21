@@ -2,7 +2,7 @@ use std::{any::Any, sync::Arc};
 
 use zng_app::{
     render::{FrameBuilder, FrameUpdate},
-    update::{EventUpdate, WidgetUpdates},
+    update::WidgetUpdates,
     widget::{
         WIDGET,
         info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
@@ -193,19 +193,15 @@ impl UiNodeImpl for HotNodeHost {
         self.instance.info(info);
     }
 
-    fn event(&mut self, update: &EventUpdate) {
-        self.instance.event(update);
+    fn update(&mut self, updates: &WidgetUpdates) {
+        self.instance.update(updates);
 
-        if let Some(args) = HOT_RELOAD_EVENT.on(update)
-            && args.lib.manifest_dir() == self.manifest_dir
-        {
+        let mut reinit = false;
+        HOT_RELOAD_EVENT.each_update(true, |args| reinit |= args.lib.manifest_dir() == self.manifest_dir);
+        if reinit {
             WIDGET.reinit();
             tracing::debug!("reinit `{}` to hot reload `{}`", WIDGET.trace_id(), self.name);
         }
-    }
-
-    fn update(&mut self, updates: &WidgetUpdates) {
-        self.instance.update(updates);
     }
     fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn zng_app::widget::node::UiNodeListObserver) {
         self.instance.update_list(updates, observer);
@@ -360,7 +356,6 @@ define_api! {
     fn init();
     fn deinit();
     fn info(info: &mut WidgetInfoBuilder);
-    fn event(update: &EventUpdate);
     fn update(updates: &WidgetUpdates);
     fn update_list(updates: &WidgetUpdates, observer: &mut dyn zng_app::widget::node::UiNodeListObserver);
     fn measure(wm: &mut WidgetMeasure) -> PxSize;

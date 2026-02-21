@@ -10,12 +10,12 @@ use zng_app::view_process::VIEW_PROCESS;
 
 fn main() {
     // log other processes too.
-    zng::app::print_tracing(tracing::Level::INFO);
+    zng::app::print_tracing(tracing::Level::INFO, false, |_| true);
     // init metadata, view-process, crash-dialog-process.
     zng::env::init!();
 
     // this is the normal app-process:
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         Window! {
             title = "Respawn Example";
             icon = WindowIcon::render(icon);
@@ -79,7 +79,7 @@ fn main() {
 // zng::app::crash_handler::crash_handler_config!(|cfg| cfg.dialog(app_crash_handler));
 #[allow(unused)]
 fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) {
-    APP.defaults().run_window(async move {
+    APP.defaults().run_window("crash-dialog", async move {
         Window! {
             title = "Respawn Example - App Crashed";
             icon = WindowIcon::render(icon);
@@ -91,7 +91,7 @@ fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) {
 
             on_load = hn_once!(|_| {
                 // force to foreground
-                let _ = WINDOWS.focus(WINDOW.id());
+                FOCUS.focus_window(WINDOW.id(), false);
             });
 
             padding = 5;

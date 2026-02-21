@@ -19,7 +19,11 @@ use zng_view_api::StaticPatch;
 
 zng_env::on_process_start!(|_| {
     if std::env::var("ZNG_VIEW_NO_INIT_START").is_err() {
-        view_process_main()
+        if !zng_env::about().is_test {
+            view_process_main();
+        } else {
+            tracing::debug!("view-process not inited in test app");
+        }
     }
 });
 

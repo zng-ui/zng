@@ -3,12 +3,12 @@ use std::{borrow::Cow, num::Wrapping, sync::Arc};
 use parking_lot::RwLock;
 use zng_app::{
     access::{ACCESS_SELECTION_EVENT, ACCESS_TEXT_EVENT},
-    event::{CommandHandle, EventHandle},
+    event::CommandHandle,
     render::FontSynthesis,
-    update::{EventUpdate, UpdateOp},
+    update::UpdateOp,
     widget::{
         WIDGET,
-        info::INTERACTIVITY_CHANGED_EVENT,
+        info::WIDGET_TREE_CHANGED_EVENT,
         node::{UiNode, UiNodeOp, match_node},
     },
     window::WINDOW,
@@ -113,16 +113,16 @@ fn resolve_text_font(child: impl IntoUiNode) -> UiNode {
                     .sub_event(&FONT_CHANGED_EVENT)
                     .sub_var(&FONT_SYNTHESIS_VAR);
             }
-            UiNodeOp::Event { update } => {
-                if FONT_CHANGED_EVENT.has(update) {
-                    state = State::Reload;
-                }
-            }
             UiNodeOp::Update { .. } => {
-                if FONT_FAMILY_VAR.is_new() || FONT_STYLE_VAR.is_new() || FONT_WEIGHT_VAR.is_new() || FONT_STRETCH_VAR.is_new() {
+                if FONT_CHANGED_EVENT.has_update(true) | FONT_FAMILY_VAR.is_new()
+                    || FONT_STYLE_VAR.is_new()
+                    || FONT_WEIGHT_VAR.is_new()
+                    || FONT_STRETCH_VAR.is_new()
+                {
                     state = State::Reload;
                 } else if let State::Loading { response, .. } = &state {
                     if let Some(f) = response.rsp() {
+                        tracing::trace!("text {:?} fonts finished loading", WIDGET.id());
                         let mut txt = TEXT.resolve();
                         txt.synthesis = FONT_SYNTHESIS_VAR.get() & f.best().synthesis_for(FONT_STYLE_VAR.get(), FONT_WEIGHT_VAR.get());
                         txt.faces = f;
@@ -149,6 +149,7 @@ fn resolve_text_font(child: impl IntoUiNode) -> UiNode {
         if let State::Reload = &state {
             let font_list = FONT_FAMILY_VAR.with(|family| {
                 LANG_VAR.with(|lang| {
+                    tracing::trace!("text {:?} begin load font list", WIDGET.id());
                     FONTS.list(
                         family,
                         FONT_STYLE_VAR.get(),
@@ -160,6 +161,7 @@ fn resolve_text_font(child: impl IntoUiNode) -> UiNode {
             });
 
             if let Some(f) = font_list.rsp() {
+                tracing::trace!("font list already loaded");
                 let mut txt = TEXT.resolve();
                 txt.synthesis = FONT_SYNTHESIS_VAR.get() & f.best().synthesis_for(FONT_STYLE_VAR.get(), FONT_WEIGHT_VAR.get());
                 txt.faces = f;
@@ -167,10 +169,11 @@ fn resolve_text_font(child: impl IntoUiNode) -> UiNode {
 
                 WIDGET.layout();
             } else {
+                tracing::trace!("font list loading");
                 state = State::Loading {
                     _update_handle: font_list.subscribe(UpdateOp::Update, WIDGET.id()),
                     response: font_list,
-                    _window_load_handle: WINDOW.loading_handle(1.secs()),
+                    _window_load_handle: WINDOW.loading_handle(1.secs(), "font-list"),
                 };
             }
         }
@@ -271,7 +274,7 @@ fn resolve_text_edit(child: impl IntoUiNode) -> UiNode {
             UiNodeOp::Deinit => {
                 edit = None;
             }
-            UiNodeOp::Update { .. } => {
+            UiNodeOp::Update { updates } => {
                 if TEXT_EDITABLE_VAR.is_new() || TEXT_SELECTABLE_VAR.is_new() {
                     enable = TEXT_EDITABLE_VAR.get() || TEXT_SELECTABLE_VAR.get();
                     if !enable && edit.is_some() {
@@ -281,23 +284,20 @@ fn resolve_text_edit(child: impl IntoUiNode) -> UiNode {
                 }
 
                 if let Some(edit) = &mut edit {
-                    resolve_text_edit_update(edit);
-                }
-            }
-            UiNodeOp::Event { update } => {
-                child.event(update);
+                    child.update(updates);
 
-                if let Some(edit) = &mut edit {
+                    resolve_text_edit_update(edit);
+
                     if TEXT_EDITABLE_VAR.get() && TEXT.resolved().txt.capabilities().can_modify() {
-                        resolve_text_edit_events(update, edit);
+                        resolve_text_edit_events(edit);
                     }
                     if TEXT_EDITABLE_VAR.get() || TEXT_SELECTABLE_VAR.get() {
-                        resolve_text_edit_or_select_events(update, edit);
+                        resolve_text_edit_or_select_events(edit);
                     }
 
                     let enable = !OBSCURE_TXT_VAR.get() && TEXT.resolved().caret.selection_range().is_some();
-                    edit.cut.set_enabled(enable);
-                    edit.copy.set_enabled(enable);
+                    edit.cut.enabled().set(enable);
+                    edit.copy.enabled().set(enable);
                 }
             }
             _ => {}
@@ -309,11 +309,26 @@ fn resolve_text_edit(child: impl IntoUiNode) -> UiNode {
             if editable {
                 let id = WIDGET.id();
 
-                edit.events[0] = FOCUS_CHANGED_EVENT.subscribe(id);
-                edit.events[1] = INTERACTIVITY_CHANGED_EVENT.subscribe(id);
-                edit.events[2] = KEY_INPUT_EVENT.subscribe(id);
-                edit.events[3] = ACCESS_TEXT_EVENT.subscribe(id);
-                edit.events[5] = IME_EVENT.subscribe(id);
+                edit.focus_changed = FOCUS_CHANGED_EVENT.subscribe(UpdateOp::Update, id);
+                edit.key_input = KEY_INPUT_EVENT.subscribe(UpdateOp::Update, id);
+                edit.access_text = ACCESS_TEXT_EVENT.subscribe(UpdateOp::Update, id);
+                edit.ime = IME_EVENT.subscribe(UpdateOp::Update, id);
+
+                let win_id = WINDOW.id();
+                let i = WIDGET_TREE_CHANGED_EVENT.var_map(
+                    move |args| {
+                        if args.tree.window_id() == win_id
+                            && let Some(wgt) = args.tree.get(id)
+                        {
+                            Some(wgt.interactivity())
+                        } else {
+                            None
+                        }
+                    },
+                    Interactivity::empty,
+                );
+                i.subscribe(UpdateOp::Update, id).perm();
+                edit.interactivity = Some(i);
 
                 edit.paste = PASTE_CMD.scoped(id).subscribe(true);
                 edit.edit = EDIT_CMD.scoped(id).subscribe(true);
@@ -333,7 +348,7 @@ fn resolve_text_edit(child: impl IntoUiNode) -> UiNode {
             if TEXT_SELECTABLE_VAR.get() {
                 let id = WIDGET.id();
 
-                edit.events[4] = ACCESS_SELECTION_EVENT.subscribe(id);
+                edit.access_selection = ACCESS_SELECTION_EVENT.subscribe(UpdateOp::Update, id);
 
                 let enabled = !OBSCURE_TXT_VAR.get() && TEXT.resolved().caret.selection_range().is_some();
                 edit.copy = COPY_CMD.scoped(id).subscribe(enabled);
@@ -341,9 +356,9 @@ fn resolve_text_edit(child: impl IntoUiNode) -> UiNode {
                     edit.cut = CUT_CMD.scoped(id).subscribe(enabled);
                 } else {
                     // used in `render_selection`
-                    edit.events[0] = FOCUS_CHANGED_EVENT.subscribe(id);
+                    edit.focus_changed = FOCUS_CHANGED_EVENT.subscribe(UpdateOp::Update, id);
 
-                    edit.events[2] = KEY_INPUT_EVENT.subscribe(id);
+                    edit.key_input = KEY_INPUT_EVENT.subscribe(UpdateOp::Update, id);
                 }
             }
         }
@@ -352,8 +367,15 @@ fn resolve_text_edit(child: impl IntoUiNode) -> UiNode {
 /// Data allocated only when `editable`.
 #[derive(Default)]
 struct ResolveTextEdit {
-    events: [EventHandle; 6],
+    focus_changed: VarHandle,
+    key_input: VarHandle,
+    access_text: VarHandle,
+    access_selection: VarHandle,
+    ime: VarHandle,
+
+    interactivity: Option<Var<Interactivity>>,
     caret_animation: VarHandle,
+
     max_count: VarHandle,
     cut: CommandHandle,
     copy: CommandHandle,
@@ -379,9 +401,9 @@ fn enforce_max_count(text: &Var<Txt>) {
         }
     }
 }
-fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
-    if let Some(args) = INTERACTIVITY_CHANGED_EVENT.on(update)
-        && args.is_disable(WIDGET.id())
+fn resolve_text_edit_events(edit: &mut ResolveTextEdit) {
+    if let Some(i) = edit.interactivity.as_ref().unwrap().get_new()
+        && i.is_disabled()
     {
         edit.caret_animation = VarHandle::dummy();
         TEXT.resolve().caret.opacity = var(0.fct()).read_only();
@@ -400,7 +422,7 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
         (r.caret.index, r.caret.index_version, r.caret.selection_index)
     };
 
-    if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
+    KEY_INPUT_EVENT.each_update(false, |args| {
         let mut ctx = TEXT.resolve();
         if args.state == KeyState::Pressed && args.target.widget_id() == widget.id() {
             match &args.key {
@@ -408,12 +430,12 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
                     let caret = &mut ctx.caret;
                     if caret.selection_index.is_some() || caret.index.unwrap_or(CaretIndex::ZERO).index > 0 {
                         if args.modifiers.is_only_ctrl() {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             ctx.selection_by = SelectionBy::Keyboard;
                             drop(ctx);
                             TextEditOp::backspace_word().call_edit_op();
                         } else if args.modifiers.is_empty() {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             ctx.selection_by = SelectionBy::Keyboard;
                             drop(ctx);
                             TextEditOp::backspace().call_edit_op();
@@ -425,12 +447,12 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
                     let caret_idx = caret.index.unwrap_or(CaretIndex::ZERO);
                     if caret.selection_index.is_some() || caret_idx.index < ctx.segmented_text.text().len() {
                         if args.modifiers.is_only_ctrl() {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             ctx.selection_by = SelectionBy::Keyboard;
                             drop(ctx);
                             TextEditOp::delete_word().call_edit_op();
                         } else if args.modifiers.is_empty() {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             ctx.selection_by = SelectionBy::Keyboard;
                             drop(ctx);
                             TextEditOp::delete().call_edit_op();
@@ -442,7 +464,7 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
                     if !insert.is_empty() {
                         let skip = (args.is_tab() && !ACCEPTS_TAB_VAR.get()) || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get());
                         if !skip {
-                            args.propagation().stop();
+                            args.propagation.stop();
                             ctx.selection_by = SelectionBy::Keyboard;
                             drop(ctx);
                             TextEditOp::insert(Txt::from_str(insert)).call_edit_op();
@@ -451,7 +473,8 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
                 }
             }
         }
-    } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+    });
+    FOCUS_CHANGED_EVENT.each_update(true, |args| {
         let mut ctx = TEXT.resolve();
         let caret = &mut ctx.caret;
         let caret_index = &mut caret.index;
@@ -519,26 +542,30 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
 
             // ALL_ON_FOCUS_POINTER handled by `layout_text_edit_events`
         }
-    } else if let Some(args) = CUT_CMD.scoped(widget.id()).on_unhandled(update) {
+    });
+
+    CUT_CMD.scoped(widget.id()).each_update(true, false, |args| {
         let mut ctx = TEXT.resolve();
         if let Some(range) = ctx.caret.selection_char_range() {
-            args.propagation().stop();
+            args.propagation.stop();
             ctx.selection_by = SelectionBy::Command;
             CLIPBOARD.set_text(Txt::from_str(&ctx.segmented_text.text()[range]));
             drop(ctx);
             TextEditOp::delete().call_edit_op();
         }
-    } else if let Some(args) = PASTE_CMD.scoped(widget.id()).on_unhandled(update) {
+    });
+    PASTE_CMD.scoped(widget.id()).each_update(true, false, |args| {
         if let Some(paste) = CLIPBOARD.text().ok().flatten()
             && !paste.is_empty()
         {
-            args.propagation().stop();
+            args.propagation.stop();
             TEXT.resolve().selection_by = SelectionBy::Command;
             TextEditOp::insert(paste).call_edit_op();
         }
-    } else if let Some(args) = EDIT_CMD.scoped(widget.id()).on_unhandled(update) {
+    });
+    EDIT_CMD.scoped(widget.id()).each_update(true, false, |args| {
         if let Some(op) = args.param::<UndoTextEditOp>() {
-            args.propagation().stop();
+            args.propagation.stop();
 
             op.call();
             if !TEXT.resolved().pending_edit {
@@ -546,13 +573,14 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
                 WIDGET.update();
             }
         } else if let Some(op) = args.param::<TextEditOp>() {
-            args.propagation().stop();
+            args.propagation.stop();
 
             op.clone().call_edit_op();
         }
-    } else if let Some(args) = ACCESS_TEXT_EVENT.on_unhandled(update) {
-        if args.widget_id == widget.id() {
-            args.propagation().stop();
+    });
+    ACCESS_TEXT_EVENT.each_update(false, |args| {
+        if args.target.widget_id() == widget.id() {
+            args.propagation.stop();
 
             if args.selection_only {
                 TextEditOp::insert(args.txt.clone())
@@ -563,7 +591,8 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
             }
             .call_edit_op();
         }
-    } else if let Some(args) = IME_EVENT.on_unhandled(update) {
+    });
+    IME_EVENT.each_update(false, |args| {
         let mut resegment = false;
 
         if let Some((start, end)) = args.preview_caret {
@@ -617,7 +646,7 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
         } else {
             // commit IME insert
 
-            args.propagation().stop();
+            args.propagation.stop();
             {
                 let mut ctx = TEXT.resolve();
                 if let Some(preview) = ctx.ime_preview.take() {
@@ -672,7 +701,7 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
             ctx.pending_layout |= PendingLayout::RESHAPE;
             WIDGET.layout();
         }
-    }
+    });
 
     let mut ctx = TEXT.resolve();
     let caret = &mut ctx.caret;
@@ -690,13 +719,13 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
         WIDGET.layout(); // update caret_origin
     }
 }
-fn resolve_text_edit_or_select_events(update: &EventUpdate, _: &mut ResolveTextEdit) {
+fn resolve_text_edit_or_select_events(_: &mut ResolveTextEdit) {
     let widget_id = WIDGET.id();
 
-    if let Some(args) = COPY_CMD.scoped(widget_id).on_unhandled(update) {
+    COPY_CMD.scoped(widget_id).each_update(true, false, |args| {
         let ctx = TEXT.resolved();
         if let Some(range) = ctx.caret.selection_char_range() {
-            args.propagation().stop();
+            args.propagation.stop();
             let txt = Txt::from_str(&ctx.segmented_text.text()[range]);
             if let Some(rt) = args.param::<RichTextCopyParam>() {
                 rt.set_text(txt);
@@ -704,19 +733,19 @@ fn resolve_text_edit_or_select_events(update: &EventUpdate, _: &mut ResolveTextE
                 let _ = CLIPBOARD.set_text(txt);
             }
         }
-    } else if let Some(args) = ACCESS_SELECTION_EVENT.on_unhandled(update)
-        && args.start.0 == widget_id
-        && args.caret.0 == widget_id
-    {
-        args.propagation().stop();
+    });
+    ACCESS_SELECTION_EVENT.each_update(false, |args| {
+        if args.start.0.widget_id() == widget_id && args.caret.0.widget_id() == widget_id {
+            args.propagation.stop();
 
-        let mut ctx = TEXT.resolve();
+            let mut ctx = TEXT.resolve();
 
-        ctx.caret.set_char_selection(args.start.1, args.caret.1);
+            ctx.caret.set_char_selection(args.start.1, args.caret.1);
 
-        ctx.pending_layout |= PendingLayout::CARET;
-        WIDGET.layout();
-    }
+            ctx.pending_layout |= PendingLayout::CARET;
+            WIDGET.layout();
+        }
+    });
 }
 fn resolve_text_edit_update(_: &mut ResolveTextEdit) {
     let mut ctx = TEXT.resolve();

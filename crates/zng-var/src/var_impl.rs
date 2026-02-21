@@ -199,6 +199,7 @@ declare_weak! {
     fn clone_dyn(&self) -> DynWeakAnyVar;
     fn strong_count(&self) -> usize;
     fn upgrade(&self) -> Option<DynAnyVar>;
+    fn var_eq(&self, other: &DynWeakAnyVar) -> bool;
 }
 
 /// Error when an attempt to modify a variable without the [`MODIFY`] capability is made.
@@ -570,7 +571,47 @@ impl VarHandle {
     pub fn chain(self, other: Self) -> VarHandles {
         VarHandles(smallvec::smallvec![self, other])
     }
+
+    /// Create a weak reference to this handle.
+    ///
+    /// Note that weak references to dummy handles cannot upgrade back.
+    pub fn downgrade(&self) -> WeakVarHandle {
+        match &self.0 {
+            Some(a) => WeakVarHandle(Arc::downgrade(a)),
+            None => WeakVarHandle::new(),
+        }
+    }
 }
+
+/// Weak reference to a [`VarHandle`].
+#[derive(Clone, Default)]
+pub struct WeakVarHandle(std::sync::Weak<AtomicBool>);
+impl PartialEq for WeakVarHandle {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.ptr_eq(&other.0)
+    }
+}
+impl Eq for WeakVarHandle {}
+impl fmt::Debug for WeakVarHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("WeakVarHandle").finish_non_exhaustive()
+    }
+}
+impl WeakVarHandle {
+    /// Upgrade to strong handle.
+    ///
+    /// Returns `None` if no strong reference to the handle remains.
+    pub fn upgrade(&self) -> Option<VarHandle> {
+        let h = VarHandle(self.0.upgrade());
+        if h.is_dummy() { None } else { Some(h) }
+    }
+
+    /// New dummy weak reference that does not upgrade.
+    pub const fn new() -> Self {
+        WeakVarHandle(std::sync::Weak::new())
+    }
+}
+
 pub(crate) struct VarHandlerOwner(Arc<AtomicBool>);
 impl fmt::Debug for VarHandlerOwner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

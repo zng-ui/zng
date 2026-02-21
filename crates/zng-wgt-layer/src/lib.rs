@@ -13,7 +13,7 @@ zng_wgt::enable_widget_macros!();
 
 use parking_lot::Mutex;
 use zng_app::widget::border::CORNER_RADIUS_VAR;
-use zng_app::widget::info::WIDGET_INFO_CHANGED_EVENT;
+use zng_app::widget::info::WIDGET_TREE_CHANGED_EVENT;
 use zng_ext_input::mouse::MOUSE;
 use zng_ext_input::touch::TOUCH;
 use zng_ext_window::WINDOW_Ext as _;
@@ -218,7 +218,12 @@ impl LAYERS {
                         anchor_info = Some(get_anchor_info(anchor.get()));
 
                         interactivity = mode.with(|m| m.interactivity);
-                        _info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(WIDGET.id()));
+                        let win_id = WINDOW.id();
+                        _info_changed_handle = Some(
+                            WIDGET_TREE_CHANGED_EVENT.subscribe_when(UpdateOp::Update, WIDGET.id(), move |args| {
+                                !args.is_update && args.tree.window_id() == win_id
+                            }),
+                        );
 
                         if mode.with(|m| matches!(&m.transform, AnchorTransform::Cursor { .. })) {
                             mouse_pos_handle = Some(MOUSE.position().subscribe(UpdateOp::Update, WIDGET.id()));
@@ -263,13 +268,6 @@ impl LAYERS {
                     });
                 }
             }
-            UiNodeOp::Event { update } => {
-                if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update)
-                    && args.window_id == WINDOW.id()
-                {
-                    anchor_info = Some(get_anchor_info(anchor.get()));
-                }
-            }
             UiNodeOp::Update { .. } => {
                 if let Some(mut wgt) = widget.node().as_widget() {
                     wgt.with_context(WidgetUpdateMode::Bubble, || {
@@ -298,7 +296,13 @@ impl LAYERS {
                         } else if mouse_pos_handle.is_some() && MOUSE.position().is_new() {
                             WIDGET.layout();
                         }
-                    })
+                    });
+
+                    WIDGET_TREE_CHANGED_EVENT.each_update(true, |args| {
+                        if !args.is_update && args.tree.window_id() == WINDOW.id() {
+                            anchor_info = Some(get_anchor_info(anchor.get()));
+                        }
+                    });
                 }
             }
             UiNodeOp::Measure { wm, desired_size } => {
@@ -1540,33 +1544,33 @@ pub fn layers_node(child: impl IntoUiNode) -> UiNode {
             _insert_handle = CommandHandle::dummy();
             _remove_handle = CommandHandle::dummy();
         }
-        UiNodeOp::Event { update } => {
-            c.event(update);
-            if let Some(args) = LAYERS_INSERT_CMD.scoped(WINDOW.id()).on_unhandled(update) {
-                if let Some((layer, widget)) = args.param::<(LayerIndex, WidgetFn<()>)>() {
-                    LAYERS.insert(*layer, widget(()));
-                    args.propagation().stop();
-                } else if let Some((layer, anchor, mode, widget)) = args.param::<(LayerIndex, WidgetId, AnchorMode, WidgetFn<()>)>() {
-                    LAYERS.insert_anchored(*layer, *anchor, mode.clone(), widget(()));
-                    args.propagation().stop();
-                } else {
-                    tracing::debug!("ignoring LAYERS_INSERT_CMD, unknown param type");
-                }
-            } else if let Some(args) = LAYERS_REMOVE_CMD.scoped(WINDOW.id()).on_unhandled(update) {
-                if let Some(id) = args.param::<WidgetId>() {
-                    LAYERS.remove(*id);
-                } else {
-                    tracing::debug!("ignoring LAYERS_REMOVE_CMD, unknown param type");
-                }
-            }
-        }
         UiNodeOp::Update { updates } => {
             let mut changed = false;
             c.update_list(updates, &mut changed);
-
             if changed {
                 WIDGET.layout().render();
             }
+
+            let win_id = WINDOW.id();
+            LAYERS_INSERT_CMD.scoped(win_id).each_update(true, false, |args| {
+                if let Some((layer, widget)) = args.param::<(LayerIndex, WidgetFn<()>)>() {
+                    LAYERS.insert(*layer, widget(()));
+                    args.propagation.stop();
+                } else if let Some((layer, anchor, mode, widget)) = args.param::<(LayerIndex, WidgetId, AnchorMode, WidgetFn<()>)>() {
+                    LAYERS.insert_anchored(*layer, *anchor, mode.clone(), widget(()));
+                    args.propagation.stop();
+                } else {
+                    tracing::debug!("ignoring LAYERS_INSERT_CMD, unknown param type");
+                }
+            });
+            LAYERS_REMOVE_CMD.scoped(win_id).each_update(true, false, |args| {
+                if let Some(id) = args.param::<WidgetId>() {
+                    LAYERS.remove(*id);
+                    args.propagation.stop();
+                } else {
+                    tracing::debug!("ignoring LAYERS_REMOVE_CMD, unknown param type");
+                }
+            });
         }
         UiNodeOp::Measure { wm, desired_size } => {
             c.delegated();

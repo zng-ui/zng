@@ -21,7 +21,7 @@ use zng::{
 fn main() {
     zng::env::init!();
 
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         Window! {
             title = "Icon Example";
             icon = WindowIcon::render(|| {
@@ -206,8 +206,8 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
         child_align = Align::CENTER;
         on_click = hn!(|args| {
             if WIDGET.id() == args.target.widget_id() {
-                args.propagation().stop();
-                ACCESS.click(WINDOW.id(), "close-btn", true);
+                args.propagation.stop();
+                ACCESS.click(WINDOW.info().get("close-btn").unwrap().path(), true);
             }
         });
         child = Container! {
@@ -262,7 +262,7 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
                         padding = 2;
                         margin = 4;
                         on_click = async_hn!(opacity, |args| {
-                            args.propagation().stop();
+                            args.propagation.stop();
 
                             opacity.ease(0.fct(), 150.ms(), easing::linear).perm();
                             opacity.wait_animation().await;
@@ -313,11 +313,10 @@ fn code_copy(label: Txt, code: Txt) -> UiNode {
         on_click = async_hn!(enabled, code, copy_status, |_| {
             copy_status.set("copying..");
             enabled.set(false);
-            ACCESS.show_tooltip(WINDOW.id(), WIDGET.id());
+            ACCESS.show_tooltip(WIDGET.info().path());
 
             match clipboard::CLIPBOARD.set_text(code).wait_rsp().await {
-                Ok(copied) => {
-                    debug_assert!(copied); // no other clipboard request
+                Ok(()) => {
                     copy_status.set("copied!");
                 }
                 Err(e) => copy_status.set(formatx!("error: {e}")),

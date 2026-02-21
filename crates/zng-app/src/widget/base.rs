@@ -1,6 +1,6 @@
 //! The widget base, nodes and properties used in most widgets.
 
-use std::{any::TypeId, cell::RefCell, fmt};
+use std::{any::TypeId, fmt};
 
 use crate::{
     source_location,
@@ -21,7 +21,9 @@ use crate::widget::{
     node::match_node,
     property,
 };
-use zng_var::{IntoValue, Var, context_var, impl_from_and_into_var};
+use parking_lot::Mutex;
+use zng_layout::unit::FactorUnits as _;
+use zng_var::{IntoValue, Var, animation::Transitionable, context_var, impl_from_and_into_var};
 
 /// Base widget.
 ///
@@ -32,9 +34,12 @@ use zng_var::{IntoValue, Var, context_var, impl_from_and_into_var};
 ///
 /// [`id`]: WidgetBase::id
 pub struct WidgetBase {
-    builder: RefCell<Option<WidgetBuilder>>,
+    builder: Mutex<Option<WidgetBuilder>>,
     importance: Importance,
-    when: RefCell<Option<WhenInfo>>,
+    when: Mutex<Option<WhenInfo>>,
+    // we use `&self` and `&mut self` to differentiate associated properties from standalone attached,
+    // they are styled differently in editors using Rust Analyzer metadata, that is the only reason for interior,
+    // mutability here. We use `Mutex` instead of `RefCell` to implement `Sync`, that enables more async scenarios.
 }
 impl WidgetBase {
     /// Gets the type of [`WidgetBase`](struct@WidgetBase).
@@ -118,11 +123,11 @@ impl WidgetBase {
     /// Push method property.
     #[doc(hidden)]
     pub fn mtd_property__(&self, args: Box<dyn PropertyArgs>) {
-        if let Some(when) = &mut *self.when.borrow_mut() {
+        if let Some(when) = &mut *self.when.lock() {
             when.assigns.push(args);
         } else {
             self.builder
-                .borrow_mut()
+                .lock()
                 .as_mut()
                 .expect("cannot set after build")
                 .push_property(self.importance, args);
@@ -132,9 +137,9 @@ impl WidgetBase {
     /// Push method unset property.
     #[doc(hidden)]
     pub fn mtd_property_unset__(&self, id: PropertyId) {
-        assert!(self.when.borrow().is_none(), "cannot unset in when assign");
+        assert!(self.when.lock().is_none(), "cannot unset in when assign");
         self.builder
-            .borrow_mut()
+            .lock()
             .as_mut()
             .expect("cannot unset after build")
             .push_unset(self.importance, id);
@@ -143,13 +148,13 @@ impl WidgetBase {
     #[doc(hidden)]
     pub fn reexport__(&self, f: impl FnOnce(&mut Self)) {
         let mut inner = Self {
-            builder: RefCell::new(self.builder.borrow_mut().take()),
+            builder: Mutex::new(self.builder.lock().take()),
             importance: self.importance,
-            when: RefCell::new(self.when.borrow_mut().take()),
+            when: Mutex::new(self.when.lock().take()),
         };
         f(&mut inner);
-        *self.builder.borrow_mut() = inner.builder.into_inner();
-        *self.when.borrow_mut() = inner.when.into_inner();
+        *self.builder.lock() = inner.builder.into_inner();
+        *self.when.lock() = inner.when.into_inner();
         debug_assert_eq!(self.importance, inner.importance);
     }
 
@@ -224,9 +229,9 @@ impl WidgetImpl for WidgetBase {
     fn inherit(widget: WidgetType) -> Self {
         let builder = WidgetBuilder::new(widget);
         let mut w = Self {
-            builder: RefCell::new(Some(builder)),
+            builder: Mutex::new(Some(builder)),
             importance: Importance::WIDGET,
-            when: RefCell::new(None),
+            when: Mutex::new(None),
         };
         w.widget_intrinsic();
         w.importance = Importance::INSTANCE;
@@ -243,9 +248,9 @@ impl WidgetImpl for WidgetBase {
 
     fn info_instance__() -> Self {
         WidgetBase {
-            builder: RefCell::new(None),
+            builder: Mutex::new(None),
             importance: Importance::INSTANCE,
-            when: RefCell::new(None),
+            when: Mutex::new(None),
         }
     }
 }
@@ -409,9 +414,9 @@ impl WidgetImpl for NonWidgetBase {
         let builder = WidgetBuilder::new(widget);
         let mut w = Self {
             base: WidgetBase {
-                builder: RefCell::new(Some(builder)),
+                builder: Mutex::new(Some(builder)),
                 importance: Importance::WIDGET,
-                when: RefCell::new(None),
+                when: Mutex::new(None),
             },
         };
         w.widget_intrinsic();
@@ -430,9 +435,9 @@ impl WidgetImpl for NonWidgetBase {
     fn info_instance__() -> Self {
         Self {
             base: WidgetBase {
-                builder: RefCell::new(None),
+                builder: Mutex::new(None),
                 importance: Importance::INSTANCE,
-                when: RefCell::new(None),
+                when: Mutex::new(None),
             },
         }
     }
@@ -455,7 +460,7 @@ pub mod node {
 
     use crate::{
         render::{FrameBuilder, FrameUpdate, FrameValueKey},
-        update::{EventUpdate, WidgetUpdates},
+        update::WidgetUpdates,
         widget::{
             WidgetCtx, WidgetUpdateMode,
             info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
@@ -736,31 +741,6 @@ pub mod node {
                 }
             }
 
-            fn event(&mut self, update: &EventUpdate) {
-                if self.ctx.take_reinit() {
-                    self.deinit();
-                    self.init();
-                }
-
-                WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || {
-                    #[cfg(debug_assertions)]
-                    if !self.inited {
-                        tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", update.event().name(), WIDGET.id());
-                    } else if !self.info_built {
-                        tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in widget {:?} before first info build", update.event().name(), WIDGET.id());
-                    }
-
-                    update.with_widget(|| {
-                        self.child.event(update);
-                    });
-                });
-
-                if self.ctx.take_reinit() {
-                    self.deinit();
-                    self.init();
-                }
-            }
-
             fn update(&mut self, updates: &WidgetUpdates) {
                 if self.ctx.take_reinit() {
                     self.deinit();
@@ -982,6 +962,11 @@ impl_from_and_into_var! {
         }
     }
 }
+impl Transitionable for HitTestMode {
+    fn lerp(self, to: &Self, step: zng_var::animation::easing::EasingStep) -> Self {
+        if step >= 1.fct() { *to } else { self }
+    }
+}
 
 bitflags::bitflags! {
     /// Node list methods that are made parallel.
@@ -994,8 +979,6 @@ bitflags::bitflags! {
         const INFO = 0b0001_0000;
         /// Descendants [`UiNode::deinit`] can run in parallel.
         const DEINIT = 0b0000_0010;
-        /// Descendants [`UiNode::event`] can run in parallel.
-        const EVENT = 0b0000_0100;
         /// Descendants [`UiNode::update`] can run in parallel.
         const UPDATE = 0b0000_1000;
         /// Descendants [`UiNode::measure`] and [`UiNode::layout`] can run in parallel.

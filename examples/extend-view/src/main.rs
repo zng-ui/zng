@@ -21,7 +21,7 @@ mod using_gl_overlay;
 mod using_gl_texture;
 
 fn app_main() {
-    APP.defaults().run_window(async {
+    APP.defaults().run_window("main", async {
         Window! {
             // property uses the built-in "zng-view.webrender_debug" extension to draw renderer debug info.
             //

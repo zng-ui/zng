@@ -176,12 +176,15 @@ use crate::{
 #[cfg(ipc)]
 zng_env::on_process_start!(|args| {
     if std::env::var("ZNG_VIEW_NO_INIT_START").is_err() {
-        if args.yield_count == 0 {
-            // give tracing handlers a chance to observe the view-process
-            return args.yield_once();
+        if !zng_env::about().is_test {
+            if args.yield_count == 0 {
+                // give tracing handlers a chance to observe the view-process
+                return args.yield_once();
+            }
+            view_process_main();
+        } else {
+            tracing::debug!("view-process not inited in test app");
         }
-
-        view_process_main();
     }
 });
 
@@ -272,7 +275,7 @@ pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: f
                     .stack_size(256 * 1024)
                     .spawn(|| {
                         // Sometimes the channel does not disconnect on panic,
-                        // observed this issue on a panic in `AppExtension::init`.
+                        // observed this issue on a panic in `APP.init`.
                         //
                         // This workaround ensures that we don't become a zombie process.
                         thread::sleep(std::time::Duration::from_secs(5));
@@ -1865,12 +1868,16 @@ impl Api for App {
             info.window |= WindowCapability::SET_FOCUS_INDICATOR;
             info.window |= WindowCapability::FOCUS;
             info.window |= WindowCapability::DRAG_MOVE;
-            info.window |= WindowCapability::SYSTEM_CHROME;
-            info.window |= WindowCapability::SET_CHROME;
             info.window |= WindowCapability::MINIMIZE;
             info.window |= WindowCapability::MAXIMIZE;
             info.window |= WindowCapability::FULLSCREEN;
             info.window |= WindowCapability::SET_SIZE;
+
+            if cfg!(windows) || std::env::var("WAYLAND_DISPLAY").is_err() {
+                // Wayland does not provide chrome, app must render it
+                info.window |= WindowCapability::SYSTEM_CHROME;
+                info.window |= WindowCapability::SET_CHROME;
+            }
         }
         if !headless & cfg!(windows) {
             info.window |= WindowCapability::SET_ICON;
@@ -1961,11 +1968,6 @@ impl Api for App {
         if is_respawn || cfg != zng_view_api::config::ColorsConfig::default() {
             self.notify(Event::ColorsConfigChanged(cfg));
         }
-
-        let cfg = config::chrome_config();
-        if is_respawn || cfg != zng_view_api::config::ChromeConfig::default() {
-            self.notify(Event::ChromeConfigChanged(cfg));
-        }
     }
 
     fn exit(&mut self) {
@@ -1983,7 +1985,7 @@ impl Api for App {
     }
 
     fn open_window(&mut self, mut config: WindowRequest) {
-        let _s = tracing::debug_span!("open", ?config).entered();
+        let _s = tracing::debug_span!("open_window", ?config).entered();
 
         config.state.clamp_size();
         config.enforce_kiosk();
@@ -2073,8 +2075,6 @@ impl Api for App {
     }
 
     fn close(&mut self, id: WindowId) {
-        let _s = tracing::debug_span!("close_window", ?id);
-
         self.assert_resumed();
         if let Some(i) = self.windows.iter().position(|w| w.id() == id) {
             let _ = self.windows.swap_remove(i);

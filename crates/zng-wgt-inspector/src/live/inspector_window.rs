@@ -665,13 +665,13 @@ async fn save_screenshot(inspected: WindowId) {
 
     let mut filters = FileDialogFilters::new();
     let encoders = zng_ext_image::IMAGES.available_formats();
-    for enc in &encoders {
-        filters.push_filter(&enc.display_name, enc.file_extensions_iter());
-    }
     filters.push_filter(
         l10n!("inspector/screenshot.save-dlg-filter", "Image Files").get().as_str(),
         encoders.iter().flat_map(|e| e.file_extensions_iter()),
     );
+    for enc in &encoders {
+        filters.push_filter(&enc.display_name, enc.file_extensions_iter());
+    }
 
     let r = DIALOG.save_file(
         l10n!("inspector/screenshot.save-dlg-title", "Save Screenshot"),

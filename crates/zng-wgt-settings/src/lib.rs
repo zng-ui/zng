@@ -291,11 +291,11 @@ fn command_handler(child: impl IntoUiNode) -> UiNode {
         UiNodeOp::Deinit => {
             _handle = CommandHandle::dummy();
         }
-        UiNodeOp::Event { update } => {
-            c.event(update);
+        UiNodeOp::Update { updates } => {
+            c.update(updates);
 
-            if let Some(args) = SETTINGS_CMD.scoped(WIDGET.id()).on_unhandled(update) {
-                args.propagation().stop();
+            SETTINGS_CMD.scoped(WIDGET.id()).each_update(true, false, |args| {
+                args.propagation.stop();
 
                 if let Some(id) = args.param::<CategoryId>() {
                     if SETTINGS
@@ -321,7 +321,7 @@ fn command_handler(child: impl IntoUiNode) -> UiNode {
                         FOCUS.focus_widget_or_enter(info.id(), false, false);
                     }
                 }
-            }
+            });
         }
         _ => {}
     })
@@ -329,23 +329,23 @@ fn command_handler(child: impl IntoUiNode) -> UiNode {
 
 /// Set a [`SETTINGS_CMD`] handler that shows the settings window.
 pub fn handle_settings_cmd() {
-    use zng_app::{event::AnyEventArgs as _, window::WINDOW};
-
     SETTINGS_CMD
         .on_event(
             true,
+            true,
+            false,
             async_hn!(|args| {
-                if args.propagation().is_stopped() || !SETTINGS.any(|_, _| true) {
+                if !SETTINGS.any(|_, _| true) {
                     return;
                 }
 
-                args.propagation().stop();
+                args.propagation.stop();
 
-                let parent = WINDOWS.focused_window_id();
+                let parent = FOCUS.focused().with(|p| p.as_ref().map(|t| t.window_id()));
 
                 let new_window = WINDOWS.focus_or_open("zng-config-settings-default", async move {
                     if let Some(p) = parent
-                        && let Ok(p) = WINDOWS.vars(p)
+                        && let Some(p) = WINDOWS.vars(p)
                     {
                         let v = WINDOW.vars();
                         p.icon().set_bind(&v.icon()).perm();
@@ -360,10 +360,10 @@ pub fn handle_settings_cmd() {
                     }
                 });
 
-                if let Some(param) = &args.args.param {
-                    if let Some(w) = new_window {
-                        WINDOWS.wait_loaded(w.wait_rsp().await, true).await;
-                    }
+                if let Some(param) = &args.param {
+                    let w = new_window.wait_rsp().await;
+                    w.instance_state().wait_match(|s| s.is_loaded()).await;
+
                     SETTINGS_CMD
                         .scoped("zng-config-settings-default-editor")
                         .notify_param(param.clone());

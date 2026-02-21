@@ -502,11 +502,15 @@ fn slider_track_node() -> UiNode {
     let mut layout_direction = LayoutDirection::LTR;
     match_node(ui_vec![], move |thumbs, op| match op {
         UiNodeOp::Init => {
+            let id = WIDGET.id();
             WIDGET
                 .sub_var(&THUMB_FN_VAR)
-                .sub_event(&MOUSE_INPUT_EVENT)
-                .sub_event(&TOUCH_INPUT_EVENT)
-                .sub_event(&MOUSE_MOVE_EVENT);
+                .sub_event_when(&MOUSE_INPUT_EVENT, |args| args.state == ButtonState::Pressed)
+                .sub_event_when(&TOUCH_INPUT_EVENT, |args| args.phase == TouchPhase::Start)
+                .sub_event_when(&MOUSE_MOVE_EVENT, move |args| {
+                    // only when dragging
+                    args.capture.as_ref().map(|c| c.target.contains(id)).unwrap_or(false)
+                });
 
             let thumb_fn = THUMB_FN_VAR.get();
 
@@ -543,55 +547,12 @@ fn slider_track_node() -> UiNode {
             layout_direction = LAYOUT.direction();
             let _ = thumbs.layout_list(wl, |_, n, wl| n.layout(wl), |_, _| PxSize::zero());
         }
-        UiNodeOp::Event { update } => {
-            thumbs.event(update);
-
-            let mut pos = None;
-
-            if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
-                if let Some(cap) = &args.capture
-                    && cap.target.contains(WIDGET.id())
-                {
-                    pos = Some(args.position);
-                    args.propagation().stop();
-                }
-            } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
-                if args.state == ButtonState::Pressed {
-                    pos = Some(args.position);
-                    args.propagation().stop();
-                }
-            } else if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update)
-                && args.phase == TouchPhase::Start
-            {
-                pos = Some(args.position);
-                args.propagation().stop();
-            }
-
-            if let Some(pos) = pos {
-                let track_info = WIDGET.info();
-                let track_bounds = track_info.inner_bounds();
-                let track_orientation = SLIDER_DIRECTION_VAR.get();
-
-                let (track_min, track_max) = match track_orientation.layout(layout_direction) {
-                    SliderDirection::LeftToRight => (track_bounds.min_x(), track_bounds.max_x()),
-                    SliderDirection::RightToLeft => (track_bounds.max_x(), track_bounds.min_x()),
-                    SliderDirection::BottomToTop => (track_bounds.max_y(), track_bounds.min_y()),
-                    SliderDirection::TopToBottom => (track_bounds.min_y(), track_bounds.max_y()),
-                    _ => unreachable!(),
-                };
-                let cursor = if track_orientation.is_horizontal() {
-                    pos.x.to_px(track_info.tree().scale_factor())
-                } else {
-                    pos.y.to_px(track_info.tree().scale_factor())
-                };
-                let new_offset = (cursor - track_min).0 as f32 / (track_max - track_min).abs().0 as f32;
-                let new_offset = new_offset.fct().clamp_range();
-
-                let selector = crate::SELECTOR.get();
-                selector.set(new_offset, new_offset);
-            }
-        }
         UiNodeOp::Update { updates } => {
+            thumbs.update(updates);
+
+            //
+            // Thumb management
+            //
             if let Some(thumb_fn) = THUMB_FN_VAR.get_new() {
                 thumbs.deinit();
 
@@ -615,8 +576,6 @@ fn slider_track_node() -> UiNode {
 
                 WIDGET.update_info().layout().render();
             } else {
-                thumbs.update(updates);
-
                 // sync views and vars with updated SELECTOR thumbs
 
                 let thumbs_var = SELECTOR.get().thumbs();
@@ -647,6 +606,56 @@ fn slider_track_node() -> UiNode {
                     }
                     std::cmp::Ordering::Equal => {}
                 }
+            }
+
+            //
+            // Event handlers
+            //
+            let mut pos = None;
+
+            MOUSE_MOVE_EVENT.each_update(false, |args| {
+                if let Some(cap) = &args.capture
+                    && cap.target.contains(WIDGET.id())
+                {
+                    pos = Some(args.position);
+                    args.propagation.stop();
+                }
+            });
+            MOUSE_INPUT_EVENT.each_update(false, |args| {
+                if args.state == ButtonState::Pressed {
+                    pos = Some(args.position);
+                    args.propagation.stop();
+                }
+            });
+            TOUCH_INPUT_EVENT.each_update(false, |args| {
+                if args.phase == TouchPhase::Start {
+                    pos = Some(args.position);
+                    args.propagation.stop();
+                }
+            });
+
+            if let Some(pos) = pos {
+                let track_info = WIDGET.info();
+                let track_bounds = track_info.inner_bounds();
+                let track_orientation = SLIDER_DIRECTION_VAR.get();
+
+                let (track_min, track_max) = match track_orientation.layout(layout_direction) {
+                    SliderDirection::LeftToRight => (track_bounds.min_x(), track_bounds.max_x()),
+                    SliderDirection::RightToLeft => (track_bounds.max_x(), track_bounds.min_x()),
+                    SliderDirection::BottomToTop => (track_bounds.max_y(), track_bounds.min_y()),
+                    SliderDirection::TopToBottom => (track_bounds.min_y(), track_bounds.max_y()),
+                    _ => unreachable!(),
+                };
+                let cursor = if track_orientation.is_horizontal() {
+                    pos.x.to_px(track_info.tree().scale_factor())
+                } else {
+                    pos.y.to_px(track_info.tree().scale_factor())
+                };
+                let new_offset = (cursor - track_min).0 as f32 / (track_max - track_min).abs().0 as f32;
+                let new_offset = new_offset.fct().clamp_range();
+
+                let selector = crate::SELECTOR.get();
+                selector.set(new_offset, new_offset);
             }
         }
         _ => {}

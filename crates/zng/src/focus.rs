@@ -16,9 +16,12 @@
 //! # fn example() {
 //!
 //! focus::FOCUS_CHANGED_EVENT
-//!     .on_pre_event(hn!(|args| {
-//!         println!("new_focus: {:?}", args.new_focus);
-//!     }))
+//!     .on_pre_event(
+//!         true,
+//!         hn!(|args| {
+//!             println!("new_focus: {:?}", args.new_focus);
+//!         }),
+//!     )
 //!     .perm();
 //!
 //! # let _ =

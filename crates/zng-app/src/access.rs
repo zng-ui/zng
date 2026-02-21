@@ -7,75 +7,87 @@ pub use zng_view_api::access::ScrollCmd;
 
 use crate::{
     event::{event, event_args},
-    update::EventUpdate,
-    widget::WidgetId,
-    window::WindowId,
+    widget::{WidgetId, info::WidgetPath},
+    window::{WINDOWS_APP, WindowId},
 };
 
-pub(super) fn on_access_init(window_id: WindowId) -> EventUpdate {
+pub(super) fn on_access_init(window_id: WindowId) {
     let args = AccessInitedArgs::now(window_id);
-    ACCESS_INITED_EVENT.new_update(args)
+    ACCESS_INITED_EVENT.notify(args)
 }
 
-pub(super) fn on_access_deinit(window_id: WindowId) -> EventUpdate {
+pub(super) fn on_access_deinit(window_id: WindowId) {
     let args = AccessDeinitedArgs::now(window_id);
-    ACCESS_DEINITED_EVENT.new_update(args)
+    ACCESS_DEINITED_EVENT.notify(args)
 }
 
-pub(super) fn on_access_command(window_id: WindowId, widget_id: WidgetId, command: AccessCmd) -> Option<EventUpdate> {
+fn find_wgt(window_id: WindowId, widget_id: WidgetId) -> Option<WidgetPath> {
+    WINDOWS_APP.widget_tree(window_id)?.get(widget_id).map(|w| w.path())
+}
+
+pub(super) fn on_access_command(window_id: WindowId, widget_id: WidgetId, command: AccessCmd) {
+    let widget = match find_wgt(window_id, widget_id) {
+        Some(w) => w,
+        None => return,
+    };
     match command {
         AccessCmd::Click(primary) => {
-            let args = AccessClickArgs::now(window_id, widget_id, primary);
-            Some(ACCESS_CLICK_EVENT.new_update(args))
+            let args = AccessClickArgs::now(widget, primary);
+            ACCESS_CLICK_EVENT.notify(args)
         }
         AccessCmd::Focus(focus) => {
-            let args = AccessFocusArgs::now(window_id, widget_id, focus);
-            Some(ACCESS_FOCUS_EVENT.new_update(args))
+            let args = AccessFocusArgs::now(widget, focus);
+            ACCESS_FOCUS_EVENT.notify(args)
         }
         AccessCmd::FocusNavOrigin => {
-            let args = AccessFocusNavOriginArgs::now(window_id, widget_id);
-            Some(ACCESS_FOCUS_NAV_ORIGIN_EVENT.new_update(args))
+            let args = AccessFocusNavOriginArgs::now(widget);
+            ACCESS_FOCUS_NAV_ORIGIN_EVENT.notify(args)
         }
         AccessCmd::SetExpanded(expanded) => {
-            let args = AccessExpanderArgs::now(window_id, widget_id, expanded);
-            Some(ACCESS_EXPANDER_EVENT.new_update(args))
+            let args = AccessExpanderArgs::now(widget, expanded);
+            ACCESS_EXPANDER_EVENT.notify(args)
         }
         AccessCmd::Increment(inc) => {
-            let args = AccessIncrementArgs::now(window_id, widget_id, inc);
-            Some(ACCESS_INCREMENT_EVENT.new_update(args))
+            let args = AccessIncrementArgs::now(widget, inc);
+            ACCESS_INCREMENT_EVENT.notify(args)
         }
         AccessCmd::SetToolTipVis(vis) => {
-            let args = AccessToolTipArgs::now(window_id, widget_id, vis);
-            Some(ACCESS_TOOLTIP_EVENT.new_update(args))
+            let args = AccessToolTipArgs::now(widget, vis);
+            ACCESS_TOOLTIP_EVENT.notify(args)
         }
         AccessCmd::ReplaceSelectedText(s) => {
-            let args = AccessTextArgs::now(window_id, widget_id, s, true);
-            Some(ACCESS_TEXT_EVENT.new_update(args))
+            let args = AccessTextArgs::now(widget, s, true);
+            ACCESS_TEXT_EVENT.notify(args)
         }
         AccessCmd::Scroll(s) => {
-            let args = AccessScrollArgs::now(window_id, widget_id, s);
-            Some(ACCESS_SCROLL_EVENT.new_update(args))
+            let args = AccessScrollArgs::now(widget, s);
+            ACCESS_SCROLL_EVENT.notify(args)
         }
         AccessCmd::SelectText {
             start: (start_wgt, start_idx),
             caret: (caret_wgt, caret_idx),
         } => {
-            let start_wgt = WidgetId::from_raw(start_wgt.0);
-            let caret_wgt = WidgetId::from_raw(caret_wgt.0);
-            let args = AccessSelectionArgs::now(window_id, (start_wgt, start_idx), (caret_wgt, caret_idx));
-            Some(ACCESS_SELECTION_EVENT.new_update(args))
+            let start_wgt = match find_wgt(window_id, WidgetId::from_raw(start_wgt.0)) {
+                Some(w) => w,
+                None => return,
+            };
+            let caret_wgt = match find_wgt(window_id, WidgetId::from_raw(caret_wgt.0)) {
+                Some(w) => w,
+                None => return,
+            };
+            let args = AccessSelectionArgs::now((start_wgt, start_idx), (caret_wgt, caret_idx));
+            ACCESS_SELECTION_EVENT.notify(args)
         }
         AccessCmd::SetString(s) => {
-            let args = AccessTextArgs::now(window_id, widget_id, s, false);
-            Some(ACCESS_TEXT_EVENT.new_update(args))
+            let args = AccessTextArgs::now(widget, s, false);
+            ACCESS_TEXT_EVENT.notify(args)
         }
         AccessCmd::SetNumber(n) => {
-            let args = AccessNumberArgs::now(window_id, widget_id, n);
-            Some(ACCESS_NUMBER_EVENT.new_update(args))
+            let args = AccessNumberArgs::now(widget, n);
+            ACCESS_NUMBER_EVENT.notify(args)
         }
         a => {
             tracing::warn!("access command `{a:?}` not implemented");
-            None
         }
     }
 }
@@ -88,9 +100,9 @@ event_args! {
 
         ..
 
-        /// Event is broadcast.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        /// Broadcast to all.
+        fn is_in_target(&self, _id: WidgetId) -> bool {
+            true
         }
     }
 
@@ -101,19 +113,16 @@ event_args! {
 
         ..
 
-        /// Event is broadcast.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
+        /// Broadcast to all.
+        fn is_in_target(&self, _id: WidgetId) -> bool {
+            true
         }
     }
 
     /// Arguments for the [`ACCESS_CLICK_EVENT`].
     pub struct AccessClickArgs {
-        /// Target window.
-        pub window_id: WindowId,
-
-        /// Target widget.
-        pub widget_id: WidgetId,
+        /// Target.
+        pub target: WidgetPath,
 
         /// Is primary click (default action).
         ///
@@ -122,19 +131,16 @@ event_args! {
 
         ..
 
-        /// Target the widget.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_widget(self.widget_id);
+        /// If is in `target`.
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
     /// Arguments for the [`ACCESS_FOCUS_EVENT`].
     pub struct AccessFocusArgs {
-        /// Target window.
-        pub window_id: WindowId,
-
-        /// Target widget.
-        pub widget_id: WidgetId,
+        /// Target.
+        pub target: WidgetPath,
 
         /// If the widget must be focused.
         ///
@@ -143,54 +149,45 @@ event_args! {
 
         ..
 
-        /// Target the widget.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_widget(self.widget_id)
+        /// If is in `target`.
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
     /// Arguments for the [`ACCESS_FOCUS_NAV_ORIGIN_EVENT`].
     pub struct AccessFocusNavOriginArgs {
-        /// Target window.
-        pub window_id: WindowId,
-
-        /// Target widget.
-        pub widget_id: WidgetId,
+        /// Target.
+        pub target: WidgetPath,
 
         ..
 
-        /// Target the widget.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_widget(self.widget_id)
+        /// If is in `target`.
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
     /// Arguments for the [`ACCESS_EXPANDER_EVENT`].
     pub struct AccessExpanderArgs {
-        /// Target window.
-        pub window_id: WindowId,
-
-        /// Target widget.
-        pub widget_id: WidgetId,
+        /// Target.
+        pub target: WidgetPath,
 
         /// New expanded value.
         pub expanded: bool,
 
         ..
 
-        /// Target the widget.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_widget(self.widget_id)
+        /// If is in `target`.
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
     /// Arguments for the [`ACCESS_INCREMENT_EVENT`].
     pub struct AccessIncrementArgs {
-        /// Target window.
-        pub window_id: WindowId,
-
-        /// Target widget.
-        pub widget_id: WidgetId,
+        /// Target.
+        pub target: WidgetPath,
 
         /// Increment steps.
         ///
@@ -199,57 +196,48 @@ event_args! {
 
         ..
 
-        /// Target the widget.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_widget(self.widget_id)
+        /// If is in `target`.
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
     /// Arguments for the [`ACCESS_TOOLTIP_EVENT`].
     pub struct AccessToolTipArgs {
-        /// Target window.
-        pub window_id: WindowId,
-
-        /// Target widget.
-        pub widget_id: WidgetId,
+        /// Target.
+        pub target: WidgetPath,
 
         /// New tooltip visibility.
         pub visible: bool,
 
         ..
 
-        /// Target the widget.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_widget(self.widget_id)
+        /// If is in `target`.
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
     /// Arguments for the [`ACCESS_SCROLL_EVENT`].
     pub struct AccessScrollArgs {
-        /// Target window.
-        pub window_id: WindowId,
-
-        /// Target widget.
-        pub widget_id: WidgetId,
+        /// Target.
+        pub target: WidgetPath,
 
         /// Scroll command.
         pub command: ScrollCmd,
 
         ..
 
-        /// Target the widget.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_widget(self.widget_id)
+        /// If is in `target`.
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
     /// Arguments for the [`ACCESS_TEXT_EVENT`].
     pub struct AccessTextArgs {
-        /// Target window.
-        pub window_id: WindowId,
-
-        /// Target widget.
-        pub widget_id: WidgetId,
+        /// Target.
+        pub target: WidgetPath,
 
         /// Replacement text.
         pub txt: Txt,
@@ -262,51 +250,44 @@ event_args! {
 
         ..
 
-        /// Target the widget.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_widget(self.widget_id)
+        /// If is in `target`.
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
     /// Arguments for the [`ACCESS_NUMBER_EVENT`].
     pub struct AccessNumberArgs {
-        /// Target window.
-        pub window_id: WindowId,
-
-        /// Target widget.
-        pub widget_id: WidgetId,
+        /// Target.
+        pub target: WidgetPath,
 
         /// Replacement number.
         pub num: f64,
 
         ..
 
-        /// Target the widget.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_widget(self.widget_id)
+        /// If is in `target`.
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.target.contains(id)
         }
     }
 
     /// Arguments for the [`ACCESS_SELECTION_EVENT`].
     pub struct AccessSelectionArgs {
-        /// Target window.
-        pub window_id: WindowId,
-
         /// Selection start.
         ///
         /// Text widget and character index where the selection *starts*.
-        pub start: (WidgetId, usize),
+        pub start: (WidgetPath, usize),
         /// Selection end.
         ///
         /// This is where the caret is placed, it does not need to be greater than the start.
-        pub caret: (WidgetId, usize),
+        pub caret: (WidgetPath, usize),
 
         ..
 
-        /// Target both widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_widget(self.start.0);
-            list.search_widget(self.caret.0);
+        /// If is in `start` or `end` paths.
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            self.start.0.contains(id) || self.caret.0.contains(id)
         }
     }
 }
@@ -362,25 +343,19 @@ impl ACCESS {
     /// Click the widget in the window.
     ///
     /// If `is_primary` is `true` a primary click is generated, if it is `false` a context click is generated.
-    pub fn click(&self, window_id: impl Into<WindowId>, widget_id: impl Into<WidgetId>, is_primary: bool) {
-        let win = window_id.into();
-        let wgt = widget_id.into();
-        ACCESS_CLICK_EVENT.notify(AccessClickArgs::now(win, wgt, is_primary));
+    pub fn click(&self, widget: WidgetPath, is_primary: bool) {
+        ACCESS_CLICK_EVENT.notify(AccessClickArgs::now(widget, is_primary));
     }
 
     /// Show tooltip for widget in the window, if it has any tooltip.
     ///
     /// The tooltip can auto-hide following the same rules as tooltips shown by hover.
-    pub fn show_tooltip(&self, window_id: impl Into<WindowId>, widget_id: impl Into<WidgetId>) {
-        let win = window_id.into();
-        let wgt = widget_id.into();
-        ACCESS_TOOLTIP_EVENT.notify(AccessToolTipArgs::now(win, wgt, true));
+    pub fn show_tooltip(&self, widget: WidgetPath) {
+        ACCESS_TOOLTIP_EVENT.notify(AccessToolTipArgs::now(widget, true));
     }
 
     /// Hide tooltip for the widget in the window, if it has any tooltip showing.
-    pub fn hide_tooltip(&self, window_id: impl Into<WindowId>, widget_id: impl Into<WidgetId>) {
-        let win = window_id.into();
-        let wgt = widget_id.into();
-        ACCESS_TOOLTIP_EVENT.notify(AccessToolTipArgs::now(win, wgt, false));
+    pub fn hide_tooltip(&self, widget: WidgetPath) {
+        ACCESS_TOOLTIP_EVENT.notify(AccessToolTipArgs::now(widget, false));
     }
 }

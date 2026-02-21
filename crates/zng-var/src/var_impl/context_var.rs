@@ -291,4 +291,11 @@ impl WeakVarImpl for ContextVarImpl {
     fn upgrade(&self) -> Option<DynAnyVar> {
         Some(DynAnyVar::Context(Self(self.0)))
     }
+
+    fn var_eq(&self, other: &DynWeakAnyVar) -> bool {
+        match other {
+            DynWeakAnyVar::Context(b) => self == b,
+            _ => false,
+        }
+    }
 }

@@ -677,7 +677,7 @@ pub fn img_block_window_load(child: impl IntoUiNode, enabled: impl IntoValue<Blo
             WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
             if let Some(delay) = enabled.deadline() {
-                block = WINDOW.loading_handle(delay);
+                block = WINDOW.loading_handle(delay, "img_block_window_load");
             }
         }
         UiNodeOp::Update { .. } => {

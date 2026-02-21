@@ -44,9 +44,7 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
         zng::app::test_log();
 
         CONFIG.load(source());
-        app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
-        });
+        app.run_test(CONFIG.wait_idle());
         let status = CONFIG.status().get();
         if status.is_err() {
             panic!("{status}");
@@ -54,9 +52,7 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
 
         TEST_READ.set(test_read);
         test_all();
-        app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
-        });
+        app.run_test(CONFIG.wait_idle());
 
         app.exit();
     }
@@ -216,9 +212,7 @@ fn concurrent_read_write() {
         CONFIG.load(JsonConfig::sync(&file));
         CONFIG.get("key", Txt::from_static("default/custom")).set("custom");
 
-        app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
-        });
+        app.run_test(CONFIG.wait_idle());
         let status = CONFIG.status().get();
         if status.is_err() {
             panic!("{status}");
@@ -235,9 +229,7 @@ fn concurrent_read_write() {
                 zng::app::test_log();
                 CONFIG.load(JsonConfig::sync(file));
 
-                app.run_task(async {
-                    task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
-                });
+                app.run_test(CONFIG.wait_idle());
 
                 let var = CONFIG.get("key", Txt::from_static("default/get"));
                 for _ in 0..8 {
@@ -274,9 +266,7 @@ fn fallback_swap() {
         CONFIG.get("key", Txt::from_static("default/fallback")).set("fallback");
 
         app.update(false).assert_wait();
-        app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
-        });
+        app.run_test(CONFIG.wait_idle());
         let status = CONFIG.status().get();
         if status.is_err() {
             panic!("{status}");
@@ -285,9 +275,7 @@ fn fallback_swap() {
         CONFIG.load(JsonConfig::sync(&main_prepared_cfg));
         CONFIG.get("key", Txt::from_static("default/main")).set("main");
 
-        app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
-        });
+        app.run_test(CONFIG.wait_idle());
         let status = CONFIG.status().get();
         if status.is_err() {
             panic!("{status}");
@@ -301,9 +289,7 @@ fn fallback_swap() {
     zng::app::test_log();
 
     CONFIG.load(FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(fallback_cfg)));
-    app.run_task(async {
-        task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
-    });
+    app.run_test(CONFIG.wait_idle());
     let status = CONFIG.status().get();
     if status != ConfigStatus::Loaded {
         panic!("{status}");
@@ -346,9 +332,7 @@ fn fallback_reset() {
         CONFIG.get("key", Txt::from_static("default/fallback")).set("fallback");
 
         app.update(false).assert_wait();
-        app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
-        });
+        app.run_test(CONFIG.wait_idle());
         let status = CONFIG.status().get();
         if status.is_err() {
             panic!("{status}");
@@ -357,9 +341,7 @@ fn fallback_reset() {
         CONFIG.load(JsonConfig::sync(&main_cfg));
         CONFIG.get("key", Txt::from_static("default/main")).set("main");
 
-        app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
-        });
+        app.run_test(CONFIG.wait_idle());
         let status = CONFIG.status().get();
         if status.is_err() {
             panic!("{status}");
@@ -373,9 +355,7 @@ fn fallback_reset() {
     zng::app::test_log();
 
     CONFIG.load(FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(&fallback_cfg)));
-    app.run_task(async {
-        task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
-    });
+    app.run_test(CONFIG.wait_idle());
     let status = CONFIG.status().get();
     if status != ConfigStatus::Loaded {
         panic!("{status}");
@@ -392,9 +372,7 @@ fn fallback_reset() {
     rmv_file_assert(&main_cfg);
 
     CONFIG.load(FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(&fallback_cfg)));
-    app.run_task(async {
-        task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
-    });
+    app.run_test(CONFIG.wait_idle());
     let status = CONFIG.status().get();
     if status != ConfigStatus::Loaded {
         panic!("{status}");
@@ -420,9 +398,7 @@ fn fallback_reset_entry() {
         CONFIG.get("key", Txt::from_static("default/fallback")).set("fallback");
 
         app.update(false).assert_wait();
-        app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
-        });
+        app.run_test(CONFIG.wait_idle());
         let status = CONFIG.status().get();
         if status.is_err() {
             panic!("{status}");
@@ -431,9 +407,7 @@ fn fallback_reset_entry() {
         CONFIG.load(JsonConfig::sync(&main_cfg));
         CONFIG.get("key", Txt::from_static("default/main")).set("main");
 
-        app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
-        });
+        app.run_test(CONFIG.wait_idle());
         let status = CONFIG.status().get();
         if status.is_err() {
             panic!("{status}");

@@ -82,8 +82,8 @@ impl_style_fn!(SubMenu, DefaultStyle);
 pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
     let mut open = None::<Var<PopupState>>;
     let is_open = var(false);
-    let mut open_timer = None;
-    let mut close_timer = None;
+    let mut open_timer = None::<DeadlineVar>;
+    let mut close_timer = None::<DeadlineVar>;
     let child = with_context_var(child, IS_OPEN_VAR, is_open.clone());
     let mut close_cmd = CommandHandle::dummy();
 
@@ -131,9 +131,35 @@ pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
                     },
                 );
             }
-            UiNodeOp::Event { update } => {
-                if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                    if args.is_mouse_enter_enabled() {
+
+            UiNodeOp::Update { .. } => {
+                if let Some(s) = &open {
+                    if matches!(s.get(), PopupState::Closed) {
+                        is_open.set(false);
+                        close_cmd.enabled().set(false);
+                        close_timer = None;
+                        open = None;
+                    } else if let Some(t) = &close_timer
+                        && t.get().has_elapsed()
+                    {
+                        if let Some(s) = open.take()
+                            && !matches!(s.get(), PopupState::Closed)
+                        {
+                            POPUP.force_close(&s);
+                            is_open.set(false);
+                            close_cmd.enabled().set(false);
+                        }
+                        close_timer = None;
+                    }
+                } else if let Some(t) = &open_timer
+                    && t.get().has_elapsed()
+                {
+                    open_pop = true;
+                }
+
+                MOUSE_HOVERED_EVENT.each_update(true, |args| {
+                    let wgt = (WINDOW.id(), WIDGET.id());
+                    if args.is_mouse_enter_enabled(wgt) {
                         let info = WIDGET.info();
 
                         let is_root = info.submenu_parent().is_none();
@@ -169,10 +195,11 @@ pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
                             t.subscribe(UpdateOp::Update, WIDGET.id()).perm();
                             open_timer = Some(t);
                         }
-                    } else if args.is_mouse_leave_enabled() {
+                    } else if args.is_mouse_leave_enabled(wgt) {
                         open_timer = None;
                     }
-                } else if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
+                });
+                KEY_INPUT_EVENT.each_update(true, |args| {
                     if let KeyState::Pressed = args.state
                         && args.target.contains_enabled(WIDGET.id())
                         && !is_open.get()
@@ -195,10 +222,11 @@ pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
                         }
 
                         if open_pop {
-                            args.propagation().stop();
+                            args.propagation.stop();
                         }
                     }
-                } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                });
+                FOCUS_CHANGED_EVENT.each_update(true, |args| {
                     if args.is_focus_enter_enabled(WIDGET.id()) {
                         close_timer = None;
                         if !is_open.get() {
@@ -236,9 +264,11 @@ pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
                             close_timer = Some(t);
                         }
                     }
-                } else if let Some(args) = CLICK_EVENT.on(update) {
+                });
+
+                CLICK_EVENT.each_update(true, |args| {
                     if args.is_primary() && args.target.contains_enabled(WIDGET.id()) {
-                        args.propagation().stop();
+                        args.propagation.stop();
 
                         // open if is closed
                         open_pop = if let Some(s) = open.take() {
@@ -247,9 +277,9 @@ pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
                                 if WIDGET.info().submenu_parent().is_none() {
                                     // root sub-menu, close and return focus
                                     POPUP.force_close(&s);
-                                    FOCUS.focus_exit();
+                                    FOCUS.focus_exit(true);
                                     is_open.set(false);
-                                    close_cmd.set_enabled(false);
+                                    close_cmd.enabled().set(false);
                                 } else {
                                     // nested sub-menu.
                                     open = Some(s);
@@ -263,38 +293,15 @@ pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
                             is_open.set(false);
                         }
                     }
-                } else if let Some(_args) = POPUP_CLOSE_CMD.scoped(WIDGET.id()).on(update)
+                });
+
+                if POPUP_CLOSE_CMD.scoped(WIDGET.id()).has_update(true, true)
                     && let Some(s) = open.take()
                     && !matches!(s.get(), PopupState::Closed)
                 {
                     POPUP.force_close(&s);
                     is_open.set(false);
-                    close_cmd.set_enabled(false);
-                }
-            }
-            UiNodeOp::Update { .. } => {
-                if let Some(s) = &open {
-                    if matches!(s.get(), PopupState::Closed) {
-                        is_open.set(false);
-                        close_cmd.set_enabled(false);
-                        close_timer = None;
-                        open = None;
-                    } else if let Some(t) = &close_timer
-                        && t.get().has_elapsed()
-                    {
-                        if let Some(s) = open.take()
-                            && !matches!(s.get(), PopupState::Closed)
-                        {
-                            POPUP.force_close(&s);
-                            is_open.set(false);
-                            close_cmd.set_enabled(false);
-                        }
-                        close_timer = None;
-                    }
-                } else if let Some(t) = &open_timer
-                    && t.get().has_elapsed()
-                {
-                    open_pop = true;
+                    close_cmd.enabled().set(false);
                 }
             }
             _ => {}
@@ -308,7 +315,7 @@ pub fn sub_menu_node(child: impl IntoUiNode, children: ArcNode) -> UiNode {
             state.subscribe(UpdateOp::Update, WIDGET.id()).perm();
             if !matches!(state.get(), PopupState::Closed) {
                 is_open.set(true);
-                close_cmd.set_enabled(true);
+                close_cmd.enabled().set(true);
             }
             open = Some(state);
             open_timer = None;

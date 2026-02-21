@@ -1,5 +1,5 @@
 use std::io::Write as _;
-use zng::{image::ImageEntry, prelude::*};
+use zng::prelude::*;
 
 /// This example uses the `IMAGES` service to render to an image.
 pub fn run() {
@@ -8,17 +8,18 @@ pub fn run() {
     // open headless with renderer flag, this causes the view-process to start.
     let mut app = APP.defaults().run_headless(true);
 
+    app.run_task(load_resources());
     // request an image rendered from a node, the `IMAGES` service will render the node and update the image
     // variable every time the node (re)renders.
-    let img = zng::image::IMAGES.render_node(window::RenderMode::Integrated, 1.fct(), None, logo);
+    let img = zng::image::IMAGES.render_node(window::RenderMode::Integrated, None, logo);
 
     app.run_task(async move {
-        while img.with(ImageEntry::is_loading) {
-            img.wait_update().await;
-        }
-        let img = img.get();
+        img.wait_match(|i| i.is_loaded()).await;
 
-        if img.is_loaded() {
+        let img = img.get();
+        if let Some(e) = img.error() {
+            eprintln!("[error]: {e}");
+        } else {
             // we save it...
             print!("saving ./examples/image/res/zng-logo.png ... ");
             std::io::stdout().lock().flush().ok();
@@ -26,13 +27,25 @@ pub fn run() {
             img.save("examples/image/res/zng-logo-icon.png").await.unwrap();
 
             println!("done");
-        } else if let Some(err) = img.error() {
-            eprintln!("[error]: {err}");
         }
     });
 
     // Internally the `IMAGES` service uses a headless window for rendering too, but this method is more easy
     // to use, with the trade-off that you have less control over the headless window.
+}
+
+async fn load_resources() {
+    use zng::font::*;
+    FONTS
+        .list(
+            &[FontName::from("Arial")],
+            FontStyle::Normal,
+            FontWeight::EXTRA_BOLD,
+            FontStretch::NORMAL,
+            &lang!(unc),
+        )
+        .wait_done()
+        .await;
 }
 
 fn logo() -> UiNode {

@@ -4,7 +4,7 @@ use zng_layout::unit::PxSize;
 
 use crate::{
     render::{FrameBuilder, FrameUpdate},
-    update::{EventUpdate, WidgetUpdates},
+    update::WidgetUpdates,
     widget::info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
 };
 
@@ -56,37 +56,20 @@ pub enum UiNodeOp<'a> {
         /// Info builder.
         info: &'a mut WidgetInfoBuilder,
     },
-    /// The [`UiNode::event`].
-    ///
-    /// Receive an event.
-    ///
-    /// Every call to this operation is for a single update of a single event type, you can listen to events
-    /// by subscribing to then on [`Init`] and using the [`Event::on`] method during this operation to detect the event.
-    ///
-    /// Note that events sent to descendant nodes also flow through the match node and are automatically delegated if
-    /// you don't manually delegate. Automatic delegation happens after the operation is handled, you can call
-    /// `child.event` to manually delegate before handling.
-    ///
-    /// When an ancestor handles the event before the descendants this is a ***preview*** handling, so match nodes handle
-    /// event operations in preview by default.
-    ///
-    /// [`Init`]: Self::Init
-    /// [`Event::on`]: crate::event::Event::on
-    Event {
-        /// Event update args and targets.
-        update: &'a EventUpdate,
-    },
     /// The [`UiNode::update`].
     ///
-    /// Receive variable and other non-event updates.
+    /// Receive event, variable and other updates.
     ///
-    /// Calls to this operation aggregate all updates that happen in the last pass, multiple variables can be new at the same time.
+    /// Calls to this operation aggregate all updates that happen in the last pass, multiple events and variables can be new at the same time.
     /// You can listen to variable updates by subscribing to then on [`Init`] and using the [`Var::get_new`] method during this operation
     /// to receive the new values.
     ///
     /// Common update operations include reacting to variable changes to generate an intermediary value
     /// for layout or render. You can use [`WIDGET`] to request layout and render. Note that for simple variables
     /// that are used directly on layout or render you can subscribe to that operation directly, skipping update.
+    ///
+    /// When an ancestor handles the event before the descendants this is a ***preview*** handling, so match nodes handle
+    /// event operations in preview by default, unless delegated first.
     ///
     /// [`Init`]: Self::Init
     /// [`Var::get_new`]: zng_var::Var::get_new
@@ -179,7 +162,6 @@ impl<'a> UiNodeOp<'a> {
             UiNodeOp::Init => UiNodeMethod::Init,
             UiNodeOp::Deinit => UiNodeMethod::Deinit,
             UiNodeOp::Info { .. } => UiNodeMethod::Info,
-            UiNodeOp::Event { .. } => UiNodeMethod::Event,
             UiNodeOp::Update { .. } => UiNodeMethod::Update,
             UiNodeOp::Measure { .. } => UiNodeMethod::Measure,
             UiNodeOp::Layout { .. } => UiNodeMethod::Layout,
@@ -194,7 +176,6 @@ impl<'a> UiNodeOp<'a> {
             UiNodeOp::Init => UiNodeOp::Init,
             UiNodeOp::Deinit => UiNodeOp::Deinit,
             UiNodeOp::Info { info } => UiNodeOp::Info { info },
-            UiNodeOp::Event { update } => UiNodeOp::Event { update },
             UiNodeOp::Update { updates } => UiNodeOp::Update { updates },
             UiNodeOp::Measure { wm, desired_size } => UiNodeOp::Measure { wm, desired_size },
             UiNodeOp::Layout { wl, final_size } => UiNodeOp::Layout { wl, final_size },
@@ -206,7 +187,6 @@ impl<'a> UiNodeOp<'a> {
 impl fmt::Debug for UiNodeOp<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Event { update } => f.debug_struct("Event").field("update", update).finish(),
             Self::Update { updates } => f.debug_struct("Update").field("updates", updates).finish(),
             op => write!(f, "{}", op.mtd()),
         }
@@ -223,8 +203,6 @@ pub enum UiNodeMethod {
     Deinit,
     /// The [`UiNode::info`].
     Info,
-    /// The [`UiNode::event`].
-    Event,
     /// The [`UiNode::update`].
     Update,
     /// The [`UiNode::update_list`]
@@ -253,7 +231,6 @@ impl UiNodeMethod {
             UiNodeMethod::Init => "Init",
             UiNodeMethod::Deinit => "Deinit",
             UiNodeMethod::Info => "Info",
-            UiNodeMethod::Event => "Event",
             UiNodeMethod::Update => "Update",
             UiNodeMethod::UpdateList => "UpdateList",
             UiNodeMethod::Measure => "Measure",
@@ -273,7 +250,6 @@ impl UiNodeMethod {
             UiNodeMethod::Init => "init",
             UiNodeMethod::Deinit => "deinit",
             UiNodeMethod::Info => "info",
-            UiNodeMethod::Event => "event",
             UiNodeMethod::Update => "update",
             UiNodeMethod::UpdateList => "update_list",
             UiNodeMethod::Measure => "measure",
@@ -403,16 +379,6 @@ fn match_node_impl(child: UiNode, closure: impl FnMut(&mut MatchNodeChild, UiNod
 
             if !mem::take(&mut self.child.delegated) {
                 self.child.node.0.info(info);
-            }
-        }
-
-        fn event(&mut self, update: &EventUpdate) {
-            self.child.delegated = false;
-
-            (self.closure)(&mut self.child, UiNodeOp::Event { update });
-
-            if !mem::take(&mut self.child.delegated) {
-                self.child.node.0.event(update);
             }
         }
 
@@ -632,13 +598,6 @@ impl MatchNodeChild {
         self.delegated = true;
     }
 
-    /// Delegate [`UiNode::event`].
-    #[inline(always)]
-    pub fn event(&mut self, update: &EventUpdate) {
-        self.node.0.event(update);
-        self.delegated = true;
-    }
-
     /// Delegate [`UiNode::update`].
     #[inline(always)]
     pub fn update(&mut self, updates: &WidgetUpdates) {
@@ -751,10 +710,6 @@ pub fn match_node_leaf(closure: impl FnMut(UiNodeOp) + Send + 'static) -> UiNode
 
         fn info(&mut self, info: &mut WidgetInfoBuilder) {
             (self.closure)(UiNodeOp::Info { info });
-        }
-
-        fn event(&mut self, update: &EventUpdate) {
-            (self.closure)(UiNodeOp::Event { update });
         }
 
         fn update(&mut self, updates: &WidgetUpdates) {
@@ -910,16 +865,6 @@ pub fn match_widget(child: impl IntoUiNode, closure: impl FnMut(&mut MatchWidget
                     // this is likely an error, but a child widget could have requested info again
                     tracing::warn!(target: "match_widget-pending", "pending info build after info delegated in {:?}", WIDGET.id());
                 }
-            }
-        }
-
-        fn event(&mut self, update: &EventUpdate) {
-            self.child.0.delegated = false;
-
-            (self.closure)(&mut self.child, UiNodeOp::Event { update });
-
-            if !mem::take(&mut self.child.0.delegated) {
-                self.child.0.node.0.event(update);
             }
         }
 

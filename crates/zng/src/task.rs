@@ -82,7 +82,9 @@
 //! # HTTP Client
 //!
 //! You can use [`http`] to implement asynchronous HTTP requests. Zng also uses the [`http`] module for
-//! implementing operations such as loading an image from a given URL, the module is a thin wrapper around the [`isahc`] crate.
+//! implementing operations such as loading an image from a given URL, the module defines an HTTP client API
+//!  that is backend agnostic. By default it uses the system `curl` command
+//! line utility with a simple cache, this can be replaced using the full API.
 //!
 //! ```
 //! use zng::prelude::*;
@@ -127,8 +129,6 @@
 //! parallel closures you must capture and load the [`LocalContext`] manually.
 //!
 //! [`LocalContext`]: crate::app::LocalContext
-//! [`isahc`]: https://docs.rs/isahc
-//! [`AppExtension`]: crate::app::AppExtension
 //! [`blocking`]: https://docs.rs/blocking
 //! [`futures`]: https://docs.rs/futures
 //! [`async-std`]: https://docs.rs/async-std
