@@ -60,16 +60,11 @@ The `Cargo.toml` fragment above shows an override to the `release` profile that 
 
 ## Binary Size
 
-To optimize specifically for binary size you enable features that replace generics with dynamic dispatch and use optimization level `"z"`.
+To optimize specifically for binary size you can use optimization level `"z"`.
 
 The `Cargo.toml` fragment below show changes you can add to the previous examples to optimize for size.
 
 ```toml
-[features]
-release = [
-    "zng/dyn_app_extension",
-]
-
 [profile.release]
 opt-level = "z" # instruct the compiler to optimize for size
 ```

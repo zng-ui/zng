@@ -3,43 +3,55 @@
 
 # 0.21.0
 
-* **Breaking** `run_window` and other methods now require the window id.
+This release contains breaking changes in the surface API that are trivial to fix and more extensive
+breaking changes in the app extensions API only affect custom app service implementers.
 
-* Add `zng::env::About::is_test` metadata to detect when process was inited in a test.
+* Add `zng::audio` with `AUDIO` service and related types for loading, decoding, mixing and playing audio files.
+    - Currently only supports audio files.
+    - API already defined to support live streaming in a subsequent non-breaking release.
+    - Added `cargo do run audio` example.
 
-**Breaking** Removed `HeadlessApp::block_on*` methods. Use the `run_task` and new `run_task_deadline` for tests.
+* Add `DIALOG.notification` and related types for showing local notifications.
+    - The `window` example now demonstrates notifications.
 
-**Breaking** `command!` syntax changed slightly.
+* Add support for multi entry image containers.
+    - Added `img_entries_mode` property and related types.
+    - **Breaking** Replaced `ImageDownscale` with `ImageDownscaleMode`.
+    - Added `encode_with_entries` and related methods.
+* Add `original_color_type` image metadata.
+* Mipmap generation for gigapixel images must now be manually enabled using `ImageDownscaleMode::mip_map`.
+    - Generated alternates can be accessed using the new image entries API.
 
-* Fix `Var::on_(pre_)new` notifying multiple times if the variable is modified multiple times in the same update.
+* **Breaking** Windows open methods now require an explicit ID.
 
-* **Breaking** Removes `"dyn_app_extension"` feature.
+    To migrate, change:
 
-* Added `APP.on_init` and `APP.on_deinit`.
-    - **Breaking** Removed `on_app_start`.
+    ```rust
+    app.run_window(async { Window!() });
 
-* **Breaking** Replaced syntax of `event_property!` to allow custom nodes.
-    - **Breaking** Replaced syntax of `command_property!` to align with new `event_property!`.
+    WINDOWS.open(async { Window!() });
+    ```
 
-* **Breaking** Accessibility event args not contain the full path to target widget.
+    To:
 
-* **Breaking** Refactored events to be specialized variables.
-    - Unifies all reactive programming into vars and `update`.
-    - Batches update delivery in sync with other updates.
-    - Remove `UiNode::event` and related types.
+    ```rust
+    // using a named ID
+    app.run_window("main", async { Window! {} });
 
-* **Breaking** Rename `Img` to `ImageEntry`.
+    // generating an ID
+    WINDOWS.open(WindowId::new_unique(), async { Window!() });
+    ```
 
-* **Breaking** Variable `subscribe_when` and related methods now have access to the full `VarHookArgs`.
+    This change was made as part ot a `WINDOWS` service refactor to reduce API complexity, it also
+    enables giving the first window in `run_window` an ID.
 
-* Refactor `Img`, it is now a normal value.
-    - Fixes `ImageVar` sometimes not updating correctly in complex bindings.
-    - **Breaking** Replaced advanced `ViewImage` with `ViewImageHandle`.
-    - **Breaking** Multiple changes in the `Img` methods.
-    - All image loading now is managed by the `IMAGES` service in the app-process.
+* **Breaking** Removes `"dyn_app_extension"` Cargo feature, no longer needed.
 
-* **Breaking** Add system tray icon and app menu to the view API.
-    - Service not implemented yet, this will happen in a future non breaking release.
+* **Breaking** Refactor `Event<A>` to just be a specialized `Var<EventUpdates<A>>`.
+    - Events now use the same reactor as var bindings and updates.
+    - Better performance, many event updates now can notify in the same update pass, just like vars.
+    - Latest events can be mapped directly to other vars, see `*_EVENT.var_map(...)` and related methods.
+    - No breaking changes in the surface API, if you implement custom events and commands see the *App Extension API* section.
 
 * Refactor `zng::env::About`.
     - Added non-default feature `"parse"` for `zng-env` crate.
@@ -47,37 +59,80 @@
     - **Breaking** Replaced `qualifier` and `crate_name` fields with methods.
     - Added `app_id` field, for fully qualified unique name.
     - Added `meta` map field with any other custom metadata.
+    - Added `is_test` to detect when process was inited in a test.
     
-    Note that these changes are non breaking for `cargo-zng`, projects started with the old template
-    will still work with the new `cargo-zng`. New projects will not work with previous `cargo-zng`. 
+    Note that these changes are non breaking for `cargo zng`, projects started with the old template
+    will still work with the new `cargo zng`. New projects will not work with previous.
 
-* Prebuilt view-process now has access to the `zng::env::about`.
+    Migration to new explicit `app_id` is recommended, having the ID defined in full in a single place facilitates integration
+    with package managers and Android in particular. Simply search for "qualifier" and "ZR_QUALIFIER"
+    to find all places where an app ID is being generated. Note that if the project is already published you must ensure the ID
+    does not actually change as that would cause the packages to lose continuity.
 
-* Implemented local notifications.
-    - Added `DIALOG.notification`.
-    - **Breaking** Added to the view API.
+* Fix `Var::on_(pre_)new` notifying multiple times if the variable is modified multiple times in the same update.
 
 * Fix file dialog tasks never responding if the view-process crashes while the dialog is showing.
+* **Breaking** `FileDialogFilters::push_filter` now accepts any `IntoIterator<Item=str>`.
+* **Breaking** Removed `HeadlessApp::block_on*` methods. Use the `run_task` and new `run_task_deadline` for tests.
+* **Breaking** Accessibility event args now contain the full path to target widget.
+* **Breaking** Frame ready events (`on_frame_image_ready`) now only notify when frame capture was requested.
+    - Now provides a weak reference to the frame image to avoid retaining it in the latest event var.
 * Optimized `Txt`, now it is 24 bytes.
     - **Breaking** `Txt::from_string` is no longer const.
+* **Breaking** Length units `max`, `min` and `abs` now take by value.
+* Fix memory leak in `Var::flat_map_vec` when the returned item var is a retained clone.
+* **Breaking** Renamed `CLIPBOARD.file_list` to `paths`.
 
+* Fix `cargo zng l10n --clean-template` removing custom template localization files.
+* Fix `cargo zng l10n` not including entries of local dependencies targeting the same localization file.
+
+<details>
+<summary>App Extension API</summary>
+Changes that only affect custom app service, events and node implementers.
+
+* **Breaking** Remove `AppExtension` trait and related types, refactor events and services to be *var* based.
+
+    The `AppExtension` API was designed back when this project was pursuing zero cost static event dispatch, 
+    that turned out to be prohibitive expensive to compile and too inflexible so the API was adapted for more dynamic dispatching. 
+    As the project matured the dynamic *var* system and batched parallelized widget updates proved to be highly performant, flexible
+    and faster to compile. This refactor replaces all app systems (events and services) with a single var based system.
+
+    Migrating to the new way of implementing extensions requires some work, but most of the code can be reused it just
+    needs to be hooked differently. See the git changes for any `zng-ext-*` crate for ideas of how to proceed.
+
+* Added `APP.on_init` and `APP.on_deinit`.
+    - **Breaking** Removed `on_app_start`.
+    - Use `on_process_start!` with `yield_until_app` to set an `APP.on_init` handler from extension crates.
+* Added `UPDATES.once_update`, `once_next_update`, `EVENTS.notify` and `VARS.modify` for scheduling custom closures to run during var binding/hook updates.
+
+* **Breaking** `command!` macro syntax changed.
+    - `FOO_CMD = { ... }` changed to `FOO_CMD { .. }`.
+    - Custom init is now just another metadata, `init: |cmd| { },` and can be mixed with other named metadata and
+      the `l10n!: true` macro meta.
+
+* **Breaking** Replaced syntax of `event_property!` to allow custom nodes.
+    - **Breaking** Replaced syntax of `command_property!` too.
+    - See docs for these two, syntax is now more similar to a property node declaration.
+    - **Breaking** Removed `on_event`, `on_command` and related helper functions.
+    - Added `EventNodeBuilder` and `VarEventNodeBuilder` as flexible replacements.
+
+* **Breaking** Removed `UiNode::event` and related types.
+    - Events now updates with vars in `UiNode::update`.
+
+* **Breaking** Variable `subscribe_when` and related methods now have access to the full `VarHookArgs`.
+
+* **Breaking** Rename `Img` to `ImageEntry` and refactored it to be a normal value.
+    - Removed interior mutability.
+    - Fixes `ImageVar` sometimes not updating correctly in complex bindings.
+    - **Breaking** Replaced `ViewImage` with `ViewImageHandle`.
+    - **Breaking** Multiple changes in the methods.
+    - All image loading now is managed by the `IMAGES` service in the app-process.
 * Refactor `IMAGES` service extending.
     - **Breaking** Removed `ImageCacheProxy` API.
     - Added similar `ImagesExtension` API.
     - All *proxy* behavior can be easy converted to new API.
     - SVG image extension now fully integrated.
     - **Breaking** Grouped image config into a struct.
-
-* **Breaking** Length units `max`, `min` and `abs` now take by value.
-* Fix memory leak in `Var::flat_map_vec` when the returned item var is a retained clone.
-
-* **Breaking** `FileDialogFilters::push_filter` now accepts any `IntoIterator<Item=str>`.
-
-* Refactor clipboard service and view-process API.
-    - **Breaking** Renamed `file_list` with `paths`.
-    - Add support for multi data clipboards in the view process API.
-    - **Breaking** View process API updated to take and return vectors of data.
-        - Not implemented in the service yet, this will happen in a future non breaking release.
 
 * Unify view-process capabilities info.
     - **Breaking** Removed `IMAGES.available_encoders/decoders`.
@@ -88,16 +143,22 @@
     - Added `DIALOG.available_native_dialogs` with what native dialogs the view-process implements.
     - Added `CLIPBOARD.available_types` with what data types can be read/write by the view-process implementation.
 
-* Fix `cargo zng l10n --clean-template` removing custom template localization files.
-* Fix `cargo zng l10n` not including entries of local dependencies targeting the same localization file.
+</details>
 
-* Add support for multi entry image containers.
-    - Added `Img::entries` and related methods.
-    - Added `ImageEntryKind` and `ImageEntriesMode`.
-    - **Breaking** Advanced image request functions now also take entries mode.
-    - **Breaking** Replaced `ImageDownscale` with `ImageDownscaleMode`.
-    - Added `Img::encode_with_entries` and related methods.
-* Add `Img::original_color_type` metadata.
+<details>
+<summary>View-Process API</summary>
+Changes that only affect custom view-process implementers.
+
+* Prebuilt view-process now has access to the `zng::env::about`.
+
+* **Breaking** Add system tray icon and app menu to the view API.
+    - Service not implemented yet, this will happen in a future non breaking release.
+
+* **Breaking** Added local notifications API.
+
+* **Breaking** Refactor clipboard API to support multi data.
+
+</details>
 
 # 0.20.4
 

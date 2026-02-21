@@ -12,6 +12,16 @@ cargo do run animation
 
 Demonstrates animation, easing functions.
 
+### `audio`
+
+Source: [audio/src](./audio/src)
+
+```console
+cargo do run audio
+```
+
+Audio loading and playback.
+
 ### `border`
 
 <img alt='border screenshot' src='./border/res/screenshot.png' width='300'>

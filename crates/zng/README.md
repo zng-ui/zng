@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 84 feature flags, 1 enabled by default.
+This crate provides 90 feature flags, 1 enabled by default.
 
 #### `"dev"`
 Defaults recommended for the dev profile (debug builds).
@@ -127,11 +127,6 @@ Enable hot reload builds.
 Note that you must configure the target library to hot reload, see `zng::hot_reload` for details.
 
 Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_os = "ios"))` builds.
-
-#### `"dyn_app_extension"`
-Use dynamic dispatch at the app-extension level.
-
-This speeds-up compilation time at the cost of runtime.
 
 #### `"test_util"`
 Test utilities.
@@ -318,6 +313,9 @@ Enable grid widget.
 #### `"image"`
 Enable image service, widgets, window icons, image cursors, frame capturing.
 
+#### `"audio"`
+Enable audio service, widgets.
+
 #### `"markdown"`
 Enable markdown widget.
 
@@ -403,7 +401,25 @@ Enable TIFF image decoder and encoder with "view" feature.
 Enable WEBP image decoder with "view" feature.
 
 #### `"image_all"`
-Enable all encoders and decoders.
+Enable all image encoders and decoders with "view" feature.
+
+#### `"audio_mp3"`
+Enable MP3 audio decoder and encoder with "view" feature.
+
+#### `"audio_mp4"`
+Enable MP4 audio decoder and encoder with "view" feature.
+
+#### `"audio_flac"`
+Enable FLAC audio decoder and encoder with "view" feature.
+
+#### `"audio_vorbis"`
+Enable MP3 audio decoder and encoder with "view" feature.
+
+#### `"audio_wav"`
+Enable WAV audio decoder and encoder with "view" feature.
+
+#### `"audio_all"`
+Enable all audio decoders and encoders with "view" feature.
 
 <!--do doc --readme #SECTION-END-->
 
