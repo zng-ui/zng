@@ -30,7 +30,7 @@ use zng_app::{
         raw_events::{RAW_MOUSE_LEFT_EVENT, RAW_TOUCH_CONFIG_CHANGED_EVENT, RAW_TOUCH_EVENT, RawTouchArgs},
     },
     widget::{
-        WIDGET, WidgetId,
+        WidgetId,
         info::{HitTestInfo, InteractionPath, WIDGET_TREE_CHANGED_EVENT},
     },
     window::WindowId,
@@ -749,7 +749,7 @@ impl TouchedArgs {
         }
 
         if let Some(t) = &self.prev_target {
-            return t.contains(WIDGET.id());
+            return t.contains(wgt.1);
         }
 
         false
@@ -1473,14 +1473,14 @@ struct LongPressGesture {
     pending: Option<PendingLongPress>,
 }
 impl LongPressGesture {
-    fn on_input(&mut self, args: &TouchInputArgs) {
+    fn on_input(&mut self, args: &TouchInputArgs, cfg: &Var<TouchConfig>) {
         match args.phase {
             TouchPhase::Start => {
                 if let Some(p) = &mut self.pending {
                     // only valid if single touch contact, we use the `pending` presence to track this.
                     p.canceled = true;
                 } else {
-                    let delay = TIMERS.deadline(TOUCH.touch_config().get().tap_max_time);
+                    let delay = TIMERS.deadline(cfg.get().tap_max_time);
                     delay
                         .hook(|a| {
                             let elapsed = a.value().has_elapsed();
@@ -1515,7 +1515,7 @@ impl LongPressGesture {
         }
     }
 
-    fn on_move(&mut self, args: &TouchMoveArgs) {
+    fn on_move(&mut self, args: &TouchMoveArgs, cfg: &Var<TouchConfig>) {
         if let Some(p) = &mut self.pending
             && !p.canceled
             && !p.propagation.is_stopped()
@@ -1523,7 +1523,7 @@ impl LongPressGesture {
             for m in &args.touches {
                 if p.propagation == m.touch_propagation {
                     let dist = p.position - m.position().to_vector();
-                    let max = TOUCH.touch_config().get().tap_area;
+                    let max = cfg.get().tap_area;
                     if dist.x.abs() > max.width || dist.y.abs() > max.height {
                         p.canceled = true;
                         break;
@@ -1578,7 +1578,7 @@ struct TapGesture {
     pending: Option<PendingTap>,
 }
 impl TapGesture {
-    fn on_input(&mut self, args: &TouchInputArgs) {
+    fn on_input(&mut self, args: &TouchInputArgs, cfg: &Var<TouchConfig>) {
         match args.phase {
             TouchPhase::Start => {
                 if self.pending.is_some() {
@@ -1622,11 +1622,10 @@ impl TapGesture {
 
                     if let Some(target) = args.target.sub_path(p.target) {
                         let tap_count = if let Some(double) = pending_double {
-                            let cfg = TOUCH.touch_config().get();
                             if double.window_id == p.window_id
                                 && double.device_id == p.device_id
                                 && double.target == p.target
-                                && double.timestamp.elapsed() <= cfg.double_tap_max_time
+                                && double.timestamp.elapsed() <= cfg.get().double_tap_max_time
                             {
                                 NonZeroU32::new(double.count.get() + 1).unwrap()
                             } else {
@@ -2122,7 +2121,7 @@ impl TransformGesture {
         }
     }
 
-    fn on_move(&mut self, args: &TouchMoveArgs) {
+    fn on_move(&mut self, args: &TouchMoveArgs, cfg: &Var<TouchConfig>) {
         match self {
             Self::NoStartedZero => {}
             Self::NotStartedOne {
@@ -2146,7 +2145,7 @@ impl TransformGesture {
                         }
                     }
                     if moved {
-                        let cfg = TOUCH.touch_config().get();
+                        let cfg = cfg.get();
                         if (position.x - start_position.x).abs() > cfg.double_tap_area.width
                             || (position.y - start_position.y).abs() > cfg.double_tap_area.height
                         {
@@ -2542,9 +2541,10 @@ fn hooks() {
             true,
             hn!(|args| {
                 let mut s = TOUCH_SV.write();
-                s.tap_gesture.on_input(args);
+                let s = &mut *s;
+                s.tap_gesture.on_input(args, &s.touch_config);
                 s.transform_gesture.on_input(args);
-                s.long_press_gesture.on_input(args);
+                s.long_press_gesture.on_input(args, &s.touch_config);
             }),
         )
         .perm();
@@ -2554,9 +2554,10 @@ fn hooks() {
             true,
             hn!(|args| {
                 let mut s = TOUCH_SV.write();
+                let s = &mut *s;
                 s.tap_gesture.on_move(args);
-                s.transform_gesture.on_move(args);
-                s.long_press_gesture.on_move(args);
+                s.transform_gesture.on_move(args, &s.touch_config);
+                s.long_press_gesture.on_move(args, &s.touch_config);
             }),
         )
         .perm();
