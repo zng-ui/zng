@@ -6,8 +6,8 @@ use zng_app::{
     timer::TIMERS,
     update::{InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, WidgetUpdates},
     view_process::{
-        VIEW_PROCESS,
-        raw_events::{RAW_CHROME_CONFIG_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT, RawWindowFocusArgs},
+        VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT,
+        raw_events::{RAW_WINDOW_FOCUS_EVENT, RawWindowFocusArgs},
     },
     widget::{
         WIDGET, WidgetId,
@@ -23,7 +23,6 @@ use zng_var::{ResponderVar, ResponseVar, Var, const_var, response_done_var, resp
 use zng_view_api::{
     DragDropId,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
-    config::ChromeConfig,
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     window::{RenderMode, WindowCapability},
 };
@@ -140,8 +139,11 @@ impl WINDOWS {
     /// chrome fallback.
     ///
     /// [`register_root_extender`]: WINDOWS_EXTENSIONS::register_root_extender
-    pub fn system_chrome(&self) -> Var<ChromeConfig> {
-        RAW_CHROME_CONFIG_CHANGED_EVENT.var_map(|args| Some(args.config), ChromeConfig::default)
+    pub fn system_chrome(&self) -> Var<bool> {
+        VIEW_PROCESS_INITED_EVENT.var_map(
+            |a| Some(a.window.contains(WindowCapability::SYSTEM_CHROME)),
+            || VIEW_PROCESS.info().window.contains(WindowCapability::SYSTEM_CHROME),
+        )
     }
 }
 impl WINDOWS {

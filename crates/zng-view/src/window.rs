@@ -228,7 +228,8 @@ impl Window {
         }
 
         winit = winit
-            .with_decorations(s.chrome_visible)
+            // winit provides a fallback chrome for Wayland, but app-process is expected to render it in Zng
+            .with_decorations(s.chrome_visible && std::env::var("WAYLAND_DISPLAY").is_err())
             // we wait for the first frame to show the window,
             // so that there is no white frame when it's opening.
             //
@@ -1283,8 +1284,10 @@ impl Window {
     }
 
     fn apply_state(&mut self, new_state: WindowStateAll, force: bool) {
-        if self.state.chrome_visible != new_state.chrome_visible {
-            self.window.set_decorations(new_state.chrome_visible);
+        // winit provides a fallback chrome for Wayland, but app-process is expected to render it in Zng
+        let chrome_visible = new_state.chrome_visible && std::env::var("WAYLAND_DISPLAY").is_err();
+        if self.state.chrome_visible != chrome_visible {
+            self.window.set_decorations(chrome_visible);
         }
 
         if self.state.state != new_state.state || force {

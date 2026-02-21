@@ -3,10 +3,7 @@ use std::{io::BufRead as _, time::Duration};
 use zng_unit::{Rgba, TimeUnits as _};
 use zng_view_api::{
     Event,
-    config::{
-        AnimationsConfig, ChromeConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig,
-        TouchConfig,
-    },
+    config::{AnimationsConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
 };
 
 use crate::AppEvent;
@@ -99,16 +96,6 @@ pub fn colors_config() -> ColorsConfig {
 pub fn locale_config() -> LocaleConfig {
     // sys_locale
     super::other::locale_config()
-}
-
-pub fn chrome_config() -> ChromeConfig {
-    let is_wayland = std::env::var("WAYLAND_DISPLAY").is_ok();
-    // VSCode/Electron, it changes XDG_CURRENT_DESKTOP to "Unity" and sets ORIGINAL_XDG_CURRENT_DESKTOP,
-    // so running from VSCode gets the wrong value.
-    let is_gnome = std::env::var("ORIGINAL_XDG_CURRENT_DESKTOP")
-        .or_else(|_| std::env::var("XDG_CURRENT_DESKTOP"))
-        .is_ok_and(|val| val.contains("GNOME"));
-    ChromeConfig::new(is_gnome, !(is_wayland && is_gnome))
 }
 
 fn on_change(key: &str, s: &crate::AppEventSender) {

@@ -1,7 +1,6 @@
 use zng_unit::Rgba;
 use zng_view_api::config::{
-    AnimationsConfig, ChromeConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig,
-    TouchConfig,
+    AnimationsConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
 };
 
 /// Create a hidden window that listens to Windows config change events.
@@ -285,10 +284,6 @@ pub fn key_repeat_config() -> KeyRepeatConfig {
 pub fn touch_config() -> TouchConfig {
     // Windows does not provide touch config
     TouchConfig::default()
-}
-
-pub fn chrome_config() -> ChromeConfig {
-    ChromeConfig::default()
 }
 
 pub fn colors_config() -> ColorsConfig {

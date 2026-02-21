@@ -517,8 +517,10 @@ pub fn config_block_window_load(child: impl IntoUiNode, enabled: impl IntoValue<
     })
 }
 
-/// Gets if is not headless, [`chrome`] is `true`, [`state`] is not fullscreen but [`WINDOWS.system_chrome`]
-/// reports the system does not provide window decorations.
+/// Gets if a custom window chrome must be rendered.
+///
+/// This is `true` when is running in a desktop OS and [`chrome`] is `true` and [`state`] is not fullscreen and
+/// [`WINDOWS.system_chrome`] is `false`.
 ///
 /// [`chrome`]: fn@chrome
 /// [`state`]: fn@state
@@ -526,29 +528,20 @@ pub fn config_block_window_load(child: impl IntoUiNode, enabled: impl IntoValue<
 #[property(EVENT, default(var_state()), widget_impl(Window))]
 pub fn needs_fallback_chrome(child: impl IntoUiNode, needs: impl IntoVar<bool>) -> UiNode {
     zng_wgt::node::bind_state_init(child, needs, |n| {
-        if WINDOW.mode().is_headless() {
+        if cfg!(any(windows, target_os = "macos", target_os = "android")) || WINDOW.mode().is_headless() {
+            // optimization, as of the current release only Wayland does not provide chrome so we
+            // can avoid an `expr_var!` for most cases
             n.set(false);
             VarHandle::dummy()
         } else {
             let vars = WINDOW.vars();
             let state = expr_var! {
-                *#{vars.chrome()} && #{WINDOWS.system_chrome()}.needs_custom() && !#{vars.state()}.is_fullscreen()
+                *#{vars.chrome()} && !#{WINDOWS.system_chrome()} && !#{vars.state()}.is_fullscreen()
             };
             state.set_bind(n).perm();
             n.hold(state)
         }
     })
-}
-
-/// Gets if [`WINDOWS.system_chrome`] prefers custom chrome.
-///
-/// Note that you must set [`chrome`] to `false` when using this to provide a custom chrome.
-///
-/// [`chrome`]: fn@chrome
-/// [`WINDOWS.system_chrome`]: WINDOWS::system_chrome
-#[property(EVENT, default(var_state()), widget_impl(Window, DefaultStyle))]
-pub fn prefer_custom_chrome(child: impl IntoUiNode, prefer: impl IntoVar<bool>) -> UiNode {
-    zng_wgt::node::bind_state(child, WINDOWS.system_chrome().map(|c| c.prefer_custom), prefer)
 }
 
 /// Adorner property specific for custom chrome overlays.

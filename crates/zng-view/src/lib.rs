@@ -1868,12 +1868,16 @@ impl Api for App {
             info.window |= WindowCapability::SET_FOCUS_INDICATOR;
             info.window |= WindowCapability::FOCUS;
             info.window |= WindowCapability::DRAG_MOVE;
-            info.window |= WindowCapability::SYSTEM_CHROME;
-            info.window |= WindowCapability::SET_CHROME;
             info.window |= WindowCapability::MINIMIZE;
             info.window |= WindowCapability::MAXIMIZE;
             info.window |= WindowCapability::FULLSCREEN;
             info.window |= WindowCapability::SET_SIZE;
+
+            if cfg!(windows) || std::env::var("WAYLAND_DISPLAY").is_err() {
+                // Wayland does not provide chrome, app must render it
+                info.window |= WindowCapability::SYSTEM_CHROME;
+                info.window |= WindowCapability::SET_CHROME;
+            }
         }
         if !headless & cfg!(windows) {
             info.window |= WindowCapability::SET_ICON;
@@ -1963,11 +1967,6 @@ impl Api for App {
         let cfg = config::colors_config();
         if is_respawn || cfg != zng_view_api::config::ColorsConfig::default() {
             self.notify(Event::ColorsConfigChanged(cfg));
-        }
-
-        let cfg = config::chrome_config();
-        if is_respawn || cfg != zng_view_api::config::ChromeConfig::default() {
-            self.notify(Event::ChromeConfigChanged(cfg));
         }
     }
 

@@ -482,10 +482,6 @@ impl RunningApp {
                 let args = RawColorsConfigChangedArgs::now(cfg);
                 RAW_COLORS_CONFIG_CHANGED_EVENT.notify(args);
             }
-            Event::ChromeConfigChanged(cfg) => {
-                let args = RawChromeConfigChangedArgs::now(cfg);
-                RAW_CHROME_CONFIG_CHANGED_EVENT.notify(args);
-            }
 
             // `device_events`
             Event::InputDevicesChanged(devices) => {

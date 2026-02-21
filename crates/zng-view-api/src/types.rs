@@ -4,9 +4,7 @@ use crate::{
     access::{AccessCmd, AccessNodeId},
     api_extension::{ApiExtensionId, ApiExtensionPayload, ApiExtensions},
     audio::{AudioDecoded, AudioDeviceId, AudioDeviceInfo, AudioId, AudioMetadata, AudioOutputId, AudioOutputOpenData, AudioPlayId},
-    config::{
-        AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
-    },
+    config::{AnimationsConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse, NotificationResponse},
     drag_drop::{DragDropData, DragDropEffect},
     image::{ImageDecoded, ImageEncodeId, ImageId, ImageMetadata},
@@ -506,8 +504,6 @@ pub enum Event {
     LocaleChanged(LocaleConfig),
     /// System color scheme or colors changed.
     ColorsConfigChanged(ColorsConfig),
-    /// System window chrome (decorations) preference changed.
-    ChromeConfigChanged(ChromeConfig),
 
     /// Raw input device event.
     InputDeviceEvent {

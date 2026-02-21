@@ -1,7 +1,7 @@
 use core::fmt;
 use std::sync::Arc;
 
-use crate::{AutoSize, CursorSource, MonitorQuery, WINDOWS, WindowIcon, WindowInstanceState};
+use crate::{AutoSize, CursorSource, MonitorQuery, WindowIcon, WindowInstanceState};
 use zng_app::{
     widget::{WidgetId, base::Parallel, info::access::AccessEnabled},
     window::{MonitorId, WINDOW, WindowId},
@@ -828,7 +828,7 @@ impl WindowVars {
             self.0.restore_state.get(),
             self.0.actual_min_size.get(),
             self.0.actual_max_size.get(),
-            self.0.chrome.get() && !WINDOWS.system_chrome().get().needs_custom(),
+            self.0.chrome.get(),
         )
     }
 

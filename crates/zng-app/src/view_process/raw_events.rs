@@ -20,9 +20,7 @@ use zng_view_api::{
     AxisId, DragDropId, Ime,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     audio::{AudioDecoded, AudioMetadata},
-    config::{
-        AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
-    },
+    config::{AnimationsConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
     drag_drop::{DragDropData, DragDropEffect},
     image::{ImageDecoded, ImageMetadata},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
@@ -792,19 +790,6 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RAW_CHROME_CONFIG_CHANGED_EVENT`].
-    pub struct RawChromeConfigChangedArgs {
-        /// New config.
-        pub config: ChromeConfig,
-
-        ..
-
-        /// Broadcast to all widgets.
-        fn is_in_target(&self, id: WidgetId) -> bool {
-            true
-        }
-    }
-
     /// Arguments for the [`RAW_EXTENSION_EVENT`].
     pub struct RawExtensionEventArgs {
         /// Id of the sender extension.
@@ -923,9 +908,6 @@ event! {
 
     /// Color scheme or accent color preference changed for a window.
     pub static RAW_COLORS_CONFIG_CHANGED_EVENT: RawColorsConfigChangedArgs;
-
-    /// System window chrome config changed.
-    pub static RAW_CHROME_CONFIG_CHANGED_EVENT: RawChromeConfigChangedArgs;
 
     /// Change in system font anti-aliasing config.
     pub static RAW_FONT_AA_CHANGED_EVENT: RawFontAaChangedArgs;
