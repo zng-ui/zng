@@ -7,7 +7,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 
  This crate provides 1 feature flag, not enabled by default.
 #### `"http"`
-Enable web image source.
+Enable web audio source.
 
 <!--do doc --readme #SECTION-END-->
 

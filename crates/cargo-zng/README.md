@@ -260,26 +260,26 @@ Options:
   -i, --input <INPUT>
           Rust files glob or directory
 
-          [default: ]
+          [default: ""]
 
   -o, --output <OUTPUT>
           L10n resources dir
 
-          [default: ]
+          [default: ""]
 
   -p, --package <PACKAGE>
           Package to scrap and copy dependencies
 
           If set the --input and --output default is src/**.rs and l10n/
 
-          [default: ]
+          [default: ""]
 
       --manifest-path <MANIFEST_PATH>
           Path to Cargo.toml of crate to scrap and copy dependencies
 
           If set the --input and --output default to src/**.rs and l10n/
 
-          [default: ]
+          [default: ""]
 
       --no-deps
           Don't copy dependencies localization
@@ -308,7 +308,7 @@ Options:
   -m, --macros <MACROS>
           Custom l10n macro names, comma separated
 
-          [default: ]
+          [default: ""]
 
       --pseudo <PSEUDO>
           Generate pseudo locale from dir/lang
@@ -317,17 +317,17 @@ Options:
 
           "l10n/en" generates pseudo from "l10n/en.ftl" and "l10n/en/*.ftl"
 
-          [default: ]
+          [default: ""]
 
       --pseudo-m <PSEUDO_M>
           Generate pseudo mirrored locale
 
-          [default: ]
+          [default: ""]
 
       --pseudo-w <PSEUDO_W>
           Generate pseudo wide locale
 
-          [default: ]
+          [default: ""]
 
       --check
           Only verify that the generated files are the same
