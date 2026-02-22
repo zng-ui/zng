@@ -559,7 +559,7 @@ jobs:
   tag:
     runs-on: ubuntu-latest
     needs: [test-ubuntu, test-windows, test-macos, test-cargo-publish, doc-ubuntu, check-android]
-    if: ${{ github.event.inputs.cancel_tag != 'true' && github.event.ref == 'refs/heads/release' }}
+    if: ${{ github.event.inputs.cancel_tag != 'true'}}
     permissions:
       contents: write
     outputs:

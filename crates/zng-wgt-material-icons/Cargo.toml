@@ -39,7 +39,7 @@ phf = { version = "0.13", default-features = false }
 tracing = { version = "0.1", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "*"
+wasm-bindgen = "0.2"
 
 [build-dependencies]
 dunce = { version = "1.0", default-features = false }
