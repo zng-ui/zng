@@ -64,7 +64,7 @@ pub use linkme as __linkme;
 ///
 /// ```toml
 /// [target.'cfg(target_arch = "wasm32")'.dependencies]
-/// wasm-bindgen = "*"
+/// wasm-bindgen = "0.2"
 /// ```
 ///
 /// Try to match the version used by `zng-env`.
