@@ -18,8 +18,6 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use zng_app::{APP, hn};
-
 zng_wgt::enable_widget_macros!();
 
 #[cfg(all(
@@ -30,7 +28,7 @@ zng_env::on_process_start!(|args| {
     if args.yield_until_app() {
         return;
     }
-    APP.on_init(hn!(|_| {
+    zng_app::APP.on_init(zng_app::hn!(|_| {
         use zng_wgt::{ICONS, IconRequestArgs, prelude::UiNode, wgt_fn};
         use zng_wgt_text::icon::{GlyphIcon, Icon};
 
