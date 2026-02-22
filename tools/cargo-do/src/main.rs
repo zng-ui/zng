@@ -1656,7 +1656,7 @@ fn publish(mut args: Vec<&str>) {
             }
         }
 
-        print(f!("{} of {} crates out of sync with crates.io", count, members.len()));
+        println(f!("{} of {} crates out of sync with crates.io", count, members.len()));
     } else if take_flag(&mut args, &["--test"]) {
         let members = util::publish_members();
         for member in &members {
@@ -1669,15 +1669,17 @@ fn publish(mut args: Vec<&str>) {
             ];
             if published_ver != current_ver && !exclude.contains(&member.name.as_str()) {
                 if member.dependencies.is_empty() {
+                    println(f!("publish dry-run {}", member.name.as_str()));
                     cmd(
                         "cargo",
-                        &["publish", "--dry-run", "--allow-dirty", "--package", member.name.as_str()],
+                        &["publish", "--dry-run", "--allow-dirty", "--package", member.name.as_str(), "--quiet"],
                         &[],
                     );
                 } else {
+                    println(f!("check {}", member.name.as_str()));
                     // don't know how to dry-run ignoring missing dependencies,
                     // this at least tests if features are enabled correctly.
-                    cmd("cargo", &["check", "--package", member.name.as_str()], &[]);
+                    cmd("cargo", &["check", "--package", member.name.as_str(), "--quiet"], &[]);
                 }
                 cmd("cargo", &["clean"], &[]);
             }
