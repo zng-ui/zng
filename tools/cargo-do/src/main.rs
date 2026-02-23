@@ -1672,7 +1672,14 @@ fn publish(mut args: Vec<&str>) {
                     println(f!("publish dry-run {}", member.name.as_str()));
                     cmd(
                         "cargo",
-                        &["publish", "--dry-run", "--allow-dirty", "--package", member.name.as_str(), "--quiet"],
+                        &[
+                            "publish",
+                            "--dry-run",
+                            "--allow-dirty",
+                            "--package",
+                            member.name.as_str(),
+                            "--quiet",
+                        ],
                         &[],
                     );
                 } else {

@@ -683,7 +683,7 @@ where
 macro_rules! event_property {
     ($(
         $(#[$meta:meta])+
-        $vis:vis fn $on_ident:ident $(< $on_pre_ident:ident >)? (
+        $vis:vis fn $on_ident:ident $(< $on_pre_ident:ident $(,)?>)? (
             $child:ident: impl $IntoUiNode:path,
             $handler:ident: $Handler:ty $(,)?
         ) -> $UiNode:path {
@@ -794,16 +794,16 @@ macro_rules! event_property_impl {
 macro_rules! command_property {
     ($(
         $(#[$meta:meta])+
-        $vis:vis fn $on_ident:ident < $on_pre_ident:ident $(, $can_ident:ident)?> (
+        $vis:vis fn $on_ident:ident $(< $on_pre_ident:ident $(, $can_ident:ident)? $(,)?>)? (
             $child:ident: impl $IntoUiNode:path,
-            $handler:ident: $Handler:ty
+            $handler:ident: $Handler:ty $(,)?
         ) -> $UiNode:path {
             $COMMAND:path
         }
     )+) => {$(
        $crate::command_property_impl! {
             $(#[$meta])+
-            $vis fn $on_ident<$on_pre_ident $(, $can_ident)?>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
+            $vis fn $on_ident$(<$on_pre_ident $(, $can_ident)?>)?($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
                 $COMMAND
             }
        }
@@ -879,7 +879,7 @@ macro_rules! command_property_impl {
     };
     (
         $(#[$meta:meta])+
-        $vis:vis fn $on_ident:ident < $on_pre_ident:ident> (
+        $vis:vis fn $on_ident:ident< $on_pre_ident:ident> (
             $child:ident: impl $IntoUiNode:path,
             $handler:ident: $Handler:ty
         ) -> $UiNode:path {
@@ -900,6 +900,32 @@ macro_rules! command_property_impl {
             $vis fn $on_ident<$on_pre_ident>($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
                 const PRE: bool;
                 let child = $crate::node::EventNodeBuilder::new(*$COMMAND).build::<PRE>($child, $handler);
+                $crate::node::command_always_enabled(child, $COMMAND)
+            }
+        }
+    };
+    (
+        $(#[$meta:meta])+
+        $vis:vis fn $on_ident:ident (
+            $child:ident: impl $IntoUiNode:path,
+            $handler:ident: $Handler:ty
+        ) -> $UiNode:path {
+            $COMMAND:path
+        }
+    ) => {
+        $crate::event_property! {
+            $(#[$meta])+
+            ///
+            /// # Command
+            ///
+            /// This property will subscribe to the
+            #[doc = concat!("[`", stringify!($COMMAND), "`]")]
+            /// command scoped on the widget. If set on the `Window!` root widget it will also subscribe to
+            /// the command scoped on the window.
+            ///
+            /// The command handle is always enabled.
+            $vis fn $on_ident($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
+                let child = $crate::node::EventNodeBuilder::new(*$COMMAND).build::<false>($child, $handler);
                 $crate::node::command_always_enabled(child, $COMMAND)
             }
         }
