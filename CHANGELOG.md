@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `command_property!` not generating full property for `can_*`.
 
 # 0.21.1
 

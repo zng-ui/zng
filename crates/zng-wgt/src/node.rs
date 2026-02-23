@@ -844,6 +844,7 @@ macro_rules! command_property_impl {
             /// command handlers are enabled in the widget and descendants.
             ///
             #[doc = "Sets the [`"$can_ident:upper "_VAR`]."]
+            #[$crate::node::__macro_util::property(CONTEXT, default([<$can_ident:upper _VAR>]))]
             $vis fn $can_ident(
                 child: impl $crate::node::__macro_util::IntoUiNode,
                 enabled: impl $crate::node::__macro_util::IntoVar<bool>,
