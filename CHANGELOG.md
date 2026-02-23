@@ -1,6 +1,9 @@
 # Unreleased
 
-* Fix `command_property!` requiring preview property declaration.
+
+# 0.21.1
+
+* Fix `command_property!` syntax requiring preview property declaration.
 
 # 0.21.0
 
