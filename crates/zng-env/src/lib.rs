@@ -22,6 +22,8 @@ use zng_unique_id::{lazy_static, lazy_static_init};
 mod process;
 pub use process::*;
 
+pub mod windows_subsystem;
+
 lazy_static! {
     static ref ABOUT: About = About::fallback_name();
 }
