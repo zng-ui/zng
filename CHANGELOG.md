@@ -1,5 +1,6 @@
 # Unreleased
 
+* Change `HeadlessApp::renderer_enabled` to block until the view-process is connected, if running with renderer.
 * Fix `command_property!` not generating full property for `can_*`.
 
 # 0.21.1

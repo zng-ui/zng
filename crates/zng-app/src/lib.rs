@@ -217,7 +217,7 @@ pub struct HeadlessApp {
     app: RunningApp,
 }
 impl HeadlessApp {
-    /// If headless rendering is enabled.
+    /// If headless rendering is enabled wait until view-process is connected.
     ///
     /// When enabled windows are still not visible but frames will be rendered and the frame
     /// image can be requested.
@@ -228,7 +228,15 @@ impl HeadlessApp {
     ///
     /// [`UiNode::render`]: crate::widget::node::UiNode::render
     pub fn renderer_enabled(&mut self) -> bool {
-        VIEW_PROCESS.is_available()
+        if VIEW_PROCESS.is_available() {
+            self.run_task(async {
+                let args = crate::view_process::VIEW_PROCESS_INITED_EVENT.var();
+                args.wait_match(|a| !a.is_empty()).await;
+            });
+            true
+        } else {
+            false
+        }
     }
 
     /// Does updates.
