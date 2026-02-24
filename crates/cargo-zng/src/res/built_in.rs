@@ -298,7 +298,7 @@ ${!cmd -h}      — Replaces with the stdout of the bash script line.
                   The working directory is the workspace root.
 ${!cmd:case}    — Replaces with the stdout, case converted. 
                   If the script contains ':' quote it with double quotes\"
-$!{!cmd:?else}  — If script fails or ha no stdout, uses 'else' instead.
+${!cmd:?else}  — If script fails or ha no stdout, uses 'else' instead.
 
 $${VAR}         — Escapes $, replaces with '${VAR}'.
 
