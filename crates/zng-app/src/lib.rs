@@ -460,6 +460,19 @@ impl APP {
         }
     }
 
+    /// If running with renderer await until a view-process connects.
+    ///
+    /// This method is particularly useful to await for initial service values that are from view-process, such
+    /// as service capabilities. Avoid using this directly in [`run`], windows and other service requests are
+    /// designed await for view-process when needed, blocking the entire run misses on some parallelization.
+    ///
+    /// [`run`]: AppBuilder::run
+    pub async fn wait_view_process(&self) {
+        if VIEW_PROCESS.is_available() {
+            view_process::VIEW_PROCESS_INITED_EVENT.wait_match(|_| true).await
+        }
+    }
+
     /// Defines what raw device events the view-process instance should monitor and notify.
     ///
     /// Raw device events are global and can be received even when the app has no visible window.
