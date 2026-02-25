@@ -38,7 +38,8 @@ impl AudioCache {
                     if let Some(s) = self.tracks.get(&audio) {
                         let s = s.play_source();
                         if s.channel_count != channels || s.sample_rate != sample_rate {
-                            let s = rodio::source::UniformSourceIterator::new(s, channels, sample_rate);
+                            let s =
+                                rodio::source::UniformSourceIterator::new(s, channels.try_into().unwrap(), sample_rate.try_into().unwrap());
                             if skip != Duration::ZERO || take != Duration::MAX {
                                 let s = box_source(s, skip, take);
                                 mix_layer(&mut out, s);
@@ -105,7 +106,8 @@ impl AudioCache {
                     None => mix.delay,
                 };
                 let num_samples = (duration.as_secs_f64() * sample_rate as f64) as u64 * channels as u64;
-                let silence = rodio::source::Zero::new_samples(channels, sample_rate, num_samples as usize);
+                let silence =
+                    rodio::source::Zero::new_samples(channels.try_into().unwrap(), sample_rate.try_into().unwrap(), num_samples as usize);
                 Ok(Box::new(silence))
             }
         }
@@ -153,8 +155,8 @@ where
     F: FnMut([u64; 3], f32) -> f32,
 {
     fn new(source: S, start: Duration, end: Duration, map: F) -> Self {
-        let sample_rate = source.sample_rate() as u64;
-        let channels = source.channels() as u64;
+        let sample_rate = source.sample_rate().get() as u64;
+        let channels = source.channels().get() as u64;
 
         let start_sample = (start.as_secs_f64() * sample_rate as f64) as u64 * channels;
         let end_sample = (end.as_secs_f64() * sample_rate as f64) as u64 * channels;

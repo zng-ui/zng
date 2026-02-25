@@ -173,7 +173,7 @@ lcms2 = { version = "6.1.1", default-features = false, features = ["static"], op
 png = { version = "0.18.0", default-features = false, optional = true }
 tiff = { version = "0.10.3", default-features = false, optional = true }
 
-rodio = { version = "0.21", default-features = false, features = ["playback", "tracing"], optional = true } 
+rodio = { version = "0.22", default-features = false, features = ["playback", "tracing"], optional = true } 
 symphonia = { version = "0.5", default-features = false, optional = true }
 
 accesskit = { version = "0.22", default-features = false }
