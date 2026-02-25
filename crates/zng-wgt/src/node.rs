@@ -974,7 +974,7 @@ pub fn command_contextual_enabled(child: UiNode, cmd: Command, ctx: ContextVar<b
                 CommandHandle::dummy()
             };
             if !ctx.capabilities().is_const() {
-                let _handle = ctx.hook(move |a| {
+                _handle = ctx.hook(move |a| {
                     handle.enabled().set(*a.value());
                     win_handle.enabled().set(*a.value());
                     true
