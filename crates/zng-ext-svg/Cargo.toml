@@ -20,7 +20,7 @@ zng-task = { path = "../zng-task", version = "0.12.1", default-features = false 
 zng-var = { path = "../zng-var", version = "0.13.1", default-features = false }
 zng-env = { path = "../zng-env", version = "0.10.1", default-features = false }
 
-resvg = { version = "0.45", default-features = false }
+resvg = { version = "0.47", default-features = false }
 tracing = { version = "0.1", default-features = false }
 
 [package.metadata.docs.rs]

@@ -13,8 +13,8 @@ use zng_view_api::{Event, audio::*};
 
 #[cfg(not(feature = "audio_any"))]
 mod rodio {
-    pub struct OutputStream;
-    pub struct Sink;
+    pub struct MixerDeviceSink;
+    pub struct Player;
 }
 
 use crate::{AppEvent, AppEventSender};
@@ -80,11 +80,11 @@ pub(crate) struct AudioCache {
     id_gen: AudioId,
     play_id_gen: AudioPlayId,
     tracks: FxHashMap<AudioId, AudioTrack>,
-    device_streams: Vec<rodio::OutputStream>,
+    device_streams: Vec<rodio::MixerDeviceSink>,
     streams: FxHashMap<AudioOutputId, VpOutput>,
 }
 struct VpOutput {
-    sink: rodio::Sink,
+    sink: rodio::Player,
     channel_count: u16,
     sample_rate: u32,
 }
@@ -215,7 +215,7 @@ impl AudioCache {
             }
         };
 
-        let mut meta = AudioMetadata::new(id, decoder.channels(), decoder.sample_rate());
+        let mut meta = AudioMetadata::new(id, decoder.channels().get(), decoder.sample_rate().get());
         meta.total_duration = Some(total_duration);
 
         let mut track = AudioTrack {
@@ -297,7 +297,7 @@ impl AudioCache {
 
         // only supports the default stream for this release
         if self.device_streams.is_empty() {
-            match rodio::OutputStreamBuilder::open_default_stream() {
+            match rodio::DeviceSinkBuilder::open_default_sink() {
                 Ok(s) => {
                     self.device_streams.push(s);
                 }
@@ -312,9 +312,12 @@ impl AudioCache {
         }
         let device_stream = &self.device_streams[0];
 
-        let data = AudioOutputOpenData::new(device_stream.config().channel_count(), device_stream.config().sample_rate());
+        let data = AudioOutputOpenData::new(
+            device_stream.config().channel_count().get(),
+            device_stream.config().sample_rate().get(),
+        );
 
-        let sink = rodio::Sink::connect_new(device_stream.mixer());
+        let sink = rodio::Player::connect_new(device_stream.mixer());
         sink.set_volume(output.config.volume.0);
         sink.set_speed(output.config.speed.0);
         match output.config.state {
@@ -328,8 +331,8 @@ impl AudioCache {
             id,
             VpOutput {
                 sink,
-                channel_count: c.channel_count(),
-                sample_rate: c.sample_rate(),
+                channel_count: c.channel_count().get(),
+                sample_rate: c.sample_rate().get(),
             },
         );
 
@@ -456,11 +459,11 @@ impl rodio::Source for AudioTrackPlay {
     }
 
     fn channels(&self) -> rodio::ChannelCount {
-        self.channel_count
+        self.channel_count.try_into().unwrap()
     }
 
     fn sample_rate(&self) -> rodio::SampleRate {
-        self.sample_rate
+        self.sample_rate.try_into().unwrap()
     }
 
     fn total_duration(&self) -> Option<Duration> {

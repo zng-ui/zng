@@ -28,7 +28,7 @@ serde_json = { version = "1.0", features = ["std", "preserve_order"], default-fe
 semver = { version = "1.0", features = ["std"], default-features = false }
 
 # new
-convert_case = { version = "0.10", default-features = false }
+convert_case = { version = "0.11", default-features = false }
 sanitise-file-name = { version = "1.0", features = ["std"], default-features = false }
 
 # res
@@ -40,7 +40,7 @@ anyhow = { version = "1.0", features = ["std"], default-features = false }
 dunce = { version = "1.0", default-features = false }
 zng-env = { path = "../zng-env", version = "0.10.1", default-features = false, features = ["parse"] }
 directories = { version = "6.0", default-features = false }
-quick-xml = { version = "0.38", features = ["serialize"], default-features = false }
+quick-xml = { version = "0.39", features = ["serialize"], default-features = false }
 
 # fmt
 regex = { version = "1.10", features = ["std", "perf", "unicode"], default-features = false }
