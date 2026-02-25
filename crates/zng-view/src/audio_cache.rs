@@ -13,8 +13,8 @@ use zng_view_api::{Event, audio::*};
 
 #[cfg(not(feature = "audio_any"))]
 mod rodio {
-    pub struct OutputStream;
-    pub struct Sink;
+    pub struct MixerDeviceSink;
+    pub struct Player;
 }
 
 use crate::{AppEvent, AppEventSender};
