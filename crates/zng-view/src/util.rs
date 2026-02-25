@@ -1182,7 +1182,7 @@ pub(crate) fn accesskit_to_event(
     use accesskit::Action;
     use zng_view_api::access::*;
 
-    let target = AccessNodeId(request.target.0);
+    let target = AccessNodeId(request.target_node.0);
 
     Some(zng_view_api::Event::AccessCommand {
         window: window_id,
@@ -1256,6 +1256,7 @@ pub(crate) fn access_tree_update_to_kit(update: zng_view_api::access::AccessTree
         nodes,
         tree: update.full_root.map(|id| accesskit::Tree::new(access_id_to_kit(id))),
         focus: access_id_to_kit(update.focused),
+        tree_id: accesskit::TreeId::ROOT,
     }
 }
 
