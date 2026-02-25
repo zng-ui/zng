@@ -13,11 +13,13 @@ const CRATE_FILES: &[(&str, &[&str])] = &[
             "crates/zng/src/lib.rs",
             "crates/zng/src/app.rs",
             "crates/zng/src/icon.rs",
+            "crates/zng/src/env.rs",
             "crates/zng-view/src/lib.rs",
         ],
     ),
     ("zng-view", &["crates/zng-view/src/lib.rs"]),
     ("zng-tp-licenses", &["crates/zng/src/third_party.rs"]),
+    ("zng-env", &["crates/zng/src/env.rs"]),
 ];
 
 pub fn check() {

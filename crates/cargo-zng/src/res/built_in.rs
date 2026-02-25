@@ -498,7 +498,7 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                         out.push_str(fallback);
                     }
                 } else {
-                    return Err(format!("${{{var}}} cannot be read or is empty"));
+                    return Err(format!("${{{var}}} output is empty"));
                 }
             }
         } else {
@@ -1197,9 +1197,9 @@ mod tests {
         assert_eq!("normal text", replace("normal text", 0).unwrap());
         assert_eq!("escaped ${NOT}", replace("escaped $${NOT}", 0).unwrap());
         assert_eq!("replace 'test value'", replace("replace '${ZR_RP_TEST}'", 0).unwrap());
-        assert_eq!("${} cannot be read or is empty", replace("empty '${}'", 0).unwrap_err()); // hmm
+        assert_eq!("${} output is empty", replace("empty '${}'", 0).unwrap_err()); // hmm
         assert_eq!(
-            "${ZR_RP_TEST_NOT_SET} cannot be read or is empty",
+            "${ZR_RP_TEST_NOT_SET} output is empty",
             replace("not set '${ZR_RP_TEST_NOT_SET}'", 0).unwrap_err()
         );
         assert_eq!(
