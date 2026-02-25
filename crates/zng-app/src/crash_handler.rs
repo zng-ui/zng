@@ -1014,7 +1014,7 @@ fn run_process(
                 let uuid = uuid::Uuid::new_v4();
                 let dump_file = dump_dir.join(format!("{}.dmp", uuid.simple()));
                 let dump_channel = std::env::temp_dir().join(format!("zng-crash-{}", uuid.simple()));
-                match minidumper::Server::with_name(dump_channel.as_path()) {
+                match minidumper::Server::with_name(minidumper::SocketName::Path(&dump_channel)) {
                     Ok(mut s) => {
                         command.env(DUMP_CHANNEL, &dump_channel);
                         let shutdown = Arc::new(AtomicBool::new(false));
@@ -1202,7 +1202,7 @@ fn minidump_attach() {
             return;
         }
     };
-    let client = match minidumper::Client::with_name(channel_name.as_path()) {
+    let client = match minidumper::Client::with_name(minidumper::SocketName::Path(&channel_name)) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("failed to connect minidump client, this instance will not handle crashes, {e}");
