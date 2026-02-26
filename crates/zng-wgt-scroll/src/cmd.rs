@@ -288,6 +288,7 @@ impl ZoomToFitRequest {
     /// stop-propagation was not requested for the event.
     ///
     /// [`CommandArgs::param`]: zng_app::event::CommandArgs
+    #[deprecated = "use `CommandArgs::param`"]
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.param {
             if args.propagation.is_stopped() { None } else { Self::from_param(p) }
@@ -345,6 +346,7 @@ impl ScrollRequest {
     /// stop-propagation was not requested for the event.
     ///
     /// [`CommandArgs::param`]: zng_app::event::CommandArgs
+    #[deprecated = "use `CommandArgs::param`"]
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.param {
             if args.propagation.is_stopped() { None } else { Self::from_param(p) }
@@ -447,6 +449,7 @@ impl ScrollToRequest {
     /// stop-propagation was not requested for the event and the command was enabled when it was send.
     ///
     /// [`CommandArgs::param`]: zng_app::event::CommandArgs
+    #[deprecated = "use `CommandArgs::param`"]
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.param {
             if !args.enabled || args.propagation.is_stopped() {
