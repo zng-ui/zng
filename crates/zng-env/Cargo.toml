@@ -1,6 +1,6 @@
 [package]
 name = "zng-env"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -22,7 +22,7 @@ parse = ["toml"]
 build_cli_com_proxy = []
 
 [dependencies]
-zng-env-proc-macros = { path = "../zng-env-proc-macros", version = "0.6.0", default-features = false }
+zng-env-proc-macros = { path = "../zng-env-proc-macros", version = "0.6.1", default-features = false }
 directories = { version = "6.0", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
