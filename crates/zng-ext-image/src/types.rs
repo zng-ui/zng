@@ -321,7 +321,11 @@ impl ImageEntry {
         handles: &mut Vec<zng_var::VarHandle>,
     ) {
         handles.push(img.hook(zng_clone_move::clmv!(signal, |_| {
-            signal.update();
+            // update using modify, not `update` because we don't want
+            // downstream vars to force update
+            signal.modify(|a| {
+                let _ = a.value_mut();
+            });
             true
         })));
         let i = out.len();
