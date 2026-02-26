@@ -362,7 +362,7 @@ pub fn scroll_commands_node(child: impl IntoUiNode) -> UiNode {
                     args.propagation.stop();
 
                     let mut offset = -layout_line.y;
-                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    let args = args.param::<ScrollRequest>().cloned().unwrap_or_default();
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
@@ -377,7 +377,7 @@ pub fn scroll_commands_node(child: impl IntoUiNode) -> UiNode {
                     args.propagation.stop();
 
                     let mut offset = layout_line.y;
-                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    let args = args.param::<ScrollRequest>().cloned().unwrap_or_default();
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
@@ -392,7 +392,7 @@ pub fn scroll_commands_node(child: impl IntoUiNode) -> UiNode {
                     args.propagation.stop();
 
                     let mut offset = -layout_line.x;
-                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    let args = args.param::<ScrollRequest>().cloned().unwrap_or_default();
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
@@ -407,7 +407,7 @@ pub fn scroll_commands_node(child: impl IntoUiNode) -> UiNode {
                     args.propagation.stop();
 
                     let mut offset = layout_line.x;
-                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    let args = args.param::<ScrollRequest>().cloned().unwrap_or_default();
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
@@ -479,7 +479,7 @@ pub fn page_commands_node(child: impl IntoUiNode) -> UiNode {
                     args.propagation.stop();
 
                     let mut offset = -layout_page.y;
-                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    let args = args.param::<ScrollRequest>().cloned().unwrap_or_default();
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
@@ -494,7 +494,7 @@ pub fn page_commands_node(child: impl IntoUiNode) -> UiNode {
                     args.propagation.stop();
 
                     let mut offset = layout_page.y;
-                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    let args = args.param::<ScrollRequest>().cloned().unwrap_or_default();
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
@@ -509,7 +509,7 @@ pub fn page_commands_node(child: impl IntoUiNode) -> UiNode {
                     args.propagation.stop();
 
                     let mut offset = -layout_page.x;
-                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    let args = args.param::<ScrollRequest>().cloned().unwrap_or_default();
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
@@ -524,7 +524,7 @@ pub fn page_commands_node(child: impl IntoUiNode) -> UiNode {
                     args.propagation.stop();
 
                     let mut offset = layout_page.x;
-                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    let args = args.param::<ScrollRequest>().cloned().unwrap_or_default();
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
@@ -689,7 +689,7 @@ pub fn zoom_commands_node(child: impl IntoUiNode) -> UiNode {
                     args.propagation.stop();
 
                     let scale = fit_scale();
-                    if let Some(p) = ZoomToFitRequest::from_args(args) {
+                    if let Some(p) = args.param::<ZoomToFitRequest>() {
                         skip_animation! {
                             p.skip_animation,
                             SCROLL.chase_zoom(|_| scale)
@@ -844,7 +844,7 @@ pub fn scroll_to_node(child: impl IntoUiNode) -> UiNode {
 
             SCROLL_TO_CMD.scoped(self_id).each_update(true, false, |args| {
                 // event send to us and enabled
-                if let Some(request) = ScrollToRequest::from_args(args) {
+                if let Some(request) = args.param::<ScrollToRequest>().cloned() {
                     args.propagation.stop();
 
                     // has unhandled request
