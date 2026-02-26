@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `ImageEntry::flat_entries` var force updating.
 
 # 0.21.2
 
