@@ -556,34 +556,46 @@ impl UpdatesTrace {
     }
 
     /// Opens a window span.
+    ///
+    /// The span is at the DEBUG level.
     pub fn window_span(id: WindowId) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "Window", %id, raw_id = id.get() as u64).entered()
+        tracing::debug_span!(target: UpdatesTrace::UPDATES_TARGET, "Window", %id, raw_id = id.get() as u64).entered()
     }
 
     /// Opens a widget span.
+    ///
+    /// The span is at the DEBUG level.
     #[cfg(feature = "trace_widget")]
     pub fn widget_span(id: WidgetId, name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "widget", %id, raw_id = id.get(), name, %node_mtd).entered()
+        tracing::debug_span!(target: UpdatesTrace::UPDATES_TARGET, "widget", %id, raw_id = id.get(), name, %node_mtd).entered()
     }
 
     /// Opens a property span.
+    ///
+    /// The span is at the TRACE level.
     #[cfg(feature = "trace_wgt_item")]
     pub fn property_span(name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "property", name, %node_mtd).entered()
     }
 
     /// Opens an intrinsic span.
+    ///
+    /// The span is at the TRACE level.
     #[cfg(feature = "trace_wgt_item")]
     pub fn intrinsic_span(name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "intrinsic", name, %node_mtd).entered()
     }
 
     /// Opens a custom named span.
+    ///
+    /// The span is at the TRACE level.
     pub fn custom_span(name: &str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "tag", %name, %node_mtd).entered()
     }
 
     /// Log a direct update request.
+    ///
+    /// The event is at the TRACE level.
     pub fn log_update() {
         tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
             kind = "update"
@@ -591,6 +603,8 @@ impl UpdatesTrace {
     }
 
     /// Log a direct info rebuild request.
+    ///
+    /// The event is at the TRACE level.
     pub fn log_info() {
         tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
             kind = "info"
@@ -598,6 +612,8 @@ impl UpdatesTrace {
     }
 
     /// Log a direct layout request.
+    ///
+    /// The event is at the TRACE level.
     pub fn log_layout() {
         tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
             kind = "layout"
@@ -605,6 +621,8 @@ impl UpdatesTrace {
     }
 
     /// Log a direct render request.
+    ///
+    /// The event is at the TRACE level.
     pub fn log_render() {
         tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
             kind = "render"
@@ -612,6 +630,8 @@ impl UpdatesTrace {
     }
 
     /// Log a custom event.
+    ///
+    /// The event is at the TRACE level.
     pub fn log_custom(tag: &str) {
         tracing::event!(
             target: UpdatesTrace::UPDATES_TARGET,
@@ -621,6 +641,8 @@ impl UpdatesTrace {
     }
 
     /// Log a var update request.
+    ///
+    /// The event is at the TRACE level.
     pub fn log_var(type_name: &str) {
         tracing::event!(
             target: UpdatesTrace::UPDATES_TARGET,

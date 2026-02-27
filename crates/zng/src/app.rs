@@ -519,7 +519,7 @@ pub mod crash_handler {
 /// All tracing instrumentation in Zng projects is done using the `tracing` crate, trace recording is done using the `tracing-chrome` crate.
 /// The recorded traces can be viewed in `chrome://tracing` or `ui.perfetto.dev` and can be parsed by the [`Trace`] data model.
 ///
-/// Build the app with `"trace_recorder"` and run the with the `"ZNG_RECORD_TRACE"` env var set to record all other processes spawned by the app.
+/// Build the app with `"trace_recorder"` and run it with the `"ZNG_RECORD_TRACE"` env var to record all processes spawned by the app.
 ///
 /// ```no_run
 /// use zng::prelude::*;

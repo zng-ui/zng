@@ -2322,6 +2322,7 @@ impl ShapedTextBuilder {
     }
 
     fn shape_text(fonts: &[Font], text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
+        let _span = tracing::trace_span!("shape_text").entered();
         let mut t = Self {
             out: ShapedText {
                 glyphs: Default::default(),
