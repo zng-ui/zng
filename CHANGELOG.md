@@ -1,5 +1,9 @@
 # Unreleased
 
+* App-process now only blocks on view-process busy when another frame is in the buffer.
+    - Increases parallelization during sporadic slow frames, builds next frame while current is rendering.
+    - Input latency is doubled during slow frames.
+    - Latency from idle and during fast frames is not affected.
 * Fix scroll commands not receiving params.
 * Fix `ImageEntry::flat_entries` var force updating.
 
