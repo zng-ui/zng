@@ -20,6 +20,7 @@ use zng_app_context::app_local;
 use zng_layout::unit::{DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect};
 use zng_task::channel::{self, ChannelError, IpcBytes, IpcReceiver, Receiver};
 use zng_txt::Txt;
+use zng_unique_id::IdMap;
 use zng_var::{ArcEq, ResponderVar, Var, VarHandle, WeakEq};
 use zng_view_api::{
     self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen, ViewProcessInfo,
@@ -66,7 +67,7 @@ struct ViewProcessService {
 
     loading_audios: Vec<WeakEq<ViewAudioHandleData>>,
 
-    pending_frames: usize,
+    pending_frames: IdMap<WindowId, usize>,
 
     message_dialogs: Vec<(zng_view_api::dialog::DialogId, ResponderVar<MsgDialogResponse>)>,
     file_dialogs: Vec<(zng_view_api::dialog::DialogId, ResponderVar<FileDialogResponse>)>,
@@ -322,8 +323,16 @@ impl VIEW_PROCESS {
     /// Number of frame send that have not finished rendering.
     ///
     /// This is the sum of pending frames for all renderers.
+    #[deprecated = "use `is_busy`"]
     pub fn pending_frames(&self) -> usize {
-        self.write().pending_frames
+        self.read().pending_frames.values().copied().sum()
+    }
+
+    /// Gets if any renderer is already processing one frame with another pending.
+    ///
+    /// The app loop blocks so that it at most generates the next frame while the previous is rendering.
+    pub fn is_busy(&self) -> bool {
+        self.read().pending_frames.values().copied().max().unwrap_or(0) > 1
     }
 
     /// Reopen the view-process, causing another [`Event::Inited`].
@@ -396,7 +405,7 @@ impl VIEW_PROCESS {
             loading_images: vec![],
             encoding_images: vec![],
             loading_audios: vec![],
-            pending_frames: 0,
+            pending_frames: IdMap::new(),
             message_dialogs: vec![],
             file_dialogs: vec![],
             notifications: vec![],
@@ -630,9 +639,11 @@ impl VIEW_PROCESS {
         found.map(|h| ViewAudioHandle(Some(h)))
     }
 
-    pub(crate) fn on_frame_rendered(&self, _id: WindowId) {
+    pub(crate) fn on_frame_rendered(&self, id: WindowId) {
         let mut vp = self.write();
-        vp.pending_frames = vp.pending_frames.saturating_sub(1);
+        if let Some(c) = vp.pending_frames.get_mut(&id) {
+            *c = c.saturating_sub(1);
+        }
     }
 
     pub(crate) fn on_frame_image(&self, data: &ImageDecoded) -> ViewImageHandle {
@@ -682,7 +693,7 @@ impl VIEW_PROCESS {
 
     pub(super) fn on_respawned(&self, _gen: ViewProcessGen) {
         let mut app = self.write();
-        app.pending_frames = 0;
+        app.pending_frames.clear();
         for (_, r) in app.message_dialogs.drain(..) {
             r.respond(MsgDialogResponse::Error(Txt::from_static("respawn")));
         }
@@ -711,7 +722,8 @@ impl VIEW_PROCESS {
 
     pub(crate) fn on_pong(&self, count: u16) {
         let expected = self.read().ping_count;
-        if expected != count {
+        if expected > count + 1 {
+            // +1 due to is_busy allowing one extra frame
             // this could indicates a severe slowdown in the event pump
             tracing::warn!("unexpected pong event, expected {expected}, was {count}");
         }
@@ -1215,6 +1227,7 @@ impl Drop for ViewWindowData {
             let mut app = VIEW_PROCESS.handle_write(self.app_id);
             if self.generation == app.process.generation() {
                 let _ = app.process.close(self.id);
+                app.pending_frames.remove(&WindowId::from_raw(self.id.get()));
             }
         }
     }
@@ -1408,7 +1421,11 @@ impl ViewRenderer {
     pub fn render(&self, frame: FrameRequest) -> Result<()> {
         if let Some(w) = self.0.upgrade() {
             w.call(|id, p| p.render(id, frame))?;
-            VIEW_PROCESS.handle_write(w.app_id).pending_frames += 1;
+            *VIEW_PROCESS
+                .handle_write(w.app_id)
+                .pending_frames
+                .entry(WindowId::from_raw(w.id.get()))
+                .or_default() += 1;
             Ok(())
         } else {
             Err(ChannelError::disconnected())
@@ -1419,7 +1436,11 @@ impl ViewRenderer {
     pub fn render_update(&self, frame: FrameUpdateRequest) -> Result<()> {
         if let Some(w) = self.0.upgrade() {
             w.call(|id, p| p.render_update(id, frame))?;
-            VIEW_PROCESS.handle_write(w.app_id).pending_frames += 1;
+            *VIEW_PROCESS
+                .handle_write(w.app_id)
+                .pending_frames
+                .entry(WindowId::from_raw(w.id.get()))
+                .or_default() += 1;
             Ok(())
         } else {
             Err(ChannelError::disconnected())

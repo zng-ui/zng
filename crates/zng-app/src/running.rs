@@ -574,16 +574,11 @@ impl RunningApp {
 
                     let window = WindowId::from_raw(ev.window.get());
 
-                    // update ViewProcess immediately.
+                    // update ViewProcess immediately, affects is_busy flag.
                     {
                         if VIEW_PROCESS.is_available() {
                             VIEW_PROCESS.on_frame_rendered(window);
                         }
-                    }
-
-                    #[cfg(debug_assertions)]
-                    if self.pending_view_frame_events.iter().any(|e| e.window == ev.window) {
-                        tracing::warn!("window `{window:?}` probably sent a frame request without awaiting renderer idle");
                     }
 
                     self.pending_view_frame_events.push(ev);
@@ -647,7 +642,7 @@ impl RunningApp {
             const PING_TIMER: Duration = Duration::from_secs(2);
 
             let ping_timer = Deadline::timeout(PING_TIMER);
-            let timer = if self.view_is_busy() {
+            let timer = if self.view_process_is_busy() {
                 None
             } else {
                 self.loop_timer.deadline().map(|t| t.min(ping_timer))
@@ -690,7 +685,7 @@ impl RunningApp {
             panic!("app events channel disconnected");
         }
 
-        if self.view_is_busy() {
+        if self.view_process_is_busy() {
             return AppControlFlow::Wait;
         }
 
@@ -720,10 +715,6 @@ impl RunningApp {
 
         if self.has_pending_updates() {
             self.apply_updates();
-        }
-
-        if self.view_is_busy() {
-            return AppControlFlow::Wait;
         }
 
         self.finish_frame();
@@ -792,14 +783,12 @@ impl RunningApp {
         }
     }
 
-    fn view_is_busy(&mut self) -> bool {
-        VIEW_PROCESS.is_available() && VIEW_PROCESS.pending_frames() > 0
+    fn view_process_is_busy(&mut self) -> bool {
+        VIEW_PROCESS.is_available() && VIEW_PROCESS.is_busy()
     }
 
     // apply pending layout & render if the view-process is not already rendering.
     fn finish_frame(&mut self) {
-        debug_assert!(!self.view_is_busy());
-
         self.pending |= UPDATES.apply_layout_render();
 
         while mem::take(&mut self.pending.layout) {

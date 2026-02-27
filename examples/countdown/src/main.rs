@@ -7,7 +7,7 @@ fn main() {
         // see zng::app::trace_recorder for more details
         std::env::set_var("ZNG_RECORD_TRACE", "");
         // note that "trace_wgt_item" feature uses "trace" level
-        std::env::set_var("ZNG_RECORD_TRACE_FILTER", "trace");
+        std::env::set_var("ZNG_RECORD_TRACE_FILTER", "debug");
     }
     zng::env::init!();
 
