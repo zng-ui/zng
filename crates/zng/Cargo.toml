@@ -168,6 +168,8 @@ crash_handler = ["zng-app/crash_handler"]
 crash_handler_debug = ["zng-wgt-inspector/crash_handler", "window"]
 
 # Instrument every widget outer-most node to trace UI methods.
+# 
+# Widget spans are traced at the DEBUG level.
 trace_widget = ["zng-app/trace_widget", "zng-wgt-style/trace_widget"]
 
 # Enable trace recording.
@@ -179,6 +181,8 @@ trace_recorder = ["zng-app/trace_recorder"]
 
 # Instrument every property and intrinsic node to trace UI methods.
 #
+# Property and other node spans are traced at the TRACE level.
+# 
 # Note that this can cause very large trace files and bad performance.
 trace_wgt_item = ["zng-app/trace_wgt_item"]
 

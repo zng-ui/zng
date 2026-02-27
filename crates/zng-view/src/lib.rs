@@ -354,7 +354,6 @@ pub(crate) struct App {
 
     gl_manager: GlContextManager,
     winit_loop: util::WinitEventLoop,
-    idle: IdleTrace,
     app_sender: AppEventSender,
     request_recv: Receiver<RequestEvent>,
 
@@ -983,8 +982,6 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
     }
 
     fn new_events(&mut self, winit_loop: &ActiveEventLoop, cause: winit::event::StartCause) {
-        self.idle.exit();
-
         // pull events sets a timeout, winit constantly polls if the timeout is elapsed,
         // so in case the pull timer elapses and a normal event happens the normal event
         // is processed first and the pull events update on the next poll.
@@ -1152,7 +1149,6 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         {
             self.skip_ralt = false;
         }
-        self.idle.enter();
 
         winit_loop_guard.unset(&mut self.winit_loop);
     }
@@ -1204,16 +1200,6 @@ enum AppState {
     PreInitSuspended,
     Resumed,
     Suspended,
-}
-
-struct IdleTrace(Option<tracing::span::EnteredSpan>);
-impl IdleTrace {
-    pub fn enter(&mut self) {
-        self.0 = Some(tracing::trace_span!("<winit-idle>").entered());
-    }
-    pub fn exit(&mut self) {
-        self.0 = None;
-    }
 }
 impl App {
     fn set_device_events_filter(&mut self, filter: DeviceEventsFilter, t: Option<&ActiveEventLoop>) {
@@ -1406,12 +1392,9 @@ impl App {
         {
             exts.window("zng-view.prefer_angle", extensions::PreferAngleExt::new);
         }
-        let mut idle = IdleTrace(None);
-        idle.enter();
         App {
             headless: false,
             exts,
-            idle,
             gl_manager: GlContextManager::default(),
             image_cache: ImageCache::new(app_sender.clone()),
             audio_cache: AudioCache::new(app_sender.clone()),
