@@ -18,7 +18,7 @@ use winit::{
     monitor::{MonitorHandle, VideoModeHandle as GVideoMode},
     window::{CustomCursor, Fullscreen, Icon, Window as GWindow, WindowAttributes},
 };
-use zng_txt::{ToTxt, Txt};
+use zng_txt::{ToTxt, Txt, formatx};
 use zng_unit::{DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
 use zng_view_api::{
     Event, ViewProcessGen,
@@ -128,6 +128,8 @@ pub(crate) struct Window {
         target_os = "openbsd"
     ))]
     xlib_maximize: bool,
+
+    frame_span_lane: Txt,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -483,6 +485,8 @@ impl Window {
                 target_os = "openbsd"
             ))]
             xlib_maximize: false,
+
+            frame_span_lane: formatx!("<headed#{}-wr>", id.get()),
         };
 
         if !cfg.default_position && win.state.state == WindowState::Normal {
@@ -1492,7 +1496,8 @@ impl Window {
         txn.set_display_list(webrender::api::Epoch(frame.id.epoch()), (self.pipeline_id, display_list));
 
         let frame_scope =
-            tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = false, thread = "<webrender>").entered();
+            tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = false, thread = %self.frame_span_lane)
+                .entered();
 
         self.pending_frames.push_back((frame.id, frame.capture, Some(frame_scope)));
 
@@ -1539,7 +1544,7 @@ impl Window {
                     txn.append_dynamic_properties(p);
                 }
 
-                tracing::trace_span!("<frame-update>", ?frame.id, capture = ?frame.capture, thread = "<webrender>")
+                tracing::trace_span!("<frame-update>", ?frame.id, capture = ?frame.capture, thread = %self.frame_span_lane)
             }
             Err(d) => {
                 txn.reset_dynamic_properties();
@@ -1551,7 +1556,7 @@ impl Window {
 
                 txn.set_display_list(webrender::api::Epoch(frame.id.epoch()), (self.pipeline_id, d));
 
-                tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = true, thread = "<webrender>")
+                tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = true, thread = %self.frame_span_lane)
             }
         };
 
