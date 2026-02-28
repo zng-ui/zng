@@ -41,6 +41,7 @@ pub(crate) struct WindowsService {
     exit_on_last_close: Var<bool>,
     pub(crate) default_render_mode: Var<RenderMode>,
     parallel: Var<ParallelWin>,
+    frame_duration_from_monitor: Var<bool>,
     // Mutex for Sync
     pub(crate) root_extenders: Mutex<Vec<Box<dyn FnMut(WindowRootExtenderArgs) -> UiNode + Send + 'static>>>,
     pub(crate) open_nested_handlers: Mutex<Vec<Box<dyn FnMut(&mut OpenNestedHandlerArgs) + Send + 'static>>>,
@@ -61,6 +62,7 @@ impl WindowsService {
             exit_on_last_close: var(true),
             default_render_mode: var_default(),
             parallel: var_default(),
+            frame_duration_from_monitor: var(true),
             root_extenders: Mutex::new(vec![]),
             open_nested_handlers: Mutex::new(vec![]),
 
@@ -144,6 +146,20 @@ impl WINDOWS {
             |a| Some(a.window.contains(WindowCapability::SYSTEM_CHROME)),
             || VIEW_PROCESS.info().window.contains(WindowCapability::SYSTEM_CHROME),
         )
+    }
+
+    /// Defines if the headed window in the monitor with the faster refresh rate defines the [`VARS.frame_duration`].
+    ///
+    /// This is `true` by default.
+    ///
+    /// Note that the app-process blocks anyway if the view-process is behind two frames at any window, so even if
+    /// the refresh rate is very high the app will not be overwhelmed. The app will consume more power in higher refresh rate.
+    ///
+    /// If this is disabled the frame duration is reset to the default of 60FPS (~16.668ms).
+    ///
+    /// [`VARS.frame_duration`]: VARS::frame_duration
+    pub fn frame_duration_from_monitor(&self) -> Var<bool> {
+        WINDOWS_SV.read().frame_duration_from_monitor.clone()
     }
 }
 impl WINDOWS {

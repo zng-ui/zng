@@ -1,5 +1,6 @@
 use core::fmt;
 use std::sync::Arc;
+use std::time::Duration;
 
 use zng_app::event::{event, event_args};
 use zng_app::view_process::raw_events::{RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT};
@@ -247,6 +248,7 @@ pub struct MonitorInfo {
     video_modes: Var<Vec<VideoMode>>,
     scale_factor: Var<Factor>,
     density: Var<PxDensity>,
+    refresh_rate: Var<u32>,
 }
 impl fmt::Debug for MonitorInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -274,6 +276,7 @@ impl MonitorInfo {
             size: var(info.size),
             scale_factor: var(info.scale_factor),
             video_modes: var(info.video_modes),
+            refresh_rate: var(info.refresh_rate),
             density: var(PxDensity::default()),
         }
     }
@@ -293,6 +296,7 @@ impl MonitorInfo {
             | check_set(&self.size, info.size)
             | check_set(&self.scale_factor, info.scale_factor)
             | check_set(&self.video_modes, info.video_modes)
+            | check_set(&self.refresh_rate, info.refresh_rate)
     }
 
     /// Unique ID in this process instance.
@@ -334,6 +338,23 @@ impl MonitorInfo {
         self.density.clone()
     }
 
+    /// The monitor refresh rate in millihertz.
+    pub fn refresh_rate(&self) -> Var<u32> {
+        self.refresh_rate.read_only()
+    }
+
+    /// The monitor refresh rate converted to a frame interval.
+    pub fn frame_duration(&self) -> Var<Duration> {
+        self.refresh_rate.map(|&mhz| {
+            if mhz == 0 {
+                return Duration::MAX;
+            }
+            let hz = mhz as f64 / 1000.0;
+            let s = 1.0 / hz;
+            Duration::from_secs_f64(s)
+        })
+    }
+
     /// Gets the monitor area in pixels.
     pub fn px_rect(&self) -> PxRect {
         let pos = self.position.get();
@@ -367,6 +388,7 @@ impl MonitorInfo {
             video_modes: var(vec![]),
             scale_factor: var(fct),
             density: var(PxDensity::default()),
+            refresh_rate: var(60_000),
         }
     }
 }

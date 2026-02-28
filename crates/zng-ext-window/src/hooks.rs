@@ -26,9 +26,9 @@ use zng_view_api::window::WindowCapability;
 use zng_wgt::prelude::{DIRECTION_VAR, InteractionPath, LAYOUT, LayoutMetrics};
 
 use crate::{
-    AutoSize, CursorSource, IME_EVENT, ImeArgs, MONITORS, SetFromLayoutTag, SetFromViewTag, WINDOW_CHANGED_EVENT,
-    WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT, WINDOWS, WINDOWS_SV, WidgetInfoImeArea, WindowChangedArgs,
-    WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowInstance, WindowInstanceState, WindowNode, WindowVars, cmd::WindowCommands,
+    AutoSize, CursorSource, IME_EVENT, ImeArgs, MONITORS, SetFromViewTag, WINDOW_CHANGED_EVENT, WINDOW_CLOSE_REQUESTED_EVENT,
+    WINDOW_FOCUS_CHANGED_EVENT, WINDOWS, WINDOWS_SV, WidgetInfoImeArea, WindowChangedArgs, WindowCloseRequestedArgs,
+    WindowFocusChangedArgs, WindowInstance, WindowInstanceState, WindowNode, WindowVars, cmd::WindowCommands,
 };
 
 /// Hooks always active for the lifetime of the app.
@@ -367,34 +367,18 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
     vars.0.actual_max_size.as_any().hook(move |s| on_state_changed(id, s)).perm();
     vars.0.chrome.as_any().hook(move |s| on_state_changed(id, s)).perm();
 
-    // bind scale_factor to latest `actual_monitor`.
-    let scale_factor = vars.0.scale_factor.clone();
-    let mut _handle = if let Some(id) = vars.0.actual_monitor.get()
-        && let Some(m) = MONITORS.monitor(id)
-    {
-        m.scale_factor().set_bind(&scale_factor)
-    } else {
-        VarHandle::dummy()
-    };
+    let mut _scale_factor_binding = VarHandle::dummy();
     vars.0
         .actual_monitor
         .hook(move |args| {
-            _handle = if let Some(id) = *args.value()
-                && let Some(m) = MONITORS.monitor(id)
+            let vars = WINDOWS.vars(id).unwrap();
+            if let Some(m_id) = *args.value()
+                && let Some(m) = MONITORS.monitor(m_id)
             {
-                if args.contains_tag(&SetFromLayoutTag) {
-                    let s = m.scale_factor();
-                    scale_factor.modify(move |f| {
-                        if f.set(s.get()) {
-                            f.push_tag(SetFromLayoutTag);
-                        }
-                    });
-                    m.scale_factor().bind(&scale_factor)
-                } else {
-                    m.scale_factor().set_bind(&scale_factor)
-                }
+                _scale_factor_binding = m.scale_factor().set_bind(&vars.0.scale_factor);
             } else {
-                VarHandle::dummy()
+                _scale_factor_binding = VarHandle::dummy();
+                vars.0.scale_factor.set(1.fct());
             };
             true
         })
@@ -402,10 +386,8 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
 
     vars.0
         .scale_factor
-        .hook(move |args| {
-            if !args.contains_tag(&SetFromLayoutTag) {
-                UPDATES.layout_window(id);
-            }
+        .hook(move |_| {
+            UPDATES.layout_window(id);
             true
         })
         .perm();

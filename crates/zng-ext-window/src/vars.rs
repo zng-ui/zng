@@ -318,7 +318,7 @@ impl WindowVars {
 
     /// Current monitor hosting the window.
     ///
-    /// This is `None` only if the window has not opened yet (before first render) or if
+    /// This is `None` if the window has not opened yet (before first render) or if
     /// no monitors where found in the operating system or if the window is headless without renderer.
     pub fn actual_monitor(&self) -> Var<Option<MonitorId>> {
         self.0.actual_monitor.read_only()
@@ -334,6 +334,12 @@ impl WindowVars {
     }
 
     /// Current scale factor of the current monitor hosting the window.
+    ///
+    /// Note that this is only set after [`actual_monitor`] is set. During layout prefer [`LAYOUT.scale_factor`] as
+    /// it will already be set to the scale factor of the expected monitor when the window is still opening.
+    ///
+    /// [`actual_monitor`]: Self::actual_monitor
+    /// [`LAYOUT.scale_factor`]: zng_wgt::prelude::LAYOUT::scale_factor
     pub fn scale_factor(&self) -> Var<Factor> {
         self.0.scale_factor.read_only()
     }
@@ -854,7 +860,3 @@ static_id! {
 /// Identifies a variable update set from the view-process.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SetFromViewTag;
-
-/// Identifies a variable update set from layout, meaning it should not request window layout back.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SetFromLayoutTag;

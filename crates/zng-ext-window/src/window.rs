@@ -42,9 +42,9 @@ use zng_wgt::{
 };
 
 use crate::{
-    AutoSize, CloseWindowResult, MONITORS, OpenNestedHandlerArgs, SetFromLayoutTag, StartPosition, WINDOW_CLOSE_EVENT, WINDOW_LOAD_EVENT,
-    WINDOW_OPEN_EVENT, WINDOWS, WINDOWS_EXTENSIONS, WINDOWS_SV, WidgetInfoImeArea as _, WindowCloseArgs, WindowInstanceState,
-    WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowVars,
+    AutoSize, CloseWindowResult, MONITORS, OpenNestedHandlerArgs, StartPosition, WINDOW_CLOSE_EVENT, WINDOW_LOAD_EVENT, WINDOW_OPEN_EVENT,
+    WINDOWS, WINDOWS_EXTENSIONS, WINDOWS_SV, WidgetInfoImeArea as _, WindowCloseArgs, WindowInstanceState, WindowLoadingHandle,
+    WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowVars,
 };
 
 /// Extensions methods for [`WINDOW`] contexts of windows open by [`WINDOWS`].
@@ -408,8 +408,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
         // get real monitor data
         let monitor = vars.0.actual_monitor.get().and_then(|id| MONITORS.monitor(id));
 
-        // if monitor query is running now
-        let resolving_monitor = monitor.is_none();
+        // run query if actual_monitor is not set, it will be set by the view-process event
         let monitor = monitor.unwrap_or_else(|| vars.0.monitor.get().select_fallback(*id));
 
         if monitor.id() == MonitorId::fallback() && matches!(vars.0.instance_state.get(), WindowInstanceState::Loading) {
@@ -426,15 +425,6 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
         monitor_rect = monitor.px_rect();
         monitor_density = monitor.density().get();
         scale_factor = monitor.scale_factor().get();
-
-        if resolving_monitor {
-            let id = monitor.id();
-            vars.0.actual_monitor.modify(move |a| {
-                if a.set(id) {
-                    a.push_tag(SetFromLayoutTag);
-                }
-            });
-        }
     } else {
         debug_assert!(n.win_ctx.mode().is_headless());
         // uses test monitor data

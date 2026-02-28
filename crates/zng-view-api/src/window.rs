@@ -1,6 +1,6 @@
 //! Window, surface and frame types.
 
-use std::fmt;
+use std::{fmt, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use zng_txt::Txt;
@@ -153,6 +153,11 @@ pub struct MonitorInfo {
     pub size: PxSize,
     /// The monitor scale factor.
     pub scale_factor: Factor,
+    /// The refresh rate of this monitor in normal desktop, in millihertz.
+    ///
+    /// If a window is set to exclusive fullscreen use the [`VideoMode::refresh_rate`] instead.
+    pub refresh_rate: u32,
+
     /// Exclusive fullscreen video modes.
     pub video_modes: Vec<VideoMode>,
 
@@ -169,12 +174,23 @@ impl MonitorInfo {
             scale_factor,
             video_modes,
             is_primary,
+            refresh_rate: 60_000,
         }
     }
 
     /// Returns the `size` descaled using the `scale_factor`.
     pub fn dip_size(&self) -> DipSize {
         self.size.to_dip(self.scale_factor)
+    }
+
+    /// Interval between frames that matches the `refresh_rate`.
+    pub fn frame_duration(&self) -> Duration {
+        if self.refresh_rate == 0 {
+            return Duration::MAX;
+        }
+        let hz = self.refresh_rate as f64 / 1000.0;
+        let s = 1.0 / hz;
+        Duration::from_secs_f64(s)
     }
 }
 
@@ -211,6 +227,16 @@ impl VideoMode {
             bit_depth,
             refresh_rate,
         }
+    }
+
+    /// Interval between frames that matches the `refresh_rate`.
+    pub fn frame_duration(&self) -> Duration {
+        if self.refresh_rate == 0 {
+            return Duration::MAX;
+        }
+        let hz = self.refresh_rate as f64 / 1000.0;
+        let s = 1.0 / hz;
+        Duration::from_secs_f64(s)
     }
 
     /// Default value, matches with the largest size, greatest bit-depth and refresh rate.
