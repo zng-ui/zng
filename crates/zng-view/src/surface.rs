@@ -6,6 +6,7 @@ use webrender::{
     api::{DocumentId, DynamicProperties, FontInstanceKey, FontKey, FontVariation, PipelineId},
 };
 use winit::event_loop::ActiveEventLoop;
+use zng_txt::{Txt, formatx};
 use zng_unit::{DipSize, DipToPx, Factor, Px, PxRect, Rgba};
 use zng_view_api::{
     ViewProcessGen,
@@ -49,6 +50,8 @@ pub(crate) struct Surface {
     pending_frames: VecDeque<(FrameId, FrameCapture, Option<EnteredSpan>)>,
     rendered_frame_id: FrameId,
     resized: bool,
+
+    frame_span_lane: Txt,
 }
 impl fmt::Debug for Surface {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -179,6 +182,8 @@ impl Surface {
             pending_frames: VecDeque::new(),
             rendered_frame_id: FrameId::INVALID,
             resized: true,
+
+            frame_span_lane: formatx!("<headless#{}-wr>", id.get()),
         }
     }
 
@@ -338,7 +343,8 @@ impl Surface {
         txn.generate_frame(frame.id.get(), true, false, render_reasons);
 
         let frame_scope =
-            tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = false, thread = "<webrender>").entered();
+            tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = false, thread = %self.frame_span_lane)
+                .entered();
         self.pending_frames.push_back((frame.id, frame.capture, Some(frame_scope)));
 
         self.api.send_transaction(self.document_id, txn);
@@ -383,7 +389,7 @@ impl Surface {
                     txn.append_dynamic_properties(p);
                 }
 
-                tracing::trace_span!("<frame-update>", ?frame.id, capture = ?frame.capture, thread = "<webrender>")
+                tracing::trace_span!("<frame-update>", ?frame.id, capture = ?frame.capture, thread = %self.frame_span_lane)
             }
             Err(d) => {
                 txn.reset_dynamic_properties();
@@ -395,7 +401,7 @@ impl Surface {
 
                 txn.set_display_list(webrender::api::Epoch(frame.id.epoch()), (self.pipeline_id, d));
 
-                tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = true, thread = "<webrender>")
+                tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = true, thread = %self.frame_span_lane)
             }
         };
 

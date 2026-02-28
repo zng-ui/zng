@@ -300,7 +300,7 @@ impl Trace {
 
         let mut out = Trace { processes: vec![] };
 
-        for entry in entries {
+        for mut entry in entries {
             let sys_pid = *process_sys_pid.entry(entry.pid).or_insert(entry.pid);
             let process = if let Some(p) = out.processes.iter_mut().find(|p| p.id == sys_pid) {
                 p
@@ -314,7 +314,11 @@ impl Trace {
                 out.processes.last_mut().unwrap()
             };
 
-            let thread_name = thread_names.entry(entry.tid).or_insert_with(|| entry.tid.to_txt()).clone();
+            let thread_name = if let Some(custom_name) = entry.args.remove("thread") {
+                custom_name.clone()
+            } else {
+                thread_names.entry(entry.tid).or_insert_with(|| entry.tid.to_txt()).clone()
+            };
             let thread = if let Some(t) = process.threads.iter_mut().find(|t| t.name == thread_name) {
                 t
             } else {

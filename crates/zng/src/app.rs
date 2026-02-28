@@ -562,6 +562,9 @@ pub mod crash_handler {
 /// The process record start timestamp is defined by an event INFO message that reads `"zng-record-start: {timestamp}"`. This timestamp is also
 /// in microseconds from Unix epoch.
 ///
+/// Fake *threads* can be defined to better track a *task span* by setting a `thread = "<name>"` argument in the span. Both fake threads and process
+/// names are converted to real entries by `cargo zng trace`.
+///
 /// # Cargo Zng
 ///
 /// You can also use the `cargo zng trace` subcommand to record traces, it handles setting the env variables, merges the multi

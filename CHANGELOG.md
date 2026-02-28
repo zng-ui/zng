@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `cargo zng trace` ignoring custom `thread` args in task spans.
 * App-process now only blocks on view-process busy when another frame is in the buffer.
     - Increases parallelization during sporadic slow frames, builds next frame while current is rendering.
     - Input latency is doubled during slow frames.
