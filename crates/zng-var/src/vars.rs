@@ -143,6 +143,8 @@ impl VARS {
     }
 
     /// Variable that defines the global frame duration, the default is 60fps `(1.0 / 60.0).secs()`.
+    ///
+    /// Note that when running in a full headed app the `WINDOWS` service sets this value to the monitor refresh rate.
     pub fn frame_duration(&self) -> Var<Duration> {
         VARS_SV.read().frame_duration.clone()
     }

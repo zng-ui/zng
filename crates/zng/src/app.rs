@@ -238,7 +238,8 @@
 //!      from overwhelming the view-process.
 //!    * Block until a message is received, from the view-process or from other app threads.
 //!    * If there are [`TIMERS`] or [`VARS`] animations the message block has a deadline to the nearest timer or animation frame.
-//!        * Animations have a fixed frame-rate defined in [`VARS.frame_duration`], it is 60 frames-per-second by default.
+//!        * Animations have a fixed frame-rate defined in [`VARS.frame_duration`], by default it is set to the monitor refresh
+//!          rate by the [`WINDOWS`] service.
 //! 2. Calls elapsed timer handlers.
 //! 3. Calls elapsed animation handlers.
 //!     * These handlers mostly just request var updates that are applied in the updates loop.
@@ -310,6 +311,7 @@
 //! [`TIMERS`]: crate::timer::TIMERS
 //! [`VARS`]: crate::var::VARS
 //! [`VARS.frame_duration`]: crate::var::VARS::frame_duration
+//! [`WINDOWS`]: crate::window::WINDOWS
 //! [`WINDOWS.parallel`]: crate::window::WINDOWS::parallel
 //! [`parallel`]: fn@crate::widget::parallel
 //! [`UPDATES.on_pre_update`]: crate::update::UPDATES::on_pre_update

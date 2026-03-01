@@ -8,7 +8,8 @@ use zng_app::{
 };
 use zng_color::LightDark;
 use zng_layout::unit::{
-    Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, Size,
+    Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, FactorUnits, Frequency, FrequencyUnits as _, Length, LengthUnits,
+    Point, PxPoint, PxSize, Size,
 };
 use zng_state_map::{StateId, static_id};
 use zng_txt::Txt;
@@ -60,6 +61,7 @@ pub(crate) struct WindowVarsData {
     pub(crate) safe_padding: Var<DipSideOffsets>,
 
     pub(crate) scale_factor: Var<Factor>,
+    pub(crate) refresh_rate: Var<Frequency>,
 
     pub(crate) restore_state: Var<WindowState>,
     pub(crate) restore_rect: Var<DipRect>,
@@ -143,6 +145,7 @@ impl WindowVars {
             safe_padding: var(DipSideOffsets::zero()),
 
             scale_factor: var(primary_scale_factor),
+            refresh_rate: var(60.hertz()),
 
             restore_state: var(WindowState::Normal),
             restore_rect: var(DipRect::new(

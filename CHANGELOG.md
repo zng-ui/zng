@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `Frequency` unit.
+
 * Automatically set animation timer to match monitor refresh rate.
     - Add `WINDOWS.frame_duration_from_monitor`, enabled by default.
     - Add `MonitorInfo::refresh_rate` and related values.

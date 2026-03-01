@@ -302,7 +302,7 @@ pub(crate) fn monitor_handle_to_info(handle: &MonitorHandle) -> MonitorInfo {
         false,
     );
     if let Some(mhz) = handle.refresh_rate_millihertz() {
-        m.refresh_rate = mhz;
+        m.refresh_rate = Frequency::from_millihertz(mhz as _);
     }
     m
 }

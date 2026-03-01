@@ -163,7 +163,7 @@ impl RunningApp {
             }
             Event::WindowChanged(c) => {
                 let monitor_id = c.monitor.map(|id| VIEW_PROCESS.monitor_id(id));
-                let args = RawWindowChangedArgs::now(
+                let mut args = RawWindowChangedArgs::now(
                     window_id(c.window),
                     c.state,
                     c.position,
@@ -173,6 +173,8 @@ impl RunningApp {
                     c.cause,
                     c.frame_wait_id,
                 );
+                args.scale_factor = c.scale_factor;
+                args.refresh_rate = c.refresh_rate;
                 RAW_WINDOW_CHANGED_EVENT.notify(args);
             }
             Event::DragHovered { window, data, allowed } => {
@@ -279,6 +281,7 @@ impl RunningApp {
                 let args = RawTouchArgs::now(window_id(w_id), self.input_device_id(d_id), touches);
                 RAW_TOUCH_EVENT.notify(args);
             }
+            #[allow(deprecated)]
             Event::ScaleFactorChanged {
                 monitor: id,
                 windows,

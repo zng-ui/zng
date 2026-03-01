@@ -613,8 +613,11 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                         vars.set_from_view(|v| &v.0.global_position, a.data.position.0);
                         vars.set_from_view(|v| &v.0.actual_size, a.data.size);
                         vars.set_from_view(|v| &v.0.scale_factor, a.data.scale_factor);
+                        vars.set_from_view(|v| &v.0.refresh_rate, a.data.refresh_rate);
                         vars.set_from_view(|v| &v.0.render_mode, a.data.render_mode);
                         vars.set_from_view(|v| &v.0.safe_padding, a.data.safe_padding);
+
+                        s.set_frame_duration();
 
                         tracing::trace!(
                             "open window {:?} in {:?}, {:?}",

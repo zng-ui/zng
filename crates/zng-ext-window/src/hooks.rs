@@ -202,6 +202,12 @@ pub(crate) fn hook_events() {
                 if let Some(p) = &args.safe_padding {
                     vars.set_from_view(|v| &v.0.safe_padding, *p);
                 }
+                if let Some(f) = args.scale_factor {
+                    vars.set_from_view(|v| &v.0.scale_factor, f);
+                }
+                if let Some(f) = args.refresh_rate {
+                    vars.set_from_view(|v| &v.0.refresh_rate, f);
+                }
 
                 if let Some(id) = &args.frame_wait_id {
                     // signal will be send with next frame
@@ -367,27 +373,17 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
     vars.0.actual_max_size.as_any().hook(move |s| on_state_changed(id, s)).perm();
     vars.0.chrome.as_any().hook(move |s| on_state_changed(id, s)).perm();
 
-    let mut _scale_factor_binding = VarHandle::dummy();
-    vars.0
-        .actual_monitor
-        .hook(move |args| {
-            let vars = WINDOWS.vars(id).unwrap();
-            if let Some(m_id) = *args.value()
-                && let Some(m) = MONITORS.monitor(m_id)
-            {
-                _scale_factor_binding = m.scale_factor().set_bind(&vars.0.scale_factor);
-            } else {
-                _scale_factor_binding = VarHandle::dummy();
-                vars.0.scale_factor.set(1.fct());
-            };
-            true
-        })
-        .perm();
-
     vars.0
         .scale_factor
         .hook(move |_| {
             UPDATES.layout_window(id);
+            true
+        })
+        .perm();
+    vars.0
+        .refresh_rate
+        .hook(move |_| {
+            WINDOWS_SV.read().set_frame_duration();
             true
         })
         .perm();
