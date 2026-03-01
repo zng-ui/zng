@@ -2,10 +2,12 @@ use core::fmt;
 use std::sync::Arc;
 
 use zng_app::event::{event, event_args};
-use zng_app::view_process::raw_events::{RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT};
+use zng_app::view_process::raw_events::RAW_MONITORS_CHANGED_EVENT;
 use zng_app::window::{MonitorId, WindowId};
 use zng_app_context::app_local;
-use zng_layout::unit::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Px, PxDensity, PxPoint, PxRect, PxSize, PxToDip};
+use zng_layout::unit::{
+    Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Frequency, FrequencyUnits as _, Px, PxDensity, PxPoint, PxRect, PxSize, PxToDip,
+};
 use zng_txt::{ToTxt, Txt};
 use zng_unique_id::IdMap;
 use zng_var::{Var, VarValue, impl_from_and_into_var, var};
@@ -83,7 +85,8 @@ struct MonitorsService {
 impl MonitorsService {
     fn new() -> Self {
         // track monitor scale factors
-        RAW_SCALE_FACTOR_CHANGED_EVENT
+        #[allow(deprecated)]
+        zng_app::view_process::raw_events::RAW_SCALE_FACTOR_CHANGED_EVENT
             .hook(|args| {
                 MONITORS_SV.read().monitors.with(|a| {
                     if let Some(m) = a.get(&args.monitor_id) {
@@ -247,6 +250,7 @@ pub struct MonitorInfo {
     video_modes: Var<Vec<VideoMode>>,
     scale_factor: Var<Factor>,
     density: Var<PxDensity>,
+    refresh_rate: Var<Frequency>,
 }
 impl fmt::Debug for MonitorInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -255,6 +259,7 @@ impl fmt::Debug for MonitorInfo {
             .field("name", &self.name.get())
             .field("position", &self.position.get())
             .field("size", &self.size.get())
+            .field("refresh_rate", &self.refresh_rate.get())
             .finish_non_exhaustive()
     }
 }
@@ -274,6 +279,7 @@ impl MonitorInfo {
             size: var(info.size),
             scale_factor: var(info.scale_factor),
             video_modes: var(info.video_modes),
+            refresh_rate: var(info.refresh_rate),
             density: var(PxDensity::default()),
         }
     }
@@ -293,6 +299,7 @@ impl MonitorInfo {
             | check_set(&self.size, info.size)
             | check_set(&self.scale_factor, info.scale_factor)
             | check_set(&self.video_modes, info.video_modes)
+            | check_set(&self.refresh_rate, info.refresh_rate)
     }
 
     /// Unique ID in this process instance.
@@ -334,6 +341,11 @@ impl MonitorInfo {
         self.density.clone()
     }
 
+    /// The monitor refresh rate.
+    pub fn refresh_rate(&self) -> Var<Frequency> {
+        self.refresh_rate.read_only()
+    }
+
     /// Gets the monitor area in pixels.
     pub fn px_rect(&self) -> PxRect {
         let pos = self.position.get();
@@ -367,6 +379,7 @@ impl MonitorInfo {
             video_modes: var(vec![]),
             scale_factor: var(fct),
             density: var(PxDensity::default()),
+            refresh_rate: var(60.hertz()),
         }
     }
 }

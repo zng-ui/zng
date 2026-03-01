@@ -8,7 +8,8 @@ use zng_app::{
 };
 use zng_color::LightDark;
 use zng_layout::unit::{
-    Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, Size,
+    Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, FactorUnits, Frequency, FrequencyUnits as _, Length, LengthUnits,
+    Point, PxPoint, PxSize, Size,
 };
 use zng_state_map::{StateId, static_id};
 use zng_txt::Txt;
@@ -60,6 +61,7 @@ pub(crate) struct WindowVarsData {
     pub(crate) safe_padding: Var<DipSideOffsets>,
 
     pub(crate) scale_factor: Var<Factor>,
+    pub(crate) refresh_rate: Var<Frequency>,
 
     pub(crate) restore_state: Var<WindowState>,
     pub(crate) restore_rect: Var<DipRect>,
@@ -143,6 +145,7 @@ impl WindowVars {
             safe_padding: var(DipSideOffsets::zero()),
 
             scale_factor: var(primary_scale_factor),
+            refresh_rate: var(60.hertz()),
 
             restore_state: var(WindowState::Normal),
             restore_rect: var(DipRect::new(
@@ -318,7 +321,7 @@ impl WindowVars {
 
     /// Current monitor hosting the window.
     ///
-    /// This is `None` only if the window has not opened yet (before first render) or if
+    /// This is `None` if the window has not opened yet (before first render) or if
     /// no monitors where found in the operating system or if the window is headless without renderer.
     pub fn actual_monitor(&self) -> Var<Option<MonitorId>> {
         self.0.actual_monitor.read_only()
@@ -334,6 +337,12 @@ impl WindowVars {
     }
 
     /// Current scale factor of the current monitor hosting the window.
+    ///
+    /// Note that this is only set after [`actual_monitor`] is set. During layout prefer [`LAYOUT.scale_factor`] as
+    /// it will already be set to the scale factor of the expected monitor when the window is still opening.
+    ///
+    /// [`actual_monitor`]: Self::actual_monitor
+    /// [`LAYOUT.scale_factor`]: zng_wgt::prelude::LAYOUT::scale_factor
     pub fn scale_factor(&self) -> Var<Factor> {
         self.0.scale_factor.read_only()
     }
@@ -854,7 +863,3 @@ static_id! {
 /// Identifies a variable update set from the view-process.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SetFromViewTag;
-
-/// Identifies a variable update set from layout, meaning it should not request window layout back.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SetFromLayoutTag;

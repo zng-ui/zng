@@ -10,7 +10,9 @@ use crate::{
     display_list::{DisplayList, FrameValueUpdate},
     image::{ImageDecoded, ImageId, ImageMaskMode},
 };
-use zng_unit::{Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx as _, Factor, Px, PxPoint, PxSize, PxToDip, PxTransform, Rgba};
+use zng_unit::{
+    Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx as _, Factor, Frequency, Px, PxPoint, PxSize, PxToDip, PxTransform, Rgba,
+};
 
 crate::declare_id! {
     /// Window ID in channel.
@@ -153,6 +155,11 @@ pub struct MonitorInfo {
     pub size: PxSize,
     /// The monitor scale factor.
     pub scale_factor: Factor,
+    /// The refresh rate of this monitor in normal desktop.
+    ///
+    /// If a window is set to exclusive fullscreen use the [`VideoMode::refresh_rate`] instead.
+    pub refresh_rate: Frequency,
+
     /// Exclusive fullscreen video modes.
     pub video_modes: Vec<VideoMode>,
 
@@ -169,6 +176,7 @@ impl MonitorInfo {
             scale_factor,
             video_modes,
             is_primary,
+            refresh_rate: Frequency::from_hertz(60.0),
         }
     }
 
@@ -196,7 +204,7 @@ pub struct VideoMode {
     /// depending on whether the alpha channel is counted or not.
     pub bit_depth: u16,
     /// The refresh rate of this video mode, in millihertz.
-    pub refresh_rate: u32,
+    pub refresh_rate: u32, // TODO(breaking) use Frequency unit
 }
 impl Default for VideoMode {
     fn default() -> Self {
@@ -247,15 +255,18 @@ pub struct WindowOpenData {
     /// Monitor that contains the window, if any.
     pub monitor: Option<MonitorId>,
 
-    /// Final top-left offset of the window (excluding outer chrome).
+    /// Actual top-left offset of the window (excluding outer chrome).
     ///
     /// The values are the global position and the position in the monitor.
     pub position: (PxPoint, DipPoint),
-    /// Final dimensions of the client area of the window (excluding outer chrome).
+    /// Actual dimensions of the client area of the window (excluding outer chrome).
     pub size: DipSize,
 
-    /// Final scale factor.
+    /// Actual scale factor used for the window.
     pub scale_factor: Factor,
+
+    /// Actual refresh rate used for the window, in millihertz.
+    pub refresh_rate: Frequency,
 
     /// Actual render mode, can be different from the requested mode if it is not available.
     pub render_mode: RenderMode,
@@ -286,6 +297,7 @@ impl WindowOpenData {
             scale_factor,
             render_mode,
             safe_padding,
+            refresh_rate: Frequency::from_hertz(60.0),
         }
     }
 }
@@ -298,7 +310,7 @@ pub struct HeadlessOpenData {
     pub render_mode: RenderMode,
 }
 impl HeadlessOpenData {
-    /// New resonse.
+    /// New response.
     pub fn new(render_mode: RenderMode) -> Self {
         Self { render_mode }
     }
@@ -1088,6 +1100,12 @@ pub struct WindowChanged {
     /// client area is in the new monitor screen.
     pub monitor: Option<MonitorId>,
 
+    /// New scale factor.
+    pub scale_factor: Option<Factor>,
+
+    /// New refresh rate, in millihertz.
+    pub refresh_rate: Option<Frequency>,
+
     /// The window new size, is `None` if the window size did not change.
     pub size: Option<DipSize>,
 
@@ -1128,6 +1146,8 @@ impl WindowChanged {
             position,
             monitor,
             size,
+            scale_factor: None,
+            refresh_rate: None,
             safe_padding,
             frame_wait_id,
             cause,
@@ -1143,6 +1163,8 @@ impl WindowChanged {
             monitor: None,
             size: None,
             safe_padding: None,
+            scale_factor: None,
+            refresh_rate: None,
             frame_wait_id: None,
             cause,
         }
@@ -1157,6 +1179,8 @@ impl WindowChanged {
             monitor: Some(monitor),
             size: None,
             safe_padding: None,
+            scale_factor: None,
+            refresh_rate: None,
             frame_wait_id: None,
             cause,
         }
@@ -1171,6 +1195,8 @@ impl WindowChanged {
             monitor: None,
             size: Some(size),
             safe_padding: None,
+            scale_factor: None,
+            refresh_rate: None,
             frame_wait_id,
             cause,
         }
@@ -1185,6 +1211,8 @@ impl WindowChanged {
             monitor: None,
             size: None,
             safe_padding: None,
+            scale_factor: None,
+            refresh_rate: None,
             frame_wait_id: None,
             cause,
         }

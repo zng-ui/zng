@@ -16,10 +16,11 @@ use zng_app::{
     window::{WINDOW, WINDOWS_APP, WindowId, WindowMode},
 };
 use zng_app_context::{RunOnDrop, app_local};
+use zng_layout::unit::FrequencyUnits;
 use zng_task::{ParallelIteratorExt, rayon::prelude::*};
 use zng_txt::{ToTxt as _, Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap, IdSet};
-use zng_var::{ResponderVar, ResponseVar, Var, const_var, response_done_var, response_var, var, var_default};
+use zng_var::{ResponderVar, ResponseVar, VARS, Var, const_var, response_done_var, response_var, var, var_default};
 use zng_view_api::{
     DragDropId,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -41,6 +42,7 @@ pub(crate) struct WindowsService {
     exit_on_last_close: Var<bool>,
     pub(crate) default_render_mode: Var<RenderMode>,
     parallel: Var<ParallelWin>,
+    pub(crate) frame_duration_from_monitor: Var<bool>,
     // Mutex for Sync
     pub(crate) root_extenders: Mutex<Vec<Box<dyn FnMut(WindowRootExtenderArgs) -> UiNode + Send + 'static>>>,
     pub(crate) open_nested_handlers: Mutex<Vec<Box<dyn FnMut(&mut OpenNestedHandlerArgs) + Send + 'static>>>,
@@ -57,10 +59,11 @@ impl WindowsService {
         #[cfg(feature = "image")]
         zng_ext_image::IMAGES_WINDOW.hook_render_windows_service(Box::new(WINDOWS));
         crate::hooks::hook_events();
-        Self {
+        let sv = Self {
             exit_on_last_close: var(true),
             default_render_mode: var_default(),
             parallel: var_default(),
+            frame_duration_from_monitor: var(true),
             root_extenders: Mutex::new(vec![]),
             open_nested_handlers: Mutex::new(vec![]),
 
@@ -69,7 +72,18 @@ impl WindowsService {
 
             focused: const_var(None),
             focused_set: false,
-        }
+        };
+        // init frame_duration_from_monitor,
+        // windows bind their refresh_rate to also call set_frame_duration
+        sv.frame_duration_from_monitor
+            .hook(|a| {
+                if *a.value() {
+                    WINDOWS_SV.read().set_frame_duration();
+                }
+                true
+            })
+            .perm();
+        sv
     }
 
     /// Called to apply widget updates without locking the entire WINDOWS service, reuses a buffer
@@ -94,6 +108,19 @@ impl WindowsService {
             self.windows.get_mut(&id).unwrap().root = Some(node);
         }
         self.widget_update_buf = nodes;
+    }
+
+    pub(crate) fn set_frame_duration(&self) {
+        if self.frame_duration_from_monitor.get() {
+            let max = self
+                .windows
+                .values()
+                .filter_map(|v| v.vars.as_ref())
+                .map(|v| v.0.refresh_rate.get())
+                .max()
+                .unwrap_or(60.hertz());
+            VARS.frame_duration().set(max.period());
+        }
     }
 }
 
@@ -144,6 +171,20 @@ impl WINDOWS {
             |a| Some(a.window.contains(WindowCapability::SYSTEM_CHROME)),
             || VIEW_PROCESS.info().window.contains(WindowCapability::SYSTEM_CHROME),
         )
+    }
+
+    /// Defines if the headed window in the monitor with the faster refresh rate defines the [`VARS.frame_duration`].
+    ///
+    /// This is `true` by default.
+    ///
+    /// Note that the app-process blocks anyway if the view-process is behind two frames at any window, so even if
+    /// the refresh rate is very high the app will not be overwhelmed. The app will consume more power in higher refresh rate.
+    ///
+    /// If this is disabled the frame duration is reset to the default of 60FPS (~16.668ms).
+    ///
+    /// [`VARS.frame_duration`]: VARS::frame_duration
+    pub fn frame_duration_from_monitor(&self) -> Var<bool> {
+        WINDOWS_SV.read().frame_duration_from_monitor.clone()
     }
 }
 impl WINDOWS {

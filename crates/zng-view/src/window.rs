@@ -19,7 +19,7 @@ use winit::{
     window::{CustomCursor, Fullscreen, Icon, Window as GWindow, WindowAttributes},
 };
 use zng_txt::{ToTxt, Txt, formatx};
-use zng_unit::{DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
+use zng_unit::{DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, Frequency, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
 use zng_view_api::{
     Event, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -88,6 +88,8 @@ pub(crate) struct Window {
     prev_size: DipSize,
 
     prev_monitor: Option<MonitorHandle>,
+    prev_scale_factor: Factor,
+    prev_refresh_rate: Frequency,
 
     visible: bool,
     is_always_on_top: bool,
@@ -437,7 +439,9 @@ impl Window {
             image_use: ImageUseMap::new(),
             prev_pos: winit_window.inner_position().unwrap_or_default().to_px(),
             prev_size: winit_window.inner_size().to_px().to_dip(Factor(winit_window.scale_factor() as _)),
-            prev_monitor: winit_window.current_monitor(),
+            prev_monitor: None,
+            prev_refresh_rate: Frequency::from_hertz(60.0),
+            prev_scale_factor: Factor(1.0),
             state: s,
             kiosk: cfg.kiosk,
             window: winit_window,
@@ -488,6 +492,13 @@ impl Window {
 
             frame_span_lane: formatx!("<headed#{}-wr>", id.get()),
         };
+        if let Some(m) = win.window.current_monitor() {
+            win.prev_scale_factor = Factor(m.scale_factor() as _);
+            if let Some(z) = m.refresh_rate_millihertz() {
+                win.prev_refresh_rate = Frequency::from_millihertz(z as _);
+            }
+            win.prev_monitor = Some(m);
+        }
 
         if !cfg.default_position && win.state.state == WindowState::Normal {
             win.set_inner_position(win.state.restore_rect.origin);
@@ -844,6 +855,32 @@ impl Window {
         if self.prev_monitor != handle {
             self.prev_monitor.clone_from(&handle);
             handle
+        } else {
+            None
+        }
+    }
+
+    pub fn scale_factor_change(&mut self) -> Option<Factor> {
+        let f = Factor(self.window.scale_factor() as _);
+        if self.prev_scale_factor != f {
+            self.prev_scale_factor = f;
+            Some(f)
+        } else {
+            None
+        }
+    }
+
+    pub fn refresh_rate_change(&mut self) -> Option<Frequency> {
+        let z = if let Some(m) = self.window.current_monitor()
+            && let Some(z) = m.refresh_rate_millihertz()
+        {
+            Frequency::from_millihertz(z as _)
+        } else {
+            Frequency::from_hertz(60.0)
+        };
+        if self.prev_refresh_rate != z {
+            self.prev_refresh_rate = z;
+            Some(z)
         } else {
             None
         }
@@ -1789,6 +1826,18 @@ impl Window {
 
     pub fn scale_factor(&self) -> Factor {
         Factor(self.window.scale_factor() as f32)
+    }
+
+    pub fn refresh_rate(&self) -> Frequency {
+        if let Some(Fullscreen::Exclusive(mode)) = self.window.fullscreen() {
+            Frequency::from_millihertz(mode.refresh_rate_millihertz() as _)
+        } else if let Some(m) = self.window.current_monitor()
+            && let Some(z) = m.refresh_rate_millihertz()
+        {
+            Frequency::from_millihertz(z as _)
+        } else {
+            Frequency::from_hertz(60.0)
+        }
     }
 
     /// Window actual render mode.

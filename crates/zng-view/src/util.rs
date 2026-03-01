@@ -293,14 +293,18 @@ impl CursorToWinit for CursorIcon {
 pub(crate) fn monitor_handle_to_info(handle: &MonitorHandle) -> MonitorInfo {
     let position = handle.position().to_px();
     let size = handle.size().to_px();
-    MonitorInfo::new(
+    let mut m = MonitorInfo::new(
         Txt::from_str(&handle.name().unwrap_or_default()),
         position,
         size,
         Factor(handle.scale_factor() as _),
         handle.video_modes().map(glutin_video_mode_to_video_mode).collect(),
         false,
-    )
+    );
+    if let Some(mhz) = handle.refresh_rate_millihertz() {
+        m.refresh_rate = Frequency::from_millihertz(mhz as _);
+    }
+    m
 }
 
 pub(crate) fn glutin_video_mode_to_video_mode(v: winit::monitor::VideoModeHandle) -> VideoMode {

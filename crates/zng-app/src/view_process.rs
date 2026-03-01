@@ -17,7 +17,7 @@ use crate::{
 
 use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use zng_app_context::app_local;
-use zng_layout::unit::{DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect};
+use zng_layout::unit::{DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Frequency, Px, PxPoint, PxRect};
 use zng_task::channel::{self, ChannelError, IpcBytes, IpcReceiver, Receiver};
 use zng_txt::Txt;
 use zng_unique_id::IdMap;
@@ -796,15 +796,18 @@ pub struct WindowOpenData {
     /// Monitor that contains the window.
     pub monitor: Option<MonitorId>,
 
-    /// Final top-left offset of the window (excluding outer chrome).
+    /// Actual top-left offset of the window (excluding outer chrome).
     ///
     /// The values are the global position and the position in the monitor.
     pub position: (PxPoint, DipPoint),
-    /// Final dimensions of the client area of the window (excluding outer chrome).
+    /// Actual dimensions of the client area of the window (excluding outer chrome).
     pub size: DipSize,
 
-    /// Final scale factor.
+    /// Actual scale factor.
     pub scale_factor: Factor,
+
+    /// Actual refresh rate used for the window, in millihertz.
+    pub refresh_rate: Frequency,
 
     /// Actual render mode, can be different from the requested mode if it is not available.
     pub render_mode: RenderMode,
@@ -826,6 +829,7 @@ impl WindowOpenData {
             scale_factor: data.scale_factor,
             render_mode: data.render_mode,
             safe_padding: data.safe_padding,
+            refresh_rate: data.refresh_rate,
         }
     }
 }

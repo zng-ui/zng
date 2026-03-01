@@ -370,7 +370,8 @@ pub(crate) struct App {
     surfaces: Vec<Surface>,
 
     monitor_id_gen: MonitorId,
-    pub monitors: Vec<(MonitorId, MonitorHandle)>,
+    monitor_ids: Vec<(MonitorId, MonitorHandle)>,
+    monitors: Vec<(MonitorId, MonitorInfo)>,
 
     device_id_gen: InputDeviceId,
     devices: Vec<(InputDeviceId, winit::event::DeviceId, InputDeviceInfo)>,
@@ -535,8 +536,10 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
 
                 if let Some(handle) = self.windows[i].monitor_change() {
                     let m_id = self.monitor_handle_to_id(&handle);
-
-                    self.notify(Event::WindowChanged(WindowChanged::monitor_changed(id, m_id, EventCause::System)));
+                    let mut c = WindowChanged::monitor_changed(id, m_id, EventCause::System);
+                    c.scale_factor = self.windows[i].scale_factor_change();
+                    c.refresh_rate = self.windows[i].refresh_rate_change();
+                    self.notify(Event::WindowChanged(c));
                 }
 
                 let wait_id = Some(self.resize_frame_wait_id_gen.incr());
@@ -626,8 +629,10 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
 
                 if let Some(handle) = self.windows[i].monitor_change() {
                     let m_id = self.monitor_handle_to_id(&handle);
-
-                    self.notify(Event::WindowChanged(WindowChanged::monitor_changed(id, m_id, EventCause::System)));
+                    let mut c = WindowChanged::monitor_changed(id, m_id, EventCause::System);
+                    c.scale_factor = self.windows[i].scale_factor_change();
+                    c.refresh_rate = self.windows[i].refresh_rate_change();
+                    self.notify(Event::WindowChanged(c));
                 }
             }
             WindowEvent::CloseRequested => {
@@ -918,38 +923,18 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     });
                 }
             }
-            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                let monitor;
-                let mut is_monitor_change = false;
+            WindowEvent::ScaleFactorChanged { .. } => {
+                self.refresh_monitors();
 
-                if let Some(new_monitor) = self.windows[i].monitor_change() {
-                    monitor = Some(new_monitor);
-                    is_monitor_change = true;
-                } else {
-                    monitor = self.windows[i].monitor();
-                }
-
-                let monitor = if let Some(handle) = monitor {
-                    self.monitor_handle_to_id(&handle)
-                } else {
-                    MonitorId::INVALID
-                };
-
-                if is_monitor_change {
-                    self.notify(Event::WindowChanged(WindowChanged::monitor_changed(
-                        id,
-                        monitor,
-                        EventCause::System,
-                    )));
-                }
-                self.notify(Event::ScaleFactorChanged {
-                    monitor,
-                    windows: vec![id],
-                    scale_factor: scale_factor as f32,
-                });
-
-                if let Some(size) = self.windows[i].resized() {
-                    self.notify(Event::WindowChanged(WindowChanged::resized(id, size, EventCause::System, None)));
+                let new_monitor = self.windows[i].monitor_change().map(|h| self.monitor_handle_to_id(&h));
+                let new_scale_factor = self.windows[i].scale_factor_change();
+                let new_refresh_rate = self.windows[i].refresh_rate_change();
+                let new_size = self.windows[i].resized();
+                if new_monitor.is_some() || new_scale_factor.is_some() || new_refresh_rate.is_some() || new_size.is_some() {
+                    let mut c = WindowChanged::new(id, None, None, new_monitor, new_size, None, None, EventCause::System);
+                    c.scale_factor = new_scale_factor;
+                    c.refresh_rate = new_refresh_rate;
+                    self.notify(Event::WindowChanged(c));
                 }
             }
             WindowEvent::Ime(ime) => {
@@ -1408,6 +1393,7 @@ impl App {
             windows: vec![],
             surfaces: vec![],
             monitors: vec![],
+            monitor_ids: vec![],
             monitor_id_gen: MonitorId::INVALID,
             devices: vec![],
             device_id_gen: InputDeviceId::INVALID,
@@ -1450,11 +1436,11 @@ impl App {
     }
 
     fn monitor_handle_to_id(&mut self, handle: &MonitorHandle) -> MonitorId {
-        if let Some((id, _)) = self.monitors.iter().find(|(_, h)| h == handle) {
+        if let Some((id, _)) = self.monitor_ids.iter().find(|(_, h)| h == handle) {
             *id
         } else {
             self.refresh_monitors();
-            if let Some((id, _)) = self.monitors.iter().find(|(_, h)| h == handle) {
+            if let Some((id, _)) = self.monitor_ids.iter().find(|(_, h)| h == handle) {
                 *id
             } else {
                 MonitorId::INVALID
@@ -1541,24 +1527,9 @@ impl App {
     }
 
     fn refresh_monitors(&mut self) {
-        let mut monitors = Vec::with_capacity(self.monitors.len());
-
-        let mut changed = false;
-
-        for (fresh_handle, (id, handle)) in self.winit_loop.available_monitors().zip(&self.monitors) {
-            let id = if &fresh_handle == handle {
-                *id
-            } else {
-                changed = true;
-                self.monitor_id_gen.incr()
-            };
-            monitors.push((id, fresh_handle))
-        }
-
-        if changed {
-            self.monitors = monitors;
-
-            let monitors = self.available_monitors();
+        let monitors = self.available_monitors();
+        if self.monitors != monitors {
+            self.monitors = monitors.clone();
             self.notify(Event::MonitorsChanged(monitors));
         }
     }
@@ -1678,11 +1649,11 @@ impl App {
     }
 
     fn monitor_id(&mut self, handle: &MonitorHandle) -> MonitorId {
-        if let Some((id, _)) = self.monitors.iter().find(|(_, h)| h == handle) {
+        if let Some((id, _)) = self.monitor_ids.iter().find(|(_, h)| h == handle) {
             *id
         } else {
             let id = self.monitor_id_gen.incr();
-            self.monitors.push((id, handle.clone()));
+            self.monitor_ids.push((id, handle.clone()));
             id
         }
     }
@@ -2025,7 +1996,7 @@ impl Api for App {
                 self.app_sender.clone(),
             );
 
-            let msg = WindowOpenData::new(
+            let mut msg = WindowOpenData::new(
                 win.state(),
                 win.monitor().map(|h| self.monitor_id(&h)),
                 win.inner_position(),
@@ -2034,6 +2005,7 @@ impl Api for App {
                 win.render_mode(),
                 win.safe_padding(),
             );
+            msg.refresh_rate = win.refresh_rate();
 
             self.windows.push(win);
 

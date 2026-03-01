@@ -408,6 +408,7 @@ pub enum Event {
         touches: Vec<TouchUpdate>,
     },
     /// The monitor’s scale factor has changed.
+    #[deprecated = "use `MonitorsChanged`"]
     ScaleFactorChanged {
         /// Monitor that has changed.
         monitor: MonitorId,
@@ -420,7 +421,7 @@ pub enum Event {
         scale_factor: f32,
     },
 
-    /// The available monitors have changed.
+    /// The available monitors have changed or some property of a monitor changed.
     MonitorsChanged(Vec<(MonitorId, MonitorInfo)>),
     /// The available audio input and output devices have changed.
     AudioDevicesChanged(Vec<(AudioDeviceId, AudioDeviceInfo)>),
@@ -704,6 +705,14 @@ impl Event {
                     change.safe_padding = n_change.safe_padding;
                 }
 
+                if n_change.scale_factor.is_some() {
+                    change.scale_factor = n_change.scale_factor;
+                }
+
+                if n_change.refresh_rate.is_some() {
+                    change.refresh_rate = n_change.refresh_rate;
+                }
+
                 change.frame_wait_id = n_change.frame_wait_id;
             }
             // window focus changed.
@@ -726,6 +735,7 @@ impl Event {
                 *ime = n_ime;
             }
             // scale factor.
+            #[allow(deprecated)]
             (
                 ScaleFactorChanged {
                     monitor,

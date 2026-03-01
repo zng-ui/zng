@@ -345,9 +345,9 @@
 pub use zng_layout::unit::{
     Align, AngleDegree, AngleGradian, AngleRadian, AngleTurn, AngleUnits, BoolVector2D, ByteLength, ByteUnits, CornerRadius2D, Dip, DipBox,
     DipCornerRadius, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, DipVector, DistanceKey, Factor, Factor2d, FactorPercent,
-    FactorSideOffsets, FactorUnits, GridSpacing, Layout1d, Layout2d, LayoutAxis, Length, LengthExpr, LengthUnits, Line,
-    LineFromTuplesBuilder, Orientation2D, Point, Px, PxBox, PxConstraints, PxConstraints2d, PxCornerRadius, PxDensity, PxDensity2d,
-    PxDensityUnits, PxGridSpacing, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip, PxTransform, PxVector, Rect,
+    FactorSideOffsets, FactorUnits, Frequency, FrequencyUnits, GridSpacing, Layout1d, Layout2d, LayoutAxis, Length, LengthExpr,
+    LengthUnits, Line, LineFromTuplesBuilder, Orientation2D, Point, Px, PxBox, PxConstraints, PxConstraints2d, PxCornerRadius, PxDensity,
+    PxDensity2d, PxDensityUnits, PxGridSpacing, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip, PxTransform, PxVector, Rect,
     RectFromTuplesBuilder, SideOffsets, SideOffsets2D, Size, TimeUnits, Transform, Vector,
 };
 
