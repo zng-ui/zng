@@ -480,6 +480,11 @@ impl PartialEq for MonitorQuery {
         matches!((self, other), (Self::Primary, Self::Primary))
     }
 }
+impl_from_and_into_var! {
+    fn from(id: MonitorId) -> MonitorQuery {
+        MonitorQuery::new(move || MONITORS.monitor(id))
+    }
+}
 
 event_args! {
     /// [`MONITORS_CHANGED_EVENT`] args.

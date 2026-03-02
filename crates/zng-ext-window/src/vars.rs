@@ -1,5 +1,5 @@
 use core::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, atomic::AtomicBool};
 
 use crate::{AutoSize, CursorSource, MonitorQuery, WindowIcon, WindowInstanceState};
 use zng_app::{
@@ -96,6 +96,8 @@ pub(crate) struct WindowVarsData {
     pub(crate) system_shutdown_warn: Var<Txt>,
 
     parallel: Var<Parallel>,
+
+    pub(crate) pending_state_update: AtomicBool,
 }
 
 /// Variables that configure the opening or open window.
@@ -189,6 +191,8 @@ impl WindowVars {
             system_shutdown_warn: var(Txt::from("")),
 
             parallel: var(Parallel::default()),
+
+            pending_state_update: AtomicBool::new(false),
         });
         Self(vars)
     }
@@ -303,8 +307,7 @@ impl WindowVars {
     ///
     /// * **Maximized**: The window is maximized in the new monitor.
     /// * **Fullscreen**: The window is fullscreen in the new monitor.
-    /// * **Normal**: The window is centered in the new monitor, keeping the same size, unless the
-    ///   [`position`] and [`size`] where set in the same update, in that case these values are used.
+    /// * **Normal**: The window is centered in the new monitor, keeping the same size.
     /// * **Minimized/Hidden**: The window remains hidden, the restore position and size are defined like **Normal**.
     ///
     /// [`position`]: WindowVars::position

@@ -1,5 +1,9 @@
 # Unreleased
 
+* Fix window restore by command not returning to same position.
+* Fix `WindowVars::monitor` changes not moving window to new monitor.
+    - Added demonstration in `window` example.
+
 * Add `Frequency` unit.
 
 * Automatically set animation timer to match monitor refresh rate.
