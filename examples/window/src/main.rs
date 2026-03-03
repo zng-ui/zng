@@ -2,7 +2,7 @@
 
 use zng::{
     app::EXIT_CMD,
-    color::Rgba,
+    color::{LightDarkVarExt, Rgba},
     event::Command,
     handler::Handler,
     image::ImageDataFormat,
@@ -11,7 +11,7 @@ use zng::{
     scroll::ScrollMode,
     style::StyleFn,
     widget::{LineStyle, background_color, corner_radius, enabled, visibility},
-    window::{FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowState},
+    window::{FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, MONITORS, WindowState},
 };
 
 fn main() {
@@ -65,7 +65,7 @@ async fn main_window() -> window::WindowRoot {
                 Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_vec![state(), visibility_example()];
+                    children = ui_vec![state(), visibility_example(), monitor_example()];
                 },
                 Stack! {
                     direction = StackDirection::top_to_bottom();
@@ -413,6 +413,97 @@ fn visibility_example() -> UiNode {
     };
 
     section("Visibility", ui_vec![btn, chrome])
+}
+
+fn monitor_example() -> UiNode {
+    let combo = Toggle! {
+        style_fn = toggle::ComboStyle!();
+        child = Text! {
+            txt = WINDOW.vars().actual_monitor().flat_map(|m| {
+                if let Some(m) = m
+                    && let Some(m) = MONITORS.monitor(*m)
+                {
+                    m.name()
+                } else {
+                    const_var("".into())
+                }
+            });
+            txt_align = Align::CENTER;
+            padding = (7, 15);
+        };
+        checked_popup = wgt_fn!(|_| {
+            // scale virtual desktop to fit 300x300
+            let areas = expr_var! {
+                let monitors = #{MONITORS.available_monitors()};
+                let scale_factor = *#{WINDOW.vars().scale_factor()};
+
+                let virtual_desk = monitors
+                    .iter()
+                    .map(|m| m.px_rect().to_box2d())
+                    .reduce(|acc, m| PxBox::new(m.min.min(acc.min), m.max.max(acc.max)))
+                    .unwrap_or_default();
+                let offset = virtual_desk.min.to_vector();
+                let size = virtual_desk.size().to_dip(scale_factor);
+                let scale = (300.0 / size.width.max(size.height).to_f32()).fct();
+
+                let virtual_size = size * scale;
+                let monitors: Vec<_> = monitors
+                    .iter()
+                    .map(|m| {
+                        let mut r = m.px_rect().to_box2d();
+                        r.min -= offset;
+                        r.max -= offset;
+                        let r = r.to_rect().to_dip(scale_factor) * scale;
+                        (r, m.clone())
+                    })
+                    .collect();
+
+                (virtual_size, monitors)
+            };
+
+            popup::Popup!(areas.present(wgt_fn!(|t: (DipSize, Vec<(DipRect, window::MonitorInfo)>)| {
+                Stack! {
+                    layout::margin = 4;
+                    layout::size = t.0;
+                    children = t.1.into_iter().map(|(r, info)| {
+                        let id = info.id();
+                        let is_selected = WINDOW.vars().actual_monitor().map(move |i| i == &Some(id));
+                        Text! {
+                            layout::offset = r.origin.to_vector();
+                            layout::size = r.size;
+
+                            txt_align = Align::CENTER;
+                            txt = info.name();
+
+                            tooltip = Tip!(Stack!(
+                                top_to_bottom,
+                                ui_vec![
+                                    Text!(info.size().map(|s| formatx!("{}x{}", s.width.0, s.height.0))),
+                                    Text!(info.scale_factor().map(|s| formatx!("{}", s.pct()))),
+                                    Text!(info.refresh_rate().map(|s| formatx!("{s}"))),
+                                ]
+                            ));
+
+                            widget::background_color = zng::text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+                            when *#{is_selected} {
+                                widget::background_color = zng::color::colors::ACCENT_COLOR_VAR.rgba_map(|c| c.with_alpha(20.pct()));
+                            }
+                            widget::border = 1, colors::BLACK.transparent();
+                            when #gesture::is_hovered {
+                                widget::border = 1, zng::color::colors::ACCENT_COLOR_VAR.rgba_into();
+                            }
+
+                            gesture::on_click = hn!(|args| {
+                                args.propagation.stop();
+                                WINDOW.vars().monitor().set(id);
+                            });
+                        }
+                    });
+                }
+            })))
+        });
+    };
+    section("Monitor", ui_vec![combo])
 }
 
 fn custom_chrome(title: Var<Txt>) -> UiNode {

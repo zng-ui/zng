@@ -19,10 +19,12 @@ use zng_app::{
 use zng_color::LightDark;
 use zng_layout::{
     context::LayoutPassId,
-    unit::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits as _, Layout2d, Length, PxDensity, PxRect, PxToDip as _},
+    unit::{
+        Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits as _, Layout2d, Length, Px, PxDensity, PxPoint, PxRect, PxSize, PxToDip as _,
+    },
 };
 use zng_var::VarHandle;
-use zng_view_api::window::WindowCapability;
+use zng_view_api::window::{WindowCapability, WindowState};
 use zng_wgt::prelude::{DIRECTION_VAR, InteractionPath, LAYOUT, LayoutMetrics};
 
 use crate::{
@@ -392,12 +394,68 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
     vars.0
         .monitor
         .hook(move |args| {
-            if let Some(vars) = WINDOWS.vars(id)
+            let sv = WINDOWS_SV.read();
+            if let Some(w) = sv.windows.get(&id)
+                && let Some(vars) = &w.vars
                 && matches!(vars.0.instance_state.get(), WindowInstanceState::Loaded { has_view: true })
                 && let Some(new_monitor) = args.value().select(id)
                 && Some(new_monitor.id()) != vars.0.actual_monitor.get()
             {
-                tracing::error!("monitor setting not implemented");
+                tracing::trace!("moving {id:?} from {:?} to {:?}", vars.0.actual_monitor.get(), new_monitor.id());
+
+                // * **Maximized**: The window is maximized in the new monitor.
+                // * **Fullscreen**: The window is fullscreen in the new monitor.
+                // * **Normal**: The window is centered in the new monitor, keeping the same size.
+                // * **Minimized/Hidden**: The window remains hidden, the restore position and size are defined like **Normal**.
+
+                // center restore info on new monitor
+                let screen_rect = new_monitor.px_rect();
+                let new_scale_factor = new_monitor.scale_factor().get();
+                let new_window_size = vars
+                    .0
+                    .restore_rect
+                    .get()
+                    .size
+                    .to_px(new_scale_factor)
+                    .min(screen_rect.size - PxSize::splat(Px(20)));
+
+                let pos_in_new_monitor = PxPoint::new(
+                    (screen_rect.size.width - new_window_size.width) / Px(2),
+                    (screen_rect.size.height - new_window_size.height) / Px(2),
+                );
+                vars.0.global_position.set(screen_rect.origin + pos_in_new_monitor.to_vector());
+                vars.0
+                    .restore_rect
+                    .set(PxRect::new(pos_in_new_monitor, new_window_size).to_dip(new_scale_factor));
+
+                let state = vars.0.state.get();
+                if matches!(state, WindowState::Maximized | WindowState::Fullscreen | WindowState::Exclusive) {
+                    // restore to actually move
+                    vars.0.state.set(WindowState::Normal);
+
+                    // once moved return to maximized/fullscreen
+                    let new_monitor_id = new_monitor.id();
+                    RAW_WINDOW_CHANGED_EVENT
+                        .hook(move |args| {
+                            if args.window_id == id
+                                && let Some(m_id) = args.monitor
+                            {
+                                if m_id == new_monitor_id
+                                    && let Some(vars) = WINDOWS.vars(id)
+                                {
+                                    vars.0.state.modify(move |s| {
+                                        if matches!(&**s, WindowState::Normal) {
+                                            **s = state;
+                                        }
+                                    });
+                                }
+                                false
+                            } else {
+                                true
+                            }
+                        })
+                        .perm();
+                }
             }
             true
         })
@@ -1000,12 +1058,24 @@ fn with_monitor_layout(id: WindowId, f: impl FnOnce(&WindowInstance, &WindowVars
 }
 
 fn on_state_changed(id: WindowId, s: &zng_var::AnyVarHookArgs<'_>) -> bool {
-    if !s.contains_tag(&SetFromViewTag) {
-        with_view(id, |w, _, v| {
-            let vars = w.vars.as_ref().unwrap();
-            let state = vars.window_state_all();
-            let _ = v.set_state(state);
-        })
+    if !s.contains_tag(&SetFromViewTag)
+        && let Some(vars) = WINDOWS.vars(id)
+        && !vars.0.pending_state_update.swap(true, std::sync::atomic::Ordering::Relaxed)
+    {
+        // multiple state change requests can be made during hook updates, we want to update view-process once
+        UPDATES
+            .run_hn_once(hn_once!(|_| {
+                if let Some(w) = WINDOWS_SV.read().windows.get(&id)
+                    && let Some(vars) = &w.vars
+                    && vars.0.pending_state_update.swap(false, std::sync::atomic::Ordering::Relaxed)
+                    && let Some(r) = &w.root
+                    && let Some(v) = &r.view_window
+                {
+                    let state = vars.window_state_all();
+                    let _ = v.set_state(state);
+                }
+            }))
+            .perm();
     }
     true
 }
