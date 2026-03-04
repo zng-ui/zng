@@ -493,7 +493,26 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         }
 
         match event {
-            WindowEvent::RedrawRequested => self.windows[i].redraw(),
+            WindowEvent::RedrawRequested => {
+                self.windows[i].redraw();
+
+                // Wayland does not provide monitor info at a convenient time,
+                // only after the first present
+                #[cfg(any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "openbsd"
+                ))]
+                if let Some(handle) = self.windows[i].monitor_change() {
+                    let m_id = self.monitor_handle_to_id(&handle);
+                    let mut c = WindowChanged::monitor_changed(id, m_id, EventCause::System);
+                    c.scale_factor = self.windows[i].scale_factor_change();
+                    c.refresh_rate = self.windows[i].refresh_rate_change();
+                    self.notify(Event::WindowChanged(c));
+                }
+            }
             WindowEvent::Resized(_) => {
                 let size = if let Some(size) = self.windows[i].resized() {
                     size
