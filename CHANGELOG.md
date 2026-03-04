@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix, `is_mouse_active` and `is_pointer_active`.
+
 * Fix window moving back to start position on view-process respawn.
 
 * Use display device name as monitor name in Windows.
