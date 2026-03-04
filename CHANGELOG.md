@@ -1,5 +1,7 @@
 # Unreleased
 
+* Use display device name as monitor name in Windows.
+
 * Fix monitor not detected in Wayland.
 * Fix window restore by command not returning to same position.
 * Fix `WindowVars::monitor` changes not moving window to new monitor.

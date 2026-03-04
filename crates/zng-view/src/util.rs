@@ -290,11 +290,15 @@ impl CursorToWinit for CursorIcon {
     }
 }
 
-pub(crate) fn monitor_handle_to_info(handle: &MonitorHandle) -> MonitorInfo {
+pub(crate) fn monitor_handle_to_info(handle: &MonitorHandle, is_primary: bool, n: usize) -> MonitorInfo {
     let position = handle.position().to_px();
     let size = handle.size().to_px();
+    #[cfg(not(windows))]
+    let name = Txt::from_str(&handle.name().unwrap_or_default());
+    #[cfg(windows)]
+    let name = windows_monitor_name(handle, n);
     let mut m = MonitorInfo::new(
-        Txt::from_str(&handle.name().unwrap_or_default()),
+        if name.is_empty() { zng_txt::formatx!("{n}") } else { name },
         position,
         size,
         Factor(handle.scale_factor() as _),
@@ -304,7 +308,106 @@ pub(crate) fn monitor_handle_to_info(handle: &MonitorHandle) -> MonitorInfo {
     if let Some(mhz) = handle.refresh_rate_millihertz() {
         m.refresh_rate = Frequency::from_millihertz(mhz as _);
     }
+    m.is_primary = is_primary;
     m
+}
+#[cfg(windows)]
+fn windows_monitor_name(handle: &MonitorHandle, n: usize) -> Txt {
+    use windows::Win32::Devices::Display::*;
+    use windows::Win32::Graphics::Gdi::*;
+    use winit::platform::windows::MonitorHandleExtWindows;
+    use zng_txt::formatx;
+
+    let hmonitor = HMONITOR(handle.hmonitor() as _);
+    let mut monitor_info = MONITORINFOEXW::default();
+    monitor_info.monitorInfo.cbSize = std::mem::size_of::<MONITORINFOEXW>() as u32;
+
+    // get gdi name (same value from winit currently, but they may change)
+    // SAFETY: this is the correct way to call
+    // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmonitorinfow
+    if !unsafe { GetMonitorInfoW(hmonitor, &mut monitor_info as *mut _ as *mut _) }.as_bool() {
+        return formatx!("{n}");
+    }
+    let gdi_name = String::from_utf16_lossy(&monitor_info.szDevice)
+        .trim_matches(char::from(0))
+        .to_string();
+
+    // search display device name
+    let mut path_count = 0;
+    let mut mode_count = 0;
+    // SAFETY: this is the correct way to call
+    // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdisplayconfigbuffersizes#qdc_only_active_paths
+    unsafe { GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut path_count, &mut mode_count) }
+        .ok()
+        .ok();
+    let mut paths = vec![DISPLAYCONFIG_PATH_INFO::default(); path_count as usize];
+    let mut modes = vec![Default::default(); mode_count as usize];
+    // SAFETY: this is the correct way to call
+    // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-querydisplayconfig
+    unsafe {
+        QueryDisplayConfig(
+            QDC_ONLY_ACTIVE_PATHS,
+            &mut path_count,
+            paths.as_mut_ptr(),
+            &mut mode_count,
+            modes.as_mut_ptr(),
+            None,
+        )
+    }
+    .ok()
+    .ok();
+
+    let device_names: Vec<_> = paths
+        .into_iter()
+        .filter_map(|path| {
+            // get gdi name of the display config path
+            let mut s_name = DISPLAYCONFIG_SOURCE_DEVICE_NAME::default();
+            s_name.header.r#type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+            s_name.header.size = std::mem::size_of::<DISPLAYCONFIG_SOURCE_DEVICE_NAME>() as u32;
+            s_name.header.adapterId = path.sourceInfo.adapterId;
+            s_name.header.id = path.sourceInfo.id;
+            // SAFETY: this is the correct way to call
+            // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-displayconfiggetdeviceinfo
+            let path_gdi_name = if unsafe { DisplayConfigGetDeviceInfo(&mut s_name.header) } == 0 {
+                String::from_utf16_lossy(&s_name.viewGdiDeviceName)
+                    .trim_matches(char::from(0))
+                    .to_string()
+            } else {
+                return None;
+            };
+
+            // get device display name
+            let mut t_name = DISPLAYCONFIG_TARGET_DEVICE_NAME::default();
+            t_name.header.r#type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+            t_name.header.size = std::mem::size_of::<DISPLAYCONFIG_TARGET_DEVICE_NAME>() as u32;
+            t_name.header.adapterId = path.targetInfo.adapterId;
+            t_name.header.id = path.targetInfo.id;
+            // SAFETY: safe too
+            // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-displayconfig_target_device_name
+            if unsafe { DisplayConfigGetDeviceInfo(&mut t_name.header) } == 0 {
+                let name = String::from_utf16_lossy(&t_name.monitorFriendlyDeviceName)
+                    .trim_matches(char::from(0))
+                    .to_string();
+                if !name.is_empty() {
+                    return Some((path_gdi_name, name));
+                }
+            }
+            None
+        })
+        .collect();
+
+    if let Some(i) = device_names.iter().position(|(g, _)| g == &gdi_name) {
+        let device_name = &device_names[i].1;
+
+        return if device_names.iter().enumerate().any(|(oi, (_, on))| oi != i && on == device_name) {
+            // has duplicate name
+            formatx!("{device_name} ({n})")
+        } else {
+            Txt::from_str(device_name)
+        };
+    }
+
+    formatx!("{n}")
 }
 
 pub(crate) fn glutin_video_mode_to_video_mode(v: winit::monitor::VideoModeHandle) -> VideoMode {
