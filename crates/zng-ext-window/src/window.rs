@@ -308,6 +308,7 @@ impl WindowInstance {
                     view_headless: None,
                     renderer: None,
                     view_opening: VarHandle::dummy(),
+                    view_spawned: false,
 
                     nested,
 
@@ -340,6 +341,8 @@ pub(crate) struct WindowNode {
     pub(crate) view_headless: Option<ViewHeadless>,
     pub(crate) renderer: Option<ViewRenderer>,
     pub(crate) view_opening: VarHandle,
+    // if `view_window/headless` is `None` but this is `true` the view is respawning
+    pub(crate) view_spawned: bool,
 
     pub(crate) nested: Option<NestedData>,
 
@@ -600,6 +603,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                         r.renderer = Some(window.renderer());
                         r.view_window = Some(window);
                         r.view_opening = VarHandle::dummy();
+                        r.view_spawned = true;
                         UPDATES.render_window(id);
 
                         vars.set_from_view(|v| &v.0.state, a.data.state.state);
@@ -634,48 +638,52 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                 let mut system_pos = false;
                 let mut global_position = PxPoint::zero();
                 let mut position = DipPoint::zero();
-                match n.root.get_mut().start_position {
-                    StartPosition::Default => {
-                        let pos = vars.0.position.get();
-                        system_pos = pos.x.is_default() || pos.y.is_default();
-                        if !system_pos {
-                            LAYOUT.with_root_context(n.layout_pass, monitor_metrics(), || {
-                                let pos = pos.layout();
-                                position = pos.to_dip(scale_factor);
-                                global_position = monitor_rect.origin + pos.to_vector();
-                            });
-                        } else {
-                            // in case system does not implement position
-                            position = DipPoint::splat(Dip::new(60));
-                            global_position = monitor_rect.origin + position.to_px(scale_factor).to_vector();
+                if n.view_spawned {
+                    // is respawning view
+                    global_position = vars.0.global_position.get();
+                    position = vars.0.actual_position.get();
+                } else {
+                    match n.root.get_mut().start_position {
+                        StartPosition::Default => {
+                            let pos = vars.0.position.get();
+                            system_pos = pos.x.is_default() || pos.y.is_default();
+                            if !system_pos {
+                                LAYOUT.with_root_context(n.layout_pass, monitor_metrics(), || {
+                                    let pos = pos.layout();
+                                    position = pos.to_dip(scale_factor);
+                                    global_position = monitor_rect.origin + pos.to_vector();
+                                });
+                            } else {
+                                // in case system does not implement position
+                                position = DipPoint::splat(Dip::new(60));
+                                global_position = monitor_rect.origin + position.to_px(scale_factor).to_vector();
+                            }
+                        }
+                        start_position => {
+                            let screen_rect = match start_position {
+                                StartPosition::CenterMonitor => monitor_rect,
+                                StartPosition::CenterParent => {
+                                    if let Some(parent_id) = vars.0.parent.get()
+                                        && let Some(parent_vars) = WINDOWS.vars(parent_id)
+                                        && matches!(parent_vars.0.instance_state.get(), WindowInstanceState::Loaded { has_view: true })
+                                    {
+                                        PxRect::new(parent_vars.0.global_position.get(), parent_vars.actual_size_px().get())
+                                    } else {
+                                        monitor_rect
+                                    }
+                                }
+                                _ => unreachable!(),
+                            };
+
+                            let pos = PxPoint::new(
+                                (screen_rect.size.width - final_size.width) / Px(2),
+                                (screen_rect.size.height - final_size.height) / Px(2),
+                            );
+                            global_position = screen_rect.origin + pos.to_vector();
+                            position = pos.to_dip(scale_factor);
                         }
                     }
-                    start_position => {
-                        let screen_rect = match start_position {
-                            StartPosition::CenterMonitor => monitor_rect,
-                            StartPosition::CenterParent => {
-                                if let Some(parent_id) = vars.0.parent.get()
-                                    && let Some(parent_vars) = WINDOWS.vars(parent_id)
-                                    && matches!(parent_vars.0.instance_state.get(), WindowInstanceState::Loaded { has_view: true })
-                                {
-                                    PxRect::new(parent_vars.0.global_position.get(), parent_vars.actual_size_px().get())
-                                } else {
-                                    monitor_rect
-                                }
-                            }
-                            _ => unreachable!(),
-                        };
-
-                        let pos = PxPoint::new(
-                            (screen_rect.size.width - final_size.width) / Px(2),
-                            (screen_rect.size.height - final_size.height) / Px(2),
-                        );
-                        global_position = screen_rect.origin + pos.to_vector();
-                        position = pos.to_dip(scale_factor);
-                    }
-                };
-                vars.0.global_position.set(global_position);
-                vars.0.position.set(position);
+                }
 
                 let mut state_all = vars.window_state_all();
                 state_all.global_position = global_position;
@@ -699,7 +707,6 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                         }
                     });
                 }
-
                 let r = VIEW_PROCESS.open_window(WindowRequest::new(
                     zng_view_api::window::WindowId::from_raw(id.get()),
                     vars.0.title.get(),
@@ -781,12 +788,14 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                         r.renderer = Some(surface.renderer());
                         r.view_headless = Some(surface);
                         r.view_opening = VarHandle::dummy();
+                        r.view_spawned = true;
 
                         UPDATES.render_window(id);
                     }
 
                     false
                 });
+
                 let r = VIEW_PROCESS.open_headless(HeadlessRequest::new(
                     zng_view_api::window::WindowId::from_raw(id.get()),
                     scale_factor,

@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix window moving back to start position on view-process respawn.
+
 * Use display device name as monitor name in Windows.
 
 * Fix monitor not detected in Wayland.
