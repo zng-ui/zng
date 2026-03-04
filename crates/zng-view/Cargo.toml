@@ -224,6 +224,7 @@ features = [
     "Win32_System",
     "Win32_System_Memory",
     "ApplicationModel",
+    "Win32_Devices_Display",
 ]
 
 [target.'cfg(windows)'.dependencies]

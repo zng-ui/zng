@@ -1722,15 +1722,20 @@ impl App {
         let _span = tracing::trace_span!("available_monitors").entered();
 
         let primary = self.winit_loop.primary_monitor();
-        self.winit_loop
+        let mut available: Vec<_> = self
+            .winit_loop
             .available_monitors()
-            .map(|m| {
-                let id = self.monitor_id(&m);
-                let is_primary = primary.as_ref().map(|h| h == &m).unwrap_or(false);
-                let mut info = util::monitor_handle_to_info(&m);
-                info.is_primary = is_primary;
-                (id, info)
-            })
+            .map(|m| (self.monitor_id(&m), primary.as_ref().map(|h| h == &m).unwrap_or(false), m))
+            .collect();
+        // primary first, followed by left to right
+        // this is an attempt to generate a ordered number, used in the Windows name
+        available.sort_by(|(_, a_is_primary, a), (_, b_is_primary, b)| {
+            b_is_primary.cmp(a_is_primary).then_with(|| a.position().x.cmp(&b.position().x))
+        });
+        available
+            .into_iter()
+            .enumerate()
+            .map(|(n, (id, is_primary, m))| (id, util::monitor_handle_to_info(&m, is_primary, n + 1)))
             .collect()
     }
 
