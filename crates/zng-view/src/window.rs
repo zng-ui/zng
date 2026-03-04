@@ -1325,6 +1325,8 @@ impl Window {
     }
 
     fn apply_state(&mut self, new_state: WindowStateAll, force: bool) {
+        self.state = self.probe_state();
+
         // winit provides a fallback chrome for Wayland, but app-process is expected to render it in Zng
         let chrome_visible = new_state.chrome_visible && std::env::var("WAYLAND_DISPLAY").is_err();
         if self.state.chrome_visible != chrome_visible {
@@ -1362,64 +1364,67 @@ impl Window {
             }
         }
 
+        let move_request = self.state.global_position != new_state.global_position;
         self.state = new_state;
 
         if self.state.state == WindowState::Normal {
             let _ = self.window.request_inner_size(self.state.restore_rect.size.to_winit());
 
             // use global_position to find best monitor for the window
-            let mut best_monitor_area = PxRect::zero();
-            let mut best_monitor_scale_factor = Factor(1.0);
-            let mut best_monitor_score = Px::MIN;
-            for m in self.window.available_monitors() {
-                let scale_factor = Factor(m.scale_factor() as _);
-                let window_area = PxRect::new(self.state.global_position, self.state.restore_rect.size.to_px(scale_factor));
-                let monitor_area = PxRect::new(m.position().to_px(), m.size().to_px());
-                if let Some(i) = monitor_area.intersection(&window_area) {
-                    let score = i.size.width * i.size.height;
-                    if score > best_monitor_score {
-                        best_monitor_score = score;
-                        best_monitor_area = monitor_area;
-                        best_monitor_scale_factor = scale_factor;
-                    }
-                }
-            }
-            if best_monitor_area.size.is_empty() {
-                // not positioned in any monitor, center on larger
-
-                best_monitor_score = Px::MIN;
+            if move_request {
+                let mut best_monitor_area = PxRect::zero();
+                let mut best_monitor_scale_factor = Factor(1.0);
+                let mut best_monitor_score = Px::MIN;
                 for m in self.window.available_monitors() {
+                    let scale_factor = Factor(m.scale_factor() as _);
+                    let window_area = PxRect::new(self.state.global_position, self.state.restore_rect.size.to_px(scale_factor));
                     let monitor_area = PxRect::new(m.position().to_px(), m.size().to_px());
-                    let score = monitor_area.size.width * monitor_area.size.height;
-                    if score >= best_monitor_score {
-                        best_monitor_score = score;
-                        best_monitor_area = monitor_area;
-                        best_monitor_scale_factor = Factor(m.scale_factor() as _);
+                    if let Some(i) = monitor_area.intersection(&window_area) {
+                        let score = i.size.width * i.size.height;
+                        if score > best_monitor_score {
+                            best_monitor_score = score;
+                            best_monitor_area = monitor_area;
+                            best_monitor_scale_factor = scale_factor;
+                        }
                     }
                 }
-                let best_size = best_monitor_area.size.to_dip(best_monitor_scale_factor);
-                let max_size = best_size - DipSize::splat(Dip::new(5));
-                self.state.restore_rect.size = self.state.restore_rect.size.min(max_size);
-                self.state.restore_rect.origin = ((best_size - self.state.restore_rect.size) / Factor(2.0)).to_vector().to_point();
-            }
-            if best_monitor_area.size.is_empty() {
-                // no monitor
-                return;
-            }
-            let outer_offset = match (self.window.outer_position(), self.window.inner_position()) {
-                (Ok(o), Ok(i)) => (i.x - o.x, i.y - o.y),
-                _ => (0, 0),
-            };
+                if best_monitor_area.size.is_empty() {
+                    // not positioned in any monitor, center on larger
 
-            // use restore_rect in the monitor to actually position
-            let mut origin = best_monitor_area.origin.to_winit();
-            origin.x -= outer_offset.0;
-            origin.y -= outer_offset.1;
-            let restore_o = self.state.restore_rect.origin.to_px(best_monitor_scale_factor).to_winit();
-            origin.x += restore_o.x;
-            origin.y += restore_o.y;
+                    best_monitor_score = Px::MIN;
+                    for m in self.window.available_monitors() {
+                        let monitor_area = PxRect::new(m.position().to_px(), m.size().to_px());
+                        let score = monitor_area.size.width * monitor_area.size.height;
+                        if score >= best_monitor_score {
+                            best_monitor_score = score;
+                            best_monitor_area = monitor_area;
+                            best_monitor_scale_factor = Factor(m.scale_factor() as _);
+                        }
+                    }
+                    let best_size = best_monitor_area.size.to_dip(best_monitor_scale_factor);
+                    let max_size = best_size - DipSize::splat(Dip::new(5));
+                    self.state.restore_rect.size = self.state.restore_rect.size.min(max_size);
+                    self.state.restore_rect.origin = ((best_size - self.state.restore_rect.size) / Factor(2.0)).to_vector().to_point();
+                }
+                if best_monitor_area.size.is_empty() {
+                    // no monitor
+                    return;
+                }
+                let outer_offset = match (self.window.outer_position(), self.window.inner_position()) {
+                    (Ok(o), Ok(i)) => (i.x - o.x, i.y - o.y),
+                    _ => (0, 0),
+                };
 
-            self.window.set_outer_position(origin);
+                // use restore_rect in the monitor to actually position
+                let mut origin = best_monitor_area.origin.to_winit();
+                origin.x -= outer_offset.0;
+                origin.y -= outer_offset.1;
+                let restore_o = self.state.restore_rect.origin.to_px(best_monitor_scale_factor).to_winit();
+                origin.x += restore_o.x;
+                origin.y += restore_o.y;
+
+                self.window.set_outer_position(origin);
+            }
 
             self.window.set_min_inner_size(Some(self.state.min_size.to_winit()));
             self.window.set_max_inner_size(Some(self.state.max_size.to_winit()));

@@ -481,9 +481,10 @@ pub fn is_mouse_active(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiN
                     if is_activate {
                         if let Some(t) = &timer {
                             t.with(|t| {
-                                if t.deadline().has_elapsed() {
+                                if t.count() > 0 {
                                     // activate again
                                     state.set(true);
+                                    t.set_count(0);
                                 }
                                 // update cfg if needed
                                 t.set_interval(cfg.duration);
@@ -497,7 +498,7 @@ pub fn is_mouse_active(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiN
                             let t = TIMERS.interval(cfg.duration, true);
                             t.hook(clmv!(state, |t| {
                                 let t = t.value();
-                                if t.deadline().has_elapsed() {
+                                if t.count() > 0 {
                                     t.pause();
                                     state.set(false);
                                 }
@@ -585,7 +586,7 @@ pub fn mouse_active_config(child: impl IntoUiNode, config: impl IntoVar<MouseAct
 ///
 /// [`touch_active_config`]: fn@touch_active_config
 /// [`is_mouse_active`]: fn@is_mouse_active
-#[property(EVENT)]
+#[property(EVENT - 1)]
 pub fn is_touch_active(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     let state = state.into_var();
     enum State {
