@@ -506,6 +506,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     target_os = "openbsd"
                 ))]
                 if let Some(handle) = self.windows[i].monitor_change() {
+                    self.refresh_monitors();
                     let m_id = self.monitor_handle_to_id(&handle);
                     let mut c = WindowChanged::monitor_changed(id, m_id, EventCause::System);
                     c.scale_factor = self.windows[i].scale_factor_change();
@@ -514,9 +515,22 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 }
             }
             WindowEvent::Resized(_) => {
-                let size = if let Some(size) = self.windows[i].resized() {
-                    size
+                let mut size = if let Some(s) = self.windows[i].resized() {
+                    s
                 } else {
+                    // same size, might be only scale factor changed
+                    if let Some(s) = self.windows[i].scale_factor_change() {
+                        let mut c = WindowChanged::new(id, None, None, None, None, None, None, EventCause::System);
+                        c.scale_factor = Some(s);
+                        if let Some(handle) = self.windows[i].monitor_change() {
+                            self.refresh_monitors();
+                            let m_id = self.monitor_handle_to_id(&handle);
+                            c.monitor = Some(m_id);
+                            c.refresh_rate = self.windows[i].refresh_rate_change();
+                        }
+                        self.notify(Event::WindowChanged(c));
+                    }
+
                     winit_loop_guard.unset(&mut self.winit_loop);
                     return;
                 };
@@ -547,24 +561,30 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                             }
                         }
                     }
+
+                    if let Some(s) = self.windows[i].resized() {
+                        size = s;
+                    }
+                }
+
+                let wait_id = Some(self.resize_frame_wait_id_gen.incr());
+                let mut c = WindowChanged::resized(id, size, EventCause::System, wait_id);
+                c.state = self.windows[i].state_change();
+                c.scale_factor = self.windows[i].scale_factor_change();
+                if let Some(handle) = self.windows[i].monitor_change() {
+                    self.refresh_monitors();
+                    let m_id = self.monitor_handle_to_id(&handle);
+                    let mut c = WindowChanged::monitor_changed(id, m_id, EventCause::System);
+                    c.refresh_rate = self.windows[i].refresh_rate_change();
+                    self.notify(Event::WindowChanged(c));
                 }
 
                 if let Some(state) = self.windows[i].state_change() {
                     self.notify(Event::WindowChanged(WindowChanged::state_changed(id, state, EventCause::System)));
                 }
 
-                if let Some(handle) = self.windows[i].monitor_change() {
-                    let m_id = self.monitor_handle_to_id(&handle);
-                    let mut c = WindowChanged::monitor_changed(id, m_id, EventCause::System);
-                    c.scale_factor = self.windows[i].scale_factor_change();
-                    c.refresh_rate = self.windows[i].refresh_rate_change();
-                    self.notify(Event::WindowChanged(c));
-                }
-
-                let wait_id = Some(self.resize_frame_wait_id_gen.incr());
-
                 // send event, the app code should send a frame in the new size as soon as possible.
-                self.notify(Event::WindowChanged(WindowChanged::resized(id, size, EventCause::System, wait_id)));
+                self.notify(Event::WindowChanged(c));
 
                 self.flush_coalesced();
 
@@ -635,24 +655,17 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     return;
                 };
 
-                if let Some(state) = self.windows[i].state_change() {
-                    self.notify(Event::WindowChanged(WindowChanged::state_changed(id, state, EventCause::System)));
-                }
-
-                self.notify(Event::WindowChanged(WindowChanged::moved(
-                    id,
-                    global_position,
-                    position,
-                    EventCause::System,
-                )));
+                let mut c = WindowChanged::moved(id, global_position, position, EventCause::System);
+                c.state = self.windows[i].state_change();
 
                 if let Some(handle) = self.windows[i].monitor_change() {
+                    self.refresh_monitors();
                     let m_id = self.monitor_handle_to_id(&handle);
-                    let mut c = WindowChanged::monitor_changed(id, m_id, EventCause::System);
+                    c.monitor = Some(m_id);
                     c.scale_factor = self.windows[i].scale_factor_change();
                     c.refresh_rate = self.windows[i].refresh_rate_change();
-                    self.notify(Event::WindowChanged(c));
                 }
+                self.notify(Event::WindowChanged(c));
             }
             WindowEvent::CloseRequested => {
                 linux_modal_dialog_bail!();
@@ -944,17 +957,9 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             }
             WindowEvent::ScaleFactorChanged { .. } => {
                 self.refresh_monitors();
-
-                let new_monitor = self.windows[i].monitor_change().map(|h| self.monitor_handle_to_id(&h));
-                let new_scale_factor = self.windows[i].scale_factor_change();
-                let new_refresh_rate = self.windows[i].refresh_rate_change();
-                let new_size = self.windows[i].resized();
-                if new_monitor.is_some() || new_scale_factor.is_some() || new_refresh_rate.is_some() || new_size.is_some() {
-                    let mut c = WindowChanged::new(id, None, None, new_monitor, new_size, None, None, EventCause::System);
-                    c.scale_factor = new_scale_factor;
-                    c.refresh_rate = new_refresh_rate;
-                    self.notify(Event::WindowChanged(c));
-                }
+                // winit notified this event before any window state update, like monitor change, to avoid
+                // a layout pass with only the new scale and other stale state the factor change is only
+                // notified with other WindowChanged events, usually on ::Resized
             }
             WindowEvent::Ime(ime) => {
                 linux_modal_dialog_bail!();
@@ -2100,6 +2105,7 @@ impl Api for App {
             change.size = w.resized();
             change.position = w.moved();
             if let Some(handle) = w.monitor_change() {
+                self.refresh_monitors();
                 let monitor = self.monitor_handle_to_id(&handle);
                 change.monitor = Some(monitor);
             }

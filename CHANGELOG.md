@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix window updating scale factor before updating other parameters when moving to another monitor.
+
 * Fix, `is_mouse_active` and `is_pointer_active`.
 
 * Fix window moving back to start position on view-process respawn.
