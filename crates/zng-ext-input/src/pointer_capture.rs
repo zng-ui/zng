@@ -13,7 +13,7 @@
 //! * [`POINTER_CAPTURE`]
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     fmt,
 };
 
@@ -23,7 +23,7 @@ use zng_app::{
     view_process::{
         VIEW_PROCESS_INITED_EVENT,
         raw_device_events::InputDeviceId,
-        raw_events::{RAW_MOUSE_INPUT_EVENT, RAW_MOUSE_MOVED_EVENT, RAW_TOUCH_EVENT, RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_FOCUS_EVENT},
+        raw_events::{RAW_MOUSE_INPUT_EVENT, RAW_TOUCH_EVENT, RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_FOCUS_EVENT},
     },
     widget::{
         WidgetId,
@@ -32,8 +32,7 @@ use zng_app::{
     window::WindowId,
 };
 use zng_app_context::app_local;
-use zng_ext_window::{NestedWindowWidgetInfoExt, WINDOWS};
-use zng_layout::unit::{DipPoint, DipToPx};
+use zng_ext_window::WINDOWS;
 use zng_var::{Var, impl_from_and_into_var, var};
 use zng_view_api::{
     mouse::{ButtonState, MouseButton},
@@ -198,7 +197,6 @@ app_local! {
             capture_value: None,
             capture: var(None),
 
-            mouse_position: Default::default(),
             mouse_down: Default::default(),
             touch_down: Default::default(),
         }
@@ -209,7 +207,6 @@ struct PointerCaptureService {
     capture_value: Option<CaptureInfo>,
     capture: Var<Option<CaptureInfo>>,
 
-    mouse_position: HashMap<(WindowId, InputDeviceId), DipPoint>,
     mouse_down: HashSet<(WindowId, InputDeviceId, MouseButton)>,
     touch_down: HashSet<(WindowId, InputDeviceId, TouchId)>,
 }
@@ -300,16 +297,6 @@ fn hooks() {
         })
         .perm();
 
-    RAW_MOUSE_MOVED_EVENT
-        .hook(|args| {
-            POINTER_CAPTURE_SV
-                .write()
-                .mouse_position
-                .insert((args.window_id, args.device_id), args.position);
-            true
-        })
-        .perm();
-
     RAW_MOUSE_INPUT_EVENT
         .hook(|args| {
             let mut s = POINTER_CAPTURE_SV.write();
@@ -319,8 +306,7 @@ fn hooks() {
                         && s.mouse_down.len() == 1
                         && s.touch_down.is_empty()
                     {
-                        let point = s.mouse_position.get(&(args.window_id, args.device_id)).copied().unwrap_or_default();
-                        s.on_first_down(args.window_id, point);
+                        s.on_first_down(args.window_id);
                     }
                 }
                 ButtonState::Released => {
@@ -346,7 +332,7 @@ fn hooks() {
                             && s.touch_down.len() == 1
                             && s.mouse_down.is_empty()
                         {
-                            s.on_first_down(args.window_id, touch.position);
+                            s.on_first_down(args.window_id);
                         }
                     }
                     TouchPhase::End | TouchPhase::Cancel => {
@@ -411,8 +397,6 @@ fn hooks() {
 }
 impl PointerCaptureService {
     fn remove_window(&mut self, window_id: WindowId) {
-        self.mouse_position.retain(|(w, _), _| *w != window_id);
-
         if !self.mouse_down.is_empty() || !self.touch_down.is_empty() {
             self.mouse_down.retain(|(w, _, _)| *w != window_id);
             self.touch_down.retain(|(w, _, _)| *w != window_id);
@@ -423,23 +407,8 @@ impl PointerCaptureService {
         }
     }
 
-    fn on_first_down(&mut self, window_id: WindowId, point: DipPoint) {
-        if let Some(mut info) = WINDOWS.widget_tree(window_id) {
-            let mut point = point.to_px(info.scale_factor());
-
-            // hit-test for nested window
-            if let Some(t) = info.root().hit_test(point).target()
-                && let Some(w) = info.get(t.widget_id)
-                && let Some(t) = w.nested_window_tree()
-            {
-                info = t;
-                point = w
-                    .inner_transform()
-                    .inverse()
-                    .and_then(|t| t.transform_point(point))
-                    .unwrap_or(point);
-            }
-
+    fn on_first_down(&mut self, window_id: WindowId) {
+        if let Some(info) = WINDOWS.widget_tree(window_id) {
             // default capture
             self.set_capture(info.root().interaction_path(), CaptureMode::Window);
         }

@@ -23,7 +23,7 @@ use zng_layout::unit::{DipSize, TimeUnits as _};
 use zng_layout::{
     context::LayoutPassId,
     unit::{
-        Dip, DipPoint, DipToPx as _, FactorUnits as _, Layout2d as _, Length, Px, PxConstraints, PxConstraints2d, PxDensity, PxPoint,
+        Dip, DipPoint, DipToPx as _, FactorUnits as _, Layout2d as _, Length, Px, PxConstraints, PxConstraints2d, PxPoint,
         PxRect, PxSize, PxToDip as _, PxVector,
     },
 };
@@ -405,7 +405,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
 
     // resolve monitor
     let mut monitor_rect = PxRect::zero();
-    let mut monitor_density = PxDensity::default();
+    let monitor_density;
     let mut scale_factor = 1.fct();
     if n.win_ctx.mode().is_headed() {
         // get real monitor data
