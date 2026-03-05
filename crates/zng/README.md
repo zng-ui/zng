@@ -161,6 +161,8 @@ Enable debug crash handler view.
 #### `"trace_widget"`
 Instrument every widget outer-most node to trace UI methods.
 
+Widget spans are traced at the DEBUG level.
+
 #### `"trace_recorder"`
 Enable trace recording.
 
@@ -170,6 +172,8 @@ See `zng::app::trace_recorder` for more details.
 
 #### `"trace_wgt_item"`
 Instrument every property and intrinsic node to trace UI methods.
+
+Property and other node spans are traced at the TRACE level.
 
 Note that this can cause very large trace files and bad performance.
 
