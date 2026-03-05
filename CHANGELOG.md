@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.21.3
+
 * Fix window updating scale factor before updating other parameters when moving to another monitor.
 
 * Fix, `is_mouse_active` and `is_pointer_active`.
