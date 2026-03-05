@@ -12,10 +12,7 @@
 //!
 //! * [`POINTER_CAPTURE`]
 
-use std::{
-    collections::HashSet,
-    fmt,
-};
+use std::{collections::HashSet, fmt};
 
 use zng_app::{
     event::{event, event_args},
