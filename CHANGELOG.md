@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add machine translated l10n resources for: ja, es.
 
 # 0.21.3
 
