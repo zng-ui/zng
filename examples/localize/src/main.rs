@@ -37,13 +37,20 @@ fn main() {
         #[cfg(not(debug_assertions))]
         L10N.load_tar(EMBEDDED_L10N);
 
-        // pre-load resources for the first available lang in sys-langs.
-        let (lang, handle) = L10N.wait_first(L10N.app_lang().get()).await;
-        match lang {
-            Some(lang) => tracing::info!("preload {lang}"),
-            None => tracing::warn!("no available sys-lang resource, sys-langs: {}", L10N.app_lang().get()),
-        }
-        handle.perm();
+        // preload resources l10n for the sys-lang
+        let preload_handle = WINDOW.loading_handle(2.secs(), "preload-lang");
+        task::spawn(async move {
+            // wait view-process data
+            L10N.app_lang().wait_match(|a| !a.is_empty()).await;
+            // preload
+            let (lang, handle) = L10N.wait_first(L10N.app_lang().get()).await;
+            match lang {
+                Some(lang) => tracing::info!("preload {lang}"),
+                None => tracing::warn!("no available sys-lang resource, sys-langs: {}", L10N.app_lang().get()),
+            }
+            handle.perm();
+            drop(preload_handle);
+        });
 
         Window! {
             // l10n-# Main window title

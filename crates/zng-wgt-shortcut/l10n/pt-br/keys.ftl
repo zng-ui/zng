@@ -12,7 +12,7 @@
 
 Close = Fechar
 
-ContextMenu = ≣Context Menu
+ContextMenu = ≣Menu Contextual
 
 Copy = Copiar
 
