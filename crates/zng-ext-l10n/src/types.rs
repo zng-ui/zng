@@ -315,14 +315,67 @@ impl Lang {
     /// Compares a language to another allowing for either side to use the missing fields as wildcards.
     ///
     /// This allows for matching between `en` (treated as `en-*-*-*`) and `en-US`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use zng_ext_l10n::*;
+    /// #
+    /// let l1 = lang!("en");
+    /// let l2 = lang!("en-US");
+    ///
+    /// assert_ne!(l1, l2); // "en" != "en-US"
+    /// assert!(!l1.matches(&l2, false, false)); // "en" != "en-US"
+    ///
+    /// assert!(l1.matches(&l2, true, false)); // "en-*-*-*" == "en-US"
+    /// assert!(!l1.matches(&l2, false, true)); // "en" != "en-*-US-*"
+    /// assert!(l1.matches(&l2, true, true)); // "en-*-*-*" == "en-*-US-*"
+    /// ```
+    ///
+    /// Note that `machine` variant is ignored when matching.
+    ///
+    /// ```
+    /// # use zng_ext_l10n::*;
+    ///
+    /// let pt_br = lang!("pt-BR");
+    /// let pt_pt = lang!("pt-PT");
+    /// let pt = lang!("pt");
+    /// let pt_m = lang!("pt-machine");
+    ///
+    /// assert!(!pt_br.matches(&pt_pt, true, false)); // "pt-BR-*-*" != "pt-PT"
+    /// assert!(pt.matches(&pt_pt, true, false)); // "pt-*-*-*" == "pt-PT"
+    /// assert!(pt_m.matches(&pt_pt, true, false)); // "pt-machine-*-*" == "pt-PT"
+    ///
+    /// assert!(pt_m.matches(&pt, false, false)); // "pt-machine" == "pt"
+    /// assert_ne!(pt_m, pt); // but "pt-machine" != "pt" in `PartialEq`
+    /// ```
     pub fn matches(&self, other: &Self, self_as_range: bool, other_as_range: bool) -> bool {
-        self.0.matches(&other.0, self_as_range, other_as_range)
+        if !self.0.language.matches(other.0.language, self_as_range, other_as_range) {
+            return false;
+        }
+
+        fn tag_matches<P: PartialEq>(tag1: &Option<P>, tag2: &Option<P>, as_range1: bool, as_range2: bool) -> bool {
+            (as_range1 && tag1.is_none()) || (as_range2 && tag2.is_none()) || tag1 == tag2
+        }
+        if !tag_matches(&self.0.script, &other.0.script, self_as_range, other_as_range)
+            || !tag_matches(&self.region, &other.region, self_as_range, other_as_range)
+        {
+            return false;
+        }
+
+        (self_as_range && self.variants_no_machine().next().is_none())
+            || (other_as_range && other.variants_no_machine().next().is_none())
+            || self.variants_no_machine().eq(other.variants_no_machine())
+    }
+    fn variants_no_machine(&self) -> impl Iterator<Item = &unic_langid::subtags::Variant> {
+        self.0.variants().filter(|v| v.as_str() != "machine")
     }
 
     /// If the language has a `machine` variant.
     ///
-    /// For example, `pt-machine` or `pt-BR-machine` identify localization resources generated
-    /// using machine translation, assumed to be of less quality.
+    /// Machine translated resources are expected to be of lesser quality, but better than nothing.
+    /// This variant indicates that the resource should be given lower priority. If a machine generated
+    /// resource if reviewed by a human translator the `machine` variant must be removed.
     pub fn is_machine_translation(&self) -> bool {
         self.0.variants().any(|v| v == "machine")
     }
@@ -469,21 +522,30 @@ impl<V> LangMap<V> {
                 let mut weight = 1;
                 let mut eq = 0;
 
+                // must match language
                 if key.language == lang.language {
-                    weight += 128;
+                    weight += 200;
                     eq += 1;
                 }
-                if key.region == lang.region {
-                    weight += 40;
-                    eq += 1;
-                }
+                // must match script
                 if key.script == lang.script {
-                    weight += 20;
+                    weight += 100;
+                    eq += 1;
+                }
+                // can fallback to different region
+                if key.region == lang.region {
+                    weight += 30;
                     eq += 1;
                 }
 
-                if eq == 3 && lang.variants().zip(key.variants()).all(|(a, b)| a == b) {
+                if eq == 3 && lang.variants().eq(key.variants()) {
+                    // exact match
                     return Some(i);
+                }
+
+                // human translated of different regions has priority over machine translated
+                if !key.is_machine_translation() {
+                    weight += 60;
                 }
 
                 if best_weight < weight {
