@@ -6,8 +6,8 @@
 
 use std::{
     cmp::Ordering,
-    collections::HashSet,
-    fmt::Write as _,
+    collections::{HashMap, HashSet},
+    fmt::{self, Write as _},
     fs,
     io::{self, BufRead},
     path::{Path, PathBuf},
@@ -90,9 +90,13 @@ pub struct L10nArgs {
     #[arg(long, default_value = "")]
     pseudo_w: String,
 
-    /// Only verify that the generated files are the same
+    /// Verify that packages are scrapped and validate Fluent files
     #[arg(long, action)]
     check: bool,
+
+    /// Require that all template keys be present in all localized files
+    #[arg(long, action)]
+    check_strict: bool,
 
     /// Use verbose output.
     #[arg(short, long, action)]
@@ -102,6 +106,10 @@ pub struct L10nArgs {
 pub fn run(mut args: L10nArgs) {
     if !args.package.is_empty() && !args.manifest_path.is_empty() {
         fatal!("only one of --package --manifest-path must be set")
+    }
+
+    if args.check_strict {
+        args.check = true;
     }
 
     let mut input = String::new();
@@ -165,6 +173,9 @@ pub fn run(mut args: L10nArgs) {
 
     let input = input;
     let output = Path::new(&output);
+    if args.check {
+        check_fluent_output(&args, output);
+    }
 
     let mut template = FluentTemplate::default();
 
@@ -447,6 +458,7 @@ fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &m
                     pseudo_m: String::new(),
                     pseudo_w: String::new(),
                     check: args.check,
+                    check_strict: args.check_strict,
                     verbose: args.verbose,
                 },
                 &input,
@@ -466,5 +478,151 @@ fn run_pseudo(args: L10nArgs) {
     }
     if !args.pseudo_w.is_empty() {
         pseudo::pseudo_wide(&args.pseudo_w, args.check, args.verbose);
+    }
+}
+
+fn check_fluent_output(args: &L10nArgs, output: &Path) {
+    let read_dir = match fs::read_dir(output) {
+        Ok(d) => d,
+        Err(e) if matches!(e.kind(), io::ErrorKind::NotFound) => {
+            if args.verbose {
+                eprintln!("no fluent files to check, `{}` not found", output.display());
+            }
+            return;
+        }
+        Err(e) => fatal!("cannot read `{}`, {e}", output.display()),
+    };
+
+    // validate syntax of */*.ftl and collect entry keys
+    let mut template = None;
+    let mut langs = vec![];
+    for lang_dir in read_dir {
+        let lang_dir = lang_dir
+            .unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", output.display()))
+            .path();
+        if lang_dir.is_dir() {
+            let mut files = vec![];
+
+            for file in fs::read_dir(&lang_dir).unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", lang_dir.display())) {
+                let file = file.unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", lang_dir.display())).path();
+                if file.is_file() {
+                    let content = fs::read_to_string(&file).unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", file.display()));
+                    let content = match fluent_syntax::parser::parse(content.as_str()) {
+                        Ok(r) => r,
+                        Err((_, errors)) => {
+                            let e = FluentParserErrors(errors);
+                            error!("cannot parse `{}`\n{e}", file.display());
+                            continue;
+                        }
+                    };
+
+                    let mut keys = vec![];
+                    for entry in content.body {
+                        if let fluent_syntax::ast::Entry::Message(m) = entry {
+                            let key = m.id.name.to_owned();
+                            keys.push((key, m.value.is_some()));
+                            for attr in m.attributes {
+                                keys.push((format!("{}.{}", m.id.name, attr.id.name), true));
+                            }
+                        }
+                    }
+
+                    files.push((file.file_name().unwrap().to_owned(), keys));
+                }
+            }
+
+            if lang_dir.file_name().unwrap() == "template" {
+                assert!(template.is_none());
+                template = Some(files);
+            } else {
+                langs.push((lang_dir, files));
+            }
+        }
+    }
+    if util::is_failed_run() {
+        return;
+    }
+
+    // check
+    if let Some(template) = template {
+        if langs.is_empty() {
+            if args.verbose {
+                eprintln!("no fluent files to compare with template");
+            }
+        } else {
+            // faster template lookup
+            let template = template
+                .into_iter()
+                .map(|(k, v)| (k, v.into_iter().collect::<HashMap<_, _>>()))
+                .collect::<HashMap<_, _>>();
+
+            for (lang, files) in langs {
+                // match localized against template
+                for (file, messages) in &files {
+                    let mut errors = vec![];
+                    if let Some(template_msgs) = template.get(file) {
+                        for (id, has_value) in messages {
+                            if let Some(template_has_value) = template_msgs.get(id) {
+                                if has_value != template_has_value {
+                                    if *has_value {
+                                        errors.push(format!("unexpected value, `{id}` has no value in template"));
+                                    } else {
+                                        errors.push(format!("missing value, `{id}` has value in template"));
+                                    }
+                                }
+                            } else {
+                                errors.push(format!("unknown id, `{id}` not found in template file"));
+                            }
+                        }
+                        if args.check_strict {
+                            for template_id in template_msgs.keys() {
+                                if !messages.iter().any(|(i, _)| i == template_id) {
+                                    errors.push(format!("missing id, `{template_id}` not found in localized file"));
+                                }
+                            }
+                        }
+                    } else {
+                        errors.push("template file not found".to_owned());
+                    }
+                    if !errors.is_empty() {
+                        let lang_path = Path::new(lang.file_name().unwrap()).join(file);
+                        let template_path = Path::new("template").join(file);
+                        let mut msg = format!("`{}` does not match `{}`\n", lang_path.display(), template_path.display());
+                        for error in errors {
+                            msg.push_str("  ");
+                            msg.push_str(&error);
+                            msg.push('\n');
+                        }
+                        error!("{msg}");
+                    }
+                }
+                if args.check_strict {
+                    for template_file in template.keys() {
+                        if !files.iter().any(|(f, _)| f == template_file) {
+                            let lang_path = Path::new(lang.file_name().unwrap()).join(template_file);
+                            let template_path = Path::new("template").join(template_file);
+                            error!(
+                                "`{}` does not match `{}`\n   localized file not found",
+                                lang_path.display(),
+                                template_path.display()
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    } else if args.verbose {
+        eprintln!("no template to compare, `{}` not found", output.join("template").display());
+    }
+}
+struct FluentParserErrors(Vec<fluent_syntax::parser::ParserError>);
+impl fmt::Display for FluentParserErrors {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut sep = "";
+        for e in &self.0 {
+            write!(f, "  {sep}{e}")?;
+            sep = "\n";
+        }
+        Ok(())
     }
 }

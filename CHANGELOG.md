@@ -1,5 +1,10 @@
 # Unreleased
 
+* Improve `cargo zng l10n --check`.
+    - Check the Fluent syntax of localizations.
+    - Check if localized messages match the template.
+    - Add `--check-strict` to also check for missing messages.
+
 * Add machine translated l10n resources for: ja, es.
 
 # 0.21.3
