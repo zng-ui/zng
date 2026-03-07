@@ -318,6 +318,14 @@ impl Lang {
     pub fn matches(&self, other: &Self, self_as_range: bool, other_as_range: bool) -> bool {
         self.0.matches(&other.0, self_as_range, other_as_range)
     }
+
+    /// If the language has a `machine` variant.
+    /// 
+    /// For example, `pt-machine` or `pt-BR-machine` identify localization resources generated
+    /// using machine translation, assumed to be of less quality.
+    pub fn is_machine_translation(&self) -> bool {
+        self.0.variants().any(|v| v == "machine")
+    }
 }
 impl ops::Deref for Lang {
     type Target = unic_langid::LanguageIdentifier;
