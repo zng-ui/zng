@@ -164,7 +164,7 @@ pub fn run(mut args: L10nArgs) {
     }
 
     if input.is_empty() {
-        return run_pseudo(args);
+        return run_pseudo(&args);
     }
 
     if output.is_empty() {
@@ -173,9 +173,6 @@ pub fn run(mut args: L10nArgs) {
 
     let input = input;
     let output = Path::new(&output);
-    if args.check {
-        check_fluent_output(&args, output);
-    }
 
     let mut template = FluentTemplate::default();
 
@@ -233,7 +230,11 @@ pub fn run(mut args: L10nArgs) {
         }
     }
 
-    run_pseudo(args);
+    if args.check {
+        check_fluent_output(&args, output);
+    }
+
+    run_pseudo(&args);
 }
 
 fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &mut FluentTemplate) {
@@ -469,7 +470,7 @@ fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &m
     }
 }
 
-fn run_pseudo(args: L10nArgs) {
+fn run_pseudo(args: &L10nArgs) {
     if !args.pseudo.is_empty() {
         pseudo::pseudo(&args.pseudo, args.check, args.verbose);
     }

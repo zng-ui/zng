@@ -320,7 +320,7 @@ impl Lang {
     }
 
     /// If the language has a `machine` variant.
-    /// 
+    ///
     /// For example, `pt-machine` or `pt-BR-machine` identify localization resources generated
     /// using machine translation, assumed to be of less quality.
     pub fn is_machine_translation(&self) -> bool {

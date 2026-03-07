@@ -545,7 +545,7 @@ fn l10n(mut args: Vec<&str>) {
         util::top_cargo_toml("crates")
     };
 
-    let check = args.iter().any(|a| *a == "--check");
+    let check = args.iter().any(|a| *a == "--check" || *a == "--check-strict");
 
     cmd_req("cargo", &["build", "--package", "cargo-zng"], &[]);
     let exe = format!("target/debug/cargo-zng{}", std::env::consts::EXE_SUFFIX);
