@@ -1,11 +1,11 @@
 ### machine translated, feel free to contribute corrections
 
-respuesta-cancelar = Cancelar
+response-cancel = Cancelar
 
-respuesta-cerrar = Cerrar
+response-close = Cerrar
 
-respuesta-no = No
+response-no = No
 
-respuesta-ok = Ok
+response-ok = Ok
 
-respuesta-sí = Sí
+response-yes = Sí

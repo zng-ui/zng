@@ -566,7 +566,7 @@ fn check_fluent_output(args: &L10nArgs, output: &Path) {
                                 if has_value != template_has_value {
                                     if *has_value {
                                         errors.push(format!("unexpected value, `{id}` has no value in template"));
-                                    } else {
+                                    } else if args.check_strict {
                                         errors.push(format!("missing value, `{id}` has value in template"));
                                     }
                                 }
