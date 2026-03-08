@@ -85,6 +85,7 @@ dev = [
     "trace_recorder",
     "var_type_names",
     "deadlock_detection",
+    "lang_autonym",
 ]
 
 # Include the default view-process implementation.
@@ -203,6 +204,9 @@ memory_profiler = ["zng-app/memory_profiler"]
 # If enabled some 2.8MB of data is embedded, you can provide an alternative dictionary source using the 
 # `HYPHENATION::init_data_source` method.
 hyphenation_embed_all = ["zng-ext-font/hyphenation_embed_all"]
+
+# Embed language and region names for `Lang::autonym`.
+lang_autonym = ["zng-ext-l10n/lang_autonym"]
 
 # Include all Material Icons icon sets in the default app.
 material_icons = [

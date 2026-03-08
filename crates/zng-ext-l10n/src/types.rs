@@ -379,7 +379,134 @@ impl Lang {
     pub fn is_machine_translation(&self) -> bool {
         self.0.variants().any(|v| v == "machine")
     }
+
+    /// Returns the name of the language and region in own language.
+    ///
+    /// The names are in localized title case, when the name is the same in different scripts the script name
+    /// is part of the language name (currently Hans/Hant).
+    ///
+    /// Returns `None` if the locale is not one of the 90 most common locales embedded. Language must match,
+    /// script must match exactly (omitted different from explicit), region is optional (if not matched returns only language name),
+    /// variants are ignored.
+    #[cfg(feature = "lang_autonym")]
+    pub fn autonym(&self) -> Option<LangAutonym> {
+        let lang = self.0.language.as_str();
+        let script = self.0.script.as_ref().map(|s| s.as_str()).unwrap_or("");
+        let region = self.0.region.as_ref().map(|r| r.as_str()).unwrap_or("");
+        let (name, region) = match (lang, script, region) {
+            // generated with cargo run --manifest-path tools/lang-autonym-gen/Cargo.toml
+            // please implement any manual corrections in the tool, not here
+            ("af", "", "") => ("Afrikaans", ""),
+            ("am", "", "") => ("አማርኛ", ""),
+            ("ar", "", "") => ("العربية", ""),
+            ("as", "", "") => ("অসমীয়া", ""),
+            ("az", "", "") => ("Azərbaycan", ""),
+            ("be", "", "") => ("Беларуская", ""),
+            ("bg", "", "") => ("Български", ""),
+            ("bn", "", "") => ("বাংলা", ""),
+            ("bs", "", "") => ("Bosanski", ""),
+            ("ca", "", "") => ("Català", ""),
+            ("cs", "", "") => ("Čeština", ""),
+            ("cy", "", "") => ("Cymraeg", ""),
+            ("da", "", "") => ("Dansk", ""),
+            ("de", "", "") => ("Deutsch", ""),
+            ("el", "", "") => ("Ελληνικά", ""),
+            ("en", "", "") => ("English", ""),
+            ("en", "", "GB") => ("English", "United Kingdom"),
+            ("en", "", "US") => ("English", "United States"),
+            ("es", "", "") => ("Español", ""),
+            ("es", "", "419") => ("Español", "Latinoamérica"),
+            ("es", "", "ES") => ("Español", "España"),
+            ("et", "", "") => ("Eesti", ""),
+            ("eu", "", "") => ("Euskara", ""),
+            ("fa", "", "") => ("فارسی", ""),
+            ("fi", "", "") => ("Suomi", ""),
+            ("fil", "", "") => ("Filipino", ""),
+            ("fr", "", "") => ("Français", ""),
+            ("fr", "", "CA") => ("Français", "Canada"),
+            ("ga", "", "") => ("Gaeilge", ""),
+            ("gd", "", "") => ("Gàidhlig", ""),
+            ("gl", "", "") => ("Galego", ""),
+            ("gu", "", "") => ("ગુજરાતી", ""),
+            ("he", "", "") => ("עברית", ""),
+            ("hi", "", "") => ("हिन्दी", ""),
+            ("hr", "", "") => ("Hrvatski", ""),
+            ("hu", "", "") => ("Magyar", ""),
+            ("hy", "", "") => ("Հայերեն", ""),
+            ("id", "", "") => ("Indonesia", ""),
+            ("is", "", "") => ("Íslenska", ""),
+            ("it", "", "") => ("Italiano", ""),
+            ("ja", "", "") => ("日本語", ""),
+            ("ka", "", "") => ("ქართული", ""),
+            ("kk", "", "") => ("Қазақ тілі", ""),
+            ("km", "", "") => ("ខ្មែរ", ""),
+            ("kn", "", "") => ("ಕನ್ನಡ", ""),
+            ("ko", "", "") => ("한국어", ""),
+            ("ky", "", "") => ("Кыргызча", ""),
+            ("lo", "", "") => ("ລາວ", ""),
+            ("lt", "", "") => ("Lietuvių", ""),
+            ("lv", "", "") => ("Latviešu", ""),
+            ("mk", "", "") => ("Македонски", ""),
+            ("ml", "", "") => ("മലയാളം", ""),
+            ("mn", "", "") => ("Монгол", ""),
+            ("mr", "", "") => ("मराठी", ""),
+            ("ms", "", "") => ("Melayu", ""),
+            ("my", "", "") => ("မြန်မာ", ""),
+            ("nb", "", "") => ("Norsk bokmål", ""),
+            ("ne", "", "") => ("नेपाली", ""),
+            ("nl", "", "") => ("Nederlands", ""),
+            ("nn", "", "") => ("Norsk nynorsk", ""),
+            ("or", "", "") => ("ଓଡ଼ିଆ", ""),
+            ("pa", "", "") => ("ਪੰਜਾਬੀ", ""),
+            ("pl", "", "") => ("Polski", ""),
+            ("ps", "", "") => ("پښتو", ""),
+            ("pt", "", "") => ("Português", ""),
+            ("pt", "", "BR") => ("Português", "Brasil"),
+            ("pt", "", "PT") => ("Português", "Portugal"),
+            ("ro", "", "") => ("Română", ""),
+            ("ru", "", "") => ("Русский", ""),
+            ("si", "", "") => ("සිංහල", ""),
+            ("sk", "", "") => ("Slovenčina", ""),
+            ("sl", "", "") => ("Slovenščina", ""),
+            ("sq", "", "") => ("Shqip", ""),
+            ("sr", "", "") => ("Српски", ""),
+            ("sr", "Latn", "") => ("Srpski", ""),
+            ("sv", "", "") => ("Svenska", ""),
+            ("sw", "", "") => ("Kiswahili", ""),
+            ("ta", "", "") => ("தமிழ்", ""),
+            ("te", "", "") => ("తెలుగు", ""),
+            ("th", "", "") => ("ไทย", ""),
+            ("tr", "", "") => ("Türkçe", ""),
+            ("uk", "", "") => ("Українська", ""),
+            ("ur", "", "") => ("اردو", ""),
+            ("uz", "", "") => ("O‘zbek", ""),
+            ("vi", "", "") => ("Tiếng việt", ""),
+            ("zh", "", "") => ("中文", ""),
+            ("zh", "Hans", "") => ("简体中文", ""),
+            ("zh", "Hant", "") => ("繁體中文", ""),
+            ("zh", "", "TW") => ("繁體中文", "台灣"),
+            ("zu", "", "") => ("Isizulu", ""),
+            _ => {
+                if self.0.region.is_some() {
+                    let q = Lang(unic_langid::LanguageIdentifier::from_parts(
+                        self.0.language,
+                        self.0.script,
+                        None,
+                        &[],
+                    ));
+                    return q.autonym();
+                } else {
+                    return None;
+                }
+            }
+        };
+        Some(LangAutonym {
+            language: name,
+            region: if region.is_empty() { None } else { Some(region) },
+        })
+    }
 }
+
 impl ops::Deref for Lang {
     type Target = unic_langid::LanguageIdentifier;
 
@@ -392,9 +519,33 @@ impl fmt::Debug for Lang {
         write!(f, "{}", self.0)
     }
 }
+/// Prints the autonym if built with `"lang_autonym"` and has one, otherwise prints debug.
+///
+/// `{}` prints language and region (if set), `{:#}` only prints language.
 impl fmt::Display for Lang {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        #[cfg(feature = "lang_autonym")]
+        if let Some(a) = self.autonym() {
+            write!(f, "{}", a.language)?;
+            if !f.alternate()
+                && let Some(r) = self.0.region
+            {
+                if let Some(ar) = a.region {
+                    write!(f, " ({ar})")?;
+                } else {
+                    write!(f, " ({r})")?;
+                }
+            }
+            return Ok(());
+        }
+
+        write!(f, "{}", self.0.language)?;
+        if !f.alternate()
+            && let Some(r) = self.0.region
+        {
+            write!(f, "-{r}")?;
+        }
+        Ok(())
     }
 }
 impl std::str::FromStr for Lang {
@@ -406,6 +557,44 @@ impl std::str::FromStr for Lang {
             return Ok(lang!(und));
         }
         unic_langid::LanguageIdentifier::from_str(s).map(Lang)
+    }
+}
+
+/// Represents the translated name of a language and region in own language, using the selected script.
+#[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg(feature = "lang_autonym")]
+pub struct LangAutonym {
+    /// Language name in its own language.
+    pub language: &'static str,
+    /// Region name in the language.
+    ///
+    /// Can be `None` when a region was requested and only the language name was available.
+    pub region: Option<&'static str>,
+}
+#[cfg(feature = "lang_autonym")]
+impl fmt::Debug for LangAutonym {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("LangAutonym")
+                .field("language", &self.language)
+                .field("region", &self.region)
+                .finish()
+        } else {
+            write!(f, "{self}")
+        }
+    }
+}
+/// `{}` prints language and region (if set), `{:#}` only prints language.
+#[cfg(feature = "lang_autonym")]
+impl fmt::Display for LangAutonym {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.language)?;
+        if let Some(r) = self.region
+            && !f.alternate()
+        {
+            write!(f, " ({r})")?;
+        }
+        Ok(())
     }
 }
 
