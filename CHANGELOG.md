@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add `Lang::autonym`, name of language and region in own language.
+    - Adds `"lang_autonym"` Cargo feature, not enabled by default.
+
 * Add `Lang::is_machine_translation`.
     - Adds support for `machine` variant, as in `en-machine` to indicate a resource that was machine translated.
     - `LangMap` gives priority for human translations of different regions over machine translations.

@@ -1,0 +1,10 @@
+[package]
+name = "lang-autonym-gen"
+version = "0.1.0"
+authors = ["The Zng Project Developers"]
+edition = "2024"
+
+[dependencies]
+icu = { version = "2.1", default-features = false, features = ["compiled_data", "experimental"] }
+
+[workspace] # Exclude from main workspace

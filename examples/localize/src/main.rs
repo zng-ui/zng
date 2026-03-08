@@ -45,7 +45,7 @@ fn main() {
             // preload
             let (lang, handle) = L10N.wait_first(L10N.app_lang().get()).await;
             match lang {
-                Some(lang) => tracing::info!("preload {lang}"),
+                Some(lang) => tracing::info!("preload {lang:?}"),
                 None => tracing::warn!("no available sys-lang resource, sys-langs: {}", L10N.app_lang().get()),
             }
             handle.perm();
@@ -202,7 +202,7 @@ fn locale_menu() -> UiNode {
                         children = options.map(|(l, actual)| {
                             Toggle! {
                                 text::font_style = if actual { FontStyle::Normal } else { FontStyle::Italic };
-                                child = Text!("{l}");
+                                child = Text!("{l:#}");
                                 value::<zng::l10n::Lang> = l.clone();
                             }
                         });
