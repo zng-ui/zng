@@ -505,8 +505,25 @@ impl Lang {
             region: if region.is_empty() { None } else { Some(region) },
         })
     }
-}
 
+    /// Get ordering of this and `other` as [`fmt::Display`] text.
+    ///
+    /// This method avoids actually allocating a string.
+    pub fn cmp_display(&self, other: &Self) -> std::cmp::Ordering {
+        let (name, region) = self.name_region_str();
+        let (other_name, other_region) = other.name_region_str();
+        name.cmp(other_name).then_with(|| region.cmp(&other_region))
+    }
+
+    fn name_region_str(&self) -> (&str, Option<&str>) {
+        #[cfg(feature = "lang_autonym")]
+        if let Some(a) = self.autonym() {
+            let region = a.region.or_else(|| self.0.region.as_ref().map(|r| r.as_str()));
+            return (a.language, region);
+        }
+        (self.0.language.as_str(), self.0.region.as_ref().map(|r| r.as_str()))
+    }
+}
 impl ops::Deref for Lang {
     type Target = unic_langid::LanguageIdentifier;
 
@@ -519,33 +536,19 @@ impl fmt::Debug for Lang {
         write!(f, "{}", self.0)
     }
 }
-/// Prints the autonym if built with `"lang_autonym"` and has one, otherwise prints debug.
+/// Prints the autonym if built with `"lang_autonym"` and has one, otherwise prints the tags.
 ///
 /// `{}` prints language and region (if set), `{:#}` only prints language.
 impl fmt::Display for Lang {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        #[cfg(feature = "lang_autonym")]
-        if let Some(a) = self.autonym() {
-            write!(f, "{}", a.language)?;
-            if !f.alternate()
-                && let Some(r) = self.0.region
-            {
-                if let Some(ar) = a.region {
-                    write!(f, " ({ar})")?;
-                } else {
-                    write!(f, " ({r})")?;
-                }
-            }
-            return Ok(());
-        }
-
-        write!(f, "{}", self.0.language)?;
-        if !f.alternate()
-            && let Some(r) = self.0.region
+        let (name, region) = self.name_region_str();
+        if f.alternate()
+            && let Some(r) = region
         {
-            write!(f, "-{r}")?;
+            write!(f, "{name} ({r})")
+        } else {
+            write!(f, "{name}")
         }
-        Ok(())
     }
 }
 impl std::str::FromStr for Lang {
@@ -561,7 +564,7 @@ impl std::str::FromStr for Lang {
 }
 
 /// Represents the translated name of a language and region in own language, using the selected script.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg(feature = "lang_autonym")]
 pub struct LangAutonym {
     /// Language name in its own language.
