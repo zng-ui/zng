@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add `cargo zng l10n --translate` for generating translations.
+    See `docs/cargo-zng-translate.md` for how to setup a local environment using the Mozilla translation models.
+
 * Add `Lang::autonym`, name of language and region in own language.
     - Adds `"lang_autonym"` Cargo feature, not enabled by default.
 
