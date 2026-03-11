@@ -12,8 +12,6 @@
     - Check if localized messages match the template.
     - Add `--check-strict` to also check for missing messages.
 
-* Add machine translated l10n resources for: ja, es.
-
 # 0.21.3
 
 * Fix window updating scale factor before updating other parameters when moving to another monitor.
