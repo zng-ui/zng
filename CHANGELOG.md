@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix build with `"image_tiff"` and `"view"` features.
+
 * Add `Lang::autonym`, name of language and region in own language.
     - Adds `"lang_autonym"` Cargo feature, not enabled by default.
 
