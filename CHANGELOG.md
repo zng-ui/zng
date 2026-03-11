@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.21.4
+
 * Fix build with `"image_tiff"` and `"view"` features.
 
 * Add `Lang::autonym`, name of language and region in own language.
@@ -10,7 +13,7 @@
     - `LangMap` gives priority for human translations of different regions over machine translations.
 
 * Improve `cargo zng l10n --check`.
-    - Check the Fluent syntax of localizations.
+    - Check the Fluent syntax of localization files.
     - Check if localized messages match the template.
     - Add `--check-strict` to also check for missing messages.
 
