@@ -1,6 +1,6 @@
 [package]
 name = "zng-view"
-version = "0.16.3"
+version = "0.16.4"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -171,7 +171,7 @@ kamadak-exif = { version = "0.6.1", default-features = false, optional = true }
 lcms2 = { version = "6.1.1", default-features = false, features = ["static"], optional = true }
 # matches `image` dependency version
 png = { version = "0.18.0", default-features = false, optional = true }
-tiff = { version = "0.10.3", default-features = false, optional = true }
+tiff = { version = "0.10.3", default-features = false, optional = true, features = ["lzw"] }
 
 rodio = { version = "0.22", default-features = false, features = ["playback", "tracing"], optional = true } 
 symphonia = { version = "0.5", default-features = false, optional = true }
