@@ -9,16 +9,16 @@ pub(crate) fn translate(translate: &str, translate_from: &str, translate_to: &[S
     for to in translate_to {
         crate::l10n::generate_util::generate(
             translate,
-            to,
+            &format!("{to}-machine"),
             "### Machine translated using cargo zng l10n",
-            &|s| Cow::Owned(translate_frag(&from, to, s, "")),
+            &|s| Cow::Owned(translate_text(&from, to, s, "")),
             check,
             verbose,
         );
     }
 }
 
-fn translate_frag(from: &str, to: &str, text: &str, comments: &str) -> String {
+fn translate_text(from: &str, to: &str, text: &str, comments: &str) -> String {
     let mut cmd = CARGO_ZNG_TRANSLATE.with(|a| {
         let mut args = a.iter().map(|a| {
             a.replace("{text}", text)
@@ -53,25 +53,25 @@ thread_local! {
     static CARGO_ZNG_TRANSLATE: Vec<String> = {
         let s = match std::env::var("CARGO_ZNG_TRANSLATE") {
             Ok(v) => v,
-            Err(_) => fatal!("missing CARGO_ZNG_TRANSLATE"),
+            Err(e) => fatal!("cannot read CARGO_ZNG_TRANSLATE, {e}"),
         };
         let a = parse_args(&s);
         let mut from = false;
         let mut to = false;
         let mut text = false;
         for a in &a {
-            from |= a.contains("$from");
-            to |= a.contains("$to");
-            text |= a.contains("$text");
+            from |= a.contains("{from}");
+            to |= a.contains("{to}");
+            text |= a.contains("{text}");
         }
         if !from {
-            fatal!("CARGO_ZNG_TRANSLATE missing $from");
+            fatal!("CARGO_ZNG_TRANSLATE missing {{from}}");
         }
         if !to {
-            fatal!("CARGO_ZNG_TRANSLATE missing $to");
+            fatal!("CARGO_ZNG_TRANSLATE missing {{to}}");
         }
         if !text {
-            fatal!("CARGO_ZNG_TRANSLATE missing $text");
+            fatal!("CARGO_ZNG_TRANSLATE missing {{text}}");
         }
         a
     }

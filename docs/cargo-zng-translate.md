@@ -31,8 +31,41 @@ we will use [translateLocally](https://github.com/XapaJIaMnu/translateLocally).
 
 Precompiled binaries are provided for macOS, Ubuntu and Windows, or you can compile it.
 
-```console
+The code examples are for Ubuntu, but it should be similar for other systems.
 
+```console
+curl -L -o translateLocally.deb "https://github.com/XapaJIaMnu/translateLocally/releases/download/latest/translateLocally-v0.0.2+8e31cff-Ubuntu-22.04.AVX.deb"
+sudo apt-get install ./translateLocally.deb
+rm translateLocally.deb
 ```
 
-2 - https://mozilla.github.io/translations/model-registry/
+### Translation Models
+
+Some models are available to be installed by `translateLocally`.
+
+```console
+translateLocally --available-models
+```
+
+Other models are provided by [Mozilla](https://mozilla.github.io/translations/model-registry/) and can be 
+[installed manually](https://github.com/XapaJIaMnu/translateLocally?tab=readme-ov-file#importing-custom-models).
+
+For this example lets install the English to Spanish model:
+
+```console
+translateLocally -d en-es-tiny
+```
+
+And configure the service:
+
+```console
+export CARGO_ZNG_TRANSLATE='translateLocally -m "{from}-{to}-tiny" --input "{text}"'
+```
+
+### Translating
+
+With the enviroment configured we can translate:
+
+```console
+cargo do zng l10n --translate-from en --translate-to es --translate crates/zng/l10n/template
+```
