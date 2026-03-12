@@ -1,0 +1,179 @@
+use std::{borrow::Cow, fmt::Write as _, fs, path::Path};
+
+use fluent_syntax::ast::{Attribute, CallArguments, Entry, Expression, Identifier, InlineExpression, Pattern, PatternElement, VariantKey};
+
+use crate::util;
+
+/// Visit all FTL in `dir`, apply `transform` for each entry and write it to a new dir in `to_name`.
+pub fn generate(dir: &str, to_name: &str, file_header: &str, transform: &impl Fn(&str) -> Cow<str>, check: bool, verbose: bool) {
+    let dir = Path::new(dir);
+    let to_dir = dir.with_file_name(to_name);
+
+    for entry in fs::read_dir(dir).unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", dir.display())) {
+        let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{}` entry, {e}", dir.display()));
+        let path = entry.path();
+        if path.is_file() && path.extension().map(|e| e == "ftl").unwrap_or(false) {
+            let _ = util::check_or_create_dir(check, &to_dir);
+            generate_file(
+                &path,
+                &to_dir.join(path.file_name().unwrap()),
+                file_header,
+                transform,
+                check,
+                verbose,
+            );
+        }
+    }
+
+    let unnamed = dir.with_extension("ftl");
+    if unnamed.exists() {
+        generate_file(&unnamed, &to_dir.with_extension("ftl"), file_header, transform, check, verbose);
+    }
+}
+
+fn generate_file(from: &Path, to: &Path, file_header: &str, transform: &impl Fn(&str) -> Cow<str>, check: bool, verbose: bool) {
+    let source = match fs::read_to_string(from) {
+        Ok(s) => s,
+        Err(e) => {
+            error!("cannot read `{}`, {e}", from.display());
+            return;
+        }
+    };
+
+    let source = match fluent_syntax::parser::parse(source) {
+        Ok(s) => s,
+        Err((s, e)) => {
+            error!(
+                "cannot parse `{}`\n{}",
+                from.display(),
+                e.into_iter().map(|e| format!("    {e}")).collect::<Vec<_>>().join("\n")
+            );
+            s
+        }
+    };
+
+    let mut output = file_header.to_owned();
+
+    for entry in source.body {
+        match entry {
+            Entry::Message(m) => write_entry(&mut output, &m.id, m.value.as_ref(), &m.attributes, transform),
+            Entry::Term(t) => write_entry(&mut output, &t.id, Some(&t.value), &t.attributes, transform),
+            Entry::Comment(_) | Entry::GroupComment(_) | Entry::ResourceComment(_) | Entry::Junk { .. } => {}
+        }
+    }
+
+    if let Err(e) = util::check_or_write(check, to, output.as_bytes(), verbose) {
+        error!("cannot write `{}`, {e}", to.display());
+    } else {
+        println!("  generated {}", to.display());
+    }
+}
+
+fn write_entry(
+    output: &mut String,
+    id: &Identifier<String>,
+    value: Option<&Pattern<String>>,
+    attributes: &[Attribute<String>],
+    transform: &impl Fn(&str) -> Cow<str>,
+) {
+    write!(output, "\n\n{} = ", id.name).unwrap();
+    if let Some(value) = value {
+        write_pattern(output, value, transform);
+    }
+    for attr in attributes {
+        write!(output, "\n    .{} = ", attr.id.name).unwrap();
+        write_pattern(output, &attr.value, transform);
+    }
+}
+
+fn write_pattern(output: &mut String, pattern: &Pattern<String>, transform: &impl Fn(&str) -> Cow<str>) {
+    for el in &pattern.elements {
+        match el {
+            PatternElement::TextElement { value } => {
+                let mut prefix = "";
+                for line in value.lines() {
+                    write!(output, "{prefix}{}", transform(line)).unwrap();
+                    prefix = "    ";
+                }
+            }
+            PatternElement::Placeable { expression } => write_expression(output, expression, transform),
+        }
+    }
+}
+
+fn write_expression(output: &mut String, expr: &Expression<String>, transform: &impl Fn(&str) -> Cow<str>) {
+    match expr {
+        Expression::Select { selector, variants } => {
+            write!(output, "{{").unwrap();
+            write_inline_expression(output, selector, transform);
+            writeln!(output, " ->").unwrap();
+
+            for v in variants {
+                write!(output, "    ").unwrap();
+                if v.default {
+                    write!(output, "*").unwrap();
+                }
+                let key = match &v.key {
+                    VariantKey::Identifier { name } => name,
+                    VariantKey::NumberLiteral { value } => value,
+                };
+                write!(output, "[{key}] ").unwrap();
+
+                write_pattern(output, &v.value, transform);
+            }
+
+            writeln!(output, "}}").unwrap();
+        }
+        Expression::Inline(e) => write_inline_expression(output, e, transform),
+    }
+}
+fn write_inline_expression(output: &mut String, expr: &InlineExpression<String>, transform: &impl Fn(&str) -> Cow<str>) {
+    match expr {
+        InlineExpression::StringLiteral { value } => write!(output, "{{ \"{value}\" }}").unwrap(),
+        InlineExpression::NumberLiteral { value } => write!(output, "{{ {value} }}").unwrap(),
+        InlineExpression::FunctionReference { id, arguments } => {
+            write!(output, "{{ {}", id.name).unwrap();
+            write_arguments(output, arguments, transform);
+            write!(output, " }}").unwrap()
+        }
+        InlineExpression::MessageReference { id, attribute } => {
+            write!(output, "{{ {}", id.name).unwrap();
+            if let Some(a) = attribute {
+                write!(output, ".{}", a.name).unwrap();
+            }
+            write!(output, " }}").unwrap()
+        }
+        InlineExpression::TermReference { id, attribute, arguments } => {
+            write!(output, "{{ -{}", id.name).unwrap();
+            if let Some(a) = attribute {
+                write!(output, ".{}", a.name).unwrap();
+            }
+            if let Some(args) = arguments {
+                write_arguments(output, args, transform);
+            }
+            write!(output, " }}").unwrap()
+        }
+        InlineExpression::VariableReference { id } => write!(output, "{{ ${} }}", id.name).unwrap(),
+        InlineExpression::Placeable { expression } => {
+            write!(output, "{{ ").unwrap();
+            write_expression(output, expression, transform);
+            write!(output, " }}").unwrap();
+        }
+    }
+}
+
+fn write_arguments(output: &mut String, arguments: &CallArguments<String>, transform: &impl Fn(&str) -> Cow<str>) {
+    write!(output, "(").unwrap();
+    let mut sep = "";
+    for a in &arguments.positional {
+        write!(output, "{sep}").unwrap();
+        write_inline_expression(output, a, transform);
+        sep = ", ";
+    }
+    for a in &arguments.named {
+        write!(output, "{sep}{}", a.name.name).unwrap();
+        write_inline_expression(output, &a.value, transform);
+        sep = ", ";
+    }
+    write!(output, ")").unwrap();
+}

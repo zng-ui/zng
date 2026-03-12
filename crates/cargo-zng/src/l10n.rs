@@ -17,29 +17,30 @@ use clap::*;
 
 use crate::{l10n::scraper::FluentTemplate, util};
 
-mod pseudo;
 mod scraper;
 
+mod generate_util;
+mod pseudo;
 #[derive(Args, Debug)]
 pub struct L10nArgs {
     /// Rust files glob or directory
-    #[arg(short, long, default_value = "")]
+    #[arg(short, long, default_value = "", value_name = "PATH", hide_default_value = true)]
     input: String,
 
     /// L10n resources dir
-    #[arg(short, long, default_value = "")]
+    #[arg(short, long, default_value = "", value_name = "DIR", hide_default_value = true)]
     output: String,
 
     /// Package to scrap and copy dependencies
     ///
     /// If set the --input and --output default is src/**.rs and l10n/
-    #[arg(short, long, default_value = "")]
+    #[arg(short, long, default_value = "", hide_default_value = true)]
     package: String,
 
     /// Path to Cargo.toml of crate to scrap and copy dependencies
     ///
     /// If set the --input and --output default to src/**.rs and l10n/
-    #[arg(long, default_value = "")]
+    #[arg(long, default_value = "", hide_default_value = true)]
     manifest_path: String,
 
     /// Don't copy dependencies localization
@@ -73,7 +74,7 @@ pub struct L10nArgs {
     clean: bool,
 
     /// Custom l10n macro names, comma separated
-    #[arg(short, long, default_value = "")]
+    #[arg(short, long, default_value = "", hide_default_value = true)]
     macros: String,
 
     /// Generate pseudo locale from dir/lang
@@ -81,13 +82,13 @@ pub struct L10nArgs {
     /// EXAMPLE
     ///
     /// "l10n/en" generates pseudo from "l10n/en.ftl" and "l10n/en/*.ftl"
-    #[arg(long, default_value = "")]
+    #[arg(long, default_value = "", value_name = "PATH", hide_default_value = true)]
     pseudo: String,
     /// Generate pseudo mirrored locale
-    #[arg(long, default_value = "")]
+    #[arg(long, default_value = "", value_name = "PATH", hide_default_value = true)]
     pseudo_m: String,
     /// Generate pseudo wide locale
-    #[arg(long, default_value = "")]
+    #[arg(long, default_value = "", value_name = "PATH", hide_default_value = true)]
     pseudo_w: String,
 
     /// Verify that packages are scrapped and validate Fluent files
@@ -164,7 +165,7 @@ pub fn run(mut args: L10nArgs) {
     }
 
     if input.is_empty() {
-        return run_pseudo(&args);
+        return run_generators(&args);
     }
 
     if output.is_empty() {
@@ -234,7 +235,7 @@ pub fn run(mut args: L10nArgs) {
         check_fluent_output(&args, output);
     }
 
-    run_pseudo(&args);
+    run_generators(&args);
 }
 
 fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &mut FluentTemplate) {
@@ -470,7 +471,7 @@ fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &m
     }
 }
 
-fn run_pseudo(args: &L10nArgs) {
+fn run_generators(args: &L10nArgs) {
     if !args.pseudo.is_empty() {
         pseudo::pseudo(&args.pseudo, args.check, args.verbose);
     }

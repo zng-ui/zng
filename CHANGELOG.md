@@ -1,6 +1,5 @@
 # Unreleased
 
-
 # 0.21.4
 
 * Fix build with `"image_tiff"` and `"view"` features.
