@@ -295,7 +295,19 @@ impl Image {
                     },
                 )?;
             }
-            image::ImageFormat::WebP => todo!(),
+            #[cfg(feature = "image_webp")]
+            image::ImageFormat::WebP => {
+                let ct = if is_mask {
+                    image::ColorType::L8.into()
+                } else if is_opaque {
+                    buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
+                    image::ColorType::Rgb8.into()
+                } else {
+                    image::ColorType::Rgba8.into()
+                };
+                let img = image::codecs::webp::WebPEncoder::new_lossless(buffer);
+                img.encode(&buf, width, height, ct)?;
+            },
             image::ImageFormat::Pnm => todo!(),
             image::ImageFormat::Tiff => todo!(),
             image::ImageFormat::Tga => todo!(),
@@ -307,7 +319,12 @@ impl Image {
             image::ImageFormat::Farbfeld => todo!(),
             image::ImageFormat::Avif => todo!(),
             image::ImageFormat::Qoi => todo!(),
-            _ => unreachable!(),
+            f => {
+                return Err(image::ImageError::Encoding(image::error::EncodingError::new(
+                    image::error::ImageFormatHint::Exact(f),
+                    "cannot encode format",
+                )));
+            }
         }
 
         Ok(())
