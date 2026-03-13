@@ -41,7 +41,7 @@ pub(crate) const FORMATS: &[ImageFormat] = &[
     #[cfg(feature = "image_dds")]
     ImageFormat::from_static("DirectDraw Surface", "vnd-ms.dds,x-direct-draw-surface", "dds", Cap::empty()),
     #[cfg(feature = "image_exr")]
-    ImageFormat::from_static("OpenEXR", "x-exr", "exr", Cap::empty()),
+    ImageFormat::from_static("OpenEXR", "x-exr", "exr", Cap::ENCODE),
     // https://www.wikidata.org/wiki/Q28206109
     #[cfg(feature = "image_ff")]
     ImageFormat::from_static("Farbfeld", "x-farbfeld", "ff", Cap::empty()),

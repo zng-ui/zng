@@ -1,6 +1,6 @@
 # Unreleased
 
-* Implement image encoding for GIF, PNM, TGA, HDR.
+* Implement image encoding for GIF, PNM, TGA, HDR, OpenEXR.
 * Optimize image encoding, now is faster and uses less memory.
 * Add `IpcBytesMut::from_bytes` and `from_bytes_blocking`.
 * Add `IpcBytesMut::from_slice_blocking`.

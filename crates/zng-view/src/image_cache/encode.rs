@@ -387,7 +387,40 @@ impl Image {
                 let img = image::codecs::hdr::HdrEncoder::new(buffer);
                 img.write_image(rgb.as_bytes(), width, height, image::ColorType::Rgb32F.into())?;
             },
-            image::ImageFormat::OpenExr => todo!(),
+             #[cfg(feature = "image_exr")]
+            image::ImageFormat::OpenExr => {
+                let img = image::codecs::openexr::OpenExrEncoder::new(buffer);
+                let ct = if is_mask {
+                    let mut rgb = IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
+                    for (c, a) in rgb.iter_mut().zip(buf.iter()) {
+                        let a = *a as f32 / 255.0;
+                        c[0] = a;
+                        c[1] = a;
+                        c[2] = a;
+                    }
+                    buf = rgb.into_inner();
+                    image::ColorType::Rgb32F.into()
+                } else if is_opaque {
+                    let mut rgb = IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
+                    for (c32, c8) in rgb.iter_mut().zip(buf.chunks_exact(4)) {
+                        for (c, a) in c32.iter_mut().zip(c8.iter()) {
+                            *c = *a as f32 / 255.0;
+                        }
+                    }
+                    buf = rgb.into_inner();
+                    image::ColorType::Rgb32F.into()
+                } else {
+                    let mut rgba = IpcBytesMutCast::<[f32; 4]>::new_blocking(width as usize * height as usize)?;
+                    for (c32, c8) in rgba.iter_mut().zip(buf.chunks_exact(4)) {
+                        for (c, a) in c32.iter_mut().zip(c8.iter()) {
+                            *c = *a as f32 / 255.0;
+                        }
+                    }
+                    buf = rgba.into_inner();
+                    image::ColorType::Rgba32F.into()
+                };
+                img.write_image(&buf, width, height, ct)?;
+            },
             image::ImageFormat::Farbfeld => todo!(),
             image::ImageFormat::Avif => todo!(),
             image::ImageFormat::Qoi => todo!(),
