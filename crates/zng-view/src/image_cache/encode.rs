@@ -320,8 +320,13 @@ impl Image {
                 };
                 let mut img = image::codecs::pnm::PnmEncoder::new(buffer);
                 img.encode(&buf[..], width, height, ct)?;
-            },
-            image::ImageFormat::Tiff => todo!(),
+            }
+            #[cfg(feature = "image_tiff")]
+            image::ImageFormat::Tiff => {
+                Self::encode_tiff(self.size(), is_mask, pixels, is_opaque, vec![], buffer).map_err(|e| {
+                    image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
+                })?;
+            }
             image::ImageFormat::Tga => todo!(),
             image::ImageFormat::Dds => todo!(),
             image::ImageFormat::Bmp => todo!(),
