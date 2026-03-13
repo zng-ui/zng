@@ -1,8 +1,9 @@
+use image::ImageEncoder;
 use winit::{
     event_loop::ActiveEventLoop,
     window::{CustomCursor, Icon},
 };
-use zng_task::channel::{IpcBytes, IpcBytesMut};
+use zng_task::channel::{IpcBytes, IpcBytesMut, IpcBytesMutCast};
 use zng_txt::{ToTxt as _, formatx};
 use zng_unit::{PxPoint, PxSize};
 use zng_view_api::{
@@ -366,7 +367,26 @@ impl Image {
                     image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
                 })?;
             }
-            image::ImageFormat::Hdr => todo!(),
+             #[cfg(feature = "image_hdr")]
+            image::ImageFormat::Hdr => {
+                let mut rgb = IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
+                if is_mask {
+                    for (c, a) in rgb.iter_mut().zip(buf.iter()) {
+                        let a = *a as f32 / 255.0;
+                        c[0] = a;
+                        c[1] = a;
+                        c[2] = a;
+                    }
+                } else {
+                    for (c32, c8) in rgb.iter_mut().zip(buf.chunks_exact(4)) {
+                        for (c, a) in c32.iter_mut().zip(c8.iter()) {
+                            *c = *a as f32 / 255.0;
+                        }
+                    }
+                }
+                let img = image::codecs::hdr::HdrEncoder::new(buffer);
+                img.write_image(rgb.as_bytes(), width, height, image::ColorType::Rgb32F.into())?;
+            },
             image::ImageFormat::OpenExr => todo!(),
             image::ImageFormat::Farbfeld => todo!(),
             image::ImageFormat::Avif => todo!(),

@@ -48,7 +48,7 @@ pub(crate) const FORMATS: &[ImageFormat] = &[
     #[cfg(feature = "image_gif")]
     ImageFormat::from_static("GIF", "gif", "gif", Cap::ENCODE),
     #[cfg(feature = "image_hdr")]
-    ImageFormat::from_static("Radiance HDR", "vnd.radiance", "hdr", Cap::empty()),
+    ImageFormat::from_static("Radiance HDR", "vnd.radiance", "hdr", Cap::ENCODE),
     #[cfg(feature = "image_ico")]
     ImageFormat::from_static("ICO", "x-icon,vnd.microsoft.icon", "ico", Cap::ENCODE_ENTRIES),
     #[cfg(feature = "image_jpeg")]
