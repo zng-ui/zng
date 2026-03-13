@@ -2,7 +2,7 @@ use winit::{
     event_loop::ActiveEventLoop,
     window::{CustomCursor, Icon},
 };
-use zng_task::channel::IpcBytes;
+use zng_task::channel::{IpcBytes, IpcBytesMut};
 use zng_txt::{ToTxt as _, formatx};
 use zng_unit::{PxPoint, PxSize};
 use zng_view_api::{
@@ -12,7 +12,7 @@ use zng_view_api::{
 
 use crate::{
     AppEvent, AppEventSender,
-    image_cache::{FORMATS, Image, ImageCache, ImageData},
+    image_cache::{FORMATS, Image, ImageCache, ImageData, dyn_image},
 };
 
 impl ImageCache {
@@ -207,26 +207,12 @@ impl Image {
             }
         }
 
-        if self.0.is_mask() {
-            let width = size.width.0 as u32;
-            let height = size.height.0 as u32;
-            let is_opaque = self.0.is_opaque();
-            let r8 = pixels[..].to_vec();
-
-            let mut img = image::DynamicImage::ImageLuma8(image::ImageBuffer::from_raw(width, height, r8).unwrap());
-            if is_opaque {
-                img = image::DynamicImage::ImageRgb8(img.to_rgb8());
-            }
-            img.write_to(buffer, format)?;
-
-            return Ok(());
-        }
-
         // invert rows, `image` only supports top-to-bottom buffers.
-        let mut buf = pixels[..].to_vec();
-        // BGRA to RGBA and remove pre mul
-        bgra_pre_mul_to_rgba(&mut buf, self.0.is_opaque());
-        let rgba = buf;
+        let mut buf = IpcBytesMut::from_slice_blocking(&pixels[..])?;
+        if !self.0.is_mask() {
+            // BGRA to RGBA and remove pre mul
+            bgra_pre_mul_to_rgba(&mut buf, self.0.is_opaque());
+        }
 
         let width = size.width.0 as u32;
         let height = size.height.0 as u32;
@@ -242,52 +228,56 @@ impl Image {
                         unit: image::codecs::jpeg::PixelDensityUnit::Inches,
                     });
                 }
-                jpg.encode(&rgba, width, height, image::ColorType::Rgba8.into())?;
+                if self.0.is_mask() {
+                    jpg.encode(&buf, width, height, image::ColorType::L8.into())?;
+                } else {
+                    buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
+                    jpg.encode(&buf, width, height, image::ColorType::Rgb8.into())?;
+                }
             }
             #[cfg(feature = "image_png")]
             image::ImageFormat::Png => {
-                let mut img = image::DynamicImage::ImageRgba8(image::ImageBuffer::from_raw(width, height, rgba).unwrap());
-                if is_opaque {
-                    img = image::DynamicImage::ImageRgb8(img.to_rgb8());
-                }
-                if let Some(density) = density {
-                    let mut png_bytes = vec![];
-
-                    img.write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)?;
-
-                    let mut png = img_parts::png::Png::from_bytes(png_bytes.into()).unwrap();
-
-                    let chunk_kind = *b"pHYs";
-                    debug_assert!(png.chunk_by_type(chunk_kind).is_none());
-
-                    use byteorder::*;
-                    let mut chunk = Vec::with_capacity(4 * 2 + 1);
-
-                    // density / inch_to_metric
-                    let ppm_x = density.width.ppm() as u32;
-                    let ppm_y = density.height.ppm() as u32;
-
-                    chunk.write_u32::<BigEndian>(ppm_x).unwrap();
-                    chunk.write_u32::<BigEndian>(ppm_y).unwrap();
-                    chunk.write_u8(1).unwrap(); // metric
-
-                    let chunk = img_parts::png::PngChunk::new(chunk_kind, chunk.into());
-                    png.chunks_mut().insert(1, chunk);
-
-                    png.encoder().write_to(buffer)?;
+                let mut img = png::Encoder::new(buffer, width, height);
+                img.set_compression(png::Compression::Fast); // image crate default
+                img.set_depth(png::BitDepth::Eight);
+                img.set_color(if self.0.is_mask() {
+                    png::ColorType::Grayscale
+                } else if is_opaque {
+                    buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
+                    png::ColorType::Rgb
                 } else {
-                    img.write_to(buffer, image::ImageFormat::Png)?;
+                    png::ColorType::Rgba
+                });
+                if let Some(density) = density {
+                    img.set_pixel_dims(Some(png::PixelDimensions {
+                        xppu: density.width.ppm() as _,
+                        yppu: density.height.ppm() as _,
+                        unit: png::Unit::Meter,
+                    }));
                 }
+                let mut img = img.write_header().map_err(|e| {
+                    image::ImageError::Encoding(image::error::EncodingError::new(
+                        image::error::ImageFormatHint::Exact(image::ImageFormat::Png),
+                        e,
+                    ))
+                })?;
+                img.write_image_data(&buf).map_err(|e| {
+                    image::ImageError::Encoding(image::error::EncodingError::new(
+                        image::error::ImageFormatHint::Exact(image::ImageFormat::Png),
+                        e,
+                    ))
+                })?;
             }
             _ => {
                 // other formats that we don't with custom PPI meta.
 
                 let _ = density; // suppress warning when both png an jpeg are not enabled
 
-                let mut img = image::DynamicImage::ImageRgba8(image::ImageBuffer::from_raw(width, height, rgba).unwrap());
-                if is_opaque {
-                    img = image::DynamicImage::ImageRgb8(img.to_rgb8());
-                }
+                let mut img = if self.0.is_mask() {
+                    dyn_image::IpcDynamicImage::ImageLuma8(image::ImageBuffer::from_raw(width, height, buf).unwrap())
+                } else {
+                    dyn_image::IpcDynamicImage::ImageRgba8(image::ImageBuffer::from_raw(width, height, buf).unwrap())
+                };
                 img.write_to(buffer, format)?;
             }
         }

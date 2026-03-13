@@ -1184,6 +1184,11 @@ impl IpcBytesMut {
         }
     }
 
+    /// Use or copy bytes to exclusive mutable memory.
+    pub async fn from_bytes(bytes: IpcBytes) -> io::Result<Self> {
+        blocking::unblock(move || Self::from_bytes_blocking(bytes)).await
+    }
+
     /// Convert to immutable shareable [`IpcBytes`].
     pub async fn finish(mut self) -> io::Result<IpcBytes> {
         let len = self.len;
@@ -1266,6 +1271,46 @@ impl IpcBytesMut {
                 len: buf.len(),
                 inner: IpcBytesMutInner::Heap(buf),
             })
+        }
+    }
+
+    /// Copy `buf` to exclusive mutable memory.
+    pub fn from_slice_blocking(buf: &[u8]) -> io::Result<Self> {
+        #[cfg(ipc)]
+        if buf.len() <= IpcBytes::INLINE_MAX {
+            Ok(Self {
+                len: buf.len(),
+                inner: IpcBytesMutInner::Heap(buf.to_vec()),
+            })
+        } else {
+            let mut b = IpcBytes::new_mut_blocking(buf.len())?;
+            b[..].copy_from_slice(buf);
+            Ok(b)
+        }
+        #[cfg(not(ipc))]
+        {
+            Ok(Self {
+                len: buf.len(),
+                inner: IpcBytesMutInner::Heap(buf.to_vec()),
+            })
+        }
+    }
+
+    /// Use or copy `bytes` to exclusive mutable memory.
+    pub fn from_bytes_blocking(bytes: IpcBytes) -> io::Result<Self> {
+        if let IpcBytesData::Heap(_) = &*bytes.0 {
+            match Arc::try_unwrap(bytes.0) {
+                Ok(r) => match r {
+                    IpcBytesData::Heap(r) => Ok(Self {
+                        len: r.len(),
+                        inner: IpcBytesMutInner::Heap(r),
+                    }),
+                    _ => unreachable!(),
+                },
+                Err(a) => Self::from_slice_blocking(&IpcBytes(a)[..]),
+            }
+        } else {
+            Self::from_slice_blocking(&bytes[..])
         }
     }
 
@@ -1353,6 +1398,11 @@ impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesMutCast<T> {
     /// Uses `buf` or copies it to exclusive mutable memory.
     pub fn from_vec_blocking(data: Vec<T>) -> io::Result<Self> {
         IpcBytesMut::from_vec_blocking(bytemuck::cast_vec(data)).map(IpcBytesMut::cast)
+    }
+
+    /// Copy data from slice.
+    pub fn from_slice_blocking(data: &[T]) -> io::Result<Self> {
+        IpcBytesMut::from_slice_blocking(bytemuck::cast_slice(data)).map(IpcBytesMut::cast)
     }
 
     /// Reference the underlying raw bytes.

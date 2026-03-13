@@ -3,6 +3,8 @@
 use image::{error::*, *};
 use zng_task::channel::{IpcBytes, IpcBytesMut, IpcBytesMutCast};
 
+use super::encode::EncodeBuffer;
+
 pub(crate) enum IpcDynamicImage {
     /// Each pixel in this image is 8-bit Luma
     ImageLuma8(GrayImage),
@@ -182,6 +184,11 @@ impl IpcDynamicImage {
 
     pub fn dimensions(&self) -> (u32, u32) {
         dynamic_map!(*self, ref p, p.dimensions())
+    }
+    
+    pub fn write_to(&mut self, buffer: &mut dyn EncodeBuffer, format: ImageFormat) -> image::ImageResult<()> {
+        image::DynamicImage::write_to(&self, w, format)
+        todo!()
     }
 }
 

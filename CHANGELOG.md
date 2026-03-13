@@ -1,5 +1,9 @@
 # Unreleased
 
+* Optimize image encoding, now is faster and uses less memory.
+* Add `IpcBytesMut::from_bytes` and `from_bytes_blocking`.
+* Add `IpcBytesMut::from_slice_blocking`.
+
 # 0.21.4
 
 * Fix build with `"image_tiff"` and `"view"` features.
