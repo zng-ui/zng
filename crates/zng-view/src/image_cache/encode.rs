@@ -335,8 +335,31 @@ impl Image {
                 let img = image::codecs::tga::TgaEncoder::new(buffer);                
                 img.encode(&buf, width, height, ct)?;
             },
-            image::ImageFormat::Dds => todo!(),
-            image::ImageFormat::Bmp => todo!(),
+            #[cfg(feature = "image_bmp")]
+            image::ImageFormat::Bmp => {
+                let ct = if is_mask {
+                    image::ColorType::L8.into()
+                } else if is_opaque {
+                    buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
+                    image::ColorType::Rgb8.into()
+                } else {
+                    image::ColorType::Rgba8.into()
+                };
+
+                struct SizedProxy<'a>(&'a mut dyn EncodeBuffer);
+                impl<'a> std::io::Write for SizedProxy<'a> {
+                    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                        self.0.write(buf)
+                    }
+                
+                    fn flush(&mut self) -> std::io::Result<()> {
+                        self.0.flush()
+                    }
+                }
+                let mut buffer = SizedProxy(buffer);
+                let mut img = image::codecs::bmp::BmpEncoder::new(&mut buffer);
+                img.encode(&buf, width, height, ct)?;
+            },
             #[cfg(feature = "image_ico")]
             image::ImageFormat::Ico => {
                 Self::encode_ico(*size, is_mask, pixels, is_opaque, entries, buffer).map_err(|e| {
