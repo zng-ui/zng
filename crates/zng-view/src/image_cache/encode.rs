@@ -308,7 +308,19 @@ impl Image {
                 let img = image::codecs::webp::WebPEncoder::new_lossless(buffer);
                 img.encode(&buf, width, height, ct)?;
             }
-            image::ImageFormat::Pnm => todo!(),
+            #[cfg(feature = "image_pnm")]
+            image::ImageFormat::Pnm => {
+                let ct = if is_mask {
+                    image::ColorType::L8.into()
+                } else if is_opaque {
+                    buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
+                    image::ColorType::Rgb8.into()
+                } else {
+                    image::ColorType::Rgba8.into()
+                };
+                let mut img = image::codecs::pnm::PnmEncoder::new(buffer);
+                img.encode(&buf[..], width, height, ct)?;
+            },
             image::ImageFormat::Tiff => todo!(),
             image::ImageFormat::Tga => todo!(),
             image::ImageFormat::Dds => todo!(),

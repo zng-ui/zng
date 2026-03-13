@@ -60,7 +60,7 @@ pub(crate) const FORMATS: &[ImageFormat] = &[
         "PNM",
         "x-portable-bitmap,x-portable-graymap,x-portable-pixmap,x-portable-anymap",
         "pbm,pgm,ppm,pam",
-        Cap::empty(),
+        Cap::ENCODE,
     ),
     // https://github.com/phoboslab/qoi/issues/167
     #[cfg(feature = "image_qoi")]
