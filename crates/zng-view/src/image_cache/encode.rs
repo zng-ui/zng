@@ -190,22 +190,17 @@ impl Image {
         }
 
         if !entries.is_empty() {
-            return match format {
+            match format {
                 #[cfg(feature = "image_ico")]
-                image::ImageFormat::Ico => {
-                    Self::encode_ico(*size, self.0.is_mask(), pixels, self.0.is_opaque(), entries, buffer).map_err(|e| {
-                        image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
-                    })
-                }
+                image::ImageFormat::Ico => {}
                 #[cfg(feature = "image_tiff")]
-                image::ImageFormat::Tiff => Self::encode_tiff(*size, self.0.is_mask(), pixels, self.0.is_opaque(), entries, buffer)
-                    .map_err(|e| {
-                        image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
-                    }),
-                f => Err(image::ImageError::Encoding(image::error::EncodingError::new(
-                    image::error::ImageFormatHint::Exact(f),
-                    "cannot encode entries for format",
-                ))),
+                image::ImageFormat::Tiff => {}
+                f => {
+                    return Err(image::ImageError::Encoding(image::error::EncodingError::new(
+                        image::error::ImageFormatHint::Exact(f),
+                        "cannot encode entries for format",
+                    )));
+                }
             };
         }
 
@@ -323,14 +318,19 @@ impl Image {
             }
             #[cfg(feature = "image_tiff")]
             image::ImageFormat::Tiff => {
-                Self::encode_tiff(self.size(), is_mask, pixels, is_opaque, vec![], buffer).map_err(|e| {
+                Self::encode_tiff(*size, is_mask, pixels, is_opaque, entries, buffer).map_err(|e| {
                     image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
                 })?;
             }
             image::ImageFormat::Tga => todo!(),
             image::ImageFormat::Dds => todo!(),
             image::ImageFormat::Bmp => todo!(),
-            image::ImageFormat::Ico => todo!(),
+            #[cfg(feature = "image_ico")]
+            image::ImageFormat::Ico => {
+                Self::encode_ico(*size, is_mask, pixels, is_opaque, entries, buffer).map_err(|e| {
+                    image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
+                })?;
+            }
             image::ImageFormat::Hdr => todo!(),
             image::ImageFormat::OpenExr => todo!(),
             image::ImageFormat::Farbfeld => todo!(),
