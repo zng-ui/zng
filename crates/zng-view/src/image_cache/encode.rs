@@ -307,7 +307,7 @@ impl Image {
                 };
                 let img = image::codecs::webp::WebPEncoder::new_lossless(buffer);
                 img.encode(&buf, width, height, ct)?;
-            },
+            }
             image::ImageFormat::Pnm => todo!(),
             image::ImageFormat::Tiff => todo!(),
             image::ImageFormat::Tga => todo!(),

@@ -4,6 +4,7 @@
 * Optimize image encoding, now is faster and uses less memory.
 * Add `IpcBytesMut::from_bytes` and `from_bytes_blocking`.
 * Add `IpcBytesMut::from_slice_blocking`.
+* Fix Inspector screenshot save dialog suggesting formats that do not implement encoding.
 
 # 0.21.4
 
