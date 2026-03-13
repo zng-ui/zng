@@ -66,7 +66,7 @@ pub(crate) const FORMATS: &[ImageFormat] = &[
     #[cfg(feature = "image_qoi")]
     ImageFormat::from_static("QOI", "x-qoi", "qoi", Cap::ENCODE),
     #[cfg(feature = "image_tga")]
-    ImageFormat::from_static("TGA", "x-tga,x-targa", "tga,icb,vda,vst", Cap::empty()),
+    ImageFormat::from_static("TGA", "x-tga,x-targa", "tga,icb,vda,vst", Cap::ENCODE),
     #[cfg(feature = "image_tiff")]
     ImageFormat::from_static("TIFF", "tiff", "tif,tiff", Cap::ENCODE_ENTRIES),
     #[cfg(feature = "image_tiff")]

@@ -322,7 +322,19 @@ impl Image {
                     image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
                 })?;
             }
-            image::ImageFormat::Tga => todo!(),
+            #[cfg(feature = "image_tga")]
+            image::ImageFormat::Tga => {
+                let ct = if is_mask {
+                    image::ColorType::L8.into()
+                } else if is_opaque {
+                    buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
+                    image::ColorType::Rgb8.into()
+                } else {
+                    image::ColorType::Rgba8.into()
+                };
+                let img = image::codecs::tga::TgaEncoder::new(buffer);                
+                img.encode(&buf, width, height, ct)?;
+            },
             image::ImageFormat::Dds => todo!(),
             image::ImageFormat::Bmp => todo!(),
             #[cfg(feature = "image_ico")]
