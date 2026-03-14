@@ -164,7 +164,6 @@ raw-window-handle = { version = "0.6", default-features = false } # matches glut
 image = { version = "0.25", default-features = false, features = ["rayon"] } # on upgrade review audit.toml
 ico = { version = "0.5.0", default-features = false, optional = true }
 fast_image_resize = { version = "6.0", default-features = false, features = ["rayon", "image", "std"] }
-img-parts = { version = "0.4", default-features = false, features = ["std"] }
 byteorder = { version = "1.5", default-features = false }
 rustc-hash = { version = "2.0", default-features = false }
 kamadak-exif = { version = "0.6.1", default-features = false, optional = true }

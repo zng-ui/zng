@@ -1,8 +1,9 @@
+use image::ImageEncoder;
 use winit::{
     event_loop::ActiveEventLoop,
     window::{CustomCursor, Icon},
 };
-use zng_task::channel::IpcBytes;
+use zng_task::channel::{IpcBytes, IpcBytesMut, IpcBytesMutCast};
 use zng_txt::{ToTxt as _, formatx};
 use zng_unit::{PxPoint, PxSize};
 use zng_view_api::{
@@ -192,45 +193,28 @@ impl Image {
         if !entries.is_empty() {
             match format {
                 #[cfg(feature = "image_ico")]
-                image::ImageFormat::Ico => {
-                    Self::encode_ico(*size, self.0.is_mask(), pixels, self.0.is_opaque(), entries, buffer).map_err(|e| {
-                        image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
-                    })?;
-                }
+                image::ImageFormat::Ico => {}
                 #[cfg(feature = "image_tiff")]
-                image::ImageFormat::Tiff => {
-                    Self::encode_tiff(*size, self.0.is_mask(), pixels, self.0.is_opaque(), entries, buffer).map_err(|e| {
-                        image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
-                    })?;
+                image::ImageFormat::Tiff => {}
+                f => {
+                    return Err(image::ImageError::Encoding(image::error::EncodingError::new(
+                        image::error::ImageFormatHint::Exact(f),
+                        "cannot encode entries for format",
+                    )));
                 }
-                _ => unreachable!(), // caller validated capabilities
-            }
+            };
         }
-
-        if self.0.is_mask() {
-            let width = size.width.0 as u32;
-            let height = size.height.0 as u32;
-            let is_opaque = self.0.is_opaque();
-            let r8 = pixels[..].to_vec();
-
-            let mut img = image::DynamicImage::ImageLuma8(image::ImageBuffer::from_raw(width, height, r8).unwrap());
-            if is_opaque {
-                img = image::DynamicImage::ImageRgb8(img.to_rgb8());
-            }
-            img.write_to(buffer, format)?;
-
-            return Ok(());
-        }
-
-        // invert rows, `image` only supports top-to-bottom buffers.
-        let mut buf = pixels[..].to_vec();
-        // BGRA to RGBA and remove pre mul
-        bgra_pre_mul_to_rgba(&mut buf, self.0.is_opaque());
-        let rgba = buf;
 
         let width = size.width.0 as u32;
         let height = size.height.0 as u32;
         let is_opaque = self.0.is_opaque();
+        let is_mask = self.0.is_mask();
+
+        let mut buf = IpcBytesMut::from_slice_blocking(&pixels[..])?;
+        if !is_mask {
+            // BGRA to RGBA and remove pre mul
+            bgra_pre_mul_to_rgba(&mut buf, self.0.is_opaque());
+        }
 
         match format {
             #[cfg(feature = "image_jpeg")]
@@ -242,53 +226,255 @@ impl Image {
                         unit: image::codecs::jpeg::PixelDensityUnit::Inches,
                     });
                 }
-                jpg.encode(&rgba, width, height, image::ColorType::Rgba8.into())?;
+                if is_mask {
+                    jpg.encode(&buf, width, height, image::ColorType::L8.into())?;
+                } else {
+                    buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
+                    jpg.encode(&buf, width, height, image::ColorType::Rgb8.into())?;
+                }
             }
             #[cfg(feature = "image_png")]
             image::ImageFormat::Png => {
-                let mut img = image::DynamicImage::ImageRgba8(image::ImageBuffer::from_raw(width, height, rgba).unwrap());
-                if is_opaque {
-                    img = image::DynamicImage::ImageRgb8(img.to_rgb8());
-                }
-                if let Some(density) = density {
-                    let mut png_bytes = vec![];
-
-                    img.write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)?;
-
-                    let mut png = img_parts::png::Png::from_bytes(png_bytes.into()).unwrap();
-
-                    let chunk_kind = *b"pHYs";
-                    debug_assert!(png.chunk_by_type(chunk_kind).is_none());
-
-                    use byteorder::*;
-                    let mut chunk = Vec::with_capacity(4 * 2 + 1);
-
-                    // density / inch_to_metric
-                    let ppm_x = density.width.ppm() as u32;
-                    let ppm_y = density.height.ppm() as u32;
-
-                    chunk.write_u32::<BigEndian>(ppm_x).unwrap();
-                    chunk.write_u32::<BigEndian>(ppm_y).unwrap();
-                    chunk.write_u8(1).unwrap(); // metric
-
-                    let chunk = img_parts::png::PngChunk::new(chunk_kind, chunk.into());
-                    png.chunks_mut().insert(1, chunk);
-
-                    png.encoder().write_to(buffer)?;
+                let mut img = png::Encoder::new(buffer, width, height);
+                img.set_compression(png::Compression::Fast); // image crate default
+                img.set_depth(png::BitDepth::Eight);
+                img.set_color(if is_mask {
+                    png::ColorType::Grayscale
+                } else if is_opaque {
+                    buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
+                    png::ColorType::Rgb
                 } else {
-                    img.write_to(buffer, image::ImageFormat::Png)?;
+                    png::ColorType::Rgba
+                });
+                if let Some(density) = density {
+                    img.set_pixel_dims(Some(png::PixelDimensions {
+                        xppu: density.width.ppm() as _,
+                        yppu: density.height.ppm() as _,
+                        unit: png::Unit::Meter,
+                    }));
                 }
+                let mut img = img.write_header().map_err(|e| {
+                    image::ImageError::Encoding(image::error::EncodingError::new(
+                        image::error::ImageFormatHint::Exact(image::ImageFormat::Png),
+                        e,
+                    ))
+                })?;
+                img.write_image_data(&buf).map_err(|e| {
+                    image::ImageError::Encoding(image::error::EncodingError::new(
+                        image::error::ImageFormatHint::Exact(image::ImageFormat::Png),
+                        e,
+                    ))
+                })?;
             }
-            _ => {
-                // other formats that we don't with custom PPI meta.
-
-                let _ = density; // suppress warning when both png an jpeg are not enabled
-
-                let mut img = image::DynamicImage::ImageRgba8(image::ImageBuffer::from_raw(width, height, rgba).unwrap());
-                if is_opaque {
-                    img = image::DynamicImage::ImageRgb8(img.to_rgb8());
+            #[cfg(feature = "image_gif")]
+            image::ImageFormat::Gif => {
+                if is_mask {
+                    // encoder only supports RGB
+                    let mut expanded = IpcBytesMut::new_blocking(buf.len() * 3)?;
+                    for (p, &a) in expanded.chunks_exact_mut(3).zip(&buf[..]) {
+                        p[0] = a;
+                        p[1] = a;
+                        p[2] = a;
+                    }
+                } else if is_opaque {
+                    buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
                 }
-                img.write_to(buffer, format)?;
+                let mut img = image::codecs::gif::GifEncoder::new(buffer);
+                img.encode(
+                    &buf,
+                    width,
+                    height,
+                    if is_opaque || is_mask {
+                        image::ColorType::Rgb8.into()
+                    } else {
+                        image::ColorType::Rgba8.into()
+                    },
+                )?;
+            }
+            #[cfg(feature = "image_webp")]
+            image::ImageFormat::WebP => {
+                let ct = if is_mask {
+                    image::ColorType::L8.into()
+                } else if is_opaque {
+                    buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
+                    image::ColorType::Rgb8.into()
+                } else {
+                    image::ColorType::Rgba8.into()
+                };
+                let img = image::codecs::webp::WebPEncoder::new_lossless(buffer);
+                img.encode(&buf, width, height, ct)?;
+            }
+            #[cfg(feature = "image_pnm")]
+            image::ImageFormat::Pnm => {
+                let ct = if is_mask {
+                    image::ColorType::L8.into()
+                } else if is_opaque {
+                    buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
+                    image::ColorType::Rgb8.into()
+                } else {
+                    image::ColorType::Rgba8.into()
+                };
+                let mut img = image::codecs::pnm::PnmEncoder::new(buffer);
+                img.encode(&buf[..], width, height, ct)?;
+            }
+            #[cfg(feature = "image_tiff")]
+            image::ImageFormat::Tiff => {
+                Self::encode_tiff(*size, is_mask, pixels, is_opaque, entries, buffer).map_err(|e| {
+                    image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
+                })?;
+            }
+            #[cfg(feature = "image_tga")]
+            image::ImageFormat::Tga => {
+                let ct = if is_mask {
+                    image::ColorType::L8.into()
+                } else if is_opaque {
+                    buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
+                    image::ColorType::Rgb8.into()
+                } else {
+                    image::ColorType::Rgba8.into()
+                };
+                let img = image::codecs::tga::TgaEncoder::new(buffer);
+                img.encode(&buf, width, height, ct)?;
+            }
+            #[cfg(feature = "image_bmp")]
+            image::ImageFormat::Bmp => {
+                let ct = if is_mask {
+                    image::ColorType::L8.into()
+                } else if is_opaque {
+                    buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
+                    image::ColorType::Rgb8.into()
+                } else {
+                    image::ColorType::Rgba8.into()
+                };
+
+                struct SizedProxy<'a>(&'a mut dyn EncodeBuffer);
+                impl<'a> std::io::Write for SizedProxy<'a> {
+                    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                        self.0.write(buf)
+                    }
+
+                    fn flush(&mut self) -> std::io::Result<()> {
+                        self.0.flush()
+                    }
+                }
+                let mut buffer = SizedProxy(buffer);
+                let mut img = image::codecs::bmp::BmpEncoder::new(&mut buffer);
+                img.encode(&buf, width, height, ct)?;
+            }
+            #[cfg(feature = "image_ico")]
+            image::ImageFormat::Ico => {
+                Self::encode_ico(*size, is_mask, pixels, is_opaque, entries, buffer).map_err(|e| {
+                    image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
+                })?;
+            }
+            #[cfg(feature = "image_hdr")]
+            image::ImageFormat::Hdr => {
+                const F: f32 = 1.0 / 255.0;
+                let mut rgb = IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
+                if is_mask {
+                    for (c, a) in rgb.iter_mut().zip(buf.iter()) {
+                        let a = *a as f32 * F;
+                        c[0] = a;
+                        c[1] = a;
+                        c[2] = a;
+                    }
+                } else {
+                    for (c32, c8) in rgb.iter_mut().zip(buf.chunks_exact(4)) {
+                        for (c32, c8) in c32.iter_mut().zip(c8.iter()) {
+                            *c32 = *c8 as f32 * F;
+                        }
+                    }
+                }
+                let img = image::codecs::hdr::HdrEncoder::new(buffer);
+                img.write_image(rgb.as_bytes(), width, height, image::ColorType::Rgb32F.into())?;
+            }
+            #[cfg(feature = "image_exr")]
+            image::ImageFormat::OpenExr => {
+                const F: f32 = 1.0 / 255.0;
+                let img = image::codecs::openexr::OpenExrEncoder::new(buffer);
+                let ct = if is_mask {
+                    let mut rgb = IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
+                    for (c, a) in rgb.iter_mut().zip(buf.iter()) {
+                        let a = *a as f32 * F;
+                        c[0] = a;
+                        c[1] = a;
+                        c[2] = a;
+                    }
+                    buf = rgb.into_inner();
+                    image::ColorType::Rgb32F.into()
+                } else if is_opaque {
+                    let mut rgb = IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
+                    for (c32, c8) in rgb.iter_mut().zip(buf.chunks_exact(4)) {
+                        for (c, a) in c32.iter_mut().zip(c8.iter()) {
+                            *c = *a as f32 * F;
+                        }
+                    }
+                    buf = rgb.into_inner();
+                    image::ColorType::Rgb32F.into()
+                } else {
+                    let mut rgba = IpcBytesMutCast::<[f32; 4]>::new_blocking(width as usize * height as usize)?;
+                    for (c32, c8) in rgba.iter_mut().zip(buf.chunks_exact(4)) {
+                        for (c32, c8) in c32.iter_mut().zip(c8.iter()) {
+                            *c32 = *c8 as f32 * F;
+                        }
+                    }
+                    buf = rgba.into_inner();
+                    image::ColorType::Rgba32F.into()
+                };
+                img.write_image(&buf, width, height, ct)?;
+            }
+            #[cfg(feature = "image_ff")]
+            image::ImageFormat::Farbfeld => {
+                const F: u16 = 257;
+                let mut rgba = IpcBytesMutCast::<[u16; 4]>::new_blocking(width as usize * height as usize)?;
+                if is_mask {
+                    for (c, a) in rgba.iter_mut().zip(buf.iter()) {
+                        let a = *a as u16 * 257;
+                        c[0] = a;
+                        c[1] = a;
+                        c[2] = a;
+                        c[3] = u16::MAX;
+                    }
+                } else {
+                    for (c16, c8) in rgba.iter_mut().zip(buf.chunks_exact(4)) {
+                        for (c16, c8) in c16.iter_mut().zip(c8.iter()) {
+                            *c16 = *c8 as u16 * F;
+                        }
+                    }
+                }
+                let img = image::codecs::farbfeld::FarbfeldEncoder::new(buffer);
+                img.encode(rgba.as_bytes(), width, height)?;
+            }
+            #[cfg(feature = "image_qoi")]
+            image::ImageFormat::Qoi => {
+                if is_mask {
+                    // encoder only supports RGB
+                    let mut expanded = IpcBytesMut::new_blocking(buf.len() * 3)?;
+                    for (p, &a) in expanded.chunks_exact_mut(3).zip(&buf[..]) {
+                        p[0] = a;
+                        p[1] = a;
+                        p[2] = a;
+                    }
+                } else if is_opaque {
+                    buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
+                };
+                let img = image::codecs::qoi::QoiEncoder::new(buffer);
+                img.write_image(
+                    &buf,
+                    width,
+                    height,
+                    if is_opaque || is_mask {
+                        image::ColorType::Rgb8.into()
+                    } else {
+                        image::ColorType::Rgba8.into()
+                    },
+                )?;
+            }
+            f => {
+                return Err(image::ImageError::Encoding(image::error::EncodingError::new(
+                    image::error::ImageFormatHint::Exact(f),
+                    "cannot encode format",
+                )));
             }
         }
 

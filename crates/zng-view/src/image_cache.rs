@@ -41,14 +41,14 @@ pub(crate) const FORMATS: &[ImageFormat] = &[
     #[cfg(feature = "image_dds")]
     ImageFormat::from_static("DirectDraw Surface", "vnd-ms.dds,x-direct-draw-surface", "dds", Cap::empty()),
     #[cfg(feature = "image_exr")]
-    ImageFormat::from_static("OpenEXR", "x-exr", "exr", Cap::empty()),
+    ImageFormat::from_static("OpenEXR", "x-exr", "exr", Cap::ENCODE),
     // https://www.wikidata.org/wiki/Q28206109
     #[cfg(feature = "image_ff")]
-    ImageFormat::from_static("Farbfeld", "x-farbfeld", "ff", Cap::empty()),
+    ImageFormat::from_static("Farbfeld", "x-farbfeld", "ff", Cap::ENCODE),
     #[cfg(feature = "image_gif")]
-    ImageFormat::from_static("GIF", "gif", "gif", Cap::empty()),
+    ImageFormat::from_static("GIF", "gif", "gif", Cap::ENCODE),
     #[cfg(feature = "image_hdr")]
-    ImageFormat::from_static("Radiance HDR", "vnd.radiance", "hdr", Cap::empty()),
+    ImageFormat::from_static("Radiance HDR", "vnd.radiance", "hdr", Cap::ENCODE),
     #[cfg(feature = "image_ico")]
     ImageFormat::from_static("ICO", "x-icon,vnd.microsoft.icon", "ico", Cap::ENCODE_ENTRIES),
     #[cfg(feature = "image_jpeg")]
@@ -60,13 +60,13 @@ pub(crate) const FORMATS: &[ImageFormat] = &[
         "PNM",
         "x-portable-bitmap,x-portable-graymap,x-portable-pixmap,x-portable-anymap",
         "pbm,pgm,ppm,pam",
-        Cap::empty(),
+        Cap::ENCODE,
     ),
     // https://github.com/phoboslab/qoi/issues/167
     #[cfg(feature = "image_qoi")]
     ImageFormat::from_static("QOI", "x-qoi", "qoi", Cap::ENCODE),
     #[cfg(feature = "image_tga")]
-    ImageFormat::from_static("TGA", "x-tga,x-targa", "tga,icb,vda,vst", Cap::empty()),
+    ImageFormat::from_static("TGA", "x-tga,x-targa", "tga,icb,vda,vst", Cap::ENCODE),
     #[cfg(feature = "image_tiff")]
     ImageFormat::from_static("TIFF", "tiff", "tif,tiff", Cap::ENCODE_ENTRIES),
     #[cfg(feature = "image_tiff")]

@@ -661,15 +661,21 @@ fn wgt_filter(filter: &str, wgt_ty: Option<WidgetType>, wgt_id: WidgetId) -> boo
 
 #[cfg(feature = "image")]
 async fn save_screenshot(inspected: WindowId) {
+    use zng_ext_image::ImageFormatCapability;
+
     let frame = WINDOWS.frame_image(inspected, None);
 
     let mut filters = FileDialogFilters::new();
-    let encoders = zng_ext_image::IMAGES.available_formats();
+    let encoders: Vec<_> = zng_ext_image::IMAGES
+        .available_formats()
+        .into_iter()
+        .filter(|f| f.capabilities.contains(ImageFormatCapability::ENCODE))
+        .collect();
     filters.push_filter(
         l10n!("inspector/screenshot.save-dlg-filter", "Image Files").get().as_str(),
         encoders.iter().flat_map(|e| e.file_extensions_iter()),
     );
-    for enc in &encoders {
+    for enc in encoders {
         filters.push_filter(&enc.display_name, enc.file_extensions_iter());
     }
 
