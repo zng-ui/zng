@@ -450,9 +450,9 @@ jobs:
         with:
           run: cargo do test --render
       - run: cargo do clean
-        if: ${{ github.event.inputs.skip_checks != 'true' }}
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo do build -e focus --release
-        if: ${{ github.event.inputs.skip_checks != 'true' }}
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
   
@@ -495,9 +495,9 @@ jobs:
       - run: cargo do test --render
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo do clean
-        if: ${{ github.event.inputs.skip_checks != 'true' }}
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo do build -e focus --release
-        if: ${{ github.event.inputs.skip_checks != 'true' }}
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
   test-macos:
@@ -536,9 +536,9 @@ jobs:
       - run: cargo do test --render
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo do clean
-        if: ${{ github.event.inputs.skip_checks != 'true' }}
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo do build -e focus --release
-        if: ${{ github.event.inputs.skip_checks != 'true' }}
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
 
