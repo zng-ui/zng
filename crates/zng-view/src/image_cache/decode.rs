@@ -611,6 +611,7 @@ impl ImageCache {
                             (b * 255.0).clamp(0.0, 255.0) as u8,
                             (g * 255.0).clamp(0.0, 255.0) as u8,
                             (r * 255.0).clamp(0.0, 255.0) as u8,
+                            255,
                         ]
                     });
                 }
