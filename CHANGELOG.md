@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.21.5
+
 * Fix images decoded from RGBf32 crashing the view-process.
 * Implement image encoding for GIF, PNM, TGA, HDR, OpenEXR and Farbfeld.
 * Optimize image encoding, now is faster and uses less memory.
