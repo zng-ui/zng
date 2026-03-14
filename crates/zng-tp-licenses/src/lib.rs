@@ -174,7 +174,7 @@ pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<LicenseUsed> {
     }
 
     if !about_cfg_path.is_empty() {
-        cargo_about.arg("-c").arg(about_cfg_path);
+        cargo_about.arg("--config").arg(about_cfg_path);
     }
 
     let output = cargo_about.output().expect("error calling `cargo about`");

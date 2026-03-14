@@ -1,0 +1,17 @@
+# config for builds with "bundle_licenses"
+
+accepted = [
+    "Apache-2.0",
+    "MIT",
+    "Zlib",
+    "MPL-2.0",
+    "BSL-1.0",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+]
+
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+filter-noassertion = true
+private = { ignore = true }

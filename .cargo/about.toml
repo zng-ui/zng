@@ -1,5 +1,7 @@
 # cargo about generate -c .cargo/about.toml --format json --workspace --all-features
 
+# note: zng-view maintains own about.toml for bundling licenses
+
 accepted = [
     "Apache-2.0",
     "MIT",
